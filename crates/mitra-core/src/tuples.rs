@@ -1,0 +1,222 @@
+//! Sets of input tuples: what a claim or a piece of evidence is about when a
+//! function has several parameters.
+//!
+//! A set of tuples is a union of boxes; a box is one set per parameter (a
+//! cartesian product). With one parameter this is just a [`Set`].
+
+use crate::set::{Set, Value};
+use std::collections::BTreeSet;
+
+/// The most tuples Mitra enumerates; beyond it a set counts as unbounded.
+const MAX_TUPLES: f64 = 1_000_000.0;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tuples {
+    arity: usize,
+    /// No box has an empty component.
+    boxes: Vec<Vec<Set>>,
+}
+
+impl Tuples {
+    pub fn empty(arity: usize) -> Tuples {
+        Tuples {
+            arity,
+            boxes: vec![],
+        }
+    }
+
+    /// The product of one set per parameter.
+    pub fn product(sets: Vec<Set>) -> Tuples {
+        let arity = sets.len();
+        let boxes = if sets.iter().any(Set::is_empty) {
+            vec![]
+        } else {
+            vec![sets]
+        };
+        Tuples { arity, boxes }
+    }
+
+    pub fn point(values: &[Value]) -> Tuples {
+        Tuples::product(values.iter().map(Set::point).collect())
+    }
+
+    pub fn arity(&self) -> usize {
+        self.arity
+    }
+
+    pub fn union(&self, o: &Tuples) -> Tuples {
+        Tuples {
+            arity: self.arity,
+            boxes: [self.boxes.clone(), o.boxes.clone()].concat(),
+        }
+    }
+
+    pub fn intersect(&self, o: &Tuples) -> Tuples {
+        let mut boxes = Vec::new();
+        for a in &self.boxes {
+            for b in &o.boxes {
+                let meet: Vec<Set> = a.iter().zip(b).map(|(x, y)| x.intersect(y)).collect();
+                if !meet.iter().any(Set::is_empty) {
+                    boxes.push(meet);
+                }
+            }
+        }
+        Tuples {
+            arity: self.arity,
+            boxes,
+        }
+    }
+
+    pub fn minus(&self, o: &Tuples) -> Tuples {
+        let mut boxes = self.boxes.clone();
+        for b in &o.boxes {
+            boxes = boxes.iter().flat_map(|a| box_minus(a, b)).collect();
+        }
+        Tuples {
+            arity: self.arity,
+            boxes,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.boxes.is_empty()
+    }
+
+    pub fn is_subset(&self, o: &Tuples) -> bool {
+        self.minus(o).is_empty()
+    }
+
+    /// Same elements, whatever the boxes.
+    pub fn same(&self, o: &Tuples) -> bool {
+        self.is_subset(o) && o.is_subset(self)
+    }
+
+    pub fn contains(&self, t: &[Value]) -> bool {
+        Tuples::point(t).is_subset(self)
+    }
+
+    /// With one parameter: the set of values.
+    pub fn as_set(&self) -> Set {
+        assert_eq!(self.arity, 1);
+        self.boxes.iter().fold(Set::empty(), |s, b| s.union(&b[0]))
+    }
+
+    /// Every tuple, sorted, if the set is finite and not too large.
+    pub fn values(&self) -> Option<Vec<Vec<Value>>> {
+        let mut out = BTreeSet::new();
+        for b in &self.boxes {
+            let size: f64 = b.iter().map(|s| s.count()).product::<Option<f64>>()?;
+            if size + out.len() as f64 > MAX_TUPLES {
+                return None;
+            }
+            let mut tuples = vec![vec![]];
+            for s in b {
+                let vs = s.values()?;
+                tuples = tuples
+                    .into_iter()
+                    .flat_map(|t: Vec<Value>| {
+                        vs.iter()
+                            .map(move |v| [t.clone(), vec![v.clone()]].concat())
+                    })
+                    .collect();
+            }
+            out.extend(tuples);
+        }
+        Some(out.into_iter().collect())
+    }
+
+    pub fn count(&self) -> Option<f64> {
+        self.values().map(|v| v.len() as f64)
+    }
+
+    /// Readable form. One parameter: the set. Otherwise the domain's own
+    /// form when equal to it, a list of tuples when finite, or boxes.
+    pub fn show(&self, domain: &Tuples) -> String {
+        if self.arity == 1 {
+            return self.as_set().to_string();
+        }
+        if self.is_empty() {
+            return "{}".into();
+        }
+        if self.same(domain) && domain.boxes.len() == 1 {
+            return show_box(&domain.boxes[0]);
+        }
+        if let Some(vs) = self.values() {
+            let ts: Vec<String> = vs
+                .iter()
+                .map(|t| {
+                    format!(
+                        "({})",
+                        t.iter()
+                            .map(|v| v.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                })
+                .collect();
+            return format!("{{{}}}", ts.join(", "));
+        }
+        self.boxes
+            .iter()
+            .map(|b| show_box(b))
+            .collect::<Vec<_>>()
+            .join(" | ")
+    }
+}
+
+fn show_box(b: &[Set]) -> String {
+    format!(
+        "({})",
+        b.iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
+/// `a \ b` as disjoint boxes: for each position i, the part of `a` that
+/// agrees with `b` before i and leaves it at i.
+fn box_minus(a: &[Set], b: &[Set]) -> Vec<Vec<Set>> {
+    let mut out = Vec::new();
+    for i in 0..a.len() {
+        let mut piece: Vec<Set> = Vec::with_capacity(a.len());
+        for (j, s) in a.iter().enumerate() {
+            piece.push(match j.cmp(&i) {
+                std::cmp::Ordering::Less => s.intersect(&b[j]),
+                std::cmp::Ordering::Equal => s.minus(&b[j]),
+                std::cmp::Ordering::Greater => s.clone(),
+            });
+        }
+        if !piece.iter().any(Set::is_empty) {
+            out.push(piece);
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn int(i: i64) -> Value {
+        Value::Int(i)
+    }
+
+    #[test]
+    fn algebra_and_display() {
+        let d = Tuples::product(vec![Set::interval(0, 2), Set::interval(-2, 0)]);
+        assert_eq!(d.count(), Some(9.0));
+        let hole = d.minus(&Tuples::point(&[int(1), int(-1)]));
+        assert_eq!(hole.count(), Some(8.0));
+        assert!(!hole.contains(&[int(1), int(-1)]));
+        assert!(hole.union(&Tuples::point(&[int(1), int(-1)])).same(&d));
+        assert_eq!(d.show(&d), "([0, 2], [-2, 0])");
+        assert_eq!(d.minus(&hole).show(&d), "{(1, -1)}");
+        let wide = Tuples::product(vec![Set::int(), Set::point(&int(0))]);
+        assert_eq!(wide.count(), None);
+        assert_eq!(
+            wide.show(&Tuples::product(vec![Set::int(), Set::int()])),
+            "(int, {0})"
+        );
+    }
+}

@@ -40,8 +40,9 @@ and exits with status 2.
 model      = { statement } ;
 statement  = subject | spec | claim | profile | policy ;
 
-subject    = "subject" name "(" name ":" set ")" "->" set ;
-spec       = "spec" name "(" name ":" set ")" "->" set "=" expr ;
+subject    = "subject" name params "->" set ;
+spec       = "spec" name params "->" set "=" expr ;
+params     = "(" name ":" set { "," name ":" set } ")" ;
 claim      = "claim" name ":" name pattern
              ( "correct" | "matches" expr )
              [ "from" name { "," name } ] ;
@@ -54,7 +55,8 @@ evidences  = { evidence } ;
 evidence   = "evidence" name pattern judgment "@" number ;
 judgment   = "correct" | "wrong" | "holds" | "fails" | "->" value ;
 
-pattern    = "(" ( "_" | value | name [ "in" set ] ) ")" ;
+pattern    = "(" position { "," position } ")" ;
+position   = "_" | value | name [ "in" set ] ;
 
 set        = set-atom { ( "|" | "&" | "\" ) set-atom } ;
 set-atom   = "bool" | "int" | "string" | "any"
@@ -70,7 +72,8 @@ and        = compare { "&&" compare } ;
 compare    = sum { ( "==" | "!=" | "<" | "<=" | ">" | ">=" ) sum } ;
 sum        = product { ( "+" | "-" ) product } ;
 product    = unary { "*" unary } ;
-unary      = ( "!" | "-" ) unary | value | name | name "(" expr ")" | "(" expr ")" ;
+unary      = ( "!" | "-" ) unary | value | name | call | "(" expr ")" ;
+call       = name "(" expr { "," expr } ")" ;
 
 value      = "true" | "false" | integer | string ;
 ```
@@ -102,21 +105,24 @@ minus some values, joined by ` | `. The empty set prints `{}`.
 
 ```mitra
 subject  not(a: bool) -> bool
+subject  minus(a: int, b: int) -> int
 ```
 
-A function, task or process under review, with **one parameter** for now.
-The set after `:` is its domain, the set after `->` its result type. A
-subject is **opaque**: Mitra never runs it, it only weighs evidence about it.
+A function, task or process under review. Each parameter has a type (a
+set); its inputs are the tuples of the product of those types. The set after
+`->` is its result type. A subject is **opaque**: Mitra never runs it, it
+only weighs evidence about it.
 
 ### spec
 
 ```mitra
 spec     neg(a: bool) -> bool = !a
 spec     step(x: int) -> int = if x > 0 then x - 1 else let y = -x in y * 2
+spec     difference(a: int, b: int) -> int = a - b
 ```
 
 A **definition**: a total, pure function Mitra evaluates. Its body is an
-expression: values, the parameter, `let`, `if`, `!`, `-`, `+`, `-`, `*`,
+expression: values, the parameters, `let`, `if`, `!`, `-`, `+`, `-`, `*`,
 comparisons (`<` `<=` `>` `>=` on integers, `==` `!=` on any values), `&&`,
 `||`, and calls of specs defined above it (so no recursion). Integer
 arithmetic is 64-bit and an overflow is an error. A spec is true by
@@ -130,21 +136,23 @@ claim    not_spec:      not(_)       matches neg
 claim    neg_twice:     same(a)      matches neg(neg(a))
 claim    id_small:      id(x in [0, 100]) correct
 claim    not_not_same:  not_not(_)   matches same from not_spec, not_not_shape, neg_twice
+claim    minus_shape:   minus(a in [0, 2], b in [0, 2]) matches add(a, negate(b))
 ```
 
-The pattern picks the claim's **domain**: `_` or a bare name is the whole
-domain of the function, a value is that input alone, `x in <set>` is that
-set. It must lie inside the function's domain. A name binds the input for
-the expression after `matches`.
+The pattern picks the claim's **domain**, one position per parameter: `_`
+or a bare name is the parameter's whole type, a value is that value alone,
+`x in <set>` is that set. The domain is the product of the positions, and
+must lie inside the function's domain. A name binds that input for the
+expression after `matches`.
 
 - `correct`: the subject is correct on every input of the domain, as people
   judge it. Only for subjects.
 - `matches e`: on every input x of the domain, f(x) = e. A bare function
   name `g` means `g(x)`. `e` may call specs and subjects.
-- `from c1, c2, …`: a **derivation**. The claim holds on its whole domain
-  when every premise holds. Premises must be claims defined above. Mitra
-  does not check that the premises imply the claim: the derivation is
-  stated by the author.
+- `from c1, c2, …`: a **derivation**. Premises must be claims defined
+  above. Mitra checks the implication "premises ⇒ claim" when it can (see
+  Evaluation), and the claim holds on its whole domain when every premise
+  holds and the implication is not refuted.
 
 ### evidence
 
@@ -218,12 +226,28 @@ An input both right and wrong is a **contradiction** and counts on neither
 side. Then:
 
 - *refuted* = wrong \ right.
-- *covered* = right \ wrong; if the claim has `from` and every premise
-  holds, *covered* = D \ wrong instead. A failing premise only removes the
-  derived support; a direct counterexample still refutes the claim.
+- *covered* = right \ wrong; if the claim has `from`, every premise holds
+  and the implication is not refuted, *covered* = D \ wrong instead. A
+  failing premise only removes the derived support; a direct counterexample
+  still refutes the claim.
 - **logic** is `fails` if *refuted* is not empty, `holds` if *covered* = D,
   and `uncertain` otherwise.
 - **belief** is 0 when the claim fails, and otherwise depends on the policy.
+
+**Checking an implication.** For a `matches` claim with `from` and a
+finite domain, Mitra evaluates both sides on every input, treating each
+premise `g(pattern) matches e` as a definition: a call `g(y)` with y in the
+premise's domain is replaced by `e`. Specs are evaluated as usual. The
+implication is:
+
+- `checked` if both sides have a value and agree on every input;
+- `refuted` if they differ on some input: the premises imply something else,
+  so the derivation is not used;
+- `unchecked` otherwise (a subject call no premise defines, an infinite
+  domain, or a `correct` claim). An unchecked implication is taken as
+  stated by the author, and the output says so.
+
+The check depends only on the model, not on evidence.
 
 **Measure under a profile** (for `coverage`). μ(S) = Σ over regions of
 weight / total × share, where the share of a region R is:
@@ -233,7 +257,9 @@ weight / total × share, where the share of a region R is:
   infinite region, or any part short of the whole region, weighs nothing.
 
 Then belief = μ(covered) / μ(D). When μ(D) = 0, belief is 1 if the claim
-holds and 0 otherwise.
+holds and 0 otherwise. Profiles only apply to functions with one parameter;
+for several, μ is uniform over the tuples, with the same rule for finite and
+infinite domains.
 
 ## Output
 
@@ -243,10 +269,14 @@ model order:
 ```text
 verdict id_correct [by_usage] = { logic: uncertain, covered: [0, 100], domain: any, belief: 0.8 }
 verdict id_correct [by_usage] = { logic: fails, refuted: {7}, domain: any, belief: 0 }
+verdict minus_spec [strict] = { logic: holds, covered: ([0, 2], [0, 2]), domain: ([0, 2], [0, 2]), belief: 1, implication: checked }
 ```
 
 `covered` is shown unless the claim fails, in which case `refuted` is shown.
-Beliefs are rounded to 4 decimals. Then one line per piece of evidence on a
+A claim with `from` ends with `implication: checked|unchecked|refuted`.
+Sets of tuples print as the domain's own form when equal to it (`([0, 2],
+[0, 2])`), as a list of tuples when finite (`{(1, -1)}`), or as a union of
+boxes. Beliefs are rounded to 4 decimals. Then one line per piece of evidence on a
 spec:
 
 ```text
@@ -352,6 +382,7 @@ claim    not_not_same:  not_not(_) matches same from not_spec, not_not_shape, ne
 ```
 
 `neg_twice` is about specs only: it holds by computation in every case.
+The implication of `not_not_same` is `checked` in every case.
 "Review" is `evidence not_not_shape(_) holds`.
 
 | Case | Evidence | not_spec | not_not_shape | not_not_same |
@@ -366,4 +397,38 @@ claim    not_not_same:  not_not(_) matches same from not_spec, not_not_shape, ne
 
 In case 05 the counterexample on `not_not` also contradicts the review of
 `not_not_shape` on `true`, so that premise is no longer known to hold.
+
+### `minus`: tuples and a checked derivation, under `strict`
+
+```mitra
+spec     plus(a: int, b: int) -> int = a + b
+spec     opposite(b: int) -> int = -b
+spec     difference(a: int, b: int) -> int = a - b
+subject  add(a: int, b: int) -> int
+subject  negate(b: int) -> int
+subject  minus(a: int, b: int) -> int
+
+claim    add_spec:    add(a in [0, 2], b in [-2, 0]) matches plus
+claim    negate_spec: negate(b in [0, 2]) matches opposite
+claim    minus_shape: minus(a in [0, 2], b in [0, 2]) matches add(a, negate(b))
+claim    minus_spec:  minus(a in [0, 2], b in [0, 2]) matches difference from add_spec, negate_spec, minus_shape
+```
+
+"Leaves" are the outputs of `add` on its 9 inputs and of `negate` on its 3,
+plus a review, `evidence minus_shape(_, _) holds`. There is never evidence
+on `minus` itself.
+
+| Case | Evidence | add_spec | minus_shape | minus_spec | implication |
+|---|---|---|---|---|---|
+| 01 | none | uncertain | uncertain | uncertain | checked |
+| 02 | leaves | holds | holds | holds | checked |
+| 03 | leaves without `add(2, -2)` | uncertain, 8 of 9 covered | holds | uncertain | checked |
+| 04 | leaves with `add(1, -1) -> 1` | fails, refuted {(1, -1)} | holds | uncertain | checked |
+| 05 | leaves; the shape is `add(b, negate(a))` | holds | holds | uncertain | refuted |
+| 06 | leaves without the review; `from add_spec, negate_spec` only | holds | uncertain | holds | unchecked |
+| 07 | only `@ 0` evidence | uncertain | uncertain | uncertain | checked |
+
+`negate_spec` holds whenever the leaves are there. Case 06 shows the risk
+of an unchecked implication: `minus_spec` holds only because the author
+said so.
 

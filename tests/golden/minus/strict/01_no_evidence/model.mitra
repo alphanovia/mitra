@@ -1,0 +1,17 @@
+spec     plus(a: int, b: int) -> int = a + b
+spec     opposite(b: int) -> int = -b
+spec     difference(a: int, b: int) -> int = a - b
+
+subject  add(a: int, b: int) -> int
+subject  negate(b: int) -> int
+subject  minus(a: int, b: int) -> int
+
+# add, on the inputs minus uses.
+claim    add_spec:    add(a in [0, 2], b in [-2, 0]) matches plus
+claim    negate_spec: negate(b in [0, 2]) matches opposite
+# How minus is built, from a review of its code.
+claim    minus_shape: minus(a in [0, 2], b in [0, 2]) matches add(a, negate(b))
+# Derived: Mitra checks the implication by substituting the premises.
+claim    minus_spec:  minus(a in [0, 2], b in [0, 2]) matches difference from add_spec, negate_spec, minus_shape
+
+policy   strict

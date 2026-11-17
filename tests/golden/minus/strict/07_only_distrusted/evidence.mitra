@@ -1,0 +1,2 @@
+evidence add(0, 0) -> 0 @ 0
+evidence minus_shape(_, _) holds @ 0

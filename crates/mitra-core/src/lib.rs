@@ -17,13 +17,16 @@ pub mod ast;
 pub mod eval;
 pub mod parse;
 pub mod set;
+pub mod tuples;
 
 pub use ast::{
-    Claim, Evidence, Expr, Function, Judgment, Model, Pattern, Policy, PolicyKind, Profile, Target,
+    Claim, Evidence, Expr, Function, Judgment, Model, Pattern, Policy, PolicyKind, Position,
+    Profile, Target,
 };
-pub use eval::{evaluate, Flag, Logic, Report, Verdict};
+pub use eval::{evaluate, Flag, Implication, Logic, Report, Verdict};
 pub use parse::{parse_evidence, parse_model};
 pub use set::{Set, Value};
+pub use tuples::Tuples;
 
 use std::fmt;
 

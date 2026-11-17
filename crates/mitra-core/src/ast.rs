@@ -1,6 +1,7 @@
 //! The semantic model. Text is one projection of it (see `parse`).
 
 use crate::set::{Set, Value};
+use crate::tuples::Tuples;
 use crate::{Error, Input};
 
 /// Expressions of the spec language: a small, pure, first-order core.
@@ -8,22 +9,21 @@ use crate::{Error, Input};
 pub enum Expr {
     Lit(Value),
     Var(String),
-    /// A call of a spec or a subject, with one argument.
-    Call(String, Box<Expr>),
+    /// A call of a spec or a subject.
+    Call(String, Vec<Expr>),
     Unary(&'static str, Box<Expr>),
     Binary(&'static str, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     Let(String, Box<Expr>, Box<Expr>),
 }
 
-/// A function with one parameter: a `subject` (opaque, observed) when
-/// `body` is `None`, a `spec` (a definition Mitra evaluates) otherwise.
+/// A function: a `subject` (opaque, observed) when `body` is `None`, a
+/// `spec` (a definition Mitra evaluates) otherwise.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub name: String,
-    pub param: String,
-    /// The parameter's type: the set of inputs the function accepts.
-    pub domain: Set,
+    /// Each parameter with its type: the set of values it accepts.
+    pub params: Vec<(String, Set)>,
     /// The result's type.
     pub range: Set,
     pub body: Option<Expr>,
@@ -34,15 +34,22 @@ impl Function {
     pub fn is_spec(&self) -> bool {
         self.body.is_some()
     }
+    /// Every input tuple the function accepts.
+    pub fn domain(&self) -> Tuples {
+        Tuples::product(self.params.iter().map(|p| p.1.clone()).collect())
+    }
 }
 
-/// Which inputs a claim or a piece of evidence is about: `_`, a value,
-/// `x` or `x in <set>`.
+/// Which inputs a claim or a piece of evidence is about: one position per
+/// parameter.
+pub type Pattern = Vec<Position>;
+
+/// One position of a pattern: `_`, a value, `x` or `x in <set>`.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Pattern {
+pub struct Position {
     /// The name bound to the input, if any.
     pub var: Option<String>,
-    /// `None` is the whole domain.
+    /// `None` is the parameter's whole type.
     pub set: Option<Set>,
 }
 
@@ -130,11 +137,15 @@ impl Model {
         self.claims.iter().find(|c| c.name == name)
     }
 
-    /// The set of inputs a pattern covers for a function.
-    pub fn covers(&self, func: &str, p: &Pattern) -> Set {
-        p.set
-            .clone()
-            .unwrap_or_else(|| self.function(func).expect("checked").domain.clone())
+    /// The set of input tuples a pattern covers for a function.
+    pub fn covers(&self, func: &str, p: &Pattern) -> Tuples {
+        let f = self.function(func).expect("checked");
+        Tuples::product(
+            p.iter()
+                .zip(&f.params)
+                .map(|(pos, (_, ty))| pos.set.clone().unwrap_or(ty.clone()))
+                .collect(),
+        )
     }
 
     /// Check names, references and that patterns stay inside domains.
@@ -169,20 +180,33 @@ impl Model {
                 }
             }
         }
-        let inside =
-            |func: &Function, p: &Pattern| p.set.as_ref().is_none_or(|s| s.is_subset(&func.domain));
+        let fits = |func: &Function, p: &Pattern, line: usize, input: Input| {
+            let err = |msg: String| Err((input, Error::new(line, msg)));
+            if p.len() != func.params.len() {
+                let n = func.params.len();
+                return err(format!(
+                    "`{}` takes {n} input(s), got {}",
+                    func.name,
+                    p.len()
+                ));
+            }
+            let outside = p
+                .iter()
+                .zip(&func.params)
+                .any(|(pos, (_, ty))| pos.set.as_ref().is_some_and(|s| !s.is_subset(ty)));
+            if outside {
+                return err(format!("inputs outside the domain of `{}`", func.name));
+            }
+            Ok(())
+        };
         for (i, c) in self.claims.iter().enumerate() {
             let Some(f) = self.function(&c.func) else {
                 return Err(m(c.line, format!("unknown function `{}`", c.func)));
             };
-            if !inside(f, &c.pattern) {
-                return Err(m(
-                    c.line,
-                    format!("inputs outside the domain of `{}`", c.func),
-                ));
-            }
+            fits(f, &c.pattern, c.line, Input::Model)?;
             if let Target::Matches(e) = &c.target {
-                let fun_ref = matches!(e, Expr::Var(v) if self.function(v).is_some() && Some(v) != c.pattern.var.as_ref());
+                let bound = |v: &String| c.pattern.iter().any(|p| p.var.as_ref() == Some(v));
+                let fun_ref = matches!(e, Expr::Var(v) if self.function(v).is_some() && !bound(v));
                 for name in calls(e).into_iter().chain(fun_ref.then(|| match e {
                     Expr::Var(v) => v.clone(),
                     _ => unreachable!(),
@@ -207,8 +231,14 @@ impl Model {
             let Some(f) = self.function(&p.subject) else {
                 return Err(m(p.line, format!("unknown function `{}`", p.subject)));
             };
+            if f.params.len() != 1 {
+                return Err(m(
+                    p.line,
+                    "a profile needs a function with one parameter for now".into(),
+                ));
+            }
             for (r, w) in &p.regions {
-                if r.as_ref().is_some_and(|r| !r.is_subset(&f.domain)) {
+                if r.as_ref().is_some_and(|r| !r.is_subset(&f.params[0].1)) {
                     return Err(m(
                         p.line,
                         format!("a region is outside the domain of `{}`", p.subject),
@@ -231,14 +261,12 @@ impl Model {
         }
         for e in &self.evidence {
             match (&e.judgment, self.function(&e.about), self.claim(&e.about)) {
-                (Judgment::Holds(_), _, Some(c)) => {
-                    if !inside(self.function(&c.func).unwrap(), &e.pattern) {
-                        return Err(ev(
-                            e.line,
-                            format!("inputs outside the domain of `{}`", c.name),
-                        ));
-                    }
-                }
+                (Judgment::Holds(_), _, Some(c)) => fits(
+                    self.function(&c.func).unwrap(),
+                    &e.pattern,
+                    e.line,
+                    Input::Evidence,
+                )?,
                 (Judgment::Holds(_), _, None) => {
                     return Err(ev(
                         e.line,
@@ -246,15 +274,8 @@ impl Model {
                     ))
                 }
                 (_, Some(f), _) => {
-                    if !inside(f, &e.pattern) {
-                        return Err(ev(
-                            e.line,
-                            format!("inputs outside the domain of `{}`", f.name),
-                        ));
-                    }
-                    if matches!(e.judgment, Judgment::Output(_))
-                        && e.pattern.set.as_ref().and_then(|s| s.single()).is_none()
-                    {
+                    fits(f, &e.pattern, e.line, Input::Evidence)?;
+                    if matches!(e.judgment, Judgment::Output(_)) && single(&e.pattern).is_none() {
                         return Err(ev(
                             e.line,
                             "an observed output needs a single input value".into(),
@@ -279,9 +300,18 @@ impl Model {
 pub fn calls(e: &Expr) -> Vec<String> {
     match e {
         Expr::Lit(_) | Expr::Var(_) => vec![],
-        Expr::Call(f, a) => [vec![f.clone()], calls(a)].concat(),
+        Expr::Call(f, args) => std::iter::once(f.clone())
+            .chain(args.iter().flat_map(calls))
+            .collect(),
         Expr::Unary(_, a) => calls(a),
         Expr::Binary(_, a, b) | Expr::Let(_, a, b) => [calls(a), calls(b)].concat(),
         Expr::If(a, b, c) => [calls(a), calls(b), calls(c)].concat(),
     }
+}
+
+/// The input tuple of a pattern made only of values.
+pub fn single(p: &Pattern) -> Option<Vec<Value>> {
+    p.iter()
+        .map(|pos| pos.set.as_ref().and_then(|s| s.single()))
+        .collect()
 }

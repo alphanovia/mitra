@@ -223,29 +223,44 @@ impl P {
     }
 
     /// `( _ )`, `( value )`, `( x )` or `( x in set )`.
+    /// `( position, … )`, one position per parameter.
     fn pattern(&mut self) -> Result<Pattern, Error> {
-        self.expect("(")?;
-        let p = if self.eat_keyword("_") {
-            Pattern {
+        self.list(|p| p.position())
+    }
+    /// `_`, a value, `x` or `x in set`.
+    fn position(&mut self) -> Result<Position, Error> {
+        if self.eat_keyword("_") {
+            return Ok(Position {
                 var: None,
                 set: None,
-            }
-        } else if self.is_literal() {
-            Pattern {
+            });
+        }
+        if self.is_literal() {
+            return Ok(Position {
                 var: None,
                 set: Some(Set::point(&self.literal()?)),
-            }
+            });
+        }
+        let var = Some(self.ident()?);
+        let set = if self.eat_keyword("in") {
+            Some(self.set()?)
         } else {
-            let var = Some(self.ident()?);
-            let set = if self.eat_keyword("in") {
-                Some(self.set()?)
-            } else {
-                None
-            };
-            Pattern { var, set }
+            None
         };
+        Ok(Position { var, set })
+    }
+    /// `( item, … )`, at least one item.
+    fn list<T>(
+        &mut self,
+        mut item: impl FnMut(&mut P) -> Result<T, Error>,
+    ) -> Result<Vec<T>, Error> {
+        self.expect("(")?;
+        let mut out = vec![item(self)?];
+        while self.eat(",") {
+            out.push(item(self)?);
+        }
         self.expect(")")?;
-        Ok(p)
+        Ok(out)
     }
 
     // ---- expressions ----
@@ -290,7 +305,7 @@ impl P {
         }
         Ok(e)
     }
-    /// unary := ("!" | "-") unary | value | name | name "(" expr ")" | "(" expr ")"
+    /// unary := ("!" | "-") unary | value | name | name "(" expr { "," expr } ")" | "(" expr ")"
     fn unary(&mut self) -> Result<Expr, Error> {
         for op in ["!", "-"] {
             if self.eat(op) {
@@ -306,10 +321,8 @@ impl P {
             return Ok(Expr::Lit(self.literal()?));
         }
         let name = self.ident()?;
-        if self.eat("(") {
-            let arg = self.expr()?;
-            self.expect(")")?;
-            return Ok(Expr::Call(name, Box::new(arg)));
+        if self.is("(") {
+            return Ok(Expr::Call(name, self.list(|p| p.expr())?));
         }
         Ok(Expr::Var(name))
     }
@@ -386,15 +399,13 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
         };
         match kw.as_str() {
             "subject" | "spec" => {
-                // subject name(x: set) -> set   |   spec name(x: set) -> set = expr
+                // subject name(x: set, …) -> set   |   spec name(x: set, …) -> set = expr
                 let name = p.ident()?;
-                p.expect("(")?;
-                let param = p.ident()?;
-                p.expect(":")?;
-                let domain = p.set()?;
-                if !p.eat(")") {
-                    return p.err("a function takes exactly one parameter for now");
-                }
+                let params = p.list(|p| {
+                    let x = p.ident()?;
+                    p.expect(":")?;
+                    Ok((x, p.set()?))
+                })?;
                 p.expect("->")?;
                 let range = p.set()?;
                 let body = if kw == "spec" {
@@ -406,8 +417,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                 p.end()?;
                 m.functions.push(Function {
                     name,
-                    param,
-                    domain,
+                    params,
                     range,
                     body,
                     line: p.line,
@@ -560,8 +570,8 @@ mod tests {
              policy   by_usage = coverage(usage)",
         )
         .unwrap();
-        assert_eq!(m.functions[0].domain, Set::any());
-        assert_eq!(m.claims[0].pattern.set, Some(Set::interval(0, 100)));
+        assert_eq!(m.functions[0].params, vec![("x".to_string(), Set::any())]);
+        assert_eq!(m.claims[0].pattern[0].set, Some(Set::interval(0, 100)));
         assert_eq!(
             m.profiles[0].regions,
             vec![(Some(Set::interval(0, 100)), 0.8), (None, 0.2)]
@@ -592,8 +602,26 @@ mod tests {
                 Box::new(Expr::Lit(Value::Int(1)))
             )
         );
-        assert_eq!(m.claims[0].pattern.var.as_deref(), Some("a"));
+        assert_eq!(m.claims[0].pattern[0].var.as_deref(), Some("a"));
         assert_eq!(m.claims[0].from, vec!["c1".to_string(), "c2".to_string()]);
+    }
+
+    #[test]
+    fn parses_tuples() {
+        let m = parse_model(
+            "subject minus(a: int, b: int) -> int\n\
+             spec    difference(a: int, b: int) -> int = a - b\n\
+             claim   zero: minus(x in [0, 10], 0) matches add(x, negate(0))",
+        )
+        .unwrap();
+        assert_eq!(m.functions[0].params.len(), 2);
+        assert_eq!(m.claims[0].pattern[1].set, Some(Set::point(&Value::Int(0))));
+        let Target::Matches(Expr::Call(f, args)) = &m.claims[0].target else {
+            panic!()
+        };
+        assert_eq!((f.as_str(), args.len()), ("add", 2));
+        let e = parse_evidence("evidence minus(3, 1) -> 2 @ 1").unwrap();
+        assert_eq!(e[0].pattern.len(), 2);
     }
 
     #[test]
@@ -612,7 +640,7 @@ mod tests {
         ]
         .iter()
         .fold(Set::empty(), |s, v| s.union(&Set::point(v)));
-        assert_eq!(e[0].pattern.set, Some(expected));
+        assert_eq!(e[0].pattern[0].set, Some(expected));
         assert_eq!(e[1].judgment, Judgment::Output(Value::Bool(false)));
         assert_eq!(e[2].judgment, Judgment::Holds(true));
     }

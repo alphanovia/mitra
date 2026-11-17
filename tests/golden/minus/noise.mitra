@@ -1,0 +1,5 @@
+# Added to every case by the test harness: evidence at 0 must change nothing.
+evidence add(0, 0)  -> 5 @ 0
+evidence negate(_)  wrong @ 0
+evidence minus(1, 1) -> 7 @ 0
+evidence minus_shape(_, _) fails @ 0

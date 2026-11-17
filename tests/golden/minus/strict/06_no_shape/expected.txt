@@ -1,0 +1,4 @@
+verdict add_spec [strict] = { logic: holds, covered: ([0, 2], [-2, 0]), domain: ([0, 2], [-2, 0]), belief: 1 }
+verdict negate_spec [strict] = { logic: holds, covered: [0, 2], domain: [0, 2], belief: 1 }
+verdict minus_shape [strict] = { logic: uncertain, covered: {}, domain: ([0, 2], [0, 2]), belief: 0 }
+verdict minus_spec [strict] = { logic: holds, covered: ([0, 2], [0, 2]), domain: ([0, 2], [0, 2]), belief: 1, implication: unchecked }
