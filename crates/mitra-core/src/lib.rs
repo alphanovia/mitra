@@ -1,22 +1,22 @@
 //! Mitra's embeddable library.
 //!
-//! Parse a claim model and an evidence list, then compute, for each claim, a
-//! verdict and its two supports: `p` for pass and `f` for fail.
+//! Parse a model (subjects and claims) and a list of evidence, then compute,
+//! for each claim, a verdict and a certainty.
 //!
 //! ```
-//! let claims = "claim not_correct(a: bool): not(a) = !a";
-//! let evidence = "evidence test(t1) : not_correct(true) = pass @ 0.9";
-//! let report = mitra_core::run(claims, evidence, &mitra_core::Policy::default()).unwrap();
-//! assert_eq!(report.claims[0].instances[1].verdict, mitra_core::Verdict::Pass);
+//! let model = "subject not(a: bool) -> bool\nclaim not_correct: forall a: bool. not(a) = !a";
+//! let evidence = "evidence not(true) correct @ 1\nevidence not(false) correct @ 1";
+//! let report = mitra_core::run(model, evidence).unwrap();
+//! assert_eq!(report.to_text(), "not_correct  holds @ 1\n");
 //! ```
 
 pub mod ast;
 pub mod eval;
 pub mod parse;
 
-pub use ast::{Claim, Evidence, Kind, Model, Outcome, Value};
-pub use eval::{evaluate, ClaimResult, InstanceResult, Policy, Report, Verdict};
-pub use parse::{parse_claims, parse_evidence};
+pub use ast::{Arg, Claim, Evidence, Model, Subject};
+pub use eval::{evaluate, ClaimResult, Report, Verdict};
+pub use parse::{parse_evidence, parse_model};
 
 use std::fmt;
 
@@ -47,14 +47,14 @@ impl std::error::Error for Error {}
 /// Which input an error belongs to.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Input {
-    Claims,
+    Model,
     Evidence,
 }
 
-/// Parse both inputs, check the evidence against the claims, and evaluate.
-pub fn run(claims: &str, evidence: &str, policy: &Policy) -> Result<Report, (Input, Error)> {
-    let claims = parse_claims(claims).map_err(|e| (Input::Claims, e))?;
+/// Parse both inputs, check them against each other, and evaluate.
+pub fn run(model: &str, evidence: &str) -> Result<Report, (Input, Error)> {
+    let (subjects, claims) = parse_model(model).map_err(|e| (Input::Model, e))?;
     let evidence = parse_evidence(evidence).map_err(|e| (Input::Evidence, e))?;
-    let model = Model::new(claims, evidence)?;
-    Ok(evaluate(&model, policy))
+    let model = Model::new(subjects, claims, evidence)?;
+    Ok(evaluate(&model))
 }

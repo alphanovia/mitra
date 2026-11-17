@@ -1,9 +1,13 @@
-//! Text projection: one claim or one piece of evidence per line.
-//! `#` starts a comment; blank lines are ignored.
+//! Text projection: one declaration per line. `#` starts a comment; blank
+//! lines are ignored.
 //!
 //! ```text
-//! claim not_correct(a: bool): not(a) = !a
-//! evidence test(t1) : not_correct(true) = pass @ 0.9
+//! subject not(a: bool) -> bool
+//! claim not_correct: forall a: bool. not(a) = !a
+//! claim not_on_true: not(true) = false
+//!
+//! evidence not(true) correct @ 1
+//! evidence not(false) wrong @ 0
 //! ```
 
 use crate::ast::*;
@@ -13,38 +17,34 @@ use crate::Error;
 enum Tok {
     Ident(String),
     Num(String),
-    Punct(char),
+    Punct(&'static str),
 }
+
+const PUNCT: [&str; 9] = ["->", "(", ")", ":", ",", "=", "!", "@", "."];
 
 fn lex(line: &str, n: usize) -> Result<Vec<Tok>, Error> {
     let mut toks = Vec::new();
-    let mut chars = line.chars().peekable();
-    while let Some(&c) = chars.peek() {
+    let mut rest = line;
+    while let Some(c) = rest.chars().next() {
         if c.is_whitespace() {
-            chars.next();
+            rest = &rest[c.len_utf8()..];
         } else if c == '#' {
             break;
+        } else if let Some(p) = PUNCT.iter().find(|p| rest.starts_with(**p)) {
+            toks.push(Tok::Punct(p));
+            rest = &rest[p.len()..];
         } else if c.is_ascii_alphabetic() || c == '_' {
-            let mut s = String::new();
-            while let Some(&c) = chars
-                .peek()
-                .filter(|c| c.is_ascii_alphanumeric() || **c == '_')
-            {
-                s.push(c);
-                chars.next();
-            }
-            toks.push(Tok::Ident(s));
-        } else if c.is_ascii_digit() || c == '-' {
-            let mut s = String::from(c);
-            chars.next();
-            while let Some(&c) = chars.peek().filter(|c| c.is_ascii_digit() || **c == '.') {
-                s.push(c);
-                chars.next();
-            }
-            toks.push(Tok::Num(s));
-        } else if "():,=!@".contains(c) {
-            toks.push(Tok::Punct(c));
-            chars.next();
+            let end = rest
+                .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+                .unwrap_or(rest.len());
+            toks.push(Tok::Ident(rest[..end].into()));
+            rest = &rest[end..];
+        } else if c.is_ascii_digit() {
+            let end = rest
+                .find(|c: char| !(c.is_ascii_digit() || c == '.'))
+                .unwrap_or(rest.len());
+            toks.push(Tok::Num(rest[..end].into()));
+            rest = &rest[end..];
         } else {
             return Err(Error::new(n, format!("unexpected character `{c}`")));
         }
@@ -70,19 +70,19 @@ impl P {
         self.pos += 1;
         t
     }
-    fn eat(&mut self, c: char) -> bool {
-        if self.peek() == Some(&Tok::Punct(c)) {
+    fn eat(&mut self, p: &str) -> bool {
+        if matches!(self.peek(), Some(Tok::Punct(q)) if *q == p) {
             self.pos += 1;
             true
         } else {
             false
         }
     }
-    fn expect(&mut self, c: char) -> Result<(), Error> {
-        if self.eat(c) {
+    fn expect(&mut self, p: &str) -> Result<(), Error> {
+        if self.eat(p) {
             Ok(())
         } else {
-            self.err(format!("expected `{c}`"))
+            self.err(format!("expected `{p}`"))
         }
     }
     fn ident(&mut self) -> Result<String, Error> {
@@ -97,6 +97,9 @@ impl P {
             _ => self.err(format!("expected `{k}`")),
         }
     }
+    fn is_keyword(&self, k: &str) -> bool {
+        matches!(self.peek(), Some(Tok::Ident(s)) if s == k)
+    }
     fn end(&self) -> Result<(), Error> {
         if self.pos < self.toks.len() {
             self.err("unexpected text at end of line")
@@ -109,59 +112,51 @@ impl P {
         &mut self,
         mut item: impl FnMut(&mut P) -> Result<T, Error>,
     ) -> Result<Vec<T>, Error> {
-        self.expect('(')?;
+        self.expect("(")?;
         let mut out = Vec::new();
-        if self.eat(')') {
+        if self.eat(")") {
             return Ok(out);
         }
         loop {
             out.push(item(self)?);
-            if self.eat(')') {
+            if self.eat(")") {
                 return Ok(out);
             }
-            self.expect(',')?;
+            self.expect(",")?;
         }
     }
-    fn value(&mut self) -> Result<Value, Error> {
+    /// `name: bool`
+    fn typed(&mut self) -> Result<String, Error> {
+        let name = self.ident()?;
+        self.expect(":")?;
+        self.keyword("bool")?;
+        Ok(name)
+    }
+    fn bool(&mut self) -> Result<bool, Error> {
         match self.next() {
-            Some(Tok::Ident(s)) if s == "true" => Ok(Value::Bool(true)),
-            Some(Tok::Ident(s)) if s == "false" => Ok(Value::Bool(false)),
-            Some(Tok::Num(s)) => match s.parse() {
-                Ok(i) => Ok(Value::Int(i)),
-                Err(_) => self.err(format!("`{s}` is not an integer")),
-            },
-            _ => self.err("expected a value (true, false or an integer)"),
+            Some(Tok::Ident(s)) if s == "true" => Ok(true),
+            Some(Tok::Ident(s)) if s == "false" => Ok(false),
+            _ => self.err("expected `true` or `false`"),
         }
     }
-    // expr := unary ('=' unary)?
+    // expr := '!' expr | '(' expr ')' | true | false | name | name(args)
     fn expr(&mut self) -> Result<Expr, Error> {
-        let lhs = self.unary()?;
-        if self.eat('=') {
-            let rhs = self.unary()?;
-            return Ok(Expr::Eq(Box::new(lhs), Box::new(rhs)));
+        if self.eat("!") {
+            return Ok(Expr::Not(Box::new(self.expr()?)));
         }
-        Ok(lhs)
-    }
-    // unary := '!' unary | '(' expr ')' | name | name(args) | value
-    fn unary(&mut self) -> Result<Expr, Error> {
-        if self.eat('!') {
-            return Ok(Expr::Not(Box::new(self.unary()?)));
-        }
-        if self.eat('(') {
+        if self.eat("(") {
             let e = self.expr()?;
-            self.expect(')')?;
+            self.expect(")")?;
             return Ok(e);
         }
-        match self.peek() {
-            Some(Tok::Ident(s)) if s != "true" && s != "false" => {
-                let name = self.ident()?;
-                if self.peek() == Some(&Tok::Punct('(')) {
-                    Ok(Expr::Call(name, self.list(|p| p.expr())?))
-                } else {
-                    Ok(Expr::Var(name))
-                }
-            }
-            _ => Ok(Expr::Lit(self.value()?)),
+        if self.is_keyword("true") || self.is_keyword("false") {
+            return Ok(Expr::Value(self.bool()?));
+        }
+        let name = self.ident()?;
+        if matches!(self.peek(), Some(Tok::Punct("("))) {
+            Ok(Expr::Call(name, self.list(|p| p.expr())?))
+        } else {
+            Ok(Expr::Var(name))
         }
     }
 }
@@ -180,77 +175,95 @@ fn lines(src: &str) -> impl Iterator<Item = Result<P, Error>> + '_ {
         })
 }
 
-/// `claim name(a: bool, b): body`
-pub fn parse_claims(src: &str) -> Result<Vec<Claim>, Error> {
-    lines(src)
-        .map(|p| {
-            let mut p = p?;
-            p.keyword("claim")?;
+/// The model file: `subject` and `claim` lines.
+pub fn parse_model(src: &str) -> Result<(Vec<Subject>, Vec<Claim>), Error> {
+    let (mut subjects, mut claims) = (Vec::new(), Vec::new());
+    for p in lines(src) {
+        let mut p = p?;
+        if p.is_keyword("subject") {
+            // subject name(a: bool, ...) -> bool
+            p.next();
             let name = p.ident()?;
-            let params = p.list(|p| {
-                let name = p.ident()?;
-                let domain = if p.eat(':') {
-                    match p.ident()?.as_str() {
-                        "bool" => Domain::Bool,
-                        t => return p.err(format!("unknown domain `{t}` (only `bool` for now)")),
-                    }
-                } else {
-                    Domain::Any
-                };
-                Ok(Param { name, domain })
-            })?;
-            p.expect(':')?;
-            let body = p.expr()?;
+            let params = p.list(|p| p.typed())?;
+            p.expect("->")?;
+            p.keyword("bool")?;
             p.end()?;
-            Ok(Claim {
+            subjects.push(Subject {
                 name,
                 params,
-                body,
                 line: p.line,
-            })
-        })
-        .collect()
+            });
+        } else {
+            // claim name: [forall a: bool, ... .] subject(args) = spec
+            p.keyword("claim")?;
+            let name = p.ident()?;
+            p.expect(":")?;
+            let mut forall = Vec::new();
+            if p.is_keyword("forall") {
+                p.next();
+                loop {
+                    forall.push(p.typed()?);
+                    if p.eat(".") {
+                        break;
+                    }
+                    p.expect(",")?;
+                }
+            }
+            let subject = p.ident()?;
+            let args = p.list(|p| {
+                if p.is_keyword("true") || p.is_keyword("false") {
+                    Ok(Arg::Value(p.bool()?))
+                } else {
+                    Ok(Arg::Var(p.ident()?))
+                }
+            })?;
+            p.expect("=")?;
+            let spec = p.expr()?;
+            p.end()?;
+            claims.push(Claim {
+                name,
+                forall,
+                subject,
+                args,
+                spec,
+                line: p.line,
+            });
+        }
+    }
+    Ok((subjects, claims))
 }
 
-/// `evidence kind(source) : claim(inputs) = pass|fail @ confidence`
+/// The evidence file: `evidence subject(inputs) correct|wrong @ confidence`.
 pub fn parse_evidence(src: &str) -> Result<Vec<Evidence>, Error> {
     lines(src)
         .map(|p| {
             let mut p = p?;
             p.keyword("evidence")?;
-            let k = p.ident()?;
-            let Some(kind) = Kind::from_name(&k) else {
-                return p.err(format!(
-                    "unknown evidence kind `{k}` (test, proof, usage, review, agent)"
-                ));
+            let subject = p.ident()?;
+            let inputs = p.list(|p| p.bool())?;
+            let correct = match p.ident()?.as_str() {
+                "correct" => true,
+                "wrong" => false,
+                o => return p.err(format!("expected `correct` or `wrong`, got `{o}`")),
             };
-            p.expect('(')?;
-            let source = p.ident()?;
-            p.expect(')')?;
-            p.expect(':')?;
-            let claim = p.ident()?;
-            let inputs = p.list(|p| p.value())?;
-            p.expect('=')?;
-            let outcome = match p.ident()?.as_str() {
-                "pass" => Outcome::Pass,
-                "fail" => Outcome::Fail,
-                o => return p.err(format!("expected `pass` or `fail`, got `{o}`")),
-            };
-            p.expect('@')?;
+            p.expect("@")?;
             let confidence = match p.next() {
                 Some(Tok::Num(s)) => match s.parse::<f64>() {
-                    Ok(c) if (0.0..=1.0).contains(&c) => c,
+                    Ok(c) if c == 0.0 || c == 1.0 => c,
+                    Ok(c) if (0.0..=1.0).contains(&c) => {
+                        return p.err(format!(
+                            "confidence {s}: only 0 and 1 are supported for now"
+                        ))
+                    }
                     _ => return p.err(format!("confidence `{s}` must be a number from 0 to 1")),
                 },
                 _ => return p.err("expected a confidence from 0 to 1 after `@`"),
             };
             p.end()?;
             Ok(Evidence {
-                kind,
-                source,
-                claim,
+                subject,
                 inputs,
-                outcome,
+                correct,
                 confidence,
                 line: p.line,
             })
@@ -263,39 +276,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_the_seed_claim() {
-        let c = parse_claims("claim not_correct(a: bool): not(a) = !a  # seed").unwrap();
-        assert_eq!(
-            c[0].params,
-            vec![Param {
-                name: "a".into(),
-                domain: Domain::Bool
-            }]
-        );
-        assert_eq!(
-            c[0].body,
-            Expr::Eq(
-                Box::new(Expr::Call("not".into(), vec![Expr::Var("a".into())])),
-                Box::new(Expr::Not(Box::new(Expr::Var("a".into()))))
-            )
-        );
+    fn parses_the_seed_model() {
+        let (s, c) = parse_model(
+            "subject not(a: bool) -> bool\n\
+             claim not_correct: forall a: bool. not(a) = !a  # all inputs\n\
+             claim not_on_true: not(true) = false",
+        )
+        .unwrap();
+        assert_eq!(s[0].params, vec!["a".to_string()]);
+        assert_eq!(c[0].forall, vec!["a".to_string()]);
+        assert_eq!(c[0].args, vec![Arg::Var("a".into())]);
+        assert_eq!(c[0].spec, Expr::Not(Box::new(Expr::Var("a".into()))));
+        assert_eq!(c[1].args, vec![Arg::Value(true)]);
+        assert_eq!(c[1].spec, Expr::Value(false));
     }
 
     #[test]
     fn parses_evidence() {
-        let e =
-            parse_evidence("\nevidence usage(cli_session_42) : not_correct(false) = fail @ 0.3")
-                .unwrap();
-        assert_eq!(e[0].kind, Kind::Usage);
-        assert_eq!(e[0].inputs, vec![Value::Bool(false)]);
-        assert_eq!(e[0].outcome, Outcome::Fail);
-        assert_eq!(e[0].confidence, 0.3);
+        let e = parse_evidence("\nevidence not(false) wrong @ 1.0").unwrap();
+        assert_eq!(e[0].inputs, vec![false]);
+        assert!(!e[0].correct);
+        assert_eq!(e[0].confidence, 1.0);
         assert_eq!(e[0].line, 2);
     }
 
     #[test]
-    fn rejects_bad_confidence() {
-        let e = parse_evidence("evidence test(t) : c(true) = pass @ 1.5").unwrap_err();
-        assert!(e.message.contains("from 0 to 1"), "{e}");
+    fn rejects_intermediate_confidence_for_now() {
+        let e = parse_evidence("evidence not(true) correct @ 0.9").unwrap_err();
+        assert!(e.message.contains("only 0 and 1"), "{e}");
     }
 }

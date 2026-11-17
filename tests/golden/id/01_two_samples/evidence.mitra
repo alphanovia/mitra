@@ -1,2 +1,0 @@
-evidence test(t1) : id_correct(1) = pass @ 1.0
-evidence test(t2) : id_correct(2) = pass @ 1.0

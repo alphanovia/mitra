@@ -1,4 +1,0 @@
-evidence test(t_true)          : not_correct(true)  = pass @ 1.0
-evidence test(t_false)         : not_correct(false) = pass @ 1.0
-# A report nobody believes: it counts for nothing.
-evidence usage(cli_session_48) : not_correct(false) = fail @ 0.0
