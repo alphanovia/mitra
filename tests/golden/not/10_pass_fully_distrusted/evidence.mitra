@@ -1,0 +1,2 @@
+evidence usage(cli_session_46) : not_correct(true)  = pass @ 0.0
+evidence usage(cli_session_47) : not_correct(false) = pass @ 0.0

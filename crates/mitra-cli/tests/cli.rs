@@ -2,7 +2,7 @@ use std::process::Command;
 
 const GOLDEN: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/golden/04_trusted_counterexample"
+    "/../../tests/golden/not/04_trusted_counterexample"
 );
 
 #[test]

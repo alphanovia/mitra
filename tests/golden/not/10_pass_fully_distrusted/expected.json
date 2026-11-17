@@ -1,0 +1,6 @@
+{
+  "tau": 0.5,
+  "claims": [
+    { "claim": "not_correct", "verdict": "uncertain", "p": 0, "f": 0, "exhaustive": false, "evidence": 2 }
+  ]
+}

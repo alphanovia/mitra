@@ -55,10 +55,15 @@ These replace rules 1 to 5 of [language.md](language.md) draft 3 for now.
 
 ## Validation
 
-`tests/golden/<case>/` holds `claims.mitra`, `evidence.mitra` and the
-`expected.json` Mitra must produce; `cargo test` checks every folder. Cases:
-no evidence, one pass, both inputs passing, a trusted counterexample, a
-doubtful counterexample, and a conflict.
+`tests/golden/<claim>/<case>/` holds `claims.mitra`, `evidence.mitra` and
+the `expected.json` Mitra must produce; `cargo test` checks every case. For
+the `not` claim: no evidence, one pass, both inputs passing, a trusted and a
+doubtful counterexample, a conflict, and evidence at the extremes (1.0 fully
+believed, 0.0 fully distrusted) for pass and fail.
+
+At 0.0, evidence counts for nothing: a distrusted counterexample leaves a
+fully tested claim at pass. At 1.0, one fail decides (f = 1), while one pass
+on one input is still only p = 0.1; both inputs at 1.0 give pass @ 1.
 
 ## Later
 
