@@ -229,6 +229,10 @@ name = "mitra-core"
 version = "0.1.0"
 
 [[package]]
+name = "mitra-ds"
+version = "0.1.0"
+
+[[package]]
 name = "mitra-grammar"
 version = "0.1.0"
 dependencies = [

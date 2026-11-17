@@ -1,0 +1,88 @@
+//! Dempster–Shafer on the binary frame {correct, wrong}.
+//!
+//! A [`Mass`] splits belief between *correct* (`b`), *wrong* (`d`) and
+//! *unknown* (`u`), with `b + d + u = 1`. A piece of evidence at
+//! confidence c gives `c` to its side and `1 − c` to unknown. Two masses
+//! combine by Dempster's rule (conflict renormalised away, undefined at
+//! total conflict) or by Yager's rule (conflict moved to unknown, and
+//! reported).
+//!
+//! The crate is dogfooded: `.mitra/model.mitra` holds its claims and tests,
+//! and `.mitra/evidence.mitra` the results of its own test runs.
+
+/// Belief split on {correct, wrong}: `b + d + u = 1`, each in [0, 1].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Mass {
+    /// Belief the subject is correct.
+    pub b: f64,
+    /// Belief it is wrong.
+    pub d: f64,
+    /// Belief left unassigned.
+    pub u: f64,
+}
+
+/// Rounding slack when checking that a mass sums to 1.
+pub const EPSILON: f64 = 1e-9;
+
+impl Mass {
+    /// Nothing known.
+    pub const VACUOUS: Mass = Mass {
+        b: 0.0,
+        d: 0.0,
+        u: 1.0,
+    };
+
+    /// The mass of one piece of evidence: `correct` or wrong, at confidence
+    /// `c` in [0, 1]. `None` if `c` is outside [0, 1] or not a number.
+    pub fn judged(correct: bool, c: f64) -> Option<Mass> {
+        if !(0.0..=1.0).contains(&c) {
+            return None;
+        }
+        let (b, d) = if correct { (c, 0.0) } else { (0.0, c) };
+        Some(Mass { b, d, u: 1.0 - c })
+    }
+
+    /// Each part in [0, 1] and the parts sum to 1, up to [`EPSILON`].
+    pub fn is_valid(&self) -> bool {
+        let parts = [self.b, self.d, self.u];
+        parts.iter().all(|x| (-EPSILON..=1.0 + EPSILON).contains(x))
+            && (parts.iter().sum::<f64>() - 1.0).abs() <= EPSILON
+    }
+
+    /// The mass two sources give to opposite sides: `b₁d₂ + d₁b₂`.
+    pub fn conflict(&self, o: &Mass) -> f64 {
+        self.b * o.d + self.d * o.b
+    }
+
+    /// The parts both sources agree on, before any normalisation.
+    fn agreement(&self, o: &Mass) -> Mass {
+        Mass {
+            b: self.b * o.b + self.b * o.u + self.u * o.b,
+            d: self.d * o.d + self.d * o.u + self.u * o.d,
+            u: self.u * o.u,
+        }
+    }
+
+    /// Dempster's rule: the conflict is renormalised away. `None` at total
+    /// conflict (two fully believed, opposite judgments).
+    pub fn dempster(&self, o: &Mass) -> Option<Mass> {
+        let k = self.conflict(o);
+        if k >= 1.0 - EPSILON {
+            return None;
+        }
+        let a = self.agreement(o);
+        Some(Mass {
+            b: a.b / (1.0 - k),
+            d: a.d / (1.0 - k),
+            u: a.u / (1.0 - k),
+        })
+    }
+
+    /// Yager's rule: the conflict goes to unknown. Returns the combined
+    /// mass and the conflict.
+    pub fn yager(&self, o: &Mass) -> (Mass, f64) {
+        let k = self.conflict(o);
+        let a = self.agreement(o);
+        (Mass { u: a.u + k, ..a }, k)
+    }
+}

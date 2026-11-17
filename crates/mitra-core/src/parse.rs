@@ -459,7 +459,7 @@ impl P {
         }
         if self.eat("-") {
             // `-` right before digits is a negative literal, down to i64::MIN.
-            if matches!(self.peek(), Some(Tok::Num(n)) if !n.contains('.') && n.trim_start_matches('0') != "")
+            if matches!(self.peek(), Some(Tok::Num(n)) if !n.contains('.') && !n.trim_start_matches('0').is_empty())
             {
                 return Ok(Expr::Lit(Value::Int(self.signed(true)?)));
             }

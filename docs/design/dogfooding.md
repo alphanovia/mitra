@@ -1,6 +1,7 @@
 # Design: dogfooding
 
-Status: **plan**, not implemented. Two tracks that use Mitra on Mitra.
+Status: **plan**; a first slice of Track 1 is implemented (`crates/mitra-ds`,
+see below). Two tracks that use Mitra on Mitra.
 
 ## Track 1, "core": annotate another language
 
@@ -37,6 +38,16 @@ do not use `mitra-ds` either.
 
 **Prerequisites:** tuples (functions of two masses), rationals (masses are
 fractions), and specs that can express the combination rules.
+
+### What exists (2026-11-18)
+
+`crates/mitra-ds` has masses, Dempster's rule and Yager's rule, and
+property tests over numbered cases (random pairs, and the golden-set
+extremes). Its store `crates/mitra-ds/.mitra/` declares the claims and the
+`test`s; `scripts/dogfood-ds.sh` runs the tests and ingests the results;
+`cargo test` checks the verdicts. Not done yet: rationals (cases stand in
+for real masses), doc-comment models, Verus, and `mitra-core` using the
+crate.
 
 ## Track 2, "pure Mitra": Mitra's semantics written in Mitra
 

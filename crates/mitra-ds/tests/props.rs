@@ -1,0 +1,135 @@
+//! The tests named in `.mitra/model.mitra`. Each one checks the properties
+//! listed there on a range of numbered cases.
+
+use mitra_ds::Mass;
+
+/// xorshift64, fixed seed: case n is always the same pair of masses.
+fn case(n: u64) -> (Mass, Mass) {
+    let mut s = (n + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+    let mut next = || {
+        s ^= s << 13;
+        s ^= s >> 7;
+        s ^= s << 17;
+        (s >> 11) as f64 / (1u64 << 53) as f64
+    };
+    let mut mass = || {
+        let correct = next() < 0.5;
+        Mass::judged(correct, next()).unwrap()
+    };
+    (mass(), mass())
+}
+
+/// Cases 1000 to 1003: the extremes of Mitra's golden sets.
+fn extreme(n: u64) -> (Mass, Mass) {
+    let m = |ok, c| Mass::judged(ok, c).unwrap();
+    match n {
+        1000 => (m(true, 1.0), m(true, 1.0)),  // agreement at 1
+        1001 => (m(true, 1.0), m(false, 1.0)), // contradiction at 1
+        1002 => (m(true, 1.0), m(false, 0.0)), // evidence at 0 brings nothing
+        1003 => (m(true, 0.0), m(false, 0.0)), // no evidence
+        _ => unreachable!(),
+    }
+}
+
+fn close(a: f64, b: f64) -> bool {
+    (a - b).abs() <= 1e-9
+}
+
+/// Yager: a valid mass, commutative, the conflict in unknown.
+fn yager_ok(m1: Mass, m2: Mass) -> bool {
+    let (m, k) = m1.yager(&m2);
+    let (n, k2) = m2.yager(&m1);
+    m.is_valid() && close(k, k2) && close(m.b, n.b) && close(m.d, n.d) && m.u >= k - 1e-9
+}
+
+/// Dempster: a valid mass, commutative, and Yager's result renormalised.
+fn dempster_ok(m1: Mass, m2: Mass) -> bool {
+    let k = m1.conflict(&m2);
+    match (m1.dempster(&m2), m2.dempster(&m1)) {
+        (Some(m), Some(n)) => {
+            let (y, _) = m1.yager(&m2);
+            m.is_valid()
+                && close(m.b, n.b)
+                && close(m.b, y.b / (1.0 - k))
+                && close(m.d, y.d / (1.0 - k))
+        }
+        (None, None) => close(k, 1.0),
+        _ => false,
+    }
+}
+
+#[test]
+fn t_yager_random() {
+    assert!((0..1000).all(|n| {
+        let (a, b) = case(n);
+        yager_ok(a, b)
+    }));
+}
+
+#[test]
+fn t_dempster_random() {
+    assert!((0..1000).all(|n| {
+        let (a, b) = case(n);
+        dempster_ok(a, b)
+    }));
+}
+
+#[test]
+fn t_yager_extremes() {
+    let y = |n| extreme(n).0.yager(&extreme(n).1).0;
+    assert_eq!(
+        y(1000),
+        Mass {
+            b: 1.0,
+            d: 0.0,
+            u: 0.0
+        }
+    );
+    assert_eq!(
+        y(1001),
+        Mass::VACUOUS,
+        "a contradiction at 1 leaves the input unknown"
+    );
+    assert_eq!(
+        y(1002),
+        Mass {
+            b: 1.0,
+            d: 0.0,
+            u: 0.0
+        }
+    );
+    assert_eq!(y(1003), Mass::VACUOUS);
+}
+
+#[test]
+fn t_dempster_extremes() {
+    let d = |n| extreme(n).0.dempster(&extreme(n).1);
+    assert_eq!(
+        d(1000),
+        Some(Mass {
+            b: 1.0,
+            d: 0.0,
+            u: 0.0
+        })
+    );
+    assert_eq!(
+        d(1001),
+        None,
+        "total conflict: Dempster's rule is undefined"
+    );
+    assert_eq!(
+        d(1002),
+        Some(Mass {
+            b: 1.0,
+            d: 0.0,
+            u: 0.0
+        })
+    );
+    assert_eq!(d(1003), Some(Mass::VACUOUS));
+}
+
+#[test]
+fn t_judged_rejects_bad_confidence() {
+    assert_eq!(Mass::judged(true, 1.5), None);
+    assert_eq!(Mass::judged(true, f64::NAN), None);
+}

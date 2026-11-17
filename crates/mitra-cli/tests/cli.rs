@@ -205,3 +205,14 @@ fn a_broken_store_is_blamed_not_the_new_evidence() {
     assert_eq!(std::fs::read_to_string(&ev).unwrap(), broken);
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// Dogfood: mitra-ds's store (its claims, and evidence from its own test
+/// runs, recorded by scripts/dogfood-ds.sh) gives the expected verdicts.
+#[test]
+fn mitra_ds_store_evaluates() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../mitra-ds");
+    let (code, out, err) = mitra(&dir, &["eval"]);
+    assert_eq!(code, Some(0), "{err}");
+    let expected = std::fs::read_to_string(dir.join(".mitra/expected.txt")).unwrap();
+    assert_eq!(out, expected);
+}
