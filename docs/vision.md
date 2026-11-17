@@ -6,6 +6,12 @@ Mitra is a formally verified trust engine: given a model of claims, the
 assumptions they rest on and the evidence brought for them, it computes a trust
 value that programs can use as a policy input.
 
+## Positioning
+
+*Tests check, Lean proves, Mitra weighs.* Tests and Lean proofs each produce
+evidence. Mitra combines that evidence, along with the assumptions it rests on,
+into one computed measure of how far a claim can be trusted.
+
 ## Problem
 
 When we build software, or let an agent build it, we accumulate claims about

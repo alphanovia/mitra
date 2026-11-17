@@ -4,6 +4,10 @@
 assumptions they rest on and the evidence brought for them, it computes a trust
 value that programs can use as a policy input.**
 
+*Tests check, Lean proves, Mitra weighs.* Tests and Lean proofs each produce
+evidence. Mitra combines that evidence, along with the assumptions it rests on,
+into one computed measure of how far a claim can be trusted.
+
 > Status: design. Nothing is implemented yet. This repository currently holds
 > the project's scope and plan.
 
