@@ -4,16 +4,17 @@
 
 Mitra is a formally verified trust engine: given a model of claims, the
 assumptions they rest on and the evidence brought for them, it computes, for each
-claim, a verdict (pass, fail or uncertain) and a confidence that programs can
+claim, a verdict (holds, fails or uncertain) and a certainty that programs can
 use as a policy input.
 
 *Tests check, Lean proves, Mitra weighs.*
 
 ## What Mitra is first
 
-A **math language for trust**: claims that read like functions over
-mathematical values, guards that narrow them, and evidence that records what
-was checked, the verdict and the source's confidence. The first thing to test
+A **language for trust**: subjects under review, claims that they are
+correct on some of their inputs, and evidence that records runs judged
+correct or wrong with a confidence (see the
+[language reference](reference/language.md) for what exists today). The first thing to test
 is whether this language is right: whether small, well-understood situations
 can be written in it naturally and give the verdicts a careful person would
 reach ([validation.md](validation.md)). The confidence calculus is still open;
@@ -29,15 +30,15 @@ gates, agent harnesses, apps) is built on top later.
    (2) parser: text  ->  AST
                      |
                      v
-   (1) semantic model / AST  --evaluate-->  verdict + confidence
+   (1) semantic model / AST  --evaluate-->  verdict + certainty
                      |
                      v
    (3) incremental use and storage
 ```
 
-1. **Semantic model.** The core. An AST of claims, evidence, sources and
-   guards ([language.md](language.md)). Evaluation is a pure function from
-   model to a verdict and confidence per claim.
+1. **Semantic model.** The core. An AST of subjects, claims and evidence.
+   Evaluation is a pure function from model to a verdict and certainty per
+   claim.
 2. **Parsing.** Text to AST. The text syntax is one projection of the model,
    not the model itself; others (JSON, an API) can exist alongside it.
 3. **Incremental use and storage.** Add evidence to a stored model and
@@ -55,14 +56,15 @@ They are built and tested in that order.
 
 ## Principles
 
-1. **Never a single score.** Every claim gets a verdict (pass, fail,
-   uncertain) and a confidence. "No evidence yet" and "evidence against" are
+1. **Never a single score.** Every claim gets a verdict (holds, fails,
+   uncertain) and a certainty. "No evidence yet" and "evidence against" are
    different answers.
 2. **Counterexamples decide.** Claims are universal: one trusted failure
    refutes a claim, while passes only build confidence.
 3. **Precise semantics.** Every rule can be computed by hand and checked.
-4. **Specified by example.** Toy models with hand-computed results
-   ([examples.md](examples.md)) are the first tests.
+4. **Specified by example.** Small models with hand-written results (the
+   golden set in the [language reference](reference/language.md)) are the
+   tests.
 5. **Proven.** The implementation is to be written with Lean 4 and Verus, so
    the trust engine can itself be trusted.
 
@@ -74,12 +76,12 @@ They are built and tested in that order.
 
 ## Glossary
 
-- **Subject:** what evidence observes from outside: a CLI, a function, an agent.
-- **Claim:** a universal statement about a subject, like a function over
-  mathematical values, optionally split into guarded branches.
-- **Evidence:** what was checked (a claim on given inputs, or on all inputs),
-  the verdict (pass or fail) and the source's confidence in it.
-- **Assumption:** a claim accepted at a stated confidence, not computed. Every
-  result lists the assumptions it rests on.
-- **Verdict and confidence:** Mitra's output for a claim: pass, fail or
-  uncertain, with how confident Mitra is in that verdict.
+- **Subject:** a function, task or process under review. Mitra never runs it.
+- **Claim:** the subject is correct on a set of its inputs (all of them, or
+  a subset).
+- **Evidence:** a run of the subject on given inputs, judged correct or
+  wrong, with a confidence from 0 (distrusted) to 1 (fully believed).
+- **Assumption** (planned): a claim accepted at a stated confidence, not
+  computed.
+- **Verdict and certainty:** Mitra's output for a claim: holds, fails or
+  uncertain, with how certain that verdict is.

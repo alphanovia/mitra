@@ -1,4 +1,4 @@
 # A contradiction on false does not hide a clean counterexample on true.
-evidence not(true) wrong @ 1
+evidence not(true)  wrong   @ 1
 evidence not(false) correct @ 1
-evidence not(false) wrong @ 1
+evidence not(false) wrong   @ 1

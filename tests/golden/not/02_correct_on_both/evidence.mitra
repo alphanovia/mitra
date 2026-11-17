@@ -1,2 +1,2 @@
-evidence not(true) correct @ 1
+evidence not(true)  correct @ 1
 evidence not(false) correct @ 1

@@ -9,37 +9,33 @@ use as a policy input.**
 evidence. Mitra combines that evidence, along with the assumptions it rests on,
 into a verdict and a confidence for each claim.
 
-> Status: design, with a first seed in code: a library and CLI that
-> evaluate boolean claims against evidence ([docs/seed.md](docs/seed.md)).
+> Status: early. The code evaluates claims about boolean functions against
+> evidence at confidence 0 or 1 ([language reference](docs/reference/language.md)).
 
 ## The idea
 
-At its heart Mitra is a small **math language for trust**. Claims read like
-functions over mathematical values, guards narrow them to the inputs where
-they should hold, and evidence (tests, proofs, usage, reviews, agent reports)
-records what was checked, the verdict, and how confident the source is.
+At its heart Mitra is a small **language for trust**. A **subject** is a
+function under review, a **claim** says it is correct on some of its inputs,
+and **evidence** is a run of the subject judged correct or wrong, with a
+confidence. Mitra gives every claim a verdict and a certainty.
 
 ```mitra
-subject add "the CLI `add A B`"
+subject  not(a: bool) -> bool
+claim    not_correct: not(_)    correct
+claim    not_on_true: not(true) correct
 
-claim add_correct(a, b):
-  fits     when -2^63 <= a + b < 2^63 : add(a, b) = a + b
-  overflow otherwise                  : add(a, b) = error
-
-evidence proof(verus_add) : add_correct.fits(*)              = pass @ 0.95
-evidence usage(user)      : add_correct.overflow(2^62, 2^62) = fail @ 0.95
+evidence not(true)  correct @ 1
+evidence not(false) wrong   @ 1
 ```
 
 ```text
-add_correct            fail @ 0.95
-  add_correct.fits       pass @ 0.95     proven (verus_add)
-  add_correct.overflow   fail @ 0.95     counterexample: (2^62, 2^62)
+not_correct  fails @ 1
+not_on_true  holds @ 1
 ```
 
-Every claim gets a verdict **and** a confidence, never a single score. One
-trusted counterexample refutes a claim; passes build confidence gradually.
-Mitra's value is in the diagnostics: where the graph is uncertain, where a
-counterexample contradicts it, and which evidence to gather next.
+Every claim gets a verdict **and** a certainty, never a single score. One
+trusted counterexample refutes a claim. The calculus for confidences between
+0 and 1 is still open.
 
 The core is a **semantic model** (an AST). The text above is only one
 projection of it, small enough to live in a code docstring or a Markdown block
@@ -47,16 +43,25 @@ in an agent skill, and regular enough for an LLM to read and write.
 
 ## Documentation
 
+Two sets, kept apart:
+
+**Language reference**: what the code does today, updated with every change
+to it.
+
+| Doc | What it covers |
+|---|---|
+| [docs/reference/language.md](docs/reference/language.md) | Grammar, semantics, output, the CLI and the golden set |
+
+**General docs**: purpose, positioning and research. These describe
+direction, not the current language.
+
 | Doc | What it covers |
 |---|---|
 | [docs/vision.md](docs/vision.md) | What Mitra is, how it is layered, principles, non-goals |
-| [docs/language.md](docs/language.md) | One-page language spec: claims, guards, evidence, verdicts, diagnostics |
-| [docs/seed.md](docs/seed.md) | What is implemented: the `mitra` CLI, its inputs, rules and golden tests |
-| [docs/examples.md](docs/examples.md) | Toy models on the `add` CLI with verdicts worked out by hand |
-| [docs/validation.md](docs/validation.md) | How Mitra is validated: a ladder of toy `add` CLIs scored against ground truth |
 | [docs/use-cases.md](docs/use-cases.md) | Where Mitra is headed: checking a model, gating a merge, gating an agent |
+| [docs/validation.md](docs/validation.md) | How Mitra will be validated: a ladder of toy `add` CLIs scored against ground truth |
 | [docs/prior-art.md](docs/prior-art.md) | Related work and how Mitra differs |
-| [docs/research/](docs/research/README.md) | Deeper reading: assurance tools, confidence calculi, Mitra's wedge |
+| [docs/research/](docs/research/README.md) | Deeper reading: assurance tools, confidence calculi and the open calculus candidates, Mitra's wedge |
 | [docs/scoping-method.md](docs/scoping-method.md) | INVEST rules used to scope work |
 
 ## License

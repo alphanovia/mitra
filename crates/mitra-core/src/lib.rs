@@ -4,7 +4,7 @@
 //! for each claim, a verdict and a certainty.
 //!
 //! ```
-//! let model = "subject not(a: bool) -> bool\nclaim not_correct: forall a: bool. not(a) = !a";
+//! let model = "subject not(a: bool) -> bool\nclaim not_correct: not(_) correct";
 //! let evidence = "evidence not(true) correct @ 1\nevidence not(false) correct @ 1";
 //! let report = mitra_core::run(model, evidence).unwrap();
 //! assert_eq!(report.to_text(), "not_correct  holds @ 1\n");
@@ -14,7 +14,7 @@ pub mod ast;
 pub mod eval;
 pub mod parse;
 
-pub use ast::{Arg, Claim, Evidence, Model, Subject};
+pub use ast::{Claim, Evidence, Model, Pattern, Subject};
 pub use eval::{evaluate, ClaimResult, Report, Verdict};
 pub use parse::{parse_evidence, parse_model};
 

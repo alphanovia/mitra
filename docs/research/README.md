@@ -2,11 +2,14 @@
 
 A reading guide to the prior art around Mitra, written to be read over time.
 Every section ends with references; the ones marked ★ are the best first read.
+Code snippets in these notes predate the
+[language reference](../reference/language.md) and are illustrative only.
 
 | File | What it covers | Read time |
 |---|---|---|
 | [landscape.md](landscape.md) | The tools and methods, one card each: what it does, strengths, limits, references | 45 min |
 | [calculus.md](calculus.md) | How confidence is computed in the literature, what is wrong with subjective logic, which choices are well supported | 30 min |
+| [calculus-candidates.md](calculus-candidates.md) | Open design: three candidate calculi for confidences between 0 and 1, checked against the extreme rules | 5 min |
 | [wedge.md](wedge.md) | Where a solo developer can win against all of the above, and what this means for the `add` ladder | 15 min |
 
 ## The short version

@@ -2,12 +2,12 @@
 //! lines are ignored.
 //!
 //! ```text
-//! subject not(a: bool) -> bool
-//! claim not_correct: forall a: bool. not(a) = !a
-//! claim not_on_true: not(true) = false
+//! subject  not(a: bool) -> bool
+//! claim    not_correct: not(_)    correct
+//! claim    not_on_true: not(true) correct
 //!
-//! evidence not(true) correct @ 1
-//! evidence not(false) wrong @ 0
+//! evidence not(true)  correct @ 1
+//! evidence not(false) wrong   @ 0
 //! ```
 
 use crate::ast::*;
@@ -20,7 +20,7 @@ enum Tok {
     Punct(&'static str),
 }
 
-const PUNCT: [&str; 9] = ["->", "(", ")", ":", ",", "=", "!", "@", "."];
+const PUNCT: [&str; 6] = ["->", "(", ")", ":", ",", "@"];
 
 fn lex(line: &str, n: usize) -> Result<Vec<Tok>, Error> {
     let mut toks = Vec::new();
@@ -139,26 +139,6 @@ impl P {
             _ => self.err("expected `true` or `false`"),
         }
     }
-    // expr := '!' expr | '(' expr ')' | true | false | name | name(args)
-    fn expr(&mut self) -> Result<Expr, Error> {
-        if self.eat("!") {
-            return Ok(Expr::Not(Box::new(self.expr()?)));
-        }
-        if self.eat("(") {
-            let e = self.expr()?;
-            self.expect(")")?;
-            return Ok(e);
-        }
-        if self.is_keyword("true") || self.is_keyword("false") {
-            return Ok(Expr::Value(self.bool()?));
-        }
-        let name = self.ident()?;
-        if matches!(self.peek(), Some(Tok::Punct("("))) {
-            Ok(Expr::Call(name, self.list(|p| p.expr())?))
-        } else {
-            Ok(Expr::Var(name))
-        }
-    }
 }
 
 fn lines(src: &str) -> impl Iterator<Item = Result<P, Error>> + '_ {
@@ -194,38 +174,25 @@ pub fn parse_model(src: &str) -> Result<(Vec<Subject>, Vec<Claim>), Error> {
                 line: p.line,
             });
         } else {
-            // claim name: [forall a: bool, ... .] subject(args) = spec
+            // claim name: subject(_ | true | false, ...) correct
             p.keyword("claim")?;
             let name = p.ident()?;
             p.expect(":")?;
-            let mut forall = Vec::new();
-            if p.is_keyword("forall") {
-                p.next();
-                loop {
-                    forall.push(p.typed()?);
-                    if p.eat(".") {
-                        break;
-                    }
-                    p.expect(",")?;
-                }
-            }
             let subject = p.ident()?;
-            let args = p.list(|p| {
-                if p.is_keyword("true") || p.is_keyword("false") {
-                    Ok(Arg::Value(p.bool()?))
+            let pattern = p.list(|p| {
+                if p.is_keyword("_") {
+                    p.next();
+                    Ok(Pattern::Any)
                 } else {
-                    Ok(Arg::Var(p.ident()?))
+                    Ok(Pattern::Value(p.bool()?))
                 }
             })?;
-            p.expect("=")?;
-            let spec = p.expr()?;
+            p.keyword("correct")?;
             p.end()?;
             claims.push(Claim {
                 name,
-                forall,
                 subject,
-                args,
-                spec,
+                pattern,
                 line: p.line,
             });
         }
@@ -278,17 +245,15 @@ mod tests {
     #[test]
     fn parses_the_seed_model() {
         let (s, c) = parse_model(
-            "subject not(a: bool) -> bool\n\
-             claim not_correct: forall a: bool. not(a) = !a  # all inputs\n\
-             claim not_on_true: not(true) = false",
+            "subject  not(a: bool) -> bool\n\
+             claim    not_correct: not(_)    correct  # every input\n\
+             claim    not_on_true: not(true) correct",
         )
         .unwrap();
         assert_eq!(s[0].params, vec!["a".to_string()]);
-        assert_eq!(c[0].forall, vec!["a".to_string()]);
-        assert_eq!(c[0].args, vec![Arg::Var("a".into())]);
-        assert_eq!(c[0].spec, Expr::Not(Box::new(Expr::Var("a".into()))));
-        assert_eq!(c[1].args, vec![Arg::Value(true)]);
-        assert_eq!(c[1].spec, Expr::Value(false));
+        assert_eq!(c[0].pattern, vec![Pattern::Any]);
+        assert_eq!(c[0].inputs(), vec![vec![false], vec![true]]);
+        assert_eq!(c[1].pattern, vec![Pattern::Value(true)]);
     }
 
     #[test]

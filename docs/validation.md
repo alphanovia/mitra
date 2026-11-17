@@ -12,8 +12,8 @@ input, wrong number of arguments.
 
 ## Ground truth: input regions
 
-Every input falls in exactly one region, and each region is a guarded branch
-of the claim `add_correct` (see [language.md](language.md)). The spec says
+Every input falls in exactly one region, and each region gets its own claim
+that `add` is correct on the inputs of that region. The spec says
 what correct means in each.
 
 | Region | Inputs | Correct behaviour |
@@ -30,7 +30,7 @@ not. Mitra never sees it; it is what Mitra's output is scored against.
 
 | Rung | Code | Evidence | Truth | What Mitra should say |
 |---|---|---|---|---|
-| R0 | naive: parse, `a + b` | usage only | `fits` ok, the other three wrong | No usage: uncertain everywhere. After enough usage: `fits` pass, the others fail on the first trusted counterexample, uncertain where usage never went. Honest alternatives (`add_wraps`) pass. |
+| R0 | naive: parse, `a + b` | usage only | `fits` ok, the other three wrong | No usage: uncertain everywhere. After enough usage: `fits` holds, the others fail on the first trusted counterexample, uncertain where usage never went. Honest alternatives (`add_wraps`) hold. |
 | R1 | naive | usage + example tests on small numbers | same as R0 | `fits` trusted early; `next` points at the untested regions, where the bugs are. |
 | R2 | checks overflow, input and arity | example tests per region | all ok | Strong trust in every region with little usage. |
 | R3 | as R2 | + property-based tests | all ok | Same as R2, reached with fewer observations. |
@@ -39,10 +39,10 @@ not. Mitra never sees it; it is what Mitra's output is scored against.
 ## Evidence
 
 - **Annotations.** Each rung's source carries ` ```mitra ` blocks in its
-  docstrings: claims, splits, tests and proofs. Mitra parses them into the model.
+  docstrings: subjects, claims, tests and proofs. Mitra parses them into the model.
 - **Usage.** A simulator plays a user: it samples inputs (mostly small numbers,
   sometimes huge ones, occasionally junk), runs the CLI, and appends
-  `observe usage(sim) : add(a, b) = <output> @ c`. Evidence arrives one run at
+  `evidence add(a, b) correct @ c` or `wrong @ c`. Evidence arrives one run at
   a time, which exercises incremental use.
 - **Human confidence.** The simulated user has a confidence profile: high
   when it can check the result, low when it cannot, and occasionally wrong.
@@ -51,12 +51,12 @@ not. Mitra never sees it; it is what Mitra's output is scored against.
 ## Metrics
 
 1. **Evidence to verdict (headline curve).** For each rung, the number of
-   usage runs until every region has the correct verdict (pass or fail, not
+   usage runs until every region has the correct verdict (holds or fails, not
    uncertain). Plotted per rung, this should drop sharply from R0 to R4.
 2. **Accuracy.** No region ever gets the wrong verdict; the confidence of
    correct verdicts is scored against ground truth (Brier score).
 3. **Honesty.** Regions with no evidence are uncertain. A doubtful
-   counterexample leaves a region uncertain, never pass.
+   counterexample leaves a region uncertain, never holds.
 4. **Diagnosis.** On R1, `next add_correct` ranks a region with a real bug
    first. On R0 without branches, `conflicts` fires on `add_correct` (passes
    and failures on the same claim), suggesting the split.

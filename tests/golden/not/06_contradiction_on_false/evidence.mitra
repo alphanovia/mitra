@@ -1,4 +1,4 @@
-evidence not(true) correct @ 1
+evidence not(true)  correct @ 1
 # Two fully believed pieces of evidence disagree on false.
 evidence not(false) correct @ 1
-evidence not(false) wrong @ 1
+evidence not(false) wrong   @ 1

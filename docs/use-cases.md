@@ -4,8 +4,6 @@ Three concrete situations Mitra is for. They are ordered by when Mitra can
 serve them: UC1 is what comes first, UC2 and UC3 are the reasons the engine
 exists and shape its design now, but are built later.
 
-The snippets use the draft syntax from [language.md](language.md).
-
 ---
 
 ## UC1: Check what a trust model computes (first)
@@ -15,28 +13,19 @@ The snippets use the draft syntax from [language.md](language.md).
 right.
 
 **Scenario.** The developer models the `add` CLI from
-[validation.md](validation.md): a claim narrowed by guards, a Verus proof of
-the arithmetic, and one test of the overflow path.
+[validation.md](validation.md): a claim that `add` is correct on inputs whose
+sum fits in 64 bits, another for inputs that overflow, a Verus proof of the
+arithmetic, and one test of the overflow path.
 
-```mitra
-subject add "the CLI `add A B`"
-claim add_correct(a, b):
-  fits     when -2^63 <= a + b < 2^63 : add(a, b) = a + b
-  overflow otherwise                  : add(a, b) = error
-
-evidence proof(verus_add) : add_correct.fits(*)              = pass @ 0.95
-evidence test(t_ovf)      : add_correct.overflow(2^62, 2^62) = pass @ 0.99
-```
-
-**What Mitra returns.** `fits` passes at 0.95 because it is proven; `overflow`
-is uncertain because one test says little about every overflowing input; so
-`add_correct` is uncertain, and `next` asks for evidence on all of
-`overflow` (a property test or a proof).
+**What Mitra should return.** The first claim holds with high certainty
+because it is proven; the overflow claim is uncertain, because one test says
+little about every overflowing input; and Mitra points at the overflow path as
+the place to gather evidence next (a property test or a proof).
 
 **Why it matters.** This is how the language is validated: small models
-whose correct verdicts are known. Every toy model in
-[examples.md](examples.md) is an instance of UC1, and a demo app would be UC1
-with a screen.
+whose correct verdicts are known. Every case in the golden set
+([language reference](reference/language.md)) is an instance of UC1, and a
+demo app would be UC1 with a screen.
 
 ---
 

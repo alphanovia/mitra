@@ -12,61 +12,40 @@ pub struct Subject {
     pub line: usize,
 }
 
-/// An argument of the subject in a claim: a variable bound by `forall`, or
-/// a fixed value.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Arg {
-    Var(String),
+/// One position of a claim's pattern: any value (`_`) or a fixed one.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Pattern {
+    Any,
     Value(bool),
 }
 
-/// The specification side of a claim. Parsed and kept, not evaluated:
-/// evidence says directly whether a result was correct.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Expr {
-    Var(String),
-    Value(bool),
-    Call(String, Vec<Expr>),
-    Not(Box<Expr>),
-}
-
-/// `claim name: forall a: bool. subject(args) = spec`
+/// `claim name: subject(patterns) correct`
 ///
-/// The subject is correct on every input the claim covers.
+/// The subject is correct on every input the pattern matches.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Claim {
     pub name: String,
-    /// Variables bound by `forall`, each ranging over `bool`.
-    pub forall: Vec<String>,
     pub subject: String,
-    pub args: Vec<Arg>,
-    pub spec: Expr,
+    pub pattern: Vec<Pattern>,
     pub line: usize,
 }
 
 impl Claim {
-    /// Every input of the subject this claim covers.
+    /// Every input of the subject the pattern matches.
     pub fn inputs(&self) -> Vec<Vec<bool>> {
-        let n = self.forall.len();
-        (0..1usize << n)
-            .map(|bits| {
-                let value = |v: &str| {
-                    let i = self
-                        .forall
-                        .iter()
-                        .position(|f| f == v)
-                        .expect("checked by Model::new");
-                    bits >> (n - 1 - i) & 1 == 1
-                };
-                self.args
-                    .iter()
-                    .map(|a| match a {
-                        Arg::Var(v) => value(v),
-                        Arg::Value(b) => *b,
-                    })
-                    .collect()
-            })
-            .collect()
+        let mut all = vec![vec![]];
+        for p in &self.pattern {
+            let values: &[bool] = match p {
+                Pattern::Any => &[false, true],
+                Pattern::Value(true) => &[true],
+                Pattern::Value(false) => &[false],
+            };
+            all = all
+                .into_iter()
+                .flat_map(|t: Vec<bool>| values.iter().map(move |v| [t.clone(), vec![*v]].concat()))
+                .collect();
+        }
+        all
     }
 }
 
@@ -126,20 +105,18 @@ impl Model {
                         format!("unknown subject `{}`", c.subject),
                     ))
                 }
-                Some(n) if n != c.args.len() => {
+                Some(n) if n != c.pattern.len() => {
                     return Err(model_err(
                         c.line,
-                        format!("`{}` takes {} input(s), got {}", c.subject, n, c.args.len()),
+                        format!(
+                            "`{}` takes {} input(s), got {}",
+                            c.subject,
+                            n,
+                            c.pattern.len()
+                        ),
                     ))
                 }
                 _ => {}
-            }
-            for a in &c.args {
-                if let Arg::Var(v) = a {
-                    if !c.forall.contains(v) {
-                        return Err(model_err(c.line, format!("`{v}` is not bound by `forall`")));
-                    }
-                }
             }
         }
         for e in &evidence {
