@@ -1,14 +1,14 @@
-# add(1, -1) returned 1: a premise fails, so the derivation gives nothing.
-evidence add(0, -2) -> -2 @ 1
-evidence add(0, -1) -> -1 @ 1
-evidence add(0, 0) -> 0 @ 1
-evidence add(1, -2) -> -1 @ 1
-evidence add(1, -1) -> 1 @ 1
-evidence add(1, 0) -> 1 @ 1
-evidence add(2, -2) -> 0 @ 1
-evidence add(2, -1) -> 1 @ 1
-evidence add(2, 0) -> 2 @ 1
-evidence negate(0) -> 0 @ 1
-evidence negate(1) -> -1 @ 1
-evidence negate(2) -> -2 @ 1
-evidence minus_shape(_, _) holds @ 1
+-- add(1, -1) returned 1: a premise fails, so the derivation gives nothing.
+evidence add 0 (-2) = -2 at 1
+evidence add 0 (-1) = -1 at 1
+evidence add 0 0 = 0 at 1
+evidence add 1 (-2) = -1 at 1
+evidence add 1 (-1) = 1 at 1
+evidence add 1 0 = 1 at 1
+evidence add 2 (-2) = 0 at 1
+evidence add 2 (-1) = 1 at 1
+evidence add 2 0 = 2 at 1
+evidence negate 0 = 0 at 1
+evidence negate 1 = -1 at 1
+evidence negate 2 = -2 at 1
+evidence minus_shape at 1

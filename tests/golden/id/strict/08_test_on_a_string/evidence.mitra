@@ -1,2 +1,2 @@
-# One string out of infinitely many weighs nothing.
-evidence id("a") correct @ 1
+-- One string out of infinitely many weighs nothing.
+evidence correct (id "a") at 1

@@ -1,2 +1,2 @@
-evidence id(x in [0, 100]) correct @ 1
-evidence id(x in string)   correct @ 1
+evidence ∀ x ∈ Icc 0 100, correct (id x) at 1
+evidence ∀ x ∈ String, correct (id x) at 1

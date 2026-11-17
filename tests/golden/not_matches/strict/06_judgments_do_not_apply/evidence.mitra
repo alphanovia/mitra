@@ -1,2 +1,2 @@
-# `correct` and `wrong` are for `correct` claims; a `matches` claim judges outputs.
-evidence not(_) correct @ 1
+-- `correct` and `wrong` are for `correct` claims; a `matches` claim judges outputs.
+evidence ∀ a, correct (not a) at 1

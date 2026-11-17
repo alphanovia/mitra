@@ -1,7 +1,9 @@
 # Design: Mitra in Lean 4 syntax
 
-Status: **proposal**, not implemented. Today's syntax is in the
-[reference](../reference/language.md).
+Status: **implemented** (the [reference](../reference/language.md) is the
+exact syntax; it differs from this proposal in small ways: `Bool` prints as
+`Bool` rather than `univ`, and profile regions use `String`).
+Other design docs still show the earlier syntax.
 
 Decision (2026-11-17): Mitra stays a standalone language and tool, with its
 own Rust parser. It is not a Lean library. Lean 4 is the inspiration for

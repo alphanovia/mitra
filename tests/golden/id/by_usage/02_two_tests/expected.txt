@@ -1,2 +1,2 @@
-verdict id_correct [by_usage] = { logic: uncertain, covered: {1, 42}, domain: any, belief: 0.0158 }
-verdict id_small [by_usage] = { logic: uncertain, covered: {1, 42}, domain: [0, 100], belief: 0.0198 }
+id_correct [by_usage] := { logic := .uncertain, covered := {1, 42}, domain := Value, belief := 0.0158 }
+id_small [by_usage] := { logic := .uncertain, covered := {1, 42}, domain := Icc 0 100, belief := 0.0198 }

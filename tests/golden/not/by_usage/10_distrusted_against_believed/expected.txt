@@ -1,2 +1,2 @@
-verdict not_correct [by_usage] = { logic: holds, covered: bool, domain: bool, belief: 1 }
-verdict not_on_true [by_usage] = { logic: holds, covered: {true}, domain: {true}, belief: 1 }
+not_correct [by_usage] := { logic := .holds, covered := Bool, domain := Bool, belief := 1 }
+not_on_true [by_usage] := { logic := .holds, covered := {true}, domain := {true}, belief := 1 }

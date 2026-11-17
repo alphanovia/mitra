@@ -1,2 +1,2 @@
-# A proof on the whole domain.
-evidence id(_) correct @ 1
+-- A proof on the whole domain.
+evidence ∀ x, correct (id x) at 1

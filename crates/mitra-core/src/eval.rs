@@ -567,15 +567,15 @@ impl Report {
         let mut out = String::new();
         for v in &self.verdicts {
             let set = match v.logic {
-                Logic::Fails => format!("refuted: {}", v.refuted.show(&v.domain)),
-                _ => format!("covered: {}", v.covered.show(&v.domain)),
+                Logic::Fails => format!("refuted := {}", v.refuted.show(&v.domain)),
+                _ => format!("covered := {}", v.covered.show(&v.domain)),
             };
             let implication = v
                 .implication
-                .map(|i| format!(", implication: {}", i.as_str()))
+                .map(|i| format!(", implication := .{}", i.as_str()))
                 .unwrap_or_default();
             out += &format!(
-                "verdict {} [{}] = {{ logic: {}, {}, domain: {}, belief: {}{} }}\n",
+                "{} [{}] := {{ logic := .{}, {}, domain := {}, belief := {}{} }}\n",
                 v.claim,
                 v.policy,
                 v.logic.as_str(),

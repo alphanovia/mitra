@@ -225,21 +225,21 @@ impl Set {
 }
 
 impl fmt::Display for Set {
-    /// The shortest readable form: `any`, `bool`, `{1, "a"}`, `[0, 100]`,
-    /// `int \ {5}`, joined by ` | `.
+    /// The shortest readable form: `Value`, `Bool`, `{1, "a"}`, `Icc 0 100`,
+    /// `Int \ {5}`, joined by ` ∪ `.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.other {
             let rest = self.complement();
             return if rest.is_empty() {
-                write!(f, "any")
+                write!(f, "Value")
             } else {
-                write!(f, "any \\ {}", paren(&rest))
+                write!(f, "Value \\ {}", paren(&rest))
             };
         }
         let mut points: Vec<String> = Vec::new();
         let mut parts: Vec<String> = Vec::new();
         if self.bools == [true; 2] {
-            parts.push("bool".into());
+            parts.push("Bool".into());
         } else {
             for b in [false, true] {
                 if self.bools[b as usize] {
@@ -252,30 +252,37 @@ impl fmt::Display for Set {
         if unbounded_both {
             let rest = Set::int().minus(self);
             parts.push(if rest.is_empty() {
-                "int".into()
+                "Int".into()
             } else {
-                format!("(int \\ {})", paren(&rest))
+                format!("(Int \\ {})", paren(&rest))
             });
         } else {
             for &(lo, hi) in &self.ints {
-                let b = |x: i128| match x {
-                    NEG_INF => "-inf".to_string(),
-                    POS_INF => "inf".to_string(),
-                    x => x.to_string(),
-                };
                 if lo == hi {
-                    points.push(b(lo));
-                } else {
-                    parts.push(format!("[{}, {}]", b(lo), b(hi)));
+                    points.push(lo.to_string());
+                    continue;
                 }
+                let b = |x: i128| {
+                    if x < 0 {
+                        format!("({x})")
+                    } else {
+                        x.to_string()
+                    }
+                };
+                // Half-unbounded intervals can't be written, only computed.
+                parts.push(match (lo, hi) {
+                    (NEG_INF, hi) => format!("Iic {}", b(hi)),
+                    (lo, POS_INF) => format!("Ici {}", b(lo)),
+                    (lo, hi) => format!("Icc {} {}", b(lo), b(hi)),
+                });
             }
         }
         match &self.strs {
             Strs::Finite(s) => points.extend(s.iter().map(|x| format!("\"{x}\""))),
-            Strs::Cofinite(s) if s.is_empty() => parts.push("string".into()),
+            Strs::Cofinite(s) if s.is_empty() => parts.push("String".into()),
             Strs::Cofinite(s) => {
                 let s: Vec<String> = s.iter().map(|x| format!("\"{x}\"")).collect();
-                parts.push(format!("(string \\ {{{}}})", s.join(", ")));
+                parts.push(format!("(String \\ {{{}}})", s.join(", ")));
             }
         }
         if !points.is_empty() {
@@ -285,20 +292,19 @@ impl fmt::Display for Set {
             return write!(f, "{{}}");
         }
         if parts.len() == 1 {
-            return write!(
-                f,
-                "{}",
-                parts[0].trim_start_matches('(').trim_end_matches(')')
-            );
+            // A lone `(T \ X)` needs no parentheses.
+            let p = &parts[0];
+            let bare = p.starts_with("(Int") || p.starts_with("(String");
+            return write!(f, "{}", if bare { &p[1..p.len() - 1] } else { p });
         }
-        write!(f, "{}", parts.join(" | "))
+        write!(f, "{}", parts.join(" ∪ "))
     }
 }
 
 /// A set printed so it can follow `\` unambiguously.
 fn paren(s: &Set) -> String {
     let t = s.to_string();
-    if t.contains(' ') && !t.starts_with('{') && !t.starts_with('[') {
+    if t.contains(" ∪ ") || t.contains(" \\ ") {
         format!("({t})")
     } else {
         t
@@ -335,9 +341,9 @@ mod tests {
     #[test]
     fn display() {
         let show = |s: Set| s.to_string();
-        assert_eq!(show(Set::any()), "any");
+        assert_eq!(show(Set::any()), "Value");
         assert_eq!(show(Set::empty()), "{}");
-        assert_eq!(show(Set::bool()), "bool");
+        assert_eq!(show(Set::bool()), "Bool");
         assert_eq!(show(Set::point(&Value::Bool(true))), "{true}");
         assert_eq!(
             show(
@@ -345,7 +351,7 @@ mod tests {
                     .union(&Set::interval(6, 100))
                     .union(&Set::string())
             ),
-            "[0, 4] | [6, 100] | string"
+            "Icc 0 4 ∪ Icc 6 100 ∪ String"
         );
         assert_eq!(
             show(Set::point(&Value::Int(1)).union(&Set::point(&Value::Int(42)))),
@@ -353,11 +359,16 @@ mod tests {
         );
         assert_eq!(
             show(Set::int().minus(&Set::point(&Value::Int(5)))),
-            "int \\ {5}"
+            "Int \\ {5}"
         );
         assert_eq!(
             show(Set::any().minus(&Set::point(&Value::Int(5)))),
-            "any \\ {5}"
+            "Value \\ {5}"
+        );
+        // Found by the grammar fuzzer: the part after `\` needs parentheses.
+        assert_eq!(
+            show(Set::any().minus(&Set::interval(-3, 2).union(&Set::string()))),
+            "Value \\ (Icc (-3) 2 ∪ String)"
         );
     }
 }

@@ -1,2 +1,2 @@
-evidence not(false) -> false @ 0
-evidence neg(true)  -> true  @ 0
+evidence not false = false at 0
+evidence neg true = true at 0

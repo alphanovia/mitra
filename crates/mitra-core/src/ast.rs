@@ -259,6 +259,23 @@ impl Model {
                 }
             }
         }
+        // `evidence c at 1`: a claim on its whole domain.
+        for e in &mut self.evidence {
+            let claim_func = self
+                .claims
+                .iter()
+                .find(|c| c.name == e.about)
+                .map(|c| &c.func);
+            let arity = claim_func.and_then(|f| self.functions.iter().find(|g| &g.name == f));
+            if let (Judgment::Holds(_), true, Some(f)) = (&e.judgment, e.pattern.is_empty(), arity)
+            {
+                let whole = Position {
+                    var: None,
+                    set: None,
+                };
+                e.pattern = vec![whole; f.params.len()];
+            }
+        }
         for e in &self.evidence {
             match (&e.judgment, self.function(&e.about), self.claim(&e.about)) {
                 (Judgment::Holds(_), _, Some(c)) => fits(
@@ -270,7 +287,10 @@ impl Model {
                 (Judgment::Holds(_), _, None) => {
                     return Err(ev(
                         e.line,
-                        format!("`holds`/`fails` needs a claim, `{}` is not one", e.about),
+                        format!(
+                            "`{}` is not a claim (or an output is missing: `= value`)",
+                            e.about
+                        ),
                     ))
                 }
                 (_, Some(f), _) => {

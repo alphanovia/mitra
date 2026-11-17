@@ -1,2 +1,2 @@
-evidence id(1) correct @ 1
-evidence id(7) wrong   @ 1
+evidence correct (id 1) at 1
+evidence ¬ correct (id 7) at 1

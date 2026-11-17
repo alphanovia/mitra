@@ -1,9 +1,9 @@
-subject  not(a: bool) -> bool
+opaque not (a : Bool) : Bool
 
-# not is correct on every input.
-claim    not_correct: not(_)    correct
-# not is correct on true, a subset of its inputs.
-claim    not_on_true: not(true) correct
+-- not is correct on every input.
+claim not_correct : ∀ a, correct (not a)
+-- not is correct on true, a subset of its inputs.
+claim not_on_true : correct (not true)
 
-# Belief is the share of inputs covered, every input weighing the same.
-policy   by_usage = coverage(uniform)
+-- Belief is the share of inputs covered, every input weighing the same.
+policy by_usage := coverage uniform

@@ -1,2 +1,2 @@
-evidence id(_) correct @ 0
-evidence id(7) wrong   @ 0
+evidence ∀ x, correct (id x) at 0
+evidence ¬ correct (id 7) at 0

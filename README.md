@@ -23,20 +23,20 @@ confidence. A **policy** turns evidence into a belief. Mitra gives every
 claim a verdict: what logic proves, which inputs are covered, and how much
 the policy believes it.
 
-```mitra
-subject  not(a: bool) -> bool
-claim    not_correct: not(_)    correct
-claim    not_on_true: not(true) correct
+```lean
+opaque not (a : Bool) : Bool
+claim not_correct : ∀ a, correct (not a)
+claim not_on_true : correct (not true)
 
-policy   strict
+policy strict
 
-evidence not(true)  correct @ 1
-evidence not(false) wrong   @ 1
+evidence correct (not true) at 1
+evidence ¬ correct (not false) at 1
 ```
 
-```text
-verdict not_correct [strict] = { logic: fails, refuted: {false}, domain: bool, belief: 0 }
-verdict not_on_true [strict] = { logic: holds, covered: {true}, domain: {true}, belief: 1 }
+```lean
+not_correct [strict] := { logic := .fails, refuted := {false}, domain := Bool, belief := 0 }
+not_on_true [strict] := { logic := .holds, covered := {true}, domain := {true}, belief := 1 }
 ```
 
 Never a single score: logic, coverage and belief are kept apart. One trusted
@@ -67,6 +67,7 @@ direction, not the current language.
 | [docs/design/composition.md](docs/design/composition.md) | Proposal: composition as implication, structure claims, tests as subjects, the meaning of confidence, tuples |
 | [docs/design/dogfooding.md](docs/design/dogfooding.md) | Plan: a Dempster–Shafer crate annotated with Mitra, and Mitra's semantics written in Mitra |
 | [docs/design/elaboration.md](docs/design/elaboration.md) | Proposal: Mitra elaborates partial knowledge into claims, splits, specs and proof obligations |
+| [docs/design/lean-syntax.md](docs/design/lean-syntax.md) | Decision: a fixed, LL(1) syntax inspired by Lean 4 (now implemented) |
 | [docs/design/workflow.md](docs/design/workflow.md) | Proposal: the developer loop CLI, CI test ingestion and the evidence store |
 | [docs/use-cases.md](docs/use-cases.md) | Where Mitra is headed: checking a model, gating a merge, gating an agent |
 | [docs/validation.md](docs/validation.md) | How Mitra will be validated: a ladder of toy `add` CLIs scored against ground truth |

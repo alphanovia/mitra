@@ -1,2 +1,2 @@
-verdict id_correct [by_usage] = { logic: holds, covered: any, domain: any, belief: 1 }
-verdict id_small [by_usage] = { logic: holds, covered: [0, 100], domain: [0, 100], belief: 1 }
+id_correct [by_usage] := { logic := .holds, covered := Value, domain := Value, belief := 1 }
+id_small [by_usage] := { logic := .holds, covered := Icc 0 100, domain := Icc 0 100, belief := 1 }

@@ -1,9 +1,9 @@
-spec     neg(a: bool) -> bool = !a
-subject  not(a: bool) -> bool
+def neg (a : Bool) : Bool := !a
+opaque not (a : Bool) : Bool
 
-# not computes neg on every input.
-claim    not_spec:    not(_)    matches neg
-# not computes neg on true.
-claim    not_on_true: not(true) matches neg
+-- not computes neg on every input.
+claim not_spec : ∀ a, not a = neg a
+-- not computes neg on true.
+claim not_on_true : not true = neg true
 
-policy   strict
+policy strict

@@ -1,16 +1,16 @@
-spec     neg(a: bool) -> bool = !a
-spec     same(a: bool) -> bool = a
+def neg (a : Bool) : Bool := !a
+def same (a : Bool) : Bool := a
 
-subject  not(a: bool) -> bool
-subject  not_not(a: bool) -> bool
+opaque not (a : Bool) : Bool
+opaque not_not (a : Bool) : Bool
 
-# From the specs alone: Mitra computes it.
-claim    neg_twice:     same(a) matches neg(neg(a))
-# A subject against a spec: needs evidence.
-claim    not_spec:      not(_) matches neg
-# How not_not is built: needs evidence (a review, or observed outputs).
-claim    not_not_shape: not_not(a) matches not(not(a))
-# Derived: not_not is not twice, not is neg, and neg twice is same.
-claim    not_not_same:  not_not(_) matches same from not_spec, not_not_shape, neg_twice
+-- From the specs alone: Mitra computes it.
+claim neg_twice : ∀ a, same a = neg (neg a)
+-- A subject against a spec: needs evidence.
+claim not_spec : ∀ a, not a = neg a
+-- How not_not is built: needs evidence (a review, or observed outputs).
+claim not_not_shape : ∀ a, not_not a = not (not a)
+-- Derived: not_not is not twice, not is neg, and neg twice is same.
+claim not_not_same : ∀ a, not_not a = same a := by derive [not_spec, not_not_shape, neg_twice]
 
-policy   strict
+policy strict

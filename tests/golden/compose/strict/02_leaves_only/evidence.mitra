@@ -1,5 +1,5 @@
-# Evidence on the leaves only: nothing on not_not's outputs.
-evidence not(true)  -> false @ 1
-evidence not(false) -> true  @ 1
-# A review of the code: not_not calls not twice.
-evidence not_not_shape(_) holds @ 1
+-- Evidence on the leaves only: nothing on not_not's outputs.
+evidence not true = false at 1
+evidence not false = true at 1
+-- A review of the code: not_not calls not twice.
+evidence not_not_shape at 1

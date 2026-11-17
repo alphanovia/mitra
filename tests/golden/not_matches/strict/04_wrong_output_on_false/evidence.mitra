@@ -1,2 +1,2 @@
-# not(false) should be true.
-evidence not(false) -> false @ 1
+-- not(false) should be true.
+evidence not false = false at 1

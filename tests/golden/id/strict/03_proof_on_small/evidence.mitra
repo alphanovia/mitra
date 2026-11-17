@@ -1,2 +1,2 @@
-# A proof covers a whole interval.
-evidence id(x in [0, 100]) correct @ 1
+-- A proof covers a whole interval.
+evidence ∀ x ∈ Icc 0 100, correct (id x) at 1

@@ -156,22 +156,28 @@ impl Tuples {
                 .collect();
             return format!("{{{}}}", ts.join(", "));
         }
-        self.boxes
-            .iter()
-            .map(|b| show_box(b))
-            .collect::<Vec<_>>()
-            .join(" | ")
+        let boxes: Vec<String> = self.boxes.iter().map(|b| show_box(b)).collect();
+        if boxes.len() == 1 {
+            return boxes[0].clone();
+        }
+        let boxes: Vec<String> = boxes.iter().map(|b| format!("({b})")).collect();
+        boxes.join(" ∪ ")
     }
 }
 
+/// A product of sets: `Icc 0 2 ×ˢ Icc (-2) 0`.
 fn show_box(b: &[Set]) -> String {
-    format!(
-        "({})",
-        b.iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
+    b.iter()
+        .map(|s| {
+            let t = s.to_string();
+            if t.contains(" ∪ ") || t.contains(" \\ ") {
+                format!("({t})")
+            } else {
+                t
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ×ˢ ")
 }
 
 /// `a \ b` as disjoint boxes: for each position i, the part of `a` that
@@ -210,13 +216,13 @@ mod tests {
         assert_eq!(hole.count(), Some(8.0));
         assert!(!hole.contains(&[int(1), int(-1)]));
         assert!(hole.union(&Tuples::point(&[int(1), int(-1)])).same(&d));
-        assert_eq!(d.show(&d), "([0, 2], [-2, 0])");
+        assert_eq!(d.show(&d), "Icc 0 2 ×ˢ Icc (-2) 0");
         assert_eq!(d.minus(&hole).show(&d), "{(1, -1)}");
         let wide = Tuples::product(vec![Set::int(), Set::point(&int(0))]);
         assert_eq!(wide.count(), None);
         assert_eq!(
             wide.show(&Tuples::product(vec![Set::int(), Set::int()])),
-            "(int, {0})"
+            "Int ×ˢ {0}"
         );
     }
 }

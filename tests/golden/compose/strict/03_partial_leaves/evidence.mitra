@@ -1,2 +1,2 @@
-evidence not(true) -> false @ 1
-evidence not_not_shape(_) holds @ 1
+evidence not true = false at 1
+evidence not_not_shape at 1

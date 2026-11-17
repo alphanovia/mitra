@@ -1,17 +1,17 @@
-spec     plus(a: int, b: int) -> int = a + b
-spec     opposite(b: int) -> int = -b
-spec     difference(a: int, b: int) -> int = a - b
+def plus (a b : Int) : Int := a + b
+def opposite (b : Int) : Int := -b
+def difference (a b : Int) : Int := a - b
 
-subject  add(a: int, b: int) -> int
-subject  negate(b: int) -> int
-subject  minus(a: int, b: int) -> int
+opaque add (a b : Int) : Int
+opaque negate (b : Int) : Int
+opaque minus (a b : Int) : Int
 
-# add, on the inputs minus uses.
-claim    add_spec:    add(a in [0, 2], b in [-2, 0]) matches plus
-claim    negate_spec: negate(b in [0, 2]) matches opposite
-# How minus is built, from a review of its code.
-claim    minus_shape: minus(a in [0, 2], b in [0, 2]) matches add(a, negate(b))
-# Derived without the shape: Mitra cannot check the implication.
-claim    minus_spec:  minus(a in [0, 2], b in [0, 2]) matches difference from add_spec, negate_spec
+-- add, on the inputs minus uses.
+claim add_spec : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc (-2) 0, add a b = plus a b
+claim negate_spec : ∀ b ∈ Icc 0 2, negate b = opposite b
+-- How minus is built, from a review of its code.
+claim minus_shape : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc 0 2, minus a b = add a (negate b)
+-- Derived without the shape: Mitra cannot check the implication.
+claim minus_spec : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc 0 2, minus a b = difference a b := by derive [add_spec, negate_spec]
 
-policy   strict
+policy strict

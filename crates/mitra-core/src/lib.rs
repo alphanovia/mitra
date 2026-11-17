@@ -4,18 +4,19 @@
 //! evidence, then compute a verdict for each claim under each policy.
 //!
 //! ```
-//! let model = "subject not(a: bool) -> bool\nclaim not_correct: not(_) correct\npolicy strict";
-//! let evidence = "evidence not(true) correct @ 1\nevidence not(false) correct @ 1";
+//! let model = "opaque not (a : Bool) : Bool\nclaim not_correct : ∀ a, correct (not a)\npolicy strict";
+//! let evidence = "evidence correct (not true) at 1\nevidence correct (not false) at 1";
 //! let report = mitra_core::run(model, evidence).unwrap();
 //! assert_eq!(
 //!     report.to_text(),
-//!     "verdict not_correct [strict] = { logic: holds, covered: bool, domain: bool, belief: 1 }\n"
+//!     "not_correct [strict] := { logic := .holds, covered := Bool, domain := Bool, belief := 1 }\n"
 //! );
 //! ```
 
 pub mod ast;
 pub mod eval;
 pub mod parse;
+pub mod print;
 pub mod set;
 pub mod tuples;
 
@@ -25,6 +26,7 @@ pub use ast::{
 };
 pub use eval::{evaluate, Flag, Implication, Logic, Report, Verdict};
 pub use parse::{parse_evidence, parse_model};
+pub use print::{print_evidence, print_model};
 pub use set::{Set, Value};
 pub use tuples::Tuples;
 

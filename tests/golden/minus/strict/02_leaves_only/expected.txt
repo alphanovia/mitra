@@ -1,4 +1,4 @@
-verdict add_spec [strict] = { logic: holds, covered: ([0, 2], [-2, 0]), domain: ([0, 2], [-2, 0]), belief: 1 }
-verdict negate_spec [strict] = { logic: holds, covered: [0, 2], domain: [0, 2], belief: 1 }
-verdict minus_shape [strict] = { logic: holds, covered: ([0, 2], [0, 2]), domain: ([0, 2], [0, 2]), belief: 1 }
-verdict minus_spec [strict] = { logic: holds, covered: ([0, 2], [0, 2]), domain: ([0, 2], [0, 2]), belief: 1, implication: checked }
+add_spec [strict] := { logic := .holds, covered := Icc 0 2 ×ˢ Icc (-2) 0, domain := Icc 0 2 ×ˢ Icc (-2) 0, belief := 1 }
+negate_spec [strict] := { logic := .holds, covered := Icc 0 2, domain := Icc 0 2, belief := 1 }
+minus_shape [strict] := { logic := .holds, covered := Icc 0 2 ×ˢ Icc 0 2, domain := Icc 0 2 ×ˢ Icc 0 2, belief := 1 }
+minus_spec [strict] := { logic := .holds, covered := Icc 0 2 ×ˢ Icc 0 2, domain := Icc 0 2 ×ˢ Icc 0 2, belief := 1, implication := .checked }
