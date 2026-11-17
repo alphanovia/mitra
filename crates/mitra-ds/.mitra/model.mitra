@@ -10,17 +10,17 @@
 -- is correct when the result is a valid mass, commutative, equal to Yager's
 -- renormalised, and undefined exactly at total conflict.
 
-opaque combine_yager (case : Icc 0 1003) : Value
-opaque combine_dempster (case : Icc 0 1003) : Value
+opaque combine_yager (case : 0..=1003) : Value
+opaque combine_dempster (case : 0..=1003) : Value
 
-claim yager_correct : ∀ case, correct (combine_yager case)
-claim dempster_correct : ∀ case, correct (combine_dempster case)
+claim yager_correct : forall case, correct (combine_yager case)
+claim dempster_correct : forall case, correct (combine_dempster case)
 -- The part Mitra itself will rely on: the extremes.
-claim yager_extremes : ∀ case ∈ Icc 1000 1003, correct (combine_yager case)
+claim yager_extremes : forall case in 1000..=1003, correct (combine_yager case)
 
-test t_yager_random : ∀ case ∈ Icc 0 999, correct (combine_yager case)
-test t_dempster_random : ∀ case ∈ Icc 0 999, correct (combine_dempster case)
-test t_yager_extremes : ∀ case ∈ Icc 1000 1003, correct (combine_yager case)
-test t_dempster_extremes : ∀ case ∈ Icc 1000 1003, correct (combine_dempster case)
+test t_yager_random : forall case in 0..=999, correct (combine_yager case)
+test t_dempster_random : forall case in 0..=999, correct (combine_dempster case)
+test t_yager_extremes : forall case in 1000..=1003, correct (combine_yager case)
+test t_dempster_extremes : forall case in 1000..=1003, correct (combine_dempster case)
 
 policy strict

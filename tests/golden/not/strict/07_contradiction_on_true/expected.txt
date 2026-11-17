@@ -1,2 +1,0 @@
-not_correct [strict] := { logic := .uncertain, covered := {false}, domain := Bool, belief := 0 }
-not_on_true [strict] := { logic := .uncertain, covered := {}, domain := {true}, belief := 0 }

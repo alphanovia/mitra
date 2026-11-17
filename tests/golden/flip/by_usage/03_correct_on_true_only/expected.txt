@@ -1,0 +1,2 @@
+flip_correct [by_usage] := { logic := .uncertain, covered := {true}, domain := Bool, belief := 0.5 }
+flip_on_true [by_usage] := { logic := .holds, covered := {true}, domain := {true}, belief := 1 }

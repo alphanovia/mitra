@@ -1,13 +1,13 @@
 ============================================================
-not: 05_correct_on_true_wrong_on_false model
+flip: 05_correct_on_true_wrong_on_false model
 ============================================================
 
-opaque not (a : Bool) : Bool
+opaque flip (a : Bool) : Bool
 
--- not is correct on every input.
-claim not_correct : ∀ a, correct (not a)
--- not is correct on true, a subset of its inputs.
-claim not_on_true : correct (not true)
+-- flip is correct on every input.
+claim flip_correct : forall a, correct (flip a)
+-- flip is correct on true, a subset of its inputs.
+claim flip_on_true : correct (flip true)
 
 policy strict
 
@@ -39,11 +39,11 @@ policy strict
   (policy))
 
 ============================================================
-not: 05_correct_on_true_wrong_on_false evidence
+flip: 05_correct_on_true_wrong_on_false evidence
 ============================================================
 
-evidence correct (not true) at 1
-evidence ¬ correct (not false) at 1
+evidence correct (flip true) at 1
+evidence not correct (flip false) at 1
 
 ---
 
@@ -69,14 +69,14 @@ id: 07_proof_contradicted_on_5 model
 opaque id (x : Value) : Value
 
 -- id is correct on every input.
-claim id_correct : ∀ x, correct (id x)
+claim id_correct : forall x, correct (id x)
 -- id is correct on the integers from 0 to 100.
-claim id_small : ∀ x ∈ Icc 0 100, correct (id x)
+claim id_small : forall x in 0..=100, correct (id x)
 
 -- How id is used: mostly small integers, sometimes strings, rarely anything else.
 profile usage for id
-  | x ∈ Icc 0 100 => 0.8
-  | x ∈ String => 0.1
+  | x in 0..=100 => 0.8
+  | x in String => 0.1
   | _ => 0.1
 
 policy by_usage := coverage usage
@@ -104,9 +104,11 @@ policy by_usage := coverage usage
     (name)
     (forall
       (name)
-      (interval
-        (nat)
-        (nat)))
+      (range
+        (bound
+          (nat))
+        (bound
+          (nat))))
     (correct
       (call
         (name)
@@ -117,9 +119,11 @@ policy by_usage := coverage usage
     (name)
     (region
       (name)
-      (interval
-        (nat)
-        (nat))
+      (range
+        (bound
+          (nat))
+        (bound
+          (nat)))
       (number))
     (region
       (name)
@@ -136,8 +140,8 @@ id: 07_proof_contradicted_on_5 evidence
 ============================================================
 
 -- A test contradicts the proof on 5: 5 counts on neither side.
-evidence ∀ x ∈ Icc 0 100, correct (id x) at 1
-evidence ¬ correct (id 5) at 1
+evidence forall x in 0..=100, correct (id x) at 1
+evidence not correct (id 5) at 1
 
 ---
 
@@ -146,9 +150,11 @@ evidence ¬ correct (id 5) at 1
   (evidence
     (forall
       (name)
-      (interval
-        (nat)
-        (nat)))
+      (range
+        (bound
+          (nat))
+        (bound
+          (nat))))
     (correct
       (call
         (name)
@@ -163,16 +169,16 @@ evidence ¬ correct (id 5) at 1
     (number)))
 
 ============================================================
-not_matches: 07_evidence_against_the_spec model
+flip_matches: 07_evidence_against_the_spec model
 ============================================================
 
 def neg (a : Bool) : Bool := !a
-opaque not (a : Bool) : Bool
+opaque flip (a : Bool) : Bool
 
--- not computes neg on every input.
-claim not_spec : ∀ a, not a = neg a
--- not computes neg on true.
-claim not_on_true : not true = neg true
+-- flip computes neg on every input.
+claim flip_spec : forall a, flip a = neg a
+-- flip computes neg on true.
+claim flip_on_true : flip true = neg true
 
 policy strict
 
@@ -218,11 +224,11 @@ policy strict
   (policy))
 
 ============================================================
-not_matches: 07_evidence_against_the_spec evidence
+flip_matches: 07_evidence_against_the_spec evidence
 ============================================================
 
-evidence not true = false at 1
-evidence not false = true at 1
+evidence flip true = false at 1
+evidence flip false = true at 1
 -- neg is a definition: evidence cannot disprove it, so Mitra flags it.
 evidence neg true = true at 1
 
@@ -259,17 +265,17 @@ compose: 02_leaves_only model
 def neg (a : Bool) : Bool := !a
 def same (a : Bool) : Bool := a
 
-opaque not (a : Bool) : Bool
-opaque not_not (a : Bool) : Bool
+opaque flip (a : Bool) : Bool
+opaque flip_not (a : Bool) : Bool
 
 -- From the specs alone: Mitra computes it.
-claim neg_twice : ∀ a, same a = neg (neg a)
+claim neg_twice : forall a, same a = neg (neg a)
 -- A subject against a spec: needs evidence.
-claim not_spec : ∀ a, not a = neg a
--- How not_not is built: needs evidence (a review, or observed outputs).
-claim not_not_shape : ∀ a, not_not a = not (not a)
--- Derived: not_not is not twice, not is neg, and neg twice is same.
-claim not_not_same : ∀ a, not_not a = same a := by derive [not_spec, not_not_shape, neg_twice]
+claim flip_spec : forall a, flip a = neg a
+-- How flip_not is built: needs evidence (a review, or observed outputs).
+claim flip_not_shape : forall a, flip_not a = flip (flip a)
+-- Derived: flip_not is flip twice, flip is neg, and neg twice is same.
+claim flip_not_same : forall a, flip_not a = same a := by derive [flip_spec, flip_not_shape, neg_twice]
 
 policy strict
 
@@ -367,11 +373,11 @@ policy strict
 compose: 02_leaves_only evidence
 ============================================================
 
--- Evidence on the leaves only: nothing on not_not's outputs.
-evidence not true = false at 1
-evidence not false = true at 1
--- A review of the code: not_not calls not twice.
-evidence not_not_shape at 1
+-- Evidence on the leaves only: nothing on flip_not's outputs.
+evidence flip true = false at 1
+evidence flip false = true at 1
+-- A review of the code: flip_not calls flip twice.
+evidence flip_not_shape at 1
 
 ---
 
@@ -410,12 +416,12 @@ opaque negate (b : Int) : Int
 opaque minus (a b : Int) : Int
 
 -- add, on the inputs minus uses.
-claim add_spec : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc (-2) 0, add a b = plus a b
-claim negate_spec : ∀ b ∈ Icc 0 2, negate b = opposite b
+claim add_spec : forall a in 0..=2, forall b in -2..=0, add a b = plus a b
+claim negate_spec : forall b in 0..=2, negate b = opposite b
 -- How minus is built, from a review of its code.
-claim minus_shape : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc 0 2, minus a b = add a (negate b)
+claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus a b = add a (negate b)
 -- Derived: Mitra checks the implication by substituting the premises.
-claim minus_spec : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc 0 2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
+claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
 
 policy strict
 
@@ -475,15 +481,18 @@ policy strict
     (name)
     (forall
       (name)
-      (interval
-        (nat)
-        (nat)))
+      (range
+        (bound
+          (nat))
+        (bound
+          (nat))))
     (forall
       (name)
-      (interval
-        (negative
+      (range
+        (bound
           (nat))
-        (nat)))
+        (bound
+          (nat))))
     (equation
       (call
         (name)
@@ -497,9 +506,11 @@ policy strict
     (name)
     (forall
       (name)
-      (interval
-        (nat)
-        (nat)))
+      (range
+        (bound
+          (nat))
+        (bound
+          (nat))))
     (equation
       (call
         (name)
@@ -512,14 +523,18 @@ policy strict
     (name)
     (forall
       (name)
-      (interval
-        (nat)
-        (nat)))
+      (range
+        (bound
+          (nat))
+        (bound
+          (nat))))
     (forall
       (name)
-      (interval
-        (nat)
-        (nat)))
+      (range
+        (bound
+          (nat))
+        (bound
+          (nat))))
     (equation
       (call
         (name)
@@ -537,14 +552,18 @@ policy strict
     (name)
     (forall
       (name)
-      (interval
-        (nat)
-        (nat)))
+      (range
+        (bound
+          (nat))
+        (bound
+          (nat))))
     (forall
       (name)
-      (interval
-        (nat)
-        (nat)))
+      (range
+        (bound
+          (nat))
+        (bound
+          (nat))))
     (equation
       (call
         (name)
@@ -696,10 +715,10 @@ evidence minus_shape at 1
 attributes and tests
 ============================================================
 
-test t_true : correct (not true)
-test t_all : ∀ a ∈ {true, false}, correct (not a)
-@[source "test:t_true", rev "3f2a -- not a comment"] evidence correct (not true) at 1
-@[rev ""] evidence not_correct at 0
+test t_true : correct (flip true)
+test t_all : forall a in {true, false}, correct (flip a)
+@[source "test:t_true", rev "3f2a -- flip a comment"] evidence correct (flip true) at 1
+@[rev ""] evidence flip_correct at 0
 
 ---
 

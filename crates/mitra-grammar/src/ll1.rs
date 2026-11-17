@@ -13,14 +13,15 @@ pub const SOURCE: &str = include_str!("mitra.ll1");
 /// End of input.
 const END: &str = "$";
 const CLASSES: [&str; 4] = ["NAT", "DEC", "STR", "NAME"];
-const KEYWORDS: [&str; 26] = [
+const KEYWORDS: [&str; 37] = [
     "opaque", "def", "claim", "test", "evidence", "profile", "policy", "correct", "at", "by",
-    "derive", "if", "then", "else", "let", "true", "false", "Bool", "Int", "String", "Value",
-    "Icc", "for", "strict", "coverage", "_",
+    "derive", "if", "then", "else", "let", "true", "false", "forall", "in", "not", "Bool", "Int",
+    "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "Float64", "String", "Value",
+    "for", "strict", "coverage", "_", "Real",
 ];
-const PUNCT: [&str; 32] = [
-    "@[", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||", "(", ")", ":", ";", ",", "=", "{", "}",
-    "[", "]", "|", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
+const PUNCT: [&str; 35] = [
+    "@[", "..=", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||", "..", "(", ")", ":", ";", ",",
+    "=", "{", "}", "[", "]", "|", "&", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
 ];
 
 /// A grammar symbol: a token (`"x"` or a token class) or a rule name.

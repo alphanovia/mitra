@@ -1,4 +1,4 @@
-evidence not true = false at 1
-evidence not false = true at 1
-evidence not_not true = true at 1
-evidence not_not false = false at 1
+evidence flip true = false at 1
+evidence flip false = true at 1
+evidence flip_not true = true at 1
+evidence flip_not false = false at 1

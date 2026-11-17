@@ -1,2 +1,2 @@
-evidence not true = false at 0
-evidence not_not_shape at 0
+evidence flip true = false at 0
+evidence flip_not_shape at 0

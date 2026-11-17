@@ -11,11 +11,11 @@ opaque parses (seed : Int) : Bool
 -- parse → print → parse gives the same AST.
 opaque round_trips (seed : Int) : Bool
 
-claim grammar_sample : ∀ seed ∈ Icc 0 499, grammar_accepts seed = true
-claim ll1_sample : ∀ seed ∈ Icc 0 499, ll1_accepts seed = true
-claim parses_sample : ∀ seed ∈ Icc 0 499, parses seed = true
-claim round_trips_sample : ∀ seed ∈ Icc 0 499, round_trips seed = true
+claim grammar_sample : forall seed in 0..=499, grammar_accepts seed = true
+claim ll1_sample : forall seed in 0..=499, ll1_accepts seed = true
+claim parses_sample : forall seed in 0..=499, parses seed = true
+claim round_trips_sample : forall seed in 0..=499, round_trips seed = true
 -- What we would like: the parser accepts every generated program.
-claim parses_all : ∀ seed, parses seed = true
+claim parses_all : forall seed, parses seed = true
 
 policy strict

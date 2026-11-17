@@ -1,2 +1,2 @@
-id_correct [by_usage] := { logic := .uncertain, covered := Icc 0 100 ∪ String, domain := Value, belief := 0.9 }
-id_small [by_usage] := { logic := .holds, covered := Icc 0 100, domain := Icc 0 100, belief := 1 }
+id_correct [by_usage] := { logic := .uncertain, covered := 0..=100 | String, domain := Value, belief := 0.9 }
+id_small [by_usage] := { logic := .holds, covered := 0..=100, domain := 0..=100, belief := 1 }

@@ -1,2 +1,2 @@
 id_correct [strict] := { logic := .fails, refuted := {7}, domain := Value, belief := 0 }
-id_small [strict] := { logic := .fails, refuted := {7}, domain := Icc 0 100, belief := 0 }
+id_small [strict] := { logic := .fails, refuted := {7}, domain := 0..=100, belief := 0 }

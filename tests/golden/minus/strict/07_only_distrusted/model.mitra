@@ -7,11 +7,11 @@ opaque negate (b : Int) : Int
 opaque minus (a b : Int) : Int
 
 -- add, on the inputs minus uses.
-claim add_spec : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc (-2) 0, add a b = plus a b
-claim negate_spec : ∀ b ∈ Icc 0 2, negate b = opposite b
+claim add_spec : forall a in 0..=2, forall b in -2..=0, add a b = plus a b
+claim negate_spec : forall b in 0..=2, negate b = opposite b
 -- How minus is built, from a review of its code.
-claim minus_shape : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc 0 2, minus a b = add a (negate b)
+claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus a b = add a (negate b)
 -- Derived: Mitra checks the implication by substituting the premises.
-claim minus_spec : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc 0 2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
+claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
 
 policy strict

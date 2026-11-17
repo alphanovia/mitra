@@ -1,5 +1,0 @@
--- Added to every case by the test harness: evidence at 0 must change nothing.
-evidence not true = true at 0
-evidence not false = false at 0
-evidence ∀ a, ¬ correct (not a) at 0
-evidence neg true = true at 0

@@ -3,7 +3,7 @@
 //! One function per grammar rule. Tokens are separated by spaces and
 //! commands by line breaks. The generator also keeps the parser's one rule
 //! beyond the grammar: in a claim or evidence, every argument name is bound
-//! by a `∀` and every `∀` name is used once. Names never collide with
+//! by a `forall` and every `forall` name is used once. Names never collide with
 //! keywords. Deterministic for a given seed.
 
 /// xorshift64: tiny, deterministic, good enough to pick alternatives.
@@ -33,7 +33,16 @@ impl Rng {
     }
 }
 
-const NAMES: [&str; 8] = ["a", "b", "f", "g", "not", "x1", "add_two", "claim_"];
+const NAMES: [&str; 8] = ["a", "b", "f", "g", "flip", "x1", "add_two", "claim_"];
+
+/// ASCII first, sometimes Lean's Unicode alias.
+fn pick(r: &mut Rng, ascii: &'static str, unicode: &'static str) -> &'static str {
+    if r.chance(25) {
+        unicode
+    } else {
+        ascii
+    }
+}
 
 fn name(r: &mut Rng) -> String {
     NAMES[r.below(NAMES.len())].to_string()
@@ -47,6 +56,11 @@ fn nat(r: &mut Rng) -> String {
     }
 }
 
+/// A float literal, as values and expressions write it.
+fn float(r: &mut Rng) -> String {
+    ["0.0", "1.5", "0.25", "123456.789"][r.below(4)].to_string()
+}
+
 /// `number`: what weights and confidences use.
 fn number(r: &mut Rng) -> String {
     ["0", "1", "2", "0.5", "10"][r.below(5)].to_string()
@@ -57,27 +71,45 @@ fn string(r: &mut Rng) -> String {
 }
 
 fn value(r: &mut Rng) -> String {
-    match r.below(5) {
+    match r.below(7) {
         0 => "true".into(),
         1 => "false".into(),
         2 => nat(r),
         3 => format!("- {}", nat(r)),
+        4 => float(r),
+        5 => format!("- {}", float(r)),
         _ => string(r),
     }
 }
 
-fn int_atom(r: &mut Rng) -> String {
+/// A range bound: `5` or `- 5`.
+fn bound(r: &mut Rng) -> String {
     if r.chance(30) {
-        format!("( - {} )", nat(r))
+        format!("- {}", nat(r))
     } else {
         nat(r)
     }
 }
 
+/// `a ..= b`, `a .. b`, `a ..`, `..= b`, `.. b`.
+fn range(r: &mut Rng) -> String {
+    match r.below(5) {
+        0 | 1 => format!("{} ..= {}", bound(r), bound(r)),
+        2 => format!("{} .. {}", bound(r), bound(r)),
+        3 => format!("{} ..", bound(r)),
+        _ => format!("{} {}", ["..=", ".."][r.below(2)], bound(r)),
+    }
+}
+
+const TYPES: [&str; 12] = [
+    "Bool", "Int", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "Float64",
+    "String", "Value",
+];
+
 fn set(r: &mut Rng, depth: usize) -> String {
     let mut s = inter(r, depth);
     while r.chance(20) {
-        s = format!("{s} ∪ {}", inter(r, depth));
+        s = format!("{s} {} {}", pick(r, "|", "∪"), inter(r, depth));
     }
     s
 }
@@ -85,16 +117,20 @@ fn set(r: &mut Rng, depth: usize) -> String {
 fn inter(r: &mut Rng, depth: usize) -> String {
     let mut s = set_atom(r, depth);
     while r.chance(20) {
-        s = format!("{s} {} {}", ["∩", "\\"][r.below(2)], set_atom(r, depth));
+        let op = match r.below(3) {
+            0 => pick(r, "&", "∩"),
+            _ => "\\",
+        };
+        s = format!("{s} {op} {}", set_atom(r, depth));
     }
     s
 }
 
 fn set_atom(r: &mut Rng, depth: usize) -> String {
     match r.below(if depth == 0 { 6 } else { 7 }) {
-        0..=3 => ["Bool", "Int", "String", "Value"][r.below(4)].into(),
+        0..=3 => TYPES[r.below(TYPES.len())].into(),
         4 => format!("{{ {} }}", r.many(0, 3, value).join(" , ")),
-        5 => format!("Icc {} {}", int_atom(r), int_atom(r)),
+        5 => range(r),
         _ => format!("( {} )", set(r, depth - 1)),
     }
 }
@@ -109,19 +145,22 @@ fn call_args(r: &mut Rng, min: usize) -> (String, String) {
     for _ in 0..n {
         if r.chance(50) {
             let x = fresh.remove(r.below(fresh.len()));
+            let all = pick(r, "forall", "∀");
             let binder = if r.chance(50) {
-                format!("∀ {x} , ")
+                format!("{all} {x} , ")
             } else {
-                format!("∀ {x} ∈ {} , ", set(r, 2))
+                format!("{all} {x} {} {} , ", pick(r, "in", "∈"), set(r, 2))
             };
             bound.push(binder);
             args.push(x.to_string());
         } else {
-            args.push(match r.below(5) {
+            args.push(match r.below(7) {
                 0 => "true".into(),
                 1 => "false".into(),
                 2 => nat(r),
                 3 => format!("( - {} )", nat(r)),
+                4 => float(r),
+                5 => format!("( - {} )", float(r)),
                 _ => string(r),
             });
         }
@@ -178,10 +217,11 @@ fn binary(r: &mut Rng, level: usize, depth: usize) -> String {
 }
 
 fn literal(r: &mut Rng) -> String {
-    match r.below(4) {
+    match r.below(5) {
         0 => "true".into(),
         1 => "false".into(),
         2 => nat(r),
+        3 => float(r),
         _ => string(r),
     }
 }
@@ -250,7 +290,8 @@ fn command(r: &mut Rng) -> String {
         3 => {
             let regions = r.many(0, 3, |r| {
                 if r.chance(70) {
-                    format!("\n  | {} ∈ {} => {}", name(r), set(r, 2), number(r))
+                    let i = pick(r, "in", "∈");
+                    format!("\n  | {} {i} {} => {}", name(r), set(r, 2), number(r))
                 } else {
                     format!("\n  | _ => {}", number(r))
                 }
@@ -273,7 +314,7 @@ pub fn model(r: &mut Rng) -> String {
 /// Sometimes a comment, at the end of a line or on its own line.
 fn comment(r: &mut Rng) -> String {
     match r.below(6) {
-        0 => " -- a comment, with ∀ and \"quotes\"".into(),
+        0 => " -- a comment, with forall and \"quotes\"".into(),
         1 => "\n-- a line comment".into(),
         _ => String::new(),
     }
@@ -306,7 +347,8 @@ fn judgment(r: &mut Rng) -> String {
         }
         1 => {
             let (forall, args) = call_args(r, 1);
-            format!("{forall}¬ correct ( {}{args} )", name(r))
+            let not = pick(r, "not", "¬");
+            format!("{forall}{not} correct ( {}{args} )", name(r))
         }
         2 => {
             let (forall, args) = call_args(r, 0);
@@ -314,7 +356,8 @@ fn judgment(r: &mut Rng) -> String {
         }
         3 => {
             let (forall, args) = call_args(r, 0);
-            format!("{forall}¬ {}{args}", name(r))
+            let not = pick(r, "not", "¬");
+            format!("{forall}{not} {}{args}", name(r))
         }
         _ => {
             let (forall, args) = call_args(r, 1);

@@ -40,7 +40,7 @@ pub fn print_model(m: &Model) -> String {
         out += &format!("profile {} for {}\n", p.name, p.subject);
         for (region, w) in &p.regions {
             out += &match region {
-                Some(s) => format!("  | x ∈ {s} => {w}\n"),
+                Some(s) => format!("  | x in {s} => {w}\n"),
                 None => format!("  | _ => {w}\n"),
             };
         }
@@ -78,9 +78,9 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
         let call = format!("{}{args}", e.about);
         let judgment = match &e.judgment {
             Judgment::Correct(true) => format!("correct ({call})"),
-            Judgment::Correct(false) => format!("¬ correct ({call})"),
+            Judgment::Correct(false) => format!("not correct ({call})"),
             Judgment::Holds(true) => call,
-            Judgment::Holds(false) => format!("¬ {call}"),
+            Judgment::Holds(false) => format!("not {call}"),
             Judgment::Output(v) => format!("{call} = {v}"),
         };
         let mut attrs = Vec::new();
@@ -116,7 +116,7 @@ fn binders(params: &[(String, Set)]) -> String {
     out
 }
 
-/// A pattern as `∀` binders and the arguments of the call.
+/// A pattern as `forall` binders and the arguments of the call.
 fn pattern(p: &Pattern, params: &[(String, Set)]) -> (String, String) {
     let mut forall = String::new();
     let mut args = String::new();
@@ -134,8 +134,8 @@ fn pattern(p: &Pattern, params: &[(String, Set)]) -> (String, String) {
             None => format!("x{}", i + 1),
         });
         forall += &match &pos.set {
-            None => format!("∀ {x}, "),
-            Some(s) => format!("∀ {x} ∈ {s}, "),
+            None => format!("forall {x}, "),
+            Some(s) => format!("forall {x} in {s}, "),
         };
         args += &format!(" {x}");
     }
@@ -148,11 +148,20 @@ pub fn call(f: &str, input: &[Value]) -> String {
     format!("{f}{args}")
 }
 
-/// A value as an argument: negative integers need parentheses.
+/// A value as an argument: negative numbers need parentheses.
 fn value_arg(v: &Value) -> String {
+    if negative(v) {
+        format!("({v})")
+    } else {
+        v.to_string()
+    }
+}
+
+fn negative(v: &Value) -> bool {
     match v {
-        Value::Int(i) if *i < 0 => format!("({i})"),
-        v => v.to_string(),
+        Value::Int(i) => *i < 0,
+        Value::Float(x) => x.is_sign_negative(),
+        _ => false,
     }
 }
 
@@ -179,7 +188,7 @@ pub fn expr(e: &Expr) -> String {
 /// `e`, in a place that needs at least binding strength `min`.
 fn at(e: &Expr, min: u8) -> String {
     let (s, strength) = match e {
-        Expr::Lit(Value::Int(i)) if *i < 0 => (i.to_string(), UNARY),
+        Expr::Lit(v) if negative(v) => (v.to_string(), UNARY),
         Expr::Lit(v) => (v.to_string(), ATOM),
         Expr::Var(x) => (x.clone(), ATOM),
         Expr::Call(f, args) => {

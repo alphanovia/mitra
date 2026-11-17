@@ -1,4 +1,4 @@
--- not(true) should be false: a premise fails, so the derivation gives nothing.
-evidence not true = true at 1
-evidence not false = true at 1
-evidence not_not_shape at 1
+-- flip(true) should be false: a premise fails, so the derivation gives nothing.
+evidence flip true = true at 1
+evidence flip false = true at 1
+evidence flip_not_shape at 1

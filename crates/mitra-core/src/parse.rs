@@ -1,7 +1,8 @@
-//! Text projection: a small, fixed syntax inspired by Lean 4. Every command
-//! starts with a keyword and layout is free. `--` starts a comment. The
-//! grammar is LL(1): one token of lookahead decides every step. See
-//! docs/reference/language.md.
+//! Text projection: a small, fixed syntax inspired by Lean 4, written in
+//! ASCII (`forall`, `in`, `not`, `|`, `&`), with Lean's Unicode symbols
+//! (`∀ ∈ ¬ ∪ ∩`) accepted as aliases. Every command starts with a keyword and
+//! layout is free. `--` starts a comment. The grammar is LL(1): one token of
+//! lookahead decides every step. See docs/reference/language.md.
 
 use crate::ast::*;
 use crate::set::{Set, Value};
@@ -16,17 +17,18 @@ enum Tok {
     Punct(&'static str),
 }
 
-/// Longest first, so `:=` wins over `:` and `||` over `|`.
-const PUNCT: [&str; 32] = [
-    "@[", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||", "(", ")", ":", ";", ",", "=", "{", "}",
-    "[", "]", "|", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
+/// Longest first, so `:=` wins over `:`, `||` over `|` and `..=` over `..`.
+const PUNCT: [&str; 35] = [
+    "@[", "..=", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||", "..", "(", ")", ":", ";", ",",
+    "=", "{", "}", "[", "]", "|", "&", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
-pub const KEYWORDS: [&str; 26] = [
+pub const KEYWORDS: [&str; 37] = [
     "opaque", "def", "claim", "test", "evidence", "profile", "policy", "correct", "at", "by",
-    "derive", "if", "then", "else", "let", "true", "false", "Bool", "Int", "String", "Value",
-    "Icc", "for", "strict", "coverage", "_",
+    "derive", "if", "then", "else", "let", "true", "false", "forall", "in", "not", "Bool", "Int",
+    "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "Float64", "String", "Value",
+    "for", "strict", "coverage", "_", "Real",
 ];
 
 /// The whole text as tokens, each with its line.
@@ -139,6 +141,18 @@ impl P {
             }
         }
     }
+    /// `forall` or `∀`.
+    fn eat_forall(&mut self) -> bool {
+        self.eat_keyword("forall") || self.eat("∀")
+    }
+    /// `in` or `∈`.
+    fn eat_in(&mut self) -> bool {
+        self.eat_keyword("in") || self.eat("∈")
+    }
+    /// `not` or `¬`.
+    fn eat_not(&mut self) -> bool {
+        self.eat_keyword("not") || self.eat("¬")
+    }
     fn is_keyword(&self, k: &str) -> bool {
         matches!(self.peek(), Some(Tok::Ident(s)) if s == k)
     }
@@ -167,10 +181,6 @@ impl P {
             _ => self.err("expected a number"),
         }
     }
-    /// A natural number: digits only.
-    fn nat(&mut self) -> Result<i64, Error> {
-        self.signed(false)
-    }
     /// A natural number, negated when `negative`: down to `i64::MIN`.
     fn signed(&mut self, negative: bool) -> Result<i64, Error> {
         match self.peek().cloned() {
@@ -188,50 +198,82 @@ impl P {
             _ => self.err("expected an integer"),
         }
     }
-    /// `5` or `(-5)`: an integer where a single token is expected.
-    fn int_atom(&mut self) -> Result<i64, Error> {
-        if self.eat("(") {
-            self.expect("-")?;
-            let n = self.signed(true)?;
-            self.expect(")")?;
-            return Ok(n);
+    /// An integer or a float literal, negated when `negative`.
+    fn numeral(&mut self, negative: bool) -> Result<Value, Error> {
+        match self.peek().cloned() {
+            Some(Tok::Num(s)) if s.contains('.') => match s.parse::<f64>() {
+                Ok(x) if x.is_finite() => {
+                    self.pos += 1;
+                    Ok(Value::Float(if negative { -x } else { x }))
+                }
+                _ => self.err(format!("`{s}` is outside the 64-bit floats")),
+            },
+            _ => Ok(Value::Int(self.signed(negative)?)),
         }
-        self.nat()
     }
-    /// value := "true" | "false" | ["-"] nat | string
+    /// `(-5)` or `(-1.5)`, after `(`: a negative number as one argument.
+    fn negative_arg(&mut self) -> Result<Value, Error> {
+        self.expect("-")?;
+        let v = self.numeral(true)?;
+        self.expect(")")?;
+        Ok(v)
+    }
+    /// value := "true" | "false" | ["-"] number | string
     fn value(&mut self) -> Result<Value, Error> {
         if self.eat("-") {
-            return Ok(Value::Int(self.signed(true)?));
+            return self.numeral(true);
         }
         match self.peek().cloned() {
             Some(Tok::Ident(s)) if s == "true" || s == "false" => {
                 self.pos += 1;
                 Ok(Value::Bool(s == "true"))
             }
-            Some(Tok::Num(_)) => Ok(Value::Int(self.nat()?)),
+            Some(Tok::Num(_)) => self.numeral(false),
             Some(Tok::Str(s)) => {
                 self.pos += 1;
                 Ok(Value::Str(s))
             }
-            _ => self.err("expected a value: true, false, an integer or a string"),
+            _ => self.err("expected a value: true, false, a number or a string"),
+        }
+    }
+    /// A range bound: `5` or `-5`, if one is there. `Int` is unbounded, so
+    /// bounds may go past 64 bits (up to 127).
+    fn bound(&mut self) -> Result<Option<i128>, Error> {
+        let negative = self.eat("-");
+        match self.peek().cloned() {
+            Some(Tok::Num(n)) if n.contains('.') => {
+                self.err("ranges are over integers: write floats as a set, `{1.5, 2.5}`")
+            }
+            Some(Tok::Num(n)) => {
+                const LIMIT: i128 = i128::MAX - 1;
+                match n.parse::<i128>().ok().filter(|&x| x <= LIMIT) {
+                    Some(x) => {
+                        self.pos += 1;
+                        Ok(Some(if negative { -x } else { x }))
+                    }
+                    None => self.err(format!("`{n}` is too large for a range bound")),
+                }
+            }
+            _ if negative => self.err("expected an integer"),
+            _ => Ok(None),
         }
     }
 
     // ---- sets ----
 
-    /// set := inter { "∪" inter }
+    /// set := inter { "|" inter }
     fn set(&mut self) -> Result<Set, Error> {
         let mut s = self.set_inter()?;
-        while self.eat("∪") {
+        while self.eat("|") || self.eat("∪") {
             s = s.union(&self.set_inter()?);
         }
         Ok(s)
     }
-    /// inter := atom { ("∩" | "\") atom }, left to right.
+    /// inter := atom { ("&" | "\\") atom }, left to right.
     fn set_inter(&mut self) -> Result<Set, Error> {
         let mut s = self.set_atom()?;
         loop {
-            s = if self.eat("∩") {
+            s = if self.eat("&") || self.eat("∩") {
                 s.intersect(&self.set_atom()?)
             } else if self.eat("\\") {
                 s.minus(&self.set_atom()?)
@@ -259,19 +301,47 @@ impl P {
                 self.expect(",")?;
             }
         }
+        if matches!(self.peek(), Some(Tok::Num(_)))
+            || self.is("-")
+            || self.is("..")
+            || self.is("..=")
+        {
+            // A range: `a..=b`, `a..b`, `a..`, `..=b`, `..b`.
+            let lo = self.bound()?;
+            let hi = if self.eat("..=") {
+                match self.bound()? {
+                    Some(hi) => Some(hi),
+                    None => return self.err("`..=` needs an upper bound"),
+                }
+            } else if self.eat("..") {
+                match self.bound()? {
+                    // `a..b` leaves `b` out.
+                    Some(hi) => Some(hi - 1),
+                    None if lo.is_none() => return self.err("`..` alone: write `Int`"),
+                    None => None,
+                }
+            } else {
+                return self.err("expected `..=` or `..` after the lower bound");
+            };
+            return Ok(Set::range(lo, hi));
+        }
         let set = match self.peek() {
             Some(Tok::Ident(t)) => match t.as_str() {
                 "Bool" => Set::bool(),
                 "Int" => Set::int(),
+                "Float64" => Set::float(),
                 "String" => Set::string(),
                 "Value" => Set::any(),
-                "Icc" => {
-                    self.pos += 1;
-                    let lo = self.int_atom()?;
-                    let hi = self.int_atom()?;
-                    return Ok(Set::interval(lo, hi));
-                }
-                t => return self.err(format!("unknown type `{t}` (Bool, Int, String, Value)")),
+                "Real" => return self.err("`Real` is not supported yet: use `Float64`"),
+                t => match Set::int_type(t) {
+                    Some(s) => s,
+                    None => {
+                        return self.err(format!(
+                            "unknown type `{t}` (Bool, Int, Int8 to Int64, UInt8 to UInt32, \
+                             Float64, String, Value)"
+                        ))
+                    }
+                },
             },
             _ => return self.err("expected a set"),
         };
@@ -299,16 +369,16 @@ impl P {
             }
         }
     }
-    /// `∀ x, ∀ y ∈ S, …`: each bound name with its set, if any.
+    /// `forall x, forall y in S, …`: each bound name with its set, if any.
     fn foralls(&mut self) -> Result<Vec<(String, Option<Set>, usize)>, Error> {
         let mut out = Vec::new();
-        while self.eat("∀") {
+        while self.eat_forall() {
             let line = self.line();
             let x = self.ident()?;
             if out.iter().any(|(y, _, _)| y == &x) {
                 return Err(Error::new(line, format!("`{x}` is bound twice")));
             }
-            let set = if self.eat("∈") {
+            let set = if self.eat_in() {
                 Some(self.set()?)
             } else {
                 None
@@ -328,7 +398,7 @@ impl P {
                 let x = self.ident()?;
                 let at = |m: String| Err(Error::new(line, m));
                 let Some((_, set, _)) = bound.iter().find(|b| b.0 == x) else {
-                    return at(format!("`{x}` is not bound: add `∀ {x},` before it"));
+                    return at(format!("`{x}` is not bound: add `forall {x},` before it"));
                 };
                 if pattern
                     .iter()
@@ -340,10 +410,10 @@ impl P {
                     var: Some(x),
                     set: set.clone(),
                 }
-            } else if self.is("(") {
+            } else if self.eat("(") {
                 Position {
                     var: None,
-                    set: Some(Set::point(&Value::Int(self.int_atom()?))),
+                    set: Some(Set::point(&self.negative_arg()?)),
                 }
             } else if matches!(self.peek(), Some(Tok::Num(_) | Tok::Str(_)))
                 || self.is_keyword("true")
@@ -385,13 +455,13 @@ impl P {
         Ok(c)
     }
 
-    /// `∀ …, <judgment>`: what a piece of evidence or a test says.
+    /// `forall …, <judgment>`: what a piece of evidence or a test says.
     fn judgment(&mut self) -> Result<(String, Pattern, Judgment), Error> {
         let bound = self.foralls()?;
         Ok(if self.eat_keyword("correct") {
             let (f, pat) = self.correct(&bound)?;
             (f, pat, Judgment::Correct(true))
-        } else if self.eat("¬") {
+        } else if self.eat_not() {
             if self.eat_keyword("correct") {
                 let (f, pat) = self.correct(&bound)?;
                 (f, pat, Judgment::Correct(false))
@@ -459,9 +529,9 @@ impl P {
         }
         if self.eat("-") {
             // `-` right before digits is a negative literal, down to i64::MIN.
-            if matches!(self.peek(), Some(Tok::Num(n)) if !n.contains('.') && !n.trim_start_matches('0').is_empty())
+            if matches!(self.peek(), Some(Tok::Num(n)) if n.contains('.') || !n.trim_start_matches('0').is_empty())
             {
-                return Ok(Expr::Lit(Value::Int(self.signed(true)?)));
+                return Ok(Expr::Lit(self.numeral(true)?));
             }
             return Ok(Expr::Unary("-", Box::new(self.unary()?)));
         }
@@ -535,7 +605,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                 });
             }
             "claim" => {
-                // claim n : ∀ …, correct (f args) | f args = expr  [:= by derive [c, …]]
+                // claim n : forall …, correct (f args) | f args = expr  [:= by derive [c, …]]
                 let name = p.ident()?;
                 p.expect(":")?;
                 let bound = p.foralls()?;
@@ -590,7 +660,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                 });
             }
             "profile" => {
-                // profile n for f   then   | x ∈ S => w   |   | _ => w
+                // profile n for f   then   | x in S => w   |   | _ => w
                 let name = p.ident()?;
                 p.keyword("for")?;
                 let subject = p.ident()?;
@@ -600,7 +670,9 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                         None
                     } else {
                         p.ident()?;
-                        p.expect("∈")?;
+                        if !p.eat_in() {
+                            return p.err("expected `in`");
+                        }
                         Some(p.set()?)
                     };
                     p.expect("=>")?;
@@ -645,9 +717,9 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
     Ok(m)
 }
 
-/// The evidence file: `evidence ∀ …, <judgment> at <confidence>`, where the
-/// judgment is `correct (f args)`, `¬ correct (f args)`, `f args = value`,
-/// `claim` or `¬ claim`.
+/// The evidence file: `evidence forall …, <judgment> at <confidence>`, where the
+/// judgment is `correct (f args)`, `not correct (f args)`, `f args = value`,
+/// `claim` or `not claim`.
 pub fn parse_evidence(src: &str) -> Result<Vec<Evidence>, Error> {
     let mut p = P::new(src)?;
     let mut out = Vec::new();
@@ -715,9 +787,9 @@ mod tests {
     fn parses_a_model() {
         let m = parse_model(
             "opaque id (x : Value) : Value\n\
-             claim id_small : ∀ x ∈ Icc 0 100, correct (id x)  -- a subset\n\
+             claim id_small : forall x in 0..=100, correct (id x)  -- a subset\n\
              profile usage for id\n\
-             \x20 | x ∈ Icc 0 100 => 0.8\n\
+             \x20 | x in 0..=100 => 0.8\n\
              \x20 | _ => 0.2\n\
              policy strict\n\
              policy by_usage := coverage usage",
@@ -738,7 +810,7 @@ mod tests {
         let m = parse_model(
             "def neg (a : Bool) : Bool := !a\n\
              def dec (x : Int) : Int := if x > 0 then x-1 else let y := -x; y * 2\n\
-             claim twice : ∀ a, neg a = neg (neg a) := by derive [c1, c2]",
+             claim twice : forall a, neg a = neg (neg a) := by derive [c1, c2]",
         )
         .unwrap();
         assert_eq!(
@@ -765,7 +837,7 @@ mod tests {
         let m = parse_model(
             "opaque minus (a b : Int) : Int\n\
              def difference (a b : Int) : Int := a - b\n\
-             claim zero : ∀ x ∈ Icc 0 10, minus x 0 = add x (negate 0)",
+             claim zero : forall x in 0..=10, minus x 0 = add x (negate 0)",
         )
         .unwrap();
         assert_eq!(m.functions[0].params.len(), 2);
@@ -782,10 +854,10 @@ mod tests {
     #[test]
     fn parses_evidence() {
         let e = parse_evidence(
-            "evidence ∀ x ∈ {1, -2, \"a\"} ∪ Icc 5 6 \\ {6}, ¬ correct (id x) at 1\n\
-             evidence not true = false at 1\n\
+            "evidence forall x in {1, -2, \"a\"} | 5..=6 \\ {6}, not correct (id x) at 1\n\
+             evidence flip true = false at 1\n\
              evidence shape at 0\n\
-             evidence ¬ shape at 1",
+             evidence not shape at 1",
         )
         .unwrap();
         let expected = [
@@ -809,7 +881,8 @@ mod tests {
     #[test]
     fn set_precedence_is_lean_like() {
         // `∩` and `\` bind tighter than `∪`.
-        let e = parse_evidence("evidence ∀ x ∈ {1} ∪ {3, 5} \\ {5}, correct (f x) at 1").unwrap();
+        let e =
+            parse_evidence("evidence forall x in {1} | {3, 5} \\ {5}, correct (f x) at 1").unwrap();
         let s = e[0].pattern[0].set.clone().unwrap();
         assert_eq!(s.to_string(), "{1, 3}");
     }
@@ -818,7 +891,7 @@ mod tests {
     fn rejects_unbound_and_unused_names() {
         let e = parse_evidence("evidence correct (f x) at 1").unwrap_err();
         assert!(e.message.contains("not bound"), "{e}");
-        let e = parse_evidence("evidence ∀ x, ∀ y, correct (f x) at 1").unwrap_err();
+        let e = parse_evidence("evidence forall x, forall y, correct (f x) at 1").unwrap_err();
         assert!(e.message.contains("`y` is bound but not used"), "{e}");
     }
 
@@ -826,7 +899,7 @@ mod tests {
     fn reads_the_64_bit_extremes() {
         let e = parse_evidence(
             "evidence f (-9223372036854775808) = -9223372036854775808 at 1\n\
-             evidence ∀ x ∈ Icc (-9223372036854775808) 9223372036854775807, correct (f x) at 1",
+             evidence forall x in -9223372036854775808..=9223372036854775807, correct (f x) at 1",
         )
         .unwrap();
         assert_eq!(e[0].judgment, Judgment::Output(Value::Int(i64::MIN)));
@@ -844,15 +917,15 @@ mod tests {
     fn errors_point_at_the_name() {
         let e = parse_evidence("evidence correct (f\n x\n) at 1").unwrap_err();
         assert_eq!(e.line, 2);
-        let e = parse_evidence("evidence ∀ x,\n ∀ x,\n correct (f x) at 1").unwrap_err();
+        let e = parse_evidence("evidence forall x,\n forall x,\n correct (f x) at 1").unwrap_err();
         assert_eq!((e.line, e.message.contains("twice")), (2, true));
     }
 
     #[test]
     fn reads_attributes() {
         let e = parse_evidence(
-            "@[source \"ci\", rev \"3f2a\"] evidence correct (not true) at 1\n\
-             evidence not true = false at 1",
+            "@[source \"ci\", rev \"3f2a\"] evidence correct (flip true) at 1\n\
+             evidence flip true = false at 1",
         )
         .unwrap();
         assert_eq!(
@@ -868,7 +941,63 @@ mod tests {
 
     #[test]
     fn rejects_intermediate_confidence_for_now() {
-        let e = parse_evidence("evidence correct (not true) at 0.9").unwrap_err();
+        let e = parse_evidence("evidence correct (flip true) at 0.9").unwrap_err();
         assert!(e.message.contains("only 0 and 1"), "{e}");
+    }
+
+    fn set_of(text: &str) -> String {
+        let e =
+            parse_evidence(&format!("evidence forall x in {text}, correct (f x) at 1")).unwrap();
+        e[0].pattern[0].set.clone().unwrap().to_string()
+    }
+
+    #[test]
+    fn reads_ranges() {
+        assert_eq!(set_of("0..=10"), "0..=10");
+        assert_eq!(set_of("0..10"), "0..=9");
+        assert_eq!(set_of("-3..=-1"), "-3..=-1");
+        assert_eq!(set_of("5.."), "5..");
+        assert_eq!(set_of("..=5"), "..=5");
+        assert_eq!(set_of("..5"), "..=4");
+        assert_eq!(set_of("3..3"), "{}");
+        assert_eq!(set_of("0..=1 | 5..=6 & 6..=9"), "{6} | 0..=1");
+        // Bounds may pass 64 bits: `Int` is unbounded.
+        assert_eq!(set_of("9223372036854775808.."), "9223372036854775808..");
+        for bad in ["..", "1.5..=2", "0..=", "3"] {
+            assert!(
+                parse_evidence(&format!("evidence forall x in {bad}, correct (f x) at 1")).is_err(),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn unicode_is_an_alias() {
+        let ascii = "evidence forall x in 0..=3 | {7} & Int, not correct (f x) at 1";
+        let lean = "evidence ∀ x ∈ 0..=3 ∪ {7} ∩ Int, ¬ correct (f x) at 1";
+        assert_eq!(
+            parse_evidence(ascii).unwrap(),
+            parse_evidence(lean).unwrap()
+        );
+        // `not` is a keyword now, so it can't name a function.
+        assert!(parse_model("opaque not (a : Bool) : Bool").is_err());
+    }
+
+    #[test]
+    fn reads_number_types_and_floats() {
+        assert_eq!(set_of("Int8"), "Int8");
+        assert_eq!(set_of("-128..=127"), "Int8");
+        assert_eq!(set_of("UInt32 \\ {0}"), "1..=4294967295");
+        assert_eq!(set_of("Float64 \\ {0.0}"), "Float64 \\ {0.0}");
+        assert_eq!(set_of("{1.5, -0.0, 2}"), "{2, -0.0, 1.5}");
+        let e = parse_evidence("evidence f (-1.5) 2.0 = -0.25 at 1").unwrap();
+        assert_eq!(e[0].judgment, Judgment::Output(Value::Float(-0.25)));
+        assert_eq!(e[0].pattern[0].set, Some(Set::point(&Value::Float(-1.5))));
+        let m = parse_model("def g (x : Float64) : Float64 := -1.5 * x").unwrap();
+        assert!(
+            matches!(&m.functions[0].body, Some(Expr::Binary("*", a, _)) if **a == Expr::Lit(Value::Float(-1.5)))
+        );
+        let err = parse_model("opaque r (x : Real) : Real").unwrap_err();
+        assert!(err.message.contains("Float64"), "{err}");
     }
 }

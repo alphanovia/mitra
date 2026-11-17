@@ -1,2 +1,0 @@
-not_spec [strict] := { logic := .uncertain, covered := {true}, domain := Bool, belief := 0 }
-not_on_true [strict] := { logic := .holds, covered := {true}, domain := {true}, belief := 1 }

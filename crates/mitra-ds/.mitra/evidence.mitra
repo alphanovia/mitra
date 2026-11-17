@@ -1,5 +1,5 @@
 -- Evidence, append-only: `mitra add` and `mitra ingest` write here.
-@[source "test:t_dempster_extremes", rev "ef649e9d8615"] evidence ∀ case ∈ Icc 1000 1003, correct (combine_dempster case) at 1
-@[source "test:t_dempster_random", rev "ef649e9d8615"] evidence ∀ case ∈ Icc 0 999, correct (combine_dempster case) at 1
-@[source "test:t_yager_extremes", rev "ef649e9d8615"] evidence ∀ case ∈ Icc 1000 1003, correct (combine_yager case) at 1
-@[source "test:t_yager_random", rev "ef649e9d8615"] evidence ∀ case ∈ Icc 0 999, correct (combine_yager case) at 1
+@[source "test:t_dempster_extremes", rev "ef649e9d8615"] evidence forall case in 1000..=1003, correct (combine_dempster case) at 1
+@[source "test:t_dempster_random", rev "ef649e9d8615"] evidence forall case in 0..=999, correct (combine_dempster case) at 1
+@[source "test:t_yager_extremes", rev "ef649e9d8615"] evidence forall case in 1000..=1003, correct (combine_yager case) at 1
+@[source "test:t_yager_random", rev "ef649e9d8615"] evidence forall case in 0..=999, correct (combine_yager case) at 1

@@ -141,7 +141,7 @@ assurance cases never reached everyday development, for three reasons:
    look nor what to test next.
 
 Mitra makes the hypothesis explicit instead. A test's claim that it
-exercises a set of inputs (`t_small` exercises `add` on `Icc 0 10`) already
+exercises a set of inputs (`t_small` exercises `add` on `0..=10`) already
 carries it: one pass stands for the set. A separate claim on the subject,
 `uniform add on S`, would let any test or review reuse the hypothesis, and
 would take the blame when a bug lands inside S. Whether that is worth a new

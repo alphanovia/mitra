@@ -51,11 +51,11 @@ claims about the test itself:
 
 ```lean
 opaque t_small : Bool                        -- a test: pass or fail
-claim t_ex : ∀ x ∈ Icc 0 10, exercises t_small (add x)   -- sketch
+claim t_ex : forall x in 0..=10, exercises t_small (add x)   -- sketch
 claim t_judge : judges t_small add add_spec               -- sketch
 ```
 
-A pass then **derives** evidence on `add` over `Icc 0 10`, with confidence
+A pass then **derives** evidence on `add` over `0..=10`, with confidence
 = belief that `t_ex` and `t_judge` hold. A buggy or vacuous test lowers
 that belief instead of silently counting as proof.
 

@@ -1,2 +1,0 @@
-not_correct [by_usage] := { logic := .uncertain, covered := {false}, domain := Bool, belief := 0.5 }
-not_on_true [by_usage] := { logic := .uncertain, covered := {}, domain := {true}, belief := 0 }

@@ -21,8 +21,8 @@ with the same form as a derived claim:
 requirement req12 "Checkout never charges a customer twice" :=
   by derive [charge_once, retry_idempotent]
 
-claim charge_once : ∀ order ∈ Orders, correct (charge order)
-claim retry_idempotent : ∀ order ∈ Orders, correct (retry order)
+claim charge_once : forall order in Orders, correct (charge order)
+claim retry_idempotent : forall order in Orders, correct (retry order)
 ```
 
 `req12` holds when the claims hold **and** the implication holds: that

@@ -4,12 +4,12 @@
 //! evidence, then compute a verdict for each claim under each policy.
 //!
 //! ```
-//! let model = "opaque not (a : Bool) : Bool\nclaim not_correct : ∀ a, correct (not a)\npolicy strict";
-//! let evidence = "evidence correct (not true) at 1\nevidence correct (not false) at 1";
+//! let model = "opaque flip (a : Bool) : Bool\nclaim flip_correct : forall a, correct (flip a)\npolicy strict";
+//! let evidence = "evidence correct (flip true) at 1\nevidence correct (flip false) at 1";
 //! let report = mitra_core::run(model, evidence).unwrap();
 //! assert_eq!(
 //!     report.to_text(),
-//!     "not_correct [strict] := { logic := .holds, covered := Bool, domain := Bool, belief := 1 }\n"
+//!     "flip_correct [strict] := { logic := .holds, covered := Bool, domain := Bool, belief := 1 }\n"
 //! );
 //! ```
 

@@ -1,0 +1,4 @@
+evidence correct (flip true) at 1
+evidence correct (flip false) at 1
+-- A counterexample nobody believes changes nothing.
+evidence not correct (flip false) at 0

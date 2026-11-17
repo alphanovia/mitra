@@ -25,19 +25,19 @@ claim a verdict: what logic proves, which inputs are covered, and how much
 the policy believes it.
 
 ```lean
-opaque not (a : Bool) : Bool
-claim not_correct : ∀ a, correct (not a)
-claim not_on_true : correct (not true)
+opaque flip (a : Bool) : Bool
+claim flip_correct : forall a, correct (flip a)
+claim flip_on_true : correct (flip true)
 
 policy strict
 
-evidence correct (not true) at 1
-evidence ¬ correct (not false) at 1
+evidence correct (flip true) at 1
+evidence not correct (flip false) at 1
 ```
 
 ```lean
-not_correct [strict] := { logic := .fails, refuted := {false}, domain := Bool, belief := 0 }
-not_on_true [strict] := { logic := .holds, covered := {true}, domain := {true}, belief := 1 }
+flip_correct [strict] := { logic := .fails, refuted := {false}, domain := Bool, belief := 0 }
+flip_on_true [strict] := { logic := .holds, covered := {true}, domain := {true}, belief := 1 }
 ```
 
 Never a single score: logic, coverage and belief are kept apart. One trusted

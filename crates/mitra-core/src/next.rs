@@ -72,41 +72,41 @@ mod tests {
     #[test]
     fn lists_what_is_missing() {
         let model = "def neg (a : Bool) : Bool := !a\n\
-                     opaque not (a : Bool) : Bool\n\
+                     opaque flip (a : Bool) : Bool\n\
                      opaque id (x : Value) : Value\n\
-                     claim not_spec : ∀ a, not a = neg a\n\
-                     claim not_correct : ∀ a, correct (not a)\n\
-                     claim id_correct : ∀ x, correct (id x)\n\
-                     claim big : ∀ x ∈ Icc 0 99, correct (id x)\n\
-                     claim derived : ∀ a, not a = neg a := by derive [not_spec]";
-        let evidence = "evidence not true = false at 1\nevidence correct (not true) at 1";
+                     claim flip_spec : forall a, flip a = neg a\n\
+                     claim flip_correct : forall a, correct (flip a)\n\
+                     claim id_correct : forall x, correct (id x)\n\
+                     claim big : forall x in 0..=99, correct (id x)\n\
+                     claim derived : forall a, flip a = neg a := by derive [flip_spec]";
+        let evidence = "evidence flip true = false at 1\nevidence correct (flip true) at 1";
         let m = load(model, evidence).unwrap();
         let r = evaluate(&m).unwrap();
         assert_eq!(
             next(&m, &r),
-            "not_spec : missing {false}\n\
-             \x20 evidence not false = <output> at 1\n\
-             not_correct : missing {false}\n\
-             \x20 evidence correct (not false) at 1\n\
+            "flip_spec : missing {false}\n\
+             \x20 evidence flip false = <output> at 1\n\
+             flip_correct : missing {false}\n\
+             \x20 evidence correct (flip false) at 1\n\
              id_correct : missing Value\n\
              \x20 infinite: tests can't cover it, only evidence over a set (a proof)\n\
-             big : missing Icc 0 99\n\
+             big : missing 0..=99\n\
              \x20 100 inputs: test them, or bring evidence over the whole set (a proof)\n\
              derived : missing {false}\n\
-             \x20 derived: waits on not_spec\n\
-             \x20 evidence not false = <output> at 1\n"
+             \x20 derived: waits on flip_spec\n\
+             \x20 evidence flip false = <output> at 1\n"
         );
     }
 
     #[test]
     fn sizes_large_sets_and_names_failing_premises() {
         let model = "opaque pair (x y : Int) : Bool\n\
-                     opaque not (a : Bool) : Bool\n\
+                     opaque flip (a : Bool) : Bool\n\
                      opaque other (a : Bool) : Bool\n\
-                     claim huge : ∀ x ∈ Icc 0 999999999, ∀ y ∈ Icc 0 9, correct (pair x y)\n\
-                     claim fails : ∀ a, correct (not a)\n\
-                     claim on_fails : ∀ a, correct (other a) := by derive [fails]";
-        let evidence = "evidence correct (pair 0 0) at 1\nevidence ¬ correct (not true) at 1";
+                     claim huge : forall x in 0..=999999999, forall y in 0..=9, correct (pair x y)\n\
+                     claim fails : forall a, correct (flip a)\n\
+                     claim on_fails : forall a, correct (other a) := by derive [fails]";
+        let evidence = "evidence correct (pair 0 0) at 1\nevidence not correct (flip true) at 1";
         let m = load(model, evidence).unwrap();
         let r = evaluate(&m).unwrap();
         let text = next(&m, &r);

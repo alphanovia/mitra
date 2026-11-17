@@ -1,0 +1,3 @@
+evidence forall x in 0..=99, correct (inc x) at 1
+evidence half 1.0 = 0.5 at 1
+evidence half (-3.0) = -1.5 at 1

@@ -1,8 +1,0 @@
-opaque not (a : Bool) : Bool
-
--- not is correct on every input.
-claim not_correct : ∀ a, correct (not a)
--- not is correct on true, a subset of its inputs.
-claim not_on_true : correct (not true)
-
-policy strict

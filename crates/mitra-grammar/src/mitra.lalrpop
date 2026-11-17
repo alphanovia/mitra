@@ -13,10 +13,12 @@ match {
     r#""[^"\n]*""# => STR,
     "opaque", "def", "claim", "test", "evidence", "profile", "policy",
     "correct", "at", "by", "derive", "if", "then", "else", "let",
-    "true", "false", "Bool", "Int", "String", "Value", "Icc",
+    "true", "false", "forall", "in", "not",
+    "Bool", "Int", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32",
+    "Float64", "String", "Value", "Real",
     "for", "strict", "coverage", "_",
-    "@[", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||",
-    "(", ")", ":", ";", ",", "=", "{", "}", "[", "]", "|",
+    "@[", "..=", "..", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||",
+    "(", ")", ":", ";", ",", "=", "{", "}", "[", "]", "|", "&",
     "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
 } else {
     r"[A-Za-z_][A-Za-z0-9_]*" => NAME,
@@ -40,7 +42,7 @@ Derive: () = ":=" "by" "derive" "[" Comma1<NAME> "]" => ();
 Profile: () = "profile" NAME "for" NAME Region* => ();
 Region: () = {
     "|" "_" "=>" Number => (),
-    "|" NAME "∈" Set "=>" Number => (),
+    "|" NAME In Set "=>" Number => (),
 };
 Policy: () = {
     "policy" "strict" => (),
@@ -54,31 +56,45 @@ Attributes: () = "@[" Comma1<Attribute> "]" => ();
 Attribute: () = NAME STR => ();
 Judgment: () = {
     "correct" "(" NAME Arg* ")" => (),
-    "¬" "correct" "(" NAME Arg* ")" => (),
-    "¬" NAME Arg* => (),
+    Not "correct" "(" NAME Arg* ")" => (),
+    Not NAME Arg* => (),
     NAME Arg* => (),
     NAME Arg* "=" Value => (),
 };
 
+// ASCII first; Lean's Unicode symbols are aliases.
+ForallKw: () = { "forall" => (), "∀" => () };
+In: () = { "in" => (), "∈" => () };
+Not: () = { "not" => (), "¬" => () };
+Union: () = { "|" => (), "∪" => () };
+InterOp: () = { "&" => (), "∩" => (), "\\" => () };
+
 Forall: () = {
-    "∀" NAME "," => (),
-    "∀" NAME "∈" Set "," => (),
+    ForallKw NAME "," => (),
+    ForallKw NAME In Set "," => (),
 };
 Arg: () = {
-    NAME => (), "true" => (), "false" => (), NAT => (), STR => (),
-    "(" "-" NAT ")" => (),
+    NAME => (), "true" => (), "false" => (), Num => (), STR => (),
+    "(" "-" Num ")" => (),
 };
 
-Set: () = { Inter, Set "∪" Inter => () };
-Inter: () = { SetAtom, Inter "∩" SetAtom => (), Inter "\\" SetAtom => () };
+Set: () = { Inter, Set Union Inter => () };
+Inter: () = { SetAtom, Inter InterOp SetAtom => () };
 SetAtom: () = {
-    "Bool" => (), "Int" => (), "String" => (), "Value" => (),
+    "Bool" => (), "Int" => (), "Int8" => (), "Int16" => (), "Int32" => (),
+    "Int64" => (), "UInt8" => (), "UInt16" => (), "UInt32" => (),
+    "Float64" => (), "String" => (), "Value" => (),
     "{" "}" => (),
     "{" Comma1<Value> "}" => (),
-    "Icc" IntAtom IntAtom => (),
     "(" Set ")" => (),
+    Bound "..=" Bound => (),
+    Bound ".." Bound => (),
+    Bound ".." => (),
+    "..=" Bound => (),
+    ".." Bound => (),
 };
-IntAtom: () = { NAT => (), "(" "-" NAT ")" => () };
+Bound: () = { NAT => (), "-" NAT => () };
+Num: () = { NAT => (), DEC => () };
 
 Expr: () = {
     "if" Expr "then" Expr "else" Expr => (),
@@ -99,7 +115,7 @@ Unary: () = {
     "(" Expr ")" => (),
 };
 Atom: () = { NAME => (), Literal => (), "(" Expr ")" => () };
-Literal: () = { "true" => (), "false" => (), NAT => (), STR => () };
+Literal: () = { "true" => (), "false" => (), Num => (), STR => () };
 
-Value: () = { "true" => (), "false" => (), NAT => (), "-" NAT => (), STR => () };
+Value: () = { "true" => (), "false" => (), Num => (), "-" Num => (), STR => () };
 Number: () = { NAT => (), DEC => () };

@@ -18,7 +18,7 @@ Derive        = ":=" "by" "derive" "[" NAME NamesTail "]" | ;
 NamesTail     = "," NAME NamesTail | ;
 Profile       = "profile" NAME "for" NAME Regions ;
 Regions       = "|" Region "=>" Number Regions | ;
-Region        = "_" | NAME "∈" Set ;
+Region        = "_" | NAME In Set ;
 Policy        = "policy" PolicyRest ;
 PolicyRest    = "strict" | NAME ":=" PolicyKind ;
 PolicyKind    = "strict" | "coverage" NAME ;
@@ -27,22 +27,33 @@ Evidences     = Evidence Evidences | ;
 Evidence      = Attributes "evidence" Foralls Judgment "at" Number ;
 Attributes    = "@[" NAME STR AttrsTail "]" | ;
 AttrsTail     = "," NAME STR AttrsTail | ;
-Judgment      = "correct" "(" NAME Args ")" | "¬" Negated | NAME Args Output ;
+Judgment      = "correct" "(" NAME Args ")" | Not Negated | NAME Args Output ;
 Negated       = "correct" "(" NAME Args ")" | NAME Args ;
 Output        = "=" Value | ;
 
-Foralls       = "∀" NAME InSet "," Foralls | ;
-InSet         = "∈" Set | ;
+# ASCII first; Lean's Unicode symbols are aliases.
+ForallKw      = "forall" | "∀" ;
+In            = "in" | "∈" ;
+Not           = "not" | "¬" ;
+Union         = "|" | "∪" ;
+InterOp       = "&" | "∩" | "\" ;
+
+Foralls       = ForallKw NAME InSet "," Foralls | ;
+InSet         = In Set | ;
 Args          = Arg Args | ;
-Arg           = NAME | "true" | "false" | NAT | STR | "(" "-" NAT ")" ;
+Arg           = NAME | "true" | "false" | Num | STR | "(" "-" Num ")" ;
 
 Set           = Inter SetTail ;
-SetTail       = "∪" Inter SetTail | ;
+SetTail       = Union Inter SetTail | ;
 Inter         = SetAtom InterTail ;
-InterTail     = "∩" SetAtom InterTail | "\" SetAtom InterTail | ;
-SetAtom       = "Bool" | "Int" | "String" | "Value" | "{" Values "}"
-              | "Icc" IntAtom IntAtom | "(" Set ")" ;
-IntAtom       = NAT | "(" "-" NAT ")" ;
+InterTail     = InterOp SetAtom InterTail | ;
+SetAtom       = "Bool" | "Int" | "Int8" | "Int16" | "Int32" | "Int64"
+              | "UInt8" | "UInt16" | "UInt32" | "Float64" | "String" | "Value"
+              | "{" Values "}" | "(" Set ")"
+              | Bound RangeOp | ".." Bound | "..=" Bound ;
+RangeOp       = "..=" Bound | ".." OptBound ;
+Bound         = NAT | "-" NAT ;
+OptBound      = Bound | ;
 Values        = Value ValuesTail | ;
 ValuesTail    = "," Value ValuesTail | ;
 
@@ -61,7 +72,8 @@ ProductTail   = "*" Unary ProductTail | ;
 Unary         = "!" Unary | "-" Unary | NAME Atoms | Literal | "(" Expr ")" ;
 Atoms         = Atom Atoms | ;
 Atom          = NAME | Literal | "(" Expr ")" ;
-Literal       = "true" | "false" | NAT | STR ;
+Literal       = "true" | "false" | Num | STR ;
 
-Value         = "true" | "false" | NAT | "-" NAT | STR ;
+Value         = "true" | "false" | Num | "-" Num | STR ;
+Num           = NAT | DEC ;
 Number        = NAT | DEC ;

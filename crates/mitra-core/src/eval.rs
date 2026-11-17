@@ -364,6 +364,7 @@ fn unary(op: &str, v: &Value) -> Option<Value> {
     match (op, v) {
         ("!", Value::Bool(b)) => Some(Value::Bool(!b)),
         ("-", Value::Int(i)) => i.checked_neg().map(Value::Int),
+        ("-", Value::Float(x)) => Some(Value::Float(-x)),
         _ => None,
     }
 }
@@ -382,6 +383,15 @@ fn binary(op: &str, x: &Value, y: &Value) -> Option<Value> {
         ("+", Int(a), Int(b)) => Int(a.checked_add(*b)?),
         ("-", Int(a), Int(b)) => Int(a.checked_sub(*b)?),
         ("*", Int(a), Int(b)) => Int(a.checked_mul(*b)?),
+        // Floats follow IEEE 754, except `==` and `!=` above, which compare
+        // values: `NaN == NaN` is true.
+        ("<", Float(a), Float(b)) => Bool(a < b),
+        ("<=", Float(a), Float(b)) => Bool(a <= b),
+        (">", Float(a), Float(b)) => Bool(a > b),
+        (">=", Float(a), Float(b)) => Bool(a >= b),
+        ("+", Float(a), Float(b)) => Float(a + b),
+        ("-", Float(a), Float(b)) => Float(a - b),
+        ("*", Float(a), Float(b)) => Float(a * b),
         _ => return None,
     })
 }

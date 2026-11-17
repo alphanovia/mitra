@@ -1,0 +1,4 @@
+-- half rounds -3.0 the wrong way: a counterexample.
+evidence half 1.0 = 0.5 at 1
+evidence half (-3.0) = -1.0 at 1
+evidence forall x in -5..0, not correct (inc x) at 0

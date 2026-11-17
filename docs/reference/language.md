@@ -78,24 +78,27 @@ status 2.
 ## Lexical rules
 
 The syntax is a small, fixed subset inspired by Lean 4
-([design](../design/lean-syntax.md)). Every command starts with a keyword
-(`opaque`, `def`, `claim`, `test`, `profile`, `policy`, `evidence`), so a parser
-knows what it reads from the first token. Layout is free: line breaks and
-indentation mean nothing.
+([design](../design/lean-syntax.md)), written in ASCII. Every command starts
+with a keyword (`opaque`, `def`, `claim`, `test`, `profile`, `policy`,
+`evidence`), so a parser knows what it reads from the first token. Layout is
+free: line breaks and indentation mean nothing.
 
 - `--` starts a comment that runs to the end of the line.
 - Names: a letter or `_`, then letters, digits or `_`; keywords are not
   names.
-- Numbers: digits, with an optional `.` and digits (`1`, `0.8`). A negative
-  integer is `-` then digits; where a single argument is expected it is
-  written `(-5)`.
+- Numbers: digits (`nat`), or digits, `.` and digits (`dec`: `0.8`, `1.0`).
+  A negative number is `-` then digits; where a single argument is expected
+  it is written `(-5)` or `(-1.5)`. `1..5` reads as `1`, `..`, `5`.
 - Strings: `"` … `"` on one line, no escapes.
-- Symbols, longest match first: `@[` `:=` `=>` `==` `!=` `<=` `>=` `&&` `||` `(`
-  `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `!` `<` `>` `+` `-` `*` `\` `∀`
-  `∈` `∪` `∩` `¬`.
-- Keywords: `opaque def claim test evidence profile policy correct at by derive
-  if then else let true false Bool Int String Value Icc for strict coverage
-  _`.
+- Symbols, longest match first: `@[` `..=` `:=` `=>` `==` `!=` `<=` `>=`
+  `&&` `||` `..` `(` `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `&` `!` `<` `>`
+  `+` `-` `*` `\`.
+- Keywords: `opaque def claim test evidence profile policy correct at by
+  derive if then else let true false forall in not Bool Int Int8 Int16
+  Int32 Int64 UInt8 UInt16 UInt32 Float64 String Value Real for strict
+  coverage _`. `Real` is reserved.
+- Lean's Unicode symbols are accepted as aliases: `∀` for `forall`, `∈` for
+  `in`, `¬` for `not`, `∪` for `|`, `∩` for `&`. Mitra prints ASCII.
 
 ## Grammar
 
@@ -112,27 +115,29 @@ claim      = "claim" name ":" { forall }
              [ ":=" "by" "derive" "[" name { "," name } "]" ] ;
 test       = "test" name ":" { forall } judgment ;
 profile    = "profile" name "for" name { "|" region "=>" number } ;
-region     = "_" | name "∈" set ;
+region     = "_" | name "in" set ;
 policy     = "policy" ( "strict" | name ":=" ( "strict" | "coverage" name ) ) ;
 
 evidences  = { evidence } ;
 evidence   = [ attributes ] "evidence" { forall } judgment "at" number ;
 attributes = "@[" name string { "," name string } "]" ;
 judgment   = "correct" "(" name args ")"
-           | "¬" ( "correct" "(" name args ")" | name args )
+           | "not" ( "correct" "(" name args ")" | name args )
            | name args [ "=" value ] ;
 
-forall     = "∀" name [ "∈" set ] "," ;
+forall     = "forall" name [ "in" set ] "," ;
 args       = { name | arg-value } ;
-arg-value  = "true" | "false" | nat | string | "(" "-" nat ")" ;
+arg-value  = "true" | "false" | number | string | "(" "-" number ")" ;
 
-set        = inter { "∪" inter } ;
-inter      = set-atom { ( "∩" | "\" ) set-atom } ;
-set-atom   = "Bool" | "Int" | "String" | "Value"
+set        = inter { "|" inter } ;
+inter      = set-atom { ( "&" | "\" ) set-atom } ;
+set-atom   = "Bool" | "Int" | "Int8" | "Int16" | "Int32" | "Int64"
+           | "UInt8" | "UInt16" | "UInt32" | "Float64" | "String" | "Value"
            | "{" [ value { "," value } ] "}"
-           | "Icc" int-atom int-atom
-           | "(" set ")" ;
-int-atom   = nat | "(" "-" nat ")" ;
+           | "(" set ")"
+           | bound ( "..=" bound | ".." [ bound ] )
+           | ( "..=" | ".." ) bound ;
+bound      = [ "-" ] nat ;
 
 expr       = "if" expr "then" expr "else" expr
            | "let" name ":=" expr ";" expr
@@ -143,22 +148,26 @@ compare    = sum { ( "==" | "!=" | "<" | "<=" | ">" | ">=" ) sum } ;
 sum        = product { ( "+" | "-" ) product } ;
 product    = unary { "*" unary } ;
 unary      = ( "!" | "-" ) unary | name { atom } | atom ;
-atom       = name | "true" | "false" | nat | string | "(" expr ")" ;
+atom       = name | "true" | "false" | number | string | "(" expr ")" ;
 
-value      = "true" | "false" | [ "-" ] nat | string ;
+value      = "true" | "false" | [ "-" ] number | string ;
+number     = nat | dec ;
 ```
 
-The model file holds `model`; the evidence file holds `evidences`. `nat`
-is a number without `.`; `number` may have one. Function application is by
-juxtaposition, as in Lean: `add a (negate b)`.
+The model file holds `model`; the evidence file holds `evidences`.
+Function application is by juxtaposition, as in Lean: `add a (negate b)`.
 
 Beyond the grammar, the parser checks:
 
-- every name in `args` is bound by a `∀` before it, and every `∀` name is
-  distinct and used exactly once;
+- every name in `args` is bound by a `forall` before it, and every `forall`
+  name is distinct and used exactly once;
 - `correct (f args)` and a claim's `f args = e` have at least one argument;
-- integers fit in 64 bits (`-9223372036854775808` to
-  `9223372036854775807`), and numbers are finite.
+- integer values fit in 64 bits (`-9223372036854775808` to
+  `9223372036854775807`); range bounds may be larger, since `Int` is
+  unbounded;
+- `dec` numbers are finite 64-bit floats;
+- a range has an upper bound after `..=`, and `..` alone is not a range;
+  ranges are over integers only.
 
 ### Grammar checks
 
@@ -188,26 +197,37 @@ Types are sets of values, and every group of inputs is a set.
 | Set | Contains |
 |---|---|
 | `Bool` | `true`, `false` |
-| `Int` | every integer (64-bit literals, but no upper or lower bound) |
+| `Int` | every integer, unbounded (ℤ) |
+| `Int8` … `Int64`, `UInt8` … `UInt32` | the fixed-width integers |
+| `Float64` | every 64-bit float, including NaN, the infinities and `-0.0` |
 | `String` | every string |
-| `Value` | everything: booleans, integers, strings and any other value |
-| `{1, "a", true}` | exactly these values |
-| `Icc 0 100` | the integers from 0 to 100, both included |
-| `A ∪ B`, `A ∩ B`, `A \ B` | union, intersection, difference |
+| `Value` | everything: booleans, integers, floats, strings and any other value |
+| `{1, 2.5, "a", true}` | exactly these values (`1` is an integer, `1.0` a float) |
+| `0..=100`, `0..100` | the integers from 0 to 100, with or without 100 |
+| `5..`, `..=5`, `..5` | the integers from 5 up, up to 5, below 5 |
+| `A \| B`, `A & B`, `A \ B` | union, intersection, difference |
 
-As in Lean, `∩` and `\` bind tighter than `∪`, and each applies left to
-right; use parentheses to group. Results print in a normal form: `Value`,
-`Bool`, `Int`, `String`, `{…}` for single values, `Icc a b` for ranges,
-`T \ {…}` for a type minus some values, joined by ` ∪ `. The empty set
-prints `{}`. Sets that can only be computed print `Iic b` (up to b) and
-`Ici a` (from a); they cannot be written.
+`&` and `\` bind tighter than `|`, and each applies left to right; use
+parentheses to group. `Int` is infinite, so a claim over all of it can't be
+covered by tests, only by evidence over a set (a proof). Mitra computes
+with 64-bit integers for now: an integer value outside them is an error,
+never a wrap.
+
+Results print in a normal form: `Value`, `Bool`, `Int`, `Float64`,
+`String`, `{…}` for single values, `a..=b`, `a..` and `..=b` for ranges (a
+range equal to a fixed-width type prints its name, such as `Int8`),
+`T \ {…}` for a type minus some values, joined by ` | `. The empty set
+prints `{}`.
+
+Floats in a set are compared exactly: `NaN` is one value, and `0.0` and
+`-0.0` are two.
 
 ## Commands
 
 ### opaque: a subject
 
 ```lean
-opaque not (a : Bool) : Bool
+opaque flip (a : Bool) : Bool
 opaque minus (a b : Int) : Int
 ```
 
@@ -226,24 +246,27 @@ def difference (a b : Int) : Int := a - b
 
 A **definition**: a total, pure function Mitra evaluates. Its body is an
 expression: values, the parameters, `let`, `if`, `!`, `-`, `+`, `-`, `*`,
-comparisons (`<` `<=` `>` `>=` on integers, `==` `!=` on any values), `&&`,
-`||`, and calls of specs defined above it (so no recursion). Integer
-arithmetic is 64-bit and an overflow is an error. A spec is true by
+comparisons (`<` `<=` `>` `>=` on numbers, `==` `!=` on any values), `&&`,
+`||`, and calls of specs defined above it (so no recursion). Arithmetic and
+comparisons need two integers or two floats; there is no conversion.
+Integer arithmetic is 64-bit and an overflow is an error. Float arithmetic
+and `<` `<=` `>` `>=` follow IEEE 754; `==` and `!=` compare values exactly
+(`NaN == NaN` is true, `0.0 == -0.0` is false). A spec is true by
 definition: evidence does not apply to it (see Evaluation).
 
 ### claim
 
 ```lean
-claim not_correct : ∀ a, correct (not a)
-claim not_spec : ∀ a, not a = neg a
-claim id_small : ∀ x ∈ Icc 0 100, correct (id x)
-claim not_on_true : correct (not true)
-claim minus_shape : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc 0 2, minus a b = add a (negate b)
-claim not_not_same : ∀ a, not_not a = same a := by derive [not_spec, not_not_shape, neg_twice]
+claim flip_correct : forall a, correct (flip a)
+claim flip_spec : forall a, flip a = neg a
+claim id_small : forall x in 0..=100, correct (id x)
+claim flip_on_true : correct (flip true)
+claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus a b = add a (negate b)
+claim flip_not_same : forall a, flip_not a = same a := by derive [flip_spec, flip_not_shape, neg_twice]
 ```
 
 The arguments of the call pick the claim's **domain**, one per parameter: a
-name bound by `∀ x,` is the parameter's whole type, by `∀ x ∈ S,` the set
+name bound by `forall x,` is the parameter's whole type, by `forall x in S,` the set
 S, and a value is that value alone. The domain is the product of the
 arguments, and must lie inside the function's domain. Bound names can be
 used in the expression after `=`.
@@ -261,19 +284,19 @@ used in the expression after `=`.
 ### evidence
 
 ```lean
-evidence not true = false at 1
-evidence ¬ correct (id 7) at 1
-evidence ∀ x ∈ Icc 0 100, correct (id x) at 1
-evidence not_not_shape at 1
+evidence flip true = false at 1
+evidence not correct (id 7) at 1
+evidence forall x in 0..=100, correct (id x) at 1
+evidence flip_not_shape at 1
 ```
 
 - `f args = v`: the subject was run on one input and returned `v`, which
   must lie in its result type. Used by `=` claims.
-- `correct (f args)` / `¬ correct (f args)`: people judged the subject's
+- `correct (f args)` / `not correct (f args)`: people judged the subject's
   results on these inputs correct (or wrong). A single input is a test; a
   set is evidence for every input in it, such as a proof. Used by `correct`
   claims.
-- `c` / `¬ c`, with `c` a claim: the claim holds (or fails) on its whole
+- `c` / `not c`, with `c` a claim: the claim holds (or fails) on its whole
   domain, for example from a review or a proof. `c args` restricts it to
   those inputs.
 
@@ -294,8 +317,8 @@ Each may appear once; other names are rejected.
 ### test
 
 ```lean
-test t_true : correct (not true)
-test t_small : ∀ x ∈ Icc 0 10, correct (add x 1)
+test t_true : correct (flip true)
+test t_small : forall x in 0..=10, correct (add x 1)
 test t_one : add 1 2 = 3
 ```
 
@@ -304,12 +327,12 @@ written as in `evidence`, without a confidence. `mitra ingest` turns a
 result into evidence at 1:
 
 - a pass gives the judgment;
-- a failure gives `¬ correct (…)` for a `correct (…)` test, and `¬ c …`
+- a failure gives `not correct (…)` for a `correct (…)` test, and `not c …`
   for a `c …` test, when the test is about a single input. Otherwise it
   gives nothing: a failed test over a set says the code is wrong somewhere
   in it, which Mitra cannot express yet; a failed `f args = v` test says
   the output was something else, but not what; and a failed negative test
-  (`¬ correct …`, `¬ c …`) proves nothing, since it may have failed for
+  (`not correct …`, `not c …`) proves nothing, since it may have failed for
   another reason.
 
 Test names share the namespace of functions and claims.
@@ -318,8 +341,8 @@ Test names share the namespace of functions and claims.
 
 ```lean
 profile usage for id
-  | x ∈ Icc 0 100 => 0.8
-  | x ∈ String => 0.1
+  | x in 0..=100 => 0.8
+  | x in String => 0.1
   | _ => 0.1
 ```
 
@@ -353,8 +376,8 @@ disprove it.
 For each claim, in model order, with D its domain, Mitra gathers the inputs
 where the claim is right and where it is wrong:
 
-1. Evidence on the claim itself (`c` / `¬ c`), within D.
-2. For a `correct` claim: `correct` / `¬ correct` evidence on its subject.
+1. Evidence on the claim itself (`c` / `not c`), within D.
+2. For a `correct` claim: `correct` / `not correct` evidence on its subject.
 3. For an `=` claim, on each input x (every input of D if D is finite,
    otherwise every observed input in D): evaluate both sides, a subject
    call giving each output observed for that input. Equal values make x
@@ -407,16 +430,17 @@ One line per claim and policy, claims in model order, then policies in
 model order, written as Lean structure instances:
 
 ```lean
-id_correct [by_usage] := { logic := .uncertain, covered := Icc 0 100, domain := Value, belief := 0.8 }
+id_correct [by_usage] := { logic := .uncertain, covered := 0..=100, domain := Value, belief := 0.8 }
 id_correct [by_usage] := { logic := .fails, refuted := {7}, domain := Value, belief := 0 }
-minus_spec [strict] := { logic := .holds, covered := Icc 0 2 ×ˢ Icc 0 2, domain := Icc 0 2 ×ˢ Icc 0 2, belief := 1, implication := .checked }
+minus_spec [strict] := { logic := .holds, covered := (0..=2, 0..=2), domain := (0..=2, 0..=2), belief := 1, implication := .checked }
 ```
 
 `covered` is shown unless the claim fails, in which case `refuted` is shown.
 A claim with `by derive` ends with `implication := .checked`, `.unchecked`
 or `.refuted`. Sets of tuples print as the domain's own form when equal to
-it (`Icc 0 2 ×ˢ Icc 0 2`), as a list of tuples when finite (`{(1, -1)}`),
-or as a union of products. Beliefs are rounded to 4 decimals. Then one line
+it (`(0..=2, 0..=2)`), as a list of tuples when finite (`{(1, -1)}`),
+or as a union of products, each written as a tuple of sets:
+`(0..=2, {0}) | (3..=4, Int)`. Beliefs are rounded to 4 decimals. Then one line
 per piece of evidence on a spec:
 
 ```text
@@ -435,15 +459,15 @@ every case, and checks that adding `tests/golden/<set>/noise.mitra`
 (evidence `at 0`) to any case changes nothing. Evidence is `at 1` unless
 marked.
 
-### `not`, under `strict` and `by_usage := coverage uniform`
+### `flip`, under `strict` and `by_usage := coverage uniform`
 
 ```lean
-opaque not (a : Bool) : Bool
-claim not_correct : ∀ a, correct (not a)
-claim not_on_true : correct (not true)
+opaque flip (a : Bool) : Bool
+claim flip_correct : forall a, correct (flip a)
+claim flip_on_true : correct (flip true)
 ```
 
-| Case | Evidence | not_correct | not_on_true | belief by_usage (not_correct) |
+| Case | Evidence | flip_correct | flip_on_true | belief by_usage (flip_correct) |
 |---|---|---|---|---|
 | 01 | none | uncertain, covered {} | uncertain, covered {} | 0 |
 | 02 | true correct, false correct | holds | holds | 1 |
@@ -462,11 +486,11 @@ Under `strict`, belief is 1 exactly where the claim holds.
 
 ```lean
 opaque id (x : Value) : Value
-claim id_correct : ∀ x, correct (id x)
-claim id_small : ∀ x ∈ Icc 0 100, correct (id x)
+claim id_correct : forall x, correct (id x)
+claim id_small : forall x in 0..=100, correct (id x)
 profile usage for id
-  | x ∈ Icc 0 100 => 0.8
-  | x ∈ String => 0.1
+  | x in 0..=100 => 0.8
+  | x in String => 0.1
   | _ => 0.1
 ```
 
@@ -474,11 +498,11 @@ profile usage for id
 |---|---|---|---|---|---|
 | 01 | none | uncertain, covered {} | 0 | uncertain | 0 |
 | 02 | `id 1`, `id 42` correct | uncertain, covered {1, 42} | 0.0158 | uncertain | 0.0198 |
-| 03 | correct on `Icc 0 100` | uncertain, covered Icc 0 100 | 0.8 | holds | 1 |
-| 04 | correct on `Icc 0 100` and on `String` | uncertain | 0.9 | holds | 1 |
+| 03 | correct on `0..=100` | uncertain, covered 0..=100 | 0.8 | holds | 1 |
+| 04 | correct on `0..=100` and on `String` | uncertain | 0.9 | holds | 1 |
 | 05 | `id 1` correct, `id 7` wrong | fails, refuted {7} | 0 | fails, refuted {7} | 0 |
-| 06 | correct on `∀ x` | holds, covered Value | 1 | holds | 1 |
-| 07 | correct on `Icc 0 100`, `id 5` wrong | uncertain, covered Icc 0 4 ∪ Icc 6 100 | 0.7921 | uncertain | 0.9901 |
+| 06 | correct on `forall x` | holds, covered Value | 1 | holds | 1 |
+| 07 | correct on `0..=100`, `id 5` wrong | uncertain, covered 0..=4 \| 6..=100 | 0.7921 | uncertain | 0.9901 |
 | 08 | `id "a"` correct | uncertain, covered {"a"} | 0 | uncertain, covered {} | 0 |
 | 09 | only `at 0` evidence | uncertain | 0 | uncertain | 0 |
 
@@ -486,23 +510,23 @@ On `Value`, tests never make `id_correct` hold: only evidence on the whole
 domain does (case 06). Under `strict`, belief is 1 exactly where the claim
 holds.
 
-### `not_matches`: a subject against a spec, under `strict`
+### `flip_matches`: a subject against a spec, under `strict`
 
 ```lean
 def neg (a : Bool) : Bool := !a
-opaque not (a : Bool) : Bool
-claim not_spec : ∀ a, not a = neg a
-claim not_on_true : not true = neg true
+opaque flip (a : Bool) : Bool
+claim flip_spec : forall a, flip a = neg a
+claim flip_on_true : flip true = neg true
 ```
 
-| Case | Evidence | not_spec | not_on_true |
+| Case | Evidence | flip_spec | flip_on_true |
 |---|---|---|---|
 | 01 | none | uncertain, covered {} | uncertain |
-| 02 | `not true = false`, `not false = true` | holds | holds |
-| 03 | `not true = false` | uncertain, covered {true} | holds |
-| 04 | `not false = false` | fails, refuted {false} | uncertain |
-| 05 | `not true = false`, `not false = true` and `= false` | uncertain, covered {true} | holds |
-| 06 | `∀ a, correct (not a)` (a judgment, not an output) | uncertain | uncertain |
+| 02 | `flip true = false`, `flip false = true` | holds | holds |
+| 03 | `flip true = false` | uncertain, covered {true} | holds |
+| 04 | `flip false = false` | fails, refuted {false} | uncertain |
+| 05 | `flip true = false`, `flip false = true` and `= false` | uncertain, covered {true} | holds |
+| 06 | `forall a, correct (flip a)` (a judgment, not an output) | uncertain | uncertain |
 | 07 | case 02, plus `neg true = true` | holds | holds, and the evidence on `neg` is contested |
 | 08 | only `at 0` evidence | uncertain | uncertain |
 
@@ -511,30 +535,30 @@ claim not_on_true : not true = neg true
 ```lean
 def neg (a : Bool) : Bool := !a
 def same (a : Bool) : Bool := a
-opaque not (a : Bool) : Bool
-opaque not_not (a : Bool) : Bool
-claim neg_twice : ∀ a, same a = neg (neg a)
-claim not_spec : ∀ a, not a = neg a
-claim not_not_shape : ∀ a, not_not a = not (not a)
-claim not_not_same : ∀ a, not_not a = same a := by derive [not_spec, not_not_shape, neg_twice]
+opaque flip (a : Bool) : Bool
+opaque flip_not (a : Bool) : Bool
+claim neg_twice : forall a, same a = neg (neg a)
+claim flip_spec : forall a, flip a = neg a
+claim flip_not_shape : forall a, flip_not a = flip (flip a)
+claim flip_not_same : forall a, flip_not a = same a := by derive [flip_spec, flip_not_shape, neg_twice]
 ```
 
 `neg_twice` is about specs only: it holds by computation in every case.
-The implication of `not_not_same` is `checked` in every case.
-"Review" is `evidence not_not_shape at 1`.
+The implication of `flip_not_same` is `checked` in every case.
+"Review" is `evidence flip_not_shape at 1`.
 
-| Case | Evidence | not_spec | not_not_shape | not_not_same |
+| Case | Evidence | flip_spec | flip_not_shape | flip_not_same |
 |---|---|---|---|---|
 | 01 | none | uncertain | uncertain | uncertain |
-| 02 | `not` on both inputs, review | holds | holds | holds (derived, no evidence on `not_not`) |
-| 03 | `not true = false`, review | uncertain, covered {true} | holds | uncertain |
-| 04 | `not true = true`, `not false = true`, review | fails, refuted {true} | holds | uncertain |
-| 05 | case 02, plus `not_not true = false` | holds | uncertain, covered {false} | fails, refuted {true} |
-| 06 | outputs of `not` and `not_not` on both inputs | holds | holds | holds |
+| 02 | `flip` on both inputs, review | holds | holds | holds (derived, no evidence on `flip_not`) |
+| 03 | `flip true = false`, review | uncertain, covered {true} | holds | uncertain |
+| 04 | `flip true = true`, `flip false = true`, review | fails, refuted {true} | holds | uncertain |
+| 05 | case 02, plus `flip_not true = false` | holds | uncertain, covered {false} | fails, refuted {true} |
+| 06 | outputs of `flip` and `flip_not` on both inputs | holds | holds | holds |
 | 07 | only `at 0` evidence | uncertain | uncertain | uncertain |
 
-In case 05 the counterexample on `not_not` also contradicts the review of
-`not_not_shape` on `true`, so that premise is no longer known to hold.
+In case 05 the counterexample on `flip_not` also contradicts the review of
+`flip_not_shape` on `true`, so that premise is no longer known to hold.
 
 ### `minus`: tuples and a checked derivation, under `strict`
 
@@ -545,10 +569,10 @@ def difference (a b : Int) : Int := a - b
 opaque add (a b : Int) : Int
 opaque negate (b : Int) : Int
 opaque minus (a b : Int) : Int
-claim add_spec : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc (-2) 0, add a b = plus a b
-claim negate_spec : ∀ b ∈ Icc 0 2, negate b = opposite b
-claim minus_shape : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc 0 2, minus a b = add a (negate b)
-claim minus_spec : ∀ a ∈ Icc 0 2, ∀ b ∈ Icc 0 2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
+claim add_spec : forall a in 0..=2, forall b in -2..=0, add a b = plus a b
+claim negate_spec : forall b in 0..=2, negate b = opposite b
+claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus a b = add a (negate b)
+claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
 ```
 
 "Leaves" are the outputs of `add` on its 9 inputs and of `negate` on its 3,
@@ -569,3 +593,18 @@ on `minus` itself.
 of an unchecked implication: `minus_spec` holds only because the author
 said so.
 
+### `numbers`: integer types, ranges and floats, under `strict`
+
+```lean
+opaque inc (x : Int64) : Int64
+def halve (x : Float64) : Float64 := x * 0.5
+opaque half (x : Float64) : Float64
+claim inc_correct : forall x, correct (inc x)
+claim inc_small : forall x in 0..100, correct (inc x)
+claim half_spec : forall x in {1.0, -3.0}, half x = halve x
+```
+
+| Case | Evidence | inc_correct | inc_small | half_spec |
+|---|---|---|---|---|
+| 01 | `inc` on `0..=99`; `half 1.0 = 0.5`, `half (-3.0) = -1.5` | uncertain, covered 0..=99 of Int64 | holds | holds |
+| 02 | `half (-3.0) = -1.0`; `inc` on `-5..0` at 0 | uncertain | uncertain | fails, refuted {-3.0} |

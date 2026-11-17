@@ -1,2 +1,2 @@
 id_correct [strict] := { logic := .uncertain, covered := {"a"}, domain := Value, belief := 0 }
-id_small [strict] := { logic := .uncertain, covered := {}, domain := Icc 0 100, belief := 0 }
+id_small [strict] := { logic := .uncertain, covered := {}, domain := 0..=100, belief := 0 }

@@ -1,2 +1,2 @@
-evidence ∀ x, correct (id x) at 0
-evidence ¬ correct (id 7) at 0
+evidence forall x, correct (id x) at 0
+evidence not correct (id 7) at 0

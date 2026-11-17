@@ -1,0 +1,3 @@
+inc_correct [strict] := { logic := .uncertain, covered := {}, domain := Int64, belief := 0 }
+inc_small [strict] := { logic := .uncertain, covered := {}, domain := 0..=99, belief := 0 }
+half_spec [strict] := { logic := .fails, refuted := {-3.0}, domain := {-3.0, 1.0}, belief := 0 }

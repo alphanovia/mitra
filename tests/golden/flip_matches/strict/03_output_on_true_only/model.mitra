@@ -1,0 +1,9 @@
+def neg (a : Bool) : Bool := !a
+opaque flip (a : Bool) : Bool
+
+-- flip computes neg on every input.
+claim flip_spec : forall a, flip a = neg a
+-- flip computes neg on true.
+claim flip_on_true : flip true = neg true
+
+policy strict

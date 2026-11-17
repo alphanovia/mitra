@@ -1,0 +1,4 @@
+evidence flip true = false at 1
+evidence flip false = true at 1
+-- neg is a definition: evidence cannot disprove it, so Mitra flags it.
+evidence neg true = true at 1

@@ -1,4 +1,0 @@
-evidence not true = false at 1
--- Two observations disagree on false: false counts on neither side.
-evidence not false = true at 1
-evidence not false = false at 1

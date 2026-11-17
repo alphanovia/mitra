@@ -1,4 +1,4 @@
 neg_twice [strict] := { logic := .holds, covered := Bool, domain := Bool, belief := 1 }
-not_spec [strict] := { logic := .uncertain, covered := {true}, domain := Bool, belief := 0 }
-not_not_shape [strict] := { logic := .holds, covered := Bool, domain := Bool, belief := 1 }
-not_not_same [strict] := { logic := .uncertain, covered := {}, domain := Bool, belief := 0, implication := .checked }
+flip_spec [strict] := { logic := .uncertain, covered := {true}, domain := Bool, belief := 0 }
+flip_not_shape [strict] := { logic := .holds, covered := Bool, domain := Bool, belief := 1 }
+flip_not_same [strict] := { logic := .uncertain, covered := {}, domain := Bool, belief := 0, implication := .checked }

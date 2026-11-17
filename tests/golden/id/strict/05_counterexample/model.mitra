@@ -1,8 +1,8 @@
 opaque id (x : Value) : Value
 
 -- id is correct on every input.
-claim id_correct : ∀ x, correct (id x)
+claim id_correct : forall x, correct (id x)
 -- id is correct on the integers from 0 to 100.
-claim id_small : ∀ x ∈ Icc 0 100, correct (id x)
+claim id_small : forall x in 0..=100, correct (id x)
 
 policy strict

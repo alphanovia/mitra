@@ -1,3 +1,3 @@
 -- Added to every case by the test harness: evidence at 0 must change nothing.
-evidence ∀ x, correct (id x) at 0
-evidence ∀ x, ¬ correct (id x) at 0
+evidence forall x, correct (id x) at 0
+evidence forall x, not correct (id x) at 0

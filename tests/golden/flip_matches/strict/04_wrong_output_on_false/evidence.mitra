@@ -1,0 +1,2 @@
+-- flip(false) should be true.
+evidence flip false = false at 1

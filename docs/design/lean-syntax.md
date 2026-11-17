@@ -15,16 +15,30 @@ only what the ledger needs: evidence, tests, profiles, policies and verdicts.
 |---|---|
 | `opaque f (a b : Int) : Int` | declared, body unknown: a subject |
 | `def f (a : Int) : Int := e` | a definition: a spec |
-| `claim c : ∀ x ∈ S, …` | a theorem statement without a proof |
+| `claim c : forall x in S, …` | a theorem statement without a proof |
 | `… := by derive [p, q]` | reads as a proof; Mitra checks the implication |
-| `Icc a b`, `∪ ∩ \`, `{1, "a"}`, `×ˢ` | Mathlib sets |
+| `{1, "a"}`, `\` | set literals and difference |
 | `f a b`, `(-2)`, `let x := v; e`, `--` | application, literals, comments |
+| `Int`, `Int64`, `Float64` | `Int` is ℤ; the others are fixed-width |
 | `{ logic := .holds, … }` | verdicts print as structure instances |
 
 What Lean lacks, Mitra adds: `correct (f a)`, `evidence … at c` (not `@`,
-which means explicit arguments in Lean), `test`, `profile … | x ∈ S => w`,
+which means explicit arguments in Lean), `test`, `profile … | x in S => w`,
 `policy`. Mitra files need not be valid Lean, so Lean's prelude names
-(`not`, `id`) are free to use.
+(`id`) are free to use.
+
+Where Lean reads badly or needs an editor, Mitra departs from it
+(2026-11-17):
+
+- **ASCII is canonical**: `forall`, `in`, `not`, `|` (union), `&`
+  (intersection). Lean's `∀ ∈ ¬ ∪ ∩` are accepted as aliases, and Mitra
+  prints ASCII. So `not` is a keyword, and the old `not` subject of the
+  golden set is now `flip`.
+- **Ranges, as in Rust**: `0..=10` (closed), `0..10` (half-open), `5..`,
+  `..=5`, instead of Mathlib's `Icc 0 10`.
+- **`Float64`, not `Real`**: a 64-bit float is not a real number (NaN,
+  infinities, `-0.0`, rounding). `Real` is reserved for later, as a type
+  for specs and proofs.
 
 ## Why a fixed subset
 
@@ -41,4 +55,5 @@ backtracking. Every command starts with a keyword. Not taken: `match`,
 `fun`, tactics. `crates/mitra-grammar` checks that the grammar is LL(1) and
 LR(1), and fuzzes the parser against it.
 
-Open: ASCII forms. Lean has `forall` for `∀`, but no ASCII `∈`, `∪` or `∩`.
+Verdicts print a product of sets as a tuple of sets, `(0..=2, -2..=0)`,
+and a finite one as a set of tuples, `{(1, -1)}`.

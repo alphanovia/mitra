@@ -23,6 +23,7 @@ module.exports = grammar({
     name: _ => /[A-Za-z_][A-Za-z0-9_]*/,
     nat: _ => /[0-9]+/,
     number: _ => /[0-9]+(\.[0-9]+)?/,
+    float: _ => /[0-9]+\.[0-9]+/,
     string: _ => /"[^"\n]*"/,
 
     opaque: $ => seq('opaque', field('name', $.name), repeat1($.binder), ':', field('type', $._set)),
@@ -39,12 +40,13 @@ module.exports = grammar({
     equation: $ => seq($.call, '=', $._expr),
     derive: $ => seq(':=', 'by', 'derive', '[', sep1($.name, ','), ']'),
     call: $ => seq(field('function', $.name), repeat($._arg)),
-    forall: $ => seq('∀', $.name, optional(seq('∈', $._set)), ','),
-    _arg: $ => choice($.name, $.boolean, $.nat, $.string, $.negative),
-    negative: $ => seq('(', '-', $.nat, ')'),
+    // ASCII first; Lean's Unicode symbols are aliases.
+    forall: $ => seq(choice('forall', '∀'), $.name, optional(seq(choice('in', '∈'), $._set)), ','),
+    _arg: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.negative),
+    negative: $ => seq('(', '-', choice($.nat, $.float), ')'),
 
     profile: $ => seq('profile', field('name', $.name), 'for', field('subject', $.name), repeat($.region)),
-    region: $ => seq('|', choice('_', seq($.name, '∈', $._set)), '=>', $.number),
+    region: $ => seq('|', choice('_', seq($.name, choice('in', '∈'), $._set)), '=>', $.number),
     policy: $ => seq('policy', choice(
       'strict',
       seq(field('name', $.name), ':=', choice('strict', seq('coverage', $.name))),
@@ -55,17 +57,23 @@ module.exports = grammar({
     attributes: $ => seq('@[', sep1($.attribute, ','), ']'),
     attribute: $ => seq($.name, $.string),
     _judgment: $ => choice($.correct, $.not, $.output, $.call),
-    not: $ => seq('¬', choice($.correct, $.call)),
+    not: $ => seq(choice('not', '¬'), choice($.correct, $.call)),
     output: $ => seq($.call, '=', $._value),
 
-    _set: $ => choice($.set_name, $.set_literal, $.interval, $.set_op, $.set_paren),
-    set_name: _ => choice('Bool', 'Int', 'String', 'Value'),
+    _set: $ => choice($.set_name, $.set_literal, $.range, $.set_op, $.set_paren),
+    set_name: _ => choice('Bool', 'Int', 'Int8', 'Int16', 'Int32', 'Int64', 'UInt8', 'UInt16',
+      'UInt32', 'Float64', 'String', 'Value'),
     set_literal: $ => seq('{', optional(sep1($._value, ',')), '}'),
-    interval: $ => seq('Icc', choice($.nat, $.negative), choice($.nat, $.negative)),
+    range: $ => choice(
+      seq($.bound, choice('..=', '..'), $.bound),
+      seq($.bound, '..'),
+      seq(choice('..=', '..'), $.bound),
+    ),
+    bound: $ => seq(optional('-'), $.nat),
     set_paren: $ => seq('(', $._set, ')'),
     set_op: $ => choice(
-      prec.left(1, seq($._set, '∪', $._set)),
-      prec.left(2, seq($._set, choice('∩', '\\'), $._set)),
+      prec.left(1, seq($._set, choice('|', '∪'), $._set)),
+      prec.left(2, seq($._set, choice('&', '∩', '\\'), $._set)),
     ),
 
     _expr: $ => choice($.if, $.let, $.binary, $.unary, $.application, $._atom),
@@ -78,11 +86,11 @@ module.exports = grammar({
     ),
     unary: $ => prec(6, seq(choice('!', '-'), $._expr)),
     application: $ => prec(7, seq(field('function', $.name), repeat1($._atom))),
-    _atom: $ => choice($.name, $.boolean, $.nat, $.string, $.paren),
+    _atom: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.paren),
     paren: $ => seq('(', $._expr, ')'),
 
-    _value: $ => choice($.boolean, $.nat, $.string, $.negative_value),
-    negative_value: $ => seq('-', $.nat),
+    _value: $ => choice($.boolean, $.nat, $.float, $.string, $.negative_value),
+    negative_value: $ => seq('-', choice($.nat, $.float)),
     boolean: _ => choice('true', 'false'),
   },
 });
