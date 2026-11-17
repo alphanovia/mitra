@@ -13,21 +13,28 @@ into one computed measure of how far a claim can be trusted.
 ## The idea
 
 At its heart Mitra is a small **math language for trust**, in the family of
-subjective logic, Bayesian reasoning and classical logic. You write claims,
-evidence and how they combine; Mitra computes, for each claim, how much it is
-believed, disbelieved, and still unknown.
+subjective logic, Bayesian reasoning and classical logic. You write binary
+claims, the evidence for them (tests, proofs, usage, reviews, agent reports),
+the assumptions they rest on, and how they relate; Mitra computes, for each
+claim, how much it is believed, disbelieved, and still unknown.
 
 ```mitra
-claim sort_ok   "sort returns a sorted permutation"
-claim ordered   "output is ordered"
-claim permuted  "output is a permutation of the input"
+claim f_ok     "f is correct"
+claim x_ok     "test X is correct"
+claim x_covers "test X exercises f's specified behaviour"
+claim x_good   "test X is a reliable witness for f"
 
-assume   ordered  = (0.9, 0, 0.1)      # Lean proof, modulo the spec
-evidence permuted : +3                 # three passing example tests
-sort_ok = ordered and permuted
+assume x_ok     = (0.8, 0, 0.2)
+assume x_covers = (0.6, 0, 0.4)
+x_good = x_ok and x_covers
 
-query sort_ok                          # => (0.68, 0, 0.32), P = 0.76
+evidence f_ok : test +5 via x_good
+query f_ok      # => (0.514, 0, 0.486), P = 0.757, weakest: x_covers
 ```
+
+"Test X verifies `f`" is not an edge with a weight: the test being right and
+the test covering `f` are claims too, each with its own score. Mitra makes this
+graph explicit, puts a number on every claim, and points at the weakest link.
 
 The core is a **semantic model** (an AST). The text above is only one
 projection of it, small enough to live in a code docstring or a Markdown block

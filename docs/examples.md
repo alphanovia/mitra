@@ -1,81 +1,120 @@
 # Toy models
 
-Five small models with their results worked out by hand from the formulas in
-[language.md](language.md). They are the first tests: an implementation must
-reproduce these numbers exactly. All base rates are the default 0.5.
+Five small models with results worked out by hand from
+[language.md](language.md), and checked with exact fractions. They are the
+first tests: an implementation must reproduce them. Base rates are 0.5 unless
+stated.
 
-## 1. No evidence (vacuous)
-
-```mitra
-claim x "the feature works"
-query x
-```
-
-Nothing is known, so ω = **(0, 0, 1)**, P = **0.5**: the base rate.
-*Checks:* no evidence means full uncertainty, not distrust.
-
-## 2. One piece of evidence
+## 1. Nothing known
 
 ```mitra
-claim x "the feature works"
-evidence x : +3          # three passing tests
-query x
+claim f_ok "f is correct"
+query f_ok
 ```
 
-r = 3, s = 0, so b = 3/5, d = 0, u = 2/5.
-ω = **(0.6, 0, 0.4)**, P = 0.6 + 0.5·0.4 = **0.8**.
+ω = **(0, 0, 1)**, P = **0.5**. No evidence is full uncertainty, not distrust.
 
-## 3. Two independent pieces, one conflicting
+## 2. One first-hand test
 
 ```mitra
-claim x "the feature works"
-evidence x : +3          # unit tests
-evidence x : +1 -1       # manual check: one pass, one failure
-query x
+claim f_ok "f is correct"
+evidence f_ok : test +3        # three passing cases, run by us
+query f_ok
 ```
 
-ω₁ = (3/5, 0, 2/5), ω₂ = (1/4, 1/4, 1/2).
-k = 2/5 + 1/2 − 1/5 = 7/10.
-b = (3/5·1/2 + 1/4·2/5)/k = (2/5)/(7/10) = 4/7, d = (1/4·2/5)/k = 1/7,
-u = (1/5)/(7/10) = 2/7.
-ω = **(4/7, 1/7, 2/7) ≈ (0.571, 0.143, 0.286)**, P = 4/7 + 1/7 = **5/7 ≈ 0.714**.
-*Checks:* same as pooling the evidence (+4 −1); conflict shows up as
-disbelief, not only as lower belief.
+(3, 0, 2)/5 → ω = **(0.6, 0, 0.4)**, P = 0.6 + 0.5·0.4 = **0.8**.
 
-## 4. Evidence from an imperfect source
+## 3. Test X verifies f
+
+The relationship is made of claims, and X's result is discounted by them.
 
 ```mitra
-claim x "all tests pass"
-source agent : +8 -2           # agent was right 8 times, wrong twice
-evidence x : +10 from agent    # agent reports 10 passing tests
-query x
+claim f_ok     "f is correct"
+claim x_ok     "test X is correct"
+claim x_covers "test X exercises f's specified behaviour"
+claim x_good   "test X is a reliable witness for f"
+
+assume x_ok     = (0.8, 0, 0.2)     # reviewed test code
+assume x_covers = (0.6, 0, 0.4)     # covers the main paths only
+x_good = x_ok and x_covers
+
+evidence f_ok : test +5 via x_good  # X's 5 cases pass
+query f_ok
 ```
 
-Source: (8/12, 2/12, 2/12), P(agent) = 2/3 + 0.5·1/6 = 3/4.
-Reported evidence: (10/12, 0, 2/12) = (5/6, 0, 1/6).
-Discounted: b = 3/4·5/6 = 5/8, d = 0, u = 1 − 5/8 = 3/8.
-ω = **(0.625, 0, 0.375)**, P = 5/8 + 3/16 = **13/16 = 0.8125**.
-*Checks:* the agent's 10 tests first-hand would give P ≈ 0.917; going through
-an imperfect source turns some belief into uncertainty, not disbelief.
+- `x_good`: P = P(x_ok)·P(x_covers) = 0.9 · 0.8 = 0.72.
+- X's result alone: (5, 0, 2)/7 = (0.714, 0, 0.286).
+- Through `x_good`: b = 0.72 · 5/7 = 0.514, d = 0, u = 0.486.
 
-## 5. Conjunction
+```text
+f_ok   (0.514, 0, 0.486)  P = 0.757
+  weakest:  x_covers   (P would be 0.821 if it were certain; x_ok: 0.786)
+  rests on: x_ok, x_covers
+```
+
+Five passing cases first-hand would give P = 0.857. Doubt about the test turns
+part of that into uncertainty, and the output says that improving coverage
+helps more than re-reviewing the test.
+
+## 4. Splitting a claim
+
+`f` is proven for small inputs and only tested for large ones. The builder
+asks "is `f` correct?" and gets one score per part, plus the parent.
 
 ```mitra
-claim sort_ok  "sort returns a sorted permutation"
-claim ordered  "output is ordered"
-claim permuted "output is a permutation"
-assume   ordered  = (0.9, 0, 0.1)
-evidence permuted : +3
-sort_ok = ordered and permuted
-query sort_ok
+claim f_ok       "f is correct"
+claim f_small    "f is correct for n < 1000"
+claim f_large    "f is correct for n >= 1000"
+claim spec_ok    "the Lean spec says what f should do"
+
+split f_ok = f_small, f_large
+assume f_ok.complete = (0.95, 0, 0.05)   # the two ranges cover every input
+
+assume spec_ok = (0.9, 0, 0.1)
+evidence f_small : proof via spec_ok
+evidence f_large : test +3
+query f_ok
 ```
 
-ω_ordered = (0.9, 0, 0.1), ω_permuted = (0.6, 0, 0.4), both a = 0.5.
-With k = 1 − a_y·a_z = 3/4:
-b = 0.9·0.6 + (0.5·0.5·0.9·0.4 + 0.5·0.5·0.1·0.6)/k = 0.54 + 0.105/0.75 = 0.68,
-d = 0 + 0 − 0 = 0,
-u = 0.1·0.4 + (0.5·0.9·0.4 + 0.5·0.1·0.6)/k = 0.04 + 0.21/0.75 = 0.32,
-a = 0.25.
-ω = **(0.68, 0, 0.32)**, P = 0.68 + 0.25·0.32 = **0.76**.
-*Checks:* P = P(ordered)·P(permuted) = 0.95·0.8; the result is no more
-trusted than its weaker part, and the weak part is `permuted`.
+- `f_small`: proof (1, 0, 0) through P(spec_ok) = 0.95 → (0.95, 0, 0.05), P = 0.975.
+- `f_large`: (0.6, 0, 0.4), P = 0.8.
+- `f_ok` = `f_small and f_large and f_ok.complete`: P = 0.975 · 0.8 · 0.975 = 0.760, a = 1/8.
+
+```text
+f_ok   (0.726, 0, 0.274)  P = 0.760
+  weakest:  f_large    (P would be 0.951; spec_ok: 0.780; f_ok.complete: 0.780)
+  rests on: spec_ok, f_ok.complete
+```
+
+The proven half is not the problem; three tests on large inputs are.
+
+## 5. Is the agent's output correct?
+
+An agent reports success. Its report is discounted by its track record; the
+harness also runs tests itself.
+
+```mitra
+claim task_ok  "the task output is correct"
+claim agent_ok "this agent's reports are reliable"
+
+evidence agent_ok : review +8 -2      # right 8 times, wrong twice
+evidence task_ok  : agent +1 via agent_ok
+evidence task_ok  : test +4           # harness ran 4 tests itself
+query task_ok
+```
+
+- `agent_ok`: (8, 2, 2)/12, P = 2/3 + 0.5 · 1/6 = 3/4.
+- Agent's report: (1, 0, 2)/3 through 3/4 → (1/4, 0, 3/4).
+- Harness tests: (4, 0, 2)/6 = (2/3, 0, 1/3).
+- Fusion: k = 3/4 + 1/3 − 1/4 = 5/6; b = (1/12 + 1/2)/(5/6) = 7/10, u = (1/4)/(5/6) = 3/10.
+
+```text
+task_ok   (0.7, 0, 0.3)  P = 0.85
+  weakest:  agent_ok   (P would be 0.857 if it were certain)
+  rests on: (no assumptions)
+```
+
+**Variant:** the harness's run fails twice instead (`test -2`). Fusing
+(1/4, 0, 3/4) with (0, 1/2, 1/2) gives ω = **(1/7, 3/7, 3/7)**, P = **0.357**:
+real disbelief, not just doubt, which a harness can treat as "stop", where
+high uncertainty alone would mean "gather more evidence".

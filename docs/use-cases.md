@@ -26,10 +26,10 @@ claim ordered      "output is ordered"
 claim permutation  "output is a permutation of the input"
 claim model_ok     "the Lean model of sort matches the Rust code"
 
-assume   ordered     = (1, 0, 0)     # Lean proof
 assume   model_ok    = (0.8, 0, 0.2)
-evidence permutation : +3            # three example tests
-sort_correct = ordered and model_ok and permutation
+evidence ordered     : proof via model_ok   # Lean proof
+evidence permutation : test +3              # three example tests
+sort_correct = ordered and permutation
 ```
 
 **What Mitra returns.** `sort_correct` gets a moderate value with high

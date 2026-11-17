@@ -70,10 +70,12 @@ They are built and tested in that order.
 
 ## Glossary
 
-- **Claim:** a proposition that may be true or false.
-- **Evidence:** observations for (`+r`) or against (`-s`) a claim.
-- **Source:** who or what produced evidence, with its own reliability.
-- **Assumption:** a claim whose opinion is given, not computed.
+- **Claim:** a binary proposition about a subject (code, a task output, an
+  agent). Relationships such as "test X verifies f" are themselves claims.
+- **Evidence:** a test, proof, usage, review or agent report for (`+r`) or
+  against (`-s`) a claim, counting only as far as the claim it comes `via`.
+- **Assumption:** a claim accepted without evidence, with an opinion set by
+  policy. Every result lists the assumptions it rests on.
 - **Opinion:** Mitra's value for a claim: belief *b*, disbelief *d*,
   uncertainty *u* with *b + d + u = 1*, plus a base rate *a*. Its projected
   probability *P = b + a·u* is the single number a policy can use.
