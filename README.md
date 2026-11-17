@@ -66,6 +66,8 @@ direction, not the current language.
 | [docs/vision.md](docs/vision.md) | What Mitra is, how it is layered, principles, non-goals |
 | [docs/design/composition.md](docs/design/composition.md) | Proposal: composition as implication, structure claims, tests as subjects, the meaning of confidence, tuples |
 | [docs/design/dogfooding.md](docs/design/dogfooding.md) | Plan: a Dempster–Shafer crate annotated with Mitra, and Mitra's semantics written in Mitra |
+| [docs/design/elaboration.md](docs/design/elaboration.md) | Proposal: Mitra elaborates partial knowledge into claims, splits, specs and proof obligations |
+| [docs/design/workflow.md](docs/design/workflow.md) | Proposal: the developer loop CLI, CI test ingestion and the evidence store |
 | [docs/use-cases.md](docs/use-cases.md) | Where Mitra is headed: checking a model, gating a merge, gating an agent |
 | [docs/validation.md](docs/validation.md) | How Mitra will be validated: a ladder of toy `add` CLIs scored against ground truth |
 | [docs/prior-art.md](docs/prior-art.md) | Related work and how Mitra differs |
