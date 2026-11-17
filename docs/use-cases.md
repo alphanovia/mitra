@@ -72,7 +72,7 @@ the limiting element: "assumption `staging_token_lifetime` is unverified".
 Checking that one assumption would let the change merge on its own.
 
 **What this needs beyond the language:** turning a change's tests, proofs and reviews
-into a model automatically. That is the v2 product case.
+into a model automatically. That is the product case, later.
 
 ---
 
