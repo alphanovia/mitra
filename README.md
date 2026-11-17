@@ -9,13 +9,15 @@ use as a policy input.**
 evidence. Mitra combines that evidence, along with the assumptions it rests on,
 into a verdict and a confidence for each claim.
 
-> Status: early. The code evaluates claims against evidence at confidence 0
-> or 1, under two policies ([language reference](docs/reference/language.md)).
+> Status: early. The code evaluates claims, specs and derivations against
+> evidence at confidence 0 or 1, under two policies ([language reference](docs/reference/language.md)).
 
 ## The idea
 
 At its heart Mitra is a small **language for trust**. A **subject** is a
-function under review, a **claim** says it is correct on some of its inputs,
+function under review, a **spec** is a definition Mitra can evaluate, a
+**claim** says a subject is correct (or matches a spec) on some of its inputs,
+or follows from other claims,
 and **evidence** is a run of the subject judged correct or wrong, with a
 confidence. A **policy** turns evidence into a belief. Mitra gives every
 claim a verdict: what logic proves, which inputs are covered, and how much

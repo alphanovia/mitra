@@ -1,0 +1,2 @@
+evidence not(true) -> false @ 1
+evidence not_not_shape(_) holds @ 1

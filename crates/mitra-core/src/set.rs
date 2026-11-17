@@ -174,6 +174,38 @@ impl Set {
         self.minus(o).is_empty()
     }
 
+    pub fn contains(&self, v: &Value) -> bool {
+        Set::point(v).is_subset(self)
+    }
+
+    /// Every value, if the set is finite (and small enough to list).
+    pub fn values(&self) -> Option<Vec<Value>> {
+        if self.count()? > 1_000_000.0 {
+            return None;
+        }
+        let mut out = Vec::new();
+        for b in [false, true] {
+            if self.bools[b as usize] {
+                out.push(Value::Bool(b));
+            }
+        }
+        for &(lo, hi) in &self.ints {
+            out.extend((lo..=hi).map(|i| Value::Int(i as i64)));
+        }
+        if let Strs::Finite(s) = &self.strs {
+            out.extend(s.iter().map(|x| Value::Str(x.clone())));
+        }
+        Some(out)
+    }
+
+    /// The value, if the set has exactly one.
+    pub fn single(&self) -> Option<Value> {
+        match self.values()?.as_slice() {
+            [v] => Some(v.clone()),
+            _ => None,
+        }
+    }
+
     /// The number of values, if finite.
     pub fn count(&self) -> Option<f64> {
         let unbounded = self

@@ -1,0 +1,6 @@
+# Added to every case by the test harness: evidence at 0 must change nothing.
+evidence not(true)      -> true  @ 0
+evidence not(false)     -> false @ 0
+evidence not_not(true)  -> false @ 0
+evidence not_not_shape(_) fails @ 0
+evidence not_not_same(_)  holds @ 0

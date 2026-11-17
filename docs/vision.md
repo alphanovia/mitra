@@ -36,7 +36,8 @@ gates, agent harnesses, apps) is built on top later.
    (3) incremental use and storage
 ```
 
-1. **Semantic model.** The core. An AST of subjects, claims and evidence.
+1. **Semantic model.** The core. An AST of subjects, specs, claims and
+   evidence.
    Evaluation is a pure function from model to a verdict per claim and
    policy.
 2. **Parsing.** Text to AST. The text syntax is one projection of the model,
@@ -68,6 +69,15 @@ They are built and tested in that order.
 5. **Proven.** The implementation is to be written with Lean 4 and Verus, so
    the trust engine can itself be trusted.
 
+## Specs and intent
+
+A spec is a definition, so evidence cannot disprove it: Mitra flags such
+evidence as contested. If a person really means "the spec is wrong", that is
+a validation question, not a verification one: the spec does not match what
+they intend. The way to say it is a claim that treats the spec itself as
+the thing under review, with its own evidence (for example
+`claim neg_intent: neg(_) correct` once specs can be judged that way).
+
 ## Not now
 
 - Extracting models from code, tests or agent traces.
@@ -77,8 +87,9 @@ They are built and tested in that order.
 ## Glossary
 
 - **Subject:** a function, task or process under review. Mitra never runs it.
-- **Claim:** the subject is correct on a set of its inputs (all of them, or
-  a subset).
+- **Spec:** a definition Mitra can evaluate; true by definition.
+- **Claim:** a subject is correct on a set of its inputs, or matches a spec
+  there. A claim can be derived from other claims.
 - **Evidence:** a run of the subject on given inputs, judged correct or
   wrong, with a confidence from 0 (distrusted) to 1 (fully believed).
 - **Assumption** (planned): a claim accepted at a stated confidence, not

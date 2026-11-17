@@ -1,0 +1,2 @@
+# not(false) should be true.
+evidence not(false) -> false @ 1

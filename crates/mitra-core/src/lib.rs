@@ -1,6 +1,6 @@
 //! Mitra's embeddable library.
 //!
-//! Parse a model (subjects, claims, profiles, policies) and a list of
+//! Parse a model (subjects, specs, claims, profiles, policies) and a list of
 //! evidence, then compute a verdict for each claim under each policy.
 //!
 //! ```
@@ -18,8 +18,10 @@ pub mod eval;
 pub mod parse;
 pub mod set;
 
-pub use ast::{Claim, Evidence, Model, Pattern, Policy, PolicyKind, Profile, Subject};
-pub use eval::{evaluate, Logic, Report, Verdict};
+pub use ast::{
+    Claim, Evidence, Expr, Function, Judgment, Model, Pattern, Policy, PolicyKind, Profile, Target,
+};
+pub use eval::{evaluate, Flag, Logic, Report, Verdict};
 pub use parse::{parse_evidence, parse_model};
 pub use set::{Set, Value};
 
@@ -60,5 +62,5 @@ pub enum Input {
 pub fn run(model: &str, evidence: &str) -> Result<Report, (Input, Error)> {
     let mut m = parse_model(model).map_err(|e| (Input::Model, e))?;
     m.evidence = parse_evidence(evidence).map_err(|e| (Input::Evidence, e))?;
-    Ok(evaluate(&m.check()?))
+    evaluate(&m.check()?)
 }

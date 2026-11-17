@@ -1,0 +1,9 @@
+spec     neg(a: bool) -> bool = !a
+subject  not(a: bool) -> bool
+
+# not computes neg on every input.
+claim    not_spec:    not(_)    matches neg
+# not computes neg on true.
+claim    not_on_true: not(true) matches neg
+
+policy   strict

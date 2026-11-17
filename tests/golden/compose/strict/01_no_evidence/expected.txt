@@ -1,0 +1,4 @@
+verdict neg_twice [strict] = { logic: holds, covered: bool, domain: bool, belief: 1 }
+verdict not_spec [strict] = { logic: uncertain, covered: {}, domain: bool, belief: 0 }
+verdict not_not_shape [strict] = { logic: uncertain, covered: {}, domain: bool, belief: 0 }
+verdict not_not_same [strict] = { logic: uncertain, covered: {}, domain: bool, belief: 0 }
