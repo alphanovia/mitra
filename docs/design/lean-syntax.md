@@ -3,8 +3,11 @@
 Status: **proposal**, not implemented. Today's syntax is in the
 [reference](../reference/language.md).
 
-Direction: reuse Lean 4's grammar and syntax. Change only what we must, and
-add only what the ledger needs (evidence, profiles, policies, verdicts).
+Decision (2026-11-17): Mitra stays a standalone language and tool, with its
+own Rust parser. It is not a Lean library. Lean 4 is the inspiration for
+grammar and syntax, because LLMs know it well and there is no need to
+reinvent notation. Change from Lean only where we must, and add only what
+the ledger needs (evidence, profiles, policies, verdicts).
 
 ## 1. Current constructs in Lean 4
 
@@ -54,9 +57,8 @@ policy strict
 policy by_usage := coverage usage
 ```
 
-`at` replaces `@`, because `@` already means explicit arguments in Lean.
-`at` is a Lean token that never continues a term, so the term before it
-ends cleanly.
+`at` replaces `@`, because `@` already means explicit arguments in Lean,
+and a Lean-trained reader would misread it.
 
 **Verdicts**, printed as Lean structure instances:
 
@@ -141,30 +143,31 @@ evidence minus_shape at 1
 
 `matches plus` (a spec name alone) becomes the explicit `= plus a b`.
 
-## 4. Consequences: grammar, and where Mitra lives
+## 4. Consequences: a fixed grammar
 
-Lean's grammar is not a fixed grammar. Notation is user-extensible, some
-constructs depend on columns, and the parser backtracks. It is neither
-LL(1) nor LR(1), and no Lean file can be checked by a grammar tool. Also,
-`not` and `id` are Lean prelude names: in real Lean, our examples need a
-namespace or other names.
+Lean's grammar is not a fixed grammar, so it is neither LL(1) nor LR(1):
 
-| Option | What | For | Against |
-|---|---|---|---|
-| **A. Lean library (DSL)** | `import Mitra`; `claim`, `evidence`, `profile`, `policy` are Lean commands (`syntax` + `elab`). | Real Lean: specs run, claims are `Prop`s, a proof is direct evidence, Mathlib sets, Lean's editor support. | Mitra needs the Lean toolchain (heavy, slow to start). The engine moves to Lean or calls Rust through FFI. Name clashes with Lean's prelude. Verus side gets split. |
-| **B. Fixed subset, own parser** | Mitra is a small, fixed, Lean-looking language, parsed by Rust. | Keeps the Rust core and today's tooling: LALRPOP/LL(1) checks, generator, tree-sitter. Fast and embeddable. | Looks like Lean but isn't, so users hit what Lean has and Mitra lacks. No proofs for free. |
-| **C. B, kept inside A** | B's subset is chosen so that every Mitra file is also valid Lean once `import Mitra` defines the commands. | B now, A later with no syntax change. A Lean CI job can parse the golden files as a check. | Every syntax choice must work in both. Only choices a Lean prototype confirms (such as `at`) are safe. |
+- **Extensible.** Any file can add notation (`notation`, `syntax`,
+  `macro`), so the grammar changes while a file is read.
+- **Layout.** Some constructs depend on columns (`by` blocks, `match` arms,
+  `where`), which a context-free grammar cannot express.
+- **Backtracking.** Lean's parser tries alternatives and keeps the longest
+  match, for example to tell `{x, y}` (a set) from `{ x := 1 }` (a structure)
+  or `(a : T)` from `(a)`.
 
-**Recommendation: C.** Define a fixed subset with these rules:
+Mitra takes a **fixed subset** that a Rust parser reads with no layout rule
+and no backtracking, so it stays LL(1) after left-factoring, and LR(1):
 
-- **Commands:** `opaque`, `def`, `claim`, `evidence`, `profile`, `policy`. Each starts with a keyword and has no layout rule.
-- **Terms:** application, `let`/`if`, the operators above, `∀ x ∈ S,`, set literals, and `Icc`, `∪`, `∩`, `\`.
-- **No user notation, `match`, `fun`, or tactics.** The only exception is `by derive [...]`.
+- **Commands:** `opaque`, `def`, `claim`, `evidence`, `profile`, `policy`.
+  Each starts with a keyword.
+- **Terms:** application, `let`/`if`, the operators above, `∀ x ∈ S,`, set
+  literals, and `Icc`, `∪`, `∩`, `\`.
+- **Not taken:** user notation, `match`, `fun`, tactics. `by derive [...]`
+  is a fixed form, not a tactic language.
 
-This subset can stay LL(1) after left-factoring, and LR(1). We keep the
-grammar tooling (paused) and point it at the new syntax. A small Lean
-prototype of `import Mitra` comes first, before any Rust change, to confirm
-that the subset really is valid Lean.
+Mitra files don't have to be valid Lean, so Lean's prelude names (`not`,
+`id`) are free to use. The paused grammar tooling (LALRPOP, LL(1) check,
+generator, tree-sitter) will be pointed at this subset.
 
-Open: whether to use ASCII forms. Lean has `forall` for `∀`, but no ASCII
+Open: whether to accept ASCII forms. Lean has `forall` for `∀`, but no ASCII
 `∈`, `∪` or `∩`.

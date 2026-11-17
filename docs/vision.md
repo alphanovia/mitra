@@ -9,6 +9,14 @@ use as a policy input.
 
 *Tests check, Lean proves, Mitra weighs.*
 
+## Core hypothesis
+
+Most software can't be proven correct, and won't be. What a project needs is
+**good-enough evidence management**: knowing what the tests, reviews and
+usage actually establish, and where that is not much. A proof is just the
+strongest evidence, at confidence 1 over its whole domain. Mitra's value is
+on the unproven code.
+
 ## What Mitra is first
 
 A **language for trust**: subjects under review, claims that they are
@@ -34,9 +42,11 @@ Mitra succeeds if it makes software more reliable for less effort:
 
 How each one is measured is in [validation.md](validation.md#success-criteria).
 
-**Kill criterion.** If dogfooding has not changed one real decision by the
-time `mitra-ds` is annotated ([design/dogfooding.md](design/dogfooding.md)),
-rethink the approach.
+**Kill criterion.** On unproven code, Mitra's verdicts must beat the
+developer's own guess about what is reliable. If they don't, or if
+dogfooding has not changed one real decision by the time `mitra-ds` is
+annotated ([design/dogfooding.md](design/dogfooding.md)), rethink the
+approach.
 
 ## Layers
 
