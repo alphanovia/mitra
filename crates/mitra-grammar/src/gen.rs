@@ -82,8 +82,11 @@ fn value(r: &mut Rng) -> String {
     }
 }
 
-/// A range bound: `5` or `- 5`.
+/// A range bound: `5` or `- 5`, sometimes past 64 bits.
 fn bound(r: &mut Rng) -> String {
+    if r.chance(5) {
+        return "9223372036854775808".into();
+    }
     if r.chance(30) {
         format!("- {}", nat(r))
     } else {

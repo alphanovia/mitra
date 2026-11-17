@@ -306,9 +306,14 @@ impl Set {
         Set::point(v).is_subset(self)
     }
 
-    /// Every value, if the set is finite (and small enough to list).
+    /// Every value, if the set is finite, small enough to list, and its
+    /// integers fit the 64 bits Mitra computes with.
     pub fn values(&self) -> Option<Vec<Value>> {
         if self.count()? > 1_000_000.0 {
+            return None;
+        }
+        let fits = |x: i128| i64::try_from(x).is_ok();
+        if self.ints.iter().any(|&(lo, hi)| !fits(lo) || !fits(hi)) {
             return None;
         }
         let mut out = Vec::new();
@@ -345,10 +350,15 @@ impl Set {
             .any(|&(lo, hi)| lo == NEG_INF || hi == POS_INF);
         match (&self.strs, &self.floats) {
             (Part::Finite(s), Part::Finite(fl)) if !unbounded && !self.other => {
-                let ints: i128 = self.ints.iter().map(|(lo, hi)| hi - lo + 1).sum();
+                // In floats: a sum of i128 widths can overflow.
+                let ints: f64 = self
+                    .ints
+                    .iter()
+                    .map(|&(lo, hi)| hi as f64 - lo as f64 + 1.0)
+                    .sum();
                 Some(
                     self.bools.iter().filter(|b| **b).count() as f64
-                        + ints as f64
+                        + ints
                         + fl.len() as f64
                         + s.len() as f64,
                 )
@@ -392,7 +402,8 @@ impl fmt::Display for Set {
             });
         } else {
             for &(lo, hi) in &self.ints {
-                if lo == hi {
+                // Past 64 bits a single integer can't be written as a value.
+                if lo == hi && i64::try_from(lo).is_ok() {
                     points.push(lo.to_string());
                     continue;
                 }

@@ -87,7 +87,7 @@ free: line breaks and indentation mean nothing.
 - Names: a letter or `_`, then letters, digits or `_`; keywords are not
   names.
 - Numbers: digits (`nat`), or digits, `.` and digits (`dec`: `0.8`, `1.0`).
-  A negative number is `-` then digits; where a single argument is expected
+  A negative number is `-` then digits (spaces allowed between them); where a single argument is expected
   it is written `(-5)` or `(-1.5)`. `1..5` reads as `1`, `..`, `5`.
 - Strings: `"` … `"` on one line, no escapes.
 - Symbols, longest match first: `@[` `..=` `:=` `=>` `==` `!=` `<=` `>=`
@@ -163,8 +163,9 @@ Beyond the grammar, the parser checks:
   name is distinct and used exactly once;
 - `correct (f args)` and a claim's `f args = e` have at least one argument;
 - integer values fit in 64 bits (`-9223372036854775808` to
-  `9223372036854775807`); range bounds may be larger, since `Int` is
-  unbounded;
+  `9223372036854775807`); range bounds may be larger, up to 2^126 either
+  way, since `Int` is unbounded, but inputs past 64 bits can't be listed
+  or computed with;
 - `dec` numbers are finite 64-bit floats;
 - a range has an upper bound after `..=`, and `..` alone is not a range;
   ranges are over integers only.
@@ -220,7 +221,8 @@ range equal to a fixed-width type prints its name, such as `Int8`),
 prints `{}`.
 
 Floats in a set are compared exactly: `NaN` is one value, and `0.0` and
-`-0.0` are two.
+`-0.0` are two. NaN and the infinities have no literal: they can only come
+out of float arithmetic in a spec.
 
 ## Commands
 

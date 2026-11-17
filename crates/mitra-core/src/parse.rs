@@ -237,7 +237,7 @@ impl P {
         }
     }
     /// A range bound: `5` or `-5`, if one is there. `Int` is unbounded, so
-    /// bounds may go past 64 bits (up to 127).
+    /// bounds may go past 64 bits, up to 2^126 either way.
     fn bound(&mut self) -> Result<Option<i128>, Error> {
         let negative = self.eat("-");
         match self.peek().cloned() {
@@ -245,7 +245,7 @@ impl P {
                 self.err("ranges are over integers: write floats as a set, `{1.5, 2.5}`")
             }
             Some(Tok::Num(n)) => {
-                const LIMIT: i128 = i128::MAX - 1;
+                const LIMIT: i128 = 1 << 126;
                 match n.parse::<i128>().ok().filter(|&x| x <= LIMIT) {
                     Some(x) => {
                         self.pos += 1;
@@ -999,5 +999,26 @@ mod tests {
         );
         let err = parse_model("opaque r (x : Real) : Real").unwrap_err();
         assert!(err.message.contains("Float64"), "{err}");
+    }
+
+    #[test]
+    fn integers_past_64_bits_never_wrap() {
+        // A single integer past 64 bits prints as a range, which reads back.
+        assert_eq!(
+            set_of("9223372036854775808..=9223372036854775808"),
+            "9223372036854775808..=9223372036854775808"
+        );
+        let e = parse_evidence(
+            "evidence forall x in 9223372036854775808..=9223372036854775808, correct (f x) at 1",
+        )
+        .unwrap();
+        let s = e[0].pattern[0].set.clone().unwrap();
+        assert_eq!((s.values(), s.single()), (None, None));
+        // Counting a huge range doesn't overflow.
+        let big =
+            "-85070591730234615865843651857942052864..=85070591730234615865843651857942052864";
+        assert!(parse_evidence(&format!("evidence forall x in {big}, correct (f x) at 1")).is_ok());
+        let e = parse_evidence(&format!("evidence forall x in {big}, correct (f x) at 1")).unwrap();
+        assert!(e[0].pattern[0].set.clone().unwrap().count().unwrap() > 1e38);
     }
 }

@@ -136,7 +136,7 @@ impl Eval<'_> {
                 for v in self.eval(a, env, line, subjects)? {
                     match unary(op, &v) {
                         Some(r) => out.push(r),
-                        None => return err(format!("`{op}{v}` is not defined")),
+                        None => return err(format!("`{op}({v})` is not defined")),
                     }
                 }
                 out
@@ -203,7 +203,10 @@ impl Eval<'_> {
         if !func.domain().contains(args) {
             return Err(Error::new(
                 line,
-                format!("{} is outside the domain of `{f}`", show_tuple(args)),
+                format!(
+                    "`{}` is outside the domain of `{f}`",
+                    crate::print::call(f, args)
+                ),
             ));
         }
         if self.depth.get() >= MAX_DEPTH {
@@ -233,9 +236,8 @@ impl Eval<'_> {
                 return Err(Error::new(
                     func.line,
                     format!(
-                        "`{}{}` = {v} is outside its result type",
-                        func.name,
-                        show_tuple(args)
+                        "`{}` = {v} is outside its result type",
+                        crate::print::call(&func.name, args)
                     ),
                 ));
             }
@@ -348,16 +350,6 @@ fn product(lists: &[Vec<Value>]) -> Vec<Vec<Value>> {
             })
             .collect()
     })
-}
-
-fn show_tuple(t: &[Value]) -> String {
-    format!(
-        "({})",
-        t.iter()
-            .map(|v| v.to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
 }
 
 fn unary(op: &str, v: &Value) -> Option<Value> {
