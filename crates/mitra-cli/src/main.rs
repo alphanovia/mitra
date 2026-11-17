@@ -5,6 +5,7 @@
 //! mitra check [<model> <evidence>]
 //! mitra eval  [<model> <evidence>] [-o <result.txt>]
 //! mitra add   '<evidence>' [--source <who>] [--rev <commit>]
+//! mitra next  [<model> <evidence>]
 //! mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 //! ```
 //!
@@ -22,6 +23,7 @@ const USAGE: &str = "usage:
   mitra check [<model.mitra> <evidence.mitra>]
   mitra eval  [<model.mitra> <evidence.mitra>] [-o <result.txt>]
   mitra add   '<evidence>' [--source <who>] [--rev <commit>]
+  mitra next  [<model.mitra> <evidence.mitra>]
   mitra ingest <report> [--format libtest|junit] [--rev <commit>]";
 
 fn main() -> ExitCode {
@@ -89,6 +91,12 @@ fn run(args: Vec<String>) -> Result<(), String> {
             for f in &report.flags {
                 println!("contested evidence line {}: {}", f.line, f.message);
             }
+            Ok(())
+        }
+        "next" => {
+            let (m, e) = inputs(rest)?;
+            let (model, report) = evaluate(&m, &e)?;
+            print!("{}", mitra_core::next(&model, &report));
             Ok(())
         }
         "eval" => {

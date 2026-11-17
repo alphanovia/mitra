@@ -142,6 +142,12 @@ fn pattern(p: &Pattern, params: &[(String, Set)]) -> (String, String) {
     (forall, args)
 }
 
+/// `f 1 (-2)`: a call on one input tuple.
+pub fn call(f: &str, input: &[Value]) -> String {
+    let args: String = input.iter().map(|v| format!(" {}", value_arg(v))).collect();
+    format!("{f}{args}")
+}
+
 /// A value as an argument: negative integers need parentheses.
 fn value_arg(v: &Value) -> String {
     match v {

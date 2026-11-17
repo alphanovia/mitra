@@ -10,6 +10,7 @@ ideas and open questions live in the [general docs](../../README.md#documentatio
 mitra init
 mitra check [model.mitra evidence.mitra]
 mitra eval  [model.mitra evidence.mitra] [-o result.txt]
+mitra next  [model.mitra evidence.mitra]
 mitra add   '<evidence>' [--source <who>] [--rev <commit>]
 mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 ```
@@ -22,7 +23,14 @@ status 2.
   `result.txt`, or to standard output without `-o`.
 - `check` parses and checks both files, prints
   `ok: F functions, C claims, E evidence`, then any contested evidence.
-- Without file names, `check` and `eval` use the **store**: the nearest
+- `next` lists each uncertain claim with the inputs it is missing (its
+  domain minus the inputs covered), the premises a derived claim waits on,
+  and what to add: the evidence lines to write when at most 5 inputs are
+  missing on a subject (`evidence f 2 = <output> at 1` for an `=` claim:
+  run `f 2` and fill in its output), else how many inputs are missing, or
+  that the set is infinite and only evidence over a set can cover it.
+  It prints `nothing uncertain` when every claim holds or fails.
+- Without file names, `check`, `eval` and `next` use the **store**: the nearest
   `.mitra/` folder at or above the current one, with `model.mitra` and
   `evidence.mitra`.
 - `init` creates `.mitra/` with an empty model, an empty evidence file and a

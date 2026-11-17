@@ -15,6 +15,7 @@
 
 pub mod ast;
 pub mod eval;
+pub mod next;
 pub mod parse;
 pub mod print;
 pub mod set;
@@ -25,6 +26,7 @@ pub use ast::{
     Profile, Target,
 };
 pub use eval::{evaluate, Flag, Implication, Logic, Report, Verdict};
+pub use next::next;
 pub use parse::{parse_evidence, parse_model};
 pub use print::{print_evidence, print_model};
 pub use set::{Set, Value};
