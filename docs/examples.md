@@ -1,6 +1,6 @@
 # Toy models
 
-Five small models with results worked out by hand from
+Six small models with results worked out by hand from
 [language.md](language.md), and checked with exact fractions. They are the
 first tests: an implementation must reproduce them. Base rates are 0.5 unless
 stated.
@@ -118,3 +118,48 @@ task_ok   (0.7, 0, 0.3)  P = 0.85
 (1/4, 0, 3/4) with (0, 1/2, 1/2) gives ω = **(1/7, 3/7, 3/7)**, P = **0.357**:
 real disbelief, not just doubt, which a harness can treat as "stop", where
 high uncertainty alone would mean "gather more evidence".
+
+## 6. A bug report arrives
+
+`f_small` is proven in Lean. The proof counts only as far as the spec is right
+and the Lean model of `f` matches the Rust code.
+
+```mitra
+claim f_small    "f is correct for n < 1000"
+claim spec_ok    "the Lean spec says what f should do"
+claim model_ok   "the Lean model of f matches the Rust code"
+claim proof_good "the Lean proof is a reliable witness for f"
+
+assume spec_ok  = (0.9, 0, 0.1)
+assume model_ok = (0.7, 0, 0.3)      # hand-translated from Rust
+proof_good = spec_ok and model_ok
+evidence f_small : proof via proof_good
+```
+
+**Before:** P(proof_good) = 0.95 · 0.85 = 0.8075, so f_small =
+(0.8075, 0, 0.1925), P = 0.904.
+
+**Then** a user reports a crash at n = 500, and a failing regression test
+reproduces it:
+
+```mitra
+evidence f_small : test -1           # fails on n = 500
+conflicts
+```
+
+- Failing test: (0, 1, 2)/3 = (0, 0.333, 0.667), P = 0.333.
+- Fused: f_small = (646, 77, 154)/877 ≈ (0.737, 0.088, 0.176), P = **0.824**.
+  The score barely moves: one failure against a proof.
+- Conflict: \|0.904 − 0.333\| · (1 − 0.1925) · (1 − 0.667) = **0.154**, above 0.1.
+
+```text
+conflict on f_small   con = 0.154
+  for:     proof via proof_good   P = 0.904
+  against: test (first-hand)      P = 0.333
+  suspects: model_ok (0.85), spec_ok (0.95), f_small
+```
+
+The aggregate score still looks healthy; the conflict query does not. It
+points at the Lean model not matching the Rust code as the most likely root
+cause, then the spec, before blaming the code itself. Fixing the model and
+re-proving, or a second failing case, resolves it either way.
