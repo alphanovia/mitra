@@ -1,0 +1,2 @@
+# An unbounded domain: x is untyped, so instances are samples.
+claim id_correct(x): id(x) = x

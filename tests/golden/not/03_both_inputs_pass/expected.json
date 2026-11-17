@@ -1,6 +1,15 @@
 {
-  "tau": 0.5,
+  "policy": { "tau": 0.5, "sample_weight": 0.1 },
   "claims": [
-    { "claim": "not_correct", "verdict": "pass", "p": 0.8, "f": 0, "exhaustive": true, "evidence": 2 }
+    {
+      "claim": "not_correct(a: bool)",
+      "verdict": "pass", "p": 0.8, "f": 0, "coverage": "2/2",
+      "instances": [
+        { "instance": "not_correct(false)", "verdict": "pass", "p": 0.8, "f": 0,
+          "evidence": ["test(t_false) pass @ 0.8"] },
+        { "instance": "not_correct(true)", "verdict": "pass", "p": 0.9, "f": 0,
+          "evidence": ["test(t_true) pass @ 0.9"] }
+      ]
+    }
   ]
 }

@@ -26,30 +26,44 @@ parsed into the AST but not evaluated yet: evidence states pass or fail.
 
 ## Output
 
+For each claim: a verdict, two supports (`p` for pass, `f` for fail), its
+coverage, and every instance (the claim on concrete inputs) with its own
+verdict and the evidence it rests on. For a `bool` domain all instances are
+listed, so unchecked ones show up.
+
 ```json
 {
-  "tau": 0.5,
+  "policy": { "tau": 0.5, "sample_weight": 0.1 },
   "claims": [
-    { "claim": "not_correct", "verdict": "fail", "p": 0.09, "f": 0.95, "exhaustive": false, "evidence": 2 }
+    {
+      "claim": "not_correct(a: bool)",
+      "verdict": "uncertain", "p": 0, "f": 0, "coverage": "1/2",
+      "instances": [
+        { "instance": "not_correct(false)", "verdict": "uncertain", "p": 0, "f": 0,
+          "evidence": [] },
+        { "instance": "not_correct(true)", "verdict": "pass", "p": 1, "f": 0,
+          "evidence": ["test(t_true) pass @ 1"] }
+      ]
+    }
   ]
 }
 ```
 
-Per claim: a verdict and two supports, `p` for pass and `f` for fail.
-
 ## Rules (placeholders for the calculus)
 
-Per input, keep the most confident pass and the most confident fail.
-
-1. **Fail support.** `f` = the highest fail confidence: one counterexample
+1. **Instance.** p = the most confident pass on those inputs, f = the most
+   confident fail.
+2. **Verdict** (instance or claim): pass if p ≥ τ and f < τ; fail if f ≥ τ
+   and p < τ; conflict if both; uncertain otherwise. τ = 0.5.
+3. **Claim, fail support.** f = the highest instance f: one counterexample
    refutes a universal claim.
-2. **Pass support.** Passes on distinct inputs combine as
-   `p = 1 − ∏(1 − w·cᵢ)`, with `w` per evidence kind (0.1 for every kind for now).
-3. **Exhaustive.** If every parameter is `bool` and every input has a pass
-   with confidence ≥ τ, the claim was checked everywhere: `p` = max(p, the
-   weakest of those passes), and `exhaustive` is true.
-4. **Verdict.** pass if p ≥ τ and f < τ; fail if f ≥ τ and p < τ; conflict if
-   both; uncertain otherwise. τ = 0.5.
+4. **Claim, pass support, finite domain** (every parameter `bool`). The claim
+   is the conjunction of its instances: p = the lowest instance p, and an
+   unchecked instance has p = 0. No weights.
+5. **Claim, pass support, unbounded domain.** Instances are only samples:
+   p = 1 − ∏(1 − w·pᵢ), with w = `sample_weight` (0.1), a stated policy.
+6. **Coverage.** Instances decided (pass or fail) over the domain size, or
+   over `unbounded`.
 
 These replace rules 1 to 5 of [language.md](language.md) draft 3 for now.
 
@@ -59,11 +73,13 @@ These replace rules 1 to 5 of [language.md](language.md) draft 3 for now.
 the `expected.json` Mitra must produce; `cargo test` checks every case. For
 the `not` claim: no evidence, one pass, both inputs passing, a trusted and a
 doubtful counterexample, a conflict, and evidence at the extremes (1.0 fully
-believed, 0.0 fully distrusted) for pass and fail.
+believed, 0.0 fully distrusted) for pass and fail. `id/` has one case on
+an unbounded domain, to pin down the sampling rule.
 
 At 0.0, evidence counts for nothing: a distrusted counterexample leaves a
-fully tested claim at pass. At 1.0, one fail decides (f = 1), while one pass
-on one input is still only p = 0.1; both inputs at 1.0 give pass @ 1.
+fully tested claim at pass. At 1.0, one fail decides the claim (f = 1), and
+one pass decides its instance (pass @ 1); the claim passes once every
+instance does.
 
 ## Later
 

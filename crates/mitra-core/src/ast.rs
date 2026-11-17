@@ -51,7 +51,26 @@ pub enum Kind {
     Agent,
 }
 
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Bool(b) => write!(f, "{b}"),
+            Value::Int(i) => write!(f, "{i}"),
+        }
+    }
+}
+
 impl Kind {
+    pub fn name(self) -> &'static str {
+        match self {
+            Kind::Test => "test",
+            Kind::Proof => "proof",
+            Kind::Usage => "usage",
+            Kind::Review => "review",
+            Kind::Agent => "agent",
+        }
+    }
+
     pub fn from_name(s: &str) -> Option<Kind> {
         Some(match s {
             "test" => Kind::Test,

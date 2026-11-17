@@ -7,7 +7,7 @@
 //! let claims = "claim not_correct(a: bool): not(a) = !a";
 //! let evidence = "evidence test(t1) : not_correct(true) = pass @ 0.9";
 //! let report = mitra_core::run(claims, evidence, &mitra_core::Policy::default()).unwrap();
-//! assert_eq!(report.claims[0].verdict, mitra_core::Verdict::Uncertain);
+//! assert_eq!(report.claims[0].instances[1].verdict, mitra_core::Verdict::Pass);
 //! ```
 
 pub mod ast;
@@ -15,7 +15,7 @@ pub mod eval;
 pub mod parse;
 
 pub use ast::{Claim, Evidence, Kind, Model, Outcome, Value};
-pub use eval::{evaluate, ClaimResult, Policy, Report, Verdict};
+pub use eval::{evaluate, ClaimResult, InstanceResult, Policy, Report, Verdict};
 pub use parse::{parse_claims, parse_evidence};
 
 use std::fmt;

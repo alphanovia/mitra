@@ -1,0 +1,15 @@
+{
+  "policy": { "tau": 0.5, "sample_weight": 0.1 },
+  "claims": [
+    {
+      "claim": "id_correct(x)",
+      "verdict": "uncertain", "p": 0.19, "f": 0, "coverage": "2/unbounded",
+      "instances": [
+        { "instance": "id_correct(1)", "verdict": "pass", "p": 1, "f": 0,
+          "evidence": ["test(t1) pass @ 1"] },
+        { "instance": "id_correct(2)", "verdict": "pass", "p": 1, "f": 0,
+          "evidence": ["test(t2) pass @ 1"] }
+      ]
+    }
+  ]
+}
