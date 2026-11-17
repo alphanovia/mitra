@@ -114,9 +114,10 @@ impl Test {
     /// failed, `¬ correct` or `¬ c` if the test claims `correct` or `c` on a
     /// single input. Otherwise a failure gives nothing: on a set, Mitra
     /// can't tell which input was wrong; for an output, it doesn't know the
-    /// output; and a failed negative test is no proof of correctness (it may
-    /// have failed for another reason).
-    pub fn outcome(&self, passed: bool) -> Result<Evidence, &'static str> {
+    /// output, unless the subject's result type `result` is `Bool` (then it
+    /// is the other one); and a failed negative test is no proof of
+    /// correctness (it may have failed for another reason).
+    pub fn outcome(&self, passed: bool, result: Option<&Set>) -> Result<Evidence, &'static str> {
         let mut e = self.judgment.clone();
         if passed {
             return Ok(e);
@@ -128,6 +129,9 @@ impl Test {
             match e.judgment {
                 Judgment::Correct(true) => Judgment::Correct(false),
                 Judgment::Holds(true) => Judgment::Holds(false),
+                Judgment::Output(Value::Bool(b)) if result == Some(&Set::bool()) => {
+                    Judgment::Output(Value::Bool(!b))
+                }
                 Judgment::Output(_) => {
                     return Err("the output it checks was something else, Mitra doesn't know what")
                 }

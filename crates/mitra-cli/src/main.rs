@@ -241,7 +241,8 @@ fn run(args: Vec<String>) -> Result<(), String> {
                     }
                     continue;
                 }
-                match t.outcome(o.passed) {
+                let about = model.functions.iter().find(|f| f.name == t.judgment.about);
+                match t.outcome(o.passed, about.map(|f| &f.range)) {
                     Ok(mut e) => {
                         e.source = Some(format!("test:{}", t.name));
                         e.rev = rev.clone();

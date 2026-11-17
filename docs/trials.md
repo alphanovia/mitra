@@ -29,9 +29,9 @@ store kept up to date as the code grows, the way mitra-ds is
   differently, and better, because of a verdict. **Failure:** the model is
   written once and then left behind, or only repeats what `cargo test` says.
 - **Likely gaps:** subjects are not linked to code, so staleness is per
-  revision, not per function; inputs are `Bool`, `Int` and `String` only
-  (no records, lists or floats); confidence is 0 or 1; no `uses` claims, so
-  a bug can't be traced through calls ([composition](design/composition.md)).
+  revision, not per function; no records or lists; confidence is 0 or 1;
+  most failed tests give no evidence; no `uses` claims, so a bug can't be
+  traced through calls ([composition](design/composition.md)).
 
 ### T2: an abstract model of an agile organisation, judged from news
 
@@ -52,8 +52,8 @@ agile way. The model states what such an organisation should achieve
   steps.
 - **Likely gaps:** confidence 0 or 1 only (a news report is rarely
   certain); no weighting of sources (`source` is recorded but not used);
-  inputs must be finite sets of values, so organisations, teams or years
-  become numbered cases, as in mitra-ds; no time: evidence can't age except
+  inputs are numbers, strings and booleans, so organisations, teams or
+  years become names or numbered cases; no time: evidence can't age except
   by `--rev`.
 
 ### T3: a skill and its spec, judging an agent that uses it

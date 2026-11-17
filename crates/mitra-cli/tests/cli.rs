@@ -325,3 +325,31 @@ fn store_reads_rust_comments() {
     assert!(err.contains("t.rs: line 1: "), "{err}");
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// A failed `f x = v` test on a subject that returns `Bool` gives the
+/// other output; on any other result type it gives nothing.
+#[test]
+fn a_failed_bool_output_test_gives_the_other_output() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-boolout-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    mitra(&dir, &["init"]);
+    let model = "opaque flip (a : Bool) : Bool\nopaque inc (x : Int) : Int\n\
+                 test t_flip : flip true = true\ntest t_inc : inc 1 = 2\n";
+    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(
+        dir.join("report.txt"),
+        "test t_flip ... FAILED\ntest t_inc ... FAILED\n",
+    )
+    .unwrap();
+    let (code, out, err) = mitra(&dir, &["ingest", "report.txt"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("1 evidence added"), "{out}");
+    assert!(out.contains("test t_inc failed: no evidence"), "{out}");
+    let evidence = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    assert!(
+        evidence.ends_with("evidence flip true = false at 1\n"),
+        "{evidence}"
+    );
+    let _ = std::fs::remove_dir_all(dir);
+}

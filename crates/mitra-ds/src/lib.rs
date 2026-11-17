@@ -88,7 +88,7 @@ impl Mass {
     /// numerically meaningless), and when either mass is not valid.
     ///
     /// mitra: -- Correct: `None` if either mass is invalid or the conflict k is
-    /// mitra: -- within EPSILON of 1; else the agreement divided by 1 - k.
+    /// mitra: -- at least 1 - EPSILON; else the agreement divided by 1 - k.
     /// mitra: opaque dempster (b1 d1 u1 b2 d2 u2 : Float64) : Value
     /// mitra: claim dempster_correct : forall b1, forall d1, forall u1, forall b2, forall d2, forall u2,
     /// mitra:   correct (dempster b1 d1 u1 b2 d2 u2)

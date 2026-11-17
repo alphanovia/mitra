@@ -47,10 +47,13 @@ status 2.
 - In a store, the model is `model.mitra` followed by the **Rust model
   lines**: in every `.rs` file under `src/` and `tests/` beside `.mitra/`
   (files in path order), each comment line `/// mitra: …` or `// mitra: …`
-  gives one model line, the text after `mitra:`. Errors there name the Rust
-  file and line. Consecutive comment lines form a block; an `opaque f` or
-  `test t` in a block must sit above `fn f` or `fn t` (attributes and
-  blank lines may come between), or it is an error:
+  gives one model line, the text after `mitra:`. The comment must be the
+  whole line, in code: text inside a string or a `/* */` comment is not
+  read. Symbolic links are not followed. Errors there name the Rust file
+  and line. Consecutive comment lines form a block. An `opaque f` or
+  `test t` must start its line, and the first item below its block must be
+  `fn f` or `fn t` (attributes, comments, blank lines and `pub`, `const`,
+  `async`, `unsafe`, `extern` may come before `fn`), or it is an error:
 
   ```rust
   /// mitra: opaque flip (a : Bool) : Bool
@@ -352,7 +355,8 @@ result into evidence at 1:
   for a `c …` test, when the test is about a single input. Otherwise it
   gives nothing: a failed test over a set says the code is wrong somewhere
   in it, which Mitra cannot express yet; a failed `f args = v` test says
-  the output was something else, but not what; and a failed negative test
+  the output was something else, but not what, unless the subject's result
+  type is `Bool`: then it gives `f args =` the other value; and a failed negative test
   (`not correct …`, `not c …`) proves nothing, since it may have failed for
   another reason.
 
