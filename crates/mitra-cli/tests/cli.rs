@@ -2,7 +2,7 @@ use std::process::Command;
 
 const GOLDEN: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/golden/not/05_correct_on_true_wrong_on_false"
+    "/../../tests/golden/not/strict/05_correct_on_true_wrong_on_false"
 );
 
 #[test]
@@ -28,11 +28,7 @@ fn eval_writes_the_result_file() {
 fn bad_evidence_names_the_file_and_line() {
     let dir = std::env::temp_dir().join(format!("mitra-cli-bad-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(
-        dir.join("ev.mitra"),
-        "\nevidence not(true, false) correct @ 1\n",
-    )
-    .unwrap();
+    std::fs::write(dir.join("ev.mitra"), "\nevidence not(7) correct @ 1\n").unwrap();
     let out = Command::new(env!("CARGO_BIN_EXE_mitra"))
         .args(["eval", &format!("{GOLDEN}/model.mitra")])
         .arg(dir.join("ev.mitra"))
@@ -41,7 +37,7 @@ fn bad_evidence_names_the_file_and_line() {
     assert_eq!(out.status.code(), Some(2));
     let err = String::from_utf8(out.stderr).unwrap();
     assert!(
-        err.contains("ev.mitra: line 2: `not` takes 1 input(s), got 2"),
+        err.contains("ev.mitra: line 2: inputs outside the domain of `not`"),
         "{err}"
     );
     let _ = std::fs::remove_dir_all(dir);

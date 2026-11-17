@@ -1,2 +1,0 @@
-not_correct  fails @ 1
-not_on_true  fails @ 1

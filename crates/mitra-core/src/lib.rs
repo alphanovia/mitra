@@ -1,22 +1,27 @@
 //! Mitra's embeddable library.
 //!
-//! Parse a model (subjects and claims) and a list of evidence, then compute,
-//! for each claim, a verdict and a certainty.
+//! Parse a model (subjects, claims, profiles, policies) and a list of
+//! evidence, then compute a verdict for each claim under each policy.
 //!
 //! ```
-//! let model = "subject not(a: bool) -> bool\nclaim not_correct: not(_) correct";
+//! let model = "subject not(a: bool) -> bool\nclaim not_correct: not(_) correct\npolicy strict";
 //! let evidence = "evidence not(true) correct @ 1\nevidence not(false) correct @ 1";
 //! let report = mitra_core::run(model, evidence).unwrap();
-//! assert_eq!(report.to_text(), "not_correct  holds @ 1\n");
+//! assert_eq!(
+//!     report.to_text(),
+//!     "verdict not_correct [strict] = { logic: holds, covered: bool, domain: bool, belief: 1 }\n"
+//! );
 //! ```
 
 pub mod ast;
 pub mod eval;
 pub mod parse;
+pub mod set;
 
-pub use ast::{Claim, Evidence, Model, Pattern, Subject};
-pub use eval::{evaluate, ClaimResult, Report, Verdict};
+pub use ast::{Claim, Evidence, Model, Pattern, Policy, PolicyKind, Profile, Subject};
+pub use eval::{evaluate, Logic, Report, Verdict};
 pub use parse::{parse_evidence, parse_model};
+pub use set::{Set, Value};
 
 use std::fmt;
 
@@ -53,8 +58,7 @@ pub enum Input {
 
 /// Parse both inputs, check them against each other, and evaluate.
 pub fn run(model: &str, evidence: &str) -> Result<Report, (Input, Error)> {
-    let (subjects, claims) = parse_model(model).map_err(|e| (Input::Model, e))?;
-    let evidence = parse_evidence(evidence).map_err(|e| (Input::Evidence, e))?;
-    let model = Model::new(subjects, claims, evidence)?;
-    Ok(evaluate(&model))
+    let mut m = parse_model(model).map_err(|e| (Input::Model, e))?;
+    m.evidence = parse_evidence(evidence).map_err(|e| (Input::Evidence, e))?;
+    Ok(evaluate(&m.check()?))
 }

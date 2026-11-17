@@ -1,2 +1,0 @@
-not_correct  uncertain @ 0
-not_on_true  uncertain @ 0

@@ -1,0 +1,2 @@
+# A proof covers a whole interval.
+evidence id(x in [0, 100]) correct @ 1

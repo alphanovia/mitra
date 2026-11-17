@@ -1,0 +1,8 @@
+subject  not(a: bool) -> bool
+
+# not is correct on every input.
+claim    not_correct: not(_)    correct
+# not is correct on true, a subset of its inputs.
+claim    not_on_true: not(true) correct
+
+policy   strict

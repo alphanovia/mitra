@@ -1,0 +1,2 @@
+verdict id_correct [by_usage] = { logic: uncertain, covered: {}, domain: any, belief: 0 }
+verdict id_small [by_usage] = { logic: uncertain, covered: {}, domain: [0, 100], belief: 0 }

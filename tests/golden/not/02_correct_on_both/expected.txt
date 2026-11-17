@@ -1,2 +1,0 @@
-not_correct  holds @ 1
-not_on_true  holds @ 1

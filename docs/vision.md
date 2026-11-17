@@ -4,7 +4,7 @@
 
 Mitra is a formally verified trust engine: given a model of claims, the
 assumptions they rest on and the evidence brought for them, it computes, for each
-claim, a verdict (holds, fails or uncertain) and a certainty that programs can
+claim, a verdict (logic, coverage and belief) that programs can
 use as a policy input.
 
 *Tests check, Lean proves, Mitra weighs.*
@@ -30,15 +30,15 @@ gates, agent harnesses, apps) is built on top later.
    (2) parser: text  ->  AST
                      |
                      v
-   (1) semantic model / AST  --evaluate-->  verdict + certainty
+   (1) semantic model / AST  --evaluate-->  verdict (logic, coverage, belief)
                      |
                      v
    (3) incremental use and storage
 ```
 
 1. **Semantic model.** The core. An AST of subjects, claims and evidence.
-   Evaluation is a pure function from model to a verdict and certainty per
-   claim.
+   Evaluation is a pure function from model to a verdict per claim and
+   policy.
 2. **Parsing.** Text to AST. The text syntax is one projection of the model,
    not the model itself; others (JSON, an API) can exist alongside it.
 3. **Incremental use and storage.** Add evidence to a stored model and
@@ -56,8 +56,8 @@ They are built and tested in that order.
 
 ## Principles
 
-1. **Never a single score.** Every claim gets a verdict (holds, fails,
-   uncertain) and a certainty. "No evidence yet" and "evidence against" are
+1. **Never a single score.** Every claim gets its logic (holds, fails,
+   uncertain), the inputs covered, and a belief. "No evidence yet" and "evidence against" are
    different answers.
 2. **Counterexamples decide.** Claims are universal: one trusted failure
    refutes a claim, while passes only build confidence.
@@ -83,5 +83,7 @@ They are built and tested in that order.
   wrong, with a confidence from 0 (distrusted) to 1 (fully believed).
 - **Assumption** (planned): a claim accepted at a stated confidence, not
   computed.
-- **Verdict and certainty:** Mitra's output for a claim: holds, fails or
-  uncertain, with how certain that verdict is.
+- **Policy:** how evidence becomes belief, chosen by configuration so
+  policies can be compared (`strict`, `coverage` of a usage profile).
+- **Verdict:** Mitra's output for a claim under a policy: the logic (holds,
+  fails or uncertain), the inputs covered or refuted, and a belief.

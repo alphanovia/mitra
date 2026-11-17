@@ -1,7 +1,7 @@
 # Calculus candidates (open design)
 
 The [language reference](../reference/language.md) only defines evidence at
-confidence 0 or 1. Any calculus for confidences in between must give the same
+confidence 0 or 1, with belief set by a policy (`strict` or `coverage`). Any calculus for confidences in between must give the same
 results at those extremes:
 
 1. Correct @ 1 on every covered input: holds, fully certain.

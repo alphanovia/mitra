@@ -9,33 +9,37 @@ use as a policy input.**
 evidence. Mitra combines that evidence, along with the assumptions it rests on,
 into a verdict and a confidence for each claim.
 
-> Status: early. The code evaluates claims about boolean functions against
-> evidence at confidence 0 or 1 ([language reference](docs/reference/language.md)).
+> Status: early. The code evaluates claims against evidence at confidence 0
+> or 1, under two policies ([language reference](docs/reference/language.md)).
 
 ## The idea
 
 At its heart Mitra is a small **language for trust**. A **subject** is a
 function under review, a **claim** says it is correct on some of its inputs,
 and **evidence** is a run of the subject judged correct or wrong, with a
-confidence. Mitra gives every claim a verdict and a certainty.
+confidence. A **policy** turns evidence into a belief. Mitra gives every
+claim a verdict: what logic proves, which inputs are covered, and how much
+the policy believes it.
 
 ```mitra
 subject  not(a: bool) -> bool
 claim    not_correct: not(_)    correct
 claim    not_on_true: not(true) correct
 
+policy   strict
+
 evidence not(true)  correct @ 1
 evidence not(false) wrong   @ 1
 ```
 
 ```text
-not_correct  fails @ 1
-not_on_true  holds @ 1
+verdict not_correct [strict] = { logic: fails, refuted: {false}, domain: bool, belief: 0 }
+verdict not_on_true [strict] = { logic: holds, covered: {true}, domain: {true}, belief: 1 }
 ```
 
-Every claim gets a verdict **and** a certainty, never a single score. One
-trusted counterexample refutes a claim. The calculus for confidences between
-0 and 1 is still open.
+Never a single score: logic, coverage and belief are kept apart. One trusted
+counterexample refutes a claim; on an infinite domain, tests alone never
+prove it. The calculus for confidences between 0 and 1 is still open.
 
 The core is a **semantic model** (an AST). The text above is only one
 projection of it, small enough to live in a code docstring or a Markdown block

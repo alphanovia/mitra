@@ -1,0 +1,3 @@
+# Added to every case by the test harness: evidence at 0 must change nothing.
+evidence id(_) correct @ 0
+evidence id(_) wrong   @ 0

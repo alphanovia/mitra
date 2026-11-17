@@ -1,0 +1,2 @@
+verdict not_correct [by_usage] = { logic: uncertain, covered: {false}, domain: bool, belief: 0.5 }
+verdict not_on_true [by_usage] = { logic: uncertain, covered: {}, domain: {true}, belief: 0 }

@@ -1,0 +1,3 @@
+# Two tests: two points of an infinite domain.
+evidence id(1)  correct @ 1
+evidence id(42) correct @ 1

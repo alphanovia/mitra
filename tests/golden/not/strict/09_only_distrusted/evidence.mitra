@@ -1,0 +1,3 @@
+# Evidence at 0 brings nothing: same as no evidence.
+evidence not(true)  correct @ 0
+evidence not(false) wrong   @ 0

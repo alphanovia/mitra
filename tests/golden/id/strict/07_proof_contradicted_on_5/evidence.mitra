@@ -1,0 +1,3 @@
+# A test contradicts the proof on 5: 5 counts on neither side.
+evidence id(x in [0, 100]) correct @ 1
+evidence id(5)             wrong   @ 1

@@ -1,0 +1,2 @@
+verdict id_correct [strict] = { logic: fails, refuted: {7}, domain: any, belief: 0 }
+verdict id_small [strict] = { logic: fails, refuted: {7}, domain: [0, 100], belief: 0 }
