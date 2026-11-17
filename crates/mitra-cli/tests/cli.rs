@@ -271,3 +271,57 @@ fn rev_leaves_out_stale_evidence() {
     );
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// The store's model includes the `mitra:` comments of `src/` and
+/// `tests/`; errors there name the Rust file and line, and a declaration
+/// above the wrong function is refused.
+#[test]
+fn store_reads_rust_comments() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-rust-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    std::fs::create_dir_all(dir.join("tests")).unwrap();
+    mitra(&dir, &["init"]);
+    std::fs::write(
+        dir.join("src/lib.rs"),
+        "/// Negates.\n\
+         /// mitra: opaque flip (a : Bool) : Bool\n\
+         /// mitra: claim flip_correct : forall a, correct (flip a)\n\
+         pub fn flip(a: bool) -> bool { !a }\n",
+    )
+    .unwrap();
+    let test = "// mitra: test t_true : correct (flip true)\n#[test]\nfn t_true() {}\n";
+    std::fs::write(dir.join("tests/t.rs"), test).unwrap();
+    let (code, out, err) = mitra(&dir, &["check"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.starts_with("ok: 1 functions, 1 claims, 1 tests"),
+        "{out}"
+    );
+    let report = dir.join("report.txt");
+    std::fs::write(&report, "test t_true ... ok\n").unwrap();
+    let (code, out, err) = mitra(&dir, &["ingest", report.to_str().unwrap()]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("1 evidence added"), "{out}");
+
+    std::fs::write(
+        dir.join("tests/t.rs"),
+        test.replace("fn t_true", "fn t_other"),
+    )
+    .unwrap();
+    let (code, _, err) = mitra(&dir, &["check"]);
+    assert_eq!(code, Some(2));
+    assert!(
+        err.contains("t.rs: line 1: `test t_true` must sit above `fn t_true`, found `fn t_other`"),
+        "{err}"
+    );
+    std::fs::write(
+        dir.join("tests/t.rs"),
+        "// mitra: test t_true : correct (nope true)\n#[test]\nfn t_true() {}\n",
+    )
+    .unwrap();
+    let (code, _, err) = mitra(&dir, &["check"]);
+    assert_eq!(code, Some(2));
+    assert!(err.contains("t.rs: line 1: "), "{err}");
+    let _ = std::fs::remove_dir_all(dir);
+}

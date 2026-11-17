@@ -34,8 +34,9 @@ test t_small : forall x in 0..=10, correct (add x 1)
 ```
 
 `mitra ingest` matches tests **by name** in the report. CI needs no plugin,
-only a step that runs `mitra ingest` and keeps the store. Proposed next:
-the declaration next to the test's code, in a comment, and the test's own
+only a step that runs `mitra ingest` and keeps the store. In Rust, the
+declaration sits in a `// mitra:` comment above the test's code, and Mitra
+checks it is above the right function. Proposed next: the test's own
 claims ([composition](composition.md#3-tests-are-subjects-too)).
 
 ## Evidence store

@@ -1,5 +1,23 @@
--- Evidence, append-only: `mitra add` and `mitra ingest` write here.
-@[source "test:t_dempster_extremes", rev "ef649e9d8615"] evidence forall case in 1000..=1003, correct (combine_dempster case) at 1
-@[source "test:t_dempster_random", rev "ef649e9d8615"] evidence forall case in 0..=999, correct (combine_dempster case) at 1
-@[source "test:t_yager_extremes", rev "ef649e9d8615"] evidence forall case in 1000..=1003, correct (combine_yager case) at 1
-@[source "test:t_yager_random", rev "ef649e9d8615"] evidence forall case in 0..=999, correct (combine_yager case) at 1
+-- Evidence, append-only: `mitra add` writes here.
+@[source "test:t_conflict_mixed", rev "55dd1883f742"] evidence conflict 0.5 0.25 0.25 0.25 0.5 0.25 = 0.3125 at 1
+@[source "test:t_conflict_total", rev "55dd1883f742"] evidence conflict 1.0 0.0 0.0 0.0 1.0 0.0 = 1.0 at 1
+@[source "test:t_dempster_agree", rev "55dd1883f742"] evidence correct (dempster 1.0 0.0 0.0 1.0 0.0 0.0) at 1
+@[source "test:t_dempster_contradict", rev "55dd1883f742"] evidence correct (dempster 1.0 0.0 0.0 0.0 1.0 0.0) at 1
+@[source "test:t_dempster_contradict_swapped", rev "55dd1883f742"] evidence correct (dempster 0.0 1.0 0.0 1.0 0.0 0.0) at 1
+@[source "test:t_dempster_nothing", rev "55dd1883f742"] evidence correct (dempster 0.0 0.0 1.0 0.0 0.0 1.0) at 1
+@[source "test:t_dempster_nothing_first", rev "55dd1883f742"] evidence correct (dempster 0.0 0.0 1.0 1.0 0.0 0.0) at 1
+@[source "test:t_dempster_rejects_invalid", rev "55dd1883f742"] evidence forall b in {-0.5, 0.5}, forall u in {0.5, 1.0}, correct (dempster 0.0 0.0 1.0 b 0.5 u) at 1
+@[source "test:t_dempster_with_nothing", rev "55dd1883f742"] evidence correct (dempster 1.0 0.0 0.0 0.0 0.0 1.0) at 1
+@[source "test:t_judged_rejects_bad_confidence", rev "55dd1883f742"] evidence forall ok, forall c in {-0.5, 1.5}, correct (judged ok c) at 1
+@[source "test:t_judged_values", rev "55dd1883f742"] evidence forall ok, forall c in {0.0, 0.25, 1.0}, correct (judged ok c) at 1
+@[source "test:t_valid_negative", rev "55dd1883f742"] evidence is_valid (-0.5) 0.5 1.0 = false at 1
+@[source "test:t_valid_slack", rev "55dd1883f742"] evidence is_valid 0.5 0.0 0.5000000001 = true at 1
+@[source "test:t_valid_sum", rev "55dd1883f742"] evidence is_valid 0.5 0.5 0.5 = false at 1
+@[source "test:t_valid_yes", rev "55dd1883f742"] evidence is_valid 0.5 0.0 0.5 = true at 1
+@[source "test:t_yager_agree", rev "55dd1883f742"] evidence correct (yager 1.0 0.0 0.0 1.0 0.0 0.0) at 1
+@[source "test:t_yager_contradict", rev "55dd1883f742"] evidence correct (yager 1.0 0.0 0.0 0.0 1.0 0.0) at 1
+@[source "test:t_yager_contradict_swapped", rev "55dd1883f742"] evidence correct (yager 0.0 1.0 0.0 1.0 0.0 0.0) at 1
+@[source "test:t_yager_nothing", rev "55dd1883f742"] evidence correct (yager 0.0 0.0 1.0 0.0 0.0 1.0) at 1
+@[source "test:t_yager_nothing_first", rev "55dd1883f742"] evidence correct (yager 0.0 0.0 1.0 1.0 0.0 0.0) at 1
+@[source "test:t_yager_rejects_invalid", rev "55dd1883f742"] evidence forall b in {-0.5, 0.5}, forall u in {0.5, 1.0}, correct (yager b 0.5 u 0.0 0.0 1.0) at 1
+@[source "test:t_yager_with_nothing", rev "55dd1883f742"] evidence correct (yager 1.0 0.0 0.0 0.0 0.0 1.0) at 1

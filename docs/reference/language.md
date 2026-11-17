@@ -44,6 +44,25 @@ status 2.
 - Without file names, `check`, `eval` and `next` use the **store**: the nearest
   `.mitra/` folder at or above the current one, with `model.mitra` and
   `evidence.mitra`.
+- In a store, the model is `model.mitra` followed by the **Rust model
+  lines**: in every `.rs` file under `src/` and `tests/` beside `.mitra/`
+  (files in path order), each comment line `/// mitra: …` or `// mitra: …`
+  gives one model line, the text after `mitra:`. Errors there name the Rust
+  file and line. Consecutive comment lines form a block; an `opaque f` or
+  `test t` in a block must sit above `fn f` or `fn t` (attributes and
+  blank lines may come between), or it is an error:
+
+  ```rust
+  /// mitra: opaque flip (a : Bool) : Bool
+  /// mitra: claim flip_correct : forall a, correct (flip a)
+  pub fn flip(a: bool) -> bool { !a }
+
+  // mitra: test t_true : correct (flip true)
+  #[test]
+  fn t_true() { assert!(!flip(true)) }
+  ```
+
+  `add` and `ingest` read the same model.
 - A `.mitra` that is not a folder is an error.
 - `init` creates `.mitra/` with an empty model, an empty evidence file and a
   `.gitattributes` that merges `evidence.mitra` with git's `union` driver.

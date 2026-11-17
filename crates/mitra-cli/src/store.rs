@@ -1,11 +1,14 @@
 //! The project store: a `.mitra/` folder with `model.mitra` and the
-//! append-only `evidence.mitra`.
+//! append-only `evidence.mitra`. The model also holds the `mitra:` comments
+//! of the Rust files under `src/` and `tests/` beside `.mitra/`.
 //!
 //! Evidence is only ever appended, one line per piece, so two branches that
 //! both add evidence merge as the union of their lines: `.mitra/.gitattributes`
 //! asks git for the `union` merge driver on the evidence file.
 
 use std::path::{Path, PathBuf};
+
+use crate::source::Source;
 
 pub const DIR: &str = ".mitra";
 
@@ -54,6 +57,14 @@ impl Store {
         self.dir.join("model.mitra").display().to_string()
     }
 
+    /// `model.mitra`, then the `mitra:` lines of the Rust sources.
+    pub fn source(&self) -> Result<Source, String> {
+        let mut s = Source::file(&self.model_path())?;
+        let root = self.dir.parent().unwrap_or(Path::new("."));
+        s.add_rust(&[root.join("src"), root.join("tests")])?;
+        Ok(s)
+    }
+
     pub fn evidence_path(&self) -> String {
         self.dir.join("evidence.mitra").display().to_string()
     }
@@ -95,10 +106,10 @@ impl Store {
 
     /// The store's model, checked against its evidence.
     pub fn model(&self) -> Result<mitra_core::Model, String> {
-        let (m, e) = (self.model_path(), self.evidence_path());
-        let read = |p: &str| std::fs::read_to_string(p).map_err(|err| format!("{p}: {err}"));
-        mitra_core::load(&read(&m)?, &read(&e)?).map_err(|(input, err)| match input {
-            mitra_core::Input::Model => format!("{m}: {err}"),
+        let (m, e) = (self.source()?, self.evidence_path());
+        let old = std::fs::read_to_string(&e).map_err(|err| format!("{e}: {err}"))?;
+        mitra_core::load(&m.text, &old).map_err(|(input, err)| match input {
+            mitra_core::Input::Model => m.locate(&err),
             mitra_core::Input::Evidence => format!("{e}: {err}"),
         })
     }
@@ -108,15 +119,15 @@ impl Store {
     /// error. Errors in the store name its file; errors in the new evidence
     /// are numbered from its first line.
     pub fn append(&self, new: &[mitra_core::Evidence]) -> Result<(), String> {
-        let (m, e) = (self.model_path(), self.evidence_path());
-        let read = |p: &str| std::fs::read_to_string(p).map_err(|err| format!("{p}: {err}"));
-        let (model, old) = (read(&m)?, read(&e)?);
+        let (m, e) = (self.source()?, self.evidence_path());
+        let old = std::fs::read_to_string(&e).map_err(|err| format!("{e}: {err}"))?;
+        let model = &m.text;
         let located = |input, err: mitra_core::Error| match input {
-            mitra_core::Input::Model => format!("{m}: {err}"),
+            mitra_core::Input::Model => m.locate(&err),
             mitra_core::Input::Evidence => format!("{e}: {err}"),
         };
         // The store must be sound before anything is added to it.
-        let before = mitra_core::load(&model, &old).map_err(|(i, err)| located(i, err))?;
+        let before = mitra_core::load(model, &old).map_err(|(i, err)| located(i, err))?;
         mitra_core::evaluate(&before).map_err(|(i, err)| located(i, err))?;
         let sep = if old.is_empty() || old.ends_with('\n') {
             ""
@@ -134,7 +145,7 @@ impl Store {
             i => located(i, err),
         };
         let all = format!("{old}{sep}{printed}");
-        let after = mitra_core::load(&model, &all).map_err(|(i, err)| blame(i, err))?;
+        let after = mitra_core::load(model, &all).map_err(|(i, err)| blame(i, err))?;
         mitra_core::evaluate(&after).map_err(|(i, err)| blame(i, err))?;
         use std::io::Write;
         std::fs::OpenOptions::new()

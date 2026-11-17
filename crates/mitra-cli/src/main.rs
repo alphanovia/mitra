@@ -11,10 +11,14 @@
 //!
 //! Without paths, commands use the project store: the nearest `.mitra/`
 //! folder at or above the current one, holding `model.mitra` and the
-//! append-only `evidence.mitra`.
+//! append-only `evidence.mitra`. The store's model also holds the `mitra:`
+//! comments of the Rust files under `src/` and `tests/` next to it.
 
 mod report;
+mod source;
 mod store;
+
+use source::Source;
 
 use std::process::ExitCode;
 
@@ -36,13 +40,13 @@ fn main() -> ExitCode {
     }
 }
 
-/// The two input files, from the arguments or from the store.
-fn inputs(paths: &[String]) -> Result<(String, String), String> {
+/// The model and the evidence file, from the arguments or from the store.
+fn inputs(paths: &[String]) -> Result<(Source, String), String> {
     match paths {
-        [m, e] => Ok((m.clone(), e.clone())),
+        [m, e] => Ok((Source::file(m)?, e.clone())),
         [] => {
             let s = store::Store::find()?;
-            Ok((s.model_path(), s.evidence_path()))
+            Ok((s.source()?, s.evidence_path()))
         }
         _ => Err(USAGE.into()),
     }
@@ -53,10 +57,12 @@ fn read(p: &str) -> Result<String, String> {
 }
 
 /// An error, prefixed with the file it belongs to.
-fn located(m: &str, e: &str) -> impl Fn((mitra_core::Input, mitra_core::Error)) -> String {
-    let (m, e) = (m.to_string(), e.to_string());
+fn located<'a>(
+    m: &'a Source,
+    e: &'a str,
+) -> impl Fn((mitra_core::Input, mitra_core::Error)) -> String + 'a {
     move |(input, err)| match input {
-        mitra_core::Input::Model => format!("{m}: {err}"),
+        mitra_core::Input::Model => m.locate(&err),
         mitra_core::Input::Evidence => format!("{e}: {err}"),
     }
 }
@@ -77,11 +83,11 @@ pub fn check_rev(rev: &str) -> Result<(), String> {
 /// no `rev`, is stale and left out. Otherwise an old pass could outlive a
 /// newer failure that is left out.
 fn evaluate(
-    m: &str,
+    m: &Source,
     e: &str,
     rev: Option<&str>,
 ) -> Result<(mitra_core::Model, mitra_core::Report), String> {
-    let mut model = mitra_core::load(&read(m)?, &read(e)?).map_err(located(m, e))?;
+    let mut model = mitra_core::load(&m.text, &read(e)?).map_err(located(m, e))?;
     if let Some(rev) = rev {
         let before = model.evidence.len();
         model.evidence.retain(|x| x.rev.as_deref() == Some(rev));

@@ -1,26 +1,4 @@
--- mitra-ds, judged by Mitra.
--- A case is a numbered pair of masses (m1, m2), from tests/props.rs:
---   0 to 999      random pairs from a seeded generator: even cases pair
---                 single pieces of evidence, odd cases general masses;
---   1000 to 1003  the extremes of Mitra's golden sets: agreement at 1,
---                 contradiction at 1, evidence at 0, no evidence.
--- `combine_yager case` is correct when the result is a valid mass
--- (parts in [0, 1], sum 1), the rule is commutative, the conflict goes to
--- unknown, and the extremes give Mitra's answers. `combine_dempster case`
--- is correct when the result is a valid mass, commutative, equal to Yager's
--- renormalised, and undefined exactly at total conflict.
-
-opaque combine_yager (case : 0..=1003) : Value
-opaque combine_dempster (case : 0..=1003) : Value
-
-claim yager_correct : forall case, correct (combine_yager case)
-claim dempster_correct : forall case, correct (combine_dempster case)
--- The part Mitra itself will rely on: the extremes.
-claim yager_extremes : forall case in 1000..=1003, correct (combine_yager case)
-
-test t_yager_random : forall case in 0..=999, correct (combine_yager case)
-test t_dempster_random : forall case in 0..=999, correct (combine_dempster case)
-test t_yager_extremes : forall case in 1000..=1003, correct (combine_yager case)
-test t_dempster_extremes : forall case in 1000..=1003, correct (combine_dempster case)
+-- mitra-ds, judged by Mitra. The model is in the `mitra:` comments of
+-- src/ and tests/; this file holds only the policy.
 
 policy strict
