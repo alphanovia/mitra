@@ -1,0 +1,2 @@
+evidence test(t_true)  : not_correct(true)  = pass @ 0.9
+evidence test(t_false) : not_correct(false) = pass @ 0.8

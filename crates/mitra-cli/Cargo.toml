@@ -1,0 +1,13 @@
+[package]
+name = "mitra-cli"
+description = "The `mitra` command line, a thin wrapper over mitra-core."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "mitra"
+path = "src/main.rs"
+
+[dependencies]
+mitra-core = { path = "../mitra-core" }

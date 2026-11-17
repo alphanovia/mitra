@@ -1,0 +1,3 @@
+evidence test(t_true)          : not_correct(true)  = pass @ 0.9
+# The user thinks the output is wrong but could not check it.
+evidence usage(cli_session_43) : not_correct(false) = fail @ 0.3

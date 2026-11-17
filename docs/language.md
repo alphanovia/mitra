@@ -89,7 +89,8 @@ add_correct          fail      @ 0.95
   add_correct.overflow  fail      @ 0.95
 ```
 
-Rules for a universal claim (minimal, for the toy models):
+Rules for a universal claim (minimal, for the toy models; the seed code
+implements a simpler version, see [seed.md](seed.md)):
 
 1. **Counterexamples decide.** The fail support *F* is the highest confidence
    of any `fail` on the claim. If F ≥ θ_fail (default 0.5), the verdict is

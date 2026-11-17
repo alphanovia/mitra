@@ -9,7 +9,8 @@ use as a policy input.**
 evidence. Mitra combines that evidence, along with the assumptions it rests on,
 into a verdict and a confidence for each claim.
 
-> Status: design. Nothing is implemented yet.
+> Status: design, with a first seed in code: a library and CLI that
+> evaluate boolean claims against evidence ([docs/seed.md](docs/seed.md)).
 
 ## The idea
 
@@ -50,6 +51,7 @@ in an agent skill, and regular enough for an LLM to read and write.
 |---|---|
 | [docs/vision.md](docs/vision.md) | What Mitra is, how it is layered, principles, non-goals |
 | [docs/language.md](docs/language.md) | One-page language spec: claims, guards, evidence, verdicts, diagnostics |
+| [docs/seed.md](docs/seed.md) | What is implemented: the `mitra` CLI, its inputs, rules and golden tests |
 | [docs/examples.md](docs/examples.md) | Toy models on the `add` CLI with verdicts worked out by hand |
 | [docs/validation.md](docs/validation.md) | How Mitra is validated: a ladder of toy `add` CLIs scored against ground truth |
 | [docs/use-cases.md](docs/use-cases.md) | Where Mitra is headed: checking a model, gating a merge, gating an agent |

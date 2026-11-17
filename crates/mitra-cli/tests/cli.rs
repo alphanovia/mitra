@@ -1,0 +1,45 @@
+use std::process::Command;
+
+const GOLDEN: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../tests/golden/04_trusted_counterexample"
+);
+
+#[test]
+fn eval_writes_the_result_file() {
+    let out = std::env::temp_dir().join(format!("mitra-cli-test-{}.json", std::process::id()));
+    let status = Command::new(env!("CARGO_BIN_EXE_mitra"))
+        .args([
+            "eval",
+            &format!("{GOLDEN}/claims.mitra"),
+            &format!("{GOLDEN}/evidence.mitra"),
+            "-o",
+        ])
+        .arg(&out)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let expected = std::fs::read_to_string(format!("{GOLDEN}/expected.json")).unwrap();
+    assert_eq!(std::fs::read_to_string(&out).unwrap(), expected);
+    let _ = std::fs::remove_file(out);
+}
+
+#[test]
+fn bad_evidence_names_the_file_and_line() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-bad-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("ev.mitra"),
+        "\nevidence test(t) : not_correct(1) = pass @ 0.9\n",
+    )
+    .unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_mitra"))
+        .args(["eval", &format!("{GOLDEN}/claims.mitra")])
+        .arg(dir.join("ev.mitra"))
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    let err = String::from_utf8(out.stderr).unwrap();
+    assert!(err.contains("ev.mitra: line 2: `a` is a bool"), "{err}");
+    let _ = std::fs::remove_dir_all(dir);
+}

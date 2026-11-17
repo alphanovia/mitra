@@ -1,0 +1,2 @@
+# The seed claim: `not` is the subject under trust.
+claim not_correct(a: bool): not(a) = !a
