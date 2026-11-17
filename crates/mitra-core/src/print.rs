@@ -30,6 +30,12 @@ pub fn print_model(m: &Model) -> String {
         };
         out += &format!("claim {} : {forall}{body}{from}\n", c.name);
     }
+    for t in &m.tests {
+        let line = print_evidence(std::slice::from_ref(&t.judgment), Some(m));
+        let judgment = line.trim_end().strip_prefix("evidence ").unwrap();
+        let judgment = judgment.strip_suffix(" at 1").unwrap();
+        out += &format!("test {} : {judgment}\n", t.name);
+    }
     for p in &m.profiles {
         out += &format!("profile {} for {}\n", p.name, p.subject);
         for (region, w) in &p.regions {

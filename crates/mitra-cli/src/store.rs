@@ -54,17 +54,13 @@ impl Store {
         self.dir.join("evidence.mitra").display().to_string()
     }
 
-    /// Check new evidence against the model and the evidence already there,
-    /// then append it, normalised, with its source and revision.
+    /// Parse evidence text, then [`Store::append`] it.
     pub fn add(
         &self,
         text: &str,
         source: Option<String>,
         rev: Option<String>,
     ) -> Result<usize, String> {
-        let (m, e) = (self.model_path(), self.evidence_path());
-        let read = |p: &str| std::fs::read_to_string(p).map_err(|err| format!("{p}: {err}"));
-        let (model, old) = (read(&m)?, read(&e)?);
         let mut new = mitra_core::parse_evidence(text).map_err(|err| format!("evidence: {err}"))?;
         if new.is_empty() {
             return Err("no evidence given".into());
@@ -78,14 +74,34 @@ impl Store {
             ev.source = source.clone().or(ev.source.take());
             ev.rev = rev.clone().or(ev.rev.take());
         }
-        let printed = mitra_core::print_evidence(&new, None);
+        self.append(&new)?;
+        Ok(new.len())
+    }
+
+    /// The store's model, checked against its evidence.
+    pub fn model(&self) -> Result<mitra_core::Model, String> {
+        let (m, e) = (self.model_path(), self.evidence_path());
+        let read = |p: &str| std::fs::read_to_string(p).map_err(|err| format!("{p}: {err}"));
+        mitra_core::load(&read(&m)?, &read(&e)?).map_err(|(input, err)| match input {
+            mitra_core::Input::Model => format!("{m}: {err}"),
+            mitra_core::Input::Evidence => format!("{e}: {err}"),
+        })
+    }
+
+    /// Check new evidence against the model and the evidence already
+    /// there, then append it, normalised. Nothing is written on an error.
+    pub fn append(&self, new: &[mitra_core::Evidence]) -> Result<(), String> {
+        let (m, e) = (self.model_path(), self.evidence_path());
+        let read = |p: &str| std::fs::read_to_string(p).map_err(|err| format!("{p}: {err}"));
+        let (model, old) = (read(&m)?, read(&e)?);
+        let printed = mitra_core::print_evidence(new, None);
         let all = format!("{old}\n{printed}");
         let checked = mitra_core::load(&model, &all).map_err(|(input, err)| match input {
             mitra_core::Input::Model => format!("{m}: {err}"),
             mitra_core::Input::Evidence => format!("evidence: {}", err.message),
         })?;
         // Print with the model, so bound names follow the parameters.
-        let lines = mitra_core::print_evidence(&new, Some(&checked));
+        let lines = mitra_core::print_evidence(new, Some(&checked));
         let sep = if old.is_empty() || old.ends_with('\n') {
             ""
         } else {
@@ -96,7 +112,6 @@ impl Store {
             .append(true)
             .open(&e)
             .and_then(|mut f| f.write_all(format!("{sep}{lines}").as_bytes()))
-            .map_err(|err| format!("{e}: {err}"))?;
-        Ok(new.len())
+            .map_err(|err| format!("{e}: {err}"))
     }
 }

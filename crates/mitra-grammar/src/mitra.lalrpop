@@ -11,7 +11,7 @@ match {
     r"[0-9]+" => NAT,
     r"[0-9]+\.[0-9]+" => DEC,
     r#""[^"\n]*""# => STR,
-    "opaque", "def", "claim", "evidence", "profile", "policy",
+    "opaque", "def", "claim", "test", "evidence", "profile", "policy",
     "correct", "at", "by", "derive", "if", "then", "else", "let",
     "true", "false", "Bool", "Int", "String", "Value", "Icc",
     "for", "strict", "coverage", "_",
@@ -25,7 +25,8 @@ match {
 Comma1<T>: () = T ("," T)* => ();
 
 pub Model: () = Command* => ();
-Command: () = { Opaque, Def, Claim, Profile, Policy };
+Command: () = { Opaque, Def, Claim, Test, Profile, Policy };
+Test: () = "test" NAME ":" Forall* Judgment => ();
 
 Opaque: () = "opaque" NAME Binder+ ":" Set => ();
 Def: () = "def" NAME Binder+ ":" Set ":=" Expr => ();

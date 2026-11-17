@@ -11,6 +11,7 @@ mitra init
 mitra check [model.mitra evidence.mitra]
 mitra eval  [model.mitra evidence.mitra] [-o result.txt]
 mitra add   '<evidence>' [--source <who>] [--rev <commit>]
+mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 ```
 
 `mitra` (crate `mitra-cli`) is a thin wrapper over the library
@@ -32,12 +33,22 @@ status 2.
   its `source` and `rev` attributes. Nothing is written if the check fails.
   The evidence file is only ever appended to, so two branches that add
   evidence merge as the union of their lines.
+- `ingest` reads a test report and appends, for each test the model
+  declares with `test` (see below), the evidence its result gives, with
+  `source "test:<name>"` and the `--rev` given. Formats: `libtest` (the
+  text `cargo test` prints, lines `test <path> ... ok|FAILED`) and `junit`
+  (JUnit XML: `<testcase name="…">`, failed if it holds `<failure` or
+  `<error`, left out if `<skipped`). Without `--format`, a report starting
+  with `<` is JUnit. A test's name is the last `::` segment of its path.
+  `ingest` prints how many results passed and failed, how many evidence
+  lines it added, failed tests that gave no evidence, and the tests with no
+  `test` declaration.
 
 ## Lexical rules
 
 The syntax is a small, fixed subset inspired by Lean 4
 ([design](../design/lean-syntax.md)). Every command starts with a keyword
-(`opaque`, `def`, `claim`, `profile`, `policy`, `evidence`), so a parser
+(`opaque`, `def`, `claim`, `test`, `profile`, `policy`, `evidence`), so a parser
 knows what it reads from the first token. Layout is free: line breaks and
 indentation mean nothing.
 
@@ -51,7 +62,7 @@ indentation mean nothing.
 - Symbols, longest match first: `@[` `:=` `=>` `==` `!=` `<=` `>=` `&&` `||` `(`
   `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `!` `<` `>` `+` `-` `*` `\` `∀`
   `∈` `∪` `∩` `¬`.
-- Keywords: `opaque def claim evidence profile policy correct at by derive
+- Keywords: `opaque def claim test evidence profile policy correct at by derive
   if then else let true false Bool Int String Value Icc for strict coverage
   _`.
 
@@ -59,7 +70,7 @@ indentation mean nothing.
 
 ```ebnf
 model      = { command } ;
-command    = opaque | def | claim | profile | policy ;
+command    = opaque | def | claim | test | profile | policy ;
 
 opaque     = "opaque" name binders ":" set ;
 def        = "def" name binders ":" set ":=" expr ;
@@ -68,6 +79,7 @@ binder     = "(" name { name } ":" set ")" ;
 claim      = "claim" name ":" { forall }
              ( "correct" "(" name args ")" | name args "=" expr )
              [ ":=" "by" "derive" "[" name { "," name } "]" ] ;
+test       = "test" name ":" { forall } judgment ;
 profile    = "profile" name "for" name { "|" region "=>" number } ;
 region     = "_" | name "∈" set ;
 policy     = "policy" ( "strict" | name ":=" ( "strict" | "coverage" name ) ) ;
@@ -247,6 +259,27 @@ Attributes record where evidence comes from, and do not change verdicts:
 - `rev`: the revision of the code it was observed on.
 
 Each may appear once; other names are rejected.
+
+### test
+
+```lean
+test t_true : correct (not true)
+test t_small : ∀ x ∈ Icc 0 10, correct (add x 1)
+test t_one : add 1 2 = 3
+```
+
+A test of the code and the evidence its result stands for; the judgment is
+written as in `evidence`, without a confidence. `mitra ingest` turns a
+result into evidence at 1:
+
+- a pass gives the judgment;
+- a failure gives the opposite judgment (`correct` ↔ `¬ correct`, `c` ↔
+  `¬ c`) when the test is about a single input, and nothing otherwise: a
+  failed test over a set says the code is wrong somewhere in it, which
+  Mitra cannot express yet. A failed `f args = v` test gives nothing either
+  (the output was something else, but Mitra does not know what).
+
+Test names share the namespace of functions and claims.
 
 ### profile
 

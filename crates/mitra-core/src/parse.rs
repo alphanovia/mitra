@@ -23,10 +23,10 @@ const PUNCT: [&str; 32] = [
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
-pub const KEYWORDS: [&str; 25] = [
-    "opaque", "def", "claim", "evidence", "profile", "policy", "correct", "at", "by", "derive",
-    "if", "then", "else", "let", "true", "false", "Bool", "Int", "String", "Value", "Icc", "for",
-    "strict", "coverage", "_",
+pub const KEYWORDS: [&str; 26] = [
+    "opaque", "def", "claim", "test", "evidence", "profile", "policy", "correct", "at", "by",
+    "derive", "if", "then", "else", "let", "true", "false", "Bool", "Int", "String", "Value",
+    "Icc", "for", "strict", "coverage", "_",
 ];
 
 /// The whole text as tokens, each with its line.
@@ -385,6 +385,30 @@ impl P {
         Ok(c)
     }
 
+    /// `∀ …, <judgment>`: what a piece of evidence or a test says.
+    fn judgment(&mut self) -> Result<(String, Pattern, Judgment), Error> {
+        let bound = self.foralls()?;
+        Ok(if self.eat_keyword("correct") {
+            let (f, pat) = self.correct(&bound)?;
+            (f, pat, Judgment::Correct(true))
+        } else if self.eat("¬") {
+            if self.eat_keyword("correct") {
+                let (f, pat) = self.correct(&bound)?;
+                (f, pat, Judgment::Correct(false))
+            } else {
+                let (c, pat) = self.call(&bound)?;
+                (c, pat, Judgment::Holds(false))
+            }
+        } else {
+            let (f, pat) = self.call(&bound)?;
+            if self.eat("=") {
+                (f, pat, Judgment::Output(self.value()?))
+            } else {
+                (f, pat, Judgment::Holds(true))
+            }
+        })
+    }
+
     // ---- expressions ----
 
     /// expr := "if" expr "then" expr "else" expr | "let" name ":=" expr ";" expr | or
@@ -479,7 +503,7 @@ impl P {
     }
 }
 
-/// The model file: `opaque`, `def`, `claim`, `profile` and `policy`.
+/// The model file: `opaque`, `def`, `claim`, `test`, `profile` and `policy`.
 pub fn parse_model(src: &str) -> Result<Model, Error> {
     let mut p = P::new(src)?;
     let mut m = Model::default();
@@ -487,7 +511,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
         let line = p.line();
         let Some(Tok::Ident(kw)) = p.next() else {
             p.pos -= 1;
-            return p.err("expected `opaque`, `def`, `claim`, `profile` or `policy`");
+            return p.err("expected `opaque`, `def`, `claim`, `test`, `profile` or `policy`");
         };
         match kw.as_str() {
             "opaque" | "def" => {
@@ -546,6 +570,25 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                     line,
                 });
             }
+            "test" => {
+                // test t : <judgment>
+                let name = p.ident()?;
+                p.expect(":")?;
+                let (about, pattern, judgment) = p.judgment()?;
+                m.tests.push(Test {
+                    name,
+                    judgment: Evidence {
+                        about,
+                        pattern,
+                        judgment,
+                        confidence: 1.0,
+                        source: None,
+                        rev: None,
+                        line,
+                    },
+                    line,
+                });
+            }
             "profile" => {
                 // profile n for f   then   | x ∈ S => w   |   | _ => w
                 let name = p.ident()?;
@@ -594,7 +637,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
             k => {
                 p.pos -= 1;
                 return p.err(format!(
-                    "expected `opaque`, `def`, `claim`, `profile` or `policy`, got `{k}`"
+                    "expected `opaque`, `def`, `claim`, `test`, `profile` or `policy`, got `{k}`"
                 ));
             }
         }
@@ -642,26 +685,7 @@ pub fn parse_evidence(src: &str) -> Result<Vec<Evidence>, Error> {
             p.expect("]")?;
         }
         p.keyword("evidence")?;
-        let bound = p.foralls()?;
-        let (about, pattern, judgment) = if p.eat_keyword("correct") {
-            let (f, pat) = p.correct(&bound)?;
-            (f, pat, Judgment::Correct(true))
-        } else if p.eat("¬") {
-            if p.eat_keyword("correct") {
-                let (f, pat) = p.correct(&bound)?;
-                (f, pat, Judgment::Correct(false))
-            } else {
-                let (c, pat) = p.call(&bound)?;
-                (c, pat, Judgment::Holds(false))
-            }
-        } else {
-            let (f, pat) = p.call(&bound)?;
-            if p.eat("=") {
-                (f, pat, Judgment::Output(p.value()?))
-            } else {
-                (f, pat, Judgment::Holds(true))
-            }
-        };
+        let (about, pattern, judgment) = p.judgment()?;
         p.keyword("at")?;
         let confidence = p.number()?;
         if confidence != 0.0 && confidence != 1.0 {

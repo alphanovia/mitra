@@ -4,7 +4,8 @@
 # an empty alternative is ε.
 
 Model         = Command Model | ;
-Command       = Opaque | Def | Claim | Profile | Policy ;
+Command       = Opaque | Def | Claim | Test | Profile | Policy ;
+Test          = "test" NAME ":" Foralls Judgment ;
 Opaque        = "opaque" NAME Binders ":" Set ;
 Def           = "def" NAME Binders ":" Set ":=" Expr ;
 Binders       = Binder BindersTail ;

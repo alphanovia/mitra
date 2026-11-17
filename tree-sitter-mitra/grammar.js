@@ -16,7 +16,7 @@ module.exports = grammar({
 
   rules: {
     source_file: $ => repeat(choice(
-      $.opaque, $.def, $.claim, $.profile, $.policy, $.evidence,
+      $.opaque, $.def, $.claim, $.test, $.profile, $.policy, $.evidence,
     )),
 
     comment: _ => token(seq('--', /[^\n\r]*/)),
@@ -50,6 +50,7 @@ module.exports = grammar({
       seq(field('name', $.name), ':=', choice('strict', seq('coverage', $.name))),
     )),
 
+    test: $ => seq('test', field('name', $.name), ':', repeat($.forall), $._judgment),
     evidence: $ => seq(optional($.attributes), 'evidence', repeat($.forall), $._judgment, 'at', field('confidence', $.number)),
     attributes: $ => seq('@[', sep1($.attribute, ','), ']'),
     attribute: $ => seq($.name, $.string),

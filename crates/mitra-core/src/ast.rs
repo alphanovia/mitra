@@ -99,6 +99,37 @@ pub struct Evidence {
     pub line: usize,
 }
 
+/// `test name : <judgment>`: a test of the code, and the evidence its pass
+/// stands for. `mitra ingest` turns test results into evidence.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Test {
+    pub name: String,
+    /// The judgment a pass supports, as evidence at confidence 1.
+    pub judgment: Evidence,
+    pub line: usize,
+}
+
+impl Test {
+    /// The evidence a run gives: the judgment when it passed. When it
+    /// failed, the opposite judgment if the test is about a single input;
+    /// otherwise nothing, since Mitra can't tell which input was wrong.
+    pub fn outcome(&self, passed: bool) -> Option<Evidence> {
+        let mut e = self.judgment.clone();
+        if passed {
+            return Some(e);
+        }
+        if single(&e.pattern).is_none() || e.pattern.is_empty() {
+            return None;
+        }
+        e.judgment = match e.judgment {
+            Judgment::Correct(ok) => Judgment::Correct(!ok),
+            Judgment::Holds(ok) => Judgment::Holds(!ok),
+            Judgment::Output(_) => return None,
+        };
+        Some(e)
+    }
+}
+
 /// `profile name for subject` then `| x ∈ S => w` regions.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Profile {
@@ -128,6 +159,7 @@ pub struct Policy {
 pub struct Model {
     pub functions: Vec<Function>,
     pub claims: Vec<Claim>,
+    pub tests: Vec<Test>,
     pub profiles: Vec<Profile>,
     pub policies: Vec<Policy>,
     pub evidence: Vec<Evidence>,
@@ -156,10 +188,10 @@ impl Model {
     /// With no policy, `strict` is used.
     pub fn check(mut self) -> Result<Model, (Input, Error)> {
         let m = |line, msg: String| (Input::Model, Error::new(line, msg));
-        let ev = |line, msg: String| (Input::Evidence, Error::new(line, msg));
         let mut names: Vec<(&String, usize)> =
             self.functions.iter().map(|f| (&f.name, f.line)).collect();
         names.extend(self.claims.iter().map(|c| (&c.name, c.line)));
+        names.extend(self.tests.iter().map(|t| (&t.name, t.line)));
         for (i, (n, line)) in names.iter().enumerate() {
             if names[..i].iter().any(|(o, _)| o == n) {
                 return Err(m(*line, format!("`{n}` is defined twice")));
@@ -270,7 +302,8 @@ impl Model {
             }
         }
         // `evidence c at 1`: a claim on its whole domain.
-        for e in &mut self.evidence {
+        let tests = self.tests.iter_mut().map(|t| &mut t.judgment);
+        for e in self.evidence.iter_mut().chain(tests) {
             let claim_func = self
                 .claims
                 .iter()
@@ -286,14 +319,14 @@ impl Model {
                 e.pattern = vec![whole; f.params.len()];
             }
         }
-        for e in &self.evidence {
+        let tests = self.tests.iter().map(|t| (&t.judgment, Input::Model));
+        let evidence = self.evidence.iter().map(|e| (e, Input::Evidence));
+        for (e, input) in evidence.chain(tests) {
+            let ev = |line, msg: String| (input, Error::new(line, msg));
             match (&e.judgment, self.function(&e.about), self.claim(&e.about)) {
-                (Judgment::Holds(_), _, Some(c)) => fits(
-                    self.function(&c.func).unwrap(),
-                    &e.pattern,
-                    e.line,
-                    Input::Evidence,
-                )?,
+                (Judgment::Holds(_), _, Some(c)) => {
+                    fits(self.function(&c.func).unwrap(), &e.pattern, e.line, input)?
+                }
                 (Judgment::Holds(_), _, None) => {
                     return Err(ev(
                         e.line,
@@ -304,7 +337,7 @@ impl Model {
                     ))
                 }
                 (_, Some(f), _) => {
-                    fits(f, &e.pattern, e.line, Input::Evidence)?;
+                    fits(f, &e.pattern, e.line, input)?;
                     if matches!(e.judgment, Judgment::Output(_)) && single(&e.pattern).is_none() {
                         return Err(ev(
                             e.line,

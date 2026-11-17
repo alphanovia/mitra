@@ -5,12 +5,14 @@
 //! mitra check [<model> <evidence>]
 //! mitra eval  [<model> <evidence>] [-o <result.txt>]
 //! mitra add   '<evidence>' [--source <who>] [--rev <commit>]
+//! mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 //! ```
 //!
 //! Without paths, commands use the project store: the nearest `.mitra/`
 //! folder at or above the current one, holding `model.mitra` and the
 //! append-only `evidence.mitra`.
 
+mod report;
 mod store;
 
 use std::process::ExitCode;
@@ -19,7 +21,8 @@ const USAGE: &str = "usage:
   mitra init
   mitra check [<model.mitra> <evidence.mitra>]
   mitra eval  [<model.mitra> <evidence.mitra>] [-o <result.txt>]
-  mitra add   '<evidence>' [--source <who>] [--rev <commit>]";
+  mitra add   '<evidence>' [--source <who>] [--rev <commit>]
+  mitra ingest <report> [--format libtest|junit] [--rev <commit>]";
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {
@@ -77,9 +80,10 @@ fn run(args: Vec<String>) -> Result<(), String> {
             let (m, e) = inputs(rest)?;
             let (model, report) = evaluate(&m, &e)?;
             println!(
-                "ok: {} functions, {} claims, {} evidence",
+                "ok: {} functions, {} claims, {} tests, {} evidence",
                 model.functions.len(),
                 model.claims.len(),
+                model.tests.len(),
                 model.evidence.len()
             );
             for f in &report.flags {
@@ -120,6 +124,69 @@ fn run(args: Vec<String>) -> Result<(), String> {
             let s = store::Store::find()?;
             let n = s.add(text, source, rev)?;
             println!("added {n} evidence to {}", s.evidence_path());
+            Ok(())
+        }
+        "ingest" => {
+            let [path, opts @ ..] = rest else {
+                return Err(USAGE.into());
+            };
+            let (mut format, mut rev) = (None, None);
+            let mut opts = opts.iter();
+            while let Some(o) = opts.next() {
+                let v = opts.next().ok_or(USAGE)?;
+                match o.as_str() {
+                    "--format" => format = Some(v.clone()),
+                    "--rev" => rev = Some(v.clone()),
+                    _ => return Err(USAGE.into()),
+                }
+            }
+            let text = read(path)?;
+            let outcomes = match format.as_deref() {
+                Some("junit") => report::junit(&text),
+                Some("libtest") => report::libtest(&text),
+                None if text.trim_start().starts_with('<') => report::junit(&text),
+                None => report::libtest(&text),
+                Some(f) => return Err(format!("unknown format `{f}` (libtest, junit)")),
+            };
+            if rev.as_ref().is_some_and(|r| r.contains(['"', '\n', '\r'])) {
+                return Err("--rev: quotes and line breaks are not allowed".into());
+            }
+            let s = store::Store::find()?;
+            let model = s.model()?;
+            let (mut evidence, mut notes, mut unknown) = (Vec::new(), Vec::new(), Vec::new());
+            let passed = outcomes.iter().filter(|o| o.passed).count();
+            for o in &outcomes {
+                let Some(t) = model.tests.iter().find(|t| t.name == o.name) else {
+                    unknown.push(o.name.as_str());
+                    continue;
+                };
+                match t.outcome(o.passed) {
+                    Some(mut e) => {
+                        e.source = Some(format!("test:{}", t.name));
+                        e.rev = rev.clone();
+                        evidence.push(e);
+                    }
+                    None => notes.push(format!(
+                        "test {} failed on a set of inputs: no evidence, Mitra can't tell which input was wrong",
+                        t.name
+                    )),
+                }
+            }
+            if !evidence.is_empty() {
+                s.append(&evidence)?;
+            }
+            println!(
+                "{} results: {passed} passed, {} failed; {} evidence added",
+                outcomes.len(),
+                outcomes.len() - passed,
+                evidence.len()
+            );
+            for n in notes {
+                println!("{n}");
+            }
+            if !unknown.is_empty() {
+                println!("no `test` declared for: {}", unknown.join(", "));
+            }
             Ok(())
         }
         _ => Err(USAGE.into()),

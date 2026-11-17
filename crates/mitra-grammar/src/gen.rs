@@ -223,7 +223,8 @@ fn binders(r: &mut Rng) -> String {
 }
 
 fn command(r: &mut Rng) -> String {
-    match r.below(5) {
+    match r.below(6) {
+        5 => format!("test {} : {}", name(r), judgment(r)),
         0 => format!("opaque {}{} : {}", name(r), binders(r), set(r, 2)),
         1 => format!(
             "def {}{} : {} := {}",
@@ -281,38 +282,43 @@ fn comment(r: &mut Rng) -> String {
 /// A random evidence file. Confidence is 0 or 1, as the parser requires.
 pub fn evidences(r: &mut Rng) -> String {
     r.many(0, 8, |r| {
-        let judgment = match r.below(5) {
-            0 => {
-                let (forall, args) = call_args(r, 1);
-                format!("{forall}correct ( {}{args} )", name(r))
-            }
-            1 => {
-                let (forall, args) = call_args(r, 1);
-                format!("{forall}¬ correct ( {}{args} )", name(r))
-            }
-            2 => {
-                let (forall, args) = call_args(r, 0);
-                format!("{forall}{}{args}", name(r))
-            }
-            3 => {
-                let (forall, args) = call_args(r, 0);
-                format!("{forall}¬ {}{args}", name(r))
-            }
-            _ => {
-                let (forall, args) = call_args(r, 1);
-                format!("{forall}{}{args} = {}", name(r), value(r))
-            }
-        };
         let attrs = match r.below(4) {
             0 => format!("@[ source {} ] ", string(r)),
             1 => format!("@[ rev {} , source {} ] ", string(r), string(r)),
             _ => String::new(),
         };
         format!(
-            "{attrs}evidence {judgment} at {}{}\n",
+            "{attrs}evidence {} at {}{}\n",
+            judgment(r),
             r.below(2),
             comment(r)
         )
     })
     .concat()
+}
+
+/// `∀ …, <judgment>`, as in evidence and tests.
+fn judgment(r: &mut Rng) -> String {
+    match r.below(5) {
+        0 => {
+            let (forall, args) = call_args(r, 1);
+            format!("{forall}correct ( {}{args} )", name(r))
+        }
+        1 => {
+            let (forall, args) = call_args(r, 1);
+            format!("{forall}¬ correct ( {}{args} )", name(r))
+        }
+        2 => {
+            let (forall, args) = call_args(r, 0);
+            format!("{forall}{}{args}", name(r))
+        }
+        3 => {
+            let (forall, args) = call_args(r, 0);
+            format!("{forall}¬ {}{args}", name(r))
+        }
+        _ => {
+            let (forall, args) = call_args(r, 1);
+            format!("{forall}{}{args} = {}", name(r), value(r))
+        }
+    }
 }

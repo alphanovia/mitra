@@ -98,9 +98,48 @@ fn store_init_add_check_eval() {
     let (code, out, _) = mitra(&sub, &["check"]);
     assert_eq!(
         (code, out.as_str()),
-        (Some(0), "ok: 1 functions, 2 claims, 2 evidence\n")
+        (Some(0), "ok: 1 functions, 2 claims, 0 tests, 2 evidence\n")
     );
     let (_, out, _) = mitra(&sub, &["eval"]);
+    let expected = std::fs::read_to_string(format!("{GOLDEN}/expected.txt")).unwrap();
+    assert_eq!(out, expected);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn ingest_turns_test_results_into_evidence() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-ingest-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    mitra(&dir, &["init"]);
+    let model = std::fs::read_to_string(format!("{GOLDEN}/model.mitra")).unwrap();
+    let tests = "test t_true : correct (not true)\n\
+                 test t_false : correct (not false)\n\
+                 test t_all : ∀ a, correct (not a)\n";
+    std::fs::write(dir.join(".mitra/model.mitra"), format!("{model}\n{tests}")).unwrap();
+    let report = "running 4 tests\n\
+                  test tests::t_true ... ok\n\
+                  test tests::t_false ... FAILED\n\
+                  test t_all ... FAILED\n\
+                  test t_other ... ok\n";
+    std::fs::write(dir.join("report.txt"), report).unwrap();
+    let (code, out, err) = mitra(&dir, &["ingest", "report.txt", "--rev", "3f2a"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert_eq!(
+        out,
+        "4 results: 2 passed, 2 failed; 2 evidence added\n\
+         test t_all failed on a set of inputs: no evidence, Mitra can't tell which input was wrong\n\
+         no `test` declared for: t_other\n"
+    );
+    let evidence = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    assert!(
+        evidence.ends_with(
+            "@[source \"test:t_true\", rev \"3f2a\"] evidence correct (not true) at 1\n\
+         @[source \"test:t_false\", rev \"3f2a\"] evidence ¬ correct (not false) at 1\n"
+        ),
+        "{evidence}"
+    );
+    let (_, out, _) = mitra(&dir, &["eval"]);
     let expected = std::fs::read_to_string(format!("{GOLDEN}/expected.txt")).unwrap();
     assert_eq!(out, expected);
     let _ = std::fs::remove_dir_all(dir);

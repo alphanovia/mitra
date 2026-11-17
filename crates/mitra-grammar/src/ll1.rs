@@ -13,10 +13,10 @@ pub const SOURCE: &str = include_str!("mitra.ll1");
 /// End of input.
 const END: &str = "$";
 const CLASSES: [&str; 4] = ["NAT", "DEC", "STR", "NAME"];
-const KEYWORDS: [&str; 25] = [
-    "opaque", "def", "claim", "evidence", "profile", "policy", "correct", "at", "by", "derive",
-    "if", "then", "else", "let", "true", "false", "Bool", "Int", "String", "Value", "Icc", "for",
-    "strict", "coverage", "_",
+const KEYWORDS: [&str; 26] = [
+    "opaque", "def", "claim", "test", "evidence", "profile", "policy", "correct", "at", "by",
+    "derive", "if", "then", "else", "let", "true", "false", "Bool", "Int", "String", "Value",
+    "Icc", "for", "strict", "coverage", "_",
 ];
 const PUNCT: [&str; 32] = [
     "@[", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||", "(", ")", ":", ";", ",", "=", "{", "}",
