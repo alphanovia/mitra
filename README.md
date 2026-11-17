@@ -35,7 +35,8 @@ and checking the output.
   Rust implementation verified with Verus.
 - A **tiny demo app** that loads a model and shows the score to a human.
 
-See [docs/vision.md](docs/vision.md) for goals and non-goals, and
+See [docs/use-cases.md](docs/use-cases.md) for concrete examples,
+[docs/vision.md](docs/vision.md) for goals and non-goals, and
 [docs/roadmap.md](docs/roadmap.md) for the scoped, INVEST-checked plan.
 
 ## Documentation
@@ -43,6 +44,7 @@ See [docs/vision.md](docs/vision.md) for goals and non-goals, and
 | Doc | What it covers |
 |---|---|
 | [docs/vision.md](docs/vision.md) | Problem, users, goals, non-goals, glossary |
+| [docs/use-cases.md](docs/use-cases.md) | Three concrete use cases: checking a model (v1), gating a merge, gating an agent |
 | [docs/roadmap.md](docs/roadmap.md) | Milestones and v1 scope items, each INVEST-checked |
 | [docs/prior-art.md](docs/prior-art.md) | Related work and how Mitra differs |
 | [docs/scoping-method.md](docs/scoping-method.md) | INVEST rules, sizing, definition of done |

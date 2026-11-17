@@ -21,6 +21,8 @@ script or, later, an agent harness that needs a number and a reason to decide
 whether to proceed. Humans see Mitra's output through such programs; v1 ships
 one tiny demo app for that purpose only.
 
+Concrete scenarios are in [use-cases.md](use-cases.md).
+
 ## Principles
 
 1. **The engine is the product.** Integrations come after the core is proven.
