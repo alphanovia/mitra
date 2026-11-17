@@ -50,6 +50,7 @@ in an agent skill, and regular enough for an LLM to read and write.
 | [docs/validation.md](docs/validation.md) | How Mitra is validated: a ladder of toy `add` CLIs scored against ground truth |
 | [docs/use-cases.md](docs/use-cases.md) | Where Mitra is headed: checking a model, gating a merge, gating an agent |
 | [docs/prior-art.md](docs/prior-art.md) | Related work and how Mitra differs |
+| [docs/research/](docs/research/README.md) | Deeper reading: assurance tools, confidence calculi, Mitra's wedge |
 | [docs/scoping-method.md](docs/scoping-method.md) | INVEST rules used to scope work |
 
 ## License

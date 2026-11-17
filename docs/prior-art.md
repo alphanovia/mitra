@@ -12,3 +12,6 @@ proof assistants. None of these alone does what Mitra aims to do.
 | **Bayesian networks** | Probabilistic graphical models with well-understood inference. | Considered as an alternative calculus. Expressive, but needs priors and conditional tables that users rarely have, and collapses "unknown" into a probability. |
 | **Lean 4, Verus** | Proof assistant, and verification of Rust code. | Used to build Mitra itself. Later, a Lean proof is also one of the strongest kinds of evidence a model can contain. |
 | **SLSA, in-toto** | Signed attestations about how software was built. | Possible future evidence sources. Not in scope yet. |
+
+For the full survey, critiques of subjective logic and the proposed wedge,
+see [research/](research/README.md).
