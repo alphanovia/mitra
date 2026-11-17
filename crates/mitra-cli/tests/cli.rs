@@ -168,7 +168,7 @@ fn ingest_turns_test_results_into_evidence() {
     assert_eq!(
         out,
         "4 results: 2 passed, 2 failed; 2 evidence added\n\
-         test t_all failed on a set of inputs: no evidence, Mitra can't tell which input was wrong\n\
+         test t_all failed: no evidence, since it is about a set of inputs, and Mitra can't tell which one was wrong\n\
          no `test` declared for: t_other\n"
     );
     let evidence = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();

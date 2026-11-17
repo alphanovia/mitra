@@ -19,24 +19,31 @@ pub fn next(model: &Model, report: &Report) -> String {
         let c = model.claim(&v.claim).expect("verdicts name claims");
         let missing = v.domain.minus(&v.covered);
         out += &format!("{} : missing {}\n", c.name, missing.show(&v.domain));
-        let waiting: Vec<&str> = c
-            .from
-            .iter()
-            .filter(|p| {
-                report
-                    .verdicts
-                    .iter()
-                    .any(|w| &&w.claim == p && w.logic != Logic::Holds)
-            })
-            .map(|p| p.as_str())
-            .collect();
+        let premise = |logic: Logic| -> Vec<&str> {
+            c.from
+                .iter()
+                .filter(|p| {
+                    report
+                        .verdicts
+                        .iter()
+                        .any(|w| &&w.claim == p && w.logic == logic)
+                })
+                .map(|p| p.as_str())
+                .collect()
+        };
+        let (failing, waiting) = (premise(Logic::Fails), premise(Logic::Uncertain));
+        if !failing.is_empty() {
+            out += &format!("  derived: premise fails: {}\n", failing.join(", "));
+        }
         if !waiting.is_empty() {
             out += &format!("  derived: waits on {}\n", waiting.join(", "));
         }
         let subject = model.function(&c.func).is_some_and(|f| !f.is_spec());
-        match missing.values() {
-            Some(inputs) if subject && inputs.len() <= LIST => {
-                for input in inputs {
+        // Size first: listing a large finite set is slow.
+        let size = missing.size_bound();
+        match size {
+            Some(n) if subject && n <= LIST as f64 => {
+                for input in missing.values().unwrap_or_default() {
                     let call = call(&c.func, &input);
                     out += &match c.target {
                         Target::Correct => format!("  evidence correct ({call}) at 1\n"),
@@ -44,10 +51,9 @@ pub fn next(model: &Model, report: &Report) -> String {
                     };
                 }
             }
-            Some(inputs) => {
+            Some(n) => {
                 out += &format!(
-                    "  {} inputs: test them, or bring evidence over the whole set (a proof)\n",
-                    inputs.len()
+                    "  {n} inputs: test them, or bring evidence over the whole set (a proof)\n"
                 )
             }
             None => out += "  infinite: tests can't cover it, only evidence over a set (a proof)\n",
@@ -90,5 +96,21 @@ mod tests {
              \x20 derived: waits on not_spec\n\
              \x20 evidence not false = <output> at 1\n"
         );
+    }
+
+    #[test]
+    fn sizes_large_sets_and_names_failing_premises() {
+        let model = "opaque pair (x y : Int) : Bool\n\
+                     opaque not (a : Bool) : Bool\n\
+                     opaque other (a : Bool) : Bool\n\
+                     claim huge : ∀ x ∈ Icc 0 999999999, ∀ y ∈ Icc 0 9, correct (pair x y)\n\
+                     claim fails : ∀ a, correct (not a)\n\
+                     claim on_fails : ∀ a, correct (other a) := by derive [fails]";
+        let evidence = "evidence correct (pair 0 0) at 1\nevidence ¬ correct (not true) at 1";
+        let m = load(model, evidence).unwrap();
+        let r = evaluate(&m).unwrap();
+        let text = next(&m, &r);
+        assert!(text.contains("  9999999999 inputs: test them"), "{text}");
+        assert!(text.contains("  derived: premise fails: fails\n"), "{text}");
     }
 }

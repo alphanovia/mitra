@@ -111,22 +111,31 @@ pub struct Test {
 
 impl Test {
     /// The evidence a run gives: the judgment when it passed. When it
-    /// failed, the opposite judgment if the test is about a single input;
-    /// otherwise nothing, since Mitra can't tell which input was wrong.
-    pub fn outcome(&self, passed: bool) -> Option<Evidence> {
+    /// failed, `¬ correct` or `¬ c` if the test claims `correct` or `c` on a
+    /// single input. Otherwise a failure gives nothing: on a set, Mitra
+    /// can't tell which input was wrong; for an output, it doesn't know the
+    /// output; and a failed negative test is no proof of correctness (it may
+    /// have failed for another reason).
+    pub fn outcome(&self, passed: bool) -> Result<Evidence, &'static str> {
         let mut e = self.judgment.clone();
         if passed {
-            return Some(e);
+            return Ok(e);
         }
-        if single(&e.pattern).is_none() || e.pattern.is_empty() {
-            return None;
+        if e.pattern.is_empty() || single(&e.pattern).is_none() {
+            return Err("it is about a set of inputs, and Mitra can't tell which one was wrong");
         }
-        e.judgment = match e.judgment {
-            Judgment::Correct(ok) => Judgment::Correct(!ok),
-            Judgment::Holds(ok) => Judgment::Holds(!ok),
-            Judgment::Output(_) => return None,
-        };
-        Some(e)
+        e.judgment =
+            match e.judgment {
+                Judgment::Correct(true) => Judgment::Correct(false),
+                Judgment::Holds(true) => Judgment::Holds(false),
+                Judgment::Output(_) => {
+                    return Err("the output it checks was something else, Mitra doesn't know what")
+                }
+                _ => return Err(
+                    "a failed negative test proves nothing: it may have failed for another reason",
+                ),
+            };
+        Ok(e)
     }
 }
 

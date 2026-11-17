@@ -189,15 +189,19 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 }
             }
             let text = read(path)?;
+            let text = text.trim_start_matches('\u{feff}');
             let outcomes = match format.as_deref() {
-                Some("junit") => report::junit(&text),
-                Some("libtest") => report::libtest(&text),
-                None if text.trim_start().starts_with('<') => report::junit(&text),
-                None => report::libtest(&text),
+                Some("junit") => report::junit(text),
+                Some("libtest") => report::libtest(text),
+                None if text.trim_start().starts_with('<') => report::junit(text),
+                None => report::libtest(text),
                 Some(f) => return Err(format!("unknown format `{f}` (libtest, junit)")),
             };
-            if rev.as_ref().is_some_and(|r| r.contains(['"', '\n', '\r'])) {
-                return Err("--rev: quotes and line breaks are not allowed".into());
+            if rev
+                .as_ref()
+                .is_some_and(|r| r.is_empty() || r.contains(['"', '\n', '\r']))
+            {
+                return Err("--rev: must not be empty or hold quotes or line breaks".into());
             }
             let s = store::Store::find()?;
             let model = s.model()?;
@@ -208,16 +212,26 @@ fn run(args: Vec<String>) -> Result<(), String> {
                     unknown.push(o.name.as_str());
                     continue;
                 };
+                let times = outcomes.iter().filter(|p| p.name == o.name).count();
+                if times > 1 {
+                    let note = format!(
+                        "test {} appears {times} times in the report: left out",
+                        t.name
+                    );
+                    if !notes.contains(&note) {
+                        notes.push(note);
+                    }
+                    continue;
+                }
                 match t.outcome(o.passed) {
-                    Some(mut e) => {
+                    Ok(mut e) => {
                         e.source = Some(format!("test:{}", t.name));
                         e.rev = rev.clone();
                         evidence.push(e);
                     }
-                    None => notes.push(format!(
-                        "test {} failed on a set of inputs: no evidence, Mitra can't tell which input was wrong",
-                        t.name
-                    )),
+                    Err(why) => {
+                        notes.push(format!("test {} failed: no evidence, since {why}", t.name))
+                    }
                 }
             }
             if !evidence.is_empty() {

@@ -26,11 +26,14 @@ status 2.
   `ok: F functions, C claims, T tests, E evidence`, then any contested
   evidence.
 - `next` lists each uncertain claim with the inputs it is missing (its
-  domain minus the inputs covered), the premises a derived claim waits on,
-  and what to add: the evidence lines to write when at most 5 inputs are
+  domain minus the inputs covered), the premises of a derived claim that
+  fail (`derived: premise fails: p`) or are uncertain (`derived: waits on
+  p`), and what to add: the evidence lines to write when at most 5 inputs are
   missing on a subject (`evidence f 2 = <output> at 1` for an `=` claim:
-  run `f 2` and fill in its output), else how many inputs are missing, or
-  that the set is infinite and only evidence over a set can cover it.
+  run `f 2` and fill in its output), else how many inputs are missing
+  (counted without listing them), or that the set is infinite and only
+  evidence over a set can cover it. Inputs with contradicting evidence
+  count as missing too.
   It prints `nothing uncertain` when every claim holds or fails.
 - `--rev R` on `check`, `eval` and `next` leaves out **stale** evidence:
   evidence whose `rev` attribute is set and differs from `R`. Evidence with
@@ -56,10 +59,15 @@ status 2.
 - `ingest` reads a test report and appends, for each test the model
   declares with `test` (see below), the evidence its result gives, with
   `source "test:<name>"` and the `--rev` given. Formats: `libtest` (the
-  text `cargo test` prints, lines `test <path> ... ok|FAILED`) and `junit`
-  (JUnit XML: `<testcase name="…">`, failed if it holds `<failure` or
-  `<error`, left out if `<skipped`). Without `--format`, a report starting
-  with `<` is JUnit. A test's name is the last `::` segment of its path.
+  text `cargo test` prints, lines `test <path> ... ok|FAILED`, optionally
+  followed by a time, as with `--report-time`; ` - should panic` is dropped
+  from the path) and `junit` (JUnit XML: `<testcase name="…">` or `name='…'`,
+  failed if it holds `<failure` or `<error`, left out if `<skipped`; CDATA,
+  `<system-out>` and `<system-err>` are ignored). Without `--format`, a
+  report starting with `<` (after a byte order mark) is JUnit. A test's
+  name is the last `::` segment of its path. Any other line or element is
+  ignored without a message. A test that appears more than once in a report
+  is left out, with a note. `--rev` must not be empty.
   `ingest` prints how many results passed and failed, how many evidence
   lines it added, failed tests that gave no evidence, and the tests with no
   `test` declaration.
@@ -293,11 +301,13 @@ written as in `evidence`, without a confidence. `mitra ingest` turns a
 result into evidence at 1:
 
 - a pass gives the judgment;
-- a failure gives the opposite judgment (`correct` ↔ `¬ correct`, `c` ↔
-  `¬ c`) when the test is about a single input, and nothing otherwise: a
-  failed test over a set says the code is wrong somewhere in it, which
-  Mitra cannot express yet. A failed `f args = v` test gives nothing either
-  (the output was something else, but Mitra does not know what).
+- a failure gives `¬ correct (…)` for a `correct (…)` test, and `¬ c …`
+  for a `c …` test, when the test is about a single input. Otherwise it
+  gives nothing: a failed test over a set says the code is wrong somewhere
+  in it, which Mitra cannot express yet; a failed `f args = v` test says
+  the output was something else, but not what; and a failed negative test
+  (`¬ correct …`, `¬ c …`) proves nothing, since it may have failed for
+  another reason.
 
 Test names share the namespace of functions and claims.
 

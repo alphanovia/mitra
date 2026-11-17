@@ -125,6 +125,16 @@ impl Tuples {
         Some(out.into_iter().collect())
     }
 
+    /// The sum of the boxes' sizes, without listing them, if every box is
+    /// finite. Exact when the boxes are disjoint, as `minus` leaves the
+    /// pieces of one box; an upper bound otherwise.
+    pub fn size_bound(&self) -> Option<f64> {
+        self.boxes
+            .iter()
+            .map(|b| b.iter().map(Set::count).product::<Option<f64>>())
+            .sum()
+    }
+
     pub fn count(&self) -> Option<f64> {
         self.values().map(|v| v.len() as f64)
     }
