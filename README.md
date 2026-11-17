@@ -72,6 +72,7 @@ direction, not the current language.
 | [docs/design/workflow.md](docs/design/workflow.md) | Proposal: the developer loop CLI, CI test ingestion and the evidence store |
 | [docs/use-cases.md](docs/use-cases.md) | Where Mitra is headed: checking a model, gating a merge, gating an agent |
 | [docs/validation.md](docs/validation.md) | How Mitra will be validated: a ladder of toy `add` CLIs scored against ground truth |
+| [docs/trials.md](docs/trials.md) | Field trials, done by hand: a Rust project, an agile organisation judged from news, an agent judged against a skill |
 | [docs/prior-art.md](docs/prior-art.md) | Related work and how Mitra differs |
 | [docs/research/](docs/research/README.md) | Deeper reading: assurance tools, confidence calculi and the open calculus candidates, Mitra's wedge |
 | [docs/scoping-method.md](docs/scoping-method.md) | INVEST rules used to scope work |

@@ -2,7 +2,8 @@
 
 How we find out whether Mitra's diagnosis is any good: toy CLI apps whose
 correctness we know exactly, annotated in Mitra, with Mitra's output scored
-against that ground truth.
+against that ground truth. The [field trials](trials.md) test Mitra on
+real work, where the truth is not known.
 
 ## The toy
 
