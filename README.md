@@ -70,6 +70,7 @@ direction, not the current language.
 | [docs/design/calculus.md](docs/design/calculus.md) | Spec: the axioms a confidence calculus must meet, the operators, candidates scored, why earlier confidence measures failed |
 | [docs/design/composition.md](docs/design/composition.md) | Proposal: composition as implication, structure claims, tests as subjects |
 | [docs/design/dogfooding.md](docs/design/dogfooding.md) | Plan: Mitra on Mitra: the calculus crate judged from its own tests, and Mitra's semantics written in Mitra |
+| [docs/design/requirements.md](docs/design/requirements.md) | Proposal: prose requirements as opaque propositions derived from claims, for traceability |
 | [docs/design/elaboration.md](docs/design/elaboration.md) | Proposal: Mitra elaborates partial knowledge into claims, splits, specs and proof obligations |
 | [docs/review/2026-11-18.md](docs/review/2026-11-18.md) | Review list from the overnight prototype run: decisions, open questions, how to test |
 | [docs/design/lean-syntax.md](docs/design/lean-syntax.md) | Decision: a standalone language with a fixed LL(1) syntax inspired by Lean 4 (implemented) |
