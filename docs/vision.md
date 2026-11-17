@@ -21,6 +21,23 @@ reach ([validation.md](validation.md)). The confidence calculus is still open;
 subjective logic was the first candidate and is now only prior art. Everything else (CI
 gates, agent harnesses, apps) is built on top later.
 
+## What success looks like
+
+Mitra succeeds if it makes software more reliable for less effort:
+
+- **Faster root cause.** After a bug report, the faulty part is near the
+  top of Mitra's diagnosis.
+- **Fewer tests for the same confidence.** Mitra points at the evidence that
+  matters, so fewer tests reach a good coverage.
+- **Fewer escaped defects.** A claim Mitra believes strongly rarely turns
+  out wrong, and its belief can be trusted as a number.
+
+How each one is measured is in [validation.md](validation.md#success-criteria).
+
+**Kill criterion.** If dogfooding has not changed one real decision by the
+time `mitra-ds` is annotated ([design/dogfooding.md](design/dogfooding.md)),
+rethink the approach.
+
 ## Layers
 
 ```text

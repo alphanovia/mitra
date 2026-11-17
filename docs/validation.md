@@ -61,6 +61,24 @@ not. Mitra never sees it; it is what Mitra's output is scored against.
    first. On R0 without branches, `conflicts` fires on `add_correct` (passes
    and failures on the same claim), suggesting the split.
 
+## Success criteria
+
+The metrics above check Mitra's verdicts. These check that Mitra is useful
+([vision.md](vision.md#what-success-looks-like)):
+
+1. **Root-cause rank.** Inject mutations (one wrong function at a time) into
+   the add ladder and into `mitra-ds`, add a bug report as evidence, and
+   record the rank of the mutated function in `mitra diag`. Target: top 1 to
+   3.
+2. **Tests to target belief.** Count the tests needed to reach a target
+   belief when following `mitra next`, against a naive baseline (random
+   inputs) and a coverage-guided one. Target: clearly fewer.
+3. **Escaped defects.** On the dogfood repository, count bugs found after a
+   claim covering them held with high belief. Target: rare, and each one
+   explained.
+4. **Calibration.** Claims held at belief b should survive later evidence
+   at a rate close to b.
+
 ## Open questions
 
 - **Who writes the split?** Here it is written from the spec. A stronger result
