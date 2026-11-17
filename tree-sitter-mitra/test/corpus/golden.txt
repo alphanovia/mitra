@@ -691,3 +691,54 @@ evidence minus_shape at 1
     (call
       (name))
     (number)))
+
+============================================================
+attributes and tests
+============================================================
+
+test t_true : correct (not true)
+test t_all : ∀ a ∈ {true, false}, correct (not a)
+@[source "test:t_true", rev "3f2a -- not a comment"] evidence correct (not true) at 1
+@[rev ""] evidence not_correct at 0
+
+---
+
+(source_file
+  (test
+    (name)
+    (correct
+      (call
+        (name)
+        (boolean))))
+  (test
+    (name)
+    (forall
+      (name)
+      (set_literal
+        (boolean)
+        (boolean)))
+    (correct
+      (call
+        (name)
+        (name))))
+  (evidence
+    (attributes
+      (attribute
+        (name)
+        (string))
+      (attribute
+        (name)
+        (string)))
+    (correct
+      (call
+        (name)
+        (boolean)))
+    (number))
+  (evidence
+    (attributes
+      (attribute
+        (name)
+        (string)))
+    (call
+      (name))
+    (number)))

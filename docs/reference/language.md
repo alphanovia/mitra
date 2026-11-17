@@ -20,9 +20,11 @@ mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 status 2.
 
 - `eval` writes one verdict per claim and policy (see Output) to
-  `result.txt`, or to standard output without `-o`.
-- `check` parses and checks both files, prints
-  `ok: F functions, C claims, E evidence`, then any contested evidence.
+  `result.txt`, or to standard output without `-o`. The result file may not
+  start with `-` or end in `.mitra`, so a store file is never overwritten.
+- `check` parses, checks and evaluates both files, prints
+  `ok: F functions, C claims, T tests, E evidence`, then any contested
+  evidence.
 - `next` lists each uncertain claim with the inputs it is missing (its
   domain minus the inputs covered), the premises a derived claim waits on,
   and what to add: the evidence lines to write when at most 5 inputs are
@@ -33,12 +35,17 @@ status 2.
 - Without file names, `check`, `eval` and `next` use the **store**: the nearest
   `.mitra/` folder at or above the current one, with `model.mitra` and
   `evidence.mitra`.
+- A `.mitra` that is not a folder is an error.
 - `init` creates `.mitra/` with an empty model, an empty evidence file and a
   `.gitattributes` that merges `evidence.mitra` with git's `union` driver.
   It never overwrites an existing store.
 - `add` parses the evidence given, checks it against the store's model and
   evidence, and appends it to `evidence.mitra`, printed in normal form with
-  its `source` and `rev` attributes. Nothing is written if the check fails.
+  its `source` and `rev` attributes. The store must check and evaluate
+  without error before, and with the new evidence after; otherwise nothing
+  is written. Errors in the new text are reported as `evidence to add: line
+  N: …`, counted from its first line. `--source` and `--rev` may each be
+  given once, and not when the text already has that attribute.
   The evidence file is only ever appended to, so two branches that add
   evidence merge as the union of their lines.
 - `ingest` reads a test report and appends, for each test the model
@@ -244,8 +251,8 @@ evidence ∀ x ∈ Icc 0 100, correct (id x) at 1
 evidence not_not_shape at 1
 ```
 
-- `f args = v`: the subject was run on one input and returned `v`. Used by
-  `=` claims.
+- `f args = v`: the subject was run on one input and returned `v`, which
+  must lie in its result type. Used by `=` claims.
 - `correct (f args)` / `¬ correct (f args)`: people judged the subject's
   results on these inputs correct (or wrong). A single input is a test; a
   set is evidence for every input in it, such as a proof. Used by `correct`

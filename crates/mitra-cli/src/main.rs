@@ -104,6 +104,11 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 [p @ .., o, out] if o == "-o" => (p, Some(out)),
                 p => (p, None),
             };
+            if out.is_some_and(|o| o.starts_with('-') || o.ends_with(".mitra")) {
+                return Err(
+                    "-o: the result file must not start with `-` or end in `.mitra`".into(),
+                );
+            }
             let (m, e) = inputs(paths)?;
             let (_, report) = evaluate(&m, &e)?;
             let text = report.to_text();
@@ -124,8 +129,8 @@ fn run(args: Vec<String>) -> Result<(), String> {
             while let Some(o) = opts.next() {
                 let v = opts.next().ok_or(USAGE)?;
                 match o.as_str() {
-                    "--source" => source = Some(v.clone()),
-                    "--rev" => rev = Some(v.clone()),
+                    "--source" if source.is_none() => source = Some(v.clone()),
+                    "--rev" if rev.is_none() => rev = Some(v.clone()),
                     _ => return Err(USAGE.into()),
                 }
             }
@@ -143,8 +148,8 @@ fn run(args: Vec<String>) -> Result<(), String> {
             while let Some(o) = opts.next() {
                 let v = opts.next().ok_or(USAGE)?;
                 match o.as_str() {
-                    "--format" => format = Some(v.clone()),
-                    "--rev" => rev = Some(v.clone()),
+                    "--format" if format.is_none() => format = Some(v.clone()),
+                    "--rev" if rev.is_none() => rev = Some(v.clone()),
                     _ => return Err(USAGE.into()),
                 }
             }

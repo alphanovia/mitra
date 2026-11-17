@@ -344,6 +344,17 @@ impl Model {
                             "an observed output needs a single input value".into(),
                         ));
                     }
+                    if let Judgment::Output(v) = &e.judgment {
+                        if !f.range.contains(v) {
+                            return Err(ev(
+                                e.line,
+                                format!(
+                                    "output {v} is outside the result type of `{}`: {}",
+                                    f.name, f.range
+                                ),
+                            ));
+                        }
+                    }
                 }
                 (_, None, _) => return Err(ev(e.line, format!("`{}` is not a subject", e.about))),
             }

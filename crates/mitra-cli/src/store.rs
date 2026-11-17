@@ -23,11 +23,15 @@ impl Store {
     /// The nearest `.mitra/` at or above the current folder.
     pub fn find() -> Result<Store, String> {
         let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
-        cwd.ancestors()
+        let dir = cwd
+            .ancestors()
             .map(|d| d.join(DIR))
-            .find(|d| d.is_dir())
-            .map(|dir| Store { dir })
-            .ok_or_else(|| format!("no {DIR}/ folder here or above: run `mitra init`"))
+            .find(|d| d.exists())
+            .ok_or_else(|| format!("no {DIR}/ folder here or above: run `mitra init`"))?;
+        if !dir.is_dir() {
+            return Err(format!("{} is not a folder", dir.display()));
+        }
+        Ok(Store { dir })
     }
 
     /// Create `.mitra/` in `root`. Never overwrites an existing store.
@@ -71,8 +75,19 @@ impl Store {
             }
         }
         for ev in &mut new {
-            ev.source = source.clone().or(ev.source.take());
-            ev.rev = rev.clone().or(ev.rev.take());
+            for (flag, given, attr) in [
+                ("--source", &source, &mut ev.source),
+                ("--rev", &rev, &mut ev.rev),
+            ] {
+                if given.is_some() {
+                    if attr.is_some() {
+                        return Err(format!(
+                            "{flag} is given twice: in the option and in the evidence"
+                        ));
+                    }
+                    *attr = given.clone();
+                }
+            }
         }
         self.append(&new)?;
         Ok(new.len())
@@ -89,29 +104,43 @@ impl Store {
     }
 
     /// Check new evidence against the model and the evidence already
-    /// there, then append it, normalised. Nothing is written on an error.
+    /// there, evaluate, then append it, normalised. Nothing is written on an
+    /// error. Errors in the store name its file; errors in the new evidence
+    /// are numbered from its first line.
     pub fn append(&self, new: &[mitra_core::Evidence]) -> Result<(), String> {
         let (m, e) = (self.model_path(), self.evidence_path());
         let read = |p: &str| std::fs::read_to_string(p).map_err(|err| format!("{p}: {err}"));
         let (model, old) = (read(&m)?, read(&e)?);
-        let printed = mitra_core::print_evidence(new, None);
-        let all = format!("{old}\n{printed}");
-        let checked = mitra_core::load(&model, &all).map_err(|(input, err)| match input {
+        let located = |input, err: mitra_core::Error| match input {
             mitra_core::Input::Model => format!("{m}: {err}"),
-            mitra_core::Input::Evidence => format!("evidence: {}", err.message),
-        })?;
-        // Print with the model, so bound names follow the parameters.
-        let lines = mitra_core::print_evidence(new, Some(&checked));
+            mitra_core::Input::Evidence => format!("{e}: {err}"),
+        };
+        // The store must be sound before anything is added to it.
+        let before = mitra_core::load(&model, &old).map_err(|(i, err)| located(i, err))?;
+        mitra_core::evaluate(&before).map_err(|(i, err)| located(i, err))?;
         let sep = if old.is_empty() || old.ends_with('\n') {
             ""
         } else {
             "\n"
         };
+        let printed = mitra_core::print_evidence(new, Some(&before));
+        let offset = format!("{old}{sep}").lines().count();
+        let blame = |input, err: mitra_core::Error| match input {
+            mitra_core::Input::Evidence if err.line > offset => format!(
+                "evidence to add: line {}: {}",
+                err.line - offset,
+                err.message
+            ),
+            i => located(i, err),
+        };
+        let all = format!("{old}{sep}{printed}");
+        let after = mitra_core::load(&model, &all).map_err(|(i, err)| blame(i, err))?;
+        mitra_core::evaluate(&after).map_err(|(i, err)| blame(i, err))?;
         use std::io::Write;
         std::fs::OpenOptions::new()
             .append(true)
             .open(&e)
-            .and_then(|mut f| f.write_all(format!("{sep}{lines}").as_bytes()))
+            .and_then(|mut f| f.write_all(format!("{sep}{printed}").as_bytes()))
             .map_err(|err| format!("{e}: {err}"))
     }
 }

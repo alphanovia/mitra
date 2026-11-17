@@ -91,6 +91,46 @@ fn store_init_add_check_eval() {
             .ends_with("@[source \"review:ana\", rev \"3f2a\"] evidence correct (not true) at 1\n"),
         "{before}"
     );
+    // An output outside the result type is refused, and blamed on the new text.
+    let (code, _, err) = mitra(
+        &sub,
+        &[
+            "add",
+            "evidence not true = false at 1\nevidence not false = 3 at 1",
+        ],
+    );
+    assert_eq!(code, Some(2));
+    assert!(
+        err.contains("evidence to add: line 2: output 3 is outside the result type of `not`"),
+        "{err}"
+    );
+    // --source twice, or in both the option and the text, is refused.
+    assert_eq!(
+        mitra(
+            &sub,
+            &[
+                "add",
+                "evidence not true = false at 1",
+                "--source",
+                "a",
+                "--source",
+                "b"
+            ]
+        )
+        .0,
+        Some(2)
+    );
+    let (_, _, err) = mitra(
+        &sub,
+        &[
+            "add",
+            "@[source \"a\"] evidence not true = false at 1",
+            "--source",
+            "b",
+        ],
+    );
+    assert!(err.contains("--source is given twice"), "{err}");
+    assert_eq!(mitra(&sub, &["eval", "-o", "x.mitra"]).0, Some(2));
     mitra(
         &sub,
         &["add", "evidence ∀ a ∈ {false}, ¬ correct (not a) at 1"],
@@ -142,5 +182,26 @@ fn ingest_turns_test_results_into_evidence() {
     let (_, out, _) = mitra(&dir, &["eval"]);
     let expected = std::fs::read_to_string(format!("{GOLDEN}/expected.txt")).unwrap();
     assert_eq!(out, expected);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_broken_store_is_blamed_not_the_new_evidence() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-broken-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    mitra(&dir, &["init"]);
+    let model = std::fs::read_to_string(format!("{GOLDEN}/model.mitra")).unwrap();
+    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    let ev = dir.join(".mitra/evidence.mitra");
+    let broken = std::fs::read_to_string(&ev).unwrap() + "evidence nope 1 = 2 at 1\n";
+    std::fs::write(&ev, &broken).unwrap();
+    let (code, _, err) = mitra(&dir, &["add", "evidence not true = false at 1"]);
+    assert_eq!(code, Some(2));
+    assert!(
+        err.contains("evidence.mitra: line 2: `nope` is not a subject"),
+        "{err}"
+    );
+    assert_eq!(std::fs::read_to_string(&ev).unwrap(), broken);
     let _ = std::fs::remove_dir_all(dir);
 }
