@@ -164,12 +164,11 @@ fn at(e: &Expr, min: u8) -> String {
         }
         Expr::Unary(op, a) => {
             let inner = at(a, UNARY);
-            // `- -x` must not print as the comment `--x`.
-            let inner = if inner.starts_with('-') {
-                format!("({inner})")
-            } else {
-                inner
-            };
+            // `- -x` must not print as the comment `--x`, and `-(5)` must not
+            // print as the literal `-5`.
+            let glued = inner.starts_with('-')
+                || (*op == "-" && inner.starts_with(|c: char| c.is_ascii_digit()));
+            let inner = if glued { format!("({inner})") } else { inner };
             (format!("{op}{inner}"), UNARY)
         }
         Expr::Binary(op, a, b) => {

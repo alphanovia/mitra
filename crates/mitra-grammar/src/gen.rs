@@ -40,7 +40,11 @@ fn name(r: &mut Rng) -> String {
 }
 
 fn nat(r: &mut Rng) -> String {
-    r.below(11).to_string()
+    match r.below(20) {
+        0 => "9223372036854775807".into(),
+        1 => "123456".into(),
+        _ => r.below(11).to_string(),
+    }
 }
 
 /// `number`: what weights and confidences use.
@@ -262,7 +266,16 @@ fn command(r: &mut Rng) -> String {
 
 /// A random model file.
 pub fn model(r: &mut Rng) -> String {
-    r.many(0, 8, |r| command(r) + "\n").concat()
+    r.many(0, 8, |r| command(r) + &comment(r) + "\n").concat()
+}
+
+/// Sometimes a comment, at the end of a line or on its own line.
+fn comment(r: &mut Rng) -> String {
+    match r.below(6) {
+        0 => " -- a comment, with ∀ and \"quotes\"".into(),
+        1 => "\n-- a line comment".into(),
+        _ => String::new(),
+    }
 }
 
 /// A random evidence file. Confidence is 0 or 1, as the parser requires.
@@ -290,7 +303,7 @@ pub fn evidences(r: &mut Rng) -> String {
                 format!("{forall}{}{args} = {}", name(r), value(r))
             }
         };
-        format!("evidence {judgment} at {}\n", r.below(2))
+        format!("evidence {judgment} at {}{}\n", r.below(2), comment(r))
     })
     .concat()
 }

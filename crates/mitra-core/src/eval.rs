@@ -163,7 +163,7 @@ impl Eval<'_> {
                     match v {
                         Value::Bool(true) => out.extend(self.eval(t, env, line, subjects)?),
                         Value::Bool(false) => out.extend(self.eval(f, env, line, subjects)?),
-                        v => return err(format!("`if` needs a bool, got {v}")),
+                        v => return err(format!("`if` needs a Bool, got {v}")),
                     }
                 }
                 out

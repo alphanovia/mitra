@@ -44,7 +44,7 @@ impl Function {
 /// parameter.
 pub type Pattern = Vec<Position>;
 
-/// One position of a pattern: `_`, a value, `x` or `x in <set>`.
+/// One argument of a call: a bound name (`∀ x,` or `∀ x ∈ S,`) or a value.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     /// The name bound to the input, if any.
@@ -62,7 +62,7 @@ pub enum Target {
     Matches(Expr),
 }
 
-/// `claim name: f(pattern) correct|matches <expr> [from c1, c2]`
+/// `claim name : ∀ …, correct (f args) | f args = e [:= by derive [c1, c2]]`
 #[derive(Debug, Clone, PartialEq)]
 pub struct Claim {
     pub name: String,
@@ -76,15 +76,15 @@ pub struct Claim {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Judgment {
-    /// `correct` / `wrong`, on a subject.
+    /// `correct (f args)` / `¬ correct (f args)`, on a subject.
     Correct(bool),
-    /// `-> value`: the observed output of a subject.
+    /// `f args = value`: the observed output of a subject.
     Output(Value),
-    /// `holds` / `fails`, on a claim.
+    /// `c` / `¬ c`, on a claim.
     Holds(bool),
 }
 
-/// `evidence name(pattern) <judgment> @ confidence`
+/// `evidence ∀ …, <judgment> at confidence`
 #[derive(Debug, Clone, PartialEq)]
 pub struct Evidence {
     /// A subject, or a claim for `holds`/`fails`.
@@ -95,12 +95,12 @@ pub struct Evidence {
     pub line: usize,
 }
 
-/// `profile name for subject:` then indented weighted regions.
+/// `profile name for subject` then `| x ∈ S => w` regions.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Profile {
     pub name: String,
     pub subject: String,
-    /// `None` is `otherwise`.
+    /// `None` is `_`, the rest of the domain.
     pub regions: Vec<(Option<Set>, f64)>,
     pub line: usize,
 }
@@ -216,7 +216,13 @@ impl Model {
                     }
                 }
             } else if f.is_spec() {
-                return Err(m(c.line, format!("`{}` is a spec: use `matches`", c.func)));
+                return Err(m(
+                    c.line,
+                    format!(
+                        "`{}` is a spec: `correct` is for subjects; write `{} … = …`",
+                        c.func, c.func
+                    ),
+                ));
             }
             for p in &c.from {
                 if !self.claims[..i].iter().any(|d| &d.name == p) {

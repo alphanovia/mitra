@@ -90,9 +90,13 @@ The model file holds `model`; the evidence file holds `evidences`. `nat`
 is a number without `.`; `number` may have one. Function application is by
 juxtaposition, as in Lean: `add a (negate b)`.
 
-Beyond the grammar, the parser checks the names in a claim or evidence:
-every name in `args` must be bound by a `∀` before it, and every `∀` name
-must be used exactly once.
+Beyond the grammar, the parser checks:
+
+- every name in `args` is bound by a `∀` before it, and every `∀` name is
+  distinct and used exactly once;
+- `correct (f args)` and a claim's `f args = e` have at least one argument;
+- integers fit in 64 bits (`-9223372036854775808` to
+  `9223372036854775807`), and numbers are finite.
 
 ### Grammar checks
 
@@ -111,7 +115,9 @@ The crate `crates/mitra-grammar` (not published) checks this grammar:
   is their evidence, and `mitra/expected.txt` is the verdict.
 
 `tree-sitter-mitra/` is a tree-sitter grammar for editors, with corpus
-tests taken from the golden set.
+tests taken from the golden set. It accepts a little more than the grammar
+above (model and evidence commands in one file, `if`/`let` as operands), as
+editor grammars usually do.
 
 ## Sets
 

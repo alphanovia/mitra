@@ -159,19 +159,31 @@ impl P {
         match self.peek().cloned() {
             Some(Tok::Num(s)) => {
                 self.pos += 1;
-                s.parse()
-                    .or_else(|_| self.err(format!("`{s}` is not a number")))
+                match s.parse::<f64>() {
+                    Ok(x) if x.is_finite() => Ok(x),
+                    _ => self.err(format!("`{s}` is not a number Mitra can use")),
+                }
             }
             _ => self.err("expected a number"),
         }
     }
     /// A natural number: digits only.
     fn nat(&mut self) -> Result<i64, Error> {
+        self.signed(false)
+    }
+    /// A natural number, negated when `negative`: down to `i64::MIN`.
+    fn signed(&mut self, negative: bool) -> Result<i64, Error> {
         match self.peek().cloned() {
             Some(Tok::Num(s)) if !s.contains('.') => {
-                self.pos += 1;
-                s.parse()
-                    .or_else(|_| self.err(format!("`{s}` is too large")))
+                let n: Option<i128> = s.parse().ok();
+                let n = n.map(|n| if negative { -n } else { n });
+                match n.and_then(|n| i64::try_from(n).ok()) {
+                    Some(n) => {
+                        self.pos += 1;
+                        Ok(n)
+                    }
+                    None => self.err(format!("`{s}` is outside the 64-bit integers")),
+                }
             }
             _ => self.err("expected an integer"),
         }
@@ -180,16 +192,16 @@ impl P {
     fn int_atom(&mut self) -> Result<i64, Error> {
         if self.eat("(") {
             self.expect("-")?;
-            let n = self.nat()?;
+            let n = self.signed(true)?;
             self.expect(")")?;
-            return Ok(-n);
+            return Ok(n);
         }
         self.nat()
     }
     /// value := "true" | "false" | ["-"] nat | string
     fn value(&mut self) -> Result<Value, Error> {
         if self.eat("-") {
-            return Ok(Value::Int(-self.nat()?));
+            return Ok(Value::Int(self.signed(true)?));
         }
         match self.peek().cloned() {
             Some(Tok::Ident(s)) if s == "true" || s == "false" => {
@@ -293,15 +305,15 @@ impl P {
         while self.eat("∀") {
             let line = self.line();
             let x = self.ident()?;
+            if out.iter().any(|(y, _, _)| y == &x) {
+                return Err(Error::new(line, format!("`{x}` is bound twice")));
+            }
             let set = if self.eat("∈") {
                 Some(self.set()?)
             } else {
                 None
             };
             self.expect(",")?;
-            if out.iter().any(|(y, _, _)| y == &x) {
-                return self.err(format!("`{x}` is bound twice"));
-            }
             out.push((x, set, line));
         }
         Ok(out)
@@ -312,15 +324,17 @@ impl P {
         let mut pattern = Vec::new();
         loop {
             let pos = if self.is_name() {
+                let line = self.line();
                 let x = self.ident()?;
+                let at = |m: String| Err(Error::new(line, m));
                 let Some((_, set, _)) = bound.iter().find(|b| b.0 == x) else {
-                    return self.err(format!("`{x}` is not bound: add `∀ {x},` before it"));
+                    return at(format!("`{x}` is not bound: add `∀ {x},` before it"));
                 };
                 if pattern
                     .iter()
                     .any(|p: &Position| p.var.as_ref() == Some(&x))
                 {
-                    return self.err(format!("`{x}` is used twice: one name per input"));
+                    return at(format!("`{x}` is used twice: one name per input"));
                 }
                 Position {
                     var: Some(x),
@@ -420,10 +434,12 @@ impl P {
             return Ok(Expr::Unary("!", Box::new(self.unary()?)));
         }
         if self.eat("-") {
-            return Ok(match self.unary()? {
-                Expr::Lit(Value::Int(i)) if i > 0 => Expr::Lit(Value::Int(-i)),
-                e => Expr::Unary("-", Box::new(e)),
-            });
+            // `-` right before digits is a negative literal, down to i64::MIN.
+            if matches!(self.peek(), Some(Tok::Num(n)) if !n.contains('.') && n.trim_start_matches('0') != "")
+            {
+                return Ok(Expr::Lit(Value::Int(self.signed(true)?)));
+            }
+            return Ok(Expr::Unary("-", Box::new(self.unary()?)));
         }
         if self.is_name() {
             let f = self.ident()?;
@@ -747,6 +763,32 @@ mod tests {
         assert!(e.message.contains("not bound"), "{e}");
         let e = parse_evidence("evidence ∀ x, ∀ y, correct (f x) at 1").unwrap_err();
         assert!(e.message.contains("`y` is bound but not used"), "{e}");
+    }
+
+    #[test]
+    fn reads_the_64_bit_extremes() {
+        let e = parse_evidence(
+            "evidence f (-9223372036854775808) = -9223372036854775808 at 1\n\
+             evidence ∀ x ∈ Icc (-9223372036854775808) 9223372036854775807, correct (f x) at 1",
+        )
+        .unwrap();
+        assert_eq!(e[0].judgment, Judgment::Output(Value::Int(i64::MIN)));
+        let m = parse_model("def f (a : Int) : Int := -9223372036854775808").unwrap();
+        assert_eq!(m.functions[0].body, Some(Expr::Lit(Value::Int(i64::MIN))));
+        assert!(parse_evidence("evidence f 9223372036854775808 = 1 at 1").is_err());
+        let w = format!("profile p for f | _ => 1{}", "0".repeat(400));
+        assert!(parse_model(&w)
+            .unwrap_err()
+            .message
+            .contains("not a number"));
+    }
+
+    #[test]
+    fn errors_point_at_the_name() {
+        let e = parse_evidence("evidence correct (f\n x\n) at 1").unwrap_err();
+        assert_eq!(e.line, 2);
+        let e = parse_evidence("evidence ∀ x,\n ∀ x,\n correct (f x) at 1").unwrap_err();
+        assert_eq!((e.line, e.message.contains("twice")), (2, true));
     }
 
     #[test]

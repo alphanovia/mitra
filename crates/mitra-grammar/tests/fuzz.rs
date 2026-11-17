@@ -92,19 +92,20 @@ fn golden_files_are_in_the_grammar() {
     assert!(n > 20);
 }
 
-/// Runs the generated programs and returns them as Mitra evidence.
+/// Runs the generated programs and returns them as Mitra evidence. A
+/// failure becomes `= false` evidence, so the dogfood claims can fail.
 fn fuzz() -> String {
     let mut evidence = String::new();
     for seed in 0..SEEDS {
         let mut r = gen::Rng::new(seed);
         let (model, ev) = (gen::model(&mut r), gen::evidences(&mut r));
         let o = check(&model, &ev);
-        assert!(
-            all_ok(&o),
-            "seed {seed}: {o:?}\n--- model\n{model}--- evidence\n{ev}"
-        );
+        if !all_ok(&o) {
+            eprintln!("seed {seed}: {o:?}\n--- model\n{model}--- evidence\n{ev}");
+        }
         for (subject, ok) in [
             ("grammar_accepts", o.grammar.is_ok()),
+            ("ll1_accepts", o.ll1.is_ok()),
             ("parses", o.parses.is_ok()),
             ("round_trips", o.round_trips.is_ok()),
         ] {

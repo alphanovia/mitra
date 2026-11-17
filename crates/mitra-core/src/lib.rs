@@ -63,9 +63,14 @@ pub enum Input {
     Evidence,
 }
 
-/// Parse both inputs, check them against each other, and evaluate.
-pub fn run(model: &str, evidence: &str) -> Result<Report, (Input, Error)> {
+/// Parse both inputs and check them against each other.
+pub fn load(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     let mut m = parse_model(model).map_err(|e| (Input::Model, e))?;
     m.evidence = parse_evidence(evidence).map_err(|e| (Input::Evidence, e))?;
-    evaluate(&m.check()?)
+    m.check()
+}
+
+/// Parse both inputs, check them against each other, and evaluate.
+pub fn run(model: &str, evidence: &str) -> Result<Report, (Input, Error)> {
+    evaluate(&load(model, evidence)?)
 }
