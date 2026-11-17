@@ -1,166 +1,118 @@
 # Toy models
 
-Six small models with results worked out by hand from
-[language.md](language.md), and checked with exact fractions. They are the
-first tests: an implementation must reproduce them. Base rates are 0.5 unless
-stated.
+Small models with their results worked out by hand from the draft rules in
+[language.md](language.md) (θ_pass = 0.9, θ_fail = 0.5, κ = 0.1). They are the
+first tests. All use the `add` CLI from [validation.md](validation.md).
+
+```mitra
+subject add "the CLI `add A B`"
+claim add_correct(a, b): add(a, b) = a + b
+```
 
 ## 1. Nothing known
 
-```mitra
-claim f_ok "f is correct"
-query f_ok
+```text
+add_correct   uncertain (no evidence)
 ```
 
-ω = **(0, 0, 1)**, P = **0.5**. No evidence is full uncertainty, not distrust.
+## 2. Usage, then a counterexample
 
-## 2. One first-hand test
-
-```mitra
-claim f_ok "f is correct"
-evidence f_ok : test +3        # three passing cases, run by us
-query f_ok
-```
-
-(3, 0, 2)/5 → ω = **(0.6, 0, 0.4)**, P = 0.6 + 0.5·0.4 = **0.8**.
-
-## 3. Test X verifies f
-
-The relationship is made of claims, and X's result is discounted by them.
+The naive CLI. A user tries 30 small sums and checks each one carefully.
 
 ```mitra
-claim f_ok     "f is correct"
-claim x_ok     "test X is correct"
-claim x_covers "test X exercises f's specified behaviour"
-claim x_good   "test X is a reliable witness for f"
-
-assume x_ok     = (0.8, 0, 0.2)     # reviewed test code
-assume x_covers = (0.6, 0, 0.4)     # covers the main paths only
-x_good = x_ok and x_covers
-
-evidence f_ok : test +5 via x_good  # X's 5 cases pass
-query f_ok
+evidence usage(user) : add_correct(2, 3) = pass @ 0.9
+# ... 30 such lines, all small inputs
 ```
 
-- `x_good`: P = P(x_ok)·P(x_covers) = 0.9 · 0.8 = 0.72.
-- X's result alone: (5, 0, 2)/7 = (0.714, 0, 0.286).
-- Through `x_good`: b = 0.72 · 5/7 = 0.514, d = 0, u = 0.486.
+S = 1 − (1 − 0.1 · 0.9)³⁰ = 1 − 0.91³⁰ = **0.941**. After 10 passes it was
+1 − 0.91¹⁰ = 0.611, still uncertain.
 
 ```text
-f_ok   (0.514, 0, 0.486)  P = 0.757
-  weakest:  x_covers   (P would be 0.821 if it were certain; x_ok: 0.786)
-  rests on: x_ok, x_covers
+add_correct   pass @ 0.94
 ```
 
-Five passing cases first-hand would give P = 0.857. Doubt about the test turns
-part of that into uncertainty, and the output says that improving coverage
-helps more than re-reviewing the test.
-
-## 4. Splitting a claim
-
-`f` is proven for small inputs and only tested for large ones. The builder
-asks "is `f` correct?" and gets one score per part, plus the parent.
+This is too generous: every input was small, and nothing was learned about
+large ones. Example 4 fixes this with branches. Then the user tries a large
+sum and checks it with two calculators:
 
 ```mitra
-claim f_ok       "f is correct"
-claim f_small    "f is correct for n < 1000"
-claim f_large    "f is correct for n >= 1000"
-claim spec_ok    "the Lean spec says what f should do"
-
-split f_ok = f_small, f_large
-assume f_ok.complete = (0.95, 0, 0.05)   # the two ranges cover every input
-
-assume spec_ok = (0.9, 0, 0.1)
-evidence f_small : proof via spec_ok
-evidence f_large : test +3
-query f_ok
+evidence usage(user) : add_correct(2^62, 2^62) = fail @ 0.95
 ```
-
-- `f_small`: proof (1, 0, 0) through P(spec_ok) = 0.95 → (0.95, 0, 0.05), P = 0.975.
-- `f_large`: (0.6, 0, 0.4), P = 0.8.
-- `f_ok` = `f_small and f_large and f_ok.complete`: P = 0.975 · 0.8 · 0.975 = 0.760, a = 1/8.
 
 ```text
-f_ok   (0.726, 0, 0.274)  P = 0.760
-  weakest:  f_large    (P would be 0.951; spec_ok: 0.780; f_ok.complete: 0.780)
-  rests on: spec_ok, f_ok.complete
+add_correct   fail @ 0.95      counterexample: (2^62, 2^62)
 ```
 
-The proven half is not the problem; three tests on large inputs are.
+One trusted counterexample refutes a universal claim, whatever the passes said.
 
-## 5. Is the agent's output correct?
+## 3. A doubtful counterexample
 
-An agent reports success. Its report is discounted by its track record; the
-harness also runs tests itself.
+Same 30 passes, but the failure comes from someone who thinks the output looks
+wrong and could not verify it:
 
 ```mitra
-claim task_ok  "the task output is correct"
-claim agent_ok "this agent's reports are reliable"
-
-evidence agent_ok : review +8 -2      # right 8 times, wrong twice
-evidence task_ok  : agent +1 via agent_ok
-evidence task_ok  : test +4           # harness ran 4 tests itself
-query task_ok
+evidence usage(other_user) : add_correct(2^62, 2^62) = fail @ 0.3
 ```
 
-- `agent_ok`: (8, 2, 2)/12, P = 2/3 + 0.5 · 1/6 = 3/4.
-- Agent's report: (1, 0, 2)/3 through 3/4 → (1/4, 0, 3/4).
-- Harness tests: (4, 0, 2)/6 = (2/3, 0, 1/3).
-- Fusion: k = 3/4 + 1/3 − 1/4 = 5/6; b = (1/12 + 1/2)/(5/6) = 7/10, u = (1/4)/(5/6) = 3/10.
+F = 0.3 < θ_fail, so not refuted; but a standing counterexample blocks a pass.
 
 ```text
-task_ok   (0.7, 0, 0.3)  P = 0.85
-  weakest:  agent_ok   (P would be 0.857 if it were certain)
-  rests on: (no assumptions)
+add_correct   uncertain (leaning pass @ 0.94; counterexample @ 0.3)
+next: re-check add_correct(2^62, 2^62)
 ```
 
-**Variant:** the harness's run fails twice instead (`test -2`). Fusing
-(1/4, 0, 3/4) with (0, 1/2, 1/2) gives ω = **(1/7, 3/7, 3/7)**, P = **0.357**:
-real disbelief, not just doubt, which a harness can treat as "stop", where
-high uncertainty alone would mean "gather more evidence".
+The re-check comes back `fail @ 0.95`; the most confident observation on that
+input wins, and the verdict becomes **fail @ 0.95** as in example 2.
 
-## 6. A bug report arrives
+## 4. Narrowing, and what is actually true
 
-`f_small` is proven in Lean. The proof counts only as far as the spec is right
-and the Lean model of `f` matches the Rust code.
+Branches separate what usage covered from what it did not, and an honest
+alternative says what the naive CLI really does (a release build wraps).
 
 ```mitra
-claim f_small    "f is correct for n < 1000"
-claim spec_ok    "the Lean spec says what f should do"
-claim model_ok   "the Lean model of f matches the Rust code"
-claim proof_good "the Lean proof is a reliable witness for f"
+claim add_correct(a, b):
+  fits     when -2^63 <= a + b < 2^63 : add(a, b) = a + b
+  overflow otherwise                  : add(a, b) = error
 
-assume spec_ok  = (0.9, 0, 0.1)
-assume model_ok = (0.7, 0, 0.3)      # hand-translated from Rust
-proof_good = spec_ok and model_ok
-evidence f_small : proof via proof_good
+claim add_wraps(a, b): add(a, b) = (a + b + 2^63) mod 2^64 - 2^63
+
+observe usage(user) : add(2, 3) = 5 @ 0.9
+# ... 30 small sums, as before
+observe usage(user) : add(2^62, 2^62) = -2^63 @ 0.95
 ```
 
-**Before:** P(proof_good) = 0.95 · 0.85 = 0.8075, so f_small =
-(0.8075, 0, 0.1925), P = 0.904.
-
-**Then** a user reports a crash at n = 500, and a failing regression test
-reproduces it:
-
-```mitra
-evidence f_small : test -1           # fails on n = 500
-conflicts
-```
-
-- Failing test: (0, 1, 2)/3 = (0, 0.333, 0.667), P = 0.333.
-- Fused: f_small = (646, 77, 154)/877 ≈ (0.737, 0.088, 0.176), P = **0.824**.
-  The score barely moves: one failure against a proof.
-- Conflict: \|0.904 − 0.333\| · (1 − 0.1925) · (1 − 0.667) = **0.154**, above 0.1.
+The guards route the 30 small sums to `fits` and the large one to `overflow`.
+The same observations are scored against both claims.
 
 ```text
-conflict on f_small   con = 0.154
-  for:     proof via proof_good   P = 0.904
-  against: test (first-hand)      P = 0.333
-  suspects: model_ok (0.85), spec_ok (0.95)
-  or:       f_small is false
+add_correct            fail @ 0.95
+  add_correct.fits       pass @ 0.94
+  add_correct.overflow   fail @ 0.95     counterexample: (2^62, 2^62)
+add_wraps              pass @ 0.95
 ```
 
-The aggregate score still looks healthy; the conflict query does not. It
-points at the Lean model not matching the Rust code as the most likely root
-cause, then the spec, before blaming the code itself. Fixing the model and
-re-proving, or a second failing case, resolves it either way.
+`add_wraps`: 31 passing instances, S = 1 − 0.91³⁰ · (1 − 0.095) = 0.947.
+This is the picture a person builds by exploring: correct on sums that fit,
+wrong on overflow, and what it does instead.
+
+## 5. Proof and tests: strong trust with little exploration
+
+The fixed CLI. The core addition is proven with Verus; the overflow path has
+one test.
+
+```mitra
+evidence proof(verus_add) : add_correct.fits(*)               = pass @ 0.95
+evidence test(t_ovf)      : add_correct.overflow(2^62, 2^62)  = pass @ 0.99
+```
+
+- `fits`: universal pass, U = 0.95 → **pass @ 0.95**, with no usage at all.
+- `overflow`: one instance, S = 0.1 · 0.99 = 0.099 → uncertain.
+
+```text
+add_correct            uncertain (overflow undecided)
+  add_correct.fits       pass @ 0.95     proven (verus_add)
+  add_correct.overflow   uncertain (leaning pass @ 0.10)
+next: evidence for add_correct.overflow(*) (a property test or a proof)
+```
+
+Mitra shows what was proven and where exploration is still needed.

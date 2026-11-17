@@ -14,34 +14,29 @@ The snippets use the draft syntax from [language.md](language.md).
 **Goal:** write a small model, see the trust value and why, and be sure it is
 right.
 
-**Scenario.** The developer models a sorting function: the claim "`sort` is
-correct" needs two sub-claims, "output is ordered" and "output is a
-permutation of the input". The first has a Lean proof; the second only has
-three example-based tests. The proof rests on the assumption "the Lean model of
-`sort` matches the Rust code".
+**Scenario.** The developer models the `add` CLI from
+[validation.md](validation.md): a claim narrowed by guards, a Verus proof of
+the arithmetic, and one test of the overflow path.
 
 ```mitra
-claim sort_correct "sort returns a sorted permutation of its input"
-claim ordered      "output is ordered"
-claim permutation  "output is a permutation of the input"
-claim model_ok     "the Lean model of sort matches the Rust code"
+subject add "the CLI `add A B`"
+claim add_correct(a, b):
+  fits     when -2^63 <= a + b < 2^63 : add(a, b) = a + b
+  overflow otherwise                  : add(a, b) = error
 
-assume   model_ok    = (0.8, 0, 0.2)
-evidence ordered     : proof via model_ok   # Lean proof
-evidence permutation : test +3              # three example tests
-sort_correct = ordered and permutation
+evidence proof(verus_add) : add_correct.fits(*)              = pass @ 0.95
+evidence test(t_ovf)      : add_correct.overflow(2^62, 2^62) = pass @ 0.99
 ```
 
-**What Mitra returns.** `sort_correct` gets a moderate value with high
-uncertainty, and the limiting element is `permutation`: three example tests
-are thin. Raising it (say, a property-based test) is what helps most; a second
-proof of `ordered` would barely move the result.
+**What Mitra returns.** `fits` passes at 0.95 because it is proven; `overflow`
+is uncertain because one test says little about every overflowing input; so
+`add_correct` is uncertain, and `next` asks for evidence on all of
+`overflow` (a property test or a proof).
 
-**Why it matters.** This is how the language is validated, the way subjective logic is
-validated: small nominal and corner-case models whose expected outputs are
-known, plus proven properties ("a conjunction is never trusted more than its
-weakest leg"). Every toy model in [examples.md](examples.md) is an instance of UC1, and
-a demo app would be UC1 with a screen.
+**Why it matters.** This is how the language is validated: small models
+whose correct verdicts are known. Every toy model in
+[examples.md](examples.md) is an instance of UC1, and a demo app would be UC1
+with a screen.
 
 ---
 
@@ -60,14 +55,14 @@ nobody has checked.
 **Policy, written by the team:**
 
 ```text
-merge     if  P(claim) >= 0.90 and uncertainty <= 0.15
-ask human if  uncertainty > 0.15
-block     if  disbelief > 0.20
+merge     if  verdict = pass and confidence >= 0.90
+block     if  verdict = fail and confidence >= 0.50
+ask human otherwise
 ```
 
-**What Mitra returns.** High uncertainty, low disbelief: nothing contradicts
-the claim, but little supports it independently, and the unchecked assumption
-discounts the integration test. CI routes the change to a human and reports
+**What Mitra returns.** Uncertain: nothing contradicts the claim, but little
+supports it independently, and the integration test rests on an unchecked
+assumption. CI routes the change to a human and reports
 the limiting element: "assumption `staging_token_lifetime` is unverified".
 Checking that one assumption would let the change merge on its own.
 
@@ -92,16 +87,15 @@ different strength:
 | All tests pass | Agent's own report | Weak, discounted by the agent's track record |
 | Task is done as asked | Agent's own report | Weak |
 
-**What Mitra returns.** The first claim is trusted, the other two are
-uncertain rather than distrusted. Because uncertainty is high but disbelief is
-low, the policy's answer is not "stop" but "get more evidence": the harness
+**What Mitra returns.** The first claim passes, the other two are uncertain
+rather than failed. Because nothing contradicts them, the policy's answer is not "stop" but "get more evidence": the harness
 runs the tests itself, which is the cheapest action that raises trust the
-most. If the harness's own run fails, disbelief jumps and the agent is
-stopped, and the agent's track record drops for the next decision.
+most. If the harness's own run fails, that is a trusted counterexample: the
+verdict becomes fail, the agent is stopped, and the agent's track record drops for the next decision.
 
-**Why this shapes the language now:** it is the case that needs "uncertainty is not
-distrust" (vision principle 2) and discounting by a source's reliability
-(`from` in [language.md](language.md)). Toy models of this shape are written
+**Why this shapes the language now:** it is the case that needs "uncertain" and
+"fail" to be different answers, and evidence from the agent itself to carry a
+lower confidence than evidence from the harness. Toy models of this shape are written
 now even though the harness itself comes later.
 
 ---
@@ -117,4 +111,4 @@ now even though the harness itself comes later.
 | When | first | later | later |
 
 The engine is the same in all three. Only the source of the model and the
-policy on top of the trust value change, which is why the language comes first.
+policy on top of the verdict change, which is why the language comes first.

@@ -1,129 +1,141 @@
-# Language spec (draft 2)
+# Language spec (draft 3)
 
-Mitra makes the graph of trust explicit and puts a number on every node.
-Every construct maps to a subjective-logic opinion or operator (Jøsang,
-*Subjective Logic*, 2016). This page is the meaning; the syntax is one
-projection of it and may change.
+Mitra makes the graph of trust explicit and gives every claim a **verdict**
+and a **confidence**. This page is the meaning; the syntax is one projection
+of it and may change. The confidence calculus is deliberately minimal: just
+enough for the toy models, with the real choice left open (see the end and
+[research/calculus.md](research/calculus.md)).
 
-## The core: claims and opinions
+## Claims
 
-- A **claim** is a binary proposition about a subject: "function `f` is
-  correct", "this task output is correct", "the agent only edited `src/`".
-  It is true or false.
-- Mitra's value for a claim is an **opinion** ω = (b, d, u, a): belief,
-  disbelief, uncertainty and base rate, with b + d + u = 1. Uncertainty lives
-  in the opinion, not in the claim. The **projected probability**
-  P = b + a·u is the single number a policy can use.
-- **"Partially true"** is never a value. Either split the claim into parts
-  ("`f` is correct for n < 1000" and "for n ≥ 1000"), or put the threshold in
-  the claim ("`f` is correct on at least 99% of inputs").
-
-## Relationships are claims
-
-"Test X verifies `f`" is not an edge with a weight. It is made of claims that
-can each be wrong and each get a score:
-
-1. `x_ok`: test X is itself correct;
-2. `x_covers`: test X really exercises what `f` should do;
-3. `f_ok`: `f` is correct.
-
-X's result reaches `f_ok` only **through** `x_ok and x_covers`: the weaker
-those are, the more of X's evidence turns into uncertainty about `f_ok`.
-
-## Constructs
-
-| # | Construct | Syntax | Meaning |
-|---|---|---|---|
-| 1 | Claim | `claim c "text"` | A binary claim. With nothing else said its opinion is **vacuous**: (0, 0, 1, a). |
-| 2 | Base rate | `base c = 0.3` | Sets *a*, the prior used where evidence is missing. Default 0.5. |
-| 3 | Assumption | `assume c = (b, d, u)` or `assume c` | A claim accepted without evidence: the regress stops here. The opinion is set by policy; bare `assume c` is vacuous, so only its base rate counts. Assumptions are always reported with a result. |
-| 4 | Evidence | `evidence c : kind +r -s` | *r* observations for, *s* against, giving (r, s, 2) / (r + s + 2). `kind` is one of `test`, `usage`, `review`, `agent`. |
-| 5 | Proof | `evidence c : proof` | A checked proof: the dogmatic opinion (1, 0, 0). Its real strength comes from what it is discounted by (rule 6). |
-| 6 | Via | `evidence c : … via s` | The evidence only counts as far as claim *s* holds (the test is right, the agent is reliable, the spec is faithful). With p = P(s): (b, d, u) becomes (p·b, p·d, 1 − p·(b + d)). Without `via`, the kind's policy applies (see below); with neither, evidence is first-hand. |
-| 7 | Accumulation | several `evidence` lines on one claim | **Cumulative fusion** ⊕, assumed independent: b = (b₁u₂ + b₂u₁)/k, d = (d₁u₂ + d₂u₁)/k, u = u₁u₂/k, k = u₁ + u₂ − u₁u₂. |
-| 8 | And | `c = p and q` (chains) | Binomial multiplication: P(c) = P(p)·P(q), a = a_p·a_q (Jøsang 2016, §7.1). |
-| 9 | Or, not | `c = p or q`, `not p` | Comultiplication; complement (d, b, u, 1 − a). |
-| 10 | Unless | `c = p unless q` | `p and not q`: *q* is a reason to doubt *c* (a defeater). |
-| 11 | Split | `split c = p, q` | Sugar for `c = p and q and c.complete`, creating the claim `c.complete`: "the parts cover all of *c*". It must be assumed or evidenced like any claim, else it stays vacuous. |
-| 12 | Policy | `policy kind = (b, d, u)` | How much you trust a kind of evidence. Creates the assumption `policy.kind`, used as the default `via` for that kind. |
-| 13 | Queries | `query c`, `uncertain`, `next c`, `conflicts` | See **Diagnostics**. |
-
-`#` starts a comment. Names are `[a-z_][a-z0-9_.]*`.
-
-## Policy: trust per evidence kind
-
-The main thing a user configures is how far each kind of evidence is trusted.
-A policy is an assumption like any other, so every result that depends on it
-lists it under "rests on". A starting profile:
+A claim reads like a function over mathematical values. It is untyped in the
+MVP: arguments are integers, rationals or strings, with exact arithmetic
+(`a + b` never overflows in Mitra).
 
 ```mitra
-policy proof  = (0.95, 0, 0.05)   # checked, but only as good as its spec
-policy test   = (0.80, 0, 0.20)
-policy usage  = (0.70, 0, 0.30)   # telemetry, bug reports
-policy review = (0.60, 0, 0.40)
-policy agent  = (0.50, 0, 0.50)   # an agent's own report
+subject add "the CLI `add A B`, observed from outside"
+
+claim add_correct(a, b): add(a, b) = a + b
 ```
 
-An explicit `via` replaces the policy for that line, so a specific test can be
-trusted more or less than tests in general. A kind with no policy is
-first-hand.
+- A **subject** is something outside Mitra that evidence observes: a CLI, a
+  function, an agent. Mitra never runs it. `add(a, b)` means "what the subject
+  outputs on a, b".
+- Everything else in a claim is mathematics, which Mitra can evaluate.
+  `error` is a distinguished value: the subject reports an error (non-zero
+  exit, exception).
+- A claim is **universal**: it holds for every value of its arguments.
+
+## Narrowing: guarded branches
+
+A claim can be split by guards, in the spirit of ACSL behaviours. Each branch
+is a sub-claim with its own name and its own verdict.
+
+```mitra
+claim add_correct(a, b):
+  fits     when -2^63 <= a + b < 2^63 : add(a, b) = a + b
+  overflow otherwise                  : add(a, b) = error
+```
+
+- Branches are checked in order; `otherwise` makes them exhaustive by
+  construction, so no separate "the split is complete" claim is needed.
+- Sub-claims are named `add_correct.fits` and `add_correct.overflow`.
+- The parent holds when every branch holds.
+
+**Honest alternatives.** When a claim turns out false, write what the subject
+actually does as another claim. Both are scored on the same evidence:
+
+```mitra
+claim add_wraps(a, b): add(a, b) = (a + b + 2^63) mod 2^64 - 2^63
+```
+
+## Evidence
+
+```text
+evidence <kind>(<source>) : <claim>(<inputs>) = pass | fail @ <confidence>
+```
+
+```mitra
+evidence usage(session_42) : add_correct(2, 3)         = pass @ 0.9
+evidence usage(session_43) : add_correct(2^62, 2^62)   = fail @ 0.95
+evidence test(t_small)     : add_correct(1, 1)         = pass @ 0.99
+evidence proof(verus_add)  : add_correct.fits(*)       = pass @ 0.95
+```
+
+- **What was checked:** a claim (or branch) on concrete inputs, or `(*)` for
+  every input of it (a proof, an exhaustive or property-based test). Mitra
+  evaluates guards to route concrete inputs to the right branch.
+- **The verdict observed:** `pass` or `fail`.
+- **Confidence (0 to 1):** how sure the source is of that verdict. A person
+  who checked with two calculators says `@ 0.95`; one who thinks the output
+  looks wrong but could not verify it says `fail @ 0.3`.
+- **Observations.** When the output itself is known, state it instead of a
+  verdict: `observe usage(session_43) : add(2^62, 2^62) = -2^63 @ 0.95`.
+  Mitra derives pass or fail for every claim about `add`, so a claim and its
+  honest alternative are scored on the same evidence.
+- **Re-checks.** For the same claim and inputs, the most confident
+  observation wins: re-checking a doubtful counterexample settles it.
+- **Kind:** `test`, `proof`, `usage`, `review`, `agent`. Used by policy and
+  reported in diagnostics. **Source** names who or what produced it, so that
+  evidence from one source is never counted as independent confirmation.
+
+## Output: verdict and confidence
+
+Every claim gets two values, never a single score:
+
+```text
+add_correct          fail      @ 0.95
+  add_correct.fits      uncertain (leaning pass @ 0.61)
+  add_correct.overflow  fail      @ 0.95
+```
+
+Rules for a universal claim (minimal, for the toy models):
+
+1. **Counterexamples decide.** The fail support *F* is the highest confidence
+   of any `fail` on the claim. If F ≥ θ_fail (default 0.5), the verdict is
+   **fail @ F**: one trusted counterexample refutes a universal claim.
+2. **Universal passes decide.** `(*)` passes at confidences cᵢ give
+   U = 1 − ∏(1 − cᵢ).
+3. **Instances only nudge.** Each concrete pass at confidence c adds a small
+   weight κ·c (κ = 0.1 by default, a policy):
+   S = 1 − (1 − U) · ∏(1 − κ·cᵢ).
+   If S ≥ θ_pass (default 0.9) and there is no fail evidence at all, the
+   verdict is **pass @ S**. A standing counterexample, however doubtful,
+   blocks a pass: it must be re-checked.
+4. Otherwise the verdict is **uncertain**, reported with its leaning (the
+   larger of S and F).
+5. A **parent** with branches fails if any branch fails (at that branch's
+   confidence), passes if all pass (at the lowest confidence), otherwise is
+   uncertain.
+
+## Assumptions and policy
+
+```mitra
+assume x_covers_add "test X exercises add's specified behaviour" @ 0.8
+policy usage kappa = 0.1
+policy decide pass >= 0.9, fail >= 0.5
+```
+
+An assumption is a claim accepted at a stated confidence, not computed. Every
+verdict lists the assumptions and policies it rests on.
 
 ## Diagnostics
 
-A single score is not the point. Mitra is useful when it shows **where** the
-graph is uncertain or wrong.
-
-| Query | Answers | Definition |
-|---|---|---|
-| `query c` | How much can I trust *c*, and on what? | c's opinion and P, its weakest link (first entry of `next c`), and every assumption reachable from it. |
-| `uncertain` | Where do I not know enough? | Every claim with its uncertainty *u*, highest first. |
-| `next c` | What evidence would help most? | Each leaf under *c* (assumption or claim with evidence), ranked by how much P(c) rises if that leaf were certain (set to (1, 0, 0)). Ties in name order. |
-| `conflicts` | Where is something wrong? | Every claim whose evidence lines disagree, with degree of conflict con = \|P₁ − P₂\| · (1 − u₁) · (1 − u₂) above 0.1, and its **suspects**. |
-
-**Localizing a fault.** When evidence lines on a claim conflict, at least one
-of them is wrong, so at least one claim on its `via` route is false (or the
-claim itself is). Suspects are the claims and assumptions on the routes of
-the conflicting lines, ranked by P, lowest first: the least trusted link is
-the most likely culprit. The remaining explanation, that the claim itself is
-false (the code really is buggy), is always listed last. Conflict matters because
-fusion can hide it: a strong proof and a failing test still fuse into a
-fairly high score (toy model 6).
-
-Example output:
-
-```text
-f_ok   (0.514, 0, 0.486)  P = 0.757
-  weakest:  x_covers   (P would be 0.821 if it were certain)
-  rests on: x_ok, x_covers
-```
-
-## Rules
-
-- A claim is **derived** (one `c = …` definition) or **basic** (evidence
-  and/or an assumption), never both in this draft.
-- No cycles, through definitions or through `via`.
-- Evaluation is deterministic and independent of line order.
-
-## Embedding
-
-The text is valid wherever it is placed: a fenced ` ```mitra ` block in
-Markdown (skills, harness instructions), or a docstring:
-
-```rust
-/// ```mitra
-/// claim parse_ok "parse() never panics on UTF-8 input"
-/// evidence parse_ok : test +10000 via fuzzer_ok
-/// ```
-fn parse(input: &str) -> Ast { … }
-```
+| Query | Answers |
+|---|---|
+| `query c` | c's verdict and confidence, its branches, and what it rests on. |
+| `uncertain` | Every claim whose verdict is uncertain, closest to deciding first. |
+| `next c` | Which evidence would most change c's verdict. A low-confidence counterexample is always first: re-check it. |
+| `conflicts` | Claims with both pass and fail support. On an unbranched claim this suggests a split: it holds on some inputs and not others. |
 
 ## Open questions
 
-- Should `via` combine with the kind's policy (both apply) rather than
-  replace it?
-- Should suspects be ranked by something richer than P, such as how much the
-  conflict drops if the suspect were false?
-- Fusion assumes independent evidence. When should dependent evidence (two
-  tests sharing a fixture) use averaging fusion instead?
-- Exact rationals or fixed point, so Lean and Verus can reason about results
-  exactly?
+- **The confidence calculus.** Rules 1 to 5 are a placeholder. Candidates are
+  in [research/calculus.md](research/calculus.md).
+- **Universal vs statistical claims.** Usage samples support "fails rarely"
+  far better than "never fails". Should `κ` be replaced by an explicit
+  uniformity assumption ("all small pairs take the same path")?
+- **Relationships as claims.** Can a confidence refer to another claim
+  (`@ x_ok`), so that "test X is correct" is scored rather than assumed?
+- **Mathematical types.** Are integers, rationals and strings enough for the
+  MVP?
