@@ -2,10 +2,9 @@
 
 ## One sentence
 
-Mitra is a formally verified trust engine: given a model of claims, the
-assumptions they rest on and the evidence brought for them, it computes, for each
-claim, a verdict (logic, coverage and belief) that programs can
-use as a policy input.
+Mitra is a trust engine, to be formally verified: given a model of claims
+and the evidence brought for them, it computes, for each claim, a verdict
+(logic, coverage and belief) that programs can use as a policy input.
 
 *Tests check, Lean proves, Mitra weighs.*
 
@@ -17,6 +16,12 @@ usage actually establish, and where that is not much. A proof is just the
 strongest evidence, at confidence 1 over its whole domain. Mitra's value is
 on the unproven code.
 
+Earlier attempts to measure confidence in software failed because they
+treated code as a black box, needed inputs nobody had, and gave numbers
+nobody could act on ([calculus](design/calculus.md#6-why-earlier-confidence-measures-failed)).
+Mitra writes down the hypotheses developers already rely on, such as "one
+passing input stands for this interval", and says what to check next.
+
 ## What Mitra is first
 
 A **language for trust**: subjects under review, claims that they are
@@ -25,9 +30,10 @@ correct or wrong with a confidence (see the
 [language reference](reference/language.md) for what exists today). The first thing to test
 is whether this language is right: whether small, well-understood situations
 can be written in it naturally and give the verdicts a careful person would
-reach ([validation.md](validation.md)). The confidence calculus is still open;
-subjective logic was the first candidate and is now only prior art. Everything else (CI
-gates, agent harnesses, apps) is built on top later.
+reach ([validation.md](validation.md), [trials](trials.md)). The
+confidence calculus is specified by axioms before it is chosen
+([calculus](design/calculus.md)). Everything else (CI gates, agent
+harnesses, apps) is built on top later.
 
 ## What success looks like
 
@@ -70,7 +76,8 @@ approach.
 2. **Parsing.** Text to AST. The text syntax is one projection of the model,
    not the model itself; others (JSON, an API) can exist alongside it.
 3. **Incremental use and storage.** Add evidence to a stored model and
-   re-evaluate only what changed.
+   re-evaluate. A first store exists (`.mitra/`); re-evaluating only what
+   changed does not.
 
 They are built and tested in that order.
 
@@ -103,12 +110,14 @@ evidence as contested. If a person really means "the spec is wrong", that is
 a validation question, not a verification one: the spec does not match what
 they intend. The way to say it is a claim that treats the spec itself as
 the thing under review, with its own evidence (for example
-`claim neg_intent: neg(_) correct` once specs can be judged that way).
+`claim neg_intent : ∀ a, correct (neg a)`, which is an error today because
+`neg` is a spec).
 
 ## Not now
 
 - Extracting models from code, tests or agent traces.
-- Integrations (CI, test frameworks, harnesses) and any user interface.
+- Integrations beyond reading test reports (CI plugins, agent harnesses),
+  and any user interface.
 - Learning or calibrating confidences from data.
 
 ## Glossary
@@ -118,7 +127,10 @@ the thing under review, with its own evidence (for example
 - **Claim:** a subject is correct on a set of its inputs, or matches a spec
   there. A claim can be derived from other claims.
 - **Evidence:** a run of the subject on given inputs, judged correct or
-  wrong, with a confidence from 0 (distrusted) to 1 (fully believed).
+  wrong, with a confidence from 0 (distrusted) to 1 (fully believed): the
+  probability that the observation is valid.
+- **Test:** a test of the code, declared with the evidence its result
+  stands for; `mitra ingest` turns its results into evidence.
 - **Assumption** (planned): a claim accepted at a stated confidence, not
   computed.
 - **Policy:** how evidence becomes belief, chosen by configuration so

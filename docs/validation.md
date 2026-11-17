@@ -39,12 +39,12 @@ not. Mitra never sees it; it is what Mitra's output is scored against.
 
 ## Evidence
 
-- **Annotations.** Each rung's source carries ` ```mitra ` blocks in its
-  docstrings: subjects, claims, tests and proofs. Mitra parses them into the model.
+- **Model.** Each rung has a store: subjects, claims and `test`
+  declarations, with test reports ingested as evidence.
 - **Usage.** A simulator plays a user: it samples inputs (mostly small numbers,
   sometimes huge ones, occasionally junk), runs the CLI, and appends
-  `evidence add(a, b) correct @ c` or `wrong @ c`. Evidence arrives one run at
-  a time, which exercises incremental use.
+  `evidence correct (add a b) at c` or `evidence ¬ correct (add a b) at c`.
+  Evidence arrives one run at a time, which exercises incremental use.
 - **Human confidence.** The simulated user has a confidence profile: high
   when it can check the result, low when it cannot, and occasionally wrong.
   Mitra's verdicts must survive that noise.
@@ -58,8 +58,8 @@ not. Mitra never sees it; it is what Mitra's output is scored against.
    correct verdicts is scored against ground truth (Brier score).
 3. **Honesty.** Regions with no evidence are uncertain. A doubtful
    counterexample leaves a region uncertain, never holds.
-4. **Diagnosis.** On R1, `next add_correct` ranks a region with a real bug
-   first. On R0 without branches, `conflicts` fires on `add_correct` (passes
+4. **Diagnosis.** On R1, `mitra next` points first at a region with a real
+   bug. On R0 without regions, `add_correct` shows contested inputs (passes
    and failures on the same claim), suggesting the split.
 
 ## Success criteria
@@ -68,9 +68,9 @@ The metrics above check Mitra's verdicts. These check that Mitra is useful
 ([vision.md](vision.md#what-success-looks-like)):
 
 1. **Root-cause rank.** Inject mutations (one wrong function at a time) into
-   the add ladder and into `mitra-ds`, add a bug report as evidence, and
-   record the rank of the mutated function in `mitra diag`. Target: top 1 to
-   3.
+   the add ladder and into the calculus crate, add a bug report as
+   evidence, and record the rank of the mutated function in `mitra diag`
+   ([proposed](design/workflow.md)). Target: top 1 to 3.
 2. **Tests to target belief.** Count the tests needed to reach a target
    belief when following `mitra next`, against a naive baseline (random
    inputs) and a coverage-guided one. Target: clearly fewer.
@@ -85,5 +85,6 @@ The metrics above check Mitra's verdicts. These check that Mitra is useful
 - **Who writes the split?** Here it is written from the spec. A stronger result
   would be Mitra suggesting it: a claim with both passing and failing usage is
   a conflict, which is a hint that it should be split.
-- **What counts as "a human would trust it"?** The decided thresholds above are
-  a first guess, to be compared with a person's own judgment on R0 and R1.
+- **What counts as "a human would trust it"?** The belief thresholds a
+  policy uses are a first guess, to be compared with a person's own
+  judgment on R0 and R1.

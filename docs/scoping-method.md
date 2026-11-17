@@ -31,7 +31,7 @@ many hours a week go into the project.
 | XL | more | no, it is an epic |
 
 A **spike** is a time-boxed investigation (S or M) whose deliverable is a short
-written decision in `docs/decisions/`, not code. Spikes are how unknowns become
+written decision in `docs/design/`, not code. Spikes are how unknowns become
 estimable.
 
 ## Milestones
@@ -60,4 +60,4 @@ The same idea applied to the project as a whole, checked in the vision doc:
 
 - Acceptance criteria pass as automated tests in CI.
 - Public API is documented, with one example.
-- Any design choice made along the way is recorded in `docs/decisions/`.
+- Any design choice made along the way is recorded in `docs/design/`.

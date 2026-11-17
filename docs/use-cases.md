@@ -44,8 +44,8 @@ nobody has checked.
 **Policy, written by the team:**
 
 ```text
-merge     if  verdict = pass and confidence >= 0.90
-block     if  verdict = fail and confidence >= 0.50
+merge     if  logic = holds and belief >= 0.90
+block     if  logic = fails
 ask human otherwise
 ```
 
@@ -80,10 +80,10 @@ different strength:
 rather than failed. Because nothing contradicts them, the policy's answer is not "stop" but "get more evidence": the harness
 runs the tests itself, which is the cheapest action that raises trust the
 most. If the harness's own run fails, that is a trusted counterexample: the
-verdict becomes fail, the agent is stopped, and the agent's track record drops for the next decision.
+claim fails, the agent is stopped, and the agent's track record drops for the next decision.
 
 **Why this shapes the language now:** it is the case that needs "uncertain" and
-"fail" to be different answers, and evidence from the agent itself to carry a
+"fails" to be different answers, and evidence from the agent itself to carry a
 lower confidence than evidence from the harness. Toy models of this shape are written
 now even though the harness itself comes later.
 
