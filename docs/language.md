@@ -83,8 +83,9 @@ graph is uncertain or wrong.
 **Localizing a fault.** When evidence lines on a claim conflict, at least one
 of them is wrong, so at least one claim on its `via` route is false (or the
 claim itself is). Suspects are the claims and assumptions on the routes of
-the conflicting lines, plus the claim itself, ranked by P, lowest first: the
-least trusted link is the most likely culprit. Conflict matters because
+the conflicting lines, ranked by P, lowest first: the least trusted link is
+the most likely culprit. The remaining explanation, that the claim itself is
+false (the code really is buggy), is always listed last. Conflict matters because
 fusion can hide it: a strong proof and a failing test still fuse into a
 fairly high score (toy model 6).
 

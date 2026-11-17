@@ -156,7 +156,8 @@ conflicts
 conflict on f_small   con = 0.154
   for:     proof via proof_good   P = 0.904
   against: test (first-hand)      P = 0.333
-  suspects: model_ok (0.85), spec_ok (0.95), f_small
+  suspects: model_ok (0.85), spec_ok (0.95)
+  or:       f_small is false
 ```
 
 The aggregate score still looks healthy; the conflict query does not. It
