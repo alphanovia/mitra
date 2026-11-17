@@ -92,6 +92,10 @@ pub struct Evidence {
     pub pattern: Pattern,
     pub judgment: Judgment,
     pub confidence: f64,
+    /// `@[source "…"]`: who or what observed it (a CI job, a reviewer).
+    pub source: Option<String>,
+    /// `@[rev "…"]`: the revision of the code it was observed on.
+    pub rev: Option<String>,
     pub line: usize,
 }
 

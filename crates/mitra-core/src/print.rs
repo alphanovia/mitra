@@ -77,7 +77,19 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
             Judgment::Holds(false) => format!("¬ {call}"),
             Judgment::Output(v) => format!("{call} = {v}"),
         };
-        out += &format!("evidence {forall}{judgment} at {}\n", e.confidence);
+        let mut attrs = Vec::new();
+        if let Some(s) = &e.source {
+            attrs.push(format!("source \"{s}\""));
+        }
+        if let Some(r) = &e.rev {
+            attrs.push(format!("rev \"{r}\""));
+        }
+        let attrs = if attrs.is_empty() {
+            String::new()
+        } else {
+            format!("@[{}] ", attrs.join(", "))
+        };
+        out += &format!("{attrs}evidence {forall}{judgment} at {}\n", e.confidence);
     }
     out
 }

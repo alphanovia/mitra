@@ -303,7 +303,16 @@ pub fn evidences(r: &mut Rng) -> String {
                 format!("{forall}{}{args} = {}", name(r), value(r))
             }
         };
-        format!("evidence {judgment} at {}{}\n", r.below(2), comment(r))
+        let attrs = match r.below(4) {
+            0 => format!("@[ source {} ] ", string(r)),
+            1 => format!("@[ rev {} , source {} ] ", string(r), string(r)),
+            _ => String::new(),
+        };
+        format!(
+            "{attrs}evidence {judgment} at {}{}\n",
+            r.below(2),
+            comment(r)
+        )
     })
     .concat()
 }

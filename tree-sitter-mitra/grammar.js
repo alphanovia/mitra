@@ -50,7 +50,9 @@ module.exports = grammar({
       seq(field('name', $.name), ':=', choice('strict', seq('coverage', $.name))),
     )),
 
-    evidence: $ => seq('evidence', repeat($.forall), $._judgment, 'at', field('confidence', $.number)),
+    evidence: $ => seq(optional($.attributes), 'evidence', repeat($.forall), $._judgment, 'at', field('confidence', $.number)),
+    attributes: $ => seq('@[', sep1($.attribute, ','), ']'),
+    attribute: $ => seq($.name, $.string),
     _judgment: $ => choice($.correct, $.not, $.output, $.call),
     not: $ => seq('¬', choice($.correct, $.call)),
     output: $ => seq($.call, '=', $._value),

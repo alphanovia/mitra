@@ -15,7 +15,7 @@ match {
     "correct", "at", "by", "derive", "if", "then", "else", "let",
     "true", "false", "Bool", "Int", "String", "Value", "Icc",
     "for", "strict", "coverage", "_",
-    ":=", "=>", "==", "!=", "<=", ">=", "&&", "||",
+    "@[", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||",
     "(", ")", ":", ";", ",", "=", "{", "}", "[", "]", "|",
     "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
 } else {
@@ -48,7 +48,9 @@ Policy: () = {
 };
 
 pub Evidences: () = Evidence* => ();
-Evidence: () = "evidence" Forall* Judgment "at" Number => ();
+Evidence: () = Attributes? "evidence" Forall* Judgment "at" Number => ();
+Attributes: () = "@[" Comma1<Attribute> "]" => ();
+Attribute: () = NAME STR => ();
 Judgment: () = {
     "correct" "(" NAME Arg* ")" => (),
     "¬" "correct" "(" NAME Arg* ")" => (),

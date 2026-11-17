@@ -42,3 +42,66 @@ fn bad_evidence_names_the_file_and_line() {
     );
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// `mitra` run in `dir`, with its exit code, stdout and stderr.
+fn mitra(dir: &std::path::Path, args: &[&str]) -> (Option<i32>, String, String) {
+    let out = Command::new(env!("CARGO_BIN_EXE_mitra"))
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .unwrap();
+    let s = |b: Vec<u8>| String::from_utf8(b).unwrap();
+    (out.status.code(), s(out.stdout), s(out.stderr))
+}
+
+#[test]
+fn store_init_add_check_eval() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-store-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("sub")).unwrap();
+    assert_eq!(mitra(&dir, &["init"]).0, Some(0));
+    assert_eq!(mitra(&dir, &["init"]).0, Some(2), "init never overwrites");
+    let model = std::fs::read_to_string(format!("{GOLDEN}/model.mitra")).unwrap();
+    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    // From a subfolder: the store is found above.
+    let sub = dir.join("sub");
+    let (code, out, _) = mitra(
+        &sub,
+        &[
+            "add",
+            "evidence correct (not true) at 1",
+            "--source",
+            "review:ana",
+            "--rev",
+            "3f2a",
+        ],
+    );
+    assert_eq!((code, out.starts_with("added 1 evidence")), (Some(0), true));
+    // Rejected evidence leaves the store unchanged.
+    let before = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let (code, _, err) = mitra(&sub, &["add", "evidence correct (not 7) at 1"]);
+    assert_eq!(code, Some(2));
+    assert!(err.contains("inputs outside the domain of `not`"), "{err}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap(),
+        before
+    );
+    assert!(
+        before
+            .ends_with("@[source \"review:ana\", rev \"3f2a\"] evidence correct (not true) at 1\n"),
+        "{before}"
+    );
+    mitra(
+        &sub,
+        &["add", "evidence ∀ a ∈ {false}, ¬ correct (not a) at 1"],
+    );
+    let (code, out, _) = mitra(&sub, &["check"]);
+    assert_eq!(
+        (code, out.as_str()),
+        (Some(0), "ok: 1 functions, 2 claims, 2 evidence\n")
+    );
+    let (_, out, _) = mitra(&sub, &["eval"]);
+    let expected = std::fs::read_to_string(format!("{GOLDEN}/expected.txt")).unwrap();
+    assert_eq!(out, expected);
+    let _ = std::fs::remove_dir_all(dir);
+}

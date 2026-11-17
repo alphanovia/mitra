@@ -7,13 +7,31 @@ ideas and open questions live in the [general docs](../../README.md#documentatio
 ## Running Mitra
 
 ```sh
-mitra eval model.mitra evidence.mitra [-o result.txt]
+mitra init
+mitra check [model.mitra evidence.mitra]
+mitra eval  [model.mitra evidence.mitra] [-o result.txt]
+mitra add   '<evidence>' [--source <who>] [--rev <commit>]
 ```
 
-`mitra` (crate `mitra-cli`) reads a model file and an evidence file, calls
-the library `mitra-core`, and writes the result to `result.txt`, or to
-standard output without `-o`. On an error it prints `file: line N: message`
-and exits with status 2.
+`mitra` (crate `mitra-cli`) is a thin wrapper over the library
+`mitra-core`. On an error it prints `file: line N: message` and exits with
+status 2.
+
+- `eval` writes one verdict per claim and policy (see Output) to
+  `result.txt`, or to standard output without `-o`.
+- `check` parses and checks both files, prints
+  `ok: F functions, C claims, E evidence`, then any contested evidence.
+- Without file names, `check` and `eval` use the **store**: the nearest
+  `.mitra/` folder at or above the current one, with `model.mitra` and
+  `evidence.mitra`.
+- `init` creates `.mitra/` with an empty model, an empty evidence file and a
+  `.gitattributes` that merges `evidence.mitra` with git's `union` driver.
+  It never overwrites an existing store.
+- `add` parses the evidence given, checks it against the store's model and
+  evidence, and appends it to `evidence.mitra`, printed in normal form with
+  its `source` and `rev` attributes. Nothing is written if the check fails.
+  The evidence file is only ever appended to, so two branches that add
+  evidence merge as the union of their lines.
 
 ## Lexical rules
 
@@ -30,7 +48,7 @@ indentation mean nothing.
   integer is `-` then digits; where a single argument is expected it is
   written `(-5)`.
 - Strings: `"` … `"` on one line, no escapes.
-- Symbols, longest match first: `:=` `=>` `==` `!=` `<=` `>=` `&&` `||` `(`
+- Symbols, longest match first: `@[` `:=` `=>` `==` `!=` `<=` `>=` `&&` `||` `(`
   `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `!` `<` `>` `+` `-` `*` `\` `∀`
   `∈` `∪` `∩` `¬`.
 - Keywords: `opaque def claim evidence profile policy correct at by derive
@@ -55,7 +73,8 @@ region     = "_" | name "∈" set ;
 policy     = "policy" ( "strict" | name ":=" ( "strict" | "coverage" name ) ) ;
 
 evidences  = { evidence } ;
-evidence   = "evidence" { forall } judgment "at" number ;
+evidence   = [ attributes ] "evidence" { forall } judgment "at" number ;
+attributes = "@[" name string { "," name string } "]" ;
 judgment   = "correct" "(" name args ")"
            | "¬" ( "correct" "(" name args ")" | name args )
            | name args [ "=" value ] ;
@@ -217,6 +236,17 @@ evidence not_not_shape at 1
 
 The confidence after `at` is `1` (fully believed) or `0` (fully
 distrusted). **Values in between are rejected for now.**
+
+Attributes record where evidence comes from, and do not change verdicts:
+
+```lean
+@[source "ci", rev "3f2a1c"] evidence add 1 2 = 3 at 1
+```
+
+- `source`: who or what observed it (a CI job, a reviewer, a test).
+- `rev`: the revision of the code it was observed on.
+
+Each may appear once; other names are rejected.
 
 ### profile
 

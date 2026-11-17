@@ -23,7 +23,9 @@ PolicyRest    = "strict" | NAME ":=" PolicyKind ;
 PolicyKind    = "strict" | "coverage" NAME ;
 
 Evidences     = Evidence Evidences | ;
-Evidence      = "evidence" Foralls Judgment "at" Number ;
+Evidence      = Attributes "evidence" Foralls Judgment "at" Number ;
+Attributes    = "@[" NAME STR AttrsTail "]" | ;
+AttrsTail     = "," NAME STR AttrsTail | ;
 Judgment      = "correct" "(" NAME Args ")" | "¬" Negated | NAME Args Output ;
 Negated       = "correct" "(" NAME Args ")" | NAME Args ;
 Output        = "=" Value | ;

@@ -17,9 +17,9 @@ enum Tok {
 }
 
 /// Longest first, so `:=` wins over `:` and `||` over `|`.
-const PUNCT: [&str; 31] = [
-    ":=", "=>", "==", "!=", "<=", ">=", "&&", "||", "(", ")", ":", ";", ",", "=", "{", "}", "[",
-    "]", "|", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
+const PUNCT: [&str; 32] = [
+    "@[", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||", "(", ")", ":", ";", ",", "=", "{", "}",
+    "[", "]", "|", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
@@ -610,6 +610,37 @@ pub fn parse_evidence(src: &str) -> Result<Vec<Evidence>, Error> {
     let mut out = Vec::new();
     while !p.at_end() {
         let line = p.line();
+        let (mut source, mut rev) = (None, None);
+        if p.eat("@[") {
+            loop {
+                let attr_line = p.line();
+                let name = p.ident()?;
+                let value = match p.next() {
+                    Some(Tok::Str(s)) => s,
+                    _ => {
+                        p.pos -= 1;
+                        return p.err(format!("`{name}` needs a string"));
+                    }
+                };
+                let slot = match name.as_str() {
+                    "source" => &mut source,
+                    "rev" => &mut rev,
+                    _ => {
+                        return Err(Error::new(
+                            attr_line,
+                            format!("unknown attribute `{name}` (source, rev)"),
+                        ))
+                    }
+                };
+                if slot.replace(value).is_some() {
+                    return Err(Error::new(attr_line, format!("`{name}` is given twice")));
+                }
+                if !p.eat(",") {
+                    break;
+                }
+            }
+            p.expect("]")?;
+        }
         p.keyword("evidence")?;
         let bound = p.foralls()?;
         let (about, pattern, judgment) = if p.eat_keyword("correct") {
@@ -644,6 +675,8 @@ pub fn parse_evidence(src: &str) -> Result<Vec<Evidence>, Error> {
             pattern,
             judgment,
             confidence,
+            source,
+            rev,
             line,
         });
     }
@@ -789,6 +822,24 @@ mod tests {
         assert_eq!(e.line, 2);
         let e = parse_evidence("evidence ∀ x,\n ∀ x,\n correct (f x) at 1").unwrap_err();
         assert_eq!((e.line, e.message.contains("twice")), (2, true));
+    }
+
+    #[test]
+    fn reads_attributes() {
+        let e = parse_evidence(
+            "@[source \"ci\", rev \"3f2a\"] evidence correct (not true) at 1\n\
+             evidence not true = false at 1",
+        )
+        .unwrap();
+        assert_eq!(
+            (e[0].source.as_deref(), e[0].rev.as_deref()),
+            (Some("ci"), Some("3f2a"))
+        );
+        assert_eq!((e[1].source.clone(), e[1].rev.clone()), (None, None));
+        let err = parse_evidence("@[who \"me\"] evidence s at 1").unwrap_err();
+        assert!(err.message.contains("unknown attribute"), "{err}");
+        let err = parse_evidence("@[rev \"a\", rev \"b\"] evidence s at 1").unwrap_err();
+        assert!(err.message.contains("twice"), "{err}");
     }
 
     #[test]
