@@ -216,3 +216,41 @@ fn mitra_ds_store_evaluates() {
     let expected = std::fs::read_to_string(dir.join(".mitra/expected.txt")).unwrap();
     assert_eq!(out, expected);
 }
+
+#[test]
+fn rev_leaves_out_stale_evidence() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-rev-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    mitra(&dir, &["init"]);
+    let model = std::fs::read_to_string(format!("{GOLDEN}/model.mitra")).unwrap();
+    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    mitra(
+        &dir,
+        &["add", "evidence correct (not true) at 1", "--rev", "old"],
+    );
+    mitra(
+        &dir,
+        &["add", "evidence correct (not false) at 1", "--rev", "new"],
+    );
+    let (_, all, _) = mitra(&dir, &["eval"]);
+    assert!(
+        all.starts_with("not_correct [strict] := { logic := .holds"),
+        "{all}"
+    );
+    let (code, out, err) = mitra(&dir, &["eval", "--rev", "new"]);
+    assert_eq!(code, Some(0));
+    assert_eq!(
+        err,
+        "mitra: 1 evidence left out: recorded at a revision other than new\n"
+    );
+    assert_eq!(
+        out,
+        "not_correct [strict] := { logic := .uncertain, covered := {false}, domain := Bool, belief := 0 }\n\
+         not_on_true [strict] := { logic := .uncertain, covered := {}, domain := {true}, belief := 0 }\n"
+    );
+    let (_, out, _) = mitra(&dir, &["next", "--rev", "new"]);
+    assert!(out.starts_with("not_correct : missing {true}\n"), "{out}");
+    assert_eq!(mitra(&dir, &["eval", "--rev"]).0, Some(2));
+    let _ = std::fs::remove_dir_all(dir);
+}

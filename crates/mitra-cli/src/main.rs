@@ -2,10 +2,10 @@
 //!
 //! ```text
 //! mitra init
-//! mitra check [<model> <evidence>]
-//! mitra eval  [<model> <evidence>] [-o <result.txt>]
+//! mitra check [<model> <evidence>] [--rev <commit>]
+//! mitra eval  [<model> <evidence>] [--rev <commit>] [-o <result.txt>]
 //! mitra add   '<evidence>' [--source <who>] [--rev <commit>]
-//! mitra next  [<model> <evidence>]
+//! mitra next  [<model> <evidence>] [--rev <commit>]
 //! mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 //! ```
 //!
@@ -20,10 +20,10 @@ use std::process::ExitCode;
 
 const USAGE: &str = "usage:
   mitra init
-  mitra check [<model.mitra> <evidence.mitra>]
-  mitra eval  [<model.mitra> <evidence.mitra>] [-o <result.txt>]
+  mitra check [<model.mitra> <evidence.mitra>] [--rev <commit>]
+  mitra eval  [<model.mitra> <evidence.mitra>] [--rev <commit>] [-o <result.txt>]
   mitra add   '<evidence>' [--source <who>] [--rev <commit>]
-  mitra next  [<model.mitra> <evidence.mitra>]
+  mitra next  [<model.mitra> <evidence.mitra>] [--rev <commit>]
   mitra ingest <report> [--format libtest|junit] [--rev <commit>]";
 
 fn main() -> ExitCode {
@@ -61,17 +61,52 @@ fn located(m: &str, e: &str) -> impl Fn((mitra_core::Input, mitra_core::Error)) 
     }
 }
 
-/// Parse, check and evaluate both files.
-fn evaluate(m: &str, e: &str) -> Result<(mitra_core::Model, mitra_core::Report), String> {
-    let model = mitra_core::load(&read(m)?, &read(e)?).map_err(located(m, e))?;
+/// Parse, check and evaluate both files. With a revision, evidence recorded
+/// at another revision is stale and left out (evidence with no `rev` stays).
+fn evaluate(
+    m: &str,
+    e: &str,
+    rev: Option<&str>,
+) -> Result<(mitra_core::Model, mitra_core::Report), String> {
+    let mut model = mitra_core::load(&read(m)?, &read(e)?).map_err(located(m, e))?;
+    if let Some(rev) = rev {
+        let before = model.evidence.len();
+        model
+            .evidence
+            .retain(|x| x.rev.as_deref().is_none_or(|r| r == rev));
+        let stale = before - model.evidence.len();
+        if stale > 0 {
+            eprintln!("mitra: {stale} evidence left out: recorded at a revision other than {rev}");
+        }
+    }
     let report = mitra_core::evaluate(&model).map_err(located(m, e))?;
     Ok((model, report))
+}
+
+/// Remove `--rev <value>` from the arguments of `check`, `eval` and `next`.
+fn take_rev(cmd: &str, rest: &mut Vec<String>) -> Result<Option<String>, String> {
+    if !["check", "eval", "next"].contains(&cmd) {
+        return Ok(None);
+    }
+    let Some(i) = rest.iter().position(|a| a == "--rev") else {
+        return Ok(None);
+    };
+    if i + 1 >= rest.len() || rest[i + 1..].iter().skip(1).any(|a| a == "--rev") {
+        return Err(USAGE.into());
+    }
+    let rev = rest.remove(i + 1);
+    rest.remove(i);
+    Ok(Some(rev))
 }
 
 fn run(args: Vec<String>) -> Result<(), String> {
     let Some((cmd, rest)) = args.split_first() else {
         return Err(USAGE.into());
     };
+    let mut rest = rest.to_vec();
+    let rev = take_rev(cmd, &mut rest)?;
+    let rev = rev.as_deref();
+    let rest = rest.as_slice();
     match cmd.as_str() {
         "init" if rest.is_empty() => {
             let dir = store::Store::init(&std::env::current_dir().map_err(|e| e.to_string())?)?;
@@ -80,7 +115,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
         }
         "check" => {
             let (m, e) = inputs(rest)?;
-            let (model, report) = evaluate(&m, &e)?;
+            let (model, report) = evaluate(&m, &e, rev)?;
             println!(
                 "ok: {} functions, {} claims, {} tests, {} evidence",
                 model.functions.len(),
@@ -95,7 +130,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
         }
         "next" => {
             let (m, e) = inputs(rest)?;
-            let (model, report) = evaluate(&m, &e)?;
+            let (model, report) = evaluate(&m, &e, rev)?;
             print!("{}", mitra_core::next(&model, &report));
             Ok(())
         }
@@ -110,7 +145,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 );
             }
             let (m, e) = inputs(paths)?;
-            let (_, report) = evaluate(&m, &e)?;
+            let (_, report) = evaluate(&m, &e, rev)?;
             let text = report.to_text();
             match out {
                 Some(path) => std::fs::write(path, text).map_err(|e| format!("{path}: {e}")),

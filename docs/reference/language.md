@@ -8,9 +8,9 @@ ideas and open questions live in the [general docs](../../README.md#documentatio
 
 ```sh
 mitra init
-mitra check [model.mitra evidence.mitra]
-mitra eval  [model.mitra evidence.mitra] [-o result.txt]
-mitra next  [model.mitra evidence.mitra]
+mitra check [model.mitra evidence.mitra] [--rev <commit>]
+mitra eval  [model.mitra evidence.mitra] [--rev <commit>] [-o result.txt]
+mitra next  [model.mitra evidence.mitra] [--rev <commit>]
 mitra add   '<evidence>' [--source <who>] [--rev <commit>]
 mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 ```
@@ -32,6 +32,11 @@ status 2.
   run `f 2` and fill in its output), else how many inputs are missing, or
   that the set is infinite and only evidence over a set can cover it.
   It prints `nothing uncertain` when every claim holds or fails.
+- `--rev R` on `check`, `eval` and `next` leaves out **stale** evidence:
+  evidence whose `rev` attribute is set and differs from `R`. Evidence with
+  no `rev` always counts. The number left out is printed on standard error.
+  Revisions are compared as text, and any other revision is stale, even
+  if the subject did not change.
 - Without file names, `check`, `eval` and `next` use the **store**: the nearest
   `.mitra/` folder at or above the current one, with `model.mitra` and
   `evidence.mitra`.
