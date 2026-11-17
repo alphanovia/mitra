@@ -47,6 +47,7 @@ in an agent skill, and regular enough for an LLM to read and write.
 | [docs/vision.md](docs/vision.md) | What Mitra is, how it is layered, principles, non-goals |
 | [docs/language.md](docs/language.md) | One-page language spec: each construct and its subjective-logic meaning |
 | [docs/examples.md](docs/examples.md) | Five toy models with scores worked out by hand |
+| [docs/validation.md](docs/validation.md) | How Mitra is validated: a ladder of toy `add` CLIs scored against ground truth |
 | [docs/use-cases.md](docs/use-cases.md) | Where Mitra is headed: checking a model, gating a merge, gating an agent |
 | [docs/prior-art.md](docs/prior-art.md) | Related work and how Mitra differs |
 | [docs/scoping-method.md](docs/scoping-method.md) | INVEST rules used to scope work |
