@@ -1,0 +1,102 @@
+// The reference grammar (docs/reference/language.md), as LALRPOP.
+// A recognizer: every action is `()`. It is not the production parser.
+// LALRPOP refuses to build a grammar with any conflict, so a clean build
+// proves this grammar is unambiguous and LR(1).
+
+grammar;
+
+match {
+    r"\s*" => { },
+    r"--[^\n\r]*" => { },
+    r"[0-9]+" => NAT,
+    r"[0-9]+\.[0-9]+" => DEC,
+    r#""[^"\n]*""# => STR,
+    "opaque", "def", "claim", "evidence", "profile", "policy",
+    "correct", "at", "by", "derive", "if", "then", "else", "let",
+    "true", "false", "Bool", "Int", "String", "Value", "Icc",
+    "for", "strict", "coverage", "_",
+    ":=", "=>", "==", "!=", "<=", ">=", "&&", "||",
+    "(", ")", ":", ";", ",", "=", "{", "}", "[", "]", "|",
+    "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
+} else {
+    r"[A-Za-z_][A-Za-z0-9_]*" => NAME,
+}
+
+Comma1<T>: () = T ("," T)* => ();
+
+pub Model: () = Command* => ();
+Command: () = { Opaque, Def, Claim, Profile, Policy };
+
+Opaque: () = "opaque" NAME Binder+ ":" Set => ();
+Def: () = "def" NAME Binder+ ":" Set ":=" Expr => ();
+Binder: () = "(" NAME+ ":" Set ")" => ();
+Claim: () = "claim" NAME ":" Forall* ClaimBody Derive? => ();
+ClaimBody: () = {
+    "correct" "(" NAME Arg* ")" => (),
+    NAME Arg* "=" Expr => (),
+};
+Derive: () = ":=" "by" "derive" "[" Comma1<NAME> "]" => ();
+Profile: () = "profile" NAME "for" NAME Region* => ();
+Region: () = {
+    "|" "_" "=>" Number => (),
+    "|" NAME "∈" Set "=>" Number => (),
+};
+Policy: () = {
+    "policy" "strict" => (),
+    "policy" NAME ":=" "strict" => (),
+    "policy" NAME ":=" "coverage" NAME => (),
+};
+
+pub Evidences: () = Evidence* => ();
+Evidence: () = "evidence" Forall* Judgment "at" Number => ();
+Judgment: () = {
+    "correct" "(" NAME Arg* ")" => (),
+    "¬" "correct" "(" NAME Arg* ")" => (),
+    "¬" NAME Arg* => (),
+    NAME Arg* => (),
+    NAME Arg* "=" Value => (),
+};
+
+Forall: () = {
+    "∀" NAME "," => (),
+    "∀" NAME "∈" Set "," => (),
+};
+Arg: () = {
+    NAME => (), "true" => (), "false" => (), NAT => (), STR => (),
+    "(" "-" NAT ")" => (),
+};
+
+Set: () = { Inter, Set "∪" Inter => () };
+Inter: () = { SetAtom, Inter "∩" SetAtom => (), Inter "\\" SetAtom => () };
+SetAtom: () = {
+    "Bool" => (), "Int" => (), "String" => (), "Value" => (),
+    "{" "}" => (),
+    "{" Comma1<Value> "}" => (),
+    "Icc" IntAtom IntAtom => (),
+    "(" Set ")" => (),
+};
+IntAtom: () = { NAT => (), "(" "-" NAT ")" => () };
+
+Expr: () = {
+    "if" Expr "then" Expr "else" Expr => (),
+    "let" NAME ":=" Expr ";" Expr => (),
+    Or,
+};
+Or: () = { And, Or "||" And => () };
+And: () = { Compare, And "&&" Compare => () };
+Compare: () = { Sum, Compare CmpOp Sum => () };
+CmpOp: () = { "==" => (), "!=" => (), "<" => (), "<=" => (), ">" => (), ">=" => () };
+Sum: () = { Product, Sum "+" Product => (), Sum "-" Product => () };
+Product: () = { Unary, Product "*" Unary => () };
+Unary: () = {
+    "!" Unary => (),
+    "-" Unary => (),
+    NAME Atom* => (),
+    Literal => (),
+    "(" Expr ")" => (),
+};
+Atom: () = { NAME => (), Literal => (), "(" Expr ")" => () };
+Literal: () = { "true" => (), "false" => (), NAT => (), STR => () };
+
+Value: () = { "true" => (), "false" => (), NAT => (), "-" NAT => (), STR => () };
+Number: () = { NAT => (), DEC => () };

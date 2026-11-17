@@ -1,0 +1,16 @@
+[package]
+name = "mitra-grammar"
+description = "Checks on Mitra's grammar: an LALRPOP encoding of the reference EBNF, an LL(1) check, and a random program generator. Not the production parser."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+lalrpop-util = { version = "0.23", default-features = false, features = ["lexer", "unicode"] }
+
+[build-dependencies]
+lalrpop = { version = "0.23", default-features = false, features = ["unicode"] }
+
+[dev-dependencies]
+mitra-core = { path = "../mitra-core" }

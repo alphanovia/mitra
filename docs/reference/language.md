@@ -94,6 +94,25 @@ Beyond the grammar, the parser checks the names in a claim or evidence:
 every name in `args` must be bound by a `∀` before it, and every `∀` name
 must be used exactly once.
 
+### Grammar checks
+
+The crate `crates/mitra-grammar` (not published) checks this grammar:
+
+- `src/mitra.lalrpop` is the grammar above for LALRPOP. LALRPOP refuses
+  any conflict, so a clean build proves the grammar is LR(1).
+- `src/mitra.ll1` is the same grammar, left-factored. A test computes
+  FIRST and FOLLOW sets and checks that it is LL(1).
+- `src/gen.rs` writes random valid programs from the grammar. `cargo test`
+  runs seeds 0 to 499: each program must be accepted by both grammars and
+  by the parser, and parse → print → parse must give the same AST
+  (`print_model`, `print_evidence` in mitra-core). Every golden file is
+  checked the same way.
+- `mitra/parser.mitra` states these results as Mitra claims; the fuzz run
+  is their evidence, and `mitra/expected.txt` is the verdict.
+
+`tree-sitter-mitra/` is a tree-sitter grammar for editors, with corpus
+tests taken from the golden set.
+
 ## Sets
 
 Types are sets of values, and every group of inputs is a set.

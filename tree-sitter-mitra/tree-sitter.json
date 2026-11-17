@@ -1,0 +1,17 @@
+{
+  "grammars": [
+    {
+      "name": "mitra",
+      "camelcase": "Mitra",
+      "scope": "source.mitra",
+      "path": ".",
+      "file-types": ["mitra"]
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Mitra grammar for tree-sitter",
+    "links": { "repository": "https://github.com/alphanovia/mitra" }
+  }
+}

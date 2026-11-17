@@ -1,0 +1,64 @@
+# The reference grammar, left-factored and without left recursion, so that
+# it can be checked LL(1). One rule per line: `A = alt | alt ;`.
+# Quoted symbols are tokens; NAT DEC STR NAME are token classes;
+# an empty alternative is ε.
+
+Model         = Command Model | ;
+Command       = Opaque | Def | Claim | Profile | Policy ;
+Opaque        = "opaque" NAME Binders ":" Set ;
+Def           = "def" NAME Binders ":" Set ":=" Expr ;
+Binders       = Binder BindersTail ;
+BindersTail   = Binder BindersTail | ;
+Binder        = "(" NAME Names ":" Set ")" ;
+Names         = NAME Names | ;
+Claim         = "claim" NAME ":" Foralls ClaimBody Derive ;
+ClaimBody     = "correct" "(" NAME Args ")" | NAME Args "=" Expr ;
+Derive        = ":=" "by" "derive" "[" NAME NamesTail "]" | ;
+NamesTail     = "," NAME NamesTail | ;
+Profile       = "profile" NAME "for" NAME Regions ;
+Regions       = "|" Region "=>" Number Regions | ;
+Region        = "_" | NAME "∈" Set ;
+Policy        = "policy" PolicyRest ;
+PolicyRest    = "strict" | NAME ":=" PolicyKind ;
+PolicyKind    = "strict" | "coverage" NAME ;
+
+Evidences     = Evidence Evidences | ;
+Evidence      = "evidence" Foralls Judgment "at" Number ;
+Judgment      = "correct" "(" NAME Args ")" | "¬" Negated | NAME Args Output ;
+Negated       = "correct" "(" NAME Args ")" | NAME Args ;
+Output        = "=" Value | ;
+
+Foralls       = "∀" NAME InSet "," Foralls | ;
+InSet         = "∈" Set | ;
+Args          = Arg Args | ;
+Arg           = NAME | "true" | "false" | NAT | STR | "(" "-" NAT ")" ;
+
+Set           = Inter SetTail ;
+SetTail       = "∪" Inter SetTail | ;
+Inter         = SetAtom InterTail ;
+InterTail     = "∩" SetAtom InterTail | "\" SetAtom InterTail | ;
+SetAtom       = "Bool" | "Int" | "String" | "Value" | "{" Values "}"
+              | "Icc" IntAtom IntAtom | "(" Set ")" ;
+IntAtom       = NAT | "(" "-" NAT ")" ;
+Values        = Value ValuesTail | ;
+ValuesTail    = "," Value ValuesTail | ;
+
+Expr          = "if" Expr "then" Expr "else" Expr | "let" NAME ":=" Expr ";" Expr | Or ;
+Or            = And OrTail ;
+OrTail        = "||" And OrTail | ;
+And           = Compare AndTail ;
+AndTail       = "&&" Compare AndTail | ;
+Compare       = Sum CompareTail ;
+CompareTail   = CmpOp Sum CompareTail | ;
+CmpOp         = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
+Sum           = Product SumTail ;
+SumTail       = "+" Product SumTail | "-" Product SumTail | ;
+Product       = Unary ProductTail ;
+ProductTail   = "*" Unary ProductTail | ;
+Unary         = "!" Unary | "-" Unary | NAME Atoms | Literal | "(" Expr ")" ;
+Atoms         = Atom Atoms | ;
+Atom          = NAME | Literal | "(" Expr ")" ;
+Literal       = "true" | "false" | NAT | STR ;
+
+Value         = "true" | "false" | NAT | "-" NAT | STR ;
+Number        = NAT | DEC ;

@@ -1,0 +1,17 @@
+node_modules/
+src/
+bindings/
+build/
+*.wasm
+*.so
+*.dylib
+Cargo.toml
+binding.gyp
+setup.py
+pyproject.toml
+go.mod
+Package.swift
+Makefile
+CMakeLists.txt
+.editorconfig
+.gitattributes
