@@ -64,8 +64,13 @@ impl Mass {
     }
 
     /// Dempster's rule: the conflict is renormalised away. `None` at total
-    /// conflict (two fully believed, opposite judgments).
+    /// conflict (two fully believed, opposite judgments), taken as a
+    /// conflict within [`EPSILON`] of 1 (renormalising by less is
+    /// numerically meaningless), and when either mass is not valid.
     pub fn dempster(&self, o: &Mass) -> Option<Mass> {
+        if !self.is_valid() || !o.is_valid() {
+            return None;
+        }
         let k = self.conflict(o);
         if k >= 1.0 - EPSILON {
             return None;
@@ -79,10 +84,13 @@ impl Mass {
     }
 
     /// Yager's rule: the conflict goes to unknown. Returns the combined
-    /// mass and the conflict.
-    pub fn yager(&self, o: &Mass) -> (Mass, f64) {
+    /// mass and the conflict; `None` if either mass is not valid.
+    pub fn yager(&self, o: &Mass) -> Option<(Mass, f64)> {
+        if !self.is_valid() || !o.is_valid() {
+            return None;
+        }
         let k = self.conflict(o);
         let a = self.agreement(o);
-        (Mass { u: a.u + k, ..a }, k)
+        Some((Mass { u: a.u + k, ..a }, k))
     }
 }

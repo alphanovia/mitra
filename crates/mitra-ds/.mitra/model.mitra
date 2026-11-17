@@ -1,6 +1,7 @@
 -- mitra-ds, judged by Mitra.
 -- A case is a numbered pair of masses (m1, m2), from tests/props.rs:
---   0 to 999      random pairs from a seeded generator;
+--   0 to 999      random pairs from a seeded generator: even cases pair
+--                 single pieces of evidence, odd cases general masses;
 --   1000 to 1003  the extremes of Mitra's golden sets: agreement at 1,
 --                 contradiction at 1, evidence at 0, no evidence.
 -- `combine_yager case` is correct when the result is a valid mass

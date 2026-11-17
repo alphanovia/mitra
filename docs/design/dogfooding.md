@@ -44,8 +44,11 @@ fractions), and specs that can express the combination rules.
 `crates/mitra-ds` has masses, Dempster's rule and Yager's rule, and
 property tests over numbered cases (random pairs, and the golden-set
 extremes). Its store `crates/mitra-ds/.mitra/` declares the claims and the
-`test`s; `scripts/dogfood-ds.sh` runs the tests and ingests the results;
-`cargo test` checks the verdicts. Not done yet: rationals (cases stand in
+`test`s; `scripts/dogfood-ds.sh` runs the tests and ingests the results,
+tagged with the git hash of the crate's committed code (it refuses
+uncommitted changes and stops when the tests don't build), then evaluates
+with `--rev` so only evidence on that code counts. `cargo test` checks the
+verdicts. Not done yet: rationals (cases stand in
 for real masses), doc-comment models, Verus, and `mitra-core` using the
 crate.
 

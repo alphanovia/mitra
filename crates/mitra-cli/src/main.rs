@@ -61,8 +61,21 @@ fn located(m: &str, e: &str) -> impl Fn((mitra_core::Input, mitra_core::Error)) 
     }
 }
 
-/// Parse, check and evaluate both files. With a revision, evidence recorded
-/// at another revision is stale and left out (evidence with no `rev` stays).
+/// A revision given with `--rev`: not empty, not an option, no quotes or
+/// line breaks (it is written into the evidence file).
+pub fn check_rev(rev: &str) -> Result<(), String> {
+    if rev.is_empty() || rev.starts_with('-') || rev.contains(['"', '\n', '\r']) {
+        return Err(format!(
+            "--rev `{rev}`: must not be empty, start with `-`, or hold quotes or line breaks"
+        ));
+    }
+    Ok(())
+}
+
+/// Parse, check and evaluate both files. With a revision, only evidence
+/// recorded at that revision counts: evidence at another revision, or with
+/// no `rev`, is stale and left out. Otherwise an old pass could outlive a
+/// newer failure that is left out.
 fn evaluate(
     m: &str,
     e: &str,
@@ -71,12 +84,10 @@ fn evaluate(
     let mut model = mitra_core::load(&read(m)?, &read(e)?).map_err(located(m, e))?;
     if let Some(rev) = rev {
         let before = model.evidence.len();
-        model
-            .evidence
-            .retain(|x| x.rev.as_deref().is_none_or(|r| r == rev));
+        model.evidence.retain(|x| x.rev.as_deref() == Some(rev));
         let stale = before - model.evidence.len();
         if stale > 0 {
-            eprintln!("mitra: {stale} evidence left out: recorded at a revision other than {rev}");
+            eprintln!("mitra: {stale} evidence left out: not recorded at revision {rev}");
         }
     }
     let report = mitra_core::evaluate(&model).map_err(located(m, e))?;
@@ -96,6 +107,7 @@ fn take_rev(cmd: &str, rest: &mut Vec<String>) -> Result<Option<String>, String>
     }
     let rev = rest.remove(i + 1);
     rest.remove(i);
+    check_rev(&rev)?;
     Ok(Some(rev))
 }
 
@@ -169,6 +181,9 @@ fn run(args: Vec<String>) -> Result<(), String> {
                     _ => return Err(USAGE.into()),
                 }
             }
+            if let Some(r) = &rev {
+                check_rev(r)?;
+            }
             let s = store::Store::find()?;
             let n = s.add(text, source, rev)?;
             println!("added {n} evidence to {}", s.evidence_path());
@@ -197,11 +212,8 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 None => report::libtest(text),
                 Some(f) => return Err(format!("unknown format `{f}` (libtest, junit)")),
             };
-            if rev
-                .as_ref()
-                .is_some_and(|r| r.is_empty() || r.contains(['"', '\n', '\r']))
-            {
-                return Err("--rev: must not be empty or hold quotes or line breaks".into());
+            if let Some(r) = &rev {
+                check_rev(r)?;
             }
             let s = store::Store::find()?;
             let model = s.model()?;

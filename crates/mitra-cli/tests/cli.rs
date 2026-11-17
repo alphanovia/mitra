@@ -233,6 +233,9 @@ fn rev_leaves_out_stale_evidence() {
         &dir,
         &["add", "evidence correct (not false) at 1", "--rev", "new"],
     );
+    // Evidence with no revision is stale under --rev too: else this old
+    // pass would outlive any newer failure.
+    mitra(&dir, &["add", "evidence correct (not true) at 1"]);
     let (_, all, _) = mitra(&dir, &["eval"]);
     assert!(
         all.starts_with("not_correct [strict] := { logic := .holds"),
@@ -242,7 +245,7 @@ fn rev_leaves_out_stale_evidence() {
     assert_eq!(code, Some(0));
     assert_eq!(
         err,
-        "mitra: 1 evidence left out: recorded at a revision other than new\n"
+        "mitra: 2 evidence left out: not recorded at revision new\n"
     );
     assert_eq!(
         out,
@@ -252,5 +255,15 @@ fn rev_leaves_out_stale_evidence() {
     let (_, out, _) = mitra(&dir, &["next", "--rev", "new"]);
     assert!(out.starts_with("not_correct : missing {true}\n"), "{out}");
     assert_eq!(mitra(&dir, &["eval", "--rev"]).0, Some(2));
+    assert_eq!(mitra(&dir, &["eval", "--rev", ""]).0, Some(2));
+    assert_eq!(mitra(&dir, &["eval", "--rev", "--rev"]).0, Some(2));
+    assert_eq!(
+        mitra(
+            &dir,
+            &["add", "evidence correct (not true) at 1", "--rev", ""]
+        )
+        .0,
+        Some(2)
+    );
     let _ = std::fs::remove_dir_all(dir);
 }

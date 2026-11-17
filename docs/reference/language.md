@@ -35,9 +35,10 @@ status 2.
   evidence over a set can cover it. Inputs with contradicting evidence
   count as missing too.
   It prints `nothing uncertain` when every claim holds or fails.
-- `--rev R` on `check`, `eval` and `next` leaves out **stale** evidence:
-  evidence whose `rev` attribute is set and differs from `R`. Evidence with
-  no `rev` always counts. The number left out is printed on standard error.
+- `--rev R` on `check`, `eval` and `next` counts only evidence recorded at
+  `R`: evidence with another `rev`, or with none, is **stale** and left out
+  (otherwise an old pass would outlive a newer failure that is left out).
+  The number left out is printed on standard error.
   Revisions are compared as text, and any other revision is stale, even
   if the subject did not change.
 - Without file names, `check`, `eval` and `next` use the **store**: the nearest
@@ -67,7 +68,9 @@ status 2.
   report starting with `<` (after a byte order mark) is JUnit. A test's
   name is the last `::` segment of its path. Any other line or element is
   ignored without a message. A test that appears more than once in a report
-  is left out, with a note. `--rev` must not be empty.
+  is left out, with a note.
+- A revision given with `--rev` must not be empty, start with `-`, or hold
+  quotes or line breaks.
   `ingest` prints how many results passed and failed, how many evidence
   lines it added, failed tests that gave no evidence, and the tests with no
   `test` declaration.

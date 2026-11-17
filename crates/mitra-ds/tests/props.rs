@@ -3,7 +3,9 @@
 
 use mitra_ds::Mass;
 
-/// xorshift64, fixed seed: case n is always the same pair of masses.
+/// xorshift64, fixed seed: case n is always the same pair of masses. Even
+/// cases pair single pieces of evidence (`judged`); odd cases pair general
+/// masses, with belief on both sides, as combining several pieces gives.
 fn case(n: u64) -> (Mass, Mass) {
     let mut s = (n + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
     let mut next = || {
@@ -13,8 +15,18 @@ fn case(n: u64) -> (Mass, Mass) {
         (s >> 11) as f64 / (1u64 << 53) as f64
     };
     let mut mass = || {
-        let correct = next() < 0.5;
-        Mass::judged(correct, next()).unwrap()
+        if n.is_multiple_of(2) {
+            let correct = next() < 0.5;
+            Mass::judged(correct, next()).unwrap()
+        } else {
+            let (x, y) = (next(), next());
+            let (lo, hi) = (x.min(y), x.max(y));
+            Mass {
+                b: lo,
+                d: hi - lo,
+                u: 1.0 - hi,
+            }
+        }
     };
     (mass(), mass())
 }
@@ -35,11 +47,16 @@ fn close(a: f64, b: f64) -> bool {
     (a - b).abs() <= 1e-9
 }
 
+fn same(m: Mass, n: Mass) -> bool {
+    close(m.b, n.b) && close(m.d, n.d) && close(m.u, n.u)
+}
+
 /// Yager: a valid mass, commutative, the conflict in unknown.
 fn yager_ok(m1: Mass, m2: Mass) -> bool {
-    let (m, k) = m1.yager(&m2);
-    let (n, k2) = m2.yager(&m1);
-    m.is_valid() && close(k, k2) && close(m.b, n.b) && close(m.d, n.d) && m.u >= k - 1e-9
+    let (Some((m, k)), Some((n, k2))) = (m1.yager(&m2), m2.yager(&m1)) else {
+        return false;
+    };
+    m.is_valid() && close(k, k2) && same(m, n) && m.u >= k - 1e-9
 }
 
 /// Dempster: a valid mass, commutative, and Yager's result renormalised.
@@ -47,11 +64,15 @@ fn dempster_ok(m1: Mass, m2: Mass) -> bool {
     let k = m1.conflict(&m2);
     match (m1.dempster(&m2), m2.dempster(&m1)) {
         (Some(m), Some(n)) => {
-            let (y, _) = m1.yager(&m2);
-            m.is_valid()
-                && close(m.b, n.b)
-                && close(m.b, y.b / (1.0 - k))
-                && close(m.d, y.d / (1.0 - k))
+            let Some((y, _)) = m1.yager(&m2) else {
+                return false;
+            };
+            let renormalised = Mass {
+                b: y.b / (1.0 - k),
+                d: y.d / (1.0 - k),
+                u: (y.u - k) / (1.0 - k),
+            };
+            m.is_valid() && same(m, n) && same(m, renormalised)
         }
         (None, None) => close(k, 1.0),
         _ => false,
@@ -76,7 +97,12 @@ fn t_dempster_random() {
 
 #[test]
 fn t_yager_extremes() {
-    let y = |n| extreme(n).0.yager(&extreme(n).1).0;
+    let y = |n| {
+        let (a, b) = extreme(n);
+        let m = a.yager(&b).unwrap().0;
+        assert_eq!(Some(m), b.yager(&a).map(|r| r.0), "commutative");
+        m
+    };
     assert_eq!(
         y(1000),
         Mass {
@@ -103,7 +129,12 @@ fn t_yager_extremes() {
 
 #[test]
 fn t_dempster_extremes() {
-    let d = |n| extreme(n).0.dempster(&extreme(n).1);
+    let d = |n| {
+        let (a, b) = extreme(n);
+        let m = a.dempster(&b);
+        assert_eq!(m, b.dempster(&a), "commutative");
+        m
+    };
     assert_eq!(
         d(1000),
         Some(Mass {
@@ -132,4 +163,29 @@ fn t_dempster_extremes() {
 fn t_judged_rejects_bad_confidence() {
     assert_eq!(Mass::judged(true, 1.5), None);
     assert_eq!(Mass::judged(true, f64::NAN), None);
+}
+
+#[test]
+fn t_rejects_invalid_masses() {
+    let bad = [
+        Mass {
+            b: f64::NAN,
+            d: 0.0,
+            u: 1.0,
+        },
+        Mass {
+            b: -0.5,
+            d: 0.5,
+            u: 1.0,
+        },
+        Mass {
+            b: 0.5,
+            d: 0.5,
+            u: 0.5,
+        },
+    ];
+    for m in bad {
+        assert_eq!(m.yager(&Mass::VACUOUS), None);
+        assert_eq!(Mass::VACUOUS.dempster(&m), None);
+    }
 }
