@@ -54,7 +54,7 @@ The same idea applied to the project as a whole, checked in the vision doc:
   traces back to it.
 - **Bounded:** an explicit non-goals list, as important as the goals.
 - **Achievable:** milestone 1 fits in the stated time budget with margin.
-- **Testable:** "v1 is done" is defined by exit demos, not by a feature count.
+- **Testable:** "done" is defined by exit demos, not by a feature count.
 
 ## Definition of done (per item)
 

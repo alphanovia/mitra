@@ -1,15 +1,14 @@
 # Use cases
 
 Three concrete situations Mitra is for. They are ordered by when Mitra can
-serve them: UC1 is what v1 delivers, UC2 and UC3 are the reasons the engine
-exists and shape its design now, but are built after v1.
+serve them: UC1 is what comes first, UC2 and UC3 are the reasons the engine
+exists and shape its design now, but are built later.
 
-The model snippets are illustrative. The real model format is decided in item
-1.1 of the [roadmap](roadmap.md), and the trust value's shape in spike SP1.
+The snippets use the draft syntax from [language.md](language.md).
 
 ---
 
-## UC1: Check what a trust model computes (v1)
+## UC1: Check what a trust model computes (first)
 
 **Actor:** a developer of Mitra, or of a program that will use Mitra.
 **Goal:** write a small model, see the trust value and why, and be sure it is
@@ -21,19 +20,16 @@ permutation of the input". The first has a Lean proof; the second only has
 three example-based tests. The proof rests on the assumption "the Lean model of
 `sort` matches the Rust code".
 
-```toml
-[claim.sort_correct]
-needs = ["ordered", "permutation"]          # conjunction
+```mitra
+claim sort_correct "sort returns a sorted permutation of its input"
+claim ordered      "output is ordered"
+claim permutation  "output is a permutation of the input"
+claim model_ok     "the Lean model of sort matches the Rust code"
 
-[claim.ordered]
-evidence = [{ kind = "proof", tool = "lean" }]
-assumes  = ["model_matches_code"]
-
-[claim.permutation]
-evidence = [{ kind = "test", count = 3 }]
-
-[assumption.model_matches_code]
-trust = 0.8
+assume   ordered     = (1, 0, 0)     # Lean proof
+assume   model_ok    = (0.8, 0, 0.2)
+evidence permutation : +3            # three example tests
+sort_correct = ordered and model_ok and permutation
 ```
 
 **What Mitra returns.** `sort_correct` gets a moderate value with high
@@ -41,17 +37,15 @@ uncertainty, and the limiting element is `permutation`: three example tests
 are thin. Raising it (say, a property-based test) is what helps most; a second
 proof of `ordered` would barely move the result.
 
-**Why it matters.** This is how v1 is validated, the way subjective logic is
+**Why it matters.** This is how the language is validated, the way subjective logic is
 validated: small nominal and corner-case models whose expected outputs are
 known, plus proven properties ("a conjunction is never trusted more than its
-weakest leg"). Every model in the reference corpus is an instance of UC1, and
-the demo app (roadmap 2.3) is UC1 with a screen.
-
-**Covered by:** roadmap M1 and M2.
+weakest leg"). Every toy model in [examples.md](examples.md) is an instance of UC1, and
+a demo app would be UC1 with a screen.
 
 ---
 
-## UC2: Gate a merge on the trust earned by a change (after v1, product case)
+## UC2: Gate a merge on the trust earned by a change (later, product case)
 
 **Actor:** a CI pipeline.
 **Goal:** decide automatically whether a change can merge, needs a human, or
@@ -77,12 +71,12 @@ discounts the integration test. CI routes the change to a human and reports
 the limiting element: "assumption `staging_token_lifetime` is unverified".
 Checking that one assumption would let the change merge on its own.
 
-**What this needs beyond v1:** turning a change's tests, proofs and reviews
+**What this needs beyond the language:** turning a change's tests, proofs and reviews
 into a model automatically. That is the v2 product case.
 
 ---
 
-## UC3: Decide how much autonomy to give an agent (after v1, agent case)
+## UC3: Decide how much autonomy to give an agent (later, agent case)
 
 **Actor:** an agent harness.
 **Goal:** after each step, choose between letting the agent continue, asking
@@ -105,10 +99,10 @@ runs the tests itself, which is the cheapest action that raises trust the
 most. If the harness's own run fails, disbelief jumps and the agent is
 stopped, and the agent's track record drops for the next decision.
 
-**Why this shapes v1:** it is the case that needs "uncertainty is not
+**Why this shapes the language now:** it is the case that needs "uncertainty is not
 distrust" (vision principle 2) and discounting by a source's reliability
-(roadmap 1.6). The v1 corpus includes models of this shape even though the
-harness itself is v3.
+(`from` in [language.md](language.md)). Toy models of this shape are written
+now even though the harness itself comes later.
 
 ---
 
@@ -120,7 +114,7 @@ harness itself is v3.
 | Where the model comes from | written by hand | derived from a change | derived from an agent's actions |
 | What the answer drives | understanding, tests | merge / human / block | continue / gather / human / stop |
 | Needs the limiting element | to explain | to tell the author what to add | to pick the next action |
-| Version | v1 | v2 | v3 |
+| When | first | later | later |
 
 The engine is the same in all three. Only the source of the model and the
-policy on top of the trust value change, which is why v1 is the engine alone.
+policy on top of the trust value change, which is why the language comes first.
