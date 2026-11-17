@@ -7,8 +7,10 @@
 //! total conflict) or by Yager's rule (conflict moved to unknown, and
 //! reported).
 //!
-//! The crate is dogfooded: `.mitra/model.mitra` holds its claims and tests,
-//! and `.mitra/evidence.mitra` the results of its own test runs.
+//! The crate is dogfooded: its model is in the `mitra:` comments above
+//! each function and test, and `.mitra/evidence.mitra` holds the results of
+//! its own test runs. In the model a mass is three numbers `b d u`, since
+//! Mitra has no records.
 
 /// Belief split on {correct, wrong}: `b + d + u = 1`, each in [0, 1].
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -34,6 +36,11 @@ impl Mass {
 
     /// The mass of one piece of evidence: `correct` or wrong, at confidence
     /// `c` in [0, 1]. `None` if `c` is outside [0, 1] or not a number.
+    ///
+    /// mitra: -- Correct: `Some((c, 0, 1 - c))` if ok, `Some((0, c, 1 - c))`
+    /// mitra: -- if not, for c in [0, 1]; `None` otherwise.
+    /// mitra: opaque judged (ok : Bool) (c : Float64) : Value
+    /// mitra: claim judged_correct : forall ok, forall c, correct (judged ok c)
     pub fn judged(correct: bool, c: f64) -> Option<Mass> {
         if !(0.0..=1.0).contains(&c) {
             return None;
@@ -43,6 +50,13 @@ impl Mass {
     }
 
     /// Each part in [0, 1] and the parts sum to 1, up to [`EPSILON`].
+    ///
+    /// mitra: opaque is_valid (b d u : Float64) : Bool
+    /// mitra: def valid_spec (b d u : Float64) : Bool :=
+    /// mitra:   let e := 0.000000001; let s := b + d + u - 1.0;
+    /// mitra:   b >= -e && b <= 1.0 + e && d >= -e && d <= 1.0 + e
+    /// mitra:   && u >= -e && u <= 1.0 + e && s <= e && -s <= e
+    /// mitra: claim is_valid_spec : forall b, forall d, forall u, is_valid b d u = valid_spec b d u
     pub fn is_valid(&self) -> bool {
         let parts = [self.b, self.d, self.u];
         parts.iter().all(|x| (-EPSILON..=1.0 + EPSILON).contains(x))
@@ -50,6 +64,11 @@ impl Mass {
     }
 
     /// The mass two sources give to opposite sides: `b₁d₂ + d₁b₂`.
+    ///
+    /// mitra: opaque conflict (b1 d1 u1 b2 d2 u2 : Float64) : Float64
+    /// mitra: def conflict_spec (b1 d1 u1 b2 d2 u2 : Float64) : Float64 := b1 * d2 + d1 * b2
+    /// mitra: claim conflict_spec_ok : forall b1, forall d1, forall u1, forall b2, forall d2, forall u2,
+    /// mitra:   conflict b1 d1 u1 b2 d2 u2 = conflict_spec b1 d1 u1 b2 d2 u2
     pub fn conflict(&self, o: &Mass) -> f64 {
         self.b * o.d + self.d * o.b
     }
@@ -67,6 +86,12 @@ impl Mass {
     /// conflict (two fully believed, opposite judgments), taken as a
     /// conflict within [`EPSILON`] of 1 (renormalising by less is
     /// numerically meaningless), and when either mass is not valid.
+    ///
+    /// mitra: -- Correct: `None` if either mass is invalid or the conflict k is
+    /// mitra: -- within EPSILON of 1; else the agreement divided by 1 - k.
+    /// mitra: opaque dempster (b1 d1 u1 b2 d2 u2 : Float64) : Value
+    /// mitra: claim dempster_correct : forall b1, forall d1, forall u1, forall b2, forall d2, forall u2,
+    /// mitra:   correct (dempster b1 d1 u1 b2 d2 u2)
     pub fn dempster(&self, o: &Mass) -> Option<Mass> {
         if !self.is_valid() || !o.is_valid() {
             return None;
@@ -85,6 +110,12 @@ impl Mass {
 
     /// Yager's rule: the conflict goes to unknown. Returns the combined
     /// mass and the conflict; `None` if either mass is not valid.
+    ///
+    /// mitra: -- Correct: `None` if either mass is invalid; else the agreement,
+    /// mitra: -- with the conflict k added to unknown, and k.
+    /// mitra: opaque yager (b1 d1 u1 b2 d2 u2 : Float64) : Value
+    /// mitra: claim yager_correct : forall b1, forall d1, forall u1, forall b2, forall d2, forall u2,
+    /// mitra:   correct (yager b1 d1 u1 b2 d2 u2)
     pub fn yager(&self, o: &Mass) -> Option<(Mass, f64)> {
         if !self.is_valid() || !o.is_valid() {
             return None;
