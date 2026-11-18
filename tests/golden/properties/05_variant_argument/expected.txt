@@ -1,0 +1,23 @@
+pick_same: holds
+pick_default: fails
+  fails on        the statement itself
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:5  claim pick_default : pick(None) == Red
+
+  `pick_default` fails on the statement itself.
+  The evidence that says so:
+
+    output    evidence.mitra:4  evidence pick(None) = Green at 1
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                 trust  left
+    certain   the code of `pick`, model.mitra:3  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  help: if the evidence is right, fix `pick`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

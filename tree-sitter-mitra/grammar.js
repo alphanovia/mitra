@@ -41,13 +41,14 @@ module.exports = grammar({
       choice(
         $.uniform,
         $.uses,
-        seq(repeat($.forall), choice($.correct, $.equation), optional($.derive)),
+        seq(repeat($.forall), choice($.correct, $.equation, $.property), optional($.derive)),
       ),
     ),
     uses: $ => seq(optional('only'), 'uses', field('subject', $.name), '[', sep1($.name, ','), ']'),
     uniform: $ => seq('uniform', field('subject', $.name), optional(seq('by', field('classes', $.name)))),
     correct: $ => seq('correct', '(', $.call, ')'),
-    equation: $ => seq($.call, '=', $._expr),
+    equation: $ => seq($._expr, '=', $._expr),
+    property: $ => $._expr,
     derive: $ => seq(':=', 'by', 'derive', '[', sep1($.name, ','), ']'),
     call: $ => seq(field('function', $.name), optional(seq('(', sep1($._arg, ','), ')'))),
     // ASCII first; Lean's Unicode symbols are aliases.

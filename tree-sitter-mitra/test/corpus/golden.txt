@@ -175,7 +175,7 @@ claim flip_on_true : flip(true) = neg(true)
     (forall
       (name))
     (equation
-      (call
+      (application
         (name)
         (name))
       (application
@@ -185,7 +185,7 @@ claim flip_on_true : flip(true) = neg(true)
   (claim
     (name)
     (equation
-      (call
+      (application
         (name)
         (boolean))
       (application
@@ -286,7 +286,7 @@ claim flip_not_same : forall a, flip_not(a) = same(a) := by derive [flip_spec, f
     (forall
       (name))
     (equation
-      (call
+      (application
         (name)
         (name))
       (application
@@ -300,7 +300,7 @@ claim flip_not_same : forall a, flip_not(a) = same(a) := by derive [flip_spec, f
     (forall
       (name))
     (equation
-      (call
+      (application
         (name)
         (name))
       (application
@@ -312,7 +312,7 @@ claim flip_not_same : forall a, flip_not(a) = same(a) := by derive [flip_spec, f
     (forall
       (name))
     (equation
-      (call
+      (application
         (name)
         (name))
       (application
@@ -326,7 +326,7 @@ claim flip_not_same : forall a, flip_not(a) = same(a) := by derive [flip_spec, f
     (forall
       (name))
     (equation
-      (call
+      (application
         (name)
         (name))
       (application
@@ -474,7 +474,7 @@ claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = differenc
         (bound
           (nat))))
     (equation
-      (call
+      (application
         (name)
         (name)
         (name))
@@ -492,7 +492,7 @@ claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = differenc
         (bound
           (nat))))
     (equation
-      (call
+      (application
         (name)
         (name))
       (application
@@ -516,7 +516,7 @@ claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = differenc
         (bound
           (nat))))
     (equation
-      (call
+      (application
         (name)
         (name)
         (name))
@@ -544,7 +544,7 @@ claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = differenc
         (bound
           (nat))))
     (equation
-      (call
+      (application
         (name)
         (name)
         (name))
@@ -815,3 +815,51 @@ evidence get(None) = Some(4) at 1
         (name)
         (nat)))
     (number)))
+
+==================
+claims on any expression
+==================
+
+claim sort_len : forall xs, len(sort(xs)) == len(xs)
+claim max_ge : forall a, forall b in 0..=9, max(a, b) >= a && max(a, b) >= b
+
+---
+
+(source_file
+  (claim
+    (name)
+    (forall
+      (name))
+    (property
+      (binary
+        (len
+          (application
+            (name)
+            (name)))
+        (len
+          (name)))))
+  (claim
+    (name)
+    (forall
+      (name))
+    (forall
+      (name)
+      (range
+        (bound
+          (nat))
+        (bound
+          (nat))))
+    (property
+      (binary
+        (binary
+          (application
+            (name)
+            (name)
+            (name))
+          (name))
+        (binary
+          (application
+            (name)
+            (name)
+            (name))
+          (name))))))

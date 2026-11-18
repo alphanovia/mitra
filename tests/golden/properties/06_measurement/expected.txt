@@ -1,0 +1,25 @@
+red_mostly_slips: holds
+blue_mostly_slips: fails
+  fails on        the statement itself
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:3  claim blue_mostly_slips : slip_rate("blue") > 0.5
+
+  `blue_mostly_slips` fails on the statement itself.
+  The evidence that says so:
+
+    output    evidence.mitra:2  evidence slip_rate("blue") = 0.2 at 0.8
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                      trust  left
+    likely    the code of `slip_rate`, model.mitra:1  none   0.00 to 0.20
+    unlikely  evidence.mitra:2                        0.8    0.80 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  help: if the evidence is right, fix `slip_rate`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

@@ -6,7 +6,7 @@ use crate::ast::*;
 use crate::set::Value;
 use crate::tuples::Tuples;
 use crate::{Error, Input};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashMap};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -325,6 +325,8 @@ struct Eval<'m> {
     /// Observed outputs: (subject, inputs) -> outputs.
     observed: BTreeMap<(String, Vec<Value>), Vec<Value>>,
     depth: Cell<usize>,
+    /// The observed outputs read so far: (subject, inputs).
+    read: RefCell<Vec<(String, Vec<Value>)>>,
 }
 
 impl Eval<'_> {
@@ -478,6 +480,13 @@ impl Eval<'_> {
                         ("&&", Value::Bool(false)) | ("||", Value::Bool(true))
                     )
                 };
+                if xs.is_empty() && ["&&", "||"].contains(&op.to_string().as_str()) {
+                    // An unknown side: the other one may settle it alone.
+                    let ys = self.eval(b, env, line, subjects).unwrap_or_default();
+                    let mut out: Vec<Value> = ys.into_iter().filter(settles).collect();
+                    out.dedup();
+                    return Ok(out);
+                }
                 if xs.iter().all(settles) {
                     return Ok(xs);
                 }
@@ -584,11 +593,14 @@ impl Eval<'_> {
             return Ok(out);
         }
         match subjects {
-            Subjects::Observed => Ok(self
-                .observed
-                .get(&(func.name.clone(), args.to_vec()))
-                .cloned()
-                .unwrap_or_default()),
+            Subjects::Observed => {
+                let key = (func.name.clone(), args.to_vec());
+                let out = self.observed.get(&key).cloned().unwrap_or_default();
+                if !out.is_empty() {
+                    self.read.borrow_mut().push(key);
+                }
+                Ok(out)
+            }
             Subjects::Assumed(premises) => {
                 let rule = premises.iter().find(|p| {
                     p.func == func.name
@@ -643,6 +655,25 @@ impl Eval<'_> {
         x: &[Value],
         subjects: Subjects,
     ) -> Result<Option<(bool, bool)>, Error> {
+        if matches!(c.target, Target::Property(_)) {
+            // True, false (or both, when a subject has two outputs).
+            let env: Env = c
+                .pattern
+                .iter()
+                .zip(x)
+                .filter_map(|(p, v)| Some((p.var.clone()?, v.clone())))
+                .collect();
+            let values = self.eval(target, &env, c.line, subjects)?;
+            if let Some(v) = values.iter().find(|v| !matches!(v, Value::Bool(_))) {
+                let msg = format!("`{}` must be true or false, got {v}", c.name);
+                return Err(Error::new(c.line, msg));
+            }
+            let (yes, no) = (Value::Bool(true), Value::Bool(false));
+            return Ok(match values.is_empty() {
+                true => None,
+                false => Some((values.contains(&yes), values.contains(&no))),
+            });
+        }
         let lhs = self.call(&c.func, x, c.line, subjects)?;
         let rhs = self.target(c, target, x, subjects)?;
         if lhs.is_empty() || rhs.is_empty() {
@@ -653,6 +684,57 @@ impl Eval<'_> {
         Ok(Some((right, wrong)))
     }
 
+    /// The inputs of a property that the observed outputs speak of: every
+    /// way to give its names the observed inputs of the calls whose
+    /// arguments are names or values.
+    fn candidates(&self, c: &Claim, e: &Expr, domain: &Tuples) -> Vec<Vec<Value>> {
+        const MOST: usize = 4096;
+        let names: Vec<&String> = c.pattern.iter().filter_map(|p| p.var.as_ref()).collect();
+        let mut calls = Vec::new();
+        subject_calls(e, self.model, &mut calls);
+        let plain = |a: &Expr| match a {
+            Expr::Var(x) => names.contains(&x),
+            Expr::Lit(_) => true,
+            _ => false,
+        };
+        let mut partial: Vec<BTreeMap<&String, &Value>> = vec![BTreeMap::new()];
+        for (g, args) in calls.iter().filter(|(_, args)| args.iter().all(plain)) {
+            let mut next = Vec::new();
+            for known in &partial {
+                let mut any = false;
+                for ((_, input), _) in self.observed.iter().filter(|((f, _), _)| &f == g) {
+                    let mut all = known.clone();
+                    let fits = args.iter().zip(input).all(|(a, v)| match a {
+                        Expr::Var(x) => *all.entry(x).or_insert(v) == v,
+                        Expr::Lit(l) => l == v,
+                        _ => false,
+                    });
+                    if fits && next.len() < MOST {
+                        any = true;
+                        next.push(all);
+                    }
+                }
+                if !any && next.len() < MOST {
+                    next.push(known.clone());
+                }
+            }
+            next.sort();
+            next.dedup();
+            partial = next;
+        }
+        let whole = |known: &BTreeMap<&String, &Value>| -> Option<Vec<Value>> {
+            names
+                .iter()
+                .map(|x| known.get(x).cloned().cloned())
+                .collect()
+        };
+        let mut out: Vec<Vec<Value>> = partial.iter().filter_map(whole).collect();
+        out.retain(|x| domain.contains(x));
+        out.sort();
+        out.dedup();
+        out
+    }
+
     /// Check `premises ⇒ c` by substitution on every input of a finite
     /// domain.
     fn implication(
@@ -661,7 +743,9 @@ impl Eval<'_> {
         domain: &Tuples,
         premises: &[&Claim],
     ) -> Result<Implication, Error> {
-        let (Target::Matches(target), Some(inputs)) = (&c.target, domain.values()) else {
+        let (Target::Matches(target) | Target::Property(target), Some(inputs)) =
+            (&c.target, domain.values())
+        else {
             return Ok(Implication::Unchecked);
         };
         let mut unknown = false;
@@ -850,6 +934,15 @@ fn sorted(model: &Model, i: usize) -> Sorted {
     let bound: Vec<&String> = c.pattern.iter().filter_map(|p| p.var.as_ref()).collect();
     // The claim's own call, then the calls of its other side.
     let mut found: Vec<(&String, Option<&[Expr]>)> = vec![(&c.func, None)];
+    if let Target::Property(e) = &c.target {
+        // A property has no call of its own: every call has its class.
+        let mut calls = Vec::new();
+        subject_calls(e, model, &mut calls);
+        found = calls.into_iter().map(|(g, a)| (g, Some(a))).collect();
+        if found.is_empty() {
+            return Sorted::No;
+        }
+    }
     if let Target::Matches(e) = &c.target {
         match e {
             Expr::Var(g) if !bound.contains(&g) => {
@@ -934,6 +1027,9 @@ struct Direct {
     tainted: Vec<Vec<Value>>,
     /// Each pass or failure: its inputs, its side and its evidence line.
     sources: Vec<(Tuples, bool, usize)>,
+    /// For a property: each failing input with the lines of every output
+    /// it was computed from. They are wrong together or not at all.
+    joint: Vec<(Vec<Value>, Vec<usize>)>,
 }
 
 /// The inputs of `set` one by one, when there are few enough.
@@ -971,6 +1067,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         model,
         observed,
         depth: Cell::new(0),
+        read: RefCell::new(Vec::new()),
     };
     let model_err = |e| (Input::Model, e);
 
@@ -1053,6 +1150,8 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let mut points: Vec<Point> = Vec::new();
         let mut blind = false;
         let mut tainted = Vec::new();
+        // For a property: each failing input with every output it read.
+        let mut joint: Vec<(Vec<Value>, Vec<usize>)> = Vec::new();
         // Each pass or failure with its inputs and evidence line, to find
         // those that can't both be true.
         let mut sources: Vec<(Tuples, bool, usize)> = Vec::new();
@@ -1078,14 +1177,17 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             let side = if ok { &mut right } else { &mut wrong };
             *side = side.union(&set);
         }
-        if let Target::Matches(target) = &c.target {
+        if let Target::Matches(target) | Target::Property(target) = &c.target {
+            let property = matches!(c.target, Target::Property(_));
             // Every input of a finite domain; otherwise every observed input.
-            let inputs = domain.values().unwrap_or_else(|| {
-                ev.observed
+            let inputs = domain.values().unwrap_or_else(|| match property {
+                true => ev.candidates(c, target, &domain),
+                false => ev
+                    .observed
                     .keys()
                     .map(|(_, x)| x.clone())
                     .filter(|x| x.len() == arity && domain.contains(x))
-                    .collect()
+                    .collect(),
             });
             // For classes, also the observed inputs outside the domain that
             // the same statement reaches: those that fit the claim's values.
@@ -1111,20 +1213,35 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                     continue;
                 }
                 let inside = domain.contains(&x);
-                if let Some((ok, ko)) = ev
+                ev.read.borrow_mut().clear();
+                let compared = ev
                     .compare(c, target, &x, Subjects::Observed)
-                    .map_err(model_err)?
-                {
+                    .map_err(model_err)?;
+                // The outputs a property was computed from.
+                let mut read = ev.read.take();
+                read.sort();
+                read.dedup();
+                if property && read.iter().any(|r| split.contains(r)) {
+                    tainted.push(x);
+                    continue;
+                }
+                if let Some((ok, ko)) = compared {
+                    let own = [(c.func.clone(), x.clone())];
                     let lines: Vec<usize> = model
                         .evidence
                         .iter()
                         .filter(|e| {
-                            e.about == c.func
-                                && matches!(e.judgment, Judgment::Output(_))
-                                && single(&e.pattern).as_ref() == Some(&x)
+                            let from = if property { &read[..] } else { &own[..] };
+                            matches!(e.judgment, Judgment::Output(_))
+                                && from.iter().any(|(g, x)| {
+                                    &e.about == g && single(&e.pattern).as_ref() == Some(x)
+                                })
                         })
                         .map(|e| e.line)
                         .collect();
+                    if property && ko && !ok {
+                        joint.push((x.clone(), lines.clone()));
+                    }
                     let line = lines.first().copied().unwrap_or(0);
                     let point = Tuples::point(&x);
                     if ok && ko {
@@ -1168,6 +1285,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         }
         points.retain(|(x, _, _)| !tainted.contains(x));
         direct.push(Direct {
+            joint,
             tainted,
             right: right.intersect(&domain),
             wrong: wrong.intersect(&domain),
@@ -1317,10 +1435,12 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         if !model.claims.iter().any(stated) {
             groups.push((None, judged(&u.func)));
         }
-        for (i, c) in model.claims.iter().enumerate() {
+        for (i, sorted) in sorting.iter().enumerate() {
             let first = (0..i).all(|j| !same(i, j));
-            if c.func == u.func && first {
-                if let Sorted::By(s) = &sorting[i] {
+            // A claim counts for the `uniform` claim of its subject; a
+            // property, for the one of the first subject it calls.
+            if let (Sorted::By(s), true) = (sorted, first) {
+                if model.claims[s.claims[0]].name == u.name {
                     groups.push((Some((i, s)), points_of(i)));
                 }
             }
@@ -1652,7 +1772,18 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         // of what it uses and of the subjects the claim calls, or the
         // claim itself.
         let mut side: Vec<Piece> = Vec::new();
-        if c.target.is_structural() || !is_subject(&c.func) {
+        if let Target::Property(_) = &c.target {
+            for g in model.subjects_of(c) {
+                for h in std::iter::once(&g).chain(uses_of(&g)) {
+                    if !side.contains(&Piece::Code(h.clone())) {
+                        side.push(Piece::Code(h.clone()));
+                    }
+                }
+            }
+            if side.is_empty() {
+                side.push(Piece::Claim(c.name.clone()));
+            }
+        } else if c.target.is_structural() || !is_subject(&c.func) {
             side.push(Piece::Claim(c.name.clone()));
         } else {
             side.push(Piece::Code(c.func.clone()));
@@ -1669,6 +1800,25 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         }
         let with = |l: &usize| [side.clone(), vec![Piece::Evidence(*l)]].concat();
         let mut clauses: Vec<Vec<Piece>> = lines.iter().map(with).collect();
+        if let Target::Property(_) = &c.target {
+            // The outputs a failing input read are wrong together.
+            clauses.clear();
+            for (x, read) in &direct[i].joint {
+                if v.refuted.contains(x) {
+                    let read = read.iter().map(|l| Piece::Evidence(*l));
+                    let clause: Vec<Piece> = side.iter().cloned().chain(read).collect();
+                    if !clauses.contains(&clause) {
+                        clauses.push(clause);
+                    }
+                }
+            }
+            // A claim refuted by evidence on the claim itself.
+            let stated = |l: &&usize| {
+                let on = model.evidence.iter().find(|e| e.line == **l);
+                on.is_some_and(|e| matches!(e.judgment, Judgment::Holds(_)))
+            };
+            clauses.extend(lines.iter().filter(stated).map(with));
+        }
         for l in &via {
             for w in &vouches {
                 clauses.push([with(l), vec![Piece::Evidence(*w)]].concat());
@@ -1797,7 +1947,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     // 4. Suspects: what a subject uses, directly or not, that fails.
     let failing = |subject: &str| -> Vec<String> {
         let fails = |c: &&Claim| {
-            c.func == subject
+            model.subjects_of(c).iter().any(|g| g == subject)
                 && !matches!(c.target, Target::Uses { .. })
                 && logic_of[c.name.as_str()] == Logic::Fails
         };
@@ -1831,7 +1981,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let suspect = suspects.iter().any(|s: &Suspect| s.subject == c.func);
         // The subject itself must fail, not only a claim on its structure.
         let fails = model.claims.iter().any(|d| {
-            d.func == c.func
+            model.subjects_of(d).contains(&c.func)
                 && !d.target.is_structural()
                 && logic_of[d.name.as_str()] == Logic::Fails
         });
@@ -1893,6 +2043,7 @@ pub fn failed_output(model: &Model, test: &Test) -> Result<Vec<Evidence>, Error>
         model,
         observed: BTreeMap::new(),
         depth: Cell::new(0),
+        read: RefCell::new(Vec::new()),
     };
     let mut out = Vec::new();
     for c in model.claims.iter().filter(|c| c.func == e.about) {

@@ -115,6 +115,9 @@ pub enum Target {
     /// Equal to this expression on every input. A bare function name means
     /// that function applied to the same input.
     Matches(Expr),
+    /// True on every input: any expression with a Bool value, over the
+    /// names the claim binds. It may call several subjects.
+    Property(Expr),
     /// `uniform f by g`: the subject behaves the same on every input of a
     /// class, the classes being the values of the spec `g`. So one judged
     /// input stands for its whole class. `uniform f`, without a spec: every
@@ -235,6 +238,9 @@ pub struct Model {
     /// `records` and `enums`.
     pub declared: Vec<Decl>,
     pub functions: Vec<Function>,
+    /// One hidden function per `Property` claim, named after it, taking
+    /// the names the claim binds. Filled by `check`.
+    pub properties: Vec<Function>,
     pub claims: Vec<Claim>,
     pub tests: Vec<Test>,
     pub evidence: Vec<Evidence>,
@@ -290,8 +296,30 @@ impl Model {
     pub fn record(&self, name: &str) -> Option<&Record> {
         self.records.iter().find(|r| r.name == name)
     }
+    /// A function, or the hidden function of a property claim.
     pub fn function(&self, name: &str) -> Option<&Function> {
+        let hidden = || self.properties.iter().find(|f| f.name == name);
+        self.declared_function(name).or_else(hidden)
+    }
+    /// A function the model declares.
+    pub fn declared_function(&self, name: &str) -> Option<&Function> {
         self.functions.iter().find(|f| f.name == name)
+    }
+    /// The subjects a claim is about: its own, or for a property those it
+    /// calls.
+    pub fn subjects_of(&self, c: &Claim) -> Vec<String> {
+        let subject = |g: &String| self.declared_function(g).is_some_and(|g| !g.is_spec());
+        let all = match &c.target {
+            Target::Property(e) => calls(e).into_iter().filter(subject).collect(),
+            _ => vec![c.func.clone()],
+        };
+        let mut out: Vec<String> = Vec::new();
+        for g in all {
+            if !out.contains(&g) {
+                out.push(g);
+            }
+        }
+        out
     }
     pub fn claim(&self, name: &str) -> Option<&Claim> {
         self.claims.iter().find(|c| c.name == name)
@@ -355,7 +383,7 @@ impl Model {
             .iter()
             .filter_map(|f| Some((f.body.as_ref()?, f.line)));
         let claimed = self.claims.iter().filter_map(|c| match &c.target {
-            Target::Matches(e) => Some((e, c.line)),
+            Target::Matches(e) | Target::Property(e) => Some((e, c.line)),
             _ => None,
         });
         for (e, line) in bodies.chain(claimed) {
@@ -396,6 +424,56 @@ impl Model {
             }
             Ok(())
         };
+        // A property is about the names it binds: its hidden function takes
+        // them as inputs, each with the set given or the type of the
+        // parameters it is passed to.
+        let mut properties = Vec::new();
+        for c in &self.claims {
+            let Target::Property(e) = &c.target else {
+                continue;
+            };
+            for (g, n) in arities(e) {
+                match self.declared_function(&g) {
+                    None => return Err(m(c.line, format!("unknown function `{g}`"))),
+                    Some(f) if f.params.len() != n => {
+                        let k = f.params.len();
+                        return Err(m(c.line, format!("`{g}` takes {k} input(s), got {n}")));
+                    }
+                    _ => {}
+                }
+            }
+            let mut params = Vec::new();
+            for p in &c.pattern {
+                let x = p.var.as_ref().expect("a property binds names");
+                let mut types = Vec::new();
+                passed(e, x, &self, &mut types);
+                let set = match (&p.set, types.first()) {
+                    (Some(s), _) => {
+                        if let Some((g, _)) = types.iter().find(|t| !s.is_subset(&t.1)) {
+                            let msg = format!("`{x}` goes outside the inputs of `{g}`");
+                            return Err(m(c.line, msg));
+                        }
+                        s.clone()
+                    }
+                    (None, Some(_)) => types.iter().fold(Set::any(), |a, t| a.intersect(&t.1)),
+                    (None, None) => {
+                        let msg = format!(
+                            "`{x}` is not passed to a function as it is: give its set, `forall {x} in S,`"
+                        );
+                        return Err(m(c.line, msg));
+                    }
+                };
+                params.push((x.clone(), set));
+            }
+            properties.push(Function {
+                name: c.name.clone(),
+                params,
+                range: Set::bool(),
+                body: None,
+                line: c.line,
+            });
+        }
+        self.properties = properties;
         // `uniform f by g` is about every input of `f`.
         for i in 0..self.claims.len() {
             let c = &self.claims[i];
@@ -459,7 +537,7 @@ impl Model {
                     Expr::Var(v) => v.clone(),
                     _ => unreachable!(),
                 })) {
-                    if self.function(&name).is_none() {
+                    if self.declared_function(&name).is_none() {
                         return Err(m(c.line, format!("unknown function `{name}`")));
                     }
                 }
@@ -494,28 +572,32 @@ impl Model {
             .iter()
             .map(|f| self.named(&f.range.to_string()))
             .collect();
+        let arities: Vec<(String, usize)> = self
+            .claims
+            .iter()
+            .filter_map(|c| Some((c.name.clone(), self.function(&c.func)?.params.len())))
+            .collect();
         let tests = self.tests.iter_mut().map(|t| &mut t.judgment);
         for e in self.evidence.iter_mut().chain(tests) {
-            let claim_func = self
-                .claims
-                .iter()
-                .find(|c| c.name == e.about)
-                .map(|c| &c.func);
-            let arity = claim_func.and_then(|f| self.functions.iter().find(|g| &g.name == f));
-            if let (Judgment::Holds(_), true, Some(f)) = (&e.judgment, e.pattern.is_empty(), arity)
+            let arity = arities.iter().find(|a| a.0 == e.about).map(|a| a.1);
+            if let (Judgment::Holds(_), true, Some(n)) = (&e.judgment, e.pattern.is_empty(), arity)
             {
                 let whole = Position {
                     var: None,
                     set: None,
                 };
-                e.pattern = vec![whole; f.params.len()];
+                e.pattern = vec![whole; n];
             }
         }
         let tests = self.tests.iter().map(|t| (&t.judgment, Input::Model));
         let evidence = self.evidence.iter().map(|e| (e, Input::Evidence));
         for (e, input) in evidence.chain(tests) {
             let ev = |line, msg: String| (input, Error::new(line, msg));
-            match (&e.judgment, self.function(&e.about), self.claim(&e.about)) {
+            match (
+                &e.judgment,
+                self.declared_function(&e.about),
+                self.claim(&e.about),
+            ) {
                 (Judgment::Holds(_), _, Some(c)) => {
                     fits(self.function(&c.func).unwrap(), &e.pattern, e.line, input)?
                 }
@@ -571,6 +653,57 @@ impl Model {
             }
         }
         Ok(self)
+    }
+}
+
+/// Every call in an expression, with its number of arguments.
+fn arities(e: &Expr) -> Vec<(String, usize)> {
+    let mut out = Vec::new();
+    walk(e, &mut |e| {
+        if let Expr::Call(f, args) = e {
+            out.push((f.clone(), args.len()));
+        }
+    });
+    out
+}
+
+/// The parameter types of the functions that `x` is passed to as it is.
+fn passed(e: &Expr, x: &str, model: &Model, out: &mut Vec<(String, Set)>) {
+    walk(e, &mut |e| {
+        let Expr::Call(f, args) = e else { return };
+        let Some(f) = model.declared_function(f) else {
+            return;
+        };
+        for (a, (_, ty)) in args.iter().zip(&f.params) {
+            if matches!(a, Expr::Var(v) if v == x) {
+                out.push((f.name.clone(), ty.clone()));
+            }
+        }
+    });
+}
+
+/// Calls `f` on an expression and on every expression inside it.
+pub fn walk(e: &Expr, f: &mut impl FnMut(&Expr)) {
+    f(e);
+    match e {
+        Expr::Lit(_) | Expr::Var(_) => {}
+        Expr::Match(a, arms) => {
+            walk(a, f);
+            arms.iter().for_each(|arm| walk(&arm.body, f));
+        }
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => walk(a, f),
+        Expr::Call(_, args) | Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+            args.iter().for_each(|a| walk(a, f))
+        }
+        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) => {
+            walk(a, f);
+            walk(b, f);
+        }
+        Expr::If(a, b, c) => {
+            walk(a, f);
+            walk(b, f);
+            walk(c, f);
+        }
     }
 }
 

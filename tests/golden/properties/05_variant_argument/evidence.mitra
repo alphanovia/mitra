@@ -1,0 +1,4 @@
+evidence pick(Some(Red)) = Red at 1
+evidence pick(Some(Green)) = Green at 1
+evidence pick(Some(Blue)) = Blue at 1
+evidence pick(None) = Green at 1

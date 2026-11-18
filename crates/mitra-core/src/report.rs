@@ -188,8 +188,21 @@ impl Writer<'_> {
     fn inputs(&self, func: &str, set: &Tuples, domain: &Tuples) -> String {
         if set.size_bound().is_some_and(|n| n <= 3.0) {
             let values = set.values().unwrap_or_default();
+            // A property has no call of its own: `a = 5, b = 2`.
+            let property = self.model.properties.iter().find(|f| f.name == func);
+            let named = |v: &Vec<crate::set::Value>| -> String {
+                let names = property.unwrap().params.iter().map(|p| &p.0);
+                let each: Vec<String> = names.zip(v).map(|(x, v)| format!("{x} = {v}")).collect();
+                each.join(", ")
+            };
+            if property.is_some_and(|f| f.params.is_empty()) {
+                return "the statement itself".to_string();
+            }
             if !values.is_empty() {
-                let calls: Vec<String> = values.iter().map(|v| call(func, v)).collect();
+                let calls: Vec<String> = match property {
+                    Some(_) => values.iter().map(named).collect(),
+                    None => values.iter().map(|v| call(func, v)).collect(),
+                };
                 return format!("`{}`", calls.join("`, `"));
             }
         }
@@ -436,24 +449,33 @@ impl Writer<'_> {
                     self.quoted(p, out);
                 }
                 self.ranking(p, out);
-                let f = &self.claim(&claims[0]).func;
-                let subject = self.model.function(f).is_some_and(|f| !f.is_spec());
+                // The subjects the claim is about: one, or for a property
+                // those it calls.
+                let mut subjects = self.model.subjects_of(self.claim(&claims[0]));
+                subjects.retain(|f| {
+                    self.model
+                        .declared_function(f)
+                        .is_some_and(|f| !f.is_spec())
+                });
                 *out += "\n";
-                let suspects = self.report.suspects.iter().filter(|s| &s.subject == f);
-                for s in suspects {
-                    *out += &format!(
-                        "  help: look first at `{}`, which `{f}` uses: {} fail{} there\n",
-                        s.uses,
-                        s.failing.join(", "),
-                        if s.failing.len() == 1 { "s" } else { "" }
-                    );
-                    attached.push(format!("suspect {f} {}", s.uses));
+                for f in &subjects {
+                    let suspects = self.report.suspects.iter().filter(|s| &s.subject == f);
+                    for s in suspects {
+                        *out += &format!(
+                            "  help: look first at `{}`, which `{f}` uses: {} fail{} there\n",
+                            s.uses,
+                            s.failing.join(", "),
+                            if s.failing.len() == 1 { "s" } else { "" }
+                        );
+                        attached.push(format!("suspect {f} {}", s.uses));
+                    }
+                    for r in self.report.roots.iter().filter(|r| &r.subject == f) {
+                        *out += &format!("  note: {}\n", r.text());
+                        attached.push(format!("root {f}"));
+                    }
                 }
-                for r in self.report.roots.iter().filter(|r| &r.subject == f) {
-                    *out += &format!("  note: {}\n", r.text());
-                    attached.push(format!("root {f}"));
-                }
-                *out += &if subject {
+                *out += &if !subjects.is_empty() {
+                    let f = subjects.join("` or `");
                     format!(
                         "  help: if the evidence is right, fix `{f}`; if not, correct the evidence\n"
                     )

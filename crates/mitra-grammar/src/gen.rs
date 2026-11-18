@@ -362,6 +362,9 @@ fn command(r: &mut Rng) -> String {
                 let only = if r.chance(50) { "only " } else { "" };
                 return format!("claim {} : {only}uses {} [ {used} ]", name(r), name(r));
             }
+            if r.chance(20) {
+                return format!("claim {} : {}", name(r), property(r));
+            }
             let (forall, args) = call_args(r, 1);
             let body = if r.chance(50) {
                 format!("correct ( {}{args} )", name(r))
@@ -376,6 +379,43 @@ fn command(r: &mut Rng) -> String {
             format!("claim {} : {forall}{body}{derive}", name(r))
         }
     }
+}
+
+/// A claim on an expression: every bound name is used, and no other.
+fn property(r: &mut Rng) -> String {
+    let n = r.below(4);
+    let bound = &["x", "y", "z"][..n];
+    let forall: String = bound
+        .iter()
+        .map(|x| match r.chance(50) {
+            true => format!("forall {x} , "),
+            false => format!("forall {x} in {} , ", set(r, 2)),
+        })
+        .collect();
+    let mut args: Vec<String> = bound.iter().map(|x| x.to_string()).collect();
+    if n == 0 || r.chance(30) {
+        args.push(scalar(r));
+    }
+    let args = args.join(" , ");
+    let cmp = ["==", "!=", "<", "<=", ">", ">="][r.below(6)];
+    let body = match r.below(5) {
+        0 => format!("{} ( {args} ) {cmp} {}", name(r), literal(r)),
+        1 => format!("len ( {} ( {args} ) ) = {}", name(r), nat(r)),
+        2 => format!("{} ( {args} ) == {} ( {args} )", name(r), name(r)),
+        3 => format!(
+            "{} ( {} ( {args} ) ) != {} && true",
+            name(r),
+            name(r),
+            literal(r)
+        ),
+        _ => format!(
+            "! {} ( {args} ) || {} ( {args} ) {cmp} - {}",
+            name(r),
+            name(r),
+            nat(r)
+        ),
+    };
+    forall + &body
 }
 
 /// A random model file.

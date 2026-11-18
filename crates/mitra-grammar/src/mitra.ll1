@@ -21,7 +21,8 @@ Claim         = "claim" NAME ":" ClaimRest ;
 ClaimRest     = "uniform" NAME By | Only "uses" NAME "[" NAME NamesTail "]"
               | Foralls ClaimBody Derive ;
 By            = "by" NAME | ;
-ClaimBody     = "correct" "(" NAME Args ")" | NAME Args "=" Expr ;
+ClaimBody     = "correct" "(" NAME Args ")" | Expr ClaimEq ;
+ClaimEq       = "=" Expr | ;
 Only          = "only" | ;
 Derive        = ":=" "by" "derive" "[" NAME NamesTail "]" | ;
 NamesTail     = "," NAME NamesTail | ;

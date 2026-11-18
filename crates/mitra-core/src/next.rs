@@ -259,6 +259,40 @@ pub fn next(model: &Model, report: &Report) -> String {
         // Size first: listing a large finite set is slow.
         let size = missing.size_bound();
         match size {
+            Some(n) if n <= LIST as f64 && matches!(c.target, Target::Property(_)) => {
+                // The outputs the property reads on each input, for the
+                // calls whose arguments are names or values.
+                let Target::Property(e) = &c.target else {
+                    unreachable!()
+                };
+                let names: Vec<&String> = c.pattern.iter().filter_map(|p| p.var.as_ref()).collect();
+                let mut lines: Vec<String> = Vec::new();
+                for input in missing.values().unwrap_or_default() {
+                    crate::ast::walk(e, &mut |e| {
+                        let crate::Expr::Call(g, args) = e else { return };
+                        if !model.declared_function(g).is_some_and(|g| !g.is_spec()) {
+                            return;
+                        }
+                        let value = |a: &crate::Expr| match a {
+                            crate::Expr::Lit(v) => Some(v.clone()),
+                            crate::Expr::Var(x) => {
+                                let at = names.iter().position(|n| *n == x)?;
+                                Some(input[at].clone())
+                            }
+                            _ => None,
+                        };
+                        let Some(values) = args.iter().map(value).collect::<Option<Vec<_>>>()
+                        else {
+                            return;
+                        };
+                        let line = format!("  evidence {} = <output> at 1\n", call(g, &values));
+                        if !lines.contains(&line) {
+                            lines.push(line);
+                        }
+                    });
+                }
+                out += &lines.concat();
+            }
             Some(n) if subject && n <= LIST as f64 => {
                 for input in missing.values().unwrap_or_default() {
                     let call = call(&c.func, &input);

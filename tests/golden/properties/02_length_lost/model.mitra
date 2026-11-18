@@ -1,0 +1,6 @@
+opaque sort(xs: List(Int)) -> List(Int)
+opaque total(xs: List(Int)) -> Int
+def size(xs: List(Int)) -> {"empty", "one", "many"} := if len(xs) == 0 then "empty" else if len(xs) == 1 then "one" else "many"
+claim sort_len : forall xs, len(sort(xs)) == len(xs)
+claim sort_uniform : uniform sort by size
+claim same_total : forall xs, total(sort(xs)) == total(xs)

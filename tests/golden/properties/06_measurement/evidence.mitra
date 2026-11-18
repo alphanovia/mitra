@@ -1,0 +1,2 @@
+evidence slip_rate("red") = 0.7 at 0.6
+evidence slip_rate("blue") = 0.2 at 0.8

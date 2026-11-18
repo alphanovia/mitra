@@ -62,6 +62,7 @@ pub fn print_claim(m: &Model, c: &Claim) -> String {
     let body = match &c.target {
         Target::Correct => format!("correct({}{args})", c.func),
         Target::Matches(e) => format!("{}{args} = {}", c.func, expr(e)),
+        Target::Property(e) => expr(e),
         Target::Uniform(_) | Target::Uses { .. } => unreachable!(),
     };
     let from = if c.from.is_empty() {

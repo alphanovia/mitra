@@ -44,7 +44,7 @@ Claim: () = {
 };
 ClaimBody: () = {
     "correct" "(" NAME Args? ")" => (),
-    NAME Args? "=" Expr => (),
+    Expr ("=" Expr)? => (),
 };
 Derive: () = ":=" "by" "derive" "[" Comma1<NAME> "]" => ();
 

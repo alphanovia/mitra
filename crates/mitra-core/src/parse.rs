@@ -92,6 +92,9 @@ struct P {
     used: Vec<String>,
 }
 
+/// A name bound by `forall`, its set if one is given, and its line.
+type Bound = (String, Option<Set>, usize);
+
 /// A token as written.
 fn text(t: &Tok) -> String {
     match t {
@@ -861,6 +864,8 @@ impl P {
 pub fn parse_model(src: &str) -> Result<Model, Error> {
     let mut p = P::new(src)?;
     let mut m = Model::default();
+    // The property claims, each with the names it binds.
+    let mut properties: Vec<(usize, Vec<Bound>)> = Vec::new();
     while !p.at_end() {
         let line = p.line();
         let Some(Tok::Ident(kw)) = p.next() else {
@@ -1013,12 +1018,40 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                     let (f, pat) = p.correct(&bound)?;
                     (f, pat, Target::Correct)
                 } else {
-                    let (f, pat) = p.call(&bound)?;
-                    if pat.is_empty() {
-                        return p.err(format!("`{f}` needs its inputs"));
+                    // `f(args) = expr` with one name per input, or any
+                    // expression with a Bool value.
+                    let start = p.pos;
+                    let own = p.call(&bound).and_then(|(f, pat)| {
+                        if pat.is_empty() {
+                            return p.err(format!("`{f}` needs its inputs"));
+                        }
+                        p.expect("=")?;
+                        Ok((f, pat))
+                    });
+                    match own {
+                        Ok((f, pat)) => (f, pat, Target::Matches(p.expr()?)),
+                        Err(first) => {
+                            p.pos = start;
+                            let bare = p.is_name()
+                                && matches!(p.toks.get(p.pos + 1), Some((Tok::Punct("="), _)));
+                            if bare {
+                                return Err(first);
+                            }
+                            let mut e = p.expr()?;
+                            if p.eat("=") {
+                                e = Expr::Binary("==", Box::new(e), Box::new(p.expr()?));
+                            }
+                            let pattern = bound
+                                .iter()
+                                .map(|(x, set, _)| Position {
+                                    var: Some(x.clone()),
+                                    set: set.clone(),
+                                })
+                                .collect();
+                            properties.push((m.claims.len(), bound.clone()));
+                            (name.clone(), pattern, Target::Property(e))
+                        }
                     }
-                    p.expect("=")?;
-                    (f, pat, Target::Matches(p.expr()?))
                 };
                 let mut from = Vec::new();
                 if p.eat(":=") {
@@ -1067,6 +1100,60 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
             }
         }
     }
+    // A property uses every name it binds, and no other.
+    for (i, bound) in properties {
+        // `f(x, y) == e` with one name per input is `f(x, y) = e`.
+        let record = |f: &String| m.records.iter().any(|r| &r.name == f);
+        if let Target::Property(Expr::Binary("==", call, e)) = &m.claims[i].target {
+            if let Expr::Call(f, args) = &**call {
+                let names: Vec<&String> = args
+                    .iter()
+                    .filter_map(|a| match a {
+                        Expr::Var(x) => Some(x),
+                        _ => None,
+                    })
+                    .collect();
+                let each_once = names.len() == args.len()
+                    && names.len() == bound.len()
+                    && bound.iter().all(|b| names.contains(&&b.0));
+                if each_once && !record(f) {
+                    let pattern = names
+                        .iter()
+                        .map(|x| Position {
+                            var: Some(x.to_string()),
+                            set: bound.iter().find(|b| &&b.0 == x).unwrap().1.clone(),
+                        })
+                        .collect();
+                    let (func, target) = (f.clone(), Target::Matches((**e).clone()));
+                    let c = &mut m.claims[i];
+                    (c.func, c.pattern, c.target) = (func, pattern, target);
+                    continue;
+                }
+            }
+        }
+        let c = &m.claims[i];
+        let Target::Property(e) = &c.target else {
+            unreachable!()
+        };
+        let mut used = Vec::new();
+        let variant = |x: &String| {
+            m.records
+                .iter()
+                .any(|r| &r.name == x && r.fields.is_empty())
+        };
+        if let Some(x) = free(e, &mut Vec::new(), &mut used)
+            .into_iter()
+            .find(|x| !bound.iter().any(|b| &b.0 == x) && !variant(x))
+        {
+            return Err(Error::new(
+                c.line,
+                format!("`{x}` is not bound: add `forall {x},` before it"),
+            ));
+        }
+        if let Some((x, _, line)) = bound.iter().find(|b| !used.contains(&b.0)) {
+            return Err(Error::new(*line, format!("`{x}` is bound but not used")));
+        }
+    }
     m.aliases = std::mem::take(&mut p.aliases);
     m.aliases.sort();
     m.aliases.dedup();
@@ -1078,7 +1165,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
         }
     }
     for c in &mut m.claims {
-        if let Target::Matches(e) = &mut c.target {
+        if let Target::Matches(e) | Target::Property(e) = &mut c.target {
             records_in(e, &names);
         }
     }
@@ -1086,6 +1173,53 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
 }
 
 /// Turn the calls of a record's name into records.
+/// The names an expression reads that it does not bind itself, in `used`
+/// and returned.
+fn free(e: &Expr, scope: &mut Vec<String>, used: &mut Vec<String>) -> Vec<String> {
+    match e {
+        Expr::Lit(_) => {}
+        Expr::Var(x) => {
+            if !scope.contains(x) && !used.contains(x) {
+                used.push(x.clone());
+            }
+        }
+        Expr::Let(x, a, b) => {
+            free(a, scope, used);
+            scope.push(x.clone());
+            free(b, scope, used);
+            scope.pop();
+        }
+        Expr::Match(a, arms) => {
+            free(a, scope, used);
+            for arm in arms {
+                let names = arm.variant.iter().flat_map(|v| v.1.clone());
+                let n = scope.len();
+                scope.extend(names);
+                free(&arm.body, scope, used);
+                scope.truncate(n);
+            }
+        }
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => {
+            free(a, scope, used);
+        }
+        Expr::Call(_, args) | Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+            args.iter().for_each(|a| {
+                free(a, scope, used);
+            });
+        }
+        Expr::Binary(_, a, b) | Expr::Index(a, b) => {
+            free(a, scope, used);
+            free(b, scope, used);
+        }
+        Expr::If(a, b, c) => {
+            free(a, scope, used);
+            free(b, scope, used);
+            free(c, scope, used);
+        }
+    }
+    used.clone()
+}
+
 fn records_in(e: &mut Expr, names: &[String]) {
     match e {
         Expr::Lit(_) | Expr::Var(_) => {}

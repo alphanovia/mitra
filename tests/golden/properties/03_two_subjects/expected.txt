@@ -1,0 +1,47 @@
+sort_len: unverified
+  passes on       `xs = [3, 1, 2]`
+  assumed on      class "many" of `size`, by `sort_uniform`, which is not vouched for
+  no evidence on  classes "empty", "one" of `size`
+sort_uniform: unverified
+same_total: fails
+  fails on        `xs = [3, 1, 2]`
+  no evidence on  xs in List(Int) \ {[3, 1, 2]}
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:6  claim same_total : forall xs, total(sort(xs)) == total(xs)
+
+  `same_total` fails on `xs = [3, 1, 2]`.
+  The evidence that says so:
+
+    output    evidence.mitra:1  evidence sort([3, 1, 2]) = [1, 2, 3] at 0.9
+    output    evidence.mitra:2  evidence total([3, 1, 2]) = 6 at 0.6
+    output    evidence.mitra:3  evidence total([1, 2, 3]) = 7 at 0.8
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                  trust  left
+    possible  the code of `total`, model.mitra:2  none   0.00 to 1.00
+    possible  the code of `sort`, model.mitra:1   none   0.00 to 1.00
+    unlikely  evidence.mitra:2                    0.6    0.60 to 1.00
+    unlikely  evidence.mitra:3                    0.8    0.80 to 1.00
+    unlikely  evidence.mitra:1                    0.9    0.90 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  help: if the evidence is right, fix `total` or `sort`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  claim sort_len : forall xs, len(sort(xs)) == len(xs)
+
+  No evidence on classes "empty", "one" of `size`.
+  help: one passing test in such a class stands for the class
+
+warning[M103]: an assumption is not vouched for
+  --> model.mitra:5  claim sort_uniform : uniform sort by size
+
+  Nothing says that `sort_uniform` holds, and Mitra can't check it.
+  help: review it against the code, then record: evidence sort_uniform at 1
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

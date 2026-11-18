@@ -164,7 +164,7 @@ param      = name ":" set ;
 claim      = "claim" name ":" ( "uniform" name [ "by" name ]
              | [ "only" ] "uses" name "[" name { "," name } "]"
              | { forall }
-               ( "correct" "(" name args ")" | name args "=" expr )
+               ( "correct" "(" name args ")" | expr [ "=" expr ] )
                [ ":=" "by" "derive" "[" name { "," name } "]" ] ) ;
 test       = "test" name ":" { forall } judgment ;
 
@@ -441,6 +441,23 @@ used in the expression after `=`.
 - `f(args) = e`: on every input x of the domain, f(x) = e. `e` may call
   specs and subjects. A bare function name `g` as `e` means `g` applied to
   the same inputs.
+- any expression with a Bool value: a **property**, true on every input.
+  It may call several subjects, nest calls and build values:
+
+  ```lean
+  claim sort_len : forall xs, len(sort(xs)) == len(xs)
+  claim max_bounds : forall a, forall b, max(a, b) >= a && max(a, b) >= b
+  claim add_assoc : forall a, forall b, forall c, add(add(a, b), c) == add(a, add(b, c))
+  claim pick_same : forall c in Color, pick(Some(c)) == c
+  claim pick_default : pick(None) == Red
+  ```
+
+  Its inputs are the names it binds, each used at least once. A name
+  passed as it is to a function takes that parameter's type; any other
+  needs its set, `forall c in Color,`. `a = b` at the top is `a == b`,
+  and `f(x, y) == e` with one name per input is the claim `f(x, y) = e`
+  above. Reports name an input by its names, `a = 5, b = 2`, and
+  evidence on the claim lists them in order: `evidence max_bounds(5, 2) at 1`.
 - `:= by derive [c1, c2, …]`: a **derivation**. Premises must be claims
   defined above. Mitra checks the implication "premises ⇒ claim" when it
   can (see Evaluation), and the claim follows on its whole domain when no
@@ -572,6 +589,14 @@ where the claim is right and where it is wrong:
    right, different values make x wrong. With no observation, x is not
    judged. A claim on specs alone over a finite domain is thus decided by
    computation.
+4. For a property, on each input x (every input of D if D is finite,
+   otherwise the inputs the observations speak of: every way to give its
+   names the observed inputs of the calls whose arguments are names or
+   values): compute the expression, a subject call giving its observed
+   output. True makes x right, false makes x wrong. `a && b` and `a || b`
+   are decided by one side when it settles them, even if the other has no
+   observation. When x is wrong, the error lists every output that was
+   read, and the code of every subject called: they can't all be right.
 
 Evidence on a claim (`c` or `not c`) speaks of the claim's domain only,
 whatever inputs it names.
@@ -1159,6 +1184,17 @@ Three models: `get` on `Option(Int)` with the classes "none" and "some"
 | 05 | `sub(3, 5) = Ok(0)` | `sub_is` fails on the whole class `a < b`, 45 inputs |
 | 06 | every `Color` observed; `pick(None) = Red`; `correct` over `Option(Color)` | all hold |
 | 07 | one colour and two inputs of `pick` | unverified, the missing variants listed |
+
+### `properties`: claims on any expression
+
+| Case | Model and evidence | Verdicts |
+|---|---|---|
+| 01 | `len(sort(xs)) == len(xs)` with `uniform sort by size`; one output per class | `sort_len` holds |
+| 02 | `sort([5]) = [5, 5]` at 0.9 | `sort_len` fails on `xs = [5]` |
+| 03 | `total(sort(xs)) == total(xs)`; three outputs that can't all be right | fails; the code of `total` and `sort` and the three outputs are the candidates |
+| 04 | associativity of `add`, `add(a, 0) == a`, bounds of `max` | inputs found from the observed calls; `max_bounds` fails on `a = 5, b = 2` |
+| 05 | `pick(Some(c)) == c` over `Color`; `pick(None) == Red` | holds; fails on the statement itself |
+| 06 | `slip_rate("red") > 0.5` with observed rates | one holds, one fails |
 
 ### `numbers`: integer types, ranges and floats
 

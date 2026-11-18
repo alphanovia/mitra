@@ -1,0 +1,3 @@
+opaque slip_rate(team: {"red", "blue"}) -> Float64
+claim red_mostly_slips : slip_rate("red") > 0.5
+claim blue_mostly_slips : slip_rate("blue") > 0.5

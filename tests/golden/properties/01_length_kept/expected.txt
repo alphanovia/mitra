@@ -1,0 +1,15 @@
+sort_len: holds
+  passes on       `xs = []`, `xs = [3, 1, 2]`, `xs = [5]`
+  assumed on      classes "empty", "many", "one" of `size`, by `sort_uniform`
+sort_uniform: holds
+same_total: unverified
+  no evidence on  xs in List(Int)
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  claim same_total : forall xs, total(sort(xs)) == total(xs)
+
+  No evidence on xs in List(Int).
+  note: `total` has no `uniform` claim, so no test stands for other inputs
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.
