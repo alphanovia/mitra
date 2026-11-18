@@ -51,19 +51,22 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:2  evidence not correct (flip false) at 0.8
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    likely    the code of `flip`, model.mitra:1
-    unlikely  evidence.mitra:2, trusted at 0.8
+                                                 trust  left
+    likely    the code of `flip`, model.mitra:1  none   0.00 to 0.20
+    unlikely  evidence.mitra:2                   0.8    0.80 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `flip`; if not, correct the evidence
 ```
 
 One counterexample refutes a claim; on an infinite domain, tests alone
-never prove it. The words come from a belief and a plausibility that each
-piece is the wrong one (`--numbers` shows them;
-[semantics](docs/design/semantics.md)).
+never prove it. `left` is what remains of the trust in each piece once
+they are weighed against each other ([semantics](docs/design/semantics.md)).
 
 The core is a **semantic model** (an AST). The text above is only one
 projection of it, small enough to live in a code docstring or a Markdown block

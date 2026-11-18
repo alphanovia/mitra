@@ -1,10 +1,26 @@
-fs: unverified
-  no evidence on  `f 0`
+fs: fails
+  fails on        `f 0`
 
-warning[M101]: a claim is not verified
+error[M001]: evidence refutes a claim
   --> model.mitra:3  claim fs : forall x in {0}, f x = one x
 
-  No evidence on `f 0`.
-  help: `mitra next` lists the evidence that would settle it
+  `fs` fails on `f 0`.
+  The evidence that says so:
 
-`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.
+    output    evidence.mitra:4  @[source "a"] evidence f 0 = 2 at 0.9
+    output    evidence.mitra:5  @[source "b"] evidence f 0 = 2 at 0.1
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                              trust  left
+    likely    the code of `f`, model.mitra:2  none   0.00 to 0.09
+    possible  evidence.mitra:5 (b)            0.1    0.10 to 1.00
+    unlikely  evidence.mitra:4 (a)            0.9    0.90 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  help: if the evidence is right, fix `f`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

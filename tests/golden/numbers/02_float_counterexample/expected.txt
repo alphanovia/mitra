@@ -15,11 +15,15 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:5  evidence forall x in -5..=-1, not correct (inc x) at 0
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    possible  the code of `inc`, model.mitra:2
-    possible  evidence.mitra:5, trusted at 0
+                                                trust  left
+    possible  the code of `inc`, model.mitra:2  none   0.00 to 1.00
+    possible  evidence.mitra:5                  0      0.00 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `inc`; if not, correct the evidence
 
@@ -31,10 +35,13 @@ error[M001]: evidence refutes a claim
 
     output    evidence.mitra:3  evidence half (-3.0) = -1.0 at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the code of `half`, model.mitra:4
+                                                 trust  left
+    certain   the code of `half`, model.mitra:4  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `half`; if not, correct the evidence
 

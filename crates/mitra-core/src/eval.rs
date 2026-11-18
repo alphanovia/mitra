@@ -209,9 +209,8 @@ pub struct Candidate {
 /// Why the candidates of a problem are not ranked.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Unranked {
-    /// Every piece is trusted at 1, yet one must be wrong.
-    AllTrusted,
-    /// Too many pieces with a bias strictly between 0 and 1.
+    /// Too many pieces with a bias strictly between 0 and 1, counting
+    /// those trusted at 1 when they can't all be right.
     TooMany,
 }
 
@@ -266,8 +265,6 @@ pub struct Display {
     pub max: usize,
     /// Candidates under this plausibility are hidden.
     pub threshold: f64,
-    /// Show belief and plausibility next to each candidate.
-    pub numbers: bool,
 }
 
 impl Default for Display {
@@ -275,7 +272,6 @@ impl Default for Display {
         Display {
             max: 5,
             threshold: 0.05,
-            numbers: false,
         }
     }
 }
@@ -1530,7 +1526,6 @@ fn rank(model: &Model, problems: &mut [Problem]) {
             }
         }
         let biases: Vec<Option<f64>> = pieces.iter().map(bias).collect();
-        use mitra_ds::culprits::NoRanking;
         match mitra_ds::culprits::rank(&biases, &clauses) {
             Ok(r) => {
                 let candidate = |(i, piece): (usize, Piece)| Candidate {
@@ -1541,16 +1536,10 @@ fn rank(model: &Model, problems: &mut [Problem]) {
                 let all = pieces.into_iter().enumerate().map(candidate).collect();
                 Ok((all, r.conflict))
             }
-            Err(NoRanking::TotalConflict) => Err(Unranked::AllTrusted),
             Err(_) => Err(Unranked::TooMany),
         }
     };
-    // A problem whose own pieces are all trusted can't be ranked, and
-    // would leave no ranking to any problem weighed with it: it stays alone.
     let n = problems.len();
-    let stuck: Vec<bool> = (0..n)
-        .map(|i| matches!(weigh(&[i], problems), Err(Unranked::AllTrusted)))
-        .collect();
     // Groups of problems that share a piece.
     let mut group: Vec<usize> = (0..n).collect();
     let shares = |a: &Problem, b: &Problem| {
@@ -1559,8 +1548,7 @@ fn rank(model: &Model, problems: &mut [Problem]) {
     };
     for i in 0..n {
         for j in 0..i {
-            if group[i] != group[j] && !stuck[i] && !stuck[j] && shares(&problems[i], &problems[j])
-            {
+            if group[i] != group[j] && shares(&problems[i], &problems[j]) {
                 let (from, to) = (group[i], group[j]);
                 group
                     .iter_mut()
@@ -1578,12 +1566,7 @@ fn rank(model: &Model, problems: &mut [Problem]) {
         let together = weigh(&members, problems);
         for m in &members {
             done[*m] = true;
-            // When the group as a whole is fully trusted, a problem that
-            // can be weighed alone still is.
-            let result = match &together {
-                Err(Unranked::AllTrusted) if members.len() > 1 => weigh(&[*m], problems),
-                other => other.clone(),
-            };
+            let result = together.clone();
             let p = &mut problems[*m];
             match result {
                 Ok((all, conflict)) => {

@@ -12,11 +12,15 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:11  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    possible  the code of `div`, model.mitra:2
-    likely    evidence.mitra:11 (bug:42), trusted at 0.8
+                                                trust  left
+    possible  the code of `div`, model.mitra:2  none   0.00 to 0.70
+    likely    evidence.mitra:11 (bug:42)        0.8    0.30 to 0.38
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `div`; if not, correct the evidence
 
@@ -30,12 +34,16 @@ error[M004]: an assumption is contradicted by the evidence
     passes    evidence.mitra:10  @[source "test:t_six"] evidence correct (div 6 3) at 0.99
     fails     evidence.mitra:11  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
 
-  These can't all be right. Which one is wrong, from the trust given to
-  each:
+  These can't all be right. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    likely    evidence.mitra:11 (bug:42), trusted at 0.8
-    unlikely  evidence.mitra:9 (review:alice), trusted at 0.9
+                                               trust  left
+    likely    evidence.mitra:11 (bug:42)       0.8    0.30 to 0.38
+    unlikely  evidence.mitra:9 (review:alice)  0.9    0.65 to 0.72
     1 less plausible not shown (`--all` shows them)
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
 
   note: the trust given says these are probably all right, which can't
   be: at least one is trusted more than it deserves

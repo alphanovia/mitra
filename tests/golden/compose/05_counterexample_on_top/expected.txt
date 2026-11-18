@@ -15,10 +15,19 @@ error[M001]: evidence refutes a claim
 
     output    evidence.mitra:7  evidence flip_not true = false at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the code of `flip_not`, model.mitra:5
+                                                     trust  left
+    likely    the code of `flip_not`, model.mitra:5  none   0.00 to 0.50
+    likely    evidence.mitra:7                       1      0.50
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  note: the pieces trusted at 1 can't all be right, so their trust says
+  nothing here: Mitra shares the doubt equally between them. Lower the
+  trust of the one you doubt most to set them apart.
 
   help: if the evidence is right, fix `flip_not`; if not, correct the evidence
 
@@ -30,8 +39,18 @@ error[M003]: two pieces of evidence contradict each other
     vouches   evidence.mitra:4  evidence flip_not_shape at 1
     output    evidence.mitra:7  evidence flip_not true = false at 1
 
-  These can't all be right, and the ones trusted at 1 are enough for
-  that: nothing says which one is wrong.
+  These can't all be right. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                trust  left
+    likely    evidence.mitra:4  1      0.50
+    likely    evidence.mitra:7  1      0.50
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  note: the pieces trusted at 1 can't all be right, so their trust says
+  nothing here: Mitra shares the doubt equally between them. Lower the
+  trust of the one you doubt most to set them apart.
 
   note: until this is settled, neither counts for these inputs
   help: find out which one is right, and correct the other

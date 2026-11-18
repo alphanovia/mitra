@@ -9,22 +9,17 @@ const GOLDEN: &str = concat!(
 fn eval_writes_the_result_file() {
     let out = std::env::temp_dir().join(format!("mitra-cli-test-{}.txt", std::process::id()));
     let status = Command::new(env!("CARGO_BIN_EXE_mitra"))
-        .args([
-            "eval",
-            &format!("{GOLDEN}/model.mitra"),
-            &format!("{GOLDEN}/evidence.mitra"),
-            "-o",
-        ])
+        // From the case's folder, so that the result names the two files
+        // as the expected one does.
+        .current_dir(GOLDEN)
+        .args(["eval", "model.mitra", "evidence.mitra", "-o"])
         .arg(&out)
         .status()
         .unwrap();
     // The case has a failing claim: `eval` exits with 1 on errors.
     assert_eq!(status.code(), Some(1));
     let expected = std::fs::read_to_string(format!("{GOLDEN}/expected.txt")).unwrap();
-    // The result names the files as given; the expected one, by their names.
-    let result = std::fs::read_to_string(&out).unwrap();
-    let dir = GOLDEN.strip_prefix(concat!(env!("CARGO_MANIFEST_DIR"), "/"));
-    assert_eq!(result.replace(&format!("{}/", dir.unwrap()), ""), expected);
+    assert_eq!(std::fs::read_to_string(&out).unwrap(), expected);
     let _ = std::fs::remove_file(out);
 }
 

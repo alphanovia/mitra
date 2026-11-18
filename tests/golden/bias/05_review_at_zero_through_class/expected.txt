@@ -1,17 +1,26 @@
-div_small: unverified
-  no evidence on  (a, b) in (0..=1, 1..=2)
-div_uniform: unverified
+div_small: fails
+  fails on        (a, b) in (0..=1, 1..=2)
+div_uniform: holds
 
-warning[M101]: a claim is not verified
+error[M001]: evidence refutes a claim
   --> model.mitra:3  claim div_small : forall a in 0..=1, forall b in 1..=2, correct (div a b)
 
-  No evidence on (a, b) in (0..=1, 1..=2).
-  help: `mitra next` lists the evidence that would settle it
+  `div_small` fails on (a, b) in (0..=1, 1..=2).
+  The evidence that says so:
 
-warning[M103]: an assumption is not vouched for
-  --> model.mitra:4  claim div_uniform : uniform div by div_class
+    vouches   evidence.mitra:4  evidence div_uniform at 0
+    fails     evidence.mitra:5  evidence not correct (div 4 2) at 1
 
-  Nothing says that `div_uniform` holds, and Mitra can't check it.
-  help: review it against the code, then record: evidence div_uniform at 1
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.
+                                                trust  left
+    possible  the code of `div`, model.mitra:1  none   0.00 to 1.00
+    possible  evidence.mitra:4                  0      0.00 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  help: if the evidence is right, fix `div`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

@@ -15,10 +15,13 @@ error[M001]: evidence refutes a claim
 
     output    evidence.mitra:2  evidence flip true = true at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the code of `flip`, model.mitra:4
+                                                 trust  left
+    certain   the code of `flip`, model.mitra:4  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `flip`; if not, correct the evidence
 

@@ -17,10 +17,13 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:3  evidence not correct (half 1) at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the code of `half`, model.mitra:2
+                                                 trust  left
+    certain   the code of `half`, model.mitra:2  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `half`; if not, correct the evidence
 
@@ -32,10 +35,13 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:4  evidence not correct (quarter 1) at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the code of `quarter`, model.mitra:3
+                                                    trust  left
+    certain   the code of `quarter`, model.mitra:3  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `quarter`; if not, correct the evidence
 
@@ -46,10 +52,13 @@ error[M002]: evidence denies an assumption
 
     denies    evidence.mitra:2  evidence not quarter_uses at 1
 
-  These can't all be right. Which one is wrong, from the trust given to
-  each:
+  These can't all be right. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the claim `quarter_uses` itself, model.mitra:9
+                                                              trust  left
+    certain   the claim `quarter_uses` itself, model.mitra:9  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
 
   help: correct or remove the claim, or correct the evidence
 

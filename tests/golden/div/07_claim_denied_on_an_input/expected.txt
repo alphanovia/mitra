@@ -14,10 +14,19 @@ error[M001]: evidence refutes a claim
 
     denies    evidence.mitra:4  evidence not div_correct 4 2 at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the code of `div`, model.mitra:3
+                                                trust  left
+    likely    the code of `div`, model.mitra:3  none   0.00 to 0.33
+    unlikely  evidence.mitra:4                  1      0.67
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  note: the pieces trusted at 1 can't all be right, so their trust says
+  nothing here: Mitra shares the doubt equally between them. Lower the
+  trust of the one you doubt most to set them apart.
 
   help: if the evidence is right, fix `div`; if not, correct the evidence
 
@@ -31,8 +40,19 @@ error[M004]: an assumption is contradicted by the evidence
     passes    evidence.mitra:3  evidence correct (div 6 3) at 1
     denies    evidence.mitra:4  evidence not div_correct 4 2 at 1
 
-  These can't all be right, and the ones trusted at 1 are enough for
-  that: nothing says which one is wrong.
+  These can't all be right. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                trust  left
+    unlikely  evidence.mitra:2  1      0.67
+    unlikely  evidence.mitra:3  1      0.67
+    unlikely  evidence.mitra:4  1      0.67
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  note: the pieces trusted at 1 can't all be right, so their trust says
+  nothing here: Mitra shares the doubt equally between them. Lower the
+  trust of the one you doubt most to set them apart.
 
   help: check that `div 4 2` really fails; if it does, class "rest" is
   too wide: split it in `div_class`

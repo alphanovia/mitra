@@ -11,10 +11,13 @@ error[M003]: two pieces of evidence contradict each other
     passes    evidence.mitra:2  evidence correct (flip false) at 1
     fails     evidence.mitra:5  evidence not correct (flip false) at 0
 
-  These can't all be right. Which one is wrong, from the trust given to
-  each:
+  These can't all be right. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   evidence.mitra:5, trusted at 0
+                                trust  left
+    certain   evidence.mitra:5  0      0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
 
   note: until this is settled, neither counts for these inputs
   help: find out which one is right, and correct the other

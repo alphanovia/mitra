@@ -95,11 +95,15 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:3  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    likely    the code of `div`, model.mitra:2
-    unlikely  evidence.mitra:3 (bug:42), trusted at 0.8
+                                                trust  left
+    likely    the code of `div`, model.mitra:2  none   0.00 to 0.20
+    unlikely  evidence.mitra:3 (bug:42)         0.8    0.80 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `div`; if not, correct the evidence
 
@@ -113,12 +117,16 @@ error[M004]: an assumption is contradicted by the evidence
     passes    evidence.mitra:10  @[source "test:t_six"] evidence correct (div 6 3) at 0.99
     fails     evidence.mitra:11  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
 
-  These can't all be right. Which one is wrong, from the trust given to
-  each:
+  These can't all be right. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    likely    evidence.mitra:11 (bug:42), trusted at 0.8
-    unlikely  evidence.mitra:9 (review:alice), trusted at 0.9
+                                               trust  left
+    likely    evidence.mitra:11 (bug:42)       0.8    0.30 to 0.38
+    unlikely  evidence.mitra:9 (review:alice)  0.9    0.65 to 0.72
     1 less plausible not shown (`--all` shows them)
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
 
   note: the trust given says these are probably all right, which can't
   be: at least one is trusted more than it deserves
@@ -127,8 +135,8 @@ error[M004]: an assumption is contradicted by the evidence
   too wide: split it in `div_class`
 ```
 
-Each word stands for a belief and a plausibility that the piece is wrong
-(section 4), by Dempster's rule on these biases; `--numbers` prints them.
+`left` is what remains of the trust in a piece: 1 minus the plausibility
+that it is wrong, to 1 minus the belief (section 4), by Dempster's rule.
 These are the outputs of golden cases `bias/01` and `bias/02`. The format
 (codes, locations, help) is in the [reference](../reference/language.md).
 
@@ -198,8 +206,9 @@ test, and later a proof.
   not required to be first.
 - **P3. Full trust shifts the blame.** If every entry against a claim
   has bias 1, the claim is the culprit, with belief 1. If the pieces
-  of an error trusted at 1 can't all be right, Mitra says so and ranks
-  nothing: it never divides by zero.
+  of an error trusted at 1 can't all be right, they share the doubt
+  equally (the limit of the rule as their trust goes down from 1), and
+  the error says so: it never divides by zero.
 - **P4. Only candidates are doubted.** Belief of being wrong is 0 for
   anything outside every inconsistent set and unreachable from every bug
   report.
@@ -268,9 +277,10 @@ Not built, and whose layer they belong to:
    2^k steps for k pieces with a bias strictly between 0 and 1 in one
    group of errors, capped at 20. Is that the right trade?
 2. **Which rule.** Dempster hides conflict by renormalising; Yager moves
-   it to "unknown". Built with Dempster, the conflict always shown. It
-   jumps near total conflict (P8 fails there), and at total conflict
-   there is no ranking at all.
+   it to "unknown". Built with Dempster, the conflict always shown. At
+   total conflict the ranking is the limit of the rule with every trust
+   of 1 lowered by the same small amount: a tie. Lowering them by
+   different amounts gives other limits, so P8 still fails there.
 3. **Weights.** How much a diff or an age discounts, and who sets it.
    Proposed: fixed defaults in the tool (stale evidence halves its bias;
    the last diff gets a small fixed weight), tuned on the mitra-ds

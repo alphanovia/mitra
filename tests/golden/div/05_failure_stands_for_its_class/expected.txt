@@ -13,10 +13,13 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:3  evidence not correct (div 4 2) at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the code of `div`, model.mitra:3
+                                                trust  left
+    certain   the code of `div`, model.mitra:3  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `div`; if not, correct the evidence
 
@@ -29,10 +32,13 @@ error[M001]: evidence refutes a claim
     vouches   evidence.mitra:2  evidence div_uniform at 1
     fails     evidence.mitra:3  evidence not correct (div 4 2) at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the code of `div`, model.mitra:3
+                                                trust  left
+    certain   the code of `div`, model.mitra:3  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `div`; if not, correct the evidence
 

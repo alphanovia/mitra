@@ -30,7 +30,6 @@ N: message` and exits with status 2.
 - An error lists the pieces that may be wrong, most plausible first: at
   most 5, and none under a plausibility of 0.05. `--candidates <n>` and
   `--threshold <p>` change the two limits, and `--all` removes both.
-  `--numbers` prints the belief and the plausibility behind each word.
 - `explain <code>` describes a kind of error or warning (`mitra explain
   M004`). The codes are listed under Output.
 - `check` parses, checks and evaluates both files, prints
@@ -538,13 +537,18 @@ computed together. The same observation recorded twice (same judgment,
 inputs, `source` and `rev`) is one piece, at the highest bias given.
 Pieces are listed by plausibility, then belief, highest first.
 
-Two cases have no numbers. If the pieces of an error trusted at 1 can't
-all be right, the error says so, and nothing ranks them. Such
-an error is left out of the others' computation, so it does not take
-their ranking away (golden `uses/08`). (When errors computed together
-are still in that case, each is then computed alone.)
-If more than 20 pieces have a bias strictly between 0 and 1, the error
-says there are too many to rank.
+**When the pieces trusted at 1 can't all be right**, Dempster's rule has
+no answer: every way out contradicts a trust of 1. Mitra then takes the
+limit of the rule as each trust of 1 goes down to 1 − e, e going to 0.
+Only the ways with the fewest trusted pieces wrong count, so trusted
+pieces that play the same part share the doubt equally: three pieces at
+1 that can't all be right are each wrong at 1/3 (golden `uses/08`,
+`bias/06`). A piece trusted below 1 that can take the blame still takes
+it first. The error says that the doubt is shared.
+
+If more than 20 pieces have to be weighed (those with a bias strictly
+between 0 and 1, and those at 1 when they can't all be right), the
+error says there are too many to rank.
 
 Examples: a failure at bias 0.8 against a claim gives the code belief 0.8
 and plausibility 1 of being wrong, and the failure 0 and 0.2. Evidence at
@@ -637,11 +641,15 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:11  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    possible  the code of `div`, model.mitra:2
-    likely    evidence.mitra:11 (bug:42), trusted at 0.8
+                                                trust  left
+    possible  the code of `div`, model.mitra:2  none   0.00 to 0.70
+    likely    evidence.mitra:11 (bug:42)        0.8    0.30 to 0.38
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `div`; if not, correct the evidence
 
@@ -655,12 +663,16 @@ error[M004]: an assumption is contradicted by the evidence
     passes    evidence.mitra:10  @[source "test:t_six"] evidence correct (div 6 3) at 0.99
     fails     evidence.mitra:11  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
 
-  These can't all be right. Which one is wrong, from the trust given to
-  each:
+  These can't all be right. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    likely    evidence.mitra:11 (bug:42), trusted at 0.8
-    unlikely  evidence.mitra:9 (review:alice), trusted at 0.9
+                                               trust  left
+    likely    evidence.mitra:11 (bug:42)       0.8    0.30 to 0.38
+    unlikely  evidence.mitra:9 (review:alice)  0.9    0.65 to 0.72
     1 less plausible not shown (`--all` shows them)
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
 
   note: the trust given says these are probably all right, which can't
   be: at least one is trusted more than it deserves
@@ -691,17 +703,21 @@ codes are stable: a code keeps its meaning.
 - **Evidence.** Each piece an error rests on: what it says (`passes`,
   `fails`, `output`, `vouches`, `denies`), where it is, and its text. At
   most 5 are quoted, then `and N more`.
-- **Which one is wrong.** The pieces of the error, most plausible first,
-  each with a word: `certain` (belief at least 0.995), `likely` (belief
-  at least 0.5), `possible` (plausibility at least 0.5), else
-  `unlikely`. A piece is a piece of evidence with its source and trust,
-  `the code of f`, or `the claim c itself`. At most 5 are listed, and
-  none under plausibility 0.05 (see Running Mitra); `N less plausible not
-  shown` counts the others whose plausibility is not 0. `--numbers` adds
-  `[belief B, plausibility P]` to each and a line saying what the two
-  mean.
-- When the pieces trusted at 1 can't all be right, or more than 20 have
-  a trust strictly between 0 and 1, the error says so and ranks nothing.
+- **Which one is wrong.** The pieces of the error, most plausible first.
+  Each line has a word, the piece, the `trust` given to it (`none` for
+  code and claims) and what is `left` of that trust once the pieces are
+  weighed against each other: 1 − plausibility of being wrong, to
+  1 − belief of being wrong, as one number when the two are equal. The
+  lower what is left, the more plausibly the piece is the wrong one. The
+  word is `certain` (belief of being wrong at least 0.995), `likely` (at
+  least 0.5), `possible` (plausibility at least 0.5), else `unlikely`.
+  At most 5 pieces are listed, and none under plausibility 0.05 (see
+  Running Mitra); `N less plausible not shown` counts the others whose
+  plausibility is not 0.
+- `note: the pieces trusted at 1 can't all be right`: the doubt is shared
+  equally between them (see Evaluation).
+- When more than 20 pieces would have to be weighed, the error says so
+  and ranks nothing.
 - `note: the trust given says these are probably all right`: on an error
   other than `M001`, when the pieces would all be right with a mass of at
   least 0.5 by their biases alone (the conflict). At least one is
@@ -893,7 +909,7 @@ The numbers are computed by hand in each case's `evidence.mitra`.
 | 03 | the same failure at 0.8 recorded twice, and another report at 0.5 | the code [0.90, 1.00]: the twin counts once |
 | 04 | two sources report the same wrong output, at 0.9 and 0.1 | the code [0.91, 1.00]; both reports listed, whatever their order |
 | 05 | review of `div_uniform` at 0; `div 4 2` fails, outside `div_small` | `div_small` fails; the code and the review both [0.00, 1.00] |
-| 06 | vouched; `div 6 3` passes at 0.1, `div 8 4` passes, `div 4 2` fails | no ranking: the trusted pass, failure and review can't all be right |
+| 06 | vouched; `div 6 3` passes at 0.1, `div 8 4` passes, `div 4 2` fails | the review, the trusted pass and the failure share the doubt: [0.34, 0.34], [0.31, 0.31], [0.34, 0.34]; the distrusted pass [0.31, 0.93] |
 
 ### `uses`: suspects
 

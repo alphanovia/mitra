@@ -15,10 +15,13 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:5  evidence not correct (half 0) at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the code of `half`, model.mitra:3
+                                                 trust  left
+    certain   the code of `half`, model.mitra:3  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `half`; if not, correct the evidence
 
@@ -30,11 +33,20 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:8  evidence not correct (quarter 1) at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the code of `half`, model.mitra:3
-    possible  the code of `quarter`, model.mitra:4
+                                                    trust  left
+    certain   the code of `half`, model.mitra:3     none   0.00
+    possible  the code of `quarter`, model.mitra:4  none   0.00 to 1.00
+    unlikely  evidence.mitra:8                      1      0.67
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  note: the pieces trusted at 1 can't all be right, so their trust says
+  nothing here: Mitra shares the doubt equally between them. Lower the
+  trust of the one you doubt most to set them apart.
 
   help: look first at `half`, which `quarter` uses: half_correct fails there
   help: if the evidence is right, fix `quarter`; if not, correct the evidence
@@ -49,8 +61,19 @@ error[M004]: an assumption is contradicted by the evidence
     passes    evidence.mitra:7  evidence correct (quarter 0) at 1
     fails     evidence.mitra:8  evidence not correct (quarter 1) at 1
 
-  These can't all be right, and the ones trusted at 1 are enough for
-  that: nothing says which one is wrong.
+  These can't all be right. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                trust  left
+    unlikely  evidence.mitra:6  1      0.67
+    unlikely  evidence.mitra:7  1      0.67
+    unlikely  evidence.mitra:8  1      0.67
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  note: the pieces trusted at 1 can't all be right, so their trust says
+  nothing here: Mitra shares the doubt equally between them. Lower the
+  trust of the one you doubt most to set them apart.
 
   help: check that `quarter 1` really fails; if it does, class "any" is
   too wide: split it in `all`

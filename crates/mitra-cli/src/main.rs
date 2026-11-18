@@ -3,7 +3,7 @@
 //! ```text
 //! mitra init
 //! mitra check [<model> <evidence>] [--rev <commit>]
-//! mitra eval  [<model> <evidence>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [--numbers] [-o <result.txt>]
+//! mitra eval  [<model> <evidence>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [-o <result.txt>]
 //! mitra add   '<evidence>' [--source <who>] [--rev <commit>]
 //! mitra next  [<model> <evidence>] [--rev <commit>]
 //! mitra ingest <report> [--format libtest|junit] [--rev <commit>]
@@ -25,7 +25,7 @@ use std::process::ExitCode;
 const USAGE: &str = "usage:
   mitra init
   mitra check [<model.mitra> <evidence.mitra>] [--rev <commit>]
-  mitra eval  [<model.mitra> <evidence.mitra>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [--numbers] [-o <result.txt>]
+  mitra eval  [<model.mitra> <evidence.mitra>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [-o <result.txt>]
   mitra add   '<evidence>' [--source <who>] [--rev <commit>]
   mitra next  [<model.mitra> <evidence.mitra>] [--rev <commit>]
   mitra ingest <report> [--format libtest|junit] [--rev <commit>]
@@ -176,10 +176,6 @@ fn take_display(rest: &mut Vec<String>) -> Result<mitra_core::Display, String> {
         rest.remove(i);
         display.max = usize::MAX;
         display.threshold = 0.0;
-    }
-    if let Some(i) = rest.iter().position(|a| a == "--numbers") {
-        rest.remove(i);
-        display.numbers = true;
     }
     Ok(display)
 }

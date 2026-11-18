@@ -14,6 +14,13 @@
 //! - a piece outside `T` may be wrong (plausibility);
 //! - it must be wrong when a clause has all its other pieces in `T`
 //!   (belief).
+//!
+//! When the pieces trusted at 1 can't all be right, no `T` is possible and
+//! Dempster's rule is undefined. The ranking is then the limit of the
+//! rule as every bias of 1 goes down to 1 - e, e going to 0: only the
+//! ways with the fewest trusted pieces wrong count, and trusted pieces
+//! that play the same part share the doubt equally. `Ranking::doubted`
+//! says so.
 
 /// The most pieces with a bias strictly between 0 and 1 that are ranked:
 /// each doubles the work.
@@ -26,15 +33,16 @@ pub struct Ranking {
     pub plausibility: Vec<f64>,
     /// The mass that says every piece of some clause is right.
     pub conflict: f64,
+    /// How many pieces trusted at 1 had to be taken as wrong: 0 unless
+    /// the pieces trusted at 1 can't all be right.
+    pub doubted: usize,
 }
 
 /// Why there is no ranking.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum NoRanking {
-    /// The biases leave no way for the clauses to hold: every piece of
-    /// some clause is fully trusted.
-    TotalConflict,
-    /// More than [`MAX_OPEN`] pieces with a bias strictly between 0 and 1.
+    /// More than [`MAX_OPEN`] pieces with a bias strictly between 0 and 1,
+    /// counting those trusted at 1 when they can't all be right.
     TooMany,
     /// A bias outside [0, 1], or a clause naming a piece that is not there.
     Invalid,
@@ -57,21 +65,53 @@ pub fn rank(biases: &[Option<f64>], clauses: &[Vec<usize>]) -> Result<Ranking, N
     if open.len() > MAX_OPEN {
         return Err(NoRanking::TooMany);
     }
+    let sure: Vec<usize> = (0..n).filter(|i| biases[*i] == Some(1.0)).collect();
+    if let Some(r) = weigh(biases, clauses, &open, &sure, false) {
+        return Ok(r);
+    }
+    // The pieces trusted at 1 can't all be right: doubt them too.
+    if open.len() + sure.len() > MAX_OPEN {
+        return Err(NoRanking::TooMany);
+    }
+    Ok(weigh(biases, clauses, &open, &sure, true)
+        .expect("with every piece wrong, no clause is whole"))
+}
+
+/// The ranking over the ways of taking the `open` pieces as right or
+/// wrong, and the `sure` ones too when `doubt` is set. Only the ways with
+/// the fewest `sure` pieces wrong count. `None` when there is no way.
+fn weigh(
+    biases: &[Option<f64>],
+    clauses: &[Vec<usize>],
+    open: &[usize],
+    sure: &[usize],
+    doubt: bool,
+) -> Option<Ranking> {
+    let n = biases.len();
+    let free: Vec<usize> = if doubt {
+        open.iter().chain(sure).copied().collect()
+    } else {
+        open.to_vec()
+    };
     let mut right: Vec<bool> = biases.iter().map(|b| *b == Some(1.0)).collect();
-    let (mut belief, mut plausibility) = (vec![0.0; n], vec![0.0; n]);
-    let mut possible = 0.0;
-    for choice in 0u32..(1 << open.len()) {
-        let mut p = 1.0;
-        for (k, i) in open.iter().enumerate() {
+    // One tally per number of sure pieces taken as wrong.
+    let levels = if doubt { sure.len() + 1 } else { 1 };
+    let mut tally = vec![(0.0, vec![0.0; n], vec![0.0; n]); levels];
+    for choice in 0u32..(1 << free.len()) {
+        let (mut p, mut wrong) = (1.0, 0);
+        for (k, i) in free.iter().enumerate() {
             let taken = choice >> k & 1 == 1;
             right[*i] = taken;
-            let b = biases[*i].expect("open pieces have a bias");
-            p *= if taken { b } else { 1.0 - b };
+            match biases[*i] {
+                Some(b) if b < 1.0 => p *= if taken { b } else { 1.0 - b },
+                _ => wrong += usize::from(!taken),
+            }
         }
-        if clauses.iter().any(|c| c.iter().all(|i| right[*i])) {
+        if p <= 0.0 || clauses.iter().any(|c| c.iter().all(|i| right[*i])) {
             continue;
         }
-        possible += p;
+        let (possible, belief, plausibility) = &mut tally[wrong];
+        *possible += p;
         for x in (0..n).filter(|x| !right[*x]) {
             plausibility[x] += p;
             let forced = |c: &&Vec<usize>| c.contains(&x) && c.iter().all(|i| *i == x || right[*i]);
@@ -80,16 +120,16 @@ pub fn rank(biases: &[Option<f64>], clauses: &[Vec<usize>]) -> Result<Ranking, N
             }
         }
     }
-    if possible <= 0.0 {
-        return Err(NoRanking::TotalConflict);
-    }
+    let doubted = tally.iter().position(|t| t.0 > 0.0)?;
+    let (possible, mut belief, mut plausibility) = tally.swap_remove(doubted);
     for v in belief.iter_mut().chain(plausibility.iter_mut()) {
         *v /= possible;
     }
-    Ok(Ranking {
+    Some(Ranking {
         belief,
         plausibility,
-        conflict: 1.0 - possible,
+        conflict: if doubted > 0 { 1.0 } else { 1.0 - possible },
+        doubted,
     })
 }
 
@@ -140,14 +180,46 @@ mod tests {
         assert!(r.plausibility[0] > r.plausibility[1]);
     }
 
-    /// P3: full trust in the evidence puts the blame on the code; full
-    /// trust in every piece is a total conflict.
+    /// P3: full trust in the evidence puts the blame on the code.
     #[test]
     fn full_trust() {
         let r = rank(&[None, Some(1.0)], &[vec![0, 1]]).unwrap();
         assert!(close(r.belief[0], 1.0) && close(r.plausibility[1], 0.0));
-        let r = rank(&[Some(1.0), Some(1.0)], &[vec![0, 1]]);
-        assert_eq!(r, Err(NoRanking::TotalConflict));
+        assert_eq!(r.doubted, 0);
+    }
+
+    /// Pieces trusted at 1 that can't all be right share the doubt
+    /// equally: one of them is wrong, and nothing says which.
+    #[test]
+    fn full_trust_in_every_piece_is_a_tie() {
+        let r = rank(&[Some(1.0), Some(1.0), Some(1.0)], &[vec![0, 1, 2]]).unwrap();
+        assert_eq!(r.doubted, 1);
+        assert!(close(r.conflict, 1.0));
+        for i in 0..3 {
+            assert!(close(r.belief[i], 1.0 / 3.0) && close(r.plausibility[i], 1.0 / 3.0));
+        }
+        // A piece that is not fully trusted takes all the doubt first.
+        let r = rank(&[Some(1.0), Some(1.0), Some(0.9)], &[vec![0, 1, 2]]).unwrap();
+        assert_eq!(r.doubted, 0);
+        assert!(close(r.belief[2], 1.0) && close(r.plausibility[0], 0.0));
+        // The code beside them stays out of it: no clause needs it wrong.
+        let r = rank(&[None, Some(1.0), Some(1.0)], &[vec![1, 2], vec![0, 2]]).unwrap();
+        assert!(close(r.plausibility[1], 0.5) && close(r.plausibility[2], 0.5));
+        assert!(close(r.belief[0], 0.5) && close(r.plausibility[0], 1.0));
+    }
+
+    /// Two trusted passes, one distrusted pass, a trusted failure and a
+    /// trusted review: by hand, over the ways with one trusted piece wrong.
+    #[test]
+    fn a_tie_beside_a_distrusted_piece() {
+        // 0 review, 1 pass at 0.1, 2 pass, 3 failure.
+        let biases = [Some(1.0), Some(0.1), Some(1.0), Some(1.0)];
+        let r = rank(&biases, &[vec![0, 1, 3], vec![0, 2, 3]]).unwrap();
+        // Review wrong: 1. Failure wrong: 1. Pass 2 wrong: pass 1 too, 0.9.
+        let z = 2.9;
+        assert!(close(r.plausibility[0], 1.0 / z) && close(r.plausibility[3], 1.0 / z));
+        assert!(close(r.plausibility[2], 0.9 / z));
+        assert!(close(r.plausibility[1], 2.7 / z) && close(r.belief[1], 0.9 / z));
     }
 
     /// P4: a piece in no clause is never believed wrong.

@@ -302,88 +302,107 @@ impl Writer<'_> {
         }
     }
 
-    fn piece(&self, piece: &Piece) -> String {
+    /// A piece, and the trust given to it.
+    fn piece(&self, piece: &Piece) -> (String, String) {
         match piece {
             Piece::Evidence(line) => {
                 let e = self.model.evidence.iter().find(|e| e.line == *line);
                 let source = e.and_then(|e| e.source.as_ref());
                 let source = source.map_or(String::new(), |s| format!(" ({s})"));
                 let trust = e.map_or(0.0, |e| e.confidence);
-                format!(
-                    "{}{source}, trusted at {trust}",
-                    self.places.evidence(*line)
+                (
+                    format!("{}{source}", self.places.evidence(*line)),
+                    format!("{trust}"),
                 )
             }
             Piece::Code(f) => {
                 let line = self.model.function(f).map_or(0, |f| f.line);
-                format!("the code of `{f}`, {}", self.places.model(line))
+                let place = self.places.model(line);
+                (format!("the code of `{f}`, {place}"), "none".to_string())
             }
             Piece::Claim(c) => {
                 let line = self.claim(c).line;
-                format!("the claim `{c}` itself, {}", self.places.model(line))
+                let place = self.places.model(line);
+                (
+                    format!("the claim `{c}` itself, {place}"),
+                    "none".to_string(),
+                )
             }
         }
     }
 
-    /// Which piece is most plausibly wrong.
+    /// Which piece is most plausibly wrong: the trust given to each, and
+    /// the trust left once they are weighed against each other.
     fn ranking(&self, p: &Problem, out: &mut String) {
         let candidates = match &p.candidates {
             Ok(c) => c,
-            Err(Unranked::AllTrusted) => {
-                *out +=
-                    "\n  These can't all be right, and the ones trusted at 1 are enough for\n  \
-                         that: nothing says which one is wrong.\n";
-                return;
-            }
             Err(Unranked::TooMany) => {
-                *out += "\n  These can't all be right. More than 20 of them have a trust\n  \
-                         between 0 and 1: too many to rank.\n";
+                *out += "\n  These can't all be right. More than 20 of them would have to be\n  \
+                         weighed against each other: too many to rank.\n";
                 return;
             }
         };
         *out += match p.kind {
-            Kind::Fails { .. } => {
-                "\n  Either the code is wrong or the evidence is. Which one, from the trust\n  \
-                 given to each piece of evidence:\n\n"
-            }
-            _ => {
-                "\n  These can't all be right. Which one is wrong, from the trust given to\n  \
-                 each:\n\n"
-            }
+            Kind::Fails { .. } => "\n  Either the code is wrong or the evidence is.",
+            _ => "\n  These can't all be right.",
         };
+        *out += " Below, the trust given to each\n  piece, and what is left of it once they are weighed against each other:\n\n";
         let shown = |c: &&Candidate| c.plausibility >= self.display.threshold;
-        for c in candidates.iter().filter(shown).take(self.display.max) {
-            *out += &format!("    {:<9} {}", word(c), self.piece(&c.piece));
-            if self.display.numbers {
-                *out += &format!(
-                    "  [belief {:.2}, plausibility {:.2}]",
-                    c.belief, c.plausibility
-                );
-            }
-            *out += "\n";
-        }
-        let listed = candidates
+        let listed: Vec<&Candidate> = candidates
             .iter()
             .filter(shown)
             .take(self.display.max)
-            .count();
+            .collect();
+        let rows: Vec<(String, String, String)> = listed
+            .iter()
+            .map(|c| {
+                let (piece, trust) = self.piece(&c.piece);
+                // What is left: from "it can be wrong this much" to "it
+                // must be wrong this much".
+                let (low, high) = (1.0 - c.plausibility, 1.0 - c.belief);
+                let left = if (high - low).abs() < 0.005 {
+                    format!("{low:.2}")
+                } else {
+                    format!("{low:.2} to {high:.2}")
+                };
+                (piece, trust, left)
+            })
+            .collect();
+        let wide = |f: fn(&(String, String, String)) -> &String, head: &str| {
+            let cells = rows.iter().map(|r| f(r).chars().count());
+            cells.chain([head.len()]).max().unwrap_or(0)
+        };
+        let (w0, w1) = (wide(|r| &r.0, ""), wide(|r| &r.1, "trust"));
+        *out += &format!("    {:<9} {:<w0$}  {:<w1$}  left\n", "", "", "trust");
+        for (c, (piece, trust, left)) in listed.iter().zip(&rows) {
+            *out += &format!("    {:<9} {piece:<w0$}  {trust:<w1$}  {left}\n", word(c));
+        }
         let possible = candidates.iter().filter(|c| c.plausibility > 0.0).count();
-        if possible > listed {
+        if possible > listed.len() {
             *out += &format!(
                 "    {} less plausible not shown (`--all` shows them)\n",
-                possible - listed
+                possible - listed.len()
             );
         }
-        if self.display.numbers {
-            *out += "\n  belief: how sure it is that the piece is wrong. plausibility: how\n  \
-                     far it could be wrong. Both go from 0 to 1.\n";
+        *out += "\n  The lower what is left, the more plausibly the piece is the wrong one.\n";
+        if listed.iter().any(|c| c.belief + 0.005 < c.plausibility) {
+            *out += "  A range means the evidence does not settle it.\n";
         }
-        if p.conflict >= 0.5 && !matches!(p.kind, Kind::Fails { .. }) {
-            *out += "\n  note: the trust given says these are probably all right";
-            if self.display.numbers {
-                *out += &format!(" (at {:.2})", p.conflict);
+        // Pieces trusted at 1 that are doubted all the same.
+        let sure = |c: &&&Candidate| match &c.piece {
+            Piece::Evidence(line) => {
+                let e = self.model.evidence.iter().find(|e| e.line == *line);
+                e.is_some_and(|e| e.confidence >= 1.0) && c.plausibility > 0.0
             }
-            *out += ", which can't\n  be: at least one is trusted more than it deserves\n";
+            _ => false,
+        };
+        if listed.iter().filter(sure).count() > 0 {
+            *out += "\n  note: the pieces trusted at 1 can't all be right, so their trust says\n  \
+                     nothing here: Mitra shares the doubt equally between them. Lower the\n  \
+                     trust of the one you doubt most to set them apart.\n";
+        } else if p.conflict >= 0.5 && !matches!(p.kind, Kind::Fails { .. }) {
+            *out += "\n  note: the trust given says these are probably all right, which can't\n  \
+                     be: at least one is trusted more than it deserves\n";
         }
     }
 

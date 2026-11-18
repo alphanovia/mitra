@@ -15,10 +15,13 @@ error[M001]: evidence refutes a claim
 
     output    evidence.mitra:6  evidence add 1 (-1) = 1 at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    certain   the code of `add`, model.mitra:5
+                                                trust  left
+    certain   the code of `add`, model.mitra:5  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `add`; if not, correct the evidence
 

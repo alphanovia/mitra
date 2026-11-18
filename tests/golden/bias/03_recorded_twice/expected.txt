@@ -13,12 +13,16 @@ error[M001]: evidence refutes a claim
     fails     evidence.mitra:5  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
     fails     evidence.mitra:6  @[source "bug:43"] evidence not correct (div 4 2) at 0.5
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    likely    the code of `div`, model.mitra:2
-    possible  evidence.mitra:6 (bug:43), trusted at 0.5
-    unlikely  evidence.mitra:4 (bug:42), trusted at 0.8
+                                                trust  left
+    likely    the code of `div`, model.mitra:2  none   0.00 to 0.10
+    possible  evidence.mitra:6 (bug:43)         0.5    0.50 to 1.00
+    unlikely  evidence.mitra:4 (bug:42)         0.8    0.80 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `div`; if not, correct the evidence
 

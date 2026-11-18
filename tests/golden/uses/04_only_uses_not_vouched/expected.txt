@@ -12,11 +12,15 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:4  evidence not correct (quarter 1) at 1
 
-  Either the code is wrong or the evidence is. Which one, from the trust
-  given to each piece of evidence:
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
 
-    possible  the code of `quarter`, model.mitra:4
-    possible  the code of `half`, model.mitra:3
+                                                    trust  left
+    possible  the code of `quarter`, model.mitra:4  none   0.00 to 1.00
+    possible  the code of `half`, model.mitra:3     none   0.00 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `quarter`; if not, correct the evidence
 

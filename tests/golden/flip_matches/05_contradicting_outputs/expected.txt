@@ -11,8 +11,18 @@ error[M003]: two pieces of evidence contradict each other
     output    evidence.mitra:3  evidence flip false = true at 1
     output    evidence.mitra:4  evidence flip false = false at 1
 
-  These can't all be right, and the ones trusted at 1 are enough for
-  that: nothing says which one is wrong.
+  These can't all be right. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                trust  left
+    likely    evidence.mitra:3  1      0.50
+    likely    evidence.mitra:4  1      0.50
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  note: the pieces trusted at 1 can't all be right, so their trust says
+  nothing here: Mitra shares the doubt equally between them. Lower the
+  trust of the one you doubt most to set them apart.
 
   note: until this is settled, neither counts for these inputs
   help: find out which one is right, and correct the other
