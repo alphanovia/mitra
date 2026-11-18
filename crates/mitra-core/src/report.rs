@@ -208,7 +208,11 @@ impl Writer<'_> {
     /// A piece of evidence by its line, also when it was set aside.
     fn entry(&self, line: usize) -> Option<&crate::Evidence> {
         let aside = self.model.misfits.iter().map(|m| &m.0);
-        self.model.evidence.iter().chain(aside).find(|e| e.line == line)
+        self.model
+            .evidence
+            .iter()
+            .chain(aside)
+            .find(|e| e.line == line)
     }
 
     /// The claim that a piece of evidence was declared with, in the model:
@@ -309,7 +313,9 @@ impl Writer<'_> {
         for v in &self.report.verdicts {
             let c = self.claim(&v.claim);
             *out += &format!("{}: {}", v.claim, v.logic.as_str());
-            if v.logic == Logic::Assuming {
+            if v.own_word() {
+                *out += " [itself]";
+            } else if v.logic == Logic::Assuming {
                 *out += &format!(" [{}]", v.assuming.join(", "));
             }
             *out += "\n";
@@ -325,14 +331,17 @@ impl Writer<'_> {
             }
             if let Some(i) = v.implication {
                 if !v.derived.is_empty() {
-                    let how = match i {
-                        Implication::Checked => "its premises imply it",
+                    let how = match (i, c.auto) {
+                        (_, true) => "the specs of what it calls imply it",
+                        (Implication::Checked, _) => "its premises imply it",
                         _ => "from its premises, the implication not checked",
                     };
                     *out += &format!("  assumed on      {}: {how}\n", inputs(&v.derived));
+                } else if i == Implication::Refuted && c.auto {
+                    *out += "  not derived: the specs of what it calls contradict it\n";
                 } else if i == Implication::Refuted {
                     *out += "  not derived: its premises do not imply it\n";
-                } else if !v.follows {
+                } else if !v.follows && !(c.auto && i == Implication::Unchecked) {
                     *out += "  not derived: a premise fails\n";
                 }
             }
@@ -521,6 +530,7 @@ impl Writer<'_> {
                 // The subjects the claim is about: one, or for a property
                 // those it calls.
                 let mut subjects = self.model.subjects_of(self.claim(&claims[0]));
+                subjects.retain(|f| !self.model.boundaries.contains(f));
                 subjects.retain(|f| {
                     self.model
                         .declared_function(f)
@@ -693,7 +703,8 @@ impl Writer<'_> {
                     *out += &if v.tested.is_empty() {
                         format!(
                             "\n  Nothing says that `{name}` holds, and Mitra can't check it.\n  \
-                             help: review it against the code, then record: evidence {name} at 1\n"
+                             help: review it against the code, then record: {}",
+                            crate::next::vouch(self.model, name).trim_start()
                         )
                     } else {
                         format!(
@@ -717,6 +728,7 @@ impl Writer<'_> {
                     }
                     *out += &format!("  help: {help}\n");
                 }
+                Logic::Assuming if v.own_word() => {}
                 Logic::Assuming => {
                     *out += &format!("\nwarning[M102]: {}\n", headline("M102"));
                     *out += &self.at_claim(name);

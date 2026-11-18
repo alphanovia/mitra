@@ -31,7 +31,8 @@ const USAGE: &str = "usage:
   mitra next  [<model.mitra> <evidence.mitra>] [--rev <commit>]
   mitra ingest <report> [--format libtest|junit] [--rev <commit>]
   mitra tie   [--rev <commit>]
-  mitra explain <code>";
+  mitra explain <code>
+  mitra explain <claim> [<model.mitra> <evidence.mitra>]";
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {
@@ -126,7 +127,9 @@ fn evaluate(
         // What the model itself declares (`assume`, `uses`) has no revision.
         let files = model.written.as_ref().map(|w| w.1.len());
         let declared = |x: &mitra_core::Evidence| files.is_some_and(|n| x.line > n);
-        model.evidence.retain(|x| x.rev.as_deref() == Some(rev) || declared(x));
+        model
+            .evidence
+            .retain(|x| x.rev.as_deref() == Some(rev) || declared(x));
         let stale = before - model.evidence.len();
         if stale > 0 {
             eprintln!("mitra: {stale} evidence left out: not recorded at revision {rev}");
@@ -260,12 +263,49 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             Ok(errors)
         }
         "explain" => {
-            let [code] = rest else {
+            let [code, paths @ ..] = rest else {
                 return Err(USAGE.into());
             };
-            let text =
-                mitra_core::explain(code).ok_or(format!("explain `{code}`: no such code"))?;
-            print!("{text}");
+            if let Some(text) = mitra_core::explain(code) {
+                print!("{text}");
+                return Ok(0);
+            }
+            // Not a code: a claim of the model.
+            let (m, e) = inputs(paths).map_err(|_| format!("explain `{code}`: no such code"))?;
+            let (model, report) = evaluate(&m, &e, rev)?;
+            let ends =
+                |c: &&mitra_core::Claim| c.name == *code || c.name.ends_with(&format!("::{code}"));
+            let found: Vec<&mitra_core::Claim> = model.claims.iter().filter(ends).collect();
+            let [c] = found[..] else {
+                let names: Vec<&str> = found.iter().map(|c| c.name.as_str()).collect();
+                return Err(match names.is_empty() {
+                    true => format!("explain `{code}`: no such code, and no such claim"),
+                    false => format!("explain `{code}`: one of {}", names.join(", ")),
+                });
+            };
+            let places = Places {
+                model: &m,
+                evidence: &e,
+            };
+            println!("claim {}", c.name);
+            let written = model.written.as_ref();
+            if let Some(w) = written.and_then(|w| mitra_core::surface::written(&w.0, c.line)) {
+                println!("  written   {w}");
+            }
+            let read = mitra_core::print::print_claim(&model, c);
+            println!("  read as   {}", read.trim_start_matches("claim ").trim());
+            let about = model.evidence.iter().filter(|e| e.about == c.name).count();
+            println!("  evidence  {about} piece(s) on the claim itself");
+            let text = report.to_text_at(&mitra_core::Display::default(), &places);
+            let mut lines = text
+                .lines()
+                .skip_while(|l| !l.starts_with(&format!("{}: ", c.name)));
+            if let Some(verdict) = lines.next() {
+                println!("\n{verdict}");
+                for l in lines.take_while(|l| l.starts_with("  ")) {
+                    println!("{l}");
+                }
+            }
             Ok(0)
         }
         "add" => {

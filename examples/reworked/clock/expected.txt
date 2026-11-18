@@ -1,0 +1,36 @@
+clock::next::spec: holds
+  passes on       `clock::next(1)`
+  assumed on      every input, by `clock::next_uniform`
+clock::back::spec: unverified
+  no evidence on  h in 0..=3
+clock::next_uniform: holds
+clock::back_uniform: unverified
+clock::round_trip: holds assuming [clock::back::spec]
+  assumed on      h in 0..=3: the specs of what it calls imply it
+clock::never_same: holds
+  passes on       `h = 1`
+  assumed on      `h = 0`, `h = 2`, `h = 3`: the specs of what it calls imply it
+clock::wrong: holds
+  passes on       `h = 1`
+  not derived: the specs of what it calls contradict it
+  assumed on      every input, by `clock::next_uniform`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  fn back(h: 0..=3) -> 0..=3 { if h == 0 { 3 } else { h - 1 } }
+
+  No evidence on h in 0..=3.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M103]: an assumption is not vouched for
+  --> model.mitra:8  claim back_uniform = uniform(back);
+
+  Nothing says that `clock::back_uniform` holds, and Mitra can't check it.
+  help: review it against the code, then record: evidence <name> { for clock::back_uniform holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> model.mitra:9  claim round_trip(h: 0..=3) { back(next(h)) == h }
+
+  `clock::round_trip` holds if `clock::back::spec` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

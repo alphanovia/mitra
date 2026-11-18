@@ -3,9 +3,10 @@ add_spec: fails
   passes on       (a, b) in {(0, -2), (0, -1), (0, 0), (1, -2), (1, 0), (2, -2), (2, -1), (2, 0)}
 negate_spec: holds
 minus_shape: holds
-minus_spec: unverified
+minus_spec: fails
+  fails on        `minus(1, 1)`
+  passes on       (a, b) in {(0, 0), (0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1), (2, 2)}
   not derived: a premise fails
-  no evidence on  (a, b) in (0..=2, 0..=2)
 
 error[M001]: evidence refutes a claim
   --> model.mitra:10  claim add_spec : forall a in 0..=2, forall b in -2..=0, add(a, b) = plus(a, b)
@@ -25,10 +26,24 @@ error[M001]: evidence refutes a claim
 
   help: if the evidence is right, fix `add`; if not, correct the evidence
 
-warning[M101]: a claim is not verified
+error[M001]: evidence refutes a claim
   --> model.mitra:15  claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = difference(a, b) := by derive [add_spec, negate_spec, minus_shape]
 
-  No evidence on (a, b) in (0..=2, 0..=2).
-  help: `mitra next` lists the evidence that would settle it
+  `minus_spec` fails on `minus(1, 1)`.
+  The evidence that says so:
+
+    output    evidence.mitra:6  evidence add(1, -1) = 1 at 1
+    output    evidence.mitra:12  evidence negate(1) = -1 at 1
+    vouches   evidence.mitra:14  evidence minus_shape at 1
+
+  The code, the claim or the evidence is wrong. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                  trust  left
+    certain   the code of `minus`, model.mitra:7  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  help: if the evidence is right, fix `minus`; if not, correct the evidence
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

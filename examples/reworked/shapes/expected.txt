@@ -1,0 +1,29 @@
+calc::add_commutes: unverified
+  passes on       `calc::add(0, 0)`, `calc::add(0, 1)`, `calc::add(1, 0)`
+  no evidence on  (a, b) in {(0, 2), (1, 1), (1, 2), (2, 0), (2, 1), (2, 2)}
+calc::mul_commutes: unverified
+  no evidence on  (a, b) in (0..=2, 0..=2)
+calc::add_zero: holds
+calc::mul_grows: unverified
+  no evidence on  (a, b) in {(0, 1), (0, 2), (1, 1), (1, 2), (2, 1), (2, 2)}
+calc::evens: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  claim add_commutes = commutes(add, 0..=2) trust 0.9;
+
+  No evidence on (a, b) in {(0, 2), (1, 1), (1, 2), (2, 0), (2, 1), (2, 2)}.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:10  claim mul_commutes = commutes(mul, 0..=2);
+
+  No evidence on (a, b) in (0..=2, 0..=2).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:12  claim mul_grows = only_when(mul, 0..=2, |a, b| b > 0);
+
+  No evidence on (a, b) in {(0, 1), (0, 2), (1, 1), (1, 2), (2, 1), (2, 2)}.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

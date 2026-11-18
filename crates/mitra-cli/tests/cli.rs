@@ -461,14 +461,43 @@ fn tie_compares_the_code_with_the_model() {
     }
     let (code, out, err) = mitra(&dir, &["tie", "--rev", "abc"]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(out.starts_with("2 agree, 2 differ; 4 evidence added"), "{out}");
-    assert!(out.contains("input `amount` in the code is `n` in the model"), "{out}");
+    assert!(
+        out.starts_with("2 agree, 2 differ; 4 evidence added"),
+        "{out}"
+    );
+    assert!(
+        out.contains("input `amount` in the code is `n` in the model"),
+        "{out}"
+    );
     assert!(out.contains("`withdraw` also calls `deposit`"), "{out}");
     assert!(out.contains("no code is tied to: bank::close"), "{out}");
     let (code, out, _) = mitra(&dir, &["eval"]);
     assert_eq!(code, Some(1));
     assert!(out.contains("bank::deposit::tied: holds"), "{out}");
     assert!(out.contains("bank::withdraw::tied: fails"), "{out}");
-    assert!(out.contains("The model and the code of `bank::withdraw` do not agree"), "{out}");
+    assert!(
+        out.contains("The model and the code of `bank::withdraw` do not agree"),
+        "{out}"
+    );
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// `mitra explain <claim>`: the claim as written, as read, and its verdict.
+#[test]
+fn explain_a_claim() {
+    let dir =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/reworked/shapes");
+    let files = ["model.mitra", "evidence.mitra"];
+    let (code, out, err) = mitra(&dir, &["explain", "mul_grows", files[0], files[1]]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("written   claim mul_grows = only_when(mul, 0..=2, |a, b| b > 0);"),
+        "{out}"
+    );
+    assert!(out.contains("!(b > 0) || calc::mul(a, b) >= a"), "{out}");
+    assert!(out.contains("calc::mul_grows: unverified"), "{out}");
+    let (code, _, err) = mitra(&dir, &["explain", "nope", files[0], files[1]]);
+    assert_eq!(code, Some(2));
+    assert!(err.contains("no such claim"), "{err}");
+    assert_eq!(mitra(&dir, &["explain", "M001"]).0, Some(0));
 }

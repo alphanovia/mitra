@@ -5,7 +5,7 @@ flip_not_shape: unverified
   no evidence on  `flip_not(true)`
 flip_not_same: fails
   fails on        `flip_not(true)`
-  assumed on      `flip_not(false)`: its premises imply it
+  passes on       `flip_not(false)`
 
 error[M001]: evidence refutes a claim
   --> model.mitra:14  claim flip_not_same : forall a, flip_not(a) = same(a) := by derive [flip_spec, flip_not_shape, neg_twice]

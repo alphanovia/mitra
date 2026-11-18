@@ -1,0 +1,17 @@
+net::a_is_up: holds assuming [itself]
+loader::falls_back: holds assuming [net::a_is_up]
+loader::a_loads: holds assuming [net::a_is_up]
+
+warning[M102]: a claim holds only under assumptions
+  --> model.mitra:10  claim falls_back(url: {"a", "b"}) when net::fetch(url) == "down" { load(url) == "default" }
+
+  `loader::falls_back` holds if `net::a_is_up` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+warning[M102]: a claim holds only under assumptions
+  --> model.mitra:11  claim a_loads() { net::fetch("a") == "ok" && load("a") == "page" }
+
+  `loader::a_loads` holds if `net::a_is_up` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M102`.

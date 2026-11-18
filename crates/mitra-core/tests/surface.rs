@@ -47,7 +47,10 @@ evidence b { for half given n = 2 gives 1 }";
     let out = verdicts(HALF, e);
     assert!(out.contains("no evidence on  `n = 4`"), "{out}");
     let e = format!("{e}\nevidence c {{ for math::half given n = 4 gives 2 }}");
-    assert_eq!(verdicts(HALF, &e).lines().next(), Some("math::even_exact: holds"));
+    assert_eq!(
+        verdicts(HALF, &e).lines().next(),
+        Some("math::even_exact: holds")
+    );
 }
 
 #[test]
@@ -55,7 +58,10 @@ fn evidence_names_what_it_is_for() {
     let e = "evidence a { for half given m = 0 gives 0 }";
     assert_eq!(refused(HALF, e), "line 1: `math::half` has no input `m`");
     let e = "evidence a { for third given n = 0 gives 0 }";
-    assert_eq!(refused(HALF, e), "line 1: the model has no function or claim `third`");
+    assert_eq!(
+        refused(HALF, e),
+        "line 1: the model has no function or claim `third`"
+    );
     let e = "evidence a { for half given n = 0 }";
     assert!(refused(HALF, e).contains("says nothing"));
 }
@@ -81,9 +87,66 @@ fn a_body_in_a_subject_is_a_spec_and_a_claim() {
 #[test]
 fn assume_is_taken_as_true_until_evidence_says_otherwise() {
     let m = "boundary clock { fn now() -> 0..=9; assume starts_at_zero() { now() == 0 } }";
-    assert_eq!(verdicts(m, "").lines().next(), Some("clock::starts_at_zero: holds"));
+    let first = |e: &str| verdicts(m, e).lines().next().map(String::from);
+    // Nothing but its own word: said so, and no warning for it.
+    assert_eq!(
+        first("").as_deref(),
+        Some("clock::starts_at_zero: holds assuming [itself]")
+    );
+    assert!(!verdicts(m, "").contains("warning"), "{}", verdicts(m, ""));
+    // Observed: it holds.
+    let seen = "evidence seen { for now gives 0 }";
+    assert_eq!(first(seen).as_deref(), Some("clock::starts_at_zero: holds"));
     let out = verdicts(m, "evidence late { for now gives 3 }");
     assert!(out.contains("error[M"), "{out}");
+}
+
+#[test]
+fn a_boundary_may_answer_differently_each_time() {
+    let m = "boundary dice { fn roll() -> 1..=6; }\n\
+             subject game { claim small() { dice::roll() <= 3 } }";
+    let two = "evidence a { for dice::roll gives 1 }\nevidence b { for dice::roll gives 2 }";
+    let out = verdicts(m, two);
+    assert!(out.starts_with("game::small: holds"), "{out}");
+    assert!(!out.contains("M003"), "{out}");
+    // True of one answer and not of another: the claim is about each.
+    let out = verdicts(
+        m,
+        &format!("{two}\nevidence c {{ for dice::roll gives 5 }}"),
+    );
+    assert!(out.starts_with("game::small: fails"), "{out}");
+    assert!(!out.contains("the code of `dice::roll`"), "{out}");
+    // A subject can't: two outputs on one input contradict each other.
+    let m = m.replace("boundary", "subject");
+    assert!(verdicts(&m, two).contains("M003"));
+}
+
+#[test]
+fn a_claim_with_parameters_is_written_once() {
+    let m = "claim commutes(f, T) { given a: T, b: T then f(a, b) == f(b, a) }\n\
+             subject s { fn add(a: 0..=1, b: 0..=1) -> 0..=2;\n\
+             claim add_commutes = commutes(add, 0..=1); }";
+    let model = mitra_core::load(m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
+    assert_eq!(model.claims.len(), 1);
+    assert_eq!(model.claims[0].name, "s::add_commutes");
+    let bad = m.replace("commutes(add, 0..=1)", "commutes(add)");
+    let e = mitra_core::load(&bad, "").unwrap_err().1.message;
+    assert!(e.contains("takes 2 parameter(s), got 1"), "{e}");
+    let bad = m.replace("= commutes(add", "= swaps(add");
+    let e = mitra_core::load(&bad, "").unwrap_err().1.message;
+    assert!(e.contains("no claim with parameters `swaps`"), "{e}");
+}
+
+#[test]
+fn an_inline_function_and_the_elements_that_fit() {
+    let m = "subject s { claim c() { (|a, b| a - b)(3, 1) == 2 && (|a, b| a - b)(1, 3) == -2 }\n\
+             claim d(a: 0..=3, b: 0..=3) { (|a, b| a - b)(b, a) == b - a }\n\
+             claim e() { { x in {1, 2, 3, 4} | x > 2 } == {3, 4} } }";
+    let out = verdicts(m, "");
+    assert!(
+        out.starts_with("s::c: holds\ns::d: holds\ns::e: holds"),
+        "{out}"
+    );
 }
 
 #[test]

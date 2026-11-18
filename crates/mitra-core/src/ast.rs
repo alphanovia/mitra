@@ -156,7 +156,10 @@ pub enum Target {
 impl Target {
     /// A claim about the subject's structure, not about its results.
     pub fn is_structural(&self) -> bool {
-        matches!(self, Target::Uniform(_) | Target::Uses { .. } | Target::Tied)
+        matches!(
+            self,
+            Target::Uniform(_) | Target::Uses { .. } | Target::Tied
+        )
     }
 }
 
@@ -173,6 +176,10 @@ pub struct Claim {
     pub target: Target,
     /// Premises: when they all hold, this claim holds on its whole domain.
     pub from: Vec<String>,
+    /// The premises were not written: they are the specs of the functions
+    /// the claim calls. It then follows only where the implication is
+    /// checked on every input.
+    pub auto: bool,
     /// The trust given to the statement itself, when one is.
     pub trust: Option<f64>,
     pub line: usize,
@@ -285,6 +292,9 @@ pub struct Model {
     /// Evidence that does not fit the signature of its function, and why:
     /// it judges nothing, and is reported against the signature.
     pub misfits: Vec<(Evidence, String)>,
+    /// The functions of the environment (reworked syntax): one may answer
+    /// differently each time, so two outputs on one input both stand.
+    pub boundaries: Vec<String>,
     pub tests: Vec<Test>,
     pub evidence: Vec<Evidence>,
 }

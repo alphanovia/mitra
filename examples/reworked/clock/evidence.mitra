@@ -1,0 +1,2 @@
+evidence n1 { for next given h = 1 gives 2 }
+evidence nu { for next_uniform holds source "review" }

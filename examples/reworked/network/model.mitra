@@ -1,0 +1,12 @@
+// A boundary answers as it does, and not the same each time: `fetch("b")`
+// was seen up and down, and both stand. `assume` is taken as true with no
+// evidence, and every claim that reads it says so.
+boundary net {
+    fn fetch(url: {"a", "b"}) -> {"ok", "down"};
+    assume a_is_up() { fetch("a") == "ok" }
+}
+subject loader {
+    fn load(url: {"a", "b"}) -> {"page", "default"};
+    claim falls_back(url: {"a", "b"}) when net::fetch(url) == "down" { load(url) == "default" }
+    claim a_loads() { net::fetch("a") == "ok" && load("a") == "page" }
+}

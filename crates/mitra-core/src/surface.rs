@@ -127,10 +127,14 @@ pub struct Names {
     specified: BTreeMap<String, String>,
     /// The functions whose code is outside the model.
     opaque: BTreeSet<String>,
+    /// For each claim, the spec claims of the functions it calls.
+    pub derived: BTreeMap<String, Vec<String>>,
     /// The trust given to the statement of a claim.
     pub trust: BTreeMap<String, f64>,
     /// Evidence the model itself brings: what is assumed or declared.
     pub declared: Vec<String>,
+    /// The boundaries.
+    pub boundaries: BTreeSet<String>,
 }
 
 struct P {
@@ -154,10 +158,14 @@ struct P {
     tests: Vec<usize>,
     /// The names of a first reading of the whole file.
     known: Names,
+    /// The spec claims of the functions called since last cleared.
+    called: Vec<String>,
     /// Whether this is the first reading.
     first: bool,
     /// Whether an expression read the code or a measure, since last cleared.
     impure: bool,
+    /// The claims with parameters: their parameters and their body.
+    templates: BTreeMap<String, (Vec<String>, Vec<Tok>)>,
 }
 
 type R<T> = Result<T, Error>;
@@ -236,7 +244,12 @@ impl P {
             false => name.to_string(),
         };
         // Inside a spec, another function of a subject is its spec.
-        match self.known.specified.get(&full).filter(|_| self.own.is_some()) {
+        match self
+            .known
+            .specified
+            .get(&full)
+            .filter(|_| self.own.is_some())
+        {
             Some(spec) => spec.clone(),
             None => full,
         }
@@ -254,7 +267,10 @@ impl P {
             [] => self.err(format!("the model has no function or claim `{name}`")),
             _ => {
                 let each: Vec<String> = found.iter().map(|n| format!("`{n}`")).collect();
-                self.err(format!("`{name}` is one of {}: write which", each.join(", ")))
+                self.err(format!(
+                    "`{name}` is one of {}: write which",
+                    each.join(", ")
+                ))
             }
         }
     }
@@ -557,6 +573,58 @@ impl P {
             None => return self.err("expected an expression"),
             _ => {}
         }
+        if self.is("(") && self.peek_at(1) == "|" {
+            // (|a, b| a + b)(1, 2): an inline function, on its inputs.
+            self.pos += 2;
+            let mut names = Vec::new();
+            while !self.eat("|") {
+                names.push(self.name()?);
+                if !self.eat(",") {
+                    self.expect("|")?;
+                    break;
+                }
+            }
+            let n = self.locals.len();
+            self.locals.extend(names.iter().cloned());
+            let body = self.expr();
+            self.locals.truncate(n);
+            let body = body?;
+            self.expect(")")?;
+            if !self.eat("(") {
+                return self.err("an inline function is given its inputs here: `(|a| a + 1)(2)`");
+            }
+            let args = self.exprs(")")?;
+            if args.len() != names.len() {
+                let msg = format!(
+                    "the function takes {} input(s), got {}",
+                    names.len(),
+                    args.len()
+                );
+                return self.err(msg);
+            }
+            // The inputs are worked out before any takes its name.
+            let pairs: Vec<(&String, &String)> =
+                names.iter().zip(&args).filter(|(x, a)| x != a).collect();
+            let mixed = pairs
+                .iter()
+                .any(|(_, a)| names.iter().any(|n| a.contains(n.as_str())));
+            let mut text = body;
+            let mut held = Vec::new();
+            for (x, a) in pairs.into_iter().rev() {
+                if mixed {
+                    self.fresh += 1;
+                    let h = format!("held_{}", self.fresh);
+                    text = format!("let {x} := {h}; {text}");
+                    held.push((h, a));
+                } else {
+                    text = format!("let {x} := {a}; {text}");
+                }
+            }
+            for (h, a) in held {
+                text = format!("let {h} := {a}; {text}");
+            }
+            return Ok(format!("({text})"));
+        }
         if self.eat("(") {
             let parts = self.exprs(")")?;
             return Ok(format!("({})", parts.join(", ")));
@@ -569,6 +637,19 @@ impl P {
             if self.eat(":") {
                 self.expect("}")?;
                 return Ok("{:}".into());
+            }
+            if self.kind() == Some(Kind::Name) && self.peek_at(1) == "in" {
+                // { x in xs | cond }: the elements where cond holds.
+                let x = self.name()?;
+                self.pos += 1;
+                // `|` joins two sets: one written here goes in parentheses.
+                let from = self.product()?;
+                self.expect("|")?;
+                self.locals.push(x.clone());
+                let cond = self.expr();
+                self.locals.pop();
+                self.expect("}")?;
+                return Ok(format!("filter({x} in {from}, {})", cond?));
             }
             let mut items = Vec::new();
             while !self.eat("}") {
@@ -703,6 +784,9 @@ impl P {
             false => self.resolve(&name),
         };
         self.impure |= !local && self.known.opaque.contains(&name);
+        if !local && self.own.is_none() && self.known.specified.contains_key(&name) {
+            self.called.push(format!("{name}::spec"));
+        }
         if self.eat("(") {
             return Ok(format!("{name}({})", self.exprs(")")?.join(", ")));
         }
@@ -741,6 +825,9 @@ impl P {
             match kw.as_str() {
                 "subject" | "boundary" if self.scope.is_none() => {
                     self.scope = Some(self.name()?);
+                    if kw == "boundary" {
+                        self.names.boundaries.extend(self.scope.clone());
+                    }
                     self.expect("{")?;
                     self.items(out)?;
                     self.expect("}")?;
@@ -778,7 +865,8 @@ impl P {
                         if self.eat("(") {
                             while !self.eat(")") {
                                 // `Some(T)` or `Some(value: T)`.
-                                let named = self.kind() == Some(Kind::Name) && self.peek_at(1) == ":";
+                                let named =
+                                    self.kind() == Some(Kind::Name) && self.peek_at(1) == ":";
                                 let f = match named {
                                     true => {
                                         self.pos += 2;
@@ -912,10 +1000,9 @@ impl P {
         let q = self.qualified(&name);
         if self.eat("=") {
             // claim c = uniform(f), uniform(f, |a, b| class), uniform(f, classes)
-            let form = self.name()?;
+            let form = self.path()?;
             if form != "uniform" {
-                self.pos -= 1;
-                return self.err(format!("`{form}` is not available yet: only `uniform(f, …)`"));
+                return self.instance(out, line, assumed, &name, &form);
             }
             self.expect("(")?;
             let f = self.path()?;
@@ -935,11 +1022,14 @@ impl P {
                     let params = match known {
                         Some(params) => params,
                         // The first reading: declared further down.
-                        None if self.first => vec![(String::new(), "Value".to_string()); names.len()],
+                        None if self.first => {
+                            vec![(String::new(), "Value".to_string()); names.len()]
+                        }
                         None => return self.err(format!("the model has no function `{f}`")),
                     };
                     if names.len() != params.len() {
-                        let msg = format!("`{f}` takes {} input(s), got {}", params.len(), names.len());
+                        let msg =
+                            format!("`{f}` takes {} input(s), got {}", params.len(), names.len());
                         return self.err(msg);
                     }
                     self.locals = names.clone();
@@ -972,6 +1062,36 @@ impl P {
             self.names.claims.insert(q, (Vec::new(), Vec::new()));
             return Ok(());
         }
+        // claim c(f, T) { given a: T then f(a) == a }: a claim with
+        // parameters, used as `claim d = c(g, Int);`.
+        if self.is("(") {
+            let mut i = 1;
+            let mut params = Vec::new();
+            while self.kind_at(i) == Some(Kind::Name) && [",", ")"].contains(&self.peek_at(i + 1)) {
+                params.push(self.peek_at(i).to_string());
+                i += 2;
+            }
+            let closed = i > 1 && self.peek_at(i - 1) == ")";
+            if closed && self.peek_at(i) == "{" && self.peek_at(i + 1) == "given" {
+                self.pos += i;
+                let start = self.pos;
+                let mut depth = 0;
+                loop {
+                    if self.pos >= self.toks.len() {
+                        return self.err("expected `}`");
+                    }
+                    depth += self.is("{") as i32 - self.is("}") as i32;
+                    self.pos += 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                let body = self.toks[start..self.pos].to_vec();
+                self.eat(";");
+                self.templates.insert(q, (params, body));
+                return Ok(());
+            }
+        }
         // claim c(a: T) when cond { body }, or
         // claim c { given a: T  when cond  then body }
         let mut inputs = match self.is("(") {
@@ -979,6 +1099,7 @@ impl P {
             false => Vec::new(),
         };
         let mut when = None;
+        self.called.clear();
         let trust = self.trust()?;
         if let Some(t) = trust.filter(|_| !assumed) {
             self.names.trust.insert(q.clone(), t);
@@ -1012,7 +1133,11 @@ impl P {
         let typed = !inputs.is_empty() && inputs.iter().all(|p| !p.1.is_empty());
         if let Some(w) = when.as_ref().filter(|_| !self.impure && typed) {
             let typed: Vec<String> = inputs.iter().map(|(x, t)| format!("{x}: {t}")).collect();
-            P::put(out, line, format!("def {q}::when({}) -> Bool := {w}", typed.join(", ")));
+            P::put(
+                out,
+                line,
+                format!("def {q}::when({}) -> Bool := {w}", typed.join(", ")),
+            );
         }
         if contract {
             self.expect("then")?;
@@ -1049,13 +1174,116 @@ impl P {
         self.locals.clear();
         P::put(out, line, text);
         if assumed {
-            let declared = format!("@[source \"assumed\"] evidence {q} at {}", trust.unwrap_or(1.0));
+            let declared = format!(
+                "@[source \"assumed\"] evidence {q} at {}",
+                trust.unwrap_or(1.0)
+            );
             self.names.declared.push(declared);
         }
         let inputs = inputs.into_iter().map(|p| p.0).collect();
+        let mut called = std::mem::take(&mut self.called);
+        called.sort();
+        called.dedup();
+        self.names.derived.insert(q.clone(), called);
         let measures = std::mem::take(&mut self.measures);
         self.names.claims.insert(q, (inputs, measures));
         Ok(())
+    }
+
+    /// `claim c = shape(f, 0..=9, |a| a > 0) trust 0.9;`: the claim `shape`
+    /// with its parameters replaced by what is written here.
+    fn instance(
+        &mut self,
+        out: &mut Vec<String>,
+        line: usize,
+        assumed: bool,
+        name: &str,
+        form: &str,
+    ) -> R<()> {
+        let found = [self.qualified(form), form.to_string()]
+            .into_iter()
+            .find_map(|n| self.templates.get(&n).cloned());
+        let Some((params, body)) = found else {
+            self.pos -= 1;
+            return self.err(format!(
+                "no claim with parameters `{form}` above: `claim {form}(f, …) {{ given … then … }}`"
+            ));
+        };
+        self.expect("(")?;
+        let mut args: Vec<Vec<Tok>> = vec![Vec::new()];
+        let (mut depth, mut bars) = (0, false);
+        loop {
+            if self.pos >= self.toks.len() {
+                return self.err("expected `)`");
+            }
+            let t = self.toks[self.pos].clone();
+            self.pos += 1;
+            let last = args.last_mut().expect("one at least");
+            match t.text.as_str() {
+                // The inputs of an inline function: `|a, b|`.
+                "|" if depth == 0 && (last.is_empty() || bars) => bars = !bars,
+                "(" | "[" | "{" => depth += 1,
+                ")" if depth == 0 => break,
+                ")" | "]" | "}" => depth -= 1,
+                "," if depth == 0 && !bars => {
+                    args.push(Vec::new());
+                    continue;
+                }
+                _ => {}
+            }
+            last.push(t);
+        }
+        if args.len() == 1 && args[0].is_empty() {
+            args.clear();
+        }
+        if args.len() != params.len() {
+            let msg = format!(
+                "`{form}` takes {} parameter(s), got {}",
+                params.len(),
+                args.len()
+            );
+            return self.err(msg);
+        }
+        let tok = |text: &str, kind: Kind| Tok {
+            kind,
+            text: text.to_string(),
+            line,
+        };
+        let mut toks = vec![tok(name, Kind::Name)];
+        // `trust 0.9` after the parameters.
+        while !self.is(";") && self.pos < self.toks.len() && self.toks[self.pos].line == line {
+            toks.push(self.toks[self.pos].clone());
+            self.pos += 1;
+        }
+        self.eat(";");
+        for t in body {
+            let at = params
+                .iter()
+                .position(|p| t.kind == Kind::Name && p == &t.text);
+            match at {
+                Some(i) if args[i].first().is_some_and(|a| a.text == "|") => {
+                    toks.push(tok("(", Kind::Punct));
+                    toks.extend(args[i].iter().cloned());
+                    toks.push(tok(")", Kind::Punct));
+                }
+                Some(i) => toks.extend(args[i].iter().cloned()),
+                None => toks.push(t),
+            }
+        }
+        for t in &mut toks {
+            t.line = line;
+        }
+        let rest = std::mem::replace(&mut self.toks, toks);
+        let pos = std::mem::replace(&mut self.pos, 0);
+        let done = self.claim(out, line, assumed);
+        let all = self.pos == self.toks.len();
+        let extra = self.err::<()>(format!("unexpected `{}` in `{form}`", self.peek()));
+        (self.toks, self.pos) = (rest, pos);
+        done?;
+        match all {
+            true => Ok(()),
+            false => extra,
+        }
     }
 
     // ---- evidence ----
@@ -1110,7 +1338,10 @@ impl P {
             }
         }
         let Some((says, value)) = says else {
-            return Err(Error::new(line, "the evidence says nothing: `holds`, `fails` or `gives …`"));
+            return Err(Error::new(
+                line,
+                "the evidence says nothing: `holds`, `fails` or `gives …`",
+            ));
         };
         let at = |m: String| Err(Error::new(line, m));
         let function = self.names.fns.get(&target).cloned();
@@ -1158,14 +1389,22 @@ impl P {
             _ => unreachable!(),
         };
         if test {
-            P::put(out, line, format!("test {} : {judgment}", self.qualified(&label)));
+            P::put(
+                out,
+                line,
+                format!("test {} : {judgment}", self.qualified(&label)),
+            );
             return Ok(());
         }
         let attributes = match rev {
             Some(r) => format!("@[source {source}, rev {r}]"),
             None => format!("@[source {source}]"),
         };
-        P::put(out, line, format!("{attributes} evidence {judgment} at {trust}"));
+        P::put(
+            out,
+            line,
+            format!("{attributes} evidence {judgment} at {trust}"),
+        );
         Ok(())
     }
 }
@@ -1215,16 +1454,24 @@ pub fn model(src: &str) -> Result<(String, Names), Error> {
             names: Names::default(),
             fresh: 0,
             tests: Vec::new(),
+            called: Vec::new(),
             first: pass == 0,
             known,
             impure: false,
+            templates: BTreeMap::new(),
         };
         let mut out = Vec::new();
         p.items(&mut out)?;
         if p.pos < p.toks.len() {
             return p.err(format!("unexpected `{}`", p.peek()));
         }
-        let all: Vec<String> = p.names.fns.keys().chain(p.names.claims.keys()).cloned().collect();
+        let all: Vec<String> = p
+            .names
+            .fns
+            .keys()
+            .chain(p.names.claims.keys())
+            .cloned()
+            .collect();
         p.all = all.into_iter().collect();
         for at in std::mem::take(&mut p.tests) {
             p.pos = at;
@@ -1255,7 +1502,9 @@ pub fn evidence_alone(src: &str, names: &Names) -> Result<String, Error> {
     // The tie of each function to its code: `for f::tied`.
     let mut names = names.clone();
     for f in names.opaque.clone() {
-        names.claims.insert(format!("{f}::tied"), (Vec::new(), Vec::new()));
+        names
+            .claims
+            .insert(format!("{f}::tied"), (Vec::new(), Vec::new()));
         all.insert(format!("{f}::tied"));
     }
     let names = &names;
@@ -1272,8 +1521,10 @@ pub fn evidence_alone(src: &str, names: &Names) -> Result<String, Error> {
         fresh: 0,
         tests: Vec::new(),
         known: names.clone(),
+        called: Vec::new(),
         first: false,
         impure: false,
+        templates: BTreeMap::new(),
     };
     let mut out = Vec::new();
     let lines: Vec<&str> = src.lines().collect();

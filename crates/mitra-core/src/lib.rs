@@ -84,9 +84,27 @@ pub fn load(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
 fn load_surface(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     let (text, names) = surface::model(model).map_err(|e| (Input::Model, e))?;
     let mut m = parse_model(&text).map_err(|e| (Input::Model, e))?;
-    for c in &mut m.claims {
+    // A claim follows from the specs of the functions it calls, when
+    // their claims are above it.
+    let above: Vec<String> = m.claims.iter().map(|c| c.name.clone()).collect();
+    for (i, c) in m.claims.iter_mut().enumerate() {
         c.trust = names.trust.get(&c.name).copied();
+        let specs = names.derived.get(&c.name).into_iter().flatten();
+        let specs: Vec<String> = specs.filter(|s| above[..i].contains(s)).cloned().collect();
+        if c.from.is_empty() && !specs.is_empty() {
+            (c.from, c.auto) = (specs, true);
+        }
     }
+    let outside = |f: &&Function| {
+        let scope = f.name.split("::").next().unwrap_or("");
+        !f.is_spec() && f.name.contains("::") && names.boundaries.contains(scope)
+    };
+    m.boundaries = m
+        .functions
+        .iter()
+        .filter(outside)
+        .map(|f| f.name.clone())
+        .collect();
     let lines = evidence.lines().count();
     let earlier = surface::evidence(evidence, &names).map_err(|e| (Input::Evidence, e))?;
     tie(&mut m, &earlier, &names);
@@ -108,6 +126,7 @@ fn tie(m: &mut Model, evidence: &str, names: &surface::Names) {
             pattern: Vec::new(),
             target: Target::Tied,
             from: Vec::new(),
+            auto: false,
             trust: None,
             line,
         });

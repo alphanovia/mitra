@@ -1,4 +1,4 @@
-# The reworked language (prototype, stage 1)
+# The reworked language (prototype)
 
 What the code reads today in the reworked syntax, and nothing more. It is
 a front end: each declaration is translated to the
@@ -35,7 +35,7 @@ subject loader {
 | Declaration | Meaning |
 |---|---|
 | `subject name { … }` | Real code under review. A namespace: its functions and claims are `name::f`. Inside, a sibling is named without the prefix. |
-| `boundary name { … }` | The environment. Same namespace rule. Today it differs from a subject only by what you write in it (`assume`). |
+| `boundary name { … }` | The environment. Same namespace rule. Its functions may answer differently each time, and are never the piece to fix (see Boundaries). |
 | `fn f(a: T) -> U;` | No body: the code is opaque. Without `-> U` the result is `()`. |
 | `fn f(a: T) -> U { e }` in a subject or boundary | Opaque code **and** its specification: Mitra adds the claim `name::f::spec`, "the code returns what the body returns". |
 | `fn f(a: T) -> U { e }` outside | A helper for the model: computed, no code behind it, no claim. |
@@ -46,7 +46,9 @@ subject loader {
 | `claim c(a: T) { correct(f(a)) }` | The code is right on these inputs, as judged by a test or a person. No `when` with it yet. |
 | `claim c = uniform(f);` | Every input of `f` behaves the same: one tested input stands for all. |
 | `claim c = uniform(f, \|a, b\| b == 0);` | The same within each class. The class is a Bool, or typed: `\|m\| -> {"x", "y"} { m.kind }`. A function name also works: `uniform(f, g)`. |
-| `assume c() { e }` | A claim taken as true without evidence (evidence with source `assumed`). Evidence against it is an error. |
+| `claim c(f, T) { given a: T then f(a) == a }` | A claim with parameters: names without a type, and a contract as body. It is not a claim by itself. |
+| `claim d = c(g, 0..=9) trust 0.9;` | That claim with `f` and `T` replaced: a function, a set, a value or an inline function `\|a, b\| b > 0`. Written above its use. |
+| `assume c() { e }` | A claim taken as true without evidence (evidence with source `assumed`): `holds assuming [itself]` until the boundary is observed. Evidence against it is an error. |
 | `record R { a: T, b: U }`, `record Box<T> { item: T }` | Values are written `R(1, 2)`. |
 | `enum E<T> { A, B(T), C(x: T, y: T) }` | Unnamed fields are named `v0`, `v1`. |
 | `test t { for f  given a = 1  gives 2 }` | A test of the code, for `mitra ingest`: same clauses as evidence, without `trust`, `source`, `rev`. |
@@ -81,6 +83,57 @@ false), `x in xs`, `x is Variant`, `r.field`, `t.0`, `xs[i]`,
 maps `{k: v}`, calls `f(a, b)`, `rate(x in S, cond)`, `precision(f)`,
 `recall(f)`, `false_positive_rate(f)`, `all`/`any`/`filter`/`map(x in xs, e)`,
 `fold(x in xs, let acc = start; step)`.
+
+### Expressions added to the earlier ones
+
+| Expression | Meaning |
+|---|---|
+| `(\|a, b\| a - b)(3, 1)` | An inline function, on its inputs. It exists only applied: it is not a value. |
+| `{ x in xs \| x > 2 }` | The elements of a list or a set where the condition holds. A union on the left goes in parentheses. |
+
+## What a claim rests on without evidence on it
+
+A claim that calls a function of a subject needs the output of that call.
+Where none was observed, Mitra looks for it in this order.
+
+1. **A vouched claim of the shape `f(a, b) == e`** (either side, each
+   input a different name or a written value, the evidence on the whole
+   claim and no evidence against it): `e` is worked out from what was
+   observed, and stands for the output. The vouch is then among the
+   evidence of the claim that read it, so a wrong result names it.
+
+   ```rust
+   claim add_commutes(a: 0..=2, b: 0..=2) { add(a, b) == add(b, a) }
+   claim more_one(a: 0..=1) { add(1, a) == a + 1 }   // reads add(1, 0)
+   evidence t0 { for add given a = 0, b = 1 gives 1 }
+   evidence r { for add_commutes holds source "review:me" trust 0.9 }
+   ```
+
+   `more_one` holds: `add(1, 0)` comes from `add(0, 1)`. A claim never
+   uses the vouch on itself. `examples/reworked/vouched`.
+
+2. **The specs of the functions it calls** (`name::f::spec`, declared
+   above the claim): when they imply the claim on every input, the claim
+   is `assumed on` those inputs and holds as far as the spec claims do
+   (`holds assuming [clock::back::spec]` when one is not verified). When
+   the specs contradict it, the report says `not derived: the specs of
+   what it calls contradict it`. `examples/reworked/clock`.
+
+## Boundaries
+
+- Two different outputs on one input of a boundary function both stand:
+  no contradiction. A claim that reads it is judged on every answer seen,
+  and fails if one answer breaks it.
+- A boundary function is never a candidate in an error: there is no code
+  of yours to fix. The candidates are the subjects, the claim, the
+  evidence and the assumptions.
+- An `assume` of the shape `f(…) == e` gives the output where none was
+  observed, as a vouched claim does. Every claim that read it is
+  `holds assuming [the assumption]`, with warning M102. The assumption
+  itself prints `holds assuming [itself]`, without a warning, until
+  observations cover it; then it holds, or fails.
+
+`examples/reworked/network`.
 
 ## Evidence
 
@@ -145,19 +198,23 @@ either syntax. `mitra add 'evidence e { for f … }'` accepts a block.
 
 ## Not yet
 
-- Reports quote claims and evidence as you wrote them, but verdict lines,
-  `mitra next` and stored evidence still use the earlier syntax and the
-  generated names (`loader::load::spec`, `c::case`).
+- Reports quote claims and evidence as you wrote them, and `mitra next`
+  asks for evidence in this syntax, but verdict lines and stored evidence
+  still use the generated names (`loader::load::spec`, `c::case`) and the
+  earlier line form.
 - Names that are keywords of the earlier syntax can't be used: `by`, `at`,
   `from`, `not`, `def`, `forall`, `uniform`, `correct`, and others.
-- Claims with parameters as a library (`represented`, your own),
-  inline functions outside `uniform`, set comprehension, `correct` inside
-  an expression, `mitra explain <claim>`.
-- A spec standing in for its code in other claims, and a vouched property
-  passing observations on.
+- `uniform` is built in, not written in the language: that needs
+  `correct(…)` inside an expression, on two inputs at once. For the same
+  reason there is no `represented(f, S)`.
+- A claim with parameters can't take a whole input list (`given x: A`
+  for a function of any number of inputs), and an inline function is not
+  a value.
+- A body can't call a boundary: a spec is computed, and a boundary is not.
+- Distributions on what a boundary answers, simulations, sequences.
+- A claim the specs contradict is only reported as `not derived`; other
+  evidence can still make it hold.
 - The reader reads text, not Rust's syntax tree: macros, trait methods
   and two functions of the same name can mislead it.
 - No trust on a signature (it is 1).
-- Boundaries that answer differently each time, distributions,
-  `holds assuming [an assumption]`, simulations, sequences.
 - A subject inside a subject.

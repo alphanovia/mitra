@@ -4,7 +4,8 @@ add_spec: unverified
 negate_spec: holds
 minus_shape: holds
 minus_spec: holds assuming [add_spec]
-  assumed on      (a, b) in (0..=2, 0..=2): its premises imply it
+  passes on       (a, b) in {(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (2, 1)}
+  assumed on      `minus(2, 2)`: its premises imply it
 
 warning[M101]: a claim is not verified
   --> model.mitra:10  claim add_spec : forall a in 0..=2, forall b in -2..=0, add(a, b) = plus(a, b)

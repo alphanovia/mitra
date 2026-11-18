@@ -344,6 +344,120 @@ struct Eval<'m> {
     measured: RefCell<Vec<usize>>,
     /// What was counted for the measures that have no value yet.
     notes: RefCell<Vec<String>>,
+    /// Vouched claims `f(a, b) == e`, read as "the output of `f` is `e`".
+    rules: Vec<Rule>,
+    /// The calls being worked out through a rule: a rule is not used to
+    /// find the output it is asked for.
+    through: RefCell<Vec<(String, Vec<Value>)>>,
+    /// The claim being judged: its own vouch gives it nothing.
+    claim: RefCell<String>,
+    /// The assumptions that gave an output since last cleared.
+    leaned: RefCell<Vec<String>>,
+}
+
+/// A claim someone vouched for that gives the output of a subject from
+/// other outputs: `add(a, b) == add(b, a)`.
+struct Rule {
+    /// The claim vouched for.
+    claim: String,
+    /// The claim is an assumption on a boundary: nobody checked it.
+    assumed: bool,
+    func: String,
+    /// At each input of the subject: the name bound there, with its set.
+    params: Vec<(String, Option<crate::Set>)>,
+    /// Or the value written there, by position.
+    fixed: Vec<Option<Expr>>,
+    gives: Expr,
+    /// The evidence that vouches for the claim.
+    line: usize,
+}
+
+/// The rules of a model: property claims of the shape `f(x, y) == e`,
+/// each input a different name the claim binds, vouched for on the whole
+/// claim and nowhere denied.
+fn rules(model: &Model) -> Vec<Rule> {
+    let mut out = Vec::new();
+    for c in &model.claims {
+        let on = |ok: bool| {
+            let whole = |e: &&Evidence| e.pattern.iter().all(|p| p.set.is_none());
+            let about = model.evidence.iter().filter(|e| e.about == c.name);
+            about
+                .filter(whole)
+                .find(|e| e.judgment == Judgment::Holds(ok))
+        };
+        let denied = model
+            .evidence
+            .iter()
+            .any(|e| e.about == c.name && e.judgment == Judgment::Holds(false));
+        let Some(vouch) = on(true).filter(|_| !denied) else {
+            continue;
+        };
+        // `f(x, y) = e` over the whole of the claim's inputs.
+        if let Target::Matches(e) = &c.target {
+            let params: Vec<(String, Option<crate::Set>)> = c
+                .pattern
+                .iter()
+                .filter_map(|p| Some((p.var.clone()?, p.set.clone())))
+                .collect();
+            if params.len() == c.pattern.len() {
+                out.push(Rule {
+                    claim: c.name.clone(),
+                    assumed: vouch.source.as_deref() == Some("assumed"),
+                    func: c.func.clone(),
+                    fixed: vec![None; params.len()],
+                    params,
+                    gives: e.clone(),
+                    line: vouch.line,
+                });
+            }
+            continue;
+        }
+        let Target::Property(Expr::Binary("==", l, r)) = &c.target else {
+            continue;
+        };
+        for (call, gives) in [(l, r), (r, l)] {
+            let Expr::Call(f, args) = &**call else {
+                continue;
+            };
+            if !model.function(f).is_some_and(|f| !f.is_spec()) {
+                continue;
+            }
+            let mut params: Vec<(String, Option<crate::Set>)> = Vec::new();
+            let mut fixed = Vec::new();
+            let mut names = 0;
+            for a in args {
+                let bound = |x: &String| c.pattern.iter().find(|p| p.var.as_ref() == Some(x));
+                match a {
+                    Expr::Var(x) if !params.iter().any(|p| &p.0 == x) => match bound(x) {
+                        Some(p) => {
+                            params.push((x.clone(), p.set.clone()));
+                            fixed.push(None);
+                            names += 1;
+                        }
+                        None => break,
+                    },
+                    Expr::Var(_) => break,
+                    // A value written in place: `fetch("a") == "ok"`.
+                    e => {
+                        params.push((String::new(), None));
+                        fixed.push(Some(e.clone()));
+                    }
+                }
+            }
+            if params.len() == args.len() && names == c.pattern.len() {
+                out.push(Rule {
+                    claim: c.name.clone(),
+                    assumed: vouch.source.as_deref() == Some("assumed"),
+                    func: f.clone(),
+                    fixed,
+                    params,
+                    gives: (**gives).clone(),
+                    line: vouch.line,
+                });
+            }
+        }
+    }
+    out
 }
 
 /// What the observations say of a measure.
@@ -789,6 +903,57 @@ impl Eval<'_> {
                 let out = self.observed.get(&key).cloned().unwrap_or_default();
                 if !out.is_empty() {
                     self.read.borrow_mut().push(key);
+                    return Ok(out);
+                }
+                // Not observed: a vouched claim may give it from outputs
+                // that were.
+                if self.through.borrow().contains(&key) {
+                    return Ok(out);
+                }
+                let own = self.claim.borrow().clone();
+                for rule in self
+                    .rules
+                    .iter()
+                    .filter(|r| r.func == func.name && r.claim != own)
+                {
+                    let fits = |(p, v): (&(String, Option<crate::Set>), &Value)| {
+                        p.1.as_ref().is_none_or(|s| s.contains(v))
+                    };
+                    if rule.params.len() != args.len() || !rule.params.iter().zip(args).all(fits) {
+                        continue;
+                    }
+                    let same = |(e, v): (&Option<Expr>, &Value)| match e {
+                        None => true,
+                        Some(e) => {
+                            let got = self.eval(e, &Env::new(), func.line, Subjects::Observed);
+                            got.is_ok_and(|got| got == [v.clone()])
+                        }
+                    };
+                    self.through.borrow_mut().push(key.clone());
+                    let same = rule.fixed.iter().zip(args).all(same);
+                    self.through.borrow_mut().pop();
+                    if !same {
+                        continue;
+                    }
+                    let names = rule.params.iter().map(|p| p.0.clone());
+                    let env: Env = names
+                        .zip(args.iter().cloned())
+                        .filter(|p| !p.0.is_empty())
+                        .collect();
+                    self.through.borrow_mut().push(key.clone());
+                    let given = self.eval(&rule.gives, &env, func.line, Subjects::Observed);
+                    self.through.borrow_mut().pop();
+                    let given = given.unwrap_or_default();
+                    let ok = |v: &Value| {
+                        func.range.contains(v) && self.model.conforms(&func.name, args.len(), v)
+                    };
+                    if !given.is_empty() && given.iter().all(ok) {
+                        self.measured.borrow_mut().push(rule.line);
+                        if rule.assumed {
+                            self.leaned.borrow_mut().push(rule.claim.clone());
+                        }
+                        return Ok(given);
+                    }
                 }
                 Ok(out)
             }
@@ -1422,6 +1587,8 @@ struct Direct {
     joint: Vec<(Vec<Value>, Vec<usize>)>,
     /// For a claim on a measure that has no value yet: what was counted.
     counted: Option<String>,
+    /// The assumptions whose word gave an output the claim read.
+    leans: Vec<String>,
 }
 
 /// The inputs of `set` one by one, when there are few enough.
@@ -1462,6 +1629,10 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         read: RefCell::new(Vec::new()),
         measured: RefCell::new(Vec::new()),
         notes: RefCell::new(Vec::new()),
+        rules: rules(model),
+        through: RefCell::new(Vec::new()),
+        claim: RefCell::new(String::new()),
+        leaned: RefCell::new(Vec::new()),
     };
     let model_err = |e| (Input::Model, e);
 
@@ -1528,7 +1699,8 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             })
             .collect();
         for (n, (x, v, a)) in outputs.iter().enumerate() {
-            if outputs[..n].iter().any(|o| &o.0 == x) {
+            // A boundary may answer differently each time.
+            if outputs[..n].iter().any(|o| &o.0 == x) || model.boundaries.contains(&f.name) {
                 continue;
             }
             for (_, _, b) in outputs.iter().filter(|o| &o.0 == x && o.1 != *v) {
@@ -1539,6 +1711,8 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     }
     let mut direct = Vec::new();
     for c in &model.claims {
+        ev.claim.replace(c.name.clone());
+        ev.leaned.borrow_mut().clear();
         let func = model.function(&c.func).expect("checked");
         let mut domain = model.covers(&c.func, &c.pattern);
         // `when` on the inputs alone (the reworked syntax): the inputs it
@@ -1645,6 +1819,9 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
                 if let Some((ok, ko)) = compared {
                     let own = [(c.func.clone(), x.clone())];
+                    // A matched output that a vouched claim gave: what it
+                    // was worked out from, as for a property.
+                    let property = property || !ev.measured.borrow().is_empty();
                     let lines: Vec<usize> = model
                         .evidence
                         .iter()
@@ -1668,6 +1845,10 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                     }
                     let line = lines.first().copied().unwrap_or(0);
                     let point = Tuples::point(&x);
+                    // True of one answer of a boundary and not of another:
+                    // the claim is about every answer.
+                    let answers = read.iter().any(|(g, _)| model.boundaries.contains(g));
+                    let ok = ok && !(ko && answers);
                     if ok && ko {
                         // The other side has two outputs, reported there.
                         tainted.push(x);
@@ -1708,7 +1889,11 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             }
         }
         points.retain(|(x, _, _)| !tainted.contains(x));
+        let mut leans = ev.leaned.take();
+        leans.sort();
+        leans.dedup();
         direct.push(Direct {
+            leans,
             counted,
             joint,
             tainted,
@@ -1958,7 +2143,12 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 .collect();
             Some(ev.implication(c, domain, &premises).map_err(model_err)?)
         };
-        let follows = implication.is_some_and(|i| i != Implication::Refuted)
+        // Premises nobody wrote count only where every input was checked.
+        let enough = |i: Implication| match c.auto {
+            true => i == Implication::Checked,
+            false => i != Implication::Refuted,
+        };
+        let follows = implication.is_some_and(enough)
             && c.from.iter().all(|p| logic_of[p.as_str()] != Logic::Fails);
         // An input both right and wrong is a contradiction: it counts on
         // neither side.
@@ -1976,6 +2166,29 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                     Logic::Unverified => assume(p),
                     _ => {}
                 }
+            }
+        }
+        // An assumption on a boundary gave an output: the claim holds as
+        // far as the assumption does.
+        for a in &direct[i].leans {
+            if logic_of.get(a.as_str()) != Some(&Logic::Holds) {
+                assume(a);
+            }
+        }
+        // An assumption itself: nobody checked it where no evidence other
+        // than its own word covers it.
+        let word = |l: usize| {
+            let e = model.evidence.iter().find(|e| e.line == l);
+            e.is_some_and(|e| e.source.as_deref() == Some("assumed"))
+        };
+        let about = |e: &&Evidence| e.about == c.name && word(e.line);
+        if model.evidence.iter().any(|e| about(&e)) {
+            let mut backed = Tuples::empty(domain.arity());
+            for s in direct[i].sources.iter().filter(|s| s.1 && !word(s.2)) {
+                backed = backed.union(&s.0);
+            }
+            if !backed.intersect(domain).same(domain) {
+                assume(&c.name);
             }
         }
         let covered = tested.union(&derived);
@@ -2222,6 +2435,9 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
             }
         }
+        // A boundary has no code of ours to be wrong: it answers as it
+        // does.
+        side.retain(|p| !matches!(p, Piece::Code(g) if model.boundaries.contains(g)));
         // The statement of the claim is a piece like the others. For a
         // tie: what the model says of the function, or the code.
         if c.target == Target::Tied {
@@ -2269,7 +2485,8 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let apart = |clauses: &[Vec<Piece>]| -> Vec<Vec<Piece>> {
             let stated = |p: &&Piece| !matches!(p, Piece::Claim(_));
             let each = clauses.iter();
-            each.map(|c| c.iter().filter(stated).cloned().collect()).collect()
+            each.map(|c| c.iter().filter(stated).cloned().collect())
+                .collect()
         };
         let merged = problems.iter_mut().find(|p| {
             matches!(p.kind, Kind::Fails { .. }) && !denied && apart(&p.clauses) == apart(&clauses)
@@ -2307,7 +2524,10 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 why: why.clone(),
             },
             evidence: vec![(e.line, text)],
-            clauses: vec![vec![Piece::Evidence(e.line), Piece::Signature(e.about.clone())]],
+            clauses: vec![vec![
+                Piece::Evidence(e.line),
+                Piece::Signature(e.about.clone()),
+            ]],
             candidates: Ok(Vec::new()),
             conflict: 0.0,
         });
@@ -2566,6 +2786,10 @@ pub fn failed_output(model: &Model, test: &Test) -> Result<Vec<Evidence>, Error>
         read: RefCell::new(Vec::new()),
         measured: RefCell::new(Vec::new()),
         notes: RefCell::new(Vec::new()),
+        rules: Vec::new(),
+        through: RefCell::new(Vec::new()),
+        claim: RefCell::new(String::new()),
+        leaned: RefCell::new(Vec::new()),
     };
     let mut out = Vec::new();
     for c in model.claims.iter().filter(|c| c.func == e.about) {
@@ -2616,7 +2840,13 @@ fn rank(model: &Model, problems: &mut [Problem]) {
             == (&b.about, &b.pattern, &b.judgment, &b.source, &b.rev)
     };
     let set_aside = model.misfits.iter().map(|m| &m.0);
-    let entry = |line: usize| model.evidence.iter().chain(set_aside.clone()).find(|e| e.line == line);
+    let entry = |line: usize| {
+        model
+            .evidence
+            .iter()
+            .chain(set_aside.clone())
+            .find(|e| e.line == line)
+    };
     let canon = |p: &Piece| match p {
         Piece::Evidence(line) => {
             let first = entry(*line).and_then(|e| model.evidence.iter().find(|o| same(o, e)));
@@ -2746,8 +2976,17 @@ pub(crate) const QUOTED: usize = 5;
 impl Report {
     /// The claims that are unverified, or hold only under an assumption.
     pub fn warnings(&self) -> usize {
-        let warns = |v: &&Verdict| matches!(v.logic, Logic::Unverified | Logic::Assuming);
+        let warns =
+            |v: &&Verdict| matches!(v.logic, Logic::Unverified | Logic::Assuming) && !v.own_word();
         self.verdicts.iter().filter(warns).count() + self.flags.len()
+    }
+}
+
+impl Verdict {
+    /// An assumption on a boundary that rests on nothing but itself: the
+    /// model says so on purpose.
+    pub fn own_word(&self) -> bool {
+        self.logic == Logic::Assuming && self.assuming == [self.claim.clone()]
     }
 }
 

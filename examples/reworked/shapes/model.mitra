@@ -1,0 +1,14 @@
+// Claims with parameters: written once, used on any function.
+claim commutes(f, T) { given a: T, b: T then f(a, b) == f(b, a) }
+claim neutral(f, T, zero) { given a: T then f(a, zero) == a }
+claim only_when(f, T, case) { given a: T, b: T when case(a, b) then f(a, b) >= a }
+
+subject calc {
+    fn add(a: 0..=2, b: 0..=2) -> 0..=4;
+    fn mul(a: 0..=2, b: 0..=2) -> 0..=4;
+    claim add_commutes = commutes(add, 0..=2) trust 0.9;
+    claim mul_commutes = commutes(mul, 0..=2);
+    claim add_zero = neutral(add, 0..=2, 0);
+    claim mul_grows = only_when(mul, 0..=2, |a, b| b > 0);
+    claim evens { { x in {0, 1, 2, 3} | x / 2 * 2 == x } == {0, 2} }
+}

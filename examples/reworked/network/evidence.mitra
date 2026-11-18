@@ -1,0 +1,4 @@
+evidence r1 { for net::fetch given url = "b" gives "ok" }
+evidence r2 { for net::fetch given url = "b" gives "down" }
+evidence r3 { for loader::load given url = "b" gives "default" }
+evidence r4 { for loader::load given url = "a" gives "page" }

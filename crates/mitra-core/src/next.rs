@@ -5,6 +5,7 @@
 use crate::ast::{Model, Target};
 use crate::eval::{Assumed, Logic, Report};
 use crate::print::call;
+use crate::Value;
 
 /// Up to this many missing inputs are listed one by one.
 const LIST: usize = 5;
@@ -98,7 +99,13 @@ pub fn next(model: &Model, report: &Report) -> String {
             out += &format!("{}: holds, but is suspect\n", c.name);
             out += &look(&c.func);
         }
-        if v.logic == Logic::Assuming {
+        if v.own_word() {
+            out += &format!(
+                "{}: an assumption, with nothing but its own word\n  observe `{}` to check it, or leave it: the claims that read it say so\n",
+                c.name,
+                model.subjects_of(c).join("`, `")
+            );
+        } else if v.logic == Logic::Assuming {
             out += &format!(
                 "{}: holds assuming [{}]\n  bring evidence on what it assumes, such as a review, or test until it is not needed\n",
                 c.name,
@@ -115,9 +122,10 @@ pub fn next(model: &Model, report: &Report) -> String {
             };
             out += &if v.tested.is_empty() {
                 format!(
-                    "{}: not vouched for\n  review that `{}` behaves the same {within}, then:\n  \
-                     evidence {} at 1\n",
-                    c.name, c.func, c.name
+                    "{}: not vouched for\n  review that `{}` behaves the same {within}, then:\n{}",
+                    c.name,
+                    c.func,
+                    vouch(model, &c.name)
                 )
             } else {
                 format!(
@@ -145,11 +153,11 @@ pub fn next(model: &Model, report: &Report) -> String {
                 ("", "until then it still gives suspects")
             };
             out += &format!(
-                "{}: not vouched for\n  review that `{}` calls {}{more}, then:\n  evidence {} at 1\n  {until}\n",
+                "{}: not vouched for\n  review that `{}` calls {}{more}, then:\n{}  {until}\n",
                 c.name,
                 c.func,
                 used.join(", "),
-                c.name
+                vouch(model, &c.name)
             );
             continue;
         }
@@ -285,7 +293,7 @@ pub fn next(model: &Model, report: &Report) -> String {
                         else {
                             return;
                         };
-                        let line = format!("  evidence {} = <output> at 1\n", call(g, &values));
+                        let line = ask(model, g, &values, true);
                         if !lines.contains(&line) {
                             lines.push(line);
                         }
@@ -295,11 +303,7 @@ pub fn next(model: &Model, report: &Report) -> String {
             }
             Some(n) if subject && n <= LIST as f64 => {
                 for input in missing.values().unwrap_or_default() {
-                    let call = call(&c.func, &input);
-                    out += &match c.target {
-                        Target::Matches(_) => format!("  evidence {call} = <output> at 1\n"),
-                        _ => format!("  evidence correct({call}) at 1\n"),
-                    };
+                    out += &ask(model, &c.func, &input, matches!(c.target, Target::Matches(_)));
                 }
             }
             Some(n) => {
@@ -314,6 +318,40 @@ pub fn next(model: &Model, report: &Report) -> String {
         out += "nothing to do\n";
     }
     model.named(&out)
+}
+
+/// The evidence to bring on one call, in the syntax of the model.
+fn ask(model: &Model, f: &str, input: &[Value], output: bool) -> String {
+    if model.written.is_none() {
+        let call = call(f, input);
+        return match output {
+            true => format!("  evidence {call} = <output> at 1\n"),
+            false => format!("  evidence correct({call}) at 1\n"),
+        };
+    }
+    let names = model
+        .function(f)
+        .map(|f| f.params.iter().map(|p| p.0.clone()));
+    let given: Vec<String> = names
+        .into_iter()
+        .flatten()
+        .zip(input)
+        .map(|(n, v)| format!("{n} = {v}"))
+        .collect();
+    let given = match given.is_empty() {
+        true => String::new(),
+        false => format!(" given {}", given.join(", ")),
+    };
+    let says = if output { "gives <output>" } else { "holds" };
+    format!("  evidence <name> {{ for {f}{given} {says} }}\n")
+}
+
+/// The evidence that vouches for a claim, in the syntax of the model.
+pub(crate) fn vouch(model: &Model, claim: &str) -> String {
+    match model.written {
+        None => format!("  evidence {claim} at 1\n"),
+        Some(_) => format!("  evidence <name> {{ for {claim} holds source \"review:<who>\" }}\n"),
+    }
 }
 
 #[cfg(test)]

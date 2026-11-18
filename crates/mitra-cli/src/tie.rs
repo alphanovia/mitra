@@ -114,7 +114,9 @@ fn fits(model: &str, rust: &str) -> bool {
     if narrow.iter().any(|n| model.contains(n)) {
         return true;
     }
-    let ints = ["UInt8", "UInt16", "UInt32", "Int8", "Int16", "Int32", "Int64"];
+    let ints = [
+        "UInt8", "UInt16", "UInt32", "Int8", "Int16", "Int32", "Int64",
+    ];
     let mut plain = model.to_string();
     for i in ints {
         plain = plain.replace(i, "Int");
@@ -145,7 +147,9 @@ fn read(path: &str, text: &str, out: &mut Vec<Code>) -> Result<(), String> {
             return Err(format!("{place}: `implements` must sit above a `fn`"));
         };
         let after = &code[code.find(&format!("fn {name}")).unwrap_or(0)..];
-        let open = after.find('(').ok_or(format!("{place}: no inputs after `fn {name}`"))?;
+        let open = after
+            .find('(')
+            .ok_or(format!("{place}: no inputs after `fn {name}`"))?;
         let inside = balanced(&after[open + 1..], '(', ')');
         let inside = inside.ok_or(format!("{place}: unclosed `(` after `fn {name}`"))?;
         let rest = &after[open + 1 + inside.len() + 1..];
@@ -235,12 +239,18 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
         }
     };
     for c in &code {
-        let Some(f) = model.declared_function(&c.implements).filter(|f| !f.is_spec()) else {
+        let Some(f) = model
+            .declared_function(&c.implements)
+            .filter(|f| !f.is_spec())
+        else {
             let msg = format!("{}: the model has no function `{}`", c.place, c.implements);
             return Err(msg);
         };
         if code.iter().filter(|d| d.implements == c.implements).count() > 1 {
-            return Err(format!("{}: `{}` is implemented twice", c.place, c.implements));
+            return Err(format!(
+                "{}: `{}` is implemented twice",
+                c.place, c.implements
+            ));
         }
         // Inputs and result.
         let mut why = None;
@@ -254,15 +264,21 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
                 break;
             }
             if name != mname && name != "self" {
-                why = Some(format!("input `{name}` in the code is `{mname}` in the model"));
+                why = Some(format!(
+                    "input `{name}` in the code is `{mname}` in the model"
+                ));
             } else if let Some(ty) = ty.as_ref().filter(|ty| !fits(&mty, ty)) {
-                why = Some(format!("input `{name}` is `{ty}` in the code, `{mty}` in the model"));
+                why = Some(format!(
+                    "input `{name}` is `{ty}` in the code, `{mty}` in the model"
+                ));
             }
         }
         let range = model.named(&f.range.to_string());
         if why.is_none() && !fits(&range, &c.result) {
             let r = &c.result;
-            why = Some(format!("the result is `{r}` in the code, `{range}` in the model"));
+            why = Some(format!(
+                "the result is `{r}` in the code, `{range}` in the model"
+            ));
         }
         say(&mut found, &format!("{}::tied", f.name), &c.place, why);
         // Calls.
@@ -299,16 +315,24 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
         }
     }
     // What has no tie.
-    let untied = |f: &&mitra_core::Function| {
-        !f.is_spec() && !code.iter().any(|c| c.implements == f.name)
-    };
-    let names: Vec<&str> = model.functions.iter().filter(untied).map(|f| f.name.as_str()).collect();
+    let untied =
+        |f: &&mitra_core::Function| !f.is_spec() && !code.iter().any(|c| c.implements == f.name);
+    let names: Vec<&str> = model
+        .functions
+        .iter()
+        .filter(untied)
+        .map(|f| f.name.as_str())
+        .collect();
     if !names.is_empty() {
-        found.notes.push(format!("no code is tied to: {}", names.join(", ")));
+        found
+            .notes
+            .push(format!("no code is tied to: {}", names.join(", ")));
     }
     for t in &model.tests {
         if !calls(&tests, &format!("fn {}", t.name)) {
-            found.notes.push(format!("test `{}`: no `fn {}` in the code", t.name, t.name));
+            found
+                .notes
+                .push(format!("test `{}`: no `fn {}` in the code", t.name, t.name));
         }
     }
     Ok(found)

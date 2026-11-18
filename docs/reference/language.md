@@ -44,7 +44,10 @@ used as a wildcard, a claim named where a subject is expected.
   most 5, and none under a plausibility of 0.05. `--candidates <n>` and
   `--threshold <p>` change the two limits, and `--all` removes both.
 - `explain <code>` describes a kind of error or warning (`mitra explain
-  M004`). The codes are listed under Output.
+  M004`). The codes are listed under Output. With the name of a claim
+  instead (`mitra explain div_uniform`, the part after the last `::` is
+  enough), it prints the claim as written, as Mitra reads it, the count
+  of evidence on the claim itself and its verdict lines.
 - `check` parses, checks and evaluates both files, prints
   `ok: F functions, C claims, T tests, E evidence`, then any evidence
   that can't be used.
@@ -940,6 +943,18 @@ The subjects it uses are those of all its `uses` claims that do not
 fail. If some `correct` or `=` claim on one of them does not hold, or
 one of them has no such claim, the output adds that the fault may be
 where no claim covers them.
+
+**An output a vouched claim gives.** Let `c : forall x, y, f(x, y) = e`
+(or a property `f(…) == e`, either side, each argument a different bound
+name or a written value) be vouched for on the whole claim, with no
+evidence against it. Where a claim other than `c` needs `f(a, b)` and no
+output was observed, Mitra works `e` out from the observed outputs and
+uses the result. The inputs judged this way print under `passes on` or
+`fails on` like the others; the vouch is among the evidence of the
+claim, so an error quotes it and it is a candidate. This comes before a
+`by derive`: a claim whose premises are a vouched shape and observed
+leaves is judged input by input, and fails on the inputs where a leaf is
+wrong, instead of staying `unverified`.
 
 **Checking an implication.** For an `=` claim with `by derive` and a
 finite domain, Mitra evaluates both sides on every input, treating each
