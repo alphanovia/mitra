@@ -110,3 +110,40 @@
 @[source "review:claude", rev "9a4add20d179"] evidence yager_uniform at 1
 @[source "review:claude", rev "9a4add20d179"] evidence dempster_uses at 1
 @[source "review:claude", rev "9a4add20d179"] evidence yager_uses at 1
+@[source "test:t_conflict_mixed", rev "46626885833c"] evidence conflict(0.5, 0.25, 0.25, 0.25, 0.5, 0.25) = 0.3125 at 1
+@[source "test:t_conflict_total", rev "46626885833c"] evidence conflict(1.0, 0.0, 0.0, 0.0, 1.0, 0.0) = 1.0 at 1
+@[source "test:t_dempster_agree", rev "46626885833c"] evidence correct(dempster(1.0, 0.0, 0.0, 1.0, 0.0, 0.0)) at 1
+@[source "test:t_dempster_contradict", rev "46626885833c"] evidence correct(dempster(1.0, 0.0, 0.0, 0.0, 1.0, 0.0)) at 1
+@[source "test:t_dempster_contradict_swapped", rev "46626885833c"] evidence correct(dempster(0.0, 1.0, 0.0, 1.0, 0.0, 0.0)) at 1
+@[source "test:t_dempster_nothing", rev "46626885833c"] evidence correct(dempster(0.0, 0.0, 1.0, 0.0, 0.0, 1.0)) at 1
+@[source "test:t_dempster_nothing_first", rev "46626885833c"] evidence correct(dempster(0.0, 0.0, 1.0, 1.0, 0.0, 0.0)) at 1
+@[source "test:t_dempster_rejects_first", rev "46626885833c"] evidence correct(dempster(-0.5, 0.5, 1.0, 0.0, 0.0, 1.0)) at 1
+@[source "test:t_dempster_rejects_negative", rev "46626885833c"] evidence correct(dempster(0.0, 0.0, 1.0, -0.5, 0.5, 1.0)) at 1
+@[source "test:t_dempster_rejects_sum", rev "46626885833c"] evidence correct(dempster(0.0, 0.0, 1.0, 0.5, 0.5, 0.5)) at 1
+@[source "test:t_dempster_with_nothing", rev "46626885833c"] evidence correct(dempster(1.0, 0.0, 0.0, 0.0, 0.0, 1.0)) at 1
+@[source "test:t_judged_at_one", rev "46626885833c"] evidence correct(judged(false, 1.0)) at 1
+@[source "test:t_judged_at_zero", rev "46626885833c"] evidence correct(judged(true, 0.0)) at 1
+@[source "test:t_judged_correct", rev "46626885833c"] evidence correct(judged(true, 0.25)) at 1
+@[source "test:t_judged_rejects_above", rev "46626885833c"] evidence correct(judged(true, 1.5)) at 1
+@[source "test:t_judged_rejects_below", rev "46626885833c"] evidence correct(judged(false, -0.5)) at 1
+@[source "test:t_judged_wrong", rev "46626885833c"] evidence correct(judged(false, 0.25)) at 1
+@[source "test:t_valid_negative", rev "46626885833c"] evidence is_valid(-0.5, 0.5, 1.0) = false at 1
+@[source "test:t_valid_slack", rev "46626885833c"] evidence is_valid(0.5, 0.0, 0.5000000001) = true at 1
+@[source "test:t_valid_sum", rev "46626885833c"] evidence is_valid(0.5, 0.5, 0.5) = false at 1
+@[source "test:t_valid_yes", rev "46626885833c"] evidence is_valid(0.5, 0.0, 0.5) = true at 1
+@[source "test:t_yager_agree", rev "46626885833c"] evidence correct(yager(1.0, 0.0, 0.0, 1.0, 0.0, 0.0)) at 1
+@[source "test:t_yager_contradict", rev "46626885833c"] evidence correct(yager(1.0, 0.0, 0.0, 0.0, 1.0, 0.0)) at 1
+@[source "test:t_yager_contradict_swapped", rev "46626885833c"] evidence correct(yager(0.0, 1.0, 0.0, 1.0, 0.0, 0.0)) at 1
+@[source "test:t_yager_nothing", rev "46626885833c"] evidence correct(yager(0.0, 0.0, 1.0, 0.0, 0.0, 1.0)) at 1
+@[source "test:t_yager_nothing_first", rev "46626885833c"] evidence correct(yager(0.0, 0.0, 1.0, 1.0, 0.0, 0.0)) at 1
+@[source "test:t_yager_rejects_negative", rev "46626885833c"] evidence correct(yager(-0.5, 0.5, 1.0, 0.0, 0.0, 1.0)) at 1
+@[source "test:t_yager_rejects_second", rev "46626885833c"] evidence correct(yager(0.0, 0.0, 1.0, 0.5, 0.5, 0.5)) at 1
+@[source "test:t_yager_rejects_sum", rev "46626885833c"] evidence correct(yager(0.5, 0.5, 0.5, 0.0, 0.0, 1.0)) at 1
+@[source "test:t_yager_with_nothing", rev "46626885833c"] evidence correct(yager(1.0, 0.0, 0.0, 0.0, 0.0, 1.0)) at 1
+@[source "review:claude", rev "46626885833c"] evidence judged_uniform at 1
+@[source "review:claude", rev "46626885833c"] evidence is_valid_uniform at 1
+@[source "review:claude", rev "46626885833c"] evidence conflict_uniform at 1
+@[source "review:claude", rev "46626885833c"] evidence dempster_uniform at 1
+@[source "review:claude", rev "46626885833c"] evidence yager_uniform at 1
+@[source "review:claude", rev "46626885833c"] evidence dempster_uses at 1
+@[source "review:claude", rev "46626885833c"] evidence yager_uses at 1
