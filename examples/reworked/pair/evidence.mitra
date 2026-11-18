@@ -1,0 +1,27 @@
+// What was observed, one block per piece.
+evidence add_test {
+    for pair::add
+    given p1 = Pair(1, 2), p2 = Pair(3, 4)
+    gives Pair(4, 6)
+    source "test:add_test"
+}
+
+evidence undo_roundtrip {
+    for pair::minus_undoes_add
+    given p1 = Pair(1, 2), p2 = Pair(3, 4)
+    holds
+    source "test:undo_roundtrip"
+}
+
+evidence scale_by_two {
+    for scale
+    given p = Pair(1, 2), k = 2
+    holds
+    trust 0.9
+}
+
+evidence scale_reviewed {
+    for scale_uniform
+    holds
+    source "review:me"
+}

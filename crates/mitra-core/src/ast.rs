@@ -273,6 +273,9 @@ pub struct Model {
     /// the names the claim binds. Filled by `check`.
     pub properties: Vec<Function>,
     pub claims: Vec<Claim>,
+    /// The lines of the model and of the evidence, when written in the
+    /// reworked syntax: reports quote them.
+    pub written: Option<(Vec<String>, Vec<String>)>,
     pub tests: Vec<Test>,
     pub evidence: Vec<Evidence>,
 }

@@ -1,0 +1,19 @@
+evidence boss_mail {
+    for is_spam
+    given m = Mail("boss", 1)
+    gives false
+    source "test:boss_mail"
+}
+evidence senders_reviewed { for by_sender  holds  source "review:me" }
+evidence measured {
+    for catches_most
+    gives rate = 0.9
+    trust 0.7
+    source "eval set of March"
+}
+evidence junk {
+    for route
+    given v = Spam, folder = None
+    gives "junk"
+    source "test:junk"
+}

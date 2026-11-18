@@ -126,9 +126,18 @@ fn lex(src: &str) -> Result<Vec<(Tok, usize)>, Error> {
             toks.push((Tok::Num(rest[..end].into()), line));
             rest = &rest[end..];
         } else if c.is_ascii_alphabetic() || c == '_' {
-            let end = rest
-                .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
-                .unwrap_or(rest.len());
+            let word = |s: &str| {
+                s.find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+                    .unwrap_or(s.len())
+            };
+            let mut end = word(rest);
+            // `subject::name`: one name.
+            while let Some(more) = rest[end..].strip_prefix("::") {
+                match more.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
+                    true => end += 2 + word(more),
+                    false => break,
+                }
+            }
             toks.push((Tok::Ident(rest[..end].into()), line));
             rest = &rest[end..];
         } else if let Some(p) = PUNCT.iter().find(|p| rest.starts_with(**p)) {

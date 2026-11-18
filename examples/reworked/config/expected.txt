@@ -1,0 +1,14 @@
+network::mostly_up: holds
+loader::load::uses: holds
+loader::falls_back: holds
+loader::retries_bounded: unverified
+  passes on       `url = "a"`
+  no evidence on  `url = "b"`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:26  claim retries_bounded(url: {"a", "b"}) { let c = load(url); c.retries <= 5 }
+
+  No evidence on `url = "b"`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

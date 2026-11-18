@@ -4,6 +4,9 @@ This page describes exactly what the code implements today and nothing
 more. When the code changes, this page changes in the same commit. Design
 ideas and open questions live in the [general docs](../../README.md#documentation).
 
+A reworked syntax (`subject`, `boundary`, `fn`, evidence blocks) is being
+tried as a prototype on the same engine: see [reworked.md](reworked.md).
+
 ## Running Mitra
 
 ```sh

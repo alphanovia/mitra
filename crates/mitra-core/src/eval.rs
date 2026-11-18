@@ -1486,6 +1486,10 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     let model_err = |e| (Input::Model, e);
 
     let shown = |line: usize| {
+        let written = model.written.as_ref();
+        if let Some(text) = written.and_then(|w| crate::surface::written(&w.1, line)) {
+            return text;
+        }
         let e = model.evidence.iter().find(|e| e.line == line);
         e.map(|e| {
             crate::print::print_evidence(std::slice::from_ref(e), Some(model))
@@ -1556,7 +1560,18 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     let mut direct = Vec::new();
     for c in &model.claims {
         let func = model.function(&c.func).expect("checked");
-        let domain = model.covers(&c.func, &c.pattern);
+        let mut domain = model.covers(&c.func, &c.pattern);
+        // `when` on the inputs alone (the reworked syntax): the inputs it
+        // refuses are not in the claim.
+        let when = format!("{}::when", c.name);
+        if let (Some(all), true) = (domain.values(), model.function(&when).is_some()) {
+            for x in all {
+                let kept = ev.call(&when, &x, c.line, Subjects::Observed);
+                if kept.map_err(model_err)? != [Value::Bool(true)] {
+                    domain = domain.minus(&Tuples::point(&x));
+                }
+            }
+        }
         let arity = domain.arity();
         // `right` and `wrong` over all inputs of the function, then cut to
         // the claim's domain; `points` keeps the inputs outside it too.

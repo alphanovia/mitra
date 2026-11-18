@@ -177,10 +177,17 @@ impl Writer<'_> {
     fn at_claim(&self, name: &str) -> String {
         let c = self.claim(name);
         let place = self.places.model(c.line);
-        format!("  --> {place}  {}\n", print_claim(self.model, c))
+        let written = self.model.written.as_ref();
+        let text = written.and_then(|w| crate::surface::written(&w.0, c.line));
+        let text = text.unwrap_or_else(|| print_claim(self.model, c));
+        format!("  --> {place}  {text}\n")
     }
 
     fn evidence_text(&self, line: usize) -> String {
+        let written = self.model.written.as_ref();
+        if let Some(text) = written.and_then(|w| crate::surface::written(&w.1, line)) {
+            return text;
+        }
         let e = self.model.evidence.iter().find(|e| e.line == line);
         e.map(|e| print_evidence(std::slice::from_ref(e), Some(self.model)))
             .unwrap_or_default()
