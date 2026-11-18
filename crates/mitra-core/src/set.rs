@@ -4,8 +4,9 @@
 //! strings and everything else. A set is stored per part, in a normal form,
 //! so equal sets compare equal.
 
+use crate::tuples::Tuples;
 use std::cmp::Ordering;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 /// A single value. Floats compare by their bits' total order: `NaN` equals
@@ -18,6 +19,41 @@ pub enum Value {
     Int(i64),
     Float(f64),
     Str(String),
+    /// `(1, "a")`: two values or more.
+    Tuple(Vec<Value>),
+    /// `Number(1, "m")`: a record's name and the values of its fields.
+    Record(String, Vec<Value>),
+    /// `[1, 2, 3]`: any number of values, in order.
+    List(Vec<Value>),
+}
+
+/// What kind of composite value: a tuple of n values, or a named record of
+/// n fields.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Shape {
+    Tuple(usize),
+    Record(String, usize),
+}
+
+impl Shape {
+    fn arity(&self) -> usize {
+        match self {
+            Shape::Tuple(n) | Shape::Record(_, n) => *n,
+        }
+    }
+    fn value(&self, parts: Vec<Value>) -> Value {
+        match self {
+            Shape::Tuple(_) => Value::Tuple(parts),
+            Shape::Record(name, _) => Value::Record(name.clone(), parts),
+        }
+    }
+    /// `(a, b)` or `Name(a, b)`.
+    fn show(&self, parts: &[String]) -> String {
+        match self {
+            Shape::Tuple(_) => format!("({})", parts.join(", ")),
+            Shape::Record(name, _) => format!("{name}({})", parts.join(", ")),
+        }
+    }
 }
 
 impl Value {
@@ -27,6 +63,17 @@ impl Value {
             Value::Int(_) => 1,
             Value::Float(_) => 2,
             Value::Str(_) => 3,
+            Value::Tuple(_) => 4,
+            Value::Record(..) => 5,
+            Value::List(_) => 6,
+        }
+    }
+    /// The shape and the parts of a tuple or a record.
+    pub fn parts(&self) -> Option<(Shape, &[Value])> {
+        match self {
+            Value::Tuple(vs) => Some((Shape::Tuple(vs.len()), vs)),
+            Value::Record(name, vs) => Some((Shape::Record(name.clone(), vs.len()), vs)),
+            _ => None,
         }
     }
 }
@@ -38,6 +85,9 @@ impl Ord for Value {
             (Value::Int(a), Value::Int(b)) => a.cmp(b),
             (Value::Float(a), Value::Float(b)) => a.total_cmp(b),
             (Value::Str(a), Value::Str(b)) => a.cmp(b),
+            (Value::Tuple(a), Value::Tuple(b)) => a.cmp(b),
+            (Value::Record(n, a), Value::Record(m, b)) => (n, a).cmp(&(m, b)),
+            (Value::List(a), Value::List(b)) => a.cmp(b),
             _ => self.rank().cmp(&o.rank()),
         }
     }
@@ -70,6 +120,15 @@ impl fmt::Display for Value {
                 }
             }
             Value::Str(s) => write!(f, "\"{s}\""),
+            Value::Tuple(vs) | Value::Record(_, vs) => {
+                let (shape, _) = self.parts().expect("composite");
+                let parts: Vec<String> = vs.iter().map(|v| v.to_string()).collect();
+                write!(f, "{}", shape.show(&parts))
+            }
+            Value::List(vs) => {
+                let parts: Vec<String> = vs.iter().map(|v| v.to_string()).collect();
+                write!(f, "[{}]", parts.join(", "))
+            }
         }
     }
 }
@@ -138,6 +197,243 @@ pub const INT_TYPES: [(&str, i128, i128); 7] = [
     ("UInt32", 0, u32::MAX as i128),
 ];
 
+/// Tuples and records, by shape. `rest` says whether the shapes not listed
+/// are wholly in the set, with the values that are of no kind Mitra knows.
+/// No shape is listed with what `rest` already says: none of its values
+/// when `rest` is false, all of them when it is true.
+#[derive(Debug, Clone)]
+struct Composites {
+    rest: bool,
+    shapes: BTreeMap<Shape, Tuples>,
+}
+
+impl Composites {
+    fn none() -> Composites {
+        Composites {
+            rest: false,
+            shapes: BTreeMap::new(),
+        }
+    }
+    fn full(shape: &Shape) -> Tuples {
+        Tuples::product(vec![Set::any(); shape.arity()])
+    }
+    fn of(&self, shape: &Shape) -> Tuples {
+        match self.shapes.get(shape) {
+            Some(t) => t.clone(),
+            None if self.rest => Composites::full(shape),
+            None => Tuples::empty(shape.arity()),
+        }
+    }
+    fn build(rest: bool, shapes: impl Iterator<Item = (Shape, Tuples)>) -> Composites {
+        let said = |shape: &Shape, t: &Tuples| match rest {
+            true => Composites::full(shape).is_subset(t),
+            false => t.is_empty(),
+        };
+        Composites {
+            rest,
+            shapes: shapes.filter(|(s, t)| !said(s, t)).collect(),
+        }
+    }
+    fn union(&self, o: &Composites) -> Composites {
+        let shapes: BTreeSet<&Shape> = self.shapes.keys().chain(o.shapes.keys()).collect();
+        Composites::build(
+            self.rest || o.rest,
+            shapes
+                .into_iter()
+                .map(|s| (s.clone(), self.of(s).union(&o.of(s)))),
+        )
+    }
+    fn intersect(&self, o: &Composites) -> Composites {
+        let shapes: BTreeSet<&Shape> = self.shapes.keys().chain(o.shapes.keys()).collect();
+        Composites::build(
+            self.rest && o.rest,
+            shapes.into_iter().map(|s| {
+                // What `rest` says of a shape need not be spelled out.
+                let t = match (self.shapes.get(s), o.shapes.get(s)) {
+                    (Some(a), Some(b)) => a.intersect(b),
+                    (Some(a), None) if o.rest => a.clone(),
+                    (None, Some(b)) if self.rest => b.clone(),
+                    _ => Tuples::empty(s.arity()),
+                };
+                (s.clone(), t)
+            }),
+        )
+    }
+    fn complement(&self) -> Composites {
+        Composites::build(
+            !self.rest,
+            self.shapes
+                .iter()
+                .map(|(s, t)| (s.clone(), Composites::full(s).minus(t))),
+        )
+    }
+}
+
+impl PartialEq for Composites {
+    fn eq(&self, o: &Composites) -> bool {
+        self.rest == o.rest
+            && self.shapes.len() == o.shapes.len()
+            && self
+                .shapes
+                .iter()
+                .all(|(s, t)| o.shapes.get(s).is_some_and(|u| t.same(u)))
+    }
+}
+
+/// The lists whose elements are all in `all` (`None`: any value), with at
+/// least one element in each set of `some`.
+#[derive(Debug, Clone)]
+struct Term {
+    all: Option<Box<Set>>,
+    some: Vec<Set>,
+}
+
+impl Term {
+    fn all(&self) -> Set {
+        self.all.as_deref().cloned().unwrap_or_else(Set::any)
+    }
+    fn contains(&self, list: &[Value]) -> bool {
+        list.iter()
+            .all(|v| self.all.as_ref().is_none_or(|all| all.contains(v)))
+            && self.some.iter().all(|f| list.iter().any(|v| f.contains(v)))
+    }
+    fn intersect(&self, o: &Term) -> Term {
+        let all = match (&self.all, &o.all) {
+            (Some(a), Some(b)) => Some(Box::new(a.intersect(b))),
+            (a, b) => a.clone().or(b.clone()),
+        };
+        Term {
+            all,
+            some: [self.some.clone(), o.some.clone()].concat(),
+        }
+    }
+    /// The lists outside the term, as terms.
+    fn complement(&self) -> Vec<Term> {
+        // Nothing is outside "any value".
+        let mut out: Vec<Term> = self
+            .all
+            .iter()
+            .map(|all| Term {
+                all: None,
+                some: vec![all.complement()],
+            })
+            .collect();
+        out.extend(self.some.iter().map(|f| Term {
+            all: Some(Box::new(f.complement())),
+            some: vec![],
+        }));
+        out
+    }
+}
+
+/// A set of lists: those of the terms of `base`, without the lists of
+/// `minus`, with the lists of `plus`. Every term holds infinitely many
+/// lists; `plus` holds no list of `base`, and `minus` only lists of `base`.
+#[derive(Debug, Clone)]
+struct Lists {
+    base: Vec<Term>,
+    plus: BTreeSet<Vec<Value>>,
+    minus: BTreeSet<Vec<Value>>,
+}
+
+impl Lists {
+    fn none() -> Lists {
+        Lists::build(Vec::new(), BTreeSet::new(), |_| false)
+    }
+    /// The lists of `terms`, corrected on the `points` so that each is in
+    /// the set exactly when `member` says so.
+    fn build(
+        terms: Vec<Term>,
+        mut points: BTreeSet<Vec<Value>>,
+        member: impl Fn(&[Value]) -> bool,
+    ) -> Lists {
+        let mut base: Vec<Term> = Vec::new();
+        for t in terms {
+            let some: Vec<Set> = match &t.all {
+                Some(all) => t.some.iter().map(|f| f.intersect(all)).collect(),
+                None => t.some.clone(),
+            };
+            if some.iter().any(Set::is_empty) {
+                continue;
+            }
+            if t.all.as_ref().is_some_and(|all| all.is_empty()) {
+                // Only the empty list.
+                continue;
+            }
+            let mut kept: Vec<Set> = Vec::new();
+            for f in some {
+                if !kept.contains(&f) {
+                    kept.push(f);
+                }
+            }
+            base.push(Term {
+                all: t.all,
+                some: kept,
+            });
+        }
+        // The empty list is where terms differ from what they came from.
+        points.insert(Vec::new());
+        let (mut plus, mut minus) = (BTreeSet::new(), BTreeSet::new());
+        for p in points {
+            let have = base.iter().any(|t| t.contains(&p));
+            match (member(&p), have) {
+                (true, false) => plus.insert(p),
+                (false, true) => minus.insert(p),
+                _ => false,
+            };
+        }
+        Lists { base, plus, minus }
+    }
+    fn points(&self) -> BTreeSet<Vec<Value>> {
+        self.plus.union(&self.minus).cloned().collect()
+    }
+    fn contains(&self, list: &[Value]) -> bool {
+        self.plus.contains(list)
+            || (!self.minus.contains(list) && self.base.iter().any(|t| t.contains(list)))
+    }
+    fn union(&self, o: &Lists) -> Lists {
+        let points = self.points().union(&o.points()).cloned().collect();
+        Lists::build([self.base.clone(), o.base.clone()].concat(), points, |p| {
+            self.contains(p) || o.contains(p)
+        })
+    }
+    fn intersect(&self, o: &Lists) -> Lists {
+        let terms = self
+            .base
+            .iter()
+            .flat_map(|a| o.base.iter().map(|b| a.intersect(b)))
+            .collect();
+        let points = self.points().union(&o.points()).cloned().collect();
+        Lists::build(terms, points, |p| self.contains(p) && o.contains(p))
+    }
+    fn complement(&self) -> Lists {
+        let mut terms = vec![Term {
+            all: None,
+            some: vec![],
+        }];
+        for t in &self.base {
+            let outside = t.complement();
+            terms = terms
+                .iter()
+                .flat_map(|a| outside.iter().map(|b| a.intersect(b)))
+                .collect();
+            // Drop what holds nothing, so the product stays small.
+            terms = Lists::build(terms, BTreeSet::new(), |_| false).base;
+        }
+        Lists::build(terms, self.points(), |p| !self.contains(p))
+    }
+    fn is_empty(&self) -> bool {
+        self.base.is_empty() && self.plus.is_empty()
+    }
+}
+
+impl PartialEq for Lists {
+    fn eq(&self, o: &Lists) -> bool {
+        let minus = |a: &Lists, b: &Lists| a.complement().union(b).complement();
+        minus(self, o).is_empty() && minus(o, self).is_empty()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Set {
     /// Membership of `false` and `true`.
@@ -147,8 +443,9 @@ pub struct Set {
     ints: Vec<(i128, i128)>,
     floats: Part<F>,
     strs: Part<String>,
-    /// Values that are none of the above.
-    other: bool,
+    lists: Lists,
+    /// Tuples, records, and the values that are none of the above.
+    composites: Composites,
 }
 
 impl Set {
@@ -158,7 +455,8 @@ impl Set {
             ints: vec![],
             floats: Part::none(),
             strs: Part::none(),
-            other: false,
+            lists: Lists::none(),
+            composites: Composites::none(),
         }
     }
     pub fn bool() -> Set {
@@ -187,7 +485,18 @@ impl Set {
     }
     pub fn any() -> Set {
         Set {
-            other: true,
+            lists: Lists {
+                base: vec![Term {
+                    all: None,
+                    some: vec![],
+                }],
+                plus: BTreeSet::new(),
+                minus: BTreeSet::new(),
+            },
+            composites: Composites {
+                rest: true,
+                shapes: BTreeMap::new(),
+            },
             ..Set::bool()
                 .union(&Set::int())
                 .union(&Set::float())
@@ -228,7 +537,42 @@ impl Set {
                 strs: Part::Finite([x.clone()].into()),
                 ..Set::empty()
             },
+            Value::Tuple(vs) | Value::Record(_, vs) => {
+                let (shape, _) = v.parts().expect("composite");
+                Set::composite(shape, Tuples::point(vs))
+            }
+            Value::List(vs) => Set {
+                lists: Lists::build(Vec::new(), [vs.clone()].into(), |p| p == vs),
+                ..Set::empty()
+            },
         }
+    }
+    /// `List(T)`: the lists whose elements are all in `elements`.
+    pub fn list(elements: Set) -> Set {
+        let term = Term {
+            all: Some(Box::new(elements)),
+            some: vec![],
+        };
+        Set {
+            lists: Lists::build(vec![term], BTreeSet::new(), |_| true),
+            ..Set::empty()
+        }
+    }
+    /// The tuples or records of one shape whose parts are in `parts`.
+    pub fn composite(shape: Shape, parts: Tuples) -> Set {
+        Set {
+            composites: Composites::build(false, [(shape, parts)].into_iter()),
+            ..Set::empty()
+        }
+    }
+    /// `(A, B)`: the tuples with one part in each set.
+    pub fn tuple(parts: Vec<Set>) -> Set {
+        Set::composite(Shape::Tuple(parts.len()), Tuples::product(parts))
+    }
+    /// `Name(A, B)`: the records with one field in each set.
+    pub fn record(name: &str, fields: Vec<Set>) -> Set {
+        let shape = Shape::Record(name.to_string(), fields.len());
+        Set::composite(shape, Tuples::product(fields))
     }
     /// The integers from `lo` to `hi`, both included.
     pub fn interval(lo: i64, hi: i64) -> Set {
@@ -258,7 +602,8 @@ impl Set {
             ints: merged,
             floats: self.floats.union(&o.floats),
             strs: self.strs.union(&o.strs),
-            other: self.other || o.other,
+            lists: self.lists.union(&o.lists),
+            composites: self.composites.union(&o.composites),
         }
     }
 
@@ -282,12 +627,39 @@ impl Set {
             ints,
             floats: self.floats.complement(),
             strs: self.strs.complement(),
-            other: !self.other,
+            lists: self.lists.complement(),
+            composites: self.composites.complement(),
         }
     }
 
     pub fn intersect(&self, o: &Set) -> Set {
-        self.complement().union(&o.complement()).complement()
+        // The scalar parts by De Morgan; lists and composites directly,
+        // since their complements are costly.
+        let scalars = |s: &Set| Set {
+            lists: Lists::none(),
+            composites: Composites::none(),
+            ..s.clone()
+        };
+        let (a, b) = (scalars(self), scalars(o));
+        Set {
+            lists: self.lists.intersect(&o.lists),
+            composites: self.composites.intersect(&o.composites),
+            ..a.complement().union(&b.complement()).complement_scalars()
+        }
+    }
+
+    /// The complement of the scalar parts alone.
+    fn complement_scalars(&self) -> Set {
+        let scalars = Set {
+            lists: Lists::none(),
+            composites: Composites::none(),
+            ..self.clone()
+        };
+        Set {
+            lists: Lists::none(),
+            composites: Composites::none(),
+            ..scalars.complement()
+        }
     }
 
     pub fn minus(&self, o: &Set) -> Set {
@@ -295,7 +667,13 @@ impl Set {
     }
 
     pub fn is_empty(&self) -> bool {
-        *self == Set::empty()
+        self.bools == [false; 2]
+            && self.ints.is_empty()
+            && self.floats == Part::none()
+            && self.strs == Part::none()
+            && self.lists.is_empty()
+            && !self.composites.rest
+            && self.composites.shapes.is_empty()
     }
 
     pub fn is_subset(&self, o: &Set) -> bool {
@@ -303,7 +681,17 @@ impl Set {
     }
 
     pub fn contains(&self, v: &Value) -> bool {
-        Set::point(v).is_subset(self)
+        match v {
+            Value::List(vs) => self.lists.contains(vs),
+            Value::Tuple(vs) | Value::Record(_, vs) => {
+                let (shape, _) = v.parts().expect("composite");
+                match self.composites.shapes.get(&shape) {
+                    Some(t) => t.contains(vs),
+                    None => self.composites.rest,
+                }
+            }
+            _ => Set::point(v).is_subset(self),
+        }
     }
 
     /// Every value, if the set is finite, small enough to list, and its
@@ -331,6 +719,10 @@ impl Set {
         if let Part::Finite(s) = &self.strs {
             out.extend(s.iter().map(|x| Value::Str(x.clone())));
         }
+        for (shape, t) in &self.composites.shapes {
+            out.extend(t.values()?.into_iter().map(|parts| shape.value(parts)));
+        }
+        out.extend(self.lists.plus.iter().map(|l| Value::List(l.clone())));
         Some(out)
     }
 
@@ -349,7 +741,13 @@ impl Set {
             .iter()
             .any(|&(lo, hi)| lo == NEG_INF || hi == POS_INF);
         match (&self.strs, &self.floats) {
-            (Part::Finite(s), Part::Finite(fl)) if !unbounded && !self.other => {
+            (Part::Finite(s), Part::Finite(fl))
+                if !unbounded && !self.composites.rest && self.lists.base.is_empty() =>
+            {
+                let mut composites = 0.0;
+                for t in self.composites.shapes.values() {
+                    composites += t.count()?;
+                }
                 // In floats: a sum of i128 widths can overflow.
                 let ints: f64 = self
                     .ints
@@ -360,7 +758,9 @@ impl Set {
                     self.bools.iter().filter(|b| **b).count() as f64
                         + ints
                         + fl.len() as f64
-                        + s.len() as f64,
+                        + s.len() as f64
+                        + self.lists.plus.len() as f64
+                        + composites,
                 )
             }
             _ => None,
@@ -372,7 +772,7 @@ impl fmt::Display for Set {
     /// The shortest readable form: `Value`, `Bool`, `{1, "a"}`, `0..=100`,
     /// `Int \ {5}`, joined by ` | `.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.other {
+        if self.composites.rest {
             let rest = self.complement();
             return if rest.is_empty() {
                 write!(f, "Value")
@@ -398,7 +798,7 @@ impl fmt::Display for Set {
             parts.push(if rest.is_empty() {
                 "Int".into()
             } else {
-                format!("(Int \\ {})", paren(&rest))
+                format!("\u{1}Int \\ {}", paren(&rest))
             });
         } else {
             for &(lo, hi) in &self.ints {
@@ -422,7 +822,7 @@ impl fmt::Display for Set {
             if all && but.is_empty() {
                 parts.push(name.into());
             } else if all {
-                parts.push(format!("({name} \\ {{{}}})", but.join(", ")));
+                parts.push(format!("\u{1}{name} \\ {{{}}}", but.join(", ")));
             } else {
                 points.extend(but);
             }
@@ -437,18 +837,96 @@ impl fmt::Display for Set {
             Part::Finite(s) => cofinite("String", false, show_s(s), &mut points),
             Part::Cofinite(s) => cofinite("String", true, show_s(s), &mut points),
         }
+        for (shape, t) in &self.composites.shapes {
+            // Few enough: each value. Otherwise the products of sets.
+            let show = |b: &[Set]| {
+                let sets: Vec<String> = b.iter().map(|s| s.to_string()).collect();
+                shape.show(&sets)
+            };
+            // Listed only when few, without counting a large set out.
+            let few = |t: &Tuples| match t.size_bound() {
+                Some(n) if n <= 64.0 => t.values().filter(|vs| vs.len() <= 3),
+                _ => None,
+            };
+            if let Some(vs) = few(t) {
+                points.extend(vs.into_iter().map(|v| shape.value(v).to_string()));
+                continue;
+            }
+            // One product of sets without a few values: `Number(..) \ {..}`.
+            let hull: Vec<Set> = (0..shape.arity())
+                .map(|i| t.boxes().iter().fold(Set::empty(), |s, b| s.union(&b[i])))
+                .collect();
+            let holes = Tuples::product(hull.clone()).minus(t);
+            match few(&holes) {
+                Some(vs) if vs.is_empty() => parts.push(show(&hull)),
+                Some(vs) => {
+                    let but: Vec<String> =
+                        vs.into_iter().map(|v| shape.value(v).to_string()).collect();
+                    parts.push(format!("\u{1}{} \\ {{{}}}", show(&hull), but.join(", ")));
+                }
+                None => parts.extend(t.boxes().iter().map(|b| show(b))),
+            }
+        }
+        let show_l = |l: &Vec<Value>| Value::List(l.clone()).to_string();
+        points.extend(self.lists.plus.iter().map(show_l));
+        if !self.lists.base.is_empty() {
+            // `List(E)`, and for each set F it needs an element of:
+            // `\ List(E \ F)`.
+            let terms: Vec<String> = self
+                .lists
+                .base
+                .iter()
+                .map(|t| {
+                    let all = t.all();
+                    let mut text = format!("List({all})");
+                    for f in &t.some {
+                        // Needing any element at all: not the empty list.
+                        let without = all.minus(f);
+                        text += &match without.is_empty() {
+                            true => " \\ {[]}".to_string(),
+                            false => format!(" \\ List({without})"),
+                        };
+                    }
+                    match t.some.is_empty() {
+                        true => text,
+                        false => format!("\u{1}{text}"),
+                    }
+                })
+                .collect();
+            if self.lists.minus.is_empty() {
+                parts.extend(terms);
+            } else {
+                let but: Vec<String> = self.lists.minus.iter().map(show_l).collect();
+                let terms: Vec<String> = terms
+                    .iter()
+                    .map(|t| match t.strip_prefix('\u{1}') {
+                        Some(t) => format!("({t})"),
+                        None => t.clone(),
+                    })
+                    .collect();
+                let terms = match &terms[..] {
+                    [one] => one.clone(),
+                    many => format!("({})", many.join(" | ")),
+                };
+                parts.push(format!("\u{1}{terms} \\ {{{}}}", but.join(", ")));
+            }
+        }
         if !points.is_empty() {
             parts.insert(0, format!("{{{}}}", points.join(", ")));
         }
         if parts.is_empty() {
             return write!(f, "{{}}");
         }
-        if parts.len() == 1 {
-            // A lone `(T \ X)` needs no parentheses.
-            let p = &parts[0];
-            let bare = p.starts_with('(');
-            return write!(f, "{}", if bare { &p[1..p.len() - 1] } else { p });
-        }
+        // A difference `T \ X` needs parentheses, unless it is alone.
+        let lone = parts.len() == 1;
+        let parts: Vec<String> = parts
+            .iter()
+            .map(|p| match p.strip_prefix('\u{1}') {
+                Some(p) if lone => p.to_string(),
+                Some(p) => format!("({p})"),
+                None => p.clone(),
+            })
+            .collect();
         write!(f, "{}", parts.join(" | "))
     }
 }
@@ -474,7 +952,11 @@ mod tests {
         assert_eq!(
             Set::int().union(&Set::bool()).complement(),
             Set::string().union(&Set::float()).union(&Set {
-                other: true,
+                lists: Set::any().lists,
+                composites: Composites {
+                    rest: true,
+                    shapes: BTreeMap::new(),
+                },
                 ..Set::empty()
             })
         );

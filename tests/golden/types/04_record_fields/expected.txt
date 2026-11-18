@@ -1,0 +1,50 @@
+healthy_is: fails
+  fails on        `healthy("payments", 3)`
+  passes on       `healthy("payments", 1)`
+  no evidence on  `healthy("payments", 2)`
+goals: fails
+  fails on        `sprint("payments", 3)`
+  passes on       `sprint("payments", 1)`
+  no evidence on  `sprint("payments", 2)`
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:4  claim healthy_is : forall n, healthy("payments", n) = sprint("payments", n).delivered >= sprint("payments", n).committed
+
+  `healthy_is` fails on `healthy("payments", 3)`.
+  The evidence that says so:
+
+    output    evidence.mitra:4  evidence healthy("payments", 3) = true at 1
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                    trust  left
+    likely    the code of `sprint`, model.mitra:2   none   0.00 to 0.30
+    possible  the code of `healthy`, model.mitra:3  none   0.00 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  help: if the evidence is right, fix `healthy`; if not, correct the evidence
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:5  claim goals : forall n, sprint("payments", n) = Sprint(5, 5, true)
+
+  `goals` fails on `sprint("payments", 3)`.
+  The evidence that says so:
+
+    output    evidence.mitra:3  evidence sprint("payments", 3) = Sprint(5, 3, false) at 0.7
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                   trust  left
+    likely    the code of `sprint`, model.mitra:2  none   0.00 to 0.30
+    unlikely  evidence.mitra:3                     0.7    0.70 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  help: if the evidence is right, fix `sprint`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

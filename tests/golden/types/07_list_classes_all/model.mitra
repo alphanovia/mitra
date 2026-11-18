@@ -1,0 +1,8 @@
+record Number(value: Int, unit: String)
+opaque sort(xs: List(Int)) -> List(Int)
+def size(xs: List(Int)) -> {"empty", "one", "many"} := if len(xs) == 0 then "empty" else if len(xs) == 1 then "one" else "many"
+opaque total(ns: List(Number)) -> Number
+claim sort_ok : forall xs, correct(sort(xs))
+claim sort_one : forall xs in {[7]}, sort(xs) = [xs[0]]
+claim sort_uniform : uniform sort by size
+claim total_ok : forall ns, correct(total(ns))

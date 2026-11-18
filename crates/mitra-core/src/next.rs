@@ -279,7 +279,7 @@ pub fn next(model: &Model, report: &Report) -> String {
     if out.is_empty() {
         out += "nothing to do\n";
     }
-    out
+    model.named(&out)
 }
 
 #[cfg(test)]

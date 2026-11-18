@@ -4,7 +4,8 @@
 # an empty alternative is ε.
 
 Model         = Command Model | ;
-Command       = Opaque | Def | Claim | Test ;
+Command       = Record | Opaque | Def | Claim | Test ;
+Record        = "record" NAME Params ;
 Test          = "test" NAME ":" Foralls Judgment ;
 Opaque        = "opaque" NAME Params "->" Set ;
 Def           = "def" NAME Params "->" Set ":=" Expr ;
@@ -39,7 +40,9 @@ Foralls       = ForallKw NAME InSet "," Foralls | ;
 InSet         = In Set | ;
 Args          = "(" Arg ArgsTail ")" | ;
 ArgsTail      = "," Arg ArgsTail | ;
-Arg           = NAME | "true" | "false" | Num | "-" Num | STR ;
+Arg           = NAME ArgRecord | "true" | "false" | Num | "-" Num | STR
+              | "(" Value "," Value ValuesTail ")" | "[" Values "]" ;
+ArgRecord     = "(" Value ValuesTail ")" | ;
 
 Set           = Inter SetTail ;
 SetTail       = Union Inter SetTail | ;
@@ -47,8 +50,11 @@ Inter         = SetAtom InterTail ;
 InterTail     = InterOp SetAtom InterTail | ;
 SetAtom       = "Bool" | "Int" | "Int8" | "Int16" | "Int32" | "Int64"
               | "UInt8" | "UInt16" | "UInt32" | "Float64" | "String" | "Value"
-              | "{" Values "}" | "(" Set ")"
+              | "{" Values "}" | "(" Set SetsTail ")"
+              | NAME SetArgs | "List" "(" Set ")"
               | Bound RangeOp | ".." Bound | "..=" Bound ;
+SetArgs       = "(" Set SetsTail ")" | ;
+SetsTail      = "," Set SetsTail | ;
 RangeOp       = "..=" Bound | ".." OptBound ;
 Bound         = NAT | "-" NAT ;
 OptBound      = Bound | ;
@@ -67,11 +73,18 @@ Sum           = Product SumTail ;
 SumTail       = "+" Product SumTail | "-" Product SumTail | ;
 Product       = Unary ProductTail ;
 ProductTail   = "*" Unary ProductTail | ;
-Unary         = "!" Unary | "-" Unary | NAME CallArgs | Literal | "(" Expr ")" ;
+Unary         = "!" Unary | "-" Unary | Atom Postfix ;
+Postfix       = "." Field Postfix | "[" Expr "]" Postfix | ;
+Field         = NAME | NAT ;
+Atom          = NAME CallArgs | Literal | "(" Expr ExprsTail ")" | "[" Exprs "]"
+              | "len" "(" Expr ")" ;
 CallArgs      = "(" Expr ExprsTail ")" | ;
+Exprs         = Expr ExprsTail | ;
 ExprsTail     = "," Expr ExprsTail | ;
 Literal       = "true" | "false" | Num | STR ;
 
-Value         = "true" | "false" | Num | "-" Num | STR ;
+Value         = "true" | "false" | Num | "-" Num | STR
+              | "(" Value "," Value ValuesTail ")" | NAME "(" Value ValuesTail ")"
+              | "[" Values "]" ;
 Num           = NAT | DEC ;
 Number        = NAT | DEC ;

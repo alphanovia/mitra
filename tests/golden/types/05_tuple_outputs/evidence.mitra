@@ -1,0 +1,2 @@
+evidence divmod(2, 1) = (1, 1) at 1
+evidence divmod(3, 1) = (2, 0) at 1

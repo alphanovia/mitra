@@ -9,6 +9,9 @@ use crate::set::{Set, Value};
 
 pub fn print_model(m: &Model) -> String {
     let mut out = String::new();
+    for r in &m.records {
+        out += &format!("record {}{}\n", r.name, binders(&r.fields));
+    }
     for f in &m.functions {
         let head = format!("{}{} -> {}", f.name, binders(&f.params), f.range);
         out += &match &f.body {
@@ -180,6 +183,34 @@ fn at(e: &Expr, min: u8) -> String {
             let args: Vec<String> = args.iter().map(expr).collect();
             (format!("{f}({})", args.join(", ")), ATOM)
         }
+        Expr::Tuple(args) => {
+            let args: Vec<String> = args.iter().map(expr).collect();
+            (format!("({})", args.join(", ")), ATOM)
+        }
+        Expr::Record(name, args) => {
+            let args: Vec<String> = args.iter().map(expr).collect();
+            (format!("{name}({})", args.join(", ")), ATOM)
+        }
+        Expr::Field(a, field) => {
+            // `t.0.1` and `5.0` would read as numbers: `(t.0).1`, `(5).0`.
+            let numeric = |f: &str| f.starts_with(|c: char| c.is_ascii_digit());
+            let number = match &**a {
+                Expr::Field(_, f) => numeric(f),
+                Expr::Lit(Value::Int(_)) => true,
+                _ => false,
+            };
+            let inner = at(a, ATOM);
+            match number && numeric(field) {
+                true => (format!("({inner}).{field}"), ATOM),
+                false => (format!("{inner}.{field}"), ATOM),
+            }
+        }
+        Expr::List(args) => {
+            let args: Vec<String> = args.iter().map(expr).collect();
+            (format!("[{}]", args.join(", ")), ATOM)
+        }
+        Expr::Index(a, i) => (format!("{}[{}]", at(a, ATOM), expr(i)), ATOM),
+        Expr::Len(a) => (format!("len({})", expr(a)), ATOM),
         Expr::Unary(op, a) => {
             let inner = at(a, UNARY);
             // `- -x` must not print as the comment `--x`, and `-(5)` must not

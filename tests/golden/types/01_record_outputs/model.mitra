@@ -1,0 +1,6 @@
+record Number(value: Int, unit: String)
+opaque add(left: Number, right: Number) -> Number
+def add_spec(left: Number, right: Number) -> Number := Number(left.value + right.value, left.unit)
+claim add_is : forall left in Number(0..=1, {"m"}), forall right in Number(0..=1, {"m"}), add(left, right) = add_spec(left, right)
+claim add_ok : forall left, forall right, correct(add(left, right))
+claim add_uniform : uniform add

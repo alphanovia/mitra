@@ -40,6 +40,11 @@ impl Tuples {
         Tuples::product(values.iter().map(Set::point).collect())
     }
 
+    /// The products of sets the set is made of.
+    pub fn boxes(&self) -> &[Vec<Set>] {
+        &self.boxes
+    }
+
     pub fn arity(&self) -> usize {
         self.arity
     }
@@ -92,7 +97,8 @@ impl Tuples {
     }
 
     pub fn contains(&self, t: &[Value]) -> bool {
-        Tuples::point(t).is_subset(self)
+        let inside = |b: &Vec<Set>| b.iter().zip(t).all(|(s, v)| s.contains(v));
+        t.len() == self.arity && self.boxes.iter().any(inside)
     }
 
     /// With one parameter: the set of values.

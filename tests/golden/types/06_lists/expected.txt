@@ -1,0 +1,23 @@
+sort_ok: unverified
+  passes on       `sort([])`, `sort([3, 1, 2])`
+  assumed on      classes "empty", "many" of `size`, by `sort_uniform`
+  no evidence on  class "one" of `size`
+sort_one: holds
+sort_uniform: holds
+total_ok: unverified
+  passes on       `total([Number(1, "m"), Number(2, "m")])`
+  no evidence on  ns in List(Number) \ {[Number(1, "m"), Number(2, "m")]}
+
+warning[M101]: a claim is not verified
+  --> model.mitra:5  claim sort_ok : forall xs, correct(sort(xs))
+
+  No evidence on class "one" of `size`.
+  help: one passing test in such a class stands for the class
+
+warning[M101]: a claim is not verified
+  --> model.mitra:8  claim total_ok : forall ns, correct(total(ns))
+
+  No evidence on ns in List(Number) \ {[Number(1, "m"), Number(2, "m")]}.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

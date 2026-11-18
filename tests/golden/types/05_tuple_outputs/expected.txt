@@ -1,0 +1,28 @@
+divmod_is: fails
+  fails on        `divmod(3, 1)`
+  passes on       `divmod(2, 1)`
+first: fails
+  fails on        `divmod(3, 1)`
+  passes on       `divmod(2, 1)`
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:3  claim divmod_is : forall a in 2..=3, forall b in {1}, divmod(a, b) = dm(a, b)
+  --> model.mitra:4  claim first : forall a in 2..=3, forall b in {1}, divmod(a, b) = (dm(a, b).0, 1)
+
+  `divmod_is` fails on `divmod(3, 1)`.
+  `first` fails on `divmod(3, 1)`.
+  The evidence that says so:
+
+    output    evidence.mitra:2  evidence divmod(3, 1) = (2, 0) at 1
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                   trust  left
+    certain   the code of `divmod`, model.mitra:1  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  help: if the evidence is right, fix `divmod`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

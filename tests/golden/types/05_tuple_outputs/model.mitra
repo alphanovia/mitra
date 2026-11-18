@@ -1,0 +1,4 @@
+opaque divmod(a: Int, b: Int) -> (Int, Int)
+def dm(a: Int, b: 1..) -> (Int, Int) := (a - b, b)
+claim divmod_is : forall a in 2..=3, forall b in 1..=1, divmod(a, b) = dm(a, b)
+claim first : forall a in 2..=3, forall b in 1..=1, divmod(a, b) = (dm(a, b).0, 1)

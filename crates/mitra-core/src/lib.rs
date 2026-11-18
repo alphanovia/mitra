@@ -20,13 +20,15 @@ pub mod report;
 pub mod set;
 pub mod tuples;
 
-pub use ast::{Claim, Evidence, Expr, Function, Judgment, Model, Pattern, Position, Target, Test};
+pub use ast::{
+    Claim, Evidence, Expr, Function, Judgment, Model, Pattern, Position, Record, Target, Test,
+};
 pub use eval::{
     evaluate, failed_output, Assumed, Candidate, Conflict, Contradiction, Display, Flag,
     Implication, Kind, Logic, Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
 };
 pub use next::next;
-pub use parse::{parse_evidence, parse_model};
+pub use parse::{parse_evidence, parse_evidence_for, parse_model};
 pub use print::{print_evidence, print_model};
 pub use report::{explain, Files, Places};
 pub use set::{Set, Value};
@@ -68,7 +70,7 @@ pub enum Input {
 /// Parse both inputs and check them against each other.
 pub fn load(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     let mut m = parse_model(model).map_err(|e| (Input::Model, e))?;
-    m.evidence = parse_evidence(evidence).map_err(|e| (Input::Evidence, e))?;
+    m.evidence = parse_evidence_for(evidence, &m.records).map_err(|e| (Input::Evidence, e))?;
     m.check()
 }
 

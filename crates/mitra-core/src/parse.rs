@@ -18,18 +18,18 @@ enum Tok {
 }
 
 /// Longest first, so `:=` wins over `:`, `||` over `|` and `..=` over `..`.
-const PUNCT: [&str; 36] = [
-    "@[", "..=", ":=", "=>", "->", "==", "!=", "<=", ">=", "&&", "||", "..", "(", ")", ":", ";",
-    ",", "=", "{", "}", "[", "]", "|", "&", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩",
-    "¬",
+const PUNCT: [&str; 37] = [
+    "@[", "..=", ":=", "=>", "->", "==", "!=", "<=", ">=", "&&", "||", "..", ".", "(", ")", ":",
+    ";", ",", "=", "{", "}", "[", "]", "|", "&", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪",
+    "∩", "¬",
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
-pub const KEYWORDS: [&str; 35] = [
-    "opaque", "def", "claim", "test", "evidence", "correct", "at", "by", "derive", "if", "then",
-    "else", "let", "true", "false", "forall", "in", "not", "Bool", "Int", "Int8", "Int16", "Int32",
-    "Int64", "UInt8", "UInt16", "UInt32", "Float64", "String", "Value", "_", "Real", "uniform",
-    "uses", "only",
+pub const KEYWORDS: [&str; 38] = [
+    "List", "len", "record", "opaque", "def", "claim", "test", "evidence", "correct", "at", "by",
+    "derive", "if", "then", "else", "let", "true", "false", "forall", "in", "not", "Bool", "Int",
+    "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "Float64", "String", "Value",
+    "_", "Real", "uniform", "uses", "only",
 ];
 
 /// The whole text as tokens, each with its line.
@@ -81,6 +81,8 @@ fn lex(src: &str) -> Result<Vec<(Tok, usize)>, Error> {
 struct P {
     toks: Vec<(Tok, usize)>,
     pos: usize,
+    /// The records declared so far.
+    records: Vec<Record>,
 }
 
 impl P {
@@ -88,6 +90,7 @@ impl P {
         Ok(P {
             toks: lex(src)?,
             pos: 0,
+            records: Vec::new(),
         })
     }
     /// The line of the next token (or of the last one, at the end).
@@ -221,10 +224,42 @@ impl P {
             _ => Ok(Value::Int(self.signed(negative)?)),
         }
     }
+    /// `( value {, value} )`, after the `(`.
+    fn values(&mut self) -> Result<Vec<Value>, Error> {
+        let mut parts = vec![self.value()?];
+        while self.eat(",") {
+            parts.push(self.value()?);
+        }
+        self.expect(")")?;
+        Ok(parts)
+    }
     /// value := "true" | "false" | ["-"] number | string
+    ///        | "(" value "," value {"," value} ")" | name "(" value {"," value} ")"
     fn value(&mut self) -> Result<Value, Error> {
         if self.eat("-") {
             return self.numeral(true);
+        }
+        if self.eat("(") {
+            let parts = self.values()?;
+            if parts.len() < 2 {
+                return self.err("a tuple has two values or more: `(1, 2)`");
+            }
+            return Ok(Value::Tuple(parts));
+        }
+        if self.is_name() {
+            let name = self.ident()?;
+            self.expect("(")?;
+            return Ok(Value::Record(name, self.values()?));
+        }
+        if self.eat("[") {
+            let mut parts = Vec::new();
+            while !self.eat("]") {
+                if !parts.is_empty() {
+                    self.expect(",")?;
+                }
+                parts.push(self.value()?);
+            }
+            return Ok(Value::List(parts));
         }
         match self.peek().cloned() {
             Some(Tok::Ident(s)) if s == "true" || s == "false" => {
@@ -236,7 +271,10 @@ impl P {
                 self.pos += 1;
                 Ok(Value::Str(s))
             }
-            _ => self.err("expected a value: true, false, a number or a string"),
+            _ => self.err(
+                "expected a value: true, false, a number, a string, a tuple `(1, 2)`, \
+                 a record `Name(1, 2)` or a list `[1, 2]`",
+            ),
         }
     }
     /// A range bound: `5` or `-5`, if one is there. `Int` is unbounded, so
@@ -287,9 +325,47 @@ impl P {
     }
     fn set_atom(&mut self) -> Result<Set, Error> {
         if self.eat("(") {
-            let s = self.set()?;
+            // `(S)` groups; `(S, T)` is the tuples of one value from each.
+            let mut parts = vec![self.set()?];
+            while self.eat(",") {
+                parts.push(self.set()?);
+            }
             self.expect(")")?;
-            return Ok(s);
+            return Ok(match parts.len() {
+                1 => parts.remove(0),
+                _ => Set::tuple(parts),
+            });
+        }
+        if self.eat_keyword("List") {
+            // `List(T)`: the lists whose elements are all in T.
+            self.expect("(")?;
+            let elements = self.set()?;
+            self.expect(")")?;
+            return Ok(Set::list(elements));
+        }
+        if self.is_name() {
+            // `Number`: every value of the record. `Number(S, T)`: those
+            // with one field in each set.
+            let line = self.line();
+            let name = self.ident()?;
+            if self.eat("(") {
+                let mut fields = vec![self.set()?];
+                while self.eat(",") {
+                    fields.push(self.set()?);
+                }
+                self.expect(")")?;
+                return Ok(Set::record(&name, fields));
+            }
+            return match self.records.iter().find(|r| r.name == name) {
+                Some(r) => Ok(r.set()),
+                None => Err(Error::new(
+                    line,
+                    format!(
+                        "unknown type `{name}` (Bool, Int, Int8 to Int64, UInt8 to UInt32, \
+                         Float64, String, Value, or a record declared above)"
+                    ),
+                )),
+            };
         }
         if self.eat("{") {
             let mut s = Set::empty();
@@ -394,8 +470,14 @@ impl P {
         // `(a, 1, -2)`; no parentheses when there are no arguments.
         let mut more = self.eat("(");
         while more {
+            // A name followed by `(` is a record.
+            let record =
+                self.is_name() && matches!(self.toks.get(self.pos + 1), Some((Tok::Punct("("), _)));
             let value = matches!(self.peek(), Some(Tok::Num(_) | Tok::Str(_)))
+                || record
                 || self.is("-")
+                || self.is("(")
+                || self.is("[")
                 || self.is_keyword("true")
                 || self.is_keyword("false");
             let pos = if value {
@@ -530,35 +612,87 @@ impl P {
         if self.eat("!") {
             return Ok(Expr::Unary("!", Box::new(self.unary()?)));
         }
-        if self.eat("-") {
-            // `-` right before digits is a negative literal, down to i64::MIN.
-            if matches!(self.peek(), Some(Tok::Num(n)) if n.contains('.') || !n.trim_start_matches('0').is_empty())
-            {
-                return Ok(Expr::Lit(self.numeral(true)?));
-            }
+        // `-` right before digits is a negative literal, down to i64::MIN.
+        let negative = self.eat("-");
+        if negative
+            && !matches!(self.peek(), Some(Tok::Num(n)) if n.contains('.') || !n.trim_start_matches('0').is_empty())
+        {
             return Ok(Expr::Unary("-", Box::new(self.unary()?)));
         }
-        if self.is_name() {
+        let mut e = if negative {
+            Expr::Lit(self.numeral(true)?)
+        } else if self.is_name() {
             let f = self.ident()?;
-            if !self.eat("(") {
-                return Ok(Expr::Var(f));
+            if self.eat("(") {
+                // f(a, b), or the record Name(a, b)
+                let mut args = vec![self.expr()?];
+                while self.eat(",") {
+                    args.push(self.expr()?);
+                }
+                self.expect(")")?;
+                // A record's name makes it a record: see `records_in`.
+                Expr::Call(f, args)
+            } else {
+                Expr::Var(f)
             }
-            // f(a, b)
-            let mut args = vec![self.expr()?];
-            while self.eat(",") {
-                args.push(self.expr()?);
+        } else {
+            self.atom()?
+        };
+        // `.field` on a record, `.0` on a tuple, `[i]` on a list.
+        loop {
+            if self.eat("[") {
+                let i = self.expr()?;
+                self.expect("]")?;
+                e = Expr::Index(Box::new(e), Box::new(i));
+                continue;
             }
-            self.expect(")")?;
-            return Ok(Expr::Call(f, args));
+            if !self.eat(".") {
+                break;
+            }
+            let field = match self.next() {
+                Some(Tok::Ident(s)) if !KEYWORDS.contains(&s.as_str()) => s,
+                Some(Tok::Num(n)) if !n.contains('.') => n,
+                _ => {
+                    self.pos -= 1;
+                    return self.err(
+                        "expected a field name, or a position such as `.0`; \
+                         for a position inside a position write `(t.0).1`",
+                    );
+                }
+            };
+            e = Expr::Field(Box::new(e), field);
         }
-        self.atom()
+        Ok(e)
     }
     /// atom := value | name | "(" expr ")"
     fn atom(&mut self) -> Result<Expr, Error> {
         if self.eat("(") {
+            // `(e)` groups; `(a, b)` is a tuple.
+            let mut parts = vec![self.expr()?];
+            while self.eat(",") {
+                parts.push(self.expr()?);
+            }
+            self.expect(")")?;
+            return Ok(match parts.len() {
+                1 => parts.remove(0),
+                _ => Expr::Tuple(parts),
+            });
+        }
+        if self.eat("[") {
+            let mut parts = Vec::new();
+            while !self.eat("]") {
+                if !parts.is_empty() {
+                    self.expect(",")?;
+                }
+                parts.push(self.expr()?);
+            }
+            return Ok(Expr::List(parts));
+        }
+        if self.eat_keyword("len") {
+            self.expect("(")?;
             let e = self.expr()?;
             self.expect(")")?;
-            return Ok(e);
+            return Ok(Expr::Len(Box::new(e)));
         }
         if self.is_name() {
             return Ok(Expr::Var(self.ident()?));
@@ -578,9 +712,17 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
         let line = p.line();
         let Some(Tok::Ident(kw)) = p.next() else {
             p.pos -= 1;
-            return p.err("expected `opaque`, `def`, `claim` or `test`");
+            return p.err("expected `record`, `opaque`, `def`, `claim` or `test`");
         };
         match kw.as_str() {
+            "record" => {
+                // record Name(field: T, …)
+                let name = p.ident()?;
+                let fields = p.binders()?;
+                let record = Record { name, fields, line };
+                p.records.push(record.clone());
+                m.records.push(record);
+            }
             "opaque" | "def" => {
                 // opaque f (a : T) … : R   |   def f (a : T) … : R := expr
                 let name = p.ident()?;
@@ -700,19 +842,64 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
             k => {
                 p.pos -= 1;
                 return p.err(format!(
-                    "expected `opaque`, `def`, `claim` or `test`, got `{k}`"
+                    "expected `record`, `opaque`, `def`, `claim` or `test`, got `{k}`"
                 ));
             }
         }
     }
+    // `Name(a, b)` is a record when `Name` is one, wherever it is declared.
+    let names: Vec<String> = m.records.iter().map(|r| r.name.clone()).collect();
+    for f in &mut m.functions {
+        if let Some(body) = &mut f.body {
+            records_in(body, &names);
+        }
+    }
+    for c in &mut m.claims {
+        if let Target::Matches(e) = &mut c.target {
+            records_in(e, &names);
+        }
+    }
     Ok(m)
+}
+
+/// Turn the calls of a record's name into records.
+fn records_in(e: &mut Expr, names: &[String]) {
+    match e {
+        Expr::Lit(_) | Expr::Var(_) => {}
+        Expr::Call(f, args) => {
+            args.iter_mut().for_each(|a| records_in(a, names));
+            if names.contains(f) {
+                *e = Expr::Record(std::mem::take(f), std::mem::take(args));
+            }
+        }
+        Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+            args.iter_mut().for_each(|a| records_in(a, names))
+        }
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => records_in(a, names),
+        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) => {
+            records_in(a, names);
+            records_in(b, names);
+        }
+        Expr::If(a, b, c) => {
+            records_in(a, names);
+            records_in(b, names);
+            records_in(c, names);
+        }
+    }
 }
 
 /// The evidence file: `evidence forall …, <judgment> at <confidence>`, where the
 /// judgment is `correct(f(args))`, `not correct(f(args))`, `f(args) = value`,
 /// `claim` or `not claim`.
 pub fn parse_evidence(src: &str) -> Result<Vec<Evidence>, Error> {
+    parse_evidence_for(src, &[])
+}
+
+/// The evidence file of a model with these records: a record's name can
+/// then stand for all its values, as in `forall n in Number,`.
+pub fn parse_evidence_for(src: &str, records: &[Record]) -> Result<Vec<Evidence>, Error> {
     let mut p = P::new(src)?;
+    p.records = records.to_vec();
     let mut out = Vec::new();
     while !p.at_end() {
         let line = p.line();

@@ -355,6 +355,82 @@ impl Eval<'_> {
                 }
                 out
             }
+            Expr::Len(a) => {
+                let mut out = Vec::new();
+                for v in self.eval(a, env, line, subjects)? {
+                    match v {
+                        Value::List(vs) => out.push(Value::Int(vs.len() as i64)),
+                        v => return err(format!("`len` needs a list, got {v}")),
+                    }
+                }
+                out
+            }
+            Expr::Index(a, i) => {
+                let (xs, is) = (
+                    self.eval(a, env, line, subjects)?,
+                    self.eval(i, env, line, subjects)?,
+                );
+                let mut out = Vec::new();
+                for x in &xs {
+                    for i in &is {
+                        let at = match (x, i) {
+                            (Value::List(vs), Value::Int(i)) => {
+                                usize::try_from(*i).ok().and_then(|i| vs.get(i))
+                            }
+                            _ => None,
+                        };
+                        match at {
+                            Some(v) => out.push(v.clone()),
+                            None => return err(format!("`{x}[{i}]` is not defined")),
+                        }
+                    }
+                }
+                out
+            }
+            Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+                let args = args
+                    .iter()
+                    .map(|a| self.eval(a, env, line, subjects))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let mut out = Vec::new();
+                for parts in product(&args) {
+                    let Expr::Record(name, _) = e else {
+                        out.push(match e {
+                            Expr::List(_) => Value::List(parts),
+                            _ => Value::Tuple(parts),
+                        });
+                        continue;
+                    };
+                    let v = Value::Record(name.clone(), parts);
+                    let Some(r) = self.model.record(name) else {
+                        return err(format!("unknown record `{name}`"));
+                    };
+                    if !r.set().contains(&v) {
+                        return err(format!("`{v}` is not a `{name}`: {}", r.set()));
+                    }
+                    out.push(v);
+                }
+                out
+            }
+            Expr::Field(a, field) => {
+                let mut out = Vec::new();
+                for v in self.eval(a, env, line, subjects)? {
+                    let part = match &v {
+                        Value::Tuple(vs) => field.parse::<usize>().ok().and_then(|i| vs.get(i)),
+                        Value::Record(name, vs) => self
+                            .model
+                            .record(name)
+                            .and_then(|r| r.fields.iter().position(|f| &f.0 == field))
+                            .and_then(|i| vs.get(i)),
+                        _ => None,
+                    };
+                    match part {
+                        Some(p) => out.push(p.clone()),
+                        None => return err(format!("`{v}` has no `.{field}`")),
+                    }
+                }
+                out
+            }
             Expr::Unary(op, a) => {
                 let mut out = Vec::new();
                 for v in self.eval(a, env, line, subjects)? {
@@ -675,8 +751,11 @@ fn computable(e: &Expr, bound: &[&String], model: &Model) -> bool {
     match e {
         Expr::Lit(_) => true,
         Expr::Var(x) => bound.contains(&x),
-        Expr::Unary(_, a) => all(&[a]),
-        Expr::Binary(_, a, b) => all(&[a, b]),
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => all(&[a]),
+        Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+            args.iter().all(|a| computable(a, bound, model))
+        }
+        Expr::Binary(_, a, b) | Expr::Index(a, b) => all(&[a, b]),
         Expr::Call(f, args) => {
             model.function(f).is_some_and(|f| f.is_spec())
                 && args.iter().all(|a| computable(a, bound, model))
@@ -695,8 +774,11 @@ fn subject_calls<'e>(e: &'e Expr, model: &Model, out: &mut Vec<(&'e String, &'e 
             }
             args.iter().for_each(|a| subject_calls(a, model, out));
         }
-        Expr::Unary(_, a) => subject_calls(a, model, out),
-        Expr::Binary(_, a, b) | Expr::Let(_, a, b) => {
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => subject_calls(a, model, out),
+        Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+            args.iter().for_each(|a| subject_calls(a, model, out))
+        }
+        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) => {
             subject_calls(a, model, out);
             subject_calls(b, model, out);
         }

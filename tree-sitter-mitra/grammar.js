@@ -16,7 +16,7 @@ module.exports = grammar({
 
   rules: {
     source_file: $ => repeat(choice(
-      $.opaque, $.def, $.claim, $.test, $.evidence,
+      $.record, $.opaque, $.def, $.claim, $.test, $.evidence,
     )),
 
     comment: _ => token(seq('--', /[^\n\r]*/)),
@@ -26,6 +26,7 @@ module.exports = grammar({
     float: _ => /[0-9]+\.[0-9]+/,
     string: _ => /"[^"\n]*"/,
 
+    record: $ => seq('record', field('name', $.name), $.parameters),
     opaque: $ => seq('opaque', field('name', $.name), $.parameters, '->', field('type', $._set)),
     def: $ => seq('def', field('name', $.name), $.parameters, '->', field('type', $._set), ':=', field('body', $._expr)),
     parameters: $ => seq('(', sep1($.parameter, ','), ')'),
@@ -47,7 +48,8 @@ module.exports = grammar({
     call: $ => seq(field('function', $.name), optional(seq('(', sep1($._arg, ','), ')'))),
     // ASCII first; Lean's Unicode symbols are aliases.
     forall: $ => seq(choice('forall', '∀'), $.name, optional(seq(choice('in', '∈'), $._set)), ','),
-    _arg: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.negative),
+    _arg: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.negative,
+      $.tuple_value, $.record_value, $.list_value),
     negative: $ => seq('-', choice($.nat, $.float)),
 
     test: $ => seq('test', field('name', $.name), ':', repeat($.forall), $._judgment),
@@ -58,7 +60,11 @@ module.exports = grammar({
     not: $ => seq(choice('not', '¬'), choice($.correct, $.call)),
     output: $ => seq($.call, '=', $._value),
 
-    _set: $ => choice($.set_name, $.set_literal, $.range, $.set_op, $.set_paren),
+    _set: $ => choice($.set_name, $.set_literal, $.range, $.set_op, $.set_paren,
+      $.tuple_type, $.record_type, $.list_type),
+    tuple_type: $ => seq('(', $._set, ',', sep1($._set, ','), ')'),
+    record_type: $ => prec.right(seq(field('record', $.name), optional(seq('(', sep1($._set, ','), ')')))),
+    list_type: $ => seq('List', '(', $._set, ')'),
     set_name: _ => choice('Bool', 'Int', 'Int8', 'Int16', 'Int32', 'Int64', 'UInt8', 'UInt16',
       'UInt32', 'Float64', 'String', 'Value'),
     set_literal: $ => seq('{', optional(sep1($._value, ',')), '}'),
@@ -74,7 +80,13 @@ module.exports = grammar({
       prec.left(2, seq($._set, choice('&', '∩', '\\'), $._set)),
     ),
 
-    _expr: $ => choice($.if, $.let, $.binary, $.unary, $.application, $._atom),
+    _expr: $ => choice($.if, $.let, $.binary, $.unary, $.application, $.field, $.index,
+      $._atom),
+    field: $ => prec(8, seq($._expr, '.', field('field', choice($.name, $.nat)))),
+    index: $ => prec(8, seq($._expr, '[', $._expr, ']')),
+    tuple: $ => seq('(', $._expr, ',', sep1($._expr, ','), ')'),
+    list: $ => seq('[', optional(sep1($._expr, ',')), ']'),
+    len: $ => seq('len', '(', $._expr, ')'),
     if: $ => prec.right(seq('if', $._expr, 'then', $._expr, 'else', $._expr)),
     let: $ => prec.right(seq('let', $.name, ':=', $._expr, ';', $._expr)),
     binary: $ => choice(
@@ -84,10 +96,15 @@ module.exports = grammar({
     ),
     unary: $ => prec(6, seq(choice('!', '-'), $._expr)),
     application: $ => prec(7, seq(field('function', $.name), '(', sep1($._expr, ','), ')')),
-    _atom: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.paren),
+    _atom: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.paren, $.tuple, $.list,
+      $.len),
     paren: $ => seq('(', $._expr, ')'),
 
-    _value: $ => choice($.boolean, $.nat, $.float, $.string, $.negative_value),
+    _value: $ => choice($.boolean, $.nat, $.float, $.string, $.negative_value,
+      $.tuple_value, $.record_value, $.list_value),
+    tuple_value: $ => seq('(', $._value, ',', sep1($._value, ','), ')'),
+    record_value: $ => seq(field('record', $.name), '(', sep1($._value, ','), ')'),
+    list_value: $ => seq('[', optional(sep1($._value, ',')), ']'),
     negative_value: $ => seq('-', choice($.nat, $.float)),
     boolean: _ => choice('true', 'false'),
   },

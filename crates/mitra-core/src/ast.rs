@@ -15,6 +15,36 @@ pub enum Expr {
     Binary(&'static str, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     Let(String, Box<Expr>, Box<Expr>),
+    /// `(a, b)`: a tuple of two values or more.
+    Tuple(Vec<Expr>),
+    /// `Number(a, b)`: a record, one expression per field.
+    Record(String, Vec<Expr>),
+    /// `n.value` on a record, `t.0` on a tuple.
+    Field(Box<Expr>, String),
+    /// `[a, b]`: a list.
+    List(Vec<Expr>),
+    /// `xs[i]`: the element at a position, from 0.
+    Index(Box<Expr>, Box<Expr>),
+    /// `len(xs)`: the number of elements.
+    Len(Box<Expr>),
+}
+
+/// `record Number(value: Int, unit: String)`: a named group of fields.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Record {
+    pub name: String,
+    pub fields: Vec<(String, Set)>,
+    pub line: usize,
+}
+
+impl Record {
+    /// Every value of the record.
+    pub fn set(&self) -> Set {
+        Set::record(
+            &self.name,
+            self.fields.iter().map(|f| f.1.clone()).collect(),
+        )
+    }
 }
 
 /// A function: a `subject` (opaque, observed) when `body` is `None`, a
@@ -165,6 +195,7 @@ impl Test {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
+    pub records: Vec<Record>,
     pub functions: Vec<Function>,
     pub claims: Vec<Claim>,
     pub tests: Vec<Test>,
@@ -196,6 +227,25 @@ impl Model {
         Ok(())
     }
 
+    /// `text` with each record's whole set, `Number(Int, String)`, written
+    /// as its name. Both read back as the same set.
+    pub fn named(&self, text: &str) -> String {
+        let mut out = text.to_string();
+        for r in &self.records {
+            let whole = self
+                .records
+                .iter()
+                .take_while(|o| o.name != r.name)
+                .fold(r.set().to_string(), |t, o| {
+                    t.replace(&o.set().to_string(), &o.name)
+                });
+            out = out.replace(&whole, &r.name);
+        }
+        out
+    }
+    pub fn record(&self, name: &str) -> Option<&Record> {
+        self.records.iter().find(|r| r.name == name)
+    }
     pub fn function(&self, name: &str) -> Option<&Function> {
         self.functions.iter().find(|f| f.name == name)
     }
@@ -218,7 +268,16 @@ impl Model {
     pub fn check(mut self) -> Result<Model, (Input, Error)> {
         let m = |line, msg: String| (Input::Model, Error::new(line, msg));
         let mut names: Vec<(&String, usize)> =
-            self.functions.iter().map(|f| (&f.name, f.line)).collect();
+            self.records.iter().map(|r| (&r.name, r.line)).collect();
+        for r in &self.records {
+            for (i, (field, _)) in r.fields.iter().enumerate() {
+                if r.fields[..i].iter().any(|f| &f.0 == field) {
+                    let msg = format!("`{}` has two fields `{field}`", r.name);
+                    return Err(m(r.line, msg));
+                }
+            }
+        }
+        names.extend(self.functions.iter().map(|f| (&f.name, f.line)));
         names.extend(self.claims.iter().map(|c| (&c.name, c.line)));
         names.extend(self.tests.iter().map(|t| (&t.name, t.line)));
         for (i, (n, line)) in names.iter().enumerate() {
@@ -439,8 +498,13 @@ pub fn calls(e: &Expr) -> Vec<String> {
         Expr::Call(f, args) => std::iter::once(f.clone())
             .chain(args.iter().flat_map(calls))
             .collect(),
-        Expr::Unary(_, a) => calls(a),
-        Expr::Binary(_, a, b) | Expr::Let(_, a, b) => [calls(a), calls(b)].concat(),
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => calls(a),
+        Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+            args.iter().flat_map(calls).collect()
+        }
+        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) => {
+            [calls(a), calls(b)].concat()
+        }
         Expr::If(a, b, c) => [calls(a), calls(b), calls(c)].concat(),
     }
 }

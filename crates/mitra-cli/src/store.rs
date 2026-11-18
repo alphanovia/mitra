@@ -84,7 +84,13 @@ impl Store {
         source: Option<String>,
         rev: Option<String>,
     ) -> Result<usize, String> {
-        let mut new = mitra_core::parse_evidence(text).map_err(|err| format!("evidence: {err}"))?;
+        // The model's records, so that a record's name can stand for its values.
+        let records = match mitra_core::parse_model(&self.source()?.text) {
+            Ok(m) => m.records,
+            Err(_) => Vec::new(),
+        };
+        let mut new = mitra_core::parse_evidence_for(text, &records)
+            .map_err(|err| format!("evidence: {err}"))?;
         if new.is_empty() {
             return Err("no evidence given".into());
         }

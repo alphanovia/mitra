@@ -668,6 +668,6 @@ impl Report {
                 );
             }
         }
-        out
+        self.model.named(&out)
     }
 }

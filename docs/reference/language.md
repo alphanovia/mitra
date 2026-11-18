@@ -126,7 +126,7 @@ used as a wildcard, a claim named where a subject is expected.
 The syntax is a small, fixed subset inspired by Lean 4
 ([design](../design/lean-syntax.md)), written in ASCII, with parameters
 and calls in parentheses: `f(a: Int, b: Int) -> Int` and `f(1, -2)`. Every command starts
-with a keyword (`opaque`, `def`, `claim`, `test`, `evidence`), so a parser knows what it reads from the first token. Layout is
+with a keyword (`record`, `opaque`, `def`, `claim`, `test`, `evidence`), so a parser knows what it reads from the first token. Layout is
 free: line breaks and indentation mean nothing.
 
 - `--` starts a comment that runs to the end of the line.
@@ -137,11 +137,12 @@ free: line breaks and indentation mean nothing.
   `1..5` reads as `1`, `..`, `5`.
 - Strings: `"` … `"` on one line, no escapes.
 - Symbols, longest match first: `@[` `..=` `:=` `=>` `->` `==` `!=` `<=` `>=`
-  `&&` `||` `..` `(` `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `&` `!` `<` `>`
+  `&&` `||` `..` `.` `(` `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `&` `!` `<` `>`
   `+` `-` `*` `\`.
-- Keywords: `opaque def claim test evidence correct at by derive if then
-  else let true false forall in not uniform uses only Bool Int Int8 Int16
-  Int32 Int64 UInt8 UInt16 UInt32 Float64 String Value Real _`. `Real`
+- Keywords: `record opaque def claim test evidence correct at by derive
+  if then else let true false forall in not uniform uses only len List
+  Bool Int Int8 Int16 Int32 Int64 UInt8 UInt16 UInt32 Float64 String
+  Value Real _`. `Real`
   and `_` are reserved.
 - Lean's Unicode symbols are accepted as aliases: `∀` for `forall`, `∈` for
   `in`, `¬` for `not`, `∪` for `|`, `∩` for `&`. Mitra prints ASCII.
@@ -150,8 +151,9 @@ free: line breaks and indentation mean nothing.
 
 ```ebnf
 model      = { command } ;
-command    = opaque | def | claim | test ;
+command    = record | opaque | def | claim | test ;
 
+record     = "record" name params ;
 opaque     = "opaque" name params "->" set ;
 def        = "def" name params "->" set ":=" expr ;
 params     = "(" param { "," param } ")" ;
@@ -179,7 +181,9 @@ inter      = set-atom { ( "&" | "\" ) set-atom } ;
 set-atom   = "Bool" | "Int" | "Int8" | "Int16" | "Int32" | "Int64"
            | "UInt8" | "UInt16" | "UInt32" | "Float64" | "String" | "Value"
            | "{" [ value { "," value } ] "}"
-           | "(" set ")"
+           | "(" set { "," set } ")"
+           | name [ "(" set { "," set } ")" ]
+           | "List" "(" set ")"
            | bound ( "..=" bound | ".." [ bound ] )
            | ( "..=" | ".." ) bound ;
 bound      = [ "-" ] nat ;
@@ -193,10 +197,17 @@ compare    = sum { ( "==" | "!=" | "<" | "<=" | ">" | ">=" ) sum } ;
 sum        = product { ( "+" | "-" ) product } ;
 product    = unary { "*" unary } ;
 unary      = ( "!" | "-" ) unary
-           | name [ "(" expr { "," expr } ")" ]
-           | "true" | "false" | number | string | "(" expr ")" ;
+           | atom { "." ( name | nat ) | "[" expr "]" } ;
+atom       = name [ "(" expr { "," expr } ")" ]
+           | "true" | "false" | number | string
+           | "(" expr { "," expr } ")"
+           | "[" [ expr { "," expr } ] "]"
+           | "len" "(" expr ")" ;
 
-value      = "true" | "false" | [ "-" ] number | string ;
+value      = "true" | "false" | [ "-" ] number | string
+           | "(" value "," value { "," value } ")"
+           | name "(" value { "," value } ")"
+           | "[" [ value { "," value } ] "]" ;
 number     = nat | dec ;
 ```
 
@@ -216,7 +227,9 @@ Beyond the grammar, the parser checks:
   or computed with;
 - `dec` numbers are finite 64-bit floats;
 - a range has an upper bound after `..=`, and `..` alone is not a range;
-  ranges are over integers only.
+  ranges are over integers only;
+- a name used alone as a set is a record declared above it;
+- `t.0.1` reads `0.1` as a number: write `(t.0).1`.
 
 ### Grammar checks
 
@@ -254,6 +267,11 @@ Types are sets of values, and every group of inputs is a set.
 | `{1, 2.5, "a", true}` | exactly these values (`1` is an integer, `1.0` a float) |
 | `0..=100`, `0..100` | the integers from 0 to 100, with or without 100 |
 | `5..`, `..=5`, `..5` | the integers from 5 up, up to 5, below 5 |
+| `(A, B)` | the tuples of one value of A and one of B; two parts or more |
+| `Number` | every value of the record `Number` (see `record`) |
+| `Number(A, B)` | the records `Number` with a first field in A and a second in B |
+| `List(A)` | the lists, of any length, whose elements are all in A |
+| `{(1, "a"), Number(1, "m"), [1, 2]}` | exactly these values |
 | `A \| B`, `A & B`, `A \ B` | union, intersection, difference |
 
 `&` and `\` bind tighter than `|`, and each applies left to right; use
@@ -266,13 +284,36 @@ Results print in a normal form: `Value`, `Bool`, `Int`, `Float64`,
 `String`, `{…}` for single values, `a..=b`, `a..` and `..=b` for ranges (a
 range equal to a fixed-width type prints its name, such as `Int8`),
 `T \ {…}` for a type minus some values, joined by ` | `. The empty set
-prints `{}`.
+prints `{}`. A set of tuples or records prints as products,
+`Number(0..=2, {"m"})`, or as a product minus a few values; a set of
+lists as `List(A)`, with `\ List(B)` for "at least one element outside
+B" and `\ {[]}` for "not the empty list". In reports a record's whole
+set prints as its name.
+
+`Value` holds every tuple, record and list too. A value is a tuple, a
+record or a list by its form, whatever was declared: `Number(1, "m")` is
+in `Value` and in `Number(Int, String)`, and it is in `Number` when the
+fields fit the declaration.
 
 Floats in a set are compared exactly: `NaN` is one value, and `0.0` and
 `-0.0` are two. NaN and the infinities have no literal: they can only come
 out of float arithmetic in a spec.
 
 ## Commands
+
+### record: a group of named fields
+
+```lean
+record Number(value: Int, unit: String)
+record Sprint(committed: Int, delivered: Int, goal_met: Bool)
+```
+
+A record is a type: `Number` is the set of the values `Number(v, u)`
+with `v` in `Int` and `u` in `String`. Its name then works wherever a set
+does, for a parameter, a result, a field of another record or the
+elements of a list. A record is declared above its first use as a set,
+and can't hold itself. Two records with the same fields are different
+types.
 
 ### opaque: a subject
 
@@ -303,6 +344,27 @@ Integer arithmetic is 64-bit and an overflow is an error. Float arithmetic
 and `<` `<=` `>` `>=` follow IEEE 754; `==` and `!=` compare values exactly
 (`NaN == NaN` is true, `0.0 == -0.0` is false). A spec is true by
 definition: evidence does not apply to it (see Evaluation).
+
+Tuples, records and lists in a body:
+
+```lean
+def add_spec(l: Number, r: Number) -> Number := Number(l.value + r.value, l.unit)
+def swap(t: (Int, String)) -> (String, Int) := (t.1, t.0)
+def size(xs: List(Int)) -> {"empty", "one", "many"} :=
+  if len(xs) == 0 then "empty" else if len(xs) == 1 then "one" else "many"
+def first(xs: List(Int) \ {[]}) -> Int := xs[0]
+```
+
+- `(a, b)` builds a tuple, `Number(a, b)` a record, `[a, b]` a list (`[]`
+  is the empty list). Building a record whose fields don't fit its
+  declaration is an error.
+- `r.field` reads a field of a record, `t.0` a position of a tuple (from
+  0), `xs[i]` an element of a list (from 0), and `len(xs)` is its length.
+  A missing field, or a position outside the tuple or the list, is an
+  error.
+- `==` and `!=` compare tuples, records and lists part by part. There is
+  no other operation on them yet: no concatenation, no loop over the
+  elements.
 
 ### claim
 
@@ -381,7 +443,11 @@ evidence flip_not_shape at 1
 ```
 
 - `f(args) = v`: the subject was run on one input and returned `v`, which
-  must lie in its result type. Used by `=` claims.
+  must lie in its result type. Used by `=` claims. Inputs and outputs can
+  be tuples, records and lists:
+  `evidence add(Number(1, "m"), Number(2, "m")) = Number(3, "m") at 1`,
+  `evidence sort([3, 1, 2]) = [1, 2, 3] at 1`. An argument is a whole
+  value or a bound name: `Number(x, "m")` with `x` bound is not accepted.
 - `correct(f(args))` / `not correct(f(args))`: people judged the subject's
   results on these inputs correct (or wrong). A single input is a test; a
   set is evidence for every input in it, such as a proof. Used by `correct`
@@ -1010,6 +1076,20 @@ failing `quarter`:
 | 05 | vouched; `half` tested on 0 only | `quarter` itself, or where no claim covers `half` |
 | 06 | vouched; `half` holds, but fails on 7, outside its claim | none |
 | 07 | vouched; a second claim `uses quarter [eighth]`, `eighth` without a claim | `quarter` itself, or where no claim covers them |
+
+### `types`: records, tuples and lists
+
+Each case has its own model.
+
+| Case | Model and evidence | Verdicts |
+|---|---|---|
+| 01 | `add` on `Number`, against the spec `add_spec`; the four outputs of the small domain; `uniform add` vouched, one `correct` | all hold |
+| 02 | an output with the wrong unit, at 0.9 | `add_is` fails; error on the code and the evidence |
+| 03 | one `correct` on records, nothing vouched | `add_is` unverified, `add_ok` holds assuming [add_uniform] |
+| 04 | `sprint` returns a `Sprint`; `healthy` is claimed equal to `sprint(..).delivered >= sprint(..).committed`; sprint 3 slipped at 0.7 but `healthy` says true | both claims fail |
+| 05 | `divmod` returns `(Int, Int)`, compared with a spec and with `(dm(a, b).0, 1)` | both fail on `divmod(3, 1)` |
+| 06 | `sort` on `List(Int)` with `uniform sort by size` (empty, one, many); `[]` and `[3, 1, 2]` pass; `sort([7]) = [7]`; `total` on `List(Number)` | `sort_ok` unverified: class "one"; `sort_one` holds |
+| 07 | a passing list in each class; evidence on every `ns` | `sort_ok` and `total_ok` hold |
 
 ### `numbers`: integer types, ranges and floats
 

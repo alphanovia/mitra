@@ -1,0 +1,5 @@
+evidence sort_uniform at 1
+evidence correct(sort([])) at 1
+evidence correct(sort([5])) at 1
+evidence correct(sort([3, 1, 2])) at 1
+evidence forall ns, correct(total(ns)) at 1

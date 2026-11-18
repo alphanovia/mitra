@@ -1,0 +1,6 @@
+evidence add(Number(0, "m"), Number(0, "m")) = Number(0, "m") at 1
+evidence add(Number(0, "m"), Number(1, "m")) = Number(1, "m") at 1
+evidence add(Number(1, "m"), Number(0, "m")) = Number(1, "m") at 1
+evidence add(Number(1, "m"), Number(1, "m")) = Number(2, "m") at 1
+evidence add_uniform at 1
+evidence correct(add(Number(1, "m"), Number(2, "km"))) at 1

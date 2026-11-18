@@ -66,6 +66,23 @@ fn string(r: &mut Rng) -> String {
 }
 
 fn value(r: &mut Rng) -> String {
+    composite(r, 2)
+}
+
+/// A value, with tuples, records and lists down to `depth`.
+fn composite(r: &mut Rng, depth: usize) -> String {
+    if depth > 0 && r.chance(20) {
+        let parts = |r: &mut Rng, lo| r.many(lo, 3, |r| composite(r, depth - 1)).join(" , ");
+        return match r.below(3) {
+            0 => format!("( {} )", parts(r, 2)),
+            1 => format!("{} ( {} )", name(r), parts(r, 1)),
+            _ => format!("[ {} ]", parts(r, 0)),
+        };
+    }
+    scalar(r)
+}
+
+fn scalar(r: &mut Rng) -> String {
     match r.below(7) {
         0 => "true".into(),
         1 => "false".into(),
@@ -125,11 +142,19 @@ fn inter(r: &mut Rng, depth: usize) -> String {
 }
 
 fn set_atom(r: &mut Rng, depth: usize) -> String {
-    match r.below(if depth == 0 { 6 } else { 7 }) {
+    match r.below(if depth == 0 { 6 } else { 10 }) {
         0..=3 => TYPES[r.below(TYPES.len())].into(),
         4 => format!("{{ {} }}", r.many(0, 3, value).join(" , ")),
         5 => range(r),
-        _ => format!("( {} )", set(r, depth - 1)),
+        6 => format!("( {} )", set(r, depth - 1)),
+        // Tuples, records with their fields, lists.
+        7 => format!("( {} )", r.many(2, 3, |r| set(r, depth - 1)).join(" , ")),
+        8 => format!(
+            "{} ( {} )",
+            name(r),
+            r.many(1, 3, |r| set(r, depth - 1)).join(" , ")
+        ),
+        _ => format!("List ( {} )", set(r, depth - 1)),
     }
 }
 
@@ -152,15 +177,7 @@ fn call_args(r: &mut Rng, min: usize) -> (String, String) {
             bound.push(binder);
             args.push(x.to_string());
         } else {
-            args.push(match r.below(7) {
-                0 => "true".into(),
-                1 => "false".into(),
-                2 => nat(r),
-                3 => format!("- {}", nat(r)),
-                4 => float(r),
-                5 => format!("- {}", float(r)),
-                _ => string(r),
-            });
+            args.push(value(r));
         }
     }
     // Binders may come in any order.
@@ -229,21 +246,33 @@ fn literal(r: &mut Rng) -> String {
 }
 
 fn unary(r: &mut Rng, depth: usize) -> String {
-    match if depth == 0 {
-        2 + r.below(2)
-    } else {
-        r.below(6)
-    } {
-        0 => format!("! {}", unary(r, depth - 1)),
-        1 => format!("- {}", unary(r, depth - 1)),
-        2 => literal(r),
-        3 => name(r),
-        4 => format!(
-            "{} ( {} )",
-            name(r),
-            r.many(1, 3, |r| expr(r, depth - 1)).join(" , ")
-        ),
-        _ => format!("( {} )", expr(r, depth - 1)),
+    if depth > 0 && r.chance(15) {
+        return match r.below(2) {
+            0 => format!("! {}", unary(r, depth - 1)),
+            _ => format!("- {}", unary(r, depth - 1)),
+        };
+    }
+    let mut s = atom(r, depth);
+    while depth > 0 && r.chance(15) {
+        s = match r.below(3) {
+            0 => format!("{s} . {}", name(r)),
+            1 => format!("{s} . {}", r.below(3)),
+            _ => format!("{s} [ {} ]", expr(r, depth - 1)),
+        };
+    }
+    s
+}
+
+fn atom(r: &mut Rng, depth: usize) -> String {
+    let exprs = |r: &mut Rng, lo| r.many(lo, 3, |r| expr(r, depth - 1)).join(" , ");
+    match if depth == 0 { r.below(2) } else { r.below(7) } {
+        0 => literal(r),
+        1 => name(r),
+        2 => format!("{} ( {} )", name(r), exprs(r, 1)),
+        3 => format!("( {} )", expr(r, depth - 1)),
+        4 => format!("( {} )", exprs(r, 2)),
+        5 => format!("[ {} ]", exprs(r, 0)),
+        _ => format!("len ( {} )", expr(r, depth - 1)),
     }
 }
 
@@ -253,6 +282,9 @@ fn binders(r: &mut Rng) -> String {
 }
 
 fn command(r: &mut Rng) -> String {
+    if r.chance(10) {
+        return format!("record {}{}", name(r), binders(r));
+    }
     match r.below(4) {
         3 => format!("test {} : {}", name(r), judgment(r)),
         0 => format!("opaque {}{} -> {}", name(r), binders(r), set(r, 2)),

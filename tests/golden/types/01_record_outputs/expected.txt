@@ -1,0 +1,5 @@
+add_is: holds
+add_ok: holds
+  passes on       `add(Number(1, "m"), Number(2, "km"))`
+  assumed on      every input, by `add_uniform`
+add_uniform: holds
