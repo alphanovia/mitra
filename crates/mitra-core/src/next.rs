@@ -13,9 +13,37 @@ const WIDE: usize = 100;
 
 pub fn next(model: &Model, report: &Report) -> String {
     let mut out = String::new();
+    // One verdict per claim; among failing claims, first those on a
+    // subject that uses nothing failing: the likely root causes.
+    let mut verdicts: Vec<&crate::eval::Verdict> = Vec::new();
+    for v in &report.verdicts {
+        if !verdicts.iter().any(|w| w.claim == v.claim) {
+            verdicts.push(v);
+        }
+    }
+    let subject = |v: &crate::eval::Verdict| &model.claim(&v.claim).expect("checked").func;
+    let suspects = |f: &String| -> Vec<&crate::eval::Suspect> {
+        report.suspects.iter().filter(|s| &s.subject == f).collect()
+    };
+    let look = |f: &String| -> String {
+        suspects(f)
+            .iter()
+            .map(|s| {
+                format!(
+                    "  look first at `{}`, which `{f}` uses: {} fail{} there\n",
+                    s.uses,
+                    s.failing.join(", "),
+                    if s.failing.len() == 1 { "s" } else { "" }
+                )
+            })
+            .collect()
+    };
     // What can't all be true comes first.
-    for k in &report.conflicts {
-        let subject = &model.claim(&k.claim).expect("conflicts name claims").func;
+    let mut conflicts: Vec<&crate::eval::Conflict> = report.conflicts.iter().collect();
+    let of = |k: &crate::eval::Conflict| &model.claim(&k.claim).expect("checked").func;
+    conflicts.sort_by_key(|k| !suspects(of(k)).is_empty());
+    for k in conflicts {
+        let subject = of(k);
         out += &format!(
             "{} : fails: `{}` passes and `{}` fails, both in class {} of `{}`\n  \
              find what differs between the two inputs and split the class in `{}`,\n  \
@@ -27,27 +55,42 @@ pub fn next(model: &Model, report: &Report) -> String {
             k.spec,
             k.spec
         );
+        out += &look(subject);
     }
-    let mut seen = Vec::new();
-    for v in &report.verdicts {
-        if seen.contains(&&v.claim) {
-            continue;
-        }
-        seen.push(&v.claim);
+    verdicts.sort_by_key(|v| v.logic != Logic::Fails || !suspects(subject(v)).is_empty());
+    for v in verdicts {
         let c = model.claim(&v.claim).expect("verdicts name claims");
-        let uniform = matches!(c.target, Target::Uniform(_));
-        if v.logic == Logic::Fails && !uniform {
+        let conflict = report.conflicts.iter().any(|k| k.claim == c.name);
+        if v.logic == Logic::Fails && c.target.is_structural() && !conflict {
+            out += &format!("{} : fails: evidence says so\n", c.name);
+        }
+        if v.logic == Logic::Fails && !c.target.is_structural() {
             out += &format!("{} : fails on {}\n", c.name, v.refuted.show(&v.domain));
+            out += &look(&c.func);
+        }
+        if v.logic == Logic::Holds && !c.target.is_structural() && !suspects(&c.func).is_empty() {
+            out += &format!("{} : holds, but is suspect\n", c.name);
+            out += &look(&c.func);
         }
         if v.logic != Logic::Uncertain {
             continue;
         }
         if let Target::Uniform(spec) = &c.target {
-            out += &format!(
-                "{} : not vouched for\n  review that `{}` behaves the same within each class of `{spec}`, then:\n  \
-                 evidence {} at 1\n",
-                c.name, c.func, c.name
-            );
+            out += &if v.covered.is_empty() {
+                format!(
+                    "{} : not vouched for\n  review that `{}` behaves the same within each class of `{spec}`, then:\n  \
+                     evidence {} at 1\n",
+                    c.name, c.func, c.name
+                )
+            } else {
+                format!(
+                    "{} : vouched for in part, or both vouched for and denied: settle the evidence on it\n",
+                    c.name
+                )
+            };
+            continue;
+        }
+        if matches!(c.target, Target::Uses(_)) {
             continue;
         }
         let missing = v.domain.minus(&v.covered);
@@ -59,7 +102,7 @@ pub fn next(model: &Model, report: &Report) -> String {
             };
         }
         match &v.assumed {
-            Some(a) if a.holds => {
+            Some(a) if a.holds && !a.untested.is_empty() => {
                 let n = a.untested.len();
                 out += &format!("{} : missing {n} of the classes of `{}`\n", c.name, a.spec)
             }
@@ -84,6 +127,7 @@ pub fn next(model: &Model, report: &Report) -> String {
         if !waiting.is_empty() {
             out += &format!("  derived: waits on {}\n", waiting.join(", "));
         }
+        out += &look(&c.func);
         // With a uniform claim, one passing input per class is enough.
         if let Some(a) = &v.assumed {
             let by = report.verdicts.iter().find(|w| w.claim == a.by);
@@ -98,6 +142,14 @@ pub fn next(model: &Model, report: &Report) -> String {
                     )
                 }
                 _ => {}
+            }
+            if a.blind {
+                out +=
+                    "  a failure over a set too large to sort into classes: nothing is assumed\n";
+                continue;
+            }
+            if a.untested.is_empty() {
+                out += "  some inputs have both a pass and a failure: settle them\n";
             }
             for class in &a.untested {
                 out += &format!(

@@ -237,6 +237,21 @@ fn t_yager_rejects_sum() {
     assert_eq!(mass(0.5, 0.5, 0.5).yager(&Mass::VACUOUS), None);
 }
 
+// `mitra next` asked for these two: the classes "second invalid" of
+// `yager` and "first invalid" of `dempster` had no test.
+
+// mitra: test t_yager_rejects_second : correct (yager 0.0 0.0 1.0 0.5 0.5 0.5)
+#[test]
+fn t_yager_rejects_second() {
+    assert_eq!(Mass::VACUOUS.yager(&mass(0.5, 0.5, 0.5)), None);
+}
+
+// mitra: test t_dempster_rejects_first : correct (dempster (-0.5) 0.5 1.0 0.0 0.0 1.0)
+#[test]
+fn t_dempster_rejects_first() {
+    assert_eq!(mass(-0.5, 0.5, 1.0).dempster(&Mass::VACUOUS), None);
+}
+
 // mitra: test t_dempster_rejects_negative : correct (dempster 0.0 0.0 1.0 (-0.5) 0.5 1.0)
 #[test]
 fn t_dempster_rejects_negative() {

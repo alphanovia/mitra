@@ -1,0 +1,5 @@
+-- A failure somewhere in a set too large to sort into classes: no class
+-- can be relied on, so nothing is assumed.
+evidence div_uniform at 1
+evidence correct (div 6 3) at 1
+evidence forall a in 10.., forall b in 10.., not correct (div a b) at 1

@@ -13,7 +13,8 @@ BindersTail   = Binder BindersTail | ;
 Binder        = "(" NAME Names ":" Set ")" ;
 Names         = NAME Names | ;
 Claim         = "claim" NAME ":" ClaimRest ;
-ClaimRest     = "uniform" NAME "by" NAME | Foralls ClaimBody Derive ;
+ClaimRest     = "uniform" NAME "by" NAME | "uses" NAME "[" NAME NamesTail "]"
+              | Foralls ClaimBody Derive ;
 ClaimBody     = "correct" "(" NAME Args ")" | NAME Args "=" Expr ;
 Derive        = ":=" "by" "derive" "[" NAME NamesTail "]" | ;
 NamesTail     = "," NAME NamesTail | ;

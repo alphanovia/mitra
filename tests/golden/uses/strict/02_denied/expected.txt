@@ -1,0 +1,6 @@
+half_correct [strict] := { logic := .fails, refuted := {1}, domain := 0..=1, belief := 0 }
+quarter_correct [strict] := { logic := .fails, refuted := {1}, domain := 0..=1, belief := 0 }
+eighth_correct [strict] := { logic := .uncertain, covered := {}, domain := 0..=1, belief := 0 }
+quarter_uses [strict] := { logic := .fails, refuted := Int, domain := Int, belief := 0 }
+eighth_uses [strict] := { logic := .uncertain, covered := {}, domain := Int, belief := 0 }
+suspect: `eighth` uses `quarter`, where quarter_correct fails: look there first

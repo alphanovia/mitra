@@ -2,7 +2,7 @@
 
 Status: **proposal**. Implemented so far: derived claims
 (`:= by derive [...]`), whose implication is checked on finite domains, and
-`test` declarations ([reference](../reference/language.md)). Syntax below
+`test` declarations, `uniform` and `uses` claims ([reference](../reference/language.md)). Syntax below
 not in the reference is a sketch. Confidence between 0 and 1 is in
 [calculus.md](calculus.md).
 
@@ -31,7 +31,7 @@ From least to most knowledge:
 |---|---|---|
 | `correct (f x)` | f does the right thing, as people judge it | today |
 | `f x = g x` | f equals the spec g | today |
-| `uses f [g, h]` | f calls g and h | **impact**: a refuted claim on g makes claims on f *suspect* (flagged, not failed) |
+| `uses f [g, h]` | f calls g and h | **impact**: a failing claim on g makes f *suspect* (flagged, not failed): implemented |
 | `only uses f [g, h]` | f depends on nothing else | **frame**: evidence and changes elsewhere are irrelevant to f |
 | `f x = h (g x)` | f's shape | **derivation**: the implication becomes definitional and is checked |
 

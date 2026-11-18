@@ -64,6 +64,16 @@ pub enum Target {
     /// class, the classes being the values of the spec `g`. So one judged
     /// input stands for its whole class.
     Uniform(String),
+    /// `uses f [g, h]`: the subject calls these subjects, so a failure of
+    /// one of them is the first place to look when `f` fails.
+    Uses(Vec<String>),
+}
+
+impl Target {
+    /// A claim about the subject's structure, not about its results.
+    pub fn is_structural(&self) -> bool {
+        matches!(self, Target::Uniform(_) | Target::Uses(_))
+    }
 }
 
 /// The most classes a `uniform` claim's spec may have.
@@ -259,16 +269,40 @@ impl Model {
         // `uniform f by g` is about every input of `f`.
         for i in 0..self.claims.len() {
             let c = &self.claims[i];
-            let Target::Uniform(g) = &c.target else {
+            if !c.target.is_structural() {
                 continue;
-            };
+            }
             let Some(f) = self.function(&c.func) else {
                 return Err(m(c.line, format!("unknown function `{}`", c.func)));
             };
+            let whole = Position {
+                var: None,
+                set: None,
+            };
+            let arity = f.params.len();
             if f.is_spec() {
-                let msg = format!("`{}` is a spec: `uniform` is for subjects", c.func);
+                let msg = format!(
+                    "`{}` is a spec: `uniform` and `uses` are for subjects",
+                    c.func
+                );
                 return Err(m(c.line, msg));
             }
+            let g = match &c.target {
+                Target::Uniform(g) => g,
+                Target::Uses(used) => {
+                    for g in used {
+                        if !self.function(g).is_some_and(|g| !g.is_spec()) {
+                            return Err(m(c.line, format!("`{g}` is not a subject")));
+                        }
+                        if g == &c.func {
+                            return Err(m(c.line, format!("`{g}` can't use itself")));
+                        }
+                    }
+                    self.claims[i].pattern = vec![whole; arity];
+                    continue;
+                }
+                _ => unreachable!(),
+            };
             let Some(g) = self.function(g).filter(|g| g.is_spec()) else {
                 return Err(m(c.line, format!("`{g}` is not a spec")));
             };
@@ -295,11 +329,7 @@ impl Model {
                     format!("`{}` already has a `uniform` claim", c.func),
                 ));
             }
-            let whole = Position {
-                var: None,
-                set: None,
-            };
-            self.claims[i].pattern = vec![whole; f.params.len()];
+            self.claims[i].pattern = vec![whole; arity];
         }
         for (i, c) in self.claims.iter().enumerate() {
             let Some(f) = self.function(&c.func) else {
@@ -327,6 +357,13 @@ impl Model {
                 ));
             }
             for p in &c.from {
+                let structural = |d: &&Claim| &d.name == p && d.target.is_structural();
+                if self.claims.iter().any(|d| structural(&d)) {
+                    return Err(m(
+                        c.line,
+                        format!("`{p}` is a `uniform` or `uses` claim: it can't be a premise"),
+                    ));
+                }
                 if !self.claims[..i].iter().any(|d| &d.name == p) {
                     return Err(m(
                         c.line,

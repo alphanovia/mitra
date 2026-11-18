@@ -79,6 +79,9 @@ pub struct Assumed {
     pub spec: String,
     /// Whether the `uniform` claim holds: only then does `set` count.
     pub holds: bool,
+    /// A failure over a set too large to sort into classes: no class is
+    /// relied on.
+    pub blind: bool,
     /// The classes with an input that passed.
     pub classes: Vec<Value>,
     /// The classes the claim needs that have none.
@@ -101,6 +104,16 @@ pub struct Conflict {
     pub fail: (Vec<Value>, usize, String),
 }
 
+/// A subject that uses, directly or through others, a subject with a
+/// failing claim: the place to look first.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Suspect {
+    pub subject: String,
+    pub uses: String,
+    /// The failing claims on `uses`.
+    pub failing: Vec<String>,
+}
+
 /// Evidence Mitra cannot use as given.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Flag {
@@ -113,6 +126,7 @@ pub struct Report {
     pub verdicts: Vec<Verdict>,
     pub flags: Vec<Flag>,
     pub conflicts: Vec<Conflict>,
+    pub suspects: Vec<Suspect>,
 }
 
 type Env = HashMap<String, Value>;
@@ -436,6 +450,9 @@ struct Direct {
     wrong: Tuples,
     /// Single inputs judged for this claim, contradictions left out.
     points: Vec<Point>,
+    /// A failure over a set too large to read input by input: its classes
+    /// are unknown.
+    blind: bool,
 }
 
 /// The inputs of `set` one by one, when there are few enough.
@@ -487,6 +504,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         // the claim's domain; `points` keeps the inputs outside it too.
         let (mut right, mut wrong) = (Tuples::empty(arity), Tuples::empty(arity));
         let mut points: Vec<Point> = Vec::new();
+        let mut blind = false;
         for e in model.evidence.iter().filter(believed) {
             let ok = match &e.judgment {
                 Judgment::Holds(ok) if e.about == c.name => *ok,
@@ -498,7 +516,9 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 _ => continue,
             };
             let set = model.covers(&c.func, &e.pattern);
-            points.extend(listed(&set).into_iter().map(|x| (x, ok, e.line)));
+            let inputs = listed(&set);
+            blind |= !ok && inputs.is_empty() && !set.is_empty();
+            points.extend(inputs.into_iter().map(|x| (x, ok, e.line)));
             let side = if ok { &mut right } else { &mut wrong };
             *side = side.union(&set);
         }
@@ -511,7 +531,25 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                     .filter(|x| x.len() == arity && domain.contains(x))
                     .collect()
             });
-            for x in inputs {
+            // For classes, also the observed inputs outside the domain that
+            // the same statement reaches: those that fit the claim's values.
+            let reach: Pattern = c
+                .pattern
+                .iter()
+                .map(|p| Position {
+                    var: p.var.clone(),
+                    set: p.set.clone().filter(|_| p.var.is_none()),
+                })
+                .collect();
+            let reach = model.covers(&c.func, &reach);
+            let outside: Vec<Vec<Value>> = ev
+                .observed
+                .keys()
+                .filter(|(f, x)| f == &c.func && reach.contains(x) && !domain.contains(x))
+                .map(|(_, x)| x.clone())
+                .collect();
+            for x in inputs.into_iter().chain(outside) {
+                let inside = domain.contains(&x);
                 if let Some((ok, ko)) = ev
                     .compare(c, target, &x, Subjects::Observed)
                     .map_err(model_err)?
@@ -527,12 +565,19 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                         })
                         .map_or(0, |e| e.line);
                     let point = Tuples::point(&x);
+                    if ok && ko && !inside {
+                        continue;
+                    }
                     if ok {
-                        right = right.union(&point);
+                        if inside {
+                            right = right.union(&point);
+                        }
                         points.push((x.clone(), true, line));
                     }
                     if ko {
-                        wrong = wrong.union(&point);
+                        if inside {
+                            wrong = wrong.union(&point);
+                        }
                         points.push((x, false, line));
                     }
                 }
@@ -544,6 +589,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             wrong: wrong.intersect(&domain),
             domain,
             points,
+            blind,
         });
     }
     // Inputs judged `correct` or not, per subject, whatever the claims.
@@ -580,13 +626,37 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             .map_err(model_err)?;
         Ok(out.into_iter().next().expect("a spec has a value"))
     };
-    // The inputs judged for a claim: its own for `=`, the subject's for
-    // `correct`.
+    // Claims that say the same thing of a subject, on whatever domain:
+    // they share their judged inputs.
+    let same = |i: usize, j: usize| {
+        let (c, d) = (&model.claims[i], &model.claims[j]);
+        c.func == d.func && c.target == d.target
+    };
     let points_of = |i: usize| -> Vec<Point> {
-        match model.claims[i].target {
+        let mut points = match model.claims[i].target {
             Target::Correct => judged(&model.claims[i].func),
-            _ => direct[i].points.clone(),
+            _ => Vec::new(),
+        };
+        for j in (0..direct.len()).filter(|j| same(i, *j)) {
+            points.extend(direct[j].points.iter().cloned());
         }
+        points
+    };
+    let blind = |i: usize| (0..direct.len()).any(|j| same(i, j) && direct[j].blind);
+    // Uniformity of `f` says nothing of the other subjects a target calls.
+    let own = |c: &Claim| match &c.target {
+        Target::Matches(e) => {
+            let bound = |v: &String| c.pattern.iter().any(|p| p.var.as_ref() == Some(v));
+            let bare = matches!(e, Expr::Var(v) if !bound(v));
+            let called = calls(e).into_iter().chain(bare.then(|| match e {
+                Expr::Var(v) => v.clone(),
+                _ => unreachable!(),
+            }));
+            called
+                .filter_map(|f| model.function(&f))
+                .all(|f| f.is_spec())
+        }
+        _ => true,
     };
 
     // 2. Uniformity: a class with a pass and a failure is a conflict.
@@ -606,8 +676,9 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         };
         let mut groups = vec![judged(&u.func)];
         for (i, c) in model.claims.iter().enumerate() {
-            if c.func == u.func && matches!(c.target, Target::Matches(_)) {
-                groups.push(direct[i].points.clone());
+            let first = (0..i).all(|j| !same(i, j));
+            if c.func == u.func && !c.target.is_structural() && first {
+                groups.push(points_of(i));
             }
         }
         for group in groups {
@@ -682,7 +753,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             u.func == c.func && matches!(u.target, Target::Uniform(_)) && u.name != c.name
         });
         let mut assumed = None;
-        if let (Some(u), false) = (uniform, matches!(c.target, Target::Uniform(_))) {
+        if let (Some(u), true) = (uniform, !c.target.is_structural() && own(c)) {
             let Target::Uniform(spec) = &model.claims[u].target else {
                 unreachable!()
             };
@@ -696,6 +767,11 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
             }
             classes.sort();
+            let blind = blind(i);
+            if blind {
+                // A failure somewhere unknown: no class can be relied on.
+                classes.clear();
+            }
             let holds = uniform_holds(u);
             let open = domain.minus(&covered).minus(wrong);
             let (mut set, mut untested) = (Tuples::empty(domain.arity()), Vec::new());
@@ -727,6 +803,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             untested.sort();
             classes.sort();
             assumed = Some(Assumed {
+                blind,
                 by: model.claims[u].name.clone(),
                 spec: spec.clone(),
                 holds,
@@ -782,10 +859,57 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             });
         }
     }
+    // 4. Suspects: what a subject uses, directly or not, that fails.
+    let failing = |subject: &str| -> Vec<String> {
+        let fails = |c: &&Claim| {
+            c.func == subject
+                && !matches!(c.target, Target::Uses(_))
+                && logic_of[c.name.as_str()] == Logic::Fails
+        };
+        model
+            .claims
+            .iter()
+            .filter(fails)
+            .map(|c| c.name.clone())
+            .collect()
+    };
+    let mut suspects = Vec::new();
+    for f in model.functions.iter().filter(|f| !f.is_spec()) {
+        let mut used: Vec<&String> = Vec::new();
+        let mut todo = vec![&f.name];
+        while let Some(g) = todo.pop() {
+            for c in model.claims.iter().filter(|c| &c.func == g) {
+                let Target::Uses(list) = &c.target else {
+                    continue;
+                };
+                if logic_of[c.name.as_str()] == Logic::Fails {
+                    continue;
+                }
+                for h in list {
+                    if h != &f.name && !used.contains(&h) {
+                        used.push(h);
+                        todo.push(h);
+                    }
+                }
+            }
+        }
+        used.sort();
+        for g in used {
+            let failing = failing(g);
+            if !failing.is_empty() {
+                suspects.push(Suspect {
+                    subject: f.name.clone(),
+                    uses: g.clone(),
+                    failing,
+                });
+            }
+        }
+    }
     Ok(Report {
         verdicts,
         flags,
         conflicts,
+        suspects,
     })
 }
 
@@ -899,6 +1023,15 @@ impl Report {
             out += &format!(
                 "conflict: `{}` can't hold with both, in class {} of `{}`:\n  evidence line {}: {}\n  evidence line {}: {}\n",
                 k.claim, k.class, k.spec, k.pass.1, k.pass.2, k.fail.1, k.fail.2
+            );
+        }
+        for s in &self.suspects {
+            out += &format!(
+                "suspect: `{}` uses `{}`, where {} fail{}: look there first\n",
+                s.subject,
+                s.uses,
+                s.failing.join(", "),
+                if s.failing.len() == 1 { "s" } else { "" }
             );
         }
         out
