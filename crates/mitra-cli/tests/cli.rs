@@ -236,6 +236,20 @@ fn mitra_ds_store_evaluates() {
     assert_eq!(out, expected);
 }
 
+/// Naming a store's two files from another folder reads the same model as
+/// running inside the store: the `mitra:` lines of the Rust sources too.
+#[test]
+fn mitra_ds_store_evaluates_by_path() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let files = [
+        "crates/mitra-ds/.mitra/model.mitra",
+        "crates/mitra-ds/.mitra/evidence.mitra",
+    ];
+    let (code, out, err) = mitra(&root, &["eval", files[0], files[1]]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("conflict_uniform: holds"), "{out}");
+}
+
 #[test]
 fn rev_leaves_out_stale_evidence() {
     let dir = std::env::temp_dir().join(format!("mitra-cli-rev-{}", std::process::id()));

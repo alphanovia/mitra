@@ -46,7 +46,11 @@ fn main() -> ExitCode {
 /// The model and the evidence file, from the arguments or from the store.
 fn inputs(paths: &[String]) -> Result<(Source, String), String> {
     match paths {
-        [m, e] => Ok((Source::file(m)?, e.clone())),
+        // A store's model file brings the `mitra:` lines of its Rust sources.
+        [m, e] => match store::Store::of(m) {
+            Some(s) => Ok((s.source()?, e.clone())),
+            None => Ok((Source::file(m)?, e.clone())),
+        },
         [] => {
             let s = store::Store::find()?;
             Ok((s.source()?, s.evidence_path()))

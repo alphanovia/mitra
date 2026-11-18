@@ -20,6 +20,9 @@ mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 `mitra-core`. When it can't read or check its input it prints `file: line
 N: message` and exits with status 2.
 
+- Without the two files, a command reads the store: the nearest `.mitra/`
+  at or above the current folder. Naming a store's own `model.mitra` reads
+  the same model, with the `mitra:` lines of the Rust sources beside it.
 - `eval` writes each claim's verdict, then the errors (see Output), to
   `result.txt`, or to standard output without `-o`. The result file may not
   start with `-` or end in `.mitra`, so a store file is never overwritten.

@@ -36,6 +36,15 @@ impl Store {
         Ok(Store { dir })
     }
 
+    /// The store that `model` is the model file of, if it is one: a
+    /// `model.mitra` inside a `.mitra/` folder.
+    pub fn of(model: &str) -> Option<Store> {
+        let path = Path::new(model);
+        let dir = path.parent()?;
+        let store = path.file_name()? == "model.mitra" && dir.file_name()? == DIR;
+        store.then(|| Store { dir: dir.into() })
+    }
+
     /// Create `.mitra/` in `root`. Never overwrites an existing store.
     pub fn init(root: &Path) -> Result<PathBuf, String> {
         let dir = root.join(DIR);
