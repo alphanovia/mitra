@@ -121,8 +121,8 @@ approach.
 
 ```text
   reworked syntax   earlier syntax   (projections)
-        \            |            /
-         v           v           v
+            \            /
+             v          v
    (2) parser: text  ->  AST
                      |
                      v
