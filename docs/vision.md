@@ -46,6 +46,21 @@ confidence calculus is specified by axioms before it is chosen
 ([calculus](design/calculus.md)). Everything else (CI gates, agent
 harnesses, apps) is built on top later.
 
+## The core, and what can be automated
+
+The core of Mitra is the **pure model** and the **ledger of evidence**.
+Everything is explicit: every claim and assumption is written in the
+model, every piece of evidence is a line in the ledger, and a review is
+evidence given by a human or an agent. Mitra infers nothing from the code.
+
+On top of that core, language backends and other means can later make
+part of the writing and the checking automatic: proposing claims from the
+code, checking a `uses` claim against the call graph, turning test runs
+into evidence. Each of them only writes model lines or ledger entries
+that could have been written by hand, so the core never depends on them.
+Reading `mitra:` comments from Rust sources and ingesting test reports
+are the first two.
+
 ## What success looks like
 
 Mitra succeeds if it makes software more reliable for less effort:
@@ -126,7 +141,8 @@ the thing under review, with its own evidence (for example
 
 ## Not now
 
-- Extracting models from code, tests or agent traces.
+- Language backends that extract or check parts of a model from code,
+  tests or agent traces (see "The core, and what can be automated").
 - Integrations beyond reading test reports (CI plugins, agent harnesses),
   and any user interface.
 - Learning or calibrating confidences from data.
