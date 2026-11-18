@@ -19,6 +19,11 @@ pub struct Source {
 impl Source {
     pub fn file(path: &str) -> Result<Source, String> {
         let text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
+        // `import a::b::name;` reads `a/b.mitra` beside the model.
+        let dir = Path::new(path)
+            .parent()
+            .filter(|d| !d.as_os_str().is_empty());
+        mitra_core::surface::imports_from(Some(dir.unwrap_or(Path::new("."))));
         let mut s = Source {
             text: String::new(),
             lines: Vec::new(),

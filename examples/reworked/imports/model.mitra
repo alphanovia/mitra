@@ -1,0 +1,10 @@
+// `import` takes named declarations from another file: `geometry.mitra`
+// beside this one, and `std`, shipped with Mitra (`mitra explain std::claims`).
+import std::claims::{commutative, neutral};
+import geometry::{Point, origin};
+
+subject plane {
+    fn add(a: Point, b: Point) -> Point;
+    claim add_commutes = commutative(add, Point);
+    claim origin_is_neutral = neutral(add, Point, origin());
+}

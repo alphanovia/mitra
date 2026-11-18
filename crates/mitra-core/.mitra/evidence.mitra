@@ -1,128 +1,128 @@
 -- Evidence, append-only: `mitra add` and `mitra ingest` write here.
-@[source "test:t_and", rev "a0f28af0da53"] evidence correct(eval::binary("&&", true, false)) at 1
-@[source "test:t_and", rev "a0f28af0da53"] evidence eval::binary("&&", true, false) = Some(false) at 1
-@[source "test:t_apart", rev "a0f28af0da53"] evidence correct(eval::binary("&", {1}, {2, 3})) at 1
-@[source "test:t_apart", rev "a0f28af0da53"] evidence eval::binary("&", {1}, {2, 3}) = Some({}) at 1
-@[source "test:t_assuming", rev "a0f28af0da53"] evidence eval::as_str(Assuming) = "holds assuming" at 1
-@[source "test:t_difference", rev "a0f28af0da53"] evidence correct(eval::binary("\\", {1, 2}, {2, 3})) at 1
-@[source "test:t_difference", rev "a0f28af0da53"] evidence eval::binary("\\", {1, 2}, {2, 3}) = Some({1}) at 1
-@[source "test:t_different", rev "a0f28af0da53"] evidence correct(eval::binary("!=", 2, 2)) at 1
-@[source "test:t_different", rev "a0f28af0da53"] evidence eval::binary("!=", 2, 2) = Some(false) at 1
-@[source "test:t_different_mixed", rev "a0f28af0da53"] evidence correct(eval::binary("!=", 2, "2")) at 1
-@[source "test:t_different_mixed", rev "a0f28af0da53"] evidence eval::binary("!=", 2, "2") = Some(true) at 1
-@[source "test:t_divide", rev "a0f28af0da53"] evidence correct(eval::binary("/", -12, -3)) at 1
-@[source "test:t_divide", rev "a0f28af0da53"] evidence eval::binary("/", -12, -3) = Some(4) at 1
-@[source "test:t_divide_by_zero", rev "a0f28af0da53"] evidence correct(eval::binary("/", 1, 0)) at 1
-@[source "test:t_divide_by_zero", rev "a0f28af0da53"] evidence eval::binary("/", 1, 0) = None at 1
-@[source "test:t_divide_floats", rev "a0f28af0da53"] evidence correct(eval::binary("/", 1.0, 4.0)) at 1
-@[source "test:t_divide_floats", rev "a0f28af0da53"] evidence eval::binary("/", 1.0, 4.0) = Some(0.25) at 1
-@[source "test:t_divide_towards_zero", rev "a0f28af0da53"] evidence correct(eval::binary("/", -7, 2)) at 1
-@[source "test:t_divide_towards_zero", rev "a0f28af0da53"] evidence eval::binary("/", -7, 2) = Some(-3) at 1
-@[source "test:t_equal", rev "a0f28af0da53"] evidence correct(eval::binary("==", 2, 2)) at 1
-@[source "test:t_equal", rev "a0f28af0da53"] evidence eval::binary("==", 2, 2) = Some(true) at 1
-@[source "test:t_equal_mixed", rev "a0f28af0da53"] evidence correct(eval::binary("==", 2, "2")) at 1
-@[source "test:t_equal_mixed", rev "a0f28af0da53"] evidence eval::binary("==", 2, "2") = Some(false) at 1
-@[source "test:t_fails", rev "a0f28af0da53"] evidence eval::as_str(Fails) = "fails" at 1
-@[source "test:t_holds", rev "a0f28af0da53"] evidence eval::as_str(Holds) = "holds" at 1
-@[source "test:t_in_list", rev "a0f28af0da53"] evidence correct(eval::binary("in", 3, [1, 2])) at 1
-@[source "test:t_in_list", rev "a0f28af0da53"] evidence eval::binary("in", 3, [1, 2]) = Some(false) at 1
-@[source "test:t_in_map", rev "a0f28af0da53"] evidence correct(eval::binary("in", "a", {"a": 1})) at 1
-@[source "test:t_in_map", rev "a0f28af0da53"] evidence eval::binary("in", "a", {"a": 1}) = Some(true) at 1
-@[source "test:t_in_number", rev "a0f28af0da53"] evidence correct(eval::binary("in", 1, 2)) at 1
-@[source "test:t_in_number", rev "a0f28af0da53"] evidence eval::binary("in", 1, 2) = None at 1
-@[source "test:t_in_set", rev "a0f28af0da53"] evidence correct(eval::binary("in", 2, {1, 2})) at 1
-@[source "test:t_in_set", rev "a0f28af0da53"] evidence eval::binary("in", 2, {1, 2}) = Some(true) at 1
-@[source "test:t_intersection", rev "a0f28af0da53"] evidence correct(eval::binary("&", {1, 2}, {2, 3})) at 1
-@[source "test:t_intersection", rev "a0f28af0da53"] evidence eval::binary("&", {1, 2}, {2, 3}) = Some({2}) at 1
-@[source "test:t_keys", rev "a0f28af0da53"] evidence correct(eval::unary("keys", {"a": 1, "b": 2})) at 1
-@[source "test:t_keys", rev "a0f28af0da53"] evidence eval::unary("keys", {"a": 1, "b": 2}) = Some({"a", "b"}) at 1
-@[source "test:t_keys_of_a_set", rev "a0f28af0da53"] evidence correct(eval::unary("keys", {1})) at 1
-@[source "test:t_keys_of_a_set", rev "a0f28af0da53"] evidence eval::unary("keys", {1}) = None at 1
-@[source "test:t_less", rev "a0f28af0da53"] evidence correct(eval::binary("<", 2, 3)) at 1
-@[source "test:t_less", rev "a0f28af0da53"] evidence eval::binary("<", 2, 3) = Some(true) at 1
-@[source "test:t_map_remove", rev "a0f28af0da53"] evidence correct(eval::binary("\\", {"a": 1, "b": 2}, {"a", "z"})) at 1
-@[source "test:t_map_remove", rev "a0f28af0da53"] evidence eval::binary("\\", {"a": 1, "b": 2}, {"a", "z"}) = Some({"b": 2}) at 1
-@[source "test:t_map_update", rev "a0f28af0da53"] evidence correct(eval::binary("|", {"a": 1, "b": 2}, {"a": 5})) at 1
-@[source "test:t_map_update", rev "a0f28af0da53"] evidence eval::binary("|", {"a": 1, "b": 2}, {"a": 5}) = Some({"a": 5, "b": 2}) at 1
-@[source "test:t_minus", rev "a0f28af0da53"] evidence correct(eval::binary("-", 2, 3)) at 1
-@[source "test:t_minus", rev "a0f28af0da53"] evidence eval::binary("-", 2, 3) = Some(-1) at 1
-@[source "test:t_negate", rev "a0f28af0da53"] evidence correct(eval::unary("-", 3)) at 1
-@[source "test:t_negate", rev "a0f28af0da53"] evidence eval::unary("-", 3) = Some(-3) at 1
-@[source "test:t_negate_back", rev "a0f28af0da53"] evidence correct(eval::unary("-", -3)) at 1
-@[source "test:t_negate_back", rev "a0f28af0da53"] evidence eval::unary("-", -3) = Some(3) at 1
-@[source "test:t_negate_float", rev "a0f28af0da53"] evidence correct(eval::unary("-", 0.5)) at 1
-@[source "test:t_negate_float", rev "a0f28af0da53"] evidence eval::unary("-", 0.5) = Some(-0.5) at 1
-@[source "test:t_negate_string", rev "a0f28af0da53"] evidence correct(eval::unary("-", "a")) at 1
-@[source "test:t_negate_string", rev "a0f28af0da53"] evidence eval::unary("-", "a") = None at 1
-@[source "test:t_not_false", rev "a0f28af0da53"] evidence correct(eval::unary("!", false)) at 1
-@[source "test:t_not_false", rev "a0f28af0da53"] evidence eval::unary("!", false) = Some(true) at 1
-@[source "test:t_not_true", rev "a0f28af0da53"] evidence correct(eval::unary("!", true)) at 1
-@[source "test:t_not_true", rev "a0f28af0da53"] evidence eval::unary("!", true) = Some(false) at 1
-@[source "test:t_or", rev "a0f28af0da53"] evidence correct(eval::binary("||", true, false)) at 1
-@[source "test:t_or", rev "a0f28af0da53"] evidence eval::binary("||", true, false) = Some(true) at 1
-@[source "test:t_plus", rev "a0f28af0da53"] evidence correct(eval::binary("+", 2, 3)) at 1
-@[source "test:t_plus", rev "a0f28af0da53"] evidence eval::binary("+", 2, 3) = Some(5) at 1
-@[source "test:t_plus_floats", rev "a0f28af0da53"] evidence correct(eval::binary("+", 0.5, 0.25)) at 1
-@[source "test:t_plus_floats", rev "a0f28af0da53"] evidence eval::binary("+", 0.5, 0.25) = Some(0.75) at 1
-@[source "test:t_plus_floats_swapped", rev "a0f28af0da53"] evidence correct(eval::binary("+", 0.25, 0.5)) at 1
-@[source "test:t_plus_floats_swapped", rev "a0f28af0da53"] evidence eval::binary("+", 0.25, 0.5) = Some(0.75) at 1
-@[source "test:t_plus_mixed", rev "a0f28af0da53"] evidence correct(eval::binary("+", 2, true)) at 1
-@[source "test:t_plus_mixed", rev "a0f28af0da53"] evidence eval::binary("+", 2, true) = None at 1
-@[source "test:t_plus_mixed_swapped", rev "a0f28af0da53"] evidence correct(eval::binary("+", true, 2)) at 1
-@[source "test:t_plus_mixed_swapped", rev "a0f28af0da53"] evidence eval::binary("+", true, 2) = None at 1
-@[source "test:t_plus_negated", rev "a0f28af0da53"] evidence correct(eval::binary("+", 2, -3)) at 1
-@[source "test:t_plus_negated", rev "a0f28af0da53"] evidence eval::binary("+", 2, -3) = Some(-1) at 1
-@[source "test:t_plus_overflow", rev "a0f28af0da53"] evidence correct(eval::binary("+", 9223372036854775807, 1)) at 1
-@[source "test:t_plus_overflow", rev "a0f28af0da53"] evidence eval::binary("+", 9223372036854775807, 1) = None at 1
-@[source "test:t_plus_overflow_swapped", rev "a0f28af0da53"] evidence correct(eval::binary("+", 1, 9223372036854775807)) at 1
-@[source "test:t_plus_overflow_swapped", rev "a0f28af0da53"] evidence eval::binary("+", 1, 9223372036854775807) = None at 1
-@[source "test:t_plus_swapped", rev "a0f28af0da53"] evidence correct(eval::binary("+", 3, 2)) at 1
-@[source "test:t_plus_swapped", rev "a0f28af0da53"] evidence eval::binary("+", 3, 2) = Some(5) at 1
-@[source "test:t_set_with_map", rev "a0f28af0da53"] evidence correct(eval::binary("|", {1}, {"a": 1})) at 1
-@[source "test:t_set_with_map", rev "a0f28af0da53"] evidence eval::binary("|", {1}, {"a": 1}) = None at 1
-@[source "test:t_times", rev "a0f28af0da53"] evidence correct(eval::binary("*", 4, -3)) at 1
-@[source "test:t_times", rev "a0f28af0da53"] evidence eval::binary("*", 4, -3) = Some(-12) at 1
-@[source "test:t_times_swapped", rev "a0f28af0da53"] evidence correct(eval::binary("*", -3, 4)) at 1
-@[source "test:t_times_swapped", rev "a0f28af0da53"] evidence eval::binary("*", -3, 4) = Some(-12) at 1
-@[source "test:t_union", rev "a0f28af0da53"] evidence correct(eval::binary("|", {1, 2}, {2, 3})) at 1
-@[source "test:t_union", rev "a0f28af0da53"] evidence eval::binary("|", {1, 2}, {2, 3}) = Some({1, 2, 3}) at 1
-@[source "test:t_union_swapped", rev "a0f28af0da53"] evidence correct(eval::binary("|", {2, 3}, {1, 2})) at 1
-@[source "test:t_union_swapped", rev "a0f28af0da53"] evidence eval::binary("|", {2, 3}, {1, 2}) = Some({1, 2, 3}) at 1
-@[source "test:t_unknown_operator", rev "a0f28af0da53"] evidence correct(eval::binary("%", 2, 3)) at 1
-@[source "test:t_unknown_operator", rev "a0f28af0da53"] evidence eval::binary("%", 2, 3) = None at 1
-@[source "test:t_unverified", rev "a0f28af0da53"] evidence eval::as_str(Unverified) = "unverified" at 1
-@[source "test:t_level_and", rev "a0f28af0da53"] evidence print::level("&&") = 2 at 1
-@[source "test:t_level_compare", rev "a0f28af0da53"] evidence print::level("<=") = 3 at 1
-@[source "test:t_level_in", rev "a0f28af0da53"] evidence print::level("in") = 3 at 1
-@[source "test:t_level_intersection", rev "a0f28af0da53"] evidence print::level("&") = 5 at 1
-@[source "test:t_level_or", rev "a0f28af0da53"] evidence print::level("||") = 1 at 1
-@[source "test:t_level_product", rev "a0f28af0da53"] evidence print::level("/") = 5 at 1
-@[source "test:t_level_sum", rev "a0f28af0da53"] evidence print::level("-") = 4 at 1
-@[source "test:t_level_union", rev "a0f28af0da53"] evidence print::level("|") = 4 at 1
-@[source "test:t_negative_float", rev "a0f28af0da53"] evidence correct(print::negative(-0.5)) at 1
-@[source "test:t_negative_float", rev "a0f28af0da53"] evidence print::negative(-0.5) = true at 1
-@[source "test:t_negative_int", rev "a0f28af0da53"] evidence correct(print::negative(-1)) at 1
-@[source "test:t_negative_int", rev "a0f28af0da53"] evidence print::negative(-1) = true at 1
-@[source "test:t_negative_string", rev "a0f28af0da53"] evidence correct(print::negative("-1")) at 1
-@[source "test:t_negative_string", rev "a0f28af0da53"] evidence print::negative("-1") = false at 1
-@[source "test:t_negative_zero", rev "a0f28af0da53"] evidence correct(print::negative(0)) at 1
-@[source "test:t_negative_zero", rev "a0f28af0da53"] evidence print::negative(0) = false at 1
-@[source "test:t_word_certain", rev "a0f28af0da53"] evidence report::word(Candidate(Code("f"), 1.0, 1.0)) = "certain" at 1
-@[source "test:t_word_likely", rev "a0f28af0da53"] evidence report::word(Candidate(Code("f"), 0.5, 1.0)) = "likely" at 1
-@[source "test:t_word_possible", rev "a0f28af0da53"] evidence report::word(Candidate(Code("f"), 0.0, 0.5)) = "possible" at 1
-@[source "test:t_word_unlikely", rev "a0f28af0da53"] evidence report::word(Candidate(Code("f"), 0.0, 0.25)) = "unlikely" at 1
-@[source "test:t_quote_empty", rev "a0f28af0da53"] evidence correct(set::quote("")) at 1
-@[source "test:t_quote_empty", rev "a0f28af0da53"] evidence set::quote("") = "\"\"" at 1
-@[source "test:t_quote_escapes", rev "a0f28af0da53"] evidence correct(set::quote("a\"b\\c\nd\te")) at 1
-@[source "test:t_quote_escapes", rev "a0f28af0da53"] evidence set::quote("a\"b\\c\nd\te") = "\"a\\\"b\\\\c\\nd\\te\"" at 1
-@[source "test:t_quote_plain", rev "a0f28af0da53"] evidence correct(set::quote("a b")) at 1
-@[source "test:t_quote_plain", rev "a0f28af0da53"] evidence set::quote("a b") = "\"a b\"" at 1
-@[source "reader:rust src/eval.rs:27", rev "a0f28af0da53"] evidence eval::as_str::tied at 1
-@[source "reader:rust src/eval.rs:1272", rev "a0f28af0da53"] evidence eval::unary::tied at 1
-@[source "reader:rust src/eval.rs:1287", rev "a0f28af0da53"] evidence eval::binary::tied at 1
-@[source "reader:rust src/print.rs:205", rev "a0f28af0da53"] evidence print::negative::tied at 1
-@[source "reader:rust src/print.rs:219", rev "a0f28af0da53"] evidence print::level::tied at 1
-@[source "reader:rust src/report.rs:150", rev "a0f28af0da53"] evidence report::word::tied at 1
-@[source "reader:rust src/set.rs:1120", rev "a0f28af0da53"] evidence set::quote::tied at 1
-@[source "review:claude", rev "a0f28af0da53"] evidence print::level_uniform at 1
-@[source "review:claude", rev "a0f28af0da53"] evidence report::word_uniform at 1
+@[source "test:t_and", rev "68b7e5c5a7b3"] evidence correct(eval::binary("&&", true, false)) at 1
+@[source "test:t_and", rev "68b7e5c5a7b3"] evidence eval::binary("&&", true, false) = Some(false) at 1
+@[source "test:t_apart", rev "68b7e5c5a7b3"] evidence correct(eval::binary("&", {1}, {2, 3})) at 1
+@[source "test:t_apart", rev "68b7e5c5a7b3"] evidence eval::binary("&", {1}, {2, 3}) = Some({}) at 1
+@[source "test:t_assuming", rev "68b7e5c5a7b3"] evidence eval::as_str(Assuming) = "holds assuming" at 1
+@[source "test:t_difference", rev "68b7e5c5a7b3"] evidence correct(eval::binary("\\", {1, 2}, {2, 3})) at 1
+@[source "test:t_difference", rev "68b7e5c5a7b3"] evidence eval::binary("\\", {1, 2}, {2, 3}) = Some({1}) at 1
+@[source "test:t_different", rev "68b7e5c5a7b3"] evidence correct(eval::binary("!=", 2, 2)) at 1
+@[source "test:t_different", rev "68b7e5c5a7b3"] evidence eval::binary("!=", 2, 2) = Some(false) at 1
+@[source "test:t_different_mixed", rev "68b7e5c5a7b3"] evidence correct(eval::binary("!=", 2, "2")) at 1
+@[source "test:t_different_mixed", rev "68b7e5c5a7b3"] evidence eval::binary("!=", 2, "2") = Some(true) at 1
+@[source "test:t_divide", rev "68b7e5c5a7b3"] evidence correct(eval::binary("/", -12, -3)) at 1
+@[source "test:t_divide", rev "68b7e5c5a7b3"] evidence eval::binary("/", -12, -3) = Some(4) at 1
+@[source "test:t_divide_by_zero", rev "68b7e5c5a7b3"] evidence correct(eval::binary("/", 1, 0)) at 1
+@[source "test:t_divide_by_zero", rev "68b7e5c5a7b3"] evidence eval::binary("/", 1, 0) = None at 1
+@[source "test:t_divide_floats", rev "68b7e5c5a7b3"] evidence correct(eval::binary("/", 1.0, 4.0)) at 1
+@[source "test:t_divide_floats", rev "68b7e5c5a7b3"] evidence eval::binary("/", 1.0, 4.0) = Some(0.25) at 1
+@[source "test:t_divide_towards_zero", rev "68b7e5c5a7b3"] evidence correct(eval::binary("/", -7, 2)) at 1
+@[source "test:t_divide_towards_zero", rev "68b7e5c5a7b3"] evidence eval::binary("/", -7, 2) = Some(-3) at 1
+@[source "test:t_equal", rev "68b7e5c5a7b3"] evidence correct(eval::binary("==", 2, 2)) at 1
+@[source "test:t_equal", rev "68b7e5c5a7b3"] evidence eval::binary("==", 2, 2) = Some(true) at 1
+@[source "test:t_equal_mixed", rev "68b7e5c5a7b3"] evidence correct(eval::binary("==", 2, "2")) at 1
+@[source "test:t_equal_mixed", rev "68b7e5c5a7b3"] evidence eval::binary("==", 2, "2") = Some(false) at 1
+@[source "test:t_fails", rev "68b7e5c5a7b3"] evidence eval::as_str(Fails) = "fails" at 1
+@[source "test:t_holds", rev "68b7e5c5a7b3"] evidence eval::as_str(Holds) = "holds" at 1
+@[source "test:t_in_list", rev "68b7e5c5a7b3"] evidence correct(eval::binary("in", 3, [1, 2])) at 1
+@[source "test:t_in_list", rev "68b7e5c5a7b3"] evidence eval::binary("in", 3, [1, 2]) = Some(false) at 1
+@[source "test:t_in_map", rev "68b7e5c5a7b3"] evidence correct(eval::binary("in", "a", {"a": 1})) at 1
+@[source "test:t_in_map", rev "68b7e5c5a7b3"] evidence eval::binary("in", "a", {"a": 1}) = Some(true) at 1
+@[source "test:t_in_number", rev "68b7e5c5a7b3"] evidence correct(eval::binary("in", 1, 2)) at 1
+@[source "test:t_in_number", rev "68b7e5c5a7b3"] evidence eval::binary("in", 1, 2) = None at 1
+@[source "test:t_in_set", rev "68b7e5c5a7b3"] evidence correct(eval::binary("in", 2, {1, 2})) at 1
+@[source "test:t_in_set", rev "68b7e5c5a7b3"] evidence eval::binary("in", 2, {1, 2}) = Some(true) at 1
+@[source "test:t_intersection", rev "68b7e5c5a7b3"] evidence correct(eval::binary("&", {1, 2}, {2, 3})) at 1
+@[source "test:t_intersection", rev "68b7e5c5a7b3"] evidence eval::binary("&", {1, 2}, {2, 3}) = Some({2}) at 1
+@[source "test:t_keys", rev "68b7e5c5a7b3"] evidence correct(eval::unary("keys", {"a": 1, "b": 2})) at 1
+@[source "test:t_keys", rev "68b7e5c5a7b3"] evidence eval::unary("keys", {"a": 1, "b": 2}) = Some({"a", "b"}) at 1
+@[source "test:t_keys_of_a_set", rev "68b7e5c5a7b3"] evidence correct(eval::unary("keys", {1})) at 1
+@[source "test:t_keys_of_a_set", rev "68b7e5c5a7b3"] evidence eval::unary("keys", {1}) = None at 1
+@[source "test:t_less", rev "68b7e5c5a7b3"] evidence correct(eval::binary("<", 2, 3)) at 1
+@[source "test:t_less", rev "68b7e5c5a7b3"] evidence eval::binary("<", 2, 3) = Some(true) at 1
+@[source "test:t_map_remove", rev "68b7e5c5a7b3"] evidence correct(eval::binary("\\", {"a": 1, "b": 2}, {"a", "z"})) at 1
+@[source "test:t_map_remove", rev "68b7e5c5a7b3"] evidence eval::binary("\\", {"a": 1, "b": 2}, {"a", "z"}) = Some({"b": 2}) at 1
+@[source "test:t_map_update", rev "68b7e5c5a7b3"] evidence correct(eval::binary("|", {"a": 1, "b": 2}, {"a": 5})) at 1
+@[source "test:t_map_update", rev "68b7e5c5a7b3"] evidence eval::binary("|", {"a": 1, "b": 2}, {"a": 5}) = Some({"a": 5, "b": 2}) at 1
+@[source "test:t_minus", rev "68b7e5c5a7b3"] evidence correct(eval::binary("-", 2, 3)) at 1
+@[source "test:t_minus", rev "68b7e5c5a7b3"] evidence eval::binary("-", 2, 3) = Some(-1) at 1
+@[source "test:t_negate", rev "68b7e5c5a7b3"] evidence correct(eval::unary("-", 3)) at 1
+@[source "test:t_negate", rev "68b7e5c5a7b3"] evidence eval::unary("-", 3) = Some(-3) at 1
+@[source "test:t_negate_back", rev "68b7e5c5a7b3"] evidence correct(eval::unary("-", -3)) at 1
+@[source "test:t_negate_back", rev "68b7e5c5a7b3"] evidence eval::unary("-", -3) = Some(3) at 1
+@[source "test:t_negate_float", rev "68b7e5c5a7b3"] evidence correct(eval::unary("-", 0.5)) at 1
+@[source "test:t_negate_float", rev "68b7e5c5a7b3"] evidence eval::unary("-", 0.5) = Some(-0.5) at 1
+@[source "test:t_negate_string", rev "68b7e5c5a7b3"] evidence correct(eval::unary("-", "a")) at 1
+@[source "test:t_negate_string", rev "68b7e5c5a7b3"] evidence eval::unary("-", "a") = None at 1
+@[source "test:t_not_false", rev "68b7e5c5a7b3"] evidence correct(eval::unary("!", false)) at 1
+@[source "test:t_not_false", rev "68b7e5c5a7b3"] evidence eval::unary("!", false) = Some(true) at 1
+@[source "test:t_not_true", rev "68b7e5c5a7b3"] evidence correct(eval::unary("!", true)) at 1
+@[source "test:t_not_true", rev "68b7e5c5a7b3"] evidence eval::unary("!", true) = Some(false) at 1
+@[source "test:t_or", rev "68b7e5c5a7b3"] evidence correct(eval::binary("||", true, false)) at 1
+@[source "test:t_or", rev "68b7e5c5a7b3"] evidence eval::binary("||", true, false) = Some(true) at 1
+@[source "test:t_plus", rev "68b7e5c5a7b3"] evidence correct(eval::binary("+", 2, 3)) at 1
+@[source "test:t_plus", rev "68b7e5c5a7b3"] evidence eval::binary("+", 2, 3) = Some(5) at 1
+@[source "test:t_plus_floats", rev "68b7e5c5a7b3"] evidence correct(eval::binary("+", 0.5, 0.25)) at 1
+@[source "test:t_plus_floats", rev "68b7e5c5a7b3"] evidence eval::binary("+", 0.5, 0.25) = Some(0.75) at 1
+@[source "test:t_plus_floats_swapped", rev "68b7e5c5a7b3"] evidence correct(eval::binary("+", 0.25, 0.5)) at 1
+@[source "test:t_plus_floats_swapped", rev "68b7e5c5a7b3"] evidence eval::binary("+", 0.25, 0.5) = Some(0.75) at 1
+@[source "test:t_plus_mixed", rev "68b7e5c5a7b3"] evidence correct(eval::binary("+", 2, true)) at 1
+@[source "test:t_plus_mixed", rev "68b7e5c5a7b3"] evidence eval::binary("+", 2, true) = None at 1
+@[source "test:t_plus_mixed_swapped", rev "68b7e5c5a7b3"] evidence correct(eval::binary("+", true, 2)) at 1
+@[source "test:t_plus_mixed_swapped", rev "68b7e5c5a7b3"] evidence eval::binary("+", true, 2) = None at 1
+@[source "test:t_plus_negated", rev "68b7e5c5a7b3"] evidence correct(eval::binary("+", 2, -3)) at 1
+@[source "test:t_plus_negated", rev "68b7e5c5a7b3"] evidence eval::binary("+", 2, -3) = Some(-1) at 1
+@[source "test:t_plus_overflow", rev "68b7e5c5a7b3"] evidence correct(eval::binary("+", 9223372036854775807, 1)) at 1
+@[source "test:t_plus_overflow", rev "68b7e5c5a7b3"] evidence eval::binary("+", 9223372036854775807, 1) = None at 1
+@[source "test:t_plus_overflow_swapped", rev "68b7e5c5a7b3"] evidence correct(eval::binary("+", 1, 9223372036854775807)) at 1
+@[source "test:t_plus_overflow_swapped", rev "68b7e5c5a7b3"] evidence eval::binary("+", 1, 9223372036854775807) = None at 1
+@[source "test:t_plus_swapped", rev "68b7e5c5a7b3"] evidence correct(eval::binary("+", 3, 2)) at 1
+@[source "test:t_plus_swapped", rev "68b7e5c5a7b3"] evidence eval::binary("+", 3, 2) = Some(5) at 1
+@[source "test:t_set_with_map", rev "68b7e5c5a7b3"] evidence correct(eval::binary("|", {1}, {"a": 1})) at 1
+@[source "test:t_set_with_map", rev "68b7e5c5a7b3"] evidence eval::binary("|", {1}, {"a": 1}) = None at 1
+@[source "test:t_times", rev "68b7e5c5a7b3"] evidence correct(eval::binary("*", 4, -3)) at 1
+@[source "test:t_times", rev "68b7e5c5a7b3"] evidence eval::binary("*", 4, -3) = Some(-12) at 1
+@[source "test:t_times_swapped", rev "68b7e5c5a7b3"] evidence correct(eval::binary("*", -3, 4)) at 1
+@[source "test:t_times_swapped", rev "68b7e5c5a7b3"] evidence eval::binary("*", -3, 4) = Some(-12) at 1
+@[source "test:t_union", rev "68b7e5c5a7b3"] evidence correct(eval::binary("|", {1, 2}, {2, 3})) at 1
+@[source "test:t_union", rev "68b7e5c5a7b3"] evidence eval::binary("|", {1, 2}, {2, 3}) = Some({1, 2, 3}) at 1
+@[source "test:t_union_swapped", rev "68b7e5c5a7b3"] evidence correct(eval::binary("|", {2, 3}, {1, 2})) at 1
+@[source "test:t_union_swapped", rev "68b7e5c5a7b3"] evidence eval::binary("|", {2, 3}, {1, 2}) = Some({1, 2, 3}) at 1
+@[source "test:t_unknown_operator", rev "68b7e5c5a7b3"] evidence correct(eval::binary("%", 2, 3)) at 1
+@[source "test:t_unknown_operator", rev "68b7e5c5a7b3"] evidence eval::binary("%", 2, 3) = None at 1
+@[source "test:t_unverified", rev "68b7e5c5a7b3"] evidence eval::as_str(Unverified) = "unverified" at 1
+@[source "test:t_level_and", rev "68b7e5c5a7b3"] evidence print::level("&&") = 2 at 1
+@[source "test:t_level_compare", rev "68b7e5c5a7b3"] evidence print::level("<=") = 3 at 1
+@[source "test:t_level_in", rev "68b7e5c5a7b3"] evidence print::level("in") = 3 at 1
+@[source "test:t_level_intersection", rev "68b7e5c5a7b3"] evidence print::level("&") = 5 at 1
+@[source "test:t_level_or", rev "68b7e5c5a7b3"] evidence print::level("||") = 1 at 1
+@[source "test:t_level_product", rev "68b7e5c5a7b3"] evidence print::level("/") = 5 at 1
+@[source "test:t_level_sum", rev "68b7e5c5a7b3"] evidence print::level("-") = 4 at 1
+@[source "test:t_level_union", rev "68b7e5c5a7b3"] evidence print::level("|") = 4 at 1
+@[source "test:t_negative_float", rev "68b7e5c5a7b3"] evidence correct(print::negative(-0.5)) at 1
+@[source "test:t_negative_float", rev "68b7e5c5a7b3"] evidence print::negative(-0.5) = true at 1
+@[source "test:t_negative_int", rev "68b7e5c5a7b3"] evidence correct(print::negative(-1)) at 1
+@[source "test:t_negative_int", rev "68b7e5c5a7b3"] evidence print::negative(-1) = true at 1
+@[source "test:t_negative_string", rev "68b7e5c5a7b3"] evidence correct(print::negative("-1")) at 1
+@[source "test:t_negative_string", rev "68b7e5c5a7b3"] evidence print::negative("-1") = false at 1
+@[source "test:t_negative_zero", rev "68b7e5c5a7b3"] evidence correct(print::negative(0)) at 1
+@[source "test:t_negative_zero", rev "68b7e5c5a7b3"] evidence print::negative(0) = false at 1
+@[source "test:t_word_certain", rev "68b7e5c5a7b3"] evidence report::word(Candidate(Code("f"), 1.0, 1.0)) = "certain" at 1
+@[source "test:t_word_likely", rev "68b7e5c5a7b3"] evidence report::word(Candidate(Code("f"), 0.5, 1.0)) = "likely" at 1
+@[source "test:t_word_possible", rev "68b7e5c5a7b3"] evidence report::word(Candidate(Code("f"), 0.0, 0.5)) = "possible" at 1
+@[source "test:t_word_unlikely", rev "68b7e5c5a7b3"] evidence report::word(Candidate(Code("f"), 0.0, 0.25)) = "unlikely" at 1
+@[source "test:t_quote_empty", rev "68b7e5c5a7b3"] evidence correct(set::quote("")) at 1
+@[source "test:t_quote_empty", rev "68b7e5c5a7b3"] evidence set::quote("") = "\"\"" at 1
+@[source "test:t_quote_escapes", rev "68b7e5c5a7b3"] evidence correct(set::quote("a\"b\\c\nd\te")) at 1
+@[source "test:t_quote_escapes", rev "68b7e5c5a7b3"] evidence set::quote("a\"b\\c\nd\te") = "\"a\\\"b\\\\c\\nd\\te\"" at 1
+@[source "test:t_quote_plain", rev "68b7e5c5a7b3"] evidence correct(set::quote("a b")) at 1
+@[source "test:t_quote_plain", rev "68b7e5c5a7b3"] evidence set::quote("a b") = "\"a b\"" at 1
+@[source "reader:rust src/eval.rs:27", rev "68b7e5c5a7b3"] evidence eval::as_str::tied at 1
+@[source "reader:rust src/eval.rs:1295", rev "68b7e5c5a7b3"] evidence eval::unary::tied at 1
+@[source "reader:rust src/eval.rs:1310", rev "68b7e5c5a7b3"] evidence eval::binary::tied at 1
+@[source "reader:rust src/print.rs:205", rev "68b7e5c5a7b3"] evidence print::negative::tied at 1
+@[source "reader:rust src/print.rs:219", rev "68b7e5c5a7b3"] evidence print::level::tied at 1
+@[source "reader:rust src/report.rs:158", rev "68b7e5c5a7b3"] evidence report::word::tied at 1
+@[source "reader:rust src/set.rs:1120", rev "68b7e5c5a7b3"] evidence set::quote::tied at 1
+@[source "review:claude", rev "68b7e5c5a7b3"] evidence print::level_uniform at 1
+@[source "review:claude", rev "68b7e5c5a7b3"] evidence report::word_uniform at 1

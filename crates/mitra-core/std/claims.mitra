@@ -1,0 +1,14 @@
+// Claims with parameters, shipped with Mitra.
+//
+//     import std::claims::{commutative, neutral};
+//     claim add_commutes = commutative(add, 0..=9);
+//
+// `f`, `g` are functions, `T` a set of inputs, the rest are values.
+
+claim commutative(f, T) { given a: T, b: T then f(a, b) == f(b, a) }
+claim associative(f, T) { given a: T, b: T, c: T then f(f(a, b), c) == f(a, f(b, c)) }
+claim idempotent(f, T) { given a: T then f(f(a)) == f(a) }
+claim neutral(f, T, zero) { given a: T then f(a, zero) == a && f(zero, a) == a }
+claim inverse(f, g, T) { given a: T then g(f(a)) == a }
+claim monotone(f, T) { given a: T, b: T when a <= b then f(a) <= f(b) }
+claim within(f, T, low, high) { given a: T then f(a) >= low && f(a) <= high }

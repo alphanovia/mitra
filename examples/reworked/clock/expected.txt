@@ -10,10 +10,30 @@ clock::round_trip: holds assuming [clock::back::spec]
 clock::never_same: holds
   passes on       `h = 1`
   assumed on      `h = 0`, `h = 2`, `h = 3`: the specs of what it calls imply it
-clock::wrong: holds
+clock::wrong: fails
+  fails on        `h = 3`
   passes on       `h = 1`
   not derived: the specs of what it calls contradict it
-  assumed on      every input, by `clock::next_uniform`
+
+error[M007]: a claim contradicts the specs of what it calls
+  --> model.mitra:11  claim wrong(h: 0..=3) { next(h) > h }
+
+  On `h = 3`, the specs of the functions `clock::wrong` calls say it is false
+  (`clock::next::spec`). No evidence is needed to see it.
+
+  The claim or a spec is wrong. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                                   trust  left
+    likely    the claim `clock::wrong` itself, model.mitra:11      1      0.50
+    likely    the claim `clock::next::spec` itself, model.mitra:5  1      0.50
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  note: the trust given says these are probably all right, which can't
+  be: at least one is trusted more than it deserves
+
+  help: correct the claim, or the body of the function it contradicts
 
 warning[M101]: a claim is not verified
   --> model.mitra:6  fn back(h: 0..=3) -> 0..=3 { if h == 0 { 3 } else { h - 1 } }
@@ -33,4 +53,4 @@ warning[M102]: a claim holds only under assumptions
   `clock::round_trip` holds if `clock::back::spec` holds, and no evidence supports it.
   help: review it, then record it as evidence, or test until it is not needed
 
-`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M007`.

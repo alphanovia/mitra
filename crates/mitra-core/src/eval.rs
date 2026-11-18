@@ -62,6 +62,9 @@ impl Implication {
 /// The verdict on one claim.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Verdict {
+    /// An input where the specs of the functions the claim calls say it
+    /// is false: the model contradicts itself there.
+    pub against: Option<Vec<Value>>,
     pub claim: String,
     pub logic: Logic,
     /// With `Logic::Assuming`: the unverified claims the verdict rests on.
@@ -271,6 +274,12 @@ pub enum Kind {
     },
     /// Evidence that does not fit the signature of its function.
     Misfit { function: String, why: String },
+    /// A claim that the specs of the functions it calls contradict.
+    Against {
+        claim: String,
+        specs: Vec<String>,
+        input: String,
+    },
 }
 
 impl Kind {
@@ -283,6 +292,7 @@ impl Kind {
             Kind::Conflict { .. } => "M004",
             Kind::Measure { .. } => "M005",
             Kind::Misfit { .. } => "M006",
+            Kind::Against { .. } => "M007",
         }
     }
 }
@@ -1228,6 +1238,19 @@ impl Eval<'_> {
         out
     }
 
+    /// An input where the premises say `c` is false.
+    fn counter(&self, c: &Claim, domain: &Tuples, premises: &[&Claim]) -> Option<Vec<Value>> {
+        let (Target::Matches(target) | Target::Property(target), Some(inputs)) =
+            (&c.target, domain.values())
+        else {
+            return None;
+        };
+        inputs.into_iter().find(|x| {
+            let got = self.compare(c, target, x, Subjects::Assumed(premises));
+            matches!(got, Ok(Some((_, true))))
+        })
+    }
+
     /// Check `premises ⇒ c` by substitution on every input of a finite
     /// domain.
     fn implication(
@@ -1969,7 +1992,25 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     let sorting: Vec<Sorted> = (0..model.claims.len()).map(|i| sorted(model, i)).collect();
     let sig = |i: usize, s: &Sorting, x: &[Value]| -> Result<Value, (Input, Error)> {
         if let [only] = &s.parts[..] {
-            return class_of(&only.spec, x, only.line);
+            // The inputs of the one call: the claim's own, or its arguments.
+            let Some(args) = &only.args else {
+                return class_of(&only.spec, x, only.line);
+            };
+            let c = &model.claims[i];
+            let names = c.pattern.iter().zip(x);
+            let env: Env = names
+                .filter_map(|(p, v)| Some((p.var.clone()?, v.clone())))
+                .collect();
+            let mut inputs = Vec::new();
+            for a in args {
+                let v = ev.eval(a, &env, c.line, Subjects::Observed);
+                inputs.extend(v.map_err(model_err)?.into_iter().next());
+            }
+            // An argument that reads an output not observed: no class yet.
+            if inputs.len() != args.len() {
+                return class_of(&only.spec, x, only.line);
+            }
+            return class_of(&only.spec, &inputs, only.line);
         }
         let c = &model.claims[i];
         let env: Env = c
@@ -2153,7 +2194,21 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         // An input both right and wrong is a contradiction: it counts on
         // neither side.
         let mut refuted = wrong.minus(right);
-        let tested = right.minus(wrong);
+        // The specs of what it calls say it is false on an input: the
+        // model contradicts itself, whatever the evidence.
+        let mut against = None;
+        if c.auto && implication == Some(Implication::Refuted) {
+            let premises: Vec<&Claim> = c
+                .from
+                .iter()
+                .map(|p| model.claim(p).expect("checked"))
+                .collect();
+            against = ev.counter(c, domain, &premises);
+            if let Some(x) = &against {
+                refuted = refuted.union(&Tuples::point(x));
+            }
+        }
+        let tested = right.minus(wrong).minus(&refuted);
         let derived = if follows {
             domain.minus(wrong).minus(&tested)
         } else {
@@ -2336,6 +2391,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         logic_of.insert(&c.name, logic);
         assuming_of.insert(&c.name, assuming.clone());
         verdicts.push(Verdict {
+            against,
             claim: c.name.clone(),
             logic,
             assuming,
@@ -2385,6 +2441,24 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let v = &verdicts[i];
         if v.logic != Logic::Fails || broken(&c.name) {
             continue;
+        }
+        if let Some(x) = &v.against {
+            let mut pieces = vec![Piece::Claim(c.name.clone())];
+            pieces.extend(c.from.iter().map(|p| Piece::Claim(p.clone())));
+            problems.push(Problem {
+                kind: Kind::Against {
+                    claim: c.name.clone(),
+                    specs: c.from.clone(),
+                    input: brief(&Tuples::point(x), &v.domain),
+                },
+                evidence: Vec::new(),
+                clauses: vec![pieces],
+                candidates: Ok(Vec::new()),
+                conflict: 0.0,
+            });
+            if direct[i].wrong.is_empty() {
+                continue;
+            }
         }
         let mut lines: Vec<usize> = Vec::new();
         for j in (0..direct.len()).filter(|j| same(i, *j)) {
@@ -2808,6 +2882,29 @@ pub fn failed_output(model: &Model, test: &Test) -> Result<Vec<Evidence>, Error>
         }
     }
     Ok(out)
+}
+
+/// The value of an expression that reads no code, with these names
+/// bound. `None` when it reads an output, or has no single value.
+pub(crate) fn computed(model: &Model, e: &Expr, names: &[(String, Value)]) -> Option<Value> {
+    let ev = Eval {
+        model,
+        observed: BTreeMap::new(),
+        depth: Cell::new(0),
+        read: RefCell::new(Vec::new()),
+        measured: RefCell::new(Vec::new()),
+        notes: RefCell::new(Vec::new()),
+        rules: Vec::new(),
+        through: RefCell::new(Vec::new()),
+        claim: RefCell::new(String::new()),
+        leaned: RefCell::new(Vec::new()),
+    };
+    let env: Env = names.iter().cloned().collect();
+    let got = ev.eval(e, &env, 0, Subjects::Observed).ok()?;
+    match &got[..] {
+        [v] => Some(v.clone()),
+        _ => None,
+    }
 }
 
 /// What a test `f(x) = v` says beside the output: `v` is the output its

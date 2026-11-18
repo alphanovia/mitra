@@ -29,10 +29,12 @@ const USAGE: &str = "usage:
   mitra eval  [<model.mitra> <evidence.mitra>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [-o <result.txt>]
   mitra add   '<evidence>' [--source <who>] [--rev <commit>]
   mitra next  [<model.mitra> <evidence.mitra>] [--rev <commit>]
+  mitra plan  [<model.mitra> <evidence.mitra>] [--rev <commit>]
   mitra ingest <report> [--format libtest|junit] [--rev <commit>]
   mitra tie   [--rev <commit>]
   mitra explain <code>
-  mitra explain <claim> [<model.mitra> <evidence.mitra>]";
+  mitra explain <claim> [<model.mitra> <evidence.mitra>]
+  mitra explain std::claims";
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {
@@ -141,7 +143,7 @@ fn evaluate(
 
 /// Remove `--rev <value>` from the arguments of `check`, `eval` and `next`.
 fn take_rev(cmd: &str, rest: &mut Vec<String>) -> Result<Option<String>, String> {
-    if !["check", "eval", "next", "tie"].contains(&cmd) {
+    if !["check", "eval", "next", "plan", "tie"].contains(&cmd) {
         return Ok(None);
     }
     let Some(i) = rest.iter().position(|a| a == "--rev") else {
@@ -237,6 +239,12 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             print!("{}", mitra_core::next(&model, &report));
             Ok(0)
         }
+        "plan" => {
+            let (m, e) = inputs(rest)?;
+            let (model, report) = evaluate(&m, &e, rev)?;
+            print!("{}", mitra_core::plan(&model, &report));
+            Ok(0)
+        }
         "eval" => {
             let (paths, out) = match rest {
                 [p @ .., o, out] if o == "-o" => (p, Some(out)),
@@ -266,6 +274,11 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let [code, paths @ ..] = rest else {
                 return Err(USAGE.into());
             };
+            // A module shipped with the tool: its text.
+            if let Some(text) = mitra_core::surface::library(code) {
+                print!("{text}");
+                return Ok(0);
+            }
             if let Some(text) = mitra_core::explain(code) {
                 print!("{text}");
                 return Ok(0);

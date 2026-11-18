@@ -48,6 +48,8 @@ used as a wildcard, a claim named where a subject is expected.
   instead (`mitra explain div_uniform`, the part after the last `::` is
   enough), it prints the claim as written, as Mitra reads it, the count
   of evidence on the claim itself and its verdict lines.
+- `plan` lists the evidence each claim still owes (see
+  `docs/reference/reworked.md`; it reads either syntax).
 - `check` parses, checks and evaluates both files, prints
   `ok: F functions, C claims, T tests, E evidence`, then any evidence
   that can't be used.
@@ -1077,6 +1079,7 @@ error[M004]: an assumption is contradicted by the evidence
 | `M004` | error | an assumption is contradicted by the evidence: a pass and a failure in one class |
 | `M005` | error | a measurement does not fit another measurement of the same measure, or the observed outputs |
 | `M006` | error | evidence does not fit the model: inputs or an output outside the signature of its function |
+| `M007` | error | a claim contradicts the specs of the functions it calls (reworked syntax): false on an input, computed from the bodies, with no evidence needed |
 | `M101` | warning | a claim is not verified: some inputs have no evidence |
 | `M102` | warning | a claim holds only under assumptions |
 | `M103` | warning | an assumption is not vouched for |

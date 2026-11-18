@@ -15,6 +15,7 @@ pub mod ast;
 pub mod eval;
 pub mod next;
 pub mod parse;
+pub mod plan;
 pub mod print;
 pub mod report;
 pub mod set;
@@ -31,6 +32,7 @@ pub use eval::{
 };
 pub use next::next;
 pub use parse::{parse_evidence, parse_evidence_for, parse_model};
+pub use plan::plan;
 pub use print::{print_evidence, print_model};
 pub use report::{explain, Files, Places};
 pub use set::{Set, Value};

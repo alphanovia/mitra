@@ -48,6 +48,8 @@ subject loader {
 | `claim c = uniform(f, \|a, b\| b == 0);` | The same within each class. The class is a Bool, or typed: `\|m\| -> {"x", "y"} { m.kind }`. A function name also works: `uniform(f, g)`. |
 | `claim c(f, T) { given a: T then f(a) == a }` | A claim with parameters: names without a type, and a contract as body. It is not a claim by itself. |
 | `claim d = c(g, 0..=9) trust 0.9;` | That claim with `f` and `T` replaced: a function, a set, a value or an inline function `\|a, b\| b > 0`. Written above its use. |
+| `import geometry::{Point, origin};` | The named declarations of `geometry.mitra`, beside this file, as if written here (`a::b::x` reads `a/b.mitra`). One file is one module. Nothing else of the file comes, except what it imports itself. |
+| `import std::claims::{commutative};` | The same from the modules shipped with Mitra. `mitra explain std::claims` prints one: `commutative`, `associative`, `idempotent`, `neutral`, `inverse`, `monotone`, `within`. |
 | `assume c() { e }` | A claim taken as true without evidence (evidence with source `assumed`): `holds assuming [itself]` until the boundary is observed. Evidence against it is an error. |
 | `record R { a: T, b: U }`, `record Box<T> { item: T }` | Values are written `R(1, 2)`. |
 | `enum E<T> { A, B(T), C(x: T, y: T) }` | Unnamed fields are named `v0`, `v1`. |
@@ -116,8 +118,9 @@ Where none was observed, Mitra looks for it in this order.
    above the claim): when they imply the claim on every input, the claim
    is `assumed on` those inputs and holds as far as the spec claims do
    (`holds assuming [clock::back::spec]` when one is not verified). When
-   the specs contradict it, the report says `not derived: the specs of
-   what it calls contradict it`. `examples/reworked/clock`.
+   the specs say the claim is false on an input, that is error M007: the
+   claim fails there, with the claim and the specs as candidates, and no
+   evidence needed. `examples/reworked/clock`.
 
 ## Boundaries
 
@@ -134,6 +137,42 @@ Where none was observed, Mitra looks for it in this order.
   observations cover it; then it holds, or fails.
 
 `examples/reworked/network`.
+
+## `mitra plan`: the evidence owed
+
+`mitra plan` lists, for each claim that does not hold yet, the evidence
+it still owes. With no evidence it is the list of tests to write, from
+the model alone; with evidence, what is left. `nothing owed` when every
+claim holds.
+
+```
+calc::div::spec owed:
+  any one point of { (a, b) | !(b == 0) }
+  any one point of { (a, b) | b == 0 }
+  and `calc::div_classes`, which says one point is enough
+calc::div_classes owed: a review that `calc::div` behaves the same within each class
+calc::div_small owed:
+  calc::div(6, 2), expected 3
+  or nothing, once calc::div::spec holds
+calc::add_commutes owed:
+  calc::add(0, 0)
+  calc::add(0, 1)
+```
+
+- A claim with a `uniform` claim on its function owes one point per class
+  not yet tested.
+- Otherwise it owes each call it reads and that was not observed, when
+  there are at most 12 points; `expected` is what the spec or the claim
+  itself says the output is (`f(…) == e`, with `e` computed).
+- A larger or infinite set owes "every point, or a claim one point can
+  stand for".
+- A claim that holds only through other claims (`holds assuming`) still
+  lists its own points, with "or nothing, once … holds".
+- `uniform`, `uses` and ties owe a review or `mitra tie`. An assumption
+  owes nothing. A failing claim owes nothing: `mitra eval` says why.
+
+A pinned point is a claim: `claim div_small() { div(6, 2) == 3 }`.
+`examples/reworked/plan`.
 
 ## Evidence
 
@@ -211,9 +250,12 @@ either syntax. `mitra add 'evidence e { for f … }'` accepts a block.
   for a function of any number of inputs), and an inline function is not
   a value.
 - A body can't call a boundary: a spec is computed, and a boundary is not.
-- Distributions on what a boundary answers, simulations, sequences.
-- A claim the specs contradict is only reported as `not derived`; other
-  evidence can still make it hold.
+- Distributions on what a boundary answers, sequences. Simulations: later.
+- `std::claims` has no `represented`. An imported file is read from the
+  folder of the model; in a store, put modules in a subfolder
+  (`.mitra/lib/pair.mitra`, `import lib::pair::Pair;`), since every file
+  directly in `.mitra/` is already part of the model.
+- An error inside an imported file is reported on the `import` line.
 - The reader reads text, not Rust's syntax tree: macros, trait methods
   and two functions of the same name can mislead it.
 - No trust on a signature (it is 1).

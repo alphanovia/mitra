@@ -33,7 +33,7 @@ impl Places for Files<'_> {
 }
 
 /// Every code, with its headline and its long explanation.
-const CODES: [(&str, &str, &str); 10] = [
+const CODES: [(&str, &str, &str); 11] = [
     (
         "M001",
         "evidence refutes a claim",
@@ -98,6 +98,14 @@ const CODES: [(&str, &str, &str); 10] = [
          The evidence judges nothing until this is settled.\n\n\
          To fix: if the observation is real, widen the type in the model;\n\
          if not, correct the evidence.",
+    ),
+    (
+        "M007",
+        "a claim contradicts the specs of what it calls",
+        "A claim calls functions that have a body in the model. Computed from\n\
+         those bodies, the claim is false on an input. The model says two\n\
+         things that can't both be true, before any evidence.\n\n\
+         To fix: correct the claim, or the body it contradicts.",
     ),
     (
         "M101",
@@ -442,6 +450,7 @@ impl Writer<'_> {
         *out += match p.kind {
             Kind::Fails { .. } => "\n  The code, the claim or the evidence is wrong.",
             Kind::Misfit { .. } => "\n  Either the model is wrong or the evidence is.",
+            Kind::Against { .. } => "\n  The claim or a spec is wrong.",
             _ => "\n  These can't all be right.",
         };
         *out += " Below, the trust given to each\n  piece, and what is left of it once they are weighed against each other:\n\n";
@@ -592,6 +601,20 @@ impl Writer<'_> {
                 self.ranking(p, out);
                 *out += "\n  note: until this is settled, neither counts for these inputs\n  \
                          help: find out which one is right, and correct the other\n";
+            }
+            Kind::Against { claim, specs, .. } => {
+                *out += &self.at_claim(claim);
+                let (c, v) = (self.claim(claim), self.verdict(claim));
+                let at = v.against.as_ref().map(|x| Tuples::point(x));
+                let input = at.map_or(String::new(), |x| self.inputs(&c.func, &x, &v.domain));
+                let specs: Vec<String> = specs.iter().map(|s| format!("`{s}`")).collect();
+                *out += &format!(
+                    "\n  On {input}, the specs of the functions `{claim}` calls say it is false\n  \
+                     ({}). No evidence is needed to see it.\n",
+                    specs.join(", ")
+                );
+                self.ranking(p, out);
+                *out += "\n  help: correct the claim, or the body of the function it contradicts\n";
             }
             Kind::Misfit { function, why } => {
                 if let Some((line, _)) = p.evidence.first() {

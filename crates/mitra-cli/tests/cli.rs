@@ -501,3 +501,43 @@ fn explain_a_claim() {
     assert!(err.contains("no such claim"), "{err}");
     assert_eq!(mitra(&dir, &["explain", "M001"]).0, Some(0));
 }
+
+/// `mitra plan`: what each claim owes, from the model alone.
+#[test]
+fn plan_lists_the_evidence_owed() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/reworked/plan");
+    let (code, out, err) = mitra(&dir, &["plan", "model.mitra", "evidence.mitra"]);
+    assert_eq!(code, Some(0), "{err}");
+    // One point per class, a pinned point with what the spec expects, and
+    // a library claim point by point.
+    assert!(
+        out.contains("any one point of { (a, b) | b == 0 }"),
+        "{out}"
+    );
+    assert!(out.contains("calc::div(6, 2), expected 3"), "{out}");
+    assert!(out.contains("calc::add(0, 1), expected 1"), "{out}");
+    assert!(
+        out.contains("calc::add_commutes owed:\n  calc::add(0, 0)\n"),
+        "{out}"
+    );
+    assert!(
+        out.contains("a review that `calc::div` behaves the same"),
+        "{out}"
+    );
+}
+
+/// `import` reads the file beside the model, and `std` from the tool.
+#[test]
+fn import_reads_beside_the_model() {
+    let dir =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/reworked/imports");
+    let (code, out, err) = mitra(&dir, &["eval", "model.mitra", "evidence.mitra"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("plane::origin_is_neutral: unverified"),
+        "{out}"
+    );
+    let (code, out, _) = mitra(&dir, &["explain", "std::claims"]);
+    assert_eq!(code, Some(0));
+    assert!(out.contains("claim commutative(f, T)"), "{out}");
+}

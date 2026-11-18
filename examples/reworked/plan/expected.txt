@@ -1,0 +1,41 @@
+calc::div::spec: unverified
+  no evidence on  (a, b) in (0..=9, 0..=9)
+calc::div_classes: unverified
+calc::div_small: holds assuming [calc::div::spec]
+  assumed on      the statement itself: the specs of what it calls imply it
+calc::add_commutes: unverified
+  no evidence on  (a, b) in (0..=1, 0..=1)
+calc::add_is_sum: unverified
+  no evidence on  `a = 0`, `a = 1`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  fn div(a: 0..=9, b: 0..=9) -> 0..=9 { if b == 0 { 0 } else { a / b } }
+
+  No evidence on (a, b) in (0..=9, 0..=9).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M103]: an assumption is not vouched for
+  --> model.mitra:10  claim div_classes = uniform(div, |a, b| b == 0);
+
+  Nothing says that `calc::div_classes` holds, and Mitra can't check it.
+  help: review it against the code, then record: evidence <name> { for calc::div_classes holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> model.mitra:12  claim div_small() { div(6, 2) == 3 }
+
+  `calc::div_small` holds if `calc::div::spec` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+warning[M101]: a claim is not verified
+  --> model.mitra:13  claim add_commutes = commutative(add, 0..=1);
+
+  No evidence on (a, b) in (0..=1, 0..=1).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:14  claim add_is_sum(a: 0..=1) { add(a, 1) == a + 1 }
+
+  No evidence on `a = 0`, `a = 1`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

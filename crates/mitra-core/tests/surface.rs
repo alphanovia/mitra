@@ -11,6 +11,7 @@ fn examples() {
     for entry in fs::read_dir(root).unwrap() {
         let dir = entry.unwrap().path();
         let read = |f: &str| fs::read_to_string(dir.join(f)).unwrap();
+        mitra_core::surface::imports_from(Some(&dir));
         let report = mitra_core::run(&read("model.mitra"), &read("evidence.mitra"))
             .unwrap_or_else(|(_, e)| panic!("{}: {e}", dir.display()));
         if std::env::var("MITRA_RECORD").is_ok() {
@@ -155,4 +156,21 @@ fn tests_in_the_model() {
     let model = mitra_core::load(&m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
     assert_eq!(model.tests.len(), 1);
     assert_eq!(model.tests[0].name, "t");
+}
+
+#[test]
+fn import_takes_what_it_names() {
+    let m = "import std::claims::{commutative};\n\
+             subject s { fn add(a: 0..=1, b: 0..=1) -> 0..=2;\n\
+             claim add_commutes = commutative(add, 0..=1); }";
+    let model = mitra_core::load(m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
+    assert_eq!(model.claims.len(), 1);
+    let error = |m: &str| mitra_core::load(m, "").unwrap_err().1.message;
+    // Not named, not there.
+    let e = error(&m.replace("{commutative}", "{neutral}"));
+    assert!(e.contains("no claim with parameters `commutative`"), "{e}");
+    let e = error("import std::claims::{nothing};\nsubject s { }");
+    assert!(e.contains("`std::claims` declares no `nothing`"), "{e}");
+    let e = error("import std::nowhere::x;\nsubject s { }");
+    assert!(e.contains("no module `std::nowhere` in `std`"), "{e}");
 }

@@ -6,7 +6,53 @@
 //! the line it started at, so errors and reports point at the right line.
 
 use crate::Error;
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
+
+/// The modules shipped with the tool: plain Mitra, `mitra explain std::claims`
+/// prints one.
+const STD: [(&str, &str); 1] = [("std::claims", include_str!("../std/claims.mitra"))];
+
+thread_local! {
+    /// Where `import a::b::name;` looks for `a/b.mitra`.
+    static ROOT: RefCell<Option<PathBuf>> = const { RefCell::new(None) };
+}
+
+/// Read imported modules beside the model: `dir/a/b.mitra` for `a::b`.
+pub fn imports_from(dir: Option<&Path>) {
+    ROOT.with(|r| *r.borrow_mut() = dir.map(Path::to_path_buf));
+}
+
+/// The text of a module shipped with the tool.
+pub fn library(module: &str) -> Option<&'static str> {
+    STD.iter().find(|m| m.0 == module).map(|m| m.1)
+}
+
+/// The text of a module, and where it was looked for.
+fn module(path: &[String]) -> Result<String, String> {
+    let name = path.join("::");
+    if path[0] == "std" {
+        let known: Vec<&str> = STD.iter().map(|m| m.0).collect();
+        let none = format!("no module `{name}` in `std`: it has {}", known.join(", "));
+        return library(&name).map(String::from).ok_or(none);
+    }
+    let Some(root) = ROOT.with(|r| r.borrow().clone()) else {
+        return Err(format!(
+            "no module `{name}`: this model has no folder to import from"
+        ));
+    };
+    let mut file = root;
+    file.extend(path);
+    file.set_extension("mitra");
+    std::fs::read_to_string(&file)
+        .map_err(|e| format!("no module `{name}`: {}: {e}", file.display()))
+}
+
+/// The declarations at the top of a file that start an item.
+const ITEMS: [&str; 9] = [
+    "subject", "boundary", "record", "enum", "fn", "claim", "assume", "test", "import",
+];
 
 #[derive(Debug, Clone, PartialEq)]
 enum Kind {
@@ -107,7 +153,7 @@ pub fn is_surface(model: &str) -> bool {
         Some(!rest[name..].trim_start().starts_with(':') && name > 0)
     };
     let ours = |l: &str| {
-        let starts = ["subject ", "boundary ", "fn ", "assume "];
+        let starts = ["subject ", "boundary ", "fn ", "assume ", "import "];
         starts.iter().any(|k| l.trim_start().starts_with(k))
             || named(l, "claim ") == Some(true)
             || named(l, "test ") == Some(true)
@@ -166,6 +212,8 @@ struct P {
     impure: bool,
     /// The claims with parameters: their parameters and their body.
     templates: BTreeMap<String, (Vec<String>, Vec<Tok>)>,
+    /// The modules being imported, outermost first.
+    stack: Vec<String>,
 }
 
 type R<T> = Result<T, Error>;
@@ -823,6 +871,32 @@ impl P {
             let line = self.line();
             let kw = self.name()?;
             match kw.as_str() {
+                "import" if self.scope.is_none() => {
+                    // import a::b::name;  import a::b::{x, y};
+                    let mut path = vec![self.name()?];
+                    let mut names = Vec::new();
+                    loop {
+                        self.expect("::")?;
+                        if self.eat("{") {
+                            while !self.eat("}") {
+                                names.push(self.name()?);
+                                if !self.eat(",") {
+                                    self.expect("}")?;
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                        let n = self.name()?;
+                        if !self.is("::") {
+                            names.push(n);
+                            break;
+                        }
+                        path.push(n);
+                    }
+                    self.eat(";");
+                    self.import(out, line, &path, &names)?;
+                }
                 "subject" | "boundary" if self.scope.is_none() => {
                     self.scope = Some(self.name()?);
                     if kw == "boundary" {
@@ -1190,6 +1264,63 @@ impl P {
         Ok(())
     }
 
+    /// The named declarations of another file, read as if written here.
+    fn import(
+        &mut self,
+        out: &mut Vec<String>,
+        line: usize,
+        path: &[String],
+        names: &[String],
+    ) -> R<()> {
+        let name = path.join("::");
+        if self.stack.contains(&name) {
+            return Err(Error::new(line, format!("`{name}` imports itself")));
+        }
+        let src = module(path).map_err(|e| Error::new(line, e))?;
+        let inside =
+            |e: Error| Error::new(line, format!("in `{name}`, line {}: {}", e.line, e.message));
+        let toks = lex(&src).map_err(inside)?;
+        // Only what is named, and what the module itself imports.
+        let (mut kept, mut found, mut depth, mut keep) = (Vec::new(), Vec::new(), 0, false);
+        for (i, t) in toks.iter().enumerate() {
+            if depth == 0 && t.kind == Kind::Name && ITEMS.contains(&t.text.as_str()) {
+                let item = toks.get(i + 1).map_or("", |n| n.text.as_str());
+                keep = t.text == "import" || names.iter().any(|n| n == item);
+                if keep && t.text != "import" {
+                    found.push(item.to_string());
+                }
+            }
+            if t.kind == Kind::Punct {
+                depth += (t.text == "{") as i32 - (t.text == "}") as i32;
+            }
+            if keep {
+                kept.push(t.clone());
+            }
+        }
+        if let Some(n) = names.iter().find(|n| !found.contains(n)) {
+            return Err(Error::new(line, format!("`{name}` declares no `{n}`")));
+        }
+        let mut stack = self.stack.clone();
+        stack.push(name.clone());
+        let (lines, p) = read(kept, &stack).map_err(inside)?;
+        for l in lines.into_iter().filter(|l| !l.is_empty()) {
+            P::put(out, line, l);
+        }
+        self.all
+            .extend(p.names.fns.keys().chain(p.names.claims.keys()).cloned());
+        self.names.fns.extend(p.names.fns);
+        self.names.claims.extend(p.names.claims);
+        self.names.specified.extend(p.names.specified);
+        self.names.opaque.extend(p.names.opaque);
+        self.names.derived.extend(p.names.derived);
+        self.names.trust.extend(p.names.trust);
+        self.names.declared.extend(p.names.declared);
+        self.names.boundaries.extend(p.names.boundaries);
+        self.variants.extend(p.variants);
+        self.templates.extend(p.templates);
+        Ok(())
+    }
+
     /// `claim c = shape(f, 0..=9, |a| a > 0) trust 0.9;`: the claim `shape`
     /// with its parameters replaced by what is written here.
     fn instance(
@@ -1411,7 +1542,12 @@ impl P {
 
 /// The model in the earlier syntax, line for line, and its names.
 pub fn model(src: &str) -> Result<(String, Names), Error> {
-    let toks = lex(src)?;
+    let (out, p) = read(lex(src)?, &[])?;
+    Ok((out.join("\n"), p.names))
+}
+
+/// One file: its declarations in the earlier syntax, by line.
+fn read(toks: Vec<Tok>, stack: &[String]) -> Result<(Vec<String>, P), Error> {
     // Every function and claim, before reading any: one may name another
     // declared further down.
     let (mut all, mut depth, mut scope) = (BTreeSet::new(), 0, None);
@@ -1459,6 +1595,7 @@ pub fn model(src: &str) -> Result<(String, Names), Error> {
             known,
             impure: false,
             templates: BTreeMap::new(),
+            stack: stack.to_vec(),
         };
         let mut out = Vec::new();
         p.items(&mut out)?;
@@ -1478,10 +1615,9 @@ pub fn model(src: &str) -> Result<(String, Names), Error> {
             p.evidence(&mut out, true)?;
         }
         known = p.names.clone();
-        last = Some((out, p.names));
+        last = Some((out, p));
     }
-    let (out, names) = last.expect("read twice");
-    Ok((out.join("\n"), names))
+    Ok(last.expect("read twice"))
 }
 
 /// The evidence in the earlier syntax, line for line, then what the
@@ -1525,6 +1661,7 @@ pub fn evidence_alone(src: &str, names: &Names) -> Result<String, Error> {
         first: false,
         impure: false,
         templates: BTreeMap::new(),
+        stack: Vec::new(),
     };
     let mut out = Vec::new();
     let lines: Vec<&str> = src.lines().collect();

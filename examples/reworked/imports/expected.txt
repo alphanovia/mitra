@@ -1,0 +1,20 @@
+plane::add_commutes: unverified
+  passes on       `plane::add(Point(0, 0), Point(1, 2))`, `plane::add(Point(1, 2), Point(0, 0))`
+  no evidence on  79 inputs
+plane::origin_is_neutral: unverified
+  passes on       `a = Point(1, 2)`
+  no evidence on  a in Point \ {Point(1, 2)}
+
+warning[M101]: a claim is not verified
+  --> model.mitra:8  claim add_commutes = commutative(add, Point);
+
+  No evidence on 79 inputs.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  claim origin_is_neutral = neutral(add, Point, origin());
+
+  No evidence on a in Point \ {Point(1, 2)}.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.
