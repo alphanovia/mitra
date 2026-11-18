@@ -13,7 +13,10 @@ pub const SOURCE: &str = include_str!("mitra.ll1");
 /// End of input.
 const END: &str = "$";
 const CLASSES: [&str; 4] = ["NAT", "DEC", "STR", "NAME"];
-const KEYWORDS: [&str; 44] = [
+const KEYWORDS: [&str; 47] = [
+    "Set",
+    "Map",
+    "keys",
     "enum",
     "match",
     "rate",

@@ -1,0 +1,4 @@
+evidence alarm({"door": High}, {}) = true at 1
+evidence alarm({"door": High, "window": Low}, {"window"}) = true at 1
+evidence alarm({:}, {"door"}) = false at 1
+evidence alarm({"door": High}, {"door"}) = true at 1

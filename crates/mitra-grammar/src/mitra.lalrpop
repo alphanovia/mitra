@@ -11,7 +11,7 @@ match {
     r"[0-9]+" => NAT,
     r"[0-9]+\.[0-9]+" => DEC,
     r#""([^"\\\n]|\\[nt"\\])*""# => STR,
-    "record", "enum", "match", "rate", "precision", "recall", "false_positive_rate", "List", "len", "opaque", "def", "claim", "test", "evidence",
+    "record", "enum", "match", "rate", "precision", "recall", "false_positive_rate", "List", "Set", "Map", "keys", "len", "opaque", "def", "claim", "test", "evidence",
     "correct", "at", "by", "derive", "if", "then", "else", "let",
     "true", "false", "forall", "in", "not",
     "Bool", "Int", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32",
@@ -84,6 +84,7 @@ Arg: () = {
     "(" Value "," Comma1<Value> ")" => (),
     "[" "]" => (),
     "[" Comma1<Value> "]" => (),
+    Braces<Value> => (),
 };
 
 Set: () = { Inter, Set Union Inter => () };
@@ -98,6 +99,9 @@ SetAtom: () = {
     NAME => (),
     NAME "(" Comma1<Set> ")" => (),
     "List" "(" Set ")" => (),
+    "Set" "(" Set ")" => (),
+    "Map" "(" Set "," Set ")" => (),
+    "Map" "(" Set ")" => (),
     Bound "..=" Bound => (),
     Bound ".." Bound => (),
     Bound ".." => (),
@@ -115,9 +119,13 @@ Expr: () = {
 Or: () = { And, Or "||" And => () };
 And: () = { Compare, And "&&" Compare => () };
 Compare: () = { Sum, Compare CmpOp Sum => () };
-CmpOp: () = { "==" => (), "!=" => (), "<" => (), "<=" => (), ">" => (), ">=" => () };
-Sum: () = { Product, Sum "+" Product => (), Sum "-" Product => () };
-Product: () = { Unary, Product "*" Unary => (), Product "/" Unary => () };
+CmpOp: () = { "==" => (), "!=" => (), "<" => (), "<=" => (), ">" => (), ">=" => (), In };
+// `|` and `\` on sets and maps bind like `+`, `&` like `*`.
+Sum: () = {
+    Product, Sum "+" Product => (), Sum "-" Product => (),
+    Sum "|" Product => (), Sum "\\" Product => (),
+};
+Product: () = { Unary, Product "*" Unary => (), Product "/" Unary => (), Product "&" Unary => () };
 Unary: () = {
     "!" Unary => (),
     "-" Unary => (),
@@ -137,6 +145,8 @@ Atom: () = {
     "[" "]" => (),
     "[" Comma1<Expr> "]" => (),
     "len" "(" Expr ")" => (),
+    "keys" "(" Expr ")" => (),
+    Braces<Expr> => (),
     "match" Expr "{" Comma1<Arm> "}" => (),
     Measure,
 };
@@ -153,5 +163,13 @@ Value: () = {
     NAME "(" Comma1<Value> ")" => (),
     "[" "]" => (),
     "[" Comma1<Value> "]" => (),
+    Braces<Value> => (),
+};
+// A set `{}`, `{a, b}` or a map `{:}`, `{k: v}`.
+Braces<T>: () = {
+    "{" ":" "}" => (),
+    "{" Comma1<(T ":" T)> "}" => (),
+    "{" Comma1<T> "}" => (),
+    "{" "}" => (),
 };
 Number: () = { NAT => (), DEC => () };

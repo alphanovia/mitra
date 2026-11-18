@@ -80,10 +80,20 @@ fn value(r: &mut Rng) -> String {
 fn composite(r: &mut Rng, depth: usize) -> String {
     if depth > 0 && r.chance(20) {
         let parts = |r: &mut Rng, lo| r.many(lo, 3, |r| composite(r, depth - 1)).join(" , ");
-        return match r.below(3) {
+        return match r.below(6) {
             0 => format!("( {} )", parts(r, 2)),
             1 => format!("{} ( {} )", name(r), parts(r, 1)),
-            _ => format!("[ {} ]", parts(r, 0)),
+            2 => format!("[ {} ]", parts(r, 0)),
+            // A set, and a map: its keys differ, or the parser refuses it.
+            3 => format!("{{ {} }}", parts(r, 0)),
+            4 => "{ : }".into(),
+            _ => {
+                let n = 1 + r.below(3);
+                let pairs: Vec<String> = (0..n)
+                    .map(|k| format!("{k} : {}", composite(r, depth - 1)))
+                    .collect();
+                format!("{{ {} }}", pairs.join(" , "))
+            }
         };
     }
     // A variant without fields, inside another value.
@@ -199,7 +209,12 @@ fn set_atom(r: &mut Rng, depth: usize) -> String {
             name(r),
             r.many(1, 3, |r| set(r, depth - 1)).join(" , ")
         ),
-        _ => format!("List ( {} )", set(r, depth - 1)),
+        _ => match r.below(4) {
+            0 => format!("Set ( {} )", set(r, depth - 1)),
+            1 => format!("Map ( {} , {} )", set(r, depth - 1), set(r, depth - 1)),
+            2 => format!("Map ( {} )", set(r, depth - 1)),
+            _ => format!("List ( {} )", set(r, depth - 1)),
+        },
     }
 }
 
@@ -259,9 +274,9 @@ pub fn expr(r: &mut Rng, depth: usize) -> String {
 const LEVELS: [&[&str]; 5] = [
     &["||"],
     &["&&"],
-    &["==", "!=", "<", "<=", ">", ">="],
-    &["+", "-"],
-    &["*", "/"],
+    &["==", "!=", "<", "<=", ">", ">=", "in", "∈"],
+    &["+", "-", "|", "\\"],
+    &["*", "/", "&"],
 ];
 
 fn binary(r: &mut Rng, level: usize, depth: usize) -> String {
@@ -314,7 +329,16 @@ fn atom(r: &mut Rng, depth: usize) -> String {
         let cond = expr(r, depth - 1);
         return measure(r, &cond);
     }
-    match if depth == 0 { r.below(2) } else { r.below(8) } {
+    match if depth == 0 { r.below(2) } else { r.below(11) } {
+        8 => format!("{{ {} }}", exprs(r, 0)),
+        9 => match r.chance(20) {
+            true => "{ : }".into(),
+            false => {
+                let pair = |r: &mut Rng| format!("{} : {}", expr(r, depth - 1), expr(r, depth - 1));
+                format!("{{ {} }}", r.many(1, 3, pair).join(" , "))
+            }
+        },
+        10 => format!("keys ( {} )", expr(r, depth - 1)),
         7 => {
             let arm = |r: &mut Rng| {
                 let pattern = match r.below(3) {

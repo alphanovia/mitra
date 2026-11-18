@@ -1,0 +1,6 @@
+-- A map or a set as an input: evidence on one value, and what is left.
+enum Level { Low, High }
+opaque alarm(readings: Map(String, Level), muted: Set(String)) -> Bool
+def alarm_spec(readings: Map(String, Level), muted: Set(String)) -> Bool :=
+  len(keys(readings) \ muted) > 0 && ("door" in readings && readings["door"] == High)
+claim alarm_is : forall readings, forall muted, alarm(readings, muted) = alarm_spec(readings, muted)

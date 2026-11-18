@@ -35,6 +35,63 @@ pub enum Shape {
     Record(String, usize),
 }
 
+/// A set value `{1, 2}` is the record `Set` of one list, sorted and
+/// without repeats; a map value `{"a": 1}` is the record `Map` of one list
+/// of `(key, value)` tuples, sorted by key. Both names are keywords, so no
+/// declared record takes them.
+pub const SET: &str = "Set";
+pub const MAP: &str = "Map";
+
+impl Value {
+    /// The set value of `items`.
+    pub fn set_of(mut items: Vec<Value>) -> Value {
+        items.sort();
+        items.dedup();
+        Value::Record(SET.into(), vec![Value::List(items)])
+    }
+    /// The map value of `pairs`; `None` when a key comes twice.
+    pub fn map_of(mut pairs: Vec<(Value, Value)>) -> Option<Value> {
+        pairs.sort();
+        if pairs.windows(2).any(|w| w[0].0 == w[1].0) {
+            return None;
+        }
+        let pairs = pairs.into_iter().map(|(k, v)| Value::Tuple(vec![k, v]));
+        Some(Value::Record(
+            MAP.into(),
+            vec![Value::List(pairs.collect())],
+        ))
+    }
+    /// The elements of a set value.
+    pub fn as_set(&self) -> Option<&[Value]> {
+        match self {
+            Value::Record(name, parts) if name == SET => match &parts[..] {
+                [Value::List(items)] => Some(items),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+    /// The keys and values of a map value.
+    pub fn as_map(&self) -> Option<Vec<(&Value, &Value)>> {
+        let Value::Record(name, parts) = self else {
+            return None;
+        };
+        let [Value::List(pairs)] = &parts[..] else {
+            return None;
+        };
+        if name != MAP {
+            return None;
+        }
+        pairs
+            .iter()
+            .map(|p| match p {
+                Value::Tuple(kv) if kv.len() == 2 => Some((&kv[0], &kv[1])),
+                _ => None,
+            })
+            .collect()
+    }
+}
+
 impl Shape {
     fn arity(&self) -> usize {
         match self {
@@ -122,6 +179,19 @@ impl fmt::Display for Value {
                 }
             }
             Value::Str(s) => write!(f, "{}", quote(s)),
+            Value::Record(..) if self.as_set().is_some() => {
+                let items = self.as_set().expect("checked");
+                let parts: Vec<String> = items.iter().map(|v| v.to_string()).collect();
+                write!(f, "{{{}}}", parts.join(", "))
+            }
+            Value::Record(..) if self.as_map().is_some() => {
+                let pairs = self.as_map().expect("checked");
+                let parts: Vec<String> = pairs.iter().map(|(k, v)| format!("{k}: {v}")).collect();
+                match parts.is_empty() {
+                    true => write!(f, "{{:}}"),
+                    false => write!(f, "{{{}}}", parts.join(", ")),
+                }
+            }
             Value::Tuple(vs) | Value::Record(_, vs) => {
                 let (shape, _) = self.parts().expect("composite");
                 let parts: Vec<String> = vs.iter().map(|v| v.to_string()).collect();
@@ -427,6 +497,80 @@ impl Lists {
     fn is_empty(&self) -> bool {
         self.base.is_empty() && self.plus.is_empty()
     }
+
+    /// The lists as text: single lists into `points`, the rest into
+    /// `parts`. `whole(E)` writes the lists with every element in E, and
+    /// `value` one list; sets and maps are printed through their lists.
+    fn show(
+        &self,
+        whole: &dyn Fn(&Set) -> String,
+        value: &dyn Fn(&Vec<Value>) -> String,
+        points: &mut Vec<String>,
+        parts: &mut Vec<String>,
+    ) {
+        points.extend(self.plus.iter().map(value));
+        if self.base.is_empty() {
+            return;
+        }
+        // `List(E)`, and for each set F it needs an element of:
+        // `\ List(E \ F)`.
+        let terms: Vec<String> = self
+            .base
+            .iter()
+            .map(|t| {
+                let all = t.all();
+                let mut text = whole(&all);
+                for f in &t.some {
+                    // Needing any element at all: not the empty list.
+                    let without = all.minus(f);
+                    text += &match without.is_empty() {
+                        true => format!(" \\ {{{}}}", value(&Vec::new())),
+                        false => format!(" \\ {}", whole(&without)),
+                    };
+                }
+                match t.some.is_empty() {
+                    true => text,
+                    false => format!("\u{1}{text}"),
+                }
+            })
+            .collect();
+        if self.minus.is_empty() {
+            parts.extend(terms);
+            return;
+        }
+        let but: Vec<String> = self.minus.iter().map(value).collect();
+        let terms: Vec<String> = terms
+            .iter()
+            .map(|t| match t.strip_prefix('\u{1}') {
+                Some(t) => format!("({t})"),
+                None => t.clone(),
+            })
+            .collect();
+        let terms = match &terms[..] {
+            [one] => one.clone(),
+            many => format!("({})", many.join(" | ")),
+        };
+        parts.push(format!("\u{1}{terms} \\ {{{}}}", but.join(", ")));
+    }
+}
+
+/// The entries of a map type: `K, V` when they are any key with any
+/// value, otherwise the set of `(key, value)` pairs.
+fn entries(pairs: &Set) -> String {
+    let only_pairs = Set {
+        composites: pairs.composites.clone(),
+        ..Set::empty()
+    } == *pairs;
+    let product = match pairs.composites.shapes.get(&Shape::Tuple(2)) {
+        Some(t) if only_pairs && !pairs.composites.rest && pairs.composites.shapes.len() == 1 => {
+            match t.boxes() {
+                [b] => Some(format!("{}, {}", b[0], b[1])),
+                _ => None,
+            }
+        }
+        _ => None,
+    };
+    product.unwrap_or_else(|| pairs.to_string())
 }
 
 impl PartialEq for Lists {
@@ -559,6 +703,14 @@ impl Set {
             lists: Lists::build(vec![term], BTreeSet::new(), |_| true),
             ..Set::empty()
         }
+    }
+    /// `Set(T)`: the set values whose elements are all in T.
+    pub fn sets(elements: Set) -> Set {
+        Set::record(SET, vec![Set::list(elements)])
+    }
+    /// `Map(K, V)`: the map values with keys in K and values in V.
+    pub fn maps(keys: Set, values: Set) -> Set {
+        Set::record(MAP, vec![Set::list(Set::tuple(vec![keys, values]))])
     }
     /// The tuples or records of one shape whose parts are in `parts`.
     pub fn composite(shape: Shape, parts: Tuples) -> Set {
@@ -840,6 +992,25 @@ impl fmt::Display for Set {
             Part::Cofinite(s) => cofinite("String", true, show_s(s), &mut points),
         }
         for (shape, t) in &self.composites.shapes {
+            // Sets and maps are printed from the lists inside: `Set(T)`,
+            // `Map(K, V)`, `Set(T) \ {{1, 2}}`.
+            if matches!(shape, Shape::Record(n, 1) if n == SET || n == MAP) {
+                let inner = t.boxes().iter().fold(Set::empty(), |s, b| s.union(&b[0]));
+                let only_lists = Set {
+                    lists: inner.lists.clone(),
+                    ..Set::empty()
+                } == inner;
+                if only_lists {
+                    let value =
+                        |l: &Vec<Value>| shape.value(vec![Value::List(l.clone())]).to_string();
+                    let whole = |all: &Set| match n_is_set(shape) {
+                        true => format!("Set({all})"),
+                        false => format!("Map({})", entries(all)),
+                    };
+                    inner.lists.show(&whole, &value, &mut points, &mut parts);
+                    continue;
+                }
+            }
             // Few enough: each value. Otherwise the products of sets.
             let show = |b: &[Set]| {
                 let sets: Vec<String> = b.iter().map(|s| s.to_string()).collect();
@@ -851,6 +1022,12 @@ impl fmt::Display for Set {
                 _ => None,
             };
             if let Some(vs) = few(t) {
+                points.extend(vs.into_iter().map(|v| shape.value(v).to_string()));
+                continue;
+            }
+            // Single values, whatever their size: each as a value.
+            let single = |b: &Vec<Set>| b.iter().map(Set::single).collect::<Option<Vec<Value>>>();
+            if let Some(vs) = t.boxes().iter().map(single).collect::<Option<Vec<_>>>() {
                 points.extend(vs.into_iter().map(|v| shape.value(v).to_string()));
                 continue;
             }
@@ -870,49 +1047,8 @@ impl fmt::Display for Set {
             }
         }
         let show_l = |l: &Vec<Value>| Value::List(l.clone()).to_string();
-        points.extend(self.lists.plus.iter().map(show_l));
-        if !self.lists.base.is_empty() {
-            // `List(E)`, and for each set F it needs an element of:
-            // `\ List(E \ F)`.
-            let terms: Vec<String> = self
-                .lists
-                .base
-                .iter()
-                .map(|t| {
-                    let all = t.all();
-                    let mut text = format!("List({all})");
-                    for f in &t.some {
-                        // Needing any element at all: not the empty list.
-                        let without = all.minus(f);
-                        text += &match without.is_empty() {
-                            true => " \\ {[]}".to_string(),
-                            false => format!(" \\ List({without})"),
-                        };
-                    }
-                    match t.some.is_empty() {
-                        true => text,
-                        false => format!("\u{1}{text}"),
-                    }
-                })
-                .collect();
-            if self.lists.minus.is_empty() {
-                parts.extend(terms);
-            } else {
-                let but: Vec<String> = self.lists.minus.iter().map(show_l).collect();
-                let terms: Vec<String> = terms
-                    .iter()
-                    .map(|t| match t.strip_prefix('\u{1}') {
-                        Some(t) => format!("({t})"),
-                        None => t.clone(),
-                    })
-                    .collect();
-                let terms = match &terms[..] {
-                    [one] => one.clone(),
-                    many => format!("({})", many.join(" | ")),
-                };
-                parts.push(format!("\u{1}{terms} \\ {{{}}}", but.join(", ")));
-            }
-        }
+        let whole = |all: &Set| format!("List({all})");
+        self.lists.show(&whole, &show_l, &mut points, &mut parts);
         if !points.is_empty() {
             parts.insert(0, format!("{{{}}}", points.join(", ")));
         }
@@ -931,6 +1067,10 @@ impl fmt::Display for Set {
             .collect();
         write!(f, "{}", parts.join(" | "))
     }
+}
+
+fn n_is_set(shape: &Shape) -> bool {
+    matches!(shape, Shape::Record(n, _) if n == SET)
 }
 
 /// A string as written in Mitra, with its escapes.

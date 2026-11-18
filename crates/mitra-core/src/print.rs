@@ -191,8 +191,8 @@ const ATOM: u8 = 8;
 
 /// mitra: opaque level(op: String) -> UInt8
 /// mitra: def level_spec(op: String) -> 1..=5 :=
-/// mitra:   if op == "||" then 1 else if op == "&&" then 2 else if op == "+" || op == "-" then 4
-/// mitra:   else if op == "*" || op == "/" then 5 else 3
+/// mitra:   if op == "||" then 1 else if op == "&&" then 2
+/// mitra:   else if op in {"+", "-", "|", "\\"} then 4 else if op in {"*", "/", "&"} then 5 else 3
 /// mitra: claim level_is : forall op, level(op) = level_spec(op)
 /// mitra: -- One class per arm of the `match`.
 /// mitra: claim level_uniform : uniform level by level_spec
@@ -200,8 +200,8 @@ fn level(op: &str) -> u8 {
     match op {
         "||" => 1,
         "&&" => 2,
-        "+" | "-" => 4,
-        "*" | "/" => 5,
+        "+" | "-" | "|" | "\\" => 4,
+        "*" | "/" | "&" => 5,
         _ => 3,
     }
 }
@@ -223,6 +223,22 @@ fn at(e: &Expr, min: u8) -> String {
         Expr::Tuple(args) => {
             let args: Vec<String> = args.iter().map(expr).collect();
             (format!("({})", args.join(", ")), ATOM)
+        }
+        // A set `{a, b}` or a map `{k: v}`.
+        Expr::Record(name, args) if name == crate::set::SET || name == crate::set::MAP => {
+            let items = match &args[..] {
+                [Expr::List(items)] => &items[..],
+                _ => &[],
+            };
+            let each = |e: &Expr| match (e, name == crate::set::MAP) {
+                (Expr::Tuple(kv), true) => format!("{}: {}", expr(&kv[0]), expr(&kv[1])),
+                _ => expr(e),
+            };
+            let items: Vec<String> = items.iter().map(each).collect();
+            match items.is_empty() && name == crate::set::MAP {
+                true => ("{:}".to_string(), ATOM),
+                false => (format!("{{{}}}", items.join(", ")), ATOM),
+            }
         }
         Expr::Record(name, args) => {
             let args: Vec<String> = args.iter().map(expr).collect();
@@ -264,6 +280,7 @@ fn at(e: &Expr, min: u8) -> String {
                 .collect();
             (format!("match {} {{ {} }}", expr(a), arms.join(", ")), ATOM)
         }
+        Expr::Unary("keys", a) => (format!("keys({})", expr(a)), ATOM),
         Expr::Unary(op, a) => {
             let inner = at(a, UNARY);
             // `- -x` must not print as the comment `--x`, and `-(5)` must not
@@ -319,6 +336,24 @@ mod tests {
     #[test]
     fn t_level_sum() {
         assert_eq!(level("-"), 4);
+    }
+
+    // mitra: test t_level_union : level("|") = 4
+    #[test]
+    fn t_level_union() {
+        assert_eq!(level("|"), 4);
+    }
+
+    // mitra: test t_level_intersection : level("&") = 5
+    #[test]
+    fn t_level_intersection() {
+        assert_eq!(level("&"), 5);
+    }
+
+    // mitra: test t_level_in : level("in") = 3
+    #[test]
+    fn t_level_in() {
+        assert_eq!(level("in"), 3);
     }
 
     // mitra: test t_level_product : level("/") = 5

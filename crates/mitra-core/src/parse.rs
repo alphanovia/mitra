@@ -5,7 +5,7 @@
 //! lookahead decides every step. See docs/reference/language.md.
 
 use crate::ast::*;
-use crate::set::{Set, Value};
+use crate::set::{Set, Value, MAP, SET};
 use crate::Error;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +25,10 @@ const PUNCT: [&str; 38] = [
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
-pub const KEYWORDS: [&str; 44] = [
+pub const KEYWORDS: [&str; 47] = [
+    "Set",
+    "Map",
+    "keys",
     "enum",
     "match",
     "rate",
@@ -365,6 +368,37 @@ impl P {
             }
             return Ok(Value::List(parts));
         }
+        if self.eat("{") {
+            // `{}`, `{1, 2}`: a set. `{:}`, `{"a": 1}`: a map.
+            let (mut items, mut pairs) = (Vec::new(), Vec::new());
+            let mut map = self.eat(":");
+            while !self.eat("}") {
+                if map && pairs.is_empty() && self.is("}") {
+                    continue;
+                }
+                if !(items.is_empty() && pairs.is_empty()) {
+                    self.expect(",")?;
+                }
+                let v = self.value()?;
+                if items.is_empty() && pairs.is_empty() && !map {
+                    map = self.is(":");
+                }
+                match map {
+                    true => {
+                        self.expect(":")?;
+                        pairs.push((v, self.value()?));
+                    }
+                    false => items.push(v),
+                }
+            }
+            return match map {
+                true => match Value::map_of(pairs) {
+                    Some(m) => Ok(m),
+                    None => self.err("a key comes twice in this map"),
+                },
+                false => Ok(Value::set_of(items)),
+            };
+        }
         match self.peek().cloned() {
             Some(Tok::Ident(s)) if s == "true" || s == "false" => {
                 self.pos += 1;
@@ -446,6 +480,24 @@ impl P {
             let elements = self.set()?;
             self.expect(")")?;
             return Ok(Set::list(elements));
+        }
+        if self.eat_keyword("Set") {
+            self.expect("(")?;
+            let elements = self.set()?;
+            self.expect(")")?;
+            return Ok(Set::sets(elements));
+        }
+        if self.eat_keyword("Map") {
+            self.expect("(")?;
+            // `Map(K, V)`; with one set, its `(key, value)` pairs.
+            let keys = self.set()?;
+            if self.eat(")") {
+                return Ok(Set::record(MAP, vec![Set::list(keys)]));
+            }
+            self.expect(",")?;
+            let values = self.set()?;
+            self.expect(")")?;
+            return Ok(Set::maps(keys, values));
         }
         if self.is_name() {
             // `Number`: every value of the record. `Number(S, T)`: those
@@ -662,6 +714,7 @@ impl P {
                 || self.is("-")
                 || self.is("(")
                 || self.is("[")
+                || self.is("{")
                 || self.is_keyword("true")
                 || self.is_keyword("false");
             let pos = if value {
@@ -801,18 +854,26 @@ impl P {
             &["||"],
             &["&&"],
             &["==", "!=", "<", "<=", ">", ">="],
-            &["+", "-"],
-            &["*", "/"],
+            // `|` and `\` on sets and maps bind like `+`, `&` like `*`.
+            &["+", "-", "|", "\\"],
+            &["*", "/", "&"],
         ];
         if level == LEVELS.len() {
             return self.unary();
         }
         let mut e = self.binary(level + 1)?;
-        while let Some(op) = LEVELS[level].iter().find(|op| self.is(op)) {
-            self.pos += 1;
+        loop {
+            let op = match LEVELS[level].iter().find(|op| self.is(op)) {
+                Some(op) => {
+                    self.pos += 1;
+                    op
+                }
+                // `x in s` is a comparison.
+                None if level == 2 && self.eat_in() => "in",
+                None => return Ok(e),
+            };
             e = Expr::Binary(op, Box::new(e), Box::new(self.binary(level + 1)?));
         }
-        Ok(e)
     }
     /// unary := ("!" | "-") unary | name { atom } | atom.
     /// `-` on an integer literal gives a negative literal.
@@ -925,6 +986,41 @@ impl P {
             let e = self.expr()?;
             self.expect(")")?;
             return Ok(Expr::Len(Box::new(e)));
+        }
+        if self.eat_keyword("keys") {
+            self.expect("(")?;
+            let e = self.expr()?;
+            self.expect(")")?;
+            return Ok(Expr::Unary("keys", Box::new(e)));
+        }
+        if self.eat("{") {
+            // `{}`, `{a, b}`: a set. `{:}`, `{k: v}`: a map. Both are
+            // records of one list, put in order when evaluated.
+            let (mut items, mut pairs) = (Vec::new(), Vec::new());
+            let mut map = self.eat(":");
+            while !self.eat("}") {
+                if map && items.is_empty() && pairs.is_empty() && self.is("}") {
+                    continue;
+                }
+                if !(items.is_empty() && pairs.is_empty()) {
+                    self.expect(",")?;
+                }
+                let e = self.expr()?;
+                if items.is_empty() && pairs.is_empty() && !map {
+                    map = self.is(":");
+                }
+                match map {
+                    true => {
+                        self.expect(":")?;
+                        pairs.push(Expr::Tuple(vec![e, self.expr()?]));
+                    }
+                    false => items.push(e),
+                }
+            }
+            return Ok(match map {
+                true => Expr::Record(MAP.into(), vec![Expr::List(pairs)]),
+                false => Expr::Record(SET.into(), vec![Expr::List(items)]),
+            });
         }
         if self.eat_keyword("match") {
             // match e { None => a, Some(v) => b, _ => c }

@@ -1,0 +1,8 @@
+tags_uniform: holds
+tags_small: holds
+  passes on       `xs = []`, `xs = ["b", "a", "b"]`
+  assumed on      classes "none", "some" of `tags_class`, by `tags_uniform`
+tags_from_list: holds
+  passes on       `xs = []`, `xs = ["b", "a", "b"]`
+  assumed on      classes "none", "some" of `tags_class`, by `tags_uniform`
+algebra: holds

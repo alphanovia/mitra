@@ -50,7 +50,7 @@ InSet         = In Set | ;
 Args          = "(" Arg ArgsTail ")" | ;
 ArgsTail      = "," Arg ArgsTail | ;
 Arg           = NAME ArgRecord | "true" | "false" | Num | "-" Num | STR
-              | "(" Value "," Value ValuesTail ")" | "[" Values "]" ;
+              | "(" Value "," Value ValuesTail ")" | "[" Values "]" | "{" Braces ;
 ArgRecord     = "(" Value ValuesTail ")" | ;
 
 Set           = Inter SetTail ;
@@ -61,7 +61,9 @@ SetAtom       = "Bool" | "Int" | "Int8" | "Int16" | "Int32" | "Int64"
               | "UInt8" | "UInt16" | "UInt32" | "Float64" | "String" | "Value"
               | "{" Values "}" | "(" Set SetsTail ")"
               | NAME SetArgs | "List" "(" Set ")"
+              | "Set" "(" Set ")" | "Map" "(" Set MapValues ")"
               | Bound RangeOp | ".." Bound | "..=" Bound ;
+MapValues     = "," Set | ;
 SetArgs       = "(" Set SetsTail ")" | ;
 SetsTail      = "," Set SetsTail | ;
 RangeOp       = "..=" Bound | ".." OptBound ;
@@ -77,16 +79,18 @@ And           = Compare AndTail ;
 AndTail       = "&&" Compare AndTail | ;
 Compare       = Sum CompareTail ;
 CompareTail   = CmpOp Sum CompareTail | ;
-CmpOp         = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
+CmpOp         = "==" | "!=" | "<" | "<=" | ">" | ">=" | In ;
+# `|` and `\` on sets and maps bind like `+`, `&` like `*`.
 Sum           = Product SumTail ;
-SumTail       = "+" Product SumTail | "-" Product SumTail | ;
+SumTail       = "+" Product SumTail | "-" Product SumTail
+              | "|" Product SumTail | "\" Product SumTail | ;
 Product       = Unary ProductTail ;
-ProductTail   = "*" Unary ProductTail | "/" Unary ProductTail | ;
+ProductTail   = "*" Unary ProductTail | "/" Unary ProductTail | "&" Unary ProductTail | ;
 Unary         = "!" Unary | "-" Unary | Atom Postfix ;
 Postfix       = "." Field Postfix | "[" Expr "]" Postfix | ;
 Field         = NAME | NAT ;
 Atom          = NAME CallArgs | Literal | "(" Expr ExprsTail ")" | "[" Exprs "]"
-              | "len" "(" Expr ")" | "match" Expr "{" Arm ArmsTail "}" | Measure ;
+              | "len" "(" Expr ")" | "keys" "(" Expr ")" | "{" BracesExpr | "match" Expr "{" Arm ArmsTail "}" | Measure ;
 Arm           = ArmPattern "=>" Expr ;
 ArmsTail      = "," Arm ArmsTail | ;
 ArmPattern    = "_" | NAME ArmFields ;
@@ -98,6 +102,13 @@ Literal       = "true" | "false" | Num | STR ;
 
 Value         = "true" | "false" | Num | "-" Num | STR
               | "(" Value "," Value ValuesTail ")" | NAME ArgRecord
-              | "[" Values "]" ;
+              | "[" Values "]" | "{" Braces ;
+# A set `{}`, `{a, b}` or a map `{:}`, `{k: v}`.
+Braces        = "}" | ":" "}" | Value BracesRest ;
+BracesRest    = ":" Value Pairs "}" | ValuesTail "}" ;
+Pairs         = "," Value ":" Value Pairs | ;
+BracesExpr    = "}" | ":" "}" | Expr BracesExprRest ;
+BracesExprRest = ":" Expr PairsExpr "}" | ExprsTail "}" ;
+PairsExpr     = "," Expr ":" Expr PairsExpr | ;
 Num           = NAT | DEC ;
 Number        = NAT | DEC ;

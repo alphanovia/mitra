@@ -1,0 +1,42 @@
+add_is: fails
+  fails on        `add_stock({"bolt": 1, "nut": 2}, "bolt", 1)`
+  passes on       `add_stock({:}, "bolt", 1)`, `add_stock({"nut": 2}, "nut", 3)`
+  no evidence on  a set too long to print
+add_keeps_items: unverified
+  passes on       `stock = {:}, item = "bolt", n = 1`, `stock = {"bolt": 1, "nut": 2}, item = "bolt", n = 1`, `stock = {"nut": 2}, item = "nut", n = 3`
+  no evidence on  a set too long to print
+remove_is: unverified
+  passes on       `remove({"bolt": 1, "nut": 2}, {"nut", "x"})`
+  no evidence on  (stock, gone) in (Map(String, 0..) \ {{"bolt": 1, "nut": 2}}, Set(String)) | ({{"bolt": 1, "nut": 2}}, Set(String) \ {{"nut", "x"}})
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:5  claim add_is : forall stock, forall item, forall n, add_stock(stock, item, n) = add_spec(stock, item, n)
+
+  `add_is` fails on `add_stock({"bolt": 1, "nut": 2}, "bolt", 1)`.
+  The evidence that says so:
+
+    output    evidence.mitra:4  evidence add_stock({"bolt": 1, "nut": 2}, "bolt", 1) = {"bolt": 2, "nut": 3} at 1
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                      trust  left
+    certain   the code of `add_stock`, model.mitra:2  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  help: if the evidence is right, fix `add_stock`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  claim add_keeps_items : forall stock, forall item, forall n, keys(add_stock(stock, item, n)) == keys(stock) | {item}
+
+  No evidence on a set too long to print.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  claim remove_is : forall stock, forall gone, remove(stock, gone) = stock \ gone
+
+  No evidence on (stock, gone) in (Map(String, 0..) \ {{"bolt": 1, "nut": 2}}, Set(String)) | ({{"bolt": 1, "nut": 2}}, Set(String) \ {{"nut", "x"}}).
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

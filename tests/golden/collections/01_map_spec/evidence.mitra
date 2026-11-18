@@ -1,0 +1,5 @@
+evidence add_stock({"nut": 2}, "nut", 3) = {"nut": 5} at 1
+evidence add_stock({:}, "bolt", 1) = {"bolt": 1} at 1
+-- The order written does not matter; the count of nuts is wrong.
+evidence add_stock({"nut": 2, "bolt": 1}, "bolt", 1) = {"bolt": 2, "nut": 3} at 1
+evidence remove({"nut": 2, "bolt": 1}, {"nut", "x"}) = {"bolt": 1} at 1

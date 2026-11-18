@@ -9,7 +9,7 @@ judged_is: holds
   assumed on      classes "correct", "rejected", "wrong" of `judged_class`, by `judged_uniform`
 judged_uniform: holds
 is_valid_is: holds
-  passes on       m in Mass({-0.5}, {0.5}, {1.0}) | Mass({0.5}, {0.0}, {0.5}) | Mass({0.5}, {0.0}, {0.5000000001}) | Mass({0.5}, {0.5}, {0.5})
+  passes on       m in {Mass(-0.5, 0.5, 1.0), Mass(0.5, 0.0, 0.5), Mass(0.5, 0.0, 0.5000000001), Mass(0.5, 0.5, 0.5)}
   assumed on      classes "part out of range", "sum off", "valid" of `valid_class`, by `is_valid_uniform`
 is_valid_uniform: holds
 conflict_is: holds

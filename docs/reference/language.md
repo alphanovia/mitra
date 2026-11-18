@@ -142,7 +142,7 @@ free: line breaks and indentation mean nothing.
   `&&` `||` `..` `.` `(` `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `&` `!` `<` `>`
   `+` `-` `*` `/` `\`.
 - Keywords: `rate precision recall false_positive_rate record enum match opaque def claim test evidence correct at by derive
-  if then else let true false forall in not uniform uses only len List
+  if then else let true false forall in not uniform uses only len keys List Set Map
   Bool Int Int8 Int16 Int32 Int64 UInt8 UInt16 UInt32 Float64 String
   Value Real _`. `Real`
   and `_` are reserved.
@@ -188,7 +188,8 @@ set-atom   = "Bool" | "Int" | "Int8" | "Int16" | "Int32" | "Int64"
            | "{" [ value { "," value } ] "}"
            | "(" set { "," set } ")"
            | name [ "(" set { "," set } ")" ]
-           | "List" "(" set ")"
+           | "List" "(" set ")" | "Set" "(" set ")"
+           | "Map" "(" set [ "," set ] ")"
            | bound ( "..=" bound | ".." [ bound ] )
            | ( "..=" | ".." ) bound ;
 bound      = [ "-" ] nat ;
@@ -198,16 +199,18 @@ expr       = "if" expr "then" expr "else" expr
            | or ;
 or         = and { "||" and } ;
 and        = compare { "&&" compare } ;
-compare    = sum { ( "==" | "!=" | "<" | "<=" | ">" | ">=" ) sum } ;
-sum        = product { ( "+" | "-" ) product } ;
-product    = unary { ( "*" | "/" ) unary } ;
+compare    = sum { ( "==" | "!=" | "<" | "<=" | ">" | ">=" | "in" ) sum } ;
+sum        = product { ( "+" | "-" | "|" | "\" ) product } ;
+product    = unary { ( "*" | "/" | "&" ) unary } ;
 unary      = ( "!" | "-" ) unary
            | atom { "." ( name | nat ) | "[" expr "]" } ;
 atom       = name [ "(" expr { "," expr } ")" ]
            | "true" | "false" | number | string
            | "(" expr { "," expr } ")"
            | "[" [ expr { "," expr } ] "]"
-           | "len" "(" expr ")"
+           | "len" "(" expr ")" | "keys" "(" expr ")"
+           | "{" [ expr { "," expr } ] "}"
+           | "{" ( ":" | expr ":" expr { "," expr ":" expr } ) "}"
            | "match" expr "{" arm { "," arm } "}"
            | measure ;
 measure    = "rate" "(" name in set "," expr ")"
@@ -217,7 +220,9 @@ arm        = ( "_" | name [ "(" name { "," name } ")" ] ) "=>" expr ;
 value      = "true" | "false" | [ "-" ] number | string
            | "(" value "," value { "," value } ")"
            | name [ "(" value { "," value } ")" ]
-           | "[" [ value { "," value } ] "]" ;
+           | "[" [ value { "," value } ] "]"
+           | "{" [ value { "," value } ] "}"
+           | "{" ( ":" | value ":" value { "," value ":" value } ) "}" ;
 number     = nat | dec ;
 ```
 
@@ -286,9 +291,12 @@ Types are sets of values, and every group of inputs is a set.
 | `Number` | every value of the record `Number` (see `record`) |
 | `Number(A, B)` | the records `Number` with a first field in A and a second in B |
 | `List(A)` | the lists, of any length, whose elements are all in A |
+| `Set(A)` | the set values whose elements are all in A |
+| `Map(K, V)` | the map values with every key in K and every value in V |
 | `Color`, `Option(A)`, `Result(A, B)` | every value of the enum, with these sets for its parameters (see `enum`) |
 | `Some(A)`, `{None}` | the values of one variant: a variant is a record shape |
 | `{(1, "a"), Number(1, "m"), [1, 2]}` | exactly these values |
+| `{{1, 2}, {}, {"a": 1}, {:}}` | exactly these values: two sets and two maps |
 | `A \| B`, `A & B`, `A \ B` | union, intersection, difference |
 
 `&` and `\` bind tighter than `|`, and each applies left to right; use
@@ -304,7 +312,9 @@ range equal to a fixed-width type prints its name, such as `Int8`),
 prints `{}`. A set of tuples or records prints as products,
 `Number(0..=2, {"m"})`, or as a product minus a few values; a set of
 lists as `List(A)`, with `\ List(B)` for "at least one element outside
-B" and `\ {[]}` for "not the empty list". In reports a record's whole
+B" and `\ {[]}` for "not the empty list"; sets and maps print the same
+way, `Set(A) \ {{1, 2}}`. A set of maps that is not "any key with any
+value" prints `Map(P)`, with P its `(key, value)` pairs, and reads back. In reports a record's whole
 set prints as its name, and so does an enum as the model writes it
 (`Option(Int)`); a part of an enum prints by its variants, such as
 `Some(Int \ {4})`.
@@ -418,6 +428,28 @@ def first(xs: List(Int) \ {[]}) -> Int := xs[0]
   `let` of the same name wins over the variant.
 - `&&` and `||` stop at the first operand that settles them, as in Rust:
   `len(xs) == 0 || xs[0] > 3` is defined on the empty list.
+
+Sets and maps are values too, as a Rust `BTreeSet` or `BTreeMap`: no
+order, no repeated element, one value per key.
+
+```lean
+def add_spec(stock: Map(String, 0..), item: String, n: 0..) -> Map(String, 0..) :=
+  stock | {item: (if item in stock then stock[item] else 0) + n}
+def seen(xs: List(String), known: Set(String)) -> Bool := len(xs) == 0 || xs[0] in known
+```
+
+- `{a, b}` builds a set and `{k: v}` a map; `{}` is the empty set and
+  `{:}` the empty map. A key written twice in a map is an error. Within
+  braces in a type, `{{1, 2}}` is the type of the one set `{1, 2}`.
+- `x in c` says whether `x` is an element of a set or of a list, or a key
+  of a map. `len(c)` counts the elements or the entries.
+- `m[k]` is the value at a key; a key that is not in the map is an error,
+  so guard it with `k in m`. `keys(m)` is the set of the keys.
+- On sets, `a | b`, `a & b` and `a \ b` are union, intersection and
+  difference. On maps, `m | n` is `m` with the entries of `n`, which win,
+  and `m \ s` is `m` without the keys in the set `s`. `|` and `\` bind
+  like `+`, `&` like `*`.
+- There is no loop over the elements, and no values-of-a-map yet.
 
 ```lean
 def or_zero(o: Option(Int)) -> Int := match o { None => 0, Some(v) => v }
@@ -1253,6 +1285,14 @@ Three models: `get` on `Option(Int)` with the classes "none" and "some"
 | 04 | associativity of `add`, `add(a, 0) == a`, bounds of `max` | inputs found from the observed calls; `max_bounds` fails on `a = 5, b = 2` |
 | 05 | `pick(Some(c)) == c` over `Color`; `pick(None) == Red` | holds; fails on the statement itself |
 | 06 | `slip_rate("red") > 0.5` with observed rates | one holds, one fails |
+
+### `collections`: sets and maps as values
+
+| Case | Model | Verdicts |
+|---|---|---|
+| 01 | a stock `Map(String, 0..)`, with a spec that adds to an item; `remove` takes a set of keys | `add_is` fails on the one output with a wrong count; the claim on `keys` passes on three inputs |
+| 02 | `tags(xs: List(String)) -> Set(String)`, classes "none" and "some" | every claim holds; the set operators, checked on constants |
+| 03 | `alarm(readings: Map(String, Level), muted: Set(String))` | fails on the input where the muted door still rings |
 
 ### `measures`: rates, precision, recall
 

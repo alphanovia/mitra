@@ -913,3 +913,289 @@ evidence rate(s in 11..=20, goal_met("payments", s)) = 0.4 at 0.7
           (name)))
       (number))
     (number)))
+
+================================================================================
+collections: sets and maps as values
+================================================================================
+
+-- A stock: how many of each item. A map is a value, like a list.
+opaque add_stock(stock: Map(String, 0..), item: String, n: 0..) -> Map(String, 0..)
+def add_spec(stock: Map(String, 0..), item: String, n: 0..) -> Map(String, 0..) :=
+  stock | {item: (if item in stock then stock[item] else 0) + n}
+claim add_is : forall stock, forall item, forall n, add_stock(stock, item, n) = add_spec(stock, item, n)
+claim add_keeps_items : forall stock, forall item, forall n,
+  keys(add_stock(stock, item, n)) == keys(stock) | {item}
+opaque remove(stock: Map(String, 0..), gone: Set(String)) -> Map(String, 0..)
+claim remove_is : forall stock, forall gone, remove(stock, gone) = stock \ gone
+-- Sets as values: no order, no repeats.
+opaque tags(xs: List(String)) -> Set(String)
+def tags_class(xs: List(String)) -> {"none", "some"} := if len(xs) == 0 then "none" else "some"
+claim tags_uniform : uniform tags by tags_class
+claim tags_small : forall xs, len(tags(xs)) <= len(xs)
+claim tags_from_list : forall xs, len(xs) == 0 || xs[0] in tags(xs)
+claim algebra : {1, 2} | {2, 3} == {3, 2, 1} && {1, 2} & {2, 3} == {2} && {1, 2} \ {2} == {1}
+  && !(4 in {1, 2}) && 2 in [1, 2] && len({1, 1, 1}) == 1 && len({:}) == 0
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (comment)
+  (opaque
+    (name)
+    (parameters
+      (parameter
+        (name)
+        (map_type
+          (set_name)
+          (range
+            (bound
+              (nat)))))
+      (parameter
+        (name)
+        (set_name))
+      (parameter
+        (name)
+        (range
+          (bound
+            (nat)))))
+    (map_type
+      (set_name)
+      (range
+        (bound
+          (nat)))))
+  (def
+    (name)
+    (parameters
+      (parameter
+        (name)
+        (map_type
+          (set_name)
+          (range
+            (bound
+              (nat)))))
+      (parameter
+        (name)
+        (set_name))
+      (parameter
+        (name)
+        (range
+          (bound
+            (nat)))))
+    (map_type
+      (set_name)
+      (range
+        (bound
+          (nat))))
+    (binary
+      (name)
+      (map
+        (entry
+          (name)
+          (binary
+            (paren
+              (if
+                (binary
+                  (name)
+                  (name))
+                (index
+                  (name)
+                  (name))
+                (nat)))
+            (name))))))
+  (claim
+    (name)
+    (forall
+      (name))
+    (forall
+      (name))
+    (forall
+      (name))
+    (equation
+      (application
+        (name)
+        (name)
+        (name)
+        (name))
+      (application
+        (name)
+        (name)
+        (name)
+        (name))))
+  (claim
+    (name)
+    (forall
+      (name))
+    (forall
+      (name))
+    (forall
+      (name))
+    (property
+      (binary
+        (keys
+          (application
+            (name)
+            (name)
+            (name)
+            (name)))
+        (binary
+          (keys
+            (name))
+          (set
+            (name))))))
+  (opaque
+    (name)
+    (parameters
+      (parameter
+        (name)
+        (map_type
+          (set_name)
+          (range
+            (bound
+              (nat)))))
+      (parameter
+        (name)
+        (set_type
+          (set_name))))
+    (map_type
+      (set_name)
+      (range
+        (bound
+          (nat)))))
+  (claim
+    (name)
+    (forall
+      (name))
+    (forall
+      (name))
+    (equation
+      (application
+        (name)
+        (name)
+        (name))
+      (binary
+        (name)
+        (name))))
+  (comment)
+  (opaque
+    (name)
+    (parameters
+      (parameter
+        (name)
+        (list_type
+          (set_name))))
+    (set_type
+      (set_name)))
+  (def
+    (name)
+    (parameters
+      (parameter
+        (name)
+        (list_type
+          (set_name))))
+    (set_literal
+      (string)
+      (string))
+    (if
+      (binary
+        (len
+          (name))
+        (nat))
+      (string)
+      (string)))
+  (claim
+    (name)
+    (uniform
+      (name)
+      (name)))
+  (claim
+    (name)
+    (forall
+      (name))
+    (property
+      (binary
+        (len
+          (application
+            (name)
+            (name)))
+        (len
+          (name)))))
+  (claim
+    (name)
+    (forall
+      (name))
+    (property
+      (binary
+        (binary
+          (len
+            (name))
+          (nat))
+        (binary
+          (index
+            (name)
+            (nat))
+          (application
+            (name)
+            (name))))))
+  (claim
+    (name)
+    (property
+      (binary
+        (binary
+          (binary
+            (binary
+              (binary
+                (binary
+                  (binary
+                    (binary
+                      (set
+                        (nat)
+                        (nat))
+                      (set
+                        (nat)
+                        (nat)))
+                    (set
+                      (nat)
+                      (nat)
+                      (nat)))
+                  (binary
+                    (binary
+                      (set
+                        (nat)
+                        (nat))
+                      (set
+                        (nat)
+                        (nat)))
+                    (set
+                      (nat))))
+                (binary
+                  (binary
+                    (set
+                      (nat)
+                      (nat))
+                    (set
+                      (nat)))
+                  (set
+                    (nat))))
+              (unary
+                (paren
+                  (binary
+                    (nat)
+                    (set
+                      (nat)
+                      (nat))))))
+            (binary
+              (nat)
+              (list
+                (nat)
+                (nat))))
+          (binary
+            (len
+              (set
+                (nat)
+                (nat)
+                (nat)))
+            (nat)))
+        (binary
+          (len
+            (map))
+          (nat))))))

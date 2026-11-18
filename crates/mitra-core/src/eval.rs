@@ -3,7 +3,7 @@
 //! and the evidence can't all be true.
 
 use crate::ast::*;
-use crate::set::Value;
+use crate::set::{Value, MAP, SET};
 use crate::tuples::Tuples;
 use crate::{Error, Input};
 use std::cell::{Cell, RefCell};
@@ -476,10 +476,13 @@ impl Eval<'_> {
             Expr::Len(a) => {
                 let mut out = Vec::new();
                 for v in self.eval(a, env, line, subjects)? {
-                    match v {
-                        Value::List(vs) => out.push(Value::Int(vs.len() as i64)),
-                        v => return err(format!("`len` needs a list, got {v}")),
-                    }
+                    let n = match &v {
+                        Value::List(vs) => vs.len(),
+                        v if v.as_set().is_some() => v.as_set().expect("checked").len(),
+                        v if v.as_map().is_some() => v.as_map().expect("checked").len(),
+                        v => return err(format!("`len` needs a list, a set or a map, got {v}")),
+                    };
+                    out.push(Value::Int(n as i64));
                 }
                 out
             }
@@ -495,7 +498,11 @@ impl Eval<'_> {
                             (Value::List(vs), Value::Int(i)) => {
                                 usize::try_from(*i).ok().and_then(|i| vs.get(i))
                             }
-                            _ => None,
+                            // `m[k]`: the value at a key of a map.
+                            (m, k) => m
+                                .as_map()
+                                .and_then(|m| m.into_iter().find(|(key, _)| *key == k))
+                                .map(|(_, v)| v),
                         };
                         match at {
                             Some(v) => out.push(v.clone()),
@@ -519,6 +526,22 @@ impl Eval<'_> {
                         });
                         continue;
                     };
+                    // A set or a map: its list, in order.
+                    if let ([Value::List(items)], true) = (&parts[..], name == SET) {
+                        out.push(Value::set_of(items.clone()));
+                        continue;
+                    }
+                    if let ([Value::List(pairs)], true) = (&parts[..], name == MAP) {
+                        let pairs = pairs.iter().filter_map(|p| match p {
+                            Value::Tuple(kv) => Some((kv[0].clone(), kv[1].clone())),
+                            _ => None,
+                        });
+                        match Value::map_of(pairs.collect()) {
+                            Some(m) => out.push(m),
+                            None => return err("a key comes twice in a map".to_string()),
+                        }
+                        continue;
+                    }
                     let v = Value::Record(name.clone(), parts);
                     let Some(r) = self.model.record(name) else {
                         return err(format!("unknown record `{name}`"));
@@ -1013,6 +1036,11 @@ fn unary(op: &str, v: &Value) -> Option<Value> {
         ("!", Value::Bool(b)) => Some(Value::Bool(!b)),
         ("-", Value::Int(i)) => i.checked_neg().map(Value::Int),
         ("-", Value::Float(x)) => Some(Value::Float(-x)),
+        // The keys of a map, as a set.
+        ("keys", m) => {
+            let keys = m.as_map()?.into_iter().map(|(k, _)| k.clone());
+            Some(Value::set_of(keys.collect()))
+        }
         _ => None,
     }
 }
@@ -1025,6 +1053,10 @@ fn unary(op: &str, v: &Value) -> Option<Value> {
 /// mitra:   match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) }
 /// mitra: claim different_is_not_equal : forall x, forall y,
 /// mitra:   match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) }
+/// mitra: claim union_commutes : forall x in Set(Int), forall y in Set(Int), binary("|", x, y) == binary("|", y, x)
+/// mitra: -- What is left of x without y has nothing of y.
+/// mitra: claim difference_apart : forall x in Set(Int), forall y in Set(Int),
+/// mitra:   match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) }
 /// mitra: claim divides_back : forall x in Int, forall y in Int \ {0},
 /// mitra:   match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) }
 fn binary(op: &str, x: &Value, y: &Value) -> Option<Value> {
@@ -1053,6 +1085,47 @@ fn binary(op: &str, x: &Value, y: &Value) -> Option<Value> {
         ("-", Float(a), Float(b)) => Float(a - b),
         ("*", Float(a), Float(b)) => Float(a * b),
         ("/", Float(a), Float(b)) => Float(a / b),
+        // `x in c`: an element of a list or a set, a key of a map.
+        ("in", x, List(vs)) => Bool(vs.contains(x)),
+        ("in", x, c) if c.as_set().is_some() => Bool(c.as_set()?.contains(x)),
+        ("in", x, c) => Bool(c.as_map()?.iter().any(|(k, _)| *k == x)),
+        // Sets: union, intersection, difference.
+        ("|", a, b) if a.as_set().is_some() => Value::set_of([a.as_set()?, b.as_set()?].concat()),
+        ("&", a, b) if a.as_set().is_some() => {
+            let b = b.as_set()?;
+            Value::set_of(
+                a.as_set()?
+                    .iter()
+                    .filter(|x| b.contains(x))
+                    .cloned()
+                    .collect(),
+            )
+        }
+        ("\\", a, b) if a.as_set().is_some() => {
+            let b = b.as_set()?;
+            Value::set_of(
+                a.as_set()?
+                    .iter()
+                    .filter(|x| !b.contains(x))
+                    .cloned()
+                    .collect(),
+            )
+        }
+        // Maps: `m | n` is `m` with the entries of `n`, which win;
+        // `m \ s` is `m` without the keys in the set `s`.
+        ("|", a, b) => {
+            let (a, b) = (a.as_map()?, b.as_map()?);
+            let kept = a.iter().filter(|(k, _)| !b.iter().any(|(j, _)| j == k));
+            let all = kept
+                .chain(b.iter())
+                .map(|(k, v)| ((*k).clone(), (*v).clone()));
+            Value::map_of(all.collect())?
+        }
+        ("\\", a, b) => {
+            let (a, b) = (a.as_map()?, b.as_set()?);
+            let kept = a.iter().filter(|(k, _)| !b.contains(k));
+            Value::map_of(kept.map(|(k, v)| ((*k).clone(), (*v).clone())).collect())?
+        }
         _ => return None,
     })
 }
@@ -2827,5 +2900,140 @@ mod tests {
     #[test]
     fn t_negate_string() {
         assert_eq!(unary("-", &Value::Str("a".into())), None);
+    }
+
+    fn ints(xs: &[i64]) -> Value {
+        Value::set_of(xs.iter().map(|x| Value::Int(*x)).collect())
+    }
+
+    fn text(s: &str) -> Value {
+        Value::Str(s.into())
+    }
+
+    fn map(pairs: &[(&str, i64)]) -> Value {
+        let pairs = pairs.iter().map(|(k, v)| (text(k), Value::Int(*v)));
+        Value::map_of(pairs.collect()).unwrap()
+    }
+
+    // mitra: test t_in_set : binary("in", 2, {1, 2}) = Some(true)
+    #[test]
+    fn t_in_set() {
+        assert_eq!(
+            binary("in", &Value::Int(2), &ints(&[1, 2])),
+            Some(Value::Bool(true))
+        );
+    }
+
+    // mitra: test t_in_list : binary("in", 3, [1, 2]) = Some(false)
+    #[test]
+    fn t_in_list() {
+        assert_eq!(
+            binary(
+                "in",
+                &Value::Int(3),
+                &Value::List(vec![Value::Int(1), Value::Int(2)])
+            ),
+            Some(Value::Bool(false))
+        );
+    }
+
+    // mitra: test t_in_map : binary("in", "a", {"a": 1}) = Some(true)
+    #[test]
+    fn t_in_map() {
+        assert_eq!(
+            binary("in", &text("a"), &map(&[("a", 1)])),
+            Some(Value::Bool(true))
+        );
+    }
+
+    // mitra: test t_in_number : binary("in", 1, 2) = None
+    #[test]
+    fn t_in_number() {
+        assert_eq!(binary("in", &Value::Int(1), &Value::Int(2)), None);
+    }
+
+    // mitra: test t_union : binary("|", {1, 2}, {2, 3}) = Some({1, 2, 3})
+    #[test]
+    fn t_union() {
+        assert_eq!(
+            binary("|", &ints(&[1, 2]), &ints(&[2, 3])),
+            Some(ints(&[1, 2, 3]))
+        );
+    }
+
+    // mitra: test t_union_swapped : binary("|", {2, 3}, {1, 2}) = Some({1, 2, 3})
+    #[test]
+    fn t_union_swapped() {
+        assert_eq!(
+            binary("|", &ints(&[2, 3]), &ints(&[1, 2])),
+            Some(ints(&[1, 2, 3]))
+        );
+    }
+
+    // mitra: test t_intersection : binary("&", {1, 2}, {2, 3}) = Some({2})
+    #[test]
+    fn t_intersection() {
+        assert_eq!(
+            binary("&", &ints(&[1, 2]), &ints(&[2, 3])),
+            Some(ints(&[2]))
+        );
+    }
+
+    // mitra: test t_apart : binary("&", {1}, {2, 3}) = Some({})
+    #[test]
+    fn t_apart() {
+        assert_eq!(binary("&", &ints(&[1]), &ints(&[2, 3])), Some(ints(&[])));
+    }
+
+    // mitra: test t_difference : binary("\\", {1, 2}, {2, 3}) = Some({1})
+    #[test]
+    fn t_difference() {
+        assert_eq!(
+            binary("\\", &ints(&[1, 2]), &ints(&[2, 3])),
+            Some(ints(&[1]))
+        );
+    }
+
+    // mitra: test t_map_update : binary("|", {"a": 1, "b": 2}, {"a": 5}) = Some({"a": 5, "b": 2})
+    #[test]
+    fn t_map_update() {
+        assert_eq!(
+            binary("|", &map(&[("a", 1), ("b", 2)]), &map(&[("a", 5)])),
+            Some(map(&[("a", 5), ("b", 2)]))
+        );
+    }
+
+    // mitra: test t_map_remove : binary("\\", {"a": 1, "b": 2}, {"a", "z"}) = Some({"b": 2})
+    #[test]
+    fn t_map_remove() {
+        assert_eq!(
+            binary(
+                "\\",
+                &map(&[("a", 1), ("b", 2)]),
+                &Value::set_of(vec![text("a"), text("z")])
+            ),
+            Some(map(&[("b", 2)]))
+        );
+    }
+
+    // mitra: test t_set_with_map : binary("|", {1}, {"a": 1}) = None
+    #[test]
+    fn t_set_with_map() {
+        assert_eq!(binary("|", &ints(&[1]), &map(&[("a", 1)])), None);
+    }
+
+    // mitra: test t_keys : unary("keys", {"a": 1, "b": 2}) = Some({"a", "b"})
+    #[test]
+    fn t_keys() {
+        assert_eq!(
+            unary("keys", &map(&[("a", 1), ("b", 2)])),
+            Some(Value::set_of(vec![text("a"), text("b")]))
+        );
+    }
+
+    // mitra: test t_keys_of_a_set : unary("keys", {1}) = None
+    #[test]
+    fn t_keys_of_a_set() {
+        assert_eq!(unary("keys", &ints(&[1])), None);
     }
 }
