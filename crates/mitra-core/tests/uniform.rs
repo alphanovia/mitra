@@ -62,3 +62,31 @@ fn structural_claims_are_not_premises() {
     let err = mitra_core::run(&model, "").unwrap_err().1;
     assert!(err.message.contains("can't be a premise"), "{err}");
 }
+
+/// Two outputs for one input contradict even when neither matches the
+/// claim: the input is not a failure, and does not stand for its class.
+#[test]
+fn two_outputs_are_a_contradiction_whatever_the_claim() {
+    let text = eval("evidence f 5 = 11 at 1\nevidence f 5 = 12 at 1\nevidence f 5 = 11 at 1");
+    assert_eq!(logic(&text, "f_spec"), "uncertain", "{text}");
+    assert_eq!(text.matches("can't both be true").count(), 1, "{text}");
+    // On a subject without any claim too.
+    let text = eval("evidence h 1 = 1 at 1\nevidence h 1 = 2 at 1");
+    assert!(text.contains("can't both be true, on {1} of `h`"), "{text}");
+}
+
+/// Evidence on a claim says nothing outside the claim's domain: a failure
+/// elsewhere does not contradict it.
+#[test]
+fn evidence_on_a_claim_stays_in_its_domain() {
+    let text = eval("evidence f_small at 1\nevidence not f_spec 5 at 1");
+    assert!(!text.contains("can't both be true"), "{text}");
+}
+
+/// The same pass and failure written several times is one contradiction.
+#[test]
+fn repeated_evidence_is_reported_once() {
+    let pair = "evidence correct (f 3) at 1\nevidence not correct (f 3) at 1\n";
+    let text = eval(&pair.repeat(4));
+    assert_eq!(text.matches("can't both be true").count(), 1, "{text}");
+}

@@ -99,6 +99,13 @@ pub fn next(model: &Model, report: &Report) -> String {
             };
             continue;
         }
+        if let (Target::Uses { .. }, false) = (&c.target, v.covered.is_empty()) {
+            out += &format!(
+                "{} : vouched for in part, or both vouched for and denied: settle the evidence on it\n",
+                c.name
+            );
+            continue;
+        }
         if let Target::Uses { used, only } = &c.target {
             let used: Vec<String> = used.iter().map(|g| format!("`{g}`")).collect();
             let (more, until) = if *only {

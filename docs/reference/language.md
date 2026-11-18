@@ -455,10 +455,16 @@ where the claim is right and where it is wrong:
    judged. A claim on specs alone over a finite domain is thus decided by
    computation.
 
+Evidence on a claim (`c` or `not c`) speaks of the claim's domain only,
+whatever inputs it names.
+
 An input both right and wrong is a **contradiction**: the pass and the
-failure can't both be true. It counts on neither side, and each pair of
-pieces of evidence that contradict is reported as a conflict, with the
-inputs they share. Then:
+failure can't both be true. So are two different outputs for one input,
+and an input judged `correct` and `not correct`, on any subject, with or
+without a claim. A contradicted input counts on neither side, for every
+claim saying the same of the subject, and each pair of pieces of evidence
+that contradict is reported once as a conflict, with the inputs they
+share. Then:
 
 - *refuted* = wrong \ right.
 - *covered* = right \ wrong; if the claim has `by derive`, every premise holds
@@ -506,10 +512,13 @@ do not fail, from `f` to what it uses, and on from there. Each subject
 reached that has a failing claim (other than a `uses` claim) is a
 **suspect** for `f`, printed after the verdicts. Verdicts do not change.
 
-**Root cause.** A subject `f` with a failing claim, no suspect, and an
-`only uses` claim that holds (evidence covers it) is a root cause: the
-fault is in `f` itself. If some claim on the subjects it uses does not
-hold, or one of them has no claim, the output adds that the fault may be
+**Root cause.** A subject `f` with a failing `correct` or `=` claim, no
+suspect, and an `only uses` claim that holds (evidence covers it) is a
+root cause: the fault is in `f` itself. There is none when a subject it
+uses is judged `not correct` on some input, even outside every claim.
+The subjects it uses are those of all its `uses` claims that do not
+fail. If some `correct` or `=` claim on one of them does not hold, or
+one of them has no such claim, the output adds that the fault may be
 where no claim covers them.
 
 **Checking an implication.** For an `=` claim with `by derive` and a
@@ -750,6 +759,8 @@ claim div_uniform : uniform div by div_class
 | 06 | vouched; `div 6 3` passes; `div` fails somewhere on `(10.., 10..)` | fails | uncertain: nothing assumed | holds |
 | 07 | vouched; `div 6 3` passes; `not div_correct 4 2` | fails, refuted {(4, 2)} | uncertain | fails, with a conflict |
 | 08 | vouched; `div 6 3` passes and fails; `div 4 2` passes | uncertain, covered {(4, 2)}; a conflict on (6, 3) | uncertain: class "rest" not relied on | holds |
+| 09 | vouched; `div_small` reviewed | uncertain, assumed "rest" | holds | holds |
+| 10 | vouched; `div 6 3` fails; `div_correct 6 3` reviewed | uncertain; a conflict on (6, 3) | uncertain: the failure stands for nothing | holds |
 
 ### `uses`: suspects, under `strict`
 
@@ -777,6 +788,8 @@ failing `quarter`:
 | 03 | vouched; `half` holds | `quarter` itself |
 | 04 | not vouched; `half` holds | none |
 | 05 | vouched; `half` tested on 0 only | `quarter` itself, or where no claim covers `half` |
+| 06 | vouched; `half` holds, but fails on 7, outside its claim | none |
+| 07 | vouched; a second claim `uses quarter [eighth]`, `eighth` without a claim | `quarter` itself, or where no claim covers them |
 
 ### `numbers`: integer types, ranges and floats, under `strict`
 

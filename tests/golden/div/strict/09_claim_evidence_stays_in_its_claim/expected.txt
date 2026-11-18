@@ -1,0 +1,3 @@
+div_correct [strict] := { logic := .uncertain, covered := {}, assumed := {"rest"} by div_uniform, domain := (Int, Int), belief := 0 }
+div_small [strict] := { logic := .holds, covered := (0..=1, 1..=2), domain := (0..=1, 1..=2), belief := 1 }
+div_uniform [strict] := { logic := .holds, covered := (Int, Int), domain := (Int, Int), belief := 1 }

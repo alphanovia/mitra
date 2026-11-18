@@ -555,6 +555,63 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
 
     // 1. What the evidence says about each claim.
     let mut contradictions: Vec<Contradiction> = Vec::new();
+    let clash = |all: &mut Vec<Contradiction>, subject: &Function, both: &Tuples, a, b| {
+        let k = Contradiction {
+            subject: subject.name.clone(),
+            inputs: both.show(&subject.domain()),
+            pass: (a, shown(a)),
+            fail: (b, shown(b)),
+        };
+        // The same two statements on other lines add nothing.
+        let known = |o: &Contradiction| {
+            (o.pass.0, o.fail.0) == (a, b)
+                || (&o.subject, &o.inputs, &o.pass.1, &o.fail.1)
+                    == (&k.subject, &k.inputs, &k.pass.1, &k.fail.1)
+        };
+        if !all.iter().any(known) {
+            all.push(k);
+        }
+    };
+    // Whatever the claims: an input judged correct and not correct, or
+    // seen with two outputs.
+    let mut split: Vec<(String, Vec<Value>)> = Vec::new();
+    for f in model.functions.iter().filter(|f| !f.is_spec()) {
+        let about = |e: &&Evidence| e.about == f.name;
+        let of = |want: bool| {
+            let want = Judgment::Correct(want);
+            let on = model.evidence.iter().filter(believed).filter(about);
+            on.filter(move |e| e.judgment == want)
+        };
+        for a in of(true) {
+            for b in of(false) {
+                let both = model
+                    .covers(&f.name, &a.pattern)
+                    .intersect(&model.covers(&f.name, &b.pattern));
+                if !both.is_empty() {
+                    clash(&mut contradictions, f, &both, a.line, b.line);
+                }
+            }
+        }
+        let outputs: Vec<(Vec<Value>, &Value, usize)> = model
+            .evidence
+            .iter()
+            .filter(believed)
+            .filter(about)
+            .filter_map(|e| match &e.judgment {
+                Judgment::Output(v) => Some((single(&e.pattern)?, v, e.line)),
+                _ => None,
+            })
+            .collect();
+        for (n, (x, v, a)) in outputs.iter().enumerate() {
+            if outputs[..n].iter().any(|o| &o.0 == x) {
+                continue;
+            }
+            for (_, _, b) in outputs.iter().filter(|o| &o.0 == x && o.1 != *v) {
+                clash(&mut contradictions, f, &Tuples::point(x), *a, *b);
+                split.push((f.name.clone(), x.clone()));
+            }
+        }
+    }
     let mut direct = Vec::new();
     for c in &model.claims {
         let func = model.function(&c.func).expect("checked");
@@ -565,6 +622,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let (mut right, mut wrong) = (Tuples::empty(arity), Tuples::empty(arity));
         let mut points: Vec<Point> = Vec::new();
         let mut blind = false;
+        let mut tainted = Vec::new();
         // Each pass or failure with its inputs and evidence line, to find
         // those that can't both be true.
         let mut sources: Vec<(Tuples, bool, usize)> = Vec::new();
@@ -578,7 +636,11 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
                 _ => continue,
             };
-            let set = model.covers(&c.func, &e.pattern);
+            let mut set = model.covers(&c.func, &e.pattern);
+            if matches!(e.judgment, Judgment::Holds(_)) {
+                // Evidence on a claim says nothing outside the claim.
+                set = set.intersect(&domain);
+            }
             let inputs = listed(&set);
             blind |= !ok && inputs.is_empty() && !set.is_empty();
             points.extend(inputs.into_iter().map(|x| (x, ok, e.line)));
@@ -613,6 +675,11 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 .map(|(_, x)| x.clone())
                 .collect();
             for x in inputs.into_iter().chain(outside) {
+                if split.contains(&(c.func.clone(), x.clone())) {
+                    // Two outputs for one input: neither is relied on.
+                    tainted.push(x);
+                    continue;
+                }
                 let inside = domain.contains(&x);
                 if let Some((ok, ko)) = ev
                     .compare(c, target, &x, Subjects::Observed)
@@ -631,17 +698,12 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                         .collect();
                     let line = lines.first().copied().unwrap_or(0);
                     let point = Tuples::point(&x);
-                    if ok {
-                        sources.push((point.clone(), true, line));
-                    }
-                    if ko {
-                        // With two outputs, the other one is the failure.
-                        let other = lines.last().copied().unwrap_or(0);
-                        sources.push((point.clone(), false, if ok { other } else { line }));
-                    }
-                    if ok && ko && !inside {
+                    if ok && ko {
+                        // The other side has two outputs, reported there.
+                        tainted.push(x);
                         continue;
                     }
+                    sources.push((point.clone(), ok, line));
                     if ok {
                         if inside {
                             right = right.union(&point);
@@ -659,7 +721,6 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         }
         points.retain(|(x, ok, _)| !(if *ok { &wrong } else { &right }).contains(x));
         // A pass and a failure on the same input can't both be true.
-        let mut tainted = Vec::new();
         for (pass, _, a) in sources.iter().filter(|s| s.1) {
             for (fail, _, b) in sources.iter().filter(|s| !s.1) {
                 let both = pass.intersect(fail);
@@ -669,15 +730,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 let inputs = listed(&both);
                 blind |= inputs.is_empty();
                 tainted.extend(inputs);
-                let known = |k: &Contradiction| (k.pass.0, k.fail.0) == (*a, *b);
-                if !contradictions.iter().any(known) {
-                    contradictions.push(Contradiction {
-                        subject: c.func.clone(),
-                        inputs: both.show(&func.domain()),
-                        pass: (*a, shown(*a)),
-                        fail: (*b, shown(*b)),
-                    });
-                }
+                clash(&mut contradictions, func, &both, *a, *b);
             }
         }
         points.retain(|(x, _, _)| !tainted.contains(x));
@@ -738,6 +791,11 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         for j in (0..direct.len()).filter(|j| same(i, *j)) {
             points.extend(direct[j].points.iter().cloned());
         }
+        // A contradicted input is neither a pass nor a failure, whichever
+        // claim the contradiction was found on.
+        let tainted =
+            |x: &Vec<Value>| (0..direct.len()).any(|j| same(i, j) && direct[j].tainted.contains(x));
+        points.retain(|p| !tainted(&p.0));
         points
     };
     let blind = |i: usize| (0..direct.len()).any(|j| same(i, j) && direct[j].blind);
@@ -763,7 +821,12 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let Target::Uniform(spec) = &u.target else {
             continue;
         };
-        let mut groups = vec![judged(&u.func)];
+        // `correct` evidence without a claim to carry it.
+        let stated = |c: &Claim| c.func == u.func && c.target == Target::Correct;
+        let mut groups = Vec::new();
+        if !model.claims.iter().any(stated) {
+            groups.push(judged(&u.func));
+        }
         for (i, c) in model.claims.iter().enumerate() {
             let first = (0..i).all(|j| !same(i, j));
             if c.func == u.func && !c.target.is_structural() && first {
@@ -1008,21 +1071,40 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     }
     // 5. Root causes: a failing subject that only uses subjects where
     // nothing fails.
-    let mut roots = Vec::new();
+    let mut roots: Vec<Root> = Vec::new();
     for (i, c) in model.claims.iter().enumerate() {
         let Target::Uses { used, only: true } = &c.target else {
             continue;
         };
         let suspect = suspects.iter().any(|s: &Suspect| s.subject == c.func);
-        if failing(&c.func).is_empty() || suspect || !uniform_holds(i) {
+        // The subject itself must fail, not only a claim on its structure.
+        let fails = model.claims.iter().any(|d| {
+            d.func == c.func
+                && !d.target.is_structural()
+                && logic_of[d.name.as_str()] == Logic::Fails
+        });
+        let named = roots.iter().any(|r| r.subject == c.func);
+        if !fails || suspect || named || !uniform_holds(i) {
+            continue;
+        }
+        // Every other `uses` claim on the subject that is not denied counts
+        // too, vouched for or not.
+        let mut all: Vec<&String> = Vec::new();
+        for d in model.claims.iter().filter(|d| d.func == c.func) {
+            if let Target::Uses { used, .. } = &d.target {
+                if logic_of[d.name.as_str()] != Logic::Fails {
+                    all.extend(used);
+                }
+            }
+        }
+        // A failure in what it uses that no claim carries: not a root cause.
+        if all.iter().any(|g| judged(g).iter().any(|p| !p.1)) {
             continue;
         }
         // Every claim on what it uses holds: the fault can only be here.
-        let covered = used.iter().all(|g| {
-            let mut on = model.claims.iter().filter(|d| &d.func == g);
-            let mut on = on
-                .by_ref()
-                .filter(|d| !matches!(d.target, Target::Uses { .. }));
+        let covered = all.iter().all(|g| {
+            let mut on = model.claims.iter().filter(|d| &&d.func == g);
+            let mut on = on.by_ref().filter(|d| !d.target.is_structural());
             let mut any = false;
             on.all(|d| {
                 any = true;

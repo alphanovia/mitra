@@ -291,7 +291,10 @@ impl Model {
             let g = match &c.target {
                 Target::Uniform(g) => g,
                 Target::Uses { used, .. } => {
-                    for g in used {
+                    for (n, g) in used.iter().enumerate() {
+                        if used[..n].contains(g) {
+                            return Err(m(c.line, format!("`{g}` is listed twice")));
+                        }
                         if !self.function(g).is_some_and(|g| !g.is_spec()) {
                             return Err(m(c.line, format!("`{g}` is not a subject")));
                         }
