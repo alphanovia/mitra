@@ -1,2 +1,2 @@
--- flip(false) should be true.
-evidence flip(false) = false at 1
+// flip(false) should be true.
+evidence e { for flip given a = false gives false }

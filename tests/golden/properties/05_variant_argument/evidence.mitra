@@ -1,4 +1,4 @@
-evidence pick(Some(Red)) = Red at 1
-evidence pick(Some(Green)) = Green at 1
-evidence pick(Some(Blue)) = Blue at 1
-evidence pick(None) = Green at 1
+evidence e { for pick given c = Some(Red) gives Red }
+evidence e { for pick given c = Some(Green) gives Green }
+evidence e { for pick given c = Some(Blue) gives Blue }
+evidence e { for pick given c = None gives Green }

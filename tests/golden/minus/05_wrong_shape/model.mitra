@@ -1,15 +1,15 @@
-def plus(a: Int, b: Int) -> Int := a + b
-def opposite(b: Int) -> Int := -b
-def difference(a: Int, b: Int) -> Int := a - b
+fn plus(a: Int, b: Int) -> Int { a + b }
+fn opposite(b: Int) -> Int { -b }
+fn difference(a: Int, b: Int) -> Int { a - b }
 
-opaque add(a: Int, b: Int) -> Int
-opaque negate(b: Int) -> Int
-opaque minus(a: Int, b: Int) -> Int
+fn add(a: Int, b: Int) -> Int;
+fn negate(b: Int) -> Int;
+fn minus(a: Int, b: Int) -> Int;
 
--- add, on the inputs minus uses.
-claim add_spec : forall a in 0..=2, forall b in -2..=0, add(a, b) = plus(a, b)
-claim negate_spec : forall b in 0..=2, negate(b) = opposite(b)
--- A wrong shape: the arguments are swapped.
-claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus(a, b) = add(b, negate(a))
--- Derived: Mitra checks the implication by substituting the premises.
-claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = difference(a, b) := by derive [add_spec, negate_spec, minus_shape]
+// add, on the inputs minus uses.
+claim add_spec(a: 0..=2, b: -2..=0) { add(a, b) == plus(a, b) }
+claim negate_spec(b: 0..=2) { negate(b) == opposite(b) }
+// A wrong shape: the arguments are swapped.
+claim minus_shape(a: 0..=2, b: 0..=2) { minus(a, b) == add(b, negate(a)) }
+// Judged from the outputs: observed, or worked out from a vouched shape.
+claim minus_spec(a: 0..=2, b: 0..=2) { minus(a, b) == difference(a, b) } 

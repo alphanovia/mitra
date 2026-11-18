@@ -1,3 +1,3 @@
--- The model says `half` returns 0 to 2. A run returned 3.
-opaque half(n: 0..=5) -> 0..=2
-claim half_correct : forall n, correct(half(n))
+// The model says `half` returns 0 to 2. A run returned 3.
+fn half(n: 0..=5) -> 0..=2;
+claim half_correct(n) { correct(half(n)) }

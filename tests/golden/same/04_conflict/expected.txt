@@ -5,19 +5,19 @@ add_ok: fails
 add_uniform: fails
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:2  claim add_ok : forall left, forall right, correct(add(left, right))
+  --> model.mitra:3  claim add_ok(left, right) { correct(add(left, right)) }
 
   `add_ok` fails on `add(2, 2)`.
   The evidence that says so:
 
-    fails     evidence.mitra:3  evidence not correct(add(2, 2)) at 0.8
+    fails     evidence.mitra:3  evidence e { for add given left = 2, right = 2 fails trust 0.8 }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                 trust  left
-    certain   evidence.mitra:3                  0.8    0.00
-    possible  the code of `add`, model.mitra:1  none   0.00 to 1.00
+    certain   evidence.mitra:3 (e)              0.8    0.00
+    possible  the code of `add`, model.mitra:2  none   0.00 to 1.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
   A range means the evidence does not settle it.
@@ -25,20 +25,20 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `add`; if not, correct the evidence
 
 error[M004]: an assumption is contradicted by the evidence
-  --> model.mitra:3  claim add_uniform : uniform add
+  --> model.mitra:4  claim add_uniform = uniform(add);
 
   `add_uniform` says `add` behaves the same for every input. But some inputs
   pass and others fail:
 
-    vouches   evidence.mitra:1  evidence add_uniform at 1
-    passes    evidence.mitra:2  evidence correct(add(1, 2)) at 1
-    fails     evidence.mitra:3  evidence not correct(add(2, 2)) at 0.8
+    vouches   evidence.mitra:1  evidence e { for add_uniform holds }
+    passes    evidence.mitra:2  evidence e { for add given left = 1, right = 2 holds }
+    fails     evidence.mitra:3  evidence e { for add given left = 2, right = 2 fails trust 0.8 }
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
-                                trust  left
-    certain   evidence.mitra:3  0.8    0.00
+                                    trust  left
+    certain   evidence.mitra:3 (e)  0.8    0.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
 

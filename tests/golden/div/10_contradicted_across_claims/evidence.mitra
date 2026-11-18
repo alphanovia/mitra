@@ -1,5 +1,5 @@
--- A failure on `div 6 3` and a review of `div_correct` on the same input
--- contradict: the failure does not stand for its class.
-evidence div_uniform at 1
-evidence not correct(div(6, 3)) at 1
-evidence div_correct(6, 3) at 1
+// A failure on `div 6 3` and a review of `div_correct` on the same input
+// contradict: the failure does not stand for its class.
+evidence e { for div_uniform holds }
+evidence e { for div given a = 6, b = 3 fails }
+evidence e { for div_correct given a = 6, b = 3 holds }

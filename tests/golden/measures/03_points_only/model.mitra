@@ -1,4 +1,4 @@
-opaque goal_met(team: {"payments", "search"}, sprint: Int) -> Bool
-claim steady : rate(s in 1..=4, goal_met("payments", s)) >= 0.5
-claim adapts : rate(s in 11..=20, goal_met("payments", s)) >= 0.6
-claim ever : rate(s in 1.., goal_met("search", s)) >= 0.5
+fn goal_met(team: {"payments", "search"}, sprint: Int) -> Bool;
+claim steady() { rate(s in 1..=4, goal_met("payments", s)) >= 0.5 }
+claim adapts() { rate(s in 11..=20, goal_met("payments", s)) >= 0.6 }
+claim ever() { rate(s in 1.., goal_met("search", s)) >= 0.5 }

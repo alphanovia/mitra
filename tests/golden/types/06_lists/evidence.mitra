@@ -1,5 +1,5 @@
-evidence sort_uniform at 1
-evidence correct(sort([])) at 1
-evidence correct(sort([3, 1, 2])) at 1
-evidence sort([7]) = [7] at 1
-evidence correct(total([Number(1, "m"), Number(2, "m")])) at 1
+evidence e { for sort_uniform holds }
+evidence e { for sort given xs = [] holds }
+evidence e { for sort given xs = [3, 1, 2] holds }
+evidence e { for sort given xs = [7] gives [7] }
+evidence e { for total given ns = [Number(1, "m"), Number(2, "m")] holds }

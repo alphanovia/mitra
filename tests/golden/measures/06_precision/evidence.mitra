@@ -1,7 +1,7 @@
-evidence is_spam(1) = true at 1
-evidence is_spam(2) = true at 1
-evidence is_spam(3) = false at 1
-evidence is_spam(4) = false at 1
-evidence correct(is_spam(1)) at 1
-evidence not correct(is_spam(2)) at 0.8
-evidence forall m in 3..=4, correct(is_spam(m)) at 1
+evidence e { for is_spam given mail = 1 gives true }
+evidence e { for is_spam given mail = 2 gives true }
+evidence e { for is_spam given mail = 3 gives false }
+evidence e { for is_spam given mail = 4 gives false }
+evidence e { for is_spam given mail = 1 holds }
+evidence e { for is_spam given mail = 2 fails trust 0.8 }
+evidence e { for is_spam given mail in 3..=4 holds }

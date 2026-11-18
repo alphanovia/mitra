@@ -9,19 +9,19 @@ h_is: unverified
   no evidence on  e in Expr \ {Many([Neg(Lit(1)), Opt(Some(Neg(Neg(Lit(1)))))])}
 
 warning[M101]: a claim is not verified
-  --> model.mitra:11  claim f_ok : forall t, correct(f(t))
+  --> model.mitra:11  claim f_ok(t) { correct(f(t)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:12  claim g_ok : forall n, correct(g(n))
+  --> model.mitra:12  claim g_ok(n) { correct(g(n)) }
 
   No evidence on n in N \ {N({N({}), N({N({})})})}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:13  claim h_is : forall e, h(e) = depth(e)
+  --> model.mitra:13  claim h_is(e) { h(e) == depth(e) }
 
   No evidence on e in Expr \ {Many([Neg(Lit(1)), Opt(Some(Neg(Neg(Lit(1)))))])}.
   help: `mitra next` lists the evidence that would settle it

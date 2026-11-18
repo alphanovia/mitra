@@ -1,1 +1,1 @@
-evidence correct(add(1, 2)) at 1
+evidence e { for add given left = 1, right = 2 holds }

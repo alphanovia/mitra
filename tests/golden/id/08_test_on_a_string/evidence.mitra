@@ -1,2 +1,2 @@
--- One string out of infinitely many weighs nothing.
-evidence correct(id("a")) at 1
+// One string out of infinitely many weighs nothing.
+evidence e { for id given x = "a" holds }

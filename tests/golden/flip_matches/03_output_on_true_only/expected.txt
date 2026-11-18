@@ -4,7 +4,7 @@ flip_spec: unverified
 flip_on_true: holds
 
 warning[M101]: a claim is not verified
-  --> model.mitra:5  claim flip_spec : forall a, flip(a) = neg(a)
+  --> model.mitra:5  claim flip_spec(a) { flip(a) == neg(a) }
 
   No evidence on `flip(false)`.
   help: `mitra next` lists the evidence that would settle it

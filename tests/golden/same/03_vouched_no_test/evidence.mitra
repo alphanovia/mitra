@@ -1,1 +1,1 @@
-evidence add_uniform at 1
+evidence e { for add_uniform holds }

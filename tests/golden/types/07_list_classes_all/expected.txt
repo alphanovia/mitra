@@ -7,7 +7,7 @@ sort_uniform: holds
 total_ok: holds
 
 warning[M101]: a claim is not verified
-  --> model.mitra:6  claim sort_one : forall xs in {[7]}, sort(xs) = [xs[0]]
+  --> model.mitra:7  claim sort_one(xs: {[7]}) { sort(xs) == [xs[0]] }
 
   No evidence on `sort([7])`.
   help: `mitra next` lists the evidence that would settle it

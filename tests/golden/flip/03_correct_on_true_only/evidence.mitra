@@ -1,1 +1,1 @@
-evidence correct(flip(true)) at 1
+evidence e { for flip given a = true holds }

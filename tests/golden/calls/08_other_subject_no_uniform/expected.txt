@@ -4,7 +4,7 @@ f_g: unverified
 f_uniform: holds
 
 warning[M101]: a claim is not verified
-  --> model.mitra:3  claim f_g : forall x, f(x) = g(x)
+  --> model.mitra:4  claim f_g(x) { f(x) == g(x) }
 
   No evidence on x in Int \ {1}.
   note: `g` has no `uniform` claim, so no test stands for other inputs

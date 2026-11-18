@@ -1,4 +1,4 @@
-opaque is_spam(mail: 1..=4) -> Bool
-claim precise : precision(is_spam) >= 0.9
-claim few_false_alarms : false_positive_rate(is_spam) <= 0.02
-claim finds_most : recall(is_spam) >= 0.9
+fn is_spam(mail: 1..=4) -> Bool;
+claim precise() { precision(is_spam) >= 0.9 }
+claim few_false_alarms() { false_positive_rate(is_spam) <= 0.02 }
+claim finds_most() { recall(is_spam) >= 0.9 }

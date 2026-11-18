@@ -1,2 +1,2 @@
--- A proof covers a whole interval.
-evidence forall x in 0..=100, correct(id(x)) at 1
+// A proof covers a whole interval.
+evidence e { for id given x in 0..=100 holds }

@@ -2,13 +2,13 @@ fs: fails
   fails on        `f(0)`
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:3  claim fs : forall x in {0}, f(x) = one(x)
+  --> model.mitra:3  claim fs(x: 0..=0) { f(x) == one(x) }
 
   `fs` fails on `f(0)`.
   The evidence that says so:
 
-    output    evidence.mitra:4  @[source "a"] evidence f(0) = 2 at 0.9
-    output    evidence.mitra:5  @[source "b"] evidence f(0) = 2 at 0.1
+    output    evidence.mitra:4  evidence e { for f given x = 0 gives 2 trust 0.9 source "a" }
+    output    evidence.mitra:5  evidence e { for f given x = 0 gives 2 trust 0.1 source "b" }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:

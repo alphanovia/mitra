@@ -6,15 +6,14 @@ minus_shape: holds
 minus_spec: fails
   fails on        `minus(1, 1)`
   passes on       (a, b) in {(0, 0), (0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1), (2, 2)}
-  not derived: a premise fails
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:10  claim add_spec : forall a in 0..=2, forall b in -2..=0, add(a, b) = plus(a, b)
+  --> model.mitra:10  claim add_spec(a: 0..=2, b: -2..=0) { add(a, b) == plus(a, b) }
 
   `add_spec` fails on `add(1, -1)`.
   The evidence that says so:
 
-    output    evidence.mitra:6  evidence add(1, -1) = 1 at 1
+    output    evidence.mitra:6  evidence e { for add given a = 1, b = -1 gives 1 }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -27,14 +26,14 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `add`; if not, correct the evidence
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:15  claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = difference(a, b) := by derive [add_spec, negate_spec, minus_shape]
+  --> model.mitra:15  claim minus_spec(a: 0..=2, b: 0..=2) { minus(a, b) == difference(a, b) }
 
   `minus_spec` fails on `minus(1, 1)`.
   The evidence that says so:
 
-    output    evidence.mitra:6  evidence add(1, -1) = 1 at 1
-    output    evidence.mitra:12  evidence negate(1) = -1 at 1
-    vouches   evidence.mitra:14  evidence minus_shape at 1
+    output    evidence.mitra:6  evidence e { for add given a = 1, b = -1 gives 1 }
+    output    evidence.mitra:12  evidence e { for negate given b = 1 gives -1 }
+    vouches   evidence.mitra:14  evidence e { for minus_shape holds }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:

@@ -1,6 +1,6 @@
--- The same test, failing at its last assert. The trace shows which call
--- went wrong: `deposit` did what its spec says, the first `withdraw` did not.
-@[source "test:t_seq"] evidence deposit(Account(0, true), 5) = Account(5, true) at 1
-@[source "test:t_seq"] evidence withdraw(Account(5, true), 3) = (Account(3, true), true) at 1
-@[source "test:t_seq"] evidence withdraw(Account(3, true), 7) = (Account(3, true), false) at 1
-@[source "review"] evidence withdraw_uniform at 1
+// The same test, failing at its last assert. The trace shows which call
+// went wrong: `deposit` did what its spec says, the first `withdraw` did not.
+evidence e { for deposit given a = Account(0, true), n = 5 gives Account(5, true) source "test:t_seq" }
+evidence e { for withdraw given a = Account(5, true), n = 3 gives (Account(3, true), true) source "test:t_seq" }
+evidence e { for withdraw given a = Account(3, true), n = 7 gives (Account(3, true), false) source "test:t_seq" }
+evidence e { for withdraw_uniform holds source "review" }

@@ -5,18 +5,18 @@ few_false_alarms: fails
 finds_most: holds
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:2  claim precise : precision(is_spam) >= 0.9
-  --> model.mitra:3  claim few_false_alarms : false_positive_rate(is_spam) <= 0.02
+  --> model.mitra:2  claim precise() { precision(is_spam) >= 0.9 }
+  --> model.mitra:3  claim few_false_alarms() { false_positive_rate(is_spam) <= 0.02 }
 
   `precise` fails on the statement itself.
   `few_false_alarms` fails on the statement itself.
   The evidence that says so:
 
-    output    evidence.mitra:1  evidence is_spam(1) = true at 1
-    output    evidence.mitra:2  evidence is_spam(2) = true at 1
-    output    evidence.mitra:3  evidence is_spam(3) = false at 1
-    output    evidence.mitra:4  evidence is_spam(4) = false at 1
-    passes    evidence.mitra:5  evidence correct(is_spam(1)) at 1
+    output    evidence.mitra:1  evidence e { for is_spam given mail = 1 gives true }
+    output    evidence.mitra:2  evidence e { for is_spam given mail = 2 gives true }
+    output    evidence.mitra:3  evidence e { for is_spam given mail = 3 gives false }
+    output    evidence.mitra:4  evidence e { for is_spam given mail = 4 gives false }
+    passes    evidence.mitra:5  evidence e { for is_spam given mail = 1 holds }
     and 2 more
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
@@ -24,7 +24,7 @@ error[M001]: evidence refutes a claim
 
                                                     trust  left
     likely    the code of `is_spam`, model.mitra:1  none   0.00 to 0.20
-    unlikely  evidence.mitra:6                      0.8    0.80 to 1.00
+    unlikely  evidence.mitra:6 (e)                  0.8    0.80 to 1.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
   A range means the evidence does not settle it.

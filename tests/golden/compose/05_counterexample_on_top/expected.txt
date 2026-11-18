@@ -8,19 +8,19 @@ flip_not_same: fails
   passes on       `flip_not(false)`
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:14  claim flip_not_same : forall a, flip_not(a) = same(a) := by derive [flip_spec, flip_not_shape, neg_twice]
+  --> model.mitra:14  claim flip_not_same(a) { flip_not(a) == same(a) }
 
   `flip_not_same` fails on `flip_not(true)`.
   The evidence that says so:
 
-    output    evidence.mitra:7  evidence flip_not(true) = false at 1
+    output    evidence.mitra:7  evidence e { for flip_not given a = true gives false }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                      trust  left
     likely    the code of `flip_not`, model.mitra:5  none   0.00 to 0.50
-    likely    evidence.mitra:7                       1      0.50
+    likely    evidence.mitra:7 (e)                   1      0.50
 
   The lower what is left, the more plausibly the piece is the wrong one.
   A range means the evidence does not settle it.
@@ -36,15 +36,15 @@ error[M003]: two pieces of evidence contradict each other
 
   On the inputs {true} of `flip_not`, these two say opposite things:
 
-    vouches   evidence.mitra:4  evidence flip_not_shape at 1
-    output    evidence.mitra:7  evidence flip_not(true) = false at 1
+    vouches   evidence.mitra:4  evidence e { for flip_not_shape holds }
+    output    evidence.mitra:7  evidence e { for flip_not given a = true gives false }
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
-                                trust  left
-    likely    evidence.mitra:4  1      0.50
-    likely    evidence.mitra:7  1      0.50
+                                    trust  left
+    likely    evidence.mitra:4 (e)  1      0.50
+    likely    evidence.mitra:7 (e)  1      0.50
 
   The lower what is left, the more plausibly the piece is the wrong one.
 
@@ -56,7 +56,7 @@ error[M003]: two pieces of evidence contradict each other
   help: find out which one is right, and correct the other
 
 warning[M101]: a claim is not verified
-  --> model.mitra:12  claim flip_not_shape : forall a, flip_not(a) = flip(flip(a))
+  --> model.mitra:12  claim flip_not_shape(a) { flip_not(a) == flip(flip(a)) }
 
   No evidence on `flip_not(true)`.
   help: `mitra next` lists the evidence that would settle it

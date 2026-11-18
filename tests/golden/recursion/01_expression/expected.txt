@@ -5,18 +5,18 @@ eval_is: fails
 eval_uniform: holds
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:9  claim eval_is : forall e, eval(e) = value(e)
+  --> model.mitra:10  claim eval_is(e) { eval(e) == value(e) }
 
   `eval_is` fails on `eval(Neg(Neg(Lit(2))))`.
   The evidence that says so:
 
-    output    evidence.mitra:3  evidence eval(Neg(Neg(Lit(2)))) = -2 at 1
+    output    evidence.mitra:3  evidence e { for eval given e = Neg(Neg(Lit(2))) gives -2 }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                  trust  left
-    certain   the code of `eval`, model.mitra:8  none   0.00
+    certain   the code of `eval`, model.mitra:9  none   0.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
 

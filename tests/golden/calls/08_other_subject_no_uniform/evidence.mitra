@@ -1,2 +1,2 @@
-evidence f_uniform at 1
-evidence f_g(1) at 1
+evidence e { for f_uniform holds }
+evidence e { for f_g given x = 1 holds }

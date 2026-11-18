@@ -1,3 +1,3 @@
--- Observed outputs: Mitra judges them against the spec.
-evidence flip(true) = false at 1
-evidence flip(false) = true at 1
+// Observed outputs: Mitra judges them against the spec.
+evidence e { for flip given a = true gives false }
+evidence e { for flip given a = false gives true }

@@ -8,7 +8,7 @@ usage_uniform: holds
 names_known: holds
 
 warning[M101]: a claim is not verified
-  --> model.mitra:11  claim empty_is : forall d, empty_children(d) = empty(d)
+  --> model.mitra:12  claim empty_is(d) { empty_children(d) == empty(d) }
 
   No evidence on d in Dir \ {Dir("a", 1, [Dir("b", 0, []), Dir("c", 3, [])])}.
   help: `mitra next` lists the evidence that would settle it

@@ -4,12 +4,12 @@ flip_correct: fails
 flip_on_true: holds
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:4  claim flip_correct : forall a, correct(flip(a))
+  --> model.mitra:4  claim flip_correct(a) { correct(flip(a)) }
 
   `flip_correct` fails on `flip(false)`.
   The evidence that says so:
 
-    fails     evidence.mitra:2  evidence not correct(flip(false)) at 1
+    fails     evidence.mitra:2  evidence e { for flip given a = false fails }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:

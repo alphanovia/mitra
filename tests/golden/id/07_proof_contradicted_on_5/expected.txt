@@ -10,15 +10,15 @@ error[M003]: two pieces of evidence contradict each other
 
   On the inputs {5} of `id`, these two say opposite things:
 
-    passes    evidence.mitra:2  evidence forall x in 0..=100, correct(id(x)) at 1
-    fails     evidence.mitra:3  evidence not correct(id(5)) at 1
+    passes    evidence.mitra:2  evidence e { for id given x in 0..=100 holds }
+    fails     evidence.mitra:3  evidence e { for id given x = 5 fails }
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
-                                trust  left
-    likely    evidence.mitra:2  1      0.50
-    likely    evidence.mitra:3  1      0.50
+                                    trust  left
+    likely    evidence.mitra:2 (e)  1      0.50
+    likely    evidence.mitra:3 (e)  1      0.50
 
   The lower what is left, the more plausibly the piece is the wrong one.
 
@@ -30,13 +30,13 @@ error[M003]: two pieces of evidence contradict each other
   help: find out which one is right, and correct the other
 
 warning[M101]: a claim is not verified
-  --> model.mitra:4  claim id_correct : forall x, correct(id(x))
+  --> model.mitra:4  claim id_correct(x) { correct(id(x)) }
 
   No evidence on x in Value \ (0..=4 | 6..=100).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:6  claim id_small : forall x in 0..=100, correct(id(x))
+  --> model.mitra:6  claim id_small(x: 0..=100) { correct(id(x)) }
 
   No evidence on `id(5)`.
   help: `mitra next` lists the evidence that would settle it

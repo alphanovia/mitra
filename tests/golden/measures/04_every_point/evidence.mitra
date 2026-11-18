@@ -1,4 +1,4 @@
-evidence goal_met("payments", 1) = true at 1
-evidence goal_met("payments", 2) = false at 1
-evidence goal_met("payments", 3) = true at 1
-evidence goal_met("payments", 4) = true at 1
+evidence e { for goal_met given team = "payments", sprint = 1 gives true }
+evidence e { for goal_met given team = "payments", sprint = 2 gives false }
+evidence e { for goal_met given team = "payments", sprint = 3 gives true }
+evidence e { for goal_met given team = "payments", sprint = 4 gives true }

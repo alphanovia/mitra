@@ -5,19 +5,19 @@ add_commutative: fails
 add_uniform: fails
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:2  claim add_commutative : forall left, forall right, add(left, right) = add(right, left)
+  --> model.mitra:3  claim add_commutative(left, right) { add(left, right) == add(right, left) }
 
   `add_commutative` fails on `add(3, 4)`.
   The evidence that says so:
 
-    denies    evidence.mitra:3  evidence not add_commutative(3, 4) at 0.8
+    denies    evidence.mitra:3  evidence e { for add_commutative given left = 3, right = 4 fails trust 0.8 }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                 trust  left
-    certain   evidence.mitra:3                  0.8    0.00
-    possible  the code of `add`, model.mitra:1  none   0.00 to 1.00
+    certain   evidence.mitra:3 (e)              0.8    0.00
+    possible  the code of `add`, model.mitra:2  none   0.00 to 1.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
   A range means the evidence does not settle it.
@@ -25,21 +25,21 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `add`; if not, correct the evidence
 
 error[M004]: an assumption is contradicted by the evidence
-  --> model.mitra:3  claim add_uniform : uniform add
+  --> model.mitra:4  claim add_uniform = uniform(add);
 
   `add_uniform` says `add` behaves the same for every input.
   So `add_commutative`, which calls `add`, should pass or fail the same way.
   But some inputs pass and others fail:
 
-    vouches   evidence.mitra:1  evidence add_uniform at 1
-    vouches   evidence.mitra:2  evidence add_commutative(1, 2) at 1
-    denies    evidence.mitra:3  evidence not add_commutative(3, 4) at 0.8
+    vouches   evidence.mitra:1  evidence e { for add_uniform holds }
+    vouches   evidence.mitra:2  evidence e { for add_commutative given left = 1, right = 2 holds }
+    denies    evidence.mitra:3  evidence e { for add_commutative given left = 3, right = 4 fails trust 0.8 }
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
-                                trust  left
-    certain   evidence.mitra:3  0.8    0.00
+                                    trust  left
+    certain   evidence.mitra:3 (e)  0.8    0.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
 

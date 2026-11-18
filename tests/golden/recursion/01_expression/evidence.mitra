@@ -1,4 +1,4 @@
-evidence eval(Lit(3)) = 3 at 1
-evidence eval(Add(Lit(1), Neg(Lit(2)))) = -1 at 1
-evidence eval(Neg(Neg(Lit(2)))) = -2 at 1
-@[source "review"] evidence eval_uniform at 1
+evidence e { for eval given e = Lit(3) gives 3 }
+evidence e { for eval given e = Add(Lit(1), Neg(Lit(2))) gives -1 }
+evidence e { for eval given e = Neg(Neg(Lit(2))) gives -2 }
+evidence e { for eval_uniform holds source "review" }

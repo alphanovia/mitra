@@ -4,19 +4,18 @@ minus_shape: holds
 minus_spec: fails
   fails on        (a, b) in {(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)}
   passes on       `minus(0, 0)`, `minus(1, 1)`, `minus(2, 2)`
-  not derived: its premises do not imply it
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:15  claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = difference(a, b) := by derive [add_spec, negate_spec, minus_shape]
+  --> model.mitra:15  claim minus_spec(a: 0..=2, b: 0..=2) { minus(a, b) == difference(a, b) }
 
   `minus_spec` fails on (a, b) in {(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)}.
   The evidence that says so:
 
-    output    evidence.mitra:2  evidence add(0, -2) = -2 at 1
-    output    evidence.mitra:3  evidence add(0, -1) = -1 at 1
-    output    evidence.mitra:5  evidence add(1, -2) = -1 at 1
-    output    evidence.mitra:7  evidence add(1, 0) = 1 at 1
-    output    evidence.mitra:9  evidence add(2, -1) = 1 at 1
+    output    evidence.mitra:2  evidence e { for add given a = 0, b = -2 gives -2 }
+    output    evidence.mitra:3  evidence e { for add given a = 0, b = -1 gives -1 }
+    output    evidence.mitra:5  evidence e { for add given a = 1, b = -2 gives -1 }
+    output    evidence.mitra:7  evidence e { for add given a = 1, b = 0 gives 1 }
+    output    evidence.mitra:9  evidence e { for add given a = 2, b = -1 gives 1 }
     and 5 more
 
   The code, the claim or the evidence is wrong. Below, the trust given to each

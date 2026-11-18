@@ -5,14 +5,14 @@ flip_on_true: fails
   fails on        `flip(true)`
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:4  claim flip_correct : forall a, correct(flip(a))
-  --> model.mitra:6  claim flip_on_true : correct(flip(true))
+  --> model.mitra:4  claim flip_correct(a) { correct(flip(a)) }
+  --> model.mitra:6  claim flip_on_true() { correct(flip(true)) }
 
   `flip_correct` fails on `flip(true)`.
   `flip_on_true` fails on `flip(true)`.
   The evidence that says so:
 
-    fails     evidence.mitra:2  evidence not correct(flip(true)) at 1
+    fails     evidence.mitra:2  evidence e { for flip given a = true fails }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -29,15 +29,15 @@ error[M003]: two pieces of evidence contradict each other
 
   On the inputs {false} of `flip`, these two say opposite things:
 
-    passes    evidence.mitra:3  evidence correct(flip(false)) at 1
-    fails     evidence.mitra:4  evidence not correct(flip(false)) at 1
+    passes    evidence.mitra:3  evidence e { for flip given a = false holds }
+    fails     evidence.mitra:4  evidence e { for flip given a = false fails }
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
-                                trust  left
-    likely    evidence.mitra:3  1      0.50
-    likely    evidence.mitra:4  1      0.50
+                                    trust  left
+    likely    evidence.mitra:3 (e)  1      0.50
+    likely    evidence.mitra:4 (e)  1      0.50
 
   The lower what is left, the more plausibly the piece is the wrong one.
 

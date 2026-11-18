@@ -1,10 +1,10 @@
--- `quarter` calls `half`; both fail, and `quarter` also has a pass and a
--- failure in one class, every piece trusted at 1.
-opaque half(x: Int) -> Int
-opaque quarter(x: Int) -> Int
-def all(x: Int) -> {"any"} := "any"
+import std::claims::{uniform};
+// `quarter` calls `half`; both fail, and `quarter` also has a pass and a
+// failure in one class, every piece trusted at 1.
+fn half(x: Int) -> Int;
+fn quarter(x: Int) -> Int uses half;
+fn all(x: Int) -> {"any"} { "any" }
 
-claim half_correct : forall x in 0..=1, correct(half(x))
-claim quarter_correct : forall x in 0..=1, correct(quarter(x))
-claim quarter_uses : uses quarter [half]
-claim quarter_uniform : uniform quarter by all
+claim half_correct(x: 0..=1) { correct(half(x)) }
+claim quarter_correct(x: 0..=1) { correct(quarter(x)) }
+claim quarter_uniform = uniform(quarter, all);

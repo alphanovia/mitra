@@ -1,5 +1,5 @@
--- Evidence on the leaves only: nothing on flip_not's outputs.
-evidence flip(true) = false at 1
-evidence flip(false) = true at 1
--- A review of the code: flip_not calls flip twice.
-evidence flip_not_shape at 1
+// Evidence on the leaves only: nothing on flip_not's outputs.
+evidence e { for flip given a = true gives false }
+evidence e { for flip given a = false gives true }
+// A review of the code: flip_not calls flip twice.
+evidence e { for flip_not_shape holds }

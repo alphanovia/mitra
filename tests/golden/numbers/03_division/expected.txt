@@ -6,13 +6,13 @@ ratio_is: unverified
   no evidence on  `ratio(1.0, 0.0)`
 
 warning[M101]: a claim is not verified
-  --> model.mitra:4  claim half_is : forall x in -3..=3, half(x) = 6 / 2 * x / 2
+  --> model.mitra:4  claim half_is(x: -3..=3) { half(x) == 6 / 2 * x / 2 }
 
   No evidence on x in {2} | -2..=0.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:5  claim ratio_is : forall a in {1.0}, forall b in {0.0, 4.0}, ratio(a, b) = a / b - 1.0
+  --> model.mitra:5  claim ratio_is(a: {1.0}, b: {4.0, 0.0}) { ratio(a, b) == a / b - 1.0 }
 
   No evidence on `ratio(1.0, 0.0)`.
   help: `mitra next` lists the evidence that would settle it

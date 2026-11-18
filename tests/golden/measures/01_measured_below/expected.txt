@@ -6,19 +6,19 @@ ever: unverified
   no evidence on  the statement itself
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:3  claim adapts : rate(s in 11..=20, goal_met("payments", s)) >= 0.6
+  --> model.mitra:3  claim adapts() { rate(s in 11..=20, goal_met("payments", s)) >= 0.6 }
 
   `adapts` fails on the statement itself.
   The evidence that says so:
 
-    measured  evidence.mitra:1  evidence rate(s in 11..=20, goal_met("payments", s)) = 0.4 at 0.7
+    measured  evidence.mitra:1  evidence e { for adapts gives rate = 0.4 trust 0.7 }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                      trust  left
     likely    the code of `goal_met`, model.mitra:1  none   0.00 to 0.30
-    unlikely  evidence.mitra:1                       0.7    0.70 to 1.00
+    unlikely  evidence.mitra:1 (e)                   0.7    0.70 to 1.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
   A range means the evidence does not settle it.
@@ -26,14 +26,14 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `goal_met`; if not, correct the evidence
 
 warning[M101]: a claim is not verified
-  --> model.mitra:2  claim steady : rate(s in 1..=4, goal_met("payments", s)) >= 0.5
+  --> model.mitra:2  claim steady() { rate(s in 1..=4, goal_met("payments", s)) >= 0.5 }
 
   No evidence on the statement itself.
   note: `rate(s in 1..=4, goal_met("payments", s))` has no value yet: 0 of 4 inputs counted, 0 true
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:4  claim ever : rate(s in 1.., goal_met("search", s)) >= 0.5
+  --> model.mitra:4  claim ever() { rate(s in 1.., goal_met("search", s)) >= 0.5 }
 
   No evidence on the statement itself.
   note: `rate(s in 1.., goal_met("search", s))` has no value yet: only a measurement can give it, the set is too large to count

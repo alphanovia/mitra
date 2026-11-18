@@ -1,4 +1,5 @@
-opaque f(x: Int) -> Int
-opaque g(x: Int) -> Int
-claim f_g : forall x, f(x) = g(x)
-claim f_uniform : uniform f
+import std::claims::{uniform};
+fn f(x: Int) -> Int;
+fn g(x: Int) -> Int;
+claim f_g(x) { f(x) == g(x) }
+claim f_uniform = uniform(f);

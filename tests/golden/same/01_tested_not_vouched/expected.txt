@@ -4,15 +4,15 @@ add_ok: holds assuming [add_uniform]
 add_uniform: unverified
 
 warning[M102]: a claim holds only under assumptions
-  --> model.mitra:2  claim add_ok : forall left, forall right, correct(add(left, right))
+  --> model.mitra:3  claim add_ok(left, right) { correct(add(left, right)) }
 
   `add_ok` holds if `add_uniform` holds, and no evidence supports it.
   help: review it, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> model.mitra:3  claim add_uniform : uniform add
+  --> model.mitra:4  claim add_uniform = uniform(add);
 
   Nothing says that `add_uniform` holds, and Mitra can't check it.
-  help: review it against the code, then record: evidence add_uniform at 1
+  help: review it against the code, then record: evidence <name> { for add_uniform holds source "review:<who>" }
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M102`.

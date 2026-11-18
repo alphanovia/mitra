@@ -1,2 +1,2 @@
--- `correct` and `wrong` are for `correct` claims; a `matches` claim judges outputs.
-evidence forall a, correct(flip(a)) at 1
+// `correct` and `wrong` are for `correct` claims; a `matches` claim judges outputs.
+evidence e { for flip holds }

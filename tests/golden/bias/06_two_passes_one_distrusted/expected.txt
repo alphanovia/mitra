@@ -3,24 +3,24 @@ div_small: unverified
 div_uniform: fails
 
 error[M004]: an assumption is contradicted by the evidence
-  --> model.mitra:4  claim div_uniform : uniform div by div_class
+  --> model.mitra:5  claim div_uniform = uniform(div, div_class);
 
   `div_uniform` says `div` behaves the same for every input of class "rest"
   of `div_class`. But in that class some inputs pass and others fail:
 
-    vouches   evidence.mitra:8  evidence div_uniform at 1
-    passes    evidence.mitra:9  evidence correct(div(6, 3)) at 0.1
-    passes    evidence.mitra:10  evidence correct(div(8, 4)) at 1
-    fails     evidence.mitra:11  evidence not correct(div(4, 2)) at 1
+    vouches   evidence.mitra:8  evidence e { for div_uniform holds }
+    passes    evidence.mitra:9  evidence e { for div given a = 6, b = 3 holds trust 0.1 }
+    passes    evidence.mitra:10  evidence e { for div given a = 8, b = 4 holds }
+    fails     evidence.mitra:11  evidence e { for div given a = 4, b = 2 fails }
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
-                                 trust  left
-    possible  evidence.mitra:9   0.1    0.07 to 0.69
-    unlikely  evidence.mitra:8   1      0.66
-    unlikely  evidence.mitra:11  1      0.66
-    unlikely  evidence.mitra:10  1      0.69
+                                     trust  left
+    possible  evidence.mitra:9 (e)   0.1    0.07 to 0.69
+    unlikely  evidence.mitra:8 (e)   1      0.66
+    unlikely  evidence.mitra:11 (e)  1      0.66
+    unlikely  evidence.mitra:10 (e)  1      0.69
 
   The lower what is left, the more plausibly the piece is the wrong one.
   A range means the evidence does not settle it.
@@ -33,7 +33,7 @@ error[M004]: an assumption is contradicted by the evidence
   too wide: split it in `div_class`
 
 warning[M101]: a claim is not verified
-  --> model.mitra:3  claim div_small : forall a in 0..=1, forall b in 1..=2, correct(div(a, b))
+  --> model.mitra:4  claim div_small(a: 0..=1, b: 1..=2) { correct(div(a, b)) }
 
   No evidence on (a, b) in (0..=1, 1..=2).
   help: `mitra next` lists the evidence that would settle it

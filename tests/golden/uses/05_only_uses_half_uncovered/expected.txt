@@ -1,18 +1,18 @@
+quarter::uses: holds
 half_correct: unverified
   passes on       `half(0)`
   no evidence on  `half(1)`
 quarter_correct: fails
   fails on        `quarter(1)`
   no evidence on  `quarter(0)`
-quarter_uses: holds
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:7  claim quarter_correct : forall x in 0..=1, correct(quarter(x))
+  --> model.mitra:7  claim quarter_correct(x: 0..=1) { correct(quarter(x)) }
 
   `quarter_correct` fails on `quarter(1)`.
   The evidence that says so:
 
-    fails     evidence.mitra:4  evidence not correct(quarter(1)) at 1
+    fails     evidence.mitra:4  evidence e { for quarter given x = 1 fails }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -28,7 +28,7 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `quarter`; if not, correct the evidence
 
 warning[M101]: a claim is not verified
-  --> model.mitra:6  claim half_correct : forall x in 0..=1, correct(half(x))
+  --> model.mitra:6  claim half_correct(x: 0..=1) { correct(half(x)) }
 
   No evidence on `half(1)`.
   help: `mitra next` lists the evidence that would settle it

@@ -6,14 +6,14 @@ first: fails
   passes on       `divmod(2, 1)`
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:3  claim divmod_is : forall a in 2..=3, forall b in {1}, divmod(a, b) = dm(a, b)
-  --> model.mitra:4  claim first : forall a in 2..=3, forall b in {1}, divmod(a, b) = (dm(a, b).0, 1)
+  --> model.mitra:3  claim divmod_is(a: 2..=3, b: 1..=1) { divmod(a, b) == dm(a, b) }
+  --> model.mitra:4  claim first(a: 2..=3, b: 1..=1) { divmod(a, b) == (dm(a, b).0, 1) }
 
   `divmod_is` fails on `divmod(3, 1)`.
   `first` fails on `divmod(3, 1)`.
   The evidence that says so:
 
-    output    evidence.mitra:2  evidence divmod(3, 1) = (2, 0) at 1
+    output    evidence.mitra:2  evidence e { for divmod given a = 3, b = 1 gives (2, 0) }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:

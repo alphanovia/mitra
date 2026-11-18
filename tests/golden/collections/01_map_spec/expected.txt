@@ -10,12 +10,12 @@ remove_is: unverified
   no evidence on  (stock, gone) in (Map(String, 0..) \ {{"bolt": 1, "nut": 2}}, Set(String)) | ({{"bolt": 1, "nut": 2}}, Set(String) \ {{"nut", "x"}})
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:5  claim add_is : forall stock, forall item, forall n, add_stock(stock, item, n) = add_spec(stock, item, n)
+  --> model.mitra:5  claim add_is(stock, item, n) { add_stock(stock, item, n) == add_spec(stock, item, n) }
 
   `add_is` fails on `add_stock({"bolt": 1, "nut": 2}, "bolt", 1)`.
   The evidence that says so:
 
-    output    evidence.mitra:4  evidence add_stock({"bolt": 1, "nut": 2}, "bolt", 1) = {"bolt": 2, "nut": 3} at 1
+    output    evidence.mitra:4  evidence e { for add_stock given stock = {"nut": 2, "bolt": 1}, item = "bolt", n = 1 gives {"bolt": 2, "nut": 3} }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -28,13 +28,13 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `add_stock`; if not, correct the evidence
 
 warning[M101]: a claim is not verified
-  --> model.mitra:6  claim add_keeps_items : forall stock, forall item, forall n, keys(add_stock(stock, item, n)) == keys(stock) | {item}
+  --> model.mitra:6  claim add_keeps_items( stock , item , n
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:9  claim remove_is : forall stock, forall gone, remove(stock, gone) = stock \ gone
+  --> model.mitra:9  claim remove_is(stock, gone) { remove(stock, gone) == stock \ gone }
 
   No evidence on (stock, gone) in (Map(String, 0..) \ {{"bolt": 1, "nut": 2}}, Set(String)) | ({{"bolt": 1, "nut": 2}}, Set(String) \ {{"nut", "x"}}).
   help: `mitra next` lists the evidence that would settle it

@@ -1,2 +1,2 @@
-evidence get(Some(4)) = 4 at 1
-evidence get_uniform at 1
+evidence e { for get given o = Some(4) gives 4 }
+evidence e { for get_uniform holds }

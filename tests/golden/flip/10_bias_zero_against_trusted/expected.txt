@@ -8,14 +8,14 @@ error[M003]: two pieces of evidence contradict each other
 
   On the inputs {false} of `flip`, these two say opposite things:
 
-    passes    evidence.mitra:2  evidence correct(flip(false)) at 1
-    fails     evidence.mitra:5  evidence not correct(flip(false)) at 0
+    passes    evidence.mitra:2  evidence e { for flip given a = false holds }
+    fails     evidence.mitra:5  evidence e { for flip given a = false fails trust 0 }
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
-                                trust  left
-    certain   evidence.mitra:5  0      0.00
+                                    trust  left
+    certain   evidence.mitra:5 (e)  0      0.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
 
@@ -23,7 +23,7 @@ error[M003]: two pieces of evidence contradict each other
   help: find out which one is right, and correct the other
 
 warning[M101]: a claim is not verified
-  --> model.mitra:4  claim flip_correct : forall a, correct(flip(a))
+  --> model.mitra:4  claim flip_correct(a) { correct(flip(a)) }
 
   No evidence on `flip(false)`.
   help: `mitra next` lists the evidence that would settle it

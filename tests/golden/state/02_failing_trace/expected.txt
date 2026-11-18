@@ -12,31 +12,31 @@ withdraw_keeps_open: unverified
   no evidence on  class "closed" of `account_class`
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:10  claim withdraw_is : forall a, forall n, withdraw(a, n) = withdraw_spec(a, n)
+  --> model.mitra:11  claim withdraw_is(a, n) { withdraw(a, n) == withdraw_spec(a, n) }
 
   `withdraw_is` fails on `withdraw(Account(5, true), 3)`.
   The evidence that says so:
 
-    output    evidence.mitra:4  @[source "test:t_seq"] evidence withdraw(Account(5, true), 3) = (Account(3, true), true) at 1
+    output    evidence.mitra:4  evidence e { for withdraw given a = Account(5, true), n = 3 gives (Account(3, true), true) source "test:t_seq" }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                      trust  left
-    certain   the code of `withdraw`, model.mitra:4  none   0.00
+    certain   the code of `withdraw`, model.mitra:5  none   0.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `withdraw`; if not, correct the evidence
 
 warning[M101]: a claim is not verified
-  --> model.mitra:9  claim deposit_is : forall a, forall n, deposit(a, n) = deposit_spec(a, n)
+  --> model.mitra:10  claim deposit_is(a, n) { deposit(a, n) == deposit_spec(a, n) }
 
   No evidence on (a, n) in (Account \ {Account(0, true)}, 0..) | ({Account(0, true)}, 0..=4 | 6..).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:15  claim withdraw_keeps_open : forall a, forall n, withdraw(a, n).0.open == a.open
+  --> model.mitra:16  claim withdraw_keeps_open(a, n) { withdraw(a, n).0.open == a.open }
 
   No evidence on class "closed" of `account_class`.
   help: one passing test in such a class stands for the class

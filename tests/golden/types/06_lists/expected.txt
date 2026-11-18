@@ -9,13 +9,13 @@ total_ok: unverified
   no evidence on  ns in List(Number) \ {[Number(1, "m"), Number(2, "m")]}
 
 warning[M101]: a claim is not verified
-  --> model.mitra:5  claim sort_ok : forall xs, correct(sort(xs))
+  --> model.mitra:6  claim sort_ok(xs) { correct(sort(xs)) }
 
   No evidence on class "one" of `size`.
   help: one passing test in such a class stands for the class
 
 warning[M101]: a claim is not verified
-  --> model.mitra:8  claim total_ok : forall ns, correct(total(ns))
+  --> model.mitra:9  claim total_ok(ns) { correct(total(ns)) }
 
   No evidence on ns in List(Number) \ {[Number(1, "m"), Number(2, "m")]}.
   help: `mitra next` lists the evidence that would settle it

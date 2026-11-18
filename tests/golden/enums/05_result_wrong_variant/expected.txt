@@ -4,18 +4,18 @@ sub_is: fails
 sub_uniform: holds
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:5  claim sub_is : forall a, forall b, sub(a, b) = sub_spec(a, b)
+  --> model.mitra:6  claim sub_is(a, b) { sub(a, b) == sub_spec(a, b) }
 
   `sub_is` fails on 45 inputs.
   The evidence that says so:
 
-    output    evidence.mitra:2  evidence sub(3, 5) = Ok(0) at 1
+    output    evidence.mitra:2  evidence e { for sub given a = 3, b = 5 gives Ok(0) }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                 trust  left
-    certain   the code of `sub`, model.mitra:2  none   0.00
+    certain   the code of `sub`, model.mitra:3  none   0.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
 

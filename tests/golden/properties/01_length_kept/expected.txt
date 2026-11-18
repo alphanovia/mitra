@@ -6,7 +6,7 @@ same_total: unverified
   no evidence on  xs in List(Int)
 
 warning[M101]: a claim is not verified
-  --> model.mitra:6  claim same_total : forall xs, total(sort(xs)) == total(xs)
+  --> model.mitra:7  claim same_total(xs) { total(sort(xs)) == total(xs) }
 
   No evidence on xs in List(Int).
   note: `total` has no `uniform` claim, so no test stands for other inputs

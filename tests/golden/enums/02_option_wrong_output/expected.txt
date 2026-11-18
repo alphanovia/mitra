@@ -5,18 +5,18 @@ get_is: fails
 get_uniform: holds
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:5  claim get_is : forall o, get(o) = or_zero(o)
+  --> model.mitra:6  claim get_is(o) { get(o) == or_zero(o) }
 
   `get_is` fails on `get(Some(4))`.
   The evidence that says so:
 
-    output    evidence.mitra:2  evidence get(Some(4)) = 5 at 1
+    output    evidence.mitra:2  evidence e { for get given o = Some(4) gives 5 }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                 trust  left
-    certain   the code of `get`, model.mitra:2  none   0.00
+    certain   the code of `get`, model.mitra:3  none   0.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
 

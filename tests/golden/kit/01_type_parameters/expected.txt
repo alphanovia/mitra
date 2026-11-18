@@ -7,13 +7,13 @@ ints_ok: unverified
 c: holds
 
 warning[M101]: a claim is not verified
-  --> model.mitra:10  claim swap_is : forall p, swap(p) = swap_spec(p)
+  --> model.mitra:10  claim swap_is(p) { swap(p) == swap_spec(p) }
 
   No evidence on p in Pair(Value, Value) \ {Pair(1, "a")}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:11  claim ints_ok : forall p, correct(ints(p))
+  --> model.mitra:11  claim ints_ok(p) { correct(ints(p)) }
 
   No evidence on p in Pair(Int, String) \ {Pair(1, "a")}.
   help: `mitra next` lists the evidence that would settle it

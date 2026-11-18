@@ -5,15 +5,15 @@ f_uniform: holds
 g_uniform: unverified
 
 warning[M102]: a claim holds only under assumptions
-  --> model.mitra:3  claim f_g : forall x, f(x) = g(x)
+  --> model.mitra:4  claim f_g(x) { f(x) == g(x) }
 
   `f_g` holds if `g_uniform` holds, and no evidence supports it.
   help: review it, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> model.mitra:5  claim g_uniform : uniform g
+  --> model.mitra:6  claim g_uniform = uniform(g);
 
   Nothing says that `g_uniform` holds, and Mitra can't check it.
-  help: review it against the code, then record: evidence g_uniform at 1
+  help: review it against the code, then record: evidence <name> { for g_uniform holds source "review:<who>" }
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M102`.

@@ -3,12 +3,12 @@ pick_default: fails
   fails on        the statement itself
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:5  claim pick_default : pick(None) == Red
+  --> model.mitra:5  claim pick_default() { pick(None) == Red }
 
   `pick_default` fails on the statement itself.
   The evidence that says so:
 
-    output    evidence.mitra:4  evidence pick(None) = Green at 1
+    output    evidence.mitra:4  evidence e { for pick given c = None gives Green }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:

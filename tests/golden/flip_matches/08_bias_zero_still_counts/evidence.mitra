@@ -1,3 +1,3 @@
--- Evidence at 0 counts for the verdicts like any other.
-evidence flip(false) = false at 0
-evidence neg(true) = true at 0
+// Evidence at 0 counts for the verdicts like any other.
+evidence e { for flip given a = false gives false trust 0 }
+evidence e { for neg given a = true gives true trust 0 }

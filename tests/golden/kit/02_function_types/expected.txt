@@ -6,12 +6,12 @@ c: holds
 parse_each: holds
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:11  claim apply_is : forall f, forall x, apply(f, x) = f(x)
+  --> model.mitra:11  claim apply_is(f, x) { apply(f, x) == f(x) }
 
   `apply_is` fails on `apply(negate, 3)`.
   The evidence that says so:
 
-    output    evidence.mitra:2  evidence apply(negate, 3) = 3 at 1
+    output    evidence.mitra:2  evidence e { for apply given f = negate, x = 3 gives 3 }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:

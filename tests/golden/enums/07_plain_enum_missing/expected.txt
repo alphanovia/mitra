@@ -2,25 +2,25 @@ warm_is: unverified
   passes on       `warm(Red)`
   no evidence on  `warm(Blue)`, `warm(Green)`
 pick_red: unverified
-  no evidence on  `pick(None)`
+  no evidence on  the statement itself
 pick_ok: unverified
   passes on       `pick(None)`
   no evidence on  `pick(Some(Blue))`, `pick(Some(Green))`, `pick(Some(Red))`
 
 warning[M101]: a claim is not verified
-  --> model.mitra:6  claim warm_is : forall c, warm(c) = is_warm(c)
+  --> model.mitra:6  claim warm_is(c) { warm(c) == is_warm(c) }
 
   No evidence on `warm(Blue)`, `warm(Green)`.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:7  claim pick_red : pick(None) = Red
+  --> model.mitra:7  claim pick_red() { pick(None) == Red }
 
-  No evidence on `pick(None)`.
+  No evidence on the statement itself.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:8  claim pick_ok : forall c, correct(pick(c))
+  --> model.mitra:8  claim pick_ok(c) { correct(pick(c)) }
 
   No evidence on `pick(Some(Blue))`, `pick(Some(Green))`, `pick(Some(Red))`.
   help: `mitra next` lists the evidence that would settle it

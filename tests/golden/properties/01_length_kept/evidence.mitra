@@ -1,4 +1,4 @@
-evidence sort([]) = [] at 1
-evidence sort([5]) = [5] at 1
-evidence sort([3, 1, 2]) = [1, 2, 3] at 1
-evidence sort_uniform at 1
+evidence e { for sort given xs = [] gives [] }
+evidence e { for sort given xs = [5] gives [5] }
+evidence e { for sort given xs = [3, 1, 2] gives [1, 2, 3] }
+evidence e { for sort_uniform holds }

@@ -9,7 +9,7 @@ same_sign: holds
 same_sign_uniform: holds
 
 warning[M101]: a claim is not verified
-  --> model.mitra:8  claim half_keeps_sign : forall x, sign(half(x) * 2) == sign(x) || half(x) == 0
+  --> model.mitra:9  claim half_keeps_sign(x) { sign(half(x) * 2) == sign(x) || half(x) == 0 }
 
   No evidence on x in Int \ {0, 8}.
   note: a call of `sign` takes more than the claim's inputs, so no test stands for other inputs

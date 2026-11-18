@@ -1,6 +1,6 @@
-evidence add(Number(0, "m"), Number(0, "m")) = Number(0, "m") at 1
-evidence add(Number(0, "m"), Number(1, "m")) = Number(1, "m") at 1
-evidence add(Number(1, "m"), Number(0, "m")) = Number(1, "m") at 1
-evidence add(Number(1, "m"), Number(1, "m")) = Number(2, "m") at 1
-evidence add_uniform at 1
-evidence correct(add(Number(1, "m"), Number(2, "km"))) at 1
+evidence e { for add given left = Number(0, "m"), right = Number(0, "m") gives Number(0, "m") }
+evidence e { for add given left = Number(0, "m"), right = Number(1, "m") gives Number(1, "m") }
+evidence e { for add given left = Number(1, "m"), right = Number(0, "m") gives Number(1, "m") }
+evidence e { for add given left = Number(1, "m"), right = Number(1, "m") gives Number(2, "m") }
+evidence e { for add_uniform holds }
+evidence e { for add given left = Number(1, "m"), right = Number(2, "km") holds }

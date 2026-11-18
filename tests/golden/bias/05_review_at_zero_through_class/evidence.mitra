@@ -1,5 +1,5 @@
--- The failure is outside the claim: it refutes it only through the class,
--- so through the review of `div_uniform`. Bias 0 still counts for the
--- verdict, but the review is then as plausible a culprit as the code.
-evidence div_uniform at 0
-evidence not correct(div(4, 2)) at 1
+// The failure is outside the claim: it refutes it only through the class,
+// so through the review of `div_uniform`. Bias 0 still counts for the
+// verdict, but the review is then as plausible a culprit as the code.
+evidence e { for div_uniform holds trust 0 }
+evidence e { for div given a = 4, b = 2 fails }

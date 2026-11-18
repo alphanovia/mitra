@@ -4,12 +4,12 @@ alarm_is: fails
   no evidence on  a set too long to print
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:6  claim alarm_is : forall readings, forall muted, alarm(readings, muted) = alarm_spec(readings, muted)
+  --> model.mitra:6  claim alarm_is(readings, muted) { alarm(readings, muted) == alarm_spec(readings, muted) }
 
   `alarm_is` fails on `alarm({"door": High}, {"door"})`.
   The evidence that says so:
 
-    output    evidence.mitra:4  evidence alarm({"door": High}, {"door"}) = true at 1
+    output    evidence.mitra:4  evidence e { for alarm given readings = {"door": High}, muted = {"door"} gives true }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:

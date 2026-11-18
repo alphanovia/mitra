@@ -1,3 +1,3 @@
--- A review vouches for the uniformity; one test passes, away from zero.
-evidence div_uniform at 1
-evidence correct(div(6, 3)) at 1
+// A review vouches for the uniformity; one test passes, away from zero.
+evidence e { for div_uniform holds }
+evidence e { for div given a = 6, b = 3 holds }

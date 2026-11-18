@@ -1,2 +1,2 @@
--- A proof on the whole domain.
-evidence forall x, correct(id(x)) at 1
+// A proof on the whole domain.
+evidence e { for id holds }

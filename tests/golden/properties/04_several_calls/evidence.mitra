@@ -1,8 +1,8 @@
-evidence add(1, 2) = 3 at 1
-evidence add(2, 3) = 5 at 1
-evidence add(3, 3) = 6 at 1
-evidence add(1, 5) = 6 at 1
-evidence add(0, 0) = 0 at 1
-evidence add(1, 0) = 1 at 1
-evidence max(1, 2) = 2 at 1
-evidence max(5, 2) = 2 at 1
+evidence e { for add given a = 1, b = 2 gives 3 }
+evidence e { for add given a = 2, b = 3 gives 5 }
+evidence e { for add given a = 3, b = 3 gives 6 }
+evidence e { for add given a = 1, b = 5 gives 6 }
+evidence e { for add given a = 0, b = 0 gives 0 }
+evidence e { for add given a = 1, b = 0 gives 1 }
+evidence e { for max given a = 1, b = 2 gives 2 }
+evidence e { for max given a = 5, b = 2 gives 2 }

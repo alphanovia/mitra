@@ -6,19 +6,19 @@ add_ok: unverified
 add_uniform: unverified
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:4  claim add_is : forall left in {Number(0, "m"), Number(1, "m")}, forall right in {Number(0, "m"), Number(1, "m")}, add(left, right) = add_spec(left, right)
+  --> model.mitra:5  claim add_is(left: {Number(0, "m"), Number(1, "m")}, right: {Number(0, "m"), Number(1, "m")}) { add(left, right) == add_spec(left, right) }
 
   `add_is` fails on `add(Number(1, "m"), Number(1, "m"))`.
   The evidence that says so:
 
-    output    evidence.mitra:1  evidence add(Number(1, "m"), Number(1, "m")) = Number(2, "km") at 0.9
+    output    evidence.mitra:1  evidence e { for add given left = Number(1, "m"), right = Number(1, "m") gives Number(2, "km") trust 0.9 }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                 trust  left
-    likely    the code of `add`, model.mitra:2  none   0.00 to 0.10
-    unlikely  evidence.mitra:1                  0.9    0.90 to 1.00
+    likely    the code of `add`, model.mitra:3  none   0.00 to 0.10
+    unlikely  evidence.mitra:1 (e)              0.9    0.90 to 1.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
   A range means the evidence does not settle it.
@@ -26,15 +26,15 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `add`; if not, correct the evidence
 
 warning[M101]: a claim is not verified
-  --> model.mitra:5  claim add_ok : forall left, forall right, correct(add(left, right))
+  --> model.mitra:6  claim add_ok(left, right) { correct(add(left, right)) }
 
   No evidence on (left, right) in (Number, Number).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for
-  --> model.mitra:6  claim add_uniform : uniform add
+  --> model.mitra:7  claim add_uniform = uniform(add);
 
   Nothing says that `add_uniform` holds, and Mitra can't check it.
-  help: review it against the code, then record: evidence add_uniform at 1
+  help: review it against the code, then record: evidence <name> { for add_uniform holds source "review:<who>" }
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

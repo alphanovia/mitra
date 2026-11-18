@@ -4,19 +4,19 @@ flip_correct: fails
 flip_on_true: holds
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:4  claim flip_correct : forall a, correct(flip(a))
+  --> model.mitra:4  claim flip_correct(a) { correct(flip(a)) }
 
   `flip_correct` fails on `flip(false)`.
   The evidence that says so:
 
-    fails     evidence.mitra:4  evidence not correct(flip(false)) at 0
+    fails     evidence.mitra:4  evidence e { for flip given a = false fails trust 0 }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                  trust  left
     possible  the code of `flip`, model.mitra:1  none   0.00 to 1.00
-    possible  evidence.mitra:4                   0      0.00 to 1.00
+    possible  evidence.mitra:4 (e)               0      0.00 to 1.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
   A range means the evidence does not settle it.

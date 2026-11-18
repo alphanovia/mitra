@@ -1,12 +1,12 @@
--- Type parameters on a record and on functions: each is any value.
-enum Option(T) { None, Some(value: T) }
-record Pair(A, B)(first: A, second: B)
-record Node(T)(value: T, next: Option(Node(T)))
-opaque swap(A, B)(p: Pair(A, B)) -> Pair(B, A)
-def swap_spec(A, B)(p: Pair(A, B)) -> Pair(B, A) := Pair(p.second, p.first)
-def last(T)(n: Node(T)) -> T := match n.next { None => n.value, Some(m) => last(m) }
-def first(T)(xs: List(T)) -> Option(T) := if len(xs) == 0 then None else Some(xs[0])
-opaque ints(p: Pair(Int, String)) -> Int
-claim swap_is : forall p, swap(p) = swap_spec(p)
-claim ints_ok : forall p, correct(ints(p))
-claim c : last(Node(1, Some(Node(2, None)))) == 2 && first([3, 4]) == Some(3) && first([]) == None
+// Type parameters on a record and on functions: each is any value.
+enum Option<T> { None, Some(value: T) }
+record Pair<A, B> { first: A, second: B }
+record Node<T> { value: T, next: Option<Node<T>> }
+fn swap<A, B>(p: Pair<A, B>) -> Pair<B, A>;
+fn swap_spec<A, B>(p: Pair<A, B>) -> Pair<B, A> { Pair(p.second, p.first) }
+fn last<T>(n: Node<T>) -> T { match n.next { None => n.value, Some(m) => last(m) } }
+fn first<T>(xs: List<T>) -> Option<T> { if len(xs) == 0 { None } else { Some(xs[0]) } }
+fn ints(p: Pair<Int, String>) -> Int;
+claim swap_is(p) { swap(p) == swap_spec(p) }
+claim ints_ok(p) { correct(ints(p)) }
+claim c() { last(Node(1, Some(Node(2, None)))) == 2 && first([3, 4]) == Some(3) && first([]) == None }

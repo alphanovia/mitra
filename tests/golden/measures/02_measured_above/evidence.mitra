@@ -1,2 +1,2 @@
-evidence rate(s in 11..=20, goal_met("payments", s)) = 0.8 at 0.7
-evidence rate(s in 1.., goal_met("search", s)) = 0.9 at 0.5
+evidence e { for adapts gives rate = 0.8 trust 0.7 }
+evidence e { for ever gives rate = 0.9 trust 0.5 }

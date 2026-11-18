@@ -1,4 +1,4 @@
--- One passing test in each class: the whole domain is tested or assumed.
-evidence div_uniform at 1
-evidence correct(div(6, 3)) at 1
-evidence correct(div(1, 0)) at 1
+// One passing test in each class: the whole domain is tested or assumed.
+evidence e { for div_uniform holds }
+evidence e { for div given a = 6, b = 3 holds }
+evidence e { for div given a = 1, b = 0 holds }

@@ -4,12 +4,12 @@ lines_correct: fails
   no evidence on  `lines("a\tb")`
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:3  claim lines_correct : forall text in {"a\tb", "a\nb", "c:\\dir", "say \"hi\""}, correct(lines(text))
+  --> model.mitra:3  claim lines_correct(text: {"a\nb", "say \"hi\"", "a\tb", "c:\\dir"}) { correct(lines(text)) }
 
   `lines_correct` fails on `lines("c:\\dir")`.
   The evidence that says so:
 
-    fails     evidence.mitra:4  evidence not correct(lines("c:\\dir")) at 1
+    fails     evidence.mitra:4  evidence e { for lines given text = "c:\\dir" fails }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:

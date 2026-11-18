@@ -7,7 +7,7 @@ error[M006]: evidence does not fit the model
 
   This evidence does not fit the signature of `half`: its output 3 is outside the result type of `half`: 0..=2.
 
-    output    evidence.mitra:2  @[source "trace:run_7"] evidence half(5) = 3 at 0.9
+    output    evidence.mitra:2  evidence e { for half given n = 5 gives 3 trust 0.9 source "trace:run_7" }
 
   Either the model is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -30,7 +30,7 @@ error[M006]: evidence does not fit the model
 
   This evidence does not fit the signature of `half`: its inputs are outside the inputs of `half`.
 
-    passes    evidence.mitra:3  @[source "trace:run_8"] evidence correct(half(9)) at 1
+    passes    evidence.mitra:3  evidence e { for half given n = 9 holds source "trace:run_8" }
 
   Either the model is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -48,7 +48,7 @@ error[M006]: evidence does not fit the model
   help: if the observation is real, change the signature of `half`; if not, correct the evidence
 
 warning[M101]: a claim is not verified
-  --> model.mitra:3  claim half_correct : forall n, correct(half(n))
+  --> model.mitra:3  claim half_correct(n) { correct(half(n)) }
 
   No evidence on n in {5} | 0..=3.
   help: `mitra next` lists the evidence that would settle it

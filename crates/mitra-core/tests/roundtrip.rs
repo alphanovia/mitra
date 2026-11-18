@@ -44,7 +44,9 @@ fn golden_files_round_trip() {
     assert!(paths.len() > 20);
     for path in paths {
         let src = fs::read_to_string(&path).unwrap();
+        let inner = |m: &str| mitra_core::surface::model(m).unwrap();
         if path.file_name().unwrap() == "model.mitra" {
+            let src = inner(&src).0;
             let parsed = parse_model(&src).unwrap();
             let printed = print_model(&parsed);
             let m = model_without_lines(parsed);
@@ -58,9 +60,10 @@ fn golden_files_round_trip() {
             );
         } else {
             // Evidence is read with its model: a name alone is a variant.
-            let model = fs::read_to_string(path.with_file_name("model.mitra"))
-                .map(|m| parse_model(&m).unwrap())
-                .unwrap_or_default();
+            let text = fs::read_to_string(path.with_file_name("model.mitra")).unwrap();
+            let (text, names) = inner(&text);
+            let model = parse_model(&text).unwrap();
+            let src = mitra_core::surface::evidence_alone(&src, &names).unwrap();
             let e = evidence_without_lines(parse_evidence_for(&src, &model).unwrap());
             let printed = print_evidence(&e, None);
             let again = parse_evidence_for(&printed, &model)

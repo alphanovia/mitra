@@ -1,14 +1,14 @@
--- Same leaves, but the shape gives b - a: the implication is refuted.
-evidence add(0, -2) = -2 at 1
-evidence add(0, -1) = -1 at 1
-evidence add(0, 0) = 0 at 1
-evidence add(1, -2) = -1 at 1
-evidence add(1, -1) = 0 at 1
-evidence add(1, 0) = 1 at 1
-evidence add(2, -2) = 0 at 1
-evidence add(2, -1) = 1 at 1
-evidence add(2, 0) = 2 at 1
-evidence negate(0) = 0 at 1
-evidence negate(1) = -1 at 1
-evidence negate(2) = -2 at 1
-evidence minus_shape at 1
+// Same leaves, but the shape gives b - a: the implication is refuted.
+evidence e { for add given a = 0, b = -2 gives -2 }
+evidence e { for add given a = 0, b = -1 gives -1 }
+evidence e { for add given a = 0, b = 0 gives 0 }
+evidence e { for add given a = 1, b = -2 gives -1 }
+evidence e { for add given a = 1, b = -1 gives 0 }
+evidence e { for add given a = 1, b = 0 gives 1 }
+evidence e { for add given a = 2, b = -2 gives 0 }
+evidence e { for add given a = 2, b = -1 gives 1 }
+evidence e { for add given a = 2, b = 0 gives 2 }
+evidence e { for negate given b = 0 gives 0 }
+evidence e { for negate given b = 1 gives -1 }
+evidence e { for negate given b = 2 gives -2 }
+evidence e { for minus_shape holds }

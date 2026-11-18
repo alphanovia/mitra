@@ -1,3 +1,3 @@
-evidence forall x in 0..=99, correct(inc(x)) at 1
-evidence half(1.0) = 0.5 at 1
-evidence half(-3.0) = -1.5 at 1
+evidence e { for inc given x in 0..=99 holds }
+evidence e { for half given x = 1.0 gives 0.5 }
+evidence e { for half given x = -3.0 gives -1.5 }

@@ -1,6 +1,6 @@
--- The trace of one test, written by hand: one line for each call it made.
--- Rust: a.deposit(5); assert!(a.withdraw(3)); assert!(!a.withdraw(7));
-@[source "test:t_seq"] evidence deposit(Account(0, true), 5) = Account(5, true) at 1
-@[source "test:t_seq"] evidence withdraw(Account(5, true), 3) = (Account(2, true), true) at 1
-@[source "test:t_seq"] evidence withdraw(Account(2, true), 7) = (Account(2, true), false) at 1
-@[source "review"] evidence withdraw_uniform at 1
+// The trace of one test, written by hand: one line for each call it made.
+// Rust: a.deposit(5); assert!(a.withdraw(3)); assert!(!a.withdraw(7));
+evidence e { for deposit given a = Account(0, true), n = 5 gives Account(5, true) source "test:t_seq" }
+evidence e { for withdraw given a = Account(5, true), n = 3 gives (Account(2, true), true) source "test:t_seq" }
+evidence e { for withdraw given a = Account(2, true), n = 7 gives (Account(2, true), false) source "test:t_seq" }
+evidence e { for withdraw_uniform holds source "review" }

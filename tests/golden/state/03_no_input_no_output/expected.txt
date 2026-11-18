@@ -7,13 +7,13 @@ log_returns: unverified
   no evidence on  message in String \ {"started"}
 
 warning[M101]: a claim is not verified
-  --> model.mitra:8  claim log_correct : forall message, correct(log(message))
+  --> model.mitra:8  claim log_correct(message) { correct(log(message)) }
 
   No evidence on message in String.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:9  claim log_returns : forall message, log(message) = ()
+  --> model.mitra:9  claim log_returns(message) { log(message) == () }
 
   No evidence on message in String \ {"started"}.
   help: `mitra next` lists the evidence that would settle it

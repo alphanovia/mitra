@@ -1,1 +1,1 @@
-evidence add(Number(1, "m"), Number(1, "m")) = Number(2, "km") at 0.9
+evidence e { for add given left = Number(1, "m"), right = Number(1, "m") gives Number(2, "km") trust 0.9 }

@@ -5,7 +5,7 @@ abs_even: unverified
 abs_uniform: holds
 
 warning[M101]: a claim is not verified
-  --> model.mitra:3  claim abs_even : forall x in -3..=3, abs(x) = abs(-x)
+  --> model.mitra:4  claim abs_even(x: -3..=3) { abs(x) == abs(-x) }
 
   No evidence on x in -3..=0.
   help: `mitra next` lists the evidence that would settle it

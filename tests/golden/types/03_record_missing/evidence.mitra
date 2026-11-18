@@ -1,1 +1,1 @@
-evidence correct(add(Number(1, "m"), Number(2, "m"))) at 1
+evidence e { for add given left = Number(1, "m"), right = Number(2, "m") holds }

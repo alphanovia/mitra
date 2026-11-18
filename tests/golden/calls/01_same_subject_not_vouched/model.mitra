@@ -1,3 +1,4 @@
-opaque add(left: Int, right: Int) -> Int
-claim add_commutative : forall left, forall right, add(left, right) = add(right, left)
-claim add_uniform : uniform add
+import std::claims::{uniform};
+fn add(left: Int, right: Int) -> Int;
+claim add_commutative(left, right) { add(left, right) == add(right, left) }
+claim add_uniform = uniform(add);

@@ -1,3 +1,5 @@
+quarter::uses: holds
+eighth::uses: holds
 half_correct: fails
   fails on        `half(1)`
   no evidence on  `half(0)`
@@ -5,16 +7,14 @@ quarter_correct: fails
   fails on        `quarter(1)`
   no evidence on  `quarter(0)`
 eighth_correct: holds
-quarter_uses: unverified
-eighth_uses: unverified
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:6  claim half_correct : forall x in 0..=1, correct(half(x))
+  --> model.mitra:6  claim half_correct(x: 0..=1) { correct(half(x)) }
 
   `half_correct` fails on `half(1)`.
   The evidence that says so:
 
-    fails     evidence.mitra:3  evidence not correct(half(1)) at 1
+    fails     evidence.mitra:3  evidence e { for half given x = 1 fails }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -27,12 +27,12 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `half`; if not, correct the evidence
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:7  claim quarter_correct : forall x in 0..=1, correct(quarter(x))
+  --> model.mitra:7  claim quarter_correct(x: 0..=1) { correct(quarter(x)) }
 
   `quarter_correct` fails on `quarter(1)`.
   The evidence that says so:
 
-    fails     evidence.mitra:4  evidence not correct(quarter(1)) at 1
+    fails     evidence.mitra:4  evidence e { for quarter given x = 1 fails }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -46,18 +46,6 @@ error[M001]: evidence refutes a claim
 
   help: look first at `half`, which `quarter` uses: half_correct fails there
   help: if the evidence is right, fix `quarter`; if not, correct the evidence
-
-warning[M103]: an assumption is not vouched for
-  --> model.mitra:9  claim quarter_uses : uses quarter [half]
-
-  Nothing says that `quarter_uses` holds, and Mitra can't check it.
-  help: review it against the code, then record: evidence quarter_uses at 1
-
-warning[M103]: an assumption is not vouched for
-  --> model.mitra:10  claim eighth_uses : uses eighth [quarter]
-
-  Nothing says that `eighth_uses` holds, and Mitra can't check it.
-  help: review it against the code, then record: evidence eighth_uses at 1
 
 note: `eighth` uses `half`, where half_correct fails: look there first
 note: `eighth` uses `quarter`, where quarter_correct fails: look there first

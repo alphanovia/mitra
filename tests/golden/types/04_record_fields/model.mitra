@@ -1,5 +1,5 @@
-record Sprint(committed: Int, delivered: Int, goal_met: Bool)
-opaque sprint(squad: String, n: 1..=3) -> Sprint
-opaque healthy(squad: String, n: 1..=3) -> Bool
-claim healthy_is : forall n, healthy("payments", n) = (sprint("payments", n).delivered >= sprint("payments", n).committed)
-claim goals : forall n, sprint("payments", n) = Sprint(5, 5, true)
+record Sprint { committed: Int, delivered: Int, goal_met: Bool }
+fn sprint(squad: String, n: 1..=3) -> Sprint;
+fn healthy(squad: String, n: 1..=3) -> Bool;
+claim healthy_is(n) { healthy("payments", n) == (sprint("payments", n).delivered >= sprint("payments", n).committed) }
+claim goals(n) { sprint("payments", n) == Sprint(5, 5, true) }

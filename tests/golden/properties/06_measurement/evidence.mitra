@@ -1,2 +1,2 @@
-evidence slip_rate("red") = 0.7 at 0.6
-evidence slip_rate("blue") = 0.2 at 0.8
+evidence e { for slip_rate given team = "red" gives 0.7 trust 0.6 }
+evidence e { for slip_rate given team = "blue" gives 0.2 trust 0.8 }

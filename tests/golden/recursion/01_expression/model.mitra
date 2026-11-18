@@ -1,10 +1,11 @@
--- A type may contain itself, and a spec may call itself on a piece of
--- its input.
+import std::claims::{uniform};
+// A type may contain itself, and a spec may call itself on a piece of
+// its input.
 enum Expr { Lit(n: Int), Add(l: Expr, r: Expr), Neg(e: Expr) }
-def value(e: Expr) -> Int :=
-  match e { Lit(n) => n, Add(l, r) => value(l) + value(r), Neg(x) => 0 - value(x) }
-def shape(e: Expr) -> {"literal", "sum", "negation"} :=
-  match e { Lit(n) => "literal", Add(l, r) => "sum", Neg(x) => "negation" }
-opaque eval(e: Expr) -> Int
-claim eval_is : forall e, eval(e) = value(e)
-claim eval_uniform : uniform eval by shape
+fn value(e: Expr) -> Int {
+  match e { Lit(n) => n, Add(l, r) => value(l) + value(r), Neg(x) => 0 - value(x) } }
+fn shape(e: Expr) -> {"literal", "sum", "negation"} {
+  match e { Lit(n) => "literal", Add(l, r) => "sum", Neg(x) => "negation" } }
+fn eval(e: Expr) -> Int;
+claim eval_is(e) { eval(e) == value(e) }
+claim eval_uniform = uniform(eval, shape);

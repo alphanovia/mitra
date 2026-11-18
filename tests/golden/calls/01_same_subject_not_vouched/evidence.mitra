@@ -1,1 +1,1 @@
-evidence add_commutative(1, 2) at 1
+evidence e { for add_commutative given left = 1, right = 2 holds }

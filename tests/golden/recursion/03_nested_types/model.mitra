@@ -1,13 +1,13 @@
--- A type inside itself through an enum, a list, a set, a map, and as the
--- parameter of another type.
-enum Option(T) { None, Some(value: T) }
-enum Expr { Lit(n: Int), Neg(e: Expr), Opt(o: Option(Expr)), Many(es: List(Expr)), M(m: Map(String, Expr)) }
-enum Tree(T) { Leaf, Node(l: Tree(T), v: T, r: Tree(T)) }
-record N(kids: Set(N))
-def depth(e: Expr) -> 0.. := match e { Lit(n) => 0, Neg(x) => 1 + depth(x), Opt(o) => match o { None => 0, Some(x) => depth(x) }, Many(es) => fold(x in es, let d := 0; d + depth(x)), M(m) => 0 }
-opaque f(t: Tree(Expr)) -> Option(Expr)
-opaque g(n: N) -> Int
-opaque h(e: Expr) -> 0..
-claim f_ok : forall t, correct(f(t))
-claim g_ok : forall n, correct(g(n))
-claim h_is : forall e, h(e) = depth(e)
+// A type inside itself through an enum, a list, a set, a map, and as the
+// parameter of another type.
+enum Option<T> { None, Some(value: T) }
+enum Expr { Lit(n: Int), Neg(e: Expr), Opt(o: Option<Expr>), Many(es: List<Expr>), M(m: Map<String, Expr>) }
+enum Tree<T> { Leaf, Node(l: Tree<T>, v: T, r: Tree<T>) }
+record N { kids: Set<N> }
+fn depth(e: Expr) -> 0.. { match e { Lit(n) => 0, Neg(x) => 1 + depth(x), Opt(o) => match o { None => 0, Some(x) => depth(x) }, Many(es) => fold(x in es, let d = 0; d + depth(x)), M(m) => 0 } }
+fn f(t: Tree<Expr>) -> Option<Expr>;
+fn g(n: N) -> Int;
+fn h(e: Expr) -> 0..;
+claim f_ok(t) { correct(f(t)) }
+claim g_ok(n) { correct(g(n)) }
+claim h_is(e) { h(e) == depth(e) }

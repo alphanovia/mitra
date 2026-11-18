@@ -1,4 +1,5 @@
-opaque div(a: Int, b: Int) -> Int
-def div_class(a: Int, b: Int) -> {"zero", "rest"} := if b == 0 then "zero" else "rest"
-claim div_small : forall a in 0..=1, forall b in 1..=2, correct(div(a, b))
-claim div_uniform : uniform div by div_class
+import std::claims::{uniform};
+fn div(a: Int, b: Int) -> Int;
+fn div_class(a: Int, b: Int) -> {"zero", "rest"} { if b == 0 { "zero" } else { "rest" } }
+claim div_small(a: 0..=1, b: 1..=2) { correct(div(a, b)) }
+claim div_uniform = uniform(div, div_class);

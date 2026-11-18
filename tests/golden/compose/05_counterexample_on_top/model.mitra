@@ -1,14 +1,14 @@
-def neg(a: Bool) -> Bool := !a
-def same(a: Bool) -> Bool := a
+fn neg(a: Bool) -> Bool { !a }
+fn same(a: Bool) -> Bool { a }
 
-opaque flip(a: Bool) -> Bool
-opaque flip_not(a: Bool) -> Bool
+fn flip(a: Bool) -> Bool;
+fn flip_not(a: Bool) -> Bool;
 
--- From the specs alone: Mitra computes it.
-claim neg_twice : forall a, same(a) = neg(neg(a))
--- A subject against a spec: needs evidence.
-claim flip_spec : forall a, flip(a) = neg(a)
--- How flip_not is built: needs evidence (a review, or observed outputs).
-claim flip_not_shape : forall a, flip_not(a) = flip(flip(a))
--- Derived: flip_not is flip twice, flip is neg, and neg twice is same.
-claim flip_not_same : forall a, flip_not(a) = same(a) := by derive [flip_spec, flip_not_shape, neg_twice]
+// From the specs alone: Mitra computes it.
+claim neg_twice(a) { same(a) == neg(neg(a)) }
+// A subject against a spec: needs evidence.
+claim flip_spec(a) { flip(a) == neg(a) }
+// How flip_not is built: needs evidence (a review, or observed outputs).
+claim flip_not_shape(a) { flip_not(a) == flip(flip(a)) }
+// Judged from the outputs: observed, or worked out from a vouched shape.
+claim flip_not_same(a) { flip_not(a) == same(a) } 

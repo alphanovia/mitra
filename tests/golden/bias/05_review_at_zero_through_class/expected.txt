@@ -3,20 +3,20 @@ div_small: fails
 div_uniform: holds
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:3  claim div_small : forall a in 0..=1, forall b in 1..=2, correct(div(a, b))
+  --> model.mitra:4  claim div_small(a: 0..=1, b: 1..=2) { correct(div(a, b)) }
 
   `div_small` fails on (a, b) in (0..=1, 1..=2).
   The evidence that says so:
 
-    vouches   evidence.mitra:4  evidence div_uniform at 0
-    fails     evidence.mitra:5  evidence not correct(div(4, 2)) at 1
+    vouches   evidence.mitra:4  evidence e { for div_uniform holds trust 0 }
+    fails     evidence.mitra:5  evidence e { for div given a = 4, b = 2 fails }
 
   The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                 trust  left
-    possible  the code of `div`, model.mitra:1  none   0.00 to 1.00
-    possible  evidence.mitra:4                  0      0.00 to 1.00
+    possible  the code of `div`, model.mitra:2  none   0.00 to 1.00
+    possible  evidence.mitra:4 (e)              0      0.00 to 1.00
 
   The lower what is left, the more plausibly the piece is the wrong one.
   A range means the evidence does not settle it.

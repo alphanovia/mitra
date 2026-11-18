@@ -5,7 +5,7 @@ get_is: unverified
 get_uniform: holds
 
 warning[M101]: a claim is not verified
-  --> model.mitra:5  claim get_is : forall o, get(o) = or_zero(o)
+  --> model.mitra:6  claim get_is(o) { get(o) == or_zero(o) }
 
   No evidence on class "none" of `kind`.
   help: one passing test in such a class stands for the class
