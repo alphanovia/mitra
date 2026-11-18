@@ -1,20 +1,20 @@
 filter::route::spec: unverified
   passes on       `filter::route(Spam, None)`
-  no evidence on  (v, folder) in ({Ham}, Option(String)) | ({Spam}, Some(String))
+  no evidence on  (v, folder) in ({Ham}, Option<String>) | ({Spam}, Some(String))
 filter::score::spec: unverified
   no evidence on  m in Mail
 filter::boss_never_spam: holds
   passes on       `m = Mail("boss", 1)`
-  assumed on      class "boss" of `filter::by_sender::case`, by `filter::by_sender`
+  assumed on      class "boss" of `filter::by_sender`, by `filter::by_sender`
 filter::catches_most: holds
 filter::spam_goes_to_junk: unverified
-  no evidence on  folder in Option(String)
+  no evidence on  folder in Option<String>
 filter::by_sender: holds
 
 warning[M101]: a claim is not verified
   --> model.mitra:11  fn route(v: Verdict, folder: Option<String>) -> String { match v { Spam => "junk", Ham => match folder { Some(name) => name, None => "inbox", }, } }
 
-  No evidence on (v, folder) in ({Ham}, Option(String)) | ({Spam}, Some(String)).
+  No evidence on (v, folder) in ({Ham}, Option<String>) | ({Spam}, Some(String)).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -26,7 +26,7 @@ warning[M101]: a claim is not verified
 warning[M101]: a claim is not verified
   --> model.mitra:34  claim spam_goes_to_junk(folder: Option<String>) { route(Spam, folder) == "junk" }
 
-  No evidence on folder in Option(String).
+  No evidence on folder in Option<String>.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

@@ -6,11 +6,11 @@ pair::minus_undoes_add: unverified
   passes on       `p1 = Pair(1, 2), p2 = Pair(3, 4)`
   no evidence on  (p1, p2) in (Pair \ {Pair(1, 2)}, Pair) | ({Pair(1, 2)}, Pair \ {Pair(3, 4)})
 pair::scale_zero: unverified
-  no evidence on  classes false, true of `pair::scale_uniform::case`
+  no evidence on  classes false, true of `pair::scale_uniform`
 pair::scale_correct: unverified
   passes on       `pair::scale(Pair(1, 2), 2)`
-  assumed on      class false of `pair::scale_uniform::case`, by `pair::scale_uniform`
-  no evidence on  class true of `pair::scale_uniform::case`
+  assumed on      class false of `pair::scale_uniform`, by `pair::scale_uniform`
+  no evidence on  class true of `pair::scale_uniform`
 pair::scale_uniform: holds
 
 warning[M101]: a claim is not verified
@@ -28,13 +28,13 @@ warning[M101]: a claim is not verified
 warning[M101]: a claim is not verified
   --> model.mitra:20  claim scale_zero(p: Pair) { scale(p, 0) == Pair(0, 0) }
 
-  No evidence on classes false, true of `pair::scale_uniform::case`.
+  No evidence on classes false, true of `pair::scale_uniform`.
   help: one passing test in such a class stands for the class
 
 warning[M101]: a claim is not verified
   --> model.mitra:24  claim scale_correct { given p: Pair, k: 0..=3 then correct(scale(p, k)) }
 
-  No evidence on class true of `pair::scale_uniform::case`.
+  No evidence on class true of `pair::scale_uniform`.
   help: one passing test in such a class stands for the class
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

@@ -3,12 +3,12 @@ sort_len: holds
   assumed on      classes "empty", "many", "one" of `size`, by `sort_uniform`
 sort_uniform: holds
 same_total: unverified
-  no evidence on  xs in List(Int)
+  no evidence on  xs in List<Int>
 
 warning[M101]: a claim is not verified
   --> model.mitra:7  claim same_total(xs) { total(sort(xs)) == total(xs) }
 
-  No evidence on xs in List(Int).
+  No evidence on xs in List<Int>.
   note: `total` has no `uniform` claim, so no test stands for other inputs
   help: `mitra next` lists the evidence that would settle it
 

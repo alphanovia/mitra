@@ -97,35 +97,3 @@ claim t_below_attribute() {
 claim t_below_struct() { source::fn_below("pub struct S;\nfn f() {}") == None }
 
 claim t_below_nothing() { source::fn_below("") == None }
-
-claim t_words_plain() {
-    source::words("opaque f(a: Int) -> Int") == ["opaque", "f", "a", "Int", "Int"]
-}
-
-claim t_words_comment() { source::words("claim c -- a test of opaque things") == ["claim", "c"] }
-
-claim t_words_string() {
-    source::words("claim c : correct(g(\"test -- \\\" opaque\")) -- x") == ["claim", "c", "correct", "g"]
-}
-
-claim t_extract_one() {
-    source::extract("// mitra: claim c : correct(f(1))") == Ok([(1, "claim c : correct(f(1))")])
-}
-
-claim t_extract_none() { source::extract("// a comment about mitra: no") == Ok([]) }
-
-claim t_extract_aligned() {
-    source::extract("// mitra: opaque f(a: Bool) -> Bool\n#[inline] pub fn f() {}") == Ok([(1, "opaque f(a: Bool) -> Bool")])
-}
-
-claim t_extract_misaligned() {
-    source::extract("// mitra: opaque add(a: Int) -> Int\nfn sub() {}") == Err((1, "`opaque add` must sit above `fn add`, found `fn sub`"))
-}
-
-claim t_extract_alone() {
-    source::extract("// mitra: test t : correct(f(1))") == Err((1, "`test t` must sit above `fn t`, found no function"))
-}
-
-claim t_extract_in_a_string() {
-    source::extract("const A: &str = \"\n// mitra: claim a : correct(f(1))\n\";") == Ok([])
-}

@@ -221,50 +221,6 @@ pub struct Evidence {
     pub line: usize,
 }
 
-/// `test name : <judgment>`: a test of the code, and the evidence its pass
-/// stands for. `mitra ingest` turns test results into evidence.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Test {
-    pub name: String,
-    /// The judgment a pass supports, as evidence at confidence 1.
-    pub judgment: Evidence,
-    pub line: usize,
-}
-
-impl Test {
-    /// The evidence a run gives: the judgment when it passed. When it
-    /// failed, `¬ correct` or `¬ c` if the test claims `correct` or `c` on a
-    /// single input. Otherwise a failure gives nothing: on a set, Mitra
-    /// can't tell which input was wrong; for an output, it doesn't know the
-    /// output, unless the subject's result type `result` is `Bool` (then it
-    /// is the other one); and a failed negative test is no proof of
-    /// correctness (it may have failed for another reason).
-    pub fn outcome(&self, passed: bool, result: Option<&Set>) -> Result<Evidence, &'static str> {
-        let mut e = self.judgment.clone();
-        if passed {
-            return Ok(e);
-        }
-        if e.pattern.is_empty() || single(&e.pattern).is_none() {
-            return Err("it is about a set of inputs, and Mitra can't tell which one was wrong");
-        }
-        e.judgment =
-            match e.judgment {
-                Judgment::Correct(true) => Judgment::Correct(false),
-                Judgment::Holds(true) => Judgment::Holds(false),
-                Judgment::Output(Value::Bool(b)) if result == Some(&Set::bool()) => {
-                    Judgment::Output(Value::Bool(!b))
-                }
-                Judgment::Output(_) => {
-                    return Err("the output it checks was something else, Mitra doesn't know what")
-                }
-                _ => return Err(
-                    "a failed negative test proves nothing: it may have failed for another reason",
-                ),
-            };
-        Ok(e)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Decl {
     Record(usize),
@@ -303,7 +259,6 @@ pub struct Model {
     /// The functions of the environment (reworked syntax): one may answer
     /// differently each time, so two outputs on one input both stand.
     pub boundaries: Vec<String>,
-    pub tests: Vec<Test>,
     pub evidence: Vec<Evidence>,
 }
 
@@ -361,6 +316,15 @@ impl Model {
                 });
             out = out.replace(&whole, &r.name);
         }
+        // The names Mitra gives to a body and to classes written inline
+        // are not shown: the function, the claim.
+        for f in &self.functions {
+            for hidden in ["::body", "::case"] {
+                if let Some(shown) = f.name.strip_suffix(hidden) {
+                    out = out.replace(&f.name, shown);
+                }
+            }
+        }
         out
     }
     /// `text` with each type that contains itself written by its name:
@@ -399,7 +363,7 @@ impl Model {
         match self.declared_function(f) {
             Some(g) if !g.is_spec() && g.range.is_subset(&Set::bool()) => Ok(()),
             _ => Err(format!(
-                "`{kind}({f})` needs a subject that answers true or false"
+                "`{kind}({f})` needs a function of the code that answers true or false"
             )),
         }
     }
@@ -454,7 +418,6 @@ impl Model {
         }
         names.extend(self.functions.iter().map(|f| (&f.name, f.line)));
         names.extend(self.claims.iter().map(|c| (&c.name, c.line)));
-        names.extend(self.tests.iter().map(|t| (&t.name, t.line)));
         for (i, (n, line)) in names.iter().enumerate() {
             if names[..i].iter().any(|(o, _)| o == n) {
                 return Err(m(*line, format!("`{n}` is defined twice")));
@@ -647,7 +610,7 @@ impl Model {
             let arity = f.params.len();
             if f.is_spec() {
                 let msg = format!(
-                    "`{}` is a spec: `uniform` and `uses` are for subjects",
+                    "`{}` is a spec: `uniform` and `uses` are for the functions of the code",
                     c.func
                 );
                 return Err(m(c.line, msg));
@@ -660,7 +623,10 @@ impl Model {
                             return Err(m(c.line, format!("`{g}` is listed twice")));
                         }
                         if !self.function(g).is_some_and(|g| !g.is_spec()) {
-                            return Err(m(c.line, format!("`{g}` is not a subject")));
+                            return Err(m(
+                                c.line,
+                                format!("`{g}` is not a function of the code: `uses` lists those"),
+                            ));
                         }
                         if g == &c.func {
                             return Err(m(c.line, format!("`{g}` can't use itself")));
@@ -706,7 +672,7 @@ impl Model {
                 return Err(m(
                     c.line,
                     format!(
-                        "`{}` is a spec: `correct` is for subjects; write `{} … = …`",
+                        "`{}` is a spec: `correct` is for the functions of the code; write `{}(…) == …`",
                         c.func, c.func
                     ),
                 ));
@@ -738,8 +704,7 @@ impl Model {
             .iter()
             .filter_map(|c| Some((c.name.clone(), self.function(&c.func)?.params.len())))
             .collect();
-        let tests = self.tests.iter_mut().map(|t| &mut t.judgment);
-        for e in self.evidence.iter_mut().chain(tests) {
+        for e in self.evidence.iter_mut() {
             let arity = arities.iter().find(|a| a.0 == e.about).map(|a| a.1);
             if let (Judgment::Holds(_), true, Some(n)) = (&e.judgment, e.pattern.is_empty(), arity)
             {
@@ -752,9 +717,8 @@ impl Model {
         }
         // Evidence that does not fit a signature: set aside, with why.
         let mut misfits: Vec<(usize, String)> = Vec::new();
-        let tests = self.tests.iter().map(|t| (&t.judgment, Input::Model));
         let evidence = self.evidence.iter().map(|e| (e, Input::Evidence));
-        for (e, input) in evidence.chain(tests) {
+        for (e, input) in evidence {
             let ev = |line, msg: String| (input, Error::new(line, msg));
             match (
                 &e.judgment,
@@ -835,17 +799,22 @@ impl Model {
                     let c = &e.about;
                     let inputs = match self.claim(c).is_some_and(|c| c.target.is_structural()) {
                         true => String::new(),
-                        false => format!(", or `evidence {c}(inputs) at 1` for some inputs"),
+                        false => format!(", or `for {c} given … holds` for some inputs"),
                     };
                     return Err(ev(
                         e.line,
                         format!(
-                            "`{c}` is a claim, not a subject: `correct(…)` and `= value` are for subjects\n  \
-                             help: to vouch for the claim, write `evidence {c} at 1`{inputs}"
+                            "`{c}` is a claim, not a function: an output is given for a function\n  \
+                             help: to vouch for the claim, write `evidence r {{ for {c} holds }}`{inputs}"
                         ),
                     ));
                 }
-                (_, None, _) => return Err(ev(e.line, format!("`{}` is not a subject", e.about))),
+                (_, None, _) => {
+                    return Err(ev(
+                        e.line,
+                        format!("`{}` is not a function of the model", e.about),
+                    ))
+                }
             }
         }
         for (line, why) in misfits {

@@ -5,7 +5,7 @@ sort_len: unverified
 sort_uniform: unverified
 same_total: fails
   fails on        `xs = [3, 1, 2]`
-  no evidence on  xs in List(Int) \ {[3, 1, 2]}
+  no evidence on  xs in List<Int> \ {[3, 1, 2]}
 
 error[M001]: evidence refutes a claim
   --> model.mitra:7  claim same_total(xs) { total(sort(xs)) == total(xs) }

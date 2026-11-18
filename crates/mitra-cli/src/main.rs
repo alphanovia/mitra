@@ -304,7 +304,8 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             if let Some(w) = written.and_then(|w| mitra_core::parse::written(&w.0, c.line)) {
                 println!("  written   {w}");
             }
-            println!("  read as   {}", mitra_core::print::contract(&model, c));
+            let read = mitra_core::print::contract(&model, c);
+            println!("  read as   {}", model.named(&read));
             let about = model.evidence.iter().filter(|e| e.about == c.name).count();
             println!("  evidence  {about} piece(s) on the claim itself");
             let text = report.to_text_at(&mitra_core::Display::default(), &places);

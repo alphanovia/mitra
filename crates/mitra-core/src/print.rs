@@ -1,145 +1,19 @@
-//! The text projection, the other way: print a model or evidence back as
-//! Mitra text that parses to the same AST.
-//!
-//! Commands come out grouped (functions, claims, profiles, policies), one
-//! per line. Expressions get the fewest parentheses that keep their meaning.
+//! Claims, evidence and expressions as the language writes them, for
+//! reports. Expressions get the fewest parentheses that keep their meaning.
 
 use crate::ast::*;
 use crate::set::{Set, Value};
 
-pub fn print_model(m: &Model) -> String {
-    let mut out = String::new();
-    // In the order written: a record may use an enum, and an enum a record.
-    for d in &m.declared {
-        match d {
-            Decl::Record(i) => {
-                let r = &m.records[*i];
-                // A record that holds itself: its fields as declared.
-                let fields: Vec<(String, String)> = match m.deep.get(&format!("record {}", r.name))
-                {
-                    Some(deep) => {
-                        let own = |s: &Set| {
-                            let alone = format!("{{${}}}", r.name);
-                            let text = s.to_string().replace(&alone, &r.name);
-                            text.replace(&format!("${}", r.name), &r.name)
-                        };
-                        let names = r.fields.iter().map(|f| f.0.clone());
-                        names.zip(deep.iter().map(own)).collect()
-                    }
-                    None => r
-                        .fields
-                        .iter()
-                        .map(|f| (f.0.clone(), f.1.to_string()))
-                        .collect(),
-                };
-                let fields: Vec<String> = fields.iter().map(|(n, t)| format!("{n}: {t}")).collect();
-                out += &m.named_recursive(&format!("record {}({})\n", r.name, fields.join(", ")));
-            }
-            Decl::Enum(i) => {
-                let e = &m.enums[*i];
-                let params = match e.params.is_empty() {
-                    true => String::new(),
-                    false => format!("({})", e.params.join(", ")),
-                };
-                out += &match e.body.strip_prefix(&e.name) {
-                    // A record with type parameters.
-                    Some(fields) if e.variants == [e.name.clone()] => {
-                        format!("record {}{params}{fields}\n", e.name)
-                    }
-                    _ => format!("enum {}{params} {{ {} }}\n", e.name, e.body),
-                };
-            }
-        }
-    }
-    for f in &m.functions {
-        let head = match &f.written {
-            Some(written) => format!("{}{written}", f.name),
-            None => {
-                let head = format!("{}{} -> {}", f.name, binders(&f.params), f.range);
-                m.named_recursive(&head)
-            }
-        };
-        out += &match &f.body {
-            None => format!("opaque {head}\n"),
-            Some(e) => format!("def {head} := {}\n", expr(e)),
-        };
-    }
-    for c in &m.claims {
-        out += &print_claim(m, c);
-        out += "\n";
-    }
-    for t in &m.tests {
-        let line = print_evidence(std::slice::from_ref(&t.judgment), Some(m));
-        let judgment = line.trim_end().strip_prefix("evidence ").unwrap();
-        let judgment = judgment.strip_suffix(" at 1").unwrap();
-        out += &format!("test {} : {judgment}\n", t.name);
-    }
-    out
-}
-
-/// One claim, as written in a model, without the line break.
+/// One claim, as a model would write it, without the line break.
 pub fn print_claim(m: &Model, c: &Claim) -> String {
-    if let Target::Uniform(g) = &c.target {
-        let by = g.as_ref().map(|g| format!(" by {g}")).unwrap_or_default();
-        return format!("claim {} : uniform {}{by}", c.name, c.func);
-    }
-    if let Target::Uses { used, only } = &c.target {
-        let only = if *only { "only " } else { "" };
-        let used = used.join(", ");
-        return format!("claim {} : {only}uses {} [{used}]", c.name, c.func);
-    }
-    if let Target::Tied = &c.target {
-        return format!("-- the code of {} is tied to the model", c.func);
-    }
-    if let Target::Represented(set) = &c.target {
-        let g = m.function(set);
-        let names: Vec<String> = g
-            .map(|g| {
-                g.params
-                    .iter()
-                    .map(|p| format!("{}: {}", p.0, p.1))
-                    .collect()
-            })
-            .unwrap_or_default();
-        let cond = g
-            .and_then(|g| g.body.as_ref())
-            .map(expr)
-            .unwrap_or_default();
-        return format!(
-            "one tested input of {} stands for every ({}) where {cond}",
-            c.func,
-            names.join(", ")
-        );
-    }
-    let params = m.function(&c.func).map(|f| &f.params[..]).unwrap_or(&[]);
-    let (forall, args) = pattern(&c.pattern, params);
-    let body = match &c.target {
-        Target::Correct => format!("correct({}{args})", c.func),
-        Target::Matches(e) => format!("{}{args} = {}", c.func, expr(e)),
-        Target::Property(e) => expr(e),
-        Target::Uniform(_) | Target::Uses { .. } | Target::Tied | Target::Represented(_) => {
-            unreachable!()
-        }
-    };
-    let from = if c.from.is_empty() {
-        String::new()
-    } else {
-        format!(" := by derive [{}]", c.from.join(", "))
-    };
-    format!("claim {} : {forall}{body}{from}", c.name)
+    format!("claim {} {{ {} }}", c.name, contract(m, c))
 }
 
-/// Evidence, one line each. `model` names the bound inputs after the
+/// Evidence, one block each. `model` names the inputs after the
 /// parameters; without it they are `x1`, `x2`, ….
 pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
     let mut out = String::new();
     for e in evidence {
-        if let Judgment::Measured(measure, value) = &e.judgment {
-            let attrs = attributes(e);
-            let (m, c) = (expr(measure), e.confidence);
-            out += &format!("{attrs}evidence {m} = {value} at {c}\n");
-            continue;
-        }
         let func = match &e.judgment {
             Judgment::Holds(_) => model
                 .and_then(|m| m.claim(&e.about))
@@ -150,50 +24,45 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
             .and_then(|f| model?.function(f))
             .map(|f| &f.params[..])
             .unwrap_or(&[]);
-        let whole = e.pattern.iter().all(|p| p.var.is_none() && p.set.is_none());
-        let (forall, args) = match &e.judgment {
-            Judgment::Holds(_) if whole => (String::new(), String::new()),
-            _ => pattern(&e.pattern, params),
+        let mut given = Vec::new();
+        for (i, pos) in e.pattern.iter().enumerate() {
+            let x = pos.var.clone().unwrap_or_else(|| match params.get(i) {
+                Some((name, _)) => name.clone(),
+                None => format!("x{}", i + 1),
+            });
+            match (pos.set.as_ref(), pos.set.as_ref().and_then(|s| s.single())) {
+                (_, Some(v)) if pos.var.is_none() => given.push(format!("{x} = {v}")),
+                (Some(s), _) => given.push(format!("{x} in {s}")),
+                (None, _) => {}
+            }
+        }
+        let given = match given.is_empty() {
+            true => String::new(),
+            false => format!(" given {}", given.join(", ")),
         };
-        let call = format!("{}{args}", e.about);
-        let judgment = match &e.judgment {
-            Judgment::Correct(true) => format!("correct({call})"),
-            Judgment::Correct(false) => format!("not correct({call})"),
-            Judgment::Holds(true) => call,
-            Judgment::Holds(false) => format!("not {call}"),
-            Judgment::Output(v) => format!("{call} = {v}"),
-            Judgment::Measured(..) => unreachable!(),
+        let says = match &e.judgment {
+            Judgment::Correct(true) | Judgment::Holds(true) => "holds".to_string(),
+            Judgment::Correct(false) | Judgment::Holds(false) => "fails".to_string(),
+            Judgment::Output(v) => format!("gives {v}"),
+            Judgment::Measured(_, value) => format!("gives rate = {value}"),
         };
-        let attrs = attributes(e);
-        out += &format!("{attrs}evidence {forall}{judgment} at {}\n", e.confidence);
+        let mut more = String::new();
+        if e.confidence != 1.0 {
+            more += &format!(" trust {}", e.confidence);
+        }
+        if let Some(s) = &e.source {
+            more += &format!(" source {}", crate::set::quote(s));
+        }
+        if let Some(r) = &e.rev {
+            more += &format!(" rev {}", crate::set::quote(r));
+        }
+        out += &format!("evidence e {{ for {}{given} {says}{more} }}\n", e.about);
     }
     out
 }
 
-/// `@[source "…", rev "…"] `, or nothing.
-fn attributes(e: &Evidence) -> String {
-    let mut attrs = Vec::new();
-    if let Some(s) = &e.source {
-        attrs.push(format!("source {}", crate::set::quote(s)));
-    }
-    if let Some(r) = &e.rev {
-        attrs.push(format!("rev {}", crate::set::quote(r)));
-    }
-    match attrs.is_empty() {
-        true => String::new(),
-        false => format!("@[{}] ", attrs.join(", ")),
-    }
-}
-
-/// `(a: Int, b: Int, c: Bool)`
-fn binders(params: &[(String, Set)]) -> String {
-    let each: Vec<String> = params.iter().map(|(n, t)| format!("{n}: {t}")).collect();
-    format!("({})", each.join(", "))
-}
-
-/// A pattern as `forall` binders and the arguments of the call.
+/// The arguments of the call a pattern stands for: `(a, 1)`.
 pub(crate) fn pattern(p: &Pattern, params: &[(String, Set)]) -> (String, String) {
-    let mut forall = String::new();
     let mut args = Vec::new();
     for (i, pos) in p.iter().enumerate() {
         let value = match (&pos.var, &pos.set) {
@@ -208,14 +77,10 @@ pub(crate) fn pattern(p: &Pattern, params: &[(String, Set)]) -> (String, String)
             Some((name, _)) => name.clone(),
             None => format!("x{}", i + 1),
         });
-        forall += &match &pos.set {
-            None => format!("forall {x}, "),
-            Some(s) => format!("forall {x} in {s}, "),
-        };
         args.push(x);
     }
-    // A subject without parameters is called as `f()`.
-    (forall, format!("({})", args.join(", ")))
+    // A function without inputs is called as `f()`.
+    (String::new(), format!("({})", args.join(", ")))
 }
 
 /// `f(1, -2)`: a call on one input tuple.
@@ -253,24 +118,53 @@ pub fn expr(e: &Expr) -> String {
     at(e, LET)
 }
 
-thread_local! {
-    /// Whether expressions print as a model writes them (`if c { a } else
-    /// { b }`, `let x = v;`), not in the internal form.
-    static WRITTEN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
-
 /// One claim as a model would write it in full: `given a: S, b: T then e`.
 pub fn contract(m: &Model, c: &Claim) -> String {
-    WRITTEN.with(|w| w.set(true));
-    let out = match &c.target {
+    match &c.target {
         Target::Uniform(None) => format!("uniform({})", c.func),
-        Target::Uniform(Some(g)) => format!("uniform({}, {g})", c.func),
+        Target::Uniform(Some(g)) => {
+            // Classes written inline: as written.
+            let inline = m.function(g).filter(|_| g.ends_with("::case"));
+            let classes = match inline.and_then(|g| Some((g, g.body.as_ref()?))) {
+                Some((g, body)) => {
+                    let names: Vec<&str> = g.params.iter().map(|p| p.0.as_str()).collect();
+                    match g.range == Set::bool() {
+                        true => format!("|{}| {}", names.join(", "), expr(body)),
+                        false => {
+                            format!("|{}| -> {} {{ {} }}", names.join(", "), g.range, expr(body))
+                        }
+                    }
+                }
+                None => g.clone(),
+            };
+            format!("uniform({}, {classes})", c.func)
+        }
         Target::Uses { used, only } => {
             let only = if *only { "only " } else { "" };
             format!("fn {} uses {only}{}", c.func, used.join(", "))
         }
         Target::Tied => format!("the code of {} is tied to the model", c.func),
-        Target::Represented(_) => print_claim(m, c),
+        Target::Represented(set) => {
+            let g = m.function(set);
+            let names: Vec<String> = g
+                .map(|g| g.params.iter().map(|p| p.0.clone()).collect())
+                .unwrap_or_default();
+            let cond = g
+                .and_then(|g| g.body.as_ref())
+                .map(expr)
+                .unwrap_or_default();
+            let sets: Vec<String> = g
+                .map(|g| g.params.iter().map(|p| p.1.to_string()).collect())
+                .unwrap_or_default();
+            match cond == "true" {
+                true => format!("represented({}, ({}))", c.func, sets.join(", ")),
+                false => format!(
+                    "represented({}, {{ ({}) | {cond} }})",
+                    c.func,
+                    names.join(", ")
+                ),
+            }
+        }
         _ => {
             let f = m.function(&c.func);
             let params = f.map(|f| &f.params[..]).unwrap_or(&[]);
@@ -299,7 +193,16 @@ pub fn contract(m: &Model, c: &Claim) -> String {
             let args = format!("({})", args.join(", "));
             let body = match &c.target {
                 Target::Correct => format!("correct({}{args})", c.func),
-                Target::Matches(e) => format!("{}{args} == {}", c.func, expr(e)),
+                Target::Matches(e) => {
+                    // The claim a body adds: the body itself.
+                    let body = match e {
+                        Expr::Call(g, _) if g == &format!("{}::body", c.func) => {
+                            m.function(g).and_then(|g| g.body.as_ref())
+                        }
+                        _ => None,
+                    };
+                    format!("{}{args} == {}", c.func, expr(body.unwrap_or(e)))
+                }
                 Target::Property(e) => expr(e),
                 _ => unreachable!(),
             };
@@ -308,9 +211,7 @@ pub fn contract(m: &Model, c: &Claim) -> String {
                 false => format!("given {} then {body}", given.join(", ")),
             }
         }
-    };
-    WRITTEN.with(|w| w.set(false));
-    out
+    }
 }
 
 /// `e`, in a place that needs at least binding strength `min`.
@@ -405,18 +306,11 @@ fn at(e: &Expr, min: u8) -> String {
             let l = level(op);
             (format!("{} {op} {}", at(a, l), at(b, l + 1)), l)
         }
-        Expr::If(c, t, f) if WRITTEN.with(|w| w.get()) => (
+        Expr::If(c, t, f) => (
             format!("if {} {{ {} }} else {{ {} }}", expr(c), expr(t), expr(f)),
             ATOM,
         ),
-        Expr::Let(x, v, b) if WRITTEN.with(|w| w.get()) => {
-            (format!("let {x} = {}; {}", expr(v), expr(b)), LET)
-        }
-        Expr::If(c, t, f) => (
-            format!("if {} then {} else {}", expr(c), expr(t), expr(f)),
-            LET,
-        ),
-        Expr::Let(x, v, b) => (format!("let {x} := {}; {}", expr(v), expr(b)), LET),
+        Expr::Let(x, v, b) => (format!("let {x} = {}; {}", expr(v), expr(b)), LET),
     };
     if strength < min {
         format!("({s})")

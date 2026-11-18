@@ -121,9 +121,10 @@ const CODES: [(&str, &str, &str); 11] = [
         "a claim holds only under assumptions",
         "Every input of the claim is covered, but part of the cover rests on\n\
          claims that no evidence supports: a `uniform` claim nobody vouched\n\
-         for, or the premise of a derivation that is not verified.\n\n\
+         for, an `assume`, or the spec of a function it calls that is not\n\
+         verified.\n\n\
          To fix: review each assumption and record the review as evidence\n\
-         (`evidence <claim> at 1`), or test until it is not needed.",
+         (`evidence r { for <claim> holds }`), or test until it is not needed.",
     ),
     (
         "M103",
@@ -131,16 +132,16 @@ const CODES: [(&str, &str, &str); 11] = [
         "A `uniform` or `uses` claim can't be checked by Mitra. Until a piece\n\
          of evidence vouches for it, what rests on it is only assumed.\n\n\
          To fix: have someone review it against the code, then record it:\n\
-         `evidence <claim> at 1`, with a `source` naming the reviewer.",
+         `evidence r { for <claim> holds source \"review:<who>\" }`.",
     ),
     (
         "M104",
         "evidence that can't be used",
-        "A piece of evidence is about a definition (`def`). A definition is\n\
-         what Mitra computes with: it is true by construction, and evidence\n\
+        "A piece of evidence is about a function Mitra computes: one with a\n\
+         body, outside any subject. It is true by construction, and evidence\n\
          can neither support nor refute it. The entry is ignored.\n\n\
-         To fix: record the evidence on the function under review (an\n\
-         `opaque`), or on a claim.",
+         To fix: record the evidence on the function under review (one of a\n\
+         subject, or one without a body), or on a claim.",
     ),
 ];
 
@@ -710,7 +711,7 @@ impl Writer<'_> {
                     ),
                     None => format!(
                         "\n  help: check that `{fails}` really fails; if it does, sort the\n  \
-                         inputs of `{func}` into classes: claim {claim} : uniform {func} by <spec>\n"
+                         inputs of `{func}` into classes: claim {claim} = uniform({func}, <classes>);\n"
                     ),
                 };
             }

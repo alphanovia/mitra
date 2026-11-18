@@ -81,7 +81,7 @@ fn as_model(ty: &str) -> String {
     }
     if let Some(inner) = t.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
         let item = inner.split(';').next().unwrap_or(inner);
-        return format!("List({})", as_model(item));
+        return format!("List<{}>", as_model(item));
     }
     let (name, args) = match t.find('<') {
         Some(i) => (&t[..i], t[i + 1..].strip_suffix('>').unwrap_or(&t[i + 1..])),
@@ -102,7 +102,7 @@ fn as_model(ty: &str) -> String {
     let args: Vec<String> = pieces(args).iter().map(|p| as_model(p)).collect();
     match args.is_empty() {
         true => name.to_string(),
-        false => format!("{name}({})", args.join(", ")),
+        false => format!("{name}<{}>", args.join(", ")),
     }
 }
 
@@ -126,7 +126,7 @@ fn fits(model: &str, rust: &str) -> bool {
     // A record prints with its fields, `Mass(Float64, Float64, Float64)`:
     // the name is what is compared.
     let head = |s: &str| s.split('(').next().unwrap_or(s).to_string();
-    let named = !rust.is_empty() && !rust.contains('(') && !plain.starts_with('(');
+    let named = !rust.is_empty() && !rust.contains(['(', '<']) && !plain.starts_with('(');
     plain == rust || (named && head(&plain) == rust)
 }
 

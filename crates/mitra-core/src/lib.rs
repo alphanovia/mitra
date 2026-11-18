@@ -24,15 +24,14 @@ pub mod tuples;
 
 pub use ast::{
     Arm, Claim, Decl, Enum, Evidence, Expr, Function, Judgment, Model, Pattern, Position, Record,
-    Target, Test,
+    Target,
 };
 pub use eval::{
-    evaluate, expected_output, failed_output, Assumed, Candidate, Conflict, Contradiction, Display,
-    Flag, Implication, Kind, Logic, Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
+    evaluate, Assumed, Candidate, Conflict, Contradiction, Display, Flag, Implication, Kind, Logic,
+    Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
 };
 pub use next::next;
 pub use plan::plan;
-pub use print::{print_evidence, print_model};
 pub use report::{explain, Files, Places};
 pub use set::{Set, Value};
 pub use tuples::Tuples;

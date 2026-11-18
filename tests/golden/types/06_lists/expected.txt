@@ -6,7 +6,7 @@ sort_one: holds
 sort_uniform: holds
 total_ok: unverified
   passes on       `total([Number(1, "m"), Number(2, "m")])`
-  no evidence on  ns in List(Number) \ {[Number(1, "m"), Number(2, "m")]}
+  no evidence on  ns in List<Number> \ {[Number(1, "m"), Number(2, "m")]}
 
 warning[M101]: a claim is not verified
   --> model.mitra:6  claim sort_ok(xs) { correct(sort(xs)) }
@@ -17,7 +17,7 @@ warning[M101]: a claim is not verified
 warning[M101]: a claim is not verified
   --> model.mitra:9  claim total_ok(ns) { correct(total(ns)) }
 
-  No evidence on ns in List(Number) \ {[Number(1, "m"), Number(2, "m")]}.
+  No evidence on ns in List<Number> \ {[Number(1, "m"), Number(2, "m")]}.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

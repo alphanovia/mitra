@@ -64,7 +64,7 @@ fn a_type_inside_itself_keeps_its_parameters() {
     );
     assert!(e.contains("outside the inputs"), "{e}");
     let e = error("enum Tree<T> { Leaf, Node(l: Tree<Int>, v: T) }", "");
-    assert!(e.contains("is written `Tree(Value)`"), "{e}");
+    assert!(e.contains("is written `Tree<Value>`"), "{e}");
 }
 
 #[test]
@@ -121,7 +121,7 @@ fn type_parameters() {
         "record Pair<A, B> { first: A }\nfn f(p: Pair<Int>) -> Int;",
         "",
     );
-    assert!(e.contains("takes 2 set(s)"), "{e}");
+    assert!(e.contains("takes 2 type(s)"), "{e}");
     let e = error("fn f<T, T>(x: T) -> T;", "");
     assert!(e.contains("two parameters `T`"), "{e}");
     // A type parameter does not outlive its function.

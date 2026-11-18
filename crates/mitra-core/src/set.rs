@@ -1047,8 +1047,8 @@ impl fmt::Display for Set {
                     let value =
                         |l: &Vec<Value>| shape.value(vec![Value::List(l.clone())]).to_string();
                     let whole = |all: &Set| match n_is_set(shape) {
-                        true => format!("Set({all})"),
-                        false => format!("Map({})", entries(all)),
+                        true => format!("Set<{all}>"),
+                        false => format!("Map<{}>", entries(all)),
                     };
                     inner.lists.show(&whole, &value, &mut points, &mut parts);
                     continue;
@@ -1090,7 +1090,7 @@ impl fmt::Display for Set {
             }
         }
         let show_l = |l: &Vec<Value>| Value::List(l.clone()).to_string();
-        let whole = |all: &Set| format!("List({all})");
+        let whole = |all: &Set| format!("List<{all}>");
         self.lists.show(&whole, &show_l, &mut points, &mut parts);
         if !points.is_empty() {
             parts.insert(0, format!("{{{}}}", points.join(", ")));

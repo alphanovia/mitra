@@ -37,7 +37,7 @@ subject report {
     claim junit_correct(xml) { correct(junit(xml)) }
 }
 
-// The lines of model written in the comments of a Rust file.
+// The comments of a Rust file that tie its code to the model.
 subject source {
     // The text after `mitra:` in a comment line.
     fn mitra_line(line: String) -> Option<String>;
@@ -46,26 +46,4 @@ subject source {
     // The name of the `fn` that the code starts with.
     fn fn_below(code: String) -> Option<String>;
     claim fn_below_correct(code) { correct(fn_below(code)) }
-
-    // The words of a model line, outside its strings and its comment.
-    fn words(line: String) -> Vec<String>;
-    claim words_correct(line) { correct(words(line)) }
-
-    // The model lines of a file, numbered, or the first misplaced one.
-    // `scan` has no model yet, so this is `uses`, not `uses only`.
-    fn extract(text: String) -> Result<Vec<(usize, String)>, (usize, String)>
-        uses mitra_line, words, fn_below;
-    claim extract_correct(text) { correct(extract(text)) }
-
-    // A line `extract` keeps is a model line, with the text `mitra_line`
-    // gives. A tie (`implements …`) is a `mitra:` line that is not kept.
-    claim extract_one_line(text) {
-        match mitra_line(text) {
-            None => extract(text) == Ok([]),
-            Some(m) => match extract(text) {
-                Err(_) => true,
-                Ok(lines) => lines == [(1, m)] || lines == [],
-            },
-        }
-    }
 }

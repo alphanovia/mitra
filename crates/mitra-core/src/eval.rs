@@ -3111,46 +3111,6 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     })
 }
 
-/// What a failed `f x = v` test refutes: its output was not `v`, so each
-/// `=` claim on `f` whose other side is `v` at `x` is wrong there.
-pub fn failed_output(model: &Model, test: &Test) -> Result<Vec<Evidence>, Error> {
-    let e = &test.judgment;
-    let (Judgment::Output(v), Some(x)) = (&e.judgment, single(&e.pattern)) else {
-        return Ok(Vec::new());
-    };
-    let ev = Eval {
-        model,
-        observed: BTreeMap::new(),
-        depth: Cell::new(0),
-        read: RefCell::new(Vec::new()),
-        measured: RefCell::new(Vec::new()),
-        notes: RefCell::new(Vec::new()),
-        rules: Vec::new(),
-        through: RefCell::new(Vec::new()),
-        claim: RefCell::new(String::new()),
-        leaned: RefCell::new(Vec::new()),
-        relations: Vec::new(),
-        supposed: RefCell::new(Vec::new()),
-    };
-    let mut out = Vec::new();
-    for c in model.claims.iter().filter(|c| c.func == e.about) {
-        let Target::Matches(target) = &c.target else {
-            continue;
-        };
-        if !model.covers(&c.func, &c.pattern).contains(&x) {
-            continue;
-        }
-        if ev.target(c, target, &x, Subjects::Observed)? == [v.clone()] {
-            out.push(Evidence {
-                about: c.name.clone(),
-                judgment: Judgment::Holds(false),
-                ..e.clone()
-            });
-        }
-    }
-    Ok(out)
-}
-
 /// The set of a `represented` claim: the inputs where its spec is true.
 /// `None` when Mitra can't list them.
 pub(crate) fn represented(model: &Model, c: &Claim) -> Option<Tuples> {
@@ -3200,26 +3160,6 @@ pub(crate) fn computed(model: &Model, e: &Expr, names: &[(String, Value)]) -> Op
         [v] => Some(v.clone()),
         _ => None,
     }
-}
-
-/// What a test `f(x) = v` says beside the output: `v` is the output its
-/// author expects, so `f` is correct at `x` when the test passes and not
-/// correct when it fails. `None` when no `correct` claim covers `x`.
-pub fn expected_output(model: &Model, test: &Test, passed: bool) -> Option<Evidence> {
-    let e = &test.judgment;
-    let (Judgment::Output(_), Some(x)) = (&e.judgment, single(&e.pattern)) else {
-        return None;
-    };
-    let covers = |c: &&Claim| {
-        c.func == e.about
-            && matches!(c.target, Target::Correct)
-            && model.covers(&c.func, &c.pattern).contains(&x)
-    };
-    model.claims.iter().find(covers)?;
-    Some(Evidence {
-        judgment: Judgment::Correct(passed),
-        ..e.clone()
-    })
 }
 
 /// Fill in, for each problem, how plausibly each of its pieces is the

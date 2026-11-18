@@ -74,7 +74,7 @@ pub fn next(model: &Model, report: &Report) -> String {
             None => format!(
                 "{}: fails: `{pass}` passes and `{fail}` fails\n  \
                  find what differs between the two inputs and sort the inputs into classes,\n  \
-                 `uniform {subject} by <spec>`, or check the two results: one of them may be wrong\n",
+                 `claim c = uniform({subject}, <classes>);`, or check the two results: one of them may be wrong\n",
                 k.claim,
             ),
         };

@@ -1,10 +1,10 @@
 sort_len: fails
   fails on        `xs = [5]`
   passes on       `xs = []`, `xs = [3, 1, 2]`
-  no evidence on  xs in List(Int) \ {[], [3, 1, 2], [5]}
+  no evidence on  xs in List<Int> \ {[], [3, 1, 2], [5]}
 sort_uniform: holds
 same_total: unverified
-  no evidence on  xs in List(Int)
+  no evidence on  xs in List<Int>
 
 error[M001]: evidence refutes a claim
   --> model.mitra:5  claim sort_len(xs) { len(sort(xs)) == len(xs) }
@@ -29,7 +29,7 @@ error[M001]: evidence refutes a claim
 warning[M101]: a claim is not verified
   --> model.mitra:7  claim same_total(xs) { total(sort(xs)) == total(xs) }
 
-  No evidence on xs in List(Int).
+  No evidence on xs in List<Int>.
   note: `total` has no `uniform` claim, so no test stands for other inputs
   help: `mitra next` lists the evidence that would settle it
 

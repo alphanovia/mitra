@@ -752,7 +752,7 @@ impl P {
             let all = self.functions.iter().filter(fits).map(named);
             let set = all.fold(Set::empty(), |s, f| s.union(&f));
             let each: Vec<String> = parts.iter().map(|p| p.to_string()).collect();
-            let written = format!("({}) -> {}", each.join(", "), crate::set::paren(&result));
+            let written = format!("fn({}) -> {}", each.join(", "), crate::set::paren(&result));
             if !set.is_empty() {
                 self.aliases.push((set.to_string(), written));
             }
@@ -829,7 +829,7 @@ impl P {
                 let each: Vec<String> = args.iter().map(|a| a.to_string()).collect();
                 match args.is_empty() {
                     true => name.clone(),
-                    false => format!("{name}({})", each.join(", ")),
+                    false => format!("{name}<{}>", each.join(", ")),
                 }
             };
             // A record's name with sets, `Dir(String, S)`, is not the
@@ -855,7 +855,7 @@ impl P {
                     return Err(Error::new(
                         line,
                         format!(
-                            "`{name}` takes {} set(s), got {}",
+                            "`{name}` takes {} type(s), got {}",
                             e.params.len(),
                             args.len()
                         ),
@@ -964,7 +964,7 @@ impl P {
         let each: Vec<String> = params.iter().map(|p| p.1.to_string()).collect();
         let written = match each.is_empty() {
             true => of.name.clone(),
-            false => format!("{}({})", of.name, each.join(", ")),
+            false => format!("{}<{}>", of.name, each.join(", ")),
         };
         p.me = Some((of.name.clone(), written));
         p.in_enum = true;
@@ -3043,4 +3043,74 @@ pub fn stamp(text: &str, source: Option<&str>, rev: Option<&str>) -> Result<Stri
 pub fn tied(evidence: &[Evidence], names: &Names) -> Vec<String> {
     let found = |f: &&String| evidence.iter().any(|e| e.about == format!("{f}::tied"));
     names.opaque.iter().filter(found).cloned().collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn error(text: &str) -> Error {
+        model(text).map(|_| ()).unwrap_err()
+    }
+
+    #[test]
+    fn reads_the_64_bit_extremes() {
+        let ok = "fn f(a: Int) -> Int;\n\
+                  claim c() { f(-9223372036854775808) == 9223372036854775807 }";
+        assert!(model(ok).is_ok());
+        let e = error("claim c() { 9223372036854775808 == 1 }");
+        assert!(e.message.contains("outside the 64-bit integers"), "{e}");
+    }
+
+    #[test]
+    fn set_operators_bind_as_documented() {
+        let (m, _) = model("fn f(a: 0..=9 \\ {3} | {20} & 15..=25) -> Int;").unwrap();
+        let a = &m.functions[0].params[0].1;
+        assert!(a.contains(&Value::Int(20)) && a.contains(&Value::Int(4)));
+        assert!(!a.contains(&Value::Int(3)) && !a.contains(&Value::Int(15)));
+    }
+
+    #[test]
+    fn errors_point_at_their_line() {
+        let e = error("fn f(a: Int) -> Int;\n\nfn g(a: Nope) -> Int;");
+        assert_eq!(e.line, 3);
+        assert!(e.message.contains("unknown type `Nope`"), "{e}");
+        let e = error("fn if(a: Int) -> Int;");
+        assert!(e.message.contains("`if` is a keyword"), "{e}");
+        let e = error("fn f(a: String) -> Int;\nclaim c() { f(\"a\\qb\") == 1 }");
+        assert_eq!(e.line, 2);
+        assert!(e.message.contains("in a string"), "{e}");
+    }
+
+    #[test]
+    fn rust_names_are_the_same_types() {
+        let (m, _) = model("fn f(a: Vec<i32>, b: usize) -> bool;").unwrap();
+        let (n, _) = model("fn f(a: List<Int32>, b: 0..) -> Bool;").unwrap();
+        assert_eq!(m.functions[0].params, n.functions[0].params);
+        assert_eq!(m.functions[0].range, n.functions[0].range);
+    }
+
+    #[test]
+    fn trust_goes_from_0_to_1() {
+        let (m, names) = model("fn f(a: Int) -> Int;").unwrap();
+        let read = |e: &str| evidence_alone(e, &m, &names);
+        assert!(read("evidence t { for f given a = 1 holds trust 0.5 }").is_ok());
+        let e = read("evidence t { for f given a = 1 holds trust 2 }").unwrap_err();
+        assert!(e.message.contains("from 0 to 1"), "{e}");
+        let e = read("evidence t { for f given b = 1 holds }").unwrap_err();
+        assert!(e.message.contains("has no input `b`"), "{e}");
+    }
+
+    #[test]
+    fn an_import_is_read_in_place() {
+        let (m, _) = model(
+            "import std::claims::{commutative};\n\
+             fn add(a: 0..=3, b: 0..=3) -> Int;\n\
+             claim add_commutes = commutative(add, 0..=3);",
+        )
+        .unwrap();
+        assert_eq!(m.claims.len(), 1);
+        let e = error("import std::claims::{nope};");
+        assert!(e.message.contains("declares no `nope`"), "{e}");
+    }
 }

@@ -23,10 +23,10 @@ eval::different_is_not_equal: unverified
   no evidence on  (x, y) in (Value \ {2}, Value) | ({2}, Value \ {2, "2"})
 eval::union_commutes: unverified
   passes on       `x = {1, 2}, y = {2, 3}`, `x = {2, 3}, y = {1, 2}`
-  no evidence on  (x, y) in (Set(Int) \ {{1, 2}, {2, 3}}, Set(Int)) | ({{2, 3}}, Set(Int) \ {{1, 2}}) | ({{1, 2}}, Set(Int) \ {{2, 3}})
+  no evidence on  (x, y) in (Set<Int> \ {{1, 2}, {2, 3}}, Set<Int>) | ({{2, 3}}, Set<Int> \ {{1, 2}}) | ({{1, 2}}, Set<Int> \ {{2, 3}})
 eval::difference_apart: unverified
   passes on       `x = {1, 2}, y = {2, 3}`
-  no evidence on  (x, y) in (Set(Int) \ {{1, 2}}, Set(Int)) | ({{1, 2}}, Set(Int) \ {{2, 3}})
+  no evidence on  (x, y) in (Set<Int> \ {{1, 2}}, Set<Int>) | ({{1, 2}}, Set<Int> \ {{2, 3}})
 eval::divides_back: unverified
   passes on       `x = 4, y = -3`
   no evidence on  (x, y) in (Int \ {4}, Int \ {0}) | ({4}, Int \ {-3, 0})
@@ -41,11 +41,11 @@ print::negative_ints: unverified
   no evidence on  v in Int \ -1..=0
 print::level::spec: holds
   passes on       op in {"&", "&&", "-", "/", "<=", "in", "|", "||"}
-  assumed on      classes 1, 2, 3, 4, 5 of `print::level_uniform::case`, by `print::level_uniform`
+  assumed on      classes 1, 2, 3, 4, 5 of `print::level_uniform`, by `print::level_uniform`
 print::level_uniform: holds
 report::word::spec: holds
   passes on       c in {Candidate(Code("f"), 0.0, 0.25), Candidate(Code("f"), 0.0, 0.5), Candidate(Code("f"), 0.5, 1.0), Candidate(Code("f"), 1.0, 1.0)}
-  assumed on      classes "certain", "likely", "possible", "unlikely" of `report::word_uniform::case`, by `report::word_uniform`
+  assumed on      classes "certain", "likely", "possible", "unlikely" of `report::word_uniform`, by `report::word_uniform`
 report::word_uniform: holds
 t_holds: holds
 t_assuming: holds
@@ -167,13 +167,13 @@ warning[M101]: a claim is not verified
 warning[M101]: a claim is not verified
   --> .mitra/model.mitra:59  claim union_commutes(x: Set<Int>, y: Set<Int>) { binary("|", x, y) == binary("|", y, x) }
 
-  No evidence on (x, y) in (Set(Int) \ {{1, 2}, {2, 3}}, Set(Int)) | ({{2, 3}}, Set(Int) \ {{1, 2}}) | ({{1, 2}}, Set(Int) \ {{2, 3}}).
+  No evidence on (x, y) in (Set<Int> \ {{1, 2}, {2, 3}}, Set<Int>) | ({{2, 3}}, Set<Int> \ {{1, 2}}) | ({{1, 2}}, Set<Int> \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> .mitra/model.mitra:61  claim difference_apart(x: Set<Int>, y: Set<Int>) { match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) } }
 
-  No evidence on (x, y) in (Set(Int) \ {{1, 2}}, Set(Int)) | ({{1, 2}}, Set(Int) \ {{2, 3}}).
+  No evidence on (x, y) in (Set<Int> \ {{1, 2}}, Set<Int>) | ({{1, 2}}, Set<Int> \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

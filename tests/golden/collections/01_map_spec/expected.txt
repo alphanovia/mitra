@@ -7,7 +7,7 @@ add_keeps_items: unverified
   no evidence on  a set too long to print
 remove_is: unverified
   passes on       `remove({"bolt": 1, "nut": 2}, {"nut", "x"})`
-  no evidence on  (stock, gone) in (Map(String, 0..) \ {{"bolt": 1, "nut": 2}}, Set(String)) | ({{"bolt": 1, "nut": 2}}, Set(String) \ {{"nut", "x"}})
+  no evidence on  (stock, gone) in (Map<String, 0..> \ {{"bolt": 1, "nut": 2}}, Set<String>) | ({{"bolt": 1, "nut": 2}}, Set<String> \ {{"nut", "x"}})
 
 error[M001]: evidence refutes a claim
   --> model.mitra:5  claim add_is(stock, item, n) { add_stock(stock, item, n) == add_spec(stock, item, n) }
@@ -36,7 +36,7 @@ warning[M101]: a claim is not verified
 warning[M101]: a claim is not verified
   --> model.mitra:9  claim remove_is(stock, gone) { remove(stock, gone) == stock \ gone }
 
-  No evidence on (stock, gone) in (Map(String, 0..) \ {{"bolt": 1, "nut": 2}}, Set(String)) | ({{"bolt": 1, "nut": 2}}, Set(String) \ {{"nut", "x"}}).
+  No evidence on (stock, gone) in (Map<String, 0..> \ {{"bolt": 1, "nut": 2}}, Set<String>) | ({{"bolt": 1, "nut": 2}}, Set<String> \ {{"nut", "x"}}).
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.
