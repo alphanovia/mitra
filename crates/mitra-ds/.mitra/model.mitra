@@ -1,5 +1,121 @@
--- mitra-ds, judged by Mitra. The model is in the `mitra:` comments of
--- src/ and tests/, with the same types as the Rust code. The two enums
--- below are Rust's own, which every file uses.
-enum Option(T) { None, Some(value: T) }
-enum Result(T, E) { Ok(value: T), Err(error: E) }
+// mitra-ds as Mitra sees it: the model, aside from the code.
+//
+// The code is in src/. A comment `// mitra: implements mass::judged`
+// above a `fn` ties it to a function here, and `mitra tie` checks that
+// the two agree. The tests are in tests.mitra.
+
+// Rust's own, which the code uses.
+enum Option<T> { None, Some(value: T) }
+enum Result<T, E> { Ok(value: T), Err(error: E) }
+
+// An opinion on "the subject is correct": belief, disbelief, and the
+// part left uncommitted.
+record Mass { b: f64, d: f64, u: f64 }
+
+fn in_range(x: f64) -> bool { x >= -0.000000001 && x <= 1.0 + 0.000000001 }
+
+// Private in the code, so no evidence is brought on it: the two rules
+// that use it are judged.
+fn agreement(m: Mass, o: Mass) -> Mass {
+    Mass(m.b * o.b + m.b * o.u + m.u * o.b, m.d * o.d + m.d * o.u + m.u * o.d, m.u * o.u)
+}
+
+subject mass {
+    // The opinion one judged input gives, with confidence `c`.
+    fn judged(ok: bool, c: f64) -> Option<Mass> {
+        if c >= 0.0 && c <= 1.0 {
+            Some(if ok { Mass(c, 0.0, 1.0 - c) } else { Mass(0.0, c, 1.0 - c) })
+        } else {
+            None
+        }
+    }
+    claim judged_uniform = uniform(judged, |ok, c| -> {"rejected", "correct", "wrong"} {
+        if c >= 0.0 && c <= 1.0 { if ok { "correct" } else { "wrong" } } else { "rejected" }
+    });
+
+    fn is_valid(m: Mass) -> bool {
+        let s = m.b + m.d + m.u - 1.0;
+        in_range(m.b) && in_range(m.d) && in_range(m.u) && s <= 0.000000001 && -s <= 0.000000001
+    }
+    claim is_valid_uniform = uniform(is_valid, |m| -> {"valid", "part out of range", "sum off"} {
+        if !(in_range(m.b) && in_range(m.d) && in_range(m.u)) { "part out of range" }
+        else if is_valid(m) { "valid" }
+        else { "sum off" }
+    });
+
+    // How much two opinions contradict each other.
+    fn conflict(m: Mass, o: Mass) -> f64 { m.b * o.d + m.d * o.b }
+    // One formula, no branch: a single class.
+    claim conflict_uniform = uniform(conflict);
+    claim conflict_symmetric(m, o) { conflict(m, o) == conflict(o, m) }
+
+    // Dempster's rule: the conflict is renormalised away.
+    fn dempster(m: Mass, o: Mass) -> Option<Mass> uses only is_valid, conflict {
+        let k = conflict(m, o);
+        let a = agreement(m, o);
+        if !is_valid(m) || !is_valid(o) || k >= 1.0 - 0.000000001 {
+            None
+        } else {
+            Some(Mass(a.b / (1.0 - k), a.d / (1.0 - k), a.u / (1.0 - k)))
+        }
+    }
+    claim dempster_uniform = uniform(dempster, dempster_class);
+
+    // Yager's rule: the conflict goes to the uncommitted part, and is reported.
+    fn yager(m: Mass, o: Mass) -> Option<(Mass, f64)> uses only is_valid, conflict {
+        let k = conflict(m, o);
+        let a = agreement(m, o);
+        if !is_valid(m) || !is_valid(o) { None } else { Some((Mass(a.b, a.d, a.u + k), k)) }
+    }
+    claim yager_uniform = uniform(yager, |m, o| -> {"first invalid", "second invalid", "valid"} {
+        if !is_valid(m) { "first invalid" } else if !is_valid(o) { "second invalid" } else { "valid" }
+    });
+
+    // The conflict `yager` reports is the one `conflict` computes.
+    claim yager_reports_conflict(m, o) {
+        match yager(m, o) { None => true, Some(r) => r.1 == conflict(m, o) }
+    }
+
+    // Dempster's rule is Yager's, with the conflict renormalised away.
+    claim dempster_renormalises_yager(m, o) {
+        match dempster(m, o) {
+            None => true,
+            Some(x) => match yager(m, o) {
+                None => false,
+                Some(y) => x.b == y.0.b / (1.0 - y.1) && x.d == y.0.d / (1.0 - y.1),
+            },
+        }
+    }
+    // Sorted by the classes of `dempster`: those of `dempster` and `yager`
+    // can't all meet (an input can't be invalid for one and valid for the other).
+    claim renormalises_uniform = uniform(dempster_renormalises_yager, dempster_class);
+}
+
+// One class per path through `dempster`.
+fn dempster_class(m: Mass, o: Mass) -> {"first invalid", "second invalid", "total conflict", "partial conflict"} {
+    if !mass::is_valid(m) { "first invalid" }
+    else if !mass::is_valid(o) { "second invalid" }
+    else if mass::conflict(m, o) >= 1.0 - 0.000000001 { "total conflict" }
+    else { "partial conflict" }
+}
+
+// What `rank` returns: for each piece, how much it must be wrong and how
+// much it can be.
+record Ranking { belief: Vec<f64>, plausibility: Vec<f64>, conflict: f64, doubted: usize }
+enum NoRanking { TooMany, Invalid }
+
+subject culprits {
+    // No body: the spec would loop over the lists.
+    fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
+
+    claim rank_correct(biases, clauses) { correct(rank(biases, clauses)) }
+
+    // One belief and one plausibility per piece, and a conflict in [0, 1].
+    claim rank_shape(biases, clauses) {
+        match rank(biases, clauses) {
+            Err(_) => true,
+            Ok(r) => len(r.belief) == len(biases) && len(r.plausibility) == len(biases)
+                && r.conflict >= 0.0 && r.conflict <= 1.0,
+        }
+    }
+}

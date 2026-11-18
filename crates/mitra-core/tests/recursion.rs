@@ -6,7 +6,8 @@ fn error(model: &str, evidence: &str) -> String {
         Err((_, e)) => e.message,
         Ok(m) => match mitra_core::evaluate(&m) {
             Err((_, e)) => e.message,
-            Ok(_) => String::new(),
+            // Evidence that does not fit a signature is kept, and reported.
+            Ok(_) => m.misfits.first().map_or(String::new(), |m| m.1.clone()),
         },
     }
 }
@@ -22,12 +23,12 @@ fn a_value_is_checked_all_the_way_down() {
         ""
     );
     let e = error(EXPR, "evidence correct(eval(Add(Lit(1), 2))) at 1");
-    assert!(e.contains("outside the domain"), "{e}");
+    assert!(e.contains("outside the inputs"), "{e}");
     let e = error(
         EXPR,
         "evidence correct(eval(Add(Lit(1), Add(Lit(1), Lit(true))))) at 1",
     );
-    assert!(e.contains("outside the domain"), "{e}");
+    assert!(e.contains("outside the inputs"), "{e}");
 }
 
 #[test]
@@ -52,7 +53,7 @@ fn a_type_inside_itself_keeps_its_parameters() {
         tree,
         "evidence correct(size(Node(Leaf, 1, Node(Leaf, \"a\", Leaf)))) at 1",
     );
-    assert!(e.contains("outside the domain"), "{e}");
+    assert!(e.contains("outside the inputs"), "{e}");
     let e = error("enum Tree(T) { Leaf, Node(l: Tree(Int), v: T) }", "");
     assert!(e.contains("is written `Tree(Value)`"), "{e}");
 }
@@ -109,7 +110,7 @@ fn type_parameters() {
         ""
     );
     let e = error(pair, "evidence correct(ints(Pair(\"a\", 1))) at 1");
-    assert!(e.contains("outside the domain"), "{e}");
+    assert!(e.contains("outside the inputs"), "{e}");
     let e = error(
         "record Pair(A, B)(first: A)\nopaque f(p: Pair(Int)) -> Int",
         "",
@@ -132,11 +133,11 @@ fn function_types() {
                  claim apply_is : forall f, forall x, apply(f, x) = f(x)\n";
     assert_eq!(error(model, "evidence apply(double, 3) = 6 at 1"), "");
     let e = error(model, "evidence apply(shout, 3) = 6 at 1");
-    assert!(e.contains("outside the domain"), "{e}");
+    assert!(e.contains("outside the inputs"), "{e}");
     // Only the functions declared above the type.
     let late = format!("{model}def triple(x: Int) -> Int := x * 3\n");
     let e = error(&late, "evidence apply(triple, 3) = 9 at 1");
-    assert!(e.contains("outside the domain"), "{e}");
+    assert!(e.contains("outside the inputs"), "{e}");
     let e = error("def f(x: Int) -> Int := x(1)\nclaim c : f(1) == 1", "");
     assert!(e.contains("not a function"), "{e}");
 }

@@ -61,6 +61,11 @@ impl Store {
         Ok(dir)
     }
 
+    /// The folder the store is in.
+    pub fn root(&self) -> PathBuf {
+        self.dir.parent().unwrap_or(Path::new(".")).to_path_buf()
+    }
+
     pub fn model_path(&self) -> String {
         self.dir.join("model.mitra").display().to_string()
     }
@@ -68,6 +73,19 @@ impl Store {
     /// `model.mitra`, then the `mitra:` lines of the Rust sources.
     pub fn source(&self) -> Result<Source, String> {
         let mut s = Source::file(&self.model_path())?;
+        // The other `.mitra` files of the store are model too: a model
+        // kept aside from the code may be long.
+        let mut more: Vec<PathBuf> = std::fs::read_dir(&self.dir)
+            .map_err(|e| format!("{}: {e}", self.dir.display()))?
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|x| x == "mitra"))
+            .filter(|p| !p.ends_with("model.mitra") && !p.ends_with("evidence.mitra"))
+            .collect();
+        more.sort();
+        for p in more {
+            s.add_file(&p.display().to_string())?;
+        }
         let root = self.dir.parent().unwrap_or(Path::new("."));
         s.add_rust(&[root.join("src"), root.join("tests")])?;
         Ok(s)

@@ -1,102 +1,111 @@
-short_correct: unverified
+report::short_correct: unverified
   passes on       path in {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
   no evidence on  path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
-short_once: unverified
+report::short_once: unverified
   passes on       path in {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
   no evidence on  path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
-libtest_correct: unverified
+report::libtest::uses: holds
+report::libtest_correct: unverified
   passes on       6 inputs
   no evidence on  a set too long to print
-libtest_uses: holds
-attr_correct: unverified
+report::attr_correct: unverified
   passes on       5 inputs
   no evidence on  a set too long to print
-strip_correct: unverified
-  passes on       `strip("a<x>b", "<x>", "</x>")`, `strip("a<x>b</x>c", "<x>", "</x>")`, `strip("abc", "<x>", "</x>")`
+report::strip_correct: unverified
+  passes on       `report::strip("a<x>b", "<x>", "</x>")`, `report::strip("a<x>b</x>c", "<x>", "</x>")`, `report::strip("abc", "<x>", "</x>")`
   no evidence on  a set too long to print
-junit_correct: unverified
+report::junit::uses: holds
+report::junit_correct: unverified
   passes on       6 inputs
   no evidence on  a set too long to print
-junit_uses: holds
-mitra_line_correct: unverified
+source::mitra_line_correct: unverified
   passes on       5 inputs
   no evidence on  a set too long to print
-fn_below_correct: unverified
+source::fn_below_correct: unverified
   passes on       code in {"", "#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}", "fn f() {}", "pub struct S;\nfn f() {}", "pub(crate) const unsafe fn f() {}"}
   no evidence on  code in String \ {"", "#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}", "fn f() {}", "pub struct S;\nfn f() {}", "pub(crate) const unsafe fn f() {}"}
-words_correct: unverified
-  passes on       `words("claim c -- a test of opaque things")`, `words("claim c : correct(g(\"test -- \\\" opaque\")) -- x")`, `words("opaque f(a: Int) -> Int")`
+source::words_correct: unverified
+  passes on       `source::words("claim c -- a test of opaque things")`, `source::words("claim c : correct(g(\"test -- \\\" opaque\")) -- x")`, `source::words("opaque f(a: Int) -> Int")`
   no evidence on  line in String \ {"claim c -- a test of opaque things", "claim c : correct(g(\"test -- \\\" opaque\")) -- x", "opaque f(a: Int) -> Int"}
-extract_correct: unverified
+source::extract::uses: holds
+source::extract_correct: unverified
   passes on       6 inputs
   no evidence on  a set too long to print
-extract_uses: holds
-extract_one_line: unverified
+source::extract_one_line: unverified
   passes on       `text = "// a comment about mitra: no"`
   no evidence on  text in String \ {"// a comment about mitra: no"}
+report::attr::tied: holds
+report::junit::tied: holds
+report::libtest::tied: holds
+report::short::tied: holds
+report::strip::tied: holds
+source::extract::tied: holds
+source::fn_below::tied: holds
+source::mitra_line::tied: holds
+source::words::tied: holds
 
 warning[M101]: a claim is not verified
-  --> src/report.rs:22  claim short_correct : forall path, correct(short(path))
+  --> .mitra/model.mitra:22  claim short_correct(path) { correct(short(path)) }
 
   No evidence on path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/report.rs:24  claim short_once : forall path, short(short(path)) == short(path)
+  --> .mitra/model.mitra:24  claim short_once(path) { short(short(path)) == short(path) }
 
   No evidence on path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/report.rs:31  claim libtest_correct : forall text, correct(libtest(text))
+  --> .mitra/model.mitra:27  claim libtest_correct(text) { correct(libtest(text)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/report.rs:56  claim attr_correct : forall tag, forall attr, correct(attr(tag, attr))
+  --> .mitra/model.mitra:31  claim attr_correct(tag, attr) { correct(attr(tag, attr)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/report.rs:91  claim strip_correct : forall text, forall open, forall close, correct(strip(text, open, close))
+  --> .mitra/model.mitra:35  claim strip_correct(text, open, close) { correct(strip(text, open, close)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/report.rs:105  claim junit_correct : forall xml, correct(junit(xml))
+  --> .mitra/model.mitra:38  claim junit_correct(xml) { correct(junit(xml)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/source.rs:98  claim mitra_line_correct : forall line, correct(mitra_line(line))
+  --> .mitra/model.mitra:45  claim mitra_line_correct(line) { correct(mitra_line(line)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/source.rs:181  claim fn_below_correct : forall code, correct(fn_below(code))
+  --> .mitra/model.mitra:49  claim fn_below_correct(code) { correct(fn_below(code)) }
 
   No evidence on code in String \ {"", "#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}", "fn f() {}", "pub struct S;\nfn f() {}", "pub(crate) const unsafe fn f() {}"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/source.rs:221  claim words_correct : forall line, correct(words(line))
+  --> .mitra/model.mitra:53  claim words_correct(line) { correct(words(line)) }
 
   No evidence on line in String \ {"claim c -- a test of opaque things", "claim c : correct(g(\"test -- \\\" opaque\")) -- x", "opaque f(a: Int) -> Int"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/source.rs:256  claim extract_correct : forall text, correct(extract(text))
+  --> .mitra/model.mitra:59  claim extract_correct(text) { correct(extract(text)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/source.rs:260  claim extract_one_line : forall text, match mitra_line(text) { None => extract(text) == Ok([]), Some(m) => match extract(text) { Err(e) => true, Ok(lines) => lines == [(1, m)] } }
+  --> .mitra/model.mitra:63  claim extract_one_line(text) { match mitra_line(text) { None => extract(text) == Ok([]), Some(m) => match extract(text) { Err(_) => true, Ok(lines) => lines == [(1, m)] || lines == [], }, } }
 
   No evidence on text in String \ {"// a comment about mitra: no"}.
   help: `mitra next` lists the evidence that would settle it

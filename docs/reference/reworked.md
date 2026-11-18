@@ -40,7 +40,8 @@ subject loader {
 | `fn f(a: T) -> U { e }` in a subject or boundary | Opaque code **and** its specification: Mitra adds the claim `name::f::spec`, "the code returns what the body returns". |
 | `fn f(a: T) -> U { e }` outside | A helper for the model: computed, no code behind it, no claim. |
 | `fn f(…) -> U uses g, h;` | What the code calls; `uses only g, h` when it calls nothing else. Adds the claim `name::f::uses`, taken as declared (evidence with source `declared`). |
-| `claim c(a: T, b: U) when cond { e }` | For every input where `cond` holds, `e` is true. `when` is optional. |
+| `claim c(a: T, b: U) when cond { e }` | For every input where `cond` holds, `e` is true. `when` is optional. A type may be left out (`claim c(a, b)`): it is the type of the function the input is passed to. |
+| `claim c(a: T) trust 0.8 { e }` | The trust given to the statement itself, 1 when not said. In an error the claim is a candidate like evidence. Also on `assume`, and after a `uses` list. |
 | `claim c { given a: T, b: U  when cond  then e }` | The same claim, as a contract. |
 | `claim c(a: T) { correct(f(a)) }` | The code is right on these inputs, as judged by a test or a person. No `when` with it yet. |
 | `claim c = uniform(f);` | Every input of `f` behaves the same: one tested input stands for all. |
@@ -50,8 +51,12 @@ subject loader {
 | `enum E<T> { A, B(T), C(x: T, y: T) }` | Unnamed fields are named `v0`, `v1`. |
 | `test t { for f  given a = 1  gives 2 }` | A test of the code, for `mitra ingest`: same clauses as evidence, without `trust`, `source`, `rev`. |
 
-Records, enums and their variants are global, also when written inside a
-subject. `//` starts a comment.
+Records, enums, their variants and tests are global, also when written
+inside a subject. `//` starts a comment.
+
+Inside a body (of a `fn` or of a class `|a| …`), a call to a function of
+a subject that has a body is a call to its spec: a spec is computed, it
+never runs the code. A helper is declared above the bodies that call it.
 
 `when` on the inputs alone (`when b != 0`) takes the refused inputs out of
 the claim: they are not counted as tested, assumed or missed. This works
@@ -103,11 +108,40 @@ evidence a_is_down {
 A line in the earlier syntax is still read in the same file: `mitra add`
 and `mitra ingest` append such lines.
 
-## In a Rust crate
+## The tie to the code
 
-The model can sit in `// mitra:` comments, one model line per comment
-line, and in `.mitra/model.mitra`. `mitra add 'evidence e { for f … }'`
-accepts a block.
+The model lives aside from the code: `.mitra/model.mitra`, and any other
+`.mitra/*.mitra` file (not `evidence.mitra`), such as `tests.mitra`. It is
+checked alone, with no code present. The code points at it:
+
+```rust
+// mitra: implements bank::withdraw
+pub fn withdraw(&self, n: u64) -> (Account, bool) { … }
+```
+
+`mitra tie [--rev R]` reads `src/` and `tests/`, compares each tied `fn`
+with the function of the model, and appends what it finds as evidence
+(source `reader:rust file:line`, with the reason when they differ):
+
+| It compares | Agreement | Evidence on |
+|---|---|---|
+| Inputs | The same number (`self` counts as one), the same names, and the same types where the model's type is a plain one (`bool`, `f64`, `String`, a record, `Vec<T>`, `Option<T>`, a tuple; every integer type is `Int`). A narrower type in the model (`0..=5`, `{"a", "b"}`) is not compared. | `f::tied` |
+| Result | The same rule. | `f::tied` |
+| Calls | For `uses g, h`: the body calls the `fn` tied to each. For `uses only`: it calls no other tied `fn`. A function with no tie is not checked. | `f::uses` |
+
+`f::tied` is a claim that exists once evidence names it: without a
+reader, a reviewer brings the same evidence
+(`evidence e { for withdraw::tied holds source "review:me" }`). When it
+fails, the candidates are the evidence, the signature in the model and
+the code. A tie to a function the model does not have is refused. It
+also lists the functions of the model with no tie and the tests with no
+`fn` of their name; these are printed, not recorded.
+
+A test of the model is the Rust test of the same name: `mitra ingest`
+turns its result into evidence.
+
+The earlier form, the model in `// mitra:` comments, is still read, in
+either syntax. `mitra add 'evidence e { for f … }'` accepts a block.
 
 ## Not yet
 
@@ -121,6 +155,9 @@ accepts a block.
   an expression, `mitra explain <claim>`.
 - A spec standing in for its code in other claims, and a vouched property
   passing observations on.
+- The reader reads text, not Rust's syntax tree: macros, trait methods
+  and two functions of the same name can mislead it.
+- No trust on a signature (it is 1).
 - Boundaries that answer differently each time, distributions,
   `holds assuming [an assumption]`, simulations, sequences.
 - A subject inside a subject.

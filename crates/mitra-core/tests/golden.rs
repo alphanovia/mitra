@@ -41,6 +41,9 @@ fn eval(dir: &Path, extra_evidence: &str) -> String {
 #[test]
 fn golden() {
     for dir in cases() {
+        if std::env::var("MITRA_RECORD").is_ok() {
+            fs::write(dir.join("expected.txt"), eval(&dir, "")).unwrap();
+        }
         let expected = fs::read_to_string(dir.join("expected.txt")).unwrap();
         assert_eq!(eval(&dir, ""), expected, "{}", dir.display());
     }

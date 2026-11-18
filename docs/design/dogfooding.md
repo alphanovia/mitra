@@ -12,32 +12,37 @@ which evidence is most plausibly wrong
 judges it from its own test runs. If the verdicts help while the
 crate is built and maintained, that is the first sign Mitra is useful.
 
-**What exists.** The model sits in `mitra:` comments next to the code,
-with the same types as the Rust code: `Mass` is a record, `Option` and
-`Result` are enums, a `Vec` is a `List`. Each modelled function is a
-subject, with a spec where one can be written (`dempster`, `yager`,
-`judged`, `is_valid`, `conflict`), a `uniform` claim whose classes follow
-the branches of its code, and claims that relate functions to each other
-(`yager` reports the conflict `conflict` computes; Dempster's rule is
-Yager's renormalised). One `test` line sits above each unit test and gives
-its input and the output it checks. The ranking of culprits (`rank`) has
-its types and its tests in the model, and no spec: a spec can't loop over
-a list.
+**What exists.** The model is aside from the code, in each crate's
+`.mitra/model.mitra` (and `.mitra/tests.mitra`), in the
+[reworked syntax](../reference/reworked.md), with the same types as the
+Rust code: `Mass` is a record, `Option` and `Result` are enums, a `Vec`
+is a list. The code keeps one comment per modelled function,
+`// mitra: implements mass::judged`, and `mitra tie` checks that the two
+agree (inputs, result, calls). Each modelled function sits in a subject
+named after its module, with a body where a spec can be written
+(`dempster`, `yager`, `judged`, `is_valid`, `conflict`), a `uniform`
+claim whose classes follow the branches of its code, and claims that
+relate functions to each other (`yager` reports the conflict `conflict`
+computes; Dempster's rule is Yager's renormalised). One `test` block per
+unit test gives its input and the output it checks. The ranking of
+culprits (`rank`) has its types and its tests in the model, and no spec.
 
 Three crates have a store: `mitra-ds` (every public function),
-`mitra-cli` (the readers of test reports and of `mitra:` lines) and
+`mitra-cli` (the readers of test reports and of `mitra:` lines; not
+the reader of ties) and
 `mitra-core` (the operators of specs, a few printers). Most of
 `mitra-core` is not modelled: its types are recursive (`Expr`, `Set`) or
 its functions keep state. The gaps are listed in the review list
 (2026-11-18, increment 22).
 
-`scripts/dogfood.sh <crate>` runs the tests and ingests the results,
-tagged with the git hash of the crate's committed code (it refuses
+`scripts/dogfood.sh <crate>` runs the tests, ingests the results and
+runs `mitra tie`, all tagged with the git hash of the crate's committed code (it refuses
 uncommitted changes and stops when the tests don't build). It then
 evaluates with `--rev`, so only evidence on that code counts. `cargo
 test` checks the verdicts of the three stores. A review is recorded with
 `scripts/vouch.sh <crate> review:<who>`, which vouches for every
-`uniform` and `uses` claim at that hash, and goes stale when the code
+`uniform` claim at that hash (a `uses` clause is taken as declared, and
+checked by `mitra tie`), and goes stale when the code
 changes. `scripts/breaks.py <crate>` is the benchmark: it breaks the code
 one way at a time (`scripts/breaks/<crate>.txt`) and prints what `cargo
 test` and Mitra say.

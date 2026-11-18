@@ -1,5 +1,72 @@
--- mitra-cli, judged by Mitra. The model is in the `mitra:` comments of
--- src/, with the same types as the Rust code. The two enums below are
--- Rust's own.
-enum Option(T) { None, Some(value: T) }
-enum Result(T, E) { Ok(value: T), Err(error: E) }
+// mitra-cli as Mitra sees it: the model, aside from the code.
+//
+// The code is in src/. A comment `// mitra: implements report::short`
+// above a `fn` ties it to a function here, and `mitra tie` checks that
+// the two agree. The tests are in tests.mitra.
+//
+// Modelled: reading test reports (src/report.rs) and reading the model
+// lines of a Rust file (src/source.rs). Not modelled: the commands, the
+// store, the reader of ties.
+
+// Rust's own, which the code uses.
+enum Option<T> { None, Some(value: T) }
+enum Result<T, E> { Ok(value: T), Err(error: E) }
+
+// One test of a report, and whether it passed.
+record Outcome { name: String, passed: bool }
+
+// Test reports: libtest's text and JUnit's XML.
+subject report {
+    // The name of a test without its module path.
+    fn short(path: String) -> String;
+    claim short_correct(path) { correct(short(path)) }
+    // A short name is already short.
+    claim short_once(path) { short(short(path)) == short(path) }
+
+    fn libtest(text: String) -> Vec<Outcome> uses only short;
+    claim libtest_correct(text) { correct(libtest(text)) }
+
+    // The value of an attribute in an XML tag.
+    fn attr(tag: String, attr: String) -> Option<String>;
+    claim attr_correct(tag, attr) { correct(attr(tag, attr)) }
+
+    // The text without what stands between `open` and `close`.
+    fn strip(text: String, open: String, close: String) -> String;
+    claim strip_correct(text, open, close) { correct(strip(text, open, close)) }
+
+    fn junit(xml: String) -> Vec<Outcome> uses only strip, attr, short;
+    claim junit_correct(xml) { correct(junit(xml)) }
+}
+
+// The lines of model written in the comments of a Rust file.
+subject source {
+    // The text after `mitra:` in a comment line.
+    fn mitra_line(line: String) -> Option<String>;
+    claim mitra_line_correct(line) { correct(mitra_line(line)) }
+
+    // The name of the `fn` that the code starts with.
+    fn fn_below(code: String) -> Option<String>;
+    claim fn_below_correct(code) { correct(fn_below(code)) }
+
+    // The words of a model line, outside its strings and its comment.
+    fn words(line: String) -> Vec<String>;
+    claim words_correct(line) { correct(words(line)) }
+
+    // The model lines of a file, numbered, or the first misplaced one.
+    // `scan` has no model yet, so this is `uses`, not `uses only`.
+    fn extract(text: String) -> Result<Vec<(usize, String)>, (usize, String)>
+        uses mitra_line, words, fn_below;
+    claim extract_correct(text) { correct(extract(text)) }
+
+    // A line `extract` keeps is a model line, with the text `mitra_line`
+    // gives. A tie (`implements …`) is a `mitra:` line that is not kept.
+    claim extract_one_line(text) {
+        match mitra_line(text) {
+            None => extract(text) == Ok([]),
+            Some(m) => match extract(text) {
+                Err(_) => true,
+                Ok(lines) => lines == [(1, m)] || lines == [],
+            },
+        }
+    }
+}

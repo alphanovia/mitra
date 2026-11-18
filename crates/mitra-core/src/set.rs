@@ -1117,9 +1117,7 @@ fn n_is_set(shape: &Shape) -> bool {
 }
 
 /// A string as written in Mitra, with its escapes.
-///
-/// mitra: opaque quote(s: String) -> String
-/// mitra: claim quote_correct : forall s, correct(quote(s))
+// mitra: implements set::quote
 pub fn quote(s: &str) -> String {
     let mut out = String::from("\"");
     for c in s.chars() {
@@ -1151,19 +1149,16 @@ mod tests {
     // One input per test, for Mitra: each `mitra: test` line gives the
     // output the test checks.
 
-    // mitra: test t_quote_plain : quote("a b") = "\"a b\""
     #[test]
     fn t_quote_plain() {
         assert_eq!(quote("a b"), "\"a b\"");
     }
 
-    // mitra: test t_quote_empty : quote("") = "\"\""
     #[test]
     fn t_quote_empty() {
         assert_eq!(quote(""), "\"\"");
     }
 
-    // mitra: test t_quote_escapes : quote("a\"b\\c\nd\te") = "\"a\\\"b\\\\c\\nd\\te\""
     #[test]
     fn t_quote_escapes() {
         assert_eq!(quote("a\"b\\c\nd\te"), "\"a\\\"b\\\\c\\nd\\te\"");

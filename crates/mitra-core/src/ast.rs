@@ -147,12 +147,16 @@ pub enum Target {
     /// one of them is the first place to look when `f` fails.
     /// `only uses f [g, h]` adds that it calls no other subject.
     Uses { used: Vec<String>, only: bool },
+    /// The code of the subject is tied to the model: it exists where a
+    /// tie comment says, with the inputs and the result the model gives.
+    /// Mitra can't check it: a reader of the code or a reviewer says so.
+    Tied,
 }
 
 impl Target {
     /// A claim about the subject's structure, not about its results.
     pub fn is_structural(&self) -> bool {
-        matches!(self, Target::Uniform(_) | Target::Uses { .. })
+        matches!(self, Target::Uniform(_) | Target::Uses { .. } | Target::Tied)
     }
 }
 
@@ -169,6 +173,8 @@ pub struct Claim {
     pub target: Target,
     /// Premises: when they all hold, this claim holds on its whole domain.
     pub from: Vec<String>,
+    /// The trust given to the statement itself, when one is.
+    pub trust: Option<f64>,
     pub line: usize,
 }
 
@@ -276,6 +282,9 @@ pub struct Model {
     /// The lines of the model and of the evidence, when written in the
     /// reworked syntax: reports quote them.
     pub written: Option<(Vec<String>, Vec<String>)>,
+    /// Evidence that does not fit the signature of its function, and why:
+    /// it judges nothing, and is reported against the signature.
+    pub misfits: Vec<(Evidence, String)>,
     pub tests: Vec<Test>,
     pub evidence: Vec<Evidence>,
 }
@@ -514,6 +523,16 @@ impl Model {
             let deep = deep.get(f).and_then(|d| d.get(i));
             deep.is_none_or(|s| s.conforms(v, &recursive))
         };
+        let outside = |func: &Function, p: &Pattern| {
+            p.iter()
+                .zip(&func.params)
+                .enumerate()
+                .any(|(i, (pos, (_, ty)))| {
+                    pos.set.as_ref().is_some_and(|s| {
+                        !s.is_subset(ty) || s.single().is_some_and(|v| !conforms(&func.name, i, &v))
+                    })
+                })
+        };
         let fits = |func: &Function, p: &Pattern, line: usize, input: Input| {
             let err = |msg: String| Err((input, Error::new(line, msg)));
             if p.len() != func.params.len() {
@@ -524,15 +543,7 @@ impl Model {
                     p.len()
                 ));
             }
-            let outside = p
-                .iter()
-                .zip(&func.params)
-                .enumerate()
-                .any(|(i, (pos, (_, ty)))| {
-                    pos.set.as_ref().is_some_and(|s| {
-                        !s.is_subset(ty) || s.single().is_some_and(|v| !conforms(&func.name, i, &v))
-                    })
-                });
+            let outside = outside(func, p);
             if outside {
                 return err(format!("inputs outside the domain of `{}`", func.name));
             }
@@ -640,7 +651,10 @@ impl Model {
                     self.claims[i].pattern = vec![whole; arity];
                     continue;
                 }
-                _ => unreachable!(),
+                _ => {
+                    self.claims[i].pattern = vec![whole; arity];
+                    continue;
+                }
             };
             self.spec_of_classes(f, g.as_deref())
                 .map_err(|msg| m(c.line, msg))?;
@@ -718,6 +732,8 @@ impl Model {
                 e.pattern = vec![whole; n];
             }
         }
+        // Evidence that does not fit a signature: set aside, with why.
+        let mut misfits: Vec<(usize, String)> = Vec::new();
         let tests = self.tests.iter().map(|t| (&t.judgment, Input::Model));
         let evidence = self.evidence.iter().map(|e| (e, Input::Evidence));
         for (e, input) in evidence.chain(tests) {
@@ -756,6 +772,12 @@ impl Model {
                     ))
                 }
                 (_, Some(f), _) => {
+                    let kept = input == Input::Evidence && e.pattern.len() == f.params.len();
+                    if kept && outside(f, &e.pattern) {
+                        let msg = format!("its inputs are outside the inputs of `{}`", f.name);
+                        misfits.push((e.line, msg));
+                        continue;
+                    }
                     fits(f, &e.pattern, e.line, input)?;
                     if matches!(e.judgment, Judgment::Output(_)) && single(&e.pattern).is_none() {
                         return Err(ev(
@@ -764,7 +786,18 @@ impl Model {
                         ));
                     }
                     if let Judgment::Output(v) = &e.judgment {
-                        if !f.range.contains(v) || !self.conforms(&f.name, f.params.len(), v) {
+                        let fit = f.range.contains(v) && self.conforms(&f.name, f.params.len(), v);
+                        if !fit && kept && single(&e.pattern).is_some() {
+                            let i = self.functions.iter().position(|g| g.name == f.name);
+                            let msg = format!(
+                                "its output {v} is outside the result type of `{}`: {}",
+                                f.name,
+                                ranges[i.unwrap()]
+                            );
+                            misfits.push((e.line, msg));
+                            continue;
+                        }
+                        if !fit {
                             return Err(ev(
                                 e.line,
                                 format!(
@@ -796,6 +829,11 @@ impl Model {
                 }
                 (_, None, _) => return Err(ev(e.line, format!("`{}` is not a subject", e.about))),
             }
+        }
+        for (line, why) in misfits {
+            let at = self.evidence.iter().position(|e| e.line == line);
+            let e = self.evidence.remove(at.expect("its line"));
+            self.misfits.push((e, why));
         }
         Ok(self)
     }

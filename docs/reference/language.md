@@ -17,6 +17,7 @@ mitra eval  [model.mitra evidence.mitra] [--rev <commit>] [--candidates <n>]
 mitra next  [model.mitra evidence.mitra] [--rev <commit>]
 mitra add   '<evidence>' [--source <who>] [--rev <commit>]
 mitra ingest <report> [--format libtest|junit] [--rev <commit>]
+mitra tie   [--rev <commit>]
 ```
 
 `mitra` (crate `mitra-cli`) is a thin wrapper over the library
@@ -28,6 +29,10 @@ used as a wildcard, a claim named where a subject is expected.
 - Without the two files, a command reads the store: the nearest `.mitra/`
   at or above the current folder. Naming a store's own `model.mitra` reads
   the same model, with the `mitra:` lines of the Rust sources beside it.
+- In a store, every `.mitra` file beside `model.mitra` is model too, read
+  after it in name order, except `evidence.mitra`.
+- `tie` reads the Rust code of a store whose model is kept aside: see
+  [reworked.md](reworked.md#the-tie-to-the-code).
 - `eval` writes each claim's verdict, then the errors (see Output), to
   `result.txt`, or to standard output without `-o`. The result file may not
   start with `-` or end in `.mitra`, so a store file is never overwritten.
@@ -1009,7 +1014,7 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:11  @[source "bug:42"] evidence not correct(div(4, 2)) at 0.8
 
-  Either the code is wrong or the evidence is. Below, the trust given to each
+  The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                 trust  left
@@ -1056,10 +1061,26 @@ error[M004]: an assumption is contradicted by the evidence
 | `M003` | error | two pieces of evidence contradict each other |
 | `M004` | error | an assumption is contradicted by the evidence: a pass and a failure in one class |
 | `M005` | error | a measurement does not fit another measurement of the same measure, or the observed outputs |
+| `M006` | error | evidence does not fit the model: inputs or an output outside the signature of its function |
 | `M101` | warning | a claim is not verified: some inputs have no evidence |
 | `M102` | warning | a claim holds only under assumptions |
 | `M103` | warning | an assumption is not vouched for |
 | `M104` | warning | evidence that can't be used: it is about a spec |
+
+**Every piece can be the wrong one.** The candidates of an error are the
+evidence, the code of the subjects, and what the model states: the claim
+itself (`the claim `c` itself`) and, for `M006`, the signature of the
+function. What the model states is trusted at 1, like evidence without a
+number, so it is doubted only when pieces trusted at 1 can't all be
+right, or when its trust is lowered (in the
+[reworked syntax](reworked.md): `claim c(…) trust 0.8 { … }`).
+
+**Evidence outside a signature is kept.** Evidence on a function with
+inputs outside its parameter types, or an output outside its result
+type, is not refused: it is set aside, judges nothing, and is reported as
+`M006` with the evidence and the signature as candidates. So a run of
+the code can show that the model is wrong. Evidence with the wrong number
+of inputs, or on an unknown name, is still refused.
 
 `mitra explain <code>` prints what a code means and how to fix it. The
 codes are stable: a code keeps its meaning.

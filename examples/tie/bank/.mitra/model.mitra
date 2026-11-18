@@ -1,0 +1,15 @@
+// The model, aside from the code.
+record Account { balance: u64, open: bool }
+
+subject bank {
+    fn deposit(a: Account, n: u64) -> Account {
+        if a.open { Account(a.balance + n, true) } else { a }
+    }
+    fn withdraw(a: Account, n: u64) -> (Account, bool) uses only check;
+    fn check(a: Account, n: u64) -> bool { a.open && n <= a.balance }
+    fn close(a: Account) -> Account;
+
+    claim deposit_uniform = uniform(deposit, |a, n| a.open);
+}
+
+test deposit_adds { for deposit given a = Account(0, true), n = 5 gives Account(5, true) }

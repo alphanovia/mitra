@@ -19,7 +19,7 @@ error[M001]: evidence refutes a claim
 
     output    evidence.mitra:4  @[source "test:t_seq"] evidence withdraw(Account(5, true), 3) = (Account(3, true), true) at 1
 
-  Either the code is wrong or the evidence is. Below, the trust given to each
+  The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                      trust  left

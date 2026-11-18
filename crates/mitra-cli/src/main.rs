@@ -17,6 +17,7 @@
 mod report;
 mod source;
 mod store;
+mod tie;
 
 use source::Source;
 
@@ -29,6 +30,7 @@ const USAGE: &str = "usage:
   mitra add   '<evidence>' [--source <who>] [--rev <commit>]
   mitra next  [<model.mitra> <evidence.mitra>] [--rev <commit>]
   mitra ingest <report> [--format libtest|junit] [--rev <commit>]
+  mitra tie   [--rev <commit>]
   mitra explain <code>";
 
 fn main() -> ExitCode {
@@ -121,7 +123,10 @@ fn evaluate(
     let mut model = mitra_core::load(&m.text, &read(e)?).map_err(located(m, e))?;
     if let Some(rev) = rev {
         let before = model.evidence.len();
-        model.evidence.retain(|x| x.rev.as_deref() == Some(rev));
+        // What the model itself declares (`assume`, `uses`) has no revision.
+        let files = model.written.as_ref().map(|w| w.1.len());
+        let declared = |x: &mitra_core::Evidence| files.is_some_and(|n| x.line > n);
+        model.evidence.retain(|x| x.rev.as_deref() == Some(rev) || declared(x));
         let stale = before - model.evidence.len();
         if stale > 0 {
             eprintln!("mitra: {stale} evidence left out: not recorded at revision {rev}");
@@ -133,7 +138,7 @@ fn evaluate(
 
 /// Remove `--rev <value>` from the arguments of `check`, `eval` and `next`.
 fn take_rev(cmd: &str, rest: &mut Vec<String>) -> Result<Option<String>, String> {
-    if !["check", "eval", "next"].contains(&cmd) {
+    if !["check", "eval", "next", "tie"].contains(&cmd) {
         return Ok(None);
     }
     let Some(i) = rest.iter().position(|a| a == "--rev") else {
@@ -401,6 +406,25 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             }
             if !unknown.is_empty() {
                 println!("no `test` declared for: {}", unknown.join(", "));
+            }
+            Ok(0)
+        }
+        "tie" if rest.is_empty() => {
+            let s = store::Store::find()?;
+            let model = s.model()?;
+            let root = s.root();
+            let found = tie::tie(&root, &model, rev)?;
+            if !found.evidence.is_empty() {
+                s.add(&found.evidence.join("\n"), None, None)?;
+            }
+            println!(
+                "{} agree, {} differ; {} evidence added",
+                found.agree,
+                found.differ,
+                found.evidence.len()
+            );
+            for n in &found.notes {
+                println!("{n}");
             }
             Ok(0)
         }

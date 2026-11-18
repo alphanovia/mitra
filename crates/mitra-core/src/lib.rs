@@ -84,8 +84,12 @@ pub fn load(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
 fn load_surface(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     let (text, names) = surface::model(model).map_err(|e| (Input::Model, e))?;
     let mut m = parse_model(&text).map_err(|e| (Input::Model, e))?;
+    for c in &mut m.claims {
+        c.trust = names.trust.get(&c.name).copied();
+    }
     let lines = evidence.lines().count();
     let earlier = surface::evidence(evidence, &names).map_err(|e| (Input::Evidence, e))?;
+    tie(&mut m, &earlier, &names);
     m.evidence = parse_evidence_for(&earlier, &m).map_err(|e| (Input::Evidence, e))?;
     let own = |s: &str| s.lines().map(String::from).collect::<Vec<_>>();
     let mut written = own(evidence);
@@ -94,13 +98,31 @@ fn load_surface(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     m.check()
 }
 
+/// A tie is a claim once someone brings evidence on it.
+fn tie(m: &mut Model, evidence: &str, names: &surface::Names) {
+    for f in surface::tied(evidence, names) {
+        let line = m.function(&f).map_or(0, |f| f.line);
+        m.claims.push(Claim {
+            name: format!("{f}::tied"),
+            func: f,
+            pattern: Vec::new(),
+            target: Target::Tied,
+            from: Vec::new(),
+            trust: None,
+            line,
+        });
+    }
+}
+
 /// Parse new evidence for a model, in the syntax the model is written in.
 /// Nothing is checked against the model beyond its names.
 pub fn read_evidence(model: &str, evidence: &str) -> Result<Vec<Evidence>, Error> {
     if surface::is_surface(model) {
         let (text, names) = surface::model(model)?;
-        let m = parse_model(&text)?;
-        return parse_evidence_for(&surface::evidence_alone(evidence, &names)?, &m);
+        let mut m = parse_model(&text)?;
+        let earlier = surface::evidence_alone(evidence, &names)?;
+        tie(&mut m, &earlier, &names);
+        return parse_evidence_for(&earlier, &m);
     }
     parse_evidence_for(evidence, &parse_model(model).unwrap_or_default())
 }

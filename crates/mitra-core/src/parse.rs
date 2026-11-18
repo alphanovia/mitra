@@ -1497,6 +1497,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                         pattern: Vec::new(),
                         target,
                         from: Vec::new(),
+                        trust: None,
                         line,
                     });
                     continue;
@@ -1520,6 +1521,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                         pattern: Vec::new(),
                         target: Target::Uses { used, only },
                         from: Vec::new(),
+                        trust: None,
                         line,
                     });
                     continue;
@@ -1581,6 +1583,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                     pattern,
                     target,
                     from,
+                    trust: None,
                     line,
                 });
             }

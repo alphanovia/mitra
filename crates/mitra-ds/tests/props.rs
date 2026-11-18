@@ -1,6 +1,5 @@
-//! mitra-ds's tests. Each one above which a `mitra: test` line sits stands
-//! for the evidence that line gives (see the claims in `src/lib.rs`). In
-//! the model, a mass is the record `Mass(b, d, u)`, as in Rust.
+//! mitra-ds's tests. A test named in `.mitra/tests.mitra` stands for the
+//! evidence written there (see the claims in `.mitra/model.mitra`).
 
 use mitra_ds::Mass;
 
@@ -103,37 +102,31 @@ fn t_dempster_random() {
 
 // The extremes of Mitra's golden sets, one input each.
 
-// mitra: test t_yager_agree : yager(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0)) = Some((Mass(1.0, 0.0, 0.0), 0.0))
 #[test]
 fn t_yager_agree() {
     assert_eq!(SURE.yager(&SURE), Some((SURE, 0.0)));
 }
 
-// mitra: test t_yager_contradict : yager(Mass(1.0, 0.0, 0.0), Mass(0.0, 1.0, 0.0)) = Some((Mass(0.0, 0.0, 1.0), 1.0))
 #[test]
 fn t_yager_contradict() {
     assert_eq!(SURE.yager(&SURE_WRONG), Some((Mass::VACUOUS, 1.0)));
 }
 
-// mitra: test t_yager_contradict_swapped : yager(Mass(0.0, 1.0, 0.0), Mass(1.0, 0.0, 0.0)) = Some((Mass(0.0, 0.0, 1.0), 1.0))
 #[test]
 fn t_yager_contradict_swapped() {
     assert_eq!(SURE_WRONG.yager(&SURE), Some((Mass::VACUOUS, 1.0)));
 }
 
-// mitra: test t_yager_with_nothing : yager(Mass(1.0, 0.0, 0.0), Mass(0.0, 0.0, 1.0)) = Some((Mass(1.0, 0.0, 0.0), 0.0))
 #[test]
 fn t_yager_with_nothing() {
     assert_eq!(SURE.yager(&Mass::VACUOUS), Some((SURE, 0.0)));
 }
 
-// mitra: test t_yager_nothing_first : yager(Mass(0.0, 0.0, 1.0), Mass(1.0, 0.0, 0.0)) = Some((Mass(1.0, 0.0, 0.0), 0.0))
 #[test]
 fn t_yager_nothing_first() {
     assert_eq!(Mass::VACUOUS.yager(&SURE), Some((SURE, 0.0)));
 }
 
-// mitra: test t_yager_nothing : yager(Mass(0.0, 0.0, 1.0), Mass(0.0, 0.0, 1.0)) = Some((Mass(0.0, 0.0, 1.0), 0.0))
 #[test]
 fn t_yager_nothing() {
     assert_eq!(
@@ -142,37 +135,31 @@ fn t_yager_nothing() {
     );
 }
 
-// mitra: test t_dempster_agree : dempster(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0)) = Some(Mass(1.0, 0.0, 0.0))
 #[test]
 fn t_dempster_agree() {
     assert_eq!(SURE.dempster(&SURE), Some(SURE));
 }
 
-// mitra: test t_dempster_contradict : dempster(Mass(1.0, 0.0, 0.0), Mass(0.0, 1.0, 0.0)) = None
 #[test]
 fn t_dempster_contradict() {
     assert_eq!(SURE.dempster(&SURE_WRONG), None, "total conflict");
 }
 
-// mitra: test t_dempster_contradict_swapped : dempster(Mass(0.0, 1.0, 0.0), Mass(1.0, 0.0, 0.0)) = None
 #[test]
 fn t_dempster_contradict_swapped() {
     assert_eq!(SURE_WRONG.dempster(&SURE), None, "total conflict");
 }
 
-// mitra: test t_dempster_with_nothing : dempster(Mass(1.0, 0.0, 0.0), Mass(0.0, 0.0, 1.0)) = Some(Mass(1.0, 0.0, 0.0))
 #[test]
 fn t_dempster_with_nothing() {
     assert_eq!(SURE.dempster(&Mass::VACUOUS), Some(SURE));
 }
 
-// mitra: test t_dempster_nothing_first : dempster(Mass(0.0, 0.0, 1.0), Mass(1.0, 0.0, 0.0)) = Some(Mass(1.0, 0.0, 0.0))
 #[test]
 fn t_dempster_nothing_first() {
     assert_eq!(Mass::VACUOUS.dempster(&SURE), Some(SURE));
 }
 
-// mitra: test t_dempster_nothing : dempster(Mass(0.0, 0.0, 1.0), Mass(0.0, 0.0, 1.0)) = Some(Mass(0.0, 0.0, 1.0))
 #[test]
 fn t_dempster_nothing() {
     assert_eq!(Mass::VACUOUS.dempster(&Mass::VACUOUS), Some(Mass::VACUOUS));
@@ -180,37 +167,31 @@ fn t_dempster_nothing() {
 
 // `judged`, one input per test: a failed test then names its input.
 
-// mitra: test t_judged_correct : judged(true, 0.25) = Some(Mass(0.25, 0.0, 0.75))
 #[test]
 fn t_judged_correct() {
     assert_eq!(Mass::judged(true, 0.25), Some(mass(0.25, 0.0, 0.75)));
 }
 
-// mitra: test t_judged_wrong : judged(false, 0.25) = Some(Mass(0.0, 0.25, 0.75))
 #[test]
 fn t_judged_wrong() {
     assert_eq!(Mass::judged(false, 0.25), Some(mass(0.0, 0.25, 0.75)));
 }
 
-// mitra: test t_judged_at_zero : judged(true, 0.0) = Some(Mass(0.0, 0.0, 1.0))
 #[test]
 fn t_judged_at_zero() {
     assert_eq!(Mass::judged(true, 0.0), Some(Mass::VACUOUS));
 }
 
-// mitra: test t_judged_at_one : judged(false, 1.0) = Some(Mass(0.0, 1.0, 0.0))
 #[test]
 fn t_judged_at_one() {
     assert_eq!(Mass::judged(false, 1.0), Some(SURE_WRONG));
 }
 
-// mitra: test t_judged_rejects_above : judged(true, 1.5) = None
 #[test]
 fn t_judged_rejects_above() {
     assert_eq!(Mass::judged(true, 1.5), None);
 }
 
-// mitra: test t_judged_rejects_below : judged(false, -0.5) = None
 #[test]
 fn t_judged_rejects_below() {
     assert_eq!(Mass::judged(false, -0.5), None);
@@ -225,13 +206,11 @@ fn t_judged_rejects_nan() {
 // Invalid masses, as the first argument of `yager` and the second of
 // `dempster`: a negative part, or parts that do not sum to 1.
 
-// mitra: test t_yager_rejects_negative : yager(Mass(-0.5, 0.5, 1.0), Mass(0.0, 0.0, 1.0)) = None
 #[test]
 fn t_yager_rejects_negative() {
     assert_eq!(mass(-0.5, 0.5, 1.0).yager(&Mass::VACUOUS), None);
 }
 
-// mitra: test t_yager_rejects_sum : yager(Mass(0.5, 0.5, 0.5), Mass(0.0, 0.0, 1.0)) = None
 #[test]
 fn t_yager_rejects_sum() {
     assert_eq!(mass(0.5, 0.5, 0.5).yager(&Mass::VACUOUS), None);
@@ -240,25 +219,21 @@ fn t_yager_rejects_sum() {
 // `mitra next` asked for these two: the classes "second invalid" of
 // `yager` and "first invalid" of `dempster` had no test.
 
-// mitra: test t_yager_rejects_second : yager(Mass(0.0, 0.0, 1.0), Mass(0.5, 0.5, 0.5)) = None
 #[test]
 fn t_yager_rejects_second() {
     assert_eq!(Mass::VACUOUS.yager(&mass(0.5, 0.5, 0.5)), None);
 }
 
-// mitra: test t_dempster_rejects_first : dempster(Mass(-0.5, 0.5, 1.0), Mass(0.0, 0.0, 1.0)) = None
 #[test]
 fn t_dempster_rejects_first() {
     assert_eq!(mass(-0.5, 0.5, 1.0).dempster(&Mass::VACUOUS), None);
 }
 
-// mitra: test t_dempster_rejects_negative : dempster(Mass(0.0, 0.0, 1.0), Mass(-0.5, 0.5, 1.0)) = None
 #[test]
 fn t_dempster_rejects_negative() {
     assert_eq!(Mass::VACUOUS.dempster(&mass(-0.5, 0.5, 1.0)), None);
 }
 
-// mitra: test t_dempster_rejects_sum : dempster(Mass(0.0, 0.0, 1.0), Mass(0.5, 0.5, 0.5)) = None
 #[test]
 fn t_dempster_rejects_sum() {
     assert_eq!(Mass::VACUOUS.dempster(&mass(0.5, 0.5, 0.5)), None);
@@ -272,38 +247,32 @@ fn t_rejects_nan_mass() {
     assert_eq!(Mass::VACUOUS.dempster(&m), None);
 }
 
-// mitra: test t_valid_yes : is_valid(Mass(0.5, 0.0, 0.5)) = true
 #[test]
 fn t_valid_yes() {
     assert!(mass(0.5, 0.0, 0.5).is_valid());
 }
 
 // Within EPSILON of a sum of 1.
-// mitra: test t_valid_slack : is_valid(Mass(0.5, 0.0, 0.5000000001)) = true
 #[test]
 fn t_valid_slack() {
     assert!(mass(0.5, 0.0, 0.5000000001).is_valid());
 }
 
-// mitra: test t_valid_negative : is_valid(Mass(-0.5, 0.5, 1.0)) = false
 #[test]
 fn t_valid_negative() {
     assert!(!mass(-0.5, 0.5, 1.0).is_valid());
 }
 
-// mitra: test t_valid_sum : is_valid(Mass(0.5, 0.5, 0.5)) = false
 #[test]
 fn t_valid_sum() {
     assert!(!mass(0.5, 0.5, 0.5).is_valid());
 }
 
-// mitra: test t_conflict_total : conflict(Mass(1.0, 0.0, 0.0), Mass(0.0, 1.0, 0.0)) = 1.0
 #[test]
 fn t_conflict_total() {
     assert_eq!(SURE.conflict(&SURE_WRONG), 1.0);
 }
 
-// mitra: test t_conflict_mixed : conflict(Mass(0.5, 0.25, 0.25), Mass(0.25, 0.5, 0.25)) = 0.3125
 #[test]
 fn t_conflict_mixed() {
     assert_eq!(
@@ -316,19 +285,16 @@ fn t_conflict_mixed() {
 // `dempster` to `conflict` need the conflict on the inputs the rules are
 // tested on.
 
-// mitra: test t_conflict_none : conflict(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0)) = 0.0
 #[test]
 fn t_conflict_none() {
     assert_eq!(SURE.conflict(&SURE), 0.0);
 }
 
-// mitra: test t_conflict_invalid_first : conflict(Mass(-0.5, 0.5, 1.0), Mass(0.0, 0.0, 1.0)) = 0.0
 #[test]
 fn t_conflict_invalid_first() {
     assert_eq!(mass(-0.5, 0.5, 1.0).conflict(&Mass::VACUOUS), 0.0);
 }
 
-// mitra: test t_conflict_invalid_second : conflict(Mass(0.0, 0.0, 1.0), Mass(0.5, 0.5, 0.5)) = 0.0
 #[test]
 fn t_conflict_invalid_second() {
     assert_eq!(Mass::VACUOUS.conflict(&mass(0.5, 0.5, 0.5)), 0.0);

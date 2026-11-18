@@ -39,11 +39,18 @@ def run(cmd, cwd=None, limit=None):
 def assumptions():
     names = []
     for d, _, files in os.walk(root):
-        for f in files:
+        for f in sorted(files):
             if f.endswith((".rs", ".mitra")) and "target" not in d:
                 lines = open(os.path.join(d, f)).read().split("\n")
-                text = "\n".join(l for l in lines if "mitra:" in l or f.endswith(".mitra"))
-                names += re.findall(r"claim (\w+) : (?:only )?(?:uniform|uses) ", text)
+                lines = [l for l in lines if "mitra:" in l or f.endswith(".mitra")]
+                names += re.findall(r"claim (\w+) : (?:only )?(?:uniform|uses) ", "\n".join(lines))
+                # The reworked syntax: `claim c = uniform(…)`, named
+                # `subject::c` inside `subject { … }`.
+                scope = ""
+                for l in lines:
+                    m = re.match(r"(?:subject|boundary) (\w+)", l)
+                    scope = m.group(1) + "::" if m else "" if l.startswith("}") else scope
+                    names += [scope + c for c in re.findall(r"claim (\w+) = uniform\(", l)]
     return sorted(set(names))
 
 
@@ -61,11 +68,11 @@ def judge(name):
     _, out = run([mitra, "eval", "--rev", "break"], cwd=root)
     if verbose:
         print(out)
-    failing = re.findall(r"^(\w+): fails", out, re.M)
-    certain = sorted(set(re.findall(r"^    certain +the code of `(\w+)`", out, re.M)))
-    first = sorted(set(re.findall(r"help: look first at `(\w+)`", out)))
+    failing = re.findall(r"^([\w:]+): fails", out, re.M)
+    certain = sorted(set(re.findall(r"^    certain +the code of `([\w:]+)`", out, re.M)))
+    first = sorted(set(re.findall(r"help: look first at `([\w:]+)`", out)))
     _, todo = run([mitra, "next", "--rev", "break"], cwd=root)
-    causes = sorted(set(re.findall(r"^root cause: [^`]*`(\w+)`", todo, re.M)))
+    causes = sorted(set(re.findall(r"^root cause: [^`]*`([\w:]+)`", todo, re.M)))
     tests = "fail" if code else "pass"
     line = f"{name} | tests {tests} | fails: {', '.join(failing) or 'none'}"
     line += f" | code named certain: {', '.join(certain) or 'none'}"

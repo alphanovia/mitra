@@ -15,7 +15,7 @@ error[M001]: evidence refutes a claim
 
     output    evidence.mitra:4  evidence healthy("payments", 3) = true at 1
 
-  Either the code is wrong or the evidence is. Below, the trust given to each
+  The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                     trust  left
@@ -35,7 +35,7 @@ error[M001]: evidence refutes a claim
 
     output    evidence.mitra:3  evidence sprint("payments", 3) = Sprint(5, 3, false) at 0.7
 
-  Either the code is wrong or the evidence is. Below, the trust given to each
+  The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                    trust  left

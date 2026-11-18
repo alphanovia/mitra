@@ -10,7 +10,7 @@ error[M001]: evidence refutes a claim
     output    evidence.mitra:4  @[source "a"] evidence f(0) = 2 at 0.9
     output    evidence.mitra:5  @[source "b"] evidence f(0) = 2 at 0.1
 
-  Either the code is wrong or the evidence is. Below, the trust given to each
+  The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                               trust  left

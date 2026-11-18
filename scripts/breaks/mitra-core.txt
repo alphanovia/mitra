@@ -64,9 +64,9 @@ crates/mitra-core/src/eval.rs
 level: `/` binds like `+`
 crates/mitra-core/src/print.rs
 --
-        "*" | "/" => 5,
+        "*" | "/" | "&" => 5,
 --
-        "*" => 5,
+        "*" | "&" => 5,
         "/" => 4,
 ==
 level: `&&` binds like `||`

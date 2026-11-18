@@ -27,7 +27,7 @@ fn eval_writes_the_result_file() {
 fn bad_evidence_names_the_file_and_line() {
     let dir = std::env::temp_dir().join(format!("mitra-cli-bad-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("ev.mitra"), "\nevidence correct(flip(7)) at 1\n").unwrap();
+    std::fs::write(dir.join("ev.mitra"), "\nevidence correct(flop(7)) at 1\n").unwrap();
     let out = Command::new(env!("CARGO_BIN_EXE_mitra"))
         .args(["eval", &format!("{GOLDEN}/model.mitra")])
         .arg(dir.join("ev.mitra"))
@@ -36,7 +36,7 @@ fn bad_evidence_names_the_file_and_line() {
     assert_eq!(out.status.code(), Some(2));
     let err = String::from_utf8(out.stderr).unwrap();
     assert!(
-        err.contains("ev.mitra: line 2: inputs outside the domain of `flip`"),
+        err.contains("ev.mitra: line 2: `flop` is not a subject"),
         "{err}"
     );
     let _ = std::fs::remove_dir_all(dir);
@@ -88,9 +88,9 @@ fn store_init_add_check_eval() {
     assert_eq!((code, out.starts_with("added 1 evidence")), (Some(0), true));
     // Rejected evidence leaves the store unchanged.
     let before = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
-    let (code, _, err) = mitra(&sub, &["add", "evidence correct(flip(7)) at 1"]);
+    let (code, _, err) = mitra(&sub, &["add", "evidence correct(flop(7)) at 1"]);
     assert_eq!(code, Some(2));
-    assert!(err.contains("inputs outside the domain of `flip`"), "{err}");
+    assert!(err.contains("`flop` is not a subject"), "{err}");
     assert_eq!(
         std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap(),
         before
@@ -101,17 +101,17 @@ fn store_init_add_check_eval() {
         ),
         "{before}"
     );
-    // An output outside the result type is refused, and blamed on the new text.
+    // Evidence on an unknown function is refused, and blamed on the new text.
     let (code, _, err) = mitra(
         &sub,
         &[
             "add",
-            "evidence flip(true) = false at 1\nevidence flip(false) = 3 at 1",
+            "evidence flip(true) = false at 1\nevidence flop(false) = 3 at 1",
         ],
     );
     assert_eq!(code, Some(2));
     assert!(
-        err.contains("evidence to add: line 2: output 3 is outside the result type of `flip`"),
+        err.contains("evidence to add: line 2: `flop` is not a subject"),
         "{err}"
     );
     // --source twice, or in both the option and the text, is refused.
@@ -445,4 +445,30 @@ fn add_says_what_to_write_instead() {
         assert!(err.contains(hint), "{args:?}: {err}");
     }
     std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A model aside from the code, tied by `// mitra: implements` comments:
+/// `mitra tie` compares the two and records what it finds as evidence.
+#[test]
+fn tie_compares_the_code_with_the_model() {
+    let from = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/tie/bank");
+    let dir = std::env::temp_dir().join(format!("mitra-cli-tie-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    assert_eq!(mitra(&dir, &["init"]).0, Some(0));
+    for f in [".mitra/model.mitra", "src/lib.rs"] {
+        std::fs::copy(from.join(f), dir.join(f)).unwrap();
+    }
+    let (code, out, err) = mitra(&dir, &["tie", "--rev", "abc"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.starts_with("2 agree, 2 differ; 4 evidence added"), "{out}");
+    assert!(out.contains("input `amount` in the code is `n` in the model"), "{out}");
+    assert!(out.contains("`withdraw` also calls `deposit`"), "{out}");
+    assert!(out.contains("no code is tied to: bank::close"), "{out}");
+    let (code, out, _) = mitra(&dir, &["eval"]);
+    assert_eq!(code, Some(1));
+    assert!(out.contains("bank::deposit::tied: holds"), "{out}");
+    assert!(out.contains("bank::withdraw::tied: fails"), "{out}");
+    assert!(out.contains("The model and the code of `bank::withdraw` do not agree"), "{out}");
+    let _ = std::fs::remove_dir_all(&dir);
 }

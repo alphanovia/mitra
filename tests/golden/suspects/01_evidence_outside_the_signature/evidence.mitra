@@ -1,0 +1,3 @@
+@[source "test:t"] evidence correct(half(4)) at 1
+@[source "trace:run_7"] evidence half(5) = 3 at 0.9
+@[source "trace:run_8"] evidence correct(half(9)) at 1

@@ -123,8 +123,12 @@ pub struct Names {
     fns: BTreeMap<String, Vec<(String, String)>>,
     /// Each claim with its inputs, and the measures in its body.
     claims: BTreeMap<String, (Vec<String>, Vec<String>)>,
+    /// The functions of a subject that have a body: their spec.
+    specified: BTreeMap<String, String>,
     /// The functions whose code is outside the model.
     opaque: BTreeSet<String>,
+    /// The trust given to the statement of a claim.
+    pub trust: BTreeMap<String, f64>,
     /// Evidence the model itself brings: what is assumed or declared.
     pub declared: Vec<String>,
 }
@@ -227,9 +231,14 @@ impl P {
             return spec.clone();
         }
         let scoped = self.qualified(name);
-        match self.all.contains(&scoped) {
+        let full = match self.all.contains(&scoped) {
             true => scoped,
             false => name.to_string(),
+        };
+        // Inside a spec, another function of a subject is its spec.
+        match self.known.specified.get(&full).filter(|_| self.own.is_some()) {
+            Some(spec) => spec.clone(),
+            None => full,
         }
     }
     /// A function or claim named in evidence: its full name, or its last
@@ -360,8 +369,13 @@ impl P {
         let mut out = Vec::new();
         while !self.eat(")") {
             let name = self.name()?;
-            self.expect(":")?;
-            out.push((name, self.ty()?));
+            // In a claim the type may be left out: the one of the
+            // function the input is passed to.
+            let ty = match self.eat(":") {
+                true => self.ty()?,
+                false => String::new(),
+            };
+            out.push((name, ty));
             if !self.eat(",") {
                 self.expect(")")?;
                 break;
@@ -695,6 +709,18 @@ impl P {
         Ok(name)
     }
 
+    /// `trust 0.8`, when written here.
+    fn trust(&mut self) -> R<Option<f64>> {
+        if !(self.is("trust") && self.kind_at(1) == Some(Kind::Num)) {
+            return Ok(None);
+        }
+        self.pos += 2;
+        match self.toks[self.pos - 1].text.parse::<f64>() {
+            Ok(t) if (0.0..=1.0).contains(&t) => Ok(Some(t)),
+            _ => self.err("trust is a number from 0 to 1"),
+        }
+    }
+
     // ---- declarations ----
 
     fn put(out: &mut Vec<String>, line: usize, text: String) {
@@ -783,11 +809,16 @@ impl P {
                 "test" => {
                     // Read once every function and claim is known.
                     self.tests.push(self.pos - 1);
-                    while !self.eat("}") {
+                    let mut depth = 0;
+                    loop {
                         if self.pos >= self.toks.len() {
                             return self.err("expected `}`");
                         }
+                        depth += self.is("{") as i32 - self.is("}") as i32;
                         self.pos += 1;
+                        if depth == 0 && self.toks[self.pos - 1].text == "}" {
+                            break;
+                        }
                     }
                 }
                 "fn" => self.function(out, line)?,
@@ -809,6 +840,9 @@ impl P {
         let q = self.qualified(&name);
         let generic = self.type_params()?;
         let params = self.params()?;
+        if let Some((x, _)) = params.iter().find(|p| p.1.is_empty()) {
+            return self.err(format!("the input `{x}` of `{name}` needs a type"));
+        }
         let result = match self.eat("->") {
             true => self.ty()?,
             false => "()".to_string(),
@@ -824,7 +858,7 @@ impl P {
                 used.push(self.path()?);
             }
             let used: Vec<String> = used.iter().map(|u| self.resolve(u)).collect();
-            uses = Some((only, used));
+            uses = Some((only, used, self.trust()?.unwrap_or(1.0)));
         }
         self.names.fns.insert(q.clone(), params.clone());
         if self.is(";") || self.scope.is_some() {
@@ -841,7 +875,7 @@ impl P {
             self.locals = params.iter().map(|p| p.0.clone()).collect();
             // In a subject, the body is the spec of the code: it calls
             // itself as a spec.
-            self.own = in_subject.then(|| (name.clone(), body_name.clone()));
+            self.own = Some((name.clone(), body_name.clone()));
             let body = self.block();
             self.own = None;
             self.locals.clear();
@@ -851,6 +885,7 @@ impl P {
                 let forall: String = args.iter().map(|a| format!("forall {a}, ")).collect();
                 let args = args.join(", ");
                 let spec = format!("{q}::spec");
+                self.names.specified.insert(q.clone(), body_name.clone());
                 P::put(out, line, format!("opaque {q}{head}"));
                 P::put(out, line, format!("def {body_name}{head} := {body}"));
                 let claim = format!("claim {spec} : {forall}{q}({args}) = {body_name}({args})");
@@ -860,12 +895,12 @@ impl P {
                 P::put(out, line, format!("def {q}{head} := {body}"));
             }
         }
-        if let Some((only, used)) = uses {
+        if let Some((only, used, trust)) = uses {
             let claim = format!("{q}::uses");
             let only = if only { "only " } else { "" };
             let text = format!("claim {claim} : {only}uses {q} [{}]", used.join(", "));
             P::put(out, line, text);
-            let declared = format!("@[source \"declared\"] evidence {claim} at 1");
+            let declared = format!("@[source \"declared\"] evidence {claim} at {trust}");
             self.names.declared.push(declared);
             self.names.claims.insert(claim, (Vec::new(), Vec::new()));
         }
@@ -909,10 +944,13 @@ impl P {
                     }
                     self.locals = names.clone();
                     // `|a| -> Type { class }`; without a type, a Bool.
+                    // The class is computed: a function in it is its spec.
+                    self.own = Some((String::new(), String::new()));
                     let (class, body) = match self.eat("->") {
                         true => (self.ty()?, self.block()),
                         false => ("Bool".to_string(), self.expr()),
                     };
+                    self.own = None;
                     self.locals.clear();
                     let typed: Vec<String> = names
                         .iter()
@@ -941,6 +979,10 @@ impl P {
             false => Vec::new(),
         };
         let mut when = None;
+        let trust = self.trust()?;
+        if let Some(t) = trust.filter(|_| !assumed) {
+            self.names.trust.insert(q.clone(), t);
+        }
         self.measures.clear();
         self.locals = inputs.iter().map(|p| p.0.clone()).collect();
         self.impure = false;
@@ -952,8 +994,11 @@ impl P {
         if self.eat("given") {
             loop {
                 let x = self.name()?;
-                self.expect(":")?;
-                inputs.push((x.clone(), self.ty()?));
+                let ty = match self.eat(":") {
+                    true => self.ty()?,
+                    false => String::new(),
+                };
+                inputs.push((x.clone(), ty));
                 self.locals.push(x);
                 if !self.eat(",") {
                     break;
@@ -964,7 +1009,8 @@ impl P {
             when = Some(self.expr()?);
         }
         // A condition on the inputs alone takes inputs out of the claim.
-        if let Some(w) = when.as_ref().filter(|_| !self.impure && !inputs.is_empty()) {
+        let typed = !inputs.is_empty() && inputs.iter().all(|p| !p.1.is_empty());
+        if let Some(w) = when.as_ref().filter(|_| !self.impure && typed) {
             let typed: Vec<String> = inputs.iter().map(|(x, t)| format!("{x}: {t}")).collect();
             P::put(out, line, format!("def {q}::when({}) -> Bool := {w}", typed.join(", ")));
         }
@@ -973,7 +1019,10 @@ impl P {
         }
         let forall: String = inputs
             .iter()
-            .map(|(x, t)| format!("forall {x} in {t}, "))
+            .map(|(x, t)| match t.is_empty() {
+                true => format!("forall {x}, "),
+                false => format!("forall {x} in {t}, "),
+            })
             .collect();
         let text = if self.is("correct") && self.peek_at(1) == "(" {
             // correct(f(a, b)): judged by people or by tests, not computed.
@@ -1000,7 +1049,7 @@ impl P {
         self.locals.clear();
         P::put(out, line, text);
         if assumed {
-            let declared = format!("@[source \"assumed\"] evidence {q} at 1");
+            let declared = format!("@[source \"assumed\"] evidence {q} at {}", trust.unwrap_or(1.0));
             self.names.declared.push(declared);
         }
         let inputs = inputs.into_iter().map(|p| p.0).collect();
@@ -1203,6 +1252,13 @@ pub fn evidence(src: &str, names: &Names) -> Result<String, Error> {
 pub fn evidence_alone(src: &str, names: &Names) -> Result<String, Error> {
     let mut all: BTreeSet<String> = names.fns.keys().cloned().collect();
     all.extend(names.claims.keys().cloned());
+    // The tie of each function to its code: `for f::tied`.
+    let mut names = names.clone();
+    for f in names.opaque.clone() {
+        names.claims.insert(format!("{f}::tied"), (Vec::new(), Vec::new()));
+        all.insert(format!("{f}::tied"));
+    }
+    let names = &names;
     let mut p = P {
         toks: lex(src)?,
         pos: 0,
@@ -1261,4 +1317,10 @@ pub fn written(lines: &[String], line: usize) -> Option<String> {
         true => format!("{short} …"),
         false => out,
     })
+}
+
+/// The functions whose tie to the code the evidence speaks of.
+pub fn tied(evidence: &str, names: &Names) -> Vec<String> {
+    let found = |f: &&String| evidence.contains(&format!("{f}::tied"));
+    names.opaque.iter().filter(found).cloned().collect()
 }

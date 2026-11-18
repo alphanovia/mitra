@@ -1,0 +1,492 @@
+// The tests of the code. Each one is the `fn` of the same name in the
+// Rust file named above it, and what its pass stands for.
+
+// src/eval.rs
+
+test t_holds {
+    for eval::as_str
+    given l = Holds
+    gives "holds"
+}
+
+test t_assuming {
+    for eval::as_str
+    given l = Assuming
+    gives "holds assuming"
+}
+
+test t_unverified {
+    for eval::as_str
+    given l = Unverified
+    gives "unverified"
+}
+
+test t_fails {
+    for eval::as_str
+    given l = Fails
+    gives "fails"
+}
+
+test t_plus {
+    for eval::binary
+    given op = "+"
+    given x = 2
+    given y = 3
+    gives Some(5)
+}
+
+test t_plus_swapped {
+    for eval::binary
+    given op = "+"
+    given x = 3
+    given y = 2
+    gives Some(5)
+}
+
+test t_plus_overflow {
+    for eval::binary
+    given op = "+"
+    given x = 9223372036854775807
+    given y = 1
+    gives None
+}
+
+test t_plus_overflow_swapped {
+    for eval::binary
+    given op = "+"
+    given x = 1
+    given y = 9223372036854775807
+    gives None
+}
+
+test t_plus_mixed {
+    for eval::binary
+    given op = "+"
+    given x = 2
+    given y = true
+    gives None
+}
+
+test t_plus_mixed_swapped {
+    for eval::binary
+    given op = "+"
+    given x = true
+    given y = 2
+    gives None
+}
+
+test t_plus_floats {
+    for eval::binary
+    given op = "+"
+    given x = 0.5
+    given y = 0.25
+    gives Some(0.75)
+}
+
+test t_plus_floats_swapped {
+    for eval::binary
+    given op = "+"
+    given x = 0.25
+    given y = 0.5
+    gives Some(0.75)
+}
+
+test t_minus {
+    for eval::binary
+    given op = "-"
+    given x = 2
+    given y = 3
+    gives Some(-1)
+}
+
+test t_plus_negated {
+    for eval::binary
+    given op = "+"
+    given x = 2
+    given y = -3
+    gives Some(-1)
+}
+
+test t_times {
+    for eval::binary
+    given op = "*"
+    given x = 4
+    given y = -3
+    gives Some(-12)
+}
+
+test t_times_swapped {
+    for eval::binary
+    given op = "*"
+    given x = -3
+    given y = 4
+    gives Some(-12)
+}
+
+test t_divide {
+    for eval::binary
+    given op = "/"
+    given x = -12
+    given y = -3
+    gives Some(4)
+}
+
+test t_divide_towards_zero {
+    for eval::binary
+    given op = "/"
+    given x = -7
+    given y = 2
+    gives Some(-3)
+}
+
+test t_divide_by_zero {
+    for eval::binary
+    given op = "/"
+    given x = 1
+    given y = 0
+    gives None
+}
+
+test t_divide_floats {
+    for eval::binary
+    given op = "/"
+    given x = 1.0
+    given y = 4.0
+    gives Some(0.25)
+}
+
+test t_equal {
+    for eval::binary
+    given op = "=="
+    given x = 2
+    given y = 2
+    gives Some(true)
+}
+
+test t_different {
+    for eval::binary
+    given op = "!="
+    given x = 2
+    given y = 2
+    gives Some(false)
+}
+
+test t_equal_mixed {
+    for eval::binary
+    given op = "=="
+    given x = 2
+    given y = "2"
+    gives Some(false)
+}
+
+test t_different_mixed {
+    for eval::binary
+    given op = "!="
+    given x = 2
+    given y = "2"
+    gives Some(true)
+}
+
+test t_less {
+    for eval::binary
+    given op = "<"
+    given x = 2
+    given y = 3
+    gives Some(true)
+}
+
+test t_and {
+    for eval::binary
+    given op = "&&"
+    given x = true
+    given y = false
+    gives Some(false)
+}
+
+test t_or {
+    for eval::binary
+    given op = "||"
+    given x = true
+    given y = false
+    gives Some(true)
+}
+
+test t_unknown_operator {
+    for eval::binary
+    given op = "%"
+    given x = 2
+    given y = 3
+    gives None
+}
+
+test t_not_true {
+    for eval::unary
+    given op = "!"
+    given v = true
+    gives Some(false)
+}
+
+test t_not_false {
+    for eval::unary
+    given op = "!"
+    given v = false
+    gives Some(true)
+}
+
+test t_negate {
+    for eval::unary
+    given op = "-"
+    given v = 3
+    gives Some(-3)
+}
+
+test t_negate_back {
+    for eval::unary
+    given op = "-"
+    given v = -3
+    gives Some(3)
+}
+
+test t_negate_float {
+    for eval::unary
+    given op = "-"
+    given v = 0.5
+    gives Some(-0.5)
+}
+
+test t_negate_string {
+    for eval::unary
+    given op = "-"
+    given v = "a"
+    gives None
+}
+
+test t_in_set {
+    for eval::binary
+    given op = "in"
+    given x = 2
+    given y = {1, 2}
+    gives Some(true)
+}
+
+test t_in_list {
+    for eval::binary
+    given op = "in"
+    given x = 3
+    given y = [1, 2]
+    gives Some(false)
+}
+
+test t_in_map {
+    for eval::binary
+    given op = "in"
+    given x = "a"
+    given y = {"a": 1}
+    gives Some(true)
+}
+
+test t_in_number {
+    for eval::binary
+    given op = "in"
+    given x = 1
+    given y = 2
+    gives None
+}
+
+test t_union {
+    for eval::binary
+    given op = "|"
+    given x = {1, 2}
+    given y = {2, 3}
+    gives Some({1, 2, 3})
+}
+
+test t_union_swapped {
+    for eval::binary
+    given op = "|"
+    given x = {2, 3}
+    given y = {1, 2}
+    gives Some({1, 2, 3})
+}
+
+test t_intersection {
+    for eval::binary
+    given op = "&"
+    given x = {1, 2}
+    given y = {2, 3}
+    gives Some({2})
+}
+
+test t_apart {
+    for eval::binary
+    given op = "&"
+    given x = {1}
+    given y = {2, 3}
+    gives Some({})
+}
+
+test t_difference {
+    for eval::binary
+    given op = "\\"
+    given x = {1, 2}
+    given y = {2, 3}
+    gives Some({1})
+}
+
+test t_map_update {
+    for eval::binary
+    given op = "|"
+    given x = {"a": 1, "b": 2}
+    given y = {"a": 5}
+    gives Some({"a": 5, "b": 2})
+}
+
+test t_map_remove {
+    for eval::binary
+    given op = "\\"
+    given x = {"a": 1, "b": 2}
+    given y = {"a", "z"}
+    gives Some({"b": 2})
+}
+
+test t_set_with_map {
+    for eval::binary
+    given op = "|"
+    given x = {1}
+    given y = {"a": 1}
+    gives None
+}
+
+test t_keys {
+    for eval::unary
+    given op = "keys"
+    given v = {"a": 1, "b": 2}
+    gives Some({"a", "b"})
+}
+
+test t_keys_of_a_set {
+    for eval::unary
+    given op = "keys"
+    given v = {1}
+    gives None
+}
+
+// src/print.rs
+
+test t_level_or {
+    for print::level
+    given op = "||"
+    gives 1
+}
+
+test t_level_and {
+    for print::level
+    given op = "&&"
+    gives 2
+}
+
+test t_level_compare {
+    for print::level
+    given op = "<="
+    gives 3
+}
+
+test t_level_sum {
+    for print::level
+    given op = "-"
+    gives 4
+}
+
+test t_level_union {
+    for print::level
+    given op = "|"
+    gives 4
+}
+
+test t_level_intersection {
+    for print::level
+    given op = "&"
+    gives 5
+}
+
+test t_level_in {
+    for print::level
+    given op = "in"
+    gives 3
+}
+
+test t_level_product {
+    for print::level
+    given op = "/"
+    gives 5
+}
+
+test t_negative_int {
+    for print::negative
+    given v = -1
+    gives true
+}
+
+test t_negative_zero {
+    for print::negative
+    given v = 0
+    gives false
+}
+
+test t_negative_float {
+    for print::negative
+    given v = -0.5
+    gives true
+}
+
+test t_negative_string {
+    for print::negative
+    given v = "-1"
+    gives false
+}
+
+// src/report.rs
+
+test t_word_certain {
+    for report::word
+    given c = Candidate(Code("f"), 1.0, 1.0)
+    gives "certain"
+}
+
+test t_word_likely {
+    for report::word
+    given c = Candidate(Code("f"), 0.5, 1.0)
+    gives "likely"
+}
+
+test t_word_possible {
+    for report::word
+    given c = Candidate(Code("f"), 0.0, 0.5)
+    gives "possible"
+}
+
+test t_word_unlikely {
+    for report::word
+    given c = Candidate(Code("f"), 0.0, 0.25)
+    gives "unlikely"
+}
+
+// src/set.rs
+
+test t_quote_plain {
+    for set::quote
+    given s = "a b"
+    gives "\"a b\""
+}
+
+test t_quote_empty {
+    for set::quote
+    given s = ""
+    gives "\"\""
+}
+
+test t_quote_escapes {
+    for set::quote
+    given s = "a\"b\\c\nd\te"
+    gives "\"a\\\"b\\\\c\\nd\\te\""
+}

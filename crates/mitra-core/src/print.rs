@@ -88,13 +88,16 @@ pub fn print_claim(m: &Model, c: &Claim) -> String {
         let used = used.join(", ");
         return format!("claim {} : {only}uses {} [{used}]", c.name, c.func);
     }
+    if let Target::Tied = &c.target {
+        return format!("-- the code of {} is tied to the model", c.func);
+    }
     let params = m.function(&c.func).map(|f| &f.params[..]).unwrap_or(&[]);
     let (forall, args) = pattern(&c.pattern, params);
     let body = match &c.target {
         Target::Correct => format!("correct({}{args})", c.func),
         Target::Matches(e) => format!("{}{args} = {}", c.func, expr(e)),
         Target::Property(e) => expr(e),
-        Target::Uniform(_) | Target::Uses { .. } => unreachable!(),
+        Target::Uniform(_) | Target::Uses { .. } | Target::Tied => unreachable!(),
     };
     let from = if c.from.is_empty() {
         String::new()
@@ -199,10 +202,7 @@ pub fn call(f: &str, input: &[Value]) -> String {
     format!("{f}({})", args.join(", "))
 }
 
-/// mitra: opaque negative(v: Value) -> Bool
-/// mitra: claim negative_correct : forall v, correct(negative(v))
-/// mitra: -- `Value` hides the type: a spec can't ask whether `v` is a number.
-/// mitra: claim negative_ints : forall v in Int, negative(v) == (v < 0)
+// mitra: implements print::negative
 fn negative(v: &Value) -> bool {
     match v {
         Value::Int(i) => *i < 0,
@@ -216,13 +216,7 @@ const LET: u8 = 0;
 const UNARY: u8 = 6;
 const ATOM: u8 = 8;
 
-/// mitra: opaque level(op: String) -> UInt8
-/// mitra: def level_spec(op: String) -> 1..=5 :=
-/// mitra:   if op == "||" then 1 else if op == "&&" then 2
-/// mitra:   else if op in {"+", "-", "|", "\\"} then 4 else if op in {"*", "/", "&"} then 5 else 3
-/// mitra: claim level_is : forall op, level(op) = level_spec(op)
-/// mitra: -- One class per arm of the `match`.
-/// mitra: claim level_uniform : uniform level by level_spec
+// mitra: implements print::level
 fn level(op: &str) -> u8 {
     match op {
         "||" => 1,
@@ -345,73 +339,61 @@ mod tests {
     // One input per test, for Mitra: each `mitra: test` line gives the
     // output the test checks.
 
-    // mitra: test t_level_or : level("||") = 1
     #[test]
     fn t_level_or() {
         assert_eq!(level("||"), 1);
     }
 
-    // mitra: test t_level_and : level("&&") = 2
     #[test]
     fn t_level_and() {
         assert_eq!(level("&&"), 2);
     }
 
-    // mitra: test t_level_compare : level("<=") = 3
     #[test]
     fn t_level_compare() {
         assert_eq!(level("<="), 3);
     }
 
-    // mitra: test t_level_sum : level("-") = 4
     #[test]
     fn t_level_sum() {
         assert_eq!(level("-"), 4);
     }
 
-    // mitra: test t_level_union : level("|") = 4
     #[test]
     fn t_level_union() {
         assert_eq!(level("|"), 4);
     }
 
-    // mitra: test t_level_intersection : level("&") = 5
     #[test]
     fn t_level_intersection() {
         assert_eq!(level("&"), 5);
     }
 
-    // mitra: test t_level_in : level("in") = 3
     #[test]
     fn t_level_in() {
         assert_eq!(level("in"), 3);
     }
 
-    // mitra: test t_level_product : level("/") = 5
     #[test]
     fn t_level_product() {
         assert_eq!(level("/"), 5);
     }
 
-    // mitra: test t_negative_int : negative(-1) = true
     #[test]
     fn t_negative_int() {
         assert!(negative(&Value::Int(-1)));
     }
 
-    // mitra: test t_negative_zero : negative(0) = false
     #[test]
     fn t_negative_zero() {
         assert!(!negative(&Value::Int(0)));
     }
 
-    // mitra: test t_negative_float : negative(-0.5) = true
     #[test]
     fn t_negative_float() {
         assert!(negative(&Value::Float(-0.5)));
     }
 
-    // mitra: test t_negative_string : negative("-1") = false
     #[test]
     fn t_negative_string() {
         assert!(!negative(&Value::Str("-1".into())));

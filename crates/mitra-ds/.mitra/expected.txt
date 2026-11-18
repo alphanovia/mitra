@@ -1,50 +1,56 @@
-rank_correct: unverified
+mass::judged::spec: holds
+  passes on       (ok, c) in {(false, -0.5), (false, 0.25), (false, 1.0), (true, 0.0), (true, 0.25), (true, 1.5)}
+  assumed on      classes "correct", "rejected", "wrong" of `mass::judged_uniform::case`, by `mass::judged_uniform`
+mass::judged_uniform: holds
+mass::is_valid::spec: holds
+  passes on       m in {Mass(-0.5, 0.5, 1.0), Mass(0.5, 0.0, 0.5), Mass(0.5, 0.0, 0.5000000001), Mass(0.5, 0.5, 0.5)}
+  assumed on      classes "part out of range", "sum off", "valid" of `mass::is_valid_uniform::case`, by `mass::is_valid_uniform`
+mass::is_valid_uniform: holds
+mass::conflict::spec: holds
+  passes on       5 inputs
+  assumed on      every input, by `mass::conflict_uniform`
+mass::conflict_uniform: holds
+mass::conflict_symmetric: holds
+  passes on       `mass::conflict(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0))`
+  assumed on      every input, by `mass::conflict_uniform`
+mass::dempster::spec: holds
+  passes on       9 inputs
+  assumed on      classes "first invalid", "partial conflict", "second invalid", "total conflict" of `dempster_class`, by `mass::dempster_uniform`
+mass::dempster::uses: holds
+mass::dempster_uniform: holds
+mass::yager::spec: holds
+  passes on       9 inputs
+  assumed on      classes "first invalid", "second invalid", "valid" of `mass::yager_uniform::case`, by `mass::yager_uniform`
+mass::yager::uses: holds
+mass::yager_uniform: holds
+mass::yager_reports_conflict: holds
+  passes on       5 inputs
+  assumed on      classes "first invalid", "second invalid", "valid" of `mass::yager(m, o)`, by `mass::yager_uniform`, `mass::conflict_uniform`
+mass::dempster_renormalises_yager: holds
+  passes on       9 inputs
+  assumed on      classes "first invalid", "partial conflict", "second invalid", "total conflict" of `dempster_class`, by `mass::renormalises_uniform`
+mass::renormalises_uniform: holds
+culprits::rank_correct: unverified
   passes on       10 inputs
   no evidence on  a set too long to print
-rank_shape: unverified
+culprits::rank_shape: unverified
   passes on       `biases = [None, Some(1.0)], clauses = [[0, 1]]`, `biases = [Some(0.5)], clauses = [[3]]`, `biases = [Some(1.5)], clauses = []`
   no evidence on  a set too long to print
-judged_is: holds
-  passes on       (ok, c) in {(false, -0.5), (false, 0.25), (false, 1.0), (true, 0.0), (true, 0.25), (true, 1.5)}
-  assumed on      classes "correct", "rejected", "wrong" of `judged_class`, by `judged_uniform`
-judged_uniform: holds
-is_valid_is: holds
-  passes on       m in {Mass(-0.5, 0.5, 1.0), Mass(0.5, 0.0, 0.5), Mass(0.5, 0.0, 0.5000000001), Mass(0.5, 0.5, 0.5)}
-  assumed on      classes "part out of range", "sum off", "valid" of `valid_class`, by `is_valid_uniform`
-is_valid_uniform: holds
-conflict_is: holds
-  passes on       5 inputs
-  assumed on      every input, by `conflict_uniform`
-conflict_uniform: holds
-conflict_symmetric: holds
-  passes on       `conflict(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0))`
-  assumed on      every input, by `conflict_uniform`
-dempster_is: holds
-  passes on       9 inputs
-  assumed on      classes "first invalid", "partial conflict", "second invalid", "total conflict" of `dempster_class`, by `dempster_uniform`
-dempster_uniform: holds
-dempster_uses: holds
-yager_is: holds
-  passes on       9 inputs
-  assumed on      classes "first invalid", "second invalid", "valid" of `yager_class`, by `yager_uniform`
-yager_uniform: holds
-yager_uses: holds
-yager_reports_conflict: holds
-  passes on       5 inputs
-  assumed on      classes "first invalid", "second invalid", "valid" of `yager(m, o)`, by `yager_uniform`, `conflict_uniform`
-dempster_renormalises_yager: holds
-  passes on       9 inputs
-  assumed on      classes "first invalid", "partial conflict", "second invalid", "total conflict" of `dempster_class`, by `renormalises_uniform`
-renormalises_uniform: holds
+culprits::rank::tied: holds
+mass::conflict::tied: holds
+mass::dempster::tied: holds
+mass::is_valid::tied: holds
+mass::judged::tied: holds
+mass::yager::tied: holds
 
 warning[M101]: a claim is not verified
-  --> src/culprits.rs:61  claim rank_correct : forall biases, forall clauses, correct(rank(biases, clauses))
+  --> .mitra/model.mitra:111  claim rank_correct(biases, clauses) { correct(rank(biases, clauses)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/culprits.rs:63  claim rank_shape : forall biases, forall clauses, match rank(biases, clauses) { Err(e) => true, Ok(r) => len(r.belief) == len(biases) && len(r.plausibility) == len(biases) && r.conflict >= 0.0 && r.conflict <= 1.0 }
+  --> .mitra/model.mitra:114  claim rank_shape(biases, clauses) { match rank(biases, clauses) { Err(_) => true, Ok(r) => len(r.belief) == len(biases) && len(r.plausibility) == len(biases) && r.conflict >= 0.0 && r.conflict <= 1.0, …
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it

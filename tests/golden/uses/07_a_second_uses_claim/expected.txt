@@ -13,7 +13,7 @@ error[M001]: evidence refutes a claim
 
     fails     evidence.mitra:5  evidence not correct(quarter(1)) at 1
 
-  Either the code is wrong or the evidence is. Below, the trust given to each
+  The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                     trust  left

@@ -1,4 +1,103 @@
--- mitra-core, judged by Mitra. The model is in the `mitra:` comments of
--- src/, with the same types as the Rust code. `Option` is Rust's own; a
--- Rust `Value` is any Mitra value, the type `Value`.
-enum Option(T) { None, Some(value: T) }
+// mitra-core as Mitra sees it: the model, aside from the code.
+//
+// The code is in src/. A comment `// mitra: implements eval::unary`
+// above a `fn` ties it to a function here, and `mitra tie` checks that
+// the two agree. The tests are in tests.mitra.
+//
+// Modelled: the operators of specs, the words of a verdict and of a
+// ranking, and a few functions of the printer. Not modelled: the parser,
+// the sets, the evaluation of claims, the ranking itself (in mitra-ds).
+// A Rust `Value` is any Mitra value: the type `Value`.
+
+// Rust's own, which the code uses.
+enum Option<T> { None, Some(value: T) }
+
+// What a claim's verdict says.
+enum Logic { Holds, Assuming, Unverified, Fails }
+
+// A piece that may be the wrong one. Rust's variants hold unnamed
+// values; the field names are the model's.
+enum Piece { Evidence(line: usize), Code(subject: String), Claim(name: String), Signature(function: String) }
+
+// A piece, how much it must be wrong and how much it can be.
+record Candidate { piece: Piece, belief: f64, plausibility: f64 }
+
+subject eval {
+    fn as_str(l: Logic) -> String {
+        match l {
+            Holds => "holds",
+            Assuming => "holds assuming",
+            Unverified => "unverified",
+            Fails => "fails",
+        }
+    }
+
+    // An operator of one value. `None` when it does not apply to the value.
+    fn unary(op: String, v: Value) -> Option<Value>;
+    claim unary_correct(op, v) { correct(unary(op, v)) }
+
+    // The operators of specs, stated with the operators of specs: each
+    // side is computed by this code, the tests give the outputs.
+    claim not_is(v: bool) { unary("!", v) == Some(!v) }
+    claim twice_negated(v: Int) {
+        match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) }
+    }
+
+    // An operator of two values.
+    fn binary(op: String, x: Value, y: Value) -> Option<Value>;
+    claim binary_correct(op, x, y) { correct(binary(op, x, y)) }
+
+    claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
+    claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
+    claim minus_is_plus_negated(x: Int, y: Int) {
+        match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) }
+    }
+    claim different_is_not_equal(x, y) {
+        match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) }
+    }
+    claim union_commutes(x: Set<Int>, y: Set<Int>) { binary("|", x, y) == binary("|", y, x) }
+    // What is left of x without y has nothing of y.
+    claim difference_apart(x: Set<Int>, y: Set<Int>) {
+        match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) }
+    }
+    claim divides_back(x: Int, y: Int \ {0}) {
+        match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) }
+    }
+}
+
+subject set {
+    // A string as a spec writes it, with its quotes and escapes.
+    fn quote(s: String) -> String;
+    claim quote_correct(s) { correct(quote(s)) }
+}
+
+subject print {
+    // Whether a value prints with a minus sign.
+    fn negative(v: Value) -> bool;
+    claim negative_correct(v) { correct(negative(v)) }
+    // `Value` hides the type: a spec can't ask whether `v` is a number.
+    claim negative_ints(v: Int) { negative(v) == (v < 0) }
+
+    // How tightly an operator binds: the printer adds parentheses from it.
+    fn level(op: String) -> u8 {
+        if op == "||" { 1 }
+        else if op == "&&" { 2 }
+        else if op in {"+", "-", "|", "\\"} { 4 }
+        else if op in {"*", "/", "&"} { 5 }
+        else { 3 }
+    }
+    // One class per level.
+    claim level_uniform = uniform(level, |op| -> 1..=5 { level(op) });
+}
+
+subject report {
+    // The word a ranking prints beside a candidate.
+    fn word(c: Candidate) -> String {
+        if c.belief >= 0.995 { "certain" }
+        else if c.belief >= 0.5 { "likely" }
+        else if c.plausibility >= 0.5 { "possible" }
+        else { "unlikely" }
+    }
+    // One class per word.
+    claim word_uniform = uniform(word, |c| -> {"certain", "likely", "possible", "unlikely"} { word(c) });
+}

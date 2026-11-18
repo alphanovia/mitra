@@ -35,6 +35,10 @@ if ! grep -q '^test .* \.\.\. ' "$report"; then
 fi
 cd "crates/$crate"
 ../../target/debug/mitra ingest "$report" --rev "$rev"
+# A model kept aside: what the reader of the code finds, as evidence.
+if grep -rqs 'mitra: implements ' src tests; then
+    ../../target/debug/mitra tie --rev "$rev"
+fi
 # Only the evidence from this code: an earlier pass does not hide a failure now.
 ../../target/debug/mitra eval --rev "$rev"
 exit $status

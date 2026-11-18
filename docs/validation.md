@@ -81,6 +81,41 @@ The metrics above check Mitra's verdicts. These check that Mitra is useful
    assumption, a wrong function), the cause is the most plausible piece
    in the report.
 
+## Does Mitra help? (proposed)
+
+Proposed 2026-11-18, not run. Beside the criteria above, not instead of
+them. Mitra is for work where agents write the model and the code, and a
+person gives the intent and reads the model and the report. So two
+things are measured, each with and without Mitra.
+
+**A. Does it help an agent produce the code?** The same tasks (a spec in
+prose, hidden acceptance tests), two arms: the agent alone, and the agent
+with a Mitra model and `mitra eval` in its loop.
+
+| Measured | How |
+|---|---|
+| Hidden tests passed | The acceptance tests the agent never sees. |
+| Rounds to done | Edits until the agent stops. |
+| Requirements dropped silently | Requirements of the prose spec with no code and no mention in the result. With Mitra: a claim with no evidence, or no claim at all. |
+
+**B. Does it catch a sloppy or drifting agent?** Planted faults, one at a
+time, on a project with a model, reusing `scripts/breaks.py`: code faults
+(today's lists), and intent faults: a requirement ignored, a test
+weakened until it passes, a claim left without evidence, a signature
+changed without the model (`mitra tie`). Measured: faults flagged, false
+alarms on unchanged code, and whether the report names the faulty piece.
+Baseline: `cargo test` alone.
+
+**C. Does it help a person review the result?** The same change reviewed
+from the diff alone, and from the model, `mitra tie` and the report.
+Measured: planted faults found, time spent, and what the reviewer says
+they relied on. Small numbers: this is a study of a few people, read as
+cases, not as statistics.
+
+Open: who writes the tasks and the planted faults so that neither arm is
+favoured; whether the agent of arm A writes the model itself or receives
+it; how many tasks make a difference visible.
+
 ## Open questions
 
 - **Who writes the split?** Here it is written from the spec. A stronger result

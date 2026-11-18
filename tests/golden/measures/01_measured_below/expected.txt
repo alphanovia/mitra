@@ -13,7 +13,7 @@ error[M001]: evidence refutes a claim
 
     measured  evidence.mitra:1  evidence rate(s in 11..=20, goal_met("payments", s)) = 0.4 at 0.7
 
-  Either the code is wrong or the evidence is. Below, the trust given to each
+  The code, the claim or the evidence is wrong. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
 
                                                      trust  left

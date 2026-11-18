@@ -33,7 +33,7 @@ impl Places for Files<'_> {
 }
 
 /// Every code, with its headline and its long explanation.
-const CODES: [(&str, &str, &str); 9] = [
+const CODES: [(&str, &str, &str); 10] = [
     (
         "M001",
         "evidence refutes a claim",
@@ -90,6 +90,16 @@ const CODES: [(&str, &str, &str); 9] = [
          To fix: find out which one is right, and correct the other.",
     ),
     (
+        "M006",
+        "evidence does not fit the model",
+        "A piece of evidence gives a function inputs, or an output, that its\n\
+         signature in the model does not allow. Either the observation is\n\
+         wrong, or the model is: the code does take or return such a value.\n\
+         The evidence judges nothing until this is settled.\n\n\
+         To fix: if the observation is real, widen the type in the model;\n\
+         if not, correct the evidence.",
+    ),
+    (
         "M101",
         "a claim is not verified",
         "No evidence covers some inputs of the claim: nothing was tested\n\
@@ -137,13 +147,7 @@ fn headline(code: &str) -> &'static str {
 }
 
 /// How likely a piece is the wrong one, in a word.
-///
-/// mitra: opaque word(c: Candidate) -> String
-/// mitra: def word_spec(c: Candidate) -> {"certain", "likely", "possible", "unlikely"} :=
-/// mitra:   if c.belief >= 0.995 then "certain" else if c.belief >= 0.5 then "likely"
-/// mitra:   else if c.plausibility >= 0.5 then "possible" else "unlikely"
-/// mitra: claim word_is : forall c, word(c) = word_spec(c)
-/// mitra: claim word_uniform : uniform word by word_spec
+// mitra: implements report::word
 fn word(c: &Candidate) -> &'static str {
     if c.belief >= 0.995 {
         "certain"
@@ -184,11 +188,16 @@ impl Writer<'_> {
     }
 
     fn evidence_text(&self, line: usize) -> String {
+        if let Some(c) = self.declared(line) {
+            let written = self.model.written.as_ref();
+            let text = written.and_then(|w| crate::surface::written(&w.0, c.line));
+            return text.unwrap_or_default();
+        }
         let written = self.model.written.as_ref();
         if let Some(text) = written.and_then(|w| crate::surface::written(&w.1, line)) {
             return text;
         }
-        let e = self.model.evidence.iter().find(|e| e.line == line);
+        let e = self.entry(line);
         e.map(|e| print_evidence(std::slice::from_ref(e), Some(self.model)))
             .unwrap_or_default()
             .trim_end()
@@ -196,8 +205,33 @@ impl Writer<'_> {
     }
 
     /// What a piece of evidence says, in a word.
+    /// A piece of evidence by its line, also when it was set aside.
+    fn entry(&self, line: usize) -> Option<&crate::Evidence> {
+        let aside = self.model.misfits.iter().map(|m| &m.0);
+        self.model.evidence.iter().chain(aside).find(|e| e.line == line)
+    }
+
+    /// The claim that a piece of evidence was declared with, in the model:
+    /// an `assume`, a `uses` clause.
+    fn declared(&self, line: usize) -> Option<&Claim> {
+        let written = self.model.written.as_ref()?;
+        let e = self.entry(line).filter(|_| line > written.1.len())?;
+        self.model.claim(&e.about)
+    }
+
+    /// Where a piece of evidence is.
+    fn evidence_at(&self, line: usize) -> String {
+        match self.declared(line) {
+            Some(c) => self.places.model(c.line),
+            None => self.places.evidence(line),
+        }
+    }
+
     fn role(&self, line: usize) -> &'static str {
-        let e = self.model.evidence.iter().find(|e| e.line == line);
+        if self.declared(line).is_some() {
+            return "declared";
+        }
+        let e = self.entry(line);
         match e.map(|e| &e.judgment) {
             Some(Judgment::Correct(true)) => "passes",
             Some(Judgment::Correct(false)) => "fails",
@@ -338,7 +372,7 @@ impl Writer<'_> {
             *out += &format!(
                 "    {:<9} {}  {}\n",
                 self.role(*line),
-                self.places.evidence(*line),
+                self.evidence_at(*line),
                 self.evidence_text(*line)
             );
         }
@@ -351,14 +385,17 @@ impl Writer<'_> {
     fn piece(&self, piece: &Piece) -> (String, String) {
         match piece {
             Piece::Evidence(line) => {
-                let e = self.model.evidence.iter().find(|e| e.line == *line);
+                let e = self.entry(*line);
                 let source = e.and_then(|e| e.source.as_ref());
                 let source = source.map_or(String::new(), |s| format!(" ({s})"));
                 let trust = e.map_or(0.0, |e| e.confidence);
-                (
-                    format!("{}{source}", self.places.evidence(*line)),
-                    format!("{trust}"),
-                )
+                let text = match self.declared(*line) {
+                    Some(c) => format!("`{}` as{source}, {}", c.name, self.evidence_at(*line))
+                        .replace("as (", "as ")
+                        .replace("),", ","),
+                    None => format!("{}{source}", self.evidence_at(*line)),
+                };
+                (text, format!("{trust}"))
             }
             Piece::Code(f) => {
                 let line = self.model.function(f).map_or(0, |f| f.line);
@@ -368,10 +405,16 @@ impl Writer<'_> {
             Piece::Claim(c) => {
                 let line = self.claim(c).line;
                 let place = self.places.model(line);
+                let trust = self.claim(c).trust;
                 (
                     format!("the claim `{c}` itself, {place}"),
-                    "none".to_string(),
+                    format!("{}", trust.unwrap_or(1.0)),
                 )
+            }
+            Piece::Signature(f) => {
+                let line = self.model.function(f).map_or(0, |f| f.line);
+                let place = self.places.model(line);
+                (format!("the signature of `{f}`, {place}"), "1".to_string())
             }
         }
     }
@@ -388,7 +431,8 @@ impl Writer<'_> {
             }
         };
         *out += match p.kind {
-            Kind::Fails { .. } => "\n  Either the code is wrong or the evidence is.",
+            Kind::Fails { .. } => "\n  The code, the claim or the evidence is wrong.",
+            Kind::Misfit { .. } => "\n  Either the model is wrong or the evidence is.",
             _ => "\n  These can't all be right.",
         };
         *out += " Below, the trust given to each\n  piece, and what is left of it once they are weighed against each other:\n\n";
@@ -508,6 +552,16 @@ impl Writer<'_> {
                     "  help: correct the claim or the definitions it compares\n".to_string()
                 };
             }
+            Kind::Denied { claim } if self.claim(claim).target == crate::Target::Tied => {
+                let f = &self.claim(claim).func;
+                *out += &self.at_claim(claim);
+                *out += &format!(
+                    "\n  The model and the code of `{f}` do not agree, says this evidence:\n\n"
+                );
+                self.quoted(p, out);
+                self.ranking(p, out);
+                *out += "\n  help: change the model or the code so that they say the same\n";
+            }
             Kind::Denied { claim } => {
                 *out += &self.at_claim(claim);
                 *out += &format!(
@@ -519,7 +573,7 @@ impl Writer<'_> {
             }
             Kind::Contradiction { subject, inputs } => {
                 if let Some((line, _)) = p.evidence.first() {
-                    *out += &format!("  --> {}\n", self.places.evidence(*line));
+                    *out += &format!("  --> {}\n", self.evidence_at(*line));
                 }
                 *out += &format!(
                     "\n  On the inputs {inputs} of `{subject}`, these two say opposite things:\n\n"
@@ -529,9 +583,24 @@ impl Writer<'_> {
                 *out += "\n  note: until this is settled, neither counts for these inputs\n  \
                          help: find out which one is right, and correct the other\n";
             }
+            Kind::Misfit { function, why } => {
+                if let Some((line, _)) = p.evidence.first() {
+                    *out += &format!("  --> {}\n", self.evidence_at(*line));
+                }
+                *out += &format!(
+                    "\n  This evidence does not fit the signature of `{function}`: {why}.\n\n"
+                );
+                self.quoted(p, out);
+                self.ranking(p, out);
+                *out += "\n  note: until this is settled, the evidence judges nothing\n";
+                *out += &format!(
+                    "  help: if the observation is real, change the signature of \
+                     `{function}`; if not, correct the evidence\n"
+                );
+            }
             Kind::Measure { measure, counted } => {
                 if let Some((line, _)) = p.evidence.last() {
-                    *out += &format!("  --> {}\n", self.places.evidence(*line));
+                    *out += &format!("  --> {}\n", self.evidence_at(*line));
                 }
                 *out += &match counted.is_empty() {
                     true => format!("\n  `{measure}` was measured with two values:\n\n"),
@@ -609,7 +678,7 @@ impl Writer<'_> {
         for f in &self.report.flags {
             *out += &format!(
                 "\nwarning[M104]: evidence that can't be used\n  --> {}  {}\n\n  {}\n",
-                self.places.evidence(f.line),
+                self.evidence_at(f.line),
                 self.evidence_text(f.line),
                 f.message
             );
@@ -750,25 +819,21 @@ mod tests {
     // One input per test, for Mitra: each `mitra: test` line gives the
     // output the test checks.
 
-    // mitra: test t_word_certain : word(Candidate(Code("f"), 1.0, 1.0)) = "certain"
     #[test]
     fn t_word_certain() {
         assert_eq!(word(&candidate(1.0, 1.0)), "certain");
     }
 
-    // mitra: test t_word_likely : word(Candidate(Code("f"), 0.5, 1.0)) = "likely"
     #[test]
     fn t_word_likely() {
         assert_eq!(word(&candidate(0.5, 1.0)), "likely");
     }
 
-    // mitra: test t_word_possible : word(Candidate(Code("f"), 0.0, 0.5)) = "possible"
     #[test]
     fn t_word_possible() {
         assert_eq!(word(&candidate(0.0, 0.5)), "possible");
     }
 
-    // mitra: test t_word_unlikely : word(Candidate(Code("f"), 0.0, 0.25)) = "unlikely"
     #[test]
     fn t_word_unlikely() {
         assert_eq!(word(&candidate(0.0, 0.25)), "unlikely");
