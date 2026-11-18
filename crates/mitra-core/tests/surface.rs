@@ -1,4 +1,4 @@
-//! The reworked syntax: each folder of `examples/reworked/` holds
+//! The language: each folder of `examples/reworked/` holds
 //! `model.mitra`, `evidence.mitra` and the report Mitra must give
 //! (`MITRA_RECORD=1 cargo test` writes it again).
 

@@ -1,4 +1,4 @@
-//! The semantic model. Text is one projection of it (see `parse`).
+//! The semantic model, which `parse` builds from the text.
 
 use crate::set::{Set, Value};
 use crate::tuples::Tuples;
@@ -40,7 +40,7 @@ pub enum Expr {
     /// a list or a set. `fold(x in xs, let acc := start; step)`: `step`
     /// gives the next `acc`.
     Each(&'static str, String, Box<Expr>, Box<Expr>),
-    /// `correct(f(a, b))` as a value (reworked syntax): true when evidence
+    /// `correct(f(a, b))` as a value: true when evidence
     /// judges that call right, false when wrong, no value when nothing
     /// says.
     Correct(String, Vec<Expr>),
@@ -93,7 +93,7 @@ impl Record {
     }
 }
 
-/// A function: a `subject` (opaque, observed) when `body` is `None`, a
+/// A function: the code under review (observed) when `body` is `None`, a
 /// `spec` (a definition Mitra evaluates) otherwise.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
@@ -123,7 +123,8 @@ impl Function {
 /// parameter.
 pub type Pattern = Vec<Position>;
 
-/// One argument of a call: a bound name (`∀ x,` or `∀ x ∈ S,`) or a value.
+/// One argument of a call: a name bound to an input (`a`, or `a: S`), or
+/// a value.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     /// The name bound to the input, if any.
@@ -156,7 +157,7 @@ pub enum Target {
     /// Mitra can't check it: a reader of the code or a reviewer says so.
     Tied,
     /// One tested input of a set stands for the whole set, and nothing is
-    /// said outside it (reworked syntax, `represented(f, S)`). The set is
+    /// said outside it (`represented(f, S)`). The set is
     /// the inputs where the named spec is true. Mitra can't check it.
     Represented(String),
 }
@@ -174,8 +175,8 @@ impl Target {
 /// The most classes a `uniform` claim's spec may have.
 pub const MAX_CLASSES: f64 = 64.0;
 
-/// `claim name : ∀ …, correct(f(args)) | f(args) = e [:= by derive [c1, c2]]`
-/// or `claim name : uniform f by g`
+/// `claim name(a: S, …) { correct(f(args)) }`, `{ f(args) == e }`, any
+/// expression with a Bool value, or `claim name = uniform(f, g);`
 #[derive(Debug, Clone, PartialEq)]
 pub struct Claim {
     pub name: String,
@@ -195,18 +196,18 @@ pub struct Claim {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Judgment {
-    /// `correct(f(args))` / `¬ correct(f(args))`, on a subject.
+    /// `holds` / `fails`, on a function of the code.
     Correct(bool),
     /// `f(args) = value`: the observed output of a subject.
     Output(Value),
-    /// `c` / `¬ c`, on a claim.
+    /// `holds` / `fails`, on a claim.
     Holds(bool),
     /// `rate(x in S, cond) = 0.4`: a measure, as measured. The evidence is
     /// then about the measure as written.
     Measured(Expr, f64),
 }
 
-/// `evidence ∀ …, <judgment> at confidence`
+/// `evidence name { for target given … holds|fails|gives v trust t }`
 #[derive(Debug, Clone, PartialEq)]
 pub struct Evidence {
     /// A subject, or a claim for `holds`/`fails`.
@@ -214,9 +215,9 @@ pub struct Evidence {
     pub pattern: Pattern,
     pub judgment: Judgment,
     pub confidence: f64,
-    /// `@[source "…"]`: who or what observed it (a CI job, a reviewer).
+    /// `source "…"`: who or what observed it (a CI job, a reviewer).
     pub source: Option<String>,
-    /// `@[rev "…"]`: the revision of the code it was observed on.
+    /// `rev "…"`: the revision of the code it was observed on.
     pub rev: Option<String>,
     pub line: usize,
 }
@@ -250,13 +251,12 @@ pub struct Model {
     /// the names the claim binds. Filled by `check`.
     pub properties: Vec<Function>,
     pub claims: Vec<Claim>,
-    /// The lines of the model and of the evidence, when written in the
-    /// reworked syntax: reports quote them.
+    /// The lines of the model and of the evidence: reports quote them.
     pub written: Option<(Vec<String>, Vec<String>)>,
     /// Evidence that does not fit the signature of its function, and why:
     /// it judges nothing, and is reported against the signature.
     pub misfits: Vec<(Evidence, String)>,
-    /// The functions of the environment (reworked syntax): one may answer
+    /// The functions of the environment: one may answer
     /// differently each time, so two outputs on one input both stand.
     pub boundaries: Vec<String>,
     pub evidence: Vec<Evidence>,
@@ -693,7 +693,7 @@ impl Model {
                 }
             }
         }
-        // `evidence c at 1`: a claim on its whole domain.
+        // Evidence on a claim without `given`: on its whole domain.
         let ranges: Vec<String> = self
             .functions
             .iter()

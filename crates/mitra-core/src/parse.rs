@@ -143,7 +143,7 @@ fn lex(src: &str) -> Result<Vec<Tok>, Error> {
     Ok(toks)
 }
 
-/// The first line written in the earlier syntax (`opaque`, `def`, `:=`,
+/// The first line written in the syntax of before the rework (`opaque`, `def`, `:=`,
 /// `claim c :`, `-- comment`), which is no longer read, and what to
 /// write instead.
 pub fn earlier(model: &str) -> Option<(usize, &'static str)> {

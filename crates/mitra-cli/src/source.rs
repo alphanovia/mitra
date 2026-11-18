@@ -1,10 +1,8 @@
-//! The model's text: a `.mitra` file, plus, in a store, the `mitra:`
-//! comments of the Rust files next to it.
+//! The model's text: the `.mitra` files of a store.
 //!
-//! In Rust, a comment line `/// mitra: …` or `// mitra: …` holds one line
-//! of model. Consecutive such lines form a block, which belongs to the code
-//! right below it: an `opaque f` or a `test t` in a block must sit above
-//! `fn f` or `fn t`, so the model and the code stay aligned.
+//! In the Rust files next to it, a comment line `// mitra: …` only ties
+//! the code right below it to the model: `implements <function>` above a
+//! `fn`, `evidence for <claim>` above a test.
 
 use std::path::{Path, PathBuf};
 

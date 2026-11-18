@@ -155,8 +155,8 @@ Function types `fn(A) -> B`. `A | B`, `A & B`, `A \ B`.
 
 Mitra computes with 64-bit integers: a value outside them is an error,
 never a wrap. Verdicts print sets in a normal form, with Mitra's own
-names: `Bool`, `Int`, `Float64`, `0..=9`, `{1, 2}`, `List(Int)`,
-`Option(Int)`, `(0..=2, {0}) | (3..=4, Int)`.
+names: `Bool`, `Int`, `Float64`, `0..=9`, `{1, 2}`, `List<Int>`,
+`Option<Int>`, `(0..=2, {0}) | (3..=4, Int)`.
 
 ### Expressions
 
@@ -542,21 +542,25 @@ when it failed.
 
 The syntax of before the rework (`opaque`, `def … :=`, `claim c : forall
 …`, `evidence … at 1`, `-- comments`) is refused, with what to write
-instead. Inside, Mitra still translates a model to that form before
-evaluating it: it is not a language to write in, and the engine's own
-tests (`tests/golden`) are kept in it.
+instead. Nothing in the tool reads or writes it any more: one reader
+(`crates/mitra-core/src/parse.rs`) builds the model from the language,
+and the engine's tests (`tests/golden`) are written in it.
 
 A `// mitra:` comment is one of these two ties. A model written in
 comments is refused.
 
 ## Not yet
 
-- Some generated names still show: `c::case` (the classes of a `uniform`
-  claim written inline) and `f::body` in `mitra explain`, and a few
-  messages of the checker use the internal form's words.
 - No formal grammar of the language is checked yet.
-- Names that are keywords of the internal form can't be used: `by`, `at`,
-  `from`, `not`, `def`, `forall`, `uniform`, `correct`, and others.
+- Reserved words can't be names: the types (`Bool`, `Int`, `String`,
+  `List`, `Set`, `Map`, `Value`, …) and `fn`, `claim`, `evidence`,
+  `record`, `enum`, `match`, `if`, `else`, `let`, `in`, `true`, `false`,
+  `correct`, `rate`, `precision`, `recall`, `false_positive_rate`, `len`,
+  `keys`.
+- Derivations from named premises (`by derive` before the rework): a
+  claim follows from the specs of what it calls or from a vouched claim,
+  not from premises it lists. Nine engine tests that needed them are
+  kept in `tests/aside/`, not run.
 - A vouched claim that reads `correct(…)` settles other calls only on a
   finite set of inputs; `represented` and `uniform` have no such limit.
 - Several `uniform` claims on one function (several `represented` work).
@@ -571,7 +575,8 @@ comments is refused.
   folder of the model; in a store, put modules in a subfolder
   (`.mitra/lib/pair.mitra`, `import lib::pair::Pair;`), since every file
   directly in `.mitra/` is already part of the model.
-- An error inside an imported file is reported on the `import` line.
+- An error inside an imported file is reported on the `import` line,
+  with the module and its line in the message.
 - The reader reads text, not Rust's syntax tree: macros, trait methods
   and two functions of the same name can mislead it.
 - No trust on a signature (it is 1).

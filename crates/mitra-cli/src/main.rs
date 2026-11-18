@@ -37,6 +37,14 @@ const USAGE: &str = "usage:
   mitra explain std::claims";
 
 fn main() -> ExitCode {
+    // `mitra eval | head`: the reader closed the pipe, which is no error.
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if info.to_string().contains("failed printing to stdout") {
+            std::process::exit(0);
+        }
+        default(info)
+    }));
     match run(std::env::args().skip(1).collect()) {
         Ok(true) => ExitCode::SUCCESS,
         // The model and the evidence were read, and `eval` found errors.

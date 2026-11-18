@@ -74,9 +74,9 @@ pub struct Verdict {
     pub assuming: Vec<String>,
     /// The claim's inputs that evidence covers directly.
     pub tested: Tuples,
-    /// The inputs that follow from the premises of `by derive`.
+    /// The inputs that follow from the premises of the claim.
     pub derived: Tuples,
-    /// With `by derive`: the implication is not refuted and no premise
+    /// With premises: the implication is not refuted and no premise
     /// fails.
     pub follows: bool,
     /// What a `uniform` claim on the subject adds, if there is one.
@@ -1907,7 +1907,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         ev.leaned.borrow_mut().clear();
         let func = model.function(&c.func).expect("checked");
         let mut domain = model.covers(&c.func, &c.pattern);
-        // `when` on the inputs alone (the reworked syntax): the inputs it
+        // `when` on the inputs alone: the inputs it
         // refuses are not in the claim.
         let when = format!("{}::when", c.name);
         if let (Some(all), true) = (domain.values(), model.function(&when).is_some()) {
