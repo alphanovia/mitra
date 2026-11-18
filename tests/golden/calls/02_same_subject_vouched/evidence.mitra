@@ -1,0 +1,2 @@
+evidence add_uniform at 1
+evidence add_commutative(1, 2) at 1

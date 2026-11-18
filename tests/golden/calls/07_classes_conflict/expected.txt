@@ -1,0 +1,53 @@
+abs_even: fails
+  fails on        `abs(3)`
+  passes on       `abs(2)`
+  no evidence on  x in -3..=1
+abs_uniform: fails
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:3  claim abs_even : forall x in -3..=3, abs(x) = abs(-x)
+
+  `abs_even` fails on `abs(3)`.
+  The evidence that says so:
+
+    denies    evidence.mitra:3  evidence not abs_even(3) at 0.8
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                trust  left
+    certain   evidence.mitra:3                  0.8    0.00
+    possible  the code of `abs`, model.mitra:1  none   0.00 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  help: if the evidence is right, fix `abs`; if not, correct the evidence
+
+error[M004]: an assumption is contradicted by the evidence
+  --> model.mitra:4  claim abs_uniform : uniform abs by sign
+
+  `abs_uniform` says `abs` behaves the same for every input of a class.
+  So `abs_even`, which calls `abs`, should pass or fail the same way for
+  classes ("pos", "neg") of `abs(x)`, `abs(-x)`.
+  But some inputs pass and others fail:
+
+    vouches   evidence.mitra:1  evidence abs_uniform at 1
+    vouches   evidence.mitra:2  evidence abs_even(2) at 1
+    denies    evidence.mitra:3  evidence not abs_even(3) at 0.8
+
+  These can't all be right. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                trust  left
+    certain   evidence.mitra:3  0.8    0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  note: the trust given says these are probably all right, which can't
+  be: at least one is trusted more than it deserves
+
+  help: check that `abs_even(3)` really fails; if it does, a class
+  is too wide: split it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

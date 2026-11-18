@@ -73,6 +73,9 @@ pub struct Verdict {
     pub follows: bool,
     /// What a `uniform` claim on the subject adds, if there is one.
     pub assumed: Option<Assumed>,
+    /// Why no test stands for other inputs, when the claim calls subjects
+    /// and a `uniform` claim can't be used.
+    pub unsorted: Option<String>,
     /// The inputs nothing covers.
     pub missed: Tuples,
     /// The claim's inputs where it is known to fail and not contradicted.
@@ -91,6 +94,12 @@ pub struct Assumed {
     /// Without a spec there is one class, of every input.
     pub by: String,
     pub spec: Option<String>,
+    /// For a claim that calls subjects: the calls its inputs are sorted
+    /// by, one class each, and the other `uniform` claims relied on.
+    pub calls: Vec<String>,
+    pub with: Vec<String>,
+    /// Those of the `uniform` claims that no evidence vouches for.
+    pub unvouched: Vec<String>,
     /// Evidence covers the `uniform` claim: then a failure stands for
     /// its class too.
     pub vouched: bool,
@@ -122,6 +131,11 @@ pub struct Conflict {
     pub claim: String,
     pub spec: Option<String>,
     pub class: Value,
+    /// For a claim that calls subjects: that claim, the calls its inputs
+    /// are sorted by, and the other `uniform` claims relied on.
+    pub on: Option<String>,
+    pub calls: Vec<String>,
+    pub with: Vec<String>,
     /// The input, its evidence line and the evidence as text.
     pub pass: (Vec<Value>, usize, String),
     pub fail: (Vec<Value>, usize, String),
@@ -244,6 +258,7 @@ pub enum Kind {
         claim: String,
         spec: Option<String>,
         class: Value,
+        calls: Vec<String>,
     },
 }
 
@@ -604,6 +619,176 @@ pub(crate) const POINTS: f64 = 10_000.0;
 /// The class of every input, for a `uniform` claim without a spec.
 const ONE_CLASS: Value = Value::Bool(true);
 
+/// `class "rest" of `div_class``, `every input`, or for a claim that calls
+/// subjects `classes ("neg", "pos") of `f(x)`, `f(-x)``.
+pub fn class_text(classes: &[Value], spec: &Option<String>, calls: &[String]) -> String {
+    let word = if classes.len() == 1 && calls.len() < 2 {
+        "class"
+    } else {
+        "classes"
+    };
+    let raw = |c: &Value| match c {
+        Value::Str(s) if calls.len() > 1 => format!("({s})"),
+        Value::Str(s) if !calls.is_empty() => s.clone(),
+        c => c.to_string(),
+    };
+    let names: Vec<String> = classes.iter().map(raw).collect();
+    let calls: Vec<String> = calls.iter().map(|c| format!("`{c}`")).collect();
+    match (spec, calls.is_empty()) {
+        (_, false) => format!("{word} {} of {}", names.join(", "), calls.join(", ")),
+        (Some(spec), true) => format!("{word} {} of `{spec}`", names.join(", ")),
+        (None, true) => "every input".to_string(),
+    }
+}
+
+/// How the inputs of a claim are sorted into classes.
+enum Sorted {
+    /// No `uniform` claim applies.
+    No,
+    /// The claim calls subjects, and this keeps their `uniform` claims
+    /// from being used.
+    Unsorted(String),
+    By(Sorting),
+}
+
+/// One class per call of a subject, the claim's own call first.
+struct Sorting {
+    /// The `uniform` claims relied on, the one of the claim's subject first.
+    claims: Vec<usize>,
+    parts: Vec<Part>,
+    /// The calls that have classes, as text. Empty for a claim that calls
+    /// no subject but its own.
+    calls: Vec<String>,
+}
+
+struct Part {
+    spec: Option<String>,
+    /// The arguments of the call; `None`: the claim's inputs.
+    args: Option<Vec<Expr>>,
+    /// The line of the `uniform` claim.
+    line: usize,
+}
+
+/// An argument Mitra can compute from the claim's inputs alone.
+fn computable(e: &Expr, bound: &[&String], model: &Model) -> bool {
+    let all = |es: &[&Expr]| es.iter().all(|e| computable(e, bound, model));
+    match e {
+        Expr::Lit(_) => true,
+        Expr::Var(x) => bound.contains(&x),
+        Expr::Unary(_, a) => all(&[a]),
+        Expr::Binary(_, a, b) => all(&[a, b]),
+        Expr::Call(f, args) => {
+            model.function(f).is_some_and(|f| f.is_spec())
+                && args.iter().all(|a| computable(a, bound, model))
+        }
+        Expr::If(..) | Expr::Let(..) => false,
+    }
+}
+
+/// The calls of subjects in an expression, with their arguments.
+fn subject_calls<'e>(e: &'e Expr, model: &Model, out: &mut Vec<(&'e String, &'e [Expr])>) {
+    match e {
+        Expr::Lit(_) | Expr::Var(_) => {}
+        Expr::Call(f, args) => {
+            if model.function(f).is_some_and(|f| !f.is_spec()) {
+                out.push((f, args));
+            }
+            args.iter().for_each(|a| subject_calls(a, model, out));
+        }
+        Expr::Unary(_, a) => subject_calls(a, model, out),
+        Expr::Binary(_, a, b) | Expr::Let(_, a, b) => {
+            subject_calls(a, model, out);
+            subject_calls(b, model, out);
+        }
+        Expr::If(a, b, c) => {
+            subject_calls(a, model, out);
+            subject_calls(b, model, out);
+            subject_calls(c, model, out);
+        }
+    }
+}
+
+/// How claim `i` is sorted into classes by the `uniform` claims.
+fn sorted(model: &Model, i: usize) -> Sorted {
+    let c = &model.claims[i];
+    if c.target.is_structural() {
+        return Sorted::No;
+    }
+    let uniform = |f: &str| {
+        model
+            .claims
+            .iter()
+            .position(|u| u.func == f && matches!(u.target, Target::Uniform(_)) && u.name != c.name)
+    };
+    let bound: Vec<&String> = c.pattern.iter().filter_map(|p| p.var.as_ref()).collect();
+    // The claim's own call, then the calls of its other side.
+    let mut found: Vec<(&String, Option<&[Expr]>)> = vec![(&c.func, None)];
+    if let Target::Matches(e) = &c.target {
+        match e {
+            Expr::Var(g) if !bound.contains(&g) => {
+                if model.function(g).is_some_and(|g| !g.is_spec()) {
+                    found.push((g, None));
+                }
+            }
+            e => {
+                let mut calls = Vec::new();
+                subject_calls(e, model, &mut calls);
+                found.extend(calls.into_iter().map(|(g, args)| (g, Some(args))));
+            }
+        }
+    }
+    let lacking: Vec<&String> = found
+        .iter()
+        .map(|(g, _)| *g)
+        .filter(|g| uniform(g).is_none())
+        .collect();
+    if lacking.len() == found.len() || (found.len() == 1 && !lacking.is_empty()) {
+        return Sorted::No;
+    }
+    if let Some(g) = lacking.first() {
+        return Sorted::Unsorted(format!(
+            "`{g}` has no `uniform` claim, so no test stands for other inputs"
+        ));
+    }
+    let params = model
+        .function(&c.func)
+        .map(|f| &f.params[..])
+        .unwrap_or(&[]);
+    let own = format!("{}{}", c.func, crate::print::pattern(&c.pattern, params).1);
+    let (mut claims, mut parts, mut calls) = (Vec::new(), Vec::new(), Vec::new());
+    for (g, args) in &found {
+        if args.is_some_and(|a| !a.iter().all(|a| computable(a, &bound, model))) {
+            return Sorted::Unsorted(format!(
+                "a call of `{g}` takes more than the claim's inputs, so no test stands for other inputs"
+            ));
+        }
+        let u = uniform(g).expect("not lacking");
+        let Target::Uniform(spec) = &model.claims[u].target else {
+            unreachable!()
+        };
+        if !claims.contains(&u) {
+            claims.push(u);
+        }
+        if spec.is_some() && found.len() > 1 {
+            calls.push(match args {
+                Some(args) => crate::print::expr(&Expr::Call(g.to_string(), args.to_vec())),
+                None if *g == &c.func => own.clone(),
+                None => own.replacen(c.func.as_str(), g, 1),
+            });
+        }
+        parts.push(Part {
+            spec: spec.clone(),
+            args: args.map(|a| a.to_vec()),
+            line: model.claims[u].line,
+        });
+    }
+    Sorted::By(Sorting {
+        claims,
+        parts,
+        calls,
+    })
+}
+
 /// One judged input: the input, whether it passed, the evidence line.
 type Point = (Vec<Value>, bool, usize);
 
@@ -924,20 +1109,73 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         points
     };
     let blind = |i: usize| (0..direct.len()).any(|j| same(i, j) && direct[j].blind);
-    // Uniformity of `f` says nothing of the other subjects a target calls.
-    let own = |c: &Claim| match &c.target {
-        Target::Matches(e) => {
-            let bound = |v: &String| c.pattern.iter().any(|p| p.var.as_ref() == Some(v));
-            let bare = matches!(e, Expr::Var(v) if !bound(v));
-            let called = calls(e).into_iter().chain(bare.then(|| match e {
-                Expr::Var(v) => v.clone(),
-                _ => unreachable!(),
-            }));
-            called
-                .filter_map(|f| model.function(&f))
-                .all(|f| f.is_spec())
+    // How each claim's inputs are sorted into classes: one class per call
+    // of a subject, each by that subject's `uniform` claim.
+    let sorting: Vec<Sorted> = (0..model.claims.len()).map(|i| sorted(model, i)).collect();
+    let sig = |i: usize, s: &Sorting, x: &[Value]| -> Result<Value, (Input, Error)> {
+        if let [only] = &s.parts[..] {
+            return class_of(&only.spec, x, only.line);
         }
-        _ => true,
+        let c = &model.claims[i];
+        let env: Env = c
+            .pattern
+            .iter()
+            .zip(x)
+            .filter_map(|(p, v)| Some((p.var.clone()?, v.clone())))
+            .collect();
+        let mut names = Vec::new();
+        for part in s.parts.iter().filter(|p| p.spec.is_some()) {
+            let inputs = match &part.args {
+                None => x.to_vec(),
+                Some(args) => {
+                    let mut inputs = Vec::new();
+                    for a in args {
+                        let v = ev
+                            .eval(a, &env, c.line, Subjects::Observed)
+                            .map_err(model_err)?;
+                        inputs.extend(v.into_iter().next());
+                    }
+                    inputs
+                }
+            };
+            names.push(class_of(&part.spec, &inputs, part.line)?.to_string());
+        }
+        Ok(match names.is_empty() {
+            true => ONE_CLASS,
+            false => Value::Str(names.join(", ")),
+        })
+    };
+    // Every class a sorting can give.
+    let every = |s: &Sorting| -> Vec<Value> {
+        let range = |p: &Part| -> Vec<Value> {
+            let g = p.spec.as_ref().expect("filtered");
+            let all = model.function(g).expect("checked").range.values();
+            all.unwrap_or_default()
+        };
+        if let [only] = &s.parts[..] {
+            return match &only.spec {
+                Some(_) => range(only),
+                None => vec![ONE_CLASS],
+            };
+        }
+        let mut all: Vec<Vec<String>> = vec![Vec::new()];
+        for p in s.parts.iter().filter(|p| p.spec.is_some()) {
+            let values = range(p);
+            all = all
+                .iter()
+                .flat_map(|a| {
+                    values
+                        .iter()
+                        .map(|v| [a.clone(), vec![v.to_string()]].concat())
+                })
+                .collect();
+        }
+        all.into_iter()
+            .map(|names| match names.is_empty() {
+                true => ONE_CLASS,
+                false => Value::Str(names.join(", ")),
+            })
+            .collect()
     };
 
     // 2. Uniformity: a class with a pass and a failure is a conflict.
@@ -950,19 +1188,35 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let stated = |c: &Claim| c.func == u.func && c.target == Target::Correct;
         let mut groups = Vec::new();
         if !model.claims.iter().any(stated) {
-            groups.push(judged(&u.func));
+            groups.push((None, judged(&u.func)));
         }
         for (i, c) in model.claims.iter().enumerate() {
             let first = (0..i).all(|j| !same(i, j));
-            if c.func == u.func && !c.target.is_structural() && first {
-                groups.push(points_of(i));
+            if c.func == u.func && first {
+                if let Sorted::By(s) = &sorting[i] {
+                    groups.push((Some((i, s)), points_of(i)));
+                }
             }
         }
-        for group in groups {
+        for (by, group) in groups {
             let mut seen: BTreeMap<Value, [Vec<&Point>; 2]> = BTreeMap::new();
             for p in &group {
-                seen.entry(class_of(spec, &p.0, u.line)?).or_default()[p.1 as usize].push(p);
+                let class = match by {
+                    Some((i, s)) => sig(i, s, &p.0)?,
+                    None => class_of(spec, &p.0, u.line)?,
+                };
+                seen.entry(class).or_default()[p.1 as usize].push(p);
             }
+            // A claim that calls subjects has its own classes.
+            let wide = by.filter(|(_, s)| s.parts.len() > 1);
+            let calls = wide.map(|(_, s)| s.calls.clone()).unwrap_or_default();
+            let on = wide.map(|(i, _)| model.claims[i].name.clone());
+            let with: Vec<String> = wide
+                .map(|(_, s)| &s.claims[1..])
+                .unwrap_or_default()
+                .iter()
+                .map(|u| model.claims[*u].name.clone())
+                .collect();
             for (class, [fails, passes]) in seen {
                 let (Some(fail), Some(pass)) = (fails.first(), passes.first()) else {
                     continue;
@@ -972,13 +1226,16 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 };
                 if conflicts
                     .iter()
-                    .any(|k: &Conflict| k.claim == u.name && k.class == class)
+                    .any(|k: &Conflict| k.claim == u.name && k.class == class && k.on == on)
                 {
                     continue;
                 }
                 conflicts.push(Conflict {
                     claim: u.name.clone(),
-                    spec: spec.clone(),
+                    spec: spec.clone().filter(|_| wide.is_none()),
+                    on: on.clone(),
+                    calls: calls.clone(),
+                    with: with.clone(),
                     class,
                     pass: (pass.0.clone(), pass.2, shown(pass.2)),
                     fail: (fail.0.clone(), fail.2, shown(fail.2)),
@@ -993,6 +1250,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     // and is vouched for once evidence covers it.
     let usable = |i: usize| !broken(&model.claims[i].name) && direct[i].wrong.is_empty();
     let vouched = |i: usize| usable(i) && direct[i].right.same(&direct[i].domain);
+    let vouched_one = vouched;
 
     // 3. Verdicts.
     let mut logic_of: HashMap<&str, Logic> = HashMap::new();
@@ -1000,7 +1258,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     let mut verdicts = Vec::new();
     // Per claim, the evidence lines of failures that refute it through a
     // class.
-    let mut through: Vec<(Vec<usize>, Option<usize>)> = Vec::new();
+    let mut through: Vec<(Vec<usize>, Vec<usize>)> = Vec::new();
     for (i, c) in model.claims.iter().enumerate() {
         let Direct {
             domain,
@@ -1049,17 +1307,20 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             }
         }
         let covered = tested.union(&derived);
-        // A uniform claim on the subject: a passing input stands for its
-        // class.
-        let uniform = model.claims.iter().position(|u| {
-            u.func == c.func && matches!(u.target, Target::Uniform(_)) && u.name != c.name
-        });
+        // `uniform` claims on the subjects it calls: a passing input stands
+        // for its class.
         let mut assumed = None;
         let mut via = Vec::new();
-        if let (Some(u), true) = (uniform, !c.target.is_structural() && own(c)) {
-            let Target::Uniform(spec) = &model.claims[u].target else {
-                unreachable!()
-            };
+        let mut unsorted = None;
+        let mut relied = Vec::new();
+        if let Sorted::Unsorted(why) = &sorting[i] {
+            unsorted = Some(why.clone());
+        }
+        if let Sorted::By(s) = &sorting[i] {
+            relied = s.claims.clone();
+            let u = s.claims[0];
+            let class_of = |_: &(), x: &[Value], _: usize| sig(i, s, x);
+            let spec = &();
             let line = model.claims[u].line;
             let (mut classes, mut failing) = (Vec::new(), Vec::new());
             let points = points_of(i);
@@ -1087,7 +1348,8 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 // A failure somewhere unknown: no class can be relied on.
                 classes.clear();
             }
-            let (usable, vouched) = (usable(u), vouched(u));
+            let usable = s.claims.iter().all(|u| usable(*u));
+            let vouched = s.claims.iter().all(|u| vouched(*u));
             let open = domain.minus(&covered).minus(wrong);
             let (mut set, mut untested) = (Tuples::empty(domain.arity()), Vec::new());
             if open.size_bound().is_some_and(|n| n <= POINTS) {
@@ -1117,11 +1379,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                     }
                 }
             } else {
-                untested = match spec {
-                    Some(g) => model.function(g).expect("checked").range.values(),
-                    None => Some(vec![ONE_CLASS]),
-                }
-                .unwrap_or_default();
+                untested = every(s);
                 untested.retain(|v| !classes.contains(v));
                 if untested.is_empty() {
                     set = open;
@@ -1129,14 +1387,31 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             }
             untested.sort();
             classes.sort();
-            if usable && !vouched && !set.is_empty() {
-                assume(&model.claims[u].name);
+            if usable && !set.is_empty() {
+                for w in s.claims.iter().filter(|w| !vouched_one(**w)) {
+                    assume(&model.claims[*w].name);
+                }
             }
+            let wide = s.parts.len() > 1;
+            let Target::Uniform(spec) = &model.claims[u].target else {
+                unreachable!()
+            };
             assumed = Some(Assumed {
                 blind,
                 tainted,
                 by: model.claims[u].name.clone(),
-                spec: spec.clone(),
+                spec: spec.clone().filter(|_| !wide),
+                calls: s.calls.clone(),
+                unvouched: s
+                    .claims
+                    .iter()
+                    .filter(|w| !vouched_one(**w))
+                    .map(|w| model.claims[*w].name.clone())
+                    .collect(),
+                with: s.claims[1..]
+                    .iter()
+                    .map(|w| model.claims[*w].name.clone())
+                    .collect(),
                 vouched,
                 usable,
                 classes,
@@ -1145,7 +1420,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 set,
             });
         }
-        through.push((via, uniform));
+        through.push((via, relied));
         let with_assumed = match &assumed {
             Some(a) if a.usable => covered.union(&a.set),
             _ => covered.clone(),
@@ -1182,6 +1457,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             follows,
             refuted,
             assumed,
+            unsorted,
             domain: domain.clone(),
             implication,
         });
@@ -1238,7 +1514,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let (via, by) = &through[i];
         let via: Vec<usize> = via.iter().filter(|l| !lines.contains(l)).copied().collect();
         let mut vouches: Vec<usize> = Vec::new();
-        if let (Some(u), false) = (by, via.is_empty()) {
+        for u in by.iter().filter(|_| !via.is_empty()) {
             for (_, ok, line) in &direct[*u].sources {
                 if *ok && !vouches.contains(line) {
                     vouches.push(*line);
@@ -1335,6 +1611,26 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
             }
         }
+        // The other `uniform` claims it rests on: each by what vouches for
+        // it, or the claim itself.
+        for w in &k.with {
+            let w = model.claims.iter().position(|c| &c.name == w);
+            let w = w.expect("conflicts name claims");
+            let mut pieces: Vec<Piece> = Vec::new();
+            for (_, ok, line) in &direct[w].sources {
+                if *ok && !pieces.contains(&Piece::Evidence(*line)) {
+                    pieces.push(Piece::Evidence(*line));
+                    lines.push(*line);
+                }
+            }
+            if pieces.is_empty() {
+                pieces.push(Piece::Claim(model.claims[w].name.clone()));
+            }
+            clauses = clauses
+                .iter()
+                .flat_map(|c| pieces.iter().map(|p| [c.clone(), vec![p.clone()]].concat()))
+                .collect();
+        }
         clauses.sort_by_key(|c| format!("{c:?}"));
         clauses.dedup();
         lines.sort();
@@ -1350,6 +1646,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 claim: k.claim.clone(),
                 spec: k.spec.clone(),
                 class: k.class.clone(),
+                calls: k.calls.clone(),
             },
             evidence,
             clauses,

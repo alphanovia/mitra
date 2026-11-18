@@ -1,0 +1,4 @@
+abs_even: holds
+  passes on       `abs(-1)`, `abs(0)`, `abs(2)`
+  assumed on      classes ("neg", "pos"), ("pos", "neg") of `abs(x)`, `abs(-x)`, by `abs_uniform`
+abs_uniform: holds

@@ -1,0 +1,5 @@
+opaque f(x: Int) -> Int
+opaque g(x: Int) -> Int
+claim f_g : forall x, f(x) = g(x)
+claim f_uniform : uniform f
+claim g_uniform : uniform g

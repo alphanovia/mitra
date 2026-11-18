@@ -1,0 +1,13 @@
+f_g: unverified
+  passes on       `f(1)`
+  no evidence on  x in Int \ {1}
+f_uniform: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  claim f_g : forall x, f(x) = g(x)
+
+  No evidence on x in Int \ {1}.
+  note: `g` has no `uniform` claim, so no test stands for other inputs
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

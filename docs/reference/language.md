@@ -513,8 +513,23 @@ an input x is `g(x)`.
   every value of `g`'s result type has a passing input, and a failing
   class refutes only its own input.
 - Nothing is assumed for a claim whose statement has a failure over a set
-  too large to read input by input (its class is unknown), nor for an `=`
-  claim whose other side calls a subject: `u` says nothing of that one.
+  too large to read input by input (its class is unknown).
+- **A claim that calls subjects**, as `add(l, r) = add(r, l)` or
+  `f(x) = g(x)` with `g` a subject, is sorted by every call: its own,
+  `f(x)`, and each call of a subject on its other side. The class of an
+  input is then one class per call, each from the `uniform` claim of the
+  subject called, on the arguments of that call: for `abs(x) = abs(-x)`
+  with classes by sign, the input 2 is in `("pos", "neg")`. The rules
+  above apply to these classes. All the `uniform` claims involved must
+  not fail; the claim `holds assuming` those not vouched for; a failure
+  stands for its class only when all are vouched for. A conflict is an
+  error on the `uniform` claim of the claim's own subject, and the
+  evidence vouching for the others is among its pieces.
+  Nothing is assumed, and a `note:` says why, when a subject called has
+  no `uniform` claim, or when an argument of a call is not computed from
+  the claim's inputs alone (it calls a subject, or sits under `if` or
+  `let`). On a domain too large to list, every combination of classes
+  needs a passing input, also those no input can give.
 - Mitra trusts `g`'s result type on inputs it never computes: a value no
   input gives is a class no test can fill.
 
@@ -633,7 +648,9 @@ div_uniform: holds
   finite domain, only those the claim meets), unless the claim fails or
   `u` can't be relied on. `which is not vouched for` when no evidence
   vouches for `u`. For `uniform f` without a spec: `assumed on every
-  input, by u`.
+  input, by u`. For a claim that calls subjects: ``assumed on classes
+  ("pos", "neg") of `abs(x)`, `abs(-x)`, by u``, with every `uniform`
+  claim relied on, and `not vouched for:` those that are not.
 - `no evidence on`: the inputs missed. With a uniformity claim and a set
   too large to list, the classes without a passing input instead.
 
@@ -908,6 +925,27 @@ claim div_uniform : uniform div by div_class
 | 08 | vouched; `div(6, 3)` passes and fails; `div(4, 2)` passes | unverified, tested {(4, 2)}; error on (6, 3) | unverified: class "rest" not relied on | holds |
 | 09 | vouched; `div_small` reviewed | unverified, assumed "rest" | holds | holds |
 | 10 | vouched; `div(6, 3)` fails; `div_correct(6, 3)` reviewed | unverified; error on (6, 3) | unverified: the failure stands for nothing | holds |
+
+### `calls`: uniformity for claims that call subjects
+
+Each case has its own model. 01 to 04:
+`claim add_commutative : forall left, forall right, add(left, right) = add(right, left)`
+with `claim add_uniform : uniform add`. 05 to 07:
+`claim abs_even : forall x in -3..=3, abs(x) = abs(-x)` with
+`uniform abs by sign` (classes "neg", "zero", "pos"). 08 and 09:
+`claim f_g : forall x, f(x) = g(x)`, both subjects, with `uniform f`.
+
+| Case | Evidence | The claim | The `uniform` claim |
+|---|---|---|---|
+| 01 | `add_commutative(1, 2)`; nothing vouches | holds assuming [add_uniform] | unverified |
+| 02 | vouched; `add_commutative(1, 2)` | holds, assumed on every input | holds |
+| 03 | vouched; outputs `add(1, 2) = 3`, `add(2, 1) = 3` | holds | holds |
+| 04 | vouched; `add_commutative(1, 2)`; `not add_commutative(3, 4)` at 0.8 | fails | fails; error `M004` |
+| 05 | vouched; `abs_even(2)` | unverified: assumed on ("pos", "neg"), nothing on -3..=0 | holds |
+| 06 | vouched; `abs_even` on 2, -1 and 0 | holds | holds |
+| 07 | vouched; `abs_even(2)`; `not abs_even(3)` at 0.8 | fails | fails; error `M004` |
+| 08 | `f_uniform` vouched; `f_g(1)`; `g` has no `uniform` claim | unverified, with a note | holds |
+| 09 | as 08, with `claim g_uniform : uniform g` not vouched | holds assuming [g_uniform] | f: holds, g: unverified |
 
 ### `same`: uniformity without classes
 

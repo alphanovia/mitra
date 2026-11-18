@@ -54,8 +54,16 @@ pub fn next(model: &Model, report: &Report) -> String {
     conflicts.sort_by_key(|k| !suspects(of(k)).is_empty());
     for k in conflicts {
         let subject = of(k);
-        let (pass, fail) = (call(subject, &k.pass.0), call(subject, &k.fail.0));
+        let about = k.on.as_ref().unwrap_or(subject);
+        let (pass, fail) = (call(about, &k.pass.0), call(about, &k.fail.0));
         out += &match &k.spec {
+            _ if !k.calls.is_empty() => format!(
+                "{}: fails: `{pass}` passes and `{fail}` fails, both with {}\n  \
+                 find what differs between the two inputs and split a class,\n  \
+                 or check the two results: one of them may be wrong\n",
+                k.claim,
+                crate::eval::class_text(std::slice::from_ref(&k.class), &k.spec, &k.calls),
+            ),
             Some(spec) => format!(
                 "{}: fails: `{pass}` passes and `{fail}` fails, both in class {} of `{spec}`\n  \
                  find what differs between the two inputs and split the class in `{spec}`,\n  \
@@ -163,6 +171,15 @@ pub fn next(model: &Model, report: &Report) -> String {
                 let n = untested.len();
                 out += &format!("{}: missing {n} of the classes of `{spec}`\n", c.name)
             }
+            Some(a) if a.usable && !a.untested.is_empty() && !a.calls.is_empty() => {
+                let calls: Vec<String> = a.calls.iter().map(|c| format!("`{c}`")).collect();
+                out += &format!(
+                    "{}: missing {} of the classes of {}\n",
+                    c.name,
+                    a.untested.len(),
+                    calls.join(", ")
+                )
+            }
             _ => out += &format!("{}: missing {shown}\n", c.name),
         }
         let premise = |logic: Logic| -> Vec<&str> {
@@ -185,6 +202,9 @@ pub fn next(model: &Model, report: &Report) -> String {
             out += &format!("  derived: waits on {}\n", waiting.join(", "));
         }
         out += &look(&c.func);
+        if let Some(why) = &v.unsorted {
+            out += &format!("  {why}\n");
+        }
         // With a uniform claim, one passing input per class is enough.
         if let Some(a) = &v.assumed {
             let by = report.verdicts.iter().find(|w| w.claim == a.by);
@@ -210,7 +230,14 @@ pub fn next(model: &Model, report: &Report) -> String {
             }
             for class in &a.untested {
                 let tainted = a.tainted.contains(class);
+                let text = crate::eval::class_text(std::slice::from_ref(class), &a.spec, &a.calls);
                 out += &match (&a.spec, tainted) {
+                    _ if !a.calls.is_empty() && tainted => format!(
+                        "  {text} have an input with both a pass and a failure: not relied on\n"
+                    ),
+                    _ if !a.calls.is_empty() => format!(
+                        "  no passing input with {text}: one test there stands for the others\n"
+                    ),
                     (Some(spec), true) => format!(
                         "  class {class} of `{spec}` has an input with both a pass and a failure: not relied on\n"
                     ),

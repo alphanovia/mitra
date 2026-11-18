@@ -9,7 +9,6 @@ use crate::eval::{
     QUOTED, WIDE,
 };
 use crate::print::{call, print_claim, print_evidence};
-use crate::set::Value;
 use crate::tuples::Tuples;
 
 /// Where a line of the model or of the evidence is, as `file:line`.
@@ -209,15 +208,6 @@ impl Writer<'_> {
         }
     }
 
-    fn classes(list: &[Value], spec: &Option<String>) -> String {
-        let Some(spec) = spec else {
-            return "every input".to_string();
-        };
-        let names: Vec<String> = list.iter().map(|c| c.to_string()).collect();
-        let word = if names.len() == 1 { "class" } else { "classes" };
-        format!("{word} {} of `{spec}`", names.join(", "))
-    }
-
     /// What no evidence covers, for a claim on inputs.
     fn missed(&self, v: &Verdict, func: &str) -> Option<String> {
         if v.missed.is_empty() {
@@ -229,12 +219,15 @@ impl Writer<'_> {
             .is_some_and(|n| n <= crate::eval::POINTS);
         // Classes without a passing input, when the set can't be listed; a
         // failing class is not missed.
-        let assumed = v.assumed.as_ref().filter(|a| a.usable && a.spec.is_some());
+        let assumed = v
+            .assumed
+            .as_ref()
+            .filter(|a| a.usable && (a.spec.is_some() || !a.calls.is_empty()));
         if let (Some(a), false) = (assumed, listed) {
             let mut open = a.untested.clone();
             open.retain(|k| !(a.vouched && a.failing.contains(k)));
             if !open.is_empty() {
-                return Some(Self::classes(&open, &a.spec));
+                return Some(crate::eval::class_text(&open, &a.spec, &a.calls));
             }
         }
         Some(self.inputs(func, &v.missed, &v.domain))
@@ -273,14 +266,25 @@ impl Writer<'_> {
             }
             let assumed = v.assumed.as_ref().filter(|a| a.usable);
             if let Some(a) = assumed.filter(|a| !a.classes.is_empty() && v.logic != Logic::Fails) {
+                let by: Vec<String> = std::iter::once(&a.by)
+                    .chain(&a.with)
+                    .map(|u| format!("`{u}`"))
+                    .collect();
                 *out += &format!(
-                    "  assumed on      {}, by `{}`{}\n",
-                    Self::classes(&a.classes, &a.spec),
-                    a.by,
-                    if a.vouched {
-                        ""
-                    } else {
-                        ", which is not vouched for"
+                    "  assumed on      {}, by {}{}\n",
+                    crate::eval::class_text(&a.classes, &a.spec, &a.calls),
+                    by.join(", "),
+                    match (&a.unvouched[..], a.with.is_empty()) {
+                        ([], _) => String::new(),
+                        (_, true) => ", which is not vouched for".to_string(),
+                        (names, false) => format!(
+                            "; not vouched for: {}",
+                            names
+                                .iter()
+                                .map(|u| format!("`{u}`"))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ),
                     }
                 );
             }
@@ -478,15 +482,37 @@ impl Writer<'_> {
                 *out += "\n  note: until this is settled, neither counts for these inputs\n  \
                          help: find out which one is right, and correct the other\n";
             }
-            Kind::Conflict { claim, spec, class } => {
+            Kind::Conflict {
+                claim,
+                spec,
+                class,
+                calls,
+            } => {
+                let found = self.report.conflicts.iter();
+                let on = found
+                    .filter(|k| &k.claim == claim && &k.class == class && &k.calls == calls)
+                    .find_map(|k| k.on.clone());
                 let func = &self.claim(claim).func;
                 *out += &self.at_claim(claim);
-                *out += &match spec {
-                    Some(spec) => format!(
+                *out += &match (spec, &on) {
+                    (_, Some(on)) => format!(
+                        "\n  `{claim}` says `{func}` behaves the same for every input{}.\n  \
+                         So `{on}`, which calls `{func}`, should pass or fail the same way{}.\n  \
+                         But some inputs pass and others fail:\n\n",
+                        if calls.is_empty() { "" } else { " of a class" },
+                        match calls.is_empty() {
+                            true => String::new(),
+                            false => format!(
+                                " for\n  {}",
+                                crate::eval::class_text(std::slice::from_ref(class), spec, calls)
+                            ),
+                        }
+                    ),
+                    (Some(spec), None) => format!(
                         "\n  `{claim}` says `{func}` behaves the same for every input of class {class}\n  \
                          of `{spec}`. But in that class some inputs pass and others fail:\n\n"
                     ),
-                    None => format!(
+                    (None, None) => format!(
                         "\n  `{claim}` says `{func}` behaves the same for every input. But some inputs\n  \
                          pass and others fail:\n\n"
                     ),
@@ -495,16 +521,22 @@ impl Writer<'_> {
                 self.ranking(p, out);
                 let found = self.report.conflicts.iter();
                 let mut found = found.filter(|k| &k.claim == claim && &k.class == class);
-                let fails = found.next().map(|k| call(func, &k.fail.0));
+                let fails = found
+                    .next()
+                    .map(|k| call(on.as_deref().unwrap_or(func), &k.fail.0));
                 let fails = fails.unwrap_or_else(|| "the failing input".to_string());
                 *out += &match spec {
+                    _ if !calls.is_empty() => format!(
+                        "\n  help: check that `{fails}` really fails; if it does, a class\n  \
+                         is too wide: split it\n"
+                    ),
                     Some(spec) => format!(
                         "\n  help: check that `{fails}` really fails; if it does, class {class} is\n  \
                          too wide: split it in `{spec}`\n"
                     ),
                     None => format!(
-                        "\n  help: check that `{fails}` really fails; if it does, sort the inputs of\n  \
-                         `{func}` into classes: claim {claim} : uniform {func} by <spec>\n"
+                        "\n  help: check that `{fails}` really fails; if it does, sort the\n  \
+                         inputs of `{func}` into classes: claim {claim} : uniform {func} by <spec>\n"
                     ),
                 };
             }
@@ -548,7 +580,11 @@ impl Writer<'_> {
                     } else {
                         "`mitra next` lists the evidence that would settle it"
                     };
-                    *out += &format!("\n  No evidence on {missed}.\n  help: {help}\n");
+                    *out += &format!("\n  No evidence on {missed}.\n");
+                    if let Some(why) = &v.unsorted {
+                        *out += &format!("  note: {why}\n");
+                    }
+                    *out += &format!("  help: {help}\n");
                 }
                 Logic::Assuming => {
                     *out += &format!("\nwarning[M102]: {}\n", headline("M102"));

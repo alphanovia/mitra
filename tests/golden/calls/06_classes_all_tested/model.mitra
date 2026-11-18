@@ -1,0 +1,4 @@
+opaque abs(x: Int) -> Int
+def sign(x: Int) -> {"neg", "zero", "pos"} := if x < 0 then "neg" else if x == 0 then "zero" else "pos"
+claim abs_even : forall x in -3..=3, abs(x) = abs(-x)
+claim abs_uniform : uniform abs by sign

@@ -107,7 +107,7 @@ fn binders(params: &[(String, Set)]) -> String {
 }
 
 /// A pattern as `forall` binders and the arguments of the call.
-fn pattern(p: &Pattern, params: &[(String, Set)]) -> (String, String) {
+pub(crate) fn pattern(p: &Pattern, params: &[(String, Set)]) -> (String, String) {
     let mut forall = String::new();
     let mut args = Vec::new();
     for (i, pos) in p.iter().enumerate() {
