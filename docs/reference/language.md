@@ -119,7 +119,8 @@ used as a wildcard, a claim named where a subject is expected.
   quotes or line breaks.
   `ingest` prints how many results passed and failed, how many evidence
   lines it added, failed tests that gave no evidence, and the tests with no
-  `test` declaration.
+  `test` declaration, the failed ones first and apart: no verdict shows
+  them.
 
 ## Lexical rules
 
@@ -135,10 +136,11 @@ free: line breaks and indentation mean nothing.
 - Numbers: digits (`nat`), or digits, `.` and digits (`dec`: `0.8`, `1.0`).
   A negative number is `-` then digits (spaces allowed between them).
   `1..5` reads as `1`, `..`, `5`.
-- Strings: `"` … `"` on one line, no escapes.
+- Strings: `"` … `"` on one line. Inside, `\n` is a line break, `\t` a tab,
+  `\"` a quote and `\\` a backslash; no other escape.
 - Symbols, longest match first: `@[` `..=` `:=` `=>` `->` `==` `!=` `<=` `>=`
   `&&` `||` `..` `.` `(` `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `&` `!` `<` `>`
-  `+` `-` `*` `\`.
+  `+` `-` `*` `/` `\`.
 - Keywords: `rate precision recall false_positive_rate record enum match opaque def claim test evidence correct at by derive
   if then else let true false forall in not uniform uses only len List
   Bool Int Int8 Int16 Int32 Int64 UInt8 UInt16 UInt32 Float64 String
@@ -198,7 +200,7 @@ or         = and { "||" and } ;
 and        = compare { "&&" compare } ;
 compare    = sum { ( "==" | "!=" | "<" | "<=" | ">" | ">=" ) sum } ;
 sum        = product { ( "+" | "-" ) product } ;
-product    = unary { "*" unary } ;
+product    = unary { ( "*" | "/" ) unary } ;
 unary      = ( "!" | "-" ) unary
            | atom { "." ( name | nat ) | "[" expr "]" } ;
 atom       = name [ "(" expr { "," expr } ")" ]
@@ -378,11 +380,12 @@ def difference(a: Int, b: Int) -> Int := a - b
 ```
 
 A **definition**: a total, pure function Mitra evaluates. Its body is an
-expression: values, the parameters, `let`, `if`, `!`, `-`, `+`, `-`, `*`,
+expression: values, the parameters, `let`, `if`, `!`, `-`, `+`, `-`, `*`, `/`,
 comparisons (`<` `<=` `>` `>=` on numbers, `==` `!=` on any values), `&&`,
 `||`, and calls of specs defined above it (so no recursion). Arithmetic and
 comparisons need two integers or two floats; there is no conversion.
-Integer arithmetic is 64-bit and an overflow is an error. Float arithmetic
+Integer arithmetic is 64-bit and an overflow is an error; `/` on integers
+rounds towards zero and dividing by zero is an error. Float arithmetic
 and `<` `<=` `>` `>=` follow IEEE 754; `==` and `!=` compare values exactly
 (`NaN == NaN` is true, `0.0 == -0.0` is false). A spec is true by
 definition: evidence does not apply to it (see Evaluation).
@@ -511,6 +514,16 @@ used in the expression after `=`.
   `uniform f`, without `by`, is the same claim with a single class of
   every input: one judged input stands for all of them.
 
+  `f` may also be a **property** claim, named by its claim name: the class
+  spec then takes the property's bound names, and sorts the inputs of the
+  property itself instead of one class per call. Use it when the classes
+  of the subjects called can't all meet.
+
+  ```lean
+  claim same_sign : forall x, sign(x) * half(x) >= 0
+  claim same_sign_uniform : uniform same_sign by sign_class
+  ```
+
   ```lean
   opaque add(left: Int, right: Int) -> Int
   claim add_uniform : uniform add
@@ -591,6 +604,9 @@ written as in `evidence`, without a bias. `mitra ingest` turns a
 result into evidence at 1:
 
 - a pass gives the judgment;
+- a test `f(args) = v` gives the output its author **expects**: when a
+  `correct` claim on `f` covers the input, a pass also gives
+  `correct(f(args))` and a failure gives `not correct(f(args))`;
 - a failure gives `not correct(…)` for a `correct(…)` test, and `not c …`
   for a `c …` test, when the test is about a single input. Otherwise it
   gives nothing: a failed test over a set says the code is wrong somewhere
@@ -598,7 +614,7 @@ result into evidence at 1:
   the output was something else, but not what. If the subject's result
   type is `Bool`, it gives `f(args) =` the other value. Otherwise it gives
   `not c(args)` for each `=` claim `c` on `f` whose other side is `v` on
-  that input (the claim is wrong there), and nothing if there is none. A failed negative test
+  that input (the claim is wrong there), and nothing more if there is none. A failed negative test
   (`not correct …`, `not c …`) proves nothing, since it may have failed for
   another reason.
 

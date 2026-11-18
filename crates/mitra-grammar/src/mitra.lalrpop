@@ -10,7 +10,7 @@ match {
     r"--[^\n\r]*" => { },
     r"[0-9]+" => NAT,
     r"[0-9]+\.[0-9]+" => DEC,
-    r#""[^"\n]*""# => STR,
+    r#""([^"\\\n]|\\[nt"\\])*""# => STR,
     "record", "enum", "match", "rate", "precision", "recall", "false_positive_rate", "List", "len", "opaque", "def", "claim", "test", "evidence",
     "correct", "at", "by", "derive", "if", "then", "else", "let",
     "true", "false", "forall", "in", "not",
@@ -19,7 +19,7 @@ match {
     "_", "uniform", "uses", "only",
     "@[", "..=", "..", ":=", "=>", "->", "==", "!=", "<=", ">=", "&&", "||", ".",
     "(", ")", ":", ";", ",", "=", "{", "}", "[", "]", "|", "&",
-    "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
+    "!", "<", ">", "+", "-", "*", "/", "\\", "∀", "∈", "∪", "∩", "¬",
 } else {
     r"[A-Za-z_][A-Za-z0-9_]*" => NAME,
 }
@@ -117,7 +117,7 @@ And: () = { Compare, And "&&" Compare => () };
 Compare: () = { Sum, Compare CmpOp Sum => () };
 CmpOp: () = { "==" => (), "!=" => (), "<" => (), "<=" => (), ">" => (), ">=" => () };
 Sum: () = { Product, Sum "+" Product => (), Sum "-" Product => () };
-Product: () = { Unary, Product "*" Unary => () };
+Product: () = { Unary, Product "*" Unary => (), Product "/" Unary => () };
 Unary: () = {
     "!" Unary => (),
     "-" Unary => (),

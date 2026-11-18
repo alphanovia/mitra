@@ -1,0 +1,4 @@
+-- mitra-core, judged by Mitra. The model is in the `mitra:` comments of
+-- src/, with the same types as the Rust code. `Option` is Rust's own; a
+-- Rust `Value` is any Mitra value, the type `Value`.
+enum Option(T) { None, Some(value: T) }

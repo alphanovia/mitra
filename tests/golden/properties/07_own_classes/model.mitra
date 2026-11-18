@@ -1,0 +1,10 @@
+-- Two subjects whose classes can't all meet: (big, zero) never happens.
+opaque half(x: Int) -> Int
+opaque sign(x: Int) -> Int
+def half_class(x: Int) -> {"small", "big"} := if x < 100 && x > -100 then "small" else "big"
+def sign_class(x: Int) -> {"neg", "zero", "pos"} := if x < 0 then "neg" else if x == 0 then "zero" else "pos"
+claim half_uniform : uniform half by half_class
+claim sign_uniform : uniform sign by sign_class
+claim half_keeps_sign : forall x, sign(half(x) * 2) == sign(x) || half(x) == 0
+claim same_sign : forall x, sign(x) * half(x) >= 0
+claim same_sign_uniform : uniform same_sign by sign_class

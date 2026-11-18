@@ -1,0 +1,90 @@
+-- Evidence, append-only: `mitra add` and `mitra ingest` write here.
+@[source "test:t_and", rev "14ae42dd70eb"] evidence correct(binary("&&", true, false)) at 1
+@[source "test:t_and", rev "14ae42dd70eb"] evidence binary("&&", true, false) = Some(false) at 1
+@[source "test:t_assuming", rev "14ae42dd70eb"] evidence as_str(Assuming) = "holds assuming" at 1
+@[source "test:t_different", rev "14ae42dd70eb"] evidence correct(binary("!=", 2, 2)) at 1
+@[source "test:t_different", rev "14ae42dd70eb"] evidence binary("!=", 2, 2) = Some(false) at 1
+@[source "test:t_different_mixed", rev "14ae42dd70eb"] evidence correct(binary("!=", 2, "2")) at 1
+@[source "test:t_different_mixed", rev "14ae42dd70eb"] evidence binary("!=", 2, "2") = Some(true) at 1
+@[source "test:t_divide", rev "14ae42dd70eb"] evidence correct(binary("/", -12, -3)) at 1
+@[source "test:t_divide", rev "14ae42dd70eb"] evidence binary("/", -12, -3) = Some(4) at 1
+@[source "test:t_divide_by_zero", rev "14ae42dd70eb"] evidence correct(binary("/", 1, 0)) at 1
+@[source "test:t_divide_by_zero", rev "14ae42dd70eb"] evidence binary("/", 1, 0) = None at 1
+@[source "test:t_divide_floats", rev "14ae42dd70eb"] evidence correct(binary("/", 1.0, 4.0)) at 1
+@[source "test:t_divide_floats", rev "14ae42dd70eb"] evidence binary("/", 1.0, 4.0) = Some(0.25) at 1
+@[source "test:t_divide_towards_zero", rev "14ae42dd70eb"] evidence correct(binary("/", -7, 2)) at 1
+@[source "test:t_divide_towards_zero", rev "14ae42dd70eb"] evidence binary("/", -7, 2) = Some(-3) at 1
+@[source "test:t_equal", rev "14ae42dd70eb"] evidence correct(binary("==", 2, 2)) at 1
+@[source "test:t_equal", rev "14ae42dd70eb"] evidence binary("==", 2, 2) = Some(true) at 1
+@[source "test:t_equal_mixed", rev "14ae42dd70eb"] evidence correct(binary("==", 2, "2")) at 1
+@[source "test:t_equal_mixed", rev "14ae42dd70eb"] evidence binary("==", 2, "2") = Some(false) at 1
+@[source "test:t_fails", rev "14ae42dd70eb"] evidence as_str(Fails) = "fails" at 1
+@[source "test:t_holds", rev "14ae42dd70eb"] evidence as_str(Holds) = "holds" at 1
+@[source "test:t_less", rev "14ae42dd70eb"] evidence correct(binary("<", 2, 3)) at 1
+@[source "test:t_less", rev "14ae42dd70eb"] evidence binary("<", 2, 3) = Some(true) at 1
+@[source "test:t_minus", rev "14ae42dd70eb"] evidence correct(binary("-", 2, 3)) at 1
+@[source "test:t_minus", rev "14ae42dd70eb"] evidence binary("-", 2, 3) = Some(-1) at 1
+@[source "test:t_negate", rev "14ae42dd70eb"] evidence correct(unary("-", 3)) at 1
+@[source "test:t_negate", rev "14ae42dd70eb"] evidence unary("-", 3) = Some(-3) at 1
+@[source "test:t_negate_back", rev "14ae42dd70eb"] evidence correct(unary("-", -3)) at 1
+@[source "test:t_negate_back", rev "14ae42dd70eb"] evidence unary("-", -3) = Some(3) at 1
+@[source "test:t_negate_float", rev "14ae42dd70eb"] evidence correct(unary("-", 0.5)) at 1
+@[source "test:t_negate_float", rev "14ae42dd70eb"] evidence unary("-", 0.5) = Some(-0.5) at 1
+@[source "test:t_negate_string", rev "14ae42dd70eb"] evidence correct(unary("-", "a")) at 1
+@[source "test:t_negate_string", rev "14ae42dd70eb"] evidence unary("-", "a") = None at 1
+@[source "test:t_not_false", rev "14ae42dd70eb"] evidence correct(unary("!", false)) at 1
+@[source "test:t_not_false", rev "14ae42dd70eb"] evidence unary("!", false) = Some(true) at 1
+@[source "test:t_not_true", rev "14ae42dd70eb"] evidence correct(unary("!", true)) at 1
+@[source "test:t_not_true", rev "14ae42dd70eb"] evidence unary("!", true) = Some(false) at 1
+@[source "test:t_or", rev "14ae42dd70eb"] evidence correct(binary("||", true, false)) at 1
+@[source "test:t_or", rev "14ae42dd70eb"] evidence binary("||", true, false) = Some(true) at 1
+@[source "test:t_plus", rev "14ae42dd70eb"] evidence correct(binary("+", 2, 3)) at 1
+@[source "test:t_plus", rev "14ae42dd70eb"] evidence binary("+", 2, 3) = Some(5) at 1
+@[source "test:t_plus_floats", rev "14ae42dd70eb"] evidence correct(binary("+", 0.5, 0.25)) at 1
+@[source "test:t_plus_floats", rev "14ae42dd70eb"] evidence binary("+", 0.5, 0.25) = Some(0.75) at 1
+@[source "test:t_plus_floats_swapped", rev "14ae42dd70eb"] evidence correct(binary("+", 0.25, 0.5)) at 1
+@[source "test:t_plus_floats_swapped", rev "14ae42dd70eb"] evidence binary("+", 0.25, 0.5) = Some(0.75) at 1
+@[source "test:t_plus_mixed", rev "14ae42dd70eb"] evidence correct(binary("+", 2, true)) at 1
+@[source "test:t_plus_mixed", rev "14ae42dd70eb"] evidence binary("+", 2, true) = None at 1
+@[source "test:t_plus_mixed_swapped", rev "14ae42dd70eb"] evidence correct(binary("+", true, 2)) at 1
+@[source "test:t_plus_mixed_swapped", rev "14ae42dd70eb"] evidence binary("+", true, 2) = None at 1
+@[source "test:t_plus_negated", rev "14ae42dd70eb"] evidence correct(binary("+", 2, -3)) at 1
+@[source "test:t_plus_negated", rev "14ae42dd70eb"] evidence binary("+", 2, -3) = Some(-1) at 1
+@[source "test:t_plus_overflow", rev "14ae42dd70eb"] evidence correct(binary("+", 9223372036854775807, 1)) at 1
+@[source "test:t_plus_overflow", rev "14ae42dd70eb"] evidence binary("+", 9223372036854775807, 1) = None at 1
+@[source "test:t_plus_overflow_swapped", rev "14ae42dd70eb"] evidence correct(binary("+", 1, 9223372036854775807)) at 1
+@[source "test:t_plus_overflow_swapped", rev "14ae42dd70eb"] evidence binary("+", 1, 9223372036854775807) = None at 1
+@[source "test:t_plus_swapped", rev "14ae42dd70eb"] evidence correct(binary("+", 3, 2)) at 1
+@[source "test:t_plus_swapped", rev "14ae42dd70eb"] evidence binary("+", 3, 2) = Some(5) at 1
+@[source "test:t_times", rev "14ae42dd70eb"] evidence correct(binary("*", 4, -3)) at 1
+@[source "test:t_times", rev "14ae42dd70eb"] evidence binary("*", 4, -3) = Some(-12) at 1
+@[source "test:t_times_swapped", rev "14ae42dd70eb"] evidence correct(binary("*", -3, 4)) at 1
+@[source "test:t_times_swapped", rev "14ae42dd70eb"] evidence binary("*", -3, 4) = Some(-12) at 1
+@[source "test:t_unknown_operator", rev "14ae42dd70eb"] evidence correct(binary("%", 2, 3)) at 1
+@[source "test:t_unknown_operator", rev "14ae42dd70eb"] evidence binary("%", 2, 3) = None at 1
+@[source "test:t_unverified", rev "14ae42dd70eb"] evidence as_str(Unverified) = "unverified" at 1
+@[source "test:t_level_and", rev "14ae42dd70eb"] evidence level("&&") = 2 at 1
+@[source "test:t_level_compare", rev "14ae42dd70eb"] evidence level("<=") = 3 at 1
+@[source "test:t_level_or", rev "14ae42dd70eb"] evidence level("||") = 1 at 1
+@[source "test:t_level_product", rev "14ae42dd70eb"] evidence level("/") = 5 at 1
+@[source "test:t_level_sum", rev "14ae42dd70eb"] evidence level("-") = 4 at 1
+@[source "test:t_negative_float", rev "14ae42dd70eb"] evidence correct(negative(-0.5)) at 1
+@[source "test:t_negative_float", rev "14ae42dd70eb"] evidence negative(-0.5) = true at 1
+@[source "test:t_negative_int", rev "14ae42dd70eb"] evidence correct(negative(-1)) at 1
+@[source "test:t_negative_int", rev "14ae42dd70eb"] evidence negative(-1) = true at 1
+@[source "test:t_negative_string", rev "14ae42dd70eb"] evidence correct(negative("-1")) at 1
+@[source "test:t_negative_string", rev "14ae42dd70eb"] evidence negative("-1") = false at 1
+@[source "test:t_negative_zero", rev "14ae42dd70eb"] evidence correct(negative(0)) at 1
+@[source "test:t_negative_zero", rev "14ae42dd70eb"] evidence negative(0) = false at 1
+@[source "test:t_word_certain", rev "14ae42dd70eb"] evidence word(Candidate(Code("f"), 1.0, 1.0)) = "certain" at 1
+@[source "test:t_word_likely", rev "14ae42dd70eb"] evidence word(Candidate(Code("f"), 0.5, 1.0)) = "likely" at 1
+@[source "test:t_word_possible", rev "14ae42dd70eb"] evidence word(Candidate(Code("f"), 0.0, 0.5)) = "possible" at 1
+@[source "test:t_word_unlikely", rev "14ae42dd70eb"] evidence word(Candidate(Code("f"), 0.0, 0.25)) = "unlikely" at 1
+@[source "test:t_quote_empty", rev "14ae42dd70eb"] evidence correct(quote("")) at 1
+@[source "test:t_quote_empty", rev "14ae42dd70eb"] evidence quote("") = "\"\"" at 1
+@[source "test:t_quote_escapes", rev "14ae42dd70eb"] evidence correct(quote("a\"b\\c\nd\te")) at 1
+@[source "test:t_quote_escapes", rev "14ae42dd70eb"] evidence quote("a\"b\\c\nd\te") = "\"a\\\"b\\\\c\\nd\\te\"" at 1
+@[source "test:t_quote_plain", rev "14ae42dd70eb"] evidence correct(quote("a b")) at 1
+@[source "test:t_quote_plain", rev "14ae42dd70eb"] evidence quote("a b") = "\"a b\"" at 1
+@[source "review:claude", rev "14ae42dd70eb"] evidence level_uniform at 1
+@[source "review:claude", rev "14ae42dd70eb"] evidence word_uniform at 1

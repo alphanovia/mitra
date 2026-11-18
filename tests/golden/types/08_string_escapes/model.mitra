@@ -1,0 +1,3 @@
+-- Escapes in strings: a line break, a tab, a quote, a backslash.
+opaque lines(text: String) -> List(String)
+claim lines_correct : forall text in {"a\nb", "say \"hi\"", "a\tb", "c:\\dir"}, correct(lines(text))

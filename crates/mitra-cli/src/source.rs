@@ -93,6 +93,9 @@ fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 /// The text after `mitra:` in a `///` or `//` comment line.
+///
+/// mitra: opaque mitra_line(line: String) -> Option(String)
+/// mitra: claim mitra_line_correct : forall line, correct(mitra_line(line))
 fn mitra_line(line: &str) -> Option<&str> {
     let rest = line.trim_start();
     let rest = rest
@@ -173,6 +176,9 @@ fn scan(text: &str) -> Vec<(bool, String)> {
 
 /// The name of the function that `code` starts with, past its attributes
 /// and qualifiers (`pub`, `const`, `async`, `unsafe`, `extern`).
+///
+/// mitra: opaque fn_below(code: String) -> Option(String)
+/// mitra: claim fn_below_correct : forall code, correct(fn_below(code))
 fn fn_below(code: &str) -> Option<&str> {
     let ident_end = |s: &str| {
         s.find(|ch: char| !(ch.is_alphanumeric() || ch == '_'))
@@ -210,20 +216,32 @@ fn fn_below(code: &str) -> Option<&str> {
 }
 
 /// The words of a model line, outside its strings and its `--` comment.
+///
+/// mitra: opaque words(line: String) -> List(String)
+/// mitra: claim words_correct : forall line, correct(words(line))
 fn words(line: &str) -> Vec<&str> {
-    let mut code_end = line.len();
-    let mut in_string = false;
-    for (i, ch) in line.char_indices() {
-        if ch == '"' {
-            in_string = !in_string;
-        } else if !in_string && line[i..].starts_with("--") {
-            code_end = i;
-            break;
+    // The pieces of the line outside its strings; in a string, `\` takes
+    // the next character with it.
+    let (mut code, mut start) = (Vec::new(), Some(0));
+    let mut chars = line.char_indices();
+    while let Some((i, ch)) = chars.next() {
+        match (start, ch) {
+            (Some(s), '"') => {
+                code.push(&line[s..i]);
+                start = None;
+            }
+            (Some(s), '-') if line[i..].starts_with("--") => {
+                code.push(&line[s..i]);
+                start = None;
+                break;
+            }
+            (None, '\\') => drop(chars.next()),
+            (None, '"') => start = Some(i + 1),
+            _ => {}
         }
     }
-    line[..code_end]
-        .split('"')
-        .step_by(2)
+    code.extend(start.map(|s| &line[s..]));
+    code.into_iter()
         .flat_map(|part| part.split(|ch: char| !(ch.is_alphanumeric() || ch == '_')))
         .filter(|w| !w.is_empty())
         .collect()
@@ -233,6 +251,15 @@ fn words(line: &str) -> Vec<&str> {
 /// comment in code, not text inside a string or a block comment. Checks
 /// that each `opaque f` or `test t` starts its line and sits above `fn f`
 /// or `fn t`.
+///
+/// mitra: opaque extract(text: String) -> Result(List((0.., String)), (0.., String))
+/// mitra: claim extract_correct : forall text, correct(extract(text))
+/// mitra: -- `scan` has no model yet, so this is `uses`, not `only uses`.
+/// mitra: claim extract_uses : uses extract [mitra_line, words, fn_below]
+/// mitra: -- A line `extract` keeps is a model line, with the text `mitra_line` gives.
+/// mitra: claim extract_one_line : forall text, match mitra_line(text) {
+/// mitra:   None => extract(text) == Ok([]),
+/// mitra:   Some(m) => match extract(text) { Err(e) => true, Ok(lines) => lines == [(1, m)] } }
 pub fn extract(text: &str) -> Result<Vec<(usize, String)>, (usize, String)> {
     let lines: Vec<&str> = text.lines().collect();
     let scanned = scan(text);
@@ -287,6 +314,162 @@ pub fn extract(text: &str) -> Result<Vec<(usize, String)>, (usize, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // One input per test, for Mitra: each `mitra: test` line gives the
+    // output the test checks.
+
+    // mitra: test t_line_doc : mitra_line("/// mitra: claim c : correct(f(1))") = Some("claim c : correct(f(1))")
+    #[test]
+    fn t_line_doc() {
+        assert_eq!(
+            mitra_line("/// mitra: claim c : correct(f(1))"),
+            Some("claim c : correct(f(1))")
+        );
+    }
+
+    // mitra: test t_line_plain : mitra_line("    // mitra: claim c : correct(f(1))") = Some("claim c : correct(f(1))")
+    #[test]
+    fn t_line_plain() {
+        assert_eq!(
+            mitra_line("    // mitra: claim c : correct(f(1))"),
+            Some("claim c : correct(f(1))")
+        );
+    }
+
+    // mitra: test t_line_keeps_indent : mitra_line("// mitra:   then 1") = Some("  then 1")
+    #[test]
+    fn t_line_keeps_indent() {
+        assert_eq!(mitra_line("// mitra:   then 1"), Some("  then 1"));
+    }
+
+    // mitra: test t_line_comment : mitra_line("// a comment about mitra: no") = None
+    #[test]
+    fn t_line_comment() {
+        assert_eq!(mitra_line("// a comment about mitra: no"), None);
+    }
+
+    // mitra: test t_line_code : mitra_line("let x = 1; // mitra: claim c : correct(f(1))") = None
+    #[test]
+    fn t_line_code() {
+        assert_eq!(
+            mitra_line("let x = 1; // mitra: claim c : correct(f(1))"),
+            None
+        );
+    }
+
+    // mitra: test t_below_plain : fn_below("fn f() {}") = Some("f")
+    #[test]
+    fn t_below_plain() {
+        assert_eq!(fn_below("fn f() {}"), Some("f"));
+    }
+
+    // mitra: test t_below_qualified : fn_below("pub(crate) const unsafe fn f() {}") = Some("f")
+    #[test]
+    fn t_below_qualified() {
+        assert_eq!(fn_below("pub(crate) const unsafe fn f() {}"), Some("f"));
+    }
+
+    // mitra: test t_below_attribute : fn_below("#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}") = Some("f")
+    #[test]
+    fn t_below_attribute() {
+        assert_eq!(
+            fn_below("#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}"),
+            Some("f")
+        );
+    }
+
+    // mitra: test t_below_struct : fn_below("pub struct S;\nfn f() {}") = None
+    #[test]
+    fn t_below_struct() {
+        assert_eq!(fn_below("pub struct S;\nfn f() {}"), None);
+    }
+
+    // mitra: test t_below_nothing : fn_below("") = None
+    #[test]
+    fn t_below_nothing() {
+        assert_eq!(fn_below(""), None);
+    }
+
+    // mitra: test t_words_plain : words("opaque f(a: Int) -> Int") = ["opaque", "f", "a", "Int", "Int"]
+    #[test]
+    fn t_words_plain() {
+        assert_eq!(
+            words("opaque f(a: Int) -> Int"),
+            ["opaque", "f", "a", "Int", "Int"]
+        );
+    }
+
+    // mitra: test t_words_comment : words("claim c -- a test of opaque things") = ["claim", "c"]
+    #[test]
+    fn t_words_comment() {
+        assert_eq!(words("claim c -- a test of opaque things"), ["claim", "c"]);
+    }
+
+    // mitra: test t_words_string : words("claim c : correct(g(\"test -- \\\" opaque\")) -- x") = ["claim", "c", "correct", "g"]
+    #[test]
+    fn t_words_string() {
+        assert_eq!(
+            words("claim c : correct(g(\"test -- \\\" opaque\")) -- x"),
+            ["claim", "c", "correct", "g"]
+        );
+    }
+
+    // mitra: test t_extract_one : extract("// mitra: claim c : correct(f(1))") = Ok([(1, "claim c : correct(f(1))")])
+    #[test]
+    fn t_extract_one() {
+        assert_eq!(
+            extract("// mitra: claim c : correct(f(1))"),
+            Ok(vec![(1, "claim c : correct(f(1))".to_string())])
+        );
+    }
+
+    // mitra: test t_extract_none : extract("// a comment about mitra: no") = Ok([])
+    #[test]
+    fn t_extract_none() {
+        assert_eq!(extract("// a comment about mitra: no"), Ok(vec![]));
+    }
+
+    // mitra: test t_extract_aligned : extract("// mitra: opaque f(a: Bool) -> Bool\n#[inline] pub fn f() {}") = Ok([(1, "opaque f(a: Bool) -> Bool")])
+    #[test]
+    fn t_extract_aligned() {
+        assert_eq!(
+            extract("// mitra: opaque f(a: Bool) -> Bool\n#[inline] pub fn f() {}"),
+            Ok(vec![(1, "opaque f(a: Bool) -> Bool".to_string())])
+        );
+    }
+
+    // mitra: test t_extract_misaligned : extract("// mitra: opaque add(a: Int) -> Int\nfn sub() {}") = Err((1, "`opaque add` must sit above `fn add`, found `fn sub`"))
+    #[test]
+    fn t_extract_misaligned() {
+        assert_eq!(
+            extract("// mitra: opaque add(a: Int) -> Int\nfn sub() {}"),
+            Err((
+                1,
+                "`opaque add` must sit above `fn add`, found `fn sub`".to_string()
+            ))
+        );
+    }
+
+    // mitra: test t_extract_alone : extract("// mitra: test t : correct(f(1))") = Err((1, "`test t` must sit above `fn t`, found no function"))
+    #[test]
+    fn t_extract_alone() {
+        assert_eq!(
+            extract("// mitra: test t : correct(f(1))"),
+            Err((
+                1,
+                "`test t` must sit above `fn t`, found no function".to_string()
+            ))
+        );
+    }
+
+    // mitra: test t_extract_in_a_string : extract("const A: &str = \"\n// mitra: claim a : correct(f(1))\n\";") = Ok([])
+    #[test]
+    fn t_extract_in_a_string() {
+        assert_eq!(
+            extract("const A: &str = \"\n// mitra: claim a : correct(f(1))\n\";"),
+            Ok(vec![])
+        );
+    }
 
     #[test]
     fn reads_blocks_and_checks_alignment() {

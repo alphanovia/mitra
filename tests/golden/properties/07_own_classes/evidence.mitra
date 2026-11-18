@@ -1,0 +1,9 @@
+evidence sign(-7) = -1 at 1
+evidence half(-7) = -3 at 1
+evidence sign(0) = 0 at 1
+evidence half(0) = 0 at 1
+evidence sign(8) = 1 at 1
+evidence half(8) = 4 at 1
+evidence same_sign_uniform at 1
+evidence half_uniform at 1
+evidence sign_uniform at 1

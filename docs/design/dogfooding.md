@@ -1,6 +1,7 @@
 # Design: dogfooding
 
-Status: **plan**, with a first slice of Track 1 implemented. Two tracks
+Status: Track 1 implemented on three crates; Track 2 is a plan, with a
+first slice (the operators of specs). Two tracks
 that use Mitra on Mitra.
 
 ## Track 1: the Dempster-Shafer crate, judged by Mitra
@@ -11,21 +12,35 @@ which evidence is most plausibly wrong
 judges it from its own test runs. If the verdicts help while the
 crate is built and maintained, that is the first sign Mitra is useful.
 
-**What exists.** `crates/mitra-ds` has masses, Dempster's rule and
-Yager's rule. Its model sits in `mitra:` comments next to the code: one
-subject and one claim per public function (a mass is three `Float64`s),
-and one `test` above each unit test, for the inputs it runs. The store
-`crates/mitra-ds/.mitra/` holds the evidence.
-`scripts/dogfood-ds.sh` runs the tests and ingests the results, tagged
-with the git hash of the crate's committed code (it refuses uncommitted
-changes and stops when the tests don't build). It then evaluates with
-`--rev`, so only evidence on that code counts. `cargo test` checks the
-verdicts. Each function also has a `uniform` claim, whose classes follow
-the branches of its code; with a review vouching for them, every claim
-holds from one passing test per class. A review is recorded by hand, with
-`mitra add 'evidence yager_uniform at 1' --source review:<who> --rev <hash>`,
-and goes stale when the code changes. What the model can't say yet is
-listed in the review list (2026-11-18, increments 8 and 9).
+**What exists.** The model sits in `mitra:` comments next to the code,
+with the same types as the Rust code: `Mass` is a record, `Option` and
+`Result` are enums, a `Vec` is a `List`. Each modelled function is a
+subject, with a spec where one can be written (`dempster`, `yager`,
+`judged`, `is_valid`, `conflict`), a `uniform` claim whose classes follow
+the branches of its code, and claims that relate functions to each other
+(`yager` reports the conflict `conflict` computes; Dempster's rule is
+Yager's renormalised). One `test` line sits above each unit test and gives
+its input and the output it checks. The ranking of culprits (`rank`) has
+its types and its tests in the model, and no spec: a spec can't loop over
+a list.
+
+Three crates have a store: `mitra-ds` (every public function),
+`mitra-cli` (the readers of test reports and of `mitra:` lines) and
+`mitra-core` (the operators of specs, a few printers). Most of
+`mitra-core` is not modelled: its types are recursive (`Expr`, `Set`) or
+its functions keep state. The gaps are listed in the review list
+(2026-11-18, increment 22).
+
+`scripts/dogfood.sh <crate>` runs the tests and ingests the results,
+tagged with the git hash of the crate's committed code (it refuses
+uncommitted changes and stops when the tests don't build). It then
+evaluates with `--rev`, so only evidence on that code counts. `cargo
+test` checks the verdicts of the three stores. A review is recorded with
+`scripts/vouch.sh <crate> review:<who>`, which vouches for every
+`uniform` and `uses` claim at that hash, and goes stale when the code
+changes. `scripts/breaks.py <crate>` is the benchmark: it breaks the code
+one way at a time (`scripts/breaks/<crate>.txt`) and prints what `cargo
+test` and Mitra say.
 
 **Next.** Masses over a frame of possible culprits instead of three
 numbers, once the semantics are agreed. Evidence then comes from three
@@ -36,8 +51,8 @@ sources, from weakest to strongest: unit tests (points), property tests
 the crate could hide itself. Verdicts do not use the crate, only the ranking
 of culprits does; the other anchor is Verus.
 
-**Prerequisites:** sampled evidence (property tests), records (a mass as
-one value), and a proof source for infinite domains.
+**Prerequisites:** sampled evidence (property tests) and a proof source
+for infinite domains.
 
 ## Track 2: Mitra's semantics written in Mitra
 

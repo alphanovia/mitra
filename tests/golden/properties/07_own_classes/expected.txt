@@ -1,0 +1,18 @@
+half_uniform: holds
+sign_uniform: holds
+half_keeps_sign: unverified
+  passes on       `x = 0`, `x = 8`
+  no evidence on  x in Int \ {0, 8}
+same_sign: holds
+  passes on       `x = -7`, `x = 0`, `x = 8`
+  assumed on      classes "neg", "pos", "zero" of `sign_class`, by `same_sign_uniform`
+same_sign_uniform: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:8  claim half_keeps_sign : forall x, sign(half(x) * 2) == sign(x) || half(x) == 0
+
+  No evidence on x in Int \ {0, 8}.
+  note: a call of `sign` takes more than the claim's inputs, so no test stands for other inputs
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

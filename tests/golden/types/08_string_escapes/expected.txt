@@ -1,0 +1,24 @@
+lines_correct: fails
+  fails on        `lines("c:\\dir")`
+  passes on       `lines("a\nb")`, `lines("say \"hi\"")`
+  no evidence on  `lines("a\tb")`
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:3  claim lines_correct : forall text in {"a\tb", "a\nb", "c:\\dir", "say \"hi\""}, correct(lines(text))
+
+  `lines_correct` fails on `lines("c:\\dir")`.
+  The evidence that says so:
+
+    fails     evidence.mitra:4  evidence not correct(lines("c:\\dir")) at 1
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                  trust  left
+    certain   the code of `lines`, model.mitra:2  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  help: if the evidence is right, fix `lines`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

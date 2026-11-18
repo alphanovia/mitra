@@ -137,6 +137,13 @@ fn headline(code: &str) -> &'static str {
 }
 
 /// How likely a piece is the wrong one, in a word.
+///
+/// mitra: opaque word(c: Candidate) -> String
+/// mitra: def word_spec(c: Candidate) -> {"certain", "likely", "possible", "unlikely"} :=
+/// mitra:   if c.belief >= 0.995 then "certain" else if c.belief >= 0.5 then "likely"
+/// mitra:   else if c.plausibility >= 0.5 then "possible" else "unlikely"
+/// mitra: claim word_is : forall c, word(c) = word_spec(c)
+/// mitra: claim word_uniform : uniform word by word_spec
 fn word(c: &Candidate) -> &'static str {
     if c.belief >= 0.995 {
         "certain"
@@ -717,5 +724,46 @@ impl Report {
             }
         }
         self.model.named(&out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::eval::Piece;
+
+    fn candidate(belief: f64, plausibility: f64) -> Candidate {
+        Candidate {
+            piece: Piece::Code("f".into()),
+            belief,
+            plausibility,
+        }
+    }
+
+    // One input per test, for Mitra: each `mitra: test` line gives the
+    // output the test checks.
+
+    // mitra: test t_word_certain : word(Candidate(Code("f"), 1.0, 1.0)) = "certain"
+    #[test]
+    fn t_word_certain() {
+        assert_eq!(word(&candidate(1.0, 1.0)), "certain");
+    }
+
+    // mitra: test t_word_likely : word(Candidate(Code("f"), 0.5, 1.0)) = "likely"
+    #[test]
+    fn t_word_likely() {
+        assert_eq!(word(&candidate(0.5, 1.0)), "likely");
+    }
+
+    // mitra: test t_word_possible : word(Candidate(Code("f"), 0.0, 0.5)) = "possible"
+    #[test]
+    fn t_word_possible() {
+        assert_eq!(word(&candidate(0.0, 0.5)), "possible");
+    }
+
+    // mitra: test t_word_unlikely : word(Candidate(Code("f"), 0.0, 0.25)) = "unlikely"
+    #[test]
+    fn t_word_unlikely() {
+        assert_eq!(word(&candidate(0.0, 0.25)), "unlikely");
     }
 }

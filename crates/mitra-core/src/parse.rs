@@ -18,10 +18,10 @@ enum Tok {
 }
 
 /// Longest first, so `:=` wins over `:`, `||` over `|` and `..=` over `..`.
-const PUNCT: [&str; 37] = [
+const PUNCT: [&str; 38] = [
     "@[", "..=", ":=", "=>", "->", "==", "!=", "<=", ">=", "&&", "||", "..", ".", "(", ")", ":",
-    ";", ",", "=", "{", "}", "[", "]", "|", "&", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪",
-    "∩", "¬",
+    ";", ",", "=", "{", "}", "[", "]", "|", "&", "!", "<", ">", "+", "-", "*", "/", "\\", "∀", "∈",
+    "∪", "∩", "¬",
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
@@ -86,13 +86,32 @@ fn lex(src: &str) -> Result<Vec<(Tok, usize)>, Error> {
         } else if rest.starts_with("--") {
             rest = rest.find('\n').map_or("", |n| &rest[n..]);
         } else if c == '"' {
-            let Some(end) = rest[1..]
-                .find(['"', '\n'])
-                .filter(|&e| rest[1 + e..].starts_with('"'))
-            else {
+            // `\n`, `\t`, `\"` and `\\` are the escapes.
+            let (mut s, mut end, mut chars) = (String::new(), None, rest[1..].char_indices());
+            while let Some((i, c)) = chars.next() {
+                match c {
+                    '"' => {
+                        end = Some(i);
+                        break;
+                    }
+                    '\n' => break,
+                    '\\' => s.push(match chars.next() {
+                        Some((_, 'n')) => '\n',
+                        Some((_, 't')) => '\t',
+                        Some((_, '"')) => '"',
+                        Some((_, '\\')) => '\\',
+                        _ => {
+                            let msg = "in a string, `\\` starts `\\n`, `\\t`, `\\\"` or `\\\\`";
+                            return Err(Error::new(line, msg));
+                        }
+                    }),
+                    c => s.push(c),
+                }
+            }
+            let Some(end) = end else {
                 return Err(Error::new(line, "unterminated string"));
             };
-            toks.push((Tok::Str(rest[1..1 + end].into()), line));
+            toks.push((Tok::Str(s), line));
             rest = &rest[end + 2..];
         } else if c.is_ascii_digit() {
             let digits = |s: &str| s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
@@ -139,7 +158,7 @@ type Bound = (String, Option<Set>, usize);
 fn text(t: &Tok) -> String {
     match t {
         Tok::Ident(s) | Tok::Num(s) => s.clone(),
-        Tok::Str(s) => format!("\"{s}\""),
+        Tok::Str(s) => crate::set::quote(s),
         Tok::Punct(p) => p.to_string(),
     }
 }
@@ -783,7 +802,7 @@ impl P {
             &["&&"],
             &["==", "!=", "<", "<=", ">", ">="],
             &["+", "-"],
-            &["*"],
+            &["*", "/"],
         ];
         if level == LEVELS.len() {
             return self.unary();

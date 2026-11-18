@@ -9,6 +9,8 @@ use crate::{Error, Input};
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashMap};
 
+///
+/// mitra: enum Logic { Holds, Assuming, Unverified, Fails }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Logic {
     /// Evidence covers every input, directly or through claims that hold.
@@ -23,6 +25,10 @@ pub enum Logic {
 }
 
 impl Logic {
+    /// mitra: opaque as_str(self_: Logic) -> String
+    /// mitra: def as_str_spec(l: Logic) -> String := match l {
+    /// mitra:   Holds => "holds", Assuming => "holds assuming", Unverified => "unverified", Fails => "fails" }
+    /// mitra: claim as_str_is : forall l, as_str(l) = as_str_spec(l)
     pub fn as_str(self) -> &'static str {
         match self {
             Logic::Holds => "holds",
@@ -203,6 +209,9 @@ pub struct Flag {
 }
 
 /// Something that may be wrong.
+///
+/// mitra: -- Rust's variants hold unnamed values; the field names are the model's.
+/// mitra: enum Piece { Evidence(line: 0..), Code(subject: String), Claim(name: String) }
 #[derive(Debug, Clone, PartialEq)]
 pub enum Piece {
     /// A ledger entry, by its line.
@@ -214,6 +223,8 @@ pub enum Piece {
 }
 
 /// How plausibly a piece is the wrong one.
+///
+/// mitra: record Candidate(piece: Piece, belief: Float64, plausibility: Float64)
 #[derive(Debug, Clone, PartialEq)]
 pub struct Candidate {
     pub piece: Piece,
@@ -991,6 +1002,12 @@ fn product(lists: &[Vec<Value>]) -> Vec<Vec<Value>> {
     })
 }
 
+/// mitra: opaque unary(op: String, v: Value) -> Option(Value)
+/// mitra: claim unary_correct : forall op, forall v, correct(unary(op, v))
+/// mitra: -- The operators of specs, stated with the operators of specs: each
+/// mitra: -- side is computed by this code, the tests give the outputs.
+/// mitra: claim not_is : forall v in Bool, unary("!", v) = Some(!v)
+/// mitra: claim twice_negated : forall v in Int, match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) }
 fn unary(op: &str, v: &Value) -> Option<Value> {
     match (op, v) {
         ("!", Value::Bool(b)) => Some(Value::Bool(!b)),
@@ -1000,6 +1017,16 @@ fn unary(op: &str, v: &Value) -> Option<Value> {
     }
 }
 
+/// mitra: opaque binary(op: String, x: Value, y: Value) -> Option(Value)
+/// mitra: claim binary_correct : forall op, forall x, forall y, correct(binary(op, x, y))
+/// mitra: claim plus_commutes : forall x, forall y, binary("+", x, y) == binary("+", y, x)
+/// mitra: claim times_commutes : forall x, forall y, binary("*", x, y) == binary("*", y, x)
+/// mitra: claim minus_is_plus_negated : forall x in Int, forall y in Int,
+/// mitra:   match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) }
+/// mitra: claim different_is_not_equal : forall x, forall y,
+/// mitra:   match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) }
+/// mitra: claim divides_back : forall x in Int, forall y in Int \ {0},
+/// mitra:   match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) }
 fn binary(op: &str, x: &Value, y: &Value) -> Option<Value> {
     use Value::*;
     Some(match (op, x, y) {
@@ -1014,6 +1041,8 @@ fn binary(op: &str, x: &Value, y: &Value) -> Option<Value> {
         ("+", Int(a), Int(b)) => Int(a.checked_add(*b)?),
         ("-", Int(a), Int(b)) => Int(a.checked_sub(*b)?),
         ("*", Int(a), Int(b)) => Int(a.checked_mul(*b)?),
+        // As in Rust: towards zero; by zero is not defined.
+        ("/", Int(a), Int(b)) => Int(a.checked_div(*b)?),
         // Floats follow IEEE 754, except `==` and `!=` above, which compare
         // values: `NaN == NaN` is true.
         ("<", Float(a), Float(b)) => Bool(a < b),
@@ -1023,6 +1052,7 @@ fn binary(op: &str, x: &Value, y: &Value) -> Option<Value> {
         ("+", Float(a), Float(b)) => Float(a + b),
         ("-", Float(a), Float(b)) => Float(a - b),
         ("*", Float(a), Float(b)) => Float(a * b),
+        ("/", Float(a), Float(b)) => Float(a / b),
         _ => return None,
     })
 }
@@ -1150,8 +1180,9 @@ fn sorted(model: &Model, i: usize) -> Sorted {
     let bound: Vec<&String> = c.pattern.iter().filter_map(|p| p.var.as_ref()).collect();
     // The claim's own call, then the calls of its other side.
     let mut found: Vec<(&String, Option<&[Expr]>)> = vec![(&c.func, None)];
-    if let Target::Property(e) = &c.target {
-        // A property has no call of its own: every call has its class.
+    if let (Target::Property(e), None) = (&c.target, uniform(&c.func)) {
+        // A property has no call of its own: every call has its class,
+        // unless a `uniform` claim sorts the inputs of the property itself.
         let mut calls = Vec::new();
         subject_calls(e, model, &mut calls);
         found = calls.into_iter().map(|(g, a)| (g, Some(a))).collect();
@@ -1437,9 +1468,11 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 ev.read.borrow_mut().clear();
                 ev.measured.borrow_mut().clear();
                 ev.notes.borrow_mut().clear();
-                let compared = ev
-                    .compare(c, target, &x, Subjects::Observed)
-                    .map_err(model_err)?;
+                let compared = match ev.compare(c, target, &x, Subjects::Observed) {
+                    // Outside the domain the statement need not be defined.
+                    Err(_) if !inside => continue,
+                    r => r.map_err(model_err)?,
+                };
                 // A measure without a value: what was counted so far.
                 if let (None, Some(note)) = (compared, ev.notes.take().into_iter().next()) {
                     counted.get_or_insert(note);
@@ -2364,6 +2397,26 @@ pub fn failed_output(model: &Model, test: &Test) -> Result<Vec<Evidence>, Error>
     Ok(out)
 }
 
+/// What a test `f(x) = v` says beside the output: `v` is the output its
+/// author expects, so `f` is correct at `x` when the test passes and not
+/// correct when it fails. `None` when no `correct` claim covers `x`.
+pub fn expected_output(model: &Model, test: &Test, passed: bool) -> Option<Evidence> {
+    let e = &test.judgment;
+    let (Judgment::Output(_), Some(x)) = (&e.judgment, single(&e.pattern)) else {
+        return None;
+    };
+    let covers = |c: &&Claim| {
+        c.func == e.about
+            && matches!(c.target, Target::Correct)
+            && model.covers(&c.func, &c.pattern).contains(&x)
+    };
+    model.claims.iter().find(covers)?;
+    Some(Evidence {
+        judgment: Judgment::Correct(passed),
+        ..e.clone()
+    })
+}
+
 /// Fill in, for each problem, how plausibly each of its pieces is the
 /// wrong one. Problems that share a piece are weighed together.
 fn rank(model: &Model, problems: &mut [Problem]) {
@@ -2502,5 +2555,277 @@ impl Report {
     pub fn warnings(&self) -> usize {
         let warns = |v: &&Verdict| matches!(v.logic, Logic::Unverified | Logic::Assuming);
         self.verdicts.iter().filter(warns).count() + self.flags.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // One input per test, for Mitra: each `mitra: test` line gives the
+    // output the test checks.
+
+    // mitra: test t_holds : as_str(Holds) = "holds"
+    #[test]
+    fn t_holds() {
+        assert_eq!(Logic::Holds.as_str(), "holds");
+    }
+
+    // mitra: test t_assuming : as_str(Assuming) = "holds assuming"
+    #[test]
+    fn t_assuming() {
+        assert_eq!(Logic::Assuming.as_str(), "holds assuming");
+    }
+
+    // mitra: test t_unverified : as_str(Unverified) = "unverified"
+    #[test]
+    fn t_unverified() {
+        assert_eq!(Logic::Unverified.as_str(), "unverified");
+    }
+
+    // mitra: test t_fails : as_str(Fails) = "fails"
+    #[test]
+    fn t_fails() {
+        assert_eq!(Logic::Fails.as_str(), "fails");
+    }
+
+    // mitra: test t_plus : binary("+", 2, 3) = Some(5)
+    #[test]
+    fn t_plus() {
+        assert_eq!(
+            binary("+", &Value::Int(2), &Value::Int(3)),
+            Some(Value::Int(5))
+        );
+    }
+
+    // mitra: test t_plus_swapped : binary("+", 3, 2) = Some(5)
+    #[test]
+    fn t_plus_swapped() {
+        assert_eq!(
+            binary("+", &Value::Int(3), &Value::Int(2)),
+            Some(Value::Int(5))
+        );
+    }
+
+    // mitra: test t_plus_overflow : binary("+", 9223372036854775807, 1) = None
+    #[test]
+    fn t_plus_overflow() {
+        assert_eq!(
+            binary("+", &Value::Int(9223372036854775807), &Value::Int(1)),
+            None
+        );
+    }
+
+    // mitra: test t_plus_overflow_swapped : binary("+", 1, 9223372036854775807) = None
+    #[test]
+    fn t_plus_overflow_swapped() {
+        assert_eq!(
+            binary("+", &Value::Int(1), &Value::Int(9223372036854775807)),
+            None
+        );
+    }
+
+    // mitra: test t_plus_mixed : binary("+", 2, true) = None
+    #[test]
+    fn t_plus_mixed() {
+        assert_eq!(binary("+", &Value::Int(2), &Value::Bool(true)), None);
+    }
+
+    // mitra: test t_plus_mixed_swapped : binary("+", true, 2) = None
+    #[test]
+    fn t_plus_mixed_swapped() {
+        assert_eq!(binary("+", &Value::Bool(true), &Value::Int(2)), None);
+    }
+
+    // mitra: test t_plus_floats : binary("+", 0.5, 0.25) = Some(0.75)
+    #[test]
+    fn t_plus_floats() {
+        assert_eq!(
+            binary("+", &Value::Float(0.5), &Value::Float(0.25)),
+            Some(Value::Float(0.75))
+        );
+    }
+
+    // mitra: test t_plus_floats_swapped : binary("+", 0.25, 0.5) = Some(0.75)
+    #[test]
+    fn t_plus_floats_swapped() {
+        assert_eq!(
+            binary("+", &Value::Float(0.25), &Value::Float(0.5)),
+            Some(Value::Float(0.75))
+        );
+    }
+
+    // mitra: test t_minus : binary("-", 2, 3) = Some(-1)
+    #[test]
+    fn t_minus() {
+        assert_eq!(
+            binary("-", &Value::Int(2), &Value::Int(3)),
+            Some(Value::Int(-1))
+        );
+    }
+
+    // mitra: test t_plus_negated : binary("+", 2, -3) = Some(-1)
+    #[test]
+    fn t_plus_negated() {
+        assert_eq!(
+            binary("+", &Value::Int(2), &Value::Int(-3)),
+            Some(Value::Int(-1))
+        );
+    }
+
+    // mitra: test t_times : binary("*", 4, -3) = Some(-12)
+    #[test]
+    fn t_times() {
+        assert_eq!(
+            binary("*", &Value::Int(4), &Value::Int(-3)),
+            Some(Value::Int(-12))
+        );
+    }
+
+    // mitra: test t_times_swapped : binary("*", -3, 4) = Some(-12)
+    #[test]
+    fn t_times_swapped() {
+        assert_eq!(
+            binary("*", &Value::Int(-3), &Value::Int(4)),
+            Some(Value::Int(-12))
+        );
+    }
+
+    // mitra: test t_divide : binary("/", -12, -3) = Some(4)
+    #[test]
+    fn t_divide() {
+        assert_eq!(
+            binary("/", &Value::Int(-12), &Value::Int(-3)),
+            Some(Value::Int(4))
+        );
+    }
+
+    // mitra: test t_divide_towards_zero : binary("/", -7, 2) = Some(-3)
+    #[test]
+    fn t_divide_towards_zero() {
+        assert_eq!(
+            binary("/", &Value::Int(-7), &Value::Int(2)),
+            Some(Value::Int(-3))
+        );
+    }
+
+    // mitra: test t_divide_by_zero : binary("/", 1, 0) = None
+    #[test]
+    fn t_divide_by_zero() {
+        assert_eq!(binary("/", &Value::Int(1), &Value::Int(0)), None);
+    }
+
+    // mitra: test t_divide_floats : binary("/", 1.0, 4.0) = Some(0.25)
+    #[test]
+    fn t_divide_floats() {
+        assert_eq!(
+            binary("/", &Value::Float(1.0), &Value::Float(4.0)),
+            Some(Value::Float(0.25))
+        );
+    }
+
+    // mitra: test t_equal : binary("==", 2, 2) = Some(true)
+    #[test]
+    fn t_equal() {
+        assert_eq!(
+            binary("==", &Value::Int(2), &Value::Int(2)),
+            Some(Value::Bool(true))
+        );
+    }
+
+    // mitra: test t_different : binary("!=", 2, 2) = Some(false)
+    #[test]
+    fn t_different() {
+        assert_eq!(
+            binary("!=", &Value::Int(2), &Value::Int(2)),
+            Some(Value::Bool(false))
+        );
+    }
+
+    // mitra: test t_equal_mixed : binary("==", 2, "2") = Some(false)
+    #[test]
+    fn t_equal_mixed() {
+        assert_eq!(
+            binary("==", &Value::Int(2), &Value::Str("2".into())),
+            Some(Value::Bool(false))
+        );
+    }
+
+    // mitra: test t_different_mixed : binary("!=", 2, "2") = Some(true)
+    #[test]
+    fn t_different_mixed() {
+        assert_eq!(
+            binary("!=", &Value::Int(2), &Value::Str("2".into())),
+            Some(Value::Bool(true))
+        );
+    }
+
+    // mitra: test t_less : binary("<", 2, 3) = Some(true)
+    #[test]
+    fn t_less() {
+        assert_eq!(
+            binary("<", &Value::Int(2), &Value::Int(3)),
+            Some(Value::Bool(true))
+        );
+    }
+
+    // mitra: test t_and : binary("&&", true, false) = Some(false)
+    #[test]
+    fn t_and() {
+        assert_eq!(
+            binary("&&", &Value::Bool(true), &Value::Bool(false)),
+            Some(Value::Bool(false))
+        );
+    }
+
+    // mitra: test t_or : binary("||", true, false) = Some(true)
+    #[test]
+    fn t_or() {
+        assert_eq!(
+            binary("||", &Value::Bool(true), &Value::Bool(false)),
+            Some(Value::Bool(true))
+        );
+    }
+
+    // mitra: test t_unknown_operator : binary("%", 2, 3) = None
+    #[test]
+    fn t_unknown_operator() {
+        assert_eq!(binary("%", &Value::Int(2), &Value::Int(3)), None);
+    }
+
+    // mitra: test t_not_true : unary("!", true) = Some(false)
+    #[test]
+    fn t_not_true() {
+        assert_eq!(unary("!", &Value::Bool(true)), Some(Value::Bool(false)));
+    }
+
+    // mitra: test t_not_false : unary("!", false) = Some(true)
+    #[test]
+    fn t_not_false() {
+        assert_eq!(unary("!", &Value::Bool(false)), Some(Value::Bool(true)));
+    }
+
+    // mitra: test t_negate : unary("-", 3) = Some(-3)
+    #[test]
+    fn t_negate() {
+        assert_eq!(unary("-", &Value::Int(3)), Some(Value::Int(-3)));
+    }
+
+    // mitra: test t_negate_back : unary("-", -3) = Some(3)
+    #[test]
+    fn t_negate_back() {
+        assert_eq!(unary("-", &Value::Int(-3)), Some(Value::Int(3)));
+    }
+
+    // mitra: test t_negate_float : unary("-", 0.5) = Some(-0.5)
+    #[test]
+    fn t_negate_float() {
+        assert_eq!(unary("-", &Value::Float(0.5)), Some(Value::Float(-0.5)));
+    }
+
+    // mitra: test t_negate_string : unary("-", "a") = None
+    #[test]
+    fn t_negate_string() {
+        assert_eq!(unary("-", &Value::Str("a".into())), None);
     }
 }

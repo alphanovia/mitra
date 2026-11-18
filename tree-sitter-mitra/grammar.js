@@ -24,7 +24,7 @@ module.exports = grammar({
     nat: _ => /[0-9]+/,
     number: _ => /[0-9]+(\.[0-9]+)?/,
     float: _ => /[0-9]+\.[0-9]+/,
-    string: _ => /"[^"\n]*"/,
+    string: _ => /"([^"\\\n]|\\[nt"\\])*"/,
 
     record: $ => seq('record', field('name', $.name), $.parameters),
     enum: $ => seq('enum', field('name', $.name), optional($.type_parameters),
@@ -99,7 +99,7 @@ module.exports = grammar({
     let: $ => prec.right(seq('let', $.name, ':=', $._expr, ';', $._expr)),
     binary: $ => choice(
       ...[['||', 1], ['&&', 2], ['==', 3], ['!=', 3], ['<', 3], ['<=', 3], ['>', 3], ['>=', 3],
-        ['+', 4], ['-', 4], ['*', 5]].map(([op, p]) =>
+        ['+', 4], ['-', 4], ['*', 5], ['/', 5]].map(([op, p]) =>
         prec.left(p, seq(field('left', $._expr), field('operator', op), field('right', $._expr)))),
     ),
     unary: $ => prec(6, seq(choice('!', '-'), $._expr)),

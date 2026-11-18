@@ -59,10 +59,10 @@ const KEYWORDS: [&str; 44] = [
     "uses",
     "only",
 ];
-const PUNCT: [&str; 37] = [
+const PUNCT: [&str; 38] = [
     "@[", "..=", ":=", "=>", "->", "==", "!=", "<=", ">=", "&&", "||", "..", ".", "(", ")", ":",
-    ";", ",", "=", "{", "}", "[", "]", "|", "&", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪",
-    "∩", "¬",
+    ";", ",", "=", "{", "}", "[", "]", "|", "&", "!", "<", ">", "+", "-", "*", "/", "\\", "∀", "∈",
+    "∪", "∩", "¬",
 ];
 
 /// A grammar symbol: a token (`"x"` or a token class) or a rule name.
@@ -246,7 +246,19 @@ fn tokens(src: &str) -> Result<Vec<(String, String)>, String> {
             rest = rest.find('\n').map_or("", |n| &rest[n..]);
             continue;
         } else if c == '"' {
-            let end = rest[1..].find('"').ok_or("unterminated string")? + 2;
+            // A `\` takes the next character with it.
+            let mut skip = false;
+            let close = |(_, c): &(usize, char)| {
+                let found = c == &'"' && !skip;
+                skip = c == &'\\' && !skip;
+                found
+            };
+            let end = rest[1..]
+                .char_indices()
+                .find(close)
+                .ok_or("unterminated string")?
+                .0
+                + 2;
             let (t, r) = take(end);
             ("STR".to_string(), t, r)
         } else if c.is_ascii_digit() {

@@ -1,0 +1,5 @@
+-- `/`: towards zero on integers, IEEE 754 on floats, as tight as `*`.
+opaque half(x: Int) -> Int
+opaque ratio(a: Float64, b: Float64) -> Float64
+claim half_is : forall x in -3..=3, half(x) = 6 / 2 * x / 2
+claim ratio_is : forall a in {1.0}, forall b in {4.0, 0.0}, ratio(a, b) = a / b - 1.0

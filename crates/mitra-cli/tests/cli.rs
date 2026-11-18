@@ -226,20 +226,32 @@ fn a_broken_store_is_blamed_not_the_new_evidence() {
 }
 
 /// Dogfood: mitra-ds's store (its claims, and evidence from its own test
-/// runs, recorded by scripts/dogfood-ds.sh) gives the expected verdicts.
+/// runs, recorded by scripts/dogfood.sh) gives the expected verdicts.
 #[test]
 fn mitra_ds_store_evaluates() {
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../mitra-ds");
-    let (code, out, err) = mitra(&dir, &["eval"]);
-    assert_eq!(code, Some(0), "{err}");
-    let expected = std::fs::read_to_string(dir.join(".mitra/expected.txt")).unwrap();
-    assert_eq!(out, expected);
+    // The same for mitra-core and mitra-cli (scripts/dogfood.sh <crate>).
+    // Not while scripts/breaks.py replaces the evidence.
+    if std::env::var_os("MITRA_BREAKS").is_some() {
+        return;
+    }
+    for name in ["mitra-ds", "mitra-core", "mitra-cli"] {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join(name);
+        let (code, out, err) = mitra(&dir, &["eval"]);
+        assert_eq!(code, Some(0), "{name}: {err}");
+        let expected = std::fs::read_to_string(dir.join(".mitra/expected.txt")).unwrap();
+        assert_eq!(out, expected, "{name}");
+    }
 }
 
 /// Naming a store's two files from another folder reads the same model as
 /// running inside the store: the `mitra:` lines of the Rust sources too.
 #[test]
 fn mitra_ds_store_evaluates_by_path() {
+    if std::env::var_os("MITRA_BREAKS").is_some() {
+        return;
+    }
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let files = [
         "crates/mitra-ds/.mitra/model.mitra",

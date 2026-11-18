@@ -1,0 +1,4 @@
+evidence half(-3) = -4 at 1
+evidence half(3) = 4 at 1
+evidence half(1) = 1 at 1
+evidence ratio(1.0, 4.0) = -0.75 at 1

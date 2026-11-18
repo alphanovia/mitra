@@ -121,7 +121,7 @@ impl fmt::Display for Value {
                     write!(f, "{t}")
                 }
             }
-            Value::Str(s) => write!(f, "\"{s}\""),
+            Value::Str(s) => write!(f, "{}", quote(s)),
             Value::Tuple(vs) | Value::Record(_, vs) => {
                 let (shape, _) = self.parts().expect("composite");
                 let parts: Vec<String> = vs.iter().map(|v| v.to_string()).collect();
@@ -834,7 +834,7 @@ impl fmt::Display for Set {
             Part::Finite(s) => cofinite("Float64", false, show_f(s), &mut points),
             Part::Cofinite(s) => cofinite("Float64", true, show_f(s), &mut points),
         }
-        let show_s = |s: &BTreeSet<String>| s.iter().map(|x| format!("\"{x}\"")).collect();
+        let show_s = |s: &BTreeSet<String>| s.iter().map(|x| quote(x)).collect();
         match &self.strs {
             Part::Finite(s) => cofinite("String", false, show_s(s), &mut points),
             Part::Cofinite(s) => cofinite("String", true, show_s(s), &mut points),
@@ -933,6 +933,24 @@ impl fmt::Display for Set {
     }
 }
 
+/// A string as written in Mitra, with its escapes.
+///
+/// mitra: opaque quote(s: String) -> String
+/// mitra: claim quote_correct : forall s, correct(quote(s))
+pub fn quote(s: &str) -> String {
+    let mut out = String::from("\"");
+    for c in s.chars() {
+        match c {
+            '\n' => out += "\\n",
+            '\t' => out += "\\t",
+            '"' => out += "\\\"",
+            '\\' => out += "\\\\",
+            c => out.push(c),
+        }
+    }
+    out + "\""
+}
+
 /// A set printed so it can follow `\` or `&` unambiguously.
 pub fn paren(s: &Set) -> String {
     let t = s.to_string();
@@ -946,6 +964,27 @@ pub fn paren(s: &Set) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // One input per test, for Mitra: each `mitra: test` line gives the
+    // output the test checks.
+
+    // mitra: test t_quote_plain : quote("a b") = "\"a b\""
+    #[test]
+    fn t_quote_plain() {
+        assert_eq!(quote("a b"), "\"a b\"");
+    }
+
+    // mitra: test t_quote_empty : quote("") = "\"\""
+    #[test]
+    fn t_quote_empty() {
+        assert_eq!(quote(""), "\"\"");
+    }
+
+    // mitra: test t_quote_escapes : quote("a\"b\\c\nd\te") = "\"a\\\"b\\\\c\\nd\\te\""
+    #[test]
+    fn t_quote_escapes() {
+        assert_eq!(quote("a\"b\\c\nd\te"), "\"a\\\"b\\\\c\\nd\\te\"");
+    }
 
     #[test]
     fn algebra() {

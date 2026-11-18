@@ -1,2 +1,5 @@
 -- mitra-ds, judged by Mitra. The model is in the `mitra:` comments of
--- src/ and tests/.
+-- src/ and tests/, with the same types as the Rust code. The two enums
+-- below are Rust's own, which every file uses.
+enum Option(T) { None, Some(value: T) }
+enum Result(T, E) { Ok(value: T), Err(error: E) }

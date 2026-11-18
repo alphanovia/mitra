@@ -81,7 +81,7 @@ CmpOp         = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
 Sum           = Product SumTail ;
 SumTail       = "+" Product SumTail | "-" Product SumTail | ;
 Product       = Unary ProductTail ;
-ProductTail   = "*" Unary ProductTail | ;
+ProductTail   = "*" Unary ProductTail | "/" Unary ProductTail | ;
 Unary         = "!" Unary | "-" Unary | Atom Postfix ;
 Postfix       = "." Field Postfix | "[" Expr "]" Postfix | ;
 Field         = NAME | NAT ;

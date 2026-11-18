@@ -1,0 +1,4 @@
+evidence correct(lines("a\nb")) at 1
+evidence lines("a\nb") = ["a", "b"] at 1
+evidence correct(lines("say \"hi\"")) at 1
+evidence not correct(lines("c:\\dir")) at 1

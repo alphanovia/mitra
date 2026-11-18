@@ -25,8 +25,8 @@ pub use ast::{
     Target, Test,
 };
 pub use eval::{
-    evaluate, failed_output, Assumed, Candidate, Conflict, Contradiction, Display, Flag,
-    Implication, Kind, Logic, Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
+    evaluate, expected_output, failed_output, Assumed, Candidate, Conflict, Contradiction, Display,
+    Flag, Implication, Kind, Logic, Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
 };
 pub use next::next;
 pub use parse::{parse_evidence, parse_evidence_for, parse_model};

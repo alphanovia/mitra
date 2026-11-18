@@ -328,10 +328,15 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let s = store::Store::find()?;
             let model = s.model()?;
             let (mut evidence, mut notes, mut unknown) = (Vec::new(), Vec::new(), Vec::new());
+            // Failed tests the model does not declare: no verdict will move.
+            let mut outside = Vec::new();
             let passed = outcomes.iter().filter(|o| o.passed).count();
             for o in &outcomes {
                 let Some(t) = model.tests.iter().find(|t| t.name == o.name) else {
-                    unknown.push(o.name.as_str());
+                    match o.passed {
+                        true => unknown.push(o.name.as_str()),
+                        false => outside.push(o.name.as_str()),
+                    }
                     continue;
                 };
                 let times = outcomes.iter().filter(|p| p.name == o.name).count();
@@ -346,6 +351,13 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                     continue;
                 }
                 let about = model.functions.iter().find(|f| f.name == t.judgment.about);
+                // A test `f(x) = v` gives the expected output: passing, the
+                // output is `v` and it is correct; failing, it is not correct.
+                if let Some(mut e) = mitra_core::expected_output(&model, t, o.passed) {
+                    e.source = Some(format!("test:{}", t.name));
+                    e.rev = rev.clone();
+                    evidence.push(e);
+                }
                 match t.outcome(o.passed, about.map(|f| &f.range)) {
                     Ok(mut e) => {
                         e.source = Some(format!("test:{}", t.name));
@@ -357,7 +369,8 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                         // give that output.
                         let refuted = mitra_core::failed_output(&model, t)
                             .map_err(|e| format!("test {}: {}", t.name, e.message))?;
-                        if refuted.is_empty() {
+                        let judged = mitra_core::expected_output(&model, t, false).is_some();
+                        if refuted.is_empty() && !judged {
                             notes.push(format!("test {} failed: no evidence, since {why}", t.name));
                         }
                         for mut e in refuted {
@@ -379,6 +392,12 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             );
             for n in notes {
                 println!("{n}");
+            }
+            if !outside.is_empty() {
+                println!(
+                    "FAILED, and no `test` declared, so no verdict shows it: {}",
+                    outside.join(", ")
+                );
             }
             if !unknown.is_empty() {
                 println!("no `test` declared for: {}", unknown.join(", "));

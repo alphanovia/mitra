@@ -62,7 +62,14 @@ fn float(r: &mut Rng) -> String {
 }
 
 fn string(r: &mut Rng) -> String {
-    ["\"\"", "\"a\"", "\"hello world\"", "\"-- not a comment\""][r.below(4)].into()
+    [
+        "\"\"",
+        "\"a\"",
+        "\"hello world\"",
+        "\"-- not a comment\"",
+        "\"a \\\"quote\\\", a line\\nbreak, a tab\\t and a \\\\\"",
+    ][r.below(5)]
+    .into()
 }
 
 fn value(r: &mut Rng) -> String {
@@ -254,7 +261,7 @@ const LEVELS: [&[&str]; 5] = [
     &["&&"],
     &["==", "!=", "<", "<=", ">", ">="],
     &["+", "-"],
-    &["*"],
+    &["*", "/"],
 ];
 
 fn binary(r: &mut Rng, level: usize, depth: usize) -> String {

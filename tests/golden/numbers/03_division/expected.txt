@@ -1,0 +1,20 @@
+half_is: unverified
+  passes on       `half(-3)`, `half(1)`, `half(3)`
+  no evidence on  x in {2} | -2..=0
+ratio_is: unverified
+  passes on       `ratio(1.0, 4.0)`
+  no evidence on  `ratio(1.0, 0.0)`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  claim half_is : forall x in -3..=3, half(x) = 6 / 2 * x / 2
+
+  No evidence on x in {2} | -2..=0.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:5  claim ratio_is : forall a in {1.0}, forall b in {0.0, 4.0}, ratio(a, b) = a / b - 1.0
+
+  No evidence on `ratio(1.0, 0.0)`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

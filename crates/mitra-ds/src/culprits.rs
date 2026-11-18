@@ -27,6 +27,8 @@
 pub const MAX_OPEN: usize = 20;
 
 /// Belief and plausibility that each piece is wrong.
+///
+/// mitra: record Ranking(belief: List(Float64), plausibility: List(Float64), conflict: Float64, doubted: 0..)
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ranking {
     pub belief: Vec<f64>,
@@ -39,6 +41,8 @@ pub struct Ranking {
 }
 
 /// Why there is no ranking.
+///
+/// mitra: enum NoRanking { TooMany, Invalid }
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum NoRanking {
     /// More than [`MAX_OPEN`] pieces with a bias strictly between 0 and 1,
@@ -51,6 +55,15 @@ pub enum NoRanking {
 /// Rank `biases.len()` pieces. `biases[i]` is the trust in piece `i`, from
 /// 0 to 1, or `None` for a piece nobody vouched for. Each clause lists
 /// pieces that can't all be right.
+///
+/// mitra: opaque rank(biases: List(Option(Float64)), clauses: List(List(0..))) -> Result(Ranking, NoRanking)
+/// mitra: -- No spec: it would loop over the lists, which a `def` can't do.
+/// mitra: claim rank_correct : forall biases, forall clauses, correct(rank(biases, clauses))
+/// mitra: -- One belief and one plausibility per piece, and a conflict in [0, 1].
+/// mitra: claim rank_shape : forall biases, forall clauses, match rank(biases, clauses) {
+/// mitra:   Err(e) => true,
+/// mitra:   Ok(r) => len(r.belief) == len(biases) && len(r.plausibility) == len(biases)
+/// mitra:     && r.conflict >= 0.0 && r.conflict <= 1.0 }
 pub fn rank(biases: &[Option<f64>], clauses: &[Vec<usize>]) -> Result<Ranking, NoRanking> {
     let n = biases.len();
     let valid = |b: &Option<f64>| b.is_none_or(|b| (0.0..=1.0).contains(&b));
@@ -143,6 +156,7 @@ mod tests {
 
     /// A failure at bias 0.8 against the code: the code is wrong with
     /// belief 0.8, the evidence with plausibility 0.2.
+    // mitra: test code_against_one_failure : correct(rank([None, Some(0.8)], [[0, 1]]))
     #[test]
     fn code_against_one_failure() {
         let r = rank(&[None, Some(0.8)], &[vec![0, 1]]).unwrap();
@@ -153,6 +167,7 @@ mod tests {
 
     /// A review at 0.9, a pass at 0.99 and a failure at 0.8 that can't all
     /// be true: hand-computed with Dempster's rule.
+    // mitra: test three_pieces_in_conflict : correct(rank([Some(0.9), Some(0.99), Some(0.8)], [[0, 1, 2]]))
     #[test]
     fn three_pieces_in_conflict() {
         let r = rank(&[Some(0.9), Some(0.99), Some(0.8)], &[vec![0, 1, 2]]).unwrap();
@@ -165,6 +180,7 @@ mod tests {
     }
 
     /// P1: without a clause nothing is believed wrong, whatever the biases.
+    // mitra: test no_clause_no_belief : correct(rank([Some(0.3), Some(1.0), None, Some(0.0)], []))
     #[test]
     fn no_clause_no_belief() {
         let r = rank(&[Some(0.3), Some(1.0), None, Some(0.0)], &[]).unwrap();
@@ -173,6 +189,7 @@ mod tests {
     }
 
     /// P2: a piece at bias 0 in a clause has plausibility 1.
+    // mitra: test distrust_shows : correct(rank([Some(0.0), Some(0.6), Some(0.7)], [[0, 1, 2]]))
     #[test]
     fn distrust_shows() {
         let r = rank(&[Some(0.0), Some(0.6), Some(0.7)], &[vec![0, 1, 2]]).unwrap();
@@ -181,11 +198,18 @@ mod tests {
     }
 
     /// P3: full trust in the evidence puts the blame on the code.
+    // mitra: test full_trust : rank([None, Some(1.0)], [[0, 1]]) = Ok(Ranking([1.0, 0.0], [1.0, 0.0], 0.0, 0))
     #[test]
     fn full_trust() {
         let r = rank(&[None, Some(1.0)], &[vec![0, 1]]).unwrap();
-        assert!(close(r.belief[0], 1.0) && close(r.plausibility[1], 0.0));
-        assert_eq!(r.doubted, 0);
+        // Nothing is open, so the numbers are exact.
+        let expected = Ranking {
+            belief: vec![1.0, 0.0],
+            plausibility: vec![1.0, 0.0],
+            conflict: 0.0,
+            doubted: 0,
+        };
+        assert_eq!(r, expected);
     }
 
     /// Pieces trusted at 1 that can't all be right share the doubt
@@ -210,6 +234,7 @@ mod tests {
 
     /// Two trusted passes, one distrusted pass, a trusted failure and a
     /// trusted review: by hand, over the ways with one trusted piece wrong.
+    // mitra: test a_tie_beside_a_distrusted_piece : correct(rank([Some(1.0), Some(0.1), Some(1.0), Some(1.0)], [[0, 1, 3], [0, 2, 3]]))
     #[test]
     fn a_tie_beside_a_distrusted_piece() {
         // 0 review, 1 pass at 0.1, 2 pass, 3 failure.
@@ -223,6 +248,7 @@ mod tests {
     }
 
     /// P4: a piece in no clause is never believed wrong.
+    // mitra: test outside_every_clause : correct(rank([None, Some(0.5), Some(0.5)], [[0, 1]]))
     #[test]
     fn outside_every_clause() {
         let r = rank(&[None, Some(0.5), Some(0.5)], &[vec![0, 1]]).unwrap();
@@ -257,16 +283,28 @@ mod tests {
 
     /// Two failures against the code: both would have to be wrong for the
     /// code to be right.
+    // mitra: test two_failures_agree : correct(rank([None, Some(0.8), Some(0.8)], [[0, 1], [0, 2]]))
     #[test]
     fn two_failures_agree() {
         let r = rank(&[None, Some(0.8), Some(0.8)], &[vec![0, 1], vec![0, 2]]).unwrap();
         assert!(close(r.belief[0], 1.0 - 0.2 * 0.2));
     }
 
+    // mitra: test rejects_bias_above_one : rank([Some(1.5)], []) = Err(Invalid)
     #[test]
-    fn rejects_bad_input() {
+    fn rejects_bias_above_one() {
         assert_eq!(rank(&[Some(1.5)], &[]), Err(NoRanking::Invalid));
+    }
+
+    // mitra: test rejects_unknown_piece : rank([Some(0.5)], [[3]]) = Err(Invalid)
+    #[test]
+    fn rejects_unknown_piece() {
         assert_eq!(rank(&[Some(0.5)], &[vec![3]]), Err(NoRanking::Invalid));
+    }
+
+    // Not in the model: 21 pieces written out would say less than this.
+    #[test]
+    fn rejects_too_many() {
         let many = vec![Some(0.5); MAX_OPEN + 1];
         assert_eq!(rank(&many, &[]), Err(NoRanking::TooMany));
     }

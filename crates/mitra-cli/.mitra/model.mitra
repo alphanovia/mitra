@@ -1,0 +1,5 @@
+-- mitra-cli, judged by Mitra. The model is in the `mitra:` comments of
+-- src/, with the same types as the Rust code. The two enums below are
+-- Rust's own.
+enum Option(T) { None, Some(value: T) }
+enum Result(T, E) { Ok(value: T), Err(error: E) }

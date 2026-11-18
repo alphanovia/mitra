@@ -1,22 +1,52 @@
-judged_correct: holds
+rank_correct: unverified
+  passes on       10 inputs
+  no evidence on  a set too long to print
+rank_shape: unverified
+  passes on       `biases = [None, Some(1.0)], clauses = [[0, 1]]`, `biases = [Some(0.5)], clauses = [[3]]`, `biases = [Some(1.5)], clauses = []`
+  no evidence on  a set too long to print
+judged_is: holds
   passes on       (ok, c) in {(false, -0.5), (false, 0.25), (false, 1.0), (true, 0.0), (true, 0.25), (true, 1.5)}
   assumed on      classes "correct", "rejected", "wrong" of `judged_class`, by `judged_uniform`
 judged_uniform: holds
-is_valid_spec: holds
-  passes on       (b, d, u) in {(-0.5, 0.5, 1.0), (0.5, 0.0, 0.5), (0.5, 0.0, 0.5000000001), (0.5, 0.5, 0.5)}
+is_valid_is: holds
+  passes on       m in Mass({-0.5}, {0.5}, {1.0}) | Mass({0.5}, {0.0}, {0.5}) | Mass({0.5}, {0.0}, {0.5000000001}) | Mass({0.5}, {0.5}, {0.5})
   assumed on      classes "part out of range", "sum off", "valid" of `valid_class`, by `is_valid_uniform`
 is_valid_uniform: holds
-conflict_spec_ok: holds
-  passes on       `conflict(0.5, 0.25, 0.25, 0.25, 0.5, 0.25)`, `conflict(1.0, 0.0, 0.0, 0.0, 1.0, 0.0)`
-  assumed on      class "any" of `conflict_class`, by `conflict_uniform`
+conflict_is: holds
+  passes on       5 inputs
+  assumed on      every input, by `conflict_uniform`
 conflict_uniform: holds
-dempster_correct: holds
+conflict_symmetric: holds
+  passes on       `conflict(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0))`
+  assumed on      every input, by `conflict_uniform`
+dempster_is: holds
   passes on       9 inputs
   assumed on      classes "first invalid", "partial conflict", "second invalid", "total conflict" of `dempster_class`, by `dempster_uniform`
 dempster_uniform: holds
 dempster_uses: holds
-yager_correct: holds
+yager_is: holds
   passes on       9 inputs
   assumed on      classes "first invalid", "second invalid", "valid" of `yager_class`, by `yager_uniform`
 yager_uniform: holds
 yager_uses: holds
+yager_reports_conflict: holds
+  passes on       5 inputs
+  assumed on      classes "first invalid", "second invalid", "valid" of `yager(m, o)`, by `yager_uniform`, `conflict_uniform`
+dempster_renormalises_yager: holds
+  passes on       9 inputs
+  assumed on      classes "first invalid", "partial conflict", "second invalid", "total conflict" of `dempster_class`, by `renormalises_uniform`
+renormalises_uniform: holds
+
+warning[M101]: a claim is not verified
+  --> src/culprits.rs:61  claim rank_correct : forall biases, forall clauses, correct(rank(biases, clauses))
+
+  No evidence on a set too long to print.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> src/culprits.rs:63  claim rank_shape : forall biases, forall clauses, match rank(biases, clauses) { Err(e) => true, Ok(r) => len(r.belief) == len(biases) && len(r.plausibility) == len(biases) && r.conflict >= 0.0 && r.conflict <= 1.0 }
+
+  No evidence on a set too long to print.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.
