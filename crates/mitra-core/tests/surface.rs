@@ -174,3 +174,46 @@ fn import_takes_what_it_names() {
     let e = error("import std::nowhere::x;\nsubject s { }");
     assert!(e.contains("no module `std::nowhere` in `std`"), "{e}");
 }
+
+#[test]
+fn represented_says_nothing_outside_its_set() {
+    let m = "import std::claims::{represented};\n\
+             subject s { fn half(n: 0..=9) -> 0..=4 { n / 2 }\n\
+             claim low = represented(half, 0..=4);\n\
+             claim high = represented(half, { n | n > 4 }); }";
+    // One tested input stands for its set only, and the claim that says
+    // so is an assumption until someone vouches for it.
+    let out = verdicts(m, "evidence a { for half given n = 2 gives 1 }");
+    assert!(
+        out.contains("assumed on      n in 0..=1 | 3..=4, by `s::low`"),
+        "{out}"
+    );
+    assert!(out.contains("no evidence on  n in 5..=9"), "{out}");
+    let both = "evidence a { for half given n = 2 gives 1 }\n\
+                evidence b { for half given n = 8 gives 4 }";
+    let out = verdicts(m, both);
+    assert!(
+        out.starts_with("s::half::spec: holds assuming [s::low, s::high]"),
+        "{out}"
+    );
+    let vouched = format!(
+        "{both}\nevidence c {{ for low holds source \"review:me\" }}\n\
+         evidence d {{ for high holds source \"review:me\" }}"
+    );
+    assert!(verdicts(m, &vouched).starts_with("s::half::spec: holds\n"));
+    // Two inputs of one set that do not behave the same deny the claim.
+    let out = verdicts(
+        m,
+        &format!("{vouched}\nevidence e {{ for half given n = 6 gives 0 }}"),
+    );
+    assert!(out.contains("s::high: fails"), "{out}");
+    assert!(out.contains("error[M002]"), "{out}");
+    assert!(out.contains("do not behave the same"), "{out}");
+    // Not imported, not there.
+    let e = mitra_core::load(&m.replace("import std::claims::{represented};", ""), "");
+    assert!(e
+        .unwrap_err()
+        .1
+        .message
+        .contains("no claim with parameters `represented`"));
+}

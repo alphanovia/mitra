@@ -1,0 +1,3 @@
+evidence t1 { for calc::div given a = 6, b = 2 gives 3 }
+evidence t2 { for calc::abs given x = 4 gives 4 }
+evidence r1 { for calc::div_rest holds source "review:me" trust 0.9 }

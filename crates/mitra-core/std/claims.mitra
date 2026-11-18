@@ -12,3 +12,18 @@ claim neutral(f, T, zero) { given a: T then f(a, zero) == a && f(zero, a) == a }
 claim inverse(f, g, T) { given a: T then g(f(a)) == a }
 claim monotone(f, T) { given a: T, b: T when a <= b then f(a) <= f(b) }
 claim within(f, T, low, high) { given a: T then f(a) >= low && f(a) <= high }
+
+// The two below say how the code behaves, not what it returns: nobody can
+// compute them, a reviewer vouches for them. `correct(f(x))` is true when
+// evidence judges that call right, false when wrong, unknown otherwise.
+// Mitra reads these two natively: it carries a judgement from a tested
+// input to the inputs it stands for.
+
+// One tested input of S stands for all of S. Nothing is said outside S.
+//     claim div_rest = represented(div, { (a, b) | b != 0 });
+//     claim small = represented(abs, 0..=9);
+claim represented(f, S) { given x: S, y: S then correct(f(x)) <=> correct(f(y)) }
+
+// Every input is in a class, and one tested input stands for its class.
+//     claim div_classes = uniform(div, |a, b| b == 0);
+claim uniform(f, case) { given x, y when case(x) == case(y) then correct(f(x)) <=> correct(f(y)) }

@@ -1,0 +1,37 @@
+calc::div::spec: unverified
+  passes on       `calc::div(6, 2)`
+  assumed on      89 inputs, by `calc::div_rest`
+  no evidence on  (a, b) in {(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0)}
+calc::abs::spec: unverified
+  passes on       `calc::abs(4)`
+  assumed on      x in 0..=3 | 5..=9, by `calc::abs_small`
+  no evidence on  x in Int \ 0..=9
+calc::div_rest: holds
+calc::div_by_zero: unverified
+calc::abs_small: unverified
+
+warning[M101]: a claim is not verified
+  --> model.mitra:7  fn div(a: 0..=9, b: 0..=9) -> 0..=9 { if b == 0 { 0 } else { a / b } }
+
+  No evidence on (a, b) in {(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0)}.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:8  fn abs(x: Int) -> Int { if x < 0 { -x } else { x } }
+
+  No evidence on x in Int \ 0..=9.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M103]: an assumption is not vouched for
+  --> model.mitra:11  claim div_by_zero = represented(div, { (a, b) | b == 0 });
+
+  Nothing says that `calc::div_by_zero` holds, and Mitra can't check it.
+  help: review it against the code, then record: evidence <name> { for calc::div_by_zero holds source "review:<who>" }
+
+warning[M103]: an assumption is not vouched for
+  --> model.mitra:13  claim abs_small = represented(abs, 0..=9);
+
+  Nothing says that `calc::abs_small` holds, and Mitra can't check it.
+  help: review it against the code, then record: evidence <name> { for calc::abs_small holds source "review:<who>" }
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

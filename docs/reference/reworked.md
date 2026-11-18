@@ -50,6 +50,7 @@ subject loader {
 | `claim d = c(g, 0..=9) trust 0.9;` | That claim with `f` and `T` replaced: a function, a set, a value or an inline function `\|a, b\| b > 0`. Written above its use. |
 | `import geometry::{Point, origin};` | The named declarations of `geometry.mitra`, beside this file, as if written here (`a::b::x` reads `a/b.mitra`). One file is one module. Nothing else of the file comes, except what it imports itself. |
 | `import std::claims::{commutative};` | The same from the modules shipped with Mitra. `mitra explain std::claims` prints one: `commutative`, `associative`, `idempotent`, `neutral`, `inverse`, `monotone`, `within`. |
+| `claim c = represented(f, { (a, b) \| b != 0 });` | One tested input of the set stands for all of it; nothing is said outside. With `import std::claims::{represented};`. A set per input also works: `represented(abs, 0..=9)`, `represented(div, (0..=9, 1..=9))`. Several on one function. |
 | `assume c() { e }` | A claim taken as true without evidence (evidence with source `assumed`): `holds assuming [itself]` until the boundary is observed. Evidence against it is an error. |
 | `record R { a: T, b: U }`, `record Box<T> { item: T }` | Values are written `R(1, 2)`. |
 | `enum E<T> { A, B(T), C(x: T, y: T) }` | Unnamed fields are named `v0`, `v1`. |
@@ -138,6 +139,37 @@ Where none was observed, Mitra looks for it in this order.
 
 `examples/reworked/network`.
 
+## `represented` and `uniform`
+
+Both say how the code behaves, not what it returns: Mitra can't compute
+them, someone vouches for them (`evidence r { for div_rest holds source
+"review:me" }`). `std::claims` writes what they mean:
+
+```rust
+claim represented(f, S) { given x: S, y: S then correct(f(x)) <=> correct(f(y)) }
+claim uniform(f, case) { given x, y when case(x) == case(y) then correct(f(x)) <=> correct(f(y)) }
+```
+
+`correct(f(x))` is true when evidence judges the call right, false when
+wrong, unknown otherwise. Mitra reads these two claims natively; it does
+not yet read `correct(…)` as a value in a claim of your own.
+
+For a claim on the code of `f` (`correct(f(…))`, or a spec) and each
+`represented` claim on `f`:
+
+- an input of the set passes and none fails: the rest of the set is
+  `assumed on …, by` the claim. Not vouched for, the claim is among what
+  the verdict assumes (`holds assuming [div_rest]`) and has warning M103;
+- an input passes and another fails: the `represented` claim fails with
+  error M002, quoting the two, and stands for nothing;
+- no input of the set is tested: nothing. `mitra plan` then owes
+  `any one point of { (a, b) | b != 0 }`.
+
+A set written `{ (a, b) | cond }` needs a finite set of inputs; a set
+per input works on any type. `uniform` is one claim per function and
+sorts every input; it works without the import, as before.
+`examples/reworked/represented`.
+
 ## `mitra plan`: the evidence owed
 
 `mitra plan` lists, for each claim that does not hold yet, the evidence
@@ -160,7 +192,8 @@ calc::add_commutes owed:
 ```
 
 - A claim with a `uniform` claim on its function owes one point per class
-  not yet tested.
+  not yet tested; with `represented` claims, one point per set not yet
+  tested, then the points no set covers.
 - Otherwise it owes each call it reads and that was not observed, when
   there are at most 12 points; `expected` is what the spec or the claim
   itself says the output is (`f(…) == e`, with `e` computed).
@@ -243,15 +276,16 @@ either syntax. `mitra add 'evidence e { for f … }'` accepts a block.
   earlier line form.
 - Names that are keywords of the earlier syntax can't be used: `by`, `at`,
   `from`, `not`, `def`, `forall`, `uniform`, `correct`, and others.
-- `uniform` is built in, not written in the language: that needs
-  `correct(…)` inside an expression, on two inputs at once. For the same
-  reason there is no `represented(f, S)`.
+- `correct(…)` as a value in your own claims: only `represented` and
+  `uniform` of `std::claims` use it, natively.
+- Several `uniform` claims on one function (several `represented` work).
+- Uniformity proven from a spec's branches (later).
 - A claim with parameters can't take a whole input list (`given x: A`
   for a function of any number of inputs), and an inline function is not
   a value.
 - A body can't call a boundary: a spec is computed, and a boundary is not.
 - Distributions on what a boundary answers, sequences. Simulations: later.
-- `std::claims` has no `represented`. An imported file is read from the
+- An imported file is read from the
   folder of the model; in a store, put modules in a subfolder
   (`.mitra/lib/pair.mitra`, `import lib::pair::Pair;`), since every file
   directly in `.mitra/` is already part of the model.

@@ -151,6 +151,10 @@ pub enum Target {
     /// tie comment says, with the inputs and the result the model gives.
     /// Mitra can't check it: a reader of the code or a reviewer says so.
     Tied,
+    /// One tested input of a set stands for the whole set, and nothing is
+    /// said outside it (reworked syntax, `represented(f, S)`). The set is
+    /// the inputs where the named spec is true. Mitra can't check it.
+    Represented(String),
 }
 
 impl Target {
@@ -158,7 +162,7 @@ impl Target {
     pub fn is_structural(&self) -> bool {
         matches!(
             self,
-            Target::Uniform(_) | Target::Uses { .. } | Target::Tied
+            Target::Uniform(_) | Target::Uses { .. } | Target::Tied | Target::Represented(_)
         )
     }
 }

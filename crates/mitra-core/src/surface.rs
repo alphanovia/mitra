@@ -181,6 +181,8 @@ pub struct Names {
     pub declared: Vec<String>,
     /// The boundaries.
     pub boundaries: BTreeSet<String>,
+    /// The `represented` claims: name, function, the spec of the set, line.
+    pub represented: Vec<(String, String, String, usize)>,
 }
 
 struct P {
@@ -214,6 +216,8 @@ struct P {
     templates: BTreeMap<String, (Vec<String>, Vec<Tok>)>,
     /// The modules being imported, outermost first.
     stack: Vec<String>,
+    /// The claims of `std::claims` that Mitra reads natively, once imported.
+    native: BTreeSet<String>,
 }
 
 type R<T> = Result<T, Error>;
@@ -1075,6 +1079,9 @@ impl P {
         if self.eat("=") {
             // claim c = uniform(f), uniform(f, |a, b| class), uniform(f, classes)
             let form = self.path()?;
+            if form == "represented" && self.native.contains("represented") {
+                return self.represented(out, line, &q);
+            }
             if form != "uniform" {
                 return self.instance(out, line, assumed, &name, &form);
             }
@@ -1264,6 +1271,93 @@ impl P {
         Ok(())
     }
 
+    /// `claim c = represented(f, { (a, b) | b != 0 });` or, with a set per
+    /// input, `represented(f, (0..=9, 1..=9))`: one tested input of the
+    /// set stands for all of it.
+    fn represented(&mut self, out: &mut Vec<String>, line: usize, q: &str) -> R<()> {
+        self.expect("(")?;
+        let f = self.path()?;
+        let f = self.resolve(&f);
+        self.expect(",")?;
+        let known = self.known.fns.get(&f).or(self.names.fns.get(&f)).cloned();
+        let params = match known {
+            Some(params) => params,
+            // The first reading: declared further down.
+            None if self.first => Vec::new(),
+            None => return self.err(format!("the model has no function `{f}`")),
+        };
+        let arity = |n: usize, p: &Self| match n == params.len() || p.first {
+            true => Ok(()),
+            false => p.err(format!("`{f}` takes {} input(s), got {n}", params.len())),
+        };
+        let comprehension = self.is("{")
+            && (self.peek_at(2) == "|"
+                || (self.peek_at(1) == "(" && self.kind_at(2) == Some(Kind::Name)));
+        let (typed, body) = if comprehension {
+            // { (a, b) | cond } over the inputs of f.
+            self.pos += 1;
+            let mut names = Vec::new();
+            if self.eat("(") {
+                while !self.eat(")") {
+                    names.push(self.name()?);
+                    if !self.eat(",") {
+                        self.expect(")")?;
+                        break;
+                    }
+                }
+            } else {
+                names.push(self.name()?);
+            }
+            self.expect("|")?;
+            arity(names.len(), self)?;
+            self.locals = names.clone();
+            self.own = Some((String::new(), String::new()));
+            let cond = self.expr();
+            self.own = None;
+            self.locals.clear();
+            self.expect("}")?;
+            let types = params
+                .iter()
+                .map(|p| p.1.clone())
+                .chain(std::iter::repeat("Value".into()));
+            let typed: Vec<String> = names
+                .iter()
+                .zip(types)
+                .map(|(n, t)| format!("{n}: {t}"))
+                .collect();
+            (typed, cond?)
+        } else {
+            // A set per input.
+            let sets = match self.eat("(") {
+                true => self.tys(")")?,
+                false => vec![self.ty()?],
+            };
+            arity(sets.len(), self)?;
+            let names = params
+                .iter()
+                .map(|p| p.0.clone())
+                .chain((0..).map(|i| format!("x{i}")));
+            let typed: Vec<String> = names.zip(&sets).map(|(n, t)| format!("{n}: {t}")).collect();
+            (typed, "true".to_string())
+        };
+        self.expect(")")?;
+        if let Some(t) = self.trust()? {
+            self.names.trust.insert(q.to_string(), t);
+        }
+        self.eat(";");
+        let set = format!("{q}::set");
+        P::put(
+            out,
+            line,
+            format!("def {set}({}) -> Bool := {body}", typed.join(", ")),
+        );
+        self.names.represented.push((q.to_string(), f, set, line));
+        self.names
+            .claims
+            .insert(q.to_string(), (Vec::new(), Vec::new()));
+        Ok(())
+    }
+
     /// The named declarations of another file, read as if written here.
     fn import(
         &mut self,
@@ -1317,6 +1411,13 @@ impl P {
         self.names.declared.extend(p.names.declared);
         self.names.boundaries.extend(p.names.boundaries);
         self.variants.extend(p.variants);
+        self.native.extend(p.native);
+        if name == "std::claims" {
+            let native = ["represented", "uniform"];
+            let named = names.iter().filter(|n| native.contains(&n.as_str()));
+            self.native.extend(named.cloned());
+        }
+        self.names.represented.extend(p.names.represented);
         self.templates.extend(p.templates);
         Ok(())
     }
@@ -1596,6 +1697,7 @@ fn read(toks: Vec<Tok>, stack: &[String]) -> Result<(Vec<String>, P), Error> {
             impure: false,
             templates: BTreeMap::new(),
             stack: stack.to_vec(),
+            native: BTreeSet::new(),
         };
         let mut out = Vec::new();
         p.items(&mut out)?;
@@ -1662,6 +1764,7 @@ pub fn evidence_alone(src: &str, names: &Names) -> Result<String, Error> {
         impure: false,
         templates: BTreeMap::new(),
         stack: Vec::new(),
+        native: BTreeSet::new(),
     };
     let mut out = Vec::new();
     let lines: Vec<&str> = src.lines().collect();

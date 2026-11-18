@@ -353,6 +353,9 @@ impl Writer<'_> {
                     *out += "  not derived: a premise fails\n";
                 }
             }
+            for (by, set) in v.stood.iter().filter(|_| v.logic != Logic::Fails) {
+                *out += &format!("  assumed on      {}, by `{by}`\n", inputs(set));
+            }
             let assumed = v.assumed.as_ref().filter(|a| a.usable);
             if let Some(a) = assumed.filter(|a| !a.classes.is_empty() && v.logic != Logic::Fails) {
                 let by: Vec<String> = std::iter::once(&a.by)
@@ -583,9 +586,16 @@ impl Writer<'_> {
             }
             Kind::Denied { claim } => {
                 *out += &self.at_claim(claim);
-                *out += &format!(
-                    "\n  The model states `{claim}`, and evidence says it does not hold:\n\n"
-                );
+                let split = matches!(self.claim(claim).target, crate::Target::Represented(_));
+                *out += &match split {
+                    true => format!(
+                        "\n  `{claim}` says one input stands for the others, and two of them\n  \
+                         do not behave the same:\n\n"
+                    ),
+                    false => format!(
+                        "\n  The model states `{claim}`, and evidence says it does not hold:\n\n"
+                    ),
+                };
                 self.quoted(p, out);
                 self.ranking(p, out);
                 *out += "\n  help: correct or remove the claim, or correct the evidence\n";

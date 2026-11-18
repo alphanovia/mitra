@@ -62,6 +62,9 @@ impl Implication {
 /// The verdict on one claim.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Verdict {
+    /// The inputs a tested one stands for, with the `represented` claim
+    /// that says so.
+    pub stood: Vec<(String, Tuples)>,
     /// An input where the specs of the functions the claim calls say it
     /// is false: the model contradicts itself there.
     pub against: Option<Vec<Value>>,
@@ -2150,6 +2153,29 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     let vouched = |i: usize| usable(i) && direct[i].right.same(&direct[i].domain);
     let vouched_one = vouched;
 
+    // `represented` claims: each with its set and, when one of its
+    // inputs passes a claim and another fails it, the two evidence lines.
+    type Stand = (usize, Tuples, Option<(usize, usize)>);
+    let mut stands: Vec<Stand> = Vec::new();
+    for (r, c) in model.claims.iter().enumerate() {
+        let Some(set) = represented(model, c) else {
+            continue;
+        };
+        let mut split = None;
+        for (j, d) in model.claims.iter().enumerate() {
+            if d.func != c.func || d.target.is_structural() {
+                continue;
+            }
+            let inside = |ok: bool| {
+                let on = direct[j].points.iter();
+                on.filter(move |p| p.1 == ok).find(|p| set.contains(&p.0))
+            };
+            if let (Some(pass), Some(fail)) = (inside(true), inside(false)) {
+                split.get_or_insert((pass.2, fail.2));
+            }
+        }
+        stands.push((r, set, split));
+    }
     // 3. Verdicts.
     let mut logic_of: HashMap<&str, Logic> = HashMap::new();
     let mut assuming_of: HashMap<&str, Vec<String>> = HashMap::new();
@@ -2368,7 +2394,36 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             Some(a) if a.usable => covered.union(&a.set),
             _ => covered.clone(),
         };
-        let mut logic = if !refuted.is_empty() {
+        // One tested input of a `represented` set stands for the set.
+        let mut stood = Vec::new();
+        let mut with_assumed = with_assumed;
+        let own = !c.target.is_structural() && c.func != c.name;
+        let subject = matches!(c.target, Target::Correct | Target::Matches(_));
+        for (r, set, split) in stands.iter().filter(|_| own && subject) {
+            let by = &model.claims[*r];
+            let about = |e: &&Evidence| e.about == by.name;
+            let says = |ok: bool| {
+                let mut on = model.evidence.iter().filter(about);
+                on.any(|e| e.judgment == Judgment::Holds(ok))
+            };
+            let inside = set.intersect(domain);
+            let tested_there = !inside.intersect(&tested).is_empty();
+            let fails_there = !inside.intersect(&refuted).is_empty();
+            if by.func != c.func || split.is_some() || says(false) || !tested_there || fails_there {
+                continue;
+            }
+            let more = inside.minus(&with_assumed);
+            if more.is_empty() {
+                continue;
+            }
+            with_assumed = with_assumed.union(&more);
+            stood.push((by.name.clone(), more));
+            if !says(true) && !assuming.contains(&by.name) {
+                assuming.push(by.name.clone());
+            }
+        }
+        let split = stands.iter().find(|s| s.0 == i).and_then(|s| s.2);
+        let mut logic = if !refuted.is_empty() || split.is_some() {
             Logic::Fails
         } else if !with_assumed.same(domain) {
             Logic::Unverified
@@ -2391,6 +2446,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         logic_of.insert(&c.name, logic);
         assuming_of.insert(&c.name, assuming.clone());
         verdicts.push(Verdict {
+            stood,
             against,
             claim: c.name.clone(),
             logic,
@@ -2440,6 +2496,23 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     for (i, c) in model.claims.iter().enumerate() {
         let v = &verdicts[i];
         if v.logic != Logic::Fails || broken(&c.name) {
+            continue;
+        }
+        if let Some((_, _, Some((pass, fail)))) = stands.iter().find(|s| s.0 == i) {
+            // The two inputs did not behave the same: the claim is denied.
+            let mut pieces = vec![Piece::Evidence(*pass), Piece::Evidence(*fail)];
+            let vouches = model.evidence.iter().filter(|e| e.about == c.name);
+            pieces.extend(vouches.map(|e| Piece::Evidence(e.line)));
+            pieces.push(Piece::Claim(c.name.clone()));
+            problems.push(Problem {
+                kind: Kind::Denied {
+                    claim: c.name.clone(),
+                },
+                evidence: vec![quoted(*pass), quoted(*fail)],
+                clauses: vec![pieces],
+                candidates: Ok(Vec::new()),
+                conflict: 0.0,
+            });
             continue;
         }
         if let Some(x) = &v.against {
@@ -2882,6 +2955,32 @@ pub fn failed_output(model: &Model, test: &Test) -> Result<Vec<Evidence>, Error>
         }
     }
     Ok(out)
+}
+
+/// The set of a `represented` claim: the inputs where its spec is true.
+/// `None` when Mitra can't list them.
+pub(crate) fn represented(model: &Model, c: &Claim) -> Option<Tuples> {
+    let Target::Represented(spec) = &c.target else {
+        return None;
+    };
+    let g = model.function(spec)?;
+    let domain = g.domain();
+    if g.body == Some(Expr::Lit(Value::Bool(true))) {
+        return Some(domain);
+    }
+    let mut set = Tuples::empty(domain.arity());
+    for x in domain.values()? {
+        let names: Vec<(String, Value)> = g
+            .params
+            .iter()
+            .map(|p| p.0.clone())
+            .zip(x.iter().cloned())
+            .collect();
+        if computed(model, g.body.as_ref()?, &names)? == Value::Bool(true) {
+            set = set.union(&Tuples::point(&x));
+        }
+    }
+    Some(set)
 }
 
 /// The value of an expression that reads no code, with these names

@@ -541,3 +541,20 @@ fn import_reads_beside_the_model() {
     assert_eq!(code, Some(0));
     assert!(out.contains("claim commutative(f, T)"), "{out}");
 }
+
+/// `mitra plan` with `represented`: one point per set.
+#[test]
+fn plan_owes_one_point_per_represented_set() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../examples/reworked/represented");
+    let (code, out, err) = mitra(&dir, &["plan", "model.mitra", "evidence.mitra"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("calc::div::spec owed:\n  any one point of { (a, b) | b == 0 }\n"),
+        "{out}"
+    );
+    assert!(
+        out.contains("a review that one input of 0..=9 stands for the others"),
+        "{out}"
+    );
+}

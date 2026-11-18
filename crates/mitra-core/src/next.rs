@@ -115,6 +115,15 @@ pub fn next(model: &Model, report: &Report) -> String {
         if v.logic != Logic::Unverified {
             continue;
         }
+        if let (Target::Represented(_), true) = (&c.target, v.tested.is_empty()) {
+            out += &format!(
+                "{}: not vouched for\n  review that one input of its set stands for the others, for `{}`, then:\n{}",
+                c.name,
+                c.func,
+                vouch(model, &c.name)
+            );
+            continue;
+        }
         if let Target::Uniform(spec) = &c.target {
             let within = match spec {
                 Some(spec) => format!("within each class of `{spec}`"),

@@ -107,6 +107,18 @@ fn load_surface(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
         .filter(outside)
         .map(|f| f.name.clone())
         .collect();
+    for (name, f, set, line) in &names.represented {
+        m.claims.push(Claim {
+            name: name.clone(),
+            func: f.clone(),
+            pattern: Vec::new(),
+            target: Target::Represented(set.clone()),
+            from: Vec::new(),
+            auto: false,
+            trust: names.trust.get(name).copied(),
+            line: *line,
+        });
+    }
     let lines = evidence.lines().count();
     let earlier = surface::evidence(evidence, &names).map_err(|e| (Input::Evidence, e))?;
     tie(&mut m, &earlier, &names);

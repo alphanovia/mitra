@@ -91,13 +91,21 @@ pub fn print_claim(m: &Model, c: &Claim) -> String {
     if let Target::Tied = &c.target {
         return format!("-- the code of {} is tied to the model", c.func);
     }
+    if let Target::Represented(set) = &c.target {
+        return format!(
+            "-- one input of {} where {set} stands for all of them",
+            c.func
+        );
+    }
     let params = m.function(&c.func).map(|f| &f.params[..]).unwrap_or(&[]);
     let (forall, args) = pattern(&c.pattern, params);
     let body = match &c.target {
         Target::Correct => format!("correct({}{args})", c.func),
         Target::Matches(e) => format!("{}{args} = {}", c.func, expr(e)),
         Target::Property(e) => expr(e),
-        Target::Uniform(_) | Target::Uses { .. } | Target::Tied => unreachable!(),
+        Target::Uniform(_) | Target::Uses { .. } | Target::Tied | Target::Represented(_) => {
+            unreachable!()
+        }
     };
     let from = if c.from.is_empty() {
         String::new()

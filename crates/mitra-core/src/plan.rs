@@ -64,6 +64,13 @@ fn owed(model: &Model, report: &Report, c: &Claim, v: &Verdict) -> String {
             );
         }
         Target::Tied => return format!("{head} `mitra tie`, once the code is written\n"),
+        Target::Represented(_) => {
+            return format!(
+                "{head} a review that one input of {} stands for the others, for `{}`\n",
+                set_text(model, c),
+                c.func
+            )
+        }
         _ => {}
     }
     // One point stands for its class.
@@ -82,7 +89,31 @@ fn owed(model: &Model, report: &Report, c: &Claim, v: &Verdict) -> String {
         }
         return out;
     }
-    let missed = v.missed.union(&v.derived);
+    let mut missed = v.missed.union(&v.derived);
+    // One point of a `represented` set stands for the set.
+    let mut sets = String::new();
+    let on_code = matches!(c.target, Target::Correct | Target::Matches(_));
+    for r in model.claims.iter().filter(|r| r.func == c.func && on_code) {
+        let denied = report
+            .verdicts
+            .iter()
+            .any(|w| w.claim == r.name && w.logic == Logic::Fails);
+        let Some(set) = crate::eval::represented(model, r).filter(|_| !denied) else {
+            continue;
+        };
+        let inside = set.intersect(&v.domain);
+        if !inside.intersect(&missed).is_empty() && inside.intersect(&v.tested).is_empty() {
+            sets += &format!("  any one point of {}\n", set_text(model, r));
+            missed = missed.minus(&inside);
+        }
+    }
+    if !sets.is_empty() && missed.is_empty() {
+        return format!("{head}\n{sets}");
+    }
+    let head = match sets.is_empty() {
+        true => head,
+        false => format!("{head}\n{sets}  and"),
+    };
     let size = missed.size_bound();
     let mut shown = missed.show(&v.domain);
     if shown.len() > WIDE {
@@ -225,4 +256,17 @@ fn observed(model: &Model, g: &str, values: &[Value]) -> bool {
             && matches!(e.judgment, crate::Judgment::Output(_))
             && point.collect::<Option<Vec<Value>>>().as_deref() == Some(values)
     })
+}
+
+/// The set of a `represented` claim, as written.
+fn set_text(model: &Model, r: &Claim) -> String {
+    let written = model.written.as_ref();
+    let text = written.and_then(|w| crate::surface::written(&w.0, r.line));
+    let inside = text.as_deref().and_then(|t| {
+        let from = t.find("represented(")?;
+        let start = from + t[from..].find(',')? + 1;
+        let end = t.rfind(')')?;
+        Some(t.get(start..end)?.trim().to_string())
+    });
+    inside.unwrap_or_else(|| format!("the set of `{}`", r.name))
 }
