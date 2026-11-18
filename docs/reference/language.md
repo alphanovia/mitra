@@ -534,8 +534,10 @@ inputs, `source` and `rev`) is one piece, at the highest bias given.
 Pieces are listed by plausibility, then belief, highest first.
 
 Two cases have no numbers. If every piece of an error is trusted at 1,
-the error says so: one of them is wrong, and nothing ranks them. (When
-errors computed together are in that case, each is then computed alone.)
+the error says so: one of them is wrong, and nothing ranks them. Such
+an error is left out of the others' computation, so it does not take
+their ranking away (golden `uses/08`). (When errors computed together
+are still in that case, each is then computed alone.)
 If more than 20 pieces have a bias strictly between 0 and 1, the error
 says there are too many to rank.
 

@@ -1,0 +1,27 @@
+half_correct : fails
+  refuted  {0}
+  tested   nothing
+  missed   {1}
+quarter_correct : fails
+  refuted  {1}
+  tested   {0}
+quarter_uses : unverified
+  tested   nothing
+  missed   Int
+quarter_uniform : fails
+  refuted  0..=1
+error: `half_correct` fails on {0}
+  evidence line 5: evidence not correct (half 0) at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `half`
+error: `quarter_correct` fails on {1}
+  evidence line 8: evidence not correct (quarter 1) at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `half`
+    [0.00, 1.00] the code of `quarter`
+error: inconsistent, in class "any" of `all`: `quarter_uniform` can't hold with both
+  evidence line 6: evidence quarter_uniform at 1
+  evidence line 7: evidence correct (quarter 0) at 1
+  evidence line 8: evidence not correct (quarter 1) at 1
+  every piece is trusted at 1, yet one of them is wrong
+suspect: `quarter` uses `half`, where half_correct fails: look there first

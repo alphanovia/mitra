@@ -1419,24 +1419,6 @@ fn rank(model: &Model, problems: &mut [Problem]) {
             clause.dedup();
         }
     }
-    // Groups of problems that share a piece.
-    let n = problems.len();
-    let mut group: Vec<usize> = (0..n).collect();
-    let shares = |a: &Problem, b: &Problem| {
-        let mut of_b = b.clauses.iter().flatten();
-        of_b.any(|x| a.clauses.iter().flatten().any(|y| x == y))
-    };
-    for i in 0..n {
-        for j in 0..i {
-            if group[i] != group[j] && shares(&problems[i], &problems[j]) {
-                let (from, to) = (group[i], group[j]);
-                group
-                    .iter_mut()
-                    .filter(|g| **g == from)
-                    .for_each(|g| *g = to);
-            }
-        }
-    }
     type Weighed = Result<(Vec<Candidate>, f64), Unranked>;
     let weigh = |members: &[usize], problems: &[Problem]| -> Weighed {
         let mut pieces: Vec<Piece> = Vec::new();
@@ -1470,6 +1452,30 @@ fn rank(model: &Model, problems: &mut [Problem]) {
             Err(_) => Err(Unranked::TooMany),
         }
     };
+    // A problem whose own pieces are all trusted can't be ranked, and
+    // would leave no ranking to any problem weighed with it: it stays alone.
+    let n = problems.len();
+    let stuck: Vec<bool> = (0..n)
+        .map(|i| matches!(weigh(&[i], problems), Err(Unranked::AllTrusted)))
+        .collect();
+    // Groups of problems that share a piece.
+    let mut group: Vec<usize> = (0..n).collect();
+    let shares = |a: &Problem, b: &Problem| {
+        let mut of_b = b.clauses.iter().flatten();
+        of_b.any(|x| a.clauses.iter().flatten().any(|y| x == y))
+    };
+    for i in 0..n {
+        for j in 0..i {
+            if group[i] != group[j] && !stuck[i] && !stuck[j] && shares(&problems[i], &problems[j])
+            {
+                let (from, to) = (group[i], group[j]);
+                group
+                    .iter_mut()
+                    .filter(|g| **g == from)
+                    .for_each(|g| *g = to);
+            }
+        }
+    }
     let mut done = vec![false; n];
     for i in 0..n {
         if done[i] {
