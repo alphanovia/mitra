@@ -1,2 +1,0 @@
-id_correct [by_usage] := { logic := .fails, refuted := {7}, domain := Value, belief := 0 }
-id_small [by_usage] := { logic := .fails, refuted := {7}, domain := 0..=100, belief := 0 }

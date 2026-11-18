@@ -1,2 +1,0 @@
-id_correct [strict] := { logic := .holds, covered := Value, domain := Value, belief := 1 }
-id_small [strict] := { logic := .holds, covered := 0..=100, domain := 0..=100, belief := 1 }

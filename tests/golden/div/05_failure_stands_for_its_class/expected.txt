@@ -1,0 +1,13 @@
+div_correct : fails
+  refuted  {(4, 2)}
+  tested   nothing
+  missed   class "zero" of `div_class`
+div_small : fails
+  refuted  (0..=1, 1..=2)
+  tested   nothing
+div_uniform : holds
+error: `div_correct` fails on {(4, 2)}
+error: `div_small` fails on (0..=1, 1..=2)
+  evidence line 3: evidence not correct (div 4 2) at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `div`

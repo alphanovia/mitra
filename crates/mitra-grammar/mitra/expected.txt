@@ -1,5 +1,7 @@
-grammar_sample [strict] := { logic := .holds, covered := 0..=499, domain := 0..=499, belief := 1 }
-ll1_sample [strict] := { logic := .holds, covered := 0..=499, domain := 0..=499, belief := 1 }
-parses_sample [strict] := { logic := .holds, covered := 0..=499, domain := 0..=499, belief := 1 }
-round_trips_sample [strict] := { logic := .holds, covered := 0..=499, domain := 0..=499, belief := 1 }
-parses_all [strict] := { logic := .uncertain, covered := 0..=499, domain := Int, belief := 0 }
+grammar_sample : holds
+ll1_sample : holds
+parses_sample : holds
+round_trips_sample : holds
+parses_all : unverified
+  tested   0..=499
+  missed   Int \ 0..=499

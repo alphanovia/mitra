@@ -1,5 +1,6 @@
-//! `mitra next`: what can't all be true, the claims that fail, and for each
-//! uncertain claim what is missing and the evidence that would settle it.
+//! `mitra next`: what can't all be true, the claims that fail, the claims
+//! that hold only under an assumption, and for each unverified claim what
+//! is missed and the evidence that would settle it.
 
 use crate::ast::{Model, Target};
 use crate::eval::{Logic, Report};
@@ -81,11 +82,18 @@ pub fn next(model: &Model, report: &Report) -> String {
             out += &format!("{} : holds, but is suspect\n", c.name);
             out += &look(&c.func);
         }
-        if v.logic != Logic::Uncertain {
+        if v.logic == Logic::Assuming {
+            out += &format!(
+                "{} : holds assuming [{}]\n  bring evidence on what it assumes, such as a review, or test until it is not needed\n",
+                c.name,
+                v.assuming.join(", ")
+            );
+        }
+        if v.logic != Logic::Unverified {
             continue;
         }
         if let Target::Uniform(spec) = &c.target {
-            out += &if v.covered.is_empty() {
+            out += &if v.tested.is_empty() {
                 format!(
                     "{} : not vouched for\n  review that `{}` behaves the same within each class of `{spec}`, then:\n  \
                      evidence {} at 1\n",
@@ -99,7 +107,7 @@ pub fn next(model: &Model, report: &Report) -> String {
             };
             continue;
         }
-        if let (Target::Uses { .. }, false) = (&c.target, v.covered.is_empty()) {
+        if let (Target::Uses { .. }, false) = (&c.target, v.tested.is_empty()) {
             out += &format!(
                 "{} : vouched for in part, or both vouched for and denied: settle the evidence on it\n",
                 c.name
@@ -125,16 +133,16 @@ pub fn next(model: &Model, report: &Report) -> String {
             );
             continue;
         }
-        let missing = v.domain.minus(&v.covered);
+        let missing = v.missed.clone();
         let mut shown = missing.show(&v.domain);
         if shown.len() > WIDE {
-            shown = match v.covered.size_bound() {
+            shown = match v.tested.union(&v.derived).size_bound() {
                 Some(n) => format!("all of {} but {n} inputs", v.domain.show(&v.domain)),
                 None => "a set too long to print".to_string(),
             };
         }
         match &v.assumed {
-            Some(a) if a.holds && !a.untested.is_empty() => {
+            Some(a) if a.usable && !a.untested.is_empty() => {
                 let n = a.untested.len();
                 out += &format!("{} : missing {n} of the classes of `{}`\n", c.name, a.spec)
             }
@@ -152,7 +160,7 @@ pub fn next(model: &Model, report: &Report) -> String {
                 .map(|p| p.as_str())
                 .collect()
         };
-        let (failing, waiting) = (premise(Logic::Fails), premise(Logic::Uncertain));
+        let (failing, waiting) = (premise(Logic::Fails), premise(Logic::Unverified));
         if !failing.is_empty() {
             out += &format!("  derived: premise fails: {}\n", failing.join(", "));
         }
@@ -167,9 +175,9 @@ pub fn next(model: &Model, report: &Report) -> String {
                 Some(Logic::Fails) => {
                     out += &format!("  `{}` fails: its classes stand for nothing\n", a.by)
                 }
-                Some(Logic::Uncertain) => {
+                Some(Logic::Unverified) => {
                     out += &format!(
-                        "  `{}` is not vouched for: its classes stand for nothing yet\n",
+                        "  `{}` is not vouched for: what rests on it is only assumed\n",
                         a.by
                     )
                 }
@@ -220,7 +228,7 @@ pub fn next(model: &Model, report: &Report) -> String {
         }
     }
     if out.is_empty() {
-        out += "nothing uncertain\n";
+        out += "nothing to do\n";
     }
     out
 }
@@ -253,9 +261,8 @@ mod tests {
              \x20 or a `uniform` claim, so that one test stands for a class of inputs\n\
              big : missing 0..=99\n\
              \x20 100 inputs: test them, or bring evidence over the whole set (a proof)\n\
-             derived : missing {false}\n\
-             \x20 derived: waits on flip_spec\n\
-             \x20 evidence flip false = <output> at 1\n"
+             derived : holds assuming [flip_spec]\n\
+             \x20 bring evidence on what it assumes, such as a review, or test until it is not needed\n"
         );
     }
 
@@ -287,8 +294,8 @@ mod tests {
         };
         assert_eq!(
             say("evidence correct (div 6 3) at 1"),
-            "div_correct : missing (Int \\ {6}, Int) | ({6}, Int \\ {3})\n\
-             \x20 `div_uniform` is not vouched for: its classes stand for nothing yet\n\
+            "div_correct : missing 1 of the classes of `div_class`\n\
+             \x20 `div_uniform` is not vouched for: what rests on it is only assumed\n\
              \x20 no passing input in class \"zero\" of `div_class`: one test there stands for the class\n\
              div_uniform : not vouched for\n\
              \x20 review that `div` behaves the same within each class of `div_class`, then:\n\

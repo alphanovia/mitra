@@ -1,0 +1,7 @@
+add_spec : holds
+negate_spec : holds
+minus_shape : holds
+minus_spec : unverified
+  tested   nothing
+  derive   not used: the implication is refuted
+  missed   (0..=2, 0..=2)

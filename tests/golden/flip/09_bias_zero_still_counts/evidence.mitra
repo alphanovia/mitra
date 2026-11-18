@@ -1,0 +1,4 @@
+-- The bias never changes a verdict: evidence at 0 counts like any other.
+-- It only says what to doubt first when there is an error.
+evidence correct (flip true) at 0
+evidence not correct (flip false) at 0

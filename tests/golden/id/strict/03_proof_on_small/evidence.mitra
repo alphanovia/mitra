@@ -1,2 +1,0 @@
--- A proof covers a whole interval.
-evidence forall x in 0..=100, correct (id x) at 1

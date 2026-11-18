@@ -9,19 +9,26 @@ ideas and open questions live in the [general docs](../../README.md#documentatio
 ```sh
 mitra init
 mitra check [model.mitra evidence.mitra] [--rev <commit>]
-mitra eval  [model.mitra evidence.mitra] [--rev <commit>] [-o result.txt]
+mitra eval  [model.mitra evidence.mitra] [--rev <commit>] [--candidates <n>]
+            [--threshold <p>] [--all] [-o result.txt]
 mitra next  [model.mitra evidence.mitra] [--rev <commit>]
 mitra add   '<evidence>' [--source <who>] [--rev <commit>]
 mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 ```
 
 `mitra` (crate `mitra-cli`) is a thin wrapper over the library
-`mitra-core`. On an error it prints `file: line N: message` and exits with
-status 2.
+`mitra-core`. When it can't read or check its input it prints `file: line
+N: message` and exits with status 2.
 
-- `eval` writes one verdict per claim and policy (see Output) to
+- `eval` writes each claim's verdict, then the errors (see Output), to
   `result.txt`, or to standard output without `-o`. The result file may not
   start with `-` or end in `.mitra`, so a store file is never overwritten.
+  It prints `mitra: E errors, W warnings` on standard error, and exits
+  with status 1 when there is an error, 0 otherwise. A warning is a claim
+  that is `unverified` or `holds assuming`.
+- An error lists the pieces that may be wrong, most plausible first: at
+  most 5, and none under a plausibility of 0.05. `--candidates <n>` and
+  `--threshold <p>` change the two limits, and `--all` removes both.
 - `check` parses, checks and evaluates both files, prints
   `ok: F functions, C claims, T tests, E evidence`, then any contested
   evidence.
@@ -30,10 +37,10 @@ status 2.
   each claim that fails with the inputs refuted. Those on a subject that
   uses nothing failing come first, as the likely root causes; the others
   are followed by `look first at …` (see Evaluation, suspects), and so is
-  a claim that holds on a suspect subject. Then it lists each uncertain claim with the inputs it is missing (its
-  domain minus the inputs covered), the premises of a derived claim that
-  fail (`derived: premise fails: p`) or are uncertain (`derived: waits on
-  p`), and what to add: the evidence lines to write when at most 5 inputs are
+  a claim that holds on a suspect subject. A claim that `holds assuming`
+  is listed with what it assumes. Then it lists each unverified claim
+  with the inputs it misses, the premises of a derived claim that
+  fail (`derived: premise fails: p`), and what to add: the evidence lines to write when at most 5 inputs are
   missing on a subject (`evidence f 2 = <output> at 1` for an `=` claim:
   run `f 2` and fill in its output), else how many inputs are missing
   (counted without listing them), or that the set is infinite and only
@@ -41,9 +48,9 @@ status 2.
   count as missing too. A missing set longer than 100 characters is summed
   up. When the subject has a `uniform` claim, `next` lists instead the
   classes with no passing input, and says if the `uniform` claim fails or
-  is not vouched for. For an uncertain `uniform` claim it prints the
-  evidence line a reviewer adds.
-  It prints `nothing uncertain` when it has nothing to say.
+  is not vouched for. For an unverified `uniform` or `uses` claim it
+  prints the evidence line a reviewer adds.
+  It prints `nothing to do` when it has nothing to say.
 - `--rev R` on `check`, `eval` and `next` counts only evidence recorded at
   `R`: evidence with another `rev`, or with none, is **stale** and left out
   (otherwise an old pass would outlive a newer failure that is left out).
@@ -110,8 +117,7 @@ status 2.
 
 The syntax is a small, fixed subset inspired by Lean 4
 ([design](../design/lean-syntax.md)), written in ASCII. Every command starts
-with a keyword (`opaque`, `def`, `claim`, `test`, `profile`, `policy`,
-`evidence`), so a parser knows what it reads from the first token. Layout is
+with a keyword (`opaque`, `def`, `claim`, `test`, `evidence`), so a parser knows what it reads from the first token. Layout is
 free: line breaks and indentation mean nothing.
 
 - `--` starts a comment that runs to the end of the line.
@@ -124,10 +130,10 @@ free: line breaks and indentation mean nothing.
 - Symbols, longest match first: `@[` `..=` `:=` `=>` `==` `!=` `<=` `>=`
   `&&` `||` `..` `(` `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `&` `!` `<` `>`
   `+` `-` `*` `\`.
-- Keywords: `opaque def claim test evidence profile policy correct at by
-  derive if then else let true false forall in not uniform uses only Bool Int Int8 Int16
-  Int32 Int64 UInt8 UInt16 UInt32 Float64 String Value Real for strict
-  coverage _`. `Real` is reserved.
+- Keywords: `opaque def claim test evidence correct at by derive if then
+  else let true false forall in not uniform uses only Bool Int Int8 Int16
+  Int32 Int64 UInt8 UInt16 UInt32 Float64 String Value Real _`. `Real`
+  and `_` are reserved.
 - Lean's Unicode symbols are accepted as aliases: `∀` for `forall`, `∈` for
   `in`, `¬` for `not`, `∪` for `|`, `∩` for `&`. Mitra prints ASCII.
 
@@ -135,7 +141,7 @@ free: line breaks and indentation mean nothing.
 
 ```ebnf
 model      = { command } ;
-command    = opaque | def | claim | test | profile | policy ;
+command    = opaque | def | claim | test ;
 
 opaque     = "opaque" name binders ":" set ;
 def        = "def" name binders ":" set ":=" expr ;
@@ -147,10 +153,6 @@ claim      = "claim" name ":" ( "uniform" name "by" name
                ( "correct" "(" name args ")" | name args "=" expr )
                [ ":=" "by" "derive" "[" name { "," name } "]" ] ) ;
 test       = "test" name ":" { forall } judgment ;
-profile    = "profile" name "for" name { "|" region "=>" number } ;
-region     = "_" | name "in" set ;
-policy     = "policy" ( "strict" | name ":="
-             ( "strict" | "coverage" ( name | "uniform" ) ) ) ;
 
 evidences  = { evidence } ;
 evidence   = [ attributes ] "evidence" { forall } judgment "at" number ;
@@ -314,8 +316,8 @@ used in the expression after `=`.
   the same inputs.
 - `:= by derive [c1, c2, …]`: a **derivation**. Premises must be claims
   defined above. Mitra checks the implication "premises ⇒ claim" when it
-  can (see Evaluation), and the claim holds on its whole domain when every
-  premise holds and the implication is not refuted.
+  can (see Evaluation), and the claim follows on its whole domain when no
+  premise fails and the implication is not refuted.
 - `uniform f by g`: a **uniformity claim**, the assumption a developer
   makes when a few tests are taken to cover a function. `g` is a spec with
   the same parameters as the subject `f`; its values are the **classes**
@@ -330,17 +332,18 @@ used in the expression after `=`.
   ```
 
   `g`'s result type has at most 64 values, and a subject has at most one
-  uniformity claim. Mitra can't check it: it counts once evidence vouches
-  for it, `evidence div_uniform at 1`, for example from a review that
-  the classes follow the branches of the code.
+  uniformity claim. Mitra can't check it: evidence vouches for it,
+  `evidence div_uniform at 1`, for example from a review that the classes
+  follow the branches of the code. Without evidence it is `unverified`,
+  and what rests on it `holds assuming` it.
 - `uses f [g, h]`: the subject `f` calls the subjects `g` and `h`.
   `only uses f [g, h]` adds that it calls no other subject. Neither
-  changes a verdict; they tell Mitra where to look when `f` fails (see
-  Evaluation, suspects). Like uniformity, Mitra can't check them:
-  evidence vouches for them (`evidence c at 1`) or denies them (`not c`).
-  Without evidence, a claim may raise suspicion but never trust: an
-  unvouched `uses` or `only uses` still gives suspects, unless denied,
-  and only a vouched `only uses` gives a root cause.
+  changes another claim's verdict; they tell Mitra where to look when `f`
+  fails (see Evaluation, suspects and errors). Like uniformity, Mitra
+  can't check them: evidence vouches for them (`evidence c at 1`) or
+  denies them (`not c`). Without evidence, a `uses` or `only uses` claim
+  still gives suspects, unless denied, but only a vouched `only uses`
+  gives a root cause.
 
   ```lean
   claim dempster_uses : only uses dempster [is_valid, conflict]
@@ -367,8 +370,14 @@ evidence flip_not_shape at 1
   domain, for example from a review or a proof. `c args` restricts it to
   those inputs.
 
-The confidence after `at` is `1` (fully believed) or `0` (fully
-distrusted). **Values in between are rejected for now.**
+The number after `at` is the **bias**: how much its author trusts this
+piece of evidence, from `0` to `1`. It never changes a verdict: every
+piece of evidence counts, at any bias, even 0. It is used only when an
+error is raised, to say which piece is most plausibly wrong (see
+Evaluation, errors).
+
+There is one kind of evidence. A test result, a review, a proof and a bug
+report differ only by their `source`, and no rule depends on it.
 
 Attributes record where evidence comes from, and do not change verdicts:
 
@@ -390,7 +399,7 @@ test t_one : add 1 2 = 3
 ```
 
 A test of the code and the evidence its result stands for; the judgment is
-written as in `evidence`, without a confidence. `mitra ingest` turns a
+written as in `evidence`, without a bias. `mitra ingest` turns a
 result into evidence at 1:
 
 - a pass gives the judgment;
@@ -407,41 +416,11 @@ result into evidence at 1:
 
 Test names share the namespace of functions and claims.
 
-### profile
-
-```lean
-profile usage for id
-  | x in 0..=100 => 0.8
-  | x in String => 0.1
-  | _ => 0.1
-```
-
-How much each part of a subject's domain matters, for `coverage` policies.
-Regions are matched in order: a value belongs to the first region that
-contains it, and `_` takes the rest of the domain. Weights are divided by
-their total. The built-in profile `uniform` has a single region, the whole
-domain.
-
-### policy
-
-```lean
-policy strict
-policy by_usage := coverage usage
-```
-
-A policy turns the evidence into a belief. Every claim gets one verdict per
-policy. With no policy in the model, `strict` is used. The kinds are:
-
-- `strict`: belief is 1 if the claim holds, else 0.
-- `coverage profile`: belief is the share of the claim's domain that is
-  covered, measured with the profile. A profile for another subject is
-  replaced by `uniform`.
-
 ## Evaluation
 
-Evidence `at 0` is ignored. Evidence `at 1` on a **spec** is not used
-and is reported as `contested`: a spec is a definition, so evidence cannot
-disprove it.
+Every piece of evidence counts, whatever its bias. Evidence on a **spec**
+is not used and is reported as `contested`: a spec is a definition, so
+evidence cannot disprove it.
 
 For each claim, in model order, with D its domain, Mitra gathers the inputs
 where the claim is right and where it is wrong:
@@ -450,7 +429,7 @@ where the claim is right and where it is wrong:
 2. For a `correct` claim: `correct` / `not correct` evidence on its subject.
 3. For an `=` claim, on each input x (every input of D if D is finite,
    otherwise every observed input in D): evaluate both sides, a subject
-   call giving each output observed for that input. Equal values make x
+   call giving the output observed for that input. Equal values make x
    right, different values make x wrong. With no observation, x is not
    judged. A claim on specs alone over a finite domain is thus decided by
    computation.
@@ -463,17 +442,28 @@ failure can't both be true. So are two different outputs for one input,
 and an input judged `correct` and `not correct`, on any subject, with or
 without a claim. A contradicted input counts on neither side, for every
 claim saying the same of the subject, and each pair of pieces of evidence
-that contradict is reported once as a conflict, with the inputs they
-share. Then:
+that contradict is an error (see Errors). Then, for each claim:
 
 - *refuted* = wrong \ right.
-- *covered* = right \ wrong; if the claim has `by derive`, every premise holds
-  and the implication is not refuted, *covered* = D \ wrong instead. A
-  failing premise only removes the derived support; a direct counterexample
-  still refutes the claim.
-- **logic** is `fails` if *refuted* is not empty, `holds` if *covered* = D,
-  and `uncertain` otherwise.
-- **belief** is 0 when the claim fails, and otherwise depends on the policy.
+- *tested* = right \ wrong: what evidence covers directly.
+- *assumed*: what follows from other claims. With `by derive`, when no
+  premise fails and the implication is not refuted, every input of D
+  that is neither tested nor wrong. With a uniformity claim on the
+  subject, the inputs of the classes that passed (see Uniformity). A
+  direct counterexample still refutes the claim.
+- *missed* = D minus the three sets above.
+
+The **verdict** is:
+
+- `fails` if *refuted* is not empty;
+- `unverified` if *missed* is not empty;
+- `holds` if nothing is missed and every claim the *assumed* inputs rest
+  on holds;
+- `holds assuming [a, b]` if nothing is missed and the claims `a`, `b`
+  it rests on are not verified. These are: an unverified premise; the
+  claims a premise itself assumes; a uniformity claim nobody vouched for.
+
+There is no number on a claim.
 
 **Uniformity.** Let `u : uniform f by g` be a claim. Mitra looks at the
 single inputs judged for `f`, one **statement** at a time. `correct` is
@@ -487,30 +477,79 @@ failure, and nothing is assumed for its class. The class of
 an input x is `g x`.
 
 - **Conflict.** If, for one statement, a class holds an input that passed
-  and one that failed, `u`, the pass and the failure can't all be true. `u` **fails**, whatever
-  vouches for it; its *refuted* shows the two inputs, and the output ends
-  with the conflict and both pieces of evidence. Mitra does not choose
-  which of the three is wrong.
+  and one that failed, `u`, the pass and the failure can't all be true.
+  `u` **fails**, whatever vouches for it; its *refuted* shows the two
+  inputs, and an error lists the three pieces (see Errors).
 - Otherwise `u` holds if evidence on `u` covers its whole domain, like any
-  claim, and is uncertain if not.
-- While `u` **holds**, for every other claim c on `f`: an input of D in a
-  class with a passing input is **assumed**, and counts as covered for
-  c's logic and belief; an input in a class with a failing input is
-  refuted. On a finite D (up to 10 000 inputs) this is done input by
-  input. On a larger D the classes Mitra can't place: c holds once every
-  value of `g`'s result type has a passing input, and a failing class
-  refutes only its own input.
-- While `u` fails or is uncertain, it changes no other verdict.
+  claim, and is unverified if not. It also fails if evidence denies it.
+- While `u` **does not fail** and no evidence denies it on any input,
+  for every other claim c on `f`: an input of D in a class with a passing
+  input is **assumed**. If `u` is unverified, c can then only `hold
+  assuming [u]`.
+- While `u` **holds**, an input in a class with a failing input is
+  refuted.
+- On a finite D (up to 10 000 inputs) this is done input by input. On a
+  larger D the classes Mitra can't place: the inputs are assumed once
+  every value of `g`'s result type has a passing input, and a failing
+  class refutes only its own input.
 - Nothing is assumed for a claim whose statement has a failure over a set
   too large to read input by input (its class is unknown), nor for an `=`
   claim whose other side calls a subject: `u` says nothing of that one.
 - Mitra trusts `g`'s result type on inputs it never computes: a value no
   input gives is a class no test can fill.
 
+**Errors.** An error is something that can't all be true. Each lists the
+evidence involved, and the **pieces** of which at least one is wrong: a
+piece of evidence, the code of a subject, or a claim.
+
+| Error | Pieces, of which one is wrong |
+|---|---|
+| A `correct` or `=` claim on `f` fails | each piece of evidence refuting it; the code of `f`, of what `f` uses (see Suspects) and of the subjects its `=` side calls. For a claim on specs alone, the claim |
+| A `uniform` or `uses` claim is denied by evidence | the denial; the claim |
+| A contradiction on an input | the two pieces of evidence |
+| A conflict in a class of `u` | the pass, the failure, and each piece of evidence vouching for `u`, or `u` itself when nothing vouches for it |
+
+Claims that fail on the same evidence share one error.
+
+**Most plausibly wrong.** For each error Mitra computes, for every piece,
+the belief and the plausibility that it is wrong, with Dempster-Shafer
+(`mitra_ds::culprits`):
+
+- A piece of evidence at bias b puts mass b on "this piece is right" and
+  1 − b on "unknown". The code of a subject and a claim have no bias:
+  they say nothing.
+- Each error is a constraint: its pieces are not all right. One error can
+  give several constraints (one per refuting piece, one per vouching
+  piece).
+- The masses are combined by Dempster's rule under the constraints. The
+  mass that would make every piece of some constraint right is the
+  **conflict**: how much the biases say that nothing is wrong.
+- *Plausibility* that a piece is wrong: the share of the remaining mass
+  where it is not taken as right. *Belief*: the share where it must be
+  wrong, because every other piece of one of its constraints is right.
+
+Several pieces can be wrong at once. Errors that share a piece are
+computed together. The same observation recorded twice (same judgment,
+inputs, `source` and `rev`) is one piece, at the highest bias given.
+Pieces are listed by plausibility, then belief, highest first.
+
+Two cases have no numbers. If every piece of an error is trusted at 1,
+the error says so: one of them is wrong, and nothing ranks them. (When
+errors computed together are in that case, each is then computed alone.)
+If more than 20 pieces have a bias strictly between 0 and 1, the error
+says there are too many to rank.
+
+Examples: a failure at bias 0.8 against a claim gives the code belief 0.8
+and plausibility 1 of being wrong, and the failure 0 and 0.2. Evidence at
+1 against a claim gives the code 1 and 1. A piece at bias 0 always has
+plausibility 1.
+
 **Suspects.** For each subject `f`, Mitra follows the `uses` claims that
 do not fail, from `f` to what it uses, and on from there. Each subject
 reached that has a failing claim (other than a `uses` claim) is a
-**suspect** for `f`, printed after the verdicts. Verdicts do not change.
+**suspect** for `f`, printed after the errors. Verdicts do not change.
+A `uses` claim needs no evidence for this: unverified, it still gives
+suspects and pieces.
 
 **Root cause.** A subject `f` with a failing `correct` or `=` claim, no
 suspect, and an `only uses` claim that holds (evidence covers it) is a
@@ -536,55 +575,79 @@ implication is:
 
 The check depends only on the model, not on evidence.
 
-**Measure under a profile** (for `coverage`). μ(S) = Σ over regions of
-weight / total × share, where the share of a region R is:
-
-- if R is finite: |S ∩ R| / |R|, every value weighing the same;
-- if R is infinite: 1 if S contains all of R, else 0. A finite sample of an
-  infinite region, or any part short of the whole region, weighs nothing.
-
-Then belief = μ(covered) / μ(D). When μ(D) = 0, belief is 1 if the claim
-holds and 0 otherwise. Profiles only apply to functions with one parameter;
-for several, μ is uniform over the tuples, with the same rule for finite and
-infinite domains.
-
 ## Output
 
-One line per claim and policy, claims in model order, then policies in
-model order, written as Lean structure instances:
+Each claim, in model order: its name and verdict, then indented lines
+for its sets, each printed only when it says something:
 
-```lean
-id_correct [by_usage] := { logic := .uncertain, covered := 0..=100, domain := Value, belief := 0.8 }
-id_correct [by_usage] := { logic := .fails, refuted := {7}, domain := Value, belief := 0 }
-minus_spec [strict] := { logic := .holds, covered := (0..=2, 0..=2), domain := (0..=2, 0..=2), belief := 1, implication := .checked }
+```text
+div_correct : unverified
+  tested   {(6, 3)}
+  assumed  class "rest" of `div_class`, by div_uniform
+  missed   class "zero" of `div_class`
+div_small : holds assuming [div_uniform]
+  tested   nothing
+  assumed  class "rest" of `div_class`, by div_uniform (unverified)
+minus_spec : holds
+  tested   nothing
+  assumed  (0..=2, 0..=2), by derive (implication checked)
+flip_correct : fails
+  refuted  {false}
+  tested   {true}
 ```
 
-`covered` is shown unless the claim fails, in which case `refuted` is shown.
-`covered` holds what evidence shows directly. When a uniformity claim that
-holds adds to it, `assumed := {"rest"} by div_uniform` follows: the classes
-with a passing input (on a finite domain, only those it meets).
-A claim with `by derive` ends with `implication := .checked`, `.unchecked`
-or `.refuted`. Sets of tuples print as the domain's own form when equal to
-it (`(0..=2, 0..=2)`), as a list of tuples when finite (`{(1, -1)}`),
-or as a union of products, each written as a tuple of sets:
-`(0..=2, {0}) | (3..=4, Int)`. Beliefs are rounded to 4 decimals. Then one line
-per piece of evidence on a spec:
+- `refuted`: when the claim fails.
+- `tested`: unless it is the whole domain. `nothing` is the empty set.
+- `assumed … by derive (implication checked|unchecked)`: the inputs that
+  follow from the premises. When the derivation is not used, `derive
+  not used: a premise fails` or `… the implication is refuted` instead.
+- `assumed class … by u`: the classes with a passing input (on a finite
+  domain, only those the claim meets), unless the claim fails or `u`
+  can't be relied on. `(unverified)` when nothing vouches for `u`.
+- `missed`: when not empty. With a uniformity claim and a set too large
+  to list, the classes without a passing input are named instead.
+
+Sets of tuples print as the domain's own form when equal to it
+(`(0..=2, 0..=2)`), as a list of tuples when finite (`{(1, -1)}`), or as
+a union of products, each written as a tuple of sets:
+`(0..=2, {0}) | (3..=4, Int)`. A set longer than 160 characters prints
+as its size (`9 inputs`). Then one line per piece of evidence on a spec:
 
 ```text
 contested evidence line 4: `neg` is a spec, true by definition: evidence does not apply to it
 ```
 
-Then each conflict, with the evidence lines as Mitra reads them: first
-the contradictions on an input, then those within a class:
+Then each error: what is not possible, the evidence involved as Mitra
+reads it (5 lines at most, then `and N more`), and the pieces most
+plausibly wrong, each with `[belief, plausibility]`:
 
 ```text
-conflict: can't both be true, on {false} of `flip`:
+error: `div_correct` fails on {(4, 2)}
+  evidence line 11: @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+  most plausibly wrong:
+    [0.30, 1.00] the code of `div`
+    [0.62, 0.70] evidence line 11
+    conflict 0.71: the biases say nothing is wrong
+error: inconsistent, in class "rest" of `div_class`: `div_uniform` can't hold with both
+  evidence line 9: @[source "review:alice"] evidence div_uniform at 0.9
+  evidence line 10: @[source "test:t_six"] evidence correct (div 6 3) at 0.99
+  evidence line 11: @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+  most plausibly wrong:
+    [0.62, 0.70] evidence line 11
+    [0.28, 0.35] evidence line 9
+    1 less likely hidden
+    conflict 0.71: the biases say nothing is wrong
+error: inconsistent, on {false} of `flip`: these can't both be true
   evidence line 3: evidence correct (flip false) at 1
   evidence line 4: evidence not correct (flip false) at 1
-conflict: `div_uniform` can't hold with both, in class "rest" of `div_class`:
-  evidence line 4: evidence correct (div 6 3) at 1
-  evidence line 5: evidence not correct (div 4 2) at 1
+  every piece is trusted at 1, yet one of them is wrong
 ```
+
+A piece is `evidence line N`, `the code of f` or `the claim c`. At most
+5 are listed, and none under plausibility 0.05 (see Running Mitra);
+`N less likely hidden` counts the others whose plausibility is not 0. The
+conflict is printed from 0.005. The library takes the two limits as
+`Display { max, threshold }`.
 
 Then each suspect and each root cause:
 
@@ -599,13 +662,12 @@ error.
 
 ## Golden set
 
-`tests/golden/<set>/<policy>/<case>/` holds `model.mitra`,
-`evidence.mitra` and the hand-written `expected.txt`. `cargo test` checks
-every case, and checks that adding `tests/golden/<set>/noise.mitra`
-(evidence `at 0`) to any case changes nothing. Evidence is `at 1` unless
-marked.
+`tests/golden/<set>/<case>/` holds `model.mitra`, `evidence.mitra` and
+`expected.txt`, the exact output. `cargo test` checks every case.
+Evidence is `at 1` unless marked. Each failing claim below also gives an
+error, with the code of its subject as the piece most plausibly wrong.
 
-### `flip`, under `strict` and `by_usage := coverage uniform`
+### `flip`
 
 ```lean
 opaque flip (a : Bool) : Bool
@@ -613,50 +675,43 @@ claim flip_correct : forall a, correct (flip a)
 claim flip_on_true : correct (flip true)
 ```
 
-| Case | Evidence | flip_correct | flip_on_true | belief by_usage (flip_correct) |
-|---|---|---|---|---|
-| 01 | none | uncertain, covered {} | uncertain, covered {} | 0 |
-| 02 | true correct, false correct | holds | holds | 1 |
-| 03 | true correct | uncertain, covered {true} | holds | 0.5 |
-| 04 | false wrong | fails, refuted {false} | uncertain | 0 |
-| 05 | true correct, false wrong | fails, refuted {false} | holds | 0 |
-| 06 | true correct, false correct and wrong | uncertain, covered {true} | holds | 0.5 |
-| 07 | true correct and wrong, false correct | uncertain, covered {false} | uncertain | 0.5 |
-| 08 | true wrong, false correct and wrong | fails, refuted {true} | fails, refuted {true} | 0 |
-| 09 | only `at 0` evidence | uncertain | uncertain | 0 |
-| 10 | case 02, plus false wrong `at 0` | holds | holds | 1 |
+| Case | Evidence | flip_correct | flip_on_true |
+|---|---|---|---|
+| 01 | none | unverified, missed Bool | unverified |
+| 02 | true correct, false correct | holds | holds |
+| 03 | true correct | unverified, missed {false} | holds |
+| 04 | false wrong | fails, refuted {false} | unverified |
+| 05 | true correct, false wrong | fails, refuted {false} | holds |
+| 06 | true correct, false correct and wrong | unverified, missed {false}; error on false | holds |
+| 07 | true correct and wrong, false correct | unverified, missed {true}; error on true | unverified |
+| 08 | true wrong, false correct and wrong | fails, refuted {true}; error on false | fails |
+| 09 | true correct `at 0`, false wrong `at 0` | fails: bias 0 still counts | holds |
+| 10 | case 02, plus false wrong `at 0` | unverified; error on false, the piece at 0 is the one wrong | holds |
 
-Under `strict`, belief is 1 exactly where the claim holds.
-
-### `id`, under `strict` and `by_usage := coverage usage`
+### `id`
 
 ```lean
 opaque id (x : Value) : Value
 claim id_correct : forall x, correct (id x)
 claim id_small : forall x in 0..=100, correct (id x)
-profile usage for id
-  | x in 0..=100 => 0.8
-  | x in String => 0.1
-  | _ => 0.1
 ```
 
-| Case | Evidence | id_correct | by_usage | id_small | by_usage |
-|---|---|---|---|---|---|
-| 01 | none | uncertain, covered {} | 0 | uncertain | 0 |
-| 02 | `id 1`, `id 42` correct | uncertain, covered {1, 42} | 0.0158 | uncertain | 0.0198 |
-| 03 | correct on `0..=100` | uncertain, covered 0..=100 | 0.8 | holds | 1 |
-| 04 | correct on `0..=100` and on `String` | uncertain | 0.9 | holds | 1 |
-| 05 | `id 1` correct, `id 7` wrong | fails, refuted {7} | 0 | fails, refuted {7} | 0 |
-| 06 | correct on `forall x` | holds, covered Value | 1 | holds | 1 |
-| 07 | correct on `0..=100`, `id 5` wrong | uncertain, covered 0..=4 \| 6..=100 | 0.7921 | uncertain | 0.9901 |
-| 08 | `id "a"` correct | uncertain, covered {"a"} | 0 | uncertain, covered {} | 0 |
-| 09 | only `at 0` evidence | uncertain | 0 | uncertain | 0 |
+| Case | Evidence | id_correct | id_small |
+|---|---|---|---|
+| 01 | none | unverified | unverified |
+| 02 | `id 1`, `id 42` correct | unverified, tested {1, 42} | unverified |
+| 03 | correct on `0..=100` | unverified, tested 0..=100 | holds |
+| 04 | correct on `0..=100` and on `String` | unverified | holds |
+| 05 | `id 1` correct, `id 7` wrong | fails, refuted {7} | fails, refuted {7}; one error for both |
+| 06 | correct on `forall x` | holds | holds |
+| 07 | correct on `0..=100`, `id 5` wrong | unverified; error on 5 | unverified, missed {5} |
+| 08 | `id "a"` correct | unverified, tested {"a"} | unverified, tested nothing |
+| 09 | correct on `forall x` `at 0`, `id 7` wrong `at 0` | unverified, missed {7}; error on 7 | unverified, missed {7} |
 
 On `Value`, tests never make `id_correct` hold: only evidence on the whole
-domain does (case 06). Under `strict`, belief is 1 exactly where the claim
-holds.
+domain does (case 06).
 
-### `flip_matches`: a subject against a spec, under `strict`
+### `flip_matches`: a subject against a spec
 
 ```lean
 def neg (a : Bool) : Bool := !a
@@ -667,16 +722,16 @@ claim flip_on_true : flip true = neg true
 
 | Case | Evidence | flip_spec | flip_on_true |
 |---|---|---|---|
-| 01 | none | uncertain, covered {} | uncertain |
+| 01 | none | unverified | unverified |
 | 02 | `flip true = false`, `flip false = true` | holds | holds |
-| 03 | `flip true = false` | uncertain, covered {true} | holds |
-| 04 | `flip false = false` | fails, refuted {false} | uncertain |
-| 05 | `flip true = false`, `flip false = true` and `= false` | uncertain, covered {true} | holds |
-| 06 | `forall a, correct (flip a)` (a judgment, not an output) | uncertain | uncertain |
+| 03 | `flip true = false` | unverified, tested {true} | holds |
+| 04 | `flip false = false` | fails, refuted {false} | unverified |
+| 05 | `flip true = false`, `flip false = true` and `= false` | unverified, tested {true}; error on false | holds |
+| 06 | `forall a, correct (flip a)` (a judgment, not an output) | unverified | unverified |
 | 07 | case 02, plus `neg true = true` | holds | holds, and the evidence on `neg` is contested |
-| 08 | only `at 0` evidence | uncertain | uncertain |
+| 08 | `flip false = false` `at 0`, `neg true = true` `at 0` | fails | unverified |
 
-### `compose`: a derivation mixing specs and subjects, under `strict`
+### `compose`: a derivation mixing specs and subjects
 
 ```lean
 def neg (a : Bool) : Bool := !a
@@ -695,18 +750,18 @@ The implication of `flip_not_same` is `checked` in every case.
 
 | Case | Evidence | flip_spec | flip_not_shape | flip_not_same |
 |---|---|---|---|---|
-| 01 | none | uncertain | uncertain | uncertain |
+| 01 | none | unverified | unverified | holds assuming [flip_spec, flip_not_shape] |
 | 02 | `flip` on both inputs, review | holds | holds | holds (derived, no evidence on `flip_not`) |
-| 03 | `flip true = false`, review | uncertain, covered {true} | holds | uncertain |
-| 04 | `flip true = true`, `flip false = true`, review | fails, refuted {true} | holds | uncertain |
-| 05 | case 02, plus `flip_not true = false` | holds | uncertain, covered {false} | fails, refuted {true} |
+| 03 | `flip true = false`, review | unverified, tested {true} | holds | holds assuming [flip_spec] |
+| 04 | `flip true = true`, `flip false = true`, review | fails, refuted {true} | holds | unverified: a premise fails |
+| 05 | case 02, plus `flip_not true = false` | holds | unverified, tested {false} | fails, refuted {true} |
 | 06 | outputs of `flip` and `flip_not` on both inputs | holds | holds | holds |
-| 07 | only `at 0` evidence | uncertain | uncertain | uncertain |
+| 07 | `flip true = false` `at 0`, review `at 0` | unverified | holds | holds assuming [flip_spec] |
 
 In case 05 the counterexample on `flip_not` also contradicts the review of
-`flip_not_shape` on `true`, so that premise is no longer known to hold.
+`flip_not_shape` on `true`: a second error.
 
-### `minus`: tuples and a checked derivation, under `strict`
+### `minus`: tuples and a checked derivation
 
 ```lean
 def plus (a b : Int) : Int := a + b
@@ -727,19 +782,19 @@ on `minus` itself.
 
 | Case | Evidence | add_spec | minus_shape | minus_spec | implication |
 |---|---|---|---|---|---|
-| 01 | none | uncertain | uncertain | uncertain | checked |
+| 01 | none | unverified | unverified | holds assuming all three premises | checked |
 | 02 | leaves | holds | holds | holds | checked |
-| 03 | leaves without `add 2 (-2)` | uncertain, 8 of 9 covered | holds | uncertain | checked |
-| 04 | leaves with `add 1 (-1) = 1` | fails, refuted {(1, -1)} | holds | uncertain | checked |
-| 05 | leaves; the shape is `add b (negate a)` | holds | holds | uncertain | refuted |
-| 06 | leaves without the review; `by derive [add_spec, negate_spec]` only | holds | uncertain | holds | unchecked |
-| 07 | only `at 0` evidence | uncertain | uncertain | uncertain | checked |
+| 03 | leaves without `add 2 (-2)` | unverified, missed {(2, -2)} | holds | holds assuming [add_spec] | checked |
+| 04 | leaves with `add 1 (-1) = 1` | fails, refuted {(1, -1)} | holds | unverified: a premise fails | checked |
+| 05 | leaves; the shape is `add b (negate a)` | holds | holds | unverified: derivation not used | refuted |
+| 06 | leaves without the review; `by derive [add_spec, negate_spec]` only | holds | unverified | holds | unchecked |
+| 07 | `add 0 0 = 0` `at 0`, review `at 0` | unverified | holds | holds assuming [add_spec, negate_spec] | checked |
 
 `negate_spec` holds whenever the leaves are there. Case 06 shows the risk
 of an unchecked implication: `minus_spec` holds only because the author
 said so.
 
-### `div`: a uniformity claim, under `strict`
+### `div`: a uniformity claim
 
 ```lean
 opaque div (a b : Int) : Int
@@ -751,18 +806,35 @@ claim div_uniform : uniform div by div_class
 
 | Case | Evidence | div_correct | div_small | div_uniform |
 |---|---|---|---|---|
-| 01 | `div 6 3` and `div 1 0` pass; nothing vouches | uncertain, covered 2 inputs | uncertain | uncertain |
-| 02 | vouched; `div 6 3` passes | uncertain, assumed "rest" | holds, assumed "rest" | holds |
+| 01 | `div 6 3` and `div 1 0` pass; nothing vouches | holds assuming [div_uniform] | holds assuming [div_uniform] | unverified |
+| 02 | vouched; `div 6 3` passes | unverified, missed class "zero" | holds, assumed "rest" | holds |
 | 03 | vouched; `div 6 3` and `div 1 0` pass | holds, assumed "rest", "zero" | holds | holds |
-| 04 | vouched; `div 6 3` passes, `div 4 2` fails | fails, refuted {(4, 2)} | uncertain | fails, with a conflict |
-| 05 | vouched; `div 4 2` fails | fails, refuted {(4, 2)} | fails, refuted its whole domain | holds |
-| 06 | vouched; `div 6 3` passes; `div` fails somewhere on `(10.., 10..)` | fails | uncertain: nothing assumed | holds |
-| 07 | vouched; `div 6 3` passes; `not div_correct 4 2` | fails, refuted {(4, 2)} | uncertain | fails, with a conflict |
-| 08 | vouched; `div 6 3` passes and fails; `div 4 2` passes | uncertain, covered {(4, 2)}; a conflict on (6, 3) | uncertain: class "rest" not relied on | holds |
-| 09 | vouched; `div_small` reviewed | uncertain, assumed "rest" | holds | holds |
-| 10 | vouched; `div 6 3` fails; `div_correct 6 3` reviewed | uncertain; a conflict on (6, 3) | uncertain: the failure stands for nothing | holds |
+| 04 | vouched; `div 6 3` passes, `div 4 2` fails | fails, refuted {(4, 2)} | unverified | fails; error in class "rest" |
+| 05 | vouched; `div 4 2` fails | fails, refuted {(4, 2)} | fails, refuted its whole domain; one error for both | holds |
+| 06 | vouched; `div 6 3` passes; `div` fails somewhere on `(10.., 10..)` | fails | unverified: nothing assumed | holds |
+| 07 | vouched; `div 6 3` passes; `not div_correct 4 2` | fails, refuted {(4, 2)} | unverified | fails; error in class "rest" |
+| 08 | vouched; `div 6 3` passes and fails; `div 4 2` passes | unverified, tested {(4, 2)}; error on (6, 3) | unverified: class "rest" not relied on | holds |
+| 09 | vouched; `div_small` reviewed | unverified, assumed "rest" | holds | holds |
+| 10 | vouched; `div 6 3` fails; `div_correct 6 3` reviewed | unverified; error on (6, 3) | unverified: the failure stands for nothing | holds |
 
-### `uses`: suspects, under `strict`
+### `bias`: which piece is most plausibly wrong
+
+```lean
+opaque div (a b : Int) : Int
+def div_class (a b : Int) : {"zero", "rest"} := if b == 0 then "zero" else "rest"
+claim div_correct : forall a, forall b, correct (div a b)
+claim div_uniform : uniform div by div_class
+```
+
+The numbers are computed by hand in each case's `evidence.mitra`.
+
+| Case | Evidence | Most plausibly wrong `[belief, plausibility]` |
+|---|---|---|
+| 01 | `div 4 2` fails, at 0.8 | the code of `div` [0.80, 1.00]; the failure [0.00, 0.20] |
+| 02 | review of `div_uniform` at 0.9; `div 6 3` passes at 0.99; `div 4 2` fails at 0.8 | for the class: the failure [0.62, 0.70], the review [0.28, 0.35], the pass hidden (0.03); conflict 0.71. For `div_correct`: the code [0.30, 1.00] |
+| 03 | the same failure at 0.8 recorded twice, and another report at 0.5 | the code [0.90, 1.00]: the twin counts once |
+
+### `uses`: suspects
 
 ```lean
 opaque half (x : Int) : Int
@@ -775,12 +847,12 @@ claim quarter_uses : uses quarter [half]
 claim eighth_uses : uses eighth [quarter]
 ```
 
-| Case | Evidence | Suspects |
-|---|---|---|
-| 01 | `half 1` and `quarter 1` fail; `eighth` passes | `half` for `quarter`; `half` and `quarter` for `eighth`, which holds |
-| 02 | the same failures; `not quarter_uses` | only `quarter` for `eighth` |
+| Case | Evidence | Suspects | Error on `quarter_correct` |
+|---|---|---|---|
+| 01 | `half 1` and `quarter 1` fail; `eighth` passes | `half` for `quarter`; `half` and `quarter` for `eighth`, which holds | the code of `half` [1.00, 1.00], then of `quarter` [0.00, 1.00] |
+| 02 | the same failures; `not quarter_uses` | only `quarter` for `eighth` | the code of `quarter` [1.00, 1.00]; `quarter_uses` fails too |
 
-Cases 03 to 05 have `claim quarter_uses : only uses quarter [half]` and a
+Cases 03 to 07 have `claim quarter_uses : only uses quarter [half]` and a
 failing `quarter`:
 
 | Case | Evidence | Root cause |
@@ -791,7 +863,7 @@ failing `quarter`:
 | 06 | vouched; `half` holds, but fails on 7, outside its claim | none |
 | 07 | vouched; a second claim `uses quarter [eighth]`, `eighth` without a claim | `quarter` itself, or where no claim covers them |
 
-### `numbers`: integer types, ranges and floats, under `strict`
+### `numbers`: integer types, ranges and floats
 
 ```lean
 opaque inc (x : Int64) : Int64
@@ -804,5 +876,5 @@ claim half_spec : forall x in {1.0, -3.0}, half x = halve x
 
 | Case | Evidence | inc_correct | inc_small | half_spec |
 |---|---|---|---|---|
-| 01 | `inc` on `0..=99`; `half 1.0 = 0.5`, `half (-3.0) = -1.5` | uncertain, covered 0..=99 of Int64 | holds | holds |
-| 02 | `half (-3.0) = -1.0`; `inc` on `-5..0` at 0 | uncertain | uncertain | fails, refuted {-3.0} |
+| 01 | `inc` on `0..=99`; `half 1.0 = 0.5`, `half (-3.0) = -1.5` | unverified, tested 0..=99 of Int64 | holds | holds |
+| 02 | `half (-3.0) = -1.0`; `inc` wrong on `-5..0` at 0 | fails, refuted -5..=-1 | unverified | fails, refuted {-3.0} |

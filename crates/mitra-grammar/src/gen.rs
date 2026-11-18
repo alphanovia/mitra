@@ -61,11 +61,6 @@ fn float(r: &mut Rng) -> String {
     ["0.0", "1.5", "0.25", "123456.789"][r.below(4)].to_string()
 }
 
-/// `number`: what weights and confidences use.
-fn number(r: &mut Rng) -> String {
-    ["0", "1", "2", "0.5", "10"][r.below(5)].to_string()
-}
-
 fn string(r: &mut Rng) -> String {
     ["\"\"", "\"a\"", "\"hello world\"", "\"-- not a comment\""][r.below(4)].into()
 }
@@ -266,8 +261,8 @@ fn binders(r: &mut Rng) -> String {
 }
 
 fn command(r: &mut Rng) -> String {
-    match r.below(6) {
-        5 => format!("test {} : {}", name(r), judgment(r)),
+    match r.below(4) {
+        3 => format!("test {} : {}", name(r), judgment(r)),
         0 => format!("opaque {}{} : {}", name(r), binders(r), set(r, 2)),
         1 => format!(
             "def {}{} : {} := {}",
@@ -276,7 +271,7 @@ fn command(r: &mut Rng) -> String {
             set(r, 2),
             expr(r, 3)
         ),
-        2 => {
+        _ => {
             if r.chance(15) {
                 return format!("claim {} : uniform {} by {}", name(r), name(r), name(r));
             }
@@ -298,23 +293,6 @@ fn command(r: &mut Rng) -> String {
             };
             format!("claim {} : {forall}{body}{derive}", name(r))
         }
-        3 => {
-            let regions = r.many(0, 3, |r| {
-                if r.chance(70) {
-                    let i = pick(r, "in", "∈");
-                    format!("\n  | {} {i} {} => {}", name(r), set(r, 2), number(r))
-                } else {
-                    format!("\n  | _ => {}", number(r))
-                }
-            });
-            format!("profile {} for {}{}", name(r), name(r), regions.concat())
-        }
-        _ => match r.below(3) {
-            0 => "policy strict".into(),
-            1 => format!("policy {} := strict", name(r)),
-            _ if r.chance(30) => format!("policy {} := coverage uniform", name(r)),
-            _ => format!("policy {} := coverage {}", name(r), name(r)),
-        },
     }
 }
 
@@ -332,7 +310,7 @@ fn comment(r: &mut Rng) -> String {
     }
 }
 
-/// A random evidence file. Confidence is 0 or 1, as the parser requires.
+/// A random evidence file. The bias goes from 0 to 1.
 pub fn evidences(r: &mut Rng) -> String {
     r.many(0, 8, |r| {
         let attrs = match r.below(4) {
@@ -343,7 +321,7 @@ pub fn evidences(r: &mut Rng) -> String {
         format!(
             "{attrs}evidence {} at {}{}\n",
             judgment(r),
-            r.below(2),
+            ["0", "1", "0.5", "0.25"][r.below(4)],
             comment(r)
         )
     })

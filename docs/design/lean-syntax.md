@@ -7,7 +7,7 @@ Decision (2026-11-17): Mitra stays a standalone language and tool, with its
 own Rust parser. It is not a Lean library. Lean 4 is the inspiration for
 grammar and syntax, because LLMs know it well and there is no need to
 reinvent notation. Mitra changes from Lean only where it must, and adds
-only what the ledger needs: evidence, tests, profiles, policies and verdicts.
+only what the ledger needs: evidence, tests and verdicts.
 
 ## What comes from Lean
 
@@ -20,11 +20,9 @@ only what the ledger needs: evidence, tests, profiles, policies and verdicts.
 | `{1, "a"}`, `\` | set literals and difference |
 | `f a b`, `(-2)`, `let x := v; e`, `--` | application, literals, comments |
 | `Int`, `Int64`, `Float64` | `Int` is ℤ; the others are fixed-width |
-| `{ logic := .holds, … }` | verdicts print as structure instances |
 
 What Lean lacks, Mitra adds: `correct (f a)`, `evidence … at c` (not `@`,
-which means explicit arguments in Lean), `test`, `profile … | x in S => w`,
-`policy`. Mitra files need not be valid Lean, so Lean's prelude names
+which means explicit arguments in Lean), `test`. Mitra files need not be valid Lean, so Lean's prelude names
 (`id`) are free to use.
 
 Where Lean reads badly or needs an editor, Mitra departs from it

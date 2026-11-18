@@ -1,0 +1,13 @@
+id_correct : fails
+  refuted  {7}
+  tested   {1}
+  missed   Value \ {1, 7}
+id_small : fails
+  refuted  {7}
+  tested   {1}
+  missed   {0} | 2..=6 | 8..=100
+error: `id_correct` fails on {7}
+error: `id_small` fails on {7}
+  evidence line 2: evidence not correct (id 7) at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `id`

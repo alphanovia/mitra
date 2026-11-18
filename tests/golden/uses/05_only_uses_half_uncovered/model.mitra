@@ -1,0 +1,8 @@
+-- `quarter` only uses `half`: when `quarter` fails and `half` does not,
+-- the fault is in `quarter` itself.
+opaque half (x : Int) : Int
+opaque quarter (x : Int) : Int
+
+claim half_correct : forall x in 0..=1, correct (half x)
+claim quarter_correct : forall x in 0..=1, correct (quarter x)
+claim quarter_uses : only uses quarter [half]

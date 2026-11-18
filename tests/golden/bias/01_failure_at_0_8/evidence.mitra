@@ -1,0 +1,3 @@
+-- A bug report trusted at 0.8: the claim fails, and the code is wrong
+-- with belief 0.8; the report is wrong with plausibility 0.2.
+@[source "bug:42"] evidence not correct (div 4 2) at 0.8

@@ -1,0 +1,18 @@
+div_correct : fails
+  refuted  {(4, 2)}
+  tested   {(6, 3)}
+  missed   (Int \ {4, 6}, Int) | ({4}, Int \ {2}) | ({6}, Int \ {3})
+div_small : unverified
+  tested   nothing
+  missed   (0..=1, 1..=2)
+div_uniform : fails
+  refuted  {(4, 2), (6, 3)}
+error: `div_correct` fails on {(4, 2)}
+  evidence line 4: evidence not div_correct 4 2 at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `div`
+error: inconsistent, in class "rest" of `div_class`: `div_uniform` can't hold with both
+  evidence line 2: evidence div_uniform at 1
+  evidence line 3: evidence correct (div 6 3) at 1
+  evidence line 4: evidence not div_correct 4 2 at 1
+  every piece is trusted at 1, yet one of them is wrong

@@ -1,0 +1,12 @@
+add_spec : unverified
+  tested   nothing
+  missed   (0..=2, -2..=0)
+negate_spec : unverified
+  tested   nothing
+  missed   0..=2
+minus_shape : unverified
+  tested   nothing
+  missed   (0..=2, 0..=2)
+minus_spec : holds assuming [add_spec, negate_spec, minus_shape]
+  tested   nothing
+  assumed  (0..=2, 0..=2), by derive (implication checked)

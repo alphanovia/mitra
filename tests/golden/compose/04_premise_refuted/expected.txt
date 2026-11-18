@@ -1,0 +1,13 @@
+neg_twice : holds
+flip_spec : fails
+  refuted  {true}
+  tested   {false}
+flip_not_shape : holds
+flip_not_same : unverified
+  tested   nothing
+  derive   not used: a premise fails
+  missed   Bool
+error: `flip_spec` fails on {true}
+  evidence line 2: evidence flip true = true at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `flip`

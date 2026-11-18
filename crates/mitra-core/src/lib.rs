@@ -1,16 +1,14 @@
 //! Mitra's embeddable library.
 //!
-//! Parse a model (subjects, specs, claims, profiles, policies) and a list of
-//! evidence, then compute a verdict for each claim under each policy.
+//! Parse a model (subjects, specs, claims, tests) and a list of evidence,
+//! then compute a verdict for each claim, and for each error the pieces
+//! most plausibly wrong.
 //!
 //! ```
-//! let model = "opaque flip (a : Bool) : Bool\nclaim flip_correct : forall a, correct (flip a)\npolicy strict";
+//! let model = "opaque flip (a : Bool) : Bool\nclaim flip_correct : forall a, correct (flip a)";
 //! let evidence = "evidence correct (flip true) at 1\nevidence correct (flip false) at 1";
 //! let report = mitra_core::run(model, evidence).unwrap();
-//! assert_eq!(
-//!     report.to_text(),
-//!     "flip_correct [strict] := { logic := .holds, covered := Bool, domain := Bool, belief := 1 }\n"
-//! );
+//! assert_eq!(report.to_text(), "flip_correct : holds\n");
 //! ```
 
 pub mod ast;
@@ -21,13 +19,10 @@ pub mod print;
 pub mod set;
 pub mod tuples;
 
-pub use ast::{
-    Claim, Evidence, Expr, Function, Judgment, Model, Pattern, Policy, PolicyKind, Position,
-    Profile, Target, Test,
-};
+pub use ast::{Claim, Evidence, Expr, Function, Judgment, Model, Pattern, Position, Target, Test};
 pub use eval::{
-    evaluate, failed_output, Assumed, Conflict, Contradiction, Flag, Implication, Logic, Report,
-    Root, Suspect, Verdict,
+    evaluate, failed_output, Assumed, Candidate, Conflict, Contradiction, Display, Flag,
+    Implication, Logic, Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
 };
 pub use next::next;
 pub use parse::{parse_evidence, parse_model};

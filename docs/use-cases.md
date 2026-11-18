@@ -18,7 +18,7 @@ sum fits in 64 bits, another for inputs that overflow, a Verus proof of the
 arithmetic, and one test of the overflow path.
 
 **What Mitra should return.** The first claim holds with high certainty
-because it is proven; the overflow claim is uncertain, because one test says
+because it is proven; the overflow claim is unverified, because one test says
 little about every overflowing input; and Mitra points at the overflow path as
 the place to gather evidence next (a property test or a proof).
 
@@ -76,13 +76,13 @@ different strength:
 | All tests pass | Agent's own report | Weak, discounted by the agent's track record |
 | Task is done as asked | Agent's own report | Weak |
 
-**What Mitra returns.** The first claim passes, the other two are uncertain
+**What Mitra returns.** The first claim passes, the other two are unverified
 rather than failed. Because nothing contradicts them, the policy's answer is not "stop" but "get more evidence": the harness
 runs the tests itself, which is the cheapest action that raises trust the
 most. If the harness's own run fails, that is a trusted counterexample: the
 claim fails, the agent is stopped, and the agent's track record drops for the next decision.
 
-**Why this shapes the language now:** it is the case that needs "uncertain" and
+**Why this shapes the language now:** it is the case that needs "unverified" and
 "fails" to be different answers, and evidence from the agent itself to carry a
 lower confidence than evidence from the harness. Toy models of this shape are written
 now even though the harness itself comes later.

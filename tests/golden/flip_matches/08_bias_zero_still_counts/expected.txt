@@ -1,0 +1,13 @@
+flip_spec : fails
+  refuted  {false}
+  tested   nothing
+  missed   {true}
+flip_on_true : unverified
+  tested   nothing
+  missed   {true}
+contested evidence line 3: `neg` is a spec, true by definition: evidence does not apply to it
+error: `flip_spec` fails on {false}
+  evidence line 2: evidence flip false = false at 0
+  most plausibly wrong:
+    [0.00, 1.00] the code of `flip`
+    [0.00, 1.00] evidence line 2

@@ -1,3 +1,0 @@
--- Added to every case by the test harness: evidence at 0 must change nothing.
-evidence forall a, correct (flip a) at 0
-evidence forall a, not correct (flip a) at 0

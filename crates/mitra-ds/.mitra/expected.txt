@@ -1,12 +1,22 @@
-judged_correct [strict] := { logic := .holds, covered := {(false, -0.5), (false, 0.25), (false, 1.0), (true, 0.0), (true, 0.25), (true, 1.5)}, assumed := {"correct", "rejected", "wrong"} by judged_uniform, domain := (Bool, Float64), belief := 1 }
-judged_uniform [strict] := { logic := .holds, covered := (Bool, Float64), domain := (Bool, Float64), belief := 1 }
-is_valid_spec [strict] := { logic := .holds, covered := {(-0.5, 0.5, 1.0), (0.5, 0.0, 0.5), (0.5, 0.0, 0.5000000001), (0.5, 0.5, 0.5)}, assumed := {"part out of range", "sum off", "valid"} by is_valid_uniform, domain := (Float64, Float64, Float64), belief := 1 }
-is_valid_uniform [strict] := { logic := .holds, covered := (Float64, Float64, Float64), domain := (Float64, Float64, Float64), belief := 1 }
-conflict_spec_ok [strict] := { logic := .holds, covered := {(0.5, 0.25, 0.25, 0.25, 0.5, 0.25), (1.0, 0.0, 0.0, 0.0, 1.0, 0.0)}, assumed := {"any"} by conflict_uniform, domain := (Float64, Float64, Float64, Float64, Float64, Float64), belief := 1 }
-conflict_uniform [strict] := { logic := .holds, covered := (Float64, Float64, Float64, Float64, Float64, Float64), domain := (Float64, Float64, Float64, Float64, Float64, Float64), belief := 1 }
-dempster_correct [strict] := { logic := .holds, covered := {(-0.5, 0.5, 1.0, 0.0, 0.0, 1.0), (0.0, 0.0, 1.0, -0.5, 0.5, 1.0), (0.0, 0.0, 1.0, 0.0, 0.0, 1.0), (0.0, 0.0, 1.0, 0.5, 0.5, 0.5), (0.0, 0.0, 1.0, 1.0, 0.0, 0.0), (0.0, 1.0, 0.0, 1.0, 0.0, 0.0), (1.0, 0.0, 0.0, 0.0, 0.0, 1.0), (1.0, 0.0, 0.0, 0.0, 1.0, 0.0), (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)}, assumed := {"first invalid", "partial conflict", "second invalid", "total conflict"} by dempster_uniform, domain := (Float64, Float64, Float64, Float64, Float64, Float64), belief := 1 }
-dempster_uniform [strict] := { logic := .holds, covered := (Float64, Float64, Float64, Float64, Float64, Float64), domain := (Float64, Float64, Float64, Float64, Float64, Float64), belief := 1 }
-dempster_uses [strict] := { logic := .holds, covered := (Float64, Float64, Float64, Float64, Float64, Float64), domain := (Float64, Float64, Float64, Float64, Float64, Float64), belief := 1 }
-yager_correct [strict] := { logic := .holds, covered := {(-0.5, 0.5, 1.0, 0.0, 0.0, 1.0), (0.0, 0.0, 1.0, 0.0, 0.0, 1.0), (0.0, 0.0, 1.0, 0.5, 0.5, 0.5), (0.0, 0.0, 1.0, 1.0, 0.0, 0.0), (0.0, 1.0, 0.0, 1.0, 0.0, 0.0), (0.5, 0.5, 0.5, 0.0, 0.0, 1.0), (1.0, 0.0, 0.0, 0.0, 0.0, 1.0), (1.0, 0.0, 0.0, 0.0, 1.0, 0.0), (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)}, assumed := {"first invalid", "second invalid", "valid"} by yager_uniform, domain := (Float64, Float64, Float64, Float64, Float64, Float64), belief := 1 }
-yager_uniform [strict] := { logic := .holds, covered := (Float64, Float64, Float64, Float64, Float64, Float64), domain := (Float64, Float64, Float64, Float64, Float64, Float64), belief := 1 }
-yager_uses [strict] := { logic := .holds, covered := (Float64, Float64, Float64, Float64, Float64, Float64), domain := (Float64, Float64, Float64, Float64, Float64, Float64), belief := 1 }
+judged_correct : holds
+  tested   {(false, -0.5), (false, 0.25), (false, 1.0), (true, 0.0), (true, 0.25), (true, 1.5)}
+  assumed  classes "correct", "rejected", "wrong" of `judged_class`, by judged_uniform
+judged_uniform : holds
+is_valid_spec : holds
+  tested   {(-0.5, 0.5, 1.0), (0.5, 0.0, 0.5), (0.5, 0.0, 0.5000000001), (0.5, 0.5, 0.5)}
+  assumed  classes "part out of range", "sum off", "valid" of `valid_class`, by is_valid_uniform
+is_valid_uniform : holds
+conflict_spec_ok : holds
+  tested   {(0.5, 0.25, 0.25, 0.25, 0.5, 0.25), (1.0, 0.0, 0.0, 0.0, 1.0, 0.0)}
+  assumed  class "any" of `conflict_class`, by conflict_uniform
+conflict_uniform : holds
+dempster_correct : holds
+  tested   9 inputs
+  assumed  classes "first invalid", "partial conflict", "second invalid", "total conflict" of `dempster_class`, by dempster_uniform
+dempster_uniform : holds
+dempster_uses : holds
+yager_correct : holds
+  tested   9 inputs
+  assumed  classes "first invalid", "second invalid", "valid" of `yager_class`, by yager_uniform
+yager_uniform : holds
+yager_uses : holds

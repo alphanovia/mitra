@@ -1,5 +1,0 @@
-id_correct [by_usage] := { logic := .uncertain, covered := 0..=4 | 6..=100, domain := Value, belief := 0.7921 }
-id_small [by_usage] := { logic := .uncertain, covered := 0..=4 | 6..=100, domain := 0..=100, belief := 0.9901 }
-conflict: can't both be true, on {5} of `id`:
-  evidence line 2: evidence forall x in 0..=100, correct (id x) at 1
-  evidence line 3: evidence not correct (id 5) at 1

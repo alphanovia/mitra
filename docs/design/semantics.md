@@ -1,10 +1,11 @@
 # Design: semantics
 
-Status: **design, not implemented**. It replaces the confidence calculus
-(belief numbers on claims). Parts marked *decided* are the user's words
-(2026-11-18); parts marked *proposed* are open for review. What the code
-does today is in the [reference](../reference/language.md), and the
-differences are listed in section 6.
+Status: **implemented in part** (2026-11-18). Built: the verdicts, the
+errors, and the ranking of what is most plausibly wrong, as the
+[reference](../reference/language.md) describes them. Not built:
+staleness and the last diff as weights, and the bug query (section 6).
+Parts marked *decided* are the user's words (2026-11-18); parts marked
+*proposed* are open for review.
 
 ## 1. Two sides
 
@@ -140,6 +141,9 @@ Dempster-Shafer:
 | The last diff touched subjects D | some weight on "something in D is wrong" |
 | A bug report on `f`, at bias b | b on "`f`, or something it uses, is broken" |
 
+Staleness and the last diff are **inputs** to this computation: the
+incremental tool works them out from git, and the core never reads git.
+
 Combining them gives, for each entry, assumption and subject, a belief
 and a plausibility of being the culprit. Errors print them (section 3);
 a bug query ranks subjects by them.
@@ -192,35 +196,44 @@ some coverage of a domain, or allowing a share of unverified claims are
 choices of whoever runs the tool. They belong to the tool and its
 integrations, and are deferred. There is no policy on the opinion score.
 
-## 6. What the code does differently today
+## 6. What is built, and what is not
 
-The build increment is this list.
+Built as designed: one verdict per claim (`holds`, `holds assuming`,
+`unverified`, `fails`) with tested, assumed and missed; errors for a
+failing claim, a contradiction and a conflict in a class, each with its
+evidence and its pieces ranked by plausibility; bias used only there;
+one kind of evidence; no `policy`, `profile` or belief; a display limit
+and threshold in the tool; exit status 1 on errors.
 
-| Today | With these semantics |
+Built differently from the proposals above:
+
+- **Several pieces can be wrong at once.** The frame is not "which one
+  piece is wrong" but every way of calling each piece right or wrong.
+  With one culprit only, a failure that both refutes a claim and
+  conflicts with a pass was blamed with certainty, which is wrong.
+  Errors that share a piece are computed together (question 1).
+- **The code of a subject is a piece**, next to evidence and assumptions,
+  and so is the code of what it uses. This is how `uses` enters the
+  ranking: a failing callee takes the blame from its caller.
+
+Not built, and whose layer they belong to:
+
+| Missing | Layer |
 |---|---|
-| A verdict per claim and policy: `{ logic, covered, refuted, assumed, domain, belief }` | One verdict per claim: the enum, with tested, assumed and missed |
-| `uncertain` | `unverified` |
-| `holds` with an `assumed` field | `holds`, with the assumed set and the evidence it rests on |
-| A uniformity claim not vouched for counts for nothing | `holds assuming [..]`, with a warning on the claim |
-| A pass and a failure on one input: the input counts on neither side, a conflict is printed, the verdict comes from the rest | `inconsistent` error |
-| A pass and a failure in one class: the uniformity claim `fails` | `inconsistent` error naming the claim and both pieces of evidence |
-| Evidence counts only at confidence 1; other values are ignored | every entry counts for the verdict; the number is a bias, used only to rank culprits |
-| `policy`, `profile`, `belief`, `coverage` as a ratio | removed from the core; gates come later, in the tool |
-| `suspect` and `root cause` lines | warnings, and sources for the opinion |
-| No plausibility anywhere; `mitra-core` does not use `mitra-ds` | errors carry belief and plausibility per piece |
-| `--rev R`: evidence at another revision is ignored | staleness is a weight |
-| No bug command | `mitra bug`, ranking subjects |
+| Staleness of evidence and the last diff as weights | the incremental tool: it reads git and hands the core a weight per piece. The core takes no such input yet; `--rev R` still leaves out evidence from another revision |
+| `mitra bug`, ranking subjects from a report | the tool; the ranking it needs is the one errors use |
+| Warnings as errors, coverage thresholds | the tool and its integrations |
+| A warning for evidence that no claim covers | the core |
 
 ## 7. Open questions
 
-1. **One culprit or several.** With one wrong thing per frame, two
-   unrelated errors are in total conflict. Proposed: one frame per group
-   of errors that share a piece, and one culprit per frame. Two wrong
-   things in one group are then found in two rounds: fix the first, run
-   again.
+1. **One culprit or several.** Built with several (section 6): it costs
+   2^k steps for k pieces with a bias strictly between 0 and 1 in one
+   group of errors, capped at 20. Is that the right trade?
 2. **Which rule.** Dempster hides conflict by renormalising; Yager moves
-   it to "unknown". Proposed: Dempster, with the conflict always shown,
-   until an example speaks against it; P1 to P8 are checked on both.
+   it to "unknown". Built with Dempster, the conflict always shown. It
+   jumps near total conflict (P8 fails there), and at total conflict
+   there is no ranking at all.
 3. **Weights.** How much a diff or an age discounts, and who sets it.
    Proposed: fixed defaults in the tool (stale evidence halves its bias;
    the last diff gets a small fixed weight), tuned on the mitra-ds
@@ -229,7 +242,12 @@ The build increment is this list.
    plausibility of 0.05, and one line saying how many were hidden and how
    to see them all.
 
-Questions 1 and 3 are built as proposed until decided.
+5. **`holds assuming` with no evidence at all.** A derived claim whose
+   implication is checked `holds assuming` its premises even when nothing
+   was tested (golden `compose/01`). Is that the wanted reading?
+6. **A rate is an error.** A test that passes sometimes gives a pass and
+   a failure on one input: an error, not a frequency. Trials T2 and T3
+   will meet this.
 
 ## Why not a confidence in the claim
 

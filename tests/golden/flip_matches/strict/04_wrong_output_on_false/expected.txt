@@ -1,2 +1,0 @@
-flip_spec [strict] := { logic := .fails, refuted := {false}, domain := Bool, belief := 0 }
-flip_on_true [strict] := { logic := .uncertain, covered := {}, domain := {true}, belief := 0 }

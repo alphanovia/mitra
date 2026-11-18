@@ -1,0 +1,10 @@
+id_correct : unverified
+  tested   0..=4 | 6..=100
+  missed   Value \ (0..=4 | 6..=100)
+id_small : unverified
+  tested   0..=4 | 6..=100
+  missed   {5}
+error: inconsistent, on {5} of `id`: these can't both be true
+  evidence line 2: evidence forall x in 0..=100, correct (id x) at 1
+  evidence line 3: evidence not correct (id 5) at 1
+  every piece is trusted at 1, yet one of them is wrong

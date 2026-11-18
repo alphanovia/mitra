@@ -1,0 +1,8 @@
+flip_correct : fails
+  refuted  {false}
+  tested   {true}
+flip_on_true : holds
+error: `flip_correct` fails on {false}
+  evidence line 2: evidence not correct (flip false) at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `flip`

@@ -1,0 +1,9 @@
+div_correct : holds assuming [div_uniform]
+  tested   {(1, 0), (6, 3)}
+  assumed  classes "rest", "zero" of `div_class`, by div_uniform (unverified)
+div_small : holds assuming [div_uniform]
+  tested   nothing
+  assumed  class "rest" of `div_class`, by div_uniform (unverified)
+div_uniform : unverified
+  tested   nothing
+  missed   (Int, Int)

@@ -48,8 +48,7 @@ else (CI gates, agent harnesses, apps) is built on top later.
 **No number on the model.** A claim holds, fails, or can't be decided,
 possibly "holds assuming" a dependency nobody gave evidence for. Numbers are kept for
 the evidence: when something does not add up, Mitra says which piece is
-most plausibly wrong ([semantics](design/semantics.md), not implemented
-yet).
+most plausibly wrong ([semantics](design/semantics.md)).
 
 ## The core, and what can be automated
 
@@ -170,8 +169,6 @@ the thing under review, with its own evidence (for example
   pass and a failure in one class of a uniformity claim. Reported like a
   compiler error.
 - **Verdict:** Mitra's output for a claim: holds, holds assuming,
-  unverified or fails, with the inputs tested, assumed and missed. Today's
-  code still prints a belief under a policy
-  ([semantics](design/semantics.md#6-what-the-code-does-differently-today)).
+  unverified or fails, with the inputs tested, assumed and missed.
 - **Opinion:** on an error, the belief and plausibility that each piece
   of evidence or assumption is the wrong one.

@@ -3,7 +3,7 @@
 //! ```text
 //! mitra init
 //! mitra check [<model> <evidence>] [--rev <commit>]
-//! mitra eval  [<model> <evidence>] [--rev <commit>] [-o <result.txt>]
+//! mitra eval  [<model> <evidence>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [-o <result.txt>]
 //! mitra add   '<evidence>' [--source <who>] [--rev <commit>]
 //! mitra next  [<model> <evidence>] [--rev <commit>]
 //! mitra ingest <report> [--format libtest|junit] [--rev <commit>]
@@ -25,14 +25,16 @@ use std::process::ExitCode;
 const USAGE: &str = "usage:
   mitra init
   mitra check [<model.mitra> <evidence.mitra>] [--rev <commit>]
-  mitra eval  [<model.mitra> <evidence.mitra>] [--rev <commit>] [-o <result.txt>]
+  mitra eval  [<model.mitra> <evidence.mitra>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [-o <result.txt>]
   mitra add   '<evidence>' [--source <who>] [--rev <commit>]
   mitra next  [<model.mitra> <evidence.mitra>] [--rev <commit>]
   mitra ingest <report> [--format libtest|junit] [--rev <commit>]";
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(true) => ExitCode::SUCCESS,
+        // The model and the evidence were read, and `eval` found errors.
+        Ok(false) => ExitCode::from(1),
         Err(msg) => {
             eprintln!("mitra: {msg}");
             ExitCode::from(2)
@@ -117,19 +119,67 @@ fn take_rev(cmd: &str, rest: &mut Vec<String>) -> Result<Option<String>, String>
     Ok(Some(rev))
 }
 
-fn run(args: Vec<String>) -> Result<(), String> {
+/// Remove `name <value>` from the arguments and return the value.
+fn take_value(name: &str, rest: &mut Vec<String>) -> Result<Option<String>, String> {
+    let Some(i) = rest.iter().position(|a| a == name) else {
+        return Ok(None);
+    };
+    if i + 1 >= rest.len() || rest[i + 2..].iter().any(|a| a == name) {
+        return Err(USAGE.into());
+    }
+    let value = rest.remove(i + 1);
+    rest.remove(i);
+    Ok(Some(value))
+}
+
+/// How much of each error `eval` shows: `--candidates <n>`, `--threshold
+/// <p>`, or `--all` for every candidate.
+fn take_display(rest: &mut Vec<String>) -> Result<mitra_core::Display, String> {
+    let mut display = mitra_core::Display::default();
+    if let Some(n) = take_value("--candidates", rest)? {
+        display.max = n
+            .parse()
+            .map_err(|_| format!("--candidates `{n}`: not a whole number"))?;
+    }
+    if let Some(p) = take_value("--threshold", rest)? {
+        display.threshold = match p.parse::<f64>() {
+            Ok(x) if (0.0..=1.0).contains(&x) => x,
+            _ => return Err(format!("--threshold `{p}`: not a number from 0 to 1")),
+        };
+    }
+    if let Some(i) = rest.iter().position(|a| a == "--all") {
+        rest.remove(i);
+        display = mitra_core::Display {
+            max: usize::MAX,
+            threshold: 0.0,
+        };
+    }
+    Ok(display)
+}
+
+/// `Ok(false)` when `eval` found errors.
+fn run(args: Vec<String>) -> Result<bool, String> {
+    run_command(args).map(|errors| errors == 0)
+}
+
+/// The number of errors `eval` found; 0 for the other commands.
+fn run_command(args: Vec<String>) -> Result<usize, String> {
     let Some((cmd, rest)) = args.split_first() else {
         return Err(USAGE.into());
     };
     let mut rest = rest.to_vec();
     let rev = take_rev(cmd, &mut rest)?;
     let rev = rev.as_deref();
+    let display = match cmd.as_str() {
+        "eval" => take_display(&mut rest)?,
+        _ => mitra_core::Display::default(),
+    };
     let rest = rest.as_slice();
     match cmd.as_str() {
         "init" if rest.is_empty() => {
             let dir = store::Store::init(&std::env::current_dir().map_err(|e| e.to_string())?)?;
             println!("initialised {}", dir.display());
-            Ok(())
+            Ok(0)
         }
         "check" => {
             let (m, e) = inputs(rest)?;
@@ -144,13 +194,13 @@ fn run(args: Vec<String>) -> Result<(), String> {
             for f in &report.flags {
                 println!("contested evidence line {}: {}", f.line, f.message);
             }
-            Ok(())
+            Ok(0)
         }
         "next" => {
             let (m, e) = inputs(rest)?;
             let (model, report) = evaluate(&m, &e, rev)?;
             print!("{}", mitra_core::next(&model, &report));
-            Ok(())
+            Ok(0)
         }
         "eval" => {
             let (paths, out) = match rest {
@@ -164,14 +214,14 @@ fn run(args: Vec<String>) -> Result<(), String> {
             }
             let (m, e) = inputs(paths)?;
             let (_, report) = evaluate(&m, &e, rev)?;
-            let text = report.to_text();
+            let text = report.to_text_with(&display);
             match out {
-                Some(path) => std::fs::write(path, text).map_err(|e| format!("{path}: {e}")),
-                None => {
-                    print!("{text}");
-                    Ok(())
-                }
+                Some(path) => std::fs::write(path, text).map_err(|e| format!("{path}: {e}"))?,
+                None => print!("{text}"),
             }
+            let (errors, warnings) = (report.problems.len(), report.warnings());
+            eprintln!("mitra: {errors} errors, {warnings} warnings");
+            Ok(errors)
         }
         "add" => {
             let [text, opts @ ..] = rest else {
@@ -193,7 +243,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
             let s = store::Store::find()?;
             let n = s.add(text, source, rev)?;
             println!("added {n} evidence to {}", s.evidence_path());
-            Ok(())
+            Ok(0)
         }
         "ingest" => {
             let [path, opts @ ..] = rest else {
@@ -279,7 +329,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
             if !unknown.is_empty() {
                 println!("no `test` declared for: {}", unknown.join(", "));
             }
-            Ok(())
+            Ok(0)
         }
         _ => Err(USAGE.into()),
     }

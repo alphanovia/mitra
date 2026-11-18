@@ -31,7 +31,7 @@ not. Mitra never sees it; it is what Mitra's output is scored against.
 
 | Rung | Code | Evidence | Truth | What Mitra should say |
 |---|---|---|---|---|
-| R0 | naive: parse, `a + b` | usage only | `fits` ok, the other three wrong | No usage: uncertain everywhere. After enough usage: `fits` holds, the others fail on the first trusted counterexample, uncertain where usage never went. Honest alternatives (`add_wraps`) hold. |
+| R0 | naive: parse, `a + b` | usage only | `fits` ok, the other three wrong | No usage: unverified everywhere. After enough usage: `fits` holds, the others fail on the first trusted counterexample, unverified where usage never went. Honest alternatives (`add_wraps`) hold. |
 | R1 | naive | usage + example tests on small numbers | same as R0 | `fits` trusted early; `next` points at the untested regions, where the bugs are. |
 | R2 | checks overflow, input and arity | example tests per region | all ok | Strong trust in every region with little usage. |
 | R3 | as R2 | + property-based tests | all ok | Same as R2, reached with fewer observations. |
@@ -45,18 +45,19 @@ not. Mitra never sees it; it is what Mitra's output is scored against.
   sometimes huge ones, occasionally junk), runs the CLI, and appends
   `evidence correct (add a b) at c` or `evidence not correct (add a b) at c`.
   Evidence arrives one run at a time, which exercises incremental use.
-- **Human confidence.** The simulated user has a confidence profile: high
-  when it can check the result, low when it cannot, and occasionally wrong.
-  Mitra's verdicts must survive that noise.
+- **Human trust.** The simulated user sets the bias of each run: high
+  when it can check the result, low when it cannot, and it is occasionally
+  wrong. A wrong run then shows as an error, and Mitra's ranking must
+  point at it.
 
 ## Metrics
 
 1. **Evidence to verdict (headline curve).** For each rung, the number of
    usage runs until every region has the correct verdict (holds or fails, not
-   uncertain). Plotted per rung, this should drop sharply from R0 to R4.
+   unverified). Plotted per rung, this should drop sharply from R0 to R4.
 2. **Accuracy.** No region ever gets the wrong verdict.
-3. **Honesty.** Regions with no evidence are uncertain. A doubtful
-   counterexample leaves a region uncertain, never holds.
+3. **Honesty.** Regions with no evidence are unverified. A doubtful
+   counterexample leaves a region unverified, never holds.
 4. **Diagnosis.** On R1, `mitra next` points first at a region with a real
    bug. On R0 without regions, `add_correct` shows contested inputs (passes
    and failures on the same claim), suggesting the split.

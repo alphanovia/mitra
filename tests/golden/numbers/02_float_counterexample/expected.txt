@@ -1,0 +1,19 @@
+inc_correct : fails
+  refuted  -5..=-1
+  tested   nothing
+  missed   -9223372036854775808..=-6 | 0..=9223372036854775807
+inc_small : unverified
+  tested   nothing
+  missed   0..=99
+half_spec : fails
+  refuted  {-3.0}
+  tested   {1.0}
+error: `inc_correct` fails on -5..=-1
+  evidence line 5: evidence forall x in -5..=-1, not correct (inc x) at 0
+  most plausibly wrong:
+    [0.00, 1.00] the code of `inc`
+    [0.00, 1.00] evidence line 5
+error: `half_spec` fails on {-3.0}
+  evidence line 3: evidence half (-3.0) = -1.0 at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `half`

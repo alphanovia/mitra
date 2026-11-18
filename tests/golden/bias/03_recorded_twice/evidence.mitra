@@ -1,0 +1,6 @@
+-- The same failing run recorded twice counts once: belief 0.8 that the
+-- code is wrong, not 1 - 0.2 * 0.2 = 0.96. A second, different report
+-- does add up: with both, 1 - 0.2 * 0.5 = 0.90.
+@[source "bug:42"] evidence not correct (div 4 2) at 0.8
+@[source "bug:42"] evidence not correct (div 4 2) at 0.8
+@[source "bug:43"] evidence not correct (div 4 2) at 0.5

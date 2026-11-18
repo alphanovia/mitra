@@ -1,0 +1,5 @@
+evidence correct (flip true) at 1
+evidence correct (flip false) at 1
+-- A counterexample its author does not trust still counts: it contradicts
+-- the pass, and is the one most plausibly wrong.
+evidence not correct (flip false) at 0

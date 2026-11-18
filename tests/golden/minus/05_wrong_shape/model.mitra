@@ -1,0 +1,15 @@
+def plus (a b : Int) : Int := a + b
+def opposite (b : Int) : Int := -b
+def difference (a b : Int) : Int := a - b
+
+opaque add (a b : Int) : Int
+opaque negate (b : Int) : Int
+opaque minus (a b : Int) : Int
+
+-- add, on the inputs minus uses.
+claim add_spec : forall a in 0..=2, forall b in -2..=0, add a b = plus a b
+claim negate_spec : forall b in 0..=2, negate b = opposite b
+-- A wrong shape: the arguments are swapped.
+claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus a b = add b (negate a)
+-- Derived: Mitra checks the implication by substituting the premises.
+claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]

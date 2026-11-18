@@ -1,0 +1,12 @@
+div_correct : fails
+  refuted  (10.., 10..)
+  tested   {(6, 3)}
+  missed   classes "rest", "zero" of `div_class`
+div_small : unverified
+  tested   nothing
+  missed   (0..=1, 1..=2)
+div_uniform : holds
+error: `div_correct` fails on (10.., 10..)
+  evidence line 5: evidence forall a in 10.., forall b in 10.., not correct (div a b) at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `div`

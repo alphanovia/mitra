@@ -1,6 +1,0 @@
-div_correct [strict] := { logic := .uncertain, covered := {(4, 2)}, domain := (Int, Int), belief := 0 }
-div_small [strict] := { logic := .uncertain, covered := {}, domain := (0..=1, 1..=2), belief := 0 }
-div_uniform [strict] := { logic := .holds, covered := (Int, Int), domain := (Int, Int), belief := 1 }
-conflict: can't both be true, on {(6, 3)} of `div`:
-  evidence line 4: evidence correct (div 6 3) at 1
-  evidence line 5: evidence not correct (div 6 3) at 1

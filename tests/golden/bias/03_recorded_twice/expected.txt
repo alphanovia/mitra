@@ -1,0 +1,15 @@
+div_correct : fails
+  refuted  {(4, 2)}
+  tested   nothing
+  missed   classes "rest", "zero" of `div_class`
+div_uniform : unverified
+  tested   nothing
+  missed   (Int, Int)
+error: `div_correct` fails on {(4, 2)}
+  evidence line 4: @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+  evidence line 5: @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+  evidence line 6: @[source "bug:43"] evidence not correct (div 4 2) at 0.5
+  most plausibly wrong:
+    [0.90, 1.00] the code of `div`
+    [0.00, 0.50] evidence line 6
+    [0.00, 0.20] evidence line 4

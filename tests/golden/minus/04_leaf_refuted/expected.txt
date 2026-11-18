@@ -1,0 +1,13 @@
+add_spec : fails
+  refuted  {(1, -1)}
+  tested   {(0, -2), (0, -1), (0, 0), (1, -2), (1, 0), (2, -2), (2, -1), (2, 0)}
+negate_spec : holds
+minus_shape : holds
+minus_spec : unverified
+  tested   nothing
+  derive   not used: a premise fails
+  missed   (0..=2, 0..=2)
+error: `add_spec` fails on {(1, -1)}
+  evidence line 6: evidence add 1 (-1) = 1 at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `add`

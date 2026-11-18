@@ -1,0 +1,10 @@
+neg_twice : holds
+flip_spec : unverified
+  tested   nothing
+  missed   Bool
+flip_not_shape : unverified
+  tested   nothing
+  missed   Bool
+flip_not_same : holds assuming [flip_spec, flip_not_shape]
+  tested   nothing
+  assumed  Bool, by derive (implication checked)

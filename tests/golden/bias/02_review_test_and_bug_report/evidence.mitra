@@ -1,0 +1,11 @@
+-- A review at 0.9, a passing test at 0.99 and a bug report at 0.8, in one
+-- class: they can't all be true. Taking all three as right has mass
+-- 0.9 * 0.99 * 0.8 = 0.7128, the conflict; the rest is 0.2872.
+-- Bug report wrong: belief 0.9 * 0.99 * 0.2 / 0.2872 = 0.62,
+-- plausibility 0.2 / 0.2872 = 0.70. Review: 0.1 * 0.99 * 0.8 / 0.2872 =
+-- 0.28 and 0.1 / 0.2872 = 0.35. Test: 0.03 and 0.03, under the display
+-- threshold. Code of div wrong: the report is right and not all three
+-- are, (0.8 - 0.7128) / 0.2872 = 0.30.
+@[source "review:alice"] evidence div_uniform at 0.9
+@[source "test:t_six"] evidence correct (div 6 3) at 0.99
+@[source "bug:42"] evidence not correct (div 4 2) at 0.8

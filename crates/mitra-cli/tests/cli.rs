@@ -2,7 +2,7 @@ use std::process::Command;
 
 const GOLDEN: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/golden/flip/strict/05_correct_on_true_wrong_on_false"
+    "/../../tests/golden/flip/05_correct_on_true_wrong_on_false"
 );
 
 #[test]
@@ -18,7 +18,8 @@ fn eval_writes_the_result_file() {
         .arg(&out)
         .status()
         .unwrap();
-    assert!(status.success());
+    // The case has a failing claim: `eval` exits with 1 on errors.
+    assert_eq!(status.code(), Some(1));
     let expected = std::fs::read_to_string(format!("{GOLDEN}/expected.txt")).unwrap();
     assert_eq!(std::fs::read_to_string(&out).unwrap(), expected);
     let _ = std::fs::remove_file(out);
@@ -41,6 +42,16 @@ fn bad_evidence_names_the_file_and_line() {
         "{err}"
     );
     let _ = std::fs::remove_dir_all(dir);
+}
+
+fn expected() -> String {
+    std::fs::read_to_string(format!("{GOLDEN}/expected.txt")).unwrap()
+}
+
+/// The verdicts of a result: what comes before the first error. The
+/// errors quote evidence by line, which differs from store to store.
+fn verdicts(result: &str) -> &str {
+    result.split("error:").next().unwrap()
 }
 
 /// `mitra` run in `dir`, with its exit code, stdout and stderr.
@@ -144,9 +155,12 @@ fn store_init_add_check_eval() {
         (code, out.as_str()),
         (Some(0), "ok: 1 functions, 2 claims, 0 tests, 2 evidence\n")
     );
-    let (_, out, _) = mitra(&sub, &["eval"]);
-    let expected = std::fs::read_to_string(format!("{GOLDEN}/expected.txt")).unwrap();
-    assert_eq!(out, expected);
+    let (code, out, err) = mitra(&sub, &["eval"]);
+    assert_eq!(verdicts(&out), verdicts(&expected()));
+    assert_eq!(
+        (code, err.as_str()),
+        (Some(1), "mitra: 1 errors, 0 warnings\n")
+    );
     let _ = std::fs::remove_dir_all(dir);
 }
 
@@ -184,8 +198,11 @@ fn ingest_turns_test_results_into_evidence() {
         "{evidence}"
     );
     let (_, out, _) = mitra(&dir, &["eval"]);
-    let expected = std::fs::read_to_string(format!("{GOLDEN}/expected.txt")).unwrap();
-    assert_eq!(out, expected);
+    assert_eq!(verdicts(&out), verdicts(&expected()));
+    assert!(
+        out.contains("evidence line 3: @[source \"test:t_false\", rev \"3f2a\"]"),
+        "{out}"
+    );
     let _ = std::fs::remove_dir_all(dir);
 }
 
@@ -241,20 +258,18 @@ fn rev_leaves_out_stale_evidence() {
     // pass would outlive any newer failure.
     mitra(&dir, &["add", "evidence correct (flip true) at 1"]);
     let (_, all, _) = mitra(&dir, &["eval"]);
-    assert!(
-        all.starts_with("flip_correct [strict] := { logic := .holds"),
-        "{all}"
-    );
+    assert!(all.starts_with("flip_correct : holds\n"), "{all}");
     let (code, out, err) = mitra(&dir, &["eval", "--rev", "new"]);
     assert_eq!(code, Some(0));
     assert_eq!(
         err,
-        "mitra: 2 evidence left out: not recorded at revision new\n"
+        "mitra: 2 evidence left out: not recorded at revision new\n\
+         mitra: 0 errors, 2 warnings\n"
     );
     assert_eq!(
         out,
-        "flip_correct [strict] := { logic := .uncertain, covered := {false}, domain := Bool, belief := 0 }\n\
-         flip_on_true [strict] := { logic := .uncertain, covered := {}, domain := {true}, belief := 0 }\n"
+        "flip_correct : unverified\n  tested   {false}\n  missed   {true}\n\
+         flip_on_true : unverified\n  tested   nothing\n  missed   {true}\n"
     );
     let (_, out, _) = mitra(&dir, &["next", "--rev", "new"]);
     assert!(out.starts_with("flip_correct : missing {true}\n"), "{out}");
@@ -360,9 +375,6 @@ fn a_failed_bool_output_test_gives_the_other_output() {
         "{evidence}"
     );
     let (_, out, _) = mitra(&dir, &["eval"]);
-    assert!(
-        out.contains("dec_spec [strict] := { logic := .fails, refuted := {5}"),
-        "{out}"
-    );
+    assert!(out.contains("dec_spec : fails\n  refuted  {5}\n"), "{out}");
     let _ = std::fs::remove_dir_all(dir);
 }

@@ -10,12 +10,10 @@ evidence. Mitra judges each claim against that evidence, and when things
 do not add up, weighs which piece is most plausibly wrong.
 
 > Status: early. The code evaluates claims, specs, derivations and
-> uniformity assumptions against evidence at confidence 0 or 1, under two
-> policies, reads the model from comments in Rust code, and keeps a
-> project's evidence in a store fed by test reports
-> ([language reference](docs/reference/language.md)). The verdicts are
-> being redesigned: no number on a claim, opinions only on evidence
-> ([semantics](docs/design/semantics.md)).
+> uniformity assumptions against evidence, ranks what is most plausibly
+> wrong on an error, reads the model from comments in Rust code, and
+> keeps a project's evidence in a store fed by test reports
+> ([language reference](docs/reference/language.md)).
 
 ## The idea
 
@@ -24,32 +22,36 @@ function under review, a **spec** is a definition Mitra can evaluate, a
 **claim** says a subject is correct (or matches a spec) on some of its inputs,
 or follows from other claims, a **uniformity claim** states the classes of
 inputs on which a subject is assumed to behave the same,
-and **evidence** is a run of the subject judged correct or wrong, with a
-confidence. A **policy** turns evidence into a belief. Mitra gives every
-claim a verdict: what logic proves, which inputs are covered, and how much
-the policy believes it.
+and **evidence** is a run of the subject judged correct or wrong, with the
+trust its author puts in it. Mitra gives every claim a verdict without a
+number (`holds`, `holds assuming`, `unverified`, `fails`), with the inputs
+tested, assumed and missed. On an error it lists the pieces involved and
+how plausibly each is the wrong one.
 
 ```lean
 opaque flip (a : Bool) : Bool
 claim flip_correct : forall a, correct (flip a)
 claim flip_on_true : correct (flip true)
 
-policy strict
-
 evidence correct (flip true) at 1
-evidence not correct (flip false) at 1
+evidence not correct (flip false) at 0.8
 ```
 
-```lean
-flip_correct [strict] := { logic := .fails, refuted := {false}, domain := Bool, belief := 0 }
-flip_on_true [strict] := { logic := .holds, covered := {true}, domain := {true}, belief := 1 }
+```text
+flip_correct : fails
+  refuted  {false}
+  tested   {true}
+flip_on_true : holds
+error: `flip_correct` fails on {false}
+  evidence line 2: evidence not correct (flip false) at 0.8
+  most plausibly wrong:
+    [0.80, 1.00] the code of `flip`
+    [0.00, 0.20] evidence line 2
 ```
 
-One trusted counterexample refutes a claim; on an infinite domain, tests
-alone never prove it. The `belief` number and the policies are to go: the
-next semantics give each claim a verdict without a number, and compute an
-opinion only on which evidence to doubt
-([semantics](docs/design/semantics.md)).
+One counterexample refutes a claim; on an infinite domain, tests alone
+never prove it. The numbers are the belief and the plausibility that each
+piece is the wrong one ([semantics](docs/design/semantics.md)).
 
 The core is a **semantic model** (an AST). The text above is only one
 projection of it, small enough to live in a code docstring or a Markdown block

@@ -1,0 +1,3 @@
+flip_spec : holds
+flip_on_true : holds
+contested evidence line 4: `neg` is a spec, true by definition: evidence does not apply to it

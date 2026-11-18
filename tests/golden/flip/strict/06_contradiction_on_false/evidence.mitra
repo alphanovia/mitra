@@ -1,4 +1,0 @@
-evidence correct (flip true) at 1
--- Two fully believed pieces of evidence disagree on false.
-evidence correct (flip false) at 1
-evidence not correct (flip false) at 1

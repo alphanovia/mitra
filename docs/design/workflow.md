@@ -7,7 +7,7 @@ describes what exists; the rest is a proposal.
 
 1. Write the code, the claims and the `test` declarations.
 2. Run the tests, locally or in CI, and ingest the reports as evidence.
-3. Ask Mitra what is uncertain and what to add next.
+3. Ask Mitra what is unverified and what to add next.
 4. Add manual evidence, such as a review, for the current revision.
 5. Add usage statistics: evidence that the code works in real use.
 6. Report a bug as evidence, and get a ranked list of likely root causes.
@@ -20,8 +20,8 @@ describes what exists; the rest is a proposal.
 | `mitra check`, `mitra eval` | Check the model; print verdicts | done |
 | `mitra add '<evidence>' --source <who> --rev <r>` | Record manual evidence | done |
 | `mitra ingest <report> --rev <r>` | Turn a test report (libtest, JUnit) into evidence | done |
-| `mitra next` | Per uncertain claim, the inputs missing and the evidence to add | done, unranked |
-| `mitra ingest usage <file>` | Turn usage logs into evidence and a usage profile | proposed |
+| `mitra next` | Per unverified claim, the inputs missed and the evidence to add | done, unranked |
+| `mitra ingest usage <file>` | Turn usage logs into evidence | proposed |
 | `mitra bug '<evidence>'` | Record a bug as a counterexample | proposed |
 | `mitra diag` | Verdicts, suspects, conflicts, ranked root causes | proposed |
 

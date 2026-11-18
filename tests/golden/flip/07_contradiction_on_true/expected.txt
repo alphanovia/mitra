@@ -1,0 +1,10 @@
+flip_correct : unverified
+  tested   {false}
+  missed   {true}
+flip_on_true : unverified
+  tested   nothing
+  missed   {true}
+error: inconsistent, on {true} of `flip`: these can't both be true
+  evidence line 1: evidence correct (flip true) at 1
+  evidence line 2: evidence not correct (flip true) at 1
+  every piece is trusted at 1, yet one of them is wrong

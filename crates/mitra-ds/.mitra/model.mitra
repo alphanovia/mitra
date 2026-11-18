@@ -1,4 +1,2 @@
 -- mitra-ds, judged by Mitra. The model is in the `mitra:` comments of
--- src/ and tests/; this file holds only the policy.
-
-policy strict
+-- src/ and tests/.

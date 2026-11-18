@@ -47,22 +47,6 @@ pub fn print_model(m: &Model) -> String {
         let judgment = judgment.strip_suffix(" at 1").unwrap();
         out += &format!("test {} : {judgment}\n", t.name);
     }
-    for p in &m.profiles {
-        out += &format!("profile {} for {}\n", p.name, p.subject);
-        for (region, w) in &p.regions {
-            out += &match region {
-                Some(s) => format!("  | x in {s} => {w}\n"),
-                None => format!("  | _ => {w}\n"),
-            };
-        }
-    }
-    for p in &m.policies {
-        out += &match &p.kind {
-            PolicyKind::Strict if p.name == "strict" => "policy strict\n".to_string(),
-            PolicyKind::Strict => format!("policy {} := strict\n", p.name),
-            PolicyKind::Coverage(profile) => format!("policy {} := coverage {profile}\n", p.name),
-        };
-    }
     out
 }
 

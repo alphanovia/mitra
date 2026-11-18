@@ -1,0 +1,8 @@
+div_correct : unverified
+  tested   {(6, 3)}
+  assumed  class "rest" of `div_class`, by div_uniform
+  missed   class "zero" of `div_class`
+div_small : holds
+  tested   nothing
+  assumed  class "rest" of `div_class`, by div_uniform
+div_uniform : holds

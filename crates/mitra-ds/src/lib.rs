@@ -14,6 +14,8 @@
 //! of inputs on which it is assumed to behave the same, so that one test
 //! stands for a class.
 
+pub mod culprits;
+
 /// Belief split on {correct, wrong}: `b + d + u = 1`, each in [0, 1].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Mass {

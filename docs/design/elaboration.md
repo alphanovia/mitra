@@ -40,7 +40,7 @@ person accepts it.
 
 ## 4. Generating obligations
 
-For each claim that is uncertain, Mitra can write the stub for the evidence
+For each claim that is unverified, Mitra can write the stub for the evidence
 it needs, aimed at the inputs that are still uncovered:
 
 - a **Lean** theorem statement for a definitional implication;
@@ -52,4 +52,4 @@ it needs, aimed at the inputs that are still uncovered:
 
 An LLM is good at drafting claims, specs, shapes and test stubs. Mitra
 gives each draft a verdict like any other claim, so a wrong draft shows up
-as refuted or uncertain, not as quiet trust.
+as refuted or unverified, not as quiet trust.

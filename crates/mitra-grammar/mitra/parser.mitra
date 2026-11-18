@@ -17,5 +17,3 @@ claim parses_sample : forall seed in 0..=499, parses seed = true
 claim round_trips_sample : forall seed in 0..=499, round_trips seed = true
 -- What we would like: the parser accepts every generated program.
 claim parses_all : forall seed, parses seed = true
-
-policy strict

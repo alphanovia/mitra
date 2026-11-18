@@ -162,38 +162,11 @@ impl Test {
     }
 }
 
-/// `profile name for subject` then `| x ∈ S => w` regions.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Profile {
-    pub name: String,
-    pub subject: String,
-    /// `None` is `_`, the rest of the domain.
-    pub regions: Vec<(Option<Set>, f64)>,
-    pub line: usize,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum PolicyKind {
-    Strict,
-    /// Belief is the share of the domain covered, measured by a profile.
-    /// `uniform` is built in.
-    Coverage(String),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Policy {
-    pub name: String,
-    pub kind: PolicyKind,
-    pub line: usize,
-}
-
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
     pub functions: Vec<Function>,
     pub claims: Vec<Claim>,
     pub tests: Vec<Test>,
-    pub profiles: Vec<Profile>,
-    pub policies: Vec<Policy>,
     pub evidence: Vec<Evidence>,
 }
 
@@ -217,7 +190,6 @@ impl Model {
     }
 
     /// Check names, references and that patterns stay inside domains.
-    /// With no policy, `strict` is used.
     pub fn check(mut self) -> Result<Model, (Input, Error)> {
         let m = |line, msg: String| (Input::Model, Error::new(line, msg));
         let mut names: Vec<(&String, usize)> =
@@ -376,38 +348,6 @@ impl Model {
                 }
             }
         }
-        for p in &self.profiles {
-            let Some(f) = self.function(&p.subject) else {
-                return Err(m(p.line, format!("unknown function `{}`", p.subject)));
-            };
-            if f.params.len() != 1 {
-                return Err(m(
-                    p.line,
-                    "a profile needs a function with one parameter for now".into(),
-                ));
-            }
-            for (r, w) in &p.regions {
-                if r.as_ref().is_some_and(|r| !r.is_subset(&f.params[0].1)) {
-                    return Err(m(
-                        p.line,
-                        format!("a region is outside the domain of `{}`", p.subject),
-                    ));
-                }
-                if *w < 0.0 {
-                    return Err(m(p.line, "weights must not be negative".into()));
-                }
-            }
-            if p.regions.iter().map(|r| r.1).sum::<f64>() <= 0.0 {
-                return Err(m(p.line, "weights must not all be 0".into()));
-            }
-        }
-        for p in &self.policies {
-            if let PolicyKind::Coverage(name) = &p.kind {
-                if name != "uniform" && !self.profiles.iter().any(|q| &q.name == name) {
-                    return Err(m(p.line, format!("unknown profile `{name}`")));
-                }
-            }
-        }
         // `evidence c at 1`: a claim on its whole domain.
         let tests = self.tests.iter_mut().map(|t| &mut t.judgment);
         for e in self.evidence.iter_mut().chain(tests) {
@@ -465,13 +405,6 @@ impl Model {
                 }
                 (_, None, _) => return Err(ev(e.line, format!("`{}` is not a subject", e.about))),
             }
-        }
-        if self.policies.is_empty() {
-            self.policies.push(Policy {
-                name: "strict".into(),
-                kind: PolicyKind::Strict,
-                line: 0,
-            });
         }
         Ok(self)
     }

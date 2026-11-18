@@ -24,11 +24,11 @@ const PUNCT: [&str; 35] = [
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
-pub const KEYWORDS: [&str; 40] = [
-    "opaque", "def", "claim", "test", "evidence", "profile", "policy", "correct", "at", "by",
-    "derive", "if", "then", "else", "let", "true", "false", "forall", "in", "not", "Bool", "Int",
-    "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "Float64", "String", "Value",
-    "for", "strict", "coverage", "_", "Real", "uniform", "uses", "only",
+pub const KEYWORDS: [&str; 35] = [
+    "opaque", "def", "claim", "test", "evidence", "correct", "at", "by", "derive", "if", "then",
+    "else", "let", "true", "false", "forall", "in", "not", "Bool", "Int", "Int8", "Int16", "Int32",
+    "Int64", "UInt8", "UInt16", "UInt32", "Float64", "String", "Value", "_", "Real", "uniform",
+    "uses", "only",
 ];
 
 /// The whole text as tokens, each with its line.
@@ -573,7 +573,7 @@ impl P {
     }
 }
 
-/// The model file: `opaque`, `def`, `claim`, `test`, `profile` and `policy`.
+/// The model file: `opaque`, `def`, `claim` and `test`.
 pub fn parse_model(src: &str) -> Result<Model, Error> {
     let mut p = P::new(src)?;
     let mut m = Model::default();
@@ -581,7 +581,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
         let line = p.line();
         let Some(Tok::Ident(kw)) = p.next() else {
             p.pos -= 1;
-            return p.err("expected `opaque`, `def`, `claim`, `test`, `profile` or `policy`");
+            return p.err("expected `opaque`, `def`, `claim` or `test`");
         };
         match kw.as_str() {
             "opaque" | "def" => {
@@ -697,62 +697,10 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                     line,
                 });
             }
-            "profile" => {
-                // profile n for f   then   | x in S => w   |   | _ => w
-                let name = p.ident()?;
-                p.keyword("for")?;
-                let subject = p.ident()?;
-                let mut regions = Vec::new();
-                while p.eat("|") {
-                    let region = if p.eat_keyword("_") {
-                        None
-                    } else {
-                        p.ident()?;
-                        if !p.eat_in() {
-                            return p.err("expected `in`");
-                        }
-                        Some(p.set()?)
-                    };
-                    p.expect("=>")?;
-                    regions.push((region, p.number()?));
-                }
-                m.profiles.push(Profile {
-                    name,
-                    subject,
-                    regions,
-                    line,
-                });
-            }
-            "policy" => {
-                // policy strict   |   policy n := strict | coverage profile
-                if p.eat_keyword("strict") {
-                    m.policies.push(Policy {
-                        name: "strict".into(),
-                        kind: PolicyKind::Strict,
-                        line,
-                    });
-                    continue;
-                }
-                let name = p.ident()?;
-                p.expect(":=")?;
-                let kind = if p.eat_keyword("strict") {
-                    PolicyKind::Strict
-                } else if p.eat_keyword("coverage") {
-                    // `uniform` is the built-in profile.
-                    PolicyKind::Coverage(if p.eat_keyword("uniform") {
-                        "uniform".into()
-                    } else {
-                        p.ident()?
-                    })
-                } else {
-                    return p.err("expected a policy kind: `strict` or `coverage profile`");
-                };
-                m.policies.push(Policy { name, kind, line });
-            }
             k => {
                 p.pos -= 1;
                 return p.err(format!(
-                    "expected `opaque`, `def`, `claim`, `test`, `profile` or `policy`, got `{k}`"
+                    "expected `opaque`, `def`, `claim` or `test`, got `{k}`"
                 ));
             }
         }
@@ -803,10 +751,10 @@ pub fn parse_evidence(src: &str) -> Result<Vec<Evidence>, Error> {
         let (about, pattern, judgment) = p.judgment()?;
         p.keyword("at")?;
         let confidence = p.number()?;
-        if confidence != 0.0 && confidence != 1.0 {
+        if !(0.0..=1.0).contains(&confidence) {
             return Err(Error::new(
                 line,
-                format!("confidence {confidence}: only 0 and 1 are supported for now"),
+                format!("bias {confidence}: it goes from 0 to 1"),
             ));
         }
         out.push(Evidence {
@@ -831,21 +779,12 @@ mod tests {
         let m = parse_model(
             "opaque id (x : Value) : Value\n\
              claim id_small : forall x in 0..=100, correct (id x)  -- a subset\n\
-             profile usage for id\n\
-             \x20 | x in 0..=100 => 0.8\n\
-             \x20 | _ => 0.2\n\
-             policy strict\n\
-             policy by_usage := coverage usage",
+             claim id_all : forall x, correct (id x)",
         )
         .unwrap();
         assert_eq!(m.functions[0].params, vec![("x".to_string(), Set::any())]);
         assert_eq!(m.claims[0].pattern[0].set, Some(Set::interval(0, 100)));
-        assert_eq!(
-            m.profiles[0].regions,
-            vec![(Some(Set::interval(0, 100)), 0.8), (None, 0.2)]
-        );
-        assert_eq!(m.policies[1].kind, PolicyKind::Coverage("usage".into()));
-        assert_eq!(m.policies[1].line, 7);
+        assert_eq!(m.claims[1].line, 3);
     }
 
     #[test]
@@ -949,11 +888,9 @@ mod tests {
         let m = parse_model("def f (a : Int) : Int := -9223372036854775808").unwrap();
         assert_eq!(m.functions[0].body, Some(Expr::Lit(Value::Int(i64::MIN))));
         assert!(parse_evidence("evidence f 9223372036854775808 = 1 at 1").is_err());
-        let w = format!("profile p for f | _ => 1{}", "0".repeat(400));
-        assert!(parse_model(&w)
-            .unwrap_err()
-            .message
-            .contains("not a number"));
+        let w = format!("evidence correct (f 1) at 1{}", "0".repeat(400));
+        let message = parse_evidence(&w).unwrap_err().message;
+        assert!(message.contains("not a number"), "{message}");
     }
 
     #[test]
@@ -983,9 +920,11 @@ mod tests {
     }
 
     #[test]
-    fn rejects_intermediate_confidence_for_now() {
-        let e = parse_evidence("evidence correct (flip true) at 0.9").unwrap_err();
-        assert!(e.message.contains("only 0 and 1"), "{e}");
+    fn a_bias_goes_from_0_to_1() {
+        let e = parse_evidence("evidence correct (flip true) at 0.9").unwrap();
+        assert_eq!(e[0].confidence, 0.9);
+        let e = parse_evidence("evidence correct (flip true) at 1.5").unwrap_err();
+        assert!(e.message.contains("from 0 to 1"), "{e}");
     }
 
     fn set_of(text: &str) -> String {

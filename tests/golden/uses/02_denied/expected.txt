@@ -1,0 +1,30 @@
+half_correct : fails
+  refuted  {1}
+  tested   nothing
+  missed   {0}
+quarter_correct : fails
+  refuted  {1}
+  tested   nothing
+  missed   {0}
+eighth_correct : unverified
+  tested   nothing
+  missed   0..=1
+quarter_uses : fails
+  refuted  Int
+  tested   nothing
+eighth_uses : unverified
+  tested   nothing
+  missed   Int
+error: `half_correct` fails on {1}
+  evidence line 3: evidence not correct (half 1) at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `half`
+error: `quarter_correct` fails on {1}
+  evidence line 4: evidence not correct (quarter 1) at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `quarter`
+error: `quarter_uses` fails: evidence denies it
+  evidence line 2: evidence not quarter_uses at 1
+  most plausibly wrong:
+    [1.00, 1.00] the claim `quarter_uses`
+suspect: `eighth` uses `quarter`, where quarter_correct fails: look there first

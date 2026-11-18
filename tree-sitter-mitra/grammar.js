@@ -16,7 +16,7 @@ module.exports = grammar({
 
   rules: {
     source_file: $ => repeat(choice(
-      $.opaque, $.def, $.claim, $.test, $.profile, $.policy, $.evidence,
+      $.opaque, $.def, $.claim, $.test, $.evidence,
     )),
 
     comment: _ => token(seq('--', /[^\n\r]*/)),
@@ -48,13 +48,6 @@ module.exports = grammar({
     forall: $ => seq(choice('forall', '∀'), $.name, optional(seq(choice('in', '∈'), $._set)), ','),
     _arg: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.negative),
     negative: $ => seq('(', '-', choice($.nat, $.float), ')'),
-
-    profile: $ => seq('profile', field('name', $.name), 'for', field('subject', $.name), repeat($.region)),
-    region: $ => seq('|', choice('_', seq($.name, choice('in', '∈'), $._set)), '=>', $.number),
-    policy: $ => seq('policy', choice(
-      'strict',
-      seq(field('name', $.name), ':=', choice('strict', seq('coverage', choice($.name, 'uniform')))),
-    )),
 
     test: $ => seq('test', field('name', $.name), ':', repeat($.forall), $._judgment),
     evidence: $ => seq(optional($.attributes), 'evidence', repeat($.forall), $._judgment, 'at', field('confidence', $.number)),

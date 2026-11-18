@@ -4,3 +4,6 @@ description = "Mitra's embeddable library: parse a model and evidence, compute v
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+
+[dependencies]
+mitra-ds = { path = "../mitra-ds" }

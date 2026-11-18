@@ -1,0 +1,7 @@
+div_correct : holds
+  tested   {(1, 0), (6, 3)}
+  assumed  classes "rest", "zero" of `div_class`, by div_uniform
+div_small : holds
+  tested   nothing
+  assumed  class "rest" of `div_class`, by div_uniform
+div_uniform : holds

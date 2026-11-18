@@ -4,7 +4,7 @@
 # an empty alternative is ε.
 
 Model         = Command Model | ;
-Command       = Opaque | Def | Claim | Test | Profile | Policy ;
+Command       = Opaque | Def | Claim | Test ;
 Test          = "test" NAME ":" Foralls Judgment ;
 Opaque        = "opaque" NAME Binders ":" Set ;
 Def           = "def" NAME Binders ":" Set ":=" Expr ;
@@ -19,13 +19,6 @@ ClaimBody     = "correct" "(" NAME Args ")" | NAME Args "=" Expr ;
 Only          = "only" | ;
 Derive        = ":=" "by" "derive" "[" NAME NamesTail "]" | ;
 NamesTail     = "," NAME NamesTail | ;
-Profile       = "profile" NAME "for" NAME Regions ;
-Regions       = "|" Region "=>" Number Regions | ;
-Region        = "_" | NAME In Set ;
-Policy        = "policy" PolicyRest ;
-PolicyRest    = "strict" | NAME ":=" PolicyKind ;
-PolicyKind    = "strict" | "coverage" ProfileName ;
-ProfileName   = NAME | "uniform" ;
 
 Evidences     = Evidence Evidences | ;
 Evidence      = Attributes "evidence" Foralls Judgment "at" Number ;

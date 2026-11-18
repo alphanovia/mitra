@@ -1,0 +1,8 @@
+-- A division: the developer assumes it behaves the same on every input,
+-- except when dividing by zero.
+opaque div (a b : Int) : Int
+def div_class (a b : Int) : {"zero", "rest"} := if b == 0 then "zero" else "rest"
+
+claim div_correct : forall a, forall b, correct (div a b)
+claim div_small : forall a in 0..=1, forall b in 1..=2, correct (div a b)
+claim div_uniform : uniform div by div_class

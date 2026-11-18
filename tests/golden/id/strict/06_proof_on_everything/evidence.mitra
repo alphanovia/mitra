@@ -1,2 +1,0 @@
--- A proof on the whole domain.
-evidence forall x, correct (id x) at 1

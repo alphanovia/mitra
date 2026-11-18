@@ -9,8 +9,6 @@ claim flip_correct : forall a, correct (flip a)
 -- flip is correct on true, a subset of its inputs.
 claim flip_on_true : correct (flip true)
 
-policy strict
-
 ---
 
 (source_file
@@ -35,8 +33,7 @@ policy strict
     (correct
       (call
         (name)
-        (boolean))))
-  (policy))
+        (boolean)))))
 
 ============================================================
 flip: 05_correct_on_true_wrong_on_false evidence
@@ -73,14 +70,6 @@ claim id_correct : forall x, correct (id x)
 -- id is correct on the integers from 0 to 100.
 claim id_small : forall x in 0..=100, correct (id x)
 
--- How id is used: mostly small integers, sometimes strings, rarely anything else.
-profile usage for id
-  | x in 0..=100 => 0.8
-  | x in String => 0.1
-  | _ => 0.1
-
-policy by_usage := coverage usage
-
 ---
 
 (source_file
@@ -112,28 +101,7 @@ policy by_usage := coverage usage
     (correct
       (call
         (name)
-        (name))))
-  (comment)
-  (profile
-    (name)
-    (name)
-    (region
-      (name)
-      (range
-        (bound
-          (nat))
-        (bound
-          (nat)))
-      (number))
-    (region
-      (name)
-      (set_name)
-      (number))
-    (region
-      (number)))
-  (policy
-    (name)
-    (name)))
+        (name)))))
 
 ============================================================
 id: 07_proof_contradicted_on_5 evidence
@@ -180,8 +148,6 @@ claim flip_spec : forall a, flip a = neg a
 -- flip computes neg on true.
 claim flip_on_true : flip true = neg true
 
-policy strict
-
 ---
 
 (source_file
@@ -220,8 +186,7 @@ policy strict
         (boolean))
       (application
         (name)
-        (boolean))))
-  (policy))
+        (boolean)))))
 
 ============================================================
 flip_matches: 07_evidence_against_the_spec evidence
@@ -276,8 +241,6 @@ claim flip_spec : forall a, flip a = neg a
 claim flip_not_shape : forall a, flip_not a = flip (flip a)
 -- Derived: flip_not is flip twice, flip is neg, and neg twice is same.
 claim flip_not_same : forall a, flip_not a = same a := by derive [flip_spec, flip_not_shape, neg_twice]
-
-policy strict
 
 ---
 
@@ -366,8 +329,7 @@ policy strict
     (derive
       (name)
       (name)
-      (name)))
-  (policy))
+      (name))))
 
 ============================================================
 compose: 02_leaves_only evidence
@@ -422,8 +384,6 @@ claim negate_spec : forall b in 0..=2, negate b = opposite b
 claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus a b = add a (negate b)
 -- Derived: Mitra checks the implication by substituting the premises.
 claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
-
-policy strict
 
 ---
 
@@ -576,8 +536,7 @@ policy strict
     (derive
       (name)
       (name)
-      (name)))
-  (policy))
+      (name))))
 
 ============================================================
 minus: 04_leaf_refuted evidence

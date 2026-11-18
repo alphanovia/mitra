@@ -1,0 +1,12 @@
+id_correct : unverified
+  tested   Value \ {7}
+  missed   {7}
+id_small : unverified
+  tested   0..=6 | 8..=100
+  missed   {7}
+error: inconsistent, on {7} of `id`: these can't both be true
+  evidence line 2: evidence forall x, correct (id x) at 0
+  evidence line 3: evidence not correct (id 7) at 0
+  most plausibly wrong:
+    [0.00, 1.00] evidence line 2
+    [0.00, 1.00] evidence line 3

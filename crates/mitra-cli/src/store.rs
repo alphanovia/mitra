@@ -16,8 +16,7 @@ pub struct Store {
     dir: PathBuf,
 }
 
-const MODEL_STUB: &str =
-    "-- The model: subjects (opaque), specs (def), claims, profiles, policies.\n\
+const MODEL_STUB: &str = "-- The model: subjects (opaque), specs (def), claims and tests.\n\
 -- See docs/reference/language.md.\n";
 const EVIDENCE_STUB: &str = "-- Evidence, append-only: `mitra add` writes here.\n";
 const GITATTRIBUTES: &str = "evidence.mitra merge=union\n";

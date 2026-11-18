@@ -1,7 +1,6 @@
 //! The validation harness. Each case folder holds `model.mitra`,
 //! `evidence.mitra` and the hand-written `expected.txt` Mitra must produce.
-//! Cases live in `golden/<subject>/<policy>/<case>/`; `golden/<subject>/
-//! noise.mitra` holds evidence at confidence 0 for that subject.
+//! Cases live in `golden/<subject>/<case>/`.
 
 use std::{
     fs,
@@ -44,23 +43,5 @@ fn golden() {
     for dir in cases() {
         let expected = fs::read_to_string(dir.join("expected.txt")).unwrap();
         assert_eq!(eval(&dir, ""), expected, "{}", dir.display());
-    }
-}
-
-/// Evidence at confidence 0 brings nothing: adding the subject's
-/// `noise.mitra` to any case never changes its result.
-#[test]
-fn distrusted_evidence_changes_nothing() {
-    for dir in cases() {
-        let noise = dir
-            .ancestors()
-            .find_map(|d| fs::read_to_string(d.join("noise.mitra")).ok());
-        let noise = noise.unwrap_or_else(|| panic!("no noise.mitra above {}", dir.display()));
-        assert_eq!(
-            eval(&dir, &format!("\n{noise}")),
-            eval(&dir, ""),
-            "{}",
-            dir.display()
-        );
     }
 }

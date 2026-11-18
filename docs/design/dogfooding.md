@@ -15,7 +15,7 @@ crate is built and maintained, that is the first sign Mitra is useful.
 Yager's rule. Its model sits in `mitra:` comments next to the code: one
 subject and one claim per public function (a mass is three `Float64`s),
 and one `test` above each unit test, for the inputs it runs. The store
-`crates/mitra-ds/.mitra/` holds the policy and the evidence.
+`crates/mitra-ds/.mitra/` holds the evidence.
 `scripts/dogfood-ds.sh` runs the tests and ingests the results, tagged
 with the git hash of the crate's committed code (it refuses uncommitted
 changes and stops when the tests don't build). It then evaluates with

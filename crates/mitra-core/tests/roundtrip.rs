@@ -7,8 +7,6 @@ use std::{fs, path::Path};
 pub fn model_without_lines(mut m: Model) -> Model {
     m.functions.iter_mut().for_each(|x| x.line = 0);
     m.claims.iter_mut().for_each(|x| x.line = 0);
-    m.profiles.iter_mut().for_each(|x| x.line = 0);
-    m.policies.iter_mut().for_each(|x| x.line = 0);
     m.tests.iter_mut().for_each(|x| {
         x.line = 0;
         x.judgment.line = 0;

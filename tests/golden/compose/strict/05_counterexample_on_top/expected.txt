@@ -1,7 +1,0 @@
-neg_twice [strict] := { logic := .holds, covered := Bool, domain := Bool, belief := 1 }
-flip_spec [strict] := { logic := .holds, covered := Bool, domain := Bool, belief := 1 }
-flip_not_shape [strict] := { logic := .uncertain, covered := {false}, domain := Bool, belief := 0 }
-flip_not_same [strict] := { logic := .fails, refuted := {true}, domain := Bool, belief := 0, implication := .checked }
-conflict: can't both be true, on {true} of `flip_not`:
-  evidence line 4: evidence flip_not_shape at 1
-  evidence line 7: evidence flip_not true = false at 1

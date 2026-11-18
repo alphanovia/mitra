@@ -28,9 +28,9 @@ store kept up to date as the code grows, the way mitra-ds is
   differently, and better, because of a verdict. **Failure:** the model is
   written once and then left behind, or only repeats what `cargo test` says.
 - **Likely gaps:** subjects are not linked to code, so staleness is per
-  revision, not per function; no records or lists; confidence is 0 or 1;
-  most failed tests give no evidence; no `uses` claims, so a bug can't be
-  traced through calls ([composition](design/composition.md)).
+  revision, not per function; no records or lists; most failed tests
+  give no evidence; `uses` claims are not checked against the code
+  ([composition](design/composition.md)).
 
 ### T2: an abstract model of an agile organisation, judged from news
 
@@ -49,8 +49,9 @@ agile way. The model states what such an organisation should achieve
   settle a question. **Failure:** every claim needs a judgment call that
   Mitra cannot record, so the verdict is the modeller's opinion with extra
   steps.
-- **Likely gaps:** confidence 0 or 1 only (a news report is rarely
-  certain); no weighting of sources (`source` is recorded but not used);
+- **Likely gaps:** a doubtful news report counts fully for the verdict:
+  its bias only ranks it among the pieces to doubt when reports
+  contradict each other; `source` is recorded but not used;
   inputs are numbers, strings and booleans, so organisations, teams or
   years become names or numbered cases; no time: evidence can't age except
   by `--rev`.
@@ -67,10 +68,10 @@ should make the agent do; the evidence is the agent's runs.
   verdict tell which part of the skill fails, and on which tasks?
 - **Success:** the verdict ranks the tasks or parts of the skill that need
   work, in a way that matches reading the transcripts. **Failure:** every
-  task is uncertain because a run proves nothing at confidence 1, or the
+  task is an error because runs disagree, or the
   spec can't be written in Mitra and lives only in prose.
-- **Likely gaps:** confidence 0 or 1, while an agent passes a task some of
-  the time; a failed run on a set gives no evidence (Mitra can't tell which
+- **Likely gaps:** an agent that passes a task some of the time gives a
+  pass and a failure on the same input, which is an error, not a rate; a failed run on a set gives no evidence (Mitra can't tell which
   input was wrong); a spec must be a total pure `def`, so "follows the
   skill" is a subject's `correct`, judged by someone; no notion of a judge
   (person or LLM) and how much to trust it.

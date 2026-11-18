@@ -1,3 +1,0 @@
-inc_correct [strict] := { logic := .uncertain, covered := 0..=99, domain := Int64, belief := 0 }
-inc_small [strict] := { logic := .holds, covered := 0..=99, domain := 0..=99, belief := 1 }
-half_spec [strict] := { logic := .holds, covered := {-3.0, 1.0}, domain := {-3.0, 1.0}, belief := 1 }

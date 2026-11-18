@@ -1,0 +1,6 @@
+flip_spec : unverified
+  tested   nothing
+  missed   Bool
+flip_on_true : unverified
+  tested   nothing
+  missed   {true}
