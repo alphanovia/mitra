@@ -1,0 +1,7 @@
+evidence is_spam(1) = true at 1
+evidence is_spam(2) = true at 1
+evidence is_spam(3) = false at 1
+evidence is_spam(4) = false at 1
+evidence correct(is_spam(1)) at 1
+evidence not correct(is_spam(2)) at 0.8
+evidence forall m in 3..=4, correct(is_spam(m)) at 1

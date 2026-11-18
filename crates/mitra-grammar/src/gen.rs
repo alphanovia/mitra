@@ -303,6 +303,10 @@ fn unary(r: &mut Rng, depth: usize) -> String {
 
 fn atom(r: &mut Rng, depth: usize) -> String {
     let exprs = |r: &mut Rng, lo| r.many(lo, 3, |r| expr(r, depth - 1)).join(" , ");
+    if depth > 0 && r.chance(4) {
+        let cond = expr(r, depth - 1);
+        return measure(r, &cond);
+    }
     match if depth == 0 { r.below(2) } else { r.below(8) } {
         7 => {
             let arm = |r: &mut Rng| {
@@ -326,6 +330,21 @@ fn atom(r: &mut Rng, depth: usize) -> String {
         4 => format!("( {} )", exprs(r, 2)),
         5 => format!("[ {} ]", exprs(r, 0)),
         _ => format!("len ( {} )", expr(r, depth - 1)),
+    }
+}
+
+/// `rate ( a in S , cond )` or `precision ( f )`.
+fn measure(r: &mut Rng, cond: &str) -> String {
+    match r.below(4) {
+        0 => format!("precision ( {} )", name(r)),
+        1 => format!("recall ( {} )", name(r)),
+        2 => format!("false_positive_rate ( {} )", name(r)),
+        _ => format!(
+            "rate ( {} {} {} , {cond} )",
+            name(r),
+            pick(r, "in", "∈"),
+            set(r, 1)
+        ),
     }
 }
 
@@ -459,6 +478,12 @@ pub fn evidences(r: &mut Rng) -> String {
 
 /// `∀ …, <judgment>`, as in evidence and tests.
 fn judgment(r: &mut Rng) -> String {
+    if r.chance(8) {
+        // A measurement names every input: no name is left to bind.
+        let cond = format!("{} ( {} ) == {}", name(r), scalar(r), literal(r));
+        let value = ["0", "1", "0.5", "0.25"][r.below(4)];
+        return format!("{} = {value}", measure(r, &cond));
+    }
     match r.below(5) {
         0 => {
             let (forall, args) = call_args(r, 1);

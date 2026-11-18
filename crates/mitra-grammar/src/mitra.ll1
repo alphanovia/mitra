@@ -31,7 +31,10 @@ Evidences     = Evidence Evidences | ;
 Evidence      = Attributes "evidence" Foralls Judgment "at" Number ;
 Attributes    = "@[" NAME STR AttrsTail "]" | ;
 AttrsTail     = "," NAME STR AttrsTail | ;
-Judgment      = "correct" "(" NAME Args ")" | Not Negated | NAME Args Output ;
+Judgment      = "correct" "(" NAME Args ")" | Not Negated | NAME Args Output
+              | Measure "=" Number ;
+Measure       = "rate" "(" NAME In Set "," Expr ")" | Score "(" NAME ")" ;
+Score         = "precision" | "recall" | "false_positive_rate" ;
 Negated       = "correct" "(" NAME Args ")" | NAME Args ;
 Output        = "=" Value | ;
 
@@ -83,7 +86,7 @@ Unary         = "!" Unary | "-" Unary | Atom Postfix ;
 Postfix       = "." Field Postfix | "[" Expr "]" Postfix | ;
 Field         = NAME | NAT ;
 Atom          = NAME CallArgs | Literal | "(" Expr ExprsTail ")" | "[" Exprs "]"
-              | "len" "(" Expr ")" | "match" Expr "{" Arm ArmsTail "}" ;
+              | "len" "(" Expr ")" | "match" Expr "{" Arm ArmsTail "}" | Measure ;
 Arm           = ArmPattern "=>" Expr ;
 ArmsTail      = "," Arm ArmsTail | ;
 ArmPattern    = "_" | NAME ArmFields ;

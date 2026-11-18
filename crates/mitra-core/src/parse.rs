@@ -25,11 +25,51 @@ const PUNCT: [&str; 37] = [
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
-pub const KEYWORDS: [&str; 40] = [
-    "enum", "match", "List", "len", "record", "opaque", "def", "claim", "test", "evidence",
-    "correct", "at", "by", "derive", "if", "then", "else", "let", "true", "false", "forall", "in",
-    "not", "Bool", "Int", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32",
-    "Float64", "String", "Value", "_", "Real", "uniform", "uses", "only",
+pub const KEYWORDS: [&str; 44] = [
+    "enum",
+    "match",
+    "rate",
+    "precision",
+    "recall",
+    "false_positive_rate",
+    "List",
+    "len",
+    "record",
+    "opaque",
+    "def",
+    "claim",
+    "test",
+    "evidence",
+    "correct",
+    "at",
+    "by",
+    "derive",
+    "if",
+    "then",
+    "else",
+    "let",
+    "true",
+    "false",
+    "forall",
+    "in",
+    "not",
+    "Bool",
+    "Int",
+    "Int8",
+    "Int16",
+    "Int32",
+    "Int64",
+    "UInt8",
+    "UInt16",
+    "UInt32",
+    "Float64",
+    "String",
+    "Value",
+    "_",
+    "Real",
+    "uniform",
+    "uses",
+    "only",
 ];
 
 /// The whole text as tokens, each with its line.
@@ -668,6 +708,30 @@ impl P {
     /// `forall …, <judgment>`: what a piece of evidence or a test says.
     fn judgment(&mut self) -> Result<(String, Pattern, Judgment), Error> {
         let bound = self.foralls()?;
+        if self.is_measure() {
+            // rate(x in S, cond) = 0.4: a measure, as measured.
+            let line = self.line();
+            if !bound.is_empty() {
+                return Err(Error::new(
+                    line,
+                    "a measurement takes no `forall`".to_string(),
+                ));
+            }
+            let measure = self.atom()?;
+            self.expect("=")?;
+            let value = self.number()?;
+            let unbound = free(&measure, &mut Vec::new(), &mut Vec::new());
+            let variant = |x: &String| {
+                let none = |r: &Record| &r.name == x && r.fields.is_empty();
+                self.records.iter().any(none)
+            };
+            if let Some(x) = unbound.into_iter().find(|x| !variant(x)) {
+                let msg = format!("`{x}` is not bound: a measurement names its inputs");
+                return Err(Error::new(line, msg));
+            }
+            let about = crate::print::expr(&measure);
+            return Ok((about, Vec::new(), Judgment::Measured(measure, value)));
+        }
         Ok(if self.eat_keyword("correct") {
             let (f, pat) = self.correct(&bound)?;
             (f, pat, Judgment::Correct(true))
@@ -790,7 +854,31 @@ impl P {
         Ok(e)
     }
     /// atom := value | name | "(" expr ")"
+    /// At `rate`, `precision`, `recall` or `false_positive_rate`.
+    fn is_measure(&self) -> bool {
+        self.is_keyword("rate") || SCORES.iter().any(|k| self.is_keyword(k))
+    }
     fn atom(&mut self) -> Result<Expr, Error> {
+        if self.eat_keyword("rate") {
+            // rate(x in S, cond)
+            self.expect("(")?;
+            let x = self.ident()?;
+            if !self.eat_in() {
+                return self.err("expected `in`");
+            }
+            let set = self.set()?;
+            self.expect(",")?;
+            let cond = self.expr()?;
+            self.expect(")")?;
+            return Ok(Expr::Rate(x, set, Box::new(cond)));
+        }
+        if let Some(kind) = SCORES.iter().find(|k| self.is_keyword(k)) {
+            self.pos += 1;
+            self.expect("(")?;
+            let f = self.ident()?;
+            self.expect(")")?;
+            return Ok(Expr::Score(kind, f));
+        }
         if self.eat("(") {
             // `(e)` groups; `(a, b)` is a tuple.
             let mut parts = vec![self.expr()?];
@@ -1199,6 +1287,12 @@ fn free(e: &Expr, scope: &mut Vec<String>, used: &mut Vec<String>) -> Vec<String
                 scope.truncate(n);
             }
         }
+        Expr::Score(..) => {}
+        Expr::Rate(x, _, a) => {
+            scope.push(x.clone());
+            free(a, scope, used);
+            scope.pop();
+        }
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => {
             free(a, scope, used);
         }
@@ -1237,7 +1331,10 @@ fn records_in(e: &mut Expr, names: &[String]) {
             arms.iter_mut()
                 .for_each(|arm| records_in(&mut arm.body, names));
         }
-        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => records_in(a, names),
+        Expr::Score(..) => {}
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) | Expr::Rate(_, _, a) => {
+            records_in(a, names)
+        }
         Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) => {
             records_in(a, names);
             records_in(b, names);

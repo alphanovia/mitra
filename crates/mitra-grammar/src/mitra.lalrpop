@@ -11,7 +11,7 @@ match {
     r"[0-9]+" => NAT,
     r"[0-9]+\.[0-9]+" => DEC,
     r#""[^"\n]*""# => STR,
-    "record", "enum", "match", "List", "len", "opaque", "def", "claim", "test", "evidence",
+    "record", "enum", "match", "rate", "precision", "recall", "false_positive_rate", "List", "len", "opaque", "def", "claim", "test", "evidence",
     "correct", "at", "by", "derive", "if", "then", "else", "let",
     "true", "false", "forall", "in", "not",
     "Bool", "Int", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32",
@@ -58,7 +58,13 @@ Judgment: () = {
     Not NAME Args? => (),
     NAME Args? => (),
     NAME Args? "=" Value => (),
+    Measure "=" Number => (),
 };
+Measure: () = {
+    "rate" "(" NAME In Set "," Expr ")" => (),
+    Score "(" NAME ")" => (),
+};
+Score: () = { "precision" => (), "recall" => (), "false_positive_rate" => () };
 
 // ASCII first; Lean's Unicode symbols are aliases.
 ForallKw: () = { "forall" => (), "∀" => () };
@@ -132,6 +138,7 @@ Atom: () = {
     "[" Comma1<Expr> "]" => (),
     "len" "(" Expr ")" => (),
     "match" Expr "{" Comma1<Arm> "}" => (),
+    Measure,
 };
 Arm: () = {
     "_" "=>" Expr => (),

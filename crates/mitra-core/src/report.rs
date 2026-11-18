@@ -33,7 +33,7 @@ impl Places for Files<'_> {
 }
 
 /// Every code, with its headline and its long explanation.
-const CODES: [(&str, &str, &str); 8] = [
+const CODES: [(&str, &str, &str); 9] = [
     (
         "M001",
         "evidence refutes a claim",
@@ -78,6 +78,16 @@ const CODES: [(&str, &str, &str); 8] = [
          the failure. Mitra ranks them from the trust given to each.\n\n\
          To fix: check the failing result. If it is real, split the class so\n\
          that the two inputs fall in different classes; then fix the code.",
+    ),
+    (
+        "M005",
+        "a measurement does not fit the other evidence",
+        "A measure such as `rate(x in S, cond)` has a value either from a\n\
+         measurement (`evidence rate(…) = 0.4 at 0.7`) or from counting the\n\
+         observed outputs. Here a measurement disagrees with another\n\
+         measurement of the same measure, or with what the observed outputs\n\
+         leave possible.\n\n\
+         To fix: find out which one is right, and correct the other.",
     ),
     (
         "M101",
@@ -180,6 +190,7 @@ impl Writer<'_> {
             Some(Judgment::Output(_)) => "output",
             Some(Judgment::Holds(true)) => "vouches",
             Some(Judgment::Holds(false)) => "denies",
+            Some(Judgment::Measured(..)) => "measured",
             None => "",
         }
     }
@@ -503,6 +514,21 @@ impl Writer<'_> {
                 self.ranking(p, out);
                 *out += "\n  note: until this is settled, neither counts for these inputs\n  \
                          help: find out which one is right, and correct the other\n";
+            }
+            Kind::Measure { measure, counted } => {
+                if let Some((line, _)) = p.evidence.last() {
+                    *out += &format!("  --> {}\n", self.places.evidence(*line));
+                }
+                *out += &match counted.is_empty() {
+                    true => format!("\n  `{measure}` was measured with two values:\n\n"),
+                    false => format!(
+                        "\n  `{measure}` as measured does not fit what was observed \
+                         ({counted}):\n\n"
+                    ),
+                };
+                self.quoted(p, out);
+                self.ranking(p, out);
+                *out += "\n  help: find out which one is right, and correct the other\n";
             }
             Kind::Conflict {
                 claim,

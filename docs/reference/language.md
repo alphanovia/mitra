@@ -139,7 +139,7 @@ free: line breaks and indentation mean nothing.
 - Symbols, longest match first: `@[` `..=` `:=` `=>` `->` `==` `!=` `<=` `>=`
   `&&` `||` `..` `.` `(` `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `&` `!` `<` `>`
   `+` `-` `*` `\`.
-- Keywords: `record enum match opaque def claim test evidence correct at by derive
+- Keywords: `rate precision recall false_positive_rate record enum match opaque def claim test evidence correct at by derive
   if then else let true false forall in not uniform uses only len List
   Bool Int Int8 Int16 Int32 Int64 UInt8 UInt16 UInt32 Float64 String
   Value Real _`. `Real`
@@ -206,7 +206,10 @@ atom       = name [ "(" expr { "," expr } ")" ]
            | "(" expr { "," expr } ")"
            | "[" [ expr { "," expr } ] "]"
            | "len" "(" expr ")"
-           | "match" expr "{" arm { "," arm } "}" ;
+           | "match" expr "{" arm { "," arm } "}"
+           | measure ;
+measure    = "rate" "(" name in set "," expr ")"
+           | ( "precision" | "recall" | "false_positive_rate" ) "(" name ")" ;
 arm        = ( "_" | name [ "(" name { "," name } ")" ] ) "=>" expr ;
 
 value      = "true" | "false" | [ "-" ] number | string
@@ -458,6 +461,30 @@ used in the expression after `=`.
   and `f(x, y) == e` with one name per input is the claim `f(x, y) = e`
   above. Reports name an input by its names, `a = 5, b = 2`, and
   evidence on the claim lists them in order: `evidence max_bounds(5, 2) at 1`.
+- a property on a **measure**: how often something holds, for functions
+  that don't always answer the same way.
+
+  ```lean
+  opaque goal_met(team: {"payments", "search"}, sprint: Int) -> Bool
+  claim adapts : rate(s in 11..=20, goal_met("payments", s)) >= 0.6
+
+  opaque is_spam(mail: 1..=1000) -> Bool
+  claim precise : precision(is_spam) >= 0.9
+  claim few_false_alarms : false_positive_rate(is_spam) <= 0.02
+  ```
+
+  `rate(x in S, cond)` is the share of the values of S where `cond` is
+  true, from 0 to 1. The condition under which something is measured is
+  the set S. `precision(f)`, `recall(f)` and `false_positive_rate(f)`
+  are for a subject `f` that answers true or false: the truth on an
+  input is the answer when it was judged `correct`, and the other one
+  when judged `not correct`. A measure is an expression: it can be
+  compared, added, and used under a `forall`.
+
+  A measure has a value in two ways (see Evaluation): a measurement
+  recorded as evidence, or the observed outputs when they cover every
+  value of S. Mitra does no statistics: how good a sample is goes into
+  the trust given to the measurement.
 - `:= by derive [c1, c2, …]`: a **derivation**. Premises must be claims
   defined above. Mitra checks the implication "premises ⇒ claim" when it
   can (see Evaluation), and the claim follows on its whole domain when no
@@ -518,6 +545,11 @@ evidence flip_not_shape at 1
   `evidence add(Number(1, "m"), Number(2, "m")) = Number(3, "m") at 1`,
   `evidence sort([3, 1, 2]) = [1, 2, 3] at 1`. An argument is a whole
   value or a bound name: `Number(x, "m")` with `x` bound is not accepted.
+- `rate(s in 11..=20, goal_met("payments", s)) = 0.4`, `precision(is_spam)
+  = 0.93`: a **measurement**, the value of a measure as someone measured
+  it. It names every input (no `forall`), and it is matched with the
+  measure of a claim as written, once the claim's names have their
+  values.
 - `correct(f(args))` / `not correct(f(args))`: people judged the subject's
   results on these inputs correct (or wrong). A single input is a test; a
   set is evidence for every input in it, such as a proof. Used by `correct`
@@ -597,6 +629,15 @@ where the claim is right and where it is wrong:
    are decided by one side when it settles them, even if the other has no
    observation. When x is wrong, the error lists every output that was
    read, and the code of every subject called: they can't all be right.
+
+A measure in a property takes the value of its measurement when there is
+one. Without one it is counted from the observed outputs, when they cover
+every value of the set; otherwise it has no value, the claim is not
+judged there, and a note says what was counted so far. Two measurements
+of one measure with different values, or a measurement outside what the
+observed outputs leave possible (3 of 4 values seen true: at least
+0.75), are an error (`M005`); the measure then has no value until that is
+settled.
 
 Evidence on a claim (`c` or `not c`) speaks of the claim's domain only,
 whatever inputs it names.
@@ -866,6 +907,7 @@ error[M004]: an assumption is contradicted by the evidence
 | `M002` | error | evidence denies an assumption (a `uniform` or `uses` claim) |
 | `M003` | error | two pieces of evidence contradict each other |
 | `M004` | error | an assumption is contradicted by the evidence: a pass and a failure in one class |
+| `M005` | error | a measurement does not fit another measurement of the same measure, or the observed outputs |
 | `M101` | warning | a claim is not verified: some inputs have no evidence |
 | `M102` | warning | a claim holds only under assumptions |
 | `M103` | warning | an assumption is not vouched for |
@@ -1195,6 +1237,20 @@ Three models: `get` on `Option(Int)` with the classes "none" and "some"
 | 04 | associativity of `add`, `add(a, 0) == a`, bounds of `max` | inputs found from the observed calls; `max_bounds` fails on `a = 5, b = 2` |
 | 05 | `pick(Some(c)) == c` over `Color`; `pick(None) == Red` | holds; fails on the statement itself |
 | 06 | `slip_rate("red") > 0.5` with observed rates | one holds, one fails |
+
+### `measures`: rates, precision, recall
+
+One model of a team, `goal_met(team, sprint)`, with three claims on a
+`rate` (cases 01 to 05), and one of a filter, `is_spam` (06).
+
+| Case | Evidence | Verdicts |
+|---|---|---|
+| 01 | the rate over sprints 11 to 20 measured at 0.4, trust 0.7 | `adapts` (>= 0.6) fails; the measurement and the code are the candidates |
+| 02 | measured at 0.8; a rate over `1..` measured at 0.9 | `adapts` and `ever` hold |
+| 03 | three outputs only | all unverified; "2 of 4 inputs counted, 1 true" |
+| 04 | the four outputs of sprints 1 to 4 | `steady` holds, by counting |
+| 05 | three outputs true out of four, and the rate measured at 0.25 | error `M005`; `steady` unverified |
+| 06 | four answers of `is_spam` and their judgments | `precise` and `few_false_alarms` fail, `finds_most` holds |
 
 ### `numbers`: integer types, ranges and floats
 

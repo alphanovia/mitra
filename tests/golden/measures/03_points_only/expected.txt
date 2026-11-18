@@ -1,0 +1,29 @@
+steady: unverified
+  no evidence on  the statement itself
+adapts: unverified
+  no evidence on  the statement itself
+ever: unverified
+  no evidence on  the statement itself
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  claim steady : rate(s in 1..=4, goal_met("payments", s)) >= 0.5
+
+  No evidence on the statement itself.
+  note: `rate(s in 1..=4, goal_met("payments", s))` has no value yet: 2 of 4 inputs counted, 1 true
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  claim adapts : rate(s in 11..=20, goal_met("payments", s)) >= 0.6
+
+  No evidence on the statement itself.
+  note: `rate(s in 11..=20, goal_met("payments", s))` has no value yet: 1 of 10 inputs counted, 1 true
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  claim ever : rate(s in 1.., goal_met("search", s)) >= 0.5
+
+  No evidence on the statement itself.
+  note: `rate(s in 1.., goal_met("search", s))` has no value yet: only a measurement can give it, the set is too large to count
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

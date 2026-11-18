@@ -29,7 +29,16 @@ pub enum Expr {
     Len(Box<Expr>),
     /// `match e { None => a, Some(v) => b, _ => c }`: by variant.
     Match(Box<Expr>, Vec<Arm>),
+    /// `rate(x in S, cond)`: the share of the values of S where `cond` is
+    /// true, from 0 to 1.
+    Rate(String, Set, Box<Expr>),
+    /// `precision(f)`, `recall(f)`, `false_positive_rate(f)`: a measure
+    /// of a subject that answers true or false.
+    Score(&'static str, String),
 }
+
+/// The measures of a subject that answers true or false.
+pub const SCORES: [&str; 3] = ["precision", "recall", "false_positive_rate"];
 
 /// One arm of a `match`: a variant with a name for each of its fields, or
 /// `_` for any value.
@@ -160,6 +169,9 @@ pub enum Judgment {
     Output(Value),
     /// `c` / `¬ c`, on a claim.
     Holds(bool),
+    /// `rate(x in S, cond) = 0.4`: a measure, as measured. The evidence is
+    /// then about the measure as written.
+    Measured(Expr, f64),
 }
 
 /// `evidence ∀ …, <judgment> at confidence`
@@ -305,6 +317,16 @@ impl Model {
     pub fn declared_function(&self, name: &str) -> Option<&Function> {
         self.functions.iter().find(|f| f.name == name)
     }
+    /// `precision(f)` and the like need a subject that answers true or
+    /// false.
+    fn scored(&self, kind: &str, f: &str) -> Result<(), String> {
+        match self.declared_function(f) {
+            Some(g) if !g.is_spec() && g.range.is_subset(&Set::bool()) => Ok(()),
+            _ => Err(format!(
+                "`{kind}({f})` needs a subject that answers true or false"
+            )),
+        }
+    }
     /// The subjects a claim is about: its own, or for a property those it
     /// calls.
     pub fn subjects_of(&self, c: &Claim) -> Vec<String> {
@@ -441,6 +463,15 @@ impl Model {
                     }
                     _ => {}
                 }
+            }
+            let mut scored = Vec::new();
+            walk(e, &mut |e| {
+                if let Expr::Score(kind, f) = e {
+                    scored.push((*kind, f.clone()));
+                }
+            });
+            for (kind, f) in scored {
+                self.scored(kind, &f).map_err(|msg| m(c.line, msg))?;
             }
             let mut params = Vec::new();
             for p in &c.pattern {
@@ -601,6 +632,22 @@ impl Model {
                 (Judgment::Holds(_), _, Some(c)) => {
                     fits(self.function(&c.func).unwrap(), &e.pattern, e.line, input)?
                 }
+                (Judgment::Measured(measure, value), _, _) => {
+                    let mut bad = None;
+                    if !(0.0..=1.0).contains(value) {
+                        bad = Some(format!("a measure goes from 0 to 1, got {value}"));
+                    }
+                    walk(measure, &mut |e| match e {
+                        Expr::Call(f, _) if self.declared_function(f).is_none() => {
+                            bad = Some(format!("unknown function `{f}`"));
+                        }
+                        Expr::Score(kind, f) => bad = bad.take().or(self.scored(kind, f).err()),
+                        _ => {}
+                    });
+                    if let Some(msg) = bad {
+                        return Err(ev(e.line, msg));
+                    }
+                }
                 (Judgment::Holds(_), _, None) => {
                     return Err(ev(
                         e.line,
@@ -691,7 +738,8 @@ pub fn walk(e: &Expr, f: &mut impl FnMut(&Expr)) {
             walk(a, f);
             arms.iter().for_each(|arm| walk(&arm.body, f));
         }
-        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => walk(a, f),
+        Expr::Score(..) => {}
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) | Expr::Rate(_, _, a) => walk(a, f),
         Expr::Call(_, args) | Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
             args.iter().for_each(|a| walk(a, f))
         }
@@ -716,7 +764,8 @@ fn arms(e: &Expr) -> Vec<(String, Vec<String>)> {
             let inner = list.iter().flat_map(|arm| arms(&arm.body));
             arms(a).into_iter().chain(own).chain(inner).collect()
         }
-        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => arms(a),
+        Expr::Score(..) => vec![],
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) | Expr::Rate(_, _, a) => arms(a),
         Expr::Call(_, args) | Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
             args.iter().flat_map(arms).collect()
         }
@@ -738,7 +787,8 @@ pub fn calls(e: &Expr) -> Vec<String> {
             .into_iter()
             .chain(arms.iter().flat_map(|arm| calls(&arm.body)))
             .collect(),
-        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => calls(a),
+        Expr::Score(_, f) => vec![f.clone()],
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) | Expr::Rate(_, _, a) => calls(a),
         Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
             args.iter().flat_map(calls).collect()
         }

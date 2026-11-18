@@ -1,0 +1,4 @@
+evidence goal_met("payments", 1) = true at 1
+evidence goal_met("payments", 2) = true at 0.9
+evidence goal_met("payments", 3) = true at 1
+evidence rate(s in 1..=4, goal_met("payments", s)) = 0.25 at 0.6

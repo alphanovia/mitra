@@ -253,6 +253,9 @@ pub enum Kind {
     Denied { claim: String },
     /// Two pieces of evidence that disagree on the same inputs.
     Contradiction { subject: String, inputs: String },
+    /// A measurement that the observations, or another measurement of the
+    /// same measure, can't agree with.
+    Measure { measure: String, counted: String },
     /// A pass and a failure in one class of a `uniform` claim.
     Conflict {
         claim: String,
@@ -270,6 +273,7 @@ impl Kind {
             Kind::Denied { .. } => "M002",
             Kind::Contradiction { .. } => "M003",
             Kind::Conflict { .. } => "M004",
+            Kind::Measure { .. } => "M005",
         }
     }
 }
@@ -327,6 +331,79 @@ struct Eval<'m> {
     depth: Cell<usize>,
     /// The observed outputs read so far: (subject, inputs).
     read: RefCell<Vec<(String, Vec<Value>)>>,
+    /// The lines of the measurements read so far.
+    measured: RefCell<Vec<usize>>,
+    /// What was counted for the measures that have no value yet.
+    notes: RefCell<Vec<String>>,
+}
+
+/// What the observations say of a measure.
+struct Count {
+    /// The value, when every input is known.
+    exact: Option<f64>,
+    /// The least and the most it can be, given what is known.
+    bounds: (f64, f64),
+    /// What was counted, in words.
+    text: String,
+}
+
+/// An expression with the values of `env` written in place of its names.
+fn close(e: &Expr, env: &Env, hidden: &mut Vec<String>) -> Expr {
+    let b = |e: &Expr, hidden: &mut Vec<String>| Box::new(close(e, env, hidden));
+    let all = |es: &[Expr], hidden: &mut Vec<String>| -> Vec<Expr> {
+        es.iter().map(|e| close(e, env, hidden)).collect()
+    };
+    let under = |x: &[String], e: &Expr, hidden: &mut Vec<String>| {
+        let n = hidden.len();
+        hidden.extend(x.iter().cloned());
+        let out = close(e, env, hidden);
+        hidden.truncate(n);
+        out
+    };
+    match e {
+        Expr::Var(x) if !hidden.contains(x) => match env.get(x) {
+            Some(v) => Expr::Lit(v.clone()),
+            None => e.clone(),
+        },
+        Expr::Lit(_) | Expr::Var(_) | Expr::Score(..) => e.clone(),
+        Expr::Call(f, args) => Expr::Call(f.clone(), all(args, hidden)),
+        Expr::Tuple(args) => Expr::Tuple(all(args, hidden)),
+        Expr::Record(n, args) => Expr::Record(n.clone(), all(args, hidden)),
+        Expr::List(args) => Expr::List(all(args, hidden)),
+        Expr::Unary(op, a) => Expr::Unary(op, b(a, hidden)),
+        Expr::Field(a, f) => Expr::Field(b(a, hidden), f.clone()),
+        Expr::Len(a) => Expr::Len(b(a, hidden)),
+        Expr::Binary(op, x, y) => Expr::Binary(op, b(x, hidden), b(y, hidden)),
+        Expr::Index(x, y) => Expr::Index(b(x, hidden), b(y, hidden)),
+        Expr::If(c, t, f) => Expr::If(b(c, hidden), b(t, hidden), b(f, hidden)),
+        Expr::Let(x, v, body) => {
+            let v = b(v, hidden);
+            Expr::Let(
+                x.clone(),
+                v,
+                Box::new(under(std::slice::from_ref(x), body, hidden)),
+            )
+        }
+        Expr::Match(a, arms) => {
+            let a = b(a, hidden);
+            let arms = arms
+                .iter()
+                .map(|arm| Arm {
+                    variant: arm.variant.clone(),
+                    body: match &arm.variant {
+                        Some((_, names)) => under(names, &arm.body, hidden),
+                        None => close(&arm.body, env, hidden),
+                    },
+                })
+                .collect();
+            Expr::Match(a, arms)
+        }
+        Expr::Rate(x, set, cond) => Expr::Rate(
+            x.clone(),
+            set.clone(),
+            Box::new(under(std::slice::from_ref(x), cond, hidden)),
+        ),
+    }
 }
 
 impl Eval<'_> {
@@ -384,6 +461,7 @@ impl Eval<'_> {
                 }
                 out
             }
+            Expr::Rate(..) | Expr::Score(..) => self.measure(e, env, line)?,
             Expr::Len(a) => {
                 let mut out = Vec::new();
                 for v in self.eval(a, env, line, subjects)? {
@@ -684,6 +762,143 @@ impl Eval<'_> {
         Ok(Some((right, wrong)))
     }
 
+    /// The value of a measure: as measured when a measurement says so,
+    /// otherwise counted from the observations when they cover every
+    /// input. No value when neither does.
+    fn measure(&self, e: &Expr, env: &Env, line: usize) -> Result<Vec<Value>, Error> {
+        let closed = close(e, env, &mut Vec::new());
+        let key = crate::print::expr(&closed);
+        let mut values: Vec<Value> = Vec::new();
+        for ev in self.model.evidence.iter().filter(|ev| ev.about == key) {
+            if let Judgment::Measured(_, v) = &ev.judgment {
+                self.measured.borrow_mut().push(ev.line);
+                if !values.contains(&Value::Float(*v)) {
+                    values.push(Value::Float(*v));
+                }
+            }
+        }
+        if !values.is_empty() {
+            // A measurement that another one, or the observations,
+            // contradict gives no value until that is settled.
+            let (read, lines) = (self.read.take(), self.measured.take());
+            let (lo, hi) = self.count(&closed, line)?.bounds;
+            self.read.replace(read);
+            let fits =
+                |v: &Value| matches!(v, Value::Float(v) if *v >= lo - 1e-9 && *v <= hi + 1e-9);
+            if values.len() > 1 || !values.iter().all(fits) {
+                self.notes.borrow_mut().push(format!(
+                    "`{key}` has no value: its measurement is contradicted"
+                ));
+                return Ok(vec![]);
+            }
+            self.measured.replace(lines);
+            return Ok(values);
+        }
+        let count = self.count(&closed, line)?;
+        if let Some(v) = count.exact {
+            return Ok(vec![Value::Float(v)]);
+        }
+        self.notes
+            .borrow_mut()
+            .push(format!("`{key}` has no value yet: {}", count.text));
+        Ok(vec![])
+    }
+
+    /// What the observations say of a measure with no name left to bind.
+    fn count(&self, measure: &Expr, line: usize) -> Result<Count, Error> {
+        let unknown = |text: &str| Count {
+            exact: None,
+            bounds: (0.0, 1.0),
+            text: text.to_string(),
+        };
+        const INFINITE: &str = "only a measurement can give it, the set is too large to count";
+        match measure {
+            Expr::Rate(x, set, cond) => {
+                let Some(inputs) = set.values() else {
+                    return Ok(unknown(INFINITE));
+                };
+                if inputs.is_empty() {
+                    return Err(Error::new(line, "a rate over an empty set"));
+                }
+                let (mut yes, mut no) = (0usize, 0usize);
+                for v in &inputs {
+                    let env: Env = [(x.clone(), v.clone())].into_iter().collect();
+                    let out = self.eval(cond, &env, line, Subjects::Observed)?;
+                    match &out[..] {
+                        [] => {}
+                        all if all.iter().all(|v| v == &Value::Bool(true)) => yes += 1,
+                        all if all.iter().all(|v| v == &Value::Bool(false)) => no += 1,
+                        all if all.iter().all(|v| matches!(v, Value::Bool(_))) => {}
+                        [v, ..] => {
+                            let msg = format!("a rate counts true or false, got {v}");
+                            return Err(Error::new(line, msg));
+                        }
+                    }
+                }
+                let n = inputs.len();
+                Ok(Count {
+                    exact: (yes + no == n).then_some(yes as f64 / n as f64),
+                    bounds: (yes as f64 / n as f64, (n - no) as f64 / n as f64),
+                    text: format!("{} of {n} inputs counted, {yes} true", yes + no),
+                })
+            }
+            Expr::Score(kind, f) => {
+                let func = self.model.function(f).expect("checked");
+                let Some(inputs) = func.domain().values() else {
+                    return Ok(unknown(INFINITE));
+                };
+                // (answer, truth): the truth is the answer when it was
+                // judged correct, the other one when judged not correct.
+                let (mut tp, mut fp, mut tn, mut fneg, mut known) = (0, 0, 0, 0, 0);
+                for x in &inputs {
+                    let answers = self.observed.get(&(f.clone(), x.clone()));
+                    let judged: Vec<(bool, usize)> = self
+                        .model
+                        .evidence
+                        .iter()
+                        .filter(|e| &e.about == f && self.model.covers(f, &e.pattern).contains(x))
+                        .filter_map(|e| match e.judgment {
+                            Judgment::Correct(ok) => Some((ok, e.line)),
+                            _ => None,
+                        })
+                        .collect();
+                    let lines: Vec<usize> = judged.iter().map(|j| j.1).collect();
+                    let judged: Vec<bool> = judged.iter().map(|j| j.0).collect();
+                    let (Some([Value::Bool(answer)]), Some(ok)) =
+                        (answers.map(|a| &a[..]), judged.first())
+                    else {
+                        continue;
+                    };
+                    if judged.iter().any(|j| j != ok) {
+                        continue;
+                    }
+                    known += 1;
+                    self.read.borrow_mut().push((f.clone(), x.clone()));
+                    self.measured.borrow_mut().extend(lines);
+                    match (*answer, *ok) {
+                        (true, true) => tp += 1,
+                        (true, false) => fp += 1,
+                        (false, true) => tn += 1,
+                        (false, false) => fneg += 1,
+                    }
+                }
+                let (top, bottom) = match *kind {
+                    "precision" => (tp, tp + fp),
+                    "recall" => (tp, tp + fneg),
+                    _ => (fp, fp + tn),
+                };
+                let n = inputs.len();
+                let exact = (known == n && bottom > 0).then(|| top as f64 / bottom as f64);
+                Ok(Count {
+                    exact,
+                    bounds: exact.map_or((0.0, 1.0), |v| (v, v)),
+                    text: format!("{known} of {n} inputs have an answer and a judgment"),
+                })
+            }
+            _ => Ok(unknown("not a measure")),
+        }
+    }
+
     /// The inputs of a property that the observed outputs speak of: every
     /// way to give its names the observed inputs of the calls whose
     /// arguments are names or values.
@@ -884,14 +1099,15 @@ fn computable(e: &Expr, bound: &[&String], model: &Model) -> bool {
             model.function(f).is_some_and(|f| f.is_spec())
                 && args.iter().all(|a| computable(a, bound, model))
         }
-        Expr::If(..) | Expr::Let(..) | Expr::Match(..) => false,
+        Expr::If(..) | Expr::Let(..) | Expr::Match(..) | Expr::Rate(..) | Expr::Score(..) => false,
     }
 }
 
 /// The calls of subjects in an expression, with their arguments.
 fn subject_calls<'e>(e: &'e Expr, model: &Model, out: &mut Vec<(&'e String, &'e [Expr])>) {
     match e {
-        Expr::Lit(_) | Expr::Var(_) => {}
+        // A measure is not a call: no class stands for what it counts.
+        Expr::Lit(_) | Expr::Var(_) | Expr::Rate(..) | Expr::Score(..) => {}
         Expr::Call(f, args) => {
             if model.function(f).is_some_and(|f| !f.is_spec()) {
                 out.push((f, args));
@@ -1030,6 +1246,8 @@ struct Direct {
     /// For a property: each failing input with the lines of every output
     /// it was computed from. They are wrong together or not at all.
     joint: Vec<(Vec<Value>, Vec<usize>)>,
+    /// For a claim on a measure that has no value yet: what was counted.
+    counted: Option<String>,
 }
 
 /// The inputs of `set` one by one, when there are few enough.
@@ -1068,6 +1286,8 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         observed,
         depth: Cell::new(0),
         read: RefCell::new(Vec::new()),
+        measured: RefCell::new(Vec::new()),
+        notes: RefCell::new(Vec::new()),
     };
     let model_err = |e| (Input::Model, e);
 
@@ -1152,6 +1372,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let mut tainted = Vec::new();
         // For a property: each failing input with every output it read.
         let mut joint: Vec<(Vec<Value>, Vec<usize>)> = Vec::new();
+        let mut counted: Option<String> = None;
         // Each pass or failure with its inputs and evidence line, to find
         // those that can't both be true.
         let mut sources: Vec<(Tuples, bool, usize)> = Vec::new();
@@ -1214,9 +1435,15 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
                 let inside = domain.contains(&x);
                 ev.read.borrow_mut().clear();
+                ev.measured.borrow_mut().clear();
+                ev.notes.borrow_mut().clear();
                 let compared = ev
                     .compare(c, target, &x, Subjects::Observed)
                     .map_err(model_err)?;
+                // A measure without a value: what was counted so far.
+                if let (None, Some(note)) = (compared, ev.notes.take().into_iter().next()) {
+                    counted.get_or_insert(note);
+                }
                 // The outputs a property was computed from.
                 let mut read = ev.read.take();
                 read.sort();
@@ -1239,6 +1466,12 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                         })
                         .map(|e| e.line)
                         .collect();
+                    let mut lines = lines;
+                    if property {
+                        lines.extend(ev.measured.take());
+                        lines.sort();
+                        lines.dedup();
+                    }
                     if property && ko && !ok {
                         joint.push((x.clone(), lines.clone()));
                     }
@@ -1285,6 +1518,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         }
         points.retain(|(x, _, _)| !tainted.contains(x));
         direct.push(Direct {
+            counted,
             joint,
             tainted,
             right: right.intersect(&domain),
@@ -1562,6 +1796,9 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let mut relied = Vec::new();
         if let Sorted::Unsorted(why) = &sorting[i] {
             unsorted = Some(why.clone());
+        }
+        if unsorted.is_none() {
+            unsorted = direct[i].counted.clone();
         }
         if let Sorted::By(s) = &sorting[i] {
             relied = s.claims.clone();
@@ -1865,6 +2102,67 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             conflict: 0.0,
         });
     }
+    // A measurement against another one of the same measure, and against
+    // what the observations count.
+    let measurements: Vec<(&Evidence, &Expr, f64)> = model
+        .evidence
+        .iter()
+        .filter_map(|e| match &e.judgment {
+            Judgment::Measured(m, v) => Some((e, m, *v)),
+            _ => None,
+        })
+        .collect();
+    for (n, (e, measure, v)) in measurements.iter().enumerate() {
+        for (o, _, w) in measurements[..n].iter().filter(|o| o.0.about == e.about) {
+            if w != v {
+                problems.push(Problem {
+                    kind: Kind::Measure {
+                        measure: e.about.clone(),
+                        counted: String::new(),
+                    },
+                    evidence: vec![quoted(o.line), quoted(e.line)],
+                    clauses: vec![vec![Piece::Evidence(o.line), Piece::Evidence(e.line)]],
+                    candidates: Ok(Vec::new()),
+                    conflict: 0.0,
+                });
+            }
+        }
+        ev.read.borrow_mut().clear();
+        ev.measured.borrow_mut().clear();
+        let count = ev
+            .count(measure, e.line)
+            .map_err(|x| (Input::Evidence, x))?;
+        let (lo, hi) = count.bounds;
+        if *v < lo - 1e-9 || *v > hi + 1e-9 {
+            // The outputs that were counted, with the measurement.
+            let read = ev.read.take();
+            let mut lines: Vec<usize> = model
+                .evidence
+                .iter()
+                .filter(|o| {
+                    matches!(o.judgment, Judgment::Output(_))
+                        && read
+                            .iter()
+                            .any(|(g, x)| &o.about == g && single(&o.pattern).as_ref() == Some(x))
+                })
+                .map(|o| o.line)
+                .collect();
+            lines.push(e.line);
+            lines.extend(ev.measured.take());
+            lines.sort();
+            lines.dedup();
+            problems.push(Problem {
+                kind: Kind::Measure {
+                    measure: e.about.clone(),
+                    counted: count.text.clone(),
+                },
+                clauses: vec![lines.iter().map(|l| Piece::Evidence(*l)).collect()],
+                evidence: lines.into_iter().map(quoted).collect(),
+                candidates: Ok(Vec::new()),
+                conflict: 0.0,
+            });
+        }
+    }
     for k in &conflicts {
         let u = model.claims.iter().position(|c| c.name == k.claim);
         let u = u.expect("conflicts name claims");
@@ -2044,6 +2342,8 @@ pub fn failed_output(model: &Model, test: &Test) -> Result<Vec<Evidence>, Error>
         observed: BTreeMap::new(),
         depth: Cell::new(0),
         read: RefCell::new(Vec::new()),
+        measured: RefCell::new(Vec::new()),
+        notes: RefCell::new(Vec::new()),
     };
     let mut out = Vec::new();
     for c in model.claims.iter().filter(|c| c.func == e.about) {

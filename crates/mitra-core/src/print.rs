@@ -78,6 +78,12 @@ pub fn print_claim(m: &Model, c: &Claim) -> String {
 pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
     let mut out = String::new();
     for e in evidence {
+        if let Judgment::Measured(measure, value) = &e.judgment {
+            let attrs = attributes(e);
+            let (m, c) = (expr(measure), e.confidence);
+            out += &format!("{attrs}evidence {m} = {value} at {c}\n");
+            continue;
+        }
         let func = match &e.judgment {
             Judgment::Holds(_) => model
                 .and_then(|m| m.claim(&e.about))
@@ -100,22 +106,27 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
             Judgment::Holds(true) => call,
             Judgment::Holds(false) => format!("not {call}"),
             Judgment::Output(v) => format!("{call} = {v}"),
+            Judgment::Measured(..) => unreachable!(),
         };
-        let mut attrs = Vec::new();
-        if let Some(s) = &e.source {
-            attrs.push(format!("source \"{s}\""));
-        }
-        if let Some(r) = &e.rev {
-            attrs.push(format!("rev \"{r}\""));
-        }
-        let attrs = if attrs.is_empty() {
-            String::new()
-        } else {
-            format!("@[{}] ", attrs.join(", "))
-        };
+        let attrs = attributes(e);
         out += &format!("{attrs}evidence {forall}{judgment} at {}\n", e.confidence);
     }
     out
+}
+
+/// `@[source "…", rev "…"] `, or nothing.
+fn attributes(e: &Evidence) -> String {
+    let mut attrs = Vec::new();
+    if let Some(s) = &e.source {
+        attrs.push(format!("source \"{s}\""));
+    }
+    if let Some(r) = &e.rev {
+        attrs.push(format!("rev \"{r}\""));
+    }
+    match attrs.is_empty() {
+        true => String::new(),
+        false => format!("@[{}] ", attrs.join(", ")),
+    }
 }
 
 /// `(a: Int, b: Int, c: Bool)`
@@ -226,6 +237,8 @@ fn at(e: &Expr, min: u8) -> String {
         }
         Expr::Index(a, i) => (format!("{}[{}]", at(a, ATOM), expr(i)), ATOM),
         Expr::Len(a) => (format!("len({})", expr(a)), ATOM),
+        Expr::Rate(x, set, a) => (format!("rate({x} in {set}, {})", expr(a)), ATOM),
+        Expr::Score(kind, f) => (format!("{kind}({f})"), ATOM),
         Expr::Match(a, arms) => {
             let arms: Vec<String> = arms
                 .iter()

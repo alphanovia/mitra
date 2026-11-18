@@ -61,7 +61,7 @@ module.exports = grammar({
     evidence: $ => seq(optional($.attributes), 'evidence', repeat($.forall), $._judgment, 'at', field('confidence', $.number)),
     attributes: $ => seq('@[', sep1($.attribute, ','), ']'),
     attribute: $ => seq($.name, $.string),
-    _judgment: $ => choice($.correct, $.not, $.output, $.call),
+    _judgment: $ => choice($.correct, $.not, $.output, $.call, $.measured),
     not: $ => seq(choice('not', '¬'), choice($.correct, $.call)),
     output: $ => seq($.call, '=', $._value),
 
@@ -105,7 +105,11 @@ module.exports = grammar({
     unary: $ => prec(6, seq(choice('!', '-'), $._expr)),
     application: $ => prec(7, seq(field('function', $.name), '(', sep1($._expr, ','), ')')),
     _atom: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.paren, $.tuple, $.list,
-      $.len, $.match),
+      $.len, $.match, $._measure),
+    _measure: $ => choice($.rate, $.score),
+    rate: $ => seq('rate', '(', $.name, choice('in', '∈'), $._set, ',', $._expr, ')'),
+    score: $ => seq(choice('precision', 'recall', 'false_positive_rate'), '(', field('subject', $.name), ')'),
+    measured: $ => seq($._measure, '=', $.number),
     paren: $ => seq('(', $._expr, ')'),
 
     _value: $ => choice($.boolean, $.nat, $.float, $.string, $.negative_value,

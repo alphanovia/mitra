@@ -1,0 +1,3 @@
+evidence goal_met("payments", 1) = true at 1
+evidence goal_met("payments", 2) = false at 1
+evidence goal_met("payments", 11) = true at 1
