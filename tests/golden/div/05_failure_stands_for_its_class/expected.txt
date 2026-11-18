@@ -7,7 +7,11 @@ div_small : fails
   tested   nothing
 div_uniform : holds
 error: `div_correct` fails on {(4, 2)}
+  evidence line 3: evidence not correct (div 4 2) at 1
+  most plausibly wrong:
+    [1.00, 1.00] the code of `div`
 error: `div_small` fails on (0..=1, 1..=2)
+  evidence line 2: evidence div_uniform at 1
   evidence line 3: evidence not correct (div 4 2) at 1
   most plausibly wrong:
     [1.00, 1.00] the code of `div`

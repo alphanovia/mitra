@@ -1,0 +1,3 @@
+-- The failure is outside the claim: it refutes it only through the class,
+-- so through the review of `div_uniform`. Bias 0 still counts for the
+-- verdict, but the review is then as plausible a culprit as the code.

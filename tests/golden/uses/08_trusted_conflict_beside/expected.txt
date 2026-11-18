@@ -23,5 +23,5 @@ error: inconsistent, in class "any" of `all`: `quarter_uniform` can't hold with 
   evidence line 6: evidence quarter_uniform at 1
   evidence line 7: evidence correct (quarter 0) at 1
   evidence line 8: evidence not correct (quarter 1) at 1
-  every piece is trusted at 1, yet one of them is wrong
+  the pieces trusted at 1 can't all be right: nothing ranks them
 suspect: `quarter` uses `half`, where half_correct fails: look there first

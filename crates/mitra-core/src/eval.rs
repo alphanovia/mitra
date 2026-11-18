@@ -124,6 +124,9 @@ pub struct Conflict {
     /// The input, its evidence line and the evidence as text.
     pub pass: (Vec<Value>, usize, String),
     pub fail: (Vec<Value>, usize, String),
+    /// Every passing and every failing input of the class, with its line.
+    pub passes: Vec<(Vec<Value>, usize)>,
+    pub fails: Vec<(Vec<Value>, usize)>,
 }
 
 /// A subject that uses, directly or through others, a subject with a
@@ -784,7 +787,11 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                         tainted.push(x);
                         continue;
                     }
+                    // Every line that records the output is a source.
                     sources.push((point.clone(), ok, line));
+                    for l in lines.iter().skip(1) {
+                        sources.push((point.clone(), ok, *l));
+                    }
                     if ok {
                         if inside {
                             right = right.union(&point);
@@ -915,15 +922,16 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             }
         }
         for group in groups {
-            let mut seen: BTreeMap<Value, [Option<&Point>; 2]> = BTreeMap::new();
+            let mut seen: BTreeMap<Value, [Vec<&Point>; 2]> = BTreeMap::new();
             for p in &group {
-                let slot =
-                    &mut seen.entry(class_of(spec, &p.0, u.line)?).or_default()[p.1 as usize];
-                slot.get_or_insert(p);
+                seen.entry(class_of(spec, &p.0, u.line)?).or_default()[p.1 as usize].push(p);
             }
-            for (class, sides) in seen {
-                let [Some(fail), Some(pass)] = sides else {
+            for (class, [fails, passes]) in seen {
+                let (Some(fail), Some(pass)) = (fails.first(), passes.first()) else {
                     continue;
+                };
+                let lines = |side: &[&Point]| -> Vec<(Vec<Value>, usize)> {
+                    side.iter().map(|p| (p.0.clone(), p.2)).collect()
                 };
                 if conflicts
                     .iter()
@@ -937,6 +945,8 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                     class,
                     pass: (pass.0.clone(), pass.2, shown(pass.2)),
                     fail: (fail.0.clone(), fail.2, shown(fail.2)),
+                    passes: lines(&passes),
+                    fails: lines(&fails),
                 });
             }
         }
@@ -953,7 +963,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     let mut verdicts = Vec::new();
     // Per claim, the evidence lines of failures that refute it through a
     // class.
-    let mut through: Vec<Vec<usize>> = Vec::new();
+    let mut through: Vec<(Vec<usize>, Option<usize>)> = Vec::new();
     for (i, c) in model.claims.iter().enumerate() {
         let Direct {
             domain,
@@ -1095,7 +1105,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 set,
             });
         }
-        through.push(via);
+        through.push((via, uniform));
         let with_assumed = match &assumed {
             Some(a) if a.usable => covered.union(&a.set),
             _ => covered.clone(),
@@ -1180,10 +1190,21 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
             }
         }
-        lines.extend(&through[i]);
         lines.sort();
         lines.dedup();
         lines.retain(|l| *l > 0);
+        // A failure that refutes the claim through its class does so with
+        // the evidence vouching for the uniform claim.
+        let (via, by) = &through[i];
+        let via: Vec<usize> = via.iter().filter(|l| !lines.contains(l)).copied().collect();
+        let mut vouches: Vec<usize> = Vec::new();
+        if let (Some(u), false) = (by, via.is_empty()) {
+            for (_, ok, line) in &direct[*u].sources {
+                if *ok && !vouches.contains(line) {
+                    vouches.push(*line);
+                }
+            }
+        }
         // What may be wrong on the model's side: the code of the subject,
         // of what it uses and of the subjects the claim calls, or the
         // claim itself.
@@ -1203,16 +1224,24 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
             }
         }
-        let clauses = if lines.is_empty() {
-            vec![side.clone()]
-        } else {
-            let with = |l: &usize| [side.clone(), vec![Piece::Evidence(*l)]].concat();
-            lines.iter().map(with).collect()
-        };
+        let with = |l: &usize| [side.clone(), vec![Piece::Evidence(*l)]].concat();
+        let mut clauses: Vec<Vec<Piece>> = lines.iter().map(with).collect();
+        for l in &via {
+            for w in &vouches {
+                clauses.push([with(l), vec![Piece::Evidence(*w)]].concat());
+            }
+        }
+        if clauses.is_empty() {
+            clauses.push(side.clone());
+        }
+        lines.extend(via);
+        lines.extend(vouches);
+        lines.sort();
+        lines.dedup();
         let title = if c.target.is_structural() {
             format!("`{}` fails: evidence denies it", c.name)
         } else {
-            format!("`{}` fails on {}", c.name, v.refuted.show(&v.domain))
+            format!("`{}` fails on {}", c.name, brief(&v.refuted, &v.domain))
         };
         if let Some(p) = problems.iter_mut().find(|p| p.clauses == clauses) {
             p.titles.push(title);
@@ -1241,23 +1270,36 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     for k in &conflicts {
         let u = model.claims.iter().position(|c| c.name == k.claim);
         let u = u.expect("conflicts name claims");
-        // The claim stands through the evidence vouching for it.
-        let mut vouches: Vec<usize> = Vec::new();
-        for (_, ok, line) in &direct[u].sources {
-            if *ok && !vouches.contains(line) {
-                vouches.push(*line);
+        // The claim stands through the evidence vouching for it: a vouch
+        // is a piece where it covers both inputs.
+        let mut clauses: Vec<Vec<Piece>> = Vec::new();
+        let mut lines: Vec<usize> = Vec::new();
+        for (x, pass) in &k.passes {
+            for (y, fail) in &k.fails {
+                let rest = [Piece::Evidence(*pass), Piece::Evidence(*fail)];
+                let mut vouched = false;
+                for (set, ok, line) in &direct[u].sources {
+                    if *ok && set.contains(x) && set.contains(y) {
+                        vouched = true;
+                        clauses.push([vec![Piece::Evidence(*line)], rest.to_vec()].concat());
+                        lines.push(*line);
+                    }
+                }
+                if !vouched {
+                    clauses.push([vec![Piece::Claim(k.claim.clone())], rest.to_vec()].concat());
+                }
             }
         }
-        let rest = [Piece::Evidence(k.pass.1), Piece::Evidence(k.fail.1)];
-        let clauses: Vec<Vec<Piece>> = if vouches.is_empty() {
-            vec![[vec![Piece::Claim(k.claim.clone())], rest.to_vec()].concat()]
-        } else {
-            let with = |l: &usize| [vec![Piece::Evidence(*l)], rest.to_vec()].concat();
-            vouches.iter().map(with).collect()
-        };
-        let mut evidence: Vec<(usize, String)> = vouches.into_iter().map(quoted).collect();
-        evidence.push((k.pass.1, k.pass.2.clone()));
-        evidence.push((k.fail.1, k.fail.2.clone()));
+        clauses.sort_by_key(|c| format!("{c:?}"));
+        clauses.dedup();
+        lines.sort();
+        lines.dedup();
+        let mut evidence: Vec<(usize, String)> = lines.into_iter().map(quoted).collect();
+        for (_, l) in k.passes.iter().chain(&k.fails) {
+            if !evidence.iter().any(|e| e.0 == *l) {
+                evidence.push(quoted(*l));
+            }
+        }
         problems.push(Problem {
             titles: vec![format!(
                 "inconsistent, in class {} of `{}`: `{}` can't hold with both",
@@ -1270,6 +1312,17 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         });
     }
     rank(model, &mut problems);
+    // The same observation recorded twice gives the same error twice.
+    let mut once: Vec<Problem> = Vec::new();
+    for p in problems {
+        if !once
+            .iter()
+            .any(|o| (&o.titles, &o.clauses) == (&p.titles, &p.clauses))
+        {
+            once.push(p);
+        }
+    }
+    let problems = once;
 
     // 4. Suspects: what a subject uses, directly or not, that fails.
     let failing = |subject: &str| -> Vec<String> {
@@ -1512,7 +1565,7 @@ fn rank(model: &Model, problems: &mut [Problem]) {
 }
 
 /// A set as text, or its size when the text would be too long to read.
-fn brief(set: &Tuples, domain: &Tuples) -> String {
+pub(crate) fn brief(set: &Tuples, domain: &Tuples) -> String {
     if set.is_empty() {
         return "nothing".to_string();
     }
@@ -1619,7 +1672,7 @@ impl Report {
             let candidates = match &p.candidates {
                 Ok(c) => c,
                 Err(Unranked::AllTrusted) => {
-                    out += "  every piece is trusted at 1, yet one of them is wrong\n";
+                    out += "  the pieces trusted at 1 can't all be right: nothing ranks them\n";
                     continue;
                 }
                 Err(Unranked::TooMany) => {

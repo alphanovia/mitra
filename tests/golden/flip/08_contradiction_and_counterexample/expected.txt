@@ -13,4 +13,4 @@ error: `flip_on_true` fails on {true}
 error: inconsistent, on {false} of `flip`: these can't both be true
   evidence line 3: evidence correct (flip false) at 1
   evidence line 4: evidence not correct (flip false) at 1
-  every piece is trusted at 1, yet one of them is wrong
+  the pieces trusted at 1 can't all be right: nothing ranks them

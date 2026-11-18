@@ -1,0 +1,3 @@
+-- Two passes and a failure in one class. Dropping the distrusted pass
+-- leaves the trusted one against the failure: nothing can be ranked,
+-- whatever the order of the two passes.

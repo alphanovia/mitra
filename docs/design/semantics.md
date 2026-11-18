@@ -167,8 +167,8 @@ test, and later a proof.
   plausibility 1 of being the wrong one. It is expected near the top,
   not required to be first.
 - **P3. Full trust shifts the blame.** If every entry against a claim
-  has bias 1, the claim is the culprit, with belief 1. If every piece of
-  an error is trusted at 1, assumption included, Mitra says so and ranks
+  has bias 1, the claim is the culprit, with belief 1. If the pieces
+  of an error trusted at 1 can't all be right, Mitra says so and ranks
   nothing: it never divides by zero.
 - **P4. Only candidates are doubted.** Belief of being wrong is 0 for
   anything outside every inconsistent set and unreachable from every bug

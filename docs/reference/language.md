@@ -504,12 +504,13 @@ piece of evidence, the code of a subject, or a claim.
 
 | Error | Pieces, of which one is wrong |
 |---|---|
-| A `correct` or `=` claim on `f` fails | each piece of evidence refuting it; the code of `f`, of what `f` uses (see Suspects) and of the subjects its `=` side calls. For a claim on specs alone, the claim |
+| A `correct` or `=` claim on `f` fails | each piece of evidence refuting it, with the evidence vouching for the uniformity claim when it refutes only through its class; the code of `f`, of what `f` uses (see Suspects) and of the subjects its `=` side calls. For a claim on specs alone, the claim |
 | A `uniform` or `uses` claim is denied by evidence | the denial; the claim |
 | A contradiction on an input | the two pieces of evidence |
-| A conflict in a class of `u` | the pass, the failure, and each piece of evidence vouching for `u`, or `u` itself when nothing vouches for it |
+| A conflict in a class of `u` | every pass and every failure of the class, and each piece of evidence vouching for `u` on both inputs, or `u` itself when none does |
 
-Claims that fail on the same evidence share one error.
+Claims that fail on the same evidence share one error. The same error
+found twice, through an observation recorded twice, prints once.
 
 **Most plausibly wrong.** For each error Mitra computes, for every piece,
 the belief and the plausibility that it is wrong, with Dempster-Shafer
@@ -519,8 +520,8 @@ the belief and the plausibility that it is wrong, with Dempster-Shafer
   1 − b on "unknown". The code of a subject and a claim have no bias:
   they say nothing.
 - Each error is a constraint: its pieces are not all right. One error can
-  give several constraints (one per refuting piece, one per vouching
-  piece).
+  give several constraints (one per refuting piece, per vouching piece,
+  per pair of a pass and a failure in a class).
 - The masses are combined by Dempster's rule under the constraints. The
   mass that would make every piece of some constraint right is the
   **conflict**: how much the biases say that nothing is wrong.
@@ -533,8 +534,8 @@ computed together. The same observation recorded twice (same judgment,
 inputs, `source` and `rev`) is one piece, at the highest bias given.
 Pieces are listed by plausibility, then belief, highest first.
 
-Two cases have no numbers. If every piece of an error is trusted at 1,
-the error says so: one of them is wrong, and nothing ranks them. Such
+Two cases have no numbers. If the pieces of an error trusted at 1 can't
+all be right, the error says so, and nothing ranks them. Such
 an error is left out of the others' computation, so it does not take
 their ranking away (golden `uses/08`). (When errors computed together
 are still in that case, each is then computed alone.)
@@ -642,7 +643,7 @@ error: inconsistent, in class "rest" of `div_class`: `div_uniform` can't hold wi
 error: inconsistent, on {false} of `flip`: these can't both be true
   evidence line 3: evidence correct (flip false) at 1
   evidence line 4: evidence not correct (flip false) at 1
-  every piece is trusted at 1, yet one of them is wrong
+  the pieces trusted at 1 can't all be right: nothing ranks them
 ```
 
 A piece is `evidence line N`, `the code of f` or `the claim c`. At most
@@ -812,7 +813,7 @@ claim div_uniform : uniform div by div_class
 | 02 | vouched; `div 6 3` passes | unverified, missed class "zero" | holds, assumed "rest" | holds |
 | 03 | vouched; `div 6 3` and `div 1 0` pass | holds, assumed "rest", "zero" | holds | holds |
 | 04 | vouched; `div 6 3` passes, `div 4 2` fails | fails, refuted {(4, 2)} | unverified | fails; error in class "rest" |
-| 05 | vouched; `div 4 2` fails | fails, refuted {(4, 2)} | fails, refuted its whole domain; one error for both | holds |
+| 05 | vouched; `div 4 2` fails | fails, refuted {(4, 2)} | fails, refuted its whole domain; its error also lists the review | holds |
 | 06 | vouched; `div 6 3` passes; `div` fails somewhere on `(10.., 10..)` | fails | unverified: nothing assumed | holds |
 | 07 | vouched; `div 6 3` passes; `not div_correct 4 2` | fails, refuted {(4, 2)} | unverified | fails; error in class "rest" |
 | 08 | vouched; `div 6 3` passes and fails; `div 4 2` passes | unverified, tested {(4, 2)}; error on (6, 3) | unverified: class "rest" not relied on | holds |
@@ -835,6 +836,9 @@ The numbers are computed by hand in each case's `evidence.mitra`.
 | 01 | `div 4 2` fails, at 0.8 | the code of `div` [0.80, 1.00]; the failure [0.00, 0.20] |
 | 02 | review of `div_uniform` at 0.9; `div 6 3` passes at 0.99; `div 4 2` fails at 0.8 | for the class: the failure [0.62, 0.70], the review [0.28, 0.35], the pass hidden (0.03); conflict 0.71. For `div_correct`: the code [0.30, 1.00] |
 | 03 | the same failure at 0.8 recorded twice, and another report at 0.5 | the code [0.90, 1.00]: the twin counts once |
+| 04 | two sources report the same wrong output, at 0.9 and 0.1 | the code [0.91, 1.00]; both reports listed, whatever their order |
+| 05 | review of `div_uniform` at 0; `div 4 2` fails, outside `div_small` | `div_small` fails; the code and the review both [0.00, 1.00] |
+| 06 | vouched; `div 6 3` passes at 0.1, `div 8 4` passes, `div 4 2` fails | no ranking: the trusted pass, failure and review can't all be right |
 
 ### `uses`: suspects
 

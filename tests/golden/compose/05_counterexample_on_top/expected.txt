@@ -14,4 +14,4 @@ error: `flip_not_same` fails on {true}
 error: inconsistent, on {true} of `flip_not`: these can't both be true
   evidence line 4: evidence flip_not_shape at 1
   evidence line 7: evidence flip_not true = false at 1
-  every piece is trusted at 1, yet one of them is wrong
+  the pieces trusted at 1 can't all be right: nothing ranks them

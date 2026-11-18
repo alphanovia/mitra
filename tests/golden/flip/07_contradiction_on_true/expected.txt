@@ -7,4 +7,4 @@ flip_on_true : unverified
 error: inconsistent, on {true} of `flip`: these can't both be true
   evidence line 1: evidence correct (flip true) at 1
   evidence line 2: evidence not correct (flip true) at 1
-  every piece is trusted at 1, yet one of them is wrong
+  the pieces trusted at 1 can't all be right: nothing ranks them

@@ -75,7 +75,11 @@ pub fn next(model: &Model, report: &Report) -> String {
             out += &format!("{} : fails: evidence says so\n", c.name);
         }
         if v.logic == Logic::Fails && !c.target.is_structural() {
-            out += &format!("{} : fails on {}\n", c.name, v.refuted.show(&v.domain));
+            out += &format!(
+                "{} : fails on {}\n",
+                c.name,
+                crate::eval::brief(&v.refuted, &v.domain)
+            );
             out += &look(&c.func);
         }
         if v.logic == Logic::Holds && !c.target.is_structural() && !suspects(&c.func).is_empty() {

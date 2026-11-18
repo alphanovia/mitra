@@ -7,4 +7,4 @@ id_small : unverified
 error: inconsistent, on {5} of `id`: these can't both be true
   evidence line 2: evidence forall x in 0..=100, correct (id x) at 1
   evidence line 3: evidence not correct (id 5) at 1
-  every piece is trusted at 1, yet one of them is wrong
+  the pieces trusted at 1 can't all be right: nothing ranks them

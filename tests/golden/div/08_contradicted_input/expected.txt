@@ -8,4 +8,4 @@ div_uniform : holds
 error: inconsistent, on {(6, 3)} of `div`: these can't both be true
   evidence line 4: evidence correct (div 6 3) at 1
   evidence line 5: evidence not correct (div 6 3) at 1
-  every piece is trusted at 1, yet one of them is wrong
+  the pieces trusted at 1 can't all be right: nothing ranks them
