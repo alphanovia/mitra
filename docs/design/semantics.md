@@ -43,21 +43,27 @@ Coverage is three **sets**, never a percentage: *tested*, *assumed* and
 *missed*. A claim holds only when nothing is missed.
 
 ```text
-div_correct : holds
-  tested   {(1, 0), (6, 3)}
-  assumed  classes "rest", "zero" of `div_class`, by div_uniform
+div_correct: holds
+  passes on       `div 1 0`, `div 6 3`
+  assumed on      classes "rest", "zero" of `div_class`, by `div_uniform`
+div_small: holds
+  assumed on      class "rest" of `div_class`, by `div_uniform`
+div_uniform: holds
 
-div_correct : holds assuming [div_uniform]
-  tested   {(1, 0), (6, 3)}
-  assumed  classes "rest", "zero" of `div_class`, by div_uniform (unverified)
-div_uniform : unverified
-  tested   nothing
-  missed   (Int, Int)
+div_correct: holds assuming [div_uniform]
+  passes on       `div 1 0`, `div 6 3`
+  assumed on      classes "rest", "zero" of `div_class`, by `div_uniform`, which is not vouched for
+div_small: holds assuming [div_uniform]
+  assumed on      class "rest" of `div_class`, by `div_uniform`, which is not vouched for
+div_uniform: unverified
 
-div_correct : unverified
-  tested   {(6, 3)}
-  assumed  class "rest" of `div_class`, by div_uniform
-  missed   class "zero" of `div_class`
+div_correct: unverified
+  passes on       `div 6 3`
+  assumed on      class "rest" of `div_class`, by `div_uniform`
+  no evidence on  class "zero" of `div_class`
+div_small: holds
+  assumed on      class "rest" of `div_class`, by `div_uniform`
+div_uniform: holds
 ```
 
 Dependencies are the claims a verdict rests on: a uniformity claim, the
@@ -81,26 +87,50 @@ wrong, against each other and against the model being wrong.
 smallest case: one claim against the evidence refuting it.
 
 ```text
-error: `div_correct` fails on {(4, 2)}
-  evidence line 3: @[source "bug:42"] evidence not correct (div 4 2) at 0.8
-  most plausibly wrong:
-    [0.80, 1.00] the code of `div`
-    [0.00, 0.20] evidence line 3
+error[M001]: evidence refutes a claim
+  --> model.mitra:5  claim div_correct : forall a, forall b, correct (div a b)
 
-error: inconsistent, in class "rest" of `div_class`: `div_uniform` can't hold with both
-  evidence line 9: @[source "review:alice"] evidence div_uniform at 0.9
-  evidence line 10: @[source "test:t_six"] evidence correct (div 6 3) at 0.99
-  evidence line 11: @[source "bug:42"] evidence not correct (div 4 2) at 0.8
-  most plausibly wrong:
-    [0.62, 0.70] evidence line 11
-    [0.28, 0.35] evidence line 9
-    1 less likely hidden
-    conflict 0.71: the biases say nothing is wrong
+  `div_correct` fails on `div 4 2`.
+  The evidence that says so:
+
+    fails     evidence.mitra:3  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    likely    the code of `div`, model.mitra:2
+    unlikely  evidence.mitra:3 (bug:42), trusted at 0.8
+
+  help: if the evidence is right, fix `div`; if not, correct the evidence
+
+error[M004]: an assumption is contradicted by the evidence
+  --> model.mitra:6  claim div_uniform : uniform div by div_class
+
+  `div_uniform` says `div` behaves the same for every input of class "rest"
+  of `div_class`. But in that class some inputs pass and others fail:
+
+    vouches   evidence.mitra:9  @[source "review:alice"] evidence div_uniform at 0.9
+    passes    evidence.mitra:10  @[source "test:t_six"] evidence correct (div 6 3) at 0.99
+    fails     evidence.mitra:11  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+
+  These can't all be right. Which one is wrong, from the trust given to
+  each:
+
+    likely    evidence.mitra:11 (bug:42), trusted at 0.8
+    unlikely  evidence.mitra:9 (review:alice), trusted at 0.9
+    1 less plausible not shown (`--all` shows them)
+
+  note: the trust given says these are probably all right, which can't
+  be: at least one is trusted more than it deserves
+
+  help: check that `div 4 2` really fails; if it does, class "rest" is
+  too wide: split it in `div_class`
 ```
 
-Each range is the belief and the plausibility that the piece is wrong
-(section 4), by Dempster's rule on these biases. These are the outputs
-of golden cases `bias/01` and `bias/02`.
+Each word stands for a belief and a plausibility that the piece is wrong
+(section 4), by Dempster's rule on these biases; `--numbers` prints them.
+These are the outputs of golden cases `bias/01` and `bias/02`. The format
+(codes, locations, help) is in the [reference](../reference/language.md).
 
 *Proposed:* "the model being wrong" is weighed through its evidence: an
 assumption's bias is the bias of the evidence on it, usually a review. A claim

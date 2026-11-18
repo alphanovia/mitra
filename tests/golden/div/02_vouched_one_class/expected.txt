@@ -1,8 +1,15 @@
-div_correct : unverified
-  tested   {(6, 3)}
-  assumed  class "rest" of `div_class`, by div_uniform
-  missed   class "zero" of `div_class`
-div_small : holds
-  tested   nothing
-  assumed  class "rest" of `div_class`, by div_uniform
-div_uniform : holds
+div_correct: unverified
+  passes on       `div 6 3`
+  assumed on      class "rest" of `div_class`, by `div_uniform`
+  no evidence on  class "zero" of `div_class`
+div_small: holds
+  assumed on      class "rest" of `div_class`, by `div_uniform`
+div_uniform: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  claim div_correct : forall a, forall b, correct (div a b)
+
+  No evidence on class "zero" of `div_class`.
+  help: one passing test in such a class stands for the class
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

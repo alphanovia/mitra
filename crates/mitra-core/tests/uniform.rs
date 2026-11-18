@@ -17,7 +17,7 @@ fn eval(evidence: &str) -> String {
 }
 
 fn logic(text: &str, claim: &str) -> String {
-    let start = format!("{claim} : ");
+    let start = format!("{claim}: ");
     let line = text.lines().find(|l| l.starts_with(&start)).unwrap();
     line[start.len()..].to_string()
 }
@@ -28,7 +28,10 @@ fn logic(text: &str, claim: &str) -> String {
 fn claims_saying_the_same_share_their_inputs() {
     let text = eval("evidence f_small at 1\nevidence f 5 = 11 at 1");
     assert_eq!(logic(&text, "f_u"), "fails", "{text}");
-    assert!(text.contains("`f_u` can't hold with both"), "{text}");
+    assert!(
+        text.contains("error[M004]") && text.contains("claim f_u :"),
+        "{text}"
+    );
 }
 
 /// A failure outside a claim's domain, in a class the domain meets, is
@@ -69,11 +72,11 @@ fn structural_claims_are_not_premises() {
 fn two_outputs_are_a_contradiction_whatever_the_claim() {
     let text = eval("evidence f 5 = 11 at 1\nevidence f 5 = 12 at 1\nevidence f 5 = 11 at 1");
     assert_eq!(logic(&text, "f_spec"), "unverified", "{text}");
-    assert_eq!(text.matches("can't both be true").count(), 1, "{text}");
+    assert_eq!(text.matches("error[M003]").count(), 1, "{text}");
     // On a subject without any claim too.
     let text = eval("evidence h 1 = 1 at 1\nevidence h 1 = 2 at 1");
     assert!(
-        text.contains("on {1} of `h`: these can't both be true"),
+        text.contains("On the inputs {1} of `h`, these two say opposite things"),
         "{text}"
     );
 }
@@ -83,7 +86,7 @@ fn two_outputs_are_a_contradiction_whatever_the_claim() {
 #[test]
 fn evidence_on_a_claim_stays_in_its_domain() {
     let text = eval("evidence f_small at 1\nevidence not f_spec 5 at 1");
-    assert!(!text.contains("can't both be true"), "{text}");
+    assert!(!text.contains("error[M003]"), "{text}");
 }
 
 /// The same pass and failure written several times is one contradiction.
@@ -91,5 +94,5 @@ fn evidence_on_a_claim_stays_in_its_domain() {
 fn repeated_evidence_is_reported_once() {
     let pair = "evidence correct (f 3) at 1\nevidence not correct (f 3) at 1\n";
     let text = eval(&pair.repeat(4));
-    assert_eq!(text.matches("can't both be true").count(), 1, "{text}");
+    assert_eq!(text.matches("error[M003]").count(), 1, "{text}");
 }

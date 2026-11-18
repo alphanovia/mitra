@@ -21,7 +21,10 @@ fn eval_writes_the_result_file() {
     // The case has a failing claim: `eval` exits with 1 on errors.
     assert_eq!(status.code(), Some(1));
     let expected = std::fs::read_to_string(format!("{GOLDEN}/expected.txt")).unwrap();
-    assert_eq!(std::fs::read_to_string(&out).unwrap(), expected);
+    // The result names the files as given; the expected one, by their names.
+    let result = std::fs::read_to_string(&out).unwrap();
+    let dir = GOLDEN.strip_prefix(concat!(env!("CARGO_MANIFEST_DIR"), "/"));
+    assert_eq!(result.replace(&format!("{}/", dir.unwrap()), ""), expected);
     let _ = std::fs::remove_file(out);
 }
 
@@ -48,10 +51,10 @@ fn expected() -> String {
     std::fs::read_to_string(format!("{GOLDEN}/expected.txt")).unwrap()
 }
 
-/// The verdicts of a result: what comes before the first error. The
-/// errors quote evidence by line, which differs from store to store.
+/// The verdicts of a result: what comes before the first blank line. The
+/// errors name files and lines, which differ from store to store.
 fn verdicts(result: &str) -> &str {
-    result.split("error:").next().unwrap()
+    result.split("\n\n").next().unwrap()
 }
 
 /// `mitra` run in `dir`, with its exit code, stdout and stderr.
@@ -200,7 +203,7 @@ fn ingest_turns_test_results_into_evidence() {
     let (_, out, _) = mitra(&dir, &["eval"]);
     assert_eq!(verdicts(&out), verdicts(&expected()));
     assert!(
-        out.contains("evidence line 3: @[source \"test:t_false\", rev \"3f2a\"]"),
+        out.contains("fails     .mitra/evidence.mitra:3  @[source \"test:t_false\", rev \"3f2a\"]"),
         "{out}"
     );
     let _ = std::fs::remove_dir_all(dir);
@@ -258,7 +261,7 @@ fn rev_leaves_out_stale_evidence() {
     // pass would outlive any newer failure.
     mitra(&dir, &["add", "evidence correct (flip true) at 1"]);
     let (_, all, _) = mitra(&dir, &["eval"]);
-    assert!(all.starts_with("flip_correct : holds\n"), "{all}");
+    assert!(all.starts_with("flip_correct: holds\n"), "{all}");
     let (code, out, err) = mitra(&dir, &["eval", "--rev", "new"]);
     assert_eq!(code, Some(0));
     assert_eq!(
@@ -266,13 +269,18 @@ fn rev_leaves_out_stale_evidence() {
         "mitra: 2 evidence left out: not recorded at revision new\n\
          mitra: 0 errors, 2 warnings\n"
     );
-    assert_eq!(
-        out,
-        "flip_correct : unverified\n  tested   {false}\n  missed   {true}\n\
-         flip_on_true : unverified\n  tested   nothing\n  missed   {true}\n"
-    );
+    assert!(out.starts_with(
+        "flip_correct: unverified\n  passes on       `flip false`\n  no evidence on  `flip true`\n\
+         flip_on_true: unverified\n  no evidence on  `flip true`\n\
+         \n\
+         warning[M101]: a claim is not verified\n  \
+         --> .mitra/model.mitra:4  claim flip_correct : forall a, correct (flip a)\n\
+         \n  \
+         No evidence on `flip true`.\n  \
+         help: `mitra next` lists the evidence that would settle it\n"
+    ));
     let (_, out, _) = mitra(&dir, &["next", "--rev", "new"]);
-    assert!(out.starts_with("flip_correct : missing {true}\n"), "{out}");
+    assert!(out.starts_with("flip_correct: missing {true}\n"), "{out}");
     assert_eq!(mitra(&dir, &["eval", "--rev"]).0, Some(2));
     assert_eq!(mitra(&dir, &["eval", "--rev", ""]).0, Some(2));
     assert_eq!(mitra(&dir, &["eval", "--rev", "--rev"]).0, Some(2));
@@ -375,6 +383,9 @@ fn a_failed_bool_output_test_gives_the_other_output() {
         "{evidence}"
     );
     let (_, out, _) = mitra(&dir, &["eval"]);
-    assert!(out.contains("dec_spec : fails\n  refuted  {5}\n"), "{out}");
+    assert!(
+        out.contains("dec_spec: fails\n  fails on        `dec 5`\n"),
+        "{out}"
+    );
     let _ = std::fs::remove_dir_all(dir);
 }

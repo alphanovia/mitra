@@ -1,6 +1,17 @@
-div_small : unverified
-  tested   nothing
-  missed   (0..=1, 1..=2)
-div_uniform : unverified
-  tested   nothing
-  missed   (Int, Int)
+div_small: unverified
+  no evidence on  (a, b) in (0..=1, 1..=2)
+div_uniform: unverified
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  claim div_small : forall a in 0..=1, forall b in 1..=2, correct (div a b)
+
+  No evidence on (a, b) in (0..=1, 1..=2).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M103]: an assumption is not vouched for
+  --> model.mitra:4  claim div_uniform : uniform div by div_class
+
+  Nothing says that `div_uniform` holds, and Mitra can't check it.
+  help: review it against the code, then record: evidence div_uniform at 1
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

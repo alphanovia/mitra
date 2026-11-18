@@ -38,20 +38,32 @@ evidence not correct (flip false) at 0.8
 ```
 
 ```text
-flip_correct : fails
-  refuted  {false}
-  tested   {true}
-flip_on_true : holds
-error: `flip_correct` fails on {false}
-  evidence line 2: evidence not correct (flip false) at 0.8
-  most plausibly wrong:
-    [0.80, 1.00] the code of `flip`
-    [0.00, 0.20] evidence line 2
+flip_correct: fails
+  fails on        `flip false`
+  passes on       `flip true`
+flip_on_true: holds
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:2  claim flip_correct : forall a, correct (flip a)
+
+  `flip_correct` fails on `flip false`.
+  The evidence that says so:
+
+    fails     evidence.mitra:2  evidence not correct (flip false) at 0.8
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    likely    the code of `flip`, model.mitra:1
+    unlikely  evidence.mitra:2, trusted at 0.8
+
+  help: if the evidence is right, fix `flip`; if not, correct the evidence
 ```
 
 One counterexample refutes a claim; on an infinite domain, tests alone
-never prove it. The numbers are the belief and the plausibility that each
-piece is the wrong one ([semantics](docs/design/semantics.md)).
+never prove it. The words come from a belief and a plausibility that each
+piece is the wrong one (`--numbers` shows them;
+[semantics](docs/design/semantics.md)).
 
 The core is a **semantic model** (an AST). The text above is only one
 projection of it, small enough to live in a code docstring or a Markdown block

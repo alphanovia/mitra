@@ -1,19 +1,47 @@
-inc_correct : fails
-  refuted  -5..=-1
-  tested   nothing
-  missed   -9223372036854775808..=-6 | 0..=9223372036854775807
-inc_small : unverified
-  tested   nothing
-  missed   0..=99
-half_spec : fails
-  refuted  {-3.0}
-  tested   {1.0}
-error: `inc_correct` fails on -5..=-1
-  evidence line 5: evidence forall x in -5..=-1, not correct (inc x) at 0
-  most plausibly wrong:
-    [0.00, 1.00] the code of `inc`
-    [0.00, 1.00] evidence line 5
-error: `half_spec` fails on {-3.0}
-  evidence line 3: evidence half (-3.0) = -1.0 at 1
-  most plausibly wrong:
-    [1.00, 1.00] the code of `half`
+inc_correct: fails
+  fails on        x in -5..=-1
+  no evidence on  x in -9223372036854775808..=-6 | 0..=9223372036854775807
+inc_small: unverified
+  no evidence on  x in 0..=99
+half_spec: fails
+  fails on        `half (-3.0)`
+  passes on       `half 1.0`
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:7  claim inc_correct : forall x, correct (inc x)
+
+  `inc_correct` fails on x in -5..=-1.
+  The evidence that says so:
+
+    fails     evidence.mitra:5  evidence forall x in -5..=-1, not correct (inc x) at 0
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    possible  the code of `inc`, model.mitra:2
+    possible  evidence.mitra:5, trusted at 0
+
+  help: if the evidence is right, fix `inc`; if not, correct the evidence
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:11  claim half_spec : forall x in {-3.0, 1.0}, half x = halve x
+
+  `half_spec` fails on `half (-3.0)`.
+  The evidence that says so:
+
+    output    evidence.mitra:3  evidence half (-3.0) = -1.0 at 1
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    certain   the code of `half`, model.mitra:4
+
+  help: if the evidence is right, fix `half`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  claim inc_small : forall x in 0..=99, correct (inc x)
+
+  No evidence on x in 0..=99.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

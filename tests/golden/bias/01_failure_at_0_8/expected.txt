@@ -1,12 +1,28 @@
-div_correct : fails
-  refuted  {(4, 2)}
-  tested   nothing
-  missed   classes "rest", "zero" of `div_class`
-div_uniform : unverified
-  tested   nothing
-  missed   (Int, Int)
-error: `div_correct` fails on {(4, 2)}
-  evidence line 3: @[source "bug:42"] evidence not correct (div 4 2) at 0.8
-  most plausibly wrong:
-    [0.80, 1.00] the code of `div`
-    [0.00, 0.20] evidence line 3
+div_correct: fails
+  fails on        `div 4 2`
+  no evidence on  classes "rest", "zero" of `div_class`
+div_uniform: unverified
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:5  claim div_correct : forall a, forall b, correct (div a b)
+
+  `div_correct` fails on `div 4 2`.
+  The evidence that says so:
+
+    fails     evidence.mitra:3  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    likely    the code of `div`, model.mitra:2
+    unlikely  evidence.mitra:3 (bug:42), trusted at 0.8
+
+  help: if the evidence is right, fix `div`; if not, correct the evidence
+
+warning[M103]: an assumption is not vouched for
+  --> model.mitra:6  claim div_uniform : uniform div by div_class
+
+  Nothing says that `div_uniform` holds, and Mitra can't check it.
+  help: review it against the code, then record: evidence div_uniform at 1
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

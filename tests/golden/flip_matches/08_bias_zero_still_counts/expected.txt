@@ -1,13 +1,34 @@
-flip_spec : fails
-  refuted  {false}
-  tested   nothing
-  missed   {true}
-flip_on_true : unverified
-  tested   nothing
-  missed   {true}
-contested evidence line 3: `neg` is a spec, true by definition: evidence does not apply to it
-error: `flip_spec` fails on {false}
-  evidence line 2: evidence flip false = false at 0
-  most plausibly wrong:
-    [0.00, 1.00] the code of `flip`
-    [0.00, 1.00] evidence line 2
+flip_spec: fails
+  fails on        `flip false`
+  no evidence on  `flip true`
+flip_on_true: unverified
+  no evidence on  `flip true`
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:5  claim flip_spec : forall a, flip a = neg a
+
+  `flip_spec` fails on `flip false`.
+  The evidence that says so:
+
+    output    evidence.mitra:2  evidence flip false = false at 0
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    possible  the code of `flip`, model.mitra:2
+    possible  evidence.mitra:2, trusted at 0
+
+  help: if the evidence is right, fix `flip`; if not, correct the evidence
+
+warning[M104]: evidence that can't be used
+  --> evidence.mitra:3  evidence neg true = true at 0
+
+  `neg` is a spec, true by definition: evidence does not apply to it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:7  claim flip_on_true : flip true = neg true
+
+  No evidence on `flip true`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

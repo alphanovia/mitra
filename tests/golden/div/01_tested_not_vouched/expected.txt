@@ -1,9 +1,26 @@
-div_correct : holds assuming [div_uniform]
-  tested   {(1, 0), (6, 3)}
-  assumed  classes "rest", "zero" of `div_class`, by div_uniform (unverified)
-div_small : holds assuming [div_uniform]
-  tested   nothing
-  assumed  class "rest" of `div_class`, by div_uniform (unverified)
-div_uniform : unverified
-  tested   nothing
-  missed   (Int, Int)
+div_correct: holds assuming [div_uniform]
+  passes on       `div 1 0`, `div 6 3`
+  assumed on      classes "rest", "zero" of `div_class`, by `div_uniform`, which is not vouched for
+div_small: holds assuming [div_uniform]
+  assumed on      class "rest" of `div_class`, by `div_uniform`, which is not vouched for
+div_uniform: unverified
+
+warning[M102]: a claim holds only under assumptions
+  --> model.mitra:6  claim div_correct : forall a, forall b, correct (div a b)
+
+  `div_correct` holds if `div_uniform` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+warning[M102]: a claim holds only under assumptions
+  --> model.mitra:7  claim div_small : forall a in 0..=1, forall b in 1..=2, correct (div a b)
+
+  `div_small` holds if `div_uniform` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> model.mitra:8  claim div_uniform : uniform div by div_class
+
+  Nothing says that `div_uniform` holds, and Mitra can't check it.
+  help: review it against the code, then record: evidence div_uniform at 1
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M102`.

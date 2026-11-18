@@ -55,7 +55,7 @@ pub fn next(model: &Model, report: &Report) -> String {
     for k in conflicts {
         let subject = of(k);
         out += &format!(
-            "{} : fails: `{}` passes and `{}` fails, both in class {} of `{}`\n  \
+            "{}: fails: `{}` passes and `{}` fails, both in class {} of `{}`\n  \
              find what differs between the two inputs and split the class in `{}`,\n  \
              or check the two results: one of them may be wrong\n",
             k.claim,
@@ -72,23 +72,23 @@ pub fn next(model: &Model, report: &Report) -> String {
         let c = model.claim(&v.claim).expect("verdicts name claims");
         let conflict = report.conflicts.iter().any(|k| k.claim == c.name);
         if v.logic == Logic::Fails && c.target.is_structural() && !conflict {
-            out += &format!("{} : fails: evidence says so\n", c.name);
+            out += &format!("{}: fails: evidence says so\n", c.name);
         }
         if v.logic == Logic::Fails && !c.target.is_structural() {
             out += &format!(
-                "{} : fails on {}\n",
+                "{}: fails on {}\n",
                 c.name,
                 crate::eval::brief(&v.refuted, &v.domain)
             );
             out += &look(&c.func);
         }
         if v.logic == Logic::Holds && !c.target.is_structural() && !suspects(&c.func).is_empty() {
-            out += &format!("{} : holds, but is suspect\n", c.name);
+            out += &format!("{}: holds, but is suspect\n", c.name);
             out += &look(&c.func);
         }
         if v.logic == Logic::Assuming {
             out += &format!(
-                "{} : holds assuming [{}]\n  bring evidence on what it assumes, such as a review, or test until it is not needed\n",
+                "{}: holds assuming [{}]\n  bring evidence on what it assumes, such as a review, or test until it is not needed\n",
                 c.name,
                 v.assuming.join(", ")
             );
@@ -99,13 +99,13 @@ pub fn next(model: &Model, report: &Report) -> String {
         if let Target::Uniform(spec) = &c.target {
             out += &if v.tested.is_empty() {
                 format!(
-                    "{} : not vouched for\n  review that `{}` behaves the same within each class of `{spec}`, then:\n  \
+                    "{}: not vouched for\n  review that `{}` behaves the same within each class of `{spec}`, then:\n  \
                      evidence {} at 1\n",
                     c.name, c.func, c.name
                 )
             } else {
                 format!(
-                    "{} : vouched for in part, or both vouched for and denied: settle the evidence on it\n",
+                    "{}: vouched for in part, or both vouched for and denied: settle the evidence on it\n",
                     c.name
                 )
             };
@@ -113,7 +113,7 @@ pub fn next(model: &Model, report: &Report) -> String {
         }
         if let (Target::Uses { .. }, false) = (&c.target, v.tested.is_empty()) {
             out += &format!(
-                "{} : vouched for in part, or both vouched for and denied: settle the evidence on it\n",
+                "{}: vouched for in part, or both vouched for and denied: settle the evidence on it\n",
                 c.name
             );
             continue;
@@ -129,7 +129,7 @@ pub fn next(model: &Model, report: &Report) -> String {
                 ("", "until then it still gives suspects")
             };
             out += &format!(
-                "{} : not vouched for\n  review that `{}` calls {}{more}, then:\n  evidence {} at 1\n  {until}\n",
+                "{}: not vouched for\n  review that `{}` calls {}{more}, then:\n  evidence {} at 1\n  {until}\n",
                 c.name,
                 c.func,
                 used.join(", "),
@@ -148,9 +148,9 @@ pub fn next(model: &Model, report: &Report) -> String {
         match &v.assumed {
             Some(a) if a.usable && !a.untested.is_empty() => {
                 let n = a.untested.len();
-                out += &format!("{} : missing {n} of the classes of `{}`\n", c.name, a.spec)
+                out += &format!("{}: missing {n} of the classes of `{}`\n", c.name, a.spec)
             }
-            _ => out += &format!("{} : missing {shown}\n", c.name),
+            _ => out += &format!("{}: missing {shown}\n", c.name),
         }
         let premise = |logic: Logic| -> Vec<&str> {
             c.from
@@ -256,16 +256,16 @@ mod tests {
         let r = evaluate(&m).unwrap();
         assert_eq!(
             next(&m, &r),
-            "flip_spec : missing {false}\n\
+            "flip_spec: missing {false}\n\
              \x20 evidence flip false = <output> at 1\n\
-             flip_correct : missing {false}\n\
+             flip_correct: missing {false}\n\
              \x20 evidence correct (flip false) at 1\n\
-             id_correct : missing Value\n\
+             id_correct: missing Value\n\
              \x20 infinite: tests can't cover it, only evidence over a set (a proof),\n\
              \x20 or a `uniform` claim, so that one test stands for a class of inputs\n\
-             big : missing 0..=99\n\
+             big: missing 0..=99\n\
              \x20 100 inputs: test them, or bring evidence over the whole set (a proof)\n\
-             derived : holds assuming [flip_spec]\n\
+             derived: holds assuming [flip_spec]\n\
              \x20 bring evidence on what it assumes, such as a review, or test until it is not needed\n"
         );
     }
@@ -298,16 +298,16 @@ mod tests {
         };
         assert_eq!(
             say("evidence correct (div 6 3) at 1"),
-            "div_correct : missing 1 of the classes of `div_class`\n\
+            "div_correct: missing 1 of the classes of `div_class`\n\
              \x20 `div_uniform` is not vouched for: what rests on it is only assumed\n\
              \x20 no passing input in class \"zero\" of `div_class`: one test there stands for the class\n\
-             div_uniform : not vouched for\n\
+             div_uniform: not vouched for\n\
              \x20 review that `div` behaves the same within each class of `div_class`, then:\n\
              \x20 evidence div_uniform at 1\n"
         );
         assert_eq!(
             say("evidence correct (div 6 3) at 1\nevidence div_uniform at 1"),
-            "div_correct : missing 1 of the classes of `div_class`\n\
+            "div_correct: missing 1 of the classes of `div_class`\n\
              \x20 no passing input in class \"zero\" of `div_class`: one test there stands for the class\n"
         );
         let text = say(
@@ -316,10 +316,10 @@ mod tests {
         );
         assert!(
             text.starts_with(
-                "div_uniform : fails: `div 6 3` passes and `div 4 2` fails, both in class \"rest\" of `div_class`\n"
+                "div_uniform: fails: `div 6 3` passes and `div 4 2` fails, both in class \"rest\" of `div_class`\n"
             ),
             "{text}"
         );
-        assert!(text.contains("div_correct : fails on {(4, 2)}\n"), "{text}");
+        assert!(text.contains("div_correct: fails on {(4, 2)}\n"), "{text}");
     }
 }

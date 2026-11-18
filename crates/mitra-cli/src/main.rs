@@ -3,7 +3,7 @@
 //! ```text
 //! mitra init
 //! mitra check [<model> <evidence>] [--rev <commit>]
-//! mitra eval  [<model> <evidence>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [-o <result.txt>]
+//! mitra eval  [<model> <evidence>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [--numbers] [-o <result.txt>]
 //! mitra add   '<evidence>' [--source <who>] [--rev <commit>]
 //! mitra next  [<model> <evidence>] [--rev <commit>]
 //! mitra ingest <report> [--format libtest|junit] [--rev <commit>]
@@ -25,10 +25,11 @@ use std::process::ExitCode;
 const USAGE: &str = "usage:
   mitra init
   mitra check [<model.mitra> <evidence.mitra>] [--rev <commit>]
-  mitra eval  [<model.mitra> <evidence.mitra>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [-o <result.txt>]
+  mitra eval  [<model.mitra> <evidence.mitra>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [--numbers] [-o <result.txt>]
   mitra add   '<evidence>' [--source <who>] [--rev <commit>]
   mitra next  [<model.mitra> <evidence.mitra>] [--rev <commit>]
-  mitra ingest <report> [--format libtest|junit] [--rev <commit>]";
+  mitra ingest <report> [--format libtest|junit] [--rev <commit>]
+  mitra explain <code>";
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {
@@ -66,6 +67,30 @@ fn located<'a>(
     move |(input, err)| match input {
         mitra_core::Input::Model => m.locate(&err),
         mitra_core::Input::Evidence => format!("{e}: {err}"),
+    }
+}
+
+/// A path as seen from the current directory, when it is under it.
+fn relative(path: &str) -> String {
+    let here = std::env::current_dir().ok();
+    let here = here.as_deref().and_then(|d| d.to_str());
+    let rest = here.and_then(|d| path.strip_prefix(d));
+    let rest = rest.and_then(|r| r.strip_prefix(['/', '\\']));
+    rest.unwrap_or(path).to_string()
+}
+
+/// Where the lines of the model and of the evidence are.
+struct Places<'a> {
+    model: &'a Source,
+    evidence: &'a str,
+}
+
+impl mitra_core::Places for Places<'_> {
+    fn model(&self, line: usize) -> String {
+        relative(&self.model.place(line))
+    }
+    fn evidence(&self, line: usize) -> String {
+        relative(&format!("{}:{line}", self.evidence))
     }
 }
 
@@ -149,10 +174,12 @@ fn take_display(rest: &mut Vec<String>) -> Result<mitra_core::Display, String> {
     }
     if let Some(i) = rest.iter().position(|a| a == "--all") {
         rest.remove(i);
-        display = mitra_core::Display {
-            max: usize::MAX,
-            threshold: 0.0,
-        };
+        display.max = usize::MAX;
+        display.threshold = 0.0;
+    }
+    if let Some(i) = rest.iter().position(|a| a == "--numbers") {
+        rest.remove(i);
+        display.numbers = true;
     }
     Ok(display)
 }
@@ -214,7 +241,11 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             }
             let (m, e) = inputs(paths)?;
             let (_, report) = evaluate(&m, &e, rev)?;
-            let text = report.to_text_with(&display);
+            let places = Places {
+                model: &m,
+                evidence: &e,
+            };
+            let text = report.to_text_at(&display, &places);
             match out {
                 Some(path) => std::fs::write(path, text).map_err(|e| format!("{path}: {e}"))?,
                 None => print!("{text}"),
@@ -222,6 +253,15 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let (errors, warnings) = (report.problems.len(), report.warnings());
             eprintln!("mitra: {errors} errors, {warnings} warnings");
             Ok(errors)
+        }
+        "explain" => {
+            let [code] = rest else {
+                return Err(USAGE.into());
+            };
+            let text =
+                mitra_core::explain(code).ok_or(format!("explain `{code}`: no such code"))?;
+            print!("{text}");
+            Ok(0)
         }
         "add" => {
             let [text, opts @ ..] = rest else {

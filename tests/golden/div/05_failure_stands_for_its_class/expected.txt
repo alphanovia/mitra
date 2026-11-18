@@ -1,17 +1,39 @@
-div_correct : fails
-  refuted  {(4, 2)}
-  tested   nothing
-  missed   class "zero" of `div_class`
-div_small : fails
-  refuted  (0..=1, 1..=2)
-  tested   nothing
-div_uniform : holds
-error: `div_correct` fails on {(4, 2)}
-  evidence line 3: evidence not correct (div 4 2) at 1
-  most plausibly wrong:
-    [1.00, 1.00] the code of `div`
-error: `div_small` fails on (0..=1, 1..=2)
-  evidence line 2: evidence div_uniform at 1
-  evidence line 3: evidence not correct (div 4 2) at 1
-  most plausibly wrong:
-    [1.00, 1.00] the code of `div`
+div_correct: fails
+  fails on        `div 4 2`
+  no evidence on  class "zero" of `div_class`
+div_small: fails
+  fails on        (a, b) in (0..=1, 1..=2)
+div_uniform: holds
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:6  claim div_correct : forall a, forall b, correct (div a b)
+
+  `div_correct` fails on `div 4 2`.
+  The evidence that says so:
+
+    fails     evidence.mitra:3  evidence not correct (div 4 2) at 1
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    certain   the code of `div`, model.mitra:3
+
+  help: if the evidence is right, fix `div`; if not, correct the evidence
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:7  claim div_small : forall a in 0..=1, forall b in 1..=2, correct (div a b)
+
+  `div_small` fails on (a, b) in (0..=1, 1..=2).
+  The evidence that says so:
+
+    vouches   evidence.mitra:2  evidence div_uniform at 1
+    fails     evidence.mitra:3  evidence not correct (div 4 2) at 1
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    certain   the code of `div`, model.mitra:3
+
+  help: if the evidence is right, fix `div`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

@@ -1,3 +1,10 @@
-fs : unverified
-  tested   nothing
-  missed   {0}
+fs: unverified
+  no evidence on  `f 0`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  claim fs : forall x in {0}, f x = one x
+
+  No evidence on `f 0`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

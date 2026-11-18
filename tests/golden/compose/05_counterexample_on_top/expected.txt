@@ -1,17 +1,45 @@
-neg_twice : holds
-flip_spec : holds
-flip_not_shape : unverified
-  tested   {false}
-  missed   {true}
-flip_not_same : fails
-  refuted  {true}
-  tested   nothing
-  assumed  {false}, by derive (implication checked)
-error: `flip_not_same` fails on {true}
-  evidence line 7: evidence flip_not true = false at 1
-  most plausibly wrong:
-    [1.00, 1.00] the code of `flip_not`
-error: inconsistent, on {true} of `flip_not`: these can't both be true
-  evidence line 4: evidence flip_not_shape at 1
-  evidence line 7: evidence flip_not true = false at 1
-  the pieces trusted at 1 can't all be right: nothing ranks them
+neg_twice: holds
+flip_spec: holds
+flip_not_shape: unverified
+  passes on       `flip_not false`
+  no evidence on  `flip_not true`
+flip_not_same: fails
+  fails on        `flip_not true`
+  assumed on      `flip_not false`: its premises imply it
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:14  claim flip_not_same : forall a, flip_not a = same a := by derive [flip_spec, flip_not_shape, neg_twice]
+
+  `flip_not_same` fails on `flip_not true`.
+  The evidence that says so:
+
+    output    evidence.mitra:7  evidence flip_not true = false at 1
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    certain   the code of `flip_not`, model.mitra:5
+
+  help: if the evidence is right, fix `flip_not`; if not, correct the evidence
+
+error[M003]: two pieces of evidence contradict each other
+  --> evidence.mitra:4
+
+  On the inputs {true} of `flip_not`, these two say opposite things:
+
+    vouches   evidence.mitra:4  evidence flip_not_shape at 1
+    output    evidence.mitra:7  evidence flip_not true = false at 1
+
+  These can't all be right, and the ones trusted at 1 are enough for
+  that: nothing says which one is wrong.
+
+  note: until this is settled, neither counts for these inputs
+  help: find out which one is right, and correct the other
+
+warning[M101]: a claim is not verified
+  --> model.mitra:12  claim flip_not_shape : forall a, flip_not a = flip (flip a)
+
+  No evidence on `flip_not true`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

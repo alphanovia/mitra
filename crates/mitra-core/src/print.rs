@@ -17,29 +17,8 @@ pub fn print_model(m: &Model) -> String {
         };
     }
     for c in &m.claims {
-        if let Target::Uniform(g) = &c.target {
-            out += &format!("claim {} : uniform {} by {g}\n", c.name, c.func);
-            continue;
-        }
-        if let Target::Uses { used, only } = &c.target {
-            let only = if *only { "only " } else { "" };
-            let used = used.join(", ");
-            out += &format!("claim {} : {only}uses {} [{used}]\n", c.name, c.func);
-            continue;
-        }
-        let params = m.function(&c.func).map(|f| &f.params[..]).unwrap_or(&[]);
-        let (forall, args) = pattern(&c.pattern, params);
-        let body = match &c.target {
-            Target::Correct => format!("correct ({}{args})", c.func),
-            Target::Matches(e) => format!("{}{args} = {}", c.func, expr(e)),
-            Target::Uniform(_) | Target::Uses { .. } => unreachable!(),
-        };
-        let from = if c.from.is_empty() {
-            String::new()
-        } else {
-            format!(" := by derive [{}]", c.from.join(", "))
-        };
-        out += &format!("claim {} : {forall}{body}{from}\n", c.name);
+        out += &print_claim(m, c);
+        out += "\n";
     }
     for t in &m.tests {
         let line = print_evidence(std::slice::from_ref(&t.judgment), Some(m));
@@ -48,6 +27,31 @@ pub fn print_model(m: &Model) -> String {
         out += &format!("test {} : {judgment}\n", t.name);
     }
     out
+}
+
+/// One claim, as written in a model, without the line break.
+pub fn print_claim(m: &Model, c: &Claim) -> String {
+    if let Target::Uniform(g) = &c.target {
+        return format!("claim {} : uniform {} by {g}", c.name, c.func);
+    }
+    if let Target::Uses { used, only } = &c.target {
+        let only = if *only { "only " } else { "" };
+        let used = used.join(", ");
+        return format!("claim {} : {only}uses {} [{used}]", c.name, c.func);
+    }
+    let params = m.function(&c.func).map(|f| &f.params[..]).unwrap_or(&[]);
+    let (forall, args) = pattern(&c.pattern, params);
+    let body = match &c.target {
+        Target::Correct => format!("correct ({}{args})", c.func),
+        Target::Matches(e) => format!("{}{args} = {}", c.func, expr(e)),
+        Target::Uniform(_) | Target::Uses { .. } => unreachable!(),
+    };
+    let from = if c.from.is_empty() {
+        String::new()
+    } else {
+        format!(" := by derive [{}]", c.from.join(", "))
+    };
+    format!("claim {} : {forall}{body}{from}", c.name)
 }
 
 /// Evidence, one line each. `model` names the bound inputs after the

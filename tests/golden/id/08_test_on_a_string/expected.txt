@@ -1,6 +1,19 @@
-id_correct : unverified
-  tested   {"a"}
-  missed   Value \ {"a"}
-id_small : unverified
-  tested   nothing
-  missed   0..=100
+id_correct: unverified
+  passes on       `id "a"`
+  no evidence on  x in Value \ {"a"}
+id_small: unverified
+  no evidence on  x in 0..=100
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  claim id_correct : forall x, correct (id x)
+
+  No evidence on x in Value \ {"a"}.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  claim id_small : forall x in 0..=100, correct (id x)
+
+  No evidence on x in 0..=100.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

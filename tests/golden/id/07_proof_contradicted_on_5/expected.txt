@@ -1,10 +1,34 @@
-id_correct : unverified
-  tested   0..=4 | 6..=100
-  missed   Value \ (0..=4 | 6..=100)
-id_small : unverified
-  tested   0..=4 | 6..=100
-  missed   {5}
-error: inconsistent, on {5} of `id`: these can't both be true
-  evidence line 2: evidence forall x in 0..=100, correct (id x) at 1
-  evidence line 3: evidence not correct (id 5) at 1
-  the pieces trusted at 1 can't all be right: nothing ranks them
+id_correct: unverified
+  passes on       x in 0..=4 | 6..=100
+  no evidence on  x in Value \ (0..=4 | 6..=100)
+id_small: unverified
+  passes on       x in 0..=4 | 6..=100
+  no evidence on  `id 5`
+
+error[M003]: two pieces of evidence contradict each other
+  --> evidence.mitra:2
+
+  On the inputs {5} of `id`, these two say opposite things:
+
+    passes    evidence.mitra:2  evidence forall x in 0..=100, correct (id x) at 1
+    fails     evidence.mitra:3  evidence not correct (id 5) at 1
+
+  These can't all be right, and the ones trusted at 1 are enough for
+  that: nothing says which one is wrong.
+
+  note: until this is settled, neither counts for these inputs
+  help: find out which one is right, and correct the other
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  claim id_correct : forall x, correct (id x)
+
+  No evidence on x in Value \ (0..=4 | 6..=100).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  claim id_small : forall x in 0..=100, correct (id x)
+
+  No evidence on `id 5`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M003`.

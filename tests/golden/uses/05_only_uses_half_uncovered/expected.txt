@@ -1,14 +1,32 @@
-half_correct : unverified
-  tested   {0}
-  missed   {1}
-quarter_correct : fails
-  refuted  {1}
-  tested   nothing
-  missed   {0}
-quarter_uses : holds
-error: `quarter_correct` fails on {1}
-  evidence line 4: evidence not correct (quarter 1) at 1
-  most plausibly wrong:
-    [0.00, 1.00] the code of `quarter`
-    [0.00, 1.00] the code of `half`
-root cause: `quarter` fails and only uses `half`, where nothing fails: the fault is in `quarter` itself, or where no claim covers them
+half_correct: unverified
+  passes on       `half 0`
+  no evidence on  `half 1`
+quarter_correct: fails
+  fails on        `quarter 1`
+  no evidence on  `quarter 0`
+quarter_uses: holds
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:7  claim quarter_correct : forall x in 0..=1, correct (quarter x)
+
+  `quarter_correct` fails on `quarter 1`.
+  The evidence that says so:
+
+    fails     evidence.mitra:4  evidence not correct (quarter 1) at 1
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    possible  the code of `quarter`, model.mitra:4
+    possible  the code of `half`, model.mitra:3
+
+  note: `quarter` fails and only uses `half`, where nothing fails: the fault is in `quarter` itself, or where no claim covers them
+  help: if the evidence is right, fix `quarter`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  claim half_correct : forall x in 0..=1, correct (half x)
+
+  No evidence on `half 1`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

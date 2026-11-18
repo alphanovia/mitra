@@ -1,8 +1,21 @@
-flip_correct : fails
-  refuted  {false}
-  tested   {true}
-flip_on_true : holds
-error: `flip_correct` fails on {false}
-  evidence line 2: evidence not correct (flip false) at 1
-  most plausibly wrong:
-    [1.00, 1.00] the code of `flip`
+flip_correct: fails
+  fails on        `flip false`
+  passes on       `flip true`
+flip_on_true: holds
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:4  claim flip_correct : forall a, correct (flip a)
+
+  `flip_correct` fails on `flip false`.
+  The evidence that says so:
+
+    fails     evidence.mitra:2  evidence not correct (flip false) at 1
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    certain   the code of `flip`, model.mitra:1
+
+  help: if the evidence is right, fix `flip`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

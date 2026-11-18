@@ -1,11 +1,34 @@
-div_correct : unverified
-  tested   {(4, 2)}
-  missed   classes "rest", "zero" of `div_class`
-div_small : unverified
-  tested   nothing
-  missed   (0..=1, 1..=2)
-div_uniform : holds
-error: inconsistent, on {(6, 3)} of `div`: these can't both be true
-  evidence line 4: evidence correct (div 6 3) at 1
-  evidence line 5: evidence not correct (div 6 3) at 1
-  the pieces trusted at 1 can't all be right: nothing ranks them
+div_correct: unverified
+  passes on       `div 4 2`
+  no evidence on  classes "rest", "zero" of `div_class`
+div_small: unverified
+  no evidence on  (a, b) in (0..=1, 1..=2)
+div_uniform: holds
+
+error[M003]: two pieces of evidence contradict each other
+  --> evidence.mitra:4
+
+  On the inputs {(6, 3)} of `div`, these two say opposite things:
+
+    passes    evidence.mitra:4  evidence correct (div 6 3) at 1
+    fails     evidence.mitra:5  evidence not correct (div 6 3) at 1
+
+  These can't all be right, and the ones trusted at 1 are enough for
+  that: nothing says which one is wrong.
+
+  note: until this is settled, neither counts for these inputs
+  help: find out which one is right, and correct the other
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  claim div_correct : forall a, forall b, correct (div a b)
+
+  No evidence on classes "rest", "zero" of `div_class`.
+  help: one passing test in such a class stands for the class
+
+warning[M101]: a claim is not verified
+  --> model.mitra:7  claim div_small : forall a in 0..=1, forall b in 1..=2, correct (div a b)
+
+  No evidence on (a, b) in (0..=1, 1..=2).
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M003`.

@@ -1,6 +1,5 @@
-neg_twice : holds
-flip_spec : holds
-flip_not_shape : holds
-flip_not_same : holds
-  tested   nothing
-  assumed  Bool, by derive (implication checked)
+neg_twice: holds
+flip_spec: holds
+flip_not_shape: holds
+flip_not_same: holds
+  assumed on      `flip_not false`, `flip_not true`: its premises imply it

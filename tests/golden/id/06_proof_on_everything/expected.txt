@@ -1,2 +1,2 @@
-id_correct : holds
-id_small : holds
+id_correct: holds
+id_small: holds

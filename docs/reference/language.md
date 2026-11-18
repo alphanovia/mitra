@@ -25,13 +25,17 @@ N: message` and exits with status 2.
   start with `-` or end in `.mitra`, so a store file is never overwritten.
   It prints `mitra: E errors, W warnings` on standard error, and exits
   with status 1 when there is an error, 0 otherwise. A warning is a claim
-  that is `unverified` or `holds assuming`.
+  that is `unverified` or `holds assuming`, or evidence that can't be
+  used.
 - An error lists the pieces that may be wrong, most plausible first: at
   most 5, and none under a plausibility of 0.05. `--candidates <n>` and
   `--threshold <p>` change the two limits, and `--all` removes both.
+  `--numbers` prints the belief and the plausibility behind each word.
+- `explain <code>` describes a kind of error or warning (`mitra explain
+  M004`). The codes are listed under Output.
 - `check` parses, checks and evaluates both files, prints
-  `ok: F functions, C claims, T tests, E evidence`, then any contested
-  evidence.
+  `ok: F functions, C claims, T tests, E evidence`, then any evidence
+  that can't be used.
 - `next` prints first the evidence that can't all be true (see Evaluation:
   contradictions, uniformity) and each root cause, then
   each claim that fails with the inputs refuted. Those on a subject that
@@ -419,7 +423,7 @@ Test names share the namespace of functions and claims.
 ## Evaluation
 
 Every piece of evidence counts, whatever its bias. Evidence on a **spec**
-is not used and is reported as `contested`: a spec is a definition, so
+is not used and gives warning `M104`: a spec is a definition, so
 evidence cannot disprove it.
 
 For each claim, in model order, with D its domain, Mitra gathers the inputs
@@ -580,84 +584,135 @@ The check depends only on the model, not on evidence.
 
 ## Output
 
-Each claim, in model order: its name and verdict, then indented lines
-for its sets, each printed only when it says something:
+`eval` prints each claim's verdict, then the errors, the warnings and the
+notes, written like a compiler's diagnostics.
+
+**Verdicts.** Each claim, in model order: its name and verdict, then
+indented lines, each printed only when it says something:
 
 ```text
-div_correct : unverified
-  tested   {(6, 3)}
-  assumed  class "rest" of `div_class`, by div_uniform
-  missed   class "zero" of `div_class`
-div_small : holds assuming [div_uniform]
-  tested   nothing
-  assumed  class "rest" of `div_class`, by div_uniform (unverified)
-minus_spec : holds
-  tested   nothing
-  assumed  (0..=2, 0..=2), by derive (implication checked)
-flip_correct : fails
-  refuted  {false}
-  tested   {true}
+div_correct: unverified
+  passes on       `div 6 3`
+  assumed on      class "rest" of `div_class`, by `div_uniform`
+  no evidence on  class "zero" of `div_class`
+div_small: holds
+  assumed on      class "rest" of `div_class`, by `div_uniform`
+div_uniform: holds
 ```
 
-- `refuted`: when the claim fails.
-- `tested`: unless it is the whole domain. `nothing` is the empty set.
-- `assumed … by derive (implication checked|unchecked)`: the inputs that
-  follow from the premises. When the derivation is not used, `derive
-  not used: a premise fails` or `… the implication is refuted` instead.
-- `assumed class … by u`: the classes with a passing input (on a finite
-  domain, only those the claim meets), unless the claim fails or `u`
-  can't be relied on. `(unverified)` when nothing vouches for `u`.
-- `missed`: when not empty. With a uniformity claim and a set too large
-  to list, the classes without a passing input are named instead.
+- `fails on`: the inputs evidence refutes.
+- `passes on`: the inputs evidence supports, unless it is the whole
+  domain.
+- `assumed on … : its premises imply it`: the inputs that follow from the
+  premises of `by derive`; `from its premises, the implication not
+  checked` when Mitra could not check it. When the derivation is not
+  used: `not derived: a premise fails`, or `… its premises do not imply
+  it`.
+- `assumed on class … by u`: the classes with a passing input (on a
+  finite domain, only those the claim meets), unless the claim fails or
+  `u` can't be relied on. `which is not vouched for` when no evidence
+  vouches for `u`.
+- `no evidence on`: the inputs missed. With a uniformity claim and a set
+  too large to list, the classes without a passing input instead.
 
-Sets of tuples print as the domain's own form when equal to it
-(`(0..=2, 0..=2)`), as a list of tuples when finite (`{(1, -1)}`), or as
-a union of products, each written as a tuple of sets:
-`(0..=2, {0}) | (3..=4, Int)`. A set longer than 160 characters prints
-as its size (`9 inputs`). Then one line per piece of evidence on a spec:
+A `uniform` or `uses` claim has no such lines. Up to 3 inputs print as
+calls (`` `div 4 2` ``); more print as a set, named after the parameters:
+`(a, b) in (0..=2, 0..=2)`. A set of tuples prints as the domain's own
+form when equal to it, as a list of tuples when finite (`{(1, -1)}`), or
+as a union of products, each a tuple of sets:
+`(0..=2, {0}) | (3..=4, Int)`. A set longer than 160 characters prints as
+its size (`9 inputs`).
+
+**Diagnostics.** After a blank line, each error, then each warning. A
+diagnostic has a severity and a code, a headline, `-->` and the
+`file:line` of what it is about with the claim as written, a description,
+and `help:` with the next thing to do:
 
 ```text
-contested evidence line 4: `neg` is a spec, true by definition: evidence does not apply to it
+error[M001]: evidence refutes a claim
+  --> model.mitra:5  claim div_correct : forall a, forall b, correct (div a b)
+
+  `div_correct` fails on `div 4 2`.
+  The evidence that says so:
+
+    fails     evidence.mitra:11  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    possible  the code of `div`, model.mitra:2
+    likely    evidence.mitra:11 (bug:42), trusted at 0.8
+
+  help: if the evidence is right, fix `div`; if not, correct the evidence
+
+error[M004]: an assumption is contradicted by the evidence
+  --> model.mitra:6  claim div_uniform : uniform div by div_class
+
+  `div_uniform` says `div` behaves the same for every input of class "rest"
+  of `div_class`. But in that class some inputs pass and others fail:
+
+    vouches   evidence.mitra:9  @[source "review:alice"] evidence div_uniform at 0.9
+    passes    evidence.mitra:10  @[source "test:t_six"] evidence correct (div 6 3) at 0.99
+    fails     evidence.mitra:11  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+
+  These can't all be right. Which one is wrong, from the trust given to
+  each:
+
+    likely    evidence.mitra:11 (bug:42), trusted at 0.8
+    unlikely  evidence.mitra:9 (review:alice), trusted at 0.9
+    1 less plausible not shown (`--all` shows them)
+
+  note: the trust given says these are probably all right, which can't
+  be: at least one is trusted more than it deserves
+
+  help: check that `div 4 2` really fails; if it does, class "rest" is
+  too wide: split it in `div_class`
 ```
 
-Then each error: what is not possible, the evidence involved as Mitra
-reads it (5 lines at most, then `and N more`), and the pieces most
-plausibly wrong, each with `[belief, plausibility]`:
+| Code | Severity | Headline |
+|---|---|---|
+| `M001` | error | evidence refutes a claim |
+| `M002` | error | evidence denies an assumption (a `uniform` or `uses` claim) |
+| `M003` | error | two pieces of evidence contradict each other |
+| `M004` | error | an assumption is contradicted by the evidence: a pass and a failure in one class |
+| `M101` | warning | a claim is not verified: some inputs have no evidence |
+| `M102` | warning | a claim holds only under assumptions |
+| `M103` | warning | an assumption is not vouched for |
+| `M104` | warning | evidence that can't be used: it is about a spec |
 
-```text
-error: `div_correct` fails on {(4, 2)}
-  evidence line 11: @[source "bug:42"] evidence not correct (div 4 2) at 0.8
-  most plausibly wrong:
-    [0.30, 1.00] the code of `div`
-    [0.62, 0.70] evidence line 11
-    conflict 0.71: the biases say nothing is wrong
-error: inconsistent, in class "rest" of `div_class`: `div_uniform` can't hold with both
-  evidence line 9: @[source "review:alice"] evidence div_uniform at 0.9
-  evidence line 10: @[source "test:t_six"] evidence correct (div 6 3) at 0.99
-  evidence line 11: @[source "bug:42"] evidence not correct (div 4 2) at 0.8
-  most plausibly wrong:
-    [0.62, 0.70] evidence line 11
-    [0.28, 0.35] evidence line 9
-    1 less likely hidden
-    conflict 0.71: the biases say nothing is wrong
-error: inconsistent, on {false} of `flip`: these can't both be true
-  evidence line 3: evidence correct (flip false) at 1
-  evidence line 4: evidence not correct (flip false) at 1
-  the pieces trusted at 1 can't all be right: nothing ranks them
-```
+`mitra explain <code>` prints what a code means and how to fix it. The
+codes are stable: a code keeps its meaning.
 
-A piece is `evidence line N`, `the code of f` or `the claim c`. At most
-5 are listed, and none under plausibility 0.05 (see Running Mitra);
-`N less likely hidden` counts the others whose plausibility is not 0. The
-conflict is printed from 0.005. The library takes the two limits as
-`Display { max, threshold }`.
+- **Locations.** Lines of the model and of the evidence print as
+  `file:line`, relative to the current directory when under it. For a
+  model line in a Rust comment, it is the line of the `.rs` file. The
+  library names the files `model.mitra` and `evidence.mitra` unless given
+  a `Places` (`Report::to_text_at`).
+- **Evidence.** Each piece an error rests on: what it says (`passes`,
+  `fails`, `output`, `vouches`, `denies`), where it is, and its text. At
+  most 5 are quoted, then `and N more`.
+- **Which one is wrong.** The pieces of the error, most plausible first,
+  each with a word: `certain` (belief at least 0.995), `likely` (belief
+  at least 0.5), `possible` (plausibility at least 0.5), else
+  `unlikely`. A piece is a piece of evidence with its source and trust,
+  `the code of f`, or `the claim c itself`. At most 5 are listed, and
+  none under plausibility 0.05 (see Running Mitra); `N less plausible not
+  shown` counts the others whose plausibility is not 0. `--numbers` adds
+  `[belief B, plausibility P]` to each and a line saying what the two
+  mean.
+- When the pieces trusted at 1 can't all be right, or more than 20 have
+  a trust strictly between 0 and 1, the error says so and ranks nothing.
+- `note: the trust given says these are probably all right`: on an error
+  other than `M001`, when the pieces would all be right with a mass of at
+  least 0.5 by their biases alone (the conflict). At least one is
+  trusted more than it deserves.
+- On `M001`: `help: look first at g` when the subject uses a subject that
+  fails, and `note:` with the root cause when there is one (see
+  Evaluation). A suspect that has no error of its own is a `note:` after
+  the warnings.
 
-Then each suspect and each root cause:
-
-```text
-suspect: `dempster` uses `conflict`, where conflict_spec_ok fails: look there first
-root cause: `quarter` fails and only uses `half`, where nothing fails: the fault is in `quarter` itself
-```
+The last line names `mitra explain`. `eval` prints the counts on standard
+error: `mitra: E errors, W warnings`.
 
 A spec referring to a name it does not bind, a type error, an overflow or a
 value outside a function's domain or result type stops evaluation with an
@@ -731,7 +786,7 @@ claim flip_on_true : flip true = neg true
 | 04 | `flip false = false` | fails, refuted {false} | unverified |
 | 05 | `flip true = false`, `flip false = true` and `= false` | unverified, tested {true}; error on false | holds |
 | 06 | `forall a, correct (flip a)` (a judgment, not an output) | unverified | unverified |
-| 07 | case 02, plus `neg true = true` | holds | holds, and the evidence on `neg` is contested |
+| 07 | case 02, plus `neg true = true` | holds | holds, and the evidence on `neg` can't be used (`M104`) |
 | 08 | `flip false = false` `at 0`, `neg true = true` `at 0` | fails | unverified |
 
 ### `compose`: a derivation mixing specs and subjects

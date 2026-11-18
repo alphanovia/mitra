@@ -1,6 +1,5 @@
-add_spec : holds
-negate_spec : holds
-minus_shape : holds
-minus_spec : holds
-  tested   nothing
-  assumed  (0..=2, 0..=2), by derive (implication checked)
+add_spec: holds
+negate_spec: holds
+minus_shape: holds
+minus_spec: holds
+  assumed on      (a, b) in (0..=2, 0..=2): its premises imply it

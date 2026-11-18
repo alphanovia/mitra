@@ -1,12 +1,37 @@
-id_correct : unverified
-  tested   Value \ {7}
-  missed   {7}
-id_small : unverified
-  tested   0..=6 | 8..=100
-  missed   {7}
-error: inconsistent, on {7} of `id`: these can't both be true
-  evidence line 2: evidence forall x, correct (id x) at 0
-  evidence line 3: evidence not correct (id 7) at 0
-  most plausibly wrong:
-    [0.00, 1.00] evidence line 2
-    [0.00, 1.00] evidence line 3
+id_correct: unverified
+  passes on       x in Value \ {7}
+  no evidence on  `id 7`
+id_small: unverified
+  passes on       x in 0..=6 | 8..=100
+  no evidence on  `id 7`
+
+error[M003]: two pieces of evidence contradict each other
+  --> evidence.mitra:2
+
+  On the inputs {7} of `id`, these two say opposite things:
+
+    passes    evidence.mitra:2  evidence forall x, correct (id x) at 0
+    fails     evidence.mitra:3  evidence not correct (id 7) at 0
+
+  These can't all be right. Which one is wrong, from the trust given to
+  each:
+
+    possible  evidence.mitra:2, trusted at 0
+    possible  evidence.mitra:3, trusted at 0
+
+  note: until this is settled, neither counts for these inputs
+  help: find out which one is right, and correct the other
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  claim id_correct : forall x, correct (id x)
+
+  No evidence on `id 7`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  claim id_small : forall x in 0..=100, correct (id x)
+
+  No evidence on `id 7`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M003`.

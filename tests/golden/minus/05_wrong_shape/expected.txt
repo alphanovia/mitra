@@ -1,7 +1,14 @@
-add_spec : holds
-negate_spec : holds
-minus_shape : holds
-minus_spec : unverified
-  tested   nothing
-  derive   not used: the implication is refuted
-  missed   (0..=2, 0..=2)
+add_spec: holds
+negate_spec: holds
+minus_shape: holds
+minus_spec: unverified
+  not derived: its premises do not imply it
+  no evidence on  (a, b) in (0..=2, 0..=2)
+
+warning[M101]: a claim is not verified
+  --> model.mitra:15  claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
+
+  No evidence on (a, b) in (0..=2, 0..=2).
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

@@ -1,5 +1,13 @@
-inc_correct : unverified
-  tested   0..=99
-  missed   -9223372036854775808..=-1 | 100..=9223372036854775807
-inc_small : holds
-half_spec : holds
+inc_correct: unverified
+  passes on       x in 0..=99
+  no evidence on  x in -9223372036854775808..=-1 | 100..=9223372036854775807
+inc_small: holds
+half_spec: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:7  claim inc_correct : forall x, correct (inc x)
+
+  No evidence on x in -9223372036854775808..=-1 | 100..=9223372036854775807.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

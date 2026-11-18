@@ -1,4 +1,4 @@
-neg_twice : holds
-flip_spec : holds
-flip_not_shape : holds
-flip_not_same : holds
+neg_twice: holds
+flip_spec: holds
+flip_not_shape: holds
+flip_not_same: holds

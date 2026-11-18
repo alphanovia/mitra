@@ -60,6 +60,14 @@ impl Source {
 
     /// An error in `text`, at its own file and line. An error past the
     /// last line names the first file.
+    /// A line of the model, as `file:line`.
+    pub fn place(&self, line: usize) -> String {
+        match self.lines.get(line.wrapping_sub(1)) {
+            Some((path, n)) => format!("{path}:{n}"),
+            None => self.first.clone(),
+        }
+    }
+
     pub fn locate(&self, err: &mitra_core::Error) -> String {
         match self.lines.get(err.line.wrapping_sub(1)) {
             Some((path, n)) => format!("{path}: line {n}: {}", err.message),

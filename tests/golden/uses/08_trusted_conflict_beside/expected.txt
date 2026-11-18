@@ -1,27 +1,64 @@
-half_correct : fails
-  refuted  {0}
-  tested   nothing
-  missed   {1}
-quarter_correct : fails
-  refuted  {1}
-  tested   {0}
-quarter_uses : unverified
-  tested   nothing
-  missed   Int
-quarter_uniform : fails
-  refuted  0..=1
-error: `half_correct` fails on {0}
-  evidence line 5: evidence not correct (half 0) at 1
-  most plausibly wrong:
-    [1.00, 1.00] the code of `half`
-error: `quarter_correct` fails on {1}
-  evidence line 8: evidence not correct (quarter 1) at 1
-  most plausibly wrong:
-    [1.00, 1.00] the code of `half`
-    [0.00, 1.00] the code of `quarter`
-error: inconsistent, in class "any" of `all`: `quarter_uniform` can't hold with both
-  evidence line 6: evidence quarter_uniform at 1
-  evidence line 7: evidence correct (quarter 0) at 1
-  evidence line 8: evidence not correct (quarter 1) at 1
-  the pieces trusted at 1 can't all be right: nothing ranks them
-suspect: `quarter` uses `half`, where half_correct fails: look there first
+half_correct: fails
+  fails on        `half 0`
+  no evidence on  `half 1`
+quarter_correct: fails
+  fails on        `quarter 1`
+  passes on       `quarter 0`
+quarter_uses: unverified
+quarter_uniform: fails
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:7  claim half_correct : forall x in 0..=1, correct (half x)
+
+  `half_correct` fails on `half 0`.
+  The evidence that says so:
+
+    fails     evidence.mitra:5  evidence not correct (half 0) at 1
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    certain   the code of `half`, model.mitra:3
+
+  help: if the evidence is right, fix `half`; if not, correct the evidence
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:8  claim quarter_correct : forall x in 0..=1, correct (quarter x)
+
+  `quarter_correct` fails on `quarter 1`.
+  The evidence that says so:
+
+    fails     evidence.mitra:8  evidence not correct (quarter 1) at 1
+
+  Either the code is wrong or the evidence is. Which one, from the trust
+  given to each piece of evidence:
+
+    certain   the code of `half`, model.mitra:3
+    possible  the code of `quarter`, model.mitra:4
+
+  help: look first at `half`, which `quarter` uses: half_correct fails there
+  help: if the evidence is right, fix `quarter`; if not, correct the evidence
+
+error[M004]: an assumption is contradicted by the evidence
+  --> model.mitra:10  claim quarter_uniform : uniform quarter by all
+
+  `quarter_uniform` says `quarter` behaves the same for every input of class "any"
+  of `all`. But in that class some inputs pass and others fail:
+
+    vouches   evidence.mitra:6  evidence quarter_uniform at 1
+    passes    evidence.mitra:7  evidence correct (quarter 0) at 1
+    fails     evidence.mitra:8  evidence not correct (quarter 1) at 1
+
+  These can't all be right, and the ones trusted at 1 are enough for
+  that: nothing says which one is wrong.
+
+  help: check that `quarter 1` really fails; if it does, class "any" is
+  too wide: split it in `all`
+
+warning[M103]: an assumption is not vouched for
+  --> model.mitra:9  claim quarter_uses : uses quarter [half]
+
+  Nothing says that `quarter_uses` holds, and Mitra can't check it.
+  help: review it against the code, then record: evidence quarter_uses at 1
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

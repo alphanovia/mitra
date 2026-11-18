@@ -218,9 +218,7 @@ pub enum Unranked {
 /// An error: a claim that fails, or pieces that can't all be true.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Problem {
-    /// What is not possible. Several claims failing on the same evidence
-    /// share one error.
-    pub titles: Vec<String>,
+    pub kind: Kind,
     /// The evidence failing the model: line and text.
     pub evidence: Vec<(usize, String)>,
     /// Sets of pieces that can't all be right.
@@ -231,6 +229,36 @@ pub struct Problem {
     pub conflict: f64,
 }
 
+/// What is not possible.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Kind {
+    /// Claims on a subject or a spec that evidence refutes. Several claims
+    /// failing on the same evidence share one error.
+    Fails { claims: Vec<String> },
+    /// A `uniform` or `uses` claim that evidence denies.
+    Denied { claim: String },
+    /// Two pieces of evidence that disagree on the same inputs.
+    Contradiction { subject: String, inputs: String },
+    /// A pass and a failure in one class of a `uniform` claim.
+    Conflict {
+        claim: String,
+        spec: String,
+        class: Value,
+    },
+}
+
+impl Kind {
+    /// The stable code of this kind of error.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Kind::Fails { .. } => "M001",
+            Kind::Denied { .. } => "M002",
+            Kind::Contradiction { .. } => "M003",
+            Kind::Conflict { .. } => "M004",
+        }
+    }
+}
+
 /// How much of an error is shown.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Display {
@@ -238,6 +266,8 @@ pub struct Display {
     pub max: usize,
     /// Candidates under this plausibility are hidden.
     pub threshold: f64,
+    /// Show belief and plausibility next to each candidate.
+    pub numbers: bool,
 }
 
 impl Default for Display {
@@ -245,6 +275,7 @@ impl Default for Display {
         Display {
             max: 5,
             threshold: 0.05,
+            numbers: false,
         }
     }
 }
@@ -258,6 +289,8 @@ pub struct Report {
     pub conflicts: Vec<Conflict>,
     pub suspects: Vec<Suspect>,
     pub roots: Vec<Root>,
+    /// The model and the ledger the report is about, to print it.
+    pub model: Model,
 }
 
 type Env = HashMap<String, Value>;
@@ -569,7 +602,7 @@ fn binary(op: &str, x: &Value, y: &Value) -> Option<Value> {
 
 /// Evidence over at most this many inputs is also read input by input, to
 /// find the class of each (see `uniform`).
-const POINTS: f64 = 10_000.0;
+pub(crate) const POINTS: f64 = 10_000.0;
 
 /// One judged input: the input, whether it passed, the evidence line.
 type Point = (Vec<Value>, bool, usize);
@@ -1238,17 +1271,22 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         lines.extend(vouches);
         lines.sort();
         lines.dedup();
-        let title = if c.target.is_structural() {
-            format!("`{}` fails: evidence denies it", c.name)
-        } else {
-            format!("`{}` fails on {}", c.name, brief(&v.refuted, &v.domain))
-        };
-        if let Some(p) = problems.iter_mut().find(|p| p.clauses == clauses) {
-            p.titles.push(title);
+        let denied = c.target.is_structural();
+        let merged = problems.iter_mut().find_map(|p| match &mut p.kind {
+            Kind::Fails { claims } if !denied && p.clauses == clauses => Some(claims),
+            _ => None,
+        });
+        if let Some(claims) = merged {
+            claims.push(c.name.clone());
             continue;
         }
+        let name = c.name.clone();
         problems.push(Problem {
-            titles: vec![title],
+            kind: if denied {
+                Kind::Denied { claim: name }
+            } else {
+                Kind::Fails { claims: vec![name] }
+            },
             evidence: lines.into_iter().map(quoted).collect(),
             clauses,
             candidates: Ok(Vec::new()),
@@ -1257,10 +1295,10 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     }
     for k in &contradictions {
         problems.push(Problem {
-            titles: vec![format!(
-                "inconsistent, on {} of `{}`: these can't both be true",
-                k.inputs, k.subject
-            )],
+            kind: Kind::Contradiction {
+                subject: k.subject.clone(),
+                inputs: k.inputs.clone(),
+            },
             evidence: vec![k.pass.clone(), k.fail.clone()],
             clauses: vec![vec![Piece::Evidence(k.pass.0), Piece::Evidence(k.fail.0)]],
             candidates: Ok(Vec::new()),
@@ -1301,10 +1339,11 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             }
         }
         problems.push(Problem {
-            titles: vec![format!(
-                "inconsistent, in class {} of `{}`: `{}` can't hold with both",
-                k.class, k.spec, k.claim
-            )],
+            kind: Kind::Conflict {
+                claim: k.claim.clone(),
+                spec: k.spec.clone(),
+                class: k.class.clone(),
+            },
             evidence,
             clauses,
             candidates: Ok(Vec::new()),
@@ -1317,7 +1356,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     for p in problems {
         if !once
             .iter()
-            .any(|o| (&o.titles, &o.clauses) == (&p.titles, &p.clauses))
+            .any(|o| (&o.kind, &o.clauses) == (&p.kind, &p.clauses))
         {
             once.push(p);
         }
@@ -1402,6 +1441,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     }
     Ok(Report {
         roots,
+        model: model.clone(),
         problems,
         verdicts,
         flags,
@@ -1573,147 +1613,25 @@ pub(crate) fn brief(set: &Tuples, domain: &Tuples) -> String {
     if text.len() <= WIDE {
         return text;
     }
+    // The bound counts an input twice when two boxes overlap: list a
+    // small set to count it exactly.
     match set.size_bound() {
+        Some(n) if n <= POINTS => format!("{} inputs", set.count().unwrap_or(n)),
         Some(n) => format!("{n} inputs"),
         None => "a set too long to print".to_string(),
     }
 }
 
 /// A set printed longer than this is summed up.
-const WIDE: usize = 160;
+pub(crate) const WIDE: usize = 160;
 
 /// The most evidence lines an error quotes.
-const QUOTED: usize = 5;
+pub(crate) const QUOTED: usize = 5;
 
 impl Report {
     /// The claims that are unverified, or hold only under an assumption.
     pub fn warnings(&self) -> usize {
         let warns = |v: &&Verdict| matches!(v.logic, Logic::Unverified | Logic::Assuming);
-        self.verdicts.iter().filter(warns).count()
-    }
-
-    /// The result with the default display settings.
-    pub fn to_text(&self) -> String {
-        self.to_text_with(&Display::default())
-    }
-
-    /// The result file: each claim's verdict, flagged evidence, the
-    /// errors with their candidates, then suspects and root causes.
-    pub fn to_text_with(&self, display: &Display) -> String {
-        let mut out = String::new();
-        for v in &self.verdicts {
-            out += &format!("{} : {}", v.claim, v.logic.as_str());
-            if v.logic == Logic::Assuming {
-                out += &format!(" [{}]", v.assuming.join(", "));
-            }
-            out += "\n";
-            if v.logic == Logic::Fails {
-                out += &format!("  refuted  {}\n", brief(&v.refuted, &v.domain));
-            }
-            if !v.tested.same(&v.domain) {
-                out += &format!("  tested   {}\n", brief(&v.tested, &v.domain));
-            }
-            if let Some(i) = v.implication {
-                if !v.derived.is_empty() {
-                    out += &format!(
-                        "  assumed  {}, by derive (implication {})\n",
-                        brief(&v.derived, &v.domain),
-                        i.as_str()
-                    );
-                } else if i == Implication::Refuted {
-                    out += "  derive   not used: the implication is refuted\n";
-                } else if !v.follows {
-                    out += "  derive   not used: a premise fails\n";
-                }
-            }
-            let classes = |list: &[Value], spec: &str| {
-                let names: Vec<String> = list.iter().map(|c| c.to_string()).collect();
-                let word = if names.len() == 1 { "class" } else { "classes" };
-                format!("{word} {} of `{spec}`", names.join(", "))
-            };
-            let assumed = v.assumed.as_ref().filter(|a| a.usable);
-            if let Some(a) = assumed.filter(|a| !a.classes.is_empty() && v.logic != Logic::Fails) {
-                out += &format!(
-                    "  assumed  {}, by {}{}\n",
-                    classes(&a.classes, &a.spec),
-                    a.by,
-                    if a.vouched { "" } else { " (unverified)" }
-                );
-            }
-            if !v.missed.is_empty() {
-                let listed = v.missed.size_bound().is_some_and(|n| n <= POINTS);
-                // Classes without a passing input, when the set can't be
-                // listed; a failing class is not missed, it is refuted.
-                let open = |a: &&Assumed| {
-                    let mut open = a.untested.clone();
-                    open.retain(|k| !(a.vouched && a.failing.contains(k)));
-                    (!listed && !open.is_empty()).then_some(open)
-                };
-                let missed = match assumed.and_then(|a| open(&a).map(|o| (o, a))) {
-                    Some((open, a)) => classes(&open, &a.spec),
-                    None => brief(&v.missed, &v.domain),
-                };
-                out += &format!("  missed   {missed}\n");
-            }
-        }
-        for f in &self.flags {
-            out += &format!("contested evidence line {}: {}\n", f.line, f.message);
-        }
-        for p in &self.problems {
-            for title in &p.titles {
-                out += &format!("error: {title}\n");
-            }
-            for (line, text) in p.evidence.iter().take(QUOTED) {
-                out += &format!("  evidence line {line}: {text}\n");
-            }
-            if p.evidence.len() > QUOTED {
-                out += &format!("  and {} more\n", p.evidence.len() - QUOTED);
-            }
-            let candidates = match &p.candidates {
-                Ok(c) => c,
-                Err(Unranked::AllTrusted) => {
-                    out += "  the pieces trusted at 1 can't all be right: nothing ranks them\n";
-                    continue;
-                }
-                Err(Unranked::TooMany) => {
-                    out += "  too many pieces to rank\n";
-                    continue;
-                }
-            };
-            out += "  most plausibly wrong:\n";
-            let shown = |c: &&Candidate| c.plausibility >= display.threshold;
-            for c in candidates.iter().filter(shown).take(display.max) {
-                let piece = match &c.piece {
-                    Piece::Evidence(line) => format!("evidence line {line}"),
-                    Piece::Code(f) => format!("the code of `{f}`"),
-                    Piece::Claim(c) => format!("the claim `{c}`"),
-                };
-                out += &format!("    [{:.2}, {:.2}] {piece}\n", c.belief, c.plausibility);
-            }
-            let listed = candidates.iter().filter(shown).take(display.max).count();
-            let possible = candidates.iter().filter(|c| c.plausibility > 0.0).count();
-            if possible > listed {
-                out += &format!("    {} less likely hidden\n", possible - listed);
-            }
-            if p.conflict >= 0.005 {
-                out += &format!(
-                    "    conflict {:.2}: the biases say nothing is wrong\n",
-                    p.conflict
-                );
-            }
-        }
-        for s in &self.suspects {
-            out += &format!(
-                "suspect: `{}` uses `{}`, where {} fail{}: look there first\n",
-                s.subject,
-                s.uses,
-                s.failing.join(", "),
-                if s.failing.len() == 1 { "s" } else { "" }
-            );
-        }
-        for r in &self.roots {
-            out += &format!("root cause: {}\n", r.text());
-        }
-        out
+        self.verdicts.iter().filter(warns).count() + self.flags.len()
     }
 }

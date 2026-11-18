@@ -8,7 +8,7 @@
 //! let model = "opaque flip (a : Bool) : Bool\nclaim flip_correct : forall a, correct (flip a)";
 //! let evidence = "evidence correct (flip true) at 1\nevidence correct (flip false) at 1";
 //! let report = mitra_core::run(model, evidence).unwrap();
-//! assert_eq!(report.to_text(), "flip_correct : holds\n");
+//! assert_eq!(report.to_text(), "flip_correct: holds\n");
 //! ```
 
 pub mod ast;
@@ -16,17 +16,19 @@ pub mod eval;
 pub mod next;
 pub mod parse;
 pub mod print;
+pub mod report;
 pub mod set;
 pub mod tuples;
 
 pub use ast::{Claim, Evidence, Expr, Function, Judgment, Model, Pattern, Position, Target, Test};
 pub use eval::{
     evaluate, failed_output, Assumed, Candidate, Conflict, Contradiction, Display, Flag,
-    Implication, Logic, Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
+    Implication, Kind, Logic, Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
 };
 pub use next::next;
 pub use parse::{parse_evidence, parse_model};
 pub use print::{print_evidence, print_model};
+pub use report::{explain, Files, Places};
 pub use set::{Set, Value};
 pub use tuples::Tuples;
 

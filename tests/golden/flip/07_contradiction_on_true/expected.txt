@@ -1,10 +1,33 @@
-flip_correct : unverified
-  tested   {false}
-  missed   {true}
-flip_on_true : unverified
-  tested   nothing
-  missed   {true}
-error: inconsistent, on {true} of `flip`: these can't both be true
-  evidence line 1: evidence correct (flip true) at 1
-  evidence line 2: evidence not correct (flip true) at 1
-  the pieces trusted at 1 can't all be right: nothing ranks them
+flip_correct: unverified
+  passes on       `flip false`
+  no evidence on  `flip true`
+flip_on_true: unverified
+  no evidence on  `flip true`
+
+error[M003]: two pieces of evidence contradict each other
+  --> evidence.mitra:1
+
+  On the inputs {true} of `flip`, these two say opposite things:
+
+    passes    evidence.mitra:1  evidence correct (flip true) at 1
+    fails     evidence.mitra:2  evidence not correct (flip true) at 1
+
+  These can't all be right, and the ones trusted at 1 are enough for
+  that: nothing says which one is wrong.
+
+  note: until this is settled, neither counts for these inputs
+  help: find out which one is right, and correct the other
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  claim flip_correct : forall a, correct (flip a)
+
+  No evidence on `flip true`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  claim flip_on_true : correct (flip true)
+
+  No evidence on `flip true`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M003`.

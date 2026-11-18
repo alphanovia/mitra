@@ -1,12 +1,34 @@
-add_spec : unverified
-  tested   nothing
-  missed   (0..=2, -2..=0)
-negate_spec : unverified
-  tested   nothing
-  missed   0..=2
-minus_shape : unverified
-  tested   nothing
-  missed   (0..=2, 0..=2)
-minus_spec : holds assuming [add_spec, negate_spec, minus_shape]
-  tested   nothing
-  assumed  (0..=2, 0..=2), by derive (implication checked)
+add_spec: unverified
+  no evidence on  (a, b) in (0..=2, -2..=0)
+negate_spec: unverified
+  no evidence on  `negate 0`, `negate 1`, `negate 2`
+minus_shape: unverified
+  no evidence on  (a, b) in (0..=2, 0..=2)
+minus_spec: holds assuming [add_spec, negate_spec, minus_shape]
+  assumed on      (a, b) in (0..=2, 0..=2): its premises imply it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:10  claim add_spec : forall a in 0..=2, forall b in -2..=0, add a b = plus a b
+
+  No evidence on (a, b) in (0..=2, -2..=0).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:11  claim negate_spec : forall b in 0..=2, negate b = opposite b
+
+  No evidence on `negate 0`, `negate 1`, `negate 2`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:13  claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus a b = add a (negate b)
+
+  No evidence on (a, b) in (0..=2, 0..=2).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M102]: a claim holds only under assumptions
+  --> model.mitra:15  claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
+
+  `minus_spec` holds if `add_spec`, `negate_spec`, `minus_shape` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.
