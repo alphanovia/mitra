@@ -14,7 +14,26 @@ pub fn print_model(m: &Model) -> String {
         match d {
             Decl::Record(i) => {
                 let r = &m.records[*i];
-                out += &format!("record {}{}\n", r.name, binders(&r.fields));
+                // A record that holds itself: its fields as declared.
+                let fields: Vec<(String, String)> = match m.deep.get(&format!("record {}", r.name))
+                {
+                    Some(deep) => {
+                        let own = |s: &Set| {
+                            let alone = format!("{{${}}}", r.name);
+                            let text = s.to_string().replace(&alone, &r.name);
+                            text.replace(&format!("${}", r.name), &r.name)
+                        };
+                        let names = r.fields.iter().map(|f| f.0.clone());
+                        names.zip(deep.iter().map(own)).collect()
+                    }
+                    None => r
+                        .fields
+                        .iter()
+                        .map(|f| (f.0.clone(), f.1.to_string()))
+                        .collect(),
+                };
+                let fields: Vec<String> = fields.iter().map(|(n, t)| format!("{n}: {t}")).collect();
+                out += &m.named_recursive(&format!("record {}({})\n", r.name, fields.join(", ")));
             }
             Decl::Enum(i) => {
                 let e = &m.enums[*i];
@@ -28,6 +47,7 @@ pub fn print_model(m: &Model) -> String {
     }
     for f in &m.functions {
         let head = format!("{}{} -> {}", f.name, binders(&f.params), f.range);
+        let head = m.named_recursive(&head);
         out += &match &f.body {
             None => format!("opaque {head}\n"),
             Some(e) => format!("def {head} := {}\n", expr(e)),
@@ -262,6 +282,10 @@ fn at(e: &Expr, min: u8) -> String {
         Expr::Len(a) => (format!("len({})", expr(a)), ATOM),
         Expr::Rate(x, set, a) => (format!("rate({x} in {set}, {})", expr(a)), ATOM),
         Expr::Score(kind, f) => (format!("{kind}({f})"), ATOM),
+        Expr::Each(kind, x, list, a) => {
+            let list = at(list, level("+"));
+            (format!("{kind}({x} in {list}, {})", expr(a)), ATOM)
+        }
         Expr::Match(a, arms) => {
             let arms: Vec<String> = arms
                 .iter()

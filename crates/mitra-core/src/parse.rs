@@ -7,6 +7,7 @@
 use crate::ast::*;
 use crate::set::{Set, Value, MAP, SET};
 use crate::Error;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq)]
 enum Tok {
@@ -154,6 +155,21 @@ struct P {
     used: Vec<String>,
     /// Whether the last `args` were written with parentheses: `f()`.
     parens: bool,
+    /// The record or enum being declared, and how it is written with its
+    /// parameters: `Tree(Int)`. Its own name, inside, is the type itself.
+    me: Option<(String, String)>,
+    /// Whether this reads the body of an enum.
+    in_enum: bool,
+    /// How deep inside a value the parser is.
+    nested: usize,
+    /// Whether a type named itself since this was last cleared.
+    met: bool,
+    /// A set can't hold a type that contains itself. Read plainly, the
+    /// type inside itself is `Value`; read `deep`, it is a mark, `$Tree(Int)`,
+    /// and `recursive` gives the set each mark stands for. Values are
+    /// checked against the deep reading.
+    deep: bool,
+    recursive: BTreeMap<String, Set>,
 }
 
 /// A name bound by `forall`, its set if one is given, and its line.
@@ -197,6 +213,12 @@ impl P {
             aliases: Vec::new(),
             used: Vec::new(),
             parens: false,
+            me: None,
+            in_enum: false,
+            nested: 0,
+            met: false,
+            deep: false,
+            recursive: BTreeMap::new(),
         })
     }
     /// The line of the next token (or of the last one, at the end).
@@ -342,6 +364,17 @@ impl P {
     /// value := "true" | "false" | ["-"] number | string
     ///        | "(" value "," value {"," value} ")" | name "(" value {"," value} ")"
     fn value(&mut self) -> Result<Value, Error> {
+        // A value inside a value, and so on: not without end.
+        const DEEPEST: usize = 64;
+        if self.nested == DEEPEST {
+            return self.err(format!("a value nested more than {DEEPEST} deep"));
+        }
+        self.nested += 1;
+        let v = self.value_inner();
+        self.nested -= 1;
+        v
+    }
+    fn value_inner(&mut self) -> Result<Value, Error> {
         if self.eat("-") {
             return self.numeral(true);
         }
@@ -526,6 +559,30 @@ impl P {
                 }
                 self.expect(")")?;
             }
+            let written = |args: &[Set]| {
+                let each: Vec<String> = args.iter().map(|a| a.to_string()).collect();
+                match args.is_empty() {
+                    true => name.clone(),
+                    false => format!("{name}({})", each.join(", ")),
+                }
+            };
+            // A record's name with sets, `Dir(String, S)`, is not the
+            // record itself: only an enum takes parameters.
+            let own = |me: &(String, String)| me.0 == name && (self.in_enum || args.is_empty());
+            if let Some((_, me)) = self.me.clone().filter(own) {
+                // The type inside its own declaration.
+                if written(&args) != me {
+                    return Err(Error::new(
+                        line,
+                        format!("inside its declaration, `{name}` is written `{me}`"),
+                    ));
+                }
+                self.met = true;
+                return Ok(match self.deep {
+                    true => Set::record(&format!("${me}"), Vec::new()),
+                    false => Set::any(),
+                });
+            }
             // `Option(Int)`: an enum, with a set for each of its parameters.
             if let Some(e) = self.enums.iter().find(|e| e.name == name).cloned() {
                 if args.len() != e.params.len() {
@@ -538,20 +595,24 @@ impl P {
                         ),
                     ));
                 }
-                let written: Vec<String> = args.iter().map(|a| a.to_string()).collect();
-                let written = match args.is_empty() {
-                    true => name.clone(),
-                    false => format!("{name}({})", written.join(", ")),
-                };
+                let written = written(&args);
                 let params = e.params.iter().cloned().zip(args).collect();
-                let (variants, _) = self.variants(&e, params, line)?;
+                let (variants, _, recursive) = self.variants(&e, params, line)?;
                 let set = variants.iter().fold(Set::empty(), |s, v| s.union(&v.set()));
-                self.aliases.push((set.to_string(), written));
+                self.aliases.push((set.to_string(), written.clone()));
+                // Under its plain name too: the printer names it.
+                if let Some(recursive) = recursive {
+                    self.recursive.extend(recursive);
+                    self.recursive.insert(written, set.clone());
+                }
                 return Ok(set);
             }
             if !args.is_empty() {
                 self.used.push(name.clone());
                 return Ok(Set::record(&name, args));
+            }
+            if let Some(set) = self.recursive.get(&name).filter(|_| self.deep) {
+                return Ok(set.clone());
             }
             return match self.records.iter().find(|r| r.name == name) {
                 Some(r) => Ok(r.set()),
@@ -632,9 +693,19 @@ impl P {
         of: &Enum,
         params: Vec<(String, Set)>,
         line: usize,
-    ) -> Result<(Vec<Record>, Vec<String>), Error> {
+    ) -> Result<(Vec<Record>, Vec<String>, Option<BTreeMap<String, Set>>), Error> {
         let at = |e: Error| Error::new(line, e.message);
         let mut p = P::new(&of.body).map_err(at)?;
+        let each: Vec<String> = params.iter().map(|p| p.1.to_string()).collect();
+        let written = match each.is_empty() {
+            true => of.name.clone(),
+            false => format!("{}({})", of.name, each.join(", ")),
+        };
+        p.me = Some((of.name.clone(), written));
+        p.in_enum = true;
+        p.deep = self.deep;
+        p.recursive = self.recursive.clone();
+        let (mut closed, mut holds_itself) = (false, false);
         // The enums declared before this one.
         p.records = self.records.clone();
         let before = self.enums.iter().take_while(|e| e.name != of.name);
@@ -643,10 +714,13 @@ impl P {
         let mut out = Vec::new();
         loop {
             let name = p.ident().map_err(at)?;
+            p.met = false;
             let fields = match p.is("(") {
                 true => p.binders().map_err(at)?,
                 false => Vec::new(),
             };
+            closed |= !p.met;
+            holds_itself |= p.met;
             if fields.is_empty()
                 && p.toks
                     .get(p.pos.wrapping_sub(1))
@@ -664,12 +738,15 @@ impl P {
                 line,
             });
             if p.at_end() {
-                return match p.used.contains(&of.name) {
-                    true => Err(Error::new(
+                return match closed {
+                    false => Err(Error::new(
                         line,
-                        format!("the enum `{}` can't contain itself", of.name),
+                        format!(
+                            "every variant of `{0}` holds a `{0}`: no value can be built",
+                            of.name
+                        ),
                     )),
-                    false => Ok((out, p.used)),
+                    true => Ok((out, p.used, holds_itself.then_some(p.recursive))),
                 };
             }
             p.expect(",").map_err(at)?;
@@ -678,6 +755,19 @@ impl P {
 
     // ---- binders, arguments, patterns ----
 
+    /// Reads the same types twice: plainly, then deep.
+    fn both(
+        &mut self,
+        read: impl Fn(&mut P) -> Result<Vec<(String, Set)>, Error>,
+    ) -> Result<(Vec<(String, Set)>, Vec<Set>), Error> {
+        let start = self.pos;
+        let plain = read(self)?;
+        self.pos = start;
+        self.deep = true;
+        let deep = read(self);
+        self.deep = false;
+        Ok((plain, deep?.into_iter().map(|p| p.1).collect()))
+    }
     /// `(a: Int, c: Bool)`, or `()`.
     fn binders(&mut self) -> Result<Vec<(String, Set)>, Error> {
         let mut params = Vec::new();
@@ -932,8 +1022,26 @@ impl P {
                     }
                     self.expect(")")?;
                 }
-                // A record's name makes it a record: see `records_in`.
-                Expr::Call(f, args)
+                // `all(x in xs, cond)`: over each element.
+                let each = EACH.iter().find(|k| **k == f).filter(|_| args.len() == 2);
+                let binds = matches!(&args[..], [Expr::Binary("in", x, _), _] if matches!(**x, Expr::Var(_)));
+                match (each, binds) {
+                    (Some(kind), true) => {
+                        let body = args.pop().unwrap();
+                        let Some(Expr::Binary(_, x, list)) = args.pop() else {
+                            unreachable!()
+                        };
+                        let Expr::Var(x) = *x else { unreachable!() };
+                        if *kind == "fold" && !matches!(body, Expr::Let(..)) {
+                            return self.err(
+                                "`fold` starts from a value: `fold(x in xs, let sum := 0; sum + x)`",
+                            );
+                        }
+                        Expr::Each(kind, x, list, Box::new(body))
+                    }
+                    // A record's name makes it a record: see `records_in`.
+                    _ => Expr::Call(f, args),
+                }
             } else {
                 Expr::Var(f)
             }
@@ -1115,7 +1223,23 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
             "record" => {
                 // record Name(field: T, …)
                 let name = p.ident()?;
-                let fields = p.binders()?;
+                p.me = Some((name.clone(), name.clone()));
+                p.met = false;
+                let both = p.both(P::binders);
+                p.me = None;
+                let (fields, deep) = both?;
+                if p.met {
+                    let mark = Set::record(&format!("${name}"), Vec::new());
+                    if deep.contains(&mark) {
+                        return Err(Error::new(
+                            line,
+                            format!("a field of `{name}` is a `{name}`: no value can be built"),
+                        ));
+                    }
+                    p.recursive
+                        .insert(name.clone(), Set::record(&name, deep.clone()));
+                    m.deep.insert(format!("record {name}"), deep);
+                }
                 if fields.is_empty() {
                     return Err(Error::new(
                         line,
@@ -1181,7 +1305,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                     variants: Vec::new(),
                     line,
                 };
-                let (variants, used) = p.variants(&e, any, line)?;
+                let (variants, used, _) = p.variants(&e, any, line)?;
                 p.used.extend(used);
                 e.variants = variants.iter().map(|v| v.name.clone()).collect();
                 for mut v in variants {
@@ -1196,9 +1320,12 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
             "opaque" | "def" => {
                 // opaque f (a : T) … : R   |   def f (a : T) … : R := expr
                 let name = p.ident()?;
-                let params = p.binders()?;
+                let (params, mut deep) = p.both(P::binders)?;
                 p.expect("->")?;
-                let range = p.set()?;
+                let (range, deep_range) = p.both(|p| Ok(vec![(String::new(), p.set()?)]))?;
+                let range = range[0].1.clone();
+                deep.extend(deep_range);
+                m.deep.insert(name.clone(), deep);
                 let body = if kw == "def" {
                     p.expect(":=")?;
                     Some(p.expr()?)
@@ -1399,6 +1526,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
             return Err(Error::new(*line, format!("`{x}` is bound but not used")));
         }
     }
+    m.recursive = std::mem::take(&mut p.recursive);
     m.aliases = std::mem::take(&mut p.aliases);
     m.aliases.sort();
     m.aliases.dedup();
@@ -1450,6 +1578,12 @@ fn free(e: &Expr, scope: &mut Vec<String>, used: &mut Vec<String>) -> Vec<String
             free(a, scope, used);
             scope.pop();
         }
+        Expr::Each(_, x, list, a) => {
+            free(list, scope, used);
+            scope.push(x.clone());
+            free(a, scope, used);
+            scope.pop();
+        }
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => {
             free(a, scope, used);
         }
@@ -1492,7 +1626,7 @@ fn records_in(e: &mut Expr, names: &[String]) {
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) | Expr::Rate(_, _, a) => {
             records_in(a, names)
         }
-        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) => {
+        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) | Expr::Each(_, _, a, b) => {
             records_in(a, names);
             records_in(b, names);
         }

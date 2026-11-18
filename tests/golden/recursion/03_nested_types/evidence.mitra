@@ -1,0 +1,4 @@
+evidence correct(f(Node(Leaf, Opt(Some(Many([Lit(1), M({"a": Neg(Lit(2))})]))), Leaf))) at 1
+evidence f(Leaf) = Some(Neg(Lit(1))) at 1
+evidence correct(g(N({N({}), N({N({})})}))) at 1
+evidence h(Many([Neg(Lit(1)), Opt(Some(Neg(Neg(Lit(1)))))])) = 3 at 1

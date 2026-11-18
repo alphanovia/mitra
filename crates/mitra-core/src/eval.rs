@@ -409,6 +409,12 @@ fn close(e: &Expr, env: &Env, hidden: &mut Vec<String>) -> Expr {
                 .collect();
             Expr::Match(a, arms)
         }
+        Expr::Each(kind, x, list, body) => Expr::Each(
+            kind,
+            x.clone(),
+            b(list, hidden),
+            Box::new(under(std::slice::from_ref(x), body, hidden)),
+        ),
         Expr::Rate(x, set, cond) => Expr::Rate(
             x.clone(),
             set.clone(),
@@ -638,6 +644,67 @@ impl Eval<'_> {
                 }
                 out
             }
+            Expr::Each(kind, x, list, body) => {
+                let mut out = Vec::new();
+                for whole in self.eval(list, env, line, subjects)? {
+                    let (items, set) = match (&whole, whole.as_set()) {
+                        (_, Some(items)) => (items.to_vec(), true),
+                        (Value::List(items), _) => (items.clone(), false),
+                        _ => {
+                            return err(format!("`{kind}` goes over a list or a set, got {whole}"))
+                        }
+                    };
+                    let again = |items: Vec<Value>| match set {
+                        true => Value::set_of(items),
+                        false => Value::List(items),
+                    };
+                    let mut env = env.clone();
+                    if let ("fold", Expr::Let(acc, start, step)) = (*kind, &**body) {
+                        // Every value the result can take, item after item.
+                        let mut states = self.eval(start, &env, line, subjects)?;
+                        for item in &items {
+                            env.insert(x.clone(), item.clone());
+                            let mut next = Vec::new();
+                            for s in states {
+                                env.insert(acc.clone(), s);
+                                next.extend(self.eval(step, &env, line, subjects)?);
+                            }
+                            next.sort();
+                            next.dedup();
+                            states = next;
+                        }
+                        out.extend(states);
+                        continue;
+                    }
+                    let mut each = Vec::new();
+                    for item in &items {
+                        env.insert(x.clone(), item.clone());
+                        each.push(self.eval(body, &env, line, subjects)?);
+                    }
+                    for results in product(&each) {
+                        let bools: Option<Vec<bool>> = results
+                            .iter()
+                            .map(|r| match r {
+                                Value::Bool(b) => Some(*b),
+                                _ => None,
+                            })
+                            .collect();
+                        out.push(match (*kind, bools) {
+                            ("map", _) => again(results),
+                            ("all", Some(bs)) => Value::Bool(bs.iter().all(|b| *b)),
+                            ("any", Some(bs)) => Value::Bool(bs.iter().any(|b| *b)),
+                            ("filter", Some(bs)) => {
+                                let kept = items.iter().zip(bs).filter(|(_, b)| *b);
+                                again(kept.map(|(v, _)| v.clone()).collect())
+                            }
+                            _ => return err(format!("`{kind}` needs a Bool for each element")),
+                        });
+                    }
+                }
+                out.sort();
+                out.dedup();
+                out
+            }
         })
     }
 
@@ -661,7 +728,8 @@ impl Eval<'_> {
                 ),
             ));
         }
-        if !func.domain().contains(args) {
+        let deep = |(i, v)| self.model.conforms(&func.name, i, v);
+        if !func.domain().contains(args) || !args.iter().enumerate().all(deep) {
             return Err(Error::new(
                 line,
                 format!(
@@ -693,7 +761,10 @@ impl Eval<'_> {
                 .zip(args.iter().cloned())
                 .collect();
             let out = self.eval(body, &env, func.line, Subjects::Observed)?;
-            if let Some(v) = out.iter().find(|v| !func.range.contains(v)) {
+            let fits = |v: &Value| {
+                func.range.contains(v) && self.model.conforms(&func.name, args.len(), v)
+            };
+            if let Some(v) = out.iter().find(|v| !fits(v)) {
                 return Err(Error::new(
                     func.line,
                     format!(
@@ -1202,7 +1273,12 @@ fn computable(e: &Expr, bound: &[&String], model: &Model) -> bool {
             model.function(f).is_some_and(|f| f.is_spec())
                 && args.iter().all(|a| computable(a, bound, model))
         }
-        Expr::If(..) | Expr::Let(..) | Expr::Match(..) | Expr::Rate(..) | Expr::Score(..) => false,
+        Expr::If(..)
+        | Expr::Let(..)
+        | Expr::Match(..)
+        | Expr::Rate(..)
+        | Expr::Score(..)
+        | Expr::Each(..) => false,
     }
 }
 
@@ -1221,6 +1297,10 @@ fn subject_calls<'e>(e: &'e Expr, model: &Model, out: &mut Vec<(&'e String, &'e 
             subject_calls(a, model, out);
             arms.iter()
                 .for_each(|arm| subject_calls(&arm.body, model, out));
+        }
+        Expr::Each(_, _, a, b) => {
+            subject_calls(a, model, out);
+            subject_calls(b, model, out);
         }
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => subject_calls(a, model, out),
         Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {

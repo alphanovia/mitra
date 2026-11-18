@@ -251,8 +251,12 @@ Beyond the grammar, the parser checks:
   ranges are over integers only;
 - a name used alone as a set is a record or an enum declared above it,
   or a parameter of the enum being declared;
-- an enum is declared above its first use, takes one set for each of its
-  parameters, and can't contain itself;
+- an enum is declared above its first use and takes one set for each of
+  its parameters; inside its own declaration it is written with the same
+  parameters (`Tree(T)` in `enum Tree(T)`), and one variant at least does
+  not hold it; a record may hold itself inside a list, a set, a map or
+  an enum, not as a field alone;
+- a value is nested 64 deep at most;
 - an arm of a `match` names a variant, with one name for each field;
 - `t.0.1` reads `0.1` as a number: write `(t.0).1`.
 
@@ -368,7 +372,20 @@ its name alone, `Color`.
 
 Variant names are shared by the whole model: two enums can't both have a
 `None`, and a variant can't be named like a record, a function or a
-claim. An enum is declared above its first use and can't contain itself.
+claim. An enum is declared above its first use.
+
+A type may contain itself:
+
+```lean
+enum Expr { Lit(n: Int), Add(l: Expr, r: Expr), Neg(e: Expr) }
+enum Tree(T) { Leaf, Node(left: Tree(T), value: T, right: Tree(T)) }
+record Dir(name: String, children: List(Dir))
+```
+
+A value is checked against such a type all the way down: `Add(Lit(1), 2)`
+is not an `Expr`. A set is not: inside itself the type reads `Value`, so
+a set printed piece by piece may show `Add(Value, Value)`. Reports print
+`Expr \ {Lit(1)}` where they can. Two types can't contain each other.
 
 Values of an enum work like records in evidence and claims:
 `evidence first([]) = None at 1`, `evidence parse("12") = Ok(12) at 1`,
@@ -413,8 +430,24 @@ def difference(a: Int, b: Int) -> Int := a - b
 A **definition**: a total, pure function Mitra evaluates. Its body is an
 expression: values, the parameters, `let`, `if`, `!`, `-`, `+`, `-`, `*`, `/`,
 comparisons (`<` `<=` `>` `>=` on numbers, `==` `!=` on any values), `&&`,
-`||`, and calls of specs defined above it (so no recursion). Arithmetic and
+`||`, and calls of specs defined above it. Arithmetic and
 comparisons need two integers or two floats; there is no conversion.
+
+A spec may also call itself, on a piece of one of its inputs, so that it
+always ends:
+
+```lean
+def value(e: Expr) -> Int :=
+  match e { Lit(n) => n, Add(l, r) => value(l) + value(r), Neg(x) => 0 - value(x) }
+def total(d: Dir) -> 0.. := fold(c in d.children, let sum := d.size; sum + total(c))
+```
+
+A piece of an input is a name bound by a `match` on it, one of its
+fields (`d.children`), an element (`xs[0]`, or `c` in `fold(c in
+d.children, …)`), or a piece of a piece. Every call of the spec to itself
+gives a piece of the same parameter, in that parameter's place. `def
+down(n: Int) -> Int := down(n - 1)` is refused: `n - 1` is not a piece
+of `n`. Two specs can't call each other.
 Integer arithmetic is 64-bit and an overflow is an error; `/` on integers
 rounds towards zero and dividing by zero is an error. Float arithmetic
 and `<` `<=` `>` `>=` follow IEEE 754; `==` and `!=` compare values exactly
@@ -439,8 +472,16 @@ def first(xs: List(Int) \ {[]}) -> Int := xs[0]
   A missing field, or a position outside the tuple or the list, is an
   error.
 - `==` and `!=` compare tuples, records and lists part by part. There is
-  no other operation on them yet: no concatenation, no loop over the
-  elements.
+  no concatenation yet.
+- Over each element of a list or a set: `all(x in xs, cond)` and
+  `any(x in xs, cond)` give a Bool (`all` is true and `any` false on an
+  empty one), `filter(x in xs, cond)` keeps the elements where `cond` is
+  true, `map(x in xs, e)` gives `e` for each, and `fold(x in xs, let acc
+  := start; step)` starts from `start` and takes `step` as the next
+  `acc`, element after element: `fold(x in xs, let sum := 0; sum + x)`.
+  A list gives a list, in order; a set gives a set. They are written
+  like calls: the five names mean this only with `x in …` as the first
+  of two arguments.
 - `match e { None => a, Some(v) => b, _ => c }` takes the first arm whose
   variant is the one of `e`, with a name for each field; `_` takes
   anything. No arm for a value is an error: Mitra does not check that the
@@ -1322,6 +1363,14 @@ Three models: `get` on `Option(Int)` with the classes "none" and "some"
 | 01 | `deposit` and `withdraw` on an `Account`, with specs and classes; the trace of one passing test, three calls | nothing fails; each call counts for its own function |
 | 02 | the same test, failing: the first `withdraw` returns a wrong balance | `withdraw_is` fails on that call and names the code of `withdraw`; `deposit` passes |
 | 03 | `open_account() -> Account`, `log(message: String) -> ()` | the claims on `open_account` hold on its one input |
+
+### `recursion`: types and specs that contain themselves
+
+| Case | Model | Verdicts |
+|---|---|---|
+| 01 | `enum Expr`, a spec `value` that calls itself, classes by the outer variant | `eval_is` fails on `Neg(Neg(Lit(2)))`, passes on two others |
+| 02 | `record Dir` with a list of `Dir`; `fold`, `map`, `filter`, `any`, `all` | `usage_is` holds by its classes; a claim on constants holds |
+| 03 | a type inside itself through `Option`, a list, a set, a map, and as the parameter of `Tree` | nothing fails; the inputs are checked all the way down |
 
 ### `measures`: rates, precision, recall
 

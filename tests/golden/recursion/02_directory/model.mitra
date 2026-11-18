@@ -1,0 +1,14 @@
+-- A record that holds a list of itself, and the functions over each
+-- element of a list.
+record Dir(name: String, size: 0.., children: List(Dir))
+def total(d: Dir) -> 0.. := fold(c in d.children, let sum := d.size; sum + total(c))
+def names(d: Dir) -> List(String) := map(c in d.children, c.name)
+def empty(d: Dir) -> List(String) := names(Dir("", 0, filter(c in d.children, total(c) == 0)))
+def deep(d: Dir) -> Bool := any(c in d.children, len(c.children) > 0)
+opaque disk_usage(d: Dir) -> 0..
+opaque empty_children(d: Dir) -> List(String)
+claim usage_is : forall d, disk_usage(d) = total(d)
+claim empty_is : forall d, empty_children(d) = empty(d)
+def flat(d: Dir) -> {"flat", "deep"} := if deep(d) then "deep" else "flat"
+claim usage_uniform : uniform disk_usage by flat
+claim names_known : all(n in names(Dir("a", 0, [Dir("b", 1, []), Dir("c", 2, [])])), n in {"b", "c"})

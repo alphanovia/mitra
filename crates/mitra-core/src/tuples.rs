@@ -142,14 +142,31 @@ impl Tuples {
     }
 
     pub fn count(&self) -> Option<f64> {
-        self.values().map(|v| v.len() as f64)
+        // One box is counted without listing it: a value nested deep
+        // would otherwise be listed again at every level.
+        match &self.boxes[..] {
+            [] => Some(0.0),
+            [_] => self.size_bound(),
+            _ => self.values().map(|v| v.len() as f64),
+        }
     }
 
     /// Readable form. One parameter: the set. Otherwise the domain's own
     /// form when equal to it, a list of tuples when finite, or boxes.
     pub fn show(&self, domain: &Tuples) -> String {
         if self.arity == 1 {
-            return self.as_set().to_string();
+            // A type that contains itself has `Value` inside: without a
+            // few values it reads `Expr \ {Lit(1)}`, not piece by piece.
+            let (set, all) = (self.as_set(), domain.as_set());
+            let inside = all.shapes() >= 1 && all.to_string().contains("Value");
+            let gone = all.minus(&set).values().filter(|vs| !vs.is_empty());
+            return match gone {
+                Some(vs) if inside && set.count().is_none() => {
+                    let vs: Vec<String> = vs.iter().map(|v| v.to_string()).collect();
+                    format!("{} \\ {{{}}}", crate::set::paren(&all), vs.join(", "))
+                }
+                _ => set.to_string(),
+            };
         }
         if self.is_empty() {
             return "{}".into();

@@ -1,0 +1,4 @@
+evidence disk_usage(Dir("a", 1, [Dir("b", 2, []), Dir("c", 3, [])])) = 6 at 1
+evidence disk_usage(Dir("a", 1, [Dir("b", 2, [Dir("d", 4, [])])])) = 7 at 1
+evidence empty_children(Dir("a", 1, [Dir("b", 0, []), Dir("c", 3, [])])) = ["b"] at 1
+@[source "review"] evidence usage_uniform at 1

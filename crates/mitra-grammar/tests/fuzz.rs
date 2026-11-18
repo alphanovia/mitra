@@ -13,9 +13,9 @@ const SEEDS: u64 = 500;
 
 fn model_without_lines(mut m: Model) -> Model {
     m.records.iter_mut().for_each(|x| x.line = 0);
-    // The printer writes a set in full, not by the name of its enum.
-    m.aliases.clear();
     m.enums.iter_mut().for_each(|x| x.line = 0);
+    // The names of sets are for reports: printing may list fewer.
+    m.aliases.clear();
     m.functions.iter_mut().for_each(|x| x.line = 0);
     m.claims.iter_mut().for_each(|x| x.line = 0);
     m.tests.iter_mut().for_each(|x| {
@@ -56,8 +56,9 @@ fn check(model: &str, evidence: &str) -> Outcome {
         });
     let parses = parsed.as_ref().map(|_| ()).map_err(|e| e.clone());
     let round_trips = parsed.and_then(|(m, e)| {
+        let printed = print_model(&m);
         let (m, e) = (model_without_lines(m), evidence_without_lines(e));
-        let m2 = parse_model(&print_model(&m)).map_err(|x| format!("reprint: {x:?}"))?;
+        let m2 = parse_model(&printed).map_err(|x| format!("reprint: {x:?}"))?;
         let e2 = parse_evidence_for(&print_evidence(&e, None), &m)
             .map_err(|x| format!("reprint: {x:?}"))?;
         if model_without_lines(m2) != m || evidence_without_lines(e2) != e {

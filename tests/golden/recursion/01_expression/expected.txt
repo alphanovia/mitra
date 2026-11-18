@@ -1,0 +1,25 @@
+eval_is: fails
+  fails on        `eval(Neg(Neg(Lit(2))))`
+  passes on       `eval(Add(Lit(1), Neg(Lit(2))))`, `eval(Lit(3))`
+  no evidence on  e in Expr \ {Add(Lit(1), Neg(Lit(2))), Lit(3), Neg(Neg(Lit(2)))}
+eval_uniform: holds
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:9  claim eval_is : forall e, eval(e) = value(e)
+
+  `eval_is` fails on `eval(Neg(Neg(Lit(2))))`.
+  The evidence that says so:
+
+    output    evidence.mitra:3  evidence eval(Neg(Neg(Lit(2)))) = -2 at 1
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                 trust  left
+    certain   the code of `eval`, model.mitra:8  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  help: if the evidence is right, fix `eval`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

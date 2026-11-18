@@ -1,0 +1,4 @@
+evidence eval(Lit(3)) = 3 at 1
+evidence eval(Add(Lit(1), Neg(Lit(2)))) = -1 at 1
+evidence eval(Neg(Neg(Lit(2)))) = -2 at 1
+@[source "review"] evidence eval_uniform at 1

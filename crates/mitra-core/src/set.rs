@@ -438,10 +438,13 @@ impl Lists {
                     kept.push(f);
                 }
             }
-            base.push(Term {
-                all: t.all,
-                some: kept,
-            });
+            // The same term twice says nothing more.
+            if !base.iter().any(|b| b.all == t.all && b.some == kept) {
+                base.push(Term {
+                    all: t.all,
+                    some: kept,
+                });
+            }
         }
         // The empty list is where terms differ from what they came from.
         points.insert(Vec::new());
@@ -845,6 +848,46 @@ impl Set {
                 }
             }
             _ => Set::point(v).is_subset(self),
+        }
+    }
+
+    /// How many kinds of tuples and records the set names.
+    pub fn shapes(&self) -> usize {
+        self.composites.shapes.len()
+    }
+    /// Like `contains`, for a set with marks: a mark `$T`, a record
+    /// without fields, stands for the set `types` gives for `T`.
+    pub fn conforms(&self, v: &Value, types: &BTreeMap<String, Set>) -> bool {
+        let marks = self.composites.shapes.keys().filter_map(|s| match s {
+            Shape::Record(name, 0) => types.get(name.strip_prefix('$')?),
+            _ => None,
+        });
+        if marks.into_iter().any(|t| t.conforms(v, types)) {
+            return true;
+        }
+        match v {
+            Value::List(vs) => {
+                let term = |t: &Term| {
+                    let all = |v| t.all.as_ref().is_none_or(|all| all.conforms(v, types));
+                    vs.iter().all(all)
+                        && t.some
+                            .iter()
+                            .all(|f| vs.iter().any(|v| f.conforms(v, types)))
+                };
+                self.lists.plus.contains(vs)
+                    || (!self.lists.minus.contains(vs) && self.lists.base.iter().any(term))
+            }
+            Value::Tuple(vs) | Value::Record(_, vs) => {
+                let (shape, _) = v.parts().expect("composite");
+                match self.composites.shapes.get(&shape) {
+                    Some(t) => t
+                        .boxes()
+                        .iter()
+                        .any(|sets| sets.iter().zip(vs).all(|(s, v)| s.conforms(v, types))),
+                    None => self.composites.rest,
+                }
+            }
+            _ => self.contains(v),
         }
     }
 

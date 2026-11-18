@@ -3,6 +3,7 @@
 use crate::set::{Set, Value};
 use crate::tuples::Tuples;
 use crate::{Error, Input};
+use std::collections::BTreeMap;
 
 /// Expressions of the spec language: a small, pure, first-order core.
 #[derive(Debug, Clone, PartialEq)]
@@ -35,7 +36,14 @@ pub enum Expr {
     /// `precision(f)`, `recall(f)`, `false_positive_rate(f)`: a measure
     /// of a subject that answers true or false.
     Score(&'static str, String),
+    /// `all(x in xs, cond)`, `any`, `filter`, `map`: over each element of
+    /// a list or a set. `fold(x in xs, let acc := start; step)`: `step`
+    /// gives the next `acc`.
+    Each(&'static str, String, Box<Expr>, Box<Expr>),
 }
+
+/// The functions over each element of a list or a set.
+pub const EACH: [&str; 5] = ["all", "any", "filter", "map", "fold"];
 
 /// The measures of a subject that answers true or false.
 pub const SCORES: [&str; 3] = ["precision", "recall", "false_positive_rate"];
@@ -246,6 +254,14 @@ pub struct Model {
     /// Sets written with an enum, such as `Option(Int)`, by their printed
     /// form: reports print them as written.
     pub aliases: Vec<(String, String)>,
+    /// The types that contain themselves, as written (`Tree(Int)`). In a
+    /// set, such a type inside itself is `Value`; here it is the mark
+    /// `$Tree(Int)`, so that a value can be checked all the way down.
+    pub recursive: BTreeMap<String, Set>,
+    /// For each function, the types of its parameters then of its result,
+    /// with the marks of `recursive`; under `record Name`, the fields of a
+    /// record that holds itself.
+    pub deep: BTreeMap<String, Vec<Set>>,
     /// The records and enums in the order declared, by their place in
     /// `records` and `enums`.
     pub declared: Vec<Decl>,
@@ -283,6 +299,14 @@ impl Model {
         Ok(())
     }
 
+    /// Whether `v` fits parameter `i` of `f` all the way down (its result,
+    /// when `i` is the number of parameters): a set only checks a type
+    /// that contains itself one level deep.
+    pub fn conforms(&self, f: &str, i: usize, v: &Value) -> bool {
+        let deep = self.deep.get(f).and_then(|d| d.get(i));
+        self.recursive.is_empty() || deep.is_none_or(|s| s.conforms(v, &self.recursive))
+    }
+
     /// `text` with each record's whole set, `Number(Int, String)`, written
     /// as its name. Both read back as the same set.
     pub fn named(&self, text: &str) -> String {
@@ -291,6 +315,7 @@ impl Model {
         aliases.sort_by_key(|a| std::cmp::Reverse(a.0.len()));
         for (set, written) in &aliases {
             out = out.replace(set, written);
+            out = out.replace(&format!("({written}) \\"), &format!("{written} \\"));
         }
         for r in self.records.iter().filter(|r| r.of.is_none()) {
             let whole = self
@@ -302,6 +327,24 @@ impl Model {
                     t.replace(&o.set().to_string(), &o.name)
                 });
             out = out.replace(&whole, &r.name);
+        }
+        out
+    }
+    /// `text` with each type that contains itself written by its name:
+    /// read back, a name is the type all the way down, its pieces are not.
+    pub fn named_recursive(&self, text: &str) -> String {
+        let mut aliases: Vec<_> = self.aliases.iter().collect();
+        aliases.sort_by_key(|a| std::cmp::Reverse(a.0.len()));
+        let mut out = text.to_string();
+        for (set, written) in aliases {
+            if self.recursive.contains_key(written) {
+                out = out.replace(set, written);
+            }
+        }
+        for name in self.recursive.keys() {
+            if let Some(r) = self.record(name).filter(|r| r.of.is_none()) {
+                out = out.replace(&r.set().to_string(), name);
+            }
         }
         out
     }
@@ -382,12 +425,29 @@ impl Model {
         }
         for (i, f) in self.functions.iter().enumerate() {
             if let Some(body) = &f.body {
-                // Specs may only call specs defined before them: no recursion.
-                let earlier: Vec<&str> = self.functions[..i]
+                // A spec may call the specs defined before it, and itself
+                // on a piece of its input: it always ends.
+                let earlier: Vec<&str> = self.functions[..=i]
                     .iter()
                     .filter(|g| g.is_spec())
                     .map(|g| g.name.as_str())
                     .collect();
+                let mut own = Vec::new();
+                let whole = |(i, p): (usize, &(String, Set))| (p.0.clone(), Some((i, false)));
+                let mut scope = f.params.iter().enumerate().map(whole).collect();
+                descents(body, &f.name, &mut scope, &mut own);
+                let ends = (0..f.params.len()).any(|i| own.iter().all(|c| c.get(i) == Some(&true)));
+                if !own.is_empty() && !ends {
+                    return Err(m(
+                        f.line,
+                        format!(
+                            "`{0}` calls itself, and must do so on a piece of one of its \
+                             inputs, always the same one: a name bound by `match`, a field, \
+                             or an element (`all(x in xs, …)`)",
+                            f.name
+                        ),
+                    ));
+                }
                 if let Some(bad) = calls(body)
                     .into_iter()
                     .find(|c| !earlier.contains(&c.as_str()))
@@ -427,6 +487,11 @@ impl Model {
                 }
             }
         }
+        let (deep, recursive) = (self.deep.clone(), self.recursive.clone());
+        let conforms = |f: &str, i: usize, v: &Value| {
+            let deep = deep.get(f).and_then(|d| d.get(i));
+            deep.is_none_or(|s| s.conforms(v, &recursive))
+        };
         let fits = |func: &Function, p: &Pattern, line: usize, input: Input| {
             let err = |msg: String| Err((input, Error::new(line, msg)));
             if p.len() != func.params.len() {
@@ -440,7 +505,12 @@ impl Model {
             let outside = p
                 .iter()
                 .zip(&func.params)
-                .any(|(pos, (_, ty))| pos.set.as_ref().is_some_and(|s| !s.is_subset(ty)));
+                .enumerate()
+                .any(|(i, (pos, (_, ty)))| {
+                    pos.set.as_ref().is_some_and(|s| {
+                        !s.is_subset(ty) || s.single().is_some_and(|v| !conforms(&func.name, i, &v))
+                    })
+                });
             if outside {
                 return err(format!("inputs outside the domain of `{}`", func.name));
             }
@@ -666,7 +736,7 @@ impl Model {
                         ));
                     }
                     if let Judgment::Output(v) = &e.judgment {
-                        if !f.range.contains(v) {
+                        if !f.range.contains(v) || !self.conforms(&f.name, f.params.len(), v) {
                             return Err(ev(
                                 e.line,
                                 format!(
@@ -729,6 +799,74 @@ fn passed(e: &Expr, x: &str, model: &Model, out: &mut Vec<(String, Set)>) {
     });
 }
 
+/// A name in scope: the parameter it is a part of, and whether it is a
+/// strict piece of it.
+type Part = Option<(usize, bool)>;
+
+/// For each call of `name` inside `e`: whether each argument is a strict
+/// piece of the parameter at the same place.
+fn descents(e: &Expr, name: &str, scope: &mut Vec<(String, Part)>, out: &mut Vec<Vec<bool>>) {
+    fn part(e: &Expr, scope: &[(String, Part)]) -> Part {
+        match e {
+            Expr::Var(x) => scope.iter().rev().find(|s| &s.0 == x)?.1,
+            Expr::Field(a, _) | Expr::Index(a, _) => part(a, scope).map(|(i, _)| (i, true)),
+            _ => None,
+        }
+    }
+    let piece = |e: &Expr, scope: &[(String, Part)]| part(e, scope).map(|(i, _)| (i, true));
+    match e {
+        Expr::Lit(_) | Expr::Var(_) | Expr::Score(..) => {}
+        Expr::Call(f, args) => {
+            if f == name {
+                let strict = |(i, a)| part(a, scope) == Some((i, true));
+                out.push(args.iter().enumerate().map(strict).collect());
+            }
+            args.iter().for_each(|a| descents(a, name, scope, out));
+        }
+        Expr::Let(x, a, b) => {
+            descents(a, name, scope, out);
+            scope.push((x.clone(), part(a, scope)));
+            descents(b, name, scope, out);
+            scope.pop();
+        }
+        Expr::Match(a, arms) => {
+            descents(a, name, scope, out);
+            let inside = piece(a, scope);
+            for arm in arms {
+                let n = scope.len();
+                let names = arm.variant.iter().flat_map(|v| v.1.clone());
+                scope.extend(names.map(|x| (x, inside)));
+                descents(&arm.body, name, scope, out);
+                scope.truncate(n);
+            }
+        }
+        Expr::Each(_, x, list, body) => {
+            descents(list, name, scope, out);
+            scope.push((x.clone(), piece(list, scope)));
+            descents(body, name, scope, out);
+            scope.pop();
+        }
+        Expr::Rate(x, _, a) => {
+            scope.push((x.clone(), None));
+            descents(a, name, scope, out);
+            scope.pop();
+        }
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => descents(a, name, scope, out),
+        Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+            args.iter().for_each(|a| descents(a, name, scope, out))
+        }
+        Expr::Binary(_, a, b) | Expr::Index(a, b) => {
+            descents(a, name, scope, out);
+            descents(b, name, scope, out);
+        }
+        Expr::If(a, b, c) => {
+            descents(a, name, scope, out);
+            descents(b, name, scope, out);
+            descents(c, name, scope, out);
+        }
+    }
+}
+
 /// Calls `f` on an expression and on every expression inside it.
 pub fn walk(e: &Expr, f: &mut impl FnMut(&Expr)) {
     f(e);
@@ -743,7 +881,7 @@ pub fn walk(e: &Expr, f: &mut impl FnMut(&Expr)) {
         Expr::Call(_, args) | Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
             args.iter().for_each(|a| walk(a, f))
         }
-        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) => {
+        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) | Expr::Each(_, _, a, b) => {
             walk(a, f);
             walk(b, f);
         }
@@ -769,7 +907,7 @@ fn arms(e: &Expr) -> Vec<(String, Vec<String>)> {
         Expr::Call(_, args) | Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
             args.iter().flat_map(arms).collect()
         }
-        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) => {
+        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) | Expr::Each(_, _, a, b) => {
             [arms(a), arms(b)].concat()
         }
         Expr::If(a, b, c) => [arms(a), arms(b), arms(c)].concat(),
@@ -792,7 +930,7 @@ pub fn calls(e: &Expr) -> Vec<String> {
         Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
             args.iter().flat_map(calls).collect()
         }
-        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) => {
+        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) | Expr::Each(_, _, a, b) => {
             [calls(a), calls(b)].concat()
         }
         Expr::If(a, b, c) => [calls(a), calls(b), calls(c)].concat(),

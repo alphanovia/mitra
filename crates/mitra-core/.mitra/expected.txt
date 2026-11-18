@@ -49,79 +49,79 @@ quote_correct: unverified
   no evidence on  s in String \ {"", "a b", "a\"b\\c\nd\te"}
 
 warning[M101]: a claim is not verified
-  --> src/eval.rs:1029  claim unary_correct : forall op, forall v, correct(unary(op, v))
+  --> src/eval.rs:1100  claim unary_correct : forall op, forall v, correct(unary(op, v))
 
   No evidence on (op, v) in (String \ {"!", "-", "keys"}, Value) | ({"!"}, Value \ Bool) | ({"-"}, Value \ {-3, 3, 0.5, "a"}) | ({"keys"}, Value \ {{"a": 1, "b": 2}, {1}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/eval.rs:1033  claim twice_negated : forall v in Int, match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) }
+  --> src/eval.rs:1104  claim twice_negated : forall v in Int, match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) }
 
   No evidence on v in Int \ {-3, 3}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/eval.rs:1049  claim binary_correct : forall op, forall x, forall y, correct(binary(op, x, y))
+  --> src/eval.rs:1120  claim binary_correct : forall op, forall x, forall y, correct(binary(op, x, y))
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/eval.rs:1050  claim plus_commutes : forall x, forall y, binary("+", x, y) == binary("+", y, x)
+  --> src/eval.rs:1121  claim plus_commutes : forall x, forall y, binary("+", x, y) == binary("+", y, x)
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/eval.rs:1051  claim times_commutes : forall x, forall y, binary("*", x, y) == binary("*", y, x)
+  --> src/eval.rs:1122  claim times_commutes : forall x, forall y, binary("*", x, y) == binary("*", y, x)
 
   No evidence on (x, y) in (Value \ {-3, 4}, Value) | ({4}, Value \ {-3}) | ({-3}, Value \ {4}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/eval.rs:1052  claim minus_is_plus_negated : forall x in Int, forall y in Int, match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) }
+  --> src/eval.rs:1123  claim minus_is_plus_negated : forall x in Int, forall y in Int, match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) }
 
   No evidence on (x, y) in (Int \ {2}, Int) | ({2}, Int \ {3}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/eval.rs:1054  claim different_is_not_equal : forall x, forall y, match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) }
+  --> src/eval.rs:1125  claim different_is_not_equal : forall x, forall y, match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) }
 
   No evidence on (x, y) in (Value \ {2}, Value) | ({2}, Value \ {2, "2"}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/eval.rs:1056  claim union_commutes : forall x in Set(Int), forall y in Set(Int), binary("|", x, y) == binary("|", y, x)
+  --> src/eval.rs:1127  claim union_commutes : forall x in Set(Int), forall y in Set(Int), binary("|", x, y) == binary("|", y, x)
 
   No evidence on (x, y) in (Set(Int) \ {{1, 2}, {2, 3}}, Set(Int)) | ({{2, 3}}, Set(Int) \ {{1, 2}}) | ({{1, 2}}, Set(Int) \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/eval.rs:1058  claim difference_apart : forall x in Set(Int), forall y in Set(Int), match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) }
+  --> src/eval.rs:1129  claim difference_apart : forall x in Set(Int), forall y in Set(Int), match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) }
 
   No evidence on (x, y) in (Set(Int) \ {{1, 2}}, Set(Int)) | ({{1, 2}}, Set(Int) \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/eval.rs:1060  claim divides_back : forall x in Int, forall y in Int \ {0}, match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) }
+  --> src/eval.rs:1131  claim divides_back : forall x in Int, forall y in Int \ {0}, match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) }
 
   No evidence on (x, y) in (Int \ {4}, Int \ {0}) | ({4}, Int \ {-3, 0}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/print.rs:172  claim negative_correct : forall v, correct(negative(v))
+  --> src/print.rs:192  claim negative_correct : forall v, correct(negative(v))
 
   No evidence on v in Value \ ({-0.5, "-1"} | -1..=0).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/print.rs:174  claim negative_ints : forall v in Int, negative(v) = v < 0
+  --> src/print.rs:194  claim negative_ints : forall v in Int, negative(v) = v < 0
 
   No evidence on v in Int \ -1..=0.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/set.rs:1079  claim quote_correct : forall s, correct(quote(s))
+  --> src/set.rs:1122  claim quote_correct : forall s, correct(quote(s))
 
   No evidence on s in String \ {"", "a b", "a\"b\\c\nd\te"}.
   help: `mitra next` lists the evidence that would settle it
