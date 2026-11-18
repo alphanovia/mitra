@@ -18,7 +18,9 @@ mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 
 `mitra` (crate `mitra-cli`) is a thin wrapper over the library
 `mitra-core`. When it can't read or check its input it prints `file: line
-N: message` and exits with status 2.
+N: message` and exits with status 2. For a common mistake a `help:` line
+follows, with what to write instead: an unquoted `mitra add` line, `_`
+used as a wildcard, a claim named where a subject is expected.
 
 - Without the two files, a command reads the store: the nearest `.mitra/`
   at or above the current folder. Naming a store's own `model.mitra` reads

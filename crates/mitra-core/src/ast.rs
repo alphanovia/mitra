@@ -411,6 +411,20 @@ impl Model {
                         }
                     }
                 }
+                (_, None, _) if self.claim(&e.about).is_some() => {
+                    let c = &e.about;
+                    let inputs = match self.claim(c).is_some_and(|c| c.target.is_structural()) {
+                        true => String::new(),
+                        false => format!(", or `evidence {c}(inputs) at 1` for some inputs"),
+                    };
+                    return Err(ev(
+                        e.line,
+                        format!(
+                            "`{c}` is a claim, not a subject: `correct(…)` and `= value` are for subjects\n  \
+                             help: to vouch for the claim, write `evidence {c} at 1`{inputs}"
+                        ),
+                    ));
+                }
                 (_, None, _) => return Err(ev(e.line, format!("`{}` is not a subject", e.about))),
             }
         }

@@ -398,3 +398,39 @@ fn a_failed_bool_output_test_gives_the_other_output() {
     );
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// Mistakes made in the first trial: the message says what to write.
+#[test]
+fn add_says_what_to_write_instead() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-hints-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    mitra(&dir, &["init"]);
+    let model = "opaque add(l: Int, r: Int) -> Int\n\
+                 claim add_ok : forall l, forall r, correct(add(l, r))\n";
+    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    let cases: [(&[&str], &str); 4] = [
+        (
+            &["add", "evidence", "add_ok", "at", "1", "--source", "me"],
+            "mitra add 'evidence add_ok at 1'",
+        ),
+        (
+            &["add", "evidence correct(add_ok(_, _)) at 1"],
+            "`_` is not a wildcard",
+        ),
+        (
+            &["add", "evidence correct(add_ok) at 1"],
+            "if `add_ok` is a claim, write `evidence add_ok at 1`",
+        ),
+        (
+            &["add", "evidence correct(add_ok(1, 2)) at 1"],
+            "`add_ok` is a claim, not a subject",
+        ),
+    ];
+    for (args, hint) in cases {
+        let (code, _, err) = mitra(&dir, args);
+        assert_eq!(code, Some(2), "{args:?}");
+        assert!(err.contains(hint), "{args:?}: {err}");
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}

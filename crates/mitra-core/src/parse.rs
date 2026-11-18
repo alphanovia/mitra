@@ -132,6 +132,15 @@ impl P {
     fn ident(&mut self) -> Result<String, Error> {
         match self.next() {
             Some(Tok::Ident(s)) if !KEYWORDS.contains(&s.as_str()) => Ok(s),
+            Some(Tok::Ident(s)) if s == "_" => {
+                self.pos -= 1;
+                self.err(
+                    "`_` is not a wildcard, a name or a value is expected\n  \
+                     help: for every input, bind a name: `forall x, correct(f(x))`; \
+                     for a whole claim, name it alone: `evidence <claim> at 1`"
+                        .to_string(),
+                )
+            }
             Some(Tok::Ident(s)) => {
                 self.pos -= 1;
                 self.err(format!("`{s}` is a keyword, expected a name"))
@@ -439,7 +448,11 @@ impl P {
         self.expect("(")?;
         let c = self.call(bound)?;
         if c.1.is_empty() {
-            return self.err(format!("`correct({})` needs the inputs", c.0));
+            return self.err(format!(
+                "`correct({0})` needs the inputs of a subject, as in `correct({0}(1, 2))`\n  \
+                 help: if `{0}` is a claim, write `evidence {0} at 1`",
+                c.0
+            ));
         }
         self.expect(")")?;
         Ok(c)

@@ -267,6 +267,20 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let [text, opts @ ..] = rest else {
                 return Err(USAGE.into());
             };
+            if opts.first().is_some_and(|o| !o.starts_with("--")) {
+                let words: Vec<&str> = rest
+                    .iter()
+                    .map(|w| w.as_str())
+                    .take_while(|w| !w.starts_with("--"))
+                    .collect();
+                return Err(format!(
+                    "`mitra add` takes the evidence as one argument, and got {}\n  \
+                     help: put it in quotes, so that the shell passes it whole:\n  \
+                     mitra add '{}'",
+                    words.len(),
+                    words.join(" ")
+                ));
+            }
             let (mut source, mut rev) = (None, None);
             let mut opts = opts.iter();
             while let Some(o) = opts.next() {
