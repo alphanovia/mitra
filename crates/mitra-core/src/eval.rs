@@ -1830,7 +1830,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
 
     let shown = |line: usize| {
         let written = model.written.as_ref();
-        if let Some(text) = written.and_then(|w| crate::surface::written(&w.1, line)) {
+        if let Some(text) = written.and_then(|w| crate::parse::written(&w.1, line)) {
             return text;
         }
         let e = model.evidence.iter().find(|e| e.line == line);
@@ -2852,7 +2852,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     }
     for (e, why) in &model.misfits {
         let written = model.written.as_ref();
-        let text = written.and_then(|w| crate::surface::written(&w.1, e.line));
+        let text = written.and_then(|w| crate::parse::written(&w.1, e.line));
         let text = text.unwrap_or_else(|| {
             let old = crate::print::print_evidence(std::slice::from_ref(e), Some(model));
             old.trim_end().to_string()

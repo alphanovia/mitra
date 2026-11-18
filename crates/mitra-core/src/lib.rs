@@ -20,7 +20,6 @@ pub mod plan;
 pub mod print;
 pub mod report;
 pub mod set;
-pub mod surface;
 pub mod tuples;
 
 pub use ast::{
@@ -32,7 +31,6 @@ pub use eval::{
     Flag, Implication, Kind, Logic, Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
 };
 pub use next::next;
-pub use parse::{parse_evidence, parse_evidence_for, parse_model};
 pub use plan::plan;
 pub use print::{print_evidence, print_model};
 pub use report::{explain, Files, Places};
@@ -74,27 +72,15 @@ pub enum Input {
 
 /// Parse both inputs and check them against each other.
 pub fn load(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
-    if let Some((line, hint)) = surface::earlier(model) {
+    if let Some((line, hint)) = parse::earlier(model) {
         let msg = format!("this syntax is no longer read: {hint}");
         return Err((Input::Model, Error::new(line, msg)));
     }
-    load_surface(model, evidence)
+    read(model, evidence)
 }
 
-/// The same for the internal form the model is translated to. It is not
-/// a language to write in: the engine's own tests use it.
-#[doc(hidden)]
-pub fn core_load(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
-    let mut m = parse_model(model).map_err(|e| (Input::Model, e))?;
-    m.evidence = parse_evidence_for(evidence, &m).map_err(|e| (Input::Evidence, e))?;
-    m.check()
-}
-
-/// The same for a model in the reworked syntax. Its evidence is written
-/// in blocks, or in the earlier lines (what `mitra add` appends).
-fn load_surface(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
-    let (text, names) = surface::model(model).map_err(|e| (Input::Model, e))?;
-    let mut m = parse_model(&text).map_err(|e| (Input::Model, e))?;
+fn read(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
+    let (mut m, names) = parse::model(model).map_err(|e| (Input::Model, e))?;
     // A claim follows from the specs of the functions it calls, when
     // their claims are above it.
     let above: Vec<String> = m.claims.iter().map(|c| c.name.clone()).collect();
@@ -129,9 +115,9 @@ fn load_surface(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
         });
     }
     let lines = evidence.lines().count();
-    let earlier = surface::evidence(evidence, &names).map_err(|e| (Input::Evidence, e))?;
-    tie(&mut m, &earlier, &names);
-    m.evidence = parse_evidence_for(&earlier, &m).map_err(|e| (Input::Evidence, e))?;
+    let read = parse::evidence(evidence, &m, &names).map_err(|e| (Input::Evidence, e))?;
+    tie(&mut m, &read, &names);
+    m.evidence = read;
     points(&mut m);
     let own = |s: &str| s.lines().map(String::from).collect::<Vec<_>>();
     let mut written = own(evidence);
@@ -233,8 +219,8 @@ fn points(m: &mut Model) {
 }
 
 /// A tie is a claim once someone brings evidence on it.
-fn tie(m: &mut Model, evidence: &str, names: &surface::Names) {
-    for f in surface::tied(evidence, names) {
+fn tie(m: &mut Model, evidence: &[Evidence], names: &parse::Names) {
+    for f in parse::tied(evidence, names) {
         let line = m.function(&f).map_or(0, |f| f.line);
         m.claims.push(Claim {
             name: format!("{f}::tied"),
@@ -252,20 +238,11 @@ fn tie(m: &mut Model, evidence: &str, names: &surface::Names) {
 /// Parse new evidence for a model, in the syntax the model is written in.
 /// Nothing is checked against the model beyond its names.
 pub fn read_evidence(model: &str, evidence: &str) -> Result<Vec<Evidence>, Error> {
-    let (text, names) = surface::model(model)?;
-    let mut m = parse_model(&text)?;
-    let earlier = surface::evidence_alone(evidence, &names)?;
-    tie(&mut m, &earlier, &names);
-    parse_evidence_for(&earlier, &m)
+    let (m, names) = parse::model(model)?;
+    parse::evidence_alone(evidence, &m, &names)
 }
 
 /// Parse both inputs, check them against each other, and evaluate.
 pub fn run(model: &str, evidence: &str) -> Result<Report, (Input, Error)> {
     evaluate(&load(model, evidence)?)
-}
-
-/// [`run`] on the internal form.
-#[doc(hidden)]
-pub fn core_run(model: &str, evidence: &str) -> Result<Report, (Input, Error)> {
-    evaluate(&core_load(model, evidence)?)
 }

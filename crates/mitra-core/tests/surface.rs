@@ -11,7 +11,7 @@ fn examples() {
     for entry in fs::read_dir(root).unwrap() {
         let dir = entry.unwrap().path();
         let read = |f: &str| fs::read_to_string(dir.join(f)).unwrap();
-        mitra_core::surface::imports_from(Some(&dir));
+        mitra_core::parse::imports_from(Some(&dir));
         let report = mitra_core::run(&read("model.mitra"), &read("evidence.mitra"))
             .unwrap_or_else(|(_, e)| panic!("{}: {e}", dir.display()));
         if std::env::var("MITRA_RECORD").is_ok() {

@@ -190,7 +190,7 @@ impl Writer<'_> {
         let c = self.claim(name);
         let place = self.places.model(c.line);
         let written = self.model.written.as_ref();
-        let text = written.and_then(|w| crate::surface::written(&w.0, c.line));
+        let text = written.and_then(|w| crate::parse::written(&w.0, c.line));
         let text = text.unwrap_or_else(|| print_claim(self.model, c));
         format!("  --> {place}  {text}\n")
     }
@@ -198,11 +198,11 @@ impl Writer<'_> {
     fn evidence_text(&self, line: usize) -> String {
         if let Some(c) = self.declared(line) {
             let written = self.model.written.as_ref();
-            let text = written.and_then(|w| crate::surface::written(&w.0, c.line));
+            let text = written.and_then(|w| crate::parse::written(&w.0, c.line));
             return text.unwrap_or_default();
         }
         let written = self.model.written.as_ref();
-        if let Some(text) = written.and_then(|w| crate::surface::written(&w.1, line)) {
+        if let Some(text) = written.and_then(|w| crate::parse::written(&w.1, line)) {
             return text;
         }
         let e = self.entry(line);

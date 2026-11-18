@@ -23,7 +23,7 @@ impl Source {
         let dir = Path::new(path)
             .parent()
             .filter(|d| !d.as_os_str().is_empty());
-        mitra_core::surface::imports_from(Some(dir.unwrap_or(Path::new("."))));
+        mitra_core::parse::imports_from(Some(dir.unwrap_or(Path::new("."))));
         let mut s = Source {
             text: String::new(),
             lines: Vec::new(),

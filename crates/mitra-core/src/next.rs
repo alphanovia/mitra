@@ -331,13 +331,6 @@ pub fn next(model: &Model, report: &Report) -> String {
 
 /// The evidence to bring on one call, in the syntax of the model.
 fn ask(model: &Model, f: &str, input: &[Value], output: bool) -> String {
-    if model.written.is_none() {
-        let call = call(f, input);
-        return match output {
-            true => format!("  evidence {call} = <output> at 1\n"),
-            false => format!("  evidence correct({call}) at 1\n"),
-        };
-    }
     let names = model
         .function(f)
         .map(|f| f.params.iter().map(|p| p.0.clone()));
@@ -357,88 +350,78 @@ fn ask(model: &Model, f: &str, input: &[Value], output: bool) -> String {
 
 /// The evidence that vouches for a claim, in the syntax of the model.
 pub(crate) fn vouch(model: &Model, claim: &str) -> String {
-    match model.written {
-        None => format!("  evidence {claim} at 1\n"),
-        Some(_) => format!("  evidence <name> {{ for {claim} holds source \"review:<who>\" }}\n"),
-    }
+    let _ = model;
+    format!("  evidence <name> {{ for {claim} holds source \"review:<who>\" }}\n")
 }
 
 #[cfg(test)]
 mod tests {
     use crate::*;
 
+    fn say(model: &str, evidence: &str) -> String {
+        let m = load(model, evidence).unwrap();
+        next(&m, &evaluate(&m).unwrap())
+    }
+
     #[test]
     fn lists_what_is_missing() {
-        let model = "def neg(a: Bool) -> Bool := !a\n\
-                     opaque flip(a: Bool) -> Bool\n\
-                     opaque id(x: Value) -> Value\n\
-                     claim flip_spec : forall a, flip(a) = neg(a)\n\
-                     claim flip_correct : forall a, correct(flip(a))\n\
-                     claim id_correct : forall x, correct(id(x))\n\
-                     claim big : forall x in 0..=99, correct(id(x))\n\
-                     claim derived : forall a, flip(a) = neg(a) := by derive [flip_spec]";
-        let evidence = "evidence flip(true) = false at 1\nevidence correct(flip(true)) at 1";
-        let m = core_load(model, evidence).unwrap();
-        let r = evaluate(&m).unwrap();
+        let model = "fn neg(a: Bool) -> Bool { !a }\n\
+                     fn flip(a: Bool) -> Bool;\n\
+                     fn id(x: Value) -> Value;\n\
+                     claim flip_spec(a) { flip(a) == neg(a) }\n\
+                     claim flip_correct(a) { correct(flip(a)) }\n\
+                     claim id_correct(x) { correct(id(x)) }\n\
+                     claim big(x: 0..=99) { correct(id(x)) }";
+        let evidence = "evidence t { for flip given a = true gives false }\n\
+                        evidence t { for flip given a = true holds }";
         assert_eq!(
-            next(&m, &r),
+            say(model, evidence),
             "flip_spec: missing {false}\n\
-             \x20 evidence flip(false) = <output> at 1\n\
+             \x20 evidence <name> { for flip given a = false gives <output> }\n\
              flip_correct: missing {false}\n\
-             \x20 evidence correct(flip(false)) at 1\n\
+             \x20 evidence <name> { for flip given a = false holds }\n\
              id_correct: missing Value\n\
              \x20 infinite: tests can't cover it, only evidence over a set (a proof),\n\
              \x20 or a `uniform` claim, so that one test stands for a class of inputs\n\
              big: missing 0..=99\n\
-             \x20 100 inputs: test them, or bring evidence over the whole set (a proof)\n\
-             derived: holds assuming [flip_spec]\n\
-             \x20 bring evidence on what it assumes, such as a review, or test until it is not needed\n"
+             \x20 100 inputs: test them, or bring evidence over the whole set (a proof)\n"
         );
     }
 
     #[test]
-    fn sizes_large_sets_and_names_failing_premises() {
-        let model = "opaque pair(x: Int, y: Int) -> Bool\n\
-                     opaque flip(a: Bool) -> Bool\n\
-                     opaque other(a: Bool) -> Bool\n\
-                     claim huge : forall x in 0..=999999999, forall y in 0..=9, correct(pair(x, y))\n\
-                     claim fails : forall a, correct(flip(a))\n\
-                     claim on_fails : forall a, correct(other(a)) := by derive [fails]";
-        let evidence = "evidence correct(pair(0, 0)) at 1\nevidence not correct(flip(true)) at 1";
-        let m = core_load(model, evidence).unwrap();
-        let r = evaluate(&m).unwrap();
-        let text = next(&m, &r);
+    fn sizes_large_sets() {
+        let model = "fn pair(x: Int, y: Int) -> Bool;\n\
+                     claim huge(x: 0..=999999999, y: 0..=9) { correct(pair(x, y)) }";
+        let text = say(model, "evidence t { for pair given x = 0, y = 0 holds }");
         assert!(text.contains("  9999999999 inputs: test them"), "{text}");
-        assert!(text.contains("  derived: premise fails: fails\n"), "{text}");
     }
 
     #[test]
     fn names_untested_classes_and_conflicts() {
-        let model = "opaque div(a: Int, b: Int) -> Int\n\
-                     def div_class(a: Int, b: Int) -> {\"zero\", \"rest\"} := if b == 0 then \"zero\" else \"rest\"\n\
-                     claim div_correct : forall a, forall b, correct(div(a, b))\n\
-                     claim div_uniform : uniform div by div_class";
-        let say = |evidence: &str| {
-            let m = core_load(model, evidence).unwrap();
-            next(&m, &evaluate(&m).unwrap())
-        };
+        let model = "import std::claims::{uniform};\n\
+                     fn div(a: Int, b: Int) -> Int;\n\
+                     fn div_class(a: Int, b: Int) -> {\"zero\", \"rest\"} { if b == 0 { \"zero\" } else { \"rest\" } }\n\
+                     claim div_correct(a, b) { correct(div(a, b)) }\n\
+                     claim div_uniform = uniform(div, div_class);";
+        let pass = "evidence t { for div given a = 6, b = 3 holds }\n";
+        let vouched = format!("{pass}evidence r {{ for div_uniform holds }}\n");
         assert_eq!(
-            say("evidence correct(div(6, 3)) at 1"),
+            say(model, pass),
             "div_correct: missing 1 of the classes of `div_class`\n\
              \x20 `div_uniform` is not vouched for: what rests on it is only assumed\n\
              \x20 no passing input in class \"zero\" of `div_class`: one test there stands for the class\n\
              div_uniform: not vouched for\n\
              \x20 review that `div` behaves the same within each class of `div_class`, then:\n\
-             \x20 evidence div_uniform at 1\n"
+             \x20 evidence <name> { for div_uniform holds source \"review:<who>\" }\n"
         );
         assert_eq!(
-            say("evidence correct(div(6, 3)) at 1\nevidence div_uniform at 1"),
+            say(model, &vouched),
             "div_correct: missing 1 of the classes of `div_class`\n\
              \x20 no passing input in class \"zero\" of `div_class`: one test there stands for the class\n"
         );
         let text = say(
-            "evidence correct(div(6, 3)) at 1\nevidence div_uniform at 1\n\
-                        evidence not correct(div(4, 2)) at 1",
+            model,
+            &format!("{vouched}evidence t {{ for div given a = 4, b = 2 fails }}"),
         );
         assert!(
             text.starts_with(

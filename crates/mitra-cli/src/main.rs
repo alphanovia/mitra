@@ -274,7 +274,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                 return Err(USAGE.into());
             };
             // A module shipped with the tool: its text.
-            if let Some(text) = mitra_core::surface::library(code) {
+            if let Some(text) = mitra_core::parse::library(code) {
                 print!("{text}");
                 return Ok(0);
             }
@@ -301,7 +301,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             };
             println!("claim {}", c.name);
             let written = model.written.as_ref();
-            if let Some(w) = written.and_then(|w| mitra_core::surface::written(&w.0, c.line)) {
+            if let Some(w) = written.and_then(|w| mitra_core::parse::written(&w.0, c.line)) {
                 println!("  written   {w}");
             }
             println!("  read as   {}", mitra_core::print::contract(&model, c));

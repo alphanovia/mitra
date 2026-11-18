@@ -109,7 +109,7 @@ impl Store {
                 return Err(format!("`{v}`: quotes and line breaks are not allowed"));
             }
         }
-        let text = mitra_core::surface::stamp(text, source.as_deref(), rev.as_deref())?;
+        let text = mitra_core::parse::stamp(text, source.as_deref(), rev.as_deref())?;
         let new = mitra_core::read_evidence(&self.source()?.text, &text)
             .map_err(|err| format!("evidence to add: {err}"))?;
         if new.is_empty() {

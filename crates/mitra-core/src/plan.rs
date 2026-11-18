@@ -261,7 +261,7 @@ fn observed(model: &Model, g: &str, values: &[Value]) -> bool {
 /// The set of a `represented` claim, as written.
 fn set_text(model: &Model, r: &Claim) -> String {
     let written = model.written.as_ref();
-    let text = written.and_then(|w| crate::surface::written(&w.0, r.line));
+    let text = written.and_then(|w| crate::parse::written(&w.0, r.line));
     let inside = text.as_deref().and_then(|t| {
         let from = t.find("represented(")?;
         let start = from + t[from..].find(',')? + 1;
