@@ -1,6 +1,7 @@
 // The claims below follow from the bodies of `next` and `back`: a spec
 // stands in for its code where no output was observed, and the claim
 // then holds as far as the spec's own claim does.
+import std::claims::{uniform};
 subject clock {
     fn next(h: 0..=3) -> 0..=3 { if h == 3 { 0 } else { h + 1 } }
     fn back(h: 0..=3) -> 0..=3 { if h == 0 { 3 } else { h - 1 } }

@@ -366,6 +366,11 @@ struct Eval<'m> {
     claim: RefCell<String>,
     /// The assumptions that gave an output since last cleared.
     leaned: RefCell<Vec<String>>,
+    /// The claims that read `correct(…)` and are vouched for: each forces
+    /// the judgements that would make it false.
+    relations: Vec<Relation>,
+    /// A judgement taken as given while a forced one is worked out.
+    supposed: RefCell<Vec<((String, Vec<Value>), bool)>>,
 }
 
 /// A claim someone vouched for that gives the output of a subject from
@@ -473,6 +478,36 @@ fn rules(model: &Model) -> Vec<Rule> {
     out
 }
 
+/// A vouched claim that reads `correct(…)`.
+struct Relation {
+    claim: String,
+    /// The evidence that vouches for it.
+    line: usize,
+}
+
+fn relations(model: &Model) -> Vec<Relation> {
+    let mut out = Vec::new();
+    for c in &model.claims {
+        let Target::Property(e) = &c.target else {
+            continue;
+        };
+        let mut reads = false;
+        crate::ast::walk(e, &mut |e| reads |= matches!(e, Expr::Correct(..)));
+        let about = |e: &&Evidence| e.about == c.name && e.pattern.iter().all(|p| p.set.is_none());
+        let says = |ok: bool| {
+            let mut on = model.evidence.iter().filter(about);
+            on.find(|e| e.judgment == Judgment::Holds(ok))
+        };
+        if let (true, Some(vouch), None) = (reads, says(true), says(false)) {
+            out.push(Relation {
+                claim: c.name.clone(),
+                line: vouch.line,
+            });
+        }
+    }
+    out
+}
+
 /// What the observations say of a measure.
 struct Count {
     /// The value, when every input is known.
@@ -503,6 +538,7 @@ fn close(e: &Expr, env: &Env, hidden: &mut Vec<String>) -> Expr {
         },
         Expr::Lit(_) | Expr::Var(_) | Expr::Score(..) => e.clone(),
         Expr::Call(f, args) => Expr::Call(f.clone(), all(args, hidden)),
+        Expr::Correct(f, args) => Expr::Correct(f.clone(), all(args, hidden)),
         Expr::Tuple(args) => Expr::Tuple(all(args, hidden)),
         Expr::Record(n, args) => Expr::Record(n.clone(), all(args, hidden)),
         Expr::List(args) => Expr::List(all(args, hidden)),
@@ -612,6 +648,20 @@ impl Eval<'_> {
                     out.extend(self.call(f, &tuple, line, subjects)?);
                 }
                 out
+            }
+            Expr::Correct(f, args) => {
+                // Under premises nothing is judged: a judgement is evidence.
+                if matches!(subjects, Subjects::Assumed(_)) {
+                    return Ok(Vec::new());
+                }
+                let mut x = Vec::new();
+                for a in args {
+                    match &self.eval(a, env, line, subjects)?[..] {
+                        [v] => x.push(v.clone()),
+                        _ => return Ok(Vec::new()),
+                    }
+                }
+                self.judged(f, &x, line)?
             }
             Expr::Rate(..) | Expr::Score(..) => self.measure(e, env, line)?,
             Expr::Len(a) => {
@@ -1241,6 +1291,117 @@ impl Eval<'_> {
         out
     }
 
+    /// `correct(f(x))` as a value: what the evidence says of that call.
+    /// True, false, both when the evidence disagrees, nothing when no
+    /// evidence says and no vouched claim settles it.
+    fn judged(&self, f: &str, x: &[Value], line: usize) -> Result<Vec<Value>, Error> {
+        let key = (f.to_string(), x.to_vec());
+        if let Some(s) = self.supposed.borrow().iter().find(|s| s.0 == key) {
+            return Ok(vec![Value::Bool(s.1)]);
+        }
+        let mut out = Vec::new();
+        let mut say = |ok: bool| {
+            if !out.contains(&Value::Bool(ok)) {
+                out.push(Value::Bool(ok));
+            }
+        };
+        for e in self.model.evidence.iter().filter(|e| e.about == f) {
+            if let Judgment::Correct(ok) = e.judgment {
+                if self.model.covers(f, &e.pattern).contains(x) {
+                    self.measured.borrow_mut().push(e.line);
+                    say(ok);
+                }
+            }
+        }
+        // An observed output is right when it is what a spec gives.
+        if let Some(seen) = self.observed.get(&key) {
+            for c in self.model.claims.iter().filter(|c| c.func == f) {
+                let Target::Matches(target) = &c.target else {
+                    continue;
+                };
+                if !self.model.covers(f, &c.pattern).contains(x) {
+                    continue;
+                }
+                let expected = self.target(c, target, x, Subjects::Observed)?;
+                if expected.is_empty() {
+                    continue;
+                }
+                self.read.borrow_mut().push(key.clone());
+                seen.iter().for_each(|v| say(expected.contains(v)));
+            }
+        }
+        if out.is_empty() {
+            if let Some((ok, vouch)) = self.forced(f, x, line)? {
+                self.measured.borrow_mut().push(vouch);
+                out.push(Value::Bool(ok));
+            }
+        }
+        Ok(out)
+    }
+
+    /// The judgement a vouched claim forces on a call nothing judges:
+    /// the one value of `correct(f(x))` that does not make the claim
+    /// false on some input, given what is known. With the evidence line
+    /// of the vouch.
+    fn forced(&self, f: &str, x: &[Value], _line: usize) -> Result<Option<(bool, usize)>, Error> {
+        // One at a time: what is forced rests on evidence, not on what
+        // another forced value would give.
+        if !self.through.borrow().is_empty() || !self.supposed.borrow().is_empty() {
+            return Ok(None);
+        }
+        let key = (f.to_string(), x.to_vec());
+        for r in self
+            .relations
+            .iter()
+            .filter(|r| r.claim != *self.claim.borrow())
+        {
+            let c = self.model.claim(&r.claim).expect("checked");
+            let Target::Property(body) = &c.target else {
+                continue;
+            };
+            let names: Vec<Option<&String>> = c.pattern.iter().map(|p| p.var.as_ref()).collect();
+            let Some(inputs) = self.model.covers(&c.func, &c.pattern).values() else {
+                continue;
+            };
+            // Each place the claim reads `correct(f(…))` on names alone:
+            // the inputs of the claim where that call is this one.
+            let mut places: Vec<Vec<(usize, Value)>> = Vec::new();
+            crate::ast::walk(body, &mut |e| {
+                let Expr::Correct(g, args) = e else { return };
+                if g != f || args.len() != x.len() {
+                    return;
+                }
+                let mut fixed = Vec::new();
+                for (a, v) in args.iter().zip(x) {
+                    let at = match a {
+                        Expr::Var(n) => names.iter().position(|m| *m == Some(n)),
+                        _ => None,
+                    };
+                    match at {
+                        Some(i) => fixed.push((i, v.clone())),
+                        None => return,
+                    }
+                }
+                places.push(fixed);
+            });
+            for fixed in places {
+                let fits = |t: &Vec<Value>| fixed.iter().all(|(i, v)| &t[*i] == v);
+                for t in inputs.iter().filter(|t| fits(t)) {
+                    for ok in [true, false] {
+                        self.supposed.borrow_mut().push((key.clone(), ok));
+                        let got = self.compare(c, body, t, Subjects::Observed);
+                        self.supposed.borrow_mut().pop();
+                        // False for sure with this value: it is the other.
+                        if let Ok(Some((false, true))) = got {
+                            return Ok(Some((!ok, r.line)));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+
     /// An input where the premises say `c` is false.
     fn counter(&self, c: &Claim, domain: &Tuples, premises: &[&Claim]) -> Option<Vec<Value>> {
         let (Target::Matches(target) | Target::Property(target), Some(inputs)) =
@@ -1444,6 +1605,8 @@ fn computable(e: &Expr, bound: &[&String], model: &Model) -> bool {
     let all = |es: &[&Expr]| es.iter().all(|e| computable(e, bound, model));
     match e {
         Expr::Lit(_) => true,
+        // A judgement is read from the evidence, not computed.
+        Expr::Correct(..) => false,
         Expr::Var(x) => bound.contains(&x),
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => all(&[a]),
         Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
@@ -1468,6 +1631,7 @@ fn subject_calls<'e>(e: &'e Expr, model: &Model, out: &mut Vec<(&'e String, &'e 
     match e {
         // A measure is not a call: no class stands for what it counts.
         Expr::Lit(_) | Expr::Var(_) | Expr::Rate(..) | Expr::Score(..) => {}
+        Expr::Correct(_, args) => args.iter().for_each(|a| subject_calls(a, model, out)),
         Expr::Call(f, args) => {
             if model.function(f).is_some_and(|f| !f.is_spec()) {
                 out.push((f, args));
@@ -1659,6 +1823,8 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         through: RefCell::new(Vec::new()),
         claim: RefCell::new(String::new()),
         leaned: RefCell::new(Vec::new()),
+        relations: relations(model),
+        supposed: RefCell::new(Vec::new()),
     };
     let model_err = |e| (Input::Model, e);
 
@@ -2422,6 +2588,32 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 assuming.push(by.name.clone());
             }
         }
+        // A vouched claim that reads `correct(…)` forces the judgement of
+        // the inputs nothing judges.
+        if own && subject && !ev.relations.is_empty() {
+            let left = domain.minus(&with_assumed).minus(&refuted);
+            let few = left.size_bound().is_some_and(|n| n <= 4096.0);
+            ev.claim.replace(c.name.clone());
+            for x in left.values().filter(|_| few).unwrap_or_default() {
+                let Some((true, line)) = ev.forced(&c.func, &x, c.line).map_err(model_err)? else {
+                    continue;
+                };
+                let by = ev
+                    .relations
+                    .iter()
+                    .find(|r| r.line == line)
+                    .expect("its own");
+                let point = Tuples::point(&x);
+                with_assumed = with_assumed.union(&point);
+                match stood
+                    .iter_mut()
+                    .find(|s: &&mut (String, Tuples)| s.0 == by.claim)
+                {
+                    Some(s) => s.1 = s.1.union(&point),
+                    None => stood.push((by.claim.clone(), point)),
+                }
+            }
+        }
         let split = stands.iter().find(|s| s.0 == i).and_then(|s| s.2);
         let mut logic = if !refuted.is_empty() || split.is_some() {
             Logic::Fails
@@ -2937,6 +3129,8 @@ pub fn failed_output(model: &Model, test: &Test) -> Result<Vec<Evidence>, Error>
         through: RefCell::new(Vec::new()),
         claim: RefCell::new(String::new()),
         leaned: RefCell::new(Vec::new()),
+        relations: Vec::new(),
+        supposed: RefCell::new(Vec::new()),
     };
     let mut out = Vec::new();
     for c in model.claims.iter().filter(|c| c.func == e.about) {
@@ -2997,6 +3191,8 @@ pub(crate) fn computed(model: &Model, e: &Expr, names: &[(String, Value)]) -> Op
         through: RefCell::new(Vec::new()),
         claim: RefCell::new(String::new()),
         leaned: RefCell::new(Vec::new()),
+        relations: Vec::new(),
+        supposed: RefCell::new(Vec::new()),
     };
     let env: Env = names.iter().cloned().collect();
     let got = ev.eval(e, &env, 0, Subjects::Observed).ok()?;

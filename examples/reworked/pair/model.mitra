@@ -1,4 +1,5 @@
 // A pair of integers, and the code that adds and subtracts them.
+import std::claims::{uniform};
 subject pair {
     record Pair { first: i32, second: i32 }
 

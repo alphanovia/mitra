@@ -40,6 +40,10 @@ pub enum Expr {
     /// a list or a set. `fold(x in xs, let acc := start; step)`: `step`
     /// gives the next `acc`.
     Each(&'static str, String, Box<Expr>, Box<Expr>),
+    /// `correct(f(a, b))` as a value (reworked syntax): true when evidence
+    /// judges that call right, false when wrong, no value when nothing
+    /// says.
+    Correct(String, Vec<Expr>),
 }
 
 /// The functions over each element of a list or a set.
@@ -932,7 +936,7 @@ fn descents(e: &Expr, name: &str, scope: &mut Vec<(String, Part)>, out: &mut Vec
             scope.pop();
         }
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => descents(a, name, scope, out),
-        Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+        Expr::Tuple(args) | Expr::Correct(_, args) | Expr::Record(_, args) | Expr::List(args) => {
             args.iter().for_each(|a| descents(a, name, scope, out))
         }
         Expr::Binary(_, a, b) | Expr::Index(a, b) => {
@@ -958,9 +962,11 @@ pub fn walk(e: &Expr, f: &mut impl FnMut(&Expr)) {
         }
         Expr::Score(..) => {}
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) | Expr::Rate(_, _, a) => walk(a, f),
-        Expr::Call(_, args) | Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
-            args.iter().for_each(|a| walk(a, f))
-        }
+        Expr::Call(_, args)
+        | Expr::Tuple(args)
+        | Expr::Correct(_, args)
+        | Expr::Record(_, args)
+        | Expr::List(args) => args.iter().for_each(|a| walk(a, f)),
         Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) | Expr::Each(_, _, a, b) => {
             walk(a, f);
             walk(b, f);
@@ -984,9 +990,11 @@ fn arms(e: &Expr) -> Vec<(String, Vec<String>)> {
         }
         Expr::Score(..) => vec![],
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) | Expr::Rate(_, _, a) => arms(a),
-        Expr::Call(_, args) | Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
-            args.iter().flat_map(arms).collect()
-        }
+        Expr::Call(_, args)
+        | Expr::Tuple(args)
+        | Expr::Correct(_, args)
+        | Expr::Record(_, args)
+        | Expr::List(args) => args.iter().flat_map(arms).collect(),
         Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) | Expr::Each(_, _, a, b) => {
             [arms(a), arms(b)].concat()
         }
@@ -1007,7 +1015,7 @@ pub fn calls(e: &Expr) -> Vec<String> {
             .collect(),
         Expr::Score(_, f) => vec![f.clone()],
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) | Expr::Rate(_, _, a) => calls(a),
-        Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+        Expr::Tuple(args) | Expr::Correct(_, args) | Expr::Record(_, args) | Expr::List(args) => {
             args.iter().flat_map(calls).collect()
         }
         Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) | Expr::Each(_, _, a, b) => {

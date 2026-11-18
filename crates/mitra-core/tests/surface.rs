@@ -217,3 +217,38 @@ fn represented_says_nothing_outside_its_set() {
         .message
         .contains("no claim with parameters `represented`"));
 }
+
+#[test]
+fn correct_is_a_value_with_three_states() {
+    let m = "subject s { fn add(a: 0..=2, b: 0..=2) -> 0..=4;\n\
+             claim add_ok(a: 0..=2, b: 0..=2) { correct(add(a, b)) }\n\
+             claim mirror(a: 0..=2, b: 0..=2) { correct(add(a, b)) <=> correct(add(b, a)) } }";
+    let seen = "evidence t { for s::add given a = 0, b = 1 holds }";
+    // No value where nothing judges the call: the claim is not judged there.
+    let out = verdicts(m, seen);
+    assert!(out.contains("s::mirror: unverified\n  no evidence on"), "{out}");
+    // Vouched for, it carries the judgement to the call nothing judges.
+    let vouched = format!("{seen}\nevidence r {{ for s::mirror holds source \"review:me\" }}");
+    let out = verdicts(m, &vouched);
+    assert!(out.contains("assumed on      `s::add(1, 0)`, by `s::mirror`"), "{out}");
+    // Both judged, and differently: the claim is false there.
+    let out = verdicts(m, &format!("{seen}\nevidence u {{ for s::add given a = 1, b = 0 fails }}"));
+    assert!(out.contains("s::mirror: fails"), "{out}");
+}
+
+#[test]
+fn the_shape_of_a_set_is_read_whatever_its_name() {
+    // The text of `represented`, under another name and with `==`.
+    let m = "claim alike(f, S) { given p: S, q: S then correct(f(p)) == correct(f(q)) }\n\
+             subject s { fn half(n: Int) -> Int { n / 2 }\n\
+             claim low = alike(half, 0..=4); }";
+    let out = verdicts(m, "evidence a { for s::half given n = 2 gives 1 }");
+    assert!(out.contains("assumed on      n in 0..=1 | 3..=4, by `s::low`"), "{out}");
+    // `uniform` is library text too: not there until imported.
+    let e = mitra_core::load("subject s { fn f(n: Int) -> Int;\nclaim u = uniform(f); }", "");
+    assert!(e.unwrap_err().1.message.contains("or import it"));
+    let m = "import std::claims::{uniform};\nsubject s { fn f(n: Int) -> Int;\n\
+             claim u = uniform(f);\nclaim v = uniform(f, f, f); }";
+    let e = mitra_core::load(m, "").unwrap_err().1.message;
+    assert!(e.contains("`uniform` takes 1 or 2 parameter(s), got 3"), "{e}");
+}

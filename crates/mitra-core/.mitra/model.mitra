@@ -10,7 +10,8 @@
 // A Rust `Value` is any Mitra value: the type `Value`.
 
 // Rust's own, which the code uses.
-enum Option<T> { None, Some(value: T) }
+import std::claims::{uniform};
+import std::rust::{Option};
 
 // What a claim's verdict says.
 enum Logic { Holds, Assuming, Unverified, Fails }

@@ -1,6 +1,7 @@
 // A spam filter: a learned function that cannot be right every time.
 enum Verdict { Spam, Ham }
-enum Option<T> { None, Some(T) }
+import std::claims::{uniform};
+import std::rust::{Option};
 record Mail { sender: {"boss", "shop", "stranger"}, links: 0..=2 }
 
 subject filter {

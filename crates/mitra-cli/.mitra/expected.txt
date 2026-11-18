@@ -45,67 +45,67 @@ source::mitra_line::tied: holds
 source::words::tied: holds
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:22  claim short_correct(path) { correct(short(path)) }
+  --> .mitra/model.mitra:21  claim short_correct(path) { correct(short(path)) }
 
   No evidence on path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:24  claim short_once(path) { short(short(path)) == short(path) }
+  --> .mitra/model.mitra:23  claim short_once(path) { short(short(path)) == short(path) }
 
   No evidence on path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:27  claim libtest_correct(text) { correct(libtest(text)) }
+  --> .mitra/model.mitra:26  claim libtest_correct(text) { correct(libtest(text)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:31  claim attr_correct(tag, attr) { correct(attr(tag, attr)) }
+  --> .mitra/model.mitra:30  claim attr_correct(tag, attr) { correct(attr(tag, attr)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:35  claim strip_correct(text, open, close) { correct(strip(text, open, close)) }
+  --> .mitra/model.mitra:34  claim strip_correct(text, open, close) { correct(strip(text, open, close)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:38  claim junit_correct(xml) { correct(junit(xml)) }
+  --> .mitra/model.mitra:37  claim junit_correct(xml) { correct(junit(xml)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:45  claim mitra_line_correct(line) { correct(mitra_line(line)) }
+  --> .mitra/model.mitra:44  claim mitra_line_correct(line) { correct(mitra_line(line)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:49  claim fn_below_correct(code) { correct(fn_below(code)) }
+  --> .mitra/model.mitra:48  claim fn_below_correct(code) { correct(fn_below(code)) }
 
   No evidence on code in String \ {"", "#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}", "fn f() {}", "pub struct S;\nfn f() {}", "pub(crate) const unsafe fn f() {}"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:53  claim words_correct(line) { correct(words(line)) }
+  --> .mitra/model.mitra:52  claim words_correct(line) { correct(words(line)) }
 
   No evidence on line in String \ {"claim c -- a test of opaque things", "claim c : correct(g(\"test -- \\\" opaque\")) -- x", "opaque f(a: Int) -> Int"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:59  claim extract_correct(text) { correct(extract(text)) }
+  --> .mitra/model.mitra:58  claim extract_correct(text) { correct(extract(text)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:63  claim extract_one_line(text) { match mitra_line(text) { None => extract(text) == Ok([]), Some(m) => match extract(text) { Err(_) => true, Ok(lines) => lines == [(1, m)] || lines == [], }, } }
+  --> .mitra/model.mitra:62  claim extract_one_line(text) { match mitra_line(text) { None => extract(text) == Ok([]), Some(m) => match extract(text) { Err(_) => true, Ok(lines) => lines == [(1, m)] || lines == [], }, } }
 
   No evidence on text in String \ {"// a comment about mitra: no"}.
   help: `mitra next` lists the evidence that would settle it

@@ -1,4 +1,5 @@
 // The model, aside from the code.
+import std::claims::{uniform};
 record Account { balance: u64, open: bool }
 
 subject bank {

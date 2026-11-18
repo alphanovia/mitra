@@ -56,79 +56,79 @@ report::word::tied: holds
 set::quote::tied: holds
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:37  claim unary_correct(op, v) { correct(unary(op, v)) }
+  --> .mitra/model.mitra:38  claim unary_correct(op, v) { correct(unary(op, v)) }
 
   No evidence on (op, v) in (String \ {"!", "-", "keys"}, Value) | ({"!"}, Value \ Bool) | ({"-"}, Value \ {-3, 3, 0.5, "a"}) | ({"keys"}, Value \ {{"a": 1, "b": 2}, {1}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:42  claim twice_negated(v: Int) { match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) } }
+  --> .mitra/model.mitra:43  claim twice_negated(v: Int) { match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) } }
 
   No evidence on v in Int \ {-3, 3}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:48  claim binary_correct(op, x, y) { correct(binary(op, x, y)) }
+  --> .mitra/model.mitra:49  claim binary_correct(op, x, y) { correct(binary(op, x, y)) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:50  claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
+  --> .mitra/model.mitra:51  claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:51  claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
+  --> .mitra/model.mitra:52  claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
 
   No evidence on (x, y) in (Value \ {-3, 4}, Value) | ({4}, Value \ {-3}) | ({-3}, Value \ {4}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:52  claim minus_is_plus_negated(x: Int, y: Int) { match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) } }
+  --> .mitra/model.mitra:53  claim minus_is_plus_negated(x: Int, y: Int) { match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) } }
 
   No evidence on (x, y) in (Int \ {2}, Int) | ({2}, Int \ {3}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:55  claim different_is_not_equal(x, y) { match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) } }
+  --> .mitra/model.mitra:56  claim different_is_not_equal(x, y) { match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) } }
 
   No evidence on (x, y) in (Value \ {2}, Value) | ({2}, Value \ {2, "2"}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:58  claim union_commutes(x: Set<Int>, y: Set<Int>) { binary("|", x, y) == binary("|", y, x) }
+  --> .mitra/model.mitra:59  claim union_commutes(x: Set<Int>, y: Set<Int>) { binary("|", x, y) == binary("|", y, x) }
 
   No evidence on (x, y) in (Set(Int) \ {{1, 2}, {2, 3}}, Set(Int)) | ({{2, 3}}, Set(Int) \ {{1, 2}}) | ({{1, 2}}, Set(Int) \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:60  claim difference_apart(x: Set<Int>, y: Set<Int>) { match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) } }
+  --> .mitra/model.mitra:61  claim difference_apart(x: Set<Int>, y: Set<Int>) { match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) } }
 
   No evidence on (x, y) in (Set(Int) \ {{1, 2}}, Set(Int)) | ({{1, 2}}, Set(Int) \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:63  claim divides_back(x: Int, y: Int \ {0}) { match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) } }
+  --> .mitra/model.mitra:64  claim divides_back(x: Int, y: Int \ {0}) { match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) } }
 
   No evidence on (x, y) in (Int \ {4}, Int \ {0}) | ({4}, Int \ {-3, 0}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:71  claim quote_correct(s) { correct(quote(s)) }
+  --> .mitra/model.mitra:72  claim quote_correct(s) { correct(quote(s)) }
 
   No evidence on s in String \ {"", "a b", "a\"b\\c\nd\te"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:77  claim negative_correct(v) { correct(negative(v)) }
+  --> .mitra/model.mitra:78  claim negative_correct(v) { correct(negative(v)) }
 
   No evidence on v in Value \ ({-0.5, "-1"} | -1..=0).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:79  claim negative_ints(v: Int) { negative(v) == (v < 0) }
+  --> .mitra/model.mitra:80  claim negative_ints(v: Int) { negative(v) == (v < 0) }
 
   No evidence on v in Int \ -1..=0.
   help: `mitra next` lists the evidence that would settle it

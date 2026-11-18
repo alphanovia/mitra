@@ -12,7 +12,10 @@ use std::path::{Path, PathBuf};
 
 /// The modules shipped with the tool: plain Mitra, `mitra explain std::claims`
 /// prints one.
-const STD: [(&str, &str); 1] = [("std::claims", include_str!("../std/claims.mitra"))];
+const STD: [(&str, &str); 2] = [
+    ("std::claims", include_str!("../std/claims.mitra")),
+    ("std::rust", include_str!("../std/rust.mitra")),
+];
 
 thread_local! {
     /// Where `import a::b::name;` looks for `a/b.mitra`.
@@ -216,8 +219,9 @@ struct P {
     templates: BTreeMap<String, (Vec<String>, Vec<Tok>)>,
     /// The modules being imported, outermost first.
     stack: Vec<String>,
-    /// The claims of `std::claims` that Mitra reads natively, once imported.
-    native: BTreeSet<String>,
+    /// A claim of the shape "the same judgement on every input of a set
+    /// or of a class" is being read as that set or those classes.
+    shape: bool,
 }
 
 type R<T> = Result<T, Error>;
@@ -781,6 +785,17 @@ impl P {
             }
             return Ok(format!("(match {e} {{ {} }})", arms.join(", ")));
         }
+        if self.is("correct") && self.peek_at(1) == "(" {
+            // correct(f(a, b)) as a value: what the evidence says of the call.
+            self.pos += 2;
+            let f = self.path()?;
+            let f = self.resolve(&f);
+            self.expect("(")?;
+            let args = self.exprs(")")?;
+            self.expect(")")?;
+            self.impure = true;
+            return Ok(format!("{f}::correct({})", args.join(", ")));
+        }
         if self.eat("true") {
             return Ok("true".into());
         }
@@ -1079,10 +1094,12 @@ impl P {
         if self.eat("=") {
             // claim c = uniform(f), uniform(f, |a, b| class), uniform(f, classes)
             let form = self.path()?;
-            if form == "represented" && self.native.contains("represented") {
+            // The two shapes Mitra works out on whole sets: see `equivalence`.
+            let shape = std::mem::take(&mut self.shape);
+            if form == "represented" && shape {
                 return self.represented(out, line, &q);
             }
-            if form != "uniform" {
+            if form != "uniform" || !shape {
                 return self.instance(out, line, assumed, &name, &form);
             }
             self.expect("(")?;
@@ -1169,7 +1186,8 @@ impl P {
                 }
                 let body = self.toks[start..self.pos].to_vec();
                 self.eat(";");
-                self.templates.insert(q, (params, body));
+                self.templates
+                    .insert(format!("{q}/{}", params.len()), (params, body));
                 return Ok(());
             }
         }
@@ -1192,6 +1210,9 @@ impl P {
             when = Some(self.expr()?);
         }
         self.expect("{")?;
+        if when.is_none() && self.equivalence(out, line, &name)? {
+            return Ok(());
+        }
         let contract = self.is("given") || self.is("when") || self.is("then");
         if self.eat("given") {
             loop {
@@ -1230,7 +1251,20 @@ impl P {
                 false => format!("forall {x} in {t}, "),
             })
             .collect();
-        let text = if self.is("correct") && self.peek_at(1) == "(" {
+        // `correct(f(a))` alone is the claim on the code; inside a larger
+        // expression it is a value.
+        let alone = self.is("correct") && self.peek_at(1) == "(" && {
+            let (mut i, mut depth) = (1, 0);
+            loop {
+                depth += (self.peek_at(i) == "(") as i32 - (self.peek_at(i) == ")") as i32;
+                i += 1;
+                if depth == 0 || self.pos + i >= self.toks.len() {
+                    break;
+                }
+            }
+            self.peek_at(i) == "}"
+        };
+        let text = if alone {
             // correct(f(a, b)): judged by people or by tests, not computed.
             self.pos += 2;
             let f = self.path()?;
@@ -1269,6 +1303,144 @@ impl P {
         let measures = std::mem::take(&mut self.measures);
         self.names.claims.insert(q, (inputs, measures));
         Ok(())
+    }
+
+    /// A claim that says the same judgement holds on every input of a set,
+    /// or of each class:
+    ///
+    /// `given x: S, y: S then correct(f(x)) <=> correct(f(y))`, or
+    /// `given x, y [when k(x) == k(y)] then correct(f(x)) <=> correct(f(y))`.
+    ///
+    /// Read as that set or those classes, whatever the claim is called:
+    /// Mitra then works on sets, not input by input. Just after `{`.
+    fn equivalence(&mut self, out: &mut Vec<String>, line: usize, name: &str) -> R<bool> {
+        let (start, mut end, mut depth) = (self.pos, self.pos, 1);
+        while depth > 0 {
+            let Some(t) = self.toks.get(end) else {
+                return Ok(false);
+            };
+            depth += (t.text == "{") as i32 - (t.text == "}") as i32;
+            end += 1;
+        }
+        let body: Vec<Tok> = self.toks[start..end - 1].to_vec();
+        let text = |t: &[Tok]| {
+            t.iter()
+                .map(|t| t.text.as_str())
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        // The first of these words outside any bracket.
+        let top = |toks: &[Tok], words: &[&str]| {
+            let mut depth = 0;
+            toks.iter().position(|t| {
+                let at = depth == 0 && words.contains(&t.text.as_str()) && t.kind != Kind::Str;
+                depth += ["(", "[", "{"].contains(&t.text.as_str()) as i32;
+                depth -= [")", "]", "}"].contains(&t.text.as_str()) as i32;
+                at
+            })
+        };
+        if body.first().is_none_or(|t| t.text != "given") {
+            return Ok(false);
+        }
+        let Some(then) = top(&body, &["then"]) else {
+            return Ok(false);
+        };
+        // then correct(f(x)) <=> correct(f(y))
+        let said = &body[then + 1..];
+        let Some(op) = top(said, &["<=>", "=="]) else {
+            return Ok(false);
+        };
+        // `correct ( f ( x ) )`: the function, then the name.
+        let side = |toks: &[Tok]| -> Option<(Vec<Tok>, String)> {
+            let n = toks.len();
+            let fits = n >= 7
+                && text(&toks[..2]) == "correct ("
+                && toks[n - 4].text == "("
+                && toks[n - 3].kind == Kind::Name
+                && text(&toks[n - 2..]) == ") )";
+            fits.then(|| (toks[2..n - 4].to_vec(), toks[n - 3].text.clone()))
+        };
+        let (Some((f, x)), Some((g, y))) = (side(&said[..op]), side(&said[op + 1..])) else {
+            return Ok(false);
+        };
+        if text(&f) != text(&g) || x == y {
+            return Ok(false);
+        }
+        // given x[: S], y[: S]  [when k(x) == k(y)]
+        let when = top(&body[..then], &["when"]);
+        let given = &body[1..when.unwrap_or(then)];
+        let Some(comma) = top(given, &[","]) else {
+            return Ok(false);
+        };
+        let input = |toks: &[Tok]| -> Option<(String, Vec<Tok>)> {
+            let (first, rest) = toks.split_first()?;
+            match rest.split_first() {
+                None => Some((first.text.clone(), Vec::new())),
+                Some((colon, set)) if colon.text == ":" && !set.is_empty() => {
+                    Some((first.text.clone(), set.to_vec()))
+                }
+                _ => None,
+            }
+        };
+        let (Some((a, set)), Some((b, other))) =
+            (input(&given[..comma]), input(&given[comma + 1..]))
+        else {
+            return Ok(false);
+        };
+        if (&a, &b) != (&x, &y) || text(&set) != text(&other) {
+            return Ok(false);
+        }
+        let mut key = Vec::new();
+        if let Some(w) = when {
+            let cond = &body[w + 1..then];
+            let Some(eq) = top(cond, &["=="]) else {
+                return Ok(false);
+            };
+            let on = |toks: &[Tok], x: &str| -> Option<Vec<Tok>> {
+                let n = toks.len().checked_sub(3)?;
+                (text(&toks[n..]) == format!("( {x} )")).then(|| toks[..n].to_vec())
+            };
+            let (Some(k), Some(l)) = (on(&cond[..eq], &x), on(&cond[eq + 1..], &y)) else {
+                return Ok(false);
+            };
+            if text(&k) != text(&l) || k.is_empty() || !set.is_empty() {
+                return Ok(false);
+            }
+            // An inline function comes in parentheses.
+            key = match k.len() > 2 && k[0].text == "(" && k[1].text == "|" {
+                true => k[1..k.len() - 1].to_vec(),
+                false => k,
+            };
+        }
+        let tok = |text: &str, kind: Kind| Tok {
+            kind,
+            text: text.to_string(),
+            line,
+        };
+        let form = if set.is_empty() {
+            "uniform"
+        } else {
+            "represented"
+        };
+        let mut toks = vec![
+            tok(name, Kind::Name),
+            tok("=", Kind::Punct),
+            tok(form, Kind::Name),
+            tok("(", Kind::Punct),
+        ];
+        toks.extend(f);
+        for more in [set, key].into_iter().filter(|m| !m.is_empty()) {
+            toks.push(tok(",", Kind::Punct));
+            toks.extend(more);
+        }
+        toks.push(tok(")", Kind::Punct));
+        let rest = std::mem::replace(&mut self.toks, toks);
+        self.pos = 0;
+        self.shape = true;
+        let done = self.claim(out, line, false);
+        self.shape = false;
+        (self.toks, self.pos) = (rest, end);
+        done.map(|_| true)
     }
 
     /// `claim c = represented(f, { (a, b) | b != 0 });` or, with a set per
@@ -1411,12 +1583,6 @@ impl P {
         self.names.declared.extend(p.names.declared);
         self.names.boundaries.extend(p.names.boundaries);
         self.variants.extend(p.variants);
-        self.native.extend(p.native);
-        if name == "std::claims" {
-            let native = ["represented", "uniform"];
-            let named = names.iter().filter(|n| native.contains(&n.as_str()));
-            self.native.extend(named.cloned());
-        }
         self.names.represented.extend(p.names.represented);
         self.templates.extend(p.templates);
         Ok(())
@@ -1432,15 +1598,6 @@ impl P {
         name: &str,
         form: &str,
     ) -> R<()> {
-        let found = [self.qualified(form), form.to_string()]
-            .into_iter()
-            .find_map(|n| self.templates.get(&n).cloned());
-        let Some((params, body)) = found else {
-            self.pos -= 1;
-            return self.err(format!(
-                "no claim with parameters `{form}` above: `claim {form}(f, …) {{ given … then … }}`"
-            ));
-        };
         self.expect("(")?;
         let mut args: Vec<Vec<Tok>> = vec![Vec::new()];
         let (mut depth, mut bars) = (0, false);
@@ -1468,14 +1625,31 @@ impl P {
         if args.len() == 1 && args[0].is_empty() {
             args.clear();
         }
-        if args.len() != params.len() {
-            let msg = format!(
-                "`{form}` takes {} parameter(s), got {}",
-                params.len(),
-                args.len()
-            );
-            return self.err(msg);
-        }
+        let wanted = [self.qualified(form), form.to_string()];
+        let found = wanted
+            .iter()
+            .find_map(|n| self.templates.get(&format!("{n}/{}", args.len())).cloned());
+        let Some((params, body)) = found else {
+            let named = |k: &&String| wanted.iter().any(|n| k.starts_with(&format!("{n}/")));
+            let takes: Vec<&str> = self
+                .templates
+                .keys()
+                .filter(named)
+                .filter_map(|k| k.rsplit('/').next())
+                .collect();
+            let msg = match takes.is_empty() {
+                true => format!(
+                    "no claim with parameters `{form}` above: write \
+                     `claim {form}(f, …) {{ given … then … }}`, or import it"
+                ),
+                false => format!(
+                    "`{form}` takes {} parameter(s), got {}",
+                    takes.join(" or "),
+                    args.len()
+                ),
+            };
+            return Err(Error::new(line, msg));
+        };
         let tok = |text: &str, kind: Kind| Tok {
             kind,
             text: text.to_string(),
@@ -1697,7 +1871,7 @@ fn read(toks: Vec<Tok>, stack: &[String]) -> Result<(Vec<String>, P), Error> {
             impure: false,
             templates: BTreeMap::new(),
             stack: stack.to_vec(),
-            native: BTreeSet::new(),
+            shape: false,
         };
         let mut out = Vec::new();
         p.items(&mut out)?;
@@ -1764,7 +1938,7 @@ pub fn evidence_alone(src: &str, names: &Names) -> Result<String, Error> {
         impure: false,
         templates: BTreeMap::new(),
         stack: Vec::new(),
-        native: BTreeSet::new(),
+        shape: false,
     };
     let mut out = Vec::new();
     let lines: Vec<&str> = src.lines().collect();

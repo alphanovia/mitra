@@ -9,8 +9,7 @@
 // store, the reader of ties.
 
 // Rust's own, which the code uses.
-enum Option<T> { None, Some(value: T) }
-enum Result<T, E> { Ok(value: T), Err(error: E) }
+import std::rust::{Option, Result};
 
 // One test of a report, and whether it passed.
 record Outcome { name: String, passed: bool }

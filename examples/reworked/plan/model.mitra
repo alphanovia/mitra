@@ -1,6 +1,6 @@
 // A model with no code and no evidence: `mitra plan` lists the evidence
 // each claim owes. It is the list of tests to write.
-import std::claims::{commutative};
+import std::claims::{commutative, uniform};
 
 subject calc {
     fn div(a: 0..=9, b: 0..=9) -> 0..=9 { if b == 0 { 0 } else { a / b } }

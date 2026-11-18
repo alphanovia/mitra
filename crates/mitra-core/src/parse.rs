@@ -1119,6 +1119,11 @@ impl P {
                         }
                         Expr::Each(kind, x, list, Box::new(body))
                     }
+                    // `f::correct(a, b)`: what the reworked syntax writes
+                    // `correct(f(a, b))` inside an expression.
+                    _ if f.ends_with("::correct") => {
+                        Expr::Correct(f.trim_end_matches("::correct").to_string(), args)
+                    }
                     // A record's name makes it a record: see `records_in`.
                     _ => Expr::Call(f, args),
                 }
@@ -1733,7 +1738,11 @@ fn free(e: &Expr, scope: &mut Vec<String>, used: &mut Vec<String>) -> Vec<String
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => {
             free(a, scope, used);
         }
-        Expr::Call(_, args) | Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+        Expr::Call(_, args)
+        | Expr::Tuple(args)
+        | Expr::Correct(_, args)
+        | Expr::Record(_, args)
+        | Expr::List(args) => {
             args.iter().for_each(|a| {
                 free(a, scope, used);
             });
@@ -1760,7 +1769,7 @@ fn records_in(e: &mut Expr, names: &[String]) {
                 *e = Expr::Record(std::mem::take(f), std::mem::take(args));
             }
         }
-        Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+        Expr::Tuple(args) | Expr::Correct(_, args) | Expr::Record(_, args) | Expr::List(args) => {
             args.iter_mut().for_each(|a| records_in(a, names))
         }
         Expr::Match(a, arms) => {

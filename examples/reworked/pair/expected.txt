@@ -14,25 +14,25 @@ pair::scale_correct: unverified
 pair::scale_uniform: holds
 
 warning[M101]: a claim is not verified
-  --> model.mitra:6  fn add(p1: Pair, p2: Pair) -> Pair { Pair(p1.first + p2.first, p1.second + p2.second) }
+  --> model.mitra:7  fn add(p1: Pair, p2: Pair) -> Pair { Pair(p1.first + p2.first, p1.second + p2.second) }
 
   No evidence on (p1, p2) in (Pair \ {Pair(1, 2)}, Pair) | ({Pair(1, 2)}, Pair \ {Pair(3, 4)}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:15  claim minus_undoes_add(p1: Pair, p2: Pair) { minus(add(p1, p2), p2) == p1 }
+  --> model.mitra:16  claim minus_undoes_add(p1: Pair, p2: Pair) { minus(add(p1, p2), p2) == p1 }
 
   No evidence on (p1, p2) in (Pair \ {Pair(1, 2)}, Pair) | ({Pair(1, 2)}, Pair \ {Pair(3, 4)}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:19  claim scale_zero(p: Pair) { scale(p, 0) == Pair(0, 0) }
+  --> model.mitra:20  claim scale_zero(p: Pair) { scale(p, 0) == Pair(0, 0) }
 
   No evidence on classes false, true of `pair::scale_uniform::case`.
   help: one passing test in such a class stands for the class
 
 warning[M101]: a claim is not verified
-  --> model.mitra:23  claim scale_correct { given p: Pair, k: 0..=3 then correct(scale(p, k)) }
+  --> model.mitra:24  claim scale_correct { given p: Pair, k: 0..=3 then correct(scale(p, k)) }
 
   No evidence on class true of `pair::scale_uniform::case`.
   help: one passing test in such a class stands for the class

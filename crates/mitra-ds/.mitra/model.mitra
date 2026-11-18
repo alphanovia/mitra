@@ -5,8 +5,8 @@
 // the two agree. The tests are in tests.mitra.
 
 // Rust's own, which the code uses.
-enum Option<T> { None, Some(value: T) }
-enum Result<T, E> { Ok(value: T), Err(error: E) }
+import std::claims::{uniform};
+import std::rust::{Option, Result};
 
 // An opinion on "the subject is correct": belief, disbelief, and the
 // part left uncommitted.

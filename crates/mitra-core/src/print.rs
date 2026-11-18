@@ -92,9 +92,23 @@ pub fn print_claim(m: &Model, c: &Claim) -> String {
         return format!("-- the code of {} is tied to the model", c.func);
     }
     if let Target::Represented(set) = &c.target {
+        let g = m.function(set);
+        let names: Vec<String> = g
+            .map(|g| {
+                g.params
+                    .iter()
+                    .map(|p| format!("{}: {}", p.0, p.1))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let cond = g
+            .and_then(|g| g.body.as_ref())
+            .map(expr)
+            .unwrap_or_default();
         return format!(
-            "-- one input of {} where {set} stands for all of them",
-            c.func
+            "one tested input of {} stands for every ({}) where {cond}",
+            c.func,
+            names.join(", ")
         );
     }
     let params = m.function(&c.func).map(|f| &f.params[..]).unwrap_or(&[]);
@@ -245,6 +259,10 @@ fn at(e: &Expr, min: u8) -> String {
         Expr::Lit(v) if negative(v) => (v.to_string(), UNARY),
         Expr::Lit(v) => (v.to_string(), ATOM),
         Expr::Var(x) => (x.clone(), ATOM),
+        Expr::Correct(f, args) => {
+            let args: Vec<String> = args.iter().map(expr).collect();
+            (format!("correct({f}({}))", args.join(", ")), ATOM)
+        }
         Expr::Call(f, args) => {
             let args: Vec<String> = args.iter().map(expr).collect();
             (format!("{f}({})", args.join(", ")), ATOM)

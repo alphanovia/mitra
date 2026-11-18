@@ -1,0 +1,8 @@
+// Rust's common types, for the models of Rust code.
+//
+//     import std::rust::{Option, Result};
+//
+// Nothing here is part of the language: another language gets its own file.
+
+enum Option<T> { None, Some(value: T) }
+enum Result<T, E> { Ok(value: T), Err(error: E) }

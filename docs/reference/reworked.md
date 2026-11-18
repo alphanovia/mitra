@@ -11,8 +11,8 @@ One rule for every declaration: `keyword name(inputs) -> Output { body }`.
 ## Model
 
 ```rust
+import std::rust::{Result};
 enum NetError { Timeout, Refused }
-enum Result<T, E> { Ok(T), Err(E) }
 record Config { retries: 0..=5, verbose: bool }
 
 boundary network {
@@ -44,12 +44,12 @@ subject loader {
 | `claim c(a: T) trust 0.8 { e }` | The trust given to the statement itself, 1 when not said. In an error the claim is a candidate like evidence. Also on `assume`, and after a `uses` list. |
 | `claim c { given a: T, b: U  when cond  then e }` | The same claim, as a contract. |
 | `claim c(a: T) { correct(f(a)) }` | The code is right on these inputs, as judged by a test or a person. No `when` with it yet. |
-| `claim c = uniform(f);` | Every input of `f` behaves the same: one tested input stands for all. |
+| `claim c = uniform(f);` | Every input of `f` behaves the same: one tested input stands for all. With `import std::claims::{uniform};`, as for the next two. |
 | `claim c = uniform(f, \|a, b\| b == 0);` | The same within each class. The class is a Bool, or typed: `\|m\| -> {"x", "y"} { m.kind }`. A function name also works: `uniform(f, g)`. |
 | `claim c(f, T) { given a: T then f(a) == a }` | A claim with parameters: names without a type, and a contract as body. It is not a claim by itself. |
 | `claim d = c(g, 0..=9) trust 0.9;` | That claim with `f` and `T` replaced: a function, a set, a value or an inline function `\|a, b\| b > 0`. Written above its use. |
 | `import geometry::{Point, origin};` | The named declarations of `geometry.mitra`, beside this file, as if written here (`a::b::x` reads `a/b.mitra`). One file is one module. Nothing else of the file comes, except what it imports itself. |
-| `import std::claims::{commutative};` | The same from the modules shipped with Mitra. `mitra explain std::claims` prints one: `commutative`, `associative`, `idempotent`, `neutral`, `inverse`, `monotone`, `within`. |
+| `import std::claims::{commutative};` | The same from the modules shipped with Mitra; `mitra explain std::claims` prints one. `std::claims`: `commutative`, `associative`, `idempotent`, `neutral`, `inverse`, `monotone`, `within`, `represented`, `uniform`. `std::rust`: `Option<T> { None, Some(value: T) }`, `Result<T, E> { Ok(value: T), Err(error: E) }`. |
 | `claim c = represented(f, { (a, b) \| b != 0 });` | One tested input of the set stands for all of it; nothing is said outside. With `import std::claims::{represented};`. A set per input also works: `represented(abs, 0..=9)`, `represented(div, (0..=9, 1..=9))`. Several on one function. |
 | `assume c() { e }` | A claim taken as true without evidence (evidence with source `assumed`): `holds assuming [itself]` until the boundary is observed. Evidence against it is an error. |
 | `record R { a: T, b: U }`, `record Box<T> { item: T }` | Values are written `R(1, 2)`. |
@@ -139,23 +139,44 @@ Where none was observed, Mitra looks for it in this order.
 
 `examples/reworked/network`.
 
-## `represented` and `uniform`
+## `correct(…)` as a value, `represented` and `uniform`
 
-Both say how the code behaves, not what it returns: Mitra can't compute
-them, someone vouches for them (`evidence r { for div_rest holds source
-"review:me" }`). `std::claims` writes what they mean:
+`correct(f(a, b))` alone in a claim is the claim on the code. Inside a
+larger expression it is a value with three states: `true` when evidence
+judges that call right (a `holds` on the function, or an observed output
+that a spec of the function gives), `false` when wrong, and no value
+when nothing says. Where it has no value the claim is not judged.
+
+```rust
+claim mirror(a: 0..=2, b: 0..=2) { correct(add(a, b)) <=> correct(add(b, a)) }
+```
+
+- Both calls judged, and differently: `mirror` fails there.
+- `mirror` vouched for on the whole claim: it settles the calls nothing
+  judges. `add(0, 1)` judged right makes `add(1, 0)` right: a claim on
+  the code of `add` prints it under `assumed on …, by mirror`. This
+  works on a finite set of inputs, for calls written with the claim's
+  inputs (`add(b, a)`, not `add(a + 1, b)`).
+
+`std::claims` writes `represented` and `uniform` with it; `x` and `y`
+stand for the whole inputs of `f`:
 
 ```rust
 claim represented(f, S) { given x: S, y: S then correct(f(x)) <=> correct(f(y)) }
+claim uniform(f) { given x, y then correct(f(x)) <=> correct(f(y)) }
 claim uniform(f, case) { given x, y when case(x) == case(y) then correct(f(x)) <=> correct(f(y)) }
 ```
 
-`correct(f(x))` is true when evidence judges the call right, false when
-wrong, unknown otherwise. Mitra reads these two claims natively; it does
-not yet read `correct(…)` as a value in a claim of your own.
+Mitra reads a claim of this shape, whatever its name, as a set or as
+classes, and works on them whole: this is the only place where one name
+may stand for all the inputs of a function, and it also works on types
+too large to list. The shape is exactly: two inputs, both with the same
+set or both with none, an optional `when k(x) == k(y)`, and
+`correct(f(x)) <=> correct(f(y))` (or `==`).
 
-For a claim on the code of `f` (`correct(f(…))`, or a spec) and each
-`represented` claim on `f`:
+Nobody can compute these claims: someone vouches for them (`evidence r {
+for div_rest holds source "review:me" }`). For a claim on the code of
+`f` (`correct(f(…))`, or a spec) and each `represented` claim on `f`:
 
 - an input of the set passes and none fails: the rest of the set is
   `assumed on …, by` the claim. Not vouched for, the claim is among what
@@ -165,10 +186,10 @@ For a claim on the code of `f` (`correct(f(…))`, or a spec) and each
 - no input of the set is tested: nothing. `mitra plan` then owes
   `any one point of { (a, b) | b != 0 }`.
 
-A set written `{ (a, b) | cond }` needs a finite set of inputs; a set
-per input works on any type. `uniform` is one claim per function and
-sorts every input; it works without the import, as before.
-`examples/reworked/represented`.
+The set of `represented` is `{ (a, b) | cond }` over the inputs of the
+function (a finite set of inputs only), or a set per input: `0..=9`,
+`(0..=9, 1..=9)`, on any type. Several `represented` on one function;
+one `uniform`, which sorts every input. `examples/reworked/represented`.
 
 ## `mitra plan`: the evidence owed
 
@@ -276,13 +297,14 @@ either syntax. `mitra add 'evidence e { for f … }'` accepts a block.
   earlier line form.
 - Names that are keywords of the earlier syntax can't be used: `by`, `at`,
   `from`, `not`, `def`, `forall`, `uniform`, `correct`, and others.
-- `correct(…)` as a value in your own claims: only `represented` and
-  `uniform` of `std::claims` use it, natively.
+- A vouched claim that reads `correct(…)` settles other calls only on a
+  finite set of inputs; `represented` and `uniform` have no such limit.
 - Several `uniform` claims on one function (several `represented` work).
 - Uniformity proven from a spec's branches (later).
-- A claim with parameters can't take a whole input list (`given x: A`
-  for a function of any number of inputs), and an inline function is not
-  a value.
+- One name for the whole inputs of a function (`given x`, then `f(x)`)
+  is read only in the shape of `represented` and `uniform`. An inline
+  function is not a value. Two claims with parameters may share a name
+  when they take a different number of parameters.
 - A body can't call a boundary: a spec is computed, and a boundary is not.
 - Distributions on what a boundary answers, sequences. Simulations: later.
 - An imported file is read from the
