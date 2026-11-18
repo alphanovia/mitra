@@ -21,7 +21,8 @@ pub mod set;
 pub mod tuples;
 
 pub use ast::{
-    Claim, Evidence, Expr, Function, Judgment, Model, Pattern, Position, Record, Target, Test,
+    Arm, Claim, Decl, Enum, Evidence, Expr, Function, Judgment, Model, Pattern, Position, Record,
+    Target, Test,
 };
 pub use eval::{
     evaluate, failed_output, Assumed, Candidate, Conflict, Contradiction, Display, Flag,
@@ -70,7 +71,7 @@ pub enum Input {
 /// Parse both inputs and check them against each other.
 pub fn load(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     let mut m = parse_model(model).map_err(|e| (Input::Model, e))?;
-    m.evidence = parse_evidence_for(evidence, &m.records).map_err(|e| (Input::Evidence, e))?;
+    m.evidence = parse_evidence_for(evidence, &m).map_err(|e| (Input::Evidence, e))?;
     m.check()
 }
 

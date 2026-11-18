@@ -27,6 +27,28 @@ pub enum Expr {
     Index(Box<Expr>, Box<Expr>),
     /// `len(xs)`: the number of elements.
     Len(Box<Expr>),
+    /// `match e { None => a, Some(v) => b, _ => c }`: by variant.
+    Match(Box<Expr>, Vec<Arm>),
+}
+
+/// One arm of a `match`: a variant with a name for each of its fields, or
+/// `_` for any value.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Arm {
+    pub variant: Option<(String, Vec<String>)>,
+    pub body: Expr,
+}
+
+/// `enum Option(T) { None, Some(value: T) }`: a type made of variants,
+/// each a record, with sets as parameters.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Enum {
+    pub name: String,
+    pub params: Vec<String>,
+    /// The variants as written, between the braces.
+    pub body: String,
+    pub variants: Vec<String>,
+    pub line: usize,
 }
 
 /// `record Number(value: Int, unit: String)`: a named group of fields.
@@ -34,6 +56,9 @@ pub enum Expr {
 pub struct Record {
     pub name: String,
     pub fields: Vec<(String, Set)>,
+    /// The enum it is a variant of. A field typed by a parameter of the
+    /// enum is then `Value`.
+    pub of: Option<String>,
     pub line: usize,
 }
 
@@ -193,9 +218,22 @@ impl Test {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Decl {
+    Record(usize),
+    Enum(usize),
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Model {
     pub records: Vec<Record>,
+    pub enums: Vec<Enum>,
+    /// Sets written with an enum, such as `Option(Int)`, by their printed
+    /// form: reports print them as written.
+    pub aliases: Vec<(String, String)>,
+    /// The records and enums in the order declared, by their place in
+    /// `records` and `enums`.
+    pub declared: Vec<Decl>,
     pub functions: Vec<Function>,
     pub claims: Vec<Claim>,
     pub tests: Vec<Test>,
@@ -231,11 +269,17 @@ impl Model {
     /// as its name. Both read back as the same set.
     pub fn named(&self, text: &str) -> String {
         let mut out = text.to_string();
-        for r in &self.records {
+        let mut aliases = self.aliases.clone();
+        aliases.sort_by_key(|a| std::cmp::Reverse(a.0.len()));
+        for (set, written) in &aliases {
+            out = out.replace(set, written);
+        }
+        for r in self.records.iter().filter(|r| r.of.is_none()) {
             let whole = self
                 .records
                 .iter()
                 .take_while(|o| o.name != r.name)
+                .filter(|o| o.of.is_none())
                 .fold(r.set().to_string(), |t, o| {
                     t.replace(&o.set().to_string(), &o.name)
                 });
@@ -269,6 +313,7 @@ impl Model {
         let m = |line, msg: String| (Input::Model, Error::new(line, msg));
         let mut names: Vec<(&String, usize)> =
             self.records.iter().map(|r| (&r.name, r.line)).collect();
+        names.extend(self.enums.iter().map(|e| (&e.name, e.line)));
         for r in &self.records {
             for (i, (field, _)) in r.fields.iter().enumerate() {
                 if r.fields[..i].iter().any(|f| &f.0 == field) {
@@ -301,6 +346,34 @@ impl Model {
                         f.line,
                         format!("`{bad}` is not a spec defined above `{}`", f.name),
                     ));
+                }
+            }
+        }
+        // An arm of a `match` names a variant, with a name for each field.
+        let bodies = self
+            .functions
+            .iter()
+            .filter_map(|f| Some((f.body.as_ref()?, f.line)));
+        let claimed = self.claims.iter().filter_map(|c| match &c.target {
+            Target::Matches(e) => Some((e, c.line)),
+            _ => None,
+        });
+        for (e, line) in bodies.chain(claimed) {
+            for (name, fields) in arms(e) {
+                let Some(r) = self
+                    .records
+                    .iter()
+                    .find(|r| r.name == name && r.of.is_some())
+                else {
+                    return Err(m(line, format!("`{name}` is not a variant of an enum")));
+                };
+                if r.fields.len() != fields.len() {
+                    let msg = format!(
+                        "`{name}` has {} field(s), the arm names {}",
+                        r.fields.len(),
+                        fields.len()
+                    );
+                    return Err(m(line, msg));
                 }
             }
         }
@@ -416,6 +489,11 @@ impl Model {
             }
         }
         // `evidence c at 1`: a claim on its whole domain.
+        let ranges: Vec<String> = self
+            .functions
+            .iter()
+            .map(|f| self.named(&f.range.to_string()))
+            .collect();
         let tests = self.tests.iter_mut().map(|t| &mut t.judgment);
         for e in self.evidence.iter_mut().chain(tests) {
             let claim_func = self
@@ -464,7 +542,12 @@ impl Model {
                                 e.line,
                                 format!(
                                     "output {v} is outside the result type of `{}`: {}",
-                                    f.name, f.range
+                                    f.name,
+                                    ranges[self
+                                        .functions
+                                        .iter()
+                                        .position(|g| g.name == f.name)
+                                        .unwrap()]
                                 ),
                             ));
                         }
@@ -491,12 +574,36 @@ impl Model {
     }
 }
 
+/// The variant of every arm of every `match` in an expression.
+fn arms(e: &Expr) -> Vec<(String, Vec<String>)> {
+    match e {
+        Expr::Lit(_) | Expr::Var(_) => vec![],
+        Expr::Match(a, list) => {
+            let own = list.iter().filter_map(|arm| arm.variant.clone());
+            let inner = list.iter().flat_map(|arm| arms(&arm.body));
+            arms(a).into_iter().chain(own).chain(inner).collect()
+        }
+        Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => arms(a),
+        Expr::Call(_, args) | Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
+            args.iter().flat_map(arms).collect()
+        }
+        Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) => {
+            [arms(a), arms(b)].concat()
+        }
+        Expr::If(a, b, c) => [arms(a), arms(b), arms(c)].concat(),
+    }
+}
+
 /// Every function called in an expression.
 pub fn calls(e: &Expr) -> Vec<String> {
     match e {
         Expr::Lit(_) | Expr::Var(_) => vec![],
         Expr::Call(f, args) => std::iter::once(f.clone())
             .chain(args.iter().flat_map(calls))
+            .collect(),
+        Expr::Match(a, arms) => calls(a)
+            .into_iter()
+            .chain(arms.iter().flat_map(|arm| calls(&arm.body)))
             .collect(),
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => calls(a),
         Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {

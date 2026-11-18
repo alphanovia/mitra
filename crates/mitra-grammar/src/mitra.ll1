@@ -4,8 +4,13 @@
 # an empty alternative is ε.
 
 Model         = Command Model | ;
-Command       = Record | Opaque | Def | Claim | Test ;
+Command       = Record | Enum | Opaque | Def | Claim | Test ;
 Record        = "record" NAME Params ;
+Enum          = "enum" NAME EnumParams "{" Variant VariantsTail "}" ;
+EnumParams    = "(" NAME NamesTail ")" | ;
+Variant       = NAME VariantFields ;
+VariantFields = Params | ;
+VariantsTail  = "," Variant VariantsTail | ;
 Test          = "test" NAME ":" Foralls Judgment ;
 Opaque        = "opaque" NAME Params "->" Set ;
 Def           = "def" NAME Params "->" Set ":=" Expr ;
@@ -77,14 +82,18 @@ Unary         = "!" Unary | "-" Unary | Atom Postfix ;
 Postfix       = "." Field Postfix | "[" Expr "]" Postfix | ;
 Field         = NAME | NAT ;
 Atom          = NAME CallArgs | Literal | "(" Expr ExprsTail ")" | "[" Exprs "]"
-              | "len" "(" Expr ")" ;
+              | "len" "(" Expr ")" | "match" Expr "{" Arm ArmsTail "}" ;
+Arm           = ArmPattern "=>" Expr ;
+ArmsTail      = "," Arm ArmsTail | ;
+ArmPattern    = "_" | NAME ArmFields ;
+ArmFields     = "(" NAME NamesTail ")" | ;
 CallArgs      = "(" Expr ExprsTail ")" | ;
 Exprs         = Expr ExprsTail | ;
 ExprsTail     = "," Expr ExprsTail | ;
 Literal       = "true" | "false" | Num | STR ;
 
 Value         = "true" | "false" | Num | "-" Num | STR
-              | "(" Value "," Value ValuesTail ")" | NAME "(" Value ValuesTail ")"
+              | "(" Value "," Value ValuesTail ")" | NAME ArgRecord
               | "[" Values "]" ;
 Num           = NAT | DEC ;
 Number        = NAT | DEC ;

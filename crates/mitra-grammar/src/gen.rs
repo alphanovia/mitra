@@ -79,6 +79,10 @@ fn composite(r: &mut Rng, depth: usize) -> String {
             _ => format!("[ {} ]", parts(r, 0)),
         };
     }
+    // A variant without fields, inside another value.
+    if depth < 2 && r.chance(10) {
+        return VARIANTS[r.below(VARIANTS.len())].into();
+    }
     scalar(r)
 }
 
@@ -141,7 +145,41 @@ fn inter(r: &mut Rng, depth: usize) -> String {
     s
 }
 
+/// Variants without fields, and the enums: each with a fixed number of
+/// parameters, so that a use fits a declaration.
+const VARIANTS: [&str; 3] = ["Nil", "Red", "Off"];
+const ENUMS: [(&str, &[&str]); 3] = [("Flag", &[]), ("Maybe", &["T"]), ("Either", &["T", "E"])];
+
+/// `enum Maybe ( T ) { Nil , Some ( a : T ) }`
+fn enumeration(r: &mut Rng, which: usize) -> String {
+    let (name_, params) = ENUMS[which];
+    let field = |r: &mut Rng| {
+        let ty = match params.is_empty() || r.chance(50) {
+            true => set(r, 0),
+            false => params[r.below(params.len())].to_string(),
+        };
+        format!("{} : {ty}", name(r))
+    };
+    let variant = |r: &mut Rng| match r.chance(40) {
+        true => VARIANTS[r.below(VARIANTS.len())].to_string(),
+        false => format!("{} ( {} )", name(r), r.many(1, 2, field).join(" , ")),
+    };
+    let params = match params.is_empty() {
+        true => String::new(),
+        false => format!(" ( {} )", params.join(" , ")),
+    };
+    format!(
+        "enum {name_}{params} {{ {} }}",
+        r.many(1, 3, variant).join(" , ")
+    )
+}
+
 fn set_atom(r: &mut Rng, depth: usize) -> String {
+    if depth > 0 && r.chance(5) {
+        let (name, params) = ENUMS[1 + r.below(2)];
+        let sets: Vec<String> = params.iter().map(|_| set(r, depth - 1)).collect();
+        return format!("{name} ( {} )", sets.join(" , "));
+    }
     match r.below(if depth == 0 { 6 } else { 10 }) {
         0..=3 => TYPES[r.below(TYPES.len())].into(),
         4 => format!("{{ {} }}", r.many(0, 3, value).join(" , ")),
@@ -265,7 +303,22 @@ fn unary(r: &mut Rng, depth: usize) -> String {
 
 fn atom(r: &mut Rng, depth: usize) -> String {
     let exprs = |r: &mut Rng, lo| r.many(lo, 3, |r| expr(r, depth - 1)).join(" , ");
-    match if depth == 0 { r.below(2) } else { r.below(7) } {
+    match if depth == 0 { r.below(2) } else { r.below(8) } {
+        7 => {
+            let arm = |r: &mut Rng| {
+                let pattern = match r.below(3) {
+                    0 => "_".to_string(),
+                    1 => name(r),
+                    _ => format!("{} ( {} )", name(r), r.many(1, 2, name).join(" , ")),
+                };
+                format!("{pattern} => {}", expr(r, depth - 1))
+            };
+            format!(
+                "match {} {{ {} }}",
+                expr(r, depth - 1),
+                r.many(1, 3, arm).join(" , ")
+            )
+        }
         0 => literal(r),
         1 => name(r),
         2 => format!("{} ( {} )", name(r), exprs(r, 1)),
@@ -285,6 +338,7 @@ fn command(r: &mut Rng) -> String {
     if r.chance(10) {
         return format!("record {}{}", name(r), binders(r));
     }
+
     match r.below(4) {
         3 => format!("test {} : {}", name(r), judgment(r)),
         0 => format!("opaque {}{} -> {}", name(r), binders(r), set(r, 2)),
@@ -326,7 +380,14 @@ fn command(r: &mut Rng) -> String {
 
 /// A random model file.
 pub fn model(r: &mut Rng) -> String {
-    r.many(0, 8, |r| command(r) + &comment(r) + "\n").concat()
+    // An enum is declared before its first use, so they come first.
+    let mut enums = String::new();
+    for which in 0..ENUMS.len() {
+        if r.chance(15) {
+            enums += &(enumeration(r, which) + &comment(r) + "\n");
+        }
+    }
+    enums + &r.many(0, 8, |r| command(r) + &comment(r) + "\n").concat()
 }
 
 /// Sometimes a comment, at the end of a line or on its own line.

@@ -759,3 +759,59 @@ claim div_uniform : uniform div by div_class
     (uniform
       (name)
       (name))))
+
+==================
+enums and match
+==================
+
+enum Option(T) { None, Some(value: T) }
+def or_zero(o: Option(Int)) -> Int := match o { None => 0, Some(v) => v, _ => 1 }
+evidence get(None) = Some(4) at 1
+
+---
+
+(source_file
+  (enum
+    (name)
+    (type_parameters
+      (name))
+    (variant
+      (name))
+    (variant
+      (name)
+      (parameters
+        (parameter
+          (name)
+          (record_type
+            (name))))))
+  (def
+    (name)
+    (parameters
+      (parameter
+        (name)
+        (record_type
+          (name)
+          (set_name))))
+    (set_name)
+    (match
+      (name)
+      (arm
+        (pattern
+          (name))
+        (nat))
+      (arm
+        (pattern
+          (name)
+          (name))
+        (name))
+      (arm
+        (nat))))
+  (evidence
+    (output
+      (call
+        (name)
+        (name))
+      (record_value
+        (name)
+        (nat)))
+    (number)))

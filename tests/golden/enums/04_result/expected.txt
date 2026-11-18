@@ -1,0 +1,4 @@
+sub_is: holds
+  passes on       `sub(3, 5)`, `sub(5, 3)`
+  assumed on      classes false, true of `sub_class`, by `sub_uniform`
+sub_uniform: holds

@@ -11,7 +11,7 @@ match {
     r"[0-9]+" => NAT,
     r"[0-9]+\.[0-9]+" => DEC,
     r#""[^"\n]*""# => STR,
-    "record", "List", "len", "opaque", "def", "claim", "test", "evidence",
+    "record", "enum", "match", "List", "len", "opaque", "def", "claim", "test", "evidence",
     "correct", "at", "by", "derive", "if", "then", "else", "let",
     "true", "false", "forall", "in", "not",
     "Bool", "Int", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32",
@@ -27,8 +27,10 @@ match {
 Comma1<T>: () = T ("," T)* => ();
 
 pub Model: () = Command* => ();
-Command: () = { Record, Opaque, Def, Claim, Test };
+Command: () = { Record, Enum, Opaque, Def, Claim, Test };
 Record: () = "record" NAME Params => ();
+Enum: () = "enum" NAME ("(" Comma1<NAME> ")")? "{" Comma1<Variant> "}" => ();
+Variant: () = NAME Params? => ();
 Test: () = "test" NAME ":" Forall* Judgment => ();
 
 Opaque: () = "opaque" NAME Params "->" Set => ();
@@ -129,12 +131,18 @@ Atom: () = {
     "[" "]" => (),
     "[" Comma1<Expr> "]" => (),
     "len" "(" Expr ")" => (),
+    "match" Expr "{" Comma1<Arm> "}" => (),
+};
+Arm: () = {
+    "_" "=>" Expr => (),
+    NAME ("(" Comma1<NAME> ")")? "=>" Expr => (),
 };
 Literal: () = { "true" => (), "false" => (), Num => (), STR => () };
 
 Value: () = {
     "true" => (), "false" => (), Num => (), "-" Num => (), STR => (),
     "(" Value "," Comma1<Value> ")" => (),
+    NAME => (),
     NAME "(" Comma1<Value> ")" => (),
     "[" "]" => (),
     "[" Comma1<Value> "]" => (),

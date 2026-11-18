@@ -1,0 +1,3 @@
+warm_is: holds
+pick_red: holds
+pick_ok: holds

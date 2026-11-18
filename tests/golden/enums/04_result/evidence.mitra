@@ -1,0 +1,3 @@
+evidence sub(5, 3) = Ok(2) at 1
+evidence sub(3, 5) = Err("underflow") at 1
+evidence sub_uniform at 1

@@ -25,11 +25,11 @@ const PUNCT: [&str; 37] = [
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
-pub const KEYWORDS: [&str; 38] = [
-    "List", "len", "record", "opaque", "def", "claim", "test", "evidence", "correct", "at", "by",
-    "derive", "if", "then", "else", "let", "true", "false", "forall", "in", "not", "Bool", "Int",
-    "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "Float64", "String", "Value",
-    "_", "Real", "uniform", "uses", "only",
+pub const KEYWORDS: [&str; 40] = [
+    "enum", "match", "List", "len", "record", "opaque", "def", "claim", "test", "evidence",
+    "correct", "at", "by", "derive", "if", "then", "else", "let", "true", "false", "forall", "in",
+    "not", "Bool", "Int", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32",
+    "Float64", "String", "Value", "_", "Real", "uniform", "uses", "only",
 ];
 
 /// The whole text as tokens, each with its line.
@@ -81,8 +81,42 @@ fn lex(src: &str) -> Result<Vec<(Tok, usize)>, Error> {
 struct P {
     toks: Vec<(Tok, usize)>,
     pos: usize,
-    /// The records declared so far.
+    /// The records and enums declared so far.
     records: Vec<Record>,
+    enums: Vec<Enum>,
+    /// The sets the parameters of an enum stand for, inside its body.
+    params: Vec<(String, Set)>,
+    /// Sets written with an enum, by their printed form.
+    aliases: Vec<(String, String)>,
+    /// The names used as a record with a set for each field.
+    used: Vec<String>,
+}
+
+/// A token as written.
+fn text(t: &Tok) -> String {
+    match t {
+        Tok::Ident(s) | Tok::Num(s) => s.clone(),
+        Tok::Str(s) => format!("\"{s}\""),
+        Tok::Punct(p) => p.to_string(),
+    }
+}
+
+/// Tokens as one line of text, spaced as a person would.
+fn join(toks: &[Tok]) -> String {
+    let mut out = String::new();
+    for (i, t) in toks.iter().enumerate() {
+        let t = text(t);
+        let tight_before = [",", ")", ":", "]", "}"].contains(&t.as_str());
+        let after_open = i > 0 && matches!(&toks[i - 1], Tok::Punct("(" | "[" | "{"));
+        let call = t == "(" && i > 0 && matches!(&toks[i - 1], Tok::Ident(_));
+        // In a set, `-` is always a sign.
+        let signed = i > 0 && matches!(&toks[i - 1], Tok::Punct("-"));
+        if i > 0 && !tight_before && !after_open && !call && !signed {
+            out += " ";
+        }
+        out += &t;
+    }
+    out
 }
 
 impl P {
@@ -91,6 +125,10 @@ impl P {
             toks: lex(src)?,
             pos: 0,
             records: Vec::new(),
+            enums: Vec::new(),
+            params: Vec::new(),
+            aliases: Vec::new(),
+            used: Vec::new(),
         })
     }
     /// The line of the next token (or of the last one, at the end).
@@ -247,9 +285,13 @@ impl P {
             return Ok(Value::Tuple(parts));
         }
         if self.is_name() {
+            // `Some(1)`, or a variant without fields: `None`.
             let name = self.ident()?;
-            self.expect("(")?;
-            return Ok(Value::Record(name, self.values()?));
+            let parts = match self.eat("(") {
+                true => self.values()?,
+                false => Vec::new(),
+            };
+            return Ok(Value::Record(name, parts));
         }
         if self.eat("[") {
             let mut parts = Vec::new();
@@ -348,13 +390,43 @@ impl P {
             // with one field in each set.
             let line = self.line();
             let name = self.ident()?;
+            if let Some((_, set)) = self.params.iter().find(|p| p.0 == name) {
+                return Ok(set.clone());
+            }
+            let mut args = Vec::new();
             if self.eat("(") {
-                let mut fields = vec![self.set()?];
+                args.push(self.set()?);
                 while self.eat(",") {
-                    fields.push(self.set()?);
+                    args.push(self.set()?);
                 }
                 self.expect(")")?;
-                return Ok(Set::record(&name, fields));
+            }
+            // `Option(Int)`: an enum, with a set for each of its parameters.
+            if let Some(e) = self.enums.iter().find(|e| e.name == name).cloned() {
+                if args.len() != e.params.len() {
+                    return Err(Error::new(
+                        line,
+                        format!(
+                            "`{name}` takes {} set(s), got {}",
+                            e.params.len(),
+                            args.len()
+                        ),
+                    ));
+                }
+                let written: Vec<String> = args.iter().map(|a| a.to_string()).collect();
+                let written = match args.is_empty() {
+                    true => name.clone(),
+                    false => format!("{name}({})", written.join(", ")),
+                };
+                let params = e.params.iter().cloned().zip(args).collect();
+                let (variants, _) = self.variants(&e, params, line)?;
+                let set = variants.iter().fold(Set::empty(), |s, v| s.union(&v.set()));
+                self.aliases.push((set.to_string(), written));
+                return Ok(set);
+            }
+            if !args.is_empty() {
+                self.used.push(name.clone());
+                return Ok(Set::record(&name, args));
             }
             return match self.records.iter().find(|r| r.name == name) {
                 Some(r) => Ok(r.set()),
@@ -362,7 +434,7 @@ impl P {
                     line,
                     format!(
                         "unknown type `{name}` (Bool, Int, Int8 to Int64, UInt8 to UInt32, \
-                         Float64, String, Value, or a record declared above)"
+                         Float64, String, Value, or a record or an enum declared above)"
                     ),
                 )),
             };
@@ -428,6 +500,47 @@ impl P {
         Ok(set)
     }
 
+    /// The variants of an enum, from its body, with a set for each
+    /// parameter.
+    fn variants(
+        &self,
+        of: &Enum,
+        params: Vec<(String, Set)>,
+        line: usize,
+    ) -> Result<(Vec<Record>, Vec<String>), Error> {
+        let at = |e: Error| Error::new(line, e.message);
+        let mut p = P::new(&of.body).map_err(at)?;
+        // The enums declared before this one.
+        p.records = self.records.clone();
+        let before = self.enums.iter().take_while(|e| e.name != of.name);
+        p.enums = before.cloned().collect();
+        p.params = params;
+        let mut out = Vec::new();
+        loop {
+            let name = p.ident().map_err(at)?;
+            let fields = match p.is("(") {
+                true => p.binders().map_err(at)?,
+                false => Vec::new(),
+            };
+            out.push(Record {
+                name,
+                fields,
+                of: None,
+                line,
+            });
+            if p.at_end() {
+                return match p.used.contains(&of.name) {
+                    true => Err(Error::new(
+                        line,
+                        format!("the enum `{}` can't contain itself", of.name),
+                    )),
+                    false => Ok((out, p.used)),
+                };
+            }
+            p.expect(",").map_err(at)?;
+        }
+    }
+
     // ---- binders, arguments, patterns ----
 
     /// `(a b : Int) (c : Bool)`, at least one.
@@ -470,9 +583,18 @@ impl P {
         // `(a, 1, -2)`; no parentheses when there are no arguments.
         let mut more = self.eat("(");
         while more {
-            // A name followed by `(` is a record.
-            let record =
-                self.is_name() && matches!(self.toks.get(self.pos + 1), Some((Tok::Punct("("), _)));
+            // A name followed by `(` is a record; a name that no `forall`
+            // binds is a variant without fields, when one is declared.
+            let variant = |x: &String| {
+                !bound.iter().any(|b| &b.0 == x)
+                    && self
+                        .records
+                        .iter()
+                        .any(|r| &r.name == x && r.fields.is_empty())
+            };
+            let record = self.is_name()
+                && (matches!(self.toks.get(self.pos + 1), Some((Tok::Punct("("), _)))
+                    || matches!(self.peek(), Some(Tok::Ident(x)) if variant(x)));
             let value = matches!(self.peek(), Some(Tok::Num(_) | Tok::Str(_)))
                 || record
                 || self.is("-")
@@ -694,6 +816,37 @@ impl P {
             self.expect(")")?;
             return Ok(Expr::Len(Box::new(e)));
         }
+        if self.eat_keyword("match") {
+            // match e { None => a, Some(v) => b, _ => c }
+            let e = self.expr()?;
+            self.expect("{")?;
+            let mut arms = Vec::new();
+            loop {
+                let variant = if self.eat_keyword("_") {
+                    None
+                } else {
+                    let name = self.ident()?;
+                    let mut fields = Vec::new();
+                    if self.eat("(") {
+                        fields.push(self.ident()?);
+                        while self.eat(",") {
+                            fields.push(self.ident()?);
+                        }
+                        self.expect(")")?;
+                    }
+                    Some((name, fields))
+                };
+                self.expect("=>")?;
+                arms.push(Arm {
+                    variant,
+                    body: self.expr()?,
+                });
+                if !self.eat(",") {
+                    self.expect("}")?;
+                    return Ok(Expr::Match(Box::new(e), arms));
+                }
+            }
+        }
         if self.is_name() {
             return Ok(Expr::Var(self.ident()?));
         }
@@ -712,16 +865,83 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
         let line = p.line();
         let Some(Tok::Ident(kw)) = p.next() else {
             p.pos -= 1;
-            return p.err("expected `record`, `opaque`, `def`, `claim` or `test`");
+            return p.err("expected `record`, `enum`, `opaque`, `def`, `claim` or `test`");
         };
         match kw.as_str() {
             "record" => {
                 // record Name(field: T, …)
                 let name = p.ident()?;
                 let fields = p.binders()?;
-                let record = Record { name, fields, line };
+                let record = Record {
+                    name,
+                    fields,
+                    of: None,
+                    line,
+                };
+                m.declared.push(Decl::Record(m.records.len()));
                 p.records.push(record.clone());
                 m.records.push(record);
+            }
+            "enum" => {
+                // enum Name(T, …) { Variant, Variant(field: T, …), … }
+                let name = p.ident()?;
+                if p.used.contains(&name) {
+                    return Err(Error::new(
+                        line,
+                        format!("`{name}` is used above: declare an enum before its first use"),
+                    ));
+                }
+                let mut params = Vec::new();
+                if p.eat("(") {
+                    params.push(p.ident()?);
+                    while p.eat(",") {
+                        params.push(p.ident()?);
+                    }
+                    p.expect(")")?;
+                }
+                if let Some(x) = (1..params.len()).find(|i| params[..*i].contains(&params[*i])) {
+                    let msg = format!("`{name}` has two parameters `{}`", params[x]);
+                    return Err(Error::new(line, msg));
+                }
+                p.expect("{")?;
+                // The body is kept as written, and read again for each use.
+                let (start, mut depth) = (p.pos, 1);
+                while depth > 0 {
+                    match p.next() {
+                        Some(Tok::Punct("{")) => depth += 1,
+                        Some(Tok::Punct("}")) => depth -= 1,
+                        Some(_) => {}
+                        None => {
+                            p.pos -= 1;
+                            return p.err("expected `}` to close the enum");
+                        }
+                    }
+                }
+                let toks: Vec<Tok> = p.toks[start..p.pos - 1]
+                    .iter()
+                    .map(|t| t.0.clone())
+                    .collect();
+                let body = join(&toks);
+                // Checked once with every parameter as `Value`.
+                let any = params.iter().map(|x| (x.clone(), Set::any())).collect();
+                let mut e = Enum {
+                    name: name.clone(),
+                    params,
+                    body,
+                    variants: Vec::new(),
+                    line,
+                };
+                let (variants, used) = p.variants(&e, any, line)?;
+                p.used.extend(used);
+                e.variants = variants.iter().map(|v| v.name.clone()).collect();
+                for mut v in variants {
+                    v.of = Some(name.clone());
+                    p.records.push(v.clone());
+                    m.records.push(v);
+                }
+                m.declared.push(Decl::Enum(m.enums.len()));
+                p.enums.push(e.clone());
+                m.enums.push(e);
             }
             "opaque" | "def" => {
                 // opaque f (a : T) … : R   |   def f (a : T) … : R := expr
@@ -842,11 +1062,14 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
             k => {
                 p.pos -= 1;
                 return p.err(format!(
-                    "expected `record`, `opaque`, `def`, `claim` or `test`, got `{k}`"
+                    "expected `record`, `enum`, `opaque`, `def`, `claim` or `test`, got `{k}`"
                 ));
             }
         }
     }
+    m.aliases = std::mem::take(&mut p.aliases);
+    m.aliases.sort();
+    m.aliases.dedup();
     // `Name(a, b)` is a record when `Name` is one, wherever it is declared.
     let names: Vec<String> = m.records.iter().map(|r| r.name.clone()).collect();
     for f in &mut m.functions {
@@ -875,6 +1098,11 @@ fn records_in(e: &mut Expr, names: &[String]) {
         Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {
             args.iter_mut().for_each(|a| records_in(a, names))
         }
+        Expr::Match(a, arms) => {
+            records_in(a, names);
+            arms.iter_mut()
+                .for_each(|arm| records_in(&mut arm.body, names));
+        }
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => records_in(a, names),
         Expr::Binary(_, a, b) | Expr::Let(_, a, b) | Expr::Index(a, b) => {
             records_in(a, names);
@@ -892,14 +1120,15 @@ fn records_in(e: &mut Expr, names: &[String]) {
 /// judgment is `correct(f(args))`, `not correct(f(args))`, `f(args) = value`,
 /// `claim` or `not claim`.
 pub fn parse_evidence(src: &str) -> Result<Vec<Evidence>, Error> {
-    parse_evidence_for(src, &[])
+    parse_evidence_for(src, &Model::default())
 }
 
-/// The evidence file of a model with these records: a record's name can
-/// then stand for all its values, as in `forall n in Number,`.
-pub fn parse_evidence_for(src: &str, records: &[Record]) -> Result<Vec<Evidence>, Error> {
+/// The evidence file of a model: its records and enums can then stand for
+/// their values, as in `forall n in Number,`.
+pub fn parse_evidence_for(src: &str, model: &Model) -> Result<Vec<Evidence>, Error> {
     let mut p = P::new(src)?;
-    p.records = records.to_vec();
+    p.records = model.records.clone();
+    p.enums = model.enums.clone();
     let mut out = Vec::new();
     while !p.at_end() {
         let line = p.line();

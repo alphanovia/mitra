@@ -1,0 +1,8 @@
+enum Color { Red, Green, Blue }
+enum Option(T) { None, Some(value: T) }
+opaque warm(c: Color) -> Bool
+opaque pick(c: Option(Color)) -> Color
+def is_warm(c: Color) -> Bool := match c { Red => true, _ => false }
+claim warm_is : forall c, warm(c) = is_warm(c)
+claim pick_red : pick(None) = Red
+claim pick_ok : forall c, correct(pick(c))

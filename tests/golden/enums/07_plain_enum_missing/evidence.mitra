@@ -1,0 +1,3 @@
+evidence warm(Red) = true at 1
+evidence pick(Some(Green)) = Green at 1
+evidence correct(pick(None)) at 1

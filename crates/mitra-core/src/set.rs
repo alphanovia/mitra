@@ -51,6 +51,8 @@ impl Shape {
     fn show(&self, parts: &[String]) -> String {
         match self {
             Shape::Tuple(_) => format!("({})", parts.join(", ")),
+            // A variant without fields is its name alone.
+            Shape::Record(name, 0) => name.clone(),
             Shape::Record(name, _) => format!("{name}({})", parts.join(", ")),
         }
     }

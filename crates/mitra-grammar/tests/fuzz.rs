@@ -4,7 +4,7 @@
 //! LALRPOP grammar, by the LL(1) grammar and by `mitra_core`, and must
 //! round-trip through the printer. Seeds are fixed, so runs are repeatable.
 
-use mitra_core::{parse_evidence, parse_model, print_evidence, print_model, Evidence, Model};
+use mitra_core::{parse_evidence_for, parse_model, print_evidence, print_model, Evidence, Model};
 use mitra_grammar::{accepts_evidence, accepts_model, gen, ll1::Grammar};
 use std::{fs, path::Path, sync::OnceLock};
 
@@ -13,6 +13,9 @@ const SEEDS: u64 = 500;
 
 fn model_without_lines(mut m: Model) -> Model {
     m.records.iter_mut().for_each(|x| x.line = 0);
+    // The printer writes a set in full, not by the name of its enum.
+    m.aliases.clear();
+    m.enums.iter_mut().for_each(|x| x.line = 0);
     m.functions.iter_mut().for_each(|x| x.line = 0);
     m.claims.iter_mut().for_each(|x| x.line = 0);
     m.tests.iter_mut().for_each(|x| {
@@ -44,15 +47,19 @@ fn check(model: &str, evidence: &str) -> Outcome {
     let both = |a: Result<(), String>, b: Result<(), String>| a.and(b);
     let grammar = both(accepts_model(model), accepts_evidence(evidence));
     let ll1 = both(g.accepts("Model", model), g.accepts("Evidences", evidence));
+    // Evidence is read with its model: a name alone is a variant.
     let parsed = parse_model(model)
         .map_err(|e| format!("{e:?}"))
-        .and_then(|m| Ok((m, parse_evidence(evidence).map_err(|e| format!("{e:?}"))?)));
+        .and_then(|m| {
+            let e = parse_evidence_for(evidence, &m).map_err(|e| format!("{e:?}"))?;
+            Ok((m, e))
+        });
     let parses = parsed.as_ref().map(|_| ()).map_err(|e| e.clone());
     let round_trips = parsed.and_then(|(m, e)| {
         let (m, e) = (model_without_lines(m), evidence_without_lines(e));
         let m2 = parse_model(&print_model(&m)).map_err(|x| format!("reprint: {x:?}"))?;
-        let e2 =
-            parse_evidence(&print_evidence(&e, None)).map_err(|x| format!("reprint: {x:?}"))?;
+        let e2 = parse_evidence_for(&print_evidence(&e, None), &m)
+            .map_err(|x| format!("reprint: {x:?}"))?;
         if model_without_lines(m2) != m || evidence_without_lines(e2) != e {
             return Err("parse → print → parse changed the AST".into());
         }
@@ -85,7 +92,10 @@ fn golden_files_are_in_the_grammar() {
             let src = fs::read_to_string(&path).unwrap();
             let o = match path.file_name().unwrap().to_str().unwrap() {
                 "model.mitra" => check(&src, ""),
-                f if f.ends_with(".mitra") => check("", &src),
+                f if f.ends_with(".mitra") => {
+                    let model = fs::read_to_string(path.with_file_name("model.mitra"));
+                    check(&model.unwrap_or_default(), &src)
+                }
                 _ => continue,
             };
             assert!(all_ok(&o), "{}: {o:?}", path.display());

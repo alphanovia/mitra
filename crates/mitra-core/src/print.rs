@@ -9,8 +9,22 @@ use crate::set::{Set, Value};
 
 pub fn print_model(m: &Model) -> String {
     let mut out = String::new();
-    for r in &m.records {
-        out += &format!("record {}{}\n", r.name, binders(&r.fields));
+    // In the order written: a record may use an enum, and an enum a record.
+    for d in &m.declared {
+        match d {
+            Decl::Record(i) => {
+                let r = &m.records[*i];
+                out += &format!("record {}{}\n", r.name, binders(&r.fields));
+            }
+            Decl::Enum(i) => {
+                let e = &m.enums[*i];
+                let params = match e.params.is_empty() {
+                    true => String::new(),
+                    false => format!("({})", e.params.join(", ")),
+                };
+                out += &format!("enum {}{params} {{ {} }}\n", e.name, e.body);
+            }
+        }
     }
     for f in &m.functions {
         let head = format!("{}{} -> {}", f.name, binders(&f.params), f.range);
@@ -211,6 +225,20 @@ fn at(e: &Expr, min: u8) -> String {
         }
         Expr::Index(a, i) => (format!("{}[{}]", at(a, ATOM), expr(i)), ATOM),
         Expr::Len(a) => (format!("len({})", expr(a)), ATOM),
+        Expr::Match(a, arms) => {
+            let arms: Vec<String> = arms
+                .iter()
+                .map(|arm| {
+                    let pattern = match &arm.variant {
+                        None => "_".to_string(),
+                        Some((name, fields)) if fields.is_empty() => name.clone(),
+                        Some((name, fields)) => format!("{name}({})", fields.join(", ")),
+                    };
+                    format!("{pattern} => {}", expr(&arm.body))
+                })
+                .collect();
+            (format!("match {} {{ {} }}", expr(a), arms.join(", ")), ATOM)
+        }
         Expr::Unary(op, a) => {
             let inner = at(a, UNARY);
             // `- -x` must not print as the comment `--x`, and `-(5)` must not

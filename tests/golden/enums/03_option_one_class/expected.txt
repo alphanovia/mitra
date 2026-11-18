@@ -1,0 +1,13 @@
+get_is: unverified
+  passes on       `get(Some(4))`
+  assumed on      class "some" of `kind`, by `get_uniform`
+  no evidence on  class "none" of `kind`
+get_uniform: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:5  claim get_is : forall o, get(o) = or_zero(o)
+
+  No evidence on class "none" of `kind`.
+  help: one passing test in such a class stands for the class
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

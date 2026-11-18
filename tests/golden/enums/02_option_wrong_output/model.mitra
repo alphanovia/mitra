@@ -1,0 +1,6 @@
+enum Option(T) { None, Some(value: T) }
+opaque get(o: Option(Int)) -> Int
+def or_zero(o: Option(Int)) -> Int := match o { None => 0, Some(v) => v }
+def kind(o: Option(Int)) -> {"none", "some"} := match o { None => "none", Some(v) => "some" }
+claim get_is : forall o, get(o) = or_zero(o)
+claim get_uniform : uniform get by kind

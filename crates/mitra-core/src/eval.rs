@@ -342,8 +342,35 @@ impl Eval<'_> {
             Expr::Lit(v) => vec![v.clone()],
             Expr::Var(x) => match env.get(x) {
                 Some(v) => vec![v.clone()],
+                // A variant without fields.
+                None if self.model.record(x).is_some_and(|r| r.fields.is_empty()) => {
+                    vec![Value::Record(x.clone(), Vec::new())]
+                }
                 None => return err(format!("unknown name `{x}`")),
             },
+            Expr::Match(a, arms) => {
+                let mut out = Vec::new();
+                for v in self.eval(a, env, line, subjects)? {
+                    let fits = |arm: &&Arm| match (&arm.variant, &v) {
+                        (None, _) => true,
+                        (Some((name, fields)), Value::Record(n, parts)) => {
+                            name == n && fields.len() == parts.len()
+                        }
+                        _ => false,
+                    };
+                    let Some(arm) = arms.iter().find(fits) else {
+                        return err(format!("`match` has no arm for {v}"));
+                    };
+                    let mut env = env.clone();
+                    if let (Some((_, fields)), Value::Record(_, parts)) = (&arm.variant, &v) {
+                        for (x, p) in fields.iter().zip(parts) {
+                            env.insert(x.clone(), p.clone());
+                        }
+                    }
+                    out.extend(self.eval(&arm.body, &env, line, subjects)?);
+                }
+                out
+            }
             Expr::Call(f, args) => {
                 let args = args
                     .iter()
@@ -442,12 +469,25 @@ impl Eval<'_> {
                 out
             }
             Expr::Binary(op, a, b) => {
-                let (xs, ys) = (
-                    self.eval(a, env, line, subjects)?,
-                    self.eval(b, env, line, subjects)?,
-                );
+                let xs = self.eval(a, env, line, subjects)?;
+                // As in Rust, `&&` and `||` stop at the first operand
+                // that settles them.
+                let settles = |x: &Value| {
+                    matches!(
+                        (op.to_string().as_str(), x),
+                        ("&&", Value::Bool(false)) | ("||", Value::Bool(true))
+                    )
+                };
+                if xs.iter().all(settles) {
+                    return Ok(xs);
+                }
+                let ys = self.eval(b, env, line, subjects)?;
                 let mut out = Vec::new();
                 for x in &xs {
+                    if settles(x) {
+                        out.push(x.clone());
+                        continue;
+                    }
                     for y in &ys {
                         match binary(op, x, y) {
                             Some(v) => out.push(v),
@@ -760,7 +800,7 @@ fn computable(e: &Expr, bound: &[&String], model: &Model) -> bool {
             model.function(f).is_some_and(|f| f.is_spec())
                 && args.iter().all(|a| computable(a, bound, model))
         }
-        Expr::If(..) | Expr::Let(..) => false,
+        Expr::If(..) | Expr::Let(..) | Expr::Match(..) => false,
     }
 }
 
@@ -773,6 +813,11 @@ fn subject_calls<'e>(e: &'e Expr, model: &Model, out: &mut Vec<(&'e String, &'e 
                 out.push((f, args));
             }
             args.iter().for_each(|a| subject_calls(a, model, out));
+        }
+        Expr::Match(a, arms) => {
+            subject_calls(a, model, out);
+            arms.iter()
+                .for_each(|arm| subject_calls(&arm.body, model, out));
         }
         Expr::Unary(_, a) | Expr::Field(a, _) | Expr::Len(a) => subject_calls(a, model, out),
         Expr::Tuple(args) | Expr::Record(_, args) | Expr::List(args) => {

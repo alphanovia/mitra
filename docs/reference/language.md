@@ -126,7 +126,7 @@ used as a wildcard, a claim named where a subject is expected.
 The syntax is a small, fixed subset inspired by Lean 4
 ([design](../design/lean-syntax.md)), written in ASCII, with parameters
 and calls in parentheses: `f(a: Int, b: Int) -> Int` and `f(1, -2)`. Every command starts
-with a keyword (`record`, `opaque`, `def`, `claim`, `test`, `evidence`), so a parser knows what it reads from the first token. Layout is
+with a keyword (`record`, `enum`, `opaque`, `def`, `claim`, `test`, `evidence`), so a parser knows what it reads from the first token. Layout is
 free: line breaks and indentation mean nothing.
 
 - `--` starts a comment that runs to the end of the line.
@@ -139,7 +139,7 @@ free: line breaks and indentation mean nothing.
 - Symbols, longest match first: `@[` `..=` `:=` `=>` `->` `==` `!=` `<=` `>=`
   `&&` `||` `..` `.` `(` `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `&` `!` `<` `>`
   `+` `-` `*` `\`.
-- Keywords: `record opaque def claim test evidence correct at by derive
+- Keywords: `record enum match opaque def claim test evidence correct at by derive
   if then else let true false forall in not uniform uses only len List
   Bool Int Int8 Int16 Int32 Int64 UInt8 UInt16 UInt32 Float64 String
   Value Real _`. `Real`
@@ -151,9 +151,12 @@ free: line breaks and indentation mean nothing.
 
 ```ebnf
 model      = { command } ;
-command    = record | opaque | def | claim | test ;
+command    = record | enum | opaque | def | claim | test ;
 
 record     = "record" name params ;
+enum       = "enum" name [ "(" name { "," name } ")" ]
+             "{" variant { "," variant } "}" ;
+variant    = name [ params ] ;
 opaque     = "opaque" name params "->" set ;
 def        = "def" name params "->" set ":=" expr ;
 params     = "(" param { "," param } ")" ;
@@ -202,11 +205,13 @@ atom       = name [ "(" expr { "," expr } ")" ]
            | "true" | "false" | number | string
            | "(" expr { "," expr } ")"
            | "[" [ expr { "," expr } ] "]"
-           | "len" "(" expr ")" ;
+           | "len" "(" expr ")"
+           | "match" expr "{" arm { "," arm } "}" ;
+arm        = ( "_" | name [ "(" name { "," name } ")" ] ) "=>" expr ;
 
 value      = "true" | "false" | [ "-" ] number | string
            | "(" value "," value { "," value } ")"
-           | name "(" value { "," value } ")"
+           | name [ "(" value { "," value } ")" ]
            | "[" [ value { "," value } ] "]" ;
 number     = nat | dec ;
 ```
@@ -218,8 +223,9 @@ arguments: `evidence c at 1`.
 
 Beyond the grammar, the parser checks:
 
-- every name in `args` is bound by a `forall` before it, and every `forall`
-  name is distinct and used exactly once;
+- every name in `args` is bound by a `forall` before it, or is a variant
+  without fields (`None`); a bound name wins over a variant of the same
+  name; every `forall` name is distinct and used exactly once;
 - `correct(f(args))` and a claim's `f(args) = e` have at least one argument;
 - integer values fit in 64 bits (`-9223372036854775808` to
   `9223372036854775807`); range bounds may be larger, up to 2^126 either
@@ -228,7 +234,11 @@ Beyond the grammar, the parser checks:
 - `dec` numbers are finite 64-bit floats;
 - a range has an upper bound after `..=`, and `..` alone is not a range;
   ranges are over integers only;
-- a name used alone as a set is a record declared above it;
+- a name used alone as a set is a record or an enum declared above it,
+  or a parameter of the enum being declared;
+- an enum is declared above its first use, takes one set for each of its
+  parameters, and can't contain itself;
+- an arm of a `match` names a variant, with one name for each field;
 - `t.0.1` reads `0.1` as a number: write `(t.0).1`.
 
 ### Grammar checks
@@ -271,6 +281,8 @@ Types are sets of values, and every group of inputs is a set.
 | `Number` | every value of the record `Number` (see `record`) |
 | `Number(A, B)` | the records `Number` with a first field in A and a second in B |
 | `List(A)` | the lists, of any length, whose elements are all in A |
+| `Color`, `Option(A)`, `Result(A, B)` | every value of the enum, with these sets for its parameters (see `enum`) |
+| `Some(A)`, `{None}` | the values of one variant: a variant is a record shape |
 | `{(1, "a"), Number(1, "m"), [1, 2]}` | exactly these values |
 | `A \| B`, `A & B`, `A \ B` | union, intersection, difference |
 
@@ -288,7 +300,9 @@ prints `{}`. A set of tuples or records prints as products,
 `Number(0..=2, {"m"})`, or as a product minus a few values; a set of
 lists as `List(A)`, with `\ List(B)` for "at least one element outside
 B" and `\ {[]}` for "not the empty list". In reports a record's whole
-set prints as its name.
+set prints as its name, and so does an enum as the model writes it
+(`Option(Int)`); a part of an enum prints by its variants, such as
+`Some(Int \ {4})`.
 
 `Value` holds every tuple, record and list too. A value is a tuple, a
 record or a list by its form, whatever was declared: `Number(1, "m")` is
@@ -314,6 +328,31 @@ does, for a parameter, a result, a field of another record or the
 elements of a list. A record is declared above its first use as a set,
 and can't hold itself. Two records with the same fields are different
 types.
+
+### enum: one of several variants
+
+```lean
+enum Color { Red, Green, Blue }
+enum Option(T) { None, Some(value: T) }
+enum Result(T, E) { Ok(value: T), Err(error: E) }
+
+opaque first(xs: List(Int)) -> Option(Int)
+opaque parse(s: String) -> Result(Int, String)
+```
+
+An enum is a type made of variants. A variant has named fields, like a
+record, or none: `Some(3)`, `None`. The parameters in parentheses are
+sets, given at each use: `Option(Int)` is `{None} | Some(Int)`, and
+`Option(0..=9)` is a subset of it. An enum without parameters is used by
+its name alone, `Color`.
+
+Variant names are shared by the whole model: two enums can't both have a
+`None`, and a variant can't be named like a record, a function or a
+claim. An enum is declared above its first use and can't contain itself.
+
+Values of an enum work like records in evidence and claims:
+`evidence first([]) = None at 1`, `evidence parse("12") = Ok(12) at 1`,
+`claim pick_red : pick(None) = Red`.
 
 ### opaque: a subject
 
@@ -365,6 +404,20 @@ def first(xs: List(Int) \ {[]}) -> Int := xs[0]
 - `==` and `!=` compare tuples, records and lists part by part. There is
   no other operation on them yet: no concatenation, no loop over the
   elements.
+- `match e { None => a, Some(v) => b, _ => c }` takes the first arm whose
+  variant is the one of `e`, with a name for each field; `_` takes
+  anything. No arm for a value is an error: Mitra does not check that the
+  arms cover the enum. A variant is built like a record, `Some(x + 1)`,
+  and a variant without fields is its name, `None`. A parameter or a
+  `let` of the same name wins over the variant.
+- `&&` and `||` stop at the first operand that settles them, as in Rust:
+  `len(xs) == 0 || xs[0] > 3` is defined on the empty list.
+
+```lean
+def or_zero(o: Option(Int)) -> Int := match o { None => 0, Some(v) => v }
+def sub_spec(a: UInt8, b: UInt8) -> Result(UInt8, String) :=
+  if a < b then Err("underflow") else Ok(a - b)
+```
 
 ### claim
 
@@ -1090,6 +1143,22 @@ Each case has its own model.
 | 05 | `divmod` returns `(Int, Int)`, compared with a spec and with `(dm(a, b).0, 1)` | both fail on `divmod(3, 1)` |
 | 06 | `sort` on `List(Int)` with `uniform sort by size` (empty, one, many); `[]` and `[3, 1, 2]` pass; `sort([7]) = [7]`; `total` on `List(Number)` | `sort_ok` unverified: class "one"; `sort_one` holds |
 | 07 | a passing list in each class; evidence on every `ns` | `sort_ok` and `total_ok` hold |
+
+### `enums`: variants with data, and `match`
+
+Three models: `get` on `Option(Int)` with the classes "none" and "some"
+(01 to 03), `sub` returning a `Result` (04, 05), and the enum `Color`
+(06, 07).
+
+| Case | Evidence | Verdicts |
+|---|---|---|
+| 01 | `get(None) = 0`, `get(Some(4)) = 4`, `get_uniform` vouched | `get_is` holds, both classes assumed |
+| 02 | `get(Some(4)) = 5` | `get_is` fails on `get(Some(4))` |
+| 03 | only `get(Some(4)) = 4` | unverified: class "none" |
+| 04 | `sub(5, 3) = Ok(2)`, `sub(3, 5) = Err("underflow")`, uniformity vouched | `sub_is` holds |
+| 05 | `sub(3, 5) = Ok(0)` | `sub_is` fails on the whole class `a < b`, 45 inputs |
+| 06 | every `Color` observed; `pick(None) = Red`; `correct` over `Option(Color)` | all hold |
+| 07 | one colour and two inputs of `pick` | unverified, the missing variants listed |
 
 ### `numbers`: integer types, ranges and floats
 

@@ -6,6 +6,9 @@ use std::{fs, path::Path};
 
 pub fn model_without_lines(mut m: Model) -> Model {
     m.records.iter_mut().for_each(|x| x.line = 0);
+    // The printer writes a set in full, not by the name of its enum.
+    m.aliases.clear();
+    m.enums.iter_mut().for_each(|x| x.line = 0);
     m.functions.iter_mut().for_each(|x| x.line = 0);
     m.claims.iter_mut().for_each(|x| x.line = 0);
     m.tests.iter_mut().for_each(|x| {
@@ -53,9 +56,13 @@ fn golden_files_round_trip() {
                 path.display()
             );
         } else {
-            let e = evidence_without_lines(parse_evidence(&src).unwrap());
+            // Evidence is read with its model: a name alone is a variant.
+            let model = fs::read_to_string(path.with_file_name("model.mitra"))
+                .map(|m| parse_model(&m).unwrap())
+                .unwrap_or_default();
+            let e = evidence_without_lines(parse_evidence_for(&src, &model).unwrap());
             let printed = print_evidence(&e, None);
-            let again = parse_evidence(&printed)
+            let again = parse_evidence_for(&printed, &model)
                 .unwrap_or_else(|e| panic!("{}: {e:?}\n{printed}", path.display()));
             assert_eq!(
                 evidence_without_lines(again),

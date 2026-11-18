@@ -1,0 +1,28 @@
+warm_is: unverified
+  passes on       `warm(Red)`
+  no evidence on  `warm(Blue)`, `warm(Green)`
+pick_red: unverified
+  no evidence on  `pick(None)`
+pick_ok: unverified
+  passes on       `pick(None)`
+  no evidence on  `pick(Some(Blue))`, `pick(Some(Green))`, `pick(Some(Red))`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  claim warm_is : forall c, warm(c) = is_warm(c)
+
+  No evidence on `warm(Blue)`, `warm(Green)`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:7  claim pick_red : pick(None) = Red
+
+  No evidence on `pick(None)`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:8  claim pick_ok : forall c, correct(pick(c))
+
+  No evidence on `pick(Some(Blue))`, `pick(Some(Green))`, `pick(Some(Red))`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

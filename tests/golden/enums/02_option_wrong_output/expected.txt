@@ -1,0 +1,25 @@
+get_is: fails
+  fails on        `get(Some(4))`
+  passes on       `get(None)`
+  no evidence on  o in Some(Int \ {4})
+get_uniform: holds
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:5  claim get_is : forall o, get(o) = or_zero(o)
+
+  `get_is` fails on `get(Some(4))`.
+  The evidence that says so:
+
+    output    evidence.mitra:2  evidence get(Some(4)) = 5 at 1
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                trust  left
+    certain   the code of `get`, model.mitra:2  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  help: if the evidence is right, fix `get`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

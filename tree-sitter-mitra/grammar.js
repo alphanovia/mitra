@@ -16,7 +16,7 @@ module.exports = grammar({
 
   rules: {
     source_file: $ => repeat(choice(
-      $.record, $.opaque, $.def, $.claim, $.test, $.evidence,
+      $.record, $.enum, $.opaque, $.def, $.claim, $.test, $.evidence,
     )),
 
     comment: _ => token(seq('--', /[^\n\r]*/)),
@@ -27,6 +27,10 @@ module.exports = grammar({
     string: _ => /"[^"\n]*"/,
 
     record: $ => seq('record', field('name', $.name), $.parameters),
+    enum: $ => seq('enum', field('name', $.name), optional($.type_parameters),
+      '{', sep1($.variant, ','), '}'),
+    type_parameters: $ => seq('(', sep1($.name, ','), ')'),
+    variant: $ => seq(field('name', $.name), optional($.parameters)),
     opaque: $ => seq('opaque', field('name', $.name), $.parameters, '->', field('type', $._set)),
     def: $ => seq('def', field('name', $.name), $.parameters, '->', field('type', $._set), ':=', field('body', $._expr)),
     parameters: $ => seq('(', sep1($.parameter, ','), ')'),
@@ -87,6 +91,9 @@ module.exports = grammar({
     tuple: $ => seq('(', $._expr, ',', sep1($._expr, ','), ')'),
     list: $ => seq('[', optional(sep1($._expr, ',')), ']'),
     len: $ => seq('len', '(', $._expr, ')'),
+    match: $ => seq('match', $._expr, '{', sep1($.arm, ','), '}'),
+    arm: $ => seq(choice('_', $.pattern), '=>', $._expr),
+    pattern: $ => prec.right(seq(field('variant', $.name), optional(seq('(', sep1($.name, ','), ')')))),
     if: $ => prec.right(seq('if', $._expr, 'then', $._expr, 'else', $._expr)),
     let: $ => prec.right(seq('let', $.name, ':=', $._expr, ';', $._expr)),
     binary: $ => choice(
@@ -97,11 +104,11 @@ module.exports = grammar({
     unary: $ => prec(6, seq(choice('!', '-'), $._expr)),
     application: $ => prec(7, seq(field('function', $.name), '(', sep1($._expr, ','), ')')),
     _atom: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.paren, $.tuple, $.list,
-      $.len),
+      $.len, $.match),
     paren: $ => seq('(', $._expr, ')'),
 
     _value: $ => choice($.boolean, $.nat, $.float, $.string, $.negative_value,
-      $.tuple_value, $.record_value, $.list_value),
+      $.tuple_value, $.record_value, $.list_value, $.name),
     tuple_value: $ => seq('(', $._value, ',', sep1($._value, ','), ')'),
     record_value: $ => seq(field('record', $.name), '(', sep1($._value, ','), ')'),
     list_value: $ => seq('[', optional(sep1($._value, ',')), ']'),

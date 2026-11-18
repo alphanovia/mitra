@@ -1,0 +1,4 @@
+get_is: holds
+  passes on       `get(None)`, `get(Some(4))`
+  assumed on      classes "none", "some" of `kind`, by `get_uniform`
+get_uniform: holds
