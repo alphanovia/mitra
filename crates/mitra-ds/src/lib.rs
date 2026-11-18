@@ -10,7 +10,9 @@
 //! The crate is dogfooded: its model is in the `mitra:` comments above
 //! each function and test, and `.mitra/evidence.mitra` holds the results of
 //! its own test runs. In the model a mass is three numbers `b d u`, since
-//! Mitra has no records.
+//! Mitra has no records. Each function has a `uniform` claim: the classes
+//! of inputs on which it is assumed to behave the same, so that one test
+//! stands for a class.
 
 /// Belief split on {correct, wrong}: `b + d + u = 1`, each in [0, 1].
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -41,6 +43,10 @@ impl Mass {
     /// mitra: -- if not, for c in [0, 1]; `None` otherwise.
     /// mitra: opaque judged (ok : Bool) (c : Float64) : Value
     /// mitra: claim judged_correct : forall ok, forall c, correct (judged ok c)
+    /// mitra: -- One class per path through the code.
+    /// mitra: def judged_class (ok : Bool) (c : Float64) : {"rejected", "correct", "wrong"} :=
+    /// mitra:   if c >= 0.0 && c <= 1.0 then (if ok then "correct" else "wrong") else "rejected"
+    /// mitra: claim judged_uniform : uniform judged by judged_class
     pub fn judged(correct: bool, c: f64) -> Option<Mass> {
         if !(0.0..=1.0).contains(&c) {
             return None;
@@ -57,6 +63,11 @@ impl Mass {
     /// mitra:   b >= -e && b <= 1.0 + e && d >= -e && d <= 1.0 + e
     /// mitra:   && u >= -e && u <= 1.0 + e && s <= e && -s <= e
     /// mitra: claim is_valid_spec : forall b, forall d, forall u, is_valid b d u = valid_spec b d u
+    /// mitra: def valid_class (b d u : Float64) : {"valid", "part out of range", "sum off"} :=
+    /// mitra:   let e := 0.000000001;
+    /// mitra:   if b < -e || b > 1.0 + e || d < -e || d > 1.0 + e || u < -e || u > 1.0 + e
+    /// mitra:   then "part out of range" else if valid_spec b d u then "valid" else "sum off"
+    /// mitra: claim is_valid_uniform : uniform is_valid by valid_class
     pub fn is_valid(&self) -> bool {
         let parts = [self.b, self.d, self.u];
         parts.iter().all(|x| (-EPSILON..=1.0 + EPSILON).contains(x))
@@ -69,6 +80,9 @@ impl Mass {
     /// mitra: def conflict_spec (b1 d1 u1 b2 d2 u2 : Float64) : Float64 := b1 * d2 + d1 * b2
     /// mitra: claim conflict_spec_ok : forall b1, forall d1, forall u1, forall b2, forall d2, forall u2,
     /// mitra:   conflict b1 d1 u1 b2 d2 u2 = conflict_spec b1 d1 u1 b2 d2 u2
+    /// mitra: -- One formula, no branch: a single class.
+    /// mitra: def conflict_class (b1 d1 u1 b2 d2 u2 : Float64) : {"any"} := "any"
+    /// mitra: claim conflict_uniform : uniform conflict by conflict_class
     pub fn conflict(&self, o: &Mass) -> f64 {
         self.b * o.d + self.d * o.b
     }
@@ -92,6 +106,11 @@ impl Mass {
     /// mitra: opaque dempster (b1 d1 u1 b2 d2 u2 : Float64) : Value
     /// mitra: claim dempster_correct : forall b1, forall d1, forall u1, forall b2, forall d2, forall u2,
     /// mitra:   correct (dempster b1 d1 u1 b2 d2 u2)
+    /// mitra: def dempster_class (b1 d1 u1 b2 d2 u2 : Float64) : {"invalid", "total conflict", "partial conflict"} :=
+    /// mitra:   if !(valid_spec b1 d1 u1 && valid_spec b2 d2 u2) then "invalid"
+    /// mitra:   else if conflict_spec b1 d1 u1 b2 d2 u2 >= 1.0 - 0.000000001 then "total conflict"
+    /// mitra:   else "partial conflict"
+    /// mitra: claim dempster_uniform : uniform dempster by dempster_class
     pub fn dempster(&self, o: &Mass) -> Option<Mass> {
         if !self.is_valid() || !o.is_valid() {
             return None;
@@ -116,6 +135,9 @@ impl Mass {
     /// mitra: opaque yager (b1 d1 u1 b2 d2 u2 : Float64) : Value
     /// mitra: claim yager_correct : forall b1, forall d1, forall u1, forall b2, forall d2, forall u2,
     /// mitra:   correct (yager b1 d1 u1 b2 d2 u2)
+    /// mitra: def yager_class (b1 d1 u1 b2 d2 u2 : Float64) : {"invalid", "valid"} :=
+    /// mitra:   if valid_spec b1 d1 u1 && valid_spec b2 d2 u2 then "valid" else "invalid"
+    /// mitra: claim yager_uniform : uniform yager by yager_class
     pub fn yager(&self, o: &Mass) -> Option<(Mass, f64)> {
         if !self.is_valid() || !o.is_valid() {
             return None;

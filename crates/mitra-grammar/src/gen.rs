@@ -277,6 +277,9 @@ fn command(r: &mut Rng) -> String {
             expr(r, 3)
         ),
         2 => {
+            if r.chance(15) {
+                return format!("claim {} : uniform {} by {}", name(r), name(r), name(r));
+            }
             let (forall, args) = call_args(r, 1);
             let body = if r.chance(50) {
                 format!("correct ( {}{args} )", name(r))
@@ -304,6 +307,7 @@ fn command(r: &mut Rng) -> String {
         _ => match r.below(3) {
             0 => "policy strict".into(),
             1 => format!("policy {} := strict", name(r)),
+            _ if r.chance(30) => format!("policy {} := coverage uniform", name(r)),
             _ => format!("policy {} := coverage {}", name(r), name(r)),
         },
     }

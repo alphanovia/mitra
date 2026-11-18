@@ -1,0 +1,4 @@
+-- One passing test in each class: the whole domain is tested or assumed.
+evidence div_uniform at 1
+evidence correct (div 6 3) at 1
+evidence correct (div 1 0) at 1

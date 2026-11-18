@@ -16,7 +16,7 @@ match {
     "true", "false", "forall", "in", "not",
     "Bool", "Int", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32",
     "Float64", "String", "Value", "Real",
-    "for", "strict", "coverage", "_",
+    "for", "strict", "coverage", "_", "uniform",
     "@[", "..=", "..", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||",
     "(", ")", ":", ";", ",", "=", "{", "}", "[", "]", "|", "&",
     "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
@@ -33,7 +33,10 @@ Test: () = "test" NAME ":" Forall* Judgment => ();
 Opaque: () = "opaque" NAME Binder+ ":" Set => ();
 Def: () = "def" NAME Binder+ ":" Set ":=" Expr => ();
 Binder: () = "(" NAME+ ":" Set ")" => ();
-Claim: () = "claim" NAME ":" Forall* ClaimBody Derive? => ();
+Claim: () = {
+    "claim" NAME ":" Forall* ClaimBody Derive? => (),
+    "claim" NAME ":" "uniform" NAME "by" NAME => (),
+};
 ClaimBody: () = {
     "correct" "(" NAME Arg* ")" => (),
     NAME Arg* "=" Expr => (),
@@ -48,6 +51,7 @@ Policy: () = {
     "policy" "strict" => (),
     "policy" NAME ":=" "strict" => (),
     "policy" NAME ":=" "coverage" NAME => (),
+    "policy" NAME ":=" "coverage" "uniform" => (),
 };
 
 pub Evidences: () = Evidence* => ();

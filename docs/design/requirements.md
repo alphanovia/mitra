@@ -58,5 +58,5 @@ assurance cases (GSN) draw by hand.
 1. How requirements refine into sub-requirements before reaching claims.
 2. How evidence names the implication (`req12.derive` is a placeholder;
    see composition's open question 4).
-3. Whether structural claims (`uses`, `uniform`) are needed to tie claims
+3. Whether structural claims (`uses`) are needed to tie claims
    to the code the requirement is about.

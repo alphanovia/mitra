@@ -24,11 +24,11 @@ const PUNCT: [&str; 35] = [
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
-pub const KEYWORDS: [&str; 37] = [
+pub const KEYWORDS: [&str; 38] = [
     "opaque", "def", "claim", "test", "evidence", "profile", "policy", "correct", "at", "by",
     "derive", "if", "then", "else", "let", "true", "false", "forall", "in", "not", "Bool", "Int",
     "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "Float64", "String", "Value",
-    "for", "strict", "coverage", "_", "Real",
+    "for", "strict", "coverage", "_", "Real", "uniform",
 ];
 
 /// The whole text as tokens, each with its line.
@@ -608,6 +608,21 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                 // claim n : forall …, correct (f args) | f args = expr  [:= by derive [c, …]]
                 let name = p.ident()?;
                 p.expect(":")?;
+                if p.eat_keyword("uniform") {
+                    // claim n : uniform f by g
+                    let func = p.ident()?;
+                    p.keyword("by")?;
+                    let target = Target::Uniform(p.ident()?);
+                    m.claims.push(Claim {
+                        name,
+                        func,
+                        pattern: Vec::new(),
+                        target,
+                        from: Vec::new(),
+                        line,
+                    });
+                    continue;
+                }
                 let bound = p.foralls()?;
                 let (func, pattern, target) = if p.eat_keyword("correct") {
                     let (f, pat) = p.correct(&bound)?;
@@ -700,7 +715,12 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                 let kind = if p.eat_keyword("strict") {
                     PolicyKind::Strict
                 } else if p.eat_keyword("coverage") {
-                    PolicyKind::Coverage(p.ident()?)
+                    // `uniform` is the built-in profile.
+                    PolicyKind::Coverage(if p.eat_keyword("uniform") {
+                        "uniform".into()
+                    } else {
+                        p.ident()?
+                    })
                 } else {
                     return p.err("expected a policy kind: `strict` or `coverage profile`");
                 };

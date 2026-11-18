@@ -17,11 +17,16 @@ pub fn print_model(m: &Model) -> String {
         };
     }
     for c in &m.claims {
+        if let Target::Uniform(g) = &c.target {
+            out += &format!("claim {} : uniform {} by {g}\n", c.name, c.func);
+            continue;
+        }
         let params = m.function(&c.func).map(|f| &f.params[..]).unwrap_or(&[]);
         let (forall, args) = pattern(&c.pattern, params);
         let body = match &c.target {
             Target::Correct => format!("correct ({}{args})", c.func),
             Target::Matches(e) => format!("{}{args} = {}", c.func, expr(e)),
+            Target::Uniform(_) => unreachable!(),
         };
         let from = if c.from.is_empty() {
             String::new()

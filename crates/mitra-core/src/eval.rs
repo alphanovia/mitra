@@ -60,12 +60,45 @@ pub struct Verdict {
     pub covered: Tuples,
     /// The claim's inputs where it is known to fail and not contradicted.
     pub refuted: Tuples,
+    /// What a `uniform` claim on the subject adds, if there is one.
+    pub assumed: Option<Assumed>,
     /// The inputs the claim is about.
     pub domain: Tuples,
     /// How much the policy believes the claim, from 0 to 1.
     pub belief: f64,
     /// For a claim with `from`.
     pub implication: Option<Implication>,
+}
+
+/// What a `uniform` claim adds to another claim on the same subject: an
+/// input that passed stands for its whole class.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Assumed {
+    /// The `uniform` claim, and its spec, whose values are the classes.
+    pub by: String,
+    pub spec: String,
+    /// Whether the `uniform` claim holds: only then does `set` count.
+    pub holds: bool,
+    /// The classes with an input that passed.
+    pub classes: Vec<Value>,
+    /// The classes the claim needs that have none.
+    pub untested: Vec<Value>,
+    /// The inputs of the claim's domain that the classes stand for, when
+    /// Mitra can write them as a set: all of them on a finite domain; on an
+    /// infinite one, the rest of the domain once no class is untested.
+    pub set: Tuples,
+}
+
+/// Knowledge that can't all be true: a `uniform` claim, and a pass and a
+/// failure in one of its classes.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Conflict {
+    pub claim: String,
+    pub spec: String,
+    pub class: Value,
+    /// The input, its evidence line and the evidence as text.
+    pub pass: (Vec<Value>, usize, String),
+    pub fail: (Vec<Value>, usize, String),
 }
 
 /// Evidence Mitra cannot use as given.
@@ -79,6 +112,7 @@ pub struct Flag {
 pub struct Report {
     pub verdicts: Vec<Verdict>,
     pub flags: Vec<Flag>,
+    pub conflicts: Vec<Conflict>,
 }
 
 type Env = HashMap<String, Value>;
@@ -388,6 +422,30 @@ fn binary(op: &str, x: &Value, y: &Value) -> Option<Value> {
     })
 }
 
+/// Evidence over at most this many inputs is also read input by input, to
+/// find the class of each (see `uniform`).
+const POINTS: f64 = 10_000.0;
+
+/// One judged input: the input, whether it passed, the evidence line.
+type Point = (Vec<Value>, bool, usize);
+
+/// What the evidence says about a claim, before derivations and classes.
+struct Direct {
+    domain: Tuples,
+    right: Tuples,
+    wrong: Tuples,
+    /// Single inputs judged for this claim, contradictions left out.
+    points: Vec<Point>,
+}
+
+/// The inputs of `set` one by one, when there are few enough.
+fn listed(set: &Tuples) -> Vec<Vec<Value>> {
+    match set.size_bound() {
+        Some(n) if n <= POINTS => set.values().unwrap_or_default(),
+        _ => Vec::new(),
+    }
+}
+
 pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     let believed = |e: &&Evidence| e.confidence == 1.0;
     let mut observed: BTreeMap<(String, Vec<Value>), Vec<Value>> = BTreeMap::new();
@@ -419,28 +477,30 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     };
     let model_err = |e| (Input::Model, e);
 
-    let mut logic_of: HashMap<&str, Logic> = HashMap::new();
-    let mut verdicts = Vec::new();
+    // 1. What the evidence says about each claim.
+    let mut direct = Vec::new();
     for c in &model.claims {
         let func = model.function(&c.func).expect("checked");
         let domain = model.covers(&c.func, &c.pattern);
         let arity = domain.arity();
+        // `right` and `wrong` over all inputs of the function, then cut to
+        // the claim's domain; `points` keeps the inputs outside it too.
         let (mut right, mut wrong) = (Tuples::empty(arity), Tuples::empty(arity));
-        let mut add = |ok: bool, s: &Tuples| {
-            let side = if ok { &mut right } else { &mut wrong };
-            *side = side.union(&s.intersect(&domain));
-        };
+        let mut points: Vec<Point> = Vec::new();
         for e in model.evidence.iter().filter(believed) {
-            let set = |e: &Evidence| model.covers(&c.func, &e.pattern);
-            match &e.judgment {
-                Judgment::Holds(ok) if e.about == c.name => add(*ok, &set(e)),
+            let ok = match &e.judgment {
+                Judgment::Holds(ok) if e.about == c.name => *ok,
                 Judgment::Correct(ok)
                     if e.about == c.func && c.target == Target::Correct && !func.is_spec() =>
                 {
-                    add(*ok, &set(e))
+                    *ok
                 }
-                _ => {}
-            }
+                _ => continue,
+            };
+            let set = model.covers(&c.func, &e.pattern);
+            points.extend(listed(&set).into_iter().map(|x| (x, ok, e.line)));
+            let side = if ok { &mut right } else { &mut wrong };
+            *side = side.union(&set);
         }
         if let Target::Matches(target) = &c.target {
             // Every input of a finite domain; otherwise every observed input.
@@ -456,16 +516,143 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                     .compare(c, target, &x, Subjects::Observed)
                     .map_err(model_err)?
                 {
+                    let line = model
+                        .evidence
+                        .iter()
+                        .filter(believed)
+                        .find(|e| {
+                            e.about == c.func
+                                && matches!(e.judgment, Judgment::Output(_))
+                                && single(&e.pattern).as_ref() == Some(&x)
+                        })
+                        .map_or(0, |e| e.line);
                     let point = Tuples::point(&x);
                     if ok {
-                        add(true, &point);
+                        right = right.union(&point);
+                        points.push((x.clone(), true, line));
                     }
                     if ko {
-                        add(false, &point);
+                        wrong = wrong.union(&point);
+                        points.push((x, false, line));
                     }
                 }
             }
         }
+        points.retain(|(x, ok, _)| !(if *ok { &wrong } else { &right }).contains(x));
+        direct.push(Direct {
+            right: right.intersect(&domain),
+            wrong: wrong.intersect(&domain),
+            domain,
+            points,
+        });
+    }
+    // Inputs judged `correct` or not, per subject, whatever the claims.
+    let judged = |subject: &str| -> Vec<Point> {
+        let about =
+            |e: &&Evidence| e.about == subject && matches!(e.judgment, Judgment::Correct(_));
+        let side = |want: bool| {
+            let arity = model.function(subject).expect("checked").params.len();
+            model
+                .evidence
+                .iter()
+                .filter(believed)
+                .filter(about)
+                .filter(|e| e.judgment == Judgment::Correct(want))
+                .fold(Tuples::empty(arity), |s, e| {
+                    s.union(&model.covers(subject, &e.pattern))
+                })
+        };
+        let (right, wrong) = (side(true), side(false));
+        let mut points = Vec::new();
+        for e in model.evidence.iter().filter(believed).filter(about) {
+            let ok = e.judgment == Judgment::Correct(true);
+            for x in listed(&model.covers(subject, &e.pattern)) {
+                if !(if ok { &wrong } else { &right }).contains(&x) {
+                    points.push((x, ok, e.line));
+                }
+            }
+        }
+        points
+    };
+    let class_of = |spec: &str, x: &[Value], line: usize| -> Result<Value, (Input, Error)> {
+        let out = ev
+            .call(spec, x, line, Subjects::Observed)
+            .map_err(model_err)?;
+        Ok(out.into_iter().next().expect("a spec has a value"))
+    };
+    // The inputs judged for a claim: its own for `=`, the subject's for
+    // `correct`.
+    let points_of = |i: usize| -> Vec<Point> {
+        match model.claims[i].target {
+            Target::Correct => judged(&model.claims[i].func),
+            _ => direct[i].points.clone(),
+        }
+    };
+
+    // 2. Uniformity: a class with a pass and a failure is a conflict.
+    let mut conflicts = Vec::new();
+    let shown = |line: usize| {
+        let e = model.evidence.iter().find(|e| e.line == line);
+        e.map(|e| {
+            crate::print::print_evidence(std::slice::from_ref(e), Some(model))
+                .trim_end()
+                .to_string()
+        })
+        .unwrap_or_default()
+    };
+    for u in &model.claims {
+        let Target::Uniform(spec) = &u.target else {
+            continue;
+        };
+        let mut groups = vec![judged(&u.func)];
+        for (i, c) in model.claims.iter().enumerate() {
+            if c.func == u.func && matches!(c.target, Target::Matches(_)) {
+                groups.push(direct[i].points.clone());
+            }
+        }
+        for group in groups {
+            let mut seen: BTreeMap<Value, [Option<&Point>; 2]> = BTreeMap::new();
+            for p in &group {
+                let slot =
+                    &mut seen.entry(class_of(spec, &p.0, u.line)?).or_default()[p.1 as usize];
+                slot.get_or_insert(p);
+            }
+            for (class, sides) in seen {
+                let [Some(fail), Some(pass)] = sides else {
+                    continue;
+                };
+                if conflicts
+                    .iter()
+                    .any(|k: &Conflict| k.claim == u.name && k.class == class)
+                {
+                    continue;
+                }
+                conflicts.push(Conflict {
+                    claim: u.name.clone(),
+                    spec: spec.clone(),
+                    class,
+                    pass: (pass.0.clone(), pass.2, shown(pass.2)),
+                    fail: (fail.0.clone(), fail.2, shown(fail.2)),
+                });
+            }
+        }
+    }
+    let broken = |name: &str| conflicts.iter().any(|k| k.claim == name);
+    let uniform_holds = |i: usize| {
+        let d = &direct[i];
+        !broken(&model.claims[i].name) && d.wrong.is_empty() && d.right.same(&d.domain)
+    };
+
+    // 3. Verdicts.
+    let mut logic_of: HashMap<&str, Logic> = HashMap::new();
+    let mut verdicts = Vec::new();
+    for (i, c) in model.claims.iter().enumerate() {
+        let Direct {
+            domain,
+            right,
+            wrong,
+            ..
+        } = &direct[i];
         // A derivation: when the implication is not refuted and every premise
         // holds, so does this claim. A failing premise only removes support.
         let implication = if c.from.is_empty() {
@@ -476,22 +663,97 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 .iter()
                 .map(|p| model.claim(p).expect("checked"))
                 .collect();
-            Some(ev.implication(c, &domain, &premises).map_err(model_err)?)
+            Some(ev.implication(c, domain, &premises).map_err(model_err)?)
         };
         let derived = implication.is_some_and(|i| i != Implication::Refuted)
             && c.from.iter().all(|p| logic_of[p.as_str()] == Logic::Holds);
         // An input both right and wrong is a contradiction: it counts on
         // neither side. A direct counterexample still beats a derivation.
-        let refuted = wrong.minus(&right);
-        let supported = if derived { domain.clone() } else { right };
-        let covered = supported.minus(&wrong);
-        let logic = if !refuted.is_empty() {
+        let mut refuted = wrong.minus(right);
+        let supported = if derived {
+            domain.clone()
+        } else {
+            right.clone()
+        };
+        let covered = supported.minus(wrong);
+        // A uniform claim on the subject: a passing input stands for its
+        // class.
+        let uniform = model.claims.iter().position(|u| {
+            u.func == c.func && matches!(u.target, Target::Uniform(_)) && u.name != c.name
+        });
+        let mut assumed = None;
+        if let (Some(u), false) = (uniform, matches!(c.target, Target::Uniform(_))) {
+            let Target::Uniform(spec) = &model.claims[u].target else {
+                unreachable!()
+            };
+            let line = model.claims[u].line;
+            let (mut classes, mut failing) = (Vec::new(), Vec::new());
+            for p in points_of(i) {
+                let class = class_of(spec, &p.0, line)?;
+                let side = if p.1 { &mut classes } else { &mut failing };
+                if !side.contains(&class) {
+                    side.push(class);
+                }
+            }
+            classes.sort();
+            let holds = uniform_holds(u);
+            let open = domain.minus(&covered).minus(wrong);
+            let (mut set, mut untested) = (Tuples::empty(domain.arity()), Vec::new());
+            if open.size_bound().is_some_and(|n| n <= POINTS) {
+                // Only the classes this domain meets count.
+                let passing = std::mem::take(&mut classes);
+                for x in open.values().unwrap_or_default() {
+                    let class = class_of(spec, &x, line)?;
+                    if holds && failing.contains(&class) {
+                        // A failure stands for its class too.
+                        refuted = refuted.union(&Tuples::point(&x));
+                    } else if passing.contains(&class) {
+                        set = set.union(&Tuples::point(&x));
+                        if !classes.contains(&class) {
+                            classes.push(class);
+                        }
+                    } else if !untested.contains(&class) {
+                        untested.push(class);
+                    }
+                }
+            } else {
+                let all = model.function(spec).expect("checked").range.values();
+                untested = all.unwrap_or_default();
+                untested.retain(|v| !classes.contains(v));
+                if untested.is_empty() {
+                    set = open;
+                }
+            }
+            untested.sort();
+            classes.sort();
+            assumed = Some(Assumed {
+                by: model.claims[u].name.clone(),
+                spec: spec.clone(),
+                holds,
+                classes,
+                untested,
+                set,
+            });
+        }
+        let with_assumed = match &assumed {
+            Some(a) if a.holds => covered.union(&a.set),
+            _ => covered.clone(),
+        };
+        let mut logic = if !refuted.is_empty() {
             Logic::Fails
-        } else if covered.same(&domain) {
+        } else if with_assumed.same(domain) {
             Logic::Holds
         } else {
             Logic::Uncertain
         };
+        if broken(&c.name) {
+            logic = Logic::Fails;
+            for k in conflicts.iter().filter(|k| k.claim == c.name) {
+                for x in [&k.pass.0, &k.fail.0] {
+                    refuted = refuted.union(&Tuples::point(x));
+                }
+            }
+        }
         logic_of.insert(&c.name, logic);
         for p in &model.policies {
             let belief = match (&p.kind, logic) {
@@ -499,9 +761,9 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 (PolicyKind::Strict, l) => (l == Logic::Holds) as u8 as f64,
                 (PolicyKind::Coverage(profile), l) => {
                     let measure = |s: &Tuples| measure(model, &c.func, profile, s);
-                    let whole = measure(&domain);
+                    let whole = measure(domain);
                     if whole > 0.0 {
-                        measure(&covered) / whole
+                        measure(&with_assumed) / whole
                     } else {
                         (l == Logic::Holds) as u8 as f64
                     }
@@ -513,13 +775,49 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 logic,
                 covered: covered.clone(),
                 refuted: refuted.clone(),
+                assumed: assumed.clone(),
                 domain: domain.clone(),
                 belief,
                 implication,
             });
         }
     }
-    Ok(Report { verdicts, flags })
+    Ok(Report {
+        verdicts,
+        flags,
+        conflicts,
+    })
+}
+
+/// What a failed `f x = v` test refutes: its output was not `v`, so each
+/// `=` claim on `f` whose other side is `v` at `x` is wrong there.
+pub fn failed_output(model: &Model, test: &Test) -> Result<Vec<Evidence>, Error> {
+    let e = &test.judgment;
+    let (Judgment::Output(v), Some(x)) = (&e.judgment, single(&e.pattern)) else {
+        return Ok(Vec::new());
+    };
+    let ev = Eval {
+        model,
+        observed: BTreeMap::new(),
+        depth: Cell::new(0),
+    };
+    let mut out = Vec::new();
+    for c in model.claims.iter().filter(|c| c.func == e.about) {
+        let Target::Matches(target) = &c.target else {
+            continue;
+        };
+        if !model.covers(&c.func, &c.pattern).contains(&x) {
+            continue;
+        }
+        if ev.target(c, target, &x, Subjects::Observed)? == [v.clone()] {
+            out.push(Evidence {
+                about: c.name.clone(),
+                judgment: Judgment::Holds(false),
+                ..e.clone()
+            });
+        }
+    }
+    Ok(out)
 }
 
 /// The share of a function's inputs that `s` represents under a profile.
@@ -572,6 +870,13 @@ impl Report {
                 Logic::Fails => format!("refuted := {}", v.refuted.show(&v.domain)),
                 _ => format!("covered := {}", v.covered.show(&v.domain)),
             };
+            let set = match &v.assumed {
+                Some(a) if a.holds && !a.classes.is_empty() && v.logic != Logic::Fails => {
+                    let classes: Vec<String> = a.classes.iter().map(|c| c.to_string()).collect();
+                    format!("{set}, assumed := {{{}}} by {}", classes.join(", "), a.by)
+                }
+                _ => set,
+            };
             let implication = v
                 .implication
                 .map(|i| format!(", implication := .{}", i.as_str()))
@@ -589,6 +894,12 @@ impl Report {
         }
         for f in &self.flags {
             out += &format!("contested evidence line {}: {}\n", f.line, f.message);
+        }
+        for k in &self.conflicts {
+            out += &format!(
+                "conflict: `{}` can't hold with both, in class {} of `{}`:\n  evidence line {}: {}\n  evidence line {}: {}\n",
+                k.claim, k.class, k.spec, k.pass.1, k.pass.2, k.fail.1, k.fail.2
+            );
         }
         out
     }

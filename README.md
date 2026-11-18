@@ -1,16 +1,17 @@
 # Mitra
 
-**Mitra is a trust engine, to be formally verified: given a model of
-claims and the evidence brought for them, it computes, for each claim, a
-verdict (holds, fails or uncertain, the inputs covered, and a belief) that
-programs can use as a policy input.**
+**Mitra is a static analyser for trust: you write down what your software
+claims, what you assume and what evidence you have, and it tells you where
+they contradict each other and how much of each claim is tested, assumed
+or unsupported.**
 
 *Tests check, Lean proves, Mitra weighs.* Tests and Lean proofs each produce
 evidence. Mitra combines that evidence into a verdict for each claim.
 
-> Status: early. The code evaluates claims, specs and derivations against
-> evidence at confidence 0 or 1, under two policies, and keeps a project's
-> evidence in a store fed by test reports
+> Status: early. The code evaluates claims, specs, derivations and
+> uniformity assumptions against evidence at confidence 0 or 1, under two
+> policies, reads the model from comments in Rust code, and keeps a
+> project's evidence in a store fed by test reports
 > ([language reference](docs/reference/language.md)).
 
 ## The idea
@@ -18,7 +19,8 @@ evidence. Mitra combines that evidence into a verdict for each claim.
 At its heart Mitra is a small **language for trust**. A **subject** is a
 function under review, a **spec** is a definition Mitra can evaluate, a
 **claim** says a subject is correct (or matches a spec) on some of its inputs,
-or follows from other claims,
+or follows from other claims, a **uniformity claim** states the classes of
+inputs on which a subject is assumed to behave the same,
 and **evidence** is a run of the subject judged correct or wrong, with a
 confidence. A **policy** turns evidence into a belief. Mitra gives every
 claim a verdict: what logic proves, which inputs are covered, and how much

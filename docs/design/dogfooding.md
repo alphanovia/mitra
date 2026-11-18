@@ -18,9 +18,12 @@ and one `test` above each unit test, for the inputs it runs. The store
 with the git hash of the crate's committed code (it refuses uncommitted
 changes and stops when the tests don't build). It then evaluates with
 `--rev`, so only evidence on that code counts. `cargo test` checks the
-verdicts. They are all uncertain: unit tests cover points of infinite
-domains. What the model can't say yet is listed in the review list
-(2026-11-18, increment 8).
+verdicts. Each function also has a `uniform` claim, whose classes follow
+the branches of its code; with a review vouching for them, every claim
+holds from one passing test per class. A review is recorded by hand, with
+`mitra add 'evidence yager_uniform at 1' --source review:<who> --rev <hash>`,
+and goes stale when the code changes. What the model can't say yet is
+listed in the review list (2026-11-18, increments 8 and 9).
 
 **Next.** Rename it `mitra-calculus`, with one claim per axiom and operator
 instead of "is Dempster–Shafer". Evidence then comes from three sources,

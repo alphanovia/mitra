@@ -60,9 +60,17 @@ pub enum Target {
     /// Equal to this expression on every input. A bare function name means
     /// that function applied to the same input.
     Matches(Expr),
+    /// `uniform f by g`: the subject behaves the same on every input of a
+    /// class, the classes being the values of the spec `g`. So one judged
+    /// input stands for its whole class.
+    Uniform(String),
 }
 
+/// The most classes a `uniform` claim's spec may have.
+pub const MAX_CLASSES: f64 = 64.0;
+
 /// `claim name : ∀ …, correct (f args) | f args = e [:= by derive [c1, c2]]`
+/// or `claim name : uniform f by g`
 #[derive(Debug, Clone, PartialEq)]
 pub struct Claim {
     pub name: String,
@@ -248,6 +256,51 @@ impl Model {
             }
             Ok(())
         };
+        // `uniform f by g` is about every input of `f`.
+        for i in 0..self.claims.len() {
+            let c = &self.claims[i];
+            let Target::Uniform(g) = &c.target else {
+                continue;
+            };
+            let Some(f) = self.function(&c.func) else {
+                return Err(m(c.line, format!("unknown function `{}`", c.func)));
+            };
+            if f.is_spec() {
+                let msg = format!("`{}` is a spec: `uniform` is for subjects", c.func);
+                return Err(m(c.line, msg));
+            }
+            let Some(g) = self.function(g).filter(|g| g.is_spec()) else {
+                return Err(m(c.line, format!("`{g}` is not a spec")));
+            };
+            let types = |f: &Function| f.params.iter().map(|p| p.1.clone()).collect::<Vec<_>>();
+            if types(f) != types(g) {
+                return Err(m(
+                    c.line,
+                    format!("`{}` and `{}` must take the same inputs", f.name, g.name),
+                ));
+            }
+            if g.range.count().is_none_or(|n| n > MAX_CLASSES) {
+                return Err(m(
+                    c.line,
+                    format!(
+                        "`{}` must have at most {MAX_CLASSES} results, one per class",
+                        g.name
+                    ),
+                ));
+            }
+            let twice = |d: &Claim| d.func == c.func && matches!(d.target, Target::Uniform(_));
+            if self.claims[..i].iter().any(twice) {
+                return Err(m(
+                    c.line,
+                    format!("`{}` already has a `uniform` claim", c.func),
+                ));
+            }
+            let whole = Position {
+                var: None,
+                set: None,
+            };
+            self.claims[i].pattern = vec![whole; f.params.len()];
+        }
         for (i, c) in self.claims.iter().enumerate() {
             let Some(f) = self.function(&c.func) else {
                 return Err(m(c.line, format!("unknown function `{}`", c.func)));
@@ -264,7 +317,7 @@ impl Model {
                         return Err(m(c.line, format!("unknown function `{name}`")));
                     }
                 }
-            } else if f.is_spec() {
+            } else if c.target == Target::Correct && f.is_spec() {
                 return Err(m(
                     c.line,
                     format!(

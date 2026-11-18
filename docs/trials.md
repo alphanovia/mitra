@@ -21,10 +21,9 @@ store kept up to date as the code grows, the way mitra-ds is
   code that changes, and the cost of keeping the model current.
 - **Questions:** Does `next` point at the code worth testing? Does a verdict
   ever change what the developer does? How long does the model take to
-  write and to keep up, compared with the code? Is the uniformity a test
-  claims ("one pass stands for this interval") enough, or is a separate
-  `uniform` claim on the subject needed
-  ([composition](design/composition.md#3-tests-are-subjects-too))?
+  write and to keep up, compared with the code? Are the classes of a
+  `uniform` claim easy to write and to review, and do they break where
+  the bugs are?
 - **Success:** at least one decision (what to test, what to ship) is made
   differently, and better, because of a verdict. **Failure:** the model is
   written once and then left behind, or only repeats what `cargo test` says.

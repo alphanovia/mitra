@@ -25,7 +25,8 @@ status 2.
 - `check` parses, checks and evaluates both files, prints
   `ok: F functions, C claims, T tests, E evidence`, then any contested
   evidence.
-- `next` lists each uncertain claim with the inputs it is missing (its
+- `next` prints first each **conflict** (see Evaluation, uniformity) and
+  each claim that fails with the inputs refuted. Then it lists each uncertain claim with the inputs it is missing (its
   domain minus the inputs covered), the premises of a derived claim that
   fail (`derived: premise fails: p`) or are uncertain (`derived: waits on
   p`), and what to add: the evidence lines to write when at most 5 inputs are
@@ -33,8 +34,12 @@ status 2.
   run `f 2` and fill in its output), else how many inputs are missing
   (counted without listing them), or that the set is infinite and only
   evidence over a set can cover it. Inputs with contradicting evidence
-  count as missing too.
-  It prints `nothing uncertain` when every claim holds or fails.
+  count as missing too. A missing set longer than 100 characters is summed
+  up. When the subject has a `uniform` claim, `next` lists instead the
+  classes with no passing input, and says if the `uniform` claim fails or
+  is not vouched for. For an uncertain `uniform` claim it prints the
+  evidence line a reviewer adds.
+  It prints `nothing uncertain` when it has nothing to say.
 - `--rev R` on `check`, `eval` and `next` counts only evidence recorded at
   `R`: evidence with another `rev`, or with none, is **stale** and left out
   (otherwise an old pass would outlive a newer failure that is left out).
@@ -116,7 +121,7 @@ free: line breaks and indentation mean nothing.
   `&&` `||` `..` `(` `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `&` `!` `<` `>`
   `+` `-` `*` `\`.
 - Keywords: `opaque def claim test evidence profile policy correct at by
-  derive if then else let true false forall in not Bool Int Int8 Int16
+  derive if then else let true false forall in not uniform Bool Int Int8 Int16
   Int32 Int64 UInt8 UInt16 UInt32 Float64 String Value Real for strict
   coverage _`. `Real` is reserved.
 - Lean's Unicode symbols are accepted as aliases: `∀` for `forall`, `∈` for
@@ -132,13 +137,15 @@ opaque     = "opaque" name binders ":" set ;
 def        = "def" name binders ":" set ":=" expr ;
 binders    = binder { binder } ;
 binder     = "(" name { name } ":" set ")" ;
-claim      = "claim" name ":" { forall }
-             ( "correct" "(" name args ")" | name args "=" expr )
-             [ ":=" "by" "derive" "[" name { "," name } "]" ] ;
+claim      = "claim" name ":" ( "uniform" name "by" name
+             | { forall }
+               ( "correct" "(" name args ")" | name args "=" expr )
+               [ ":=" "by" "derive" "[" name { "," name } "]" ] ) ;
 test       = "test" name ":" { forall } judgment ;
 profile    = "profile" name "for" name { "|" region "=>" number } ;
 region     = "_" | name "in" set ;
-policy     = "policy" ( "strict" | name ":=" ( "strict" | "coverage" name ) ) ;
+policy     = "policy" ( "strict" | name ":="
+             ( "strict" | "coverage" ( name | "uniform" ) ) ) ;
 
 evidences  = { evidence } ;
 evidence   = [ attributes ] "evidence" { forall } judgment "at" number ;
@@ -304,6 +311,23 @@ used in the expression after `=`.
   defined above. Mitra checks the implication "premises ⇒ claim" when it
   can (see Evaluation), and the claim holds on its whole domain when every
   premise holds and the implication is not refuted.
+- `uniform f by g`: a **uniformity claim**, the assumption a developer
+  makes when a few tests are taken to cover a function. `g` is a spec with
+  the same parameters as the subject `f`; its values are the **classes**
+  of inputs, and the claim says `f` behaves the same on every input of a
+  class: right on all of them or wrong on all of them. So one judged input
+  stands for its class (see Evaluation).
+
+  ```lean
+  opaque div (a b : Int) : Int
+  def div_class (a b : Int) : {"zero", "rest"} := if b == 0 then "zero" else "rest"
+  claim div_uniform : uniform div by div_class
+  ```
+
+  `g`'s result type has at most 64 values, and a subject has at most one
+  uniformity claim. Mitra can't check it: it counts once evidence vouches
+  for it, `evidence div_uniform at 1`, for example from a review that
+  the classes follow the branches of the code.
 
 ### evidence
 
@@ -355,8 +379,10 @@ result into evidence at 1:
   for a `c …` test, when the test is about a single input. Otherwise it
   gives nothing: a failed test over a set says the code is wrong somewhere
   in it, which Mitra cannot express yet; a failed `f args = v` test says
-  the output was something else, but not what, unless the subject's result
-  type is `Bool`: then it gives `f args =` the other value; and a failed negative test
+  the output was something else, but not what. If the subject's result
+  type is `Bool`, it gives `f args =` the other value. Otherwise it gives
+  `not c args` for each `=` claim `c` on `f` whose other side is `v` on
+  that input (the claim is wrong there), and nothing if there is none. A failed negative test
   (`not correct …`, `not c …`) proves nothing, since it may have failed for
   another reason.
 
@@ -422,6 +448,29 @@ side. Then:
   and `uncertain` otherwise.
 - **belief** is 0 when the claim fails, and otherwise depends on the policy.
 
+**Uniformity.** Let `u : uniform f by g` be a claim. Mitra looks at the
+single inputs judged for `f`: those of `correct` / `not correct` evidence,
+and, for each `=` claim on `f`, the inputs it found right or wrong
+(evidence over a set counts input by input up to 10 000 inputs, not
+beyond; contradicted inputs are left out). The class of an input x is
+`g x`.
+
+- **Conflict.** If a class holds an input that passed and one that failed,
+  `u`, the pass and the failure can't all be true. `u` **fails**, whatever
+  vouches for it; its *refuted* shows the two inputs, and the output ends
+  with the conflict and both pieces of evidence. Mitra does not choose
+  which of the three is wrong.
+- Otherwise `u` holds if evidence on `u` covers its whole domain, like any
+  claim, and is uncertain if not.
+- While `u` **holds**, for every other claim c on `f`: an input of D in a
+  class with a passing input is **assumed**, and counts as covered for
+  c's logic and belief; an input in a class with a failing input is
+  refuted. On a finite D (up to 10 000 inputs) this is done input by
+  input. On a larger D the classes Mitra can't place: c holds once every
+  value of `g`'s result type has a passing input, and a failing class
+  refutes only its own input.
+- While `u` fails or is uncertain, it changes no other verdict.
+
 **Checking an implication.** For an `=` claim with `by derive` and a
 finite domain, Mitra evaluates both sides on every input, treating each
 premise `g args = e` as a definition: a call `g y` with y in the
@@ -461,6 +510,9 @@ minus_spec [strict] := { logic := .holds, covered := (0..=2, 0..=2), domain := (
 ```
 
 `covered` is shown unless the claim fails, in which case `refuted` is shown.
+`covered` holds what evidence shows directly. When a uniformity claim that
+holds adds to it, `assumed := {"rest"} by div_uniform` follows: the classes
+with a passing input that the claim's domain relies on.
 A claim with `by derive` ends with `implication := .checked`, `.unchecked`
 or `.refuted`. Sets of tuples print as the domain's own form when equal to
 it (`(0..=2, 0..=2)`), as a list of tuples when finite (`{(1, -1)}`),
@@ -470,6 +522,14 @@ per piece of evidence on a spec:
 
 ```text
 contested evidence line 4: `neg` is a spec, true by definition: evidence does not apply to it
+```
+
+Then each conflict, with the evidence lines as Mitra reads them:
+
+```text
+conflict: `div_uniform` can't hold with both, in class "rest" of `div_class`:
+  evidence line 4: evidence correct (div 6 3) at 1
+  evidence line 5: evidence not correct (div 4 2) at 1
 ```
 
 A spec referring to a name it does not bind, a type error, an overflow or a
@@ -617,6 +677,24 @@ on `minus` itself.
 `negate_spec` holds whenever the leaves are there. Case 06 shows the risk
 of an unchecked implication: `minus_spec` holds only because the author
 said so.
+
+### `div`: a uniformity claim, under `strict`
+
+```lean
+opaque div (a b : Int) : Int
+def div_class (a b : Int) : {"zero", "rest"} := if b == 0 then "zero" else "rest"
+claim div_correct : forall a, forall b, correct (div a b)
+claim div_small : forall a in 0..=1, forall b in 1..=2, correct (div a b)
+claim div_uniform : uniform div by div_class
+```
+
+| Case | Evidence | div_correct | div_small | div_uniform |
+|---|---|---|---|---|
+| 01 | `div 6 3` and `div 1 0` pass; nothing vouches | uncertain, covered 2 inputs | uncertain | uncertain |
+| 02 | vouched; `div 6 3` passes | uncertain, assumed "rest" | holds, assumed "rest" | holds |
+| 03 | vouched; `div 6 3` and `div 1 0` pass | holds, assumed "rest", "zero" | holds | holds |
+| 04 | vouched; `div 6 3` passes, `div 4 2` fails | fails, refuted {(4, 2)} | uncertain | fails, with a conflict |
+| 05 | vouched; `div 4 2` fails | fails, refuted {(4, 2)} | fails, refuted its whole domain | holds |
 
 ### `numbers`: integer types, ranges and floats, under `strict`
 

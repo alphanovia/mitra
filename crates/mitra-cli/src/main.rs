@@ -249,7 +249,18 @@ fn run(args: Vec<String>) -> Result<(), String> {
                         evidence.push(e);
                     }
                     Err(why) => {
-                        notes.push(format!("test {} failed: no evidence, since {why}", t.name))
+                        // A failed output test refutes the `=` claims that
+                        // give that output.
+                        let refuted = mitra_core::failed_output(&model, t)
+                            .map_err(|e| format!("test {}: {}", t.name, e.message))?;
+                        if refuted.is_empty() {
+                            notes.push(format!("test {} failed: no evidence, since {why}", t.name));
+                        }
+                        for mut e in refuted {
+                            e.source = Some(format!("test:{}", t.name));
+                            e.rev = rev.clone();
+                            evidence.push(e);
+                        }
                     }
                 }
             }

@@ -140,11 +140,10 @@ assurance cases never reached everyday development, for three reasons:
 3. **They gave numbers nobody could act on.** "0.97" says neither where to
    look nor what to test next.
 
-Mitra makes the hypothesis explicit instead. A test's claim that it
-exercises a set of inputs (`t_small` exercises `add` on `0..=10`) already
-carries it: one pass stands for the set. A separate claim on the subject,
-`uniform add on S`, would let any test or review reuse the hypothesis, and
-would take the blame when a bug lands inside S. Whether that is worth a new
-concept is left for the [Rust trial](../trials.md#t1-a-small-rust-project-built-with-mitra)
-to settle. Mitra also answers with what to do next (`mitra next`), not with
-a score alone.
+Mitra makes the hypothesis explicit instead: a **uniformity claim** on the
+subject, `uniform f by classes`
+([reference](../reference/language.md#claim)). Any test or review can rely
+on it, and it takes the blame when a pass and a failure land in one class.
+It exists at confidence 0 and 1; how a partly trusted review weakens what
+is assumed is open (it needs the calculus above). Mitra also answers with
+what to do next (`mitra next`), not with a score alone.

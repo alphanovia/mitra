@@ -32,10 +32,12 @@ module.exports = grammar({
 
     claim: $ => seq(
       'claim', field('name', $.name), ':',
-      repeat($.forall),
-      choice($.correct, $.equation),
-      optional($.derive),
+      choice(
+        $.uniform,
+        seq(repeat($.forall), choice($.correct, $.equation), optional($.derive)),
+      ),
     ),
+    uniform: $ => seq('uniform', field('subject', $.name), 'by', field('classes', $.name)),
     correct: $ => seq('correct', '(', $.call, ')'),
     equation: $ => seq($.call, '=', $._expr),
     derive: $ => seq(':=', 'by', 'derive', '[', sep1($.name, ','), ']'),
@@ -49,7 +51,7 @@ module.exports = grammar({
     region: $ => seq('|', choice('_', seq($.name, choice('in', '∈'), $._set)), '=>', $.number),
     policy: $ => seq('policy', choice(
       'strict',
-      seq(field('name', $.name), ':=', choice('strict', seq('coverage', $.name))),
+      seq(field('name', $.name), ':=', choice('strict', seq('coverage', choice($.name, 'uniform')))),
     )),
 
     test: $ => seq('test', field('name', $.name), ':', repeat($.forall), $._judgment),

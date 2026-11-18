@@ -59,11 +59,10 @@ A pass then **derives** evidence on `add` over `0..=10`, with confidence
 = belief that `t_ex` and `t_judge` hold. A buggy or vacuous test lowers
 that belief instead of silently counting as proof.
 
-`t_ex` carries a **uniformity hypothesis**: one run stands for the whole
-interval. A separate claim on the subject, `uniform add on S`, is an open
-option: any test or review could reuse it, and it would take the blame
-when a bug lands inside S ([calculus](calculus.md#6-why-earlier-confidence-measures-failed)).
-The [Rust trial](../trials.md) should settle whether it is worth it.
+`t_ex` says which inputs the test runs, not that one run stands for more.
+That **uniformity hypothesis** is a claim on the subject, `uniform f by
+classes`, which is implemented
+([reference](../reference/language.md#claim)).
 
 A failure gives only "wrong **somewhere** in S", which Mitra cannot record
 yet: a failed test over a set gives no evidence today.

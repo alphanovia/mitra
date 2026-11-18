@@ -178,22 +178,42 @@ fn t_dempster_nothing() {
     assert_eq!(Mass::VACUOUS.dempster(&Mass::VACUOUS), Some(Mass::VACUOUS));
 }
 
-// mitra: test t_judged_values : forall ok, forall c in {0.0, 0.25, 1.0}, correct (judged ok c)
+// `judged`, one input per test: a failed test then names its input.
+
+// mitra: test t_judged_correct : correct (judged true 0.25)
 #[test]
-fn t_judged_values() {
-    for c in [0.0, 0.25, 1.0] {
-        assert_eq!(Mass::judged(true, c), Some(mass(c, 0.0, 1.0 - c)));
-        assert_eq!(Mass::judged(false, c), Some(mass(0.0, c, 1.0 - c)));
-    }
+fn t_judged_correct() {
+    assert_eq!(Mass::judged(true, 0.25), Some(mass(0.25, 0.0, 0.75)));
 }
 
-// mitra: test t_judged_rejects_bad_confidence : forall ok, forall c in {-0.5, 1.5}, correct (judged ok c)
+// mitra: test t_judged_wrong : correct (judged false 0.25)
 #[test]
-fn t_judged_rejects_bad_confidence() {
-    for ok in [true, false] {
-        assert_eq!(Mass::judged(ok, -0.5), None);
-        assert_eq!(Mass::judged(ok, 1.5), None);
-    }
+fn t_judged_wrong() {
+    assert_eq!(Mass::judged(false, 0.25), Some(mass(0.0, 0.25, 0.75)));
+}
+
+// mitra: test t_judged_at_zero : correct (judged true 0.0)
+#[test]
+fn t_judged_at_zero() {
+    assert_eq!(Mass::judged(true, 0.0), Some(Mass::VACUOUS));
+}
+
+// mitra: test t_judged_at_one : correct (judged false 1.0)
+#[test]
+fn t_judged_at_one() {
+    assert_eq!(Mass::judged(false, 1.0), Some(SURE_WRONG));
+}
+
+// mitra: test t_judged_rejects_above : correct (judged true 1.5)
+#[test]
+fn t_judged_rejects_above() {
+    assert_eq!(Mass::judged(true, 1.5), None);
+}
+
+// mitra: test t_judged_rejects_below : correct (judged false (-0.5))
+#[test]
+fn t_judged_rejects_below() {
+    assert_eq!(Mass::judged(false, -0.5), None);
 }
 
 // Not in the model: Mitra has no NaN literal (gap G4).
@@ -205,26 +225,28 @@ fn t_judged_rejects_nan() {
 // Invalid masses, as the first argument of `yager` and the second of
 // `dempster`: a negative part, or parts that do not sum to 1.
 
-// mitra: test t_yager_rejects_invalid : forall b in {-0.5, 0.5}, forall u in {0.5, 1.0},
-// mitra:   correct (yager b 0.5 u 0.0 0.0 1.0)
+// mitra: test t_yager_rejects_negative : correct (yager (-0.5) 0.5 1.0 0.0 0.0 1.0)
 #[test]
-fn t_yager_rejects_invalid() {
-    for b in [-0.5, 0.5] {
-        for u in [0.5, 1.0] {
-            assert_eq!(mass(b, 0.5, u).yager(&Mass::VACUOUS), None);
-        }
-    }
+fn t_yager_rejects_negative() {
+    assert_eq!(mass(-0.5, 0.5, 1.0).yager(&Mass::VACUOUS), None);
 }
 
-// mitra: test t_dempster_rejects_invalid : forall b in {-0.5, 0.5}, forall u in {0.5, 1.0},
-// mitra:   correct (dempster 0.0 0.0 1.0 b 0.5 u)
+// mitra: test t_yager_rejects_sum : correct (yager 0.5 0.5 0.5 0.0 0.0 1.0)
 #[test]
-fn t_dempster_rejects_invalid() {
-    for b in [-0.5, 0.5] {
-        for u in [0.5, 1.0] {
-            assert_eq!(Mass::VACUOUS.dempster(&mass(b, 0.5, u)), None);
-        }
-    }
+fn t_yager_rejects_sum() {
+    assert_eq!(mass(0.5, 0.5, 0.5).yager(&Mass::VACUOUS), None);
+}
+
+// mitra: test t_dempster_rejects_negative : correct (dempster 0.0 0.0 1.0 (-0.5) 0.5 1.0)
+#[test]
+fn t_dempster_rejects_negative() {
+    assert_eq!(Mass::VACUOUS.dempster(&mass(-0.5, 0.5, 1.0)), None);
+}
+
+// mitra: test t_dempster_rejects_sum : correct (dempster 0.0 0.0 1.0 0.5 0.5 0.5)
+#[test]
+fn t_dempster_rejects_sum() {
+    assert_eq!(Mass::VACUOUS.dempster(&mass(0.5, 0.5, 0.5)), None);
 }
 
 // Not in the model: no NaN literal (gap G4).

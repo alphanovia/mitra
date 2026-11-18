@@ -2,9 +2,16 @@
 
 ## One sentence
 
-Mitra is a trust engine, to be formally verified: given a model of claims
-and the evidence brought for them, it computes, for each claim, a verdict
-(logic, coverage and belief) that programs can use as a policy input.
+Mitra is a static analyser for trust: you write down what your software
+claims, what you assume and what evidence you have, and it tells you where
+they contradict each other and how much of each claim is tested, assumed
+or unsupported.
+
+It is quality engineering made checkable. Like a compiler, Mitra does not
+run the code: it reads the claims, assumptions and evidence, and reports
+what can't all be true as an error, with the pieces in conflict. Its
+verdicts (logic, coverage and belief) are meant as policy inputs for
+programs, and the analyser itself is to be formally verified.
 
 *Tests check, Lean proves, Mitra weighs.*
 
@@ -19,14 +26,18 @@ on the unproven code.
 Earlier attempts to measure confidence in software failed because they
 treated code as a black box, needed inputs nobody had, and gave numbers
 nobody could act on ([calculus](design/calculus.md#6-why-earlier-confidence-measures-failed)).
-Mitra writes down the hypotheses developers already rely on, such as "one
-passing input stands for this interval", and says what to check next.
+Mitra writes down the hypotheses developers already rely on, such as "the
+code behaves the same on all these inputs, so one passing test stands for
+them". That is why tests are cheaper than proofs and usually accepted: the
+assumption is checked by reading the code. Written down, it lets Mitra say
+what is tested, what is only assumed, what is missing, and, on a bug,
+which assumption broke.
 
 ## What Mitra is first
 
 A **language for trust**: subjects under review, claims that they are
-correct on some of their inputs, and evidence that records runs judged
-correct or wrong with a confidence (see the
+correct on some of their inputs, assumptions such as uniformity, and
+evidence that records runs judged correct or wrong with a confidence (see the
 [language reference](reference/language.md) for what exists today). The first thing to test
 is whether this language is right: whether small, well-understood situations
 can be written in it naturally and give the verdicts a careful person would
@@ -101,7 +112,7 @@ They are built and tested in that order.
    golden set in the [language reference](reference/language.md)) are the
    tests.
 5. **Proven.** The implementation is to be written with Lean 4 and Verus, so
-   the trust engine can itself be trusted.
+   the analyser can itself be trusted.
 
 ## Specs and intent
 
@@ -131,8 +142,12 @@ the thing under review, with its own evidence (for example
   probability that the observation is valid.
 - **Test:** a test of the code, declared with the evidence its result
   stands for; `mitra ingest` turns its results into evidence.
-- **Assumption** (planned): a claim accepted at a stated confidence, not
-  computed.
+- **Uniformity claim:** the assumption that a subject behaves the same on
+  every input of a class, so that one judged input stands for the class.
+  It counts once evidence, such as a review, vouches for it.
+- **Conflict:** claims and evidence that can't all be true, such as a
+  pass and a failure in one class of a uniformity claim. Reported like a
+  compiler error.
 - **Policy:** how evidence becomes belief, chosen by configuration so
   policies can be compared (`strict`, `coverage` of a usage profile).
 - **Verdict:** Mitra's output for a claim under a policy: the logic (holds,
