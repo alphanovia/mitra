@@ -739,3 +739,23 @@ test t_all : forall a in {true, false}, correct(flip(a))
     (call
       (name))
     (number)))
+
+==================
+uniform without classes
+==================
+
+claim add_uniform : uniform add
+claim div_uniform : uniform div by div_class
+
+---
+
+(source_file
+  (claim
+    (name)
+    (uniform
+      (name)))
+  (claim
+    (name)
+    (uniform
+      (name)
+      (name))))

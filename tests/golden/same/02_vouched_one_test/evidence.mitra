@@ -1,0 +1,2 @@
+evidence add_uniform at 1
+evidence correct(add(1, 2)) at 1

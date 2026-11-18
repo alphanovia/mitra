@@ -36,7 +36,7 @@ Params: () = "(" Comma1<Param> ")" => ();
 Param: () = NAME ":" Set => ();
 Claim: () = {
     "claim" NAME ":" Forall* ClaimBody Derive? => (),
-    "claim" NAME ":" "uniform" NAME "by" NAME => (),
+    "claim" NAME ":" "uniform" NAME ("by" NAME)? => (),
     "claim" NAME ":" "only"? "uses" NAME "[" Comma1<NAME> "]" => (),
 };
 ClaimBody: () = {

@@ -1,0 +1,11 @@
+add_ok: unverified
+  no evidence on  (left, right) in (Int, Int)
+add_uniform: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  claim add_ok : forall left, forall right, correct(add(left, right))
+
+  No evidence on (left, right) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

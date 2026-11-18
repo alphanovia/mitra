@@ -12,8 +12,9 @@ Params        = "(" Param ParamsTail ")" ;
 ParamsTail    = "," Param ParamsTail | ;
 Param         = NAME ":" Set ;
 Claim         = "claim" NAME ":" ClaimRest ;
-ClaimRest     = "uniform" NAME "by" NAME | Only "uses" NAME "[" NAME NamesTail "]"
+ClaimRest     = "uniform" NAME By | Only "uses" NAME "[" NAME NamesTail "]"
               | Foralls ClaimBody Derive ;
+By            = "by" NAME | ;
 ClaimBody     = "correct" "(" NAME Args ")" | NAME Args "=" Expr ;
 Only          = "only" | ;
 Derive        = ":=" "by" "derive" "[" NAME NamesTail "]" | ;

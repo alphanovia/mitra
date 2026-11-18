@@ -209,7 +209,10 @@ impl Writer<'_> {
         }
     }
 
-    fn classes(list: &[Value], spec: &str) -> String {
+    fn classes(list: &[Value], spec: &Option<String>) -> String {
+        let Some(spec) = spec else {
+            return "every input".to_string();
+        };
         let names: Vec<String> = list.iter().map(|c| c.to_string()).collect();
         let word = if names.len() == 1 { "class" } else { "classes" };
         format!("{word} {} of `{spec}`", names.join(", "))
@@ -226,7 +229,7 @@ impl Writer<'_> {
             .is_some_and(|n| n <= crate::eval::POINTS);
         // Classes without a passing input, when the set can't be listed; a
         // failing class is not missed.
-        let assumed = v.assumed.as_ref().filter(|a| a.usable);
+        let assumed = v.assumed.as_ref().filter(|a| a.usable && a.spec.is_some());
         if let (Some(a), false) = (assumed, listed) {
             let mut open = a.untested.clone();
             open.retain(|k| !(a.vouched && a.failing.contains(k)));
@@ -478,20 +481,32 @@ impl Writer<'_> {
             Kind::Conflict { claim, spec, class } => {
                 let func = &self.claim(claim).func;
                 *out += &self.at_claim(claim);
-                *out += &format!(
-                    "\n  `{claim}` says `{func}` behaves the same for every input of class {class}\n  \
-                     of `{spec}`. But in that class some inputs pass and others fail:\n\n"
-                );
+                *out += &match spec {
+                    Some(spec) => format!(
+                        "\n  `{claim}` says `{func}` behaves the same for every input of class {class}\n  \
+                         of `{spec}`. But in that class some inputs pass and others fail:\n\n"
+                    ),
+                    None => format!(
+                        "\n  `{claim}` says `{func}` behaves the same for every input. But some inputs\n  \
+                         pass and others fail:\n\n"
+                    ),
+                };
                 self.quoted(p, out);
                 self.ranking(p, out);
                 let found = self.report.conflicts.iter();
                 let mut found = found.filter(|k| &k.claim == claim && &k.class == class);
                 let fails = found.next().map(|k| call(func, &k.fail.0));
                 let fails = fails.unwrap_or_else(|| "the failing input".to_string());
-                *out += &format!(
-                    "\n  help: check that `{fails}` really fails; if it does, class {class} is\n  \
-                     too wide: split it in `{spec}`\n"
-                );
+                *out += &match spec {
+                    Some(spec) => format!(
+                        "\n  help: check that `{fails}` really fails; if it does, class {class} is\n  \
+                         too wide: split it in `{spec}`\n"
+                    ),
+                    None => format!(
+                        "\n  help: check that `{fails}` really fails; if it does, sort the inputs of\n  \
+                         `{func}` into classes: claim {claim} : uniform {func} by <spec>\n"
+                    ),
+                };
             }
         }
     }

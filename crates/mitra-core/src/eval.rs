@@ -88,8 +88,9 @@ pub struct Verdict {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assumed {
     /// The `uniform` claim, and its spec, whose values are the classes.
+    /// Without a spec there is one class, of every input.
     pub by: String,
-    pub spec: String,
+    pub spec: Option<String>,
     /// Evidence covers the `uniform` claim: then a failure stands for
     /// its class too.
     pub vouched: bool,
@@ -119,7 +120,7 @@ pub struct Assumed {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Conflict {
     pub claim: String,
-    pub spec: String,
+    pub spec: Option<String>,
     pub class: Value,
     /// The input, its evidence line and the evidence as text.
     pub pass: (Vec<Value>, usize, String),
@@ -241,7 +242,7 @@ pub enum Kind {
     /// A pass and a failure in one class of a `uniform` claim.
     Conflict {
         claim: String,
-        spec: String,
+        spec: Option<String>,
         class: Value,
     },
 }
@@ -600,6 +601,9 @@ fn binary(op: &str, x: &Value, y: &Value) -> Option<Value> {
 /// find the class of each (see `uniform`).
 pub(crate) const POINTS: f64 = 10_000.0;
 
+/// The class of every input, for a `uniform` claim without a spec.
+const ONE_CLASS: Value = Value::Bool(true);
+
 /// One judged input: the input, whether it passed, the evidence line.
 type Point = (Vec<Value>, bool, usize);
 
@@ -888,12 +892,16 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         }
         points
     };
-    let class_of = |spec: &str, x: &[Value], line: usize| -> Result<Value, (Input, Error)> {
-        let out = ev
-            .call(spec, x, line, Subjects::Observed)
-            .map_err(model_err)?;
-        Ok(out.into_iter().next().expect("a spec has a value"))
-    };
+    let class_of =
+        |spec: &Option<String>, x: &[Value], line: usize| -> Result<Value, (Input, Error)> {
+            let Some(spec) = spec else {
+                return Ok(ONE_CLASS);
+            };
+            let out = ev
+                .call(spec, x, line, Subjects::Observed)
+                .map_err(model_err)?;
+            Ok(out.into_iter().next().expect("a spec has a value"))
+        };
     // Claims that say the same thing of a subject, on whatever domain:
     // they share their judged inputs.
     let same = |i: usize, j: usize| {
@@ -1109,8 +1117,11 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                     }
                 }
             } else {
-                let all = model.function(spec).expect("checked").range.values();
-                untested = all.unwrap_or_default();
+                untested = match spec {
+                    Some(g) => model.function(g).expect("checked").range.values(),
+                    None => Some(vec![ONE_CLASS]),
+                }
+                .unwrap_or_default();
                 untested.retain(|v| !classes.contains(v));
                 if untested.is_empty() {
                     set = open;

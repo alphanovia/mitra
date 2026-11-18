@@ -593,10 +593,13 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                 let name = p.ident()?;
                 p.expect(":")?;
                 if p.eat_keyword("uniform") {
-                    // claim n : uniform f by g
+                    // claim n : uniform f [by g]
                     let func = p.ident()?;
-                    p.keyword("by")?;
-                    let target = Target::Uniform(p.ident()?);
+                    let spec = match p.eat_keyword("by") {
+                        true => Some(p.ident()?),
+                        false => None,
+                    };
+                    let target = Target::Uniform(spec);
                     m.claims.push(Claim {
                         name,
                         func,

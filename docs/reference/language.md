@@ -154,7 +154,7 @@ opaque     = "opaque" name params "->" set ;
 def        = "def" name params "->" set ":=" expr ;
 params     = "(" param { "," param } ")" ;
 param      = name ":" set ;
-claim      = "claim" name ":" ( "uniform" name "by" name
+claim      = "claim" name ":" ( "uniform" name [ "by" name ]
              | [ "only" ] "uses" name "[" name { "," name } "]"
              | { forall }
                ( "correct" "(" name args ")" | name args "=" expr )
@@ -346,6 +346,14 @@ used in the expression after `=`.
   `evidence div_uniform at 1`, for example from a review that the classes
   follow the branches of the code. Without evidence it is `unverified`,
   and what rests on it `holds assuming` it.
+
+  `uniform f`, without `by`, is the same claim with a single class of
+  every input: one judged input stands for all of them.
+
+  ```lean
+  opaque add(left: Int, right: Int) -> Int
+  claim add_uniform : uniform add
+  ```
 - `uses f [g, h]`: the subject `f` calls the subjects `g` and `h`.
   `only uses f [g, h]` adds that it calls no other subject. Neither
   changes another claim's verdict; they tell Mitra where to look when `f`
@@ -622,7 +630,8 @@ div_uniform: holds
 - `assumed on class … by u`: the classes with a passing input (on a
   finite domain, only those the claim meets), unless the claim fails or
   `u` can't be relied on. `which is not vouched for` when no evidence
-  vouches for `u`.
+  vouches for `u`. For `uniform f` without a spec: `assumed on every
+  input, by u`.
 - `no evidence on`: the inputs missed. With a uniformity claim and a set
   too large to list, the classes without a passing input instead.
 
@@ -897,6 +906,21 @@ claim div_uniform : uniform div by div_class
 | 08 | vouched; `div(6, 3)` passes and fails; `div(4, 2)` passes | unverified, tested {(4, 2)}; error on (6, 3) | unverified: class "rest" not relied on | holds |
 | 09 | vouched; `div_small` reviewed | unverified, assumed "rest" | holds | holds |
 | 10 | vouched; `div(6, 3)` fails; `div_correct(6, 3)` reviewed | unverified; error on (6, 3) | unverified: the failure stands for nothing | holds |
+
+### `same`: uniformity without classes
+
+```lean
+opaque add(left: Int, right: Int) -> Int
+claim add_ok : forall left, forall right, correct(add(left, right))
+claim add_uniform : uniform add
+```
+
+| Case | Evidence | add_ok | add_uniform |
+|---|---|---|---|
+| 01 | `add(1, 2)` passes; nothing vouches | holds assuming [add_uniform] | unverified |
+| 02 | vouched; `add(1, 2)` passes | holds, assumed on every input | holds |
+| 03 | vouched; no test | unverified | holds |
+| 04 | vouched; `add(1, 2)` passes, `add(2, 2)` fails at 0.8 | fails on `add(2, 2)` | fails; error `M004` |
 
 ### `bias`: which piece is most plausibly wrong
 

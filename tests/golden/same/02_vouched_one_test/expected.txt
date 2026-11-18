@@ -1,0 +1,4 @@
+add_ok: holds
+  passes on       `add(1, 2)`
+  assumed on      every input, by `add_uniform`
+add_uniform: holds

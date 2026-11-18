@@ -265,7 +265,11 @@ fn command(r: &mut Rng) -> String {
         ),
         _ => {
             if r.chance(15) {
-                return format!("claim {} : uniform {} by {}", name(r), name(r), name(r));
+                let by = match r.chance(50) {
+                    true => format!(" by {}", name(r)),
+                    false => String::new(),
+                };
+                return format!("claim {} : uniform {}{by}", name(r), name(r));
             }
             if r.chance(15) {
                 let used = r.many(1, 3, name).join(" , ");

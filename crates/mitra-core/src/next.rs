@@ -3,7 +3,7 @@
 //! is missed and the evidence that would settle it.
 
 use crate::ast::{Model, Target};
-use crate::eval::{Logic, Report};
+use crate::eval::{Assumed, Logic, Report};
 use crate::print::call;
 
 /// Up to this many missing inputs are listed one by one.
@@ -54,17 +54,21 @@ pub fn next(model: &Model, report: &Report) -> String {
     conflicts.sort_by_key(|k| !suspects(of(k)).is_empty());
     for k in conflicts {
         let subject = of(k);
-        out += &format!(
-            "{}: fails: `{}` passes and `{}` fails, both in class {} of `{}`\n  \
-             find what differs between the two inputs and split the class in `{}`,\n  \
-             or check the two results: one of them may be wrong\n",
-            k.claim,
-            call(subject, &k.pass.0),
-            call(subject, &k.fail.0),
-            k.class,
-            k.spec,
-            k.spec
-        );
+        let (pass, fail) = (call(subject, &k.pass.0), call(subject, &k.fail.0));
+        out += &match &k.spec {
+            Some(spec) => format!(
+                "{}: fails: `{pass}` passes and `{fail}` fails, both in class {} of `{spec}`\n  \
+                 find what differs between the two inputs and split the class in `{spec}`,\n  \
+                 or check the two results: one of them may be wrong\n",
+                k.claim, k.class,
+            ),
+            None => format!(
+                "{}: fails: `{pass}` passes and `{fail}` fails\n  \
+                 find what differs between the two inputs and sort the inputs into classes,\n  \
+                 `uniform {subject} by <spec>`, or check the two results: one of them may be wrong\n",
+                k.claim,
+            ),
+        };
         out += &look(subject);
     }
     verdicts.sort_by_key(|v| v.logic != Logic::Fails || !suspects(subject(v)).is_empty());
@@ -97,9 +101,13 @@ pub fn next(model: &Model, report: &Report) -> String {
             continue;
         }
         if let Target::Uniform(spec) = &c.target {
+            let within = match spec {
+                Some(spec) => format!("within each class of `{spec}`"),
+                None => "for every input".to_string(),
+            };
             out += &if v.tested.is_empty() {
                 format!(
-                    "{}: not vouched for\n  review that `{}` behaves the same within each class of `{spec}`, then:\n  \
+                    "{}: not vouched for\n  review that `{}` behaves the same {within}, then:\n  \
                      evidence {} at 1\n",
                     c.name, c.func, c.name
                 )
@@ -146,9 +154,14 @@ pub fn next(model: &Model, report: &Report) -> String {
             };
         }
         match &v.assumed {
-            Some(a) if a.usable && !a.untested.is_empty() => {
-                let n = a.untested.len();
-                out += &format!("{}: missing {n} of the classes of `{}`\n", c.name, a.spec)
+            Some(Assumed {
+                usable: true,
+                untested,
+                spec: Some(spec),
+                ..
+            }) if !untested.is_empty() => {
+                let n = untested.len();
+                out += &format!("{}: missing {n} of the classes of `{spec}`\n", c.name)
             }
             _ => out += &format!("{}: missing {shown}\n", c.name),
         }
@@ -196,17 +209,22 @@ pub fn next(model: &Model, report: &Report) -> String {
                 out += "  some inputs have both a pass and a failure: settle them\n";
             }
             for class in &a.untested {
-                if a.tainted.contains(class) {
-                    out += &format!(
-                        "  class {class} of `{}` has an input with both a pass and a failure: not relied on\n",
-                        a.spec
-                    );
-                    continue;
-                }
-                out += &format!(
-                    "  no passing input in class {class} of `{}`: one test there stands for the class\n",
-                    a.spec
-                );
+                let tainted = a.tainted.contains(class);
+                out += &match (&a.spec, tainted) {
+                    (Some(spec), true) => format!(
+                        "  class {class} of `{spec}` has an input with both a pass and a failure: not relied on\n"
+                    ),
+                    (Some(spec), false) => format!(
+                        "  no passing input in class {class} of `{spec}`: one test there stands for the class\n"
+                    ),
+                    (None, true) => {
+                        "  an input has both a pass and a failure: no test stands for the others\n"
+                            .to_string()
+                    }
+                    (None, false) => {
+                        "  no passing input: one test stands for every input\n".to_string()
+                    }
+                };
             }
             continue;
         }

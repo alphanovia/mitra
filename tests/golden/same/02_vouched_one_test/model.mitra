@@ -1,0 +1,3 @@
+opaque add(left: Int, right: Int) -> Int
+claim add_ok : forall left, forall right, correct(add(left, right))
+claim add_uniform : uniform add

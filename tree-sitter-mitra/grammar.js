@@ -40,7 +40,7 @@ module.exports = grammar({
       ),
     ),
     uses: $ => seq(optional('only'), 'uses', field('subject', $.name), '[', sep1($.name, ','), ']'),
-    uniform: $ => seq('uniform', field('subject', $.name), 'by', field('classes', $.name)),
+    uniform: $ => seq('uniform', field('subject', $.name), optional(seq('by', field('classes', $.name)))),
     correct: $ => seq('correct', '(', $.call, ')'),
     equation: $ => seq($.call, '=', $._expr),
     derive: $ => seq(':=', 'by', 'derive', '[', sep1($.name, ','), ']'),

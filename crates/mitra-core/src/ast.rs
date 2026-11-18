@@ -62,8 +62,9 @@ pub enum Target {
     Matches(Expr),
     /// `uniform f by g`: the subject behaves the same on every input of a
     /// class, the classes being the values of the spec `g`. So one judged
-    /// input stands for its whole class.
-    Uniform(String),
+    /// input stands for its whole class. `uniform f`, without a spec: every
+    /// input is in one class.
+    Uniform(Option<String>),
     /// `uses f [g, h]`: the subject calls these subjects, so a failure of
     /// one of them is the first place to look when `f` fails.
     /// `only uses f [g, h]` adds that it calls no other subject.
@@ -171,6 +172,30 @@ pub struct Model {
 }
 
 impl Model {
+    /// Check the spec `g` of `uniform f by g`. Without one, nothing to check.
+    fn spec_of_classes(&self, f: &Function, g: Option<&str>) -> Result<(), String> {
+        let Some(name) = g else {
+            return Ok(());
+        };
+        let Some(g) = self.function(name).filter(|g| g.is_spec()) else {
+            return Err(format!("`{name}` is not a spec"));
+        };
+        let types = |f: &Function| f.params.iter().map(|p| p.1.clone()).collect::<Vec<_>>();
+        if types(f) != types(g) {
+            return Err(format!(
+                "`{}` and `{}` must take the same inputs",
+                f.name, g.name
+            ));
+        }
+        if g.range.count().is_none_or(|n| n > MAX_CLASSES) {
+            return Err(format!(
+                "`{}` must have at most {MAX_CLASSES} results, one per class",
+                g.name
+            ));
+        }
+        Ok(())
+    }
+
     pub fn function(&self, name: &str) -> Option<&Function> {
         self.functions.iter().find(|f| f.name == name)
     }
@@ -279,25 +304,8 @@ impl Model {
                 }
                 _ => unreachable!(),
             };
-            let Some(g) = self.function(g).filter(|g| g.is_spec()) else {
-                return Err(m(c.line, format!("`{g}` is not a spec")));
-            };
-            let types = |f: &Function| f.params.iter().map(|p| p.1.clone()).collect::<Vec<_>>();
-            if types(f) != types(g) {
-                return Err(m(
-                    c.line,
-                    format!("`{}` and `{}` must take the same inputs", f.name, g.name),
-                ));
-            }
-            if g.range.count().is_none_or(|n| n > MAX_CLASSES) {
-                return Err(m(
-                    c.line,
-                    format!(
-                        "`{}` must have at most {MAX_CLASSES} results, one per class",
-                        g.name
-                    ),
-                ));
-            }
+            self.spec_of_classes(f, g.as_deref())
+                .map_err(|msg| m(c.line, msg))?;
             let twice = |d: &Claim| d.func == c.func && matches!(d.target, Target::Uniform(_));
             if self.claims[..i].iter().any(twice) {
                 return Err(m(

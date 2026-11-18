@@ -32,7 +32,8 @@ pub fn print_model(m: &Model) -> String {
 /// One claim, as written in a model, without the line break.
 pub fn print_claim(m: &Model, c: &Claim) -> String {
     if let Target::Uniform(g) = &c.target {
-        return format!("claim {} : uniform {} by {g}", c.name, c.func);
+        let by = g.as_ref().map(|g| format!(" by {g}")).unwrap_or_default();
+        return format!("claim {} : uniform {}{by}", c.name, c.func);
     }
     if let Target::Uses { used, only } = &c.target {
         let only = if *only { "only " } else { "" };
