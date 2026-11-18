@@ -4,16 +4,16 @@ inc_correct: fails
 inc_small: unverified
   no evidence on  x in 0..=99
 half_spec: fails
-  fails on        `half (-3.0)`
-  passes on       `half 1.0`
+  fails on        `half(-3.0)`
+  passes on       `half(1.0)`
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:7  claim inc_correct : forall x, correct (inc x)
+  --> model.mitra:7  claim inc_correct : forall x, correct(inc(x))
 
   `inc_correct` fails on x in -5..=-1.
   The evidence that says so:
 
-    fails     evidence.mitra:5  evidence forall x in -5..=-1, not correct (inc x) at 0
+    fails     evidence.mitra:5  evidence forall x in -5..=-1, not correct(inc(x)) at 0
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -28,12 +28,12 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `inc`; if not, correct the evidence
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:11  claim half_spec : forall x in {-3.0, 1.0}, half x = halve x
+  --> model.mitra:11  claim half_spec : forall x in {-3.0, 1.0}, half(x) = halve(x)
 
-  `half_spec` fails on `half (-3.0)`.
+  `half_spec` fails on `half(-3.0)`.
   The evidence that says so:
 
-    output    evidence.mitra:3  evidence half (-3.0) = -1.0 at 1
+    output    evidence.mitra:3  evidence half(-3.0) = -1.0 at 1
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -46,7 +46,7 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `half`; if not, correct the evidence
 
 warning[M101]: a claim is not verified
-  --> model.mitra:9  claim inc_small : forall x in 0..=99, correct (inc x)
+  --> model.mitra:9  claim inc_small : forall x in 0..=99, correct(inc(x))
 
   No evidence on x in 0..=99.
   help: `mitra next` lists the evidence that would settle it

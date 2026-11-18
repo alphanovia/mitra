@@ -1,5 +1,5 @@
 add_spec: fails
-  fails on        `add 1 (-1)`
+  fails on        `add(1, -1)`
   passes on       (a, b) in {(0, -2), (0, -1), (0, 0), (1, -2), (1, 0), (2, -2), (2, -1), (2, 0)}
 negate_spec: holds
 minus_shape: holds
@@ -8,12 +8,12 @@ minus_spec: unverified
   no evidence on  (a, b) in (0..=2, 0..=2)
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:10  claim add_spec : forall a in 0..=2, forall b in -2..=0, add a b = plus a b
+  --> model.mitra:10  claim add_spec : forall a in 0..=2, forall b in -2..=0, add(a, b) = plus(a, b)
 
-  `add_spec` fails on `add 1 (-1)`.
+  `add_spec` fails on `add(1, -1)`.
   The evidence that says so:
 
-    output    evidence.mitra:6  evidence add 1 (-1) = 1 at 1
+    output    evidence.mitra:6  evidence add(1, -1) = 1 at 1
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -26,7 +26,7 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `add`; if not, correct the evidence
 
 warning[M101]: a claim is not verified
-  --> model.mitra:15  claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
+  --> model.mitra:15  claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = difference(a, b) := by derive [add_spec, negate_spec, minus_shape]
 
   No evidence on (a, b) in (0..=2, 0..=2).
   help: `mitra next` lists the evidence that would settle it

@@ -7,7 +7,7 @@ not shape the core.
 
 A claim states one property precisely enough to be judged. A function can
 carry many claims (one per input region, one per spec), a claim can span
-several functions (`minus a b = add a (negate b)`), and most helper
+several functions (`minus(a, b) = add(a, negate(b))`), and most helper
 functions carry none: they are covered by the claims of their callers.
 
 ## A requirement is a prose proposition
@@ -21,8 +21,8 @@ with the same form as a derived claim:
 requirement req12 "Checkout never charges a customer twice" :=
   by derive [charge_once, retry_idempotent]
 
-claim charge_once : forall order in Orders, correct (charge order)
-claim retry_idempotent : forall order in Orders, correct (retry order)
+claim charge_once : forall order in Orders, correct(charge(order))
+claim retry_idempotent : forall order in Orders, correct(retry(order))
 ```
 
 `req12` holds when the claims hold **and** the implication holds: that

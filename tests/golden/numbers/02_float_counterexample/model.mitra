@@ -1,11 +1,11 @@
 -- Integer types and ranges, and 64-bit floats.
-opaque inc (x : Int64) : Int64
-def halve (x : Float64) : Float64 := x * 0.5
-opaque half (x : Float64) : Float64
+opaque inc(x: Int64) -> Int64
+def halve(x: Float64) -> Float64 := x * 0.5
+opaque half(x: Float64) -> Float64
 
 -- inc is correct on every 64-bit integer: tests can't cover that.
-claim inc_correct : forall x, correct (inc x)
+claim inc_correct : forall x, correct(inc(x))
 -- On the small ones, `0..100` leaves 100 out.
-claim inc_small : forall x in 0..100, correct (inc x)
+claim inc_small : forall x in 0..100, correct(inc(x))
 -- half matches halve on two inputs.
-claim half_spec : forall x in {1.0, -3.0}, half x = halve x
+claim half_spec : forall x in {1.0, -3.0}, half(x) = halve(x)

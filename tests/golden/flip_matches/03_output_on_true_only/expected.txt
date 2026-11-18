@@ -1,12 +1,12 @@
 flip_spec: unverified
-  passes on       `flip true`
-  no evidence on  `flip false`
+  passes on       `flip(true)`
+  no evidence on  `flip(false)`
 flip_on_true: holds
 
 warning[M101]: a claim is not verified
-  --> model.mitra:5  claim flip_spec : forall a, flip a = neg a
+  --> model.mitra:5  claim flip_spec : forall a, flip(a) = neg(a)
 
-  No evidence on `flip false`.
+  No evidence on `flip(false)`.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

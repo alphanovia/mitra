@@ -47,9 +47,9 @@ Write Mitra's own rules as Mitra specs: set operations, the verdict rule
 The Rust core is then claimed to match it:
 
 ```lean
-opaque rust_union (s t : Value) : Value
-def union (s t : Value) : Value := …
-claim core_union : forall s, forall t, rust_union s t = union s t
+opaque rust_union(s: Value, t: Value) -> Value
+def union(s: Value, t: Value) -> Value := …
+claim core_union : forall s, forall t, rust_union(s, t) = union(s, t)
 ```
 
 with evidence from the Rust tests and, later, Verus.

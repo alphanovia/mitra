@@ -13,15 +13,15 @@ only what the ledger needs: evidence, tests and verdicts.
 
 | Mitra | Lean 4 meaning it borrows |
 |---|---|
-| `opaque f (a b : Int) : Int` | declared, body unknown: a subject |
-| `def f (a : Int) : Int := e` | a definition: a spec |
+| `opaque f …` | declared, body unknown: a subject |
+| `def f … := e` | a definition: a spec |
 | `claim c : forall x in S, …` | a theorem statement without a proof |
 | `… := by derive [p, q]` | reads as a proof; Mitra checks the implication |
 | `{1, "a"}`, `\` | set literals and difference |
-| `f a b`, `(-2)`, `let x := v; e`, `--` | application, literals, comments |
+| `let x := v; e`, `--` | local definitions, comments |
 | `Int`, `Int64`, `Float64` | `Int` is ℤ; the others are fixed-width |
 
-What Lean lacks, Mitra adds: `correct (f a)`, `evidence … at c` (not `@`,
+What Lean lacks, Mitra adds: `correct(f(a))`, `evidence … at c` (not `@`,
 which means explicit arguments in Lean), `test`. Mitra files need not be valid Lean, so Lean's prelude names
 (`id`) are free to use.
 
@@ -34,6 +34,16 @@ Where Lean reads badly or needs an editor, Mitra departs from it
   golden set is now `flip`.
 - **Ranges, as in Rust**: `0..=10` (closed), `0..10` (half-open), `5..`,
   `..=5`, instead of Mathlib's `Icc 0 10`.
+- **Parameters and calls with parentheses** (2026-11-18): `opaque
+  judged(ok: Bool, c: Float64) -> Value` and `correct(judged(true, c))`,
+  not Lean's `(ok : Bool) (c : Float64) : Value` and `judged true c`.
+  More languages write it this way, Rust first, which is the language
+  Mitra's models sit next to. One parenthesis group, commas, one type per
+  parameter, `->` before the result type, and a negative argument needs
+  no parentheses of its own: `div(4, -2)`. Kept as they were, because
+  they are not calls: `claim c : uniform f by g`, `claim c : uses f [g,
+  h]`, `:= by derive [p, q]`, `forall x in S,`, `evidence … at 1`, and
+  evidence on a whole claim, `evidence c at 1`.
 - **`Float64`, not `Real`**: a 64-bit float is not a real number (NaN,
   infinities, `-0.0`, rounding). `Real` is reserved for later, as a type
   for specs and proofs.

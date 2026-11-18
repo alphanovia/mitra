@@ -1,17 +1,17 @@
 id_correct: unverified
   passes on       x in Value \ {7}
-  no evidence on  `id 7`
+  no evidence on  `id(7)`
 id_small: unverified
   passes on       x in 0..=6 | 8..=100
-  no evidence on  `id 7`
+  no evidence on  `id(7)`
 
 error[M003]: two pieces of evidence contradict each other
   --> evidence.mitra:2
 
   On the inputs {7} of `id`, these two say opposite things:
 
-    passes    evidence.mitra:2  evidence forall x, correct (id x) at 0
-    fails     evidence.mitra:3  evidence not correct (id 7) at 0
+    passes    evidence.mitra:2  evidence forall x, correct(id(x)) at 0
+    fails     evidence.mitra:3  evidence not correct(id(7)) at 0
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -27,15 +27,15 @@ error[M003]: two pieces of evidence contradict each other
   help: find out which one is right, and correct the other
 
 warning[M101]: a claim is not verified
-  --> model.mitra:4  claim id_correct : forall x, correct (id x)
+  --> model.mitra:4  claim id_correct : forall x, correct(id(x))
 
-  No evidence on `id 7`.
+  No evidence on `id(7)`.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:6  claim id_small : forall x in 0..=100, correct (id x)
+  --> model.mitra:6  claim id_small : forall x in 0..=100, correct(id(x))
 
-  No evidence on `id 7`.
+  No evidence on `id(7)`.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M003`.

@@ -6,12 +6,11 @@
 Model         = Command Model | ;
 Command       = Opaque | Def | Claim | Test ;
 Test          = "test" NAME ":" Foralls Judgment ;
-Opaque        = "opaque" NAME Binders ":" Set ;
-Def           = "def" NAME Binders ":" Set ":=" Expr ;
-Binders       = Binder BindersTail ;
-BindersTail   = Binder BindersTail | ;
-Binder        = "(" NAME Names ":" Set ")" ;
-Names         = NAME Names | ;
+Opaque        = "opaque" NAME Params "->" Set ;
+Def           = "def" NAME Params "->" Set ":=" Expr ;
+Params        = "(" Param ParamsTail ")" ;
+ParamsTail    = "," Param ParamsTail | ;
+Param         = NAME ":" Set ;
 Claim         = "claim" NAME ":" ClaimRest ;
 ClaimRest     = "uniform" NAME "by" NAME | Only "uses" NAME "[" NAME NamesTail "]"
               | Foralls ClaimBody Derive ;
@@ -37,8 +36,9 @@ InterOp       = "&" | "∩" | "\" ;
 
 Foralls       = ForallKw NAME InSet "," Foralls | ;
 InSet         = In Set | ;
-Args          = Arg Args | ;
-Arg           = NAME | "true" | "false" | Num | STR | "(" "-" Num ")" ;
+Args          = "(" Arg ArgsTail ")" | ;
+ArgsTail      = "," Arg ArgsTail | ;
+Arg           = NAME | "true" | "false" | Num | "-" Num | STR ;
 
 Set           = Inter SetTail ;
 SetTail       = Union Inter SetTail | ;
@@ -66,9 +66,9 @@ Sum           = Product SumTail ;
 SumTail       = "+" Product SumTail | "-" Product SumTail | ;
 Product       = Unary ProductTail ;
 ProductTail   = "*" Unary ProductTail | ;
-Unary         = "!" Unary | "-" Unary | NAME Atoms | Literal | "(" Expr ")" ;
-Atoms         = Atom Atoms | ;
-Atom          = NAME | Literal | "(" Expr ")" ;
+Unary         = "!" Unary | "-" Unary | NAME CallArgs | Literal | "(" Expr ")" ;
+CallArgs      = "(" Expr ExprsTail ")" | ;
+ExprsTail     = "," Expr ExprsTail | ;
 Literal       = "true" | "false" | Num | STR ;
 
 Value         = "true" | "false" | Num | "-" Num | STR ;

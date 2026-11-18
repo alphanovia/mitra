@@ -30,7 +30,7 @@ describes what exists; the rest is a proposal.
 The model declares each test with the evidence its result stands for:
 
 ```lean
-test t_small : forall x in 0..=10, correct (add x 1)
+test t_small : forall x in 0..=10, correct(add(x, 1))
 ```
 
 `mitra ingest` matches tests **by name** in the report. CI needs no plugin,

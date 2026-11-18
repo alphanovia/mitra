@@ -3,17 +3,17 @@
 -- and an evidence file. The fuzz test turns each run into evidence.
 
 -- The reference grammar (LALRPOP) accepts the program: the generator is sound.
-opaque grammar_accepts (seed : Int) : Bool
+opaque grammar_accepts(seed: Int) -> Bool
 -- The left-factored LL(1) grammar accepts the program.
-opaque ll1_accepts (seed : Int) : Bool
+opaque ll1_accepts(seed: Int) -> Bool
 -- The hand-written parser accepts the program.
-opaque parses (seed : Int) : Bool
+opaque parses(seed: Int) -> Bool
 -- parse → print → parse gives the same AST.
-opaque round_trips (seed : Int) : Bool
+opaque round_trips(seed: Int) -> Bool
 
-claim grammar_sample : forall seed in 0..=499, grammar_accepts seed = true
-claim ll1_sample : forall seed in 0..=499, ll1_accepts seed = true
-claim parses_sample : forall seed in 0..=499, parses seed = true
-claim round_trips_sample : forall seed in 0..=499, round_trips seed = true
+claim grammar_sample : forall seed in 0..=499, grammar_accepts(seed) = true
+claim ll1_sample : forall seed in 0..=499, ll1_accepts(seed) = true
+claim parses_sample : forall seed in 0..=499, parses(seed) = true
+claim round_trips_sample : forall seed in 0..=499, round_trips(seed) = true
 -- What we would like: the parser accepts every generated program.
-claim parses_all : forall seed, parses seed = true
+claim parses_all : forall seed, parses(seed) = true

@@ -7,7 +7,7 @@ is_valid_spec: holds
   assumed on      classes "part out of range", "sum off", "valid" of `valid_class`, by `is_valid_uniform`
 is_valid_uniform: holds
 conflict_spec_ok: holds
-  passes on       `conflict 0.5 0.25 0.25 0.25 0.5 0.25`, `conflict 1.0 0.0 0.0 0.0 1.0 0.0`
+  passes on       `conflict(0.5, 0.25, 0.25, 0.25, 0.5, 0.25)`, `conflict(1.0, 0.0, 0.0, 0.0, 1.0, 0.0)`
   assumed on      class "any" of `conflict_class`, by `conflict_uniform`
 conflict_uniform: holds
 dempster_correct: holds

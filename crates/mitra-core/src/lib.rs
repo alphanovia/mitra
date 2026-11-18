@@ -5,8 +5,8 @@
 //! most plausibly wrong.
 //!
 //! ```
-//! let model = "opaque flip (a : Bool) : Bool\nclaim flip_correct : forall a, correct (flip a)";
-//! let evidence = "evidence correct (flip true) at 1\nevidence correct (flip false) at 1";
+//! let model = "opaque flip(a: Bool) -> Bool\nclaim flip_correct : forall a, correct(flip(a))";
+//! let evidence = "evidence correct(flip(true)) at 1\nevidence correct(flip(false)) at 1";
 //! let report = mitra_core::run(model, evidence).unwrap();
 //! assert_eq!(report.to_text(), "flip_correct: holds\n");
 //! ```

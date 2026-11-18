@@ -6,6 +6,6 @@
 -- review and failure 1 / 2.9 = 0.34, trusted pass 0.9 / 2.9 = 0.31,
 -- distrusted pass between 0.31 and 2.7 / 2.9 = 0.93.
 evidence div_uniform at 1
-evidence correct (div 6 3) at 0.1
-evidence correct (div 8 4) at 1
-evidence not correct (div 4 2) at 1
+evidence correct(div(6, 3)) at 0.1
+evidence correct(div(8, 4)) at 1
+evidence not correct(div(4, 2)) at 1

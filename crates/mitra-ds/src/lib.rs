@@ -43,10 +43,10 @@ impl Mass {
     ///
     /// mitra: -- Correct: `Some((c, 0, 1 - c))` if ok, `Some((0, c, 1 - c))`
     /// mitra: -- if not, for c in [0, 1]; `None` otherwise.
-    /// mitra: opaque judged (ok : Bool) (c : Float64) : Value
-    /// mitra: claim judged_correct : forall ok, forall c, correct (judged ok c)
+    /// mitra: opaque judged(ok: Bool, c: Float64) -> Value
+    /// mitra: claim judged_correct : forall ok, forall c, correct(judged(ok, c))
     /// mitra: -- One class per path through the code.
-    /// mitra: def judged_class (ok : Bool) (c : Float64) : {"rejected", "correct", "wrong"} :=
+    /// mitra: def judged_class(ok: Bool, c: Float64) -> {"rejected", "correct", "wrong"} :=
     /// mitra:   if c >= 0.0 && c <= 1.0 then (if ok then "correct" else "wrong") else "rejected"
     /// mitra: claim judged_uniform : uniform judged by judged_class
     pub fn judged(correct: bool, c: f64) -> Option<Mass> {
@@ -59,16 +59,16 @@ impl Mass {
 
     /// Each part in [0, 1] and the parts sum to 1, up to [`EPSILON`].
     ///
-    /// mitra: opaque is_valid (b d u : Float64) : Bool
-    /// mitra: def valid_spec (b d u : Float64) : Bool :=
+    /// mitra: opaque is_valid(b: Float64, d: Float64, u: Float64) -> Bool
+    /// mitra: def valid_spec(b: Float64, d: Float64, u: Float64) -> Bool :=
     /// mitra:   let e := 0.000000001; let s := b + d + u - 1.0;
     /// mitra:   b >= -e && b <= 1.0 + e && d >= -e && d <= 1.0 + e
     /// mitra:   && u >= -e && u <= 1.0 + e && s <= e && -s <= e
-    /// mitra: claim is_valid_spec : forall b, forall d, forall u, is_valid b d u = valid_spec b d u
-    /// mitra: def valid_class (b d u : Float64) : {"valid", "part out of range", "sum off"} :=
+    /// mitra: claim is_valid_spec : forall b, forall d, forall u, is_valid(b, d, u) = valid_spec(b, d, u)
+    /// mitra: def valid_class(b: Float64, d: Float64, u: Float64) -> {"valid", "part out of range", "sum off"} :=
     /// mitra:   let e := 0.000000001;
     /// mitra:   if !(b >= -e && b <= 1.0 + e && d >= -e && d <= 1.0 + e && u >= -e && u <= 1.0 + e)
-    /// mitra:   then "part out of range" else if valid_spec b d u then "valid" else "sum off"
+    /// mitra:   then "part out of range" else if valid_spec(b, d, u) then "valid" else "sum off"
     /// mitra: claim is_valid_uniform : uniform is_valid by valid_class
     pub fn is_valid(&self) -> bool {
         let parts = [self.b, self.d, self.u];
@@ -78,12 +78,12 @@ impl Mass {
 
     /// The mass two sources give to opposite sides: `b₁d₂ + d₁b₂`.
     ///
-    /// mitra: opaque conflict (b1 d1 u1 b2 d2 u2 : Float64) : Float64
-    /// mitra: def conflict_spec (b1 d1 u1 b2 d2 u2 : Float64) : Float64 := b1 * d2 + d1 * b2
+    /// mitra: opaque conflict(b1: Float64, d1: Float64, u1: Float64, b2: Float64, d2: Float64, u2: Float64) -> Float64
+    /// mitra: def conflict_spec(b1: Float64, d1: Float64, u1: Float64, b2: Float64, d2: Float64, u2: Float64) -> Float64 := b1 * d2 + d1 * b2
     /// mitra: claim conflict_spec_ok : forall b1, forall d1, forall u1, forall b2, forall d2, forall u2,
-    /// mitra:   conflict b1 d1 u1 b2 d2 u2 = conflict_spec b1 d1 u1 b2 d2 u2
+    /// mitra:   conflict(b1, d1, u1, b2, d2, u2) = conflict_spec(b1, d1, u1, b2, d2, u2)
     /// mitra: -- One formula, no branch: a single class.
-    /// mitra: def conflict_class (b1 d1 u1 b2 d2 u2 : Float64) : {"any"} := "any"
+    /// mitra: def conflict_class(b1: Float64, d1: Float64, u1: Float64, b2: Float64, d2: Float64, u2: Float64) -> {"any"} := "any"
     /// mitra: claim conflict_uniform : uniform conflict by conflict_class
     pub fn conflict(&self, o: &Mass) -> f64 {
         self.b * o.d + self.d * o.b
@@ -105,14 +105,14 @@ impl Mass {
     ///
     /// mitra: -- Correct: `None` if either mass is invalid or the conflict k is
     /// mitra: -- at least 1 - EPSILON; else the agreement divided by 1 - k.
-    /// mitra: opaque dempster (b1 d1 u1 b2 d2 u2 : Float64) : Value
+    /// mitra: opaque dempster(b1: Float64, d1: Float64, u1: Float64, b2: Float64, d2: Float64, u2: Float64) -> Value
     /// mitra: claim dempster_correct : forall b1, forall d1, forall u1, forall b2, forall d2, forall u2,
-    /// mitra:   correct (dempster b1 d1 u1 b2 d2 u2)
-    /// mitra: def dempster_class (b1 d1 u1 b2 d2 u2 : Float64)
-    /// mitra:   : {"first invalid", "second invalid", "total conflict", "partial conflict"} :=
-    /// mitra:   if !valid_spec b1 d1 u1 then "first invalid"
-    /// mitra:   else if !valid_spec b2 d2 u2 then "second invalid"
-    /// mitra:   else if conflict_spec b1 d1 u1 b2 d2 u2 >= 1.0 - 0.000000001 then "total conflict"
+    /// mitra:   correct(dempster(b1, d1, u1, b2, d2, u2))
+    /// mitra: def dempster_class(b1: Float64, d1: Float64, u1: Float64, b2: Float64, d2: Float64, u2: Float64)
+    /// mitra:   -> {"first invalid", "second invalid", "total conflict", "partial conflict"} :=
+    /// mitra:   if !valid_spec(b1, d1, u1) then "first invalid"
+    /// mitra:   else if !valid_spec(b2, d2, u2) then "second invalid"
+    /// mitra:   else if conflict_spec(b1, d1, u1, b2, d2, u2) >= 1.0 - 0.000000001 then "total conflict"
     /// mitra:   else "partial conflict"
     /// mitra: claim dempster_uniform : uniform dempster by dempster_class
     /// mitra: claim dempster_uses : only uses dempster [is_valid, conflict]
@@ -137,12 +137,12 @@ impl Mass {
     ///
     /// mitra: -- Correct: `None` if either mass is invalid; else the agreement,
     /// mitra: -- with the conflict k added to unknown, and k.
-    /// mitra: opaque yager (b1 d1 u1 b2 d2 u2 : Float64) : Value
+    /// mitra: opaque yager(b1: Float64, d1: Float64, u1: Float64, b2: Float64, d2: Float64, u2: Float64) -> Value
     /// mitra: claim yager_correct : forall b1, forall d1, forall u1, forall b2, forall d2, forall u2,
-    /// mitra:   correct (yager b1 d1 u1 b2 d2 u2)
-    /// mitra: def yager_class (b1 d1 u1 b2 d2 u2 : Float64) : {"first invalid", "second invalid", "valid"} :=
-    /// mitra:   if !valid_spec b1 d1 u1 then "first invalid"
-    /// mitra:   else if !valid_spec b2 d2 u2 then "second invalid" else "valid"
+    /// mitra:   correct(yager(b1, d1, u1, b2, d2, u2))
+    /// mitra: def yager_class(b1: Float64, d1: Float64, u1: Float64, b2: Float64, d2: Float64, u2: Float64) -> {"first invalid", "second invalid", "valid"} :=
+    /// mitra:   if !valid_spec(b1, d1, u1) then "first invalid"
+    /// mitra:   else if !valid_spec(b2, d2, u2) then "second invalid" else "valid"
     /// mitra: claim yager_uniform : uniform yager by yager_class
     /// mitra: claim yager_uses : only uses yager [is_valid, conflict]
     pub fn yager(&self, o: &Mass) -> Option<(Mass, f64)> {

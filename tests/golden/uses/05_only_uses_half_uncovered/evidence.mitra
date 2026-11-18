@@ -1,4 +1,4 @@
 -- Vouched, but `half` is only tested on 0: the fault may hide there.
 evidence quarter_uses at 1
-evidence correct (half 0) at 1
-evidence not correct (quarter 1) at 1
+evidence correct(half(0)) at 1
+evidence not correct(quarter(1)) at 1

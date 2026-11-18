@@ -10,7 +10,7 @@ use crate::set::{Set, Value};
 pub fn print_model(m: &Model) -> String {
     let mut out = String::new();
     for f in &m.functions {
-        let head = format!("{}{} : {}", f.name, binders(&f.params), f.range);
+        let head = format!("{}{} -> {}", f.name, binders(&f.params), f.range);
         out += &match &f.body {
             None => format!("opaque {head}\n"),
             Some(e) => format!("def {head} := {}\n", expr(e)),
@@ -42,7 +42,7 @@ pub fn print_claim(m: &Model, c: &Claim) -> String {
     let params = m.function(&c.func).map(|f| &f.params[..]).unwrap_or(&[]);
     let (forall, args) = pattern(&c.pattern, params);
     let body = match &c.target {
-        Target::Correct => format!("correct ({}{args})", c.func),
+        Target::Correct => format!("correct({}{args})", c.func),
         Target::Matches(e) => format!("{}{args} = {}", c.func, expr(e)),
         Target::Uniform(_) | Target::Uses { .. } => unreachable!(),
     };
@@ -76,8 +76,8 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
         };
         let call = format!("{}{args}", e.about);
         let judgment = match &e.judgment {
-            Judgment::Correct(true) => format!("correct ({call})"),
-            Judgment::Correct(false) => format!("not correct ({call})"),
+            Judgment::Correct(true) => format!("correct({call})"),
+            Judgment::Correct(false) => format!("not correct({call})"),
             Judgment::Holds(true) => call,
             Judgment::Holds(false) => format!("not {call}"),
             Judgment::Output(v) => format!("{call} = {v}"),
@@ -99,33 +99,23 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
     out
 }
 
-/// `(a b : Int) (c : Bool)`: neighbours of the same type share a binder.
+/// `(a: Int, b: Int, c: Bool)`
 fn binders(params: &[(String, Set)]) -> String {
-    let mut out = String::new();
-    let mut i = 0;
-    while i < params.len() {
-        let mut j = i;
-        while j + 1 < params.len() && params[j + 1].1 == params[i].1 {
-            j += 1;
-        }
-        let names: Vec<&str> = params[i..=j].iter().map(|p| p.0.as_str()).collect();
-        out += &format!(" ({} : {})", names.join(" "), params[i].1);
-        i = j + 1;
-    }
-    out
+    let each: Vec<String> = params.iter().map(|(n, t)| format!("{n}: {t}")).collect();
+    format!("({})", each.join(", "))
 }
 
 /// A pattern as `forall` binders and the arguments of the call.
 fn pattern(p: &Pattern, params: &[(String, Set)]) -> (String, String) {
     let mut forall = String::new();
-    let mut args = String::new();
+    let mut args = Vec::new();
     for (i, pos) in p.iter().enumerate() {
         let value = match (&pos.var, &pos.set) {
             (None, Some(s)) => s.single(),
             _ => None,
         };
         if let Some(v) = value {
-            args += &format!(" {}", value_arg(&v));
+            args.push(v.to_string());
             continue;
         }
         let x = pos.var.clone().unwrap_or_else(|| match params.get(i) {
@@ -136,24 +126,20 @@ fn pattern(p: &Pattern, params: &[(String, Set)]) -> (String, String) {
             None => format!("forall {x}, "),
             Some(s) => format!("forall {x} in {s}, "),
         };
-        args += &format!(" {x}");
+        args.push(x);
     }
+    let args = if args.is_empty() {
+        String::new()
+    } else {
+        format!("({})", args.join(", "))
+    };
     (forall, args)
 }
 
-/// `f 1 (-2)`: a call on one input tuple.
+/// `f(1, -2)`: a call on one input tuple.
 pub fn call(f: &str, input: &[Value]) -> String {
-    let args: String = input.iter().map(|v| format!(" {}", value_arg(v))).collect();
-    format!("{f}{args}")
-}
-
-/// A value as an argument: negative numbers need parentheses.
-fn value_arg(v: &Value) -> String {
-    if negative(v) {
-        format!("({v})")
-    } else {
-        v.to_string()
-    }
+    let args: Vec<String> = input.iter().map(|v| v.to_string()).collect();
+    format!("{f}({})", args.join(", "))
 }
 
 fn negative(v: &Value) -> bool {
@@ -167,7 +153,6 @@ fn negative(v: &Value) -> bool {
 /// Binding strength, loosest first.
 const LET: u8 = 0;
 const UNARY: u8 = 6;
-const APP: u8 = 7;
 const ATOM: u8 = 8;
 
 fn level(op: &str) -> u8 {
@@ -191,8 +176,8 @@ fn at(e: &Expr, min: u8) -> String {
         Expr::Lit(v) => (v.to_string(), ATOM),
         Expr::Var(x) => (x.clone(), ATOM),
         Expr::Call(f, args) => {
-            let args: Vec<String> = args.iter().map(|a| at(a, ATOM)).collect();
-            (format!("{f} {}", args.join(" ")), APP)
+            let args: Vec<String> = args.iter().map(expr).collect();
+            (format!("{f}({})", args.join(", ")), ATOM)
         }
         Expr::Unary(op, a) => {
             let inner = at(a, UNARY);

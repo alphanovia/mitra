@@ -6,7 +6,7 @@ minus_spec: unverified
   no evidence on  (a, b) in (0..=2, 0..=2)
 
 warning[M101]: a claim is not verified
-  --> model.mitra:15  claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
+  --> model.mitra:15  claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = difference(a, b) := by derive [add_spec, negate_spec, minus_shape]
 
   No evidence on (a, b) in (0..=2, 0..=2).
   help: `mitra next` lists the evidence that would settle it

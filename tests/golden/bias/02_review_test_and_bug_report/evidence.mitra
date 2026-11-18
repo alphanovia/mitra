@@ -7,5 +7,5 @@
 -- threshold. Code of div wrong: the report is right and not all three
 -- are, (0.8 - 0.7128) / 0.2872 = 0.30.
 @[source "review:alice"] evidence div_uniform at 0.9
-@[source "test:t_six"] evidence correct (div 6 3) at 0.99
-@[source "bug:42"] evidence not correct (div 4 2) at 0.8
+@[source "test:t_six"] evidence correct(div(6, 3)) at 0.99
+@[source "bug:42"] evidence not correct(div(4, 2)) at 0.8

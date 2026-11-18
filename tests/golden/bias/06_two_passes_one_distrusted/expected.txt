@@ -9,9 +9,9 @@ error[M004]: an assumption is contradicted by the evidence
   of `div_class`. But in that class some inputs pass and others fail:
 
     vouches   evidence.mitra:8  evidence div_uniform at 1
-    passes    evidence.mitra:9  evidence correct (div 6 3) at 0.1
-    passes    evidence.mitra:10  evidence correct (div 8 4) at 1
-    fails     evidence.mitra:11  evidence not correct (div 4 2) at 1
+    passes    evidence.mitra:9  evidence correct(div(6, 3)) at 0.1
+    passes    evidence.mitra:10  evidence correct(div(8, 4)) at 1
+    fails     evidence.mitra:11  evidence not correct(div(4, 2)) at 1
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -29,11 +29,11 @@ error[M004]: an assumption is contradicted by the evidence
   nothing here: Mitra shares the doubt equally between them. Lower the
   trust of the one you doubt most to set them apart.
 
-  help: check that `div 4 2` really fails; if it does, class "rest" is
+  help: check that `div(4, 2)` really fails; if it does, class "rest" is
   too wide: split it in `div_class`
 
 warning[M101]: a claim is not verified
-  --> model.mitra:3  claim div_small : forall a in 0..=1, forall b in 1..=2, correct (div a b)
+  --> model.mitra:3  claim div_small : forall a in 0..=1, forall b in 1..=2, correct(div(a, b))
 
   No evidence on (a, b) in (0..=1, 1..=2).
   help: `mitra next` lists the evidence that would settle it

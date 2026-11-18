@@ -17,7 +17,7 @@ match {
     "Bool", "Int", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32",
     "Float64", "String", "Value", "Real",
     "_", "uniform", "uses", "only",
-    "@[", "..=", "..", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||",
+    "@[", "..=", "..", ":=", "=>", "->", "==", "!=", "<=", ">=", "&&", "||",
     "(", ")", ":", ";", ",", "=", "{", "}", "[", "]", "|", "&",
     "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
 } else {
@@ -30,17 +30,18 @@ pub Model: () = Command* => ();
 Command: () = { Opaque, Def, Claim, Test };
 Test: () = "test" NAME ":" Forall* Judgment => ();
 
-Opaque: () = "opaque" NAME Binder+ ":" Set => ();
-Def: () = "def" NAME Binder+ ":" Set ":=" Expr => ();
-Binder: () = "(" NAME+ ":" Set ")" => ();
+Opaque: () = "opaque" NAME Params "->" Set => ();
+Def: () = "def" NAME Params "->" Set ":=" Expr => ();
+Params: () = "(" Comma1<Param> ")" => ();
+Param: () = NAME ":" Set => ();
 Claim: () = {
     "claim" NAME ":" Forall* ClaimBody Derive? => (),
     "claim" NAME ":" "uniform" NAME "by" NAME => (),
     "claim" NAME ":" "only"? "uses" NAME "[" Comma1<NAME> "]" => (),
 };
 ClaimBody: () = {
-    "correct" "(" NAME Arg* ")" => (),
-    NAME Arg* "=" Expr => (),
+    "correct" "(" NAME Args? ")" => (),
+    NAME Args? "=" Expr => (),
 };
 Derive: () = ":=" "by" "derive" "[" Comma1<NAME> "]" => ();
 
@@ -49,11 +50,11 @@ Evidence: () = Attributes? "evidence" Forall* Judgment "at" Number => ();
 Attributes: () = "@[" Comma1<Attribute> "]" => ();
 Attribute: () = NAME STR => ();
 Judgment: () = {
-    "correct" "(" NAME Arg* ")" => (),
-    Not "correct" "(" NAME Arg* ")" => (),
-    Not NAME Arg* => (),
-    NAME Arg* => (),
-    NAME Arg* "=" Value => (),
+    "correct" "(" NAME Args? ")" => (),
+    Not "correct" "(" NAME Args? ")" => (),
+    Not NAME Args? => (),
+    NAME Args? => (),
+    NAME Args? "=" Value => (),
 };
 
 // ASCII first; Lean's Unicode symbols are aliases.
@@ -67,9 +68,9 @@ Forall: () = {
     ForallKw NAME "," => (),
     ForallKw NAME In Set "," => (),
 };
+Args: () = "(" Comma1<Arg> ")" => ();
 Arg: () = {
-    NAME => (), "true" => (), "false" => (), Num => (), STR => (),
-    "(" "-" Num ")" => (),
+    NAME => (), "true" => (), "false" => (), Num => (), "-" Num => (), STR => (),
 };
 
 Set: () = { Inter, Set Union Inter => () };
@@ -104,11 +105,11 @@ Product: () = { Unary, Product "*" Unary => () };
 Unary: () = {
     "!" Unary => (),
     "-" Unary => (),
-    NAME Atom* => (),
+    NAME => (),
+    NAME "(" Comma1<Expr> ")" => (),
     Literal => (),
     "(" Expr ")" => (),
 };
-Atom: () = { NAME => (), Literal => (), "(" Expr ")" => () };
 Literal: () = { "true" => (), "false" => (), Num => (), STR => () };
 
 Value: () = { "true" => (), "false" => (), Num => (), "-" Num => (), STR => () };

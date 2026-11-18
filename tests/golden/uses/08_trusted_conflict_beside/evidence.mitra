@@ -2,7 +2,7 @@
 -- It must not take the ranking away from the two failures beside it,
 -- which share the code of `half`. `half` fails on trusted evidence, so
 -- its code is wrong for sure, and `quarter` may be wrong too or not.
-evidence not correct (half 0) at 1
+evidence not correct(half(0)) at 1
 evidence quarter_uniform at 1
-evidence correct (quarter 0) at 1
-evidence not correct (quarter 1) at 1
+evidence correct(quarter(0)) at 1
+evidence not correct(quarter(1)) at 1

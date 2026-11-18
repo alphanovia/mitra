@@ -80,7 +80,7 @@ impl Target {
 /// The most classes a `uniform` claim's spec may have.
 pub const MAX_CLASSES: f64 = 64.0;
 
-/// `claim name : ∀ …, correct (f args) | f args = e [:= by derive [c1, c2]]`
+/// `claim name : ∀ …, correct(f(args)) | f(args) = e [:= by derive [c1, c2]]`
 /// or `claim name : uniform f by g`
 #[derive(Debug, Clone, PartialEq)]
 pub struct Claim {
@@ -95,9 +95,9 @@ pub struct Claim {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Judgment {
-    /// `correct (f args)` / `¬ correct (f args)`, on a subject.
+    /// `correct(f(args))` / `¬ correct(f(args))`, on a subject.
     Correct(bool),
-    /// `f args = value`: the observed output of a subject.
+    /// `f(args) = value`: the observed output of a subject.
     Output(Value),
     /// `c` / `¬ c`, on a claim.
     Holds(bool),

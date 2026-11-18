@@ -1,18 +1,18 @@
 id_correct: unverified
-  passes on       `id 1`, `id 42`
+  passes on       `id(1)`, `id(42)`
   no evidence on  x in Value \ {1, 42}
 id_small: unverified
-  passes on       `id 1`, `id 42`
+  passes on       `id(1)`, `id(42)`
   no evidence on  x in {0} | 2..=41 | 43..=100
 
 warning[M101]: a claim is not verified
-  --> model.mitra:4  claim id_correct : forall x, correct (id x)
+  --> model.mitra:4  claim id_correct : forall x, correct(id(x))
 
   No evidence on x in Value \ {1, 42}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:6  claim id_small : forall x in 0..=100, correct (id x)
+  --> model.mitra:6  claim id_small : forall x in 0..=100, correct(id(x))
 
   No evidence on x in {0} | 2..=41 | 43..=100.
   help: `mitra next` lists the evidence that would settle it

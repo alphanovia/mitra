@@ -26,9 +26,10 @@ module.exports = grammar({
     float: _ => /[0-9]+\.[0-9]+/,
     string: _ => /"[^"\n]*"/,
 
-    opaque: $ => seq('opaque', field('name', $.name), repeat1($.binder), ':', field('type', $._set)),
-    def: $ => seq('def', field('name', $.name), repeat1($.binder), ':', field('type', $._set), ':=', field('body', $._expr)),
-    binder: $ => seq('(', repeat1($.name), ':', $._set, ')'),
+    opaque: $ => seq('opaque', field('name', $.name), $.parameters, '->', field('type', $._set)),
+    def: $ => seq('def', field('name', $.name), $.parameters, '->', field('type', $._set), ':=', field('body', $._expr)),
+    parameters: $ => seq('(', sep1($.parameter, ','), ')'),
+    parameter: $ => seq($.name, ':', $._set),
 
     claim: $ => seq(
       'claim', field('name', $.name), ':',
@@ -43,11 +44,11 @@ module.exports = grammar({
     correct: $ => seq('correct', '(', $.call, ')'),
     equation: $ => seq($.call, '=', $._expr),
     derive: $ => seq(':=', 'by', 'derive', '[', sep1($.name, ','), ']'),
-    call: $ => seq(field('function', $.name), repeat($._arg)),
+    call: $ => seq(field('function', $.name), optional(seq('(', sep1($._arg, ','), ')'))),
     // ASCII first; Lean's Unicode symbols are aliases.
     forall: $ => seq(choice('forall', '∀'), $.name, optional(seq(choice('in', '∈'), $._set)), ','),
     _arg: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.negative),
-    negative: $ => seq('(', '-', choice($.nat, $.float), ')'),
+    negative: $ => seq('-', choice($.nat, $.float)),
 
     test: $ => seq('test', field('name', $.name), ':', repeat($.forall), $._judgment),
     evidence: $ => seq(optional($.attributes), 'evidence', repeat($.forall), $._judgment, 'at', field('confidence', $.number)),
@@ -82,7 +83,7 @@ module.exports = grammar({
         prec.left(p, seq(field('left', $._expr), field('operator', op), field('right', $._expr)))),
     ),
     unary: $ => prec(6, seq(choice('!', '-'), $._expr)),
-    application: $ => prec(7, seq(field('function', $.name), repeat1($._atom))),
+    application: $ => prec(7, seq(field('function', $.name), '(', sep1($._expr, ','), ')')),
     _atom: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.paren),
     paren: $ => seq('(', $._expr, ')'),
 

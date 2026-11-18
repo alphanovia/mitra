@@ -1,18 +1,18 @@
 flip_correct: unverified
-  no evidence on  `flip false`, `flip true`
+  no evidence on  `flip(false)`, `flip(true)`
 flip_on_true: unverified
-  no evidence on  `flip true`
+  no evidence on  `flip(true)`
 
 warning[M101]: a claim is not verified
-  --> model.mitra:4  claim flip_correct : forall a, correct (flip a)
+  --> model.mitra:4  claim flip_correct : forall a, correct(flip(a))
 
-  No evidence on `flip false`, `flip true`.
+  No evidence on `flip(false)`, `flip(true)`.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:6  claim flip_on_true : correct (flip true)
+  --> model.mitra:6  claim flip_on_true : correct(flip(true))
 
-  No evidence on `flip true`.
+  No evidence on `flip(true)`.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

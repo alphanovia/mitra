@@ -29,27 +29,27 @@ tested, assumed and missed. On an error it lists the pieces involved and
 how plausibly each is the wrong one.
 
 ```lean
-opaque flip (a : Bool) : Bool
-claim flip_correct : forall a, correct (flip a)
-claim flip_on_true : correct (flip true)
+opaque flip(a: Bool) -> Bool
+claim flip_correct : forall a, correct(flip(a))
+claim flip_on_true : correct(flip(true))
 
-evidence correct (flip true) at 1
-evidence not correct (flip false) at 0.8
+evidence correct(flip(true)) at 1
+evidence not correct(flip(false)) at 0.8
 ```
 
 ```text
 flip_correct: fails
-  fails on        `flip false`
-  passes on       `flip true`
+  fails on        `flip(false)`
+  passes on       `flip(true)`
 flip_on_true: holds
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:2  claim flip_correct : forall a, correct (flip a)
+  --> model.mitra:2  claim flip_correct : forall a, correct(flip(a))
 
-  `flip_correct` fails on `flip false`.
+  `flip_correct` fails on `flip(false)`.
   The evidence that says so:
 
-    fails     evidence.mitra:2  evidence not correct (flip false) at 0.8
+    fails     evidence.mitra:2  evidence not correct(flip(false)) at 0.8
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:

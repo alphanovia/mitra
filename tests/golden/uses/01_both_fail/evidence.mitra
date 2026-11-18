@@ -1,6 +1,6 @@
 -- `half` and `quarter` fail: `quarter` uses `half`, and `eighth` uses it
 -- through `quarter`. A `uses` claim needs no evidence to give a suspect.
-evidence not correct (half 1) at 1
-evidence not correct (quarter 1) at 1
-evidence correct (eighth 0) at 1
-evidence correct (eighth 1) at 1
+evidence not correct(half(1)) at 1
+evidence not correct(quarter(1)) at 1
+evidence correct(eighth(0)) at 1
+evidence correct(eighth(1)) at 1

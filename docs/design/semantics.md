@@ -44,21 +44,21 @@ Coverage is three **sets**, never a percentage: *tested*, *assumed* and
 
 ```text
 div_correct: holds
-  passes on       `div 1 0`, `div 6 3`
+  passes on       `div(1, 0)`, `div(6, 3)`
   assumed on      classes "rest", "zero" of `div_class`, by `div_uniform`
 div_small: holds
   assumed on      class "rest" of `div_class`, by `div_uniform`
 div_uniform: holds
 
 div_correct: holds assuming [div_uniform]
-  passes on       `div 1 0`, `div 6 3`
+  passes on       `div(1, 0)`, `div(6, 3)`
   assumed on      classes "rest", "zero" of `div_class`, by `div_uniform`, which is not vouched for
 div_small: holds assuming [div_uniform]
   assumed on      class "rest" of `div_class`, by `div_uniform`, which is not vouched for
 div_uniform: unverified
 
 div_correct: unverified
-  passes on       `div 6 3`
+  passes on       `div(6, 3)`
   assumed on      class "rest" of `div_class`, by `div_uniform`
   no evidence on  class "zero" of `div_class`
 div_small: holds
@@ -88,12 +88,12 @@ smallest case: one claim against the evidence refuting it.
 
 ```text
 error[M001]: evidence refutes a claim
-  --> model.mitra:5  claim div_correct : forall a, forall b, correct (div a b)
+  --> model.mitra:5  claim div_correct : forall a, forall b, correct(div(a, b))
 
-  `div_correct` fails on `div 4 2`.
+  `div_correct` fails on `div(4, 2)`.
   The evidence that says so:
 
-    fails     evidence.mitra:3  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+    fails     evidence.mitra:3  @[source "bug:42"] evidence not correct(div(4, 2)) at 0.8
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -114,8 +114,8 @@ error[M004]: an assumption is contradicted by the evidence
   of `div_class`. But in that class some inputs pass and others fail:
 
     vouches   evidence.mitra:9  @[source "review:alice"] evidence div_uniform at 0.9
-    passes    evidence.mitra:10  @[source "test:t_six"] evidence correct (div 6 3) at 0.99
-    fails     evidence.mitra:11  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+    passes    evidence.mitra:10  @[source "test:t_six"] evidence correct(div(6, 3)) at 0.99
+    fails     evidence.mitra:11  @[source "bug:42"] evidence not correct(div(4, 2)) at 0.8
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -131,7 +131,7 @@ error[M004]: an assumption is contradicted by the evidence
   note: the trust given says these are probably all right, which can't
   be: at least one is trusted more than it deserves
 
-  help: check that `div 4 2` really fails; if it does, class "rest" is
+  help: check that `div(4, 2)` really fails; if it does, class "rest" is
   too wide: split it in `div_class`
 ```
 

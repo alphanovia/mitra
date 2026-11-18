@@ -1,16 +1,16 @@
 flip_correct: fails
-  fails on        `flip false`
-  no evidence on  `flip true`
+  fails on        `flip(false)`
+  no evidence on  `flip(true)`
 flip_on_true: unverified
-  no evidence on  `flip true`
+  no evidence on  `flip(true)`
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:4  claim flip_correct : forall a, correct (flip a)
+  --> model.mitra:4  claim flip_correct : forall a, correct(flip(a))
 
-  `flip_correct` fails on `flip false`.
+  `flip_correct` fails on `flip(false)`.
   The evidence that says so:
 
-    fails     evidence.mitra:1  evidence not correct (flip false) at 1
+    fails     evidence.mitra:1  evidence not correct(flip(false)) at 1
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -23,9 +23,9 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `flip`; if not, correct the evidence
 
 warning[M101]: a claim is not verified
-  --> model.mitra:6  claim flip_on_true : correct (flip true)
+  --> model.mitra:6  claim flip_on_true : correct(flip(true))
 
-  No evidence on `flip true`.
+  No evidence on `flip(true)`.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

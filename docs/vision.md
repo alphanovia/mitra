@@ -140,7 +140,7 @@ evidence as contested. If a person really means "the spec is wrong", that is
 a validation question, not a verification one: the spec does not match what
 they intend. The way to say it is a claim that treats the spec itself as
 the thing under review, with its own evidence (for example
-`claim neg_intent : forall a, correct (neg a)`, which is an error today because
+`claim neg_intent : forall a, correct(neg(a))`, which is an error today because
 `neg` is a spec).
 
 ## Not now

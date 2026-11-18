@@ -7,7 +7,7 @@ parses_all: unverified
   no evidence on  seed in Int \ 0..=499
 
 warning[M101]: a claim is not verified
-  --> model.mitra:19  claim parses_all : forall seed, parses seed = true
+  --> model.mitra:19  claim parses_all : forall seed, parses(seed) = true
 
   No evidence on seed in Int \ 0..=499.
   help: `mitra next` lists the evidence that would settle it

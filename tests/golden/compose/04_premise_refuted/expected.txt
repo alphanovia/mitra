@@ -1,19 +1,19 @@
 neg_twice: holds
 flip_spec: fails
-  fails on        `flip true`
-  passes on       `flip false`
+  fails on        `flip(true)`
+  passes on       `flip(false)`
 flip_not_shape: holds
 flip_not_same: unverified
   not derived: a premise fails
-  no evidence on  `flip_not false`, `flip_not true`
+  no evidence on  `flip_not(false)`, `flip_not(true)`
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:10  claim flip_spec : forall a, flip a = neg a
+  --> model.mitra:10  claim flip_spec : forall a, flip(a) = neg(a)
 
-  `flip_spec` fails on `flip true`.
+  `flip_spec` fails on `flip(true)`.
   The evidence that says so:
 
-    output    evidence.mitra:2  evidence flip true = true at 1
+    output    evidence.mitra:2  evidence flip(true) = true at 1
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -26,9 +26,9 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `flip`; if not, correct the evidence
 
 warning[M101]: a claim is not verified
-  --> model.mitra:14  claim flip_not_same : forall a, flip_not a = same a := by derive [flip_spec, flip_not_shape, neg_twice]
+  --> model.mitra:14  claim flip_not_same : forall a, flip_not(a) = same(a) := by derive [flip_spec, flip_not_shape, neg_twice]
 
-  No evidence on `flip_not false`, `flip_not true`.
+  No evidence on `flip_not(false)`, `flip_not(true)`.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

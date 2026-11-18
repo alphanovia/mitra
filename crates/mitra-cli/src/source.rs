@@ -291,26 +291,26 @@ mod tests {
     #[test]
     fn reads_blocks_and_checks_alignment() {
         let text = "/// Adds.\n\
-                    /// mitra: opaque add (a b : Int) : Int\n\
-                    /// mitra: claim add_ok : forall a, forall b, correct (add a b)\n\
+                    /// mitra: opaque add(a: Int, b: Int) -> Int\n\
+                    /// mitra: claim add_ok : forall a, forall b, correct(add(a, b))\n\
                     #[inline]\n\
                     pub fn add(a: i64, b: i64) -> i64 { a + b }\n\
-                    // mitra: test t_add : correct (add 1 2)\n\
+                    // mitra: test t_add : correct(add(1, 2))\n\
                     #[test]\n\
                     fn t_add() {}\n";
         let got = extract(text).unwrap();
         assert_eq!(
             got,
             vec![
-                (2, "opaque add (a b : Int) : Int".to_string()),
+                (2, "opaque add(a: Int, b: Int) -> Int".to_string()),
                 (
                     3,
-                    "claim add_ok : forall a, forall b, correct (add a b)".to_string()
+                    "claim add_ok : forall a, forall b, correct(add(a, b))".to_string()
                 ),
-                (6, "test t_add : correct (add 1 2)".to_string()),
+                (6, "test t_add : correct(add(1, 2))".to_string()),
             ]
         );
-        let err = extract("// mitra: opaque add (a : Int) : Int\nfn sub() {}\n").unwrap_err();
+        let err = extract("// mitra: opaque add(a: Int) -> Int\nfn sub() {}\n").unwrap_err();
         assert_eq!(err.0, 1);
         assert!(err.1.contains("found `fn sub`"), "{}", err.1);
         let err = extract("// mitra: test t (a : Int) : Int\n").unwrap_err();
@@ -320,13 +320,13 @@ mod tests {
     #[test]
     fn is_not_fooled_by_strings_comments_and_attributes() {
         // Not model lines: inside a string, a raw string, a block comment.
-        let text = "const A: &str = \"\n// mitra: claim a : correct (f 1)\n\";\n\
-                    const B: &str = r#\"\n// mitra: claim b : correct (f 1)\n\"#;\n\
-                    /*\n// mitra: claim c : correct (f 1)\n*/\n\
+        let text = "const A: &str = \"\n// mitra: claim a : correct(f(1))\n\";\n\
+                    const B: &str = r#\"\n// mitra: claim b : correct(f(1))\n\"#;\n\
+                    /*\n// mitra: claim c : correct(f(1))\n*/\n\
                     let q = '\"'; // mitra: not at the line's start\n";
         assert_eq!(extract(text).unwrap(), vec![]);
         // The function below is the first item, whatever follows it.
-        let above = "// mitra: opaque f (a : Bool) : Bool\n";
+        let above = "// mitra: opaque f(a: Bool) -> Bool\n";
         for wrong in [
             "#[inline] pub fn g() {}\npub fn f() {}\n",
             "const X: &str = \"see fn f below\";\n",
@@ -342,13 +342,13 @@ mod tests {
             assert!(extract(&format!("{above}{right}")).is_ok(), "{right}");
         }
         // `opaque` and `test` start their line; comments and strings are free.
-        let hidden = "// mitra: claim c : correct (g true) opaque g (a : Bool) : Bool\nstruct S;\n";
+        let hidden = "// mitra: claim c : correct(g(true)) opaque g(a: Bool) -> Bool\nstruct S;\n";
         assert!(extract(hidden)
             .unwrap_err()
             .1
             .contains("must start its line"));
         let free = "// mitra: -- a test of opaque things\n\
-                    // mitra: claim c : correct (g \"test\")\nstruct S;\n";
+                    // mitra: claim c : correct(g(\"test\"))\nstruct S;\n";
         assert_eq!(extract(free).unwrap().len(), 2);
     }
 }

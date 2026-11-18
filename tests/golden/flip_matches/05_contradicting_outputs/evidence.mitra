@@ -1,4 +1,4 @@
-evidence flip true = false at 1
+evidence flip(true) = false at 1
 -- Two observations disagree on false: false counts on neither side.
-evidence flip false = true at 1
-evidence flip false = false at 1
+evidence flip(false) = true at 1
+evidence flip(false) = false at 1

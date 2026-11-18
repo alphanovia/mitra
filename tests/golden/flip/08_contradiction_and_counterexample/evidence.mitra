@@ -1,4 +1,4 @@
 -- A contradiction on false does not hide a clean counterexample on true.
-evidence not correct (flip true) at 1
-evidence correct (flip false) at 1
-evidence not correct (flip false) at 1
+evidence not correct(flip(true)) at 1
+evidence correct(flip(false)) at 1
+evidence not correct(flip(false)) at 1

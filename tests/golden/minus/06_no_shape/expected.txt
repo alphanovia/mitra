@@ -6,7 +6,7 @@ minus_spec: holds
   assumed on      (a, b) in (0..=2, 0..=2): from its premises, the implication not checked
 
 warning[M101]: a claim is not verified
-  --> model.mitra:13  claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus a b = add a (negate b)
+  --> model.mitra:13  claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus(a, b) = add(a, negate(b))
 
   No evidence on (a, b) in (0..=2, 0..=2).
   help: `mitra next` lists the evidence that would settle it

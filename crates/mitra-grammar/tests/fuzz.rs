@@ -111,7 +111,7 @@ fn fuzz() -> String {
             ("parses", o.parses.is_ok()),
             ("round_trips", o.round_trips.is_ok()),
         ] {
-            evidence += &format!("evidence {subject} {seed} = {ok} at 1\n");
+            evidence += &format!("evidence {subject}({seed}) = {ok} at 1\n");
         }
     }
     evidence

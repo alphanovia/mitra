@@ -1,6 +1,6 @@
-opaque flip (a : Bool) : Bool
+opaque flip(a: Bool) -> Bool
 
 -- flip is correct on every input.
-claim flip_correct : forall a, correct (flip a)
+claim flip_correct : forall a, correct(flip(a))
 -- flip is correct on true, a subset of its inputs.
-claim flip_on_true : correct (flip true)
+claim flip_on_true : correct(flip(true))

@@ -1,15 +1,15 @@
 div_correct: fails
-  fails on        `div 4 2`
+  fails on        `div(4, 2)`
   no evidence on  classes "rest", "zero" of `div_class`
 div_uniform: unverified
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:5  claim div_correct : forall a, forall b, correct (div a b)
+  --> model.mitra:5  claim div_correct : forall a, forall b, correct(div(a, b))
 
-  `div_correct` fails on `div 4 2`.
+  `div_correct` fails on `div(4, 2)`.
   The evidence that says so:
 
-    fails     evidence.mitra:3  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+    fails     evidence.mitra:3  @[source "bug:42"] evidence not correct(div(4, 2)) at 0.8
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:

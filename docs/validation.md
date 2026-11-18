@@ -43,7 +43,7 @@ not. Mitra never sees it; it is what Mitra's output is scored against.
   declarations, with test reports ingested as evidence.
 - **Usage.** A simulator plays a user: it samples inputs (mostly small numbers,
   sometimes huge ones, occasionally junk), runs the CLI, and appends
-  `evidence correct (add a b) at c` or `evidence not correct (add a b) at c`.
+  `evidence correct(add(a, b)) at c` or `evidence not correct(add(a, b)) at c`.
   Evidence arrives one run at a time, which exercises incremental use.
 - **Human trust.** The simulated user sets the bias of each run: high
   when it can check the result, low when it cannot, and it is occasionally

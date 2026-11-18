@@ -3,13 +3,13 @@ div_small: fails
 div_uniform: holds
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:3  claim div_small : forall a in 0..=1, forall b in 1..=2, correct (div a b)
+  --> model.mitra:3  claim div_small : forall a in 0..=1, forall b in 1..=2, correct(div(a, b))
 
   `div_small` fails on (a, b) in (0..=1, 1..=2).
   The evidence that says so:
 
     vouches   evidence.mitra:4  evidence div_uniform at 0
-    fails     evidence.mitra:5  evidence not correct (div 4 2) at 1
+    fails     evidence.mitra:5  evidence not correct(div(4, 2)) at 1
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:

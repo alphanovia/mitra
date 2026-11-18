@@ -2,7 +2,7 @@ flip_spec: holds
 flip_on_true: holds
 
 warning[M104]: evidence that can't be used
-  --> evidence.mitra:4  evidence neg true = true at 1
+  --> evidence.mitra:4  evidence neg(true) = true at 1
 
   `neg` is a spec, true by definition: evidence does not apply to it
 

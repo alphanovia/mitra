@@ -18,9 +18,10 @@ enum Tok {
 }
 
 /// Longest first, so `:=` wins over `:`, `||` over `|` and `..=` over `..`.
-const PUNCT: [&str; 35] = [
-    "@[", "..=", ":=", "=>", "==", "!=", "<=", ">=", "&&", "||", "..", "(", ")", ":", ";", ",",
-    "=", "{", "}", "[", "]", "|", "&", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩", "¬",
+const PUNCT: [&str; 36] = [
+    "@[", "..=", ":=", "=>", "->", "==", "!=", "<=", ">=", "&&", "||", "..", "(", ")", ":", ";",
+    ",", "=", "{", "}", "[", "]", "|", "&", "!", "<", ">", "+", "-", "*", "\\", "∀", "∈", "∪", "∩",
+    "¬",
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
@@ -211,13 +212,6 @@ impl P {
             _ => Ok(Value::Int(self.signed(negative)?)),
         }
     }
-    /// `(-5)` or `(-1.5)`, after `(`: a negative number as one argument.
-    fn negative_arg(&mut self) -> Result<Value, Error> {
-        self.expect("-")?;
-        let v = self.numeral(true)?;
-        self.expect(")")?;
-        Ok(v)
-    }
     /// value := "true" | "false" | ["-"] number | string
     fn value(&mut self) -> Result<Value, Error> {
         if self.eat("-") {
@@ -354,17 +348,13 @@ impl P {
     /// `(a b : Int) (c : Bool)`, at least one.
     fn binders(&mut self) -> Result<Vec<(String, Set)>, Error> {
         let mut params = Vec::new();
+        self.expect("(")?;
         loop {
-            self.expect("(")?;
-            let mut names = vec![self.ident()?];
-            while self.is_name() {
-                names.push(self.ident()?);
-            }
+            let name = self.ident()?;
             self.expect(":")?;
-            let ty = self.set()?;
-            self.expect(")")?;
-            params.extend(names.into_iter().map(|n| (n, ty.clone())));
-            if !self.is("(") {
+            params.push((name, self.set()?));
+            if !self.eat(",") {
+                self.expect(")")?;
                 return Ok(params);
             }
         }
@@ -392,8 +382,19 @@ impl P {
     /// values, as a pattern. Every bound name is used exactly once.
     fn args(&mut self, bound: &[(String, Option<Set>, usize)]) -> Result<Pattern, Error> {
         let mut pattern = Vec::new();
-        loop {
-            let pos = if self.is_name() {
+        // `(a, 1, -2)`; no parentheses when there are no arguments.
+        let mut more = self.eat("(");
+        while more {
+            let value = matches!(self.peek(), Some(Tok::Num(_) | Tok::Str(_)))
+                || self.is("-")
+                || self.is_keyword("true")
+                || self.is_keyword("false");
+            let pos = if value {
+                Position {
+                    var: None,
+                    set: Some(Set::point(&self.value()?)),
+                }
+            } else {
                 let line = self.line();
                 let x = self.ident()?;
                 let at = |m: String| Err(Error::new(line, m));
@@ -410,23 +411,12 @@ impl P {
                     var: Some(x),
                     set: set.clone(),
                 }
-            } else if self.eat("(") {
-                Position {
-                    var: None,
-                    set: Some(Set::point(&self.negative_arg()?)),
-                }
-            } else if matches!(self.peek(), Some(Tok::Num(_) | Tok::Str(_)))
-                || self.is_keyword("true")
-                || self.is_keyword("false")
-            {
-                Position {
-                    var: None,
-                    set: Some(Set::point(&self.value()?)),
-                }
-            } else {
-                break;
             };
             pattern.push(pos);
+            more = self.eat(",");
+            if !more {
+                self.expect(")")?;
+            }
         }
         if let Some((x, _, line)) = bound
             .iter()
@@ -441,7 +431,7 @@ impl P {
         let f = self.ident()?;
         Ok((f, self.args(bound)?))
     }
-    /// `correct (f args)`, after `correct`.
+    /// `correct(f(args))`, after `correct`.
     fn correct(
         &mut self,
         bound: &[(String, Option<Set>, usize)],
@@ -449,7 +439,7 @@ impl P {
         self.expect("(")?;
         let c = self.call(bound)?;
         if c.1.is_empty() {
-            return self.err(format!("`correct ({})` needs the inputs", c.0));
+            return self.err(format!("`correct({})` needs the inputs", c.0));
         }
         self.expect(")")?;
         Ok(c)
@@ -537,24 +527,18 @@ impl P {
         }
         if self.is_name() {
             let f = self.ident()?;
-            let mut args = Vec::new();
-            while self.starts_atom() {
-                args.push(self.atom()?);
+            if !self.eat("(") {
+                return Ok(Expr::Var(f));
             }
-            return Ok(if args.is_empty() {
-                Expr::Var(f)
-            } else {
-                Expr::Call(f, args)
-            });
+            // f(a, b)
+            let mut args = vec![self.expr()?];
+            while self.eat(",") {
+                args.push(self.expr()?);
+            }
+            self.expect(")")?;
+            return Ok(Expr::Call(f, args));
         }
         self.atom()
-    }
-    fn starts_atom(&self) -> bool {
-        self.is_name()
-            || self.is("(")
-            || matches!(self.peek(), Some(Tok::Num(_) | Tok::Str(_)))
-            || self.is_keyword("true")
-            || self.is_keyword("false")
     }
     /// atom := value | name | "(" expr ")"
     fn atom(&mut self) -> Result<Expr, Error> {
@@ -588,7 +572,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                 // opaque f (a : T) … : R   |   def f (a : T) … : R := expr
                 let name = p.ident()?;
                 let params = p.binders()?;
-                p.expect(":")?;
+                p.expect("->")?;
                 let range = p.set()?;
                 let body = if kw == "def" {
                     p.expect(":=")?;
@@ -605,7 +589,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                 });
             }
             "claim" => {
-                // claim n : forall …, correct (f args) | f args = expr  [:= by derive [c, …]]
+                // claim n : forall …, correct(f(args)) | f(args) = expr  [:= by derive [c, …]]
                 let name = p.ident()?;
                 p.expect(":")?;
                 if p.eat_keyword("uniform") {
@@ -709,7 +693,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
 }
 
 /// The evidence file: `evidence forall …, <judgment> at <confidence>`, where the
-/// judgment is `correct (f args)`, `not correct (f args)`, `f args = value`,
+/// judgment is `correct(f(args))`, `not correct(f(args))`, `f(args) = value`,
 /// `claim` or `not claim`.
 pub fn parse_evidence(src: &str) -> Result<Vec<Evidence>, Error> {
     let mut p = P::new(src)?;
@@ -777,9 +761,9 @@ mod tests {
     #[test]
     fn parses_a_model() {
         let m = parse_model(
-            "opaque id (x : Value) : Value\n\
-             claim id_small : forall x in 0..=100, correct (id x)  -- a subset\n\
-             claim id_all : forall x, correct (id x)",
+            "opaque id(x: Value) -> Value\n\
+             claim id_small : forall x in 0..=100, correct(id(x))  -- a subset\n\
+             claim id_all : forall x, correct(id(x))",
         )
         .unwrap();
         assert_eq!(m.functions[0].params, vec![("x".to_string(), Set::any())]);
@@ -790,9 +774,9 @@ mod tests {
     #[test]
     fn parses_specs_and_derived_claims() {
         let m = parse_model(
-            "def neg (a : Bool) : Bool := !a\n\
-             def dec (x : Int) : Int := if x > 0 then x-1 else let y := -x; y * 2\n\
-             claim twice : forall a, neg a = neg (neg a) := by derive [c1, c2]",
+            "def neg(a: Bool) -> Bool := !a\n\
+             def dec(x: Int) -> Int := if x > 0 then x-1 else let y := -x; y * 2\n\
+             claim twice : forall a, neg(a) = neg(neg(a)) := by derive [c1, c2]",
         )
         .unwrap();
         assert_eq!(
@@ -817,9 +801,9 @@ mod tests {
     #[test]
     fn parses_tuples() {
         let m = parse_model(
-            "opaque minus (a b : Int) : Int\n\
-             def difference (a b : Int) : Int := a - b\n\
-             claim zero : forall x in 0..=10, minus x 0 = add x (negate 0)",
+            "opaque minus(a: Int, b: Int) -> Int\n\
+             def difference(a: Int, b: Int) -> Int := a - b\n\
+             claim zero : forall x in 0..=10, minus(x, 0) = add(x, negate(0))",
         )
         .unwrap();
         assert_eq!(m.functions[0].params.len(), 2);
@@ -828,7 +812,7 @@ mod tests {
             panic!()
         };
         assert_eq!((f.as_str(), args.len()), ("add", 2));
-        let e = parse_evidence("evidence minus 3 (-1) = 4 at 1").unwrap();
+        let e = parse_evidence("evidence minus(3, -1) = 4 at 1").unwrap();
         assert_eq!(e[0].pattern.len(), 2);
         assert_eq!(e[0].pattern[1].set, Some(Set::point(&Value::Int(-1))));
     }
@@ -836,8 +820,8 @@ mod tests {
     #[test]
     fn parses_evidence() {
         let e = parse_evidence(
-            "evidence forall x in {1, -2, \"a\"} | 5..=6 \\ {6}, not correct (id x) at 1\n\
-             evidence flip true = false at 1\n\
+            "evidence forall x in {1, -2, \"a\"} | 5..=6 \\ {6}, not correct(id(x)) at 1\n\
+             evidence flip(true) = false at 1\n\
              evidence shape at 0\n\
              evidence not shape at 1",
         )
@@ -864,48 +848,48 @@ mod tests {
     fn set_precedence_is_lean_like() {
         // `∩` and `\` bind tighter than `∪`.
         let e =
-            parse_evidence("evidence forall x in {1} | {3, 5} \\ {5}, correct (f x) at 1").unwrap();
+            parse_evidence("evidence forall x in {1} | {3, 5} \\ {5}, correct(f(x)) at 1").unwrap();
         let s = e[0].pattern[0].set.clone().unwrap();
         assert_eq!(s.to_string(), "{1, 3}");
     }
 
     #[test]
     fn rejects_unbound_and_unused_names() {
-        let e = parse_evidence("evidence correct (f x) at 1").unwrap_err();
+        let e = parse_evidence("evidence correct(f(x)) at 1").unwrap_err();
         assert!(e.message.contains("not bound"), "{e}");
-        let e = parse_evidence("evidence forall x, forall y, correct (f x) at 1").unwrap_err();
+        let e = parse_evidence("evidence forall x, forall y, correct(f(x)) at 1").unwrap_err();
         assert!(e.message.contains("`y` is bound but not used"), "{e}");
     }
 
     #[test]
     fn reads_the_64_bit_extremes() {
         let e = parse_evidence(
-            "evidence f (-9223372036854775808) = -9223372036854775808 at 1\n\
-             evidence forall x in -9223372036854775808..=9223372036854775807, correct (f x) at 1",
+            "evidence f(-9223372036854775808) = -9223372036854775808 at 1\n\
+             evidence forall x in -9223372036854775808..=9223372036854775807, correct(f(x)) at 1",
         )
         .unwrap();
         assert_eq!(e[0].judgment, Judgment::Output(Value::Int(i64::MIN)));
-        let m = parse_model("def f (a : Int) : Int := -9223372036854775808").unwrap();
+        let m = parse_model("def f(a: Int) -> Int := -9223372036854775808").unwrap();
         assert_eq!(m.functions[0].body, Some(Expr::Lit(Value::Int(i64::MIN))));
-        assert!(parse_evidence("evidence f 9223372036854775808 = 1 at 1").is_err());
-        let w = format!("evidence correct (f 1) at 1{}", "0".repeat(400));
+        assert!(parse_evidence("evidence f(9223372036854775808) = 1 at 1").is_err());
+        let w = format!("evidence correct(f(1)) at 1{}", "0".repeat(400));
         let message = parse_evidence(&w).unwrap_err().message;
         assert!(message.contains("not a number"), "{message}");
     }
 
     #[test]
     fn errors_point_at_the_name() {
-        let e = parse_evidence("evidence correct (f\n x\n) at 1").unwrap_err();
+        let e = parse_evidence("evidence correct(f(\n x\n)) at 1").unwrap_err();
         assert_eq!(e.line, 2);
-        let e = parse_evidence("evidence forall x,\n forall x,\n correct (f x) at 1").unwrap_err();
+        let e = parse_evidence("evidence forall x,\n forall x,\n correct(f(x)) at 1").unwrap_err();
         assert_eq!((e.line, e.message.contains("twice")), (2, true));
     }
 
     #[test]
     fn reads_attributes() {
         let e = parse_evidence(
-            "@[source \"ci\", rev \"3f2a\"] evidence correct (flip true) at 1\n\
-             evidence flip true = false at 1",
+            "@[source \"ci\", rev \"3f2a\"] evidence correct(flip(true)) at 1\n\
+             evidence flip(true) = false at 1",
         )
         .unwrap();
         assert_eq!(
@@ -921,15 +905,15 @@ mod tests {
 
     #[test]
     fn a_bias_goes_from_0_to_1() {
-        let e = parse_evidence("evidence correct (flip true) at 0.9").unwrap();
+        let e = parse_evidence("evidence correct(flip(true)) at 0.9").unwrap();
         assert_eq!(e[0].confidence, 0.9);
-        let e = parse_evidence("evidence correct (flip true) at 1.5").unwrap_err();
+        let e = parse_evidence("evidence correct(flip(true)) at 1.5").unwrap_err();
         assert!(e.message.contains("from 0 to 1"), "{e}");
     }
 
     fn set_of(text: &str) -> String {
         let e =
-            parse_evidence(&format!("evidence forall x in {text}, correct (f x) at 1")).unwrap();
+            parse_evidence(&format!("evidence forall x in {text}, correct(f(x)) at 1")).unwrap();
         e[0].pattern[0].set.clone().unwrap().to_string()
     }
 
@@ -947,7 +931,7 @@ mod tests {
         assert_eq!(set_of("9223372036854775808.."), "9223372036854775808..");
         for bad in ["..", "1.5..=2", "0..=", "3"] {
             assert!(
-                parse_evidence(&format!("evidence forall x in {bad}, correct (f x) at 1")).is_err(),
+                parse_evidence(&format!("evidence forall x in {bad}, correct(f(x)) at 1")).is_err(),
                 "{bad}"
             );
         }
@@ -955,14 +939,14 @@ mod tests {
 
     #[test]
     fn unicode_is_an_alias() {
-        let ascii = "evidence forall x in 0..=3 | {7} & Int, not correct (f x) at 1";
-        let lean = "evidence ∀ x ∈ 0..=3 ∪ {7} ∩ Int, ¬ correct (f x) at 1";
+        let ascii = "evidence forall x in 0..=3 | {7} & Int, not correct(f(x)) at 1";
+        let lean = "evidence ∀ x ∈ 0..=3 ∪ {7} ∩ Int, ¬ correct(f(x)) at 1";
         assert_eq!(
             parse_evidence(ascii).unwrap(),
             parse_evidence(lean).unwrap()
         );
         // `not` is a keyword now, so it can't name a function.
-        assert!(parse_model("opaque not (a : Bool) : Bool").is_err());
+        assert!(parse_model("opaque not(a: Bool) -> Bool").is_err());
     }
 
     #[test]
@@ -972,14 +956,14 @@ mod tests {
         assert_eq!(set_of("UInt32 \\ {0}"), "1..=4294967295");
         assert_eq!(set_of("Float64 \\ {0.0}"), "Float64 \\ {0.0}");
         assert_eq!(set_of("{1.5, -0.0, 2}"), "{2, -0.0, 1.5}");
-        let e = parse_evidence("evidence f (-1.5) 2.0 = -0.25 at 1").unwrap();
+        let e = parse_evidence("evidence f(-1.5, 2.0) = -0.25 at 1").unwrap();
         assert_eq!(e[0].judgment, Judgment::Output(Value::Float(-0.25)));
         assert_eq!(e[0].pattern[0].set, Some(Set::point(&Value::Float(-1.5))));
-        let m = parse_model("def g (x : Float64) : Float64 := -1.5 * x").unwrap();
+        let m = parse_model("def g(x: Float64) -> Float64 := -1.5 * x").unwrap();
         assert!(
             matches!(&m.functions[0].body, Some(Expr::Binary("*", a, _)) if **a == Expr::Lit(Value::Float(-1.5)))
         );
-        let err = parse_model("opaque r (x : Real) : Real").unwrap_err();
+        let err = parse_model("opaque r(x: Real) -> Real").unwrap_err();
         assert!(err.message.contains("Float64"), "{err}");
     }
 
@@ -991,7 +975,7 @@ mod tests {
             "9223372036854775808..=9223372036854775808"
         );
         let e = parse_evidence(
-            "evidence forall x in 9223372036854775808..=9223372036854775808, correct (f x) at 1",
+            "evidence forall x in 9223372036854775808..=9223372036854775808, correct(f(x)) at 1",
         )
         .unwrap();
         let s = e[0].pattern[0].set.clone().unwrap();
@@ -999,8 +983,8 @@ mod tests {
         // Counting a huge range doesn't overflow.
         let big =
             "-85070591730234615865843651857942052864..=85070591730234615865843651857942052864";
-        assert!(parse_evidence(&format!("evidence forall x in {big}, correct (f x) at 1")).is_ok());
-        let e = parse_evidence(&format!("evidence forall x in {big}, correct (f x) at 1")).unwrap();
+        assert!(parse_evidence(&format!("evidence forall x in {big}, correct(f(x)) at 1")).is_ok());
+        let e = parse_evidence(&format!("evidence forall x in {big}, correct(f(x)) at 1")).unwrap();
         assert!(e[0].pattern[0].set.clone().unwrap().count().unwrap() > 1e38);
     }
 }

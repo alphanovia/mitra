@@ -1,2 +1,2 @@
-evidence correct (flip true) at 1
-evidence correct (flip false) at 1
+evidence correct(flip(true)) at 1
+evidence correct(flip(false)) at 1

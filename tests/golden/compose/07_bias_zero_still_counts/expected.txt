@@ -1,19 +1,19 @@
 neg_twice: holds
 flip_spec: unverified
-  passes on       `flip true`
-  no evidence on  `flip false`
+  passes on       `flip(true)`
+  no evidence on  `flip(false)`
 flip_not_shape: holds
 flip_not_same: holds assuming [flip_spec]
-  assumed on      `flip_not false`, `flip_not true`: its premises imply it
+  assumed on      `flip_not(false)`, `flip_not(true)`: its premises imply it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:10  claim flip_spec : forall a, flip a = neg a
+  --> model.mitra:10  claim flip_spec : forall a, flip(a) = neg(a)
 
-  No evidence on `flip false`.
+  No evidence on `flip(false)`.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M102]: a claim holds only under assumptions
-  --> model.mitra:14  claim flip_not_same : forall a, flip_not a = same a := by derive [flip_spec, flip_not_shape, neg_twice]
+  --> model.mitra:14  claim flip_not_same : forall a, flip_not(a) = same(a) := by derive [flip_spec, flip_not_shape, neg_twice]
 
   `flip_not_same` holds if `flip_spec` holds, and no evidence supports it.
   help: review it, then record it as evidence, or test until it is not needed

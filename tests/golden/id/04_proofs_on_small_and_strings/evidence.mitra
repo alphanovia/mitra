@@ -1,2 +1,2 @@
-evidence forall x in 0..=100, correct (id x) at 1
-evidence forall x in String, correct (id x) at 1
+evidence forall x in 0..=100, correct(id(x)) at 1
+evidence forall x in String, correct(id(x)) at 1

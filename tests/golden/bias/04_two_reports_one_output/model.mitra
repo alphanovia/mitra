@@ -1,3 +1,3 @@
-def one (x : Int) : Int := 1
-opaque f (x : Int) : Int
-claim fs : forall x in 0..=0, f x = one x
+def one(x: Int) -> Int := 1
+opaque f(x: Int) -> Int
+claim fs : forall x in 0..=0, f(x) = one(x)

@@ -16,7 +16,7 @@ not in the reference is a sketch. Verdicts and trust in evidence are in
 | | Definitional | Empirical |
 |---|---|---|
 | When | the subject's shape is known, and the premises relate each part to a spec | only the dependencies are known, not how they combine |
-| Example | `minus a b = add a (negate b)` with specs for `add` and `negate` | `fetch` uses `parse` and `http`; nobody wrote down how |
+| Example | `minus(a, b) = add(a, negate(b))` with specs for `add` and `negate` | `fetch` uses `parse` and `http`; nobody wrote down how |
 | How I is decided | **checked**: substitute and compare, by evaluation (finite domains, done) or a prover (later) | **evidenced**, like any claim: review, tests of the whole |
 | Can evidence refute I? | no, it is computed | yes: on an input where every premise holds but c has a counterexample |
 
@@ -29,11 +29,11 @@ From least to most knowledge:
 
 | Claim | Meaning | Use |
 |---|---|---|
-| `correct (f x)` | f does the right thing, as people judge it | today |
-| `f x = g x` | f equals the spec g | today |
+| `correct(f(x))` | f does the right thing, as people judge it | today |
+| `f(x) = g(x)` | f equals the spec g | today |
 | `uses f [g, h]` | f calls g and h | **impact**: a failing claim on g makes f *suspect* (flagged, not failed): implemented |
 | `only uses f [g, h]` | f depends on nothing else | **frame**: evidence and changes elsewhere are irrelevant to f |
-| `f x = h (g x)` | f's shape | **derivation**: the implication becomes definitional and is checked |
+| `f(x) = h(g(x))` | f's shape | **derivation**: the implication becomes definitional and is checked |
 
 With `only uses` but no shape, premises on g and h do not determine f. The
 gap is its own claim, `glue_correct`: "f combines g and h correctly". Then
@@ -51,8 +51,8 @@ claims about the test itself:
 
 ```lean
 opaque t_small : Bool                        -- a test: pass or fail
-claim t_ex : forall x in 0..=10, exercises t_small (add x)   -- sketch
-claim t_judge : judges t_small add add_spec               -- sketch
+claim t_ex : forall x in 0..=10, exercises(t_small, add(x))   -- sketch
+claim t_judge : judges(t_small, add, add_spec)               -- sketch
 ```
 
 A pass then **derives** evidence on `add` over `0..=10`, resting on `t_ex`

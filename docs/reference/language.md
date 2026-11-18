@@ -47,8 +47,8 @@ N: message` and exits with status 2.
   is listed with what it assumes. Then it lists each unverified claim
   with the inputs it misses, the premises of a derived claim that
   fail (`derived: premise fails: p`), and what to add: the evidence lines to write when at most 5 inputs are
-  missing on a subject (`evidence f 2 = <output> at 1` for an `=` claim:
-  run `f 2` and fill in its output), else how many inputs are missing
+  missing on a subject (`evidence f(2) = <output> at 1` for an `=` claim:
+  run `f(2)` and fill in its output), else how many inputs are missing
   (counted without listing them), or that the set is infinite and only
   evidence over a set can cover it. Inputs with contradicting evidence
   count as missing too. A missing set longer than 100 characters is summed
@@ -78,11 +78,11 @@ N: message` and exits with status 2.
   `async`, `unsafe`, `extern` may come before `fn`), or it is an error:
 
   ```rust
-  /// mitra: opaque flip (a : Bool) : Bool
-  /// mitra: claim flip_correct : forall a, correct (flip a)
+  /// mitra: opaque flip(a: Bool) -> Bool
+  /// mitra: claim flip_correct : forall a, correct(flip(a))
   pub fn flip(a: bool) -> bool { !a }
 
-  // mitra: test t_true : correct (flip true)
+  // mitra: test t_true : correct(flip(true))
   #[test]
   fn t_true() { assert!(!flip(true)) }
   ```
@@ -122,7 +122,8 @@ N: message` and exits with status 2.
 ## Lexical rules
 
 The syntax is a small, fixed subset inspired by Lean 4
-([design](../design/lean-syntax.md)), written in ASCII. Every command starts
+([design](../design/lean-syntax.md)), written in ASCII, with parameters
+and calls in parentheses: `f(a: Int, b: Int) -> Int` and `f(1, -2)`. Every command starts
 with a keyword (`opaque`, `def`, `claim`, `test`, `evidence`), so a parser knows what it reads from the first token. Layout is
 free: line breaks and indentation mean nothing.
 
@@ -130,10 +131,10 @@ free: line breaks and indentation mean nothing.
 - Names: a letter or `_`, then letters, digits or `_`; keywords are not
   names.
 - Numbers: digits (`nat`), or digits, `.` and digits (`dec`: `0.8`, `1.0`).
-  A negative number is `-` then digits (spaces allowed between them); where a single argument is expected
-  it is written `(-5)` or `(-1.5)`. `1..5` reads as `1`, `..`, `5`.
+  A negative number is `-` then digits (spaces allowed between them).
+  `1..5` reads as `1`, `..`, `5`.
 - Strings: `"` … `"` on one line, no escapes.
-- Symbols, longest match first: `@[` `..=` `:=` `=>` `==` `!=` `<=` `>=`
+- Symbols, longest match first: `@[` `..=` `:=` `=>` `->` `==` `!=` `<=` `>=`
   `&&` `||` `..` `(` `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `&` `!` `<` `>`
   `+` `-` `*` `\`.
 - Keywords: `opaque def claim test evidence correct at by derive if then
@@ -149,10 +150,10 @@ free: line breaks and indentation mean nothing.
 model      = { command } ;
 command    = opaque | def | claim | test ;
 
-opaque     = "opaque" name binders ":" set ;
-def        = "def" name binders ":" set ":=" expr ;
-binders    = binder { binder } ;
-binder     = "(" name { name } ":" set ")" ;
+opaque     = "opaque" name params "->" set ;
+def        = "def" name params "->" set ":=" expr ;
+params     = "(" param { "," param } ")" ;
+param      = name ":" set ;
 claim      = "claim" name ":" ( "uniform" name "by" name
              | [ "only" ] "uses" name "[" name { "," name } "]"
              | { forall }
@@ -168,8 +169,8 @@ judgment   = "correct" "(" name args ")"
            | name args [ "=" value ] ;
 
 forall     = "forall" name [ "in" set ] "," ;
-args       = { name | arg-value } ;
-arg-value  = "true" | "false" | number | string | "(" "-" number ")" ;
+args       = [ "(" arg { "," arg } ")" ] ;
+arg        = name | value ;
 
 set        = inter { "|" inter } ;
 inter      = set-atom { ( "&" | "\" ) set-atom } ;
@@ -189,21 +190,24 @@ and        = compare { "&&" compare } ;
 compare    = sum { ( "==" | "!=" | "<" | "<=" | ">" | ">=" ) sum } ;
 sum        = product { ( "+" | "-" ) product } ;
 product    = unary { "*" unary } ;
-unary      = ( "!" | "-" ) unary | name { atom } | atom ;
-atom       = name | "true" | "false" | number | string | "(" expr ")" ;
+unary      = ( "!" | "-" ) unary
+           | name [ "(" expr { "," expr } ")" ]
+           | "true" | "false" | number | string | "(" expr ")" ;
 
 value      = "true" | "false" | [ "-" ] number | string ;
 number     = nat | dec ;
 ```
 
 The model file holds `model`; the evidence file holds `evidences`.
-Function application is by juxtaposition, as in Lean: `add a (negate b)`.
+A call lists its arguments in parentheses, separated by commas:
+`add(a, negate(b))`. Evidence on a whole claim names it without
+arguments: `evidence c at 1`.
 
 Beyond the grammar, the parser checks:
 
 - every name in `args` is bound by a `forall` before it, and every `forall`
   name is distinct and used exactly once;
-- `correct (f args)` and a claim's `f args = e` have at least one argument;
+- `correct(f(args))` and a claim's `f(args) = e` have at least one argument;
 - integer values fit in 64 bits (`-9223372036854775808` to
   `9223372036854775807`); range bounds may be larger, up to 2^126 either
   way, since `Int` is unbounded, but inputs past 64 bits can't be listed
@@ -271,8 +275,8 @@ out of float arithmetic in a spec.
 ### opaque: a subject
 
 ```lean
-opaque flip (a : Bool) : Bool
-opaque minus (a b : Int) : Int
+opaque flip(a: Bool) -> Bool
+opaque minus(a: Int, b: Int) -> Int
 ```
 
 A function, task or process under review. Each parameter has a type (a
@@ -283,9 +287,9 @@ runs it, it only weighs evidence about it.
 ### def: a spec
 
 ```lean
-def neg (a : Bool) : Bool := !a
-def step (x : Int) : Int := if x > 0 then x - 1 else let y := -x; y * 2
-def difference (a b : Int) : Int := a - b
+def neg(a: Bool) -> Bool := !a
+def step(x: Int) -> Int := if x > 0 then x - 1 else let y := -x; y * 2
+def difference(a: Int, b: Int) -> Int := a - b
 ```
 
 A **definition**: a total, pure function Mitra evaluates. Its body is an
@@ -301,12 +305,12 @@ definition: evidence does not apply to it (see Evaluation).
 ### claim
 
 ```lean
-claim flip_correct : forall a, correct (flip a)
-claim flip_spec : forall a, flip a = neg a
-claim id_small : forall x in 0..=100, correct (id x)
-claim flip_on_true : correct (flip true)
-claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus a b = add a (negate b)
-claim flip_not_same : forall a, flip_not a = same a := by derive [flip_spec, flip_not_shape, neg_twice]
+claim flip_correct : forall a, correct(flip(a))
+claim flip_spec : forall a, flip(a) = neg(a)
+claim id_small : forall x in 0..=100, correct(id(x))
+claim flip_on_true : correct(flip(true))
+claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus(a, b) = add(a, negate(b))
+claim flip_not_same : forall a, flip_not(a) = same(a) := by derive [flip_spec, flip_not_shape, neg_twice]
 ```
 
 The arguments of the call pick the claim's **domain**, one per parameter: a
@@ -315,9 +319,9 @@ S, and a value is that value alone. The domain is the product of the
 arguments, and must lie inside the function's domain. Bound names can be
 used in the expression after `=`.
 
-- `correct (f args)`: the subject is correct on every input of the domain,
+- `correct(f(args))`: the subject is correct on every input of the domain,
   as people judge it. Only for subjects.
-- `f args = e`: on every input x of the domain, f(x) = e. `e` may call
+- `f(args) = e`: on every input x of the domain, f(x) = e. `e` may call
   specs and subjects. A bare function name `g` as `e` means `g` applied to
   the same inputs.
 - `:= by derive [c1, c2, …]`: a **derivation**. Premises must be claims
@@ -332,8 +336,8 @@ used in the expression after `=`.
   stands for its class (see Evaluation).
 
   ```lean
-  opaque div (a b : Int) : Int
-  def div_class (a b : Int) : {"zero", "rest"} := if b == 0 then "zero" else "rest"
+  opaque div(a: Int, b: Int) -> Int
+  def div_class(a: Int, b: Int) -> {"zero", "rest"} := if b == 0 then "zero" else "rest"
   claim div_uniform : uniform div by div_class
   ```
 
@@ -360,20 +364,20 @@ A `uniform` or `uses` claim can't be a premise of `by derive`.
 ### evidence
 
 ```lean
-evidence flip true = false at 1
-evidence not correct (id 7) at 1
-evidence forall x in 0..=100, correct (id x) at 1
+evidence flip(true) = false at 1
+evidence not correct(id(7)) at 1
+evidence forall x in 0..=100, correct(id(x)) at 1
 evidence flip_not_shape at 1
 ```
 
-- `f args = v`: the subject was run on one input and returned `v`, which
+- `f(args) = v`: the subject was run on one input and returned `v`, which
   must lie in its result type. Used by `=` claims.
-- `correct (f args)` / `not correct (f args)`: people judged the subject's
+- `correct(f(args))` / `not correct(f(args))`: people judged the subject's
   results on these inputs correct (or wrong). A single input is a test; a
   set is evidence for every input in it, such as a proof. Used by `correct`
   claims.
 - `c` / `not c`, with `c` a claim: the claim holds (or fails) on its whole
-  domain, for example from a review or a proof. `c args` restricts it to
+  domain, for example from a review or a proof. `c(args)` restricts it to
   those inputs.
 
 The number after `at` is the **bias**: how much its author trusts this
@@ -388,7 +392,7 @@ report differ only by their `source`, and no rule depends on it.
 Attributes record where evidence comes from, and do not change verdicts:
 
 ```lean
-@[source "ci", rev "3f2a1c"] evidence add 1 2 = 3 at 1
+@[source "ci", rev "3f2a1c"] evidence add(1, 2) = 3 at 1
 ```
 
 - `source`: who or what observed it (a CI job, a reviewer, a test).
@@ -399,9 +403,9 @@ Each may appear once; other names are rejected.
 ### test
 
 ```lean
-test t_true : correct (flip true)
-test t_small : forall x in 0..=10, correct (add x 1)
-test t_one : add 1 2 = 3
+test t_true : correct(flip(true))
+test t_small : forall x in 0..=10, correct(add(x, 1))
+test t_one : add(1, 2) = 3
 ```
 
 A test of the code and the evidence its result stands for; the judgment is
@@ -409,13 +413,13 @@ written as in `evidence`, without a bias. `mitra ingest` turns a
 result into evidence at 1:
 
 - a pass gives the judgment;
-- a failure gives `not correct (…)` for a `correct (…)` test, and `not c …`
+- a failure gives `not correct(…)` for a `correct(…)` test, and `not c …`
   for a `c …` test, when the test is about a single input. Otherwise it
   gives nothing: a failed test over a set says the code is wrong somewhere
-  in it, which Mitra cannot express yet; a failed `f args = v` test says
+  in it, which Mitra cannot express yet; a failed `f(args) = v` test says
   the output was something else, but not what. If the subject's result
-  type is `Bool`, it gives `f args =` the other value. Otherwise it gives
-  `not c args` for each `=` claim `c` on `f` whose other side is `v` on
+  type is `Bool`, it gives `f(args) =` the other value. Otherwise it gives
+  `not c(args)` for each `=` claim `c` on `f` whose other side is `v` on
   that input (the claim is wrong there), and nothing if there is none. A failed negative test
   (`not correct …`, `not c …`) proves nothing, since it may have failed for
   another reason.
@@ -480,7 +484,7 @@ domain (an observed output is compared with `e` wherever the claim's
 arguments allow). Evidence over a set counts input by input when the set
 has at most 10 000 inputs. A contradicted input is neither a pass nor a
 failure, and nothing is assumed for its class. The class of
-an input x is `g x`.
+an input x is `g(x)`.
 
 - **Conflict.** If, for one statement, a class holds an input that passed
   and one that failed, `u`, the pass and the failure can't all be true.
@@ -576,7 +580,7 @@ where no claim covers them.
 
 **Checking an implication.** For an `=` claim with `by derive` and a
 finite domain, Mitra evaluates both sides on every input, treating each
-premise `g args = e` as a definition: a call `g y` with y in the
+premise `g(args) = e` as a definition: a call `g(y)` with y in the
 premise's domain is replaced by `e`. Specs are evaluated as usual. The
 implication is:
 
@@ -599,7 +603,7 @@ indented lines, each printed only when it says something:
 
 ```text
 div_correct: unverified
-  passes on       `div 6 3`
+  passes on       `div(6, 3)`
   assumed on      class "rest" of `div_class`, by `div_uniform`
   no evidence on  class "zero" of `div_class`
 div_small: holds
@@ -623,7 +627,7 @@ div_uniform: holds
   too large to list, the classes without a passing input instead.
 
 A `uniform` or `uses` claim has no such lines. Up to 3 inputs print as
-calls (`` `div 4 2` ``); more print as a set, named after the parameters:
+calls (`` `div(4, 2)` ``); more print as a set, named after the parameters:
 `(a, b) in (0..=2, 0..=2)`. A set of tuples prints as the domain's own
 form when equal to it, as a list of tuples when finite (`{(1, -1)}`), or
 as a union of products, each a tuple of sets:
@@ -637,12 +641,12 @@ and `help:` with the next thing to do:
 
 ```text
 error[M001]: evidence refutes a claim
-  --> model.mitra:5  claim div_correct : forall a, forall b, correct (div a b)
+  --> model.mitra:5  claim div_correct : forall a, forall b, correct(div(a, b))
 
-  `div_correct` fails on `div 4 2`.
+  `div_correct` fails on `div(4, 2)`.
   The evidence that says so:
 
-    fails     evidence.mitra:11  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+    fails     evidence.mitra:11  @[source "bug:42"] evidence not correct(div(4, 2)) at 0.8
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -663,8 +667,8 @@ error[M004]: an assumption is contradicted by the evidence
   of `div_class`. But in that class some inputs pass and others fail:
 
     vouches   evidence.mitra:9  @[source "review:alice"] evidence div_uniform at 0.9
-    passes    evidence.mitra:10  @[source "test:t_six"] evidence correct (div 6 3) at 0.99
-    fails     evidence.mitra:11  @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+    passes    evidence.mitra:10  @[source "test:t_six"] evidence correct(div(6, 3)) at 0.99
+    fails     evidence.mitra:11  @[source "bug:42"] evidence not correct(div(4, 2)) at 0.8
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -680,7 +684,7 @@ error[M004]: an assumption is contradicted by the evidence
   note: the trust given says these are probably all right, which can't
   be: at least one is trusted more than it deserves
 
-  help: check that `div 4 2` really fails; if it does, class "rest" is
+  help: check that `div(4, 2)` really fails; if it does, class "rest" is
   too wide: split it in `div_class`
 ```
 
@@ -747,9 +751,9 @@ error, with the code of its subject as the piece most plausibly wrong.
 ### `flip`
 
 ```lean
-opaque flip (a : Bool) : Bool
-claim flip_correct : forall a, correct (flip a)
-claim flip_on_true : correct (flip true)
+opaque flip(a: Bool) -> Bool
+claim flip_correct : forall a, correct(flip(a))
+claim flip_on_true : correct(flip(true))
 ```
 
 | Case | Evidence | flip_correct | flip_on_true |
@@ -768,22 +772,22 @@ claim flip_on_true : correct (flip true)
 ### `id`
 
 ```lean
-opaque id (x : Value) : Value
-claim id_correct : forall x, correct (id x)
-claim id_small : forall x in 0..=100, correct (id x)
+opaque id(x: Value) -> Value
+claim id_correct : forall x, correct(id(x))
+claim id_small : forall x in 0..=100, correct(id(x))
 ```
 
 | Case | Evidence | id_correct | id_small |
 |---|---|---|---|
 | 01 | none | unverified | unverified |
-| 02 | `id 1`, `id 42` correct | unverified, tested {1, 42} | unverified |
+| 02 | `id(1)`, `id(42)` correct | unverified, tested {1, 42} | unverified |
 | 03 | correct on `0..=100` | unverified, tested 0..=100 | holds |
 | 04 | correct on `0..=100` and on `String` | unverified | holds |
-| 05 | `id 1` correct, `id 7` wrong | fails, refuted {7} | fails, refuted {7}; one error for both |
+| 05 | `id(1)` correct, `id(7)` wrong | fails, refuted {7} | fails, refuted {7}; one error for both |
 | 06 | correct on `forall x` | holds | holds |
-| 07 | correct on `0..=100`, `id 5` wrong | unverified; error on 5 | unverified, missed {5} |
-| 08 | `id "a"` correct | unverified, tested {"a"} | unverified, tested nothing |
-| 09 | correct on `forall x` `at 0`, `id 7` wrong `at 0` | unverified, missed {7}; error on 7 | unverified, missed {7} |
+| 07 | correct on `0..=100`, `id(5)` wrong | unverified; error on 5 | unverified, missed {5} |
+| 08 | `id("a")` correct | unverified, tested {"a"} | unverified, tested nothing |
+| 09 | correct on `forall x` `at 0`, `id(7)` wrong `at 0` | unverified, missed {7}; error on 7 | unverified, missed {7} |
 
 On `Value`, tests never make `id_correct` hold: only evidence on the whole
 domain does (case 06).
@@ -791,34 +795,34 @@ domain does (case 06).
 ### `flip_matches`: a subject against a spec
 
 ```lean
-def neg (a : Bool) : Bool := !a
-opaque flip (a : Bool) : Bool
-claim flip_spec : forall a, flip a = neg a
-claim flip_on_true : flip true = neg true
+def neg(a: Bool) -> Bool := !a
+opaque flip(a: Bool) -> Bool
+claim flip_spec : forall a, flip(a) = neg(a)
+claim flip_on_true : flip(true) = neg(true)
 ```
 
 | Case | Evidence | flip_spec | flip_on_true |
 |---|---|---|---|
 | 01 | none | unverified | unverified |
-| 02 | `flip true = false`, `flip false = true` | holds | holds |
-| 03 | `flip true = false` | unverified, tested {true} | holds |
-| 04 | `flip false = false` | fails, refuted {false} | unverified |
-| 05 | `flip true = false`, `flip false = true` and `= false` | unverified, tested {true}; error on false | holds |
-| 06 | `forall a, correct (flip a)` (a judgment, not an output) | unverified | unverified |
-| 07 | case 02, plus `neg true = true` | holds | holds, and the evidence on `neg` can't be used (`M104`) |
-| 08 | `flip false = false` `at 0`, `neg true = true` `at 0` | fails | unverified |
+| 02 | `flip(true) = false`, `flip(false) = true` | holds | holds |
+| 03 | `flip(true) = false` | unverified, tested {true} | holds |
+| 04 | `flip(false) = false` | fails, refuted {false} | unverified |
+| 05 | `flip(true) = false`, `flip(false) = true` and `= false` | unverified, tested {true}; error on false | holds |
+| 06 | `forall a, correct(flip(a))` (a judgment, not an output) | unverified | unverified |
+| 07 | case 02, plus `neg(true) = true` | holds | holds, and the evidence on `neg` can't be used (`M104`) |
+| 08 | `flip(false) = false` `at 0`, `neg(true) = true` `at 0` | fails | unverified |
 
 ### `compose`: a derivation mixing specs and subjects
 
 ```lean
-def neg (a : Bool) : Bool := !a
-def same (a : Bool) : Bool := a
-opaque flip (a : Bool) : Bool
-opaque flip_not (a : Bool) : Bool
-claim neg_twice : forall a, same a = neg (neg a)
-claim flip_spec : forall a, flip a = neg a
-claim flip_not_shape : forall a, flip_not a = flip (flip a)
-claim flip_not_same : forall a, flip_not a = same a := by derive [flip_spec, flip_not_shape, neg_twice]
+def neg(a: Bool) -> Bool := !a
+def same(a: Bool) -> Bool := a
+opaque flip(a: Bool) -> Bool
+opaque flip_not(a: Bool) -> Bool
+claim neg_twice : forall a, same(a) = neg(neg(a))
+claim flip_spec : forall a, flip(a) = neg(a)
+claim flip_not_shape : forall a, flip_not(a) = flip(flip(a))
+claim flip_not_same : forall a, flip_not(a) = same(a) := by derive [flip_spec, flip_not_shape, neg_twice]
 ```
 
 `neg_twice` is about specs only: it holds by computation in every case.
@@ -829,11 +833,11 @@ The implication of `flip_not_same` is `checked` in every case.
 |---|---|---|---|---|
 | 01 | none | unverified | unverified | holds assuming [flip_spec, flip_not_shape] |
 | 02 | `flip` on both inputs, review | holds | holds | holds (derived, no evidence on `flip_not`) |
-| 03 | `flip true = false`, review | unverified, tested {true} | holds | holds assuming [flip_spec] |
-| 04 | `flip true = true`, `flip false = true`, review | fails, refuted {true} | holds | unverified: a premise fails |
-| 05 | case 02, plus `flip_not true = false` | holds | unverified, tested {false} | fails, refuted {true} |
+| 03 | `flip(true) = false`, review | unverified, tested {true} | holds | holds assuming [flip_spec] |
+| 04 | `flip(true) = true`, `flip(false) = true`, review | fails, refuted {true} | holds | unverified: a premise fails |
+| 05 | case 02, plus `flip_not(true) = false` | holds | unverified, tested {false} | fails, refuted {true} |
 | 06 | outputs of `flip` and `flip_not` on both inputs | holds | holds | holds |
-| 07 | `flip true = false` `at 0`, review `at 0` | unverified | holds | holds assuming [flip_spec] |
+| 07 | `flip(true) = false` `at 0`, review `at 0` | unverified | holds | holds assuming [flip_spec] |
 
 In case 05 the counterexample on `flip_not` also contradicts the review of
 `flip_not_shape` on `true`: a second error.
@@ -841,16 +845,16 @@ In case 05 the counterexample on `flip_not` also contradicts the review of
 ### `minus`: tuples and a checked derivation
 
 ```lean
-def plus (a b : Int) : Int := a + b
-def opposite (b : Int) : Int := -b
-def difference (a b : Int) : Int := a - b
-opaque add (a b : Int) : Int
-opaque negate (b : Int) : Int
-opaque minus (a b : Int) : Int
-claim add_spec : forall a in 0..=2, forall b in -2..=0, add a b = plus a b
-claim negate_spec : forall b in 0..=2, negate b = opposite b
-claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus a b = add a (negate b)
-claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
+def plus(a: Int, b: Int) -> Int := a + b
+def opposite(b: Int) -> Int := -b
+def difference(a: Int, b: Int) -> Int := a - b
+opaque add(a: Int, b: Int) -> Int
+opaque negate(b: Int) -> Int
+opaque minus(a: Int, b: Int) -> Int
+claim add_spec : forall a in 0..=2, forall b in -2..=0, add(a, b) = plus(a, b)
+claim negate_spec : forall b in 0..=2, negate(b) = opposite(b)
+claim minus_shape : forall a in 0..=2, forall b in 0..=2, minus(a, b) = add(a, negate(b))
+claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = difference(a, b) := by derive [add_spec, negate_spec, minus_shape]
 ```
 
 "Leaves" are the outputs of `add` on its 9 inputs and of `negate` on its 3,
@@ -861,11 +865,11 @@ on `minus` itself.
 |---|---|---|---|---|---|
 | 01 | none | unverified | unverified | holds assuming all three premises | checked |
 | 02 | leaves | holds | holds | holds | checked |
-| 03 | leaves without `add 2 (-2)` | unverified, missed {(2, -2)} | holds | holds assuming [add_spec] | checked |
-| 04 | leaves with `add 1 (-1) = 1` | fails, refuted {(1, -1)} | holds | unverified: a premise fails | checked |
+| 03 | leaves without `add(2, -2)` | unverified, missed {(2, -2)} | holds | holds assuming [add_spec] | checked |
+| 04 | leaves with `add(1, -1) = 1` | fails, refuted {(1, -1)} | holds | unverified: a premise fails | checked |
 | 05 | leaves; the shape is `add b (negate a)` | holds | holds | unverified: derivation not used | refuted |
 | 06 | leaves without the review; `by derive [add_spec, negate_spec]` only | holds | unverified | holds | unchecked |
-| 07 | `add 0 0 = 0` `at 0`, review `at 0` | unverified | holds | holds assuming [add_spec, negate_spec] | checked |
+| 07 | `add(0, 0) = 0` `at 0`, review `at 0` | unverified | holds | holds assuming [add_spec, negate_spec] | checked |
 
 `negate_spec` holds whenever the leaves are there. Case 06 shows the risk
 of an unchecked implication: `minus_spec` holds only because the author
@@ -874,32 +878,32 @@ said so.
 ### `div`: a uniformity claim
 
 ```lean
-opaque div (a b : Int) : Int
-def div_class (a b : Int) : {"zero", "rest"} := if b == 0 then "zero" else "rest"
-claim div_correct : forall a, forall b, correct (div a b)
-claim div_small : forall a in 0..=1, forall b in 1..=2, correct (div a b)
+opaque div(a: Int, b: Int) -> Int
+def div_class(a: Int, b: Int) -> {"zero", "rest"} := if b == 0 then "zero" else "rest"
+claim div_correct : forall a, forall b, correct(div(a, b))
+claim div_small : forall a in 0..=1, forall b in 1..=2, correct(div(a, b))
 claim div_uniform : uniform div by div_class
 ```
 
 | Case | Evidence | div_correct | div_small | div_uniform |
 |---|---|---|---|---|
-| 01 | `div 6 3` and `div 1 0` pass; nothing vouches | holds assuming [div_uniform] | holds assuming [div_uniform] | unverified |
-| 02 | vouched; `div 6 3` passes | unverified, missed class "zero" | holds, assumed "rest" | holds |
-| 03 | vouched; `div 6 3` and `div 1 0` pass | holds, assumed "rest", "zero" | holds | holds |
-| 04 | vouched; `div 6 3` passes, `div 4 2` fails | fails, refuted {(4, 2)} | unverified | fails; error in class "rest" |
-| 05 | vouched; `div 4 2` fails | fails, refuted {(4, 2)} | fails, refuted its whole domain; its error also lists the review | holds |
-| 06 | vouched; `div 6 3` passes; `div` fails somewhere on `(10.., 10..)` | fails | unverified: nothing assumed | holds |
-| 07 | vouched; `div 6 3` passes; `not div_correct 4 2` | fails, refuted {(4, 2)} | unverified | fails; error in class "rest" |
-| 08 | vouched; `div 6 3` passes and fails; `div 4 2` passes | unverified, tested {(4, 2)}; error on (6, 3) | unverified: class "rest" not relied on | holds |
+| 01 | `div(6, 3)` and `div(1, 0)` pass; nothing vouches | holds assuming [div_uniform] | holds assuming [div_uniform] | unverified |
+| 02 | vouched; `div(6, 3)` passes | unverified, missed class "zero" | holds, assumed "rest" | holds |
+| 03 | vouched; `div(6, 3)` and `div(1, 0)` pass | holds, assumed "rest", "zero" | holds | holds |
+| 04 | vouched; `div(6, 3)` passes, `div(4, 2)` fails | fails, refuted {(4, 2)} | unverified | fails; error in class "rest" |
+| 05 | vouched; `div(4, 2)` fails | fails, refuted {(4, 2)} | fails, refuted its whole domain; its error also lists the review | holds |
+| 06 | vouched; `div(6, 3)` passes; `div` fails somewhere on `(10.., 10..)` | fails | unverified: nothing assumed | holds |
+| 07 | vouched; `div(6, 3)` passes; `not div_correct(4, 2)` | fails, refuted {(4, 2)} | unverified | fails; error in class "rest" |
+| 08 | vouched; `div(6, 3)` passes and fails; `div(4, 2)` passes | unverified, tested {(4, 2)}; error on (6, 3) | unverified: class "rest" not relied on | holds |
 | 09 | vouched; `div_small` reviewed | unverified, assumed "rest" | holds | holds |
-| 10 | vouched; `div 6 3` fails; `div_correct 6 3` reviewed | unverified; error on (6, 3) | unverified: the failure stands for nothing | holds |
+| 10 | vouched; `div(6, 3)` fails; `div_correct(6, 3)` reviewed | unverified; error on (6, 3) | unverified: the failure stands for nothing | holds |
 
 ### `bias`: which piece is most plausibly wrong
 
 ```lean
-opaque div (a b : Int) : Int
-def div_class (a b : Int) : {"zero", "rest"} := if b == 0 then "zero" else "rest"
-claim div_correct : forall a, forall b, correct (div a b)
+opaque div(a: Int, b: Int) -> Int
+def div_class(a: Int, b: Int) -> {"zero", "rest"} := if b == 0 then "zero" else "rest"
+claim div_correct : forall a, forall b, correct(div(a, b))
 claim div_uniform : uniform div by div_class
 ```
 
@@ -907,29 +911,29 @@ The numbers are computed by hand in each case's `evidence.mitra`.
 
 | Case | Evidence | Most plausibly wrong `[belief, plausibility]` |
 |---|---|---|
-| 01 | `div 4 2` fails, at 0.8 | the code of `div` [0.80, 1.00]; the failure [0.00, 0.20] |
-| 02 | review of `div_uniform` at 0.9; `div 6 3` passes at 0.99; `div 4 2` fails at 0.8 | for the class: the failure [0.62, 0.70], the review [0.28, 0.35], the pass hidden (0.03); conflict 0.71. For `div_correct`: the code [0.30, 1.00] |
+| 01 | `div(4, 2)` fails, at 0.8 | the code of `div` [0.80, 1.00]; the failure [0.00, 0.20] |
+| 02 | review of `div_uniform` at 0.9; `div(6, 3)` passes at 0.99; `div(4, 2)` fails at 0.8 | for the class: the failure [0.62, 0.70], the review [0.28, 0.35], the pass hidden (0.03); conflict 0.71. For `div_correct`: the code [0.30, 1.00] |
 | 03 | the same failure at 0.8 recorded twice, and another report at 0.5 | the code [0.90, 1.00]: the twin counts once |
 | 04 | two sources report the same wrong output, at 0.9 and 0.1 | the code [0.91, 1.00]; both reports listed, whatever their order |
-| 05 | review of `div_uniform` at 0; `div 4 2` fails, outside `div_small` | `div_small` fails; the code and the review both [0.00, 1.00] |
-| 06 | vouched; `div 6 3` passes at 0.1, `div 8 4` passes, `div 4 2` fails | the review, the trusted pass and the failure share the doubt: [0.34, 0.34], [0.31, 0.31], [0.34, 0.34]; the distrusted pass [0.31, 0.93] |
+| 05 | review of `div_uniform` at 0; `div(4, 2)` fails, outside `div_small` | `div_small` fails; the code and the review both [0.00, 1.00] |
+| 06 | vouched; `div(6, 3)` passes at 0.1, `div(8, 4)` passes, `div(4, 2)` fails | the review, the trusted pass and the failure share the doubt: [0.34, 0.34], [0.31, 0.31], [0.34, 0.34]; the distrusted pass [0.31, 0.93] |
 
 ### `uses`: suspects
 
 ```lean
-opaque half (x : Int) : Int
-opaque quarter (x : Int) : Int
-opaque eighth (x : Int) : Int
-claim half_correct : forall x in 0..=1, correct (half x)
-claim quarter_correct : forall x in 0..=1, correct (quarter x)
-claim eighth_correct : forall x in 0..=1, correct (eighth x)
+opaque half(x: Int) -> Int
+opaque quarter(x: Int) -> Int
+opaque eighth(x: Int) -> Int
+claim half_correct : forall x in 0..=1, correct(half(x))
+claim quarter_correct : forall x in 0..=1, correct(quarter(x))
+claim eighth_correct : forall x in 0..=1, correct(eighth(x))
 claim quarter_uses : uses quarter [half]
 claim eighth_uses : uses eighth [quarter]
 ```
 
 | Case | Evidence | Suspects | Error on `quarter_correct` |
 |---|---|---|---|
-| 01 | `half 1` and `quarter 1` fail; `eighth` passes | `half` for `quarter`; `half` and `quarter` for `eighth`, which holds | the code of `half` [1.00, 1.00], then of `quarter` [0.00, 1.00] |
+| 01 | `half(1)` and `quarter(1)` fail; `eighth` passes | `half` for `quarter`; `half` and `quarter` for `eighth`, which holds | the code of `half` [1.00, 1.00], then of `quarter` [0.00, 1.00] |
 | 02 | the same failures; `not quarter_uses` | only `quarter` for `eighth` | the code of `quarter` [1.00, 1.00]; `quarter_uses` fails too |
 
 Cases 03 to 07 have `claim quarter_uses : only uses quarter [half]` and a
@@ -946,15 +950,15 @@ failing `quarter`:
 ### `numbers`: integer types, ranges and floats
 
 ```lean
-opaque inc (x : Int64) : Int64
-def halve (x : Float64) : Float64 := x * 0.5
-opaque half (x : Float64) : Float64
-claim inc_correct : forall x, correct (inc x)
-claim inc_small : forall x in 0..100, correct (inc x)
-claim half_spec : forall x in {1.0, -3.0}, half x = halve x
+opaque inc(x: Int64) -> Int64
+def halve(x: Float64) -> Float64 := x * 0.5
+opaque half(x: Float64) -> Float64
+claim inc_correct : forall x, correct(inc(x))
+claim inc_small : forall x in 0..100, correct(inc(x))
+claim half_spec : forall x in {1.0, -3.0}, half(x) = halve(x)
 ```
 
 | Case | Evidence | inc_correct | inc_small | half_spec |
 |---|---|---|---|---|
-| 01 | `inc` on `0..=99`; `half 1.0 = 0.5`, `half (-3.0) = -1.5` | unverified, tested 0..=99 of Int64 | holds | holds |
-| 02 | `half (-3.0) = -1.0`; `inc` wrong on `-5..0` at 0 | fails, refuted -5..=-1 | unverified | fails, refuted {-3.0} |
+| 01 | `inc` on `0..=99`; `half(1.0) = 0.5`, `half(-3.0) = -1.5` | unverified, tested 0..=99 of Int64 | holds | holds |
+| 02 | `half(-3.0) = -1.0`; `inc` wrong on `-5..0` at 0 | fails, refuted -5..=-1 | unverified | fails, refuted {-3.0} |

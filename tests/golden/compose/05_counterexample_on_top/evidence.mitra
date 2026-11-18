@@ -1,7 +1,7 @@
-evidence flip true = false at 1
-evidence flip false = true at 1
+evidence flip(true) = false at 1
+evidence flip(false) = true at 1
 -- A review of the code: flip_not calls flip twice.
 evidence flip_not_shape at 1
 -- A direct counterexample on the top claim. It also contradicts the review
 -- on true, so the shape is no longer known there.
-evidence flip_not true = false at 1
+evidence flip_not(true) = false at 1

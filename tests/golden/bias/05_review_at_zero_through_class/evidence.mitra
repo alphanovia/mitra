@@ -2,4 +2,4 @@
 -- so through the review of `div_uniform`. Bias 0 still counts for the
 -- verdict, but the review is then as plausible a culprit as the code.
 evidence div_uniform at 0
-evidence not correct (div 4 2) at 1
+evidence not correct(div(4, 2)) at 1

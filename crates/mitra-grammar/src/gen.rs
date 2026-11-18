@@ -156,9 +156,9 @@ fn call_args(r: &mut Rng, min: usize) -> (String, String) {
                 0 => "true".into(),
                 1 => "false".into(),
                 2 => nat(r),
-                3 => format!("( - {} )", nat(r)),
+                3 => format!("- {}", nat(r)),
                 4 => float(r),
-                5 => format!("( - {} )", float(r)),
+                5 => format!("- {}", float(r)),
                 _ => string(r),
             });
         }
@@ -167,7 +167,11 @@ fn call_args(r: &mut Rng, min: usize) -> (String, String) {
     for i in (1..bound.len()).rev() {
         bound.swap(i, r.below(i + 1));
     }
-    let args: String = args.iter().map(|a| format!(" {a}")).collect();
+    let args = if args.is_empty() {
+        String::new()
+    } else {
+        format!(" ( {} )", args.join(" , "))
+    };
     (bound.concat(), args)
 }
 
@@ -224,14 +228,6 @@ fn literal(r: &mut Rng) -> String {
     }
 }
 
-fn atom(r: &mut Rng, depth: usize) -> String {
-    match if depth == 0 { r.below(2) } else { r.below(3) } {
-        0 => name(r),
-        1 => literal(r),
-        _ => format!("( {} )", expr(r, depth - 1)),
-    }
-}
-
 fn unary(r: &mut Rng, depth: usize) -> String {
     match if depth == 0 {
         2 + r.below(2)
@@ -243,29 +239,25 @@ fn unary(r: &mut Rng, depth: usize) -> String {
         2 => literal(r),
         3 => name(r),
         4 => format!(
-            "{}{}",
+            "{} ( {} )",
             name(r),
-            r.many(1, 3, |r| format!(" {}", atom(r, depth - 1)))
-                .concat()
+            r.many(1, 3, |r| expr(r, depth - 1)).join(" , ")
         ),
         _ => format!("( {} )", expr(r, depth - 1)),
     }
 }
 
 fn binders(r: &mut Rng) -> String {
-    r.many(1, 3, |r| {
-        let names = r.many(1, 3, name).join(" ");
-        format!(" ( {names} : {} )", set(r, 2))
-    })
-    .concat()
+    let params = r.many(1, 4, |r| format!("{} : {}", name(r), set(r, 2)));
+    format!(" ( {} )", params.join(" , "))
 }
 
 fn command(r: &mut Rng) -> String {
     match r.below(4) {
         3 => format!("test {} : {}", name(r), judgment(r)),
-        0 => format!("opaque {}{} : {}", name(r), binders(r), set(r, 2)),
+        0 => format!("opaque {}{} -> {}", name(r), binders(r), set(r, 2)),
         1 => format!(
-            "def {}{} : {} := {}",
+            "def {}{} -> {} := {}",
             name(r),
             binders(r),
             set(r, 2),

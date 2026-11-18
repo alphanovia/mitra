@@ -1,19 +1,19 @@
 half_correct: fails
-  fails on        `half 0`
-  no evidence on  `half 1`
+  fails on        `half(0)`
+  no evidence on  `half(1)`
 quarter_correct: fails
-  fails on        `quarter 1`
-  passes on       `quarter 0`
+  fails on        `quarter(1)`
+  passes on       `quarter(0)`
 quarter_uses: unverified
 quarter_uniform: fails
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:7  claim half_correct : forall x in 0..=1, correct (half x)
+  --> model.mitra:7  claim half_correct : forall x in 0..=1, correct(half(x))
 
-  `half_correct` fails on `half 0`.
+  `half_correct` fails on `half(0)`.
   The evidence that says so:
 
-    fails     evidence.mitra:5  evidence not correct (half 0) at 1
+    fails     evidence.mitra:5  evidence not correct(half(0)) at 1
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -26,12 +26,12 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `half`; if not, correct the evidence
 
 error[M001]: evidence refutes a claim
-  --> model.mitra:8  claim quarter_correct : forall x in 0..=1, correct (quarter x)
+  --> model.mitra:8  claim quarter_correct : forall x in 0..=1, correct(quarter(x))
 
-  `quarter_correct` fails on `quarter 1`.
+  `quarter_correct` fails on `quarter(1)`.
   The evidence that says so:
 
-    fails     evidence.mitra:8  evidence not correct (quarter 1) at 1
+    fails     evidence.mitra:8  evidence not correct(quarter(1)) at 1
 
   Either the code is wrong or the evidence is. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -58,8 +58,8 @@ error[M004]: an assumption is contradicted by the evidence
   of `all`. But in that class some inputs pass and others fail:
 
     vouches   evidence.mitra:6  evidence quarter_uniform at 1
-    passes    evidence.mitra:7  evidence correct (quarter 0) at 1
-    fails     evidence.mitra:8  evidence not correct (quarter 1) at 1
+    passes    evidence.mitra:7  evidence correct(quarter(0)) at 1
+    fails     evidence.mitra:8  evidence not correct(quarter(1)) at 1
 
   These can't all be right. Below, the trust given to each
   piece, and what is left of it once they are weighed against each other:
@@ -75,7 +75,7 @@ error[M004]: an assumption is contradicted by the evidence
   nothing here: Mitra shares the doubt equally between them. Lower the
   trust of the one you doubt most to set them apart.
 
-  help: check that `quarter 1` really fails; if it does, class "any" is
+  help: check that `quarter(1)` really fails; if it does, class "any" is
   too wide: split it in `all`
 
 warning[M103]: an assumption is not vouched for

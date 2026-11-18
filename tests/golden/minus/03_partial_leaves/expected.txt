@@ -1,19 +1,19 @@
 add_spec: unverified
   passes on       (a, b) in {(0, -2), (0, -1), (0, 0), (1, -2), (1, -1), (1, 0), (2, -1), (2, 0)}
-  no evidence on  `add 2 (-2)`
+  no evidence on  `add(2, -2)`
 negate_spec: holds
 minus_shape: holds
 minus_spec: holds assuming [add_spec]
   assumed on      (a, b) in (0..=2, 0..=2): its premises imply it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:10  claim add_spec : forall a in 0..=2, forall b in -2..=0, add a b = plus a b
+  --> model.mitra:10  claim add_spec : forall a in 0..=2, forall b in -2..=0, add(a, b) = plus(a, b)
 
-  No evidence on `add 2 (-2)`.
+  No evidence on `add(2, -2)`.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M102]: a claim holds only under assumptions
-  --> model.mitra:15  claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus a b = difference a b := by derive [add_spec, negate_spec, minus_shape]
+  --> model.mitra:15  claim minus_spec : forall a in 0..=2, forall b in 0..=2, minus(a, b) = difference(a, b) := by derive [add_spec, negate_spec, minus_shape]
 
   `minus_spec` holds if `add_spec` holds, and no evidence supports it.
   help: review it, then record it as evidence, or test until it is not needed
