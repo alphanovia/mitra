@@ -134,26 +134,31 @@ mod tests {
         }
     }
 
+    // mitra: evidence for t_short_path
     #[test]
     fn t_short_path() {
         assert_eq!(short("tests::t_small"), "t_small");
     }
 
+    // mitra: evidence for t_short_plain
     #[test]
     fn t_short_plain() {
         assert_eq!(short("t_small"), "t_small");
     }
 
+    // mitra: evidence for t_short_should_panic
     #[test]
     fn t_short_should_panic() {
         assert_eq!(short("t_panics - should panic"), "t_panics");
     }
 
+    // mitra: evidence for t_short_panics_once
     #[test]
     fn t_short_panics_once() {
         assert_eq!(short("t_panics"), "t_panics");
     }
 
+    // mitra: evidence for t_libtest_ok
     #[test]
     fn t_libtest_ok() {
         assert_eq!(
@@ -162,11 +167,13 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_libtest_failed
     #[test]
     fn t_libtest_failed() {
         assert_eq!(libtest("test t_big ... FAILED"), [outcome("t_big", false)]);
     }
 
+    // mitra: evidence for t_libtest_timed
     #[test]
     fn t_libtest_timed() {
         assert_eq!(
@@ -175,11 +182,13 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_libtest_ignored
     #[test]
     fn t_libtest_ignored() {
         assert_eq!(libtest("test tests::slow ... ignored"), []);
     }
 
+    // mitra: evidence for t_libtest_other_lines
     #[test]
     fn t_libtest_other_lines() {
         assert_eq!(
@@ -188,6 +197,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_libtest_two
     #[test]
     fn t_libtest_two() {
         assert_eq!(
@@ -196,21 +206,25 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_attr_double
     #[test]
     fn t_attr_double() {
         assert_eq!(attr("<testcase name=\"t\"", "name"), Some("t".into()));
     }
 
+    // mitra: evidence for t_attr_single
     #[test]
     fn t_attr_single() {
         assert_eq!(attr("<testcase name='t'", "name"), Some("t".into()));
     }
 
+    // mitra: evidence for t_attr_missing
     #[test]
     fn t_attr_missing() {
         assert_eq!(attr("<testcase time=\"1\"", "name"), None);
     }
 
+    // mitra: evidence for t_attr_inside_another
     #[test]
     fn t_attr_inside_another() {
         assert_eq!(
@@ -219,6 +233,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_attr_entities
     #[test]
     fn t_attr_entities() {
         assert_eq!(
@@ -227,21 +242,25 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_strip_one
     #[test]
     fn t_strip_one() {
         assert_eq!(strip("a<x>b</x>c", "<x>", "</x>"), "ac");
     }
 
+    // mitra: evidence for t_strip_unclosed
     #[test]
     fn t_strip_unclosed() {
         assert_eq!(strip("a<x>b", "<x>", "</x>"), "a");
     }
 
+    // mitra: evidence for t_strip_nothing
     #[test]
     fn t_strip_nothing() {
         assert_eq!(strip("abc", "<x>", "</x>"), "abc");
     }
 
+    // mitra: evidence for t_junit_passed
     #[test]
     fn t_junit_passed() {
         assert_eq!(
@@ -250,6 +269,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_junit_failure
     #[test]
     fn t_junit_failure() {
         assert_eq!(
@@ -258,6 +278,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_junit_error
     #[test]
     fn t_junit_error() {
         assert_eq!(
@@ -266,11 +287,13 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_junit_skipped
     #[test]
     fn t_junit_skipped() {
         assert_eq!(junit("<testcase name=\"t\"><skipped/></testcase>"), []);
     }
 
+    // mitra: evidence for t_junit_failure_in_a_log
     #[test]
     fn t_junit_failure_in_a_log() {
         assert_eq!(
@@ -279,6 +302,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_junit_path
     #[test]
     fn t_junit_path() {
         assert_eq!(junit("<testcase name=\"tests::t\"/>"), [outcome("t", true)]);

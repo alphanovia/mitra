@@ -123,11 +123,104 @@ fn load_surface(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     let earlier = surface::evidence(evidence, &names).map_err(|e| (Input::Evidence, e))?;
     tie(&mut m, &earlier, &names);
     m.evidence = parse_evidence_for(&earlier, &m).map_err(|e| (Input::Evidence, e))?;
+    points(&mut m);
     let own = |s: &str| s.lines().map(String::from).collect::<Vec<_>>();
     let mut written = own(evidence);
     written.truncate(lines);
     m.written = Some((own(model), written));
     m.check()
+}
+
+/// What evidence on a point claim says of the code. A test tied to
+/// `claim t() { f(6, 2) == 3 }` that passes is the output `f(6, 2) = 3`;
+/// failing, it refutes the specs that give 3 there. On
+/// `claim t() { correct(f(6, 2)) }` it judges that call.
+fn points(m: &mut Model) {
+    let mut more = Vec::new();
+    for e in &m.evidence {
+        let (Judgment::Holds(ok), true) = (&e.judgment, e.pattern.iter().all(|p| p.set.is_none()))
+        else {
+            continue;
+        };
+        // An assumption is nobody's observation.
+        if e.source.as_deref() == Some("assumed") {
+            continue;
+        }
+        let Some(c) = m
+            .claim(&e.about)
+            .filter(|c| c.pattern.iter().all(|p| p.var.is_none()))
+        else {
+            continue;
+        };
+        let on = |about: &str, pattern: &Pattern, judgment: Judgment| Evidence {
+            about: about.to_string(),
+            pattern: pattern.clone(),
+            judgment,
+            ..e.clone()
+        };
+        let judged = |f: &str| {
+            let covers = |d: &Claim| d.func == f && d.target == Target::Correct;
+            m.claims.iter().any(covers)
+        };
+        match &c.target {
+            Target::Correct if !c.pattern.is_empty() || m.function(&c.func).is_some() => {
+                more.push(on(&c.func, &c.pattern, Judgment::Correct(*ok)));
+            }
+            Target::Property(Expr::Binary("==", l, r)) => {
+                let side = [(l, r), (r, l)].into_iter().find_map(|(call, other)| {
+                    let Expr::Call(f, args) = &**call else {
+                        return None;
+                    };
+                    let g = m.declared_function(f).filter(|g| !g.is_spec())?;
+                    let x: Option<Vec<Value>> =
+                        args.iter().map(|a| eval::computed(m, a, &[])).collect();
+                    Some((g, x?, eval::computed(m, other, &[])?))
+                });
+                let Some((g, x, v)) = side else {
+                    continue;
+                };
+                let at: Pattern = x
+                    .iter()
+                    .map(|v| Position {
+                        var: None,
+                        set: Some(Set::point(v)),
+                    })
+                    .collect();
+                let other = match &v {
+                    Value::Bool(b) if g.range == Set::bool() => Some(Value::Bool(!b)),
+                    _ => None,
+                };
+                match (ok, other) {
+                    (true, _) => more.push(on(&g.name, &at, Judgment::Output(v.clone()))),
+                    // Not this output: with two possible, the other one.
+                    (false, Some(other)) => more.push(on(&g.name, &at, Judgment::Output(other))),
+                    (false, None) => {
+                        // The specs that give this output there are refuted.
+                        for d in m.claims.iter().filter(|d| d.func == g.name) {
+                            let Target::Matches(target) = &d.target else {
+                                continue;
+                            };
+                            let names: Vec<(String, Value)> = d
+                                .pattern
+                                .iter()
+                                .zip(&x)
+                                .filter_map(|(p, v)| Some((p.var.clone()?, v.clone())))
+                                .collect();
+                            let inside = m.covers(&d.func, &d.pattern).contains(&x);
+                            if inside && eval::computed(m, target, &names).as_ref() == Some(&v) {
+                                more.push(on(&d.name, &at, Judgment::Holds(false)));
+                            }
+                        }
+                    }
+                }
+                if judged(&g.name) {
+                    more.push(on(&g.name, &at, Judgment::Correct(*ok)));
+                }
+            }
+            _ => {}
+        }
+    }
+    m.evidence.extend(more);
 }
 
 /// A tie is a claim once someone brings evidence on it.

@@ -385,12 +385,58 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             }
             let s = store::Store::find()?;
             let model = s.model()?;
-            let (mut evidence, mut notes, mut unknown) = (Vec::new(), Vec::new(), Vec::new());
+            // Tests tied to a claim by a comment: `// mitra: evidence for c`.
+            let tied = tie::tests(&s.root())?;
+            let (mut lines, mut tied_notes) = (Vec::new(), Vec::new());
+            let attrs = match &rev {
+                Some(r) => format!(", rev \"{r}\""),
+                None => String::new(),
+            };
+            for t in &tied {
+                let ends = |c: &&mitra_core::Claim| {
+                    c.name == t.claim || c.name.ends_with(&format!("::{}", t.claim))
+                };
+                let found: Vec<&mitra_core::Claim> = model.claims.iter().filter(ends).collect();
+                let [c] = found[..] else {
+                    let why = if found.is_empty() {
+                        "no claim"
+                    } else {
+                        "several claims"
+                    };
+                    return Err(format!("{}: the model has {why} `{}`", t.place, t.claim));
+                };
+                let ran: Vec<&report::Outcome> =
+                    outcomes.iter().filter(|o| o.name == t.test).collect();
+                match ran[..] {
+                    [] => {}
+                    [o] => {
+                        let not = if o.passed { "" } else { "not " };
+                        lines.push(format!(
+                            "@[source \"test:{}\"{attrs}] evidence {not}{} at 1",
+                            t.test, c.name
+                        ));
+                    }
+                    _ => tied_notes.push(format!(
+                        "test {} appears {} times in the report: left out",
+                        t.test,
+                        ran.len()
+                    )),
+                }
+            }
+            lines.dedup();
+            if !lines.is_empty() {
+                s.add(&lines.join("\n"), None, None)?;
+            }
+            let claimed = |name: &str| tied.iter().any(|t| t.test == name);
+            let (mut evidence, mut notes, mut unknown) = (Vec::new(), tied_notes, Vec::new());
             // Failed tests the model does not declare: no verdict will move.
             let mut outside = Vec::new();
             let passed = outcomes.iter().filter(|o| o.passed).count();
             for o in &outcomes {
                 let Some(t) = model.tests.iter().find(|t| t.name == o.name) else {
+                    if claimed(&o.name) {
+                        continue;
+                    }
                     match o.passed {
                         true => unknown.push(o.name.as_str()),
                         false => outside.push(o.name.as_str()),
@@ -446,19 +492,19 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                 "{} results: {passed} passed, {} failed; {} evidence added",
                 outcomes.len(),
                 outcomes.len() - passed,
-                evidence.len()
+                evidence.len() + lines.len()
             );
             for n in notes {
                 println!("{n}");
             }
             if !outside.is_empty() {
                 println!(
-                    "FAILED, and no `test` declared, so no verdict shows it: {}",
+                    "FAILED, and tied to no claim, so no verdict shows it: {}",
                     outside.join(", ")
                 );
             }
             if !unknown.is_empty() {
-                println!("no `test` declared for: {}", unknown.join(", "));
+                println!("tied to no claim: {}", unknown.join(", "));
             }
             Ok(0)
         }

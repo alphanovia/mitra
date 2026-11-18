@@ -54,9 +54,9 @@ subject loader {
 | `assume c() { e }` | A claim taken as true without evidence (evidence with source `assumed`): `holds assuming [itself]` until the boundary is observed. Evidence against it is an error. |
 | `record R { a: T, b: U }`, `record Box<T> { item: T }` | Values are written `R(1, 2)`. |
 | `enum E<T> { A, B(T), C(x: T, y: T) }` | Unnamed fields are named `v0`, `v1`. |
-| `test t { for f  given a = 1  gives 2 }` | A test of the code, for `mitra ingest`: same clauses as evidence, without `trust`, `source`, `rev`. |
+| `claim t() { f(6, 2) == 3 }` | A point claim: no input, one call pinned. It is what a test of the code checks (see Tests). |
 
-Records, enums, their variants and tests are global, also when written
+Records, enums and their variants are global, also when written
 inside a subject. `//` starts a comment.
 
 Inside a body (of a `fn` or of a class `|a| …`), a call to a function of
@@ -257,7 +257,7 @@ and `mitra ingest` append such lines.
 ## The tie to the code
 
 The model lives aside from the code: `.mitra/model.mitra`, and any other
-`.mitra/*.mitra` file (not `evidence.mitra`), such as `tests.mitra`. It is
+`.mitra/*.mitra` file (not `evidence.mitra`), such as `points.mitra`. It is
 checked alone, with no code present. The code points at it:
 
 ```rust
@@ -280,11 +280,49 @@ reader, a reviewer brings the same evidence
 (`evidence e { for withdraw::tied holds source "review:me" }`). When it
 fails, the candidates are the evidence, the signature in the model and
 the code. A tie to a function the model does not have is refused. It
-also lists the functions of the model with no tie and the tests with no
-`fn` of their name; these are printed, not recorded.
+also lists the functions of the model with no tie; these are printed,
+not recorded.
 
-A test of the model is the Rust test of the same name: `mitra ingest`
-turns its result into evidence.
+## Tests
+
+The model has no tests, only claims. A test of the code is evidence for
+the claim its comment names:
+
+```rust
+// in the model
+claim div_small() { div(6, 2) == 3 }
+
+// in the code, above the test
+// mitra: evidence for div_small
+#[test]
+fn div_by_two() { assert_eq!(div(6, 2), 3); }
+```
+
+`cargo test > report.txt 2>&1`, then `mitra ingest report.txt --rev R`
+appends one line per tied test that ran: `evidence div_small at 1` when
+it passed, `evidence not div_small at 1` when it failed, with source
+`test:div_by_two`.
+
+- The test's name is free. The claim is named in full
+  (`calc::div_small`) or by its last part when only one claim has it.
+  A comment that names no claim of the model is refused.
+- Any claim can be named. On a point claim the result also says
+  something of the code:
+
+  | Claim | Test passed | Test failed |
+  |---|---|---|
+  | `f(6, 2) == 3` | The output `f(6, 2) = 3` was observed, for every claim that reads it. | The specs that give 3 there are refuted; on a `bool` result, the other output was observed. |
+  | `correct(f(6, 2))` | The code is right on that call. | The code is wrong on that call. |
+
+  When a claim `correct(f(…))` exists on `f`, the first row also judges
+  the call right or wrong.
+- Several tests may name one claim, and one test several claims (one
+  comment each).
+- `ingest` lists the tests of the report tied to no claim, the failed
+  ones apart: no verdict shows them.
+- `mitra plan` lists the point claims with no evidence yet: the tests
+  left to write.
+- `test t { … }` in the model is refused, with this section's advice.
 
 The earlier form, the model in `// mitra:` comments, is still read, in
 either syntax. `mitra add 'evidence e { for f … }'` accepts a block.

@@ -365,61 +365,73 @@ mod tests {
     // One input per test, for Mitra: each `mitra: test` line gives the
     // output the test checks.
 
+    // mitra: evidence for t_level_or
     #[test]
     fn t_level_or() {
         assert_eq!(level("||"), 1);
     }
 
+    // mitra: evidence for t_level_and
     #[test]
     fn t_level_and() {
         assert_eq!(level("&&"), 2);
     }
 
+    // mitra: evidence for t_level_compare
     #[test]
     fn t_level_compare() {
         assert_eq!(level("<="), 3);
     }
 
+    // mitra: evidence for t_level_sum
     #[test]
     fn t_level_sum() {
         assert_eq!(level("-"), 4);
     }
 
+    // mitra: evidence for t_level_union
     #[test]
     fn t_level_union() {
         assert_eq!(level("|"), 4);
     }
 
+    // mitra: evidence for t_level_intersection
     #[test]
     fn t_level_intersection() {
         assert_eq!(level("&"), 5);
     }
 
+    // mitra: evidence for t_level_in
     #[test]
     fn t_level_in() {
         assert_eq!(level("in"), 3);
     }
 
+    // mitra: evidence for t_level_product
     #[test]
     fn t_level_product() {
         assert_eq!(level("/"), 5);
     }
 
+    // mitra: evidence for t_negative_int
     #[test]
     fn t_negative_int() {
         assert!(negative(&Value::Int(-1)));
     }
 
+    // mitra: evidence for t_negative_zero
     #[test]
     fn t_negative_zero() {
         assert!(!negative(&Value::Int(0)));
     }
 
+    // mitra: evidence for t_negative_float
     #[test]
     fn t_negative_float() {
         assert!(negative(&Value::Float(-0.5)));
     }
 
+    // mitra: evidence for t_negative_string
     #[test]
     fn t_negative_string() {
         assert!(!negative(&Value::Str("-1".into())));

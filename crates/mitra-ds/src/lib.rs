@@ -8,7 +8,7 @@
 //! reported).
 //!
 //! The crate is dogfooded: its model is aside, in `.mitra/model.mitra`
-//! and `.mitra/tests.mitra`. A comment `// mitra: implements mass::judged`
+//! and `.mitra/points.mitra`. A comment `// mitra: implements mass::judged`
 //! above a function ties it to the model, `mitra tie` checks that the two
 //! agree, and `.mitra/evidence.mitra` holds the results of its own test
 //! runs.

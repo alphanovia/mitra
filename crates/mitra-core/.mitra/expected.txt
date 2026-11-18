@@ -1,7 +1,7 @@
 eval::as_str::spec: holds
 eval::unary_correct: unverified
   passes on       (op, v) in {("!", false), ("!", true), ("-", -3), ("-", 3), ("-", 0.5), ("-", "a"), ("keys", {"a": 1, "b": 2}), ("keys", {1})}
-  no evidence on  (op, v) in (String \ {"!", "-", "keys"}, Value) | ({"!"}, Value \ Bool) | ({"-"}, Value \ {-3, 3, 0.5, "a"}) | ({"keys"}, Value \ {{"a": 1, "b": 2}, {1}})
+  no evidence on  (op, v) in (String \ {"!", "-", "keys"}, Value) | ({"keys"}, Value \ {{"a": 1, "b": 2}, {1}}) | ({"-"}, Value \ {-3, 3, 0.5, "a"}) | ({"!"}, Value \ Bool)
 eval::not_is: holds
 eval::twice_negated: unverified
   passes on       `v = -3`, `v = 3`
@@ -47,6 +47,73 @@ report::word::spec: holds
   passes on       c in {Candidate(Code("f"), 0.0, 0.25), Candidate(Code("f"), 0.0, 0.5), Candidate(Code("f"), 0.5, 1.0), Candidate(Code("f"), 1.0, 1.0)}
   assumed on      classes "certain", "likely", "possible", "unlikely" of `report::word_uniform::case`, by `report::word_uniform`
 report::word_uniform: holds
+t_holds: holds
+t_assuming: holds
+t_unverified: holds
+t_fails: holds
+t_plus: holds
+t_plus_swapped: holds
+t_plus_overflow: holds
+t_plus_overflow_swapped: holds
+t_plus_mixed: holds
+t_plus_mixed_swapped: holds
+t_plus_floats: holds
+t_plus_floats_swapped: holds
+t_minus: holds
+t_plus_negated: holds
+t_times: holds
+t_times_swapped: holds
+t_divide: holds
+t_divide_towards_zero: holds
+t_divide_by_zero: holds
+t_divide_floats: holds
+t_equal: holds
+t_different: holds
+t_equal_mixed: holds
+t_different_mixed: holds
+t_less: holds
+t_and: holds
+t_or: holds
+t_unknown_operator: holds
+t_not_true: holds
+t_not_false: holds
+t_negate: holds
+t_negate_back: holds
+t_negate_float: holds
+t_negate_string: holds
+t_in_set: holds
+t_in_list: holds
+t_in_map: holds
+t_in_number: holds
+t_union: holds
+t_union_swapped: holds
+t_intersection: holds
+t_apart: holds
+t_difference: holds
+t_map_update: holds
+t_map_remove: holds
+t_set_with_map: holds
+t_keys: holds
+t_keys_of_a_set: holds
+t_level_or: holds
+t_level_and: holds
+t_level_compare: holds
+t_level_sum: holds
+t_level_union: holds
+t_level_intersection: holds
+t_level_in: holds
+t_level_product: holds
+t_negative_int: holds
+t_negative_zero: holds
+t_negative_float: holds
+t_negative_string: holds
+t_word_certain: holds
+t_word_likely: holds
+t_word_possible: holds
+t_word_unlikely: holds
+t_quote_plain: holds
+t_quote_empty: holds
+t_quote_escapes: holds
 eval::as_str::tied: holds
 eval::binary::tied: holds
 eval::unary::tied: holds
@@ -58,7 +125,7 @@ set::quote::tied: holds
 warning[M101]: a claim is not verified
   --> .mitra/model.mitra:38  claim unary_correct(op, v) { correct(unary(op, v)) }
 
-  No evidence on (op, v) in (String \ {"!", "-", "keys"}, Value) | ({"!"}, Value \ Bool) | ({"-"}, Value \ {-3, 3, 0.5, "a"}) | ({"keys"}, Value \ {{"a": 1, "b": 2}, {1}}).
+  No evidence on (op, v) in (String \ {"!", "-", "keys"}, Value) | ({"keys"}, Value \ {{"a": 1, "b": 2}, {1}}) | ({"-"}, Value \ {-3, 3, 0.5, "a"}) | ({"!"}, Value \ Bool).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

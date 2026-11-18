@@ -18,6 +18,7 @@ impl Account {
     }
 }
 
+// mitra: evidence for deposit_adds
 #[test]
 fn deposit_adds() {
     assert_eq!(deposit(&Account { balance: 0, open: true }, 5), Account { balance: 5, open: true });

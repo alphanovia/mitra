@@ -3389,26 +3389,31 @@ mod tests {
     // One input per test, for Mitra: each `mitra: test` line gives the
     // output the test checks.
 
+    // mitra: evidence for t_holds
     #[test]
     fn t_holds() {
         assert_eq!(Logic::Holds.as_str(), "holds");
     }
 
+    // mitra: evidence for t_assuming
     #[test]
     fn t_assuming() {
         assert_eq!(Logic::Assuming.as_str(), "holds assuming");
     }
 
+    // mitra: evidence for t_unverified
     #[test]
     fn t_unverified() {
         assert_eq!(Logic::Unverified.as_str(), "unverified");
     }
 
+    // mitra: evidence for t_fails
     #[test]
     fn t_fails() {
         assert_eq!(Logic::Fails.as_str(), "fails");
     }
 
+    // mitra: evidence for t_plus
     #[test]
     fn t_plus() {
         assert_eq!(
@@ -3417,6 +3422,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_plus_swapped
     #[test]
     fn t_plus_swapped() {
         assert_eq!(
@@ -3425,6 +3431,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_plus_overflow
     #[test]
     fn t_plus_overflow() {
         assert_eq!(
@@ -3433,6 +3440,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_plus_overflow_swapped
     #[test]
     fn t_plus_overflow_swapped() {
         assert_eq!(
@@ -3441,16 +3449,19 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_plus_mixed
     #[test]
     fn t_plus_mixed() {
         assert_eq!(binary("+", &Value::Int(2), &Value::Bool(true)), None);
     }
 
+    // mitra: evidence for t_plus_mixed_swapped
     #[test]
     fn t_plus_mixed_swapped() {
         assert_eq!(binary("+", &Value::Bool(true), &Value::Int(2)), None);
     }
 
+    // mitra: evidence for t_plus_floats
     #[test]
     fn t_plus_floats() {
         assert_eq!(
@@ -3459,6 +3470,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_plus_floats_swapped
     #[test]
     fn t_plus_floats_swapped() {
         assert_eq!(
@@ -3467,6 +3479,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_minus
     #[test]
     fn t_minus() {
         assert_eq!(
@@ -3475,6 +3488,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_plus_negated
     #[test]
     fn t_plus_negated() {
         assert_eq!(
@@ -3483,6 +3497,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_times
     #[test]
     fn t_times() {
         assert_eq!(
@@ -3491,6 +3506,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_times_swapped
     #[test]
     fn t_times_swapped() {
         assert_eq!(
@@ -3499,6 +3515,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_divide
     #[test]
     fn t_divide() {
         assert_eq!(
@@ -3507,6 +3524,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_divide_towards_zero
     #[test]
     fn t_divide_towards_zero() {
         assert_eq!(
@@ -3515,11 +3533,13 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_divide_by_zero
     #[test]
     fn t_divide_by_zero() {
         assert_eq!(binary("/", &Value::Int(1), &Value::Int(0)), None);
     }
 
+    // mitra: evidence for t_divide_floats
     #[test]
     fn t_divide_floats() {
         assert_eq!(
@@ -3528,6 +3548,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_equal
     #[test]
     fn t_equal() {
         assert_eq!(
@@ -3536,6 +3557,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_different
     #[test]
     fn t_different() {
         assert_eq!(
@@ -3544,6 +3566,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_equal_mixed
     #[test]
     fn t_equal_mixed() {
         assert_eq!(
@@ -3552,6 +3575,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_different_mixed
     #[test]
     fn t_different_mixed() {
         assert_eq!(
@@ -3560,6 +3584,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_less
     #[test]
     fn t_less() {
         assert_eq!(
@@ -3568,6 +3593,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_and
     #[test]
     fn t_and() {
         assert_eq!(
@@ -3576,6 +3602,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_or
     #[test]
     fn t_or() {
         assert_eq!(
@@ -3584,36 +3611,43 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_unknown_operator
     #[test]
     fn t_unknown_operator() {
         assert_eq!(binary("%", &Value::Int(2), &Value::Int(3)), None);
     }
 
+    // mitra: evidence for t_not_true
     #[test]
     fn t_not_true() {
         assert_eq!(unary("!", &Value::Bool(true)), Some(Value::Bool(false)));
     }
 
+    // mitra: evidence for t_not_false
     #[test]
     fn t_not_false() {
         assert_eq!(unary("!", &Value::Bool(false)), Some(Value::Bool(true)));
     }
 
+    // mitra: evidence for t_negate
     #[test]
     fn t_negate() {
         assert_eq!(unary("-", &Value::Int(3)), Some(Value::Int(-3)));
     }
 
+    // mitra: evidence for t_negate_back
     #[test]
     fn t_negate_back() {
         assert_eq!(unary("-", &Value::Int(-3)), Some(Value::Int(3)));
     }
 
+    // mitra: evidence for t_negate_float
     #[test]
     fn t_negate_float() {
         assert_eq!(unary("-", &Value::Float(0.5)), Some(Value::Float(-0.5)));
     }
 
+    // mitra: evidence for t_negate_string
     #[test]
     fn t_negate_string() {
         assert_eq!(unary("-", &Value::Str("a".into())), None);
@@ -3632,6 +3666,7 @@ mod tests {
         Value::map_of(pairs.collect()).unwrap()
     }
 
+    // mitra: evidence for t_in_set
     #[test]
     fn t_in_set() {
         assert_eq!(
@@ -3640,6 +3675,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_in_list
     #[test]
     fn t_in_list() {
         assert_eq!(
@@ -3652,6 +3688,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_in_map
     #[test]
     fn t_in_map() {
         assert_eq!(
@@ -3660,11 +3697,13 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_in_number
     #[test]
     fn t_in_number() {
         assert_eq!(binary("in", &Value::Int(1), &Value::Int(2)), None);
     }
 
+    // mitra: evidence for t_union
     #[test]
     fn t_union() {
         assert_eq!(
@@ -3673,6 +3712,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_union_swapped
     #[test]
     fn t_union_swapped() {
         assert_eq!(
@@ -3681,6 +3721,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_intersection
     #[test]
     fn t_intersection() {
         assert_eq!(
@@ -3689,11 +3730,13 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_apart
     #[test]
     fn t_apart() {
         assert_eq!(binary("&", &ints(&[1]), &ints(&[2, 3])), Some(ints(&[])));
     }
 
+    // mitra: evidence for t_difference
     #[test]
     fn t_difference() {
         assert_eq!(
@@ -3702,6 +3745,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_map_update
     #[test]
     fn t_map_update() {
         assert_eq!(
@@ -3710,6 +3754,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_map_remove
     #[test]
     fn t_map_remove() {
         assert_eq!(
@@ -3722,11 +3767,13 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_set_with_map
     #[test]
     fn t_set_with_map() {
         assert_eq!(binary("|", &ints(&[1]), &map(&[("a", 1)])), None);
     }
 
+    // mitra: evidence for t_keys
     #[test]
     fn t_keys() {
         assert_eq!(
@@ -3735,6 +3782,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_keys_of_a_set
     #[test]
     fn t_keys_of_a_set() {
         assert_eq!(unary("keys", &ints(&[1])), None);

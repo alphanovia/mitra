@@ -2,7 +2,7 @@
 //
 // The code is in src/. A comment `// mitra: implements mass::judged`
 // above a `fn` ties it to a function here, and `mitra tie` checks that
-// the two agree. The tests are in tests.mitra.
+// the two agree. The points the tests pin are in points.mitra.
 
 // Rust's own, which the code uses.
 import std::claims::{uniform};

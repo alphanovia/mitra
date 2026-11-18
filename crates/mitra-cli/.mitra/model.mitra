@@ -2,7 +2,7 @@
 //
 // The code is in src/. A comment `// mitra: implements report::short`
 // above a `fn` ties it to a function here, and `mitra tie` checks that
-// the two agree. The tests are in tests.mitra.
+// the two agree. The points the tests pin are in points.mitra.
 //
 // Modelled: reading test reports (src/report.rs) and reading the model
 // lines of a Rust file (src/source.rs). Not modelled: the commands, the

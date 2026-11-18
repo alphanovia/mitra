@@ -1,0 +1,131 @@
+// The points the tests pin: each is a claim. The test that checks it is
+// the `fn` under the comment `// mitra: evidence for <claim>`, in the
+// Rust file named above the claim.
+
+// src/culprits.rs
+
+claim code_against_one_failure() { correct(culprits::rank([None, Some(0.8)], [[0, 1]])) }
+
+claim three_pieces_in_conflict() {
+    correct(culprits::rank([Some(0.9), Some(0.99), Some(0.8)], [[0, 1, 2]]))
+}
+
+claim no_clause_no_belief() { correct(culprits::rank([Some(0.3), Some(1.0), None, Some(0.0)], [])) }
+
+claim distrust_shows() { correct(culprits::rank([Some(0.0), Some(0.6), Some(0.7)], [[0, 1, 2]])) }
+
+claim full_trust() {
+    culprits::rank([None, Some(1.0)], [[0, 1]]) == Ok(Ranking([1.0, 0.0], [1.0, 0.0], 0.0, 0))
+}
+
+claim a_tie_beside_a_distrusted_piece() {
+    correct(culprits::rank([Some(1.0), Some(0.1), Some(1.0), Some(1.0)], [[0, 1, 3], [0, 2, 3]]))
+}
+
+claim outside_every_clause() { correct(culprits::rank([None, Some(0.5), Some(0.5)], [[0, 1]])) }
+
+claim two_failures_agree() {
+    correct(culprits::rank([None, Some(0.8), Some(0.8)], [[0, 1], [0, 2]]))
+}
+
+claim rejects_bias_above_one() { culprits::rank([Some(1.5)], []) == Err(Invalid) }
+
+claim rejects_unknown_piece() { culprits::rank([Some(0.5)], [[3]]) == Err(Invalid) }
+
+// tests/props.rs
+
+claim t_yager_agree() {
+    mass::yager(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0)) == Some((Mass(1.0, 0.0, 0.0), 0.0))
+}
+
+claim t_yager_contradict() {
+    mass::yager(Mass(1.0, 0.0, 0.0), Mass(0.0, 1.0, 0.0)) == Some((Mass(0.0, 0.0, 1.0), 1.0))
+}
+
+claim t_yager_contradict_swapped() {
+    mass::yager(Mass(0.0, 1.0, 0.0), Mass(1.0, 0.0, 0.0)) == Some((Mass(0.0, 0.0, 1.0), 1.0))
+}
+
+claim t_yager_with_nothing() {
+    mass::yager(Mass(1.0, 0.0, 0.0), Mass(0.0, 0.0, 1.0)) == Some((Mass(1.0, 0.0, 0.0), 0.0))
+}
+
+claim t_yager_nothing_first() {
+    mass::yager(Mass(0.0, 0.0, 1.0), Mass(1.0, 0.0, 0.0)) == Some((Mass(1.0, 0.0, 0.0), 0.0))
+}
+
+claim t_yager_nothing() {
+    mass::yager(Mass(0.0, 0.0, 1.0), Mass(0.0, 0.0, 1.0)) == Some((Mass(0.0, 0.0, 1.0), 0.0))
+}
+
+claim t_dempster_agree() {
+    mass::dempster(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0)) == Some(Mass(1.0, 0.0, 0.0))
+}
+
+claim t_dempster_contradict() { mass::dempster(Mass(1.0, 0.0, 0.0), Mass(0.0, 1.0, 0.0)) == None }
+
+claim t_dempster_contradict_swapped() {
+    mass::dempster(Mass(0.0, 1.0, 0.0), Mass(1.0, 0.0, 0.0)) == None
+}
+
+claim t_dempster_with_nothing() {
+    mass::dempster(Mass(1.0, 0.0, 0.0), Mass(0.0, 0.0, 1.0)) == Some(Mass(1.0, 0.0, 0.0))
+}
+
+claim t_dempster_nothing_first() {
+    mass::dempster(Mass(0.0, 0.0, 1.0), Mass(1.0, 0.0, 0.0)) == Some(Mass(1.0, 0.0, 0.0))
+}
+
+claim t_dempster_nothing() {
+    mass::dempster(Mass(0.0, 0.0, 1.0), Mass(0.0, 0.0, 1.0)) == Some(Mass(0.0, 0.0, 1.0))
+}
+
+claim t_judged_correct() { mass::judged(true, 0.25) == Some(Mass(0.25, 0.0, 0.75)) }
+
+claim t_judged_wrong() { mass::judged(false, 0.25) == Some(Mass(0.0, 0.25, 0.75)) }
+
+claim t_judged_at_zero() { mass::judged(true, 0.0) == Some(Mass(0.0, 0.0, 1.0)) }
+
+claim t_judged_at_one() { mass::judged(false, 1.0) == Some(Mass(0.0, 1.0, 0.0)) }
+
+claim t_judged_rejects_above() { mass::judged(true, 1.5) == None }
+
+claim t_judged_rejects_below() { mass::judged(false, -0.5) == None }
+
+claim t_yager_rejects_negative() { mass::yager(Mass(-0.5, 0.5, 1.0), Mass(0.0, 0.0, 1.0)) == None }
+
+claim t_yager_rejects_sum() { mass::yager(Mass(0.5, 0.5, 0.5), Mass(0.0, 0.0, 1.0)) == None }
+
+claim t_yager_rejects_second() { mass::yager(Mass(0.0, 0.0, 1.0), Mass(0.5, 0.5, 0.5)) == None }
+
+claim t_dempster_rejects_first() {
+    mass::dempster(Mass(-0.5, 0.5, 1.0), Mass(0.0, 0.0, 1.0)) == None
+}
+
+claim t_dempster_rejects_negative() {
+    mass::dempster(Mass(0.0, 0.0, 1.0), Mass(-0.5, 0.5, 1.0)) == None
+}
+
+claim t_dempster_rejects_sum() { mass::dempster(Mass(0.0, 0.0, 1.0), Mass(0.5, 0.5, 0.5)) == None }
+
+claim t_valid_yes() { mass::is_valid(Mass(0.5, 0.0, 0.5)) == true }
+
+claim t_valid_slack() { mass::is_valid(Mass(0.5, 0.0, 0.5000000001)) == true }
+
+claim t_valid_negative() { mass::is_valid(Mass(-0.5, 0.5, 1.0)) == false }
+
+claim t_valid_sum() { mass::is_valid(Mass(0.5, 0.5, 0.5)) == false }
+
+claim t_conflict_total() { mass::conflict(Mass(1.0, 0.0, 0.0), Mass(0.0, 1.0, 0.0)) == 1.0 }
+
+claim t_conflict_mixed() { mass::conflict(Mass(0.5, 0.25, 0.25), Mass(0.25, 0.5, 0.25)) == 0.3125 }
+
+claim t_conflict_none() { mass::conflict(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0)) == 0.0 }
+
+claim t_conflict_invalid_first() {
+    mass::conflict(Mass(-0.5, 0.5, 1.0), Mass(0.0, 0.0, 1.0)) == 0.0
+}
+
+claim t_conflict_invalid_second() {
+    mass::conflict(Mass(0.0, 0.0, 1.0), Mass(0.5, 0.5, 0.5)) == 0.0
+}

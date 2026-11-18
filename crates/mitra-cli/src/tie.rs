@@ -200,6 +200,53 @@ pub struct Found {
 }
 
 /// Compare the code under `root` with the model.
+/// A test tied to a claim: `// mitra: evidence for math::div_small` above
+/// its `fn`. A pass is evidence that the claim holds, a failure that it
+/// does not.
+pub struct Tied {
+    /// The name of the test function.
+    pub test: String,
+    pub claim: String,
+    /// The file and line of the comment.
+    pub place: String,
+}
+
+/// Every test of `src/` and `tests/` tied to a claim.
+pub fn tests(root: &Path) -> Result<Vec<Tied>, String> {
+    let mut files = Vec::new();
+    for d in ["src", "tests"] {
+        rust_files(&root.join(d), &mut files);
+    }
+    files.sort();
+    let mut out = Vec::new();
+    for f in files {
+        let shown = f.strip_prefix(root).unwrap_or(&f).display().to_string();
+        let text = std::fs::read_to_string(&f).map_err(|e| format!("{shown}: {e}"))?;
+        let lines: Vec<&str> = text.lines().collect();
+        let scanned = scan(&text);
+        for i in 0..lines.len() {
+            let tie = mitra_line(lines[i]).and_then(|m| m.strip_prefix("evidence for "));
+            let Some(claim) = tie.filter(|_| scanned[i].0) else {
+                continue;
+            };
+            let place = format!("{shown}:{}", i + 1);
+            let code: Vec<&str> = scanned[i + 1..].iter().map(|l| l.1.as_str()).collect();
+            let code = code.join("\n");
+            let Some(test) = fn_below(&code) else {
+                return Err(format!(
+                    "{place}: `evidence for` must sit above a test `fn`"
+                ));
+            };
+            out.push(Tied {
+                test: test.to_string(),
+                claim: claim.trim().to_string(),
+                place,
+            });
+        }
+    }
+    Ok(out)
+}
+
 pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, String> {
     let mut files = Vec::new();
     for d in ["src", "tests"] {

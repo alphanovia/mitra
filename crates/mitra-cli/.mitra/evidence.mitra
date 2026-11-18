@@ -1,99 +1,56 @@
 -- Evidence, append-only: `mitra add` and `mitra ingest` write here.
-@[source "test:t_attr_double", rev "24e08bdd5cc4"] evidence correct(report::attr("<testcase name=\"t\"", "name")) at 1
-@[source "test:t_attr_double", rev "24e08bdd5cc4"] evidence report::attr("<testcase name=\"t\"", "name") = Some("t") at 1
-@[source "test:t_attr_entities", rev "24e08bdd5cc4"] evidence correct(report::attr("<a name=\"a &lt; b &amp;lt;\"", "name")) at 1
-@[source "test:t_attr_entities", rev "24e08bdd5cc4"] evidence report::attr("<a name=\"a &lt; b &amp;lt;\"", "name") = Some("a < b &lt;") at 1
-@[source "test:t_attr_inside_another", rev "24e08bdd5cc4"] evidence correct(report::attr("<testcase\tclassname=\"name=x\" name = \"t\"", "name")) at 1
-@[source "test:t_attr_inside_another", rev "24e08bdd5cc4"] evidence report::attr("<testcase\tclassname=\"name=x\" name = \"t\"", "name") = Some("t") at 1
-@[source "test:t_attr_missing", rev "24e08bdd5cc4"] evidence correct(report::attr("<testcase time=\"1\"", "name")) at 1
-@[source "test:t_attr_missing", rev "24e08bdd5cc4"] evidence report::attr("<testcase time=\"1\"", "name") = None at 1
-@[source "test:t_attr_single", rev "24e08bdd5cc4"] evidence correct(report::attr("<testcase name='t'", "name")) at 1
-@[source "test:t_attr_single", rev "24e08bdd5cc4"] evidence report::attr("<testcase name='t'", "name") = Some("t") at 1
-@[source "test:t_junit_error", rev "24e08bdd5cc4"] evidence correct(report::junit("<testcase name=\"t\"><error/></testcase>")) at 1
-@[source "test:t_junit_error", rev "24e08bdd5cc4"] evidence report::junit("<testcase name=\"t\"><error/></testcase>") = [Outcome("t", false)] at 1
-@[source "test:t_junit_failure", rev "24e08bdd5cc4"] evidence correct(report::junit("<testcase name=\"t\"><failure message=\"boom\"/></testcase>")) at 1
-@[source "test:t_junit_failure", rev "24e08bdd5cc4"] evidence report::junit("<testcase name=\"t\"><failure message=\"boom\"/></testcase>") = [Outcome("t", false)] at 1
-@[source "test:t_junit_failure_in_a_log", rev "24e08bdd5cc4"] evidence correct(report::junit("<testcase name='t'><system-out><![CDATA[ <failure> ]]></system-out></testcase>")) at 1
-@[source "test:t_junit_failure_in_a_log", rev "24e08bdd5cc4"] evidence report::junit("<testcase name='t'><system-out><![CDATA[ <failure> ]]></system-out></testcase>") = [Outcome("t", true)] at 1
-@[source "test:t_junit_passed", rev "24e08bdd5cc4"] evidence correct(report::junit("<testcase classname=\"add\" name=\"t\"/>")) at 1
-@[source "test:t_junit_passed", rev "24e08bdd5cc4"] evidence report::junit("<testcase classname=\"add\" name=\"t\"/>") = [Outcome("t", true)] at 1
-@[source "test:t_junit_path", rev "24e08bdd5cc4"] evidence correct(report::junit("<testcase name=\"tests::t\"/>")) at 1
-@[source "test:t_junit_path", rev "24e08bdd5cc4"] evidence report::junit("<testcase name=\"tests::t\"/>") = [Outcome("t", true)] at 1
-@[source "test:t_junit_skipped", rev "24e08bdd5cc4"] evidence correct(report::junit("<testcase name=\"t\"><skipped/></testcase>")) at 1
-@[source "test:t_junit_skipped", rev "24e08bdd5cc4"] evidence report::junit("<testcase name=\"t\"><skipped/></testcase>") = [] at 1
-@[source "test:t_libtest_failed", rev "24e08bdd5cc4"] evidence correct(report::libtest("test t_big ... FAILED")) at 1
-@[source "test:t_libtest_failed", rev "24e08bdd5cc4"] evidence report::libtest("test t_big ... FAILED") = [Outcome("t_big", false)] at 1
-@[source "test:t_libtest_ignored", rev "24e08bdd5cc4"] evidence correct(report::libtest("test tests::slow ... ignored")) at 1
-@[source "test:t_libtest_ignored", rev "24e08bdd5cc4"] evidence report::libtest("test tests::slow ... ignored") = [] at 1
-@[source "test:t_libtest_ok", rev "24e08bdd5cc4"] evidence correct(report::libtest("test tests::t_small ... ok")) at 1
-@[source "test:t_libtest_ok", rev "24e08bdd5cc4"] evidence report::libtest("test tests::t_small ... ok") = [Outcome("t_small", true)] at 1
-@[source "test:t_libtest_other_lines", rev "24e08bdd5cc4"] evidence correct(report::libtest("running 3 tests\ntest result: FAILED. 1 passed; 1 failed")) at 1
-@[source "test:t_libtest_other_lines", rev "24e08bdd5cc4"] evidence report::libtest("running 3 tests\ntest result: FAILED. 1 passed; 1 failed") = [] at 1
-@[source "test:t_libtest_timed", rev "24e08bdd5cc4"] evidence correct(report::libtest("test t_timed ... ok <0.001s>")) at 1
-@[source "test:t_libtest_timed", rev "24e08bdd5cc4"] evidence report::libtest("test t_timed ... ok <0.001s>") = [Outcome("t_timed", true)] at 1
-@[source "test:t_libtest_two", rev "24e08bdd5cc4"] evidence correct(report::libtest("test a ... ok\ntest b ... FAILED")) at 1
-@[source "test:t_libtest_two", rev "24e08bdd5cc4"] evidence report::libtest("test a ... ok\ntest b ... FAILED") = [Outcome("a", true), Outcome("b", false)] at 1
-@[source "test:t_short_panics_once", rev "24e08bdd5cc4"] evidence correct(report::short("t_panics")) at 1
-@[source "test:t_short_panics_once", rev "24e08bdd5cc4"] evidence report::short("t_panics") = "t_panics" at 1
-@[source "test:t_short_path", rev "24e08bdd5cc4"] evidence correct(report::short("tests::t_small")) at 1
-@[source "test:t_short_path", rev "24e08bdd5cc4"] evidence report::short("tests::t_small") = "t_small" at 1
-@[source "test:t_short_plain", rev "24e08bdd5cc4"] evidence correct(report::short("t_small")) at 1
-@[source "test:t_short_plain", rev "24e08bdd5cc4"] evidence report::short("t_small") = "t_small" at 1
-@[source "test:t_short_should_panic", rev "24e08bdd5cc4"] evidence correct(report::short("t_panics - should panic")) at 1
-@[source "test:t_short_should_panic", rev "24e08bdd5cc4"] evidence report::short("t_panics - should panic") = "t_panics" at 1
-@[source "test:t_strip_nothing", rev "24e08bdd5cc4"] evidence correct(report::strip("abc", "<x>", "</x>")) at 1
-@[source "test:t_strip_nothing", rev "24e08bdd5cc4"] evidence report::strip("abc", "<x>", "</x>") = "abc" at 1
-@[source "test:t_strip_one", rev "24e08bdd5cc4"] evidence correct(report::strip("a<x>b</x>c", "<x>", "</x>")) at 1
-@[source "test:t_strip_one", rev "24e08bdd5cc4"] evidence report::strip("a<x>b</x>c", "<x>", "</x>") = "ac" at 1
-@[source "test:t_strip_unclosed", rev "24e08bdd5cc4"] evidence correct(report::strip("a<x>b", "<x>", "</x>")) at 1
-@[source "test:t_strip_unclosed", rev "24e08bdd5cc4"] evidence report::strip("a<x>b", "<x>", "</x>") = "a" at 1
-@[source "test:t_below_attribute", rev "24e08bdd5cc4"] evidence correct(source::fn_below("#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}")) at 1
-@[source "test:t_below_attribute", rev "24e08bdd5cc4"] evidence source::fn_below("#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}") = Some("f") at 1
-@[source "test:t_below_nothing", rev "24e08bdd5cc4"] evidence correct(source::fn_below("")) at 1
-@[source "test:t_below_nothing", rev "24e08bdd5cc4"] evidence source::fn_below("") = None at 1
-@[source "test:t_below_plain", rev "24e08bdd5cc4"] evidence correct(source::fn_below("fn f() {}")) at 1
-@[source "test:t_below_plain", rev "24e08bdd5cc4"] evidence source::fn_below("fn f() {}") = Some("f") at 1
-@[source "test:t_below_qualified", rev "24e08bdd5cc4"] evidence correct(source::fn_below("pub(crate) const unsafe fn f() {}")) at 1
-@[source "test:t_below_qualified", rev "24e08bdd5cc4"] evidence source::fn_below("pub(crate) const unsafe fn f() {}") = Some("f") at 1
-@[source "test:t_below_struct", rev "24e08bdd5cc4"] evidence correct(source::fn_below("pub struct S;\nfn f() {}")) at 1
-@[source "test:t_below_struct", rev "24e08bdd5cc4"] evidence source::fn_below("pub struct S;\nfn f() {}") = None at 1
-@[source "test:t_extract_aligned", rev "24e08bdd5cc4"] evidence correct(source::extract("// mitra: opaque f(a: Bool) -> Bool\n#[inline] pub fn f() {}")) at 1
-@[source "test:t_extract_aligned", rev "24e08bdd5cc4"] evidence source::extract("// mitra: opaque f(a: Bool) -> Bool\n#[inline] pub fn f() {}") = Ok([(1, "opaque f(a: Bool) -> Bool")]) at 1
-@[source "test:t_extract_alone", rev "24e08bdd5cc4"] evidence correct(source::extract("// mitra: test t : correct(f(1))")) at 1
-@[source "test:t_extract_alone", rev "24e08bdd5cc4"] evidence source::extract("// mitra: test t : correct(f(1))") = Err((1, "`test t` must sit above `fn t`, found no function")) at 1
-@[source "test:t_extract_in_a_string", rev "24e08bdd5cc4"] evidence correct(source::extract("const A: &str = \"\n// mitra: claim a : correct(f(1))\n\";")) at 1
-@[source "test:t_extract_in_a_string", rev "24e08bdd5cc4"] evidence source::extract("const A: &str = \"\n// mitra: claim a : correct(f(1))\n\";") = Ok([]) at 1
-@[source "test:t_extract_misaligned", rev "24e08bdd5cc4"] evidence correct(source::extract("// mitra: opaque add(a: Int) -> Int\nfn sub() {}")) at 1
-@[source "test:t_extract_misaligned", rev "24e08bdd5cc4"] evidence source::extract("// mitra: opaque add(a: Int) -> Int\nfn sub() {}") = Err((1, "`opaque add` must sit above `fn add`, found `fn sub`")) at 1
-@[source "test:t_extract_none", rev "24e08bdd5cc4"] evidence correct(source::extract("// a comment about mitra: no")) at 1
-@[source "test:t_extract_none", rev "24e08bdd5cc4"] evidence source::extract("// a comment about mitra: no") = Ok([]) at 1
-@[source "test:t_extract_one", rev "24e08bdd5cc4"] evidence correct(source::extract("// mitra: claim c : correct(f(1))")) at 1
-@[source "test:t_extract_one", rev "24e08bdd5cc4"] evidence source::extract("// mitra: claim c : correct(f(1))") = Ok([(1, "claim c : correct(f(1))")]) at 1
-@[source "test:t_line_code", rev "24e08bdd5cc4"] evidence correct(source::mitra_line("let x = 1; // mitra: claim c : correct(f(1))")) at 1
-@[source "test:t_line_code", rev "24e08bdd5cc4"] evidence source::mitra_line("let x = 1; // mitra: claim c : correct(f(1))") = None at 1
-@[source "test:t_line_comment", rev "24e08bdd5cc4"] evidence correct(source::mitra_line("// a comment about mitra: no")) at 1
-@[source "test:t_line_comment", rev "24e08bdd5cc4"] evidence source::mitra_line("// a comment about mitra: no") = None at 1
-@[source "test:t_line_doc", rev "24e08bdd5cc4"] evidence correct(source::mitra_line("/// mitra: claim c : correct(f(1))")) at 1
-@[source "test:t_line_doc", rev "24e08bdd5cc4"] evidence source::mitra_line("/// mitra: claim c : correct(f(1))") = Some("claim c : correct(f(1))") at 1
-@[source "test:t_line_keeps_indent", rev "24e08bdd5cc4"] evidence correct(source::mitra_line("// mitra:   then 1")) at 1
-@[source "test:t_line_keeps_indent", rev "24e08bdd5cc4"] evidence source::mitra_line("// mitra:   then 1") = Some("  then 1") at 1
-@[source "test:t_line_plain", rev "24e08bdd5cc4"] evidence correct(source::mitra_line("    // mitra: claim c : correct(f(1))")) at 1
-@[source "test:t_line_plain", rev "24e08bdd5cc4"] evidence source::mitra_line("    // mitra: claim c : correct(f(1))") = Some("claim c : correct(f(1))") at 1
-@[source "test:t_words_comment", rev "24e08bdd5cc4"] evidence correct(source::words("claim c -- a test of opaque things")) at 1
-@[source "test:t_words_comment", rev "24e08bdd5cc4"] evidence source::words("claim c -- a test of opaque things") = ["claim", "c"] at 1
-@[source "test:t_words_plain", rev "24e08bdd5cc4"] evidence correct(source::words("opaque f(a: Int) -> Int")) at 1
-@[source "test:t_words_plain", rev "24e08bdd5cc4"] evidence source::words("opaque f(a: Int) -> Int") = ["opaque", "f", "a", "Int", "Int"] at 1
-@[source "test:t_words_string", rev "24e08bdd5cc4"] evidence correct(source::words("claim c : correct(g(\"test -- \\\" opaque\")) -- x")) at 1
-@[source "test:t_words_string", rev "24e08bdd5cc4"] evidence source::words("claim c : correct(g(\"test -- \\\" opaque\")) -- x") = ["claim", "c", "correct", "g"] at 1
-@[source "reader:rust src/report.rs:19", rev "24e08bdd5cc4"] evidence report::short::tied at 1
-@[source "reader:rust src/report.rs:25", rev "24e08bdd5cc4"] evidence report::libtest::tied at 1
-@[source "reader:rust src/report.rs:25", rev "24e08bdd5cc4"] evidence report::libtest::uses at 1
-@[source "reader:rust src/report.rs:47", rev "24e08bdd5cc4"] evidence report::attr::tied at 1
-@[source "reader:rust src/report.rs:80", rev "24e08bdd5cc4"] evidence report::strip::tied at 1
-@[source "reader:rust src/report.rs:93", rev "24e08bdd5cc4"] evidence report::junit::tied at 1
-@[source "reader:rust src/report.rs:93", rev "24e08bdd5cc4"] evidence report::junit::uses at 1
-@[source "reader:rust src/source.rs:109", rev "24e08bdd5cc4"] evidence source::mitra_line::tied at 1
-@[source "reader:rust src/source.rs:190", rev "24e08bdd5cc4"] evidence source::fn_below::tied at 1
-@[source "reader:rust src/source.rs:228", rev "24e08bdd5cc4"] evidence source::words::tied at 1
-@[source "reader:rust src/source.rs:261", rev "24e08bdd5cc4"] evidence source::extract::tied at 1
-@[source "reader:rust src/source.rs:261", rev "24e08bdd5cc4"] evidence source::extract::uses at 1
+@[source "test:t_short_path", rev "2babb016b661"] evidence t_short_path at 1
+@[source "test:t_short_plain", rev "2babb016b661"] evidence t_short_plain at 1
+@[source "test:t_short_should_panic", rev "2babb016b661"] evidence t_short_should_panic at 1
+@[source "test:t_short_panics_once", rev "2babb016b661"] evidence t_short_panics_once at 1
+@[source "test:t_libtest_ok", rev "2babb016b661"] evidence t_libtest_ok at 1
+@[source "test:t_libtest_failed", rev "2babb016b661"] evidence t_libtest_failed at 1
+@[source "test:t_libtest_timed", rev "2babb016b661"] evidence t_libtest_timed at 1
+@[source "test:t_libtest_ignored", rev "2babb016b661"] evidence t_libtest_ignored at 1
+@[source "test:t_libtest_other_lines", rev "2babb016b661"] evidence t_libtest_other_lines at 1
+@[source "test:t_libtest_two", rev "2babb016b661"] evidence t_libtest_two at 1
+@[source "test:t_attr_double", rev "2babb016b661"] evidence t_attr_double at 1
+@[source "test:t_attr_single", rev "2babb016b661"] evidence t_attr_single at 1
+@[source "test:t_attr_missing", rev "2babb016b661"] evidence t_attr_missing at 1
+@[source "test:t_attr_inside_another", rev "2babb016b661"] evidence t_attr_inside_another at 1
+@[source "test:t_attr_entities", rev "2babb016b661"] evidence t_attr_entities at 1
+@[source "test:t_strip_one", rev "2babb016b661"] evidence t_strip_one at 1
+@[source "test:t_strip_unclosed", rev "2babb016b661"] evidence t_strip_unclosed at 1
+@[source "test:t_strip_nothing", rev "2babb016b661"] evidence t_strip_nothing at 1
+@[source "test:t_junit_passed", rev "2babb016b661"] evidence t_junit_passed at 1
+@[source "test:t_junit_failure", rev "2babb016b661"] evidence t_junit_failure at 1
+@[source "test:t_junit_error", rev "2babb016b661"] evidence t_junit_error at 1
+@[source "test:t_junit_skipped", rev "2babb016b661"] evidence t_junit_skipped at 1
+@[source "test:t_junit_failure_in_a_log", rev "2babb016b661"] evidence t_junit_failure_in_a_log at 1
+@[source "test:t_junit_path", rev "2babb016b661"] evidence t_junit_path at 1
+@[source "test:t_line_doc", rev "2babb016b661"] evidence t_line_doc at 1
+@[source "test:t_line_plain", rev "2babb016b661"] evidence t_line_plain at 1
+@[source "test:t_line_keeps_indent", rev "2babb016b661"] evidence t_line_keeps_indent at 1
+@[source "test:t_line_comment", rev "2babb016b661"] evidence t_line_comment at 1
+@[source "test:t_line_code", rev "2babb016b661"] evidence t_line_code at 1
+@[source "test:t_below_plain", rev "2babb016b661"] evidence t_below_plain at 1
+@[source "test:t_below_qualified", rev "2babb016b661"] evidence t_below_qualified at 1
+@[source "test:t_below_attribute", rev "2babb016b661"] evidence t_below_attribute at 1
+@[source "test:t_below_struct", rev "2babb016b661"] evidence t_below_struct at 1
+@[source "test:t_below_nothing", rev "2babb016b661"] evidence t_below_nothing at 1
+@[source "test:t_words_plain", rev "2babb016b661"] evidence t_words_plain at 1
+@[source "test:t_words_comment", rev "2babb016b661"] evidence t_words_comment at 1
+@[source "test:t_words_string", rev "2babb016b661"] evidence t_words_string at 1
+@[source "test:t_extract_one", rev "2babb016b661"] evidence t_extract_one at 1
+@[source "test:t_extract_none", rev "2babb016b661"] evidence t_extract_none at 1
+@[source "test:t_extract_aligned", rev "2babb016b661"] evidence t_extract_aligned at 1
+@[source "test:t_extract_misaligned", rev "2babb016b661"] evidence t_extract_misaligned at 1
+@[source "test:t_extract_alone", rev "2babb016b661"] evidence t_extract_alone at 1
+@[source "test:t_extract_in_a_string", rev "2babb016b661"] evidence t_extract_in_a_string at 1
+@[source "reader:rust src/report.rs:19", rev "2babb016b661"] evidence report::short::tied at 1
+@[source "reader:rust src/report.rs:25", rev "2babb016b661"] evidence report::libtest::tied at 1
+@[source "reader:rust src/report.rs:25", rev "2babb016b661"] evidence report::libtest::uses at 1
+@[source "reader:rust src/report.rs:47", rev "2babb016b661"] evidence report::attr::tied at 1
+@[source "reader:rust src/report.rs:80", rev "2babb016b661"] evidence report::strip::tied at 1
+@[source "reader:rust src/report.rs:93", rev "2babb016b661"] evidence report::junit::tied at 1
+@[source "reader:rust src/report.rs:93", rev "2babb016b661"] evidence report::junit::uses at 1
+@[source "reader:rust src/source.rs:109", rev "2babb016b661"] evidence source::mitra_line::tied at 1
+@[source "reader:rust src/source.rs:190", rev "2babb016b661"] evidence source::fn_below::tied at 1
+@[source "reader:rust src/source.rs:228", rev "2babb016b661"] evidence source::words::tied at 1
+@[source "reader:rust src/source.rs:267", rev "2babb016b661"] evidence source::extract::tied at 1
+@[source "reader:rust src/source.rs:267", rev "2babb016b661"] evidence source::extract::uses at 1

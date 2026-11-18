@@ -254,6 +254,12 @@ fn words(line: &str) -> Vec<&str> {
         .collect()
 }
 
+/// A comment that ties code to a model kept aside: not a line of model.
+/// `implements f` above a function, `evidence for c` above a test.
+pub fn is_tie(m: &str) -> bool {
+    m.starts_with("implements ") || m.starts_with("evidence for ")
+}
+
 /// The model lines of a Rust file, numbered. A model line is a whole-line
 /// comment in code, not text inside a string or a block comment. Checks
 /// that each `opaque f` or `test t` starts its line and sits above `fn f`
@@ -262,9 +268,7 @@ fn words(line: &str) -> Vec<&str> {
 pub fn extract(text: &str) -> Result<Vec<(usize, String)>, (usize, String)> {
     let lines: Vec<&str> = text.lines().collect();
     let scanned = scan(text);
-    let is_model = |i: usize| {
-        scanned[i].0 && mitra_line(lines[i]).is_some_and(|m| !m.starts_with("implements "))
-    };
+    let is_model = |i: usize| scanned[i].0 && mitra_line(lines[i]).is_some_and(|m| !is_tie(m));
     let mut out = Vec::new();
     let mut i = 0;
     while i < lines.len() {
@@ -276,7 +280,7 @@ pub fn extract(text: &str) -> Result<Vec<(usize, String)>, (usize, String)> {
         let mut names = Vec::new();
         while i < lines.len() && scanned[i].0 && lines[i].trim_start().starts_with("//") {
             // A tie to a model kept aside is not a line of model.
-            let tie = mitra_line(lines[i]).is_some_and(|m| m.starts_with("implements "));
+            let tie = mitra_line(lines[i]).is_some_and(is_tie);
             if let Some(m) = mitra_line(lines[i]).filter(|_| !tie) {
                 let w = words(m);
                 for (at, word) in w.iter().enumerate() {
@@ -321,6 +325,7 @@ mod tests {
     // One input per test, for Mitra: each `mitra: test` line gives the
     // output the test checks.
 
+    // mitra: evidence for t_line_doc
     #[test]
     fn t_line_doc() {
         assert_eq!(
@@ -329,6 +334,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_line_plain
     #[test]
     fn t_line_plain() {
         assert_eq!(
@@ -337,16 +343,19 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_line_keeps_indent
     #[test]
     fn t_line_keeps_indent() {
         assert_eq!(mitra_line("// mitra:   then 1"), Some("  then 1"));
     }
 
+    // mitra: evidence for t_line_comment
     #[test]
     fn t_line_comment() {
         assert_eq!(mitra_line("// a comment about mitra: no"), None);
     }
 
+    // mitra: evidence for t_line_code
     #[test]
     fn t_line_code() {
         assert_eq!(
@@ -355,16 +364,19 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_below_plain
     #[test]
     fn t_below_plain() {
         assert_eq!(fn_below("fn f() {}"), Some("f"));
     }
 
+    // mitra: evidence for t_below_qualified
     #[test]
     fn t_below_qualified() {
         assert_eq!(fn_below("pub(crate) const unsafe fn f() {}"), Some("f"));
     }
 
+    // mitra: evidence for t_below_attribute
     #[test]
     fn t_below_attribute() {
         assert_eq!(
@@ -373,16 +385,19 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_below_struct
     #[test]
     fn t_below_struct() {
         assert_eq!(fn_below("pub struct S;\nfn f() {}"), None);
     }
 
+    // mitra: evidence for t_below_nothing
     #[test]
     fn t_below_nothing() {
         assert_eq!(fn_below(""), None);
     }
 
+    // mitra: evidence for t_words_plain
     #[test]
     fn t_words_plain() {
         assert_eq!(
@@ -391,11 +406,13 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_words_comment
     #[test]
     fn t_words_comment() {
         assert_eq!(words("claim c -- a test of opaque things"), ["claim", "c"]);
     }
 
+    // mitra: evidence for t_words_string
     #[test]
     fn t_words_string() {
         assert_eq!(
@@ -404,6 +421,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_extract_one
     #[test]
     fn t_extract_one() {
         assert_eq!(
@@ -412,11 +430,13 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_extract_none
     #[test]
     fn t_extract_none() {
         assert_eq!(extract("// a comment about mitra: no"), Ok(vec![]));
     }
 
+    // mitra: evidence for t_extract_aligned
     #[test]
     fn t_extract_aligned() {
         assert_eq!(
@@ -425,6 +445,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_extract_misaligned
     #[test]
     fn t_extract_misaligned() {
         assert_eq!(
@@ -436,6 +457,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_extract_alone
     #[test]
     fn t_extract_alone() {
         assert_eq!(
@@ -447,6 +469,7 @@ mod tests {
         );
     }
 
+    // mitra: evidence for t_extract_in_a_string
     #[test]
     fn t_extract_in_a_string() {
         assert_eq!(

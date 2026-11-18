@@ -1149,16 +1149,19 @@ mod tests {
     // One input per test, for Mitra: each `mitra: test` line gives the
     // output the test checks.
 
+    // mitra: evidence for t_quote_plain
     #[test]
     fn t_quote_plain() {
         assert_eq!(quote("a b"), "\"a b\"");
     }
 
+    // mitra: evidence for t_quote_empty
     #[test]
     fn t_quote_empty() {
         assert_eq!(quote(""), "\"\"");
     }
 
+    // mitra: evidence for t_quote_escapes
     #[test]
     fn t_quote_escapes() {
         assert_eq!(quote("a\"b\\c\nd\te"), "\"a\\\"b\\\\c\\nd\\te\"");

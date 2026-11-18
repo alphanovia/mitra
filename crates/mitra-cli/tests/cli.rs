@@ -185,7 +185,7 @@ fn ingest_turns_test_results_into_evidence() {
         out,
         "4 results: 2 passed, 2 failed; 2 evidence added\n\
          test t_all failed: no evidence, since it is about a set of inputs, and Mitra can't tell which one was wrong\n\
-         no `test` declared for: t_other\n"
+         tied to no claim: t_other\n"
     );
     let evidence = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
     assert!(
@@ -479,6 +479,18 @@ fn tie_compares_the_code_with_the_model() {
         out.contains("The model and the code of `bank::withdraw` do not agree"),
         "{out}"
     );
+    // A test tied to a claim by a comment is evidence for that claim.
+    let report = "test deposit_adds ... ok\ntest other ... FAILED\n";
+    std::fs::write(dir.join("report.txt"), report).unwrap();
+    let (code, out, err) = mitra(&dir, &["ingest", "report.txt", "--rev", "abc"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("1 evidence added"), "{out}");
+    assert!(
+        out.contains("tied to no claim, so no verdict shows it: other"),
+        "{out}"
+    );
+    let (_, out, _) = mitra(&dir, &["eval"]);
+    assert!(out.contains("deposit_adds: holds"), "{out}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 

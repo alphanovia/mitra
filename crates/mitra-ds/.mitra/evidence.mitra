@@ -1,61 +1,58 @@
 -- Evidence, append-only: `mitra add` and `mitra ingest` write here.
-@[source "test:a_tie_beside_a_distrusted_piece", rev "04fd64304cfd"] evidence correct(culprits::rank([Some(1.0), Some(0.1), Some(1.0), Some(1.0)], [[0, 1, 3], [0, 2, 3]])) at 1
-@[source "test:code_against_one_failure", rev "04fd64304cfd"] evidence correct(culprits::rank([None, Some(0.8)], [[0, 1]])) at 1
-@[source "test:distrust_shows", rev "04fd64304cfd"] evidence correct(culprits::rank([Some(0.0), Some(0.6), Some(0.7)], [[0, 1, 2]])) at 1
-@[source "test:full_trust", rev "04fd64304cfd"] evidence correct(culprits::rank([None, Some(1.0)], [[0, 1]])) at 1
-@[source "test:full_trust", rev "04fd64304cfd"] evidence culprits::rank([None, Some(1.0)], [[0, 1]]) = Ok(Ranking([1.0, 0.0], [1.0, 0.0], 0.0, 0)) at 1
-@[source "test:no_clause_no_belief", rev "04fd64304cfd"] evidence correct(culprits::rank([Some(0.3), Some(1.0), None, Some(0.0)], [])) at 1
-@[source "test:outside_every_clause", rev "04fd64304cfd"] evidence correct(culprits::rank([None, Some(0.5), Some(0.5)], [[0, 1]])) at 1
-@[source "test:rejects_bias_above_one", rev "04fd64304cfd"] evidence correct(culprits::rank([Some(1.5)], [])) at 1
-@[source "test:rejects_bias_above_one", rev "04fd64304cfd"] evidence culprits::rank([Some(1.5)], []) = Err(Invalid) at 1
-@[source "test:rejects_unknown_piece", rev "04fd64304cfd"] evidence correct(culprits::rank([Some(0.5)], [[3]])) at 1
-@[source "test:rejects_unknown_piece", rev "04fd64304cfd"] evidence culprits::rank([Some(0.5)], [[3]]) = Err(Invalid) at 1
-@[source "test:three_pieces_in_conflict", rev "04fd64304cfd"] evidence correct(culprits::rank([Some(0.9), Some(0.99), Some(0.8)], [[0, 1, 2]])) at 1
-@[source "test:two_failures_agree", rev "04fd64304cfd"] evidence correct(culprits::rank([None, Some(0.8), Some(0.8)], [[0, 1], [0, 2]])) at 1
-@[source "test:t_conflict_invalid_first", rev "04fd64304cfd"] evidence mass::conflict(Mass(-0.5, 0.5, 1.0), Mass(0.0, 0.0, 1.0)) = 0.0 at 1
-@[source "test:t_conflict_invalid_second", rev "04fd64304cfd"] evidence mass::conflict(Mass(0.0, 0.0, 1.0), Mass(0.5, 0.5, 0.5)) = 0.0 at 1
-@[source "test:t_conflict_mixed", rev "04fd64304cfd"] evidence mass::conflict(Mass(0.5, 0.25, 0.25), Mass(0.25, 0.5, 0.25)) = 0.3125 at 1
-@[source "test:t_conflict_none", rev "04fd64304cfd"] evidence mass::conflict(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0)) = 0.0 at 1
-@[source "test:t_conflict_total", rev "04fd64304cfd"] evidence mass::conflict(Mass(1.0, 0.0, 0.0), Mass(0.0, 1.0, 0.0)) = 1.0 at 1
-@[source "test:t_dempster_agree", rev "04fd64304cfd"] evidence mass::dempster(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0)) = Some(Mass(1.0, 0.0, 0.0)) at 1
-@[source "test:t_dempster_contradict", rev "04fd64304cfd"] evidence mass::dempster(Mass(1.0, 0.0, 0.0), Mass(0.0, 1.0, 0.0)) = None at 1
-@[source "test:t_dempster_contradict_swapped", rev "04fd64304cfd"] evidence mass::dempster(Mass(0.0, 1.0, 0.0), Mass(1.0, 0.0, 0.0)) = None at 1
-@[source "test:t_dempster_nothing", rev "04fd64304cfd"] evidence mass::dempster(Mass(0.0, 0.0, 1.0), Mass(0.0, 0.0, 1.0)) = Some(Mass(0.0, 0.0, 1.0)) at 1
-@[source "test:t_dempster_nothing_first", rev "04fd64304cfd"] evidence mass::dempster(Mass(0.0, 0.0, 1.0), Mass(1.0, 0.0, 0.0)) = Some(Mass(1.0, 0.0, 0.0)) at 1
-@[source "test:t_dempster_rejects_first", rev "04fd64304cfd"] evidence mass::dempster(Mass(-0.5, 0.5, 1.0), Mass(0.0, 0.0, 1.0)) = None at 1
-@[source "test:t_dempster_rejects_negative", rev "04fd64304cfd"] evidence mass::dempster(Mass(0.0, 0.0, 1.0), Mass(-0.5, 0.5, 1.0)) = None at 1
-@[source "test:t_dempster_rejects_sum", rev "04fd64304cfd"] evidence mass::dempster(Mass(0.0, 0.0, 1.0), Mass(0.5, 0.5, 0.5)) = None at 1
-@[source "test:t_dempster_with_nothing", rev "04fd64304cfd"] evidence mass::dempster(Mass(1.0, 0.0, 0.0), Mass(0.0, 0.0, 1.0)) = Some(Mass(1.0, 0.0, 0.0)) at 1
-@[source "test:t_judged_at_one", rev "04fd64304cfd"] evidence mass::judged(false, 1.0) = Some(Mass(0.0, 1.0, 0.0)) at 1
-@[source "test:t_judged_at_zero", rev "04fd64304cfd"] evidence mass::judged(true, 0.0) = Some(Mass(0.0, 0.0, 1.0)) at 1
-@[source "test:t_judged_correct", rev "04fd64304cfd"] evidence mass::judged(true, 0.25) = Some(Mass(0.25, 0.0, 0.75)) at 1
-@[source "test:t_judged_rejects_above", rev "04fd64304cfd"] evidence mass::judged(true, 1.5) = None at 1
-@[source "test:t_judged_rejects_below", rev "04fd64304cfd"] evidence mass::judged(false, -0.5) = None at 1
-@[source "test:t_judged_wrong", rev "04fd64304cfd"] evidence mass::judged(false, 0.25) = Some(Mass(0.0, 0.25, 0.75)) at 1
-@[source "test:t_valid_negative", rev "04fd64304cfd"] evidence mass::is_valid(Mass(-0.5, 0.5, 1.0)) = false at 1
-@[source "test:t_valid_slack", rev "04fd64304cfd"] evidence mass::is_valid(Mass(0.5, 0.0, 0.5000000001)) = true at 1
-@[source "test:t_valid_sum", rev "04fd64304cfd"] evidence mass::is_valid(Mass(0.5, 0.5, 0.5)) = false at 1
-@[source "test:t_valid_yes", rev "04fd64304cfd"] evidence mass::is_valid(Mass(0.5, 0.0, 0.5)) = true at 1
-@[source "test:t_yager_agree", rev "04fd64304cfd"] evidence mass::yager(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0)) = Some((Mass(1.0, 0.0, 0.0), 0.0)) at 1
-@[source "test:t_yager_contradict", rev "04fd64304cfd"] evidence mass::yager(Mass(1.0, 0.0, 0.0), Mass(0.0, 1.0, 0.0)) = Some((Mass(0.0, 0.0, 1.0), 1.0)) at 1
-@[source "test:t_yager_contradict_swapped", rev "04fd64304cfd"] evidence mass::yager(Mass(0.0, 1.0, 0.0), Mass(1.0, 0.0, 0.0)) = Some((Mass(0.0, 0.0, 1.0), 1.0)) at 1
-@[source "test:t_yager_nothing", rev "04fd64304cfd"] evidence mass::yager(Mass(0.0, 0.0, 1.0), Mass(0.0, 0.0, 1.0)) = Some((Mass(0.0, 0.0, 1.0), 0.0)) at 1
-@[source "test:t_yager_nothing_first", rev "04fd64304cfd"] evidence mass::yager(Mass(0.0, 0.0, 1.0), Mass(1.0, 0.0, 0.0)) = Some((Mass(1.0, 0.0, 0.0), 0.0)) at 1
-@[source "test:t_yager_rejects_negative", rev "04fd64304cfd"] evidence mass::yager(Mass(-0.5, 0.5, 1.0), Mass(0.0, 0.0, 1.0)) = None at 1
-@[source "test:t_yager_rejects_second", rev "04fd64304cfd"] evidence mass::yager(Mass(0.0, 0.0, 1.0), Mass(0.5, 0.5, 0.5)) = None at 1
-@[source "test:t_yager_rejects_sum", rev "04fd64304cfd"] evidence mass::yager(Mass(0.5, 0.5, 0.5), Mass(0.0, 0.0, 1.0)) = None at 1
-@[source "test:t_yager_with_nothing", rev "04fd64304cfd"] evidence mass::yager(Mass(1.0, 0.0, 0.0), Mass(0.0, 0.0, 1.0)) = Some((Mass(1.0, 0.0, 0.0), 0.0)) at 1
-@[source "reader:rust src/culprits.rs:56", rev "04fd64304cfd"] evidence culprits::rank::tied at 1
-@[source "reader:rust src/lib.rs:43", rev "04fd64304cfd"] evidence mass::judged::tied at 1
-@[source "reader:rust src/lib.rs:53", rev "04fd64304cfd"] evidence mass::is_valid::tied at 1
-@[source "reader:rust src/lib.rs:61", rev "04fd64304cfd"] evidence mass::conflict::tied at 1
-@[source "reader:rust src/lib.rs:80", rev "04fd64304cfd"] evidence mass::dempster::tied at 1
-@[source "reader:rust src/lib.rs:80", rev "04fd64304cfd"] evidence mass::dempster::uses at 1
-@[source "reader:rust src/lib.rs:99", rev "04fd64304cfd"] evidence mass::yager::tied at 1
-@[source "reader:rust src/lib.rs:99", rev "04fd64304cfd"] evidence mass::yager::uses at 1
-@[source "review:claude", rev "04fd64304cfd"] evidence mass::conflict_uniform at 1
-@[source "review:claude", rev "04fd64304cfd"] evidence mass::dempster_uniform at 1
-@[source "review:claude", rev "04fd64304cfd"] evidence mass::is_valid_uniform at 1
-@[source "review:claude", rev "04fd64304cfd"] evidence mass::judged_uniform at 1
-@[source "review:claude", rev "04fd64304cfd"] evidence mass::renormalises_uniform at 1
-@[source "review:claude", rev "04fd64304cfd"] evidence mass::yager_uniform at 1
+@[source "test:code_against_one_failure", rev "c42b4e740113"] evidence code_against_one_failure at 1
+@[source "test:three_pieces_in_conflict", rev "c42b4e740113"] evidence three_pieces_in_conflict at 1
+@[source "test:no_clause_no_belief", rev "c42b4e740113"] evidence no_clause_no_belief at 1
+@[source "test:distrust_shows", rev "c42b4e740113"] evidence distrust_shows at 1
+@[source "test:full_trust", rev "c42b4e740113"] evidence full_trust at 1
+@[source "test:a_tie_beside_a_distrusted_piece", rev "c42b4e740113"] evidence a_tie_beside_a_distrusted_piece at 1
+@[source "test:outside_every_clause", rev "c42b4e740113"] evidence outside_every_clause at 1
+@[source "test:two_failures_agree", rev "c42b4e740113"] evidence two_failures_agree at 1
+@[source "test:rejects_bias_above_one", rev "c42b4e740113"] evidence rejects_bias_above_one at 1
+@[source "test:rejects_unknown_piece", rev "c42b4e740113"] evidence rejects_unknown_piece at 1
+@[source "test:t_yager_agree", rev "c42b4e740113"] evidence t_yager_agree at 1
+@[source "test:t_yager_contradict", rev "c42b4e740113"] evidence t_yager_contradict at 1
+@[source "test:t_yager_contradict_swapped", rev "c42b4e740113"] evidence t_yager_contradict_swapped at 1
+@[source "test:t_yager_with_nothing", rev "c42b4e740113"] evidence t_yager_with_nothing at 1
+@[source "test:t_yager_nothing_first", rev "c42b4e740113"] evidence t_yager_nothing_first at 1
+@[source "test:t_yager_nothing", rev "c42b4e740113"] evidence t_yager_nothing at 1
+@[source "test:t_dempster_agree", rev "c42b4e740113"] evidence t_dempster_agree at 1
+@[source "test:t_dempster_contradict", rev "c42b4e740113"] evidence t_dempster_contradict at 1
+@[source "test:t_dempster_contradict_swapped", rev "c42b4e740113"] evidence t_dempster_contradict_swapped at 1
+@[source "test:t_dempster_with_nothing", rev "c42b4e740113"] evidence t_dempster_with_nothing at 1
+@[source "test:t_dempster_nothing_first", rev "c42b4e740113"] evidence t_dempster_nothing_first at 1
+@[source "test:t_dempster_nothing", rev "c42b4e740113"] evidence t_dempster_nothing at 1
+@[source "test:t_judged_correct", rev "c42b4e740113"] evidence t_judged_correct at 1
+@[source "test:t_judged_wrong", rev "c42b4e740113"] evidence t_judged_wrong at 1
+@[source "test:t_judged_at_zero", rev "c42b4e740113"] evidence t_judged_at_zero at 1
+@[source "test:t_judged_at_one", rev "c42b4e740113"] evidence t_judged_at_one at 1
+@[source "test:t_judged_rejects_above", rev "c42b4e740113"] evidence t_judged_rejects_above at 1
+@[source "test:t_judged_rejects_below", rev "c42b4e740113"] evidence t_judged_rejects_below at 1
+@[source "test:t_yager_rejects_negative", rev "c42b4e740113"] evidence t_yager_rejects_negative at 1
+@[source "test:t_yager_rejects_sum", rev "c42b4e740113"] evidence t_yager_rejects_sum at 1
+@[source "test:t_yager_rejects_second", rev "c42b4e740113"] evidence t_yager_rejects_second at 1
+@[source "test:t_dempster_rejects_first", rev "c42b4e740113"] evidence t_dempster_rejects_first at 1
+@[source "test:t_dempster_rejects_negative", rev "c42b4e740113"] evidence t_dempster_rejects_negative at 1
+@[source "test:t_dempster_rejects_sum", rev "c42b4e740113"] evidence t_dempster_rejects_sum at 1
+@[source "test:t_valid_yes", rev "c42b4e740113"] evidence t_valid_yes at 1
+@[source "test:t_valid_slack", rev "c42b4e740113"] evidence t_valid_slack at 1
+@[source "test:t_valid_negative", rev "c42b4e740113"] evidence t_valid_negative at 1
+@[source "test:t_valid_sum", rev "c42b4e740113"] evidence t_valid_sum at 1
+@[source "test:t_conflict_total", rev "c42b4e740113"] evidence t_conflict_total at 1
+@[source "test:t_conflict_mixed", rev "c42b4e740113"] evidence t_conflict_mixed at 1
+@[source "test:t_conflict_none", rev "c42b4e740113"] evidence t_conflict_none at 1
+@[source "test:t_conflict_invalid_first", rev "c42b4e740113"] evidence t_conflict_invalid_first at 1
+@[source "test:t_conflict_invalid_second", rev "c42b4e740113"] evidence t_conflict_invalid_second at 1
+@[source "reader:rust src/culprits.rs:56", rev "c42b4e740113"] evidence culprits::rank::tied at 1
+@[source "reader:rust src/lib.rs:43", rev "c42b4e740113"] evidence mass::judged::tied at 1
+@[source "reader:rust src/lib.rs:53", rev "c42b4e740113"] evidence mass::is_valid::tied at 1
+@[source "reader:rust src/lib.rs:61", rev "c42b4e740113"] evidence mass::conflict::tied at 1
+@[source "reader:rust src/lib.rs:80", rev "c42b4e740113"] evidence mass::dempster::tied at 1
+@[source "reader:rust src/lib.rs:80", rev "c42b4e740113"] evidence mass::dempster::uses at 1
+@[source "reader:rust src/lib.rs:99", rev "c42b4e740113"] evidence mass::yager::tied at 1
+@[source "reader:rust src/lib.rs:99", rev "c42b4e740113"] evidence mass::yager::uses at 1
+@[source "review:claude", rev "c42b4e740113"] evidence mass::conflict_uniform at 1
+@[source "review:claude", rev "c42b4e740113"] evidence mass::dempster_uniform at 1
+@[source "review:claude", rev "c42b4e740113"] evidence mass::is_valid_uniform at 1
+@[source "review:claude", rev "c42b4e740113"] evidence mass::judged_uniform at 1
+@[source "review:claude", rev "c42b4e740113"] evidence mass::renormalises_uniform at 1
+@[source "review:claude", rev "c42b4e740113"] evidence mass::yager_uniform at 1

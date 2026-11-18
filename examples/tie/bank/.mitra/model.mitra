@@ -13,4 +13,4 @@ subject bank {
     claim deposit_uniform = uniform(deposit, |a, n| a.open);
 }
 
-test deposit_adds { for deposit given a = Account(0, true), n = 5 gives Account(5, true) }
+claim deposit_adds() { bank::deposit(Account(0, true), 5) == Account(5, true) }

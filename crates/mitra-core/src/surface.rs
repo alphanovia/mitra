@@ -988,27 +988,20 @@ impl P {
                     P::put(out, line, text);
                 }
                 "test" => {
-                    // Read once every function and claim is known.
-                    self.tests.push(self.pos - 1);
-                    let mut depth = 0;
-                    loop {
-                        if self.pos >= self.toks.len() {
-                            return self.err("expected `}`");
-                        }
-                        depth += self.is("{") as i32 - self.is("}") as i32;
-                        self.pos += 1;
-                        if depth == 0 && self.toks[self.pos - 1].text == "}" {
-                            break;
-                        }
-                    }
+                    self.pos -= 1;
+                    return self.err(
+                        "a `test` block is not read any more: write the point as a claim, \
+                         `claim t() { f(1) == 2 }`, and tie the real test to it with the \
+                         comment `// mitra: evidence for t` above its `fn`",
+                    );
                 }
                 "fn" => self.function(out, line)?,
                 "claim" | "assume" => self.claim(out, line, kw == "assume")?,
                 other => {
                     self.pos -= 1;
                     return self.err(format!(
-                        "expected `subject`, `boundary`, `record`, `enum`, `fn`, `claim`, \
-                         `assume` or `test`, got `{other}`"
+                        "expected `import`, `subject`, `boundary`, `record`, `enum`, `fn`, \
+                         `claim` or `assume`, got `{other}`"
                     ));
                 }
             }

@@ -118,7 +118,9 @@ used as a wildcard, a claim named where a subject is expected.
   evidence merge as the union of their lines.
 - `ingest` reads a test report and appends, for each test the model
   declares with `test` (see below), the evidence its result gives, with
-  `source "test:<name>"` and the `--rev` given. Formats: `libtest` (the
+  `source "test:<name>"` and the `--rev` given. A test under the comment
+  `// mitra: evidence for <claim>` gives `evidence [not] <claim> at 1`
+  instead ([reworked syntax](reworked.md#tests), which has no `test`). Formats: `libtest` (the
   text `cargo test` prints, lines `test <path> ... ok|FAILED`, optionally
   followed by a time, as with `--report-time`; ` - should panic` is dropped
   from the path) and `junit` (JUnit XML: `<testcase name="…">` or `name='…'`,
@@ -131,9 +133,9 @@ used as a wildcard, a claim named where a subject is expected.
 - A revision given with `--rev` must not be empty, start with `-`, or hold
   quotes or line breaks.
   `ingest` prints how many results passed and failed, how many evidence
-  lines it added, failed tests that gave no evidence, and the tests with no
-  `test` declaration, the failed ones first and apart: no verdict shows
-  them.
+  lines it added, failed tests that gave no evidence, and the tests tied
+  to no claim and not declared, the failed ones first and apart: no
+  verdict shows them.
 
 ## Lexical rules
 

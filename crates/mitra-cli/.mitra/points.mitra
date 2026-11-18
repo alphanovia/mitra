@@ -1,0 +1,131 @@
+// The points the tests pin: each is a claim. The test that checks it is
+// the `fn` under the comment `// mitra: evidence for <claim>`, in the
+// Rust file named above the claim.
+
+// src/report.rs
+
+claim t_short_path() { report::short("tests::t_small") == "t_small" }
+
+claim t_short_plain() { report::short("t_small") == "t_small" }
+
+claim t_short_should_panic() { report::short("t_panics - should panic") == "t_panics" }
+
+claim t_short_panics_once() { report::short("t_panics") == "t_panics" }
+
+claim t_libtest_ok() { report::libtest("test tests::t_small ... ok") == [Outcome("t_small", true)] }
+
+claim t_libtest_failed() { report::libtest("test t_big ... FAILED") == [Outcome("t_big", false)] }
+
+claim t_libtest_timed() {
+    report::libtest("test t_timed ... ok <0.001s>") == [Outcome("t_timed", true)]
+}
+
+claim t_libtest_ignored() { report::libtest("test tests::slow ... ignored") == [] }
+
+claim t_libtest_other_lines() {
+    report::libtest("running 3 tests\ntest result: FAILED. 1 passed; 1 failed") == []
+}
+
+claim t_libtest_two() {
+    report::libtest("test a ... ok\ntest b ... FAILED") == [Outcome("a", true), Outcome("b", false)]
+}
+
+claim t_attr_double() { report::attr("<testcase name=\"t\"", "name") == Some("t") }
+
+claim t_attr_single() { report::attr("<testcase name='t'", "name") == Some("t") }
+
+claim t_attr_missing() { report::attr("<testcase time=\"1\"", "name") == None }
+
+claim t_attr_inside_another() {
+    report::attr("<testcase\tclassname=\"name=x\" name = \"t\"", "name") == Some("t")
+}
+
+claim t_attr_entities() {
+    report::attr("<a name=\"a &lt; b &amp;lt;\"", "name") == Some("a < b &lt;")
+}
+
+claim t_strip_one() { report::strip("a<x>b</x>c", "<x>", "</x>") == "ac" }
+
+claim t_strip_unclosed() { report::strip("a<x>b", "<x>", "</x>") == "a" }
+
+claim t_strip_nothing() { report::strip("abc", "<x>", "</x>") == "abc" }
+
+claim t_junit_passed() {
+    report::junit("<testcase classname=\"add\" name=\"t\"/>") == [Outcome("t", true)]
+}
+
+claim t_junit_failure() {
+    report::junit("<testcase name=\"t\"><failure message=\"boom\"/></testcase>") == [Outcome("t", false)]
+}
+
+claim t_junit_error() {
+    report::junit("<testcase name=\"t\"><error/></testcase>") == [Outcome("t", false)]
+}
+
+claim t_junit_skipped() { report::junit("<testcase name=\"t\"><skipped/></testcase>") == [] }
+
+claim t_junit_failure_in_a_log() {
+    report::junit("<testcase name='t'><system-out><![CDATA[ <failure> ]]></system-out></testcase>") == [Outcome("t", true)]
+}
+
+claim t_junit_path() { report::junit("<testcase name=\"tests::t\"/>") == [Outcome("t", true)] }
+
+// src/source.rs
+
+claim t_line_doc() {
+    source::mitra_line("/// mitra: claim c : correct(f(1))") == Some("claim c : correct(f(1))")
+}
+
+claim t_line_plain() {
+    source::mitra_line("    // mitra: claim c : correct(f(1))") == Some("claim c : correct(f(1))")
+}
+
+claim t_line_keeps_indent() { source::mitra_line("// mitra:   then 1") == Some("  then 1") }
+
+claim t_line_comment() { source::mitra_line("// a comment about mitra: no") == None }
+
+claim t_line_code() { source::mitra_line("let x = 1; // mitra: claim c : correct(f(1))") == None }
+
+claim t_below_plain() { source::fn_below("fn f() {}") == Some("f") }
+
+claim t_below_qualified() { source::fn_below("pub(crate) const unsafe fn f() {}") == Some("f") }
+
+claim t_below_attribute() {
+    source::fn_below("#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}") == Some("f")
+}
+
+claim t_below_struct() { source::fn_below("pub struct S;\nfn f() {}") == None }
+
+claim t_below_nothing() { source::fn_below("") == None }
+
+claim t_words_plain() {
+    source::words("opaque f(a: Int) -> Int") == ["opaque", "f", "a", "Int", "Int"]
+}
+
+claim t_words_comment() { source::words("claim c -- a test of opaque things") == ["claim", "c"] }
+
+claim t_words_string() {
+    source::words("claim c : correct(g(\"test -- \\\" opaque\")) -- x") == ["claim", "c", "correct", "g"]
+}
+
+claim t_extract_one() {
+    source::extract("// mitra: claim c : correct(f(1))") == Ok([(1, "claim c : correct(f(1))")])
+}
+
+claim t_extract_none() { source::extract("// a comment about mitra: no") == Ok([]) }
+
+claim t_extract_aligned() {
+    source::extract("// mitra: opaque f(a: Bool) -> Bool\n#[inline] pub fn f() {}") == Ok([(1, "opaque f(a: Bool) -> Bool")])
+}
+
+claim t_extract_misaligned() {
+    source::extract("// mitra: opaque add(a: Int) -> Int\nfn sub() {}") == Err((1, "`opaque add` must sit above `fn add`, found `fn sub`"))
+}
+
+claim t_extract_alone() {
+    source::extract("// mitra: test t : correct(f(1))") == Err((1, "`test t` must sit above `fn t`, found no function"))
+}
+
+claim t_extract_in_a_string() {
+    source::extract("const A: &str = \"\n// mitra: claim a : correct(f(1))\n\";") == Ok([])
+}

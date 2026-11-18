@@ -349,7 +349,7 @@ impl Writer<'_> {
                     *out += "  not derived: the specs of what it calls contradict it\n";
                 } else if i == Implication::Refuted {
                     *out += "  not derived: its premises do not imply it\n";
-                } else if !v.follows && !(c.auto && i == Implication::Unchecked) {
+                } else if !v.follows && !c.auto {
                     *out += "  not derived: a premise fails\n";
                 }
             }
@@ -864,21 +864,25 @@ mod tests {
     // One input per test, for Mitra: each `mitra: test` line gives the
     // output the test checks.
 
+    // mitra: evidence for t_word_certain
     #[test]
     fn t_word_certain() {
         assert_eq!(word(&candidate(1.0, 1.0)), "certain");
     }
 
+    // mitra: evidence for t_word_likely
     #[test]
     fn t_word_likely() {
         assert_eq!(word(&candidate(0.5, 1.0)), "likely");
     }
 
+    // mitra: evidence for t_word_possible
     #[test]
     fn t_word_possible() {
         assert_eq!(word(&candidate(0.0, 0.5)), "possible");
     }
 
+    // mitra: evidence for t_word_unlikely
     #[test]
     fn t_word_unlikely() {
         assert_eq!(word(&candidate(0.0, 0.25)), "unlikely");

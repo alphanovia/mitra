@@ -151,11 +151,24 @@ fn an_inline_function_and_the_elements_that_fit() {
 }
 
 #[test]
-fn tests_in_the_model() {
+fn a_test_block_is_refused() {
     let m = format!("{HALF}\ntest t {{ for half given n = 4 gives 2 }}");
-    let model = mitra_core::load(&m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
-    assert_eq!(model.tests.len(), 1);
-    assert_eq!(model.tests[0].name, "t");
+    let e = mitra_core::load(&m, "").unwrap_err().1.message;
+    assert!(e.contains("a `test` block is not read any more"), "{e}");
+}
+
+/// Evidence on a point claim is an output of the code it calls.
+#[test]
+fn a_point_claim_carries_its_evidence_to_the_code() {
+    let m = "subject s { fn half(n: 0..=9) -> 0..=4 { n / 2 }\n\
+             claim half_right() { given n: 0..=9 then correct(half(n)) }\n\
+             claim four() { half(4) == 2 } }";
+    let out = verdicts(m, "evidence s::four at 1");
+    assert!(out.contains("s::four: holds"), "{out}");
+    assert!(
+        out.contains("s::half_right: unverified\n  passes on       `s::half(4)`"),
+        "{out}"
+    );
 }
 
 #[test]
@@ -226,13 +239,22 @@ fn correct_is_a_value_with_three_states() {
     let seen = "evidence t { for s::add given a = 0, b = 1 holds }";
     // No value where nothing judges the call: the claim is not judged there.
     let out = verdicts(m, seen);
-    assert!(out.contains("s::mirror: unverified\n  no evidence on"), "{out}");
+    assert!(
+        out.contains("s::mirror: unverified\n  no evidence on"),
+        "{out}"
+    );
     // Vouched for, it carries the judgement to the call nothing judges.
     let vouched = format!("{seen}\nevidence r {{ for s::mirror holds source \"review:me\" }}");
     let out = verdicts(m, &vouched);
-    assert!(out.contains("assumed on      `s::add(1, 0)`, by `s::mirror`"), "{out}");
+    assert!(
+        out.contains("assumed on      `s::add(1, 0)`, by `s::mirror`"),
+        "{out}"
+    );
     // Both judged, and differently: the claim is false there.
-    let out = verdicts(m, &format!("{seen}\nevidence u {{ for s::add given a = 1, b = 0 fails }}"));
+    let out = verdicts(
+        m,
+        &format!("{seen}\nevidence u {{ for s::add given a = 1, b = 0 fails }}"),
+    );
     assert!(out.contains("s::mirror: fails"), "{out}");
 }
 
@@ -243,12 +265,21 @@ fn the_shape_of_a_set_is_read_whatever_its_name() {
              subject s { fn half(n: Int) -> Int { n / 2 }\n\
              claim low = alike(half, 0..=4); }";
     let out = verdicts(m, "evidence a { for s::half given n = 2 gives 1 }");
-    assert!(out.contains("assumed on      n in 0..=1 | 3..=4, by `s::low`"), "{out}");
+    assert!(
+        out.contains("assumed on      n in 0..=1 | 3..=4, by `s::low`"),
+        "{out}"
+    );
     // `uniform` is library text too: not there until imported.
-    let e = mitra_core::load("subject s { fn f(n: Int) -> Int;\nclaim u = uniform(f); }", "");
+    let e = mitra_core::load(
+        "subject s { fn f(n: Int) -> Int;\nclaim u = uniform(f); }",
+        "",
+    );
     assert!(e.unwrap_err().1.message.contains("or import it"));
     let m = "import std::claims::{uniform};\nsubject s { fn f(n: Int) -> Int;\n\
              claim u = uniform(f);\nclaim v = uniform(f, f, f); }";
     let e = mitra_core::load(m, "").unwrap_err().1.message;
-    assert!(e.contains("`uniform` takes 1 or 2 parameter(s), got 3"), "{e}");
+    assert!(
+        e.contains("`uniform` takes 1 or 2 parameter(s), got 3"),
+        "{e}"
+    );
 }

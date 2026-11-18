@@ -13,7 +13,7 @@ judges it from its own test runs. If the verdicts help while the
 crate is built and maintained, that is the first sign Mitra is useful.
 
 **What exists.** The model is aside from the code, in each crate's
-`.mitra/model.mitra` (and `.mitra/tests.mitra`), in the
+`.mitra/model.mitra` (and `.mitra/points.mitra`), in the
 [reworked syntax](../reference/reworked.md), with the same types as the
 Rust code: `Mass` is a record, `Option` and `Result` are enums, a `Vec`
 is a list. The code keeps one comment per modelled function,
@@ -23,8 +23,9 @@ named after its module, with a body where a spec can be written
 (`dempster`, `yager`, `judged`, `is_valid`, `conflict`), a `uniform`
 claim whose classes follow the branches of its code, and claims that
 relate functions to each other (`yager` reports the conflict `conflict`
-computes; Dempster's rule is Yager's renormalised). One `test` block per
-unit test gives its input and the output it checks. The ranking of
+computes; Dempster's rule is Yager's renormalised). One point claim per
+unit test gives its input and the output it checks, and the test names
+it: `// mitra: evidence for t_judged_correct`. The ranking of
 culprits (`rank`) has its types and its tests in the model, and no spec.
 
 Three crates have a store: `mitra-ds` (every public function),
