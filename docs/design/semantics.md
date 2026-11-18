@@ -110,7 +110,15 @@ the evidence leaves.
   about a bug from what is tested and enduring, what just changed, and so
   on.
 - An entry at **bias 0** is still evidence for the verdict. If an error
-  is raised, it is the top candidate.
+  is raised, it is likely near the top of the candidates, because its
+  author does not trust it. That is expected behaviour, not a rule.
+- Candidates are **ranked by plausibility**.
+- On a big model and ledger, many things can have a small non-zero value.
+  The tool has a setting for **how many candidates an error shows** and a
+  **threshold** under which they are hidden: one culprit at 0.99 and a
+  hundred at 0.01 should show only the likely one. This is where
+  thresholds live: on the display of an error, in the tool, not in the
+  core.
 - On a model where all the evidence agrees and everything is verified,
   the computation collapses to **fully trusting**: nothing is suspect.
 - It should be correct and consistent all the time, if possible.
@@ -144,8 +152,9 @@ test, and later a proof.
 
 - **P1. No error, no suspect.** Without an error or a bug report, no
   opinion is computed and nothing is doubted, whatever the biases.
-- **P2. Bias 0 ranks first.** In an error, an entry at bias 0 is the top
-  candidate.
+- **P2. Distrust shows.** In an error, an entry at bias 0 has
+  plausibility 1 of being the wrong one. It is expected near the top,
+  not required to be first.
 - **P3. Full trust shifts the blame.** If every entry against a claim
   has bias 1, the claim is the culprit, with belief 1. If every piece of
   an error is trusted at 1, assumption included, Mitra says so and ranks
@@ -209,16 +218,18 @@ The build increment is this list.
    of errors that share a piece, and one culprit per frame. Two wrong
    things in one group are then found in two rounds: fix the first, run
    again.
-2. **Which rule, and the mass of a bias.** Dempster hides conflict by
-   renormalising; Yager moves it to "unknown". With "b on: e is not the
-   wrong one", an entry at bias 0 gets plausibility 1 but belief 0, so P2
-   holds only when ranking by plausibility. Proposed: rank by
-   plausibility, show the conflict, and choose the rule by checking P1
-   to P8 on both, on written examples.
+2. **Which rule.** Dempster hides conflict by renormalising; Yager moves
+   it to "unknown". Proposed: Dempster, with the conflict always shown,
+   until an example speaks against it; P1 to P8 are checked on both.
 3. **Weights.** How much a diff or an age discounts, and who sets it.
    Proposed: fixed defaults in the tool (stale evidence halves its bias;
    the last diff gets a small fixed weight), tuned on the mitra-ds
    benchmark, not set in the model.
+4. **Display defaults.** Proposed: at most 5 candidates, none under a
+   plausibility of 0.05, and one line saying how many were hidden and how
+   to see them all.
+
+Questions 1 and 3 are built as proposed until decided.
 
 ## Why not a confidence in the claim
 
