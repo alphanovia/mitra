@@ -1,8 +1,8 @@
 # Design: composition and tests
 
 Status: **earlier proposal, kept for its reasoning**; the examples are
-in the [earlier syntax](../reference/language.md). Built since, another
-way ([reworked syntax](../reference/reworked.md)): a claim follows from
+in the first syntax, which is no longer read. Built since, another
+way ([language](../reference/reworked.md)): a claim follows from
 the specs of the functions it calls with no `derive` to write, and is an
 error when they contradict it (section 1, definitional); `uses` is a
 clause on a function, checked against the code by `mitra tie` (section
@@ -50,7 +50,7 @@ code (near certain), or a human review (less so).
 
 ## 3. Tests are subjects too
 
-In the earlier syntax a `test` declares the evidence its result stands
+In the first syntax a `test` declares the evidence its result stands
 for, and that evidence counts at 1. But a test is code, so what it proves depends on
 claims about the test itself:
 
@@ -69,7 +69,7 @@ of silently counting as proof.
 `t_ex` says which inputs the test runs, not that one run stands for more.
 That **uniformity hypothesis** is a claim on the subject, `uniform f by
 classes`, which is implemented
-([reference](../reference/language.md#claim)).
+([reference](../reference/reworked.md#evaluation)).
 
 A failure gives only "wrong **somewhere** in S", which Mitra cannot record
 yet: a failed test over a set gives no evidence today.

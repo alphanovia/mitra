@@ -16,7 +16,7 @@ proven, so what is worth having is good-enough evidence management.
 The developer writes a small Rust program, with its model aside, its
 ties and its store kept up to date as the code grows, the way mitra-ds is
 ([dogfooding](design/dogfooding.md)). The language is the
-[reworked syntax](reference/reworked.md).
+[language](reference/reworked.md).
 
 - **Stresses:** the dev loop (`plan`, `tie`, `ingest`, `add`, `next`, `--rev`), claims on
   code that changes, and the cost of keeping the model current.
@@ -103,7 +103,7 @@ trials/
 ## How findings feed back
 
 Each finding is reviewed together. A wrong verdict becomes a golden case
-([reference](reference/language.md#golden-set), or an example under `examples/reworked/`) before it is fixed. A
+(an example under `examples/reworked/`) before it is fixed. A
 missing feature goes to the design doc it belongs to, or to a new one, and
 is built only once the language change is settled. A finding that recurs
 across trials ranks higher. A trial that fails in the way listed above is a

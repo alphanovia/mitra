@@ -65,8 +65,15 @@ impl Source {
         for f in files {
             let shown = f.display().to_string();
             let text = std::fs::read_to_string(&f).map_err(|e| format!("{shown}: {e}"))?;
-            let lines = extract(&text).map_err(|(n, m)| format!("{shown}: line {n}: {m}"))?;
-            self.push_lines(&shown, lines.into_iter());
+            // The model is kept aside: a comment only ties code to it.
+            let lines = extract(&text).unwrap_or_else(|(n, m)| vec![(n, m)]);
+            if let Some((n, _)) = lines.first() {
+                return Err(format!(
+                    "{shown}: line {n}: a model in `mitra:` comments is no longer read: \
+                     write it in `.mitra/model.mitra`; a comment is `// mitra: implements \
+                     <function>` or `// mitra: evidence for <claim>`"
+                ));
+            }
         }
         Ok(())
     }

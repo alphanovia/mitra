@@ -42,10 +42,9 @@ def assumptions():
         for f in sorted(files):
             if f.endswith((".rs", ".mitra")) and "target" not in d:
                 lines = open(os.path.join(d, f)).read().split("\n")
-                lines = [l for l in lines if "mitra:" in l or f.endswith(".mitra")]
-                names += re.findall(r"claim (\w+) : (?:only )?(?:uniform|uses) ", "\n".join(lines))
-                # The reworked syntax: `claim c = uniform(…)`, named
-                # `subject::c` inside `subject { … }`.
+                lines = lines if f.endswith(".mitra") else []
+                # `claim c = uniform(…)`, named `subject::c` inside
+                # `subject { … }`.
                 scope = ""
                 for l in lines:
                     m = re.match(r"(?:subject|boundary) (\w+)", l)
@@ -62,7 +61,7 @@ def judge(name):
         return f"{name}: does not build"
     open(f"{work}/report.txt", "w").write(report)
     run([mitra, "ingest", f"{work}/report.txt", "--rev", "break"], cwd=root)
-    vouches = "\n".join(f"evidence {a} at 1" for a in assumptions())
+    vouches = "\n".join(f"evidence review {{ for {a} holds }}" for a in assumptions())
     if vouches:
         run([mitra, "add", vouches, "--source", "review:blind", "--rev", "break"], cwd=root)
     _, out = run([mitra, "eval", "--rev", "break"], cwd=root)

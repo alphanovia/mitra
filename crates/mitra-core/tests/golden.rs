@@ -33,7 +33,7 @@ fn cases() -> Vec<PathBuf> {
 fn eval(dir: &Path, extra_evidence: &str) -> String {
     let read = |f: &str| fs::read_to_string(dir.join(f)).unwrap();
     let evidence = read("evidence.mitra") + extra_evidence;
-    mitra_core::run(&read("model.mitra"), &evidence)
+    mitra_core::core_run(&read("model.mitra"), &evidence)
         .unwrap_or_else(|(_, e)| panic!("{}: {e}", dir.display()))
         .to_text()
 }

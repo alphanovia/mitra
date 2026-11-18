@@ -16,9 +16,10 @@ pub struct Store {
     dir: PathBuf,
 }
 
-const MODEL_STUB: &str = "-- The model: subjects (opaque), specs (def), claims and tests.\n\
--- See docs/reference/language.md.\n";
-const EVIDENCE_STUB: &str = "-- Evidence, append-only: `mitra add` writes here.\n";
+const MODEL_STUB: &str = "// The model: subjects, boundaries, claims.\n\
+// See docs/reference/reworked.md.\n";
+const EVIDENCE_STUB: &str =
+    "// Evidence, append-only: `mitra add`, `mitra ingest` and `mitra tie` write here.\n";
 const GITATTRIBUTES: &str = "evidence.mitra merge=union\n";
 
 impl Store {
@@ -95,40 +96,26 @@ impl Store {
         self.dir.join("evidence.mitra").display().to_string()
     }
 
-    /// Parse evidence text, then [`Store::append`] it.
+    /// Evidence blocks, with `--source` and `--rev` written into each,
+    /// then [`Store::append`]ed as they were given.
     pub fn add(
         &self,
         text: &str,
         source: Option<String>,
         rev: Option<String>,
     ) -> Result<usize, String> {
-        // The model's records, so that a record's name can stand for its values.
-        let mut new = mitra_core::read_evidence(&self.source()?.text, text)
-            .map_err(|err| format!("evidence: {err}"))?;
-        if new.is_empty() {
-            return Err("no evidence given".into());
-        }
         for v in source.iter().chain(&rev) {
             if v.contains(['"', '\n', '\r']) {
                 return Err(format!("`{v}`: quotes and line breaks are not allowed"));
             }
         }
-        for ev in &mut new {
-            for (flag, given, attr) in [
-                ("--source", &source, &mut ev.source),
-                ("--rev", &rev, &mut ev.rev),
-            ] {
-                if given.is_some() {
-                    if attr.is_some() {
-                        return Err(format!(
-                            "{flag} is given twice: in the option and in the evidence"
-                        ));
-                    }
-                    *attr = given.clone();
-                }
-            }
+        let text = mitra_core::surface::stamp(text, source.as_deref(), rev.as_deref())?;
+        let new = mitra_core::read_evidence(&self.source()?.text, &text)
+            .map_err(|err| format!("evidence to add: {err}"))?;
+        if new.is_empty() {
+            return Err("no evidence given".into());
         }
-        self.append(&new)?;
+        self.append(text.trim())?;
         Ok(new.len())
     }
 
@@ -143,10 +130,10 @@ impl Store {
     }
 
     /// Check new evidence against the model and the evidence already
-    /// there, evaluate, then append it, normalised. Nothing is written on an
+    /// there, evaluate, then append it as written. Nothing is written on an
     /// error. Errors in the store name its file; errors in the new evidence
     /// are numbered from its first line.
-    pub fn append(&self, new: &[mitra_core::Evidence]) -> Result<(), String> {
+    pub fn append(&self, new: &str) -> Result<(), String> {
         let (m, e) = (self.source()?, self.evidence_path());
         let old = std::fs::read_to_string(&e).map_err(|err| format!("{e}: {err}"))?;
         let model = &m.text;
@@ -162,7 +149,7 @@ impl Store {
         } else {
             "\n"
         };
-        let printed = mitra_core::print_evidence(new, Some(&before));
+        let printed = format!("{new}\n");
         let offset = format!("{old}{sep}").lines().count();
         let blame = |input, err: mitra_core::Error| match input {
             mitra_core::Input::Evidence if err.line > offset => format!(

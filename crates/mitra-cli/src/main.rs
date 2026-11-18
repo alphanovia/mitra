@@ -222,10 +222,9 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let (m, e) = inputs(rest)?;
             let (model, report) = evaluate(&m, &e, rev)?;
             println!(
-                "ok: {} functions, {} claims, {} tests, {} evidence",
+                "ok: {} functions, {} claims, {} evidence",
                 model.functions.len(),
                 model.claims.len(),
-                model.tests.len(),
                 model.evidence.len()
             );
             for f in &report.flags {
@@ -305,8 +304,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             if let Some(w) = written.and_then(|w| mitra_core::surface::written(&w.0, c.line)) {
                 println!("  written   {w}");
             }
-            let read = mitra_core::print::print_claim(&model, c);
-            println!("  read as   {}", read.trim_start_matches("claim ").trim());
+            println!("  read as   {}", mitra_core::print::contract(&model, c));
             let about = model.evidence.iter().filter(|e| e.about == c.name).count();
             println!("  evidence  {about} piece(s) on the claim itself");
             let text = report.to_text_at(&mitra_core::Display::default(), &places);
@@ -389,7 +387,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let tied = tie::tests(&s.root())?;
             let (mut lines, mut tied_notes) = (Vec::new(), Vec::new());
             let attrs = match &rev {
-                Some(r) => format!(", rev \"{r}\""),
+                Some(r) => format!(" rev \"{r}\""),
                 None => String::new(),
             };
             for t in &tied {
@@ -410,10 +408,10 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                 match ran[..] {
                     [] => {}
                     [o] => {
-                        let not = if o.passed { "" } else { "not " };
+                        let says = if o.passed { "holds" } else { "fails" };
                         lines.push(format!(
-                            "@[source \"test:{}\"{attrs}] evidence {not}{} at 1",
-                            t.test, c.name
+                            "evidence test {{ for {} {says} source \"test:{}\"{attrs} }}",
+                            c.name, t.test
                         ));
                     }
                     _ => tied_notes.push(format!(
@@ -428,73 +426,21 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                 s.add(&lines.join("\n"), None, None)?;
             }
             let claimed = |name: &str| tied.iter().any(|t| t.test == name);
-            let (mut evidence, mut notes, mut unknown) = (Vec::new(), tied_notes, Vec::new());
-            // Failed tests the model does not declare: no verdict will move.
-            let mut outside = Vec::new();
+            let (mut unknown, mut outside) = (Vec::new(), Vec::new());
             let passed = outcomes.iter().filter(|o| o.passed).count();
-            for o in &outcomes {
-                let Some(t) = model.tests.iter().find(|t| t.name == o.name) else {
-                    if claimed(&o.name) {
-                        continue;
-                    }
-                    match o.passed {
-                        true => unknown.push(o.name.as_str()),
-                        false => outside.push(o.name.as_str()),
-                    }
-                    continue;
-                };
-                let times = outcomes.iter().filter(|p| p.name == o.name).count();
-                if times > 1 {
-                    let note = format!(
-                        "test {} appears {times} times in the report: left out",
-                        t.name
-                    );
-                    if !notes.contains(&note) {
-                        notes.push(note);
-                    }
-                    continue;
+            for o in outcomes.iter().filter(|o| !claimed(&o.name)) {
+                match o.passed {
+                    true => unknown.push(o.name.as_str()),
+                    false => outside.push(o.name.as_str()),
                 }
-                let about = model.functions.iter().find(|f| f.name == t.judgment.about);
-                // A test `f(x) = v` gives the expected output: passing, the
-                // output is `v` and it is correct; failing, it is not correct.
-                if let Some(mut e) = mitra_core::expected_output(&model, t, o.passed) {
-                    e.source = Some(format!("test:{}", t.name));
-                    e.rev = rev.clone();
-                    evidence.push(e);
-                }
-                match t.outcome(o.passed, about.map(|f| &f.range)) {
-                    Ok(mut e) => {
-                        e.source = Some(format!("test:{}", t.name));
-                        e.rev = rev.clone();
-                        evidence.push(e);
-                    }
-                    Err(why) => {
-                        // A failed output test refutes the `=` claims that
-                        // give that output.
-                        let refuted = mitra_core::failed_output(&model, t)
-                            .map_err(|e| format!("test {}: {}", t.name, e.message))?;
-                        let judged = mitra_core::expected_output(&model, t, false).is_some();
-                        if refuted.is_empty() && !judged {
-                            notes.push(format!("test {} failed: no evidence, since {why}", t.name));
-                        }
-                        for mut e in refuted {
-                            e.source = Some(format!("test:{}", t.name));
-                            e.rev = rev.clone();
-                            evidence.push(e);
-                        }
-                    }
-                }
-            }
-            if !evidence.is_empty() {
-                s.append(&evidence)?;
             }
             println!(
                 "{} results: {passed} passed, {} failed; {} evidence added",
                 outcomes.len(),
                 outcomes.len() - passed,
-                evidence.len() + lines.len()
+                lines.len()
             );
-            for n in notes {
+            for n in tied_notes {
                 println!("{n}");
             }
             if !outside.is_empty() {

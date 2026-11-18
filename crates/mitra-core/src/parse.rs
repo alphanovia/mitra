@@ -2,7 +2,7 @@
 //! ASCII (`forall`, `in`, `not`, `|`, `&`), with Lean's Unicode symbols
 //! (`∀ ∈ ¬ ∪ ∩`) accepted as aliases. Every command starts with a keyword and
 //! layout is free. `--` starts a comment. The grammar is LL(1): one token of
-//! lookahead decides every step. See docs/reference/language.md.
+//! lookahead decides every step. This is the internal form `surface` translates a model to, not the language (docs/reference/reworked.md).
 
 use crate::ast::*;
 use crate::set::{Set, Value, MAP, SET};

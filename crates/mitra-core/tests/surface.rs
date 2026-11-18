@@ -68,13 +68,17 @@ fn evidence_names_what_it_is_for() {
 }
 
 #[test]
-fn earlier_evidence_lines_are_read_beside_blocks() {
-    let e = "-- a line that `mitra add` wrote
-@[source \"x\"] evidence math::half(0) = 0 at 1
+fn evidence_is_written_in_blocks_only() {
+    let e = "// a comment
+evidence a { for half given n = 0 gives 0 source \"x\" }
 evidence b { for half given n in {2, 4} holds }
 evidence c { for even_exact given n = 2 fails trust 0.5 }";
     let out = verdicts(HALF, e);
     assert!(out.starts_with("math::even_exact: fails"), "{out}");
+    let e = refused(HALF, "evidence math::half(0) = 0 at 1");
+    assert!(e.contains("line 1: expected an `evidence` block"), "{e}");
+    let e = refused("opaque f(a: Bool) -> Bool", "");
+    assert!(e.contains("line 1: this syntax is no longer read"), "{e}");
 }
 
 #[test]
@@ -163,7 +167,7 @@ fn a_point_claim_carries_its_evidence_to_the_code() {
     let m = "subject s { fn half(n: 0..=9) -> 0..=4 { n / 2 }\n\
              claim half_right() { given n: 0..=9 then correct(half(n)) }\n\
              claim four() { half(4) == 2 } }";
-    let out = verdicts(m, "evidence s::four at 1");
+    let out = verdicts(m, "evidence t { for four holds }");
     assert!(out.contains("s::four: holds"), "{out}");
     assert!(
         out.contains("s::half_right: unverified\n  passes on       `s::half(4)`"),

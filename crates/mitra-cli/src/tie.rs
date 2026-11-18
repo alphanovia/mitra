@@ -267,22 +267,25 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
         differ: 0,
     };
     let attrs = match rev {
-        Some(r) => format!(", rev \"{r}\""),
+        Some(r) => format!(" rev \"{r}\""),
         None => String::new(),
     };
     let clean = |why: &str| why.replace(['"', '\\'], "'");
     let say = |found: &mut Found, claim: &str, place: &str, why: Option<String>| match why {
         None => {
             found.agree += 1;
-            let line = format!("@[source \"reader:rust {place}\"{attrs}] evidence {claim} at 1");
-            found.evidence.push(line);
+            let source = format!("reader:rust {place}");
+            found.evidence.push(format!(
+                "evidence tie {{ for {claim} holds source \"{source}\"{attrs} }}"
+            ));
         }
         Some(why) => {
             found.differ += 1;
             found.notes.push(format!("{place}: {claim}: {why}"));
             let source = format!("reader:rust {place}: {}", clean(&why));
-            let line = format!("@[source \"{source}\"{attrs}] evidence not {claim} at 1");
-            found.evidence.push(line);
+            found.evidence.push(format!(
+                "evidence tie {{ for {claim} fails source \"{source}\"{attrs} }}"
+            ));
         }
     };
     for c in &code {
@@ -374,13 +377,6 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
         found
             .notes
             .push(format!("no code is tied to: {}", names.join(", ")));
-    }
-    for t in &model.tests {
-        if !calls(&tests, &format!("fn {}", t.name)) {
-            found
-                .notes
-                .push(format!("test `{}`: no `fn {}` in the code", t.name, t.name));
-        }
     }
     Ok(found)
 }

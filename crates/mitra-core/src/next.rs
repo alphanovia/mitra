@@ -378,7 +378,7 @@ mod tests {
                      claim big : forall x in 0..=99, correct(id(x))\n\
                      claim derived : forall a, flip(a) = neg(a) := by derive [flip_spec]";
         let evidence = "evidence flip(true) = false at 1\nevidence correct(flip(true)) at 1";
-        let m = load(model, evidence).unwrap();
+        let m = core_load(model, evidence).unwrap();
         let r = evaluate(&m).unwrap();
         assert_eq!(
             next(&m, &r),
@@ -405,7 +405,7 @@ mod tests {
                      claim fails : forall a, correct(flip(a))\n\
                      claim on_fails : forall a, correct(other(a)) := by derive [fails]";
         let evidence = "evidence correct(pair(0, 0)) at 1\nevidence not correct(flip(true)) at 1";
-        let m = load(model, evidence).unwrap();
+        let m = core_load(model, evidence).unwrap();
         let r = evaluate(&m).unwrap();
         let text = next(&m, &r);
         assert!(text.contains("  9999999999 inputs: test them"), "{text}");
@@ -419,7 +419,7 @@ mod tests {
                      claim div_correct : forall a, forall b, correct(div(a, b))\n\
                      claim div_uniform : uniform div by div_class";
         let say = |evidence: &str| {
-            let m = load(model, evidence).unwrap();
+            let m = core_load(model, evidence).unwrap();
             next(&m, &evaluate(&m).unwrap())
         };
         assert_eq!(

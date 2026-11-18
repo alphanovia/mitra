@@ -614,7 +614,7 @@ impl Model {
                     (None, Some(_)) => types.iter().fold(Set::any(), |a, t| a.intersect(&t.1)),
                     (None, None) => {
                         let msg = format!(
-                            "`{x}` is not passed to a function as it is: give its set, `forall {x} in S,`"
+                            "`{x}` is not passed to a function as it is: give its set, `{x}: S`"
                         );
                         return Err(m(c.line, msg));
                     }

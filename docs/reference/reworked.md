@@ -1,12 +1,8 @@
-# The reworked language
+# Mitra language reference
 
-The syntax models are written in. This page says what the code reads
-today, and nothing more. It is a front end: each declaration is
-translated to the [earlier syntax](language.md), and the same engine
-gives the verdicts, the errors and the ranking; the commands, the
-evaluation rules and the error codes are on that page. Both syntaxes are
-read; a file is in one or the other. Examples:
-[`examples/reworked/`](../../examples/reworked).
+The one language Mitra reads, and its commands. This page says what the
+code does today, and nothing more; it changes in the same commit as the
+code. Examples: [`examples/reworked/`](../../examples/reworked).
 
 One rule for every declaration: `keyword name(inputs) -> Output { body }`.
 
@@ -27,8 +23,65 @@ mitra add 'evidence r { for div_rest holds source "review:me" }' --rev $R
 ```
 
 Without a store, name the two files: `mitra eval model.mitra
-evidence.mitra`. `mitra explain <claim>` prints a claim as written and as
-read; `mitra next` says what to add.
+evidence.mitra`.
+
+## Commands
+
+```sh
+mitra init
+mitra check [model.mitra evidence.mitra] [--rev <commit>]
+mitra eval  [model.mitra evidence.mitra] [--rev <commit>] [--candidates <n>]
+            [--threshold <p>] [--all] [-o result.txt]
+mitra plan  [model.mitra evidence.mitra] [--rev <commit>]
+mitra next  [model.mitra evidence.mitra] [--rev <commit>]
+mitra add   '<evidence blocks>' [--source <who>] [--rev <commit>]
+mitra ingest <report> [--format libtest|junit] [--rev <commit>]
+mitra tie   [--rev <commit>]
+mitra explain <code | claim | std::module>
+```
+
+When Mitra can't read or check its input it prints `file: line N:
+message` and exits with status 2.
+
+- **The store** is the nearest `.mitra/` at or above the current folder:
+  `model.mitra`, every other `.mitra` file beside it (read after it, in
+  name order) and `evidence.mitra`. `init` creates it, with a
+  `.gitattributes` that merges `evidence.mitra` with git's `union`
+  driver, and never overwrites one. The evidence file is only appended
+  to, so two branches that add evidence merge as the union of their lines.
+- **`check`** reads and evaluates, and prints `ok: F functions, C claims,
+  E evidence`.
+- **`eval`** prints each claim's verdict, then errors and warnings (see
+  Output), to standard output or to the `-o` file (not a `.mitra` file).
+  It prints `mitra: E errors, W warnings` on standard error and exits
+  with 1 when there is an error. An error lists at most 5 candidates and
+  none under a plausibility of 0.05; `--candidates`, `--threshold` and
+  `--all` change that.
+- **`plan`** lists the evidence each claim owes (see `mitra plan`).
+- **`next`** prints the evidence that can't all be true, each failing
+  claim (root causes first), each claim that `holds assuming` with what
+  it assumes, then each unverified claim with what it misses and the
+  evidence block to write, when at most 5 inputs are missing. With a
+  `uniform` claim it lists the classes with no passing input.
+- **`add`** takes evidence blocks as one argument, writes `--source` and
+  `--rev` into each block that does not say them (twice is an error),
+  checks the store with the new evidence, and appends the blocks as
+  written. The store must evaluate without a read error before and
+  after; otherwise nothing is written.
+- **`ingest`** and **`tie`**: see Tests and The tie to the code. Report
+  formats: `libtest` (lines `test <path> ... ok|FAILED` as `cargo test`
+  prints them) and `junit` (`<testcase name="…">`, failed with
+  `<failure` or `<error`, left out with `<skipped`); a report starting
+  with `<` is JUnit. A test's name is the last `::` part of its path. A
+  test that appears twice in a report is left out, with a note.
+- **`explain`** describes an error code (`mitra explain M004`), prints a
+  library module (`mitra explain std::claims`), or prints a claim as
+  written, as read, the count of evidence on it and its verdict
+  (`mitra explain div_rest`, the last part of the name is enough).
+- **`--rev R`** on `check`, `eval`, `next`, `plan` counts only evidence
+  recorded at `R`: any other, or none, is stale and left out, and the
+  number left out is printed. Revisions are compared as text. A revision
+  must not be empty, start with `-`, or hold quotes or line breaks.
 
 ## Model
 
@@ -93,11 +146,17 @@ observed the claim is not judged.
 
 ### Types
 
-`bool`, `i8`…`i64`, `u8`…`u32`, `u64`/`usize` (`0..`), `f64`, `String`,
-and Mitra's `Bool`, `Int`, `Float64`. Ranges `0..=9`, `1..`. Sets of values
+A type is a set of values. `bool`, `i8`…`i64`, `u8`…`u32`,
+`u64`/`usize` (`0..`), `f64`, `String`, and Mitra's `Bool`, `Int` (every
+integer), `Float64`, `Value` (everything). Ranges `0..=9`, `1..`. Sets of values
 `{"a", "b"}`. Tuples `(A, B)`, unit `()`. `Vec<T>`/`List<T>`, `Set<T>`,
 `Map<K, V>`, `Option<T>` and `Result<T, E>` once declared as enums.
 Function types `fn(A) -> B`. `A | B`, `A & B`, `A \ B`.
+
+Mitra computes with 64-bit integers: a value outside them is an error,
+never a wrap. Verdicts print sets in a normal form, with Mitra's own
+names: `Bool`, `Int`, `Float64`, `0..=9`, `{1, 2}`, `List(Int)`,
+`Option(Int)`, `(0..=2, {0}) | (3..=4, Int)`.
 
 ### Expressions
 
@@ -108,8 +167,6 @@ false), `x in xs`, `x is Variant`, `r.field`, `t.0`, `xs[i]`,
 maps `{k: v}`, calls `f(a, b)`, `rate(x in S, cond)`, `precision(f)`,
 `recall(f)`, `false_positive_rate(f)`, `all`/`any`/`filter`/`map(x in xs, e)`,
 `fold(x in xs, let acc = start; step)`.
-
-### Expressions added to the earlier ones
 
 | Expression | Meaning |
 |---|---|
@@ -250,6 +307,141 @@ calc::add_commutes owed:
 A pinned point is a claim: `claim div_small() { div(6, 2) == 3 }`.
 `examples/reworked/plan`.
 
+## Evaluation
+
+Every piece of evidence counts, whatever its trust. For each claim, with
+D the inputs it speaks of, Mitra gathers where the claim is right and
+where it is wrong:
+
+1. Evidence on the claim itself (`holds`, `fails`), within D.
+2. For `correct(f(…))`: `holds` and `fails` evidence on `f`.
+3. For any other claim, on each input (all of D when finite, otherwise
+   the inputs the observations speak of): compute the expression, a call
+   of the code giving the output observed there (or what a vouched claim
+   or a spec gives, see above). True is right, false is wrong, no value
+   is not judged. `&&` and `||` are decided by one side when it settles
+   them.
+
+An input both right and wrong is a **contradiction**, and so are two
+outputs for one input of a subject: an error, and the input counts on
+neither side. Then:
+
+- *refuted*: wrong and not right.
+- *tested*: right and not wrong.
+- *assumed*: what other claims give: the inputs a `uniform` or
+  `represented` claim covers from a passing input, and the inputs the
+  specs imply.
+- *missed*: the rest of D.
+
+The **verdict** is `fails` if something is refuted; `unverified` if
+something is missed; `holds` if nothing is missed and every claim the
+assumed inputs rest on holds; `holds assuming [a, b]` when those claims
+are not verified or not vouched for. There is no number on a claim.
+
+**Uniform.** For `u = uniform(f, g)`, the class of an input is `g` of
+it. A class with a passing input and a failing one is a conflict: `u`
+fails, whatever vouches for it (M004). Otherwise, for every other claim
+on `f`, the inputs of a class with a passing input are assumed; when
+nobody vouches for `u`, such a claim only `holds assuming [u]`. While `u`
+holds, a failing input refutes its class. This is done input by input up
+to 10 000 inputs; on a larger set every value of `g`'s result type needs
+a passing input. A claim that calls several functions is sorted by one
+class per call.
+
+**Measures.** `rate(…)`, `precision(f)`, `recall(f)` take the value of
+their measurement (`gives rate = 0.9`) when there is one; without one
+they are counted from the observed outputs when these cover the whole
+set. Two measurements that differ, or one the observed outputs exclude,
+are error M005.
+
+**Errors and candidates.** An error is something that can't all be true.
+Its candidates are the pieces of which at least one is wrong: evidence,
+the code of the functions involved (and of what they use), and what the
+model states (the claim, the signature, an assumption, a `uses` clause).
+Code has no trust; what the model states is trusted at 1 unless it says
+`trust n`. Evidence outside a signature is kept and reported as M006,
+with the evidence and the signature as candidates. A boundary is never a
+candidate.
+
+**Most plausibly wrong.** For each error Mitra computes, for every
+candidate, the belief and the plausibility that it is wrong, with
+Dempster's rule (`mitra_ds::culprits`): a piece trusted at `t` puts `t`
+on "this piece is right"; each error says its pieces are not all right.
+Several pieces can be wrong at once, and errors that share a piece are
+computed together. When the pieces trusted at 1 can't all be right, the
+doubt is shared equally between them. More than 20 pieces to weigh are
+not ranked.
+
+**Suspects and root cause.** Through the `uses` clauses, a function that
+calls a function with a failing claim has it as a suspect (`look first
+at …`). A function with a failing claim, no suspect and a `uses only`
+that holds is a root cause.
+
+## Output
+
+`eval` prints each claim, in model order, with the lines that say
+something:
+
+```text
+calc::div::spec: unverified
+  passes on       `calc::div(6, 2)`
+  assumed on      89 inputs, by `calc::div_rest`
+  no evidence on  (a, b) in {(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0)}
+calc::div_small: holds
+```
+
+`fails on`, `passes on`, `assumed on … by` and `no evidence on`. Up to 3
+inputs print as calls, more as a set named after the inputs, and a set
+longer than 160 characters as its size. Names are whole:
+`subject::claim`, `subject::f::spec` for the claim a body adds,
+`subject::f::uses`, `subject::f::tied`.
+
+Then each error and each warning, like a compiler's:
+
+```text
+error[M001]: evidence refutes a claim
+  --> model.mitra:4  fn div(a: 0..=9, b: 0..=9) -> 0..=9 { if b == 0 { 0 } else { a / b } }
+
+  `calc::div::spec` fails on `calc::div(8, 4)`.
+  The evidence that says so:
+
+    output    evidence.mitra:3  evidence bug_report { for div given a = 8, b = 4 gives 4 trust 0.8 }
+
+  The code, the claim or the evidence is wrong. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                      trust  left
+    possible  the code of `calc::div`, model.mitra:4  none   0.00 to 0.71
+    likely    evidence.mitra:3 (bug_report)           0.8    0.29 to 0.36
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  help: if the evidence is right, fix `calc::div`; if not, correct the evidence
+```
+
+`left` is what remains of the trust in a piece: 1 minus the plausibility
+that it is wrong, to 1 minus the belief. The word is `certain` (belief
+at least 0.995), `likely` (at least 0.5), `possible` (plausibility at
+least 0.5), else `unlikely`. At most 5 pieces of evidence are quoted.
+
+| Code | Severity | Headline |
+|---|---|---|
+| `M001` | error | evidence refutes a claim |
+| `M002` | error | evidence denies an assumption (`uniform`, `represented`, `uses`) |
+| `M003` | error | two pieces of evidence contradict each other |
+| `M004` | error | an assumption is contradicted by the evidence: a pass and a failure in one class |
+| `M005` | error | a measurement does not fit another measurement of the same measure, or the observed outputs |
+| `M006` | error | evidence does not fit the model: inputs or an output outside the signature of its function |
+| `M007` | error | a claim contradicts the specs of the functions it calls, with no evidence needed |
+| `M101` | warning | a claim is not verified: some inputs have no evidence |
+| `M102` | warning | a claim holds only under assumptions |
+| `M103` | warning | an assumption is not vouched for |
+| `M104` | warning | evidence that can't be used: it is about a helper, which is computed |
+
+The codes are stable. `mitra explain <code>` says what one means and how
+to fix it.
+
 ## Evidence
 
 ```rust
@@ -273,8 +465,8 @@ evidence a_is_down {
 | `source "…"` | Default: the name of the block. |
 | `rev "…"` | The revision of the code. |
 
-A line in the earlier syntax is still read in the same file: `mitra add`
-and `mitra ingest` append such lines.
+Evidence is written in blocks only. `mitra add`, `mitra ingest` and
+`mitra tie` append blocks to `evidence.mitra`. `//` starts a comment.
 
 ## The tie to the code
 
@@ -321,9 +513,9 @@ fn div_by_two() { assert_eq!(div(6, 2), 3); }
 ```
 
 `cargo test > report.txt 2>&1`, then `mitra ingest report.txt --rev R`
-appends one line per tied test that ran: `evidence div_small at 1` when
-it passed, `evidence not div_small at 1` when it failed, with source
-`test:div_by_two`.
+appends one block per tied test that ran, `evidence test { for
+calc::div_small holds source "test:div_by_two" rev "R" }`, with `fails`
+when it failed.
 
 - The test's name is free. The claim is named in full
   (`calc::div_small`) or by its last part when only one claim has it.
@@ -346,16 +538,24 @@ it passed, `evidence not div_small at 1` when it failed, with source
   left to write.
 - `test t { … }` in the model is refused, with this section's advice.
 
-The earlier form, the model in `// mitra:` comments, is still read, in
-either syntax. `mitra add 'evidence e { for f … }'` accepts a block.
+## What is no longer read
+
+The syntax of before the rework (`opaque`, `def … :=`, `claim c : forall
+…`, `evidence … at 1`, `-- comments`) is refused, with what to write
+instead. Inside, Mitra still translates a model to that form before
+evaluating it: it is not a language to write in, and the engine's own
+tests (`tests/golden`) are kept in it.
+
+A `// mitra:` comment is one of these two ties. A model written in
+comments is refused.
 
 ## Not yet
 
-- Reports quote claims and evidence as you wrote them, and `mitra next`
-  asks for evidence in this syntax, but verdict lines and stored evidence
-  still use the generated names (`loader::load::spec`, `c::case`) and the
-  earlier line form.
-- Names that are keywords of the earlier syntax can't be used: `by`, `at`,
+- Some generated names still show: `c::case` (the classes of a `uniform`
+  claim written inline) and `f::body` in `mitra explain`, and a few
+  messages of the checker use the internal form's words.
+- No formal grammar of the language is checked yet.
+- Names that are keywords of the internal form can't be used: `by`, `at`,
   `from`, `not`, `def`, `forall`, `uniform`, `correct`, and others.
 - A vouched claim that reads `correct(…)` settles other calls only on a
   finite set of inputs; `represented` and `uniform` have no such limit.

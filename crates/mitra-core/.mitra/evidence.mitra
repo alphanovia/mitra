@@ -1,77 +1,77 @@
--- Evidence, append-only: `mitra add` and `mitra ingest` write here.
-@[source "test:t_holds", rev "560301a24bcb"] evidence t_holds at 1
-@[source "test:t_assuming", rev "560301a24bcb"] evidence t_assuming at 1
-@[source "test:t_unverified", rev "560301a24bcb"] evidence t_unverified at 1
-@[source "test:t_fails", rev "560301a24bcb"] evidence t_fails at 1
-@[source "test:t_plus", rev "560301a24bcb"] evidence t_plus at 1
-@[source "test:t_plus_swapped", rev "560301a24bcb"] evidence t_plus_swapped at 1
-@[source "test:t_plus_overflow", rev "560301a24bcb"] evidence t_plus_overflow at 1
-@[source "test:t_plus_overflow_swapped", rev "560301a24bcb"] evidence t_plus_overflow_swapped at 1
-@[source "test:t_plus_mixed", rev "560301a24bcb"] evidence t_plus_mixed at 1
-@[source "test:t_plus_mixed_swapped", rev "560301a24bcb"] evidence t_plus_mixed_swapped at 1
-@[source "test:t_plus_floats", rev "560301a24bcb"] evidence t_plus_floats at 1
-@[source "test:t_plus_floats_swapped", rev "560301a24bcb"] evidence t_plus_floats_swapped at 1
-@[source "test:t_minus", rev "560301a24bcb"] evidence t_minus at 1
-@[source "test:t_plus_negated", rev "560301a24bcb"] evidence t_plus_negated at 1
-@[source "test:t_times", rev "560301a24bcb"] evidence t_times at 1
-@[source "test:t_times_swapped", rev "560301a24bcb"] evidence t_times_swapped at 1
-@[source "test:t_divide", rev "560301a24bcb"] evidence t_divide at 1
-@[source "test:t_divide_towards_zero", rev "560301a24bcb"] evidence t_divide_towards_zero at 1
-@[source "test:t_divide_by_zero", rev "560301a24bcb"] evidence t_divide_by_zero at 1
-@[source "test:t_divide_floats", rev "560301a24bcb"] evidence t_divide_floats at 1
-@[source "test:t_equal", rev "560301a24bcb"] evidence t_equal at 1
-@[source "test:t_different", rev "560301a24bcb"] evidence t_different at 1
-@[source "test:t_equal_mixed", rev "560301a24bcb"] evidence t_equal_mixed at 1
-@[source "test:t_different_mixed", rev "560301a24bcb"] evidence t_different_mixed at 1
-@[source "test:t_less", rev "560301a24bcb"] evidence t_less at 1
-@[source "test:t_and", rev "560301a24bcb"] evidence t_and at 1
-@[source "test:t_or", rev "560301a24bcb"] evidence t_or at 1
-@[source "test:t_unknown_operator", rev "560301a24bcb"] evidence t_unknown_operator at 1
-@[source "test:t_not_true", rev "560301a24bcb"] evidence t_not_true at 1
-@[source "test:t_not_false", rev "560301a24bcb"] evidence t_not_false at 1
-@[source "test:t_negate", rev "560301a24bcb"] evidence t_negate at 1
-@[source "test:t_negate_back", rev "560301a24bcb"] evidence t_negate_back at 1
-@[source "test:t_negate_float", rev "560301a24bcb"] evidence t_negate_float at 1
-@[source "test:t_negate_string", rev "560301a24bcb"] evidence t_negate_string at 1
-@[source "test:t_in_set", rev "560301a24bcb"] evidence t_in_set at 1
-@[source "test:t_in_list", rev "560301a24bcb"] evidence t_in_list at 1
-@[source "test:t_in_map", rev "560301a24bcb"] evidence t_in_map at 1
-@[source "test:t_in_number", rev "560301a24bcb"] evidence t_in_number at 1
-@[source "test:t_union", rev "560301a24bcb"] evidence t_union at 1
-@[source "test:t_union_swapped", rev "560301a24bcb"] evidence t_union_swapped at 1
-@[source "test:t_intersection", rev "560301a24bcb"] evidence t_intersection at 1
-@[source "test:t_apart", rev "560301a24bcb"] evidence t_apart at 1
-@[source "test:t_difference", rev "560301a24bcb"] evidence t_difference at 1
-@[source "test:t_map_update", rev "560301a24bcb"] evidence t_map_update at 1
-@[source "test:t_map_remove", rev "560301a24bcb"] evidence t_map_remove at 1
-@[source "test:t_set_with_map", rev "560301a24bcb"] evidence t_set_with_map at 1
-@[source "test:t_keys", rev "560301a24bcb"] evidence t_keys at 1
-@[source "test:t_keys_of_a_set", rev "560301a24bcb"] evidence t_keys_of_a_set at 1
-@[source "test:t_level_or", rev "560301a24bcb"] evidence t_level_or at 1
-@[source "test:t_level_and", rev "560301a24bcb"] evidence t_level_and at 1
-@[source "test:t_level_compare", rev "560301a24bcb"] evidence t_level_compare at 1
-@[source "test:t_level_sum", rev "560301a24bcb"] evidence t_level_sum at 1
-@[source "test:t_level_union", rev "560301a24bcb"] evidence t_level_union at 1
-@[source "test:t_level_intersection", rev "560301a24bcb"] evidence t_level_intersection at 1
-@[source "test:t_level_in", rev "560301a24bcb"] evidence t_level_in at 1
-@[source "test:t_level_product", rev "560301a24bcb"] evidence t_level_product at 1
-@[source "test:t_negative_int", rev "560301a24bcb"] evidence t_negative_int at 1
-@[source "test:t_negative_zero", rev "560301a24bcb"] evidence t_negative_zero at 1
-@[source "test:t_negative_float", rev "560301a24bcb"] evidence t_negative_float at 1
-@[source "test:t_negative_string", rev "560301a24bcb"] evidence t_negative_string at 1
-@[source "test:t_word_certain", rev "560301a24bcb"] evidence t_word_certain at 1
-@[source "test:t_word_likely", rev "560301a24bcb"] evidence t_word_likely at 1
-@[source "test:t_word_possible", rev "560301a24bcb"] evidence t_word_possible at 1
-@[source "test:t_word_unlikely", rev "560301a24bcb"] evidence t_word_unlikely at 1
-@[source "test:t_quote_plain", rev "560301a24bcb"] evidence t_quote_plain at 1
-@[source "test:t_quote_empty", rev "560301a24bcb"] evidence t_quote_empty at 1
-@[source "test:t_quote_escapes", rev "560301a24bcb"] evidence t_quote_escapes at 1
-@[source "reader:rust src/eval.rs:27", rev "560301a24bcb"] evidence eval::as_str::tied at 1
-@[source "reader:rust src/eval.rs:1459", rev "560301a24bcb"] evidence eval::unary::tied at 1
-@[source "reader:rust src/eval.rs:1474", rev "560301a24bcb"] evidence eval::binary::tied at 1
-@[source "reader:rust src/print.rs:227", rev "560301a24bcb"] evidence print::negative::tied at 1
-@[source "reader:rust src/print.rs:241", rev "560301a24bcb"] evidence print::level::tied at 1
-@[source "reader:rust src/report.rs:158", rev "560301a24bcb"] evidence report::word::tied at 1
-@[source "reader:rust src/set.rs:1120", rev "560301a24bcb"] evidence set::quote::tied at 1
-@[source "review:claude", rev "560301a24bcb"] evidence print::level_uniform at 1
-@[source "review:claude", rev "560301a24bcb"] evidence report::word_uniform at 1
+// Evidence, append-only: `mitra add`, `mitra ingest` and `mitra tie` write here.
+evidence test { for t_holds holds source "test:t_holds" rev "495d8cd873cd" }
+evidence test { for t_assuming holds source "test:t_assuming" rev "495d8cd873cd" }
+evidence test { for t_unverified holds source "test:t_unverified" rev "495d8cd873cd" }
+evidence test { for t_fails holds source "test:t_fails" rev "495d8cd873cd" }
+evidence test { for t_plus holds source "test:t_plus" rev "495d8cd873cd" }
+evidence test { for t_plus_swapped holds source "test:t_plus_swapped" rev "495d8cd873cd" }
+evidence test { for t_plus_overflow holds source "test:t_plus_overflow" rev "495d8cd873cd" }
+evidence test { for t_plus_overflow_swapped holds source "test:t_plus_overflow_swapped" rev "495d8cd873cd" }
+evidence test { for t_plus_mixed holds source "test:t_plus_mixed" rev "495d8cd873cd" }
+evidence test { for t_plus_mixed_swapped holds source "test:t_plus_mixed_swapped" rev "495d8cd873cd" }
+evidence test { for t_plus_floats holds source "test:t_plus_floats" rev "495d8cd873cd" }
+evidence test { for t_plus_floats_swapped holds source "test:t_plus_floats_swapped" rev "495d8cd873cd" }
+evidence test { for t_minus holds source "test:t_minus" rev "495d8cd873cd" }
+evidence test { for t_plus_negated holds source "test:t_plus_negated" rev "495d8cd873cd" }
+evidence test { for t_times holds source "test:t_times" rev "495d8cd873cd" }
+evidence test { for t_times_swapped holds source "test:t_times_swapped" rev "495d8cd873cd" }
+evidence test { for t_divide holds source "test:t_divide" rev "495d8cd873cd" }
+evidence test { for t_divide_towards_zero holds source "test:t_divide_towards_zero" rev "495d8cd873cd" }
+evidence test { for t_divide_by_zero holds source "test:t_divide_by_zero" rev "495d8cd873cd" }
+evidence test { for t_divide_floats holds source "test:t_divide_floats" rev "495d8cd873cd" }
+evidence test { for t_equal holds source "test:t_equal" rev "495d8cd873cd" }
+evidence test { for t_different holds source "test:t_different" rev "495d8cd873cd" }
+evidence test { for t_equal_mixed holds source "test:t_equal_mixed" rev "495d8cd873cd" }
+evidence test { for t_different_mixed holds source "test:t_different_mixed" rev "495d8cd873cd" }
+evidence test { for t_less holds source "test:t_less" rev "495d8cd873cd" }
+evidence test { for t_and holds source "test:t_and" rev "495d8cd873cd" }
+evidence test { for t_or holds source "test:t_or" rev "495d8cd873cd" }
+evidence test { for t_unknown_operator holds source "test:t_unknown_operator" rev "495d8cd873cd" }
+evidence test { for t_not_true holds source "test:t_not_true" rev "495d8cd873cd" }
+evidence test { for t_not_false holds source "test:t_not_false" rev "495d8cd873cd" }
+evidence test { for t_negate holds source "test:t_negate" rev "495d8cd873cd" }
+evidence test { for t_negate_back holds source "test:t_negate_back" rev "495d8cd873cd" }
+evidence test { for t_negate_float holds source "test:t_negate_float" rev "495d8cd873cd" }
+evidence test { for t_negate_string holds source "test:t_negate_string" rev "495d8cd873cd" }
+evidence test { for t_in_set holds source "test:t_in_set" rev "495d8cd873cd" }
+evidence test { for t_in_list holds source "test:t_in_list" rev "495d8cd873cd" }
+evidence test { for t_in_map holds source "test:t_in_map" rev "495d8cd873cd" }
+evidence test { for t_in_number holds source "test:t_in_number" rev "495d8cd873cd" }
+evidence test { for t_union holds source "test:t_union" rev "495d8cd873cd" }
+evidence test { for t_union_swapped holds source "test:t_union_swapped" rev "495d8cd873cd" }
+evidence test { for t_intersection holds source "test:t_intersection" rev "495d8cd873cd" }
+evidence test { for t_apart holds source "test:t_apart" rev "495d8cd873cd" }
+evidence test { for t_difference holds source "test:t_difference" rev "495d8cd873cd" }
+evidence test { for t_map_update holds source "test:t_map_update" rev "495d8cd873cd" }
+evidence test { for t_map_remove holds source "test:t_map_remove" rev "495d8cd873cd" }
+evidence test { for t_set_with_map holds source "test:t_set_with_map" rev "495d8cd873cd" }
+evidence test { for t_keys holds source "test:t_keys" rev "495d8cd873cd" }
+evidence test { for t_keys_of_a_set holds source "test:t_keys_of_a_set" rev "495d8cd873cd" }
+evidence test { for t_level_or holds source "test:t_level_or" rev "495d8cd873cd" }
+evidence test { for t_level_and holds source "test:t_level_and" rev "495d8cd873cd" }
+evidence test { for t_level_compare holds source "test:t_level_compare" rev "495d8cd873cd" }
+evidence test { for t_level_sum holds source "test:t_level_sum" rev "495d8cd873cd" }
+evidence test { for t_level_union holds source "test:t_level_union" rev "495d8cd873cd" }
+evidence test { for t_level_intersection holds source "test:t_level_intersection" rev "495d8cd873cd" }
+evidence test { for t_level_in holds source "test:t_level_in" rev "495d8cd873cd" }
+evidence test { for t_level_product holds source "test:t_level_product" rev "495d8cd873cd" }
+evidence test { for t_negative_int holds source "test:t_negative_int" rev "495d8cd873cd" }
+evidence test { for t_negative_zero holds source "test:t_negative_zero" rev "495d8cd873cd" }
+evidence test { for t_negative_float holds source "test:t_negative_float" rev "495d8cd873cd" }
+evidence test { for t_negative_string holds source "test:t_negative_string" rev "495d8cd873cd" }
+evidence test { for t_word_certain holds source "test:t_word_certain" rev "495d8cd873cd" }
+evidence test { for t_word_likely holds source "test:t_word_likely" rev "495d8cd873cd" }
+evidence test { for t_word_possible holds source "test:t_word_possible" rev "495d8cd873cd" }
+evidence test { for t_word_unlikely holds source "test:t_word_unlikely" rev "495d8cd873cd" }
+evidence test { for t_quote_plain holds source "test:t_quote_plain" rev "495d8cd873cd" }
+evidence test { for t_quote_empty holds source "test:t_quote_empty" rev "495d8cd873cd" }
+evidence test { for t_quote_escapes holds source "test:t_quote_escapes" rev "495d8cd873cd" }
+evidence tie { for eval::as_str::tied holds source "reader:rust src/eval.rs:27" rev "495d8cd873cd" }
+evidence tie { for eval::unary::tied holds source "reader:rust src/eval.rs:1459" rev "495d8cd873cd" }
+evidence tie { for eval::binary::tied holds source "reader:rust src/eval.rs:1474" rev "495d8cd873cd" }
+evidence tie { for print::negative::tied holds source "reader:rust src/print.rs:227" rev "495d8cd873cd" }
+evidence tie { for print::level::tied holds source "reader:rust src/print.rs:241" rev "495d8cd873cd" }
+evidence tie { for report::word::tied holds source "reader:rust src/report.rs:158" rev "495d8cd873cd" }
+evidence tie { for set::quote::tied holds source "reader:rust src/set.rs:1120" rev "495d8cd873cd" }
+evidence review { for print::level_uniform holds source "review:claude" rev "495d8cd873cd" }
+evidence review { for report::word_uniform holds source "review:claude" rev "495d8cd873cd" }

@@ -1,7 +1,7 @@
 # Design: the developer loop
 
 Status: **partly implemented**. The references
-([language](../reference/reworked.md), [commands](../reference/language.md#running-mitra))
+([language](../reference/reworked.md), [commands](../reference/reworked.md#commands))
 describe what exists; the rest is a proposal.
 
 ## The loop

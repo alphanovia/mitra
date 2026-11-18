@@ -113,8 +113,7 @@ to it.
 
 | Doc | What it covers |
 |---|---|
-| [docs/reference/reworked.md](docs/reference/reworked.md) | The language: model, evidence, the tie to the code, tests, `mitra plan` |
-| [docs/reference/language.md](docs/reference/language.md) | The engine under it: commands, evaluation, output and error codes, the golden set, and the earlier syntax, still read |
+| [docs/reference/reworked.md](docs/reference/reworked.md) | The language and the tool: model, evidence, ties, tests, commands, evaluation, output and error codes |
 
 **General docs**: purpose, positioning and research. These describe
 direction, not the current language.
@@ -128,7 +127,7 @@ direction, not the current language.
 | [docs/design/requirements.md](docs/design/requirements.md) | Proposal: prose requirements as opaque propositions derived from claims, for traceability |
 | [docs/design/elaboration.md](docs/design/elaboration.md) | Proposal: Mitra elaborates partial knowledge into claims, splits, specs and proof obligations |
 | [docs/review/2026-11-18.md](docs/review/2026-11-18.md) | Review list: every decision taken alone, open questions, how to test |
-| [docs/design/lean-syntax.md](docs/design/lean-syntax.md) | Decision on the earlier syntax (inspired by Lean 4); superseded for writing models by the reworked syntax |
+| [docs/design/lean-syntax.md](docs/design/lean-syntax.md) | History: the first syntax (inspired by Lean 4), no longer read |
 | [docs/design/state.md](docs/design/state.md) | Proposal: state as a value, traces, invariants |
 | [docs/design/workflow.md](docs/design/workflow.md) | The loop: model, plan, code, tie, ingest, eval; and what is proposed (bugs, diagnosis, usage) |
 | [docs/use-cases.md](docs/use-cases.md) | Where Mitra is headed: checking a model, gating a merge, gating an agent |

@@ -253,6 +253,66 @@ pub fn expr(e: &Expr) -> String {
     at(e, LET)
 }
 
+thread_local! {
+    /// Whether expressions print as a model writes them (`if c { a } else
+    /// { b }`, `let x = v;`), not in the internal form.
+    static WRITTEN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// One claim as a model would write it in full: `given a: S, b: T then e`.
+pub fn contract(m: &Model, c: &Claim) -> String {
+    WRITTEN.with(|w| w.set(true));
+    let out = match &c.target {
+        Target::Uniform(None) => format!("uniform({})", c.func),
+        Target::Uniform(Some(g)) => format!("uniform({}, {g})", c.func),
+        Target::Uses { used, only } => {
+            let only = if *only { "only " } else { "" };
+            format!("fn {} uses {only}{}", c.func, used.join(", "))
+        }
+        Target::Tied => format!("the code of {} is tied to the model", c.func),
+        Target::Represented(_) => print_claim(m, c),
+        _ => {
+            let f = m.function(&c.func);
+            let params = f.map(|f| &f.params[..]).unwrap_or(&[]);
+            let mut given = Vec::new();
+            let mut args = Vec::new();
+            for (i, pos) in c.pattern.iter().enumerate() {
+                let value = match (&pos.var, &pos.set) {
+                    (None, Some(s)) => s.single(),
+                    _ => None,
+                };
+                if let Some(v) = value {
+                    args.push(v.to_string());
+                    continue;
+                }
+                let x = pos.var.clone().unwrap_or_else(|| match params.get(i) {
+                    Some((name, _)) => name.clone(),
+                    None => format!("x{}", i + 1),
+                });
+                let set = pos.set.as_ref().or(params.get(i).map(|p| &p.1));
+                given.push(match set {
+                    Some(s) => format!("{x}: {s}"),
+                    None => x.clone(),
+                });
+                args.push(x);
+            }
+            let args = format!("({})", args.join(", "));
+            let body = match &c.target {
+                Target::Correct => format!("correct({}{args})", c.func),
+                Target::Matches(e) => format!("{}{args} == {}", c.func, expr(e)),
+                Target::Property(e) => expr(e),
+                _ => unreachable!(),
+            };
+            match given.is_empty() {
+                true => body,
+                false => format!("given {} then {body}", given.join(", ")),
+            }
+        }
+    };
+    WRITTEN.with(|w| w.set(false));
+    out
+}
+
 /// `e`, in a place that needs at least binding strength `min`.
 fn at(e: &Expr, min: u8) -> String {
     let (s, strength) = match e {
@@ -344,6 +404,13 @@ fn at(e: &Expr, min: u8) -> String {
         Expr::Binary(op, a, b) => {
             let l = level(op);
             (format!("{} {op} {}", at(a, l), at(b, l + 1)), l)
+        }
+        Expr::If(c, t, f) if WRITTEN.with(|w| w.get()) => (
+            format!("if {} {{ {} }} else {{ {} }}", expr(c), expr(t), expr(f)),
+            ATOM,
+        ),
+        Expr::Let(x, v, b) if WRITTEN.with(|w| w.get()) => {
+            (format!("let {x} = {}; {}", expr(v), expr(b)), LET)
         }
         Expr::If(c, t, f) => (
             format!("if {} then {} else {}", expr(c), expr(t), expr(f)),

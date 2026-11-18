@@ -2,7 +2,7 @@
 //! functions over each element: what is refused.
 
 fn error(model: &str, evidence: &str) -> String {
-    match mitra_core::load(model, evidence) {
+    match mitra_core::core_load(model, evidence) {
         Err((_, e)) => e.message,
         Ok(m) => match mitra_core::evaluate(&m) {
             Err((_, e)) => e.message,
@@ -89,7 +89,7 @@ fn each_element() {
                  && filter(x in [1, 2, 3], x > 1) == [2, 3] \
                  && all(x in [], x > 1) && !any(x in [], x > 1)";
     assert_eq!(error(model, ""), "");
-    let m = mitra_core::load(model, "").unwrap();
+    let m = mitra_core::core_load(model, "").unwrap();
     let report = mitra_core::evaluate(&m).unwrap();
     assert!(format!("{report:?}").contains("Holds"), "{report:?}");
     let e = error("claim c : all(x in 3, x > 1)", "");

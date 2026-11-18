@@ -1,14 +1,15 @@
 //! Mitra's embeddable library.
 //!
-//! Parse a model (subjects, specs, claims, tests) and a list of evidence,
+//! Parse a model (subjects, boundaries, claims) and a list of evidence,
 //! then compute a verdict for each claim, and for each error the pieces
 //! most plausibly wrong.
 //!
 //! ```
-//! let model = "opaque flip(a: Bool) -> Bool\nclaim flip_correct : forall a, correct(flip(a))";
-//! let evidence = "evidence correct(flip(true)) at 1\nevidence correct(flip(false)) at 1";
+//! let model = "subject s { fn flip(a: bool) -> bool;\n\
+//!              claim flip_correct(a: bool) { correct(flip(a)) } }";
+//! let evidence = "evidence t { for flip holds }";
 //! let report = mitra_core::run(model, evidence).unwrap();
-//! assert_eq!(report.to_text(), "flip_correct: holds\n");
+//! assert_eq!(report.to_text(), "s::flip_correct: holds\n");
 //! ```
 
 pub mod ast;
@@ -73,9 +74,17 @@ pub enum Input {
 
 /// Parse both inputs and check them against each other.
 pub fn load(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
-    if surface::is_surface(model) {
-        return load_surface(model, evidence);
+    if let Some((line, hint)) = surface::earlier(model) {
+        let msg = format!("this syntax is no longer read: {hint}");
+        return Err((Input::Model, Error::new(line, msg)));
     }
+    load_surface(model, evidence)
+}
+
+/// The same for the internal form the model is translated to. It is not
+/// a language to write in: the engine's own tests use it.
+#[doc(hidden)]
+pub fn core_load(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     let mut m = parse_model(model).map_err(|e| (Input::Model, e))?;
     m.evidence = parse_evidence_for(evidence, &m).map_err(|e| (Input::Evidence, e))?;
     m.check()
@@ -243,17 +252,20 @@ fn tie(m: &mut Model, evidence: &str, names: &surface::Names) {
 /// Parse new evidence for a model, in the syntax the model is written in.
 /// Nothing is checked against the model beyond its names.
 pub fn read_evidence(model: &str, evidence: &str) -> Result<Vec<Evidence>, Error> {
-    if surface::is_surface(model) {
-        let (text, names) = surface::model(model)?;
-        let mut m = parse_model(&text)?;
-        let earlier = surface::evidence_alone(evidence, &names)?;
-        tie(&mut m, &earlier, &names);
-        return parse_evidence_for(&earlier, &m);
-    }
-    parse_evidence_for(evidence, &parse_model(model).unwrap_or_default())
+    let (text, names) = surface::model(model)?;
+    let mut m = parse_model(&text)?;
+    let earlier = surface::evidence_alone(evidence, &names)?;
+    tie(&mut m, &earlier, &names);
+    parse_evidence_for(&earlier, &m)
 }
 
 /// Parse both inputs, check them against each other, and evaluate.
 pub fn run(model: &str, evidence: &str) -> Result<Report, (Input, Error)> {
     evaluate(&load(model, evidence)?)
+}
+
+/// [`run`] on the internal form.
+#[doc(hidden)]
+pub fn core_run(model: &str, evidence: &str) -> Result<Report, (Input, Error)> {
+    evaluate(&core_load(model, evidence)?)
 }

@@ -26,8 +26,8 @@ and `mitra plan` lists the overflow path as evidence owed (a property
 test or a proof).
 
 **Why it matters.** This is how the language is validated: small models
-whose correct verdicts are known. Every case in the golden set
-([language reference](reference/language.md#golden-set)) and every example under `examples/reworked/` is an instance of UC1, and a
+whose correct verdicts are known. Every engine test under `tests/golden/`
+and every example under `examples/reworked/` is an instance of UC1, and a
 demo app would be UC1 with a screen.
 
 ---

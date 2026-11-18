@@ -1,58 +1,58 @@
--- Evidence, append-only: `mitra add` and `mitra ingest` write here.
-@[source "test:code_against_one_failure", rev "c42b4e740113"] evidence code_against_one_failure at 1
-@[source "test:three_pieces_in_conflict", rev "c42b4e740113"] evidence three_pieces_in_conflict at 1
-@[source "test:no_clause_no_belief", rev "c42b4e740113"] evidence no_clause_no_belief at 1
-@[source "test:distrust_shows", rev "c42b4e740113"] evidence distrust_shows at 1
-@[source "test:full_trust", rev "c42b4e740113"] evidence full_trust at 1
-@[source "test:a_tie_beside_a_distrusted_piece", rev "c42b4e740113"] evidence a_tie_beside_a_distrusted_piece at 1
-@[source "test:outside_every_clause", rev "c42b4e740113"] evidence outside_every_clause at 1
-@[source "test:two_failures_agree", rev "c42b4e740113"] evidence two_failures_agree at 1
-@[source "test:rejects_bias_above_one", rev "c42b4e740113"] evidence rejects_bias_above_one at 1
-@[source "test:rejects_unknown_piece", rev "c42b4e740113"] evidence rejects_unknown_piece at 1
-@[source "test:t_yager_agree", rev "c42b4e740113"] evidence t_yager_agree at 1
-@[source "test:t_yager_contradict", rev "c42b4e740113"] evidence t_yager_contradict at 1
-@[source "test:t_yager_contradict_swapped", rev "c42b4e740113"] evidence t_yager_contradict_swapped at 1
-@[source "test:t_yager_with_nothing", rev "c42b4e740113"] evidence t_yager_with_nothing at 1
-@[source "test:t_yager_nothing_first", rev "c42b4e740113"] evidence t_yager_nothing_first at 1
-@[source "test:t_yager_nothing", rev "c42b4e740113"] evidence t_yager_nothing at 1
-@[source "test:t_dempster_agree", rev "c42b4e740113"] evidence t_dempster_agree at 1
-@[source "test:t_dempster_contradict", rev "c42b4e740113"] evidence t_dempster_contradict at 1
-@[source "test:t_dempster_contradict_swapped", rev "c42b4e740113"] evidence t_dempster_contradict_swapped at 1
-@[source "test:t_dempster_with_nothing", rev "c42b4e740113"] evidence t_dempster_with_nothing at 1
-@[source "test:t_dempster_nothing_first", rev "c42b4e740113"] evidence t_dempster_nothing_first at 1
-@[source "test:t_dempster_nothing", rev "c42b4e740113"] evidence t_dempster_nothing at 1
-@[source "test:t_judged_correct", rev "c42b4e740113"] evidence t_judged_correct at 1
-@[source "test:t_judged_wrong", rev "c42b4e740113"] evidence t_judged_wrong at 1
-@[source "test:t_judged_at_zero", rev "c42b4e740113"] evidence t_judged_at_zero at 1
-@[source "test:t_judged_at_one", rev "c42b4e740113"] evidence t_judged_at_one at 1
-@[source "test:t_judged_rejects_above", rev "c42b4e740113"] evidence t_judged_rejects_above at 1
-@[source "test:t_judged_rejects_below", rev "c42b4e740113"] evidence t_judged_rejects_below at 1
-@[source "test:t_yager_rejects_negative", rev "c42b4e740113"] evidence t_yager_rejects_negative at 1
-@[source "test:t_yager_rejects_sum", rev "c42b4e740113"] evidence t_yager_rejects_sum at 1
-@[source "test:t_yager_rejects_second", rev "c42b4e740113"] evidence t_yager_rejects_second at 1
-@[source "test:t_dempster_rejects_first", rev "c42b4e740113"] evidence t_dempster_rejects_first at 1
-@[source "test:t_dempster_rejects_negative", rev "c42b4e740113"] evidence t_dempster_rejects_negative at 1
-@[source "test:t_dempster_rejects_sum", rev "c42b4e740113"] evidence t_dempster_rejects_sum at 1
-@[source "test:t_valid_yes", rev "c42b4e740113"] evidence t_valid_yes at 1
-@[source "test:t_valid_slack", rev "c42b4e740113"] evidence t_valid_slack at 1
-@[source "test:t_valid_negative", rev "c42b4e740113"] evidence t_valid_negative at 1
-@[source "test:t_valid_sum", rev "c42b4e740113"] evidence t_valid_sum at 1
-@[source "test:t_conflict_total", rev "c42b4e740113"] evidence t_conflict_total at 1
-@[source "test:t_conflict_mixed", rev "c42b4e740113"] evidence t_conflict_mixed at 1
-@[source "test:t_conflict_none", rev "c42b4e740113"] evidence t_conflict_none at 1
-@[source "test:t_conflict_invalid_first", rev "c42b4e740113"] evidence t_conflict_invalid_first at 1
-@[source "test:t_conflict_invalid_second", rev "c42b4e740113"] evidence t_conflict_invalid_second at 1
-@[source "reader:rust src/culprits.rs:56", rev "c42b4e740113"] evidence culprits::rank::tied at 1
-@[source "reader:rust src/lib.rs:43", rev "c42b4e740113"] evidence mass::judged::tied at 1
-@[source "reader:rust src/lib.rs:53", rev "c42b4e740113"] evidence mass::is_valid::tied at 1
-@[source "reader:rust src/lib.rs:61", rev "c42b4e740113"] evidence mass::conflict::tied at 1
-@[source "reader:rust src/lib.rs:80", rev "c42b4e740113"] evidence mass::dempster::tied at 1
-@[source "reader:rust src/lib.rs:80", rev "c42b4e740113"] evidence mass::dempster::uses at 1
-@[source "reader:rust src/lib.rs:99", rev "c42b4e740113"] evidence mass::yager::tied at 1
-@[source "reader:rust src/lib.rs:99", rev "c42b4e740113"] evidence mass::yager::uses at 1
-@[source "review:claude", rev "c42b4e740113"] evidence mass::conflict_uniform at 1
-@[source "review:claude", rev "c42b4e740113"] evidence mass::dempster_uniform at 1
-@[source "review:claude", rev "c42b4e740113"] evidence mass::is_valid_uniform at 1
-@[source "review:claude", rev "c42b4e740113"] evidence mass::judged_uniform at 1
-@[source "review:claude", rev "c42b4e740113"] evidence mass::renormalises_uniform at 1
-@[source "review:claude", rev "c42b4e740113"] evidence mass::yager_uniform at 1
+// Evidence, append-only: `mitra add`, `mitra ingest` and `mitra tie` write here.
+evidence test { for code_against_one_failure holds source "test:code_against_one_failure" rev "c42b4e740113" }
+evidence test { for three_pieces_in_conflict holds source "test:three_pieces_in_conflict" rev "c42b4e740113" }
+evidence test { for no_clause_no_belief holds source "test:no_clause_no_belief" rev "c42b4e740113" }
+evidence test { for distrust_shows holds source "test:distrust_shows" rev "c42b4e740113" }
+evidence test { for full_trust holds source "test:full_trust" rev "c42b4e740113" }
+evidence test { for a_tie_beside_a_distrusted_piece holds source "test:a_tie_beside_a_distrusted_piece" rev "c42b4e740113" }
+evidence test { for outside_every_clause holds source "test:outside_every_clause" rev "c42b4e740113" }
+evidence test { for two_failures_agree holds source "test:two_failures_agree" rev "c42b4e740113" }
+evidence test { for rejects_bias_above_one holds source "test:rejects_bias_above_one" rev "c42b4e740113" }
+evidence test { for rejects_unknown_piece holds source "test:rejects_unknown_piece" rev "c42b4e740113" }
+evidence test { for t_yager_agree holds source "test:t_yager_agree" rev "c42b4e740113" }
+evidence test { for t_yager_contradict holds source "test:t_yager_contradict" rev "c42b4e740113" }
+evidence test { for t_yager_contradict_swapped holds source "test:t_yager_contradict_swapped" rev "c42b4e740113" }
+evidence test { for t_yager_with_nothing holds source "test:t_yager_with_nothing" rev "c42b4e740113" }
+evidence test { for t_yager_nothing_first holds source "test:t_yager_nothing_first" rev "c42b4e740113" }
+evidence test { for t_yager_nothing holds source "test:t_yager_nothing" rev "c42b4e740113" }
+evidence test { for t_dempster_agree holds source "test:t_dempster_agree" rev "c42b4e740113" }
+evidence test { for t_dempster_contradict holds source "test:t_dempster_contradict" rev "c42b4e740113" }
+evidence test { for t_dempster_contradict_swapped holds source "test:t_dempster_contradict_swapped" rev "c42b4e740113" }
+evidence test { for t_dempster_with_nothing holds source "test:t_dempster_with_nothing" rev "c42b4e740113" }
+evidence test { for t_dempster_nothing_first holds source "test:t_dempster_nothing_first" rev "c42b4e740113" }
+evidence test { for t_dempster_nothing holds source "test:t_dempster_nothing" rev "c42b4e740113" }
+evidence test { for t_judged_correct holds source "test:t_judged_correct" rev "c42b4e740113" }
+evidence test { for t_judged_wrong holds source "test:t_judged_wrong" rev "c42b4e740113" }
+evidence test { for t_judged_at_zero holds source "test:t_judged_at_zero" rev "c42b4e740113" }
+evidence test { for t_judged_at_one holds source "test:t_judged_at_one" rev "c42b4e740113" }
+evidence test { for t_judged_rejects_above holds source "test:t_judged_rejects_above" rev "c42b4e740113" }
+evidence test { for t_judged_rejects_below holds source "test:t_judged_rejects_below" rev "c42b4e740113" }
+evidence test { for t_yager_rejects_negative holds source "test:t_yager_rejects_negative" rev "c42b4e740113" }
+evidence test { for t_yager_rejects_sum holds source "test:t_yager_rejects_sum" rev "c42b4e740113" }
+evidence test { for t_yager_rejects_second holds source "test:t_yager_rejects_second" rev "c42b4e740113" }
+evidence test { for t_dempster_rejects_first holds source "test:t_dempster_rejects_first" rev "c42b4e740113" }
+evidence test { for t_dempster_rejects_negative holds source "test:t_dempster_rejects_negative" rev "c42b4e740113" }
+evidence test { for t_dempster_rejects_sum holds source "test:t_dempster_rejects_sum" rev "c42b4e740113" }
+evidence test { for t_valid_yes holds source "test:t_valid_yes" rev "c42b4e740113" }
+evidence test { for t_valid_slack holds source "test:t_valid_slack" rev "c42b4e740113" }
+evidence test { for t_valid_negative holds source "test:t_valid_negative" rev "c42b4e740113" }
+evidence test { for t_valid_sum holds source "test:t_valid_sum" rev "c42b4e740113" }
+evidence test { for t_conflict_total holds source "test:t_conflict_total" rev "c42b4e740113" }
+evidence test { for t_conflict_mixed holds source "test:t_conflict_mixed" rev "c42b4e740113" }
+evidence test { for t_conflict_none holds source "test:t_conflict_none" rev "c42b4e740113" }
+evidence test { for t_conflict_invalid_first holds source "test:t_conflict_invalid_first" rev "c42b4e740113" }
+evidence test { for t_conflict_invalid_second holds source "test:t_conflict_invalid_second" rev "c42b4e740113" }
+evidence tie { for culprits::rank::tied holds source "reader:rust src/culprits.rs:56" rev "c42b4e740113" }
+evidence tie { for mass::judged::tied holds source "reader:rust src/lib.rs:43" rev "c42b4e740113" }
+evidence tie { for mass::is_valid::tied holds source "reader:rust src/lib.rs:53" rev "c42b4e740113" }
+evidence tie { for mass::conflict::tied holds source "reader:rust src/lib.rs:61" rev "c42b4e740113" }
+evidence tie { for mass::dempster::tied holds source "reader:rust src/lib.rs:80" rev "c42b4e740113" }
+evidence tie { for mass::dempster::uses holds source "reader:rust src/lib.rs:80" rev "c42b4e740113" }
+evidence tie { for mass::yager::tied holds source "reader:rust src/lib.rs:99" rev "c42b4e740113" }
+evidence tie { for mass::yager::uses holds source "reader:rust src/lib.rs:99" rev "c42b4e740113" }
+evidence review { for mass::conflict_uniform holds source "review:claude" rev "c42b4e740113" }
+evidence review { for mass::dempster_uniform holds source "review:claude" rev "c42b4e740113" }
+evidence review { for mass::is_valid_uniform holds source "review:claude" rev "c42b4e740113" }
+evidence review { for mass::judged_uniform holds source "review:claude" rev "c42b4e740113" }
+evidence review { for mass::renormalises_uniform holds source "review:claude" rev "c42b4e740113" }
+evidence review { for mass::yager_uniform holds source "review:claude" rev "c42b4e740113" }

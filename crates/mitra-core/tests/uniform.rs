@@ -11,7 +11,7 @@ const MODEL: &str = "opaque f(a: Int8) -> Int\n\
     claim f_u : uniform f by cls\n";
 
 fn eval(evidence: &str) -> String {
-    mitra_core::run(MODEL, &format!("evidence f_u at 1\n{evidence}"))
+    mitra_core::core_run(MODEL, &format!("evidence f_u at 1\n{evidence}"))
         .unwrap()
         .to_text()
 }
@@ -62,7 +62,7 @@ fn a_claim_calling_another_subject_assumes_nothing() {
 #[test]
 fn structural_claims_are_not_premises() {
     let model = format!("{MODEL}claim d : forall a, correct(f(a)) := by derive [f_u]");
-    let err = mitra_core::run(&model, "").unwrap_err().1;
+    let err = mitra_core::core_run(&model, "").unwrap_err().1;
     assert!(err.message.contains("can't be a premise"), "{err}");
 }
 

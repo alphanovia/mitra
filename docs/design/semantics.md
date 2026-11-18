@@ -2,8 +2,7 @@
 
 Status: **implemented in part** (2026-11-18). Built: the verdicts, the
 errors, and the ranking of what is most plausibly wrong, as the
-[reference](../reference/language.md#evaluation) describes them; they are
-the same for both syntaxes. Not built:
+[reference](../reference/reworked.md#evaluation) describes them. Not built:
 staleness and the last diff as weights, and the bug query (section 6).
 Parts marked *decided* are the user's words (2026-11-18); parts marked
 *proposed* are open for review.
@@ -139,7 +138,7 @@ error[M004]: an assumption is contradicted by the evidence
 `left` is what remains of the trust in a piece: 1 minus the plausibility
 that it is wrong, to 1 minus the belief (section 4), by Dempster's rule.
 These are the outputs of golden cases `bias/01` and `bias/02`. The format
-(codes, locations, help) is in the [reference](../reference/language.md).
+(codes, locations, help) is in the [reference](../reference/reworked.md#output).
 
 *Proposed:* "the model being wrong" is weighed through its evidence: an
 assumption's bias is the bias of the evidence on it, usually a review. A claim

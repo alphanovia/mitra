@@ -143,25 +143,39 @@ fn lex(src: &str) -> Result<Vec<Tok>, Error> {
     Ok(toks)
 }
 
-/// Whether a model is written in this syntax, not the earlier one.
-pub fn is_surface(model: &str) -> bool {
-    let earlier = |l: &str| {
-        let l = l.trim_start();
-        l.starts_with("opaque ") || l.starts_with("def ") || l.contains(":=")
-    };
-    // `claim name :` is the earlier form, `claim name(`, `{` or `=` this one.
+/// The first line written in the earlier syntax (`opaque`, `def`, `:=`,
+/// `claim c :`, `-- comment`), which is no longer read, and what to
+/// write instead.
+pub fn earlier(model: &str) -> Option<(usize, &'static str)> {
     let named = |l: &str, k: &str| {
-        let rest = l.trim_start().strip_prefix(k).map(str::trim_start)?;
+        let rest = l.strip_prefix(k).map(str::trim_start)?;
         let name = rest.find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))?;
-        Some(!rest[name..].trim_start().starts_with(':') && name > 0)
+        Some(rest[name..].trim_start().starts_with(':') && name > 0)
     };
-    let ours = |l: &str| {
-        let starts = ["subject ", "boundary ", "fn ", "assume ", "import "];
-        starts.iter().any(|k| l.trim_start().starts_with(k))
-            || named(l, "claim ") == Some(true)
-            || named(l, "test ") == Some(true)
+    let hint = |l: &str| {
+        let l = l.trim_start();
+        if l.starts_with("opaque ") {
+            Some("`opaque f(a: T) -> U` is written `fn f(a: T) -> U;` inside `subject name { … }`")
+        } else if l.starts_with("def ") {
+            Some("`def f(a: T) -> U := e` is written `fn f(a: T) -> U { e }`")
+        } else if named(l, "claim ") == Some(true) {
+            Some("`claim c : forall a, e` is written `claim c(a: T) { e }`")
+        } else if named(l, "test ") == Some(true) {
+            Some("a test is a comment above the real test: `// mitra: evidence for <claim>`")
+        } else if l.starts_with("--") {
+            Some("a comment starts with `//`")
+        } else if l.starts_with("@[")
+            || (l.starts_with("evidence ") && l.contains(" at ") && !l.contains('{'))
+        {
+            Some("evidence is written `evidence name { for f given a = 1 holds }`")
+        } else if l.contains(":=") {
+            Some("`:=` is not used: a body is written in braces")
+        } else {
+            None
+        }
     };
-    !model.lines().any(earlier) && model.lines().any(ours)
+    let mut lines = model.lines().enumerate();
+    lines.find_map(|(i, l)| Some((i + 1, hint(l)?)))
 }
 
 /// What the model declares, for the evidence that names it.
@@ -1941,14 +1955,13 @@ pub fn evidence_alone(src: &str, names: &Names) -> Result<String, Error> {
             p.evidence(&mut out, false)?;
             continue;
         }
-        // A line in the earlier syntax, as `mitra add` appends them.
         let line = p.line();
-        if !lines[line - 1].trim_start().starts_with("--") {
-            P::put(&mut out, line, lines[line - 1].to_string());
-        }
-        while p.pos < p.toks.len() && p.line() == line {
-            p.pos += 1;
-        }
+        let hint = earlier(lines[line - 1]).map_or(
+            "evidence is written `evidence name { for f given a = 1 holds }`",
+            |h| h.1,
+        );
+        let msg = format!("expected an `evidence` block: {hint}");
+        return Err(Error::new(line, msg));
     }
     out.resize(src.lines().count().max(out.len()), String::new());
     Ok(out.join("\n"))
@@ -1975,6 +1988,56 @@ pub fn written(lines: &[String], line: usize) -> Option<String> {
         true => format!("{short} …"),
         false => out,
     })
+}
+
+/// Evidence blocks with `source "…"` and `rev "…"` added to each block
+/// that does not say it. A block that already has the clause is an error.
+pub fn stamp(text: &str, source: Option<&str>, rev: Option<&str>) -> Result<String, String> {
+    let mut out = String::new();
+    let (mut depth, mut quoted, mut escaped) = (0usize, false, false);
+    // The block being read, without its strings: where a clause shows.
+    let mut bare = String::new();
+    for c in text.chars() {
+        if quoted {
+            (quoted, escaped) = (escaped || c != '"', !escaped && c == '\\');
+            out.push(c);
+            continue;
+        }
+        match c {
+            '"' => {
+                quoted = true;
+                bare.push('"');
+            }
+            '{' => depth += 1,
+            '}' if depth == 1 => {
+                depth = 0;
+                let has = |k: &str| {
+                    let words: Vec<&str> = bare.split_whitespace().collect();
+                    words.windows(2).any(|w| w[0] == k && w[1].starts_with('"'))
+                };
+                for (k, v) in [("source", source), ("rev", rev)] {
+                    let Some(v) = v else { continue };
+                    if has(k) {
+                        return Err(format!(
+                            "--{k} is given twice: in the option and in the evidence"
+                        ));
+                    }
+                    if !out.ends_with(' ') {
+                        out.push(' ');
+                    }
+                    out += &format!("{k} \"{v}\" ");
+                }
+                bare.clear();
+            }
+            '}' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+        if depth > 0 && c != '"' {
+            bare.push(c);
+        }
+        out.push(c);
+    }
+    Ok(out)
 }
 
 /// The functions whose tie to the code the evidence speaks of.

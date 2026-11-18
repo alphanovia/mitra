@@ -120,9 +120,9 @@ approach.
 ## Layers
 
 ```text
-  reworked syntax   earlier syntax   (projections)
-            \            /
-             v          v
+  the language   (a projection)
+         |
+         v
    (2) parser: text  ->  AST
                      |
                      v
@@ -137,9 +137,7 @@ approach.
    Evaluation is a pure function from the model and the ledger to a
    verdict per claim.
 2. **Parsing.** Text to AST. The text syntax is one projection of the model,
-   not the model itself: two are read today, the
-   [reworked syntax](reference/reworked.md) and the
-   [earlier one](reference/language.md) it is translated to.
+   not the model itself. One is read: [the language](reference/reworked.md).
 3. **Incremental use and storage.** Add evidence to a stored model and
    re-evaluate. A first store exists (`.mitra/`); re-evaluating only what
    changed does not.
@@ -163,7 +161,7 @@ They are built and tested in that order.
    a claim, while passes only cover inputs.
 3. **Precise semantics.** Every rule can be computed by hand and checked.
 4. **Specified by example.** Small models with hand-written results (the
-   golden set in the [language reference](reference/language.md)) are the
+   examples under `examples/reworked/` and the engine tests under `tests/golden/`) are the
    tests.
 5. **Proven.** The implementation is to be written with Lean 4 and Verus, so
    the analyser can itself be trusted.
