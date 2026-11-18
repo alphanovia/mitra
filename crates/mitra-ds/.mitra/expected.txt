@@ -11,12 +11,12 @@ conflict_spec_ok : holds
   assumed  class "any" of `conflict_class`, by conflict_uniform
 conflict_uniform : holds
 dempster_correct : holds
-  tested   9 inputs
+  tested   18 inputs
   assumed  classes "first invalid", "partial conflict", "second invalid", "total conflict" of `dempster_class`, by dempster_uniform
 dempster_uniform : holds
 dempster_uses : holds
 yager_correct : holds
-  tested   9 inputs
+  tested   18 inputs
   assumed  classes "first invalid", "second invalid", "valid" of `yager_class`, by yager_uniform
 yager_uniform : holds
 yager_uses : holds

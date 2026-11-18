@@ -45,19 +45,19 @@ Coverage is three **sets**, never a percentage: *tested*, *assumed* and
 ```text
 div_correct : holds
   tested   {(1, 0), (6, 3)}
-  assumed  every other input, by div_uniform (evidence line 1, review:alice)
-  missed   nothing
+  assumed  classes "rest", "zero" of `div_class`, by div_uniform
 
 div_correct : holds assuming [div_uniform]
   tested   {(1, 0), (6, 3)}
-  assumed  every other input, by div_uniform
-  missed   nothing
-warning: div_uniform is unverified: no evidence on it
+  assumed  classes "rest", "zero" of `div_class`, by div_uniform (unverified)
+div_uniform : unverified
+  tested   nothing
+  missed   (Int, Int)
 
-warning: div_correct is unverified
+div_correct : unverified
   tested   {(6, 3)}
-  assumed  class "rest", by div_uniform (review:alice)
-  missed   class "zero"
+  assumed  class "rest" of `div_class`, by div_uniform
+  missed   class "zero" of `div_class`
 ```
 
 Dependencies are the claims a verdict rests on: a uniformity claim, the
@@ -81,19 +81,26 @@ wrong, against each other and against the model being wrong.
 smallest case: one claim against the evidence refuting it.
 
 ```text
-error: div_correct fails on {(4, 2)}
-  1. claim div_correct                         the code is wrong   0.80 to 1.00
-  2. evidence line 7: not correct (div 4 2)    bug report, at 0.8  0.00 to 0.20
+error: `div_correct` fails on {(4, 2)}
+  evidence line 3: @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+  most plausibly wrong:
+    [0.80, 1.00] the code of `div`
+    [0.00, 0.20] evidence line 3
 
-error: inconsistent: these can't all be true
-  1. claim div_uniform                         review:alice, at 0.9   0.28 to 0.35
-  2. evidence line 4: correct (div 6 3)        test t_six, at 0.99    0.03 to 0.04
-  3. evidence line 7: not correct (div 4 2)    bug report, at 0.8     0.62 to 0.70
-  the biases together say nothing is wrong (conflict 0.71)
+error: inconsistent, in class "rest" of `div_class`: `div_uniform` can't hold with both
+  evidence line 9: @[source "review:alice"] evidence div_uniform at 0.9
+  evidence line 10: @[source "test:t_six"] evidence correct (div 6 3) at 0.99
+  evidence line 11: @[source "bug:42"] evidence not correct (div 4 2) at 0.8
+  most plausibly wrong:
+    [0.62, 0.70] evidence line 11
+    [0.28, 0.35] evidence line 9
+    1 less likely hidden
+    conflict 0.71: the biases say nothing is wrong
 ```
 
-Each range is the belief and the plausibility that the line is the wrong
-one (section 4). The numbers above are Dempster's rule on these biases.
+Each range is the belief and the plausibility that the piece is wrong
+(section 4), by Dempster's rule on these biases. These are the outputs
+of golden cases `bias/01` and `bias/02`.
 
 *Proposed:* "the model being wrong" is weighed through its evidence: an
 assumption's bias is the bias of the evidence on it, usually a review. A claim
@@ -241,7 +248,6 @@ Not built, and whose layer they belong to:
 4. **Display defaults.** Proposed: at most 5 candidates, none under a
    plausibility of 0.05, and one line saying how many were hidden and how
    to see them all.
-
 5. **`holds assuming` with no evidence at all.** A derived claim whose
    implication is checked `holds assuming` its premises even when nothing
    was tested (golden `compose/01`). Is that the wanted reading?
