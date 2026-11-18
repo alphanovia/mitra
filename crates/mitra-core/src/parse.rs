@@ -152,6 +152,8 @@ struct P {
     aliases: Vec<(String, String)>,
     /// The names used as a record with a set for each field.
     used: Vec<String>,
+    /// Whether the last `args` were written with parentheses: `f()`.
+    parens: bool,
 }
 
 /// A name bound by `forall`, its set if one is given, and its line.
@@ -194,6 +196,7 @@ impl P {
             params: Vec::new(),
             aliases: Vec::new(),
             used: Vec::new(),
+            parens: false,
         })
     }
     /// The line of the next token (or of the last one, at the end).
@@ -343,6 +346,10 @@ impl P {
             return self.numeral(true);
         }
         if self.eat("(") {
+            if self.eat(")") {
+                // `()`: the one value of the unit type.
+                return Ok(Value::Tuple(Vec::new()));
+            }
             let parts = self.values()?;
             if parts.len() < 2 {
                 return self.err("a tuple has two values or more: `(1, 2)`");
@@ -463,6 +470,10 @@ impl P {
     }
     fn set_atom(&mut self) -> Result<Set, Error> {
         if self.eat("(") {
+            if self.eat(")") {
+                // `()`: the unit type, whose one value is `()`.
+                return Ok(Set::tuple(Vec::new()));
+            }
             // `(S)` groups; `(S, T)` is the tuples of one value from each.
             let mut parts = vec![self.set()?];
             while self.eat(",") {
@@ -636,6 +647,16 @@ impl P {
                 true => p.binders().map_err(at)?,
                 false => Vec::new(),
             };
+            if fields.is_empty()
+                && p.toks
+                    .get(p.pos.wrapping_sub(1))
+                    .is_some_and(|t| t.0 == Tok::Punct(")"))
+            {
+                return Err(at(Error::new(
+                    0,
+                    format!("a variant without fields is written `{name}`, without `()`"),
+                )));
+            }
             out.push(Record {
                 name,
                 fields,
@@ -657,10 +678,13 @@ impl P {
 
     // ---- binders, arguments, patterns ----
 
-    /// `(a b : Int) (c : Bool)`, at least one.
+    /// `(a: Int, c: Bool)`, or `()`.
     fn binders(&mut self) -> Result<Vec<(String, Set)>, Error> {
         let mut params = Vec::new();
         self.expect("(")?;
+        if self.eat(")") {
+            return Ok(params);
+        }
         loop {
             let name = self.ident()?;
             self.expect(":")?;
@@ -695,7 +719,8 @@ impl P {
     fn args(&mut self, bound: &[(String, Option<Set>, usize)]) -> Result<Pattern, Error> {
         let mut pattern = Vec::new();
         // `(a, 1, -2)`; no parentheses when there are no arguments.
-        let mut more = self.eat("(");
+        self.parens = self.eat("(");
+        let mut more = self.parens && !self.eat(")");
         while more {
             // A name followed by `(` is a record; a name that no `forall`
             // binds is a variant without fields, when one is declared.
@@ -766,7 +791,7 @@ impl P {
     ) -> Result<(String, Pattern), Error> {
         self.expect("(")?;
         let c = self.call(bound)?;
-        if c.1.is_empty() {
+        if !self.parens {
             return self.err(format!(
                 "`correct({0})` needs the inputs of a subject, as in `correct({0}(1, 2))`\n  \
                  help: if `{0}` is a claim, write `evidence {0} at 1`",
@@ -818,6 +843,11 @@ impl P {
         } else {
             let (f, pat) = self.call(&bound)?;
             if self.eat("=") {
+                if !self.parens {
+                    return self.err(format!(
+                        "`{f}` needs its inputs: `{f}() = …` when it has none"
+                    ));
+                }
                 (f, pat, Judgment::Output(self.value()?))
             } else {
                 (f, pat, Judgment::Holds(true))
@@ -894,11 +924,14 @@ impl P {
             let f = self.ident()?;
             if self.eat("(") {
                 // f(a, b), or the record Name(a, b)
-                let mut args = vec![self.expr()?];
-                while self.eat(",") {
+                let mut args = Vec::new();
+                if !self.eat(")") {
                     args.push(self.expr()?);
+                    while self.eat(",") {
+                        args.push(self.expr()?);
+                    }
+                    self.expect(")")?;
                 }
-                self.expect(")")?;
                 // A record's name makes it a record: see `records_in`.
                 Expr::Call(f, args)
             } else {
@@ -960,6 +993,9 @@ impl P {
             return Ok(Expr::Score(kind, f));
         }
         if self.eat("(") {
+            if self.eat(")") {
+                return Ok(Expr::Tuple(Vec::new()));
+            }
             // `(e)` groups; `(a, b)` is a tuple.
             let mut parts = vec![self.expr()?];
             while self.eat(",") {
@@ -1080,6 +1116,12 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                 // record Name(field: T, …)
                 let name = p.ident()?;
                 let fields = p.binders()?;
+                if fields.is_empty() {
+                    return Err(Error::new(
+                        line,
+                        format!("the record `{name}` needs a field"),
+                    ));
+                }
                 let record = Record {
                     name,
                     fields,
@@ -1225,7 +1267,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                     // expression with a Bool value.
                     let start = p.pos;
                     let own = p.call(&bound).and_then(|(f, pat)| {
-                        if pat.is_empty() {
+                        if !p.parens {
                             return p.err(format!("`{f}` needs its inputs"));
                         }
                         p.expect("=")?;

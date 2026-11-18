@@ -109,13 +109,13 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/print.rs:176  claim negative_correct : forall v, correct(negative(v))
+  --> src/print.rs:172  claim negative_correct : forall v, correct(negative(v))
 
   No evidence on v in Value \ ({-0.5, "-1"} | -1..=0).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> src/print.rs:178  claim negative_ints : forall v in Int, negative(v) = v < 0
+  --> src/print.rs:174  claim negative_ints : forall v in Int, negative(v) = v < 0
 
   No evidence on v in Int \ -1..=0.
   help: `mitra next` lists the evidence that would settle it

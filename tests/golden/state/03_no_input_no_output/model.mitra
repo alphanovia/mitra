@@ -1,0 +1,10 @@
+-- A function without parameters, and one that returns nothing: `()`.
+record Account(balance: 0.., open: Bool)
+opaque open_account() -> Account
+opaque log(message: String) -> ()
+def fresh() -> Account := Account(0, true)
+claim open_is : open_account() = fresh()
+claim open_correct : correct(open_account())
+claim log_correct : forall message, correct(log(message))
+claim log_returns : forall message, log(message) = ()
+test t_open : open_account() = Account(0, true)

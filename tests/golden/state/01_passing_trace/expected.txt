@@ -1,0 +1,32 @@
+deposit_is: unverified
+  passes on       `deposit(Account(0, true), 5)`
+  no evidence on  (a, n) in (Account \ {Account(0, true)}, 0..) | ({Account(0, true)}, 0..=4 | 6..)
+withdraw_is: unverified
+  passes on       `withdraw(Account(2, true), 7)`, `withdraw(Account(5, true), 3)`
+  assumed on      classes "covered", "overdraw" of `account_class`, by `withdraw_uniform`
+  no evidence on  class "closed" of `account_class`
+withdraw_uniform: holds
+withdraw_keeps_open: unverified
+  passes on       `a = Account(2, true), n = 7`, `a = Account(5, true), n = 3`
+  assumed on      classes "covered", "overdraw" of `account_class`, by `withdraw_uniform`
+  no evidence on  class "closed" of `account_class`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  claim deposit_is : forall a, forall n, deposit(a, n) = deposit_spec(a, n)
+
+  No evidence on (a, n) in (Account \ {Account(0, true)}, 0..) | ({Account(0, true)}, 0..=4 | 6..).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:10  claim withdraw_is : forall a, forall n, withdraw(a, n) = withdraw_spec(a, n)
+
+  No evidence on class "closed" of `account_class`.
+  help: one passing test in such a class stands for the class
+
+warning[M101]: a claim is not verified
+  --> model.mitra:15  claim withdraw_keeps_open : forall a, forall n, withdraw(a, n).0.open == a.open
+
+  No evidence on class "closed" of `account_class`.
+  help: one passing test in such a class stands for the class
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

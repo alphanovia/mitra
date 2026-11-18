@@ -158,12 +158,8 @@ pub(crate) fn pattern(p: &Pattern, params: &[(String, Set)]) -> (String, String)
         };
         args.push(x);
     }
-    let args = if args.is_empty() {
-        String::new()
-    } else {
-        format!("({})", args.join(", "))
-    };
-    (forall, args)
+    // A subject without parameters is called as `f()`.
+    (forall, format!("({})", args.join(", ")))
 }
 
 /// `f(1, -2)`: a call on one input tuple.

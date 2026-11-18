@@ -1,0 +1,6 @@
+-- The same test, failing at its last assert. The trace shows which call
+-- went wrong: `deposit` did what its spec says, the first `withdraw` did not.
+@[source "test:t_seq"] evidence deposit(Account(0, true), 5) = Account(5, true) at 1
+@[source "test:t_seq"] evidence withdraw(Account(5, true), 3) = (Account(3, true), true) at 1
+@[source "test:t_seq"] evidence withdraw(Account(3, true), 7) = (Account(3, true), false) at 1
+@[source "review"] evidence withdraw_uniform at 1

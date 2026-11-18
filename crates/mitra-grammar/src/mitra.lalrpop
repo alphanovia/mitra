@@ -33,9 +33,10 @@ Enum: () = "enum" NAME ("(" Comma1<NAME> ")")? "{" Comma1<Variant> "}" => ();
 Variant: () = NAME Params? => ();
 Test: () = "test" NAME ":" Forall* Judgment => ();
 
-Opaque: () = "opaque" NAME Params "->" Set => ();
-Def: () = "def" NAME Params "->" Set ":=" Expr => ();
+Opaque: () = "opaque" NAME FnParams "->" Set => ();
+Def: () = "def" NAME FnParams "->" Set ":=" Expr => ();
 Params: () = "(" Comma1<Param> ")" => ();
+FnParams: () = { "(" ")" => (), Params };
 Param: () = NAME ":" Set => ();
 Claim: () = {
     "claim" NAME ":" Forall* ClaimBody Derive? => (),
@@ -77,10 +78,11 @@ Forall: () = {
     ForallKw NAME "," => (),
     ForallKw NAME In Set "," => (),
 };
-Args: () = "(" Comma1<Arg> ")" => ();
+Args: () = { "(" ")" => (), "(" Comma1<Arg> ")" => () };
 Arg: () = {
     NAME => (), "true" => (), "false" => (), Num => (), "-" Num => (), STR => (),
     NAME "(" Comma1<Value> ")" => (),
+    "(" ")" => (),
     "(" Value "," Comma1<Value> ")" => (),
     "[" "]" => (),
     "[" Comma1<Value> "]" => (),
@@ -95,6 +97,7 @@ SetAtom: () = {
     "Float64" => (), "String" => (), "Value" => (),
     "{" "}" => (),
     "{" Comma1<Value> "}" => (),
+    "(" ")" => (),
     "(" Comma1<Set> ")" => (),
     NAME => (),
     NAME "(" Comma1<Set> ")" => (),
@@ -139,8 +142,10 @@ Postfix: () = {
 };
 Atom: () = {
     NAME => (),
+    NAME "(" ")" => (),
     NAME "(" Comma1<Expr> ")" => (),
     Literal => (),
+    "(" ")" => (),
     "(" Comma1<Expr> ")" => (),
     "[" "]" => (),
     "[" Comma1<Expr> "]" => (),
@@ -158,6 +163,7 @@ Literal: () = { "true" => (), "false" => (), Num => (), STR => () };
 
 Value: () = {
     "true" => (), "false" => (), Num => (), "-" Num => (), STR => (),
+    "(" ")" => (),
     "(" Value "," Comma1<Value> ")" => (),
     NAME => (),
     NAME "(" Comma1<Value> ")" => (),

@@ -31,9 +31,10 @@ module.exports = grammar({
       '{', sep1($.variant, ','), '}'),
     type_parameters: $ => seq('(', sep1($.name, ','), ')'),
     variant: $ => seq(field('name', $.name), optional($.parameters)),
-    opaque: $ => seq('opaque', field('name', $.name), $.parameters, '->', field('type', $._set)),
-    def: $ => seq('def', field('name', $.name), $.parameters, '->', field('type', $._set), ':=', field('body', $._expr)),
+    opaque: $ => seq('opaque', field('name', $.name), choice($.parameters, $.unit), '->', field('type', $._set)),
+    def: $ => seq('def', field('name', $.name), choice($.parameters, $.unit), '->', field('type', $._set), ':=', field('body', $._expr)),
     parameters: $ => seq('(', sep1($.parameter, ','), ')'),
+    unit: _ => seq('(', ')'),
     parameter: $ => seq($.name, ':', $._set),
 
     claim: $ => seq(
@@ -50,7 +51,7 @@ module.exports = grammar({
     equation: $ => seq($._expr, '=', $._expr),
     property: $ => $._expr,
     derive: $ => seq(':=', 'by', 'derive', '[', sep1($.name, ','), ']'),
-    call: $ => seq(field('function', $.name), optional(seq('(', sep1($._arg, ','), ')'))),
+    call: $ => seq(field('function', $.name), optional(choice($.unit, seq('(', sep1($._arg, ','), ')')))),
     // ASCII first; Lean's Unicode symbols are aliases.
     forall: $ => seq(choice('forall', '∀'), $.name, optional(seq(choice('in', '∈'), $._set)), ','),
     _arg: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.negative,
@@ -65,7 +66,7 @@ module.exports = grammar({
     not: $ => seq(choice('not', '¬'), choice($.correct, $.call)),
     output: $ => seq($.call, '=', $._value),
 
-    _set: $ => choice($.set_name, $.set_literal, $.range, $.set_op, $.set_paren,
+    _set: $ => choice($.unit, $.set_name, $.set_literal, $.range, $.set_op, $.set_paren,
       $.tuple_type, $.record_type, $.list_type, $.set_type, $.map_type),
     tuple_type: $ => seq('(', $._set, ',', sep1($._set, ','), ')'),
     record_type: $ => prec.right(seq(field('record', $.name), optional(seq('(', sep1($._set, ','), ')')))),
@@ -109,8 +110,8 @@ module.exports = grammar({
         prec.left(p, seq(field('left', $._expr), field('operator', op), field('right', $._expr)))),
     ),
     unary: $ => prec(6, seq(choice('!', '-'), $._expr)),
-    application: $ => prec(7, seq(field('function', $.name), '(', sep1($._expr, ','), ')')),
-    _atom: $ => choice($.name, $.boolean, $.nat, $.float, $.string, $.paren, $.tuple, $.list,
+    application: $ => prec(7, seq(field('function', $.name), choice($.unit, seq('(', sep1($._expr, ','), ')')))),
+    _atom: $ => choice($.unit, $.name, $.boolean, $.nat, $.float, $.string, $.paren, $.tuple, $.list,
       $.len, $.keys, $.set, $.map, $.match, $._measure),
     _measure: $ => choice($.rate, $.score),
     rate: $ => seq('rate', '(', $.name, choice('in', '∈'), $._set, ',', $._expr, ')'),
@@ -118,7 +119,7 @@ module.exports = grammar({
     measured: $ => seq($._measure, '=', $.number),
     paren: $ => seq('(', $._expr, ')'),
 
-    _value: $ => choice($.boolean, $.nat, $.float, $.string, $.negative_value,
+    _value: $ => choice($.unit, $.boolean, $.nat, $.float, $.string, $.negative_value,
       $.tuple_value, $.record_value, $.list_value, $.set_value, $.map_value, $.name),
     tuple_value: $ => seq('(', $._value, ',', sep1($._value, ','), ')'),
     record_value: $ => seq(field('record', $.name), '(', sep1($._value, ','), ')'),

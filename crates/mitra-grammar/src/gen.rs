@@ -81,6 +81,7 @@ fn composite(r: &mut Rng, depth: usize) -> String {
     if depth > 0 && r.chance(20) {
         let parts = |r: &mut Rng, lo| r.many(lo, 3, |r| composite(r, depth - 1)).join(" , ");
         return match r.below(6) {
+            0 if r.chance(10) => "( )".into(),
             0 => format!("( {} )", parts(r, 2)),
             1 => format!("{} ( {} )", name(r), parts(r, 1)),
             2 => format!("[ {} ]", parts(r, 0)),
@@ -203,6 +204,7 @@ fn set_atom(r: &mut Rng, depth: usize) -> String {
         5 => range(r),
         6 => format!("( {} )", set(r, depth - 1)),
         // Tuples, records with their fields, lists.
+        7 if r.chance(10) => "( )".into(),
         7 => format!("( {} )", r.many(2, 3, |r| set(r, depth - 1)).join(" , ")),
         8 => format!(
             "{} ( {} )",
@@ -384,6 +386,14 @@ fn binders(r: &mut Rng) -> String {
     format!(" ( {} )", params.join(" , "))
 }
 
+/// The parameters of a function: `()` now and then.
+fn fn_binders(r: &mut Rng) -> String {
+    match r.chance(10) {
+        true => " ( )".to_string(),
+        false => binders(r),
+    }
+}
+
 fn command(r: &mut Rng) -> String {
     if r.chance(10) {
         return format!("record {}{}", name(r), binders(r));
@@ -391,11 +401,11 @@ fn command(r: &mut Rng) -> String {
 
     match r.below(4) {
         3 => format!("test {} : {}", name(r), judgment(r)),
-        0 => format!("opaque {}{} -> {}", name(r), binders(r), set(r, 2)),
+        0 => format!("opaque {}{} -> {}", name(r), fn_binders(r), set(r, 2)),
         1 => format!(
             "def {}{} -> {} := {}",
             name(r),
-            binders(r),
+            fn_binders(r),
             set(r, 2),
             expr(r, 3)
         ),

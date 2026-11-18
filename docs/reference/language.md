@@ -159,8 +159,9 @@ record     = "record" name params ;
 enum       = "enum" name [ "(" name { "," name } ")" ]
              "{" variant { "," variant } "}" ;
 variant    = name [ params ] ;
-opaque     = "opaque" name params "->" set ;
-def        = "def" name params "->" set ":=" expr ;
+opaque     = "opaque" name fn-params "->" set ;
+def        = "def" name fn-params "->" set ":=" expr ;
+fn-params  = params | "(" ")" ;
 params     = "(" param { "," param } ")" ;
 param      = name ":" set ;
 claim      = "claim" name ":" ( "uniform" name [ "by" name ]
@@ -178,7 +179,7 @@ judgment   = "correct" "(" name args ")"
            | name args [ "=" value ] ;
 
 forall     = "forall" name [ "in" set ] "," ;
-args       = [ "(" arg { "," arg } ")" ] ;
+args       = [ "(" [ arg { "," arg } ] ")" ] ;
 arg        = name | value ;
 
 set        = inter { "|" inter } ;
@@ -186,7 +187,7 @@ inter      = set-atom { ( "&" | "\" ) set-atom } ;
 set-atom   = "Bool" | "Int" | "Int8" | "Int16" | "Int32" | "Int64"
            | "UInt8" | "UInt16" | "UInt32" | "Float64" | "String" | "Value"
            | "{" [ value { "," value } ] "}"
-           | "(" set { "," set } ")"
+           | "(" [ set { "," set } ] ")"
            | name [ "(" set { "," set } ")" ]
            | "List" "(" set ")" | "Set" "(" set ")"
            | "Map" "(" set [ "," set ] ")"
@@ -204,9 +205,9 @@ sum        = product { ( "+" | "-" | "|" | "\" ) product } ;
 product    = unary { ( "*" | "/" | "&" ) unary } ;
 unary      = ( "!" | "-" ) unary
            | atom { "." ( name | nat ) | "[" expr "]" } ;
-atom       = name [ "(" expr { "," expr } ")" ]
+atom       = name [ "(" [ expr { "," expr } ] ")" ]
            | "true" | "false" | number | string
-           | "(" expr { "," expr } ")"
+           | "(" [ expr { "," expr } ] ")"
            | "[" [ expr { "," expr } ] "]"
            | "len" "(" expr ")" | "keys" "(" expr ")"
            | "{" [ expr { "," expr } ] "}"
@@ -217,7 +218,7 @@ measure    = "rate" "(" name in set "," expr ")"
            | ( "precision" | "recall" | "false_positive_rate" ) "(" name ")" ;
 arm        = ( "_" | name [ "(" name { "," name } ")" ] ) "=>" expr ;
 
-value      = "true" | "false" | [ "-" ] number | string
+value      = "true" | "false" | [ "-" ] number | string | "(" ")"
            | "(" value "," value { "," value } ")"
            | name [ "(" value { "," value } ")" ]
            | "[" [ value { "," value } ] "]"
@@ -236,7 +237,11 @@ Beyond the grammar, the parser checks:
 - every name in `args` is bound by a `forall` before it, or is a variant
   without fields (`None`); a bound name wins over a variant of the same
   name; every `forall` name is distinct and used exactly once;
-- `correct(f(args))` and a claim's `f(args) = e` have at least one argument;
+- `correct(f(args))`, a claim's `f(args) = e` and an output `f(args) = v`
+  write the parentheses, `f()` for a subject without parameters; a name
+  alone is a claim;
+- a record has at least one field, and a variant without fields is
+  written without `()`;
 - integer values fit in 64 bits (`-9223372036854775808` to
   `9223372036854775807`); range bounds may be larger, up to 2^126 either
   way, since `Int` is unbounded, but inputs past 64 bits can't be listed
@@ -378,7 +383,23 @@ opaque minus(a: Int, b: Int) -> Int
 
 A function, task or process under review. Each parameter has a type (a
 set); its inputs are the tuples of the product of those types. The set
-after the last `:` is its result type. A subject is **opaque**: Mitra never
+after `->` is its result type.
+
+```lean
+opaque open_account() -> Account
+opaque log(message: String) -> ()
+claim open_correct : correct(open_account())
+evidence log("started") = () at 1
+```
+
+A subject may have no parameter: it has one input, and is called as
+`open_account()`. `()` is the unit type, with one value `()`, for a
+function that returns nothing, as in Rust. A `def` takes `()` too.
+
+A function that changes a state takes the state and returns it: `fn
+withdraw(&mut self, n: u64) -> bool` is `opaque withdraw(a: Account, n:
+0..) -> (Account, Bool)`. A test that makes several calls is recorded as
+its trace, one line of evidence for each call (golden `state`). A subject is **opaque**: Mitra never
 runs it, it only weighs evidence about it.
 
 ### def: a spec
@@ -1293,6 +1314,14 @@ Three models: `get` on `Option(Int)` with the classes "none" and "some"
 | 01 | a stock `Map(String, 0..)`, with a spec that adds to an item; `remove` takes a set of keys | `add_is` fails on the one output with a wrong count; the claim on `keys` passes on three inputs |
 | 02 | `tags(xs: List(String)) -> Set(String)`, classes "none" and "some" | every claim holds; the set operators, checked on constants |
 | 03 | `alarm(readings: Map(String, Level), muted: Set(String))` | fails on the input where the muted door still rings |
+
+### `state`: a state as a value, and traces
+
+| Case | Model | Verdicts |
+|---|---|---|
+| 01 | `deposit` and `withdraw` on an `Account`, with specs and classes; the trace of one passing test, three calls | nothing fails; each call counts for its own function |
+| 02 | the same test, failing: the first `withdraw` returns a wrong balance | `withdraw_is` fails on that call and names the code of `withdraw`; `deposit` passes |
+| 03 | `open_account() -> Account`, `log(message: String) -> ()` | the claims on `open_account` hold on its one input |
 
 ### `measures`: rates, precision, recall
 

@@ -1,7 +1,9 @@
 # Design: state and sequences of calls
 
-Status: **proposal, nothing built**. Programme item 7. Decisions asked
-for are at the end.
+Status: **proposal**. Built: B (subjects without parameters, `()`), and
+golden cases for sections 1 and 3A with traces written by hand. Decided
+(2026-11-18): traces (A), by hand first; invariants by hand; nothing from
+"not proposed" until the trials ask for it.
 
 ## 1. What works today: state is a value
 
@@ -45,9 +47,9 @@ The Rust test runs as it is. The harness records every call of a modelled
 function made during the test: input state, arguments, output.
 
 ```
-test t_seq          -- Rust: a.deposit(5); assert!(a.withdraw(3)); assert_eq!(a.balance, 2)
-  deposit(Account(0, true), 5) = Account(5, true)
-  withdraw(Account(5, true), 3) = (Account(2, true), true)
+-- Rust: a.deposit(5); assert!(a.withdraw(3)); assert_eq!(a.balance, 2)
+@[source "test:t_seq"] evidence deposit(Account(0, true), 5) = Account(5, true) at 1
+@[source "test:t_seq"] evidence withdraw(Account(5, true), 3) = (Account(2, true), true) at 1
 ```
 
 Each line is plain evidence of the kind Mitra already reads. The assert at

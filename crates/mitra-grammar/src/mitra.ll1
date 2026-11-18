@@ -12,9 +12,11 @@ Variant       = NAME VariantFields ;
 VariantFields = Params | ;
 VariantsTail  = "," Variant VariantsTail | ;
 Test          = "test" NAME ":" Foralls Judgment ;
-Opaque        = "opaque" NAME Params "->" Set ;
-Def           = "def" NAME Params "->" Set ":=" Expr ;
+Opaque        = "opaque" NAME FnParams "->" Set ;
+Def           = "def" NAME FnParams "->" Set ":=" Expr ;
 Params        = "(" Param ParamsTail ")" ;
+FnParams      = "(" FnParamsRest ;
+FnParamsRest  = ")" | Param ParamsTail ")" ;
 ParamsTail    = "," Param ParamsTail | ;
 Param         = NAME ":" Set ;
 Claim         = "claim" NAME ":" ClaimRest ;
@@ -47,10 +49,11 @@ InterOp       = "&" | "∩" | "\" ;
 
 Foralls       = ForallKw NAME InSet "," Foralls | ;
 InSet         = In Set | ;
-Args          = "(" Arg ArgsTail ")" | ;
+Args          = "(" ArgsRest | ;
+ArgsRest      = ")" | Arg ArgsTail ")" ;
 ArgsTail      = "," Arg ArgsTail | ;
 Arg           = NAME ArgRecord | "true" | "false" | Num | "-" Num | STR
-              | "(" Value "," Value ValuesTail ")" | "[" Values "]" | "{" Braces ;
+              | "(" TupleRest | "[" Values "]" | "{" Braces ;
 ArgRecord     = "(" Value ValuesTail ")" | ;
 
 Set           = Inter SetTail ;
@@ -59,13 +62,14 @@ Inter         = SetAtom InterTail ;
 InterTail     = InterOp SetAtom InterTail | ;
 SetAtom       = "Bool" | "Int" | "Int8" | "Int16" | "Int32" | "Int64"
               | "UInt8" | "UInt16" | "UInt32" | "Float64" | "String" | "Value"
-              | "{" Values "}" | "(" Set SetsTail ")"
+              | "{" Values "}" | "(" SetsRest
               | NAME SetArgs | "List" "(" Set ")"
               | "Set" "(" Set ")" | "Map" "(" Set MapValues ")"
               | Bound RangeOp | ".." Bound | "..=" Bound ;
 MapValues     = "," Set | ;
 SetArgs       = "(" Set SetsTail ")" | ;
 SetsTail      = "," Set SetsTail | ;
+SetsRest      = ")" | Set SetsTail ")" ;
 RangeOp       = "..=" Bound | ".." OptBound ;
 Bound         = NAT | "-" NAT ;
 OptBound      = Bound | ;
@@ -89,21 +93,24 @@ ProductTail   = "*" Unary ProductTail | "/" Unary ProductTail | "&" Unary Produc
 Unary         = "!" Unary | "-" Unary | Atom Postfix ;
 Postfix       = "." Field Postfix | "[" Expr "]" Postfix | ;
 Field         = NAME | NAT ;
-Atom          = NAME CallArgs | Literal | "(" Expr ExprsTail ")" | "[" Exprs "]"
+Atom          = NAME CallArgs | Literal | "(" ExprsRest | "[" Exprs "]"
               | "len" "(" Expr ")" | "keys" "(" Expr ")" | "{" BracesExpr | "match" Expr "{" Arm ArmsTail "}" | Measure ;
 Arm           = ArmPattern "=>" Expr ;
 ArmsTail      = "," Arm ArmsTail | ;
 ArmPattern    = "_" | NAME ArmFields ;
 ArmFields     = "(" NAME NamesTail ")" | ;
-CallArgs      = "(" Expr ExprsTail ")" | ;
+CallArgs      = "(" ExprsRest | ;
+ExprsRest     = ")" | Expr ExprsTail ")" ;
 Exprs         = Expr ExprsTail | ;
 ExprsTail     = "," Expr ExprsTail | ;
 Literal       = "true" | "false" | Num | STR ;
 
 Value         = "true" | "false" | Num | "-" Num | STR
-              | "(" Value "," Value ValuesTail ")" | NAME ArgRecord
+              | "(" TupleRest | NAME ArgRecord
               | "[" Values "]" | "{" Braces ;
 # A set `{}`, `{a, b}` or a map `{:}`, `{k: v}`.
+# `()` is the unit value.
+TupleRest     = ")" | Value "," Value ValuesTail ")" ;
 Braces        = "}" | ":" "}" | Value BracesRest ;
 BracesRest    = ":" Value Pairs "}" | ValuesTail "}" ;
 Pairs         = "," Value ":" Value Pairs | ;

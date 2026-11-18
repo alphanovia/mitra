@@ -1,0 +1,15 @@
+-- `&mut self` is one more input and one more output: the state is a value.
+record Account(balance: 0.., open: Bool)
+opaque deposit(a: Account, n: 0..) -> Account
+opaque withdraw(a: Account, n: 0..) -> (Account, Bool)
+def deposit_spec(a: Account, n: 0..) -> Account :=
+  if a.open then Account(a.balance + n, true) else a
+def withdraw_spec(a: Account, n: 0..) -> (Account, Bool) :=
+  if a.open && n <= a.balance then (Account(a.balance - n, true), true) else (a, false)
+claim deposit_is : forall a, forall n, deposit(a, n) = deposit_spec(a, n)
+claim withdraw_is : forall a, forall n, withdraw(a, n) = withdraw_spec(a, n)
+def account_class(a: Account, n: 0..) -> {"closed", "covered", "overdraw"} :=
+  if !a.open then "closed" else if n <= a.balance then "covered" else "overdraw"
+claim withdraw_uniform : uniform withdraw by account_class
+-- An invariant, written by hand: one claim for each function.
+claim withdraw_keeps_open : forall a, forall n, withdraw(a, n).0.open == a.open
