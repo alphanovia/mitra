@@ -4,8 +4,13 @@ This page describes exactly what the code implements today and nothing
 more. When the code changes, this page changes in the same commit. Design
 ideas and open questions live in the [general docs](../../README.md#documentation).
 
-A reworked syntax (`subject`, `boundary`, `fn`, evidence blocks) is being
-tried as a prototype on the same engine: see [reworked.md](reworked.md).
+**Models are now written in the [reworked syntax](reworked.md)**
+(`subject`, `boundary`, `fn`, `claim … { }`, evidence blocks, the model
+aside from the code). It is translated to the syntax of this page, which
+is still read. Read this page for the commands, the evaluation rules,
+the output and the error codes, which are the same for both, and for the
+earlier syntax itself: the golden set, `mitra add` and `mitra ingest`
+lines, and models kept in `// mitra:` comments.
 
 ## Running Mitra
 
@@ -18,6 +23,8 @@ mitra next  [model.mitra evidence.mitra] [--rev <commit>]
 mitra add   '<evidence>' [--source <who>] [--rev <commit>]
 mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 mitra tie   [--rev <commit>]
+mitra plan  [model.mitra evidence.mitra] [--rev <commit>]
+mitra explain <code | claim | std::module>
 ```
 
 `mitra` (crate `mitra-cli`) is a thin wrapper over the library

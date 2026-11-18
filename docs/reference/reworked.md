@@ -1,12 +1,34 @@
-# The reworked language (prototype)
+# The reworked language
 
-What the code reads today in the reworked syntax, and nothing more. It is
-a front end: each declaration is translated to the
-[earlier syntax](language.md), and the same engine gives the verdicts,
-the errors and the ranking. Both syntaxes are read; a file is in one or
-the other. Examples: [`examples/reworked/`](../../examples/reworked).
+The syntax models are written in. This page says what the code reads
+today, and nothing more. It is a front end: each declaration is
+translated to the [earlier syntax](language.md), and the same engine
+gives the verdicts, the errors and the ranking; the commands, the
+evaluation rules and the error codes are on that page. Both syntaxes are
+read; a file is in one or the other. Examples:
+[`examples/reworked/`](../../examples/reworked).
 
 One rule for every declaration: `keyword name(inputs) -> Output { body }`.
+
+## A project, start to end
+
+```sh
+mitra init                         # creates .mitra/ beside src/
+$EDITOR .mitra/model.mitra         # the model, aside from the code
+mitra eval                         # the model alone: errors, verdicts
+mitra plan                         # the evidence owed: the tests to write
+# write the code and the tests, with the two `// mitra:` comments
+R=$(git rev-parse --short HEAD)
+mitra tie --rev $R                 # code against model, as evidence
+cargo test > report.txt 2>&1
+mitra ingest report.txt --rev $R   # test results, as evidence
+mitra eval --rev $R
+mitra add 'evidence r { for div_rest holds source "review:me" }' --rev $R
+```
+
+Without a store, name the two files: `mitra eval model.mitra
+evidence.mitra`. `mitra explain <claim>` prints a claim as written and as
+read; `mitra next` says what to add.
 
 ## Model
 

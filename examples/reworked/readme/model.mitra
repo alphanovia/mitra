@@ -1,0 +1,9 @@
+import std::claims::{represented};
+
+subject calc {
+    fn div(a: 0..=9, b: 0..=9) -> 0..=9 { if b == 0 { 0 } else { a / b } }
+
+    claim div_rest = represented(div, { (a, b) | b != 0 });
+    claim div_small() { div(6, 2) == 3 }
+    claim by_zero() { div(1, 0) == 0 }
+}

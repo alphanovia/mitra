@@ -2,7 +2,8 @@
 
 Status: **implemented in part** (2026-11-18). Built: the verdicts, the
 errors, and the ranking of what is most plausibly wrong, as the
-[reference](../reference/language.md) describes them. Not built:
+[reference](../reference/language.md#evaluation) describes them; they are
+the same for both syntaxes. Not built:
 staleness and the last diff as weights, and the bug query (section 6).
 Parts marked *decided* are the user's words (2026-11-18); parts marked
 *proposed* are open for review.
@@ -261,6 +262,13 @@ Built differently from the proposals above:
 - **The code of a subject is a piece**, next to evidence and assumptions,
   and so is the code of what it uses. This is how `uses` enters the
   ranking: a failing callee takes the blame from its caller.
+- **Everything is a suspect.** The statement of a claim, an assumption,
+  a `uses` clause and a signature are pieces too, trusted at 1 unless
+  the model says `trust n`. Evidence outside a signature is kept, as a
+  conflict between the two (M006). A boundary is never a piece: there is
+  no code of yours to fix.
+- **Errors without evidence.** A claim that the specs of what it calls
+  contradict is an error from the model alone (M007).
 
 Not built, and whose layer they belong to:
 

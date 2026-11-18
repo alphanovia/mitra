@@ -1,43 +1,55 @@
 # Design: the developer loop
 
-Status: **partly implemented**. The [reference](../reference/language.md#running-mitra)
-describes what exists; the rest is a proposal.
+Status: **partly implemented**. The references
+([language](../reference/reworked.md), [commands](../reference/language.md#running-mitra))
+describe what exists; the rest is a proposal.
 
 ## The loop
 
-1. Write the code, the claims and the `test` declarations.
-2. Run the tests, locally or in CI, and ingest the reports as evidence.
-3. Ask Mitra what is unverified and what to add next.
-4. Add manual evidence, such as a review, for the current revision.
-5. Add usage statistics: evidence that the code works in real use.
-6. Report a bug as evidence, and get a ranked list of likely root causes.
+1. Write the model, aside from the code: subjects, signatures, claims,
+   assumptions. A person or an agent writes it
+   ([who it is for](../vision.md#who-it-is-for)).
+2. `mitra eval` on the model alone: claims that the specs contradict are
+   errors before any code exists. `mitra plan` lists the evidence owed,
+   which is the list of tests to write.
+3. Write the code and the tests. Above each function,
+   `// mitra: implements subject::f`; above each test,
+   `// mitra: evidence for claim`.
+4. `mitra tie` compares the code with the model (inputs, result, calls).
+   Run the tests and `mitra ingest` the report.
+5. `mitra eval`, `mitra next`: what holds, what is only assumed, what is
+   missing, what conflicts.
+6. Add evidence by hand for the current revision: a review that vouches
+   for an assumption, a bug report.
+7. When evidence shows the model is wrong, change the model, then the
+   code.
 
 ## Commands
 
 | Command | Does | Status |
 |---|---|---|
 | `mitra init` | Create the store `.mitra/` | done |
-| `mitra check`, `mitra eval` | Check the model; print verdicts | done |
-| `mitra add '<evidence>' --source <who> --rev <r>` | Record manual evidence | done |
-| `mitra ingest <report> --rev <r>` | Turn a test report (libtest, JUnit) into evidence | done |
+| `mitra check`, `mitra eval` | Check the model; print verdicts, errors, warnings | done |
+| `mitra plan` | Per claim, the evidence still owed | done |
+| `mitra tie --rev <r>` | Compare the tied Rust code with the model, as evidence | done, reads text |
+| `mitra ingest <report> --rev <r>` | Turn a test report (libtest, JUnit) into evidence for the claims the tests name | done |
+| `mitra add '<evidence>' --source <who> --rev <r>` | Record evidence by hand | done |
 | `mitra next` | Per unverified claim, the inputs missed and the evidence to add | done, unranked |
+| `mitra explain <code or claim>` | An error code, a claim as written and as read, a library module | done |
 | `mitra ingest usage <file>` | Turn usage logs into evidence | proposed |
-| `mitra bug '<evidence>'` | Record a bug as a counterexample | proposed |
-| `mitra diag` | Verdicts, suspects, conflicts, ranked root causes | proposed |
+| `mitra bug '<evidence>'` | Record a bug as a counterexample | proposed; `mitra add` does it today |
+| `mitra diag` | Verdicts, suspects, conflicts, ranked root causes | proposed; errors already rank their candidates |
 
-## Tying test runs to evidence (done)
+## Tying code and tests to the model (done)
 
-The model declares each test with the evidence its result stands for:
+Two comments, read by `mitra tie` and `mitra ingest`
+([reference](../reference/reworked.md#the-tie-to-the-code)). CI needs no
+plugin, only steps that run them and keep the store. A test names a claim,
+usually a point claim; its result is evidence for that claim and, on a
+point claim, the observed output of the code.
 
-```lean
-test t_small : forall x in 0..=10, correct(add(x, 1))
-```
-
-`mitra ingest` matches tests **by name** in the report. CI needs no plugin,
-only a step that runs `mitra ingest` and keeps the store. In Rust, the
-declaration sits in a `// mitra:` comment above the test's code, and Mitra
-checks it is above the right function. Proposed next: the test's own
-claims ([composition](composition.md#3-tests-are-subjects-too)).
+A test is code too, and may be the piece that is wrong: its evidence is
+a candidate in every error it takes part in.
 
 ## Evidence store
 
@@ -52,8 +64,6 @@ Staleness then lowers the trust in that evidence when culprits are ranked.
 ## Bugs and root causes (proposed)
 
 `mitra bug` adds the bug report as a counterexample. `mitra diag` then ranks
-where the bug most likely is:
-
-by the plausibility of each subject being broken, computed from the
-report, the `uses` claims, stale evidence and the last diff
-([semantics](semantics.md#4-opinion-which-piece-is-wrong)).
+where the bug most likely is: by the plausibility of each piece being
+wrong, computed from the report, the `uses` clauses, stale evidence and
+the last diff ([semantics](semantics.md#4-opinion-which-piece-is-wrong)).

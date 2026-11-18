@@ -2,14 +2,16 @@
 
 Three concrete situations Mitra is for. They are ordered by when Mitra can
 serve them: UC1 is what comes first, UC2 and UC3 are the reasons the engine
-exists and shape its design now, but are built later.
+exists and shape its design now, but are built later. Who writes the
+model in each (an agent, or a person as a scaffold) is in
+[vision.md](vision.md#who-it-is-for).
 
 ---
 
 ## UC1: Check what a trust model computes (first)
 
 **Actor:** a developer of Mitra, or of a program that will use Mitra.
-**Goal:** write a small model, see the trust value and why, and be sure it is
+**Goal:** write a small model, see each verdict and why, and be sure it is
 right.
 
 **Scenario.** The developer models the `add` CLI from
@@ -17,14 +19,15 @@ right.
 sum fits in 64 bits, another for inputs that overflow, a Verus proof of the
 arithmetic, and one test of the overflow path.
 
-**What Mitra should return.** The first claim holds with high certainty
-because it is proven; the overflow claim is unverified, because one test says
-little about every overflowing input; and Mitra points at the overflow path as
-the place to gather evidence next (a property test or a proof).
+**What Mitra should return.** The first claim holds because it is proven;
+the overflow claim is unverified, because one test says little about
+every overflowing input unless someone vouches that it stands for them;
+and `mitra plan` lists the overflow path as evidence owed (a property
+test or a proof).
 
 **Why it matters.** This is how the language is validated: small models
 whose correct verdicts are known. Every case in the golden set
-([language reference](reference/language.md)) is an instance of UC1, and a
+([language reference](reference/language.md#golden-set)) and every example under `examples/reworked/` is an instance of UC1, and a
 demo app would be UC1 with a screen.
 
 ---
@@ -55,8 +58,10 @@ assumption. CI routes the change to a human and reports
 the limiting element: "assumption `staging_token_lifetime` is unverified".
 Checking that one assumption would let the change merge on its own.
 
-**What this needs beyond the language:** turning a change's tests, proofs and reviews
-into a model automatically. That is the product case, later.
+**What this needs beyond the language:** a policy on verdicts, and a tool
+that knows what a change touched. The model itself is written by the
+agent with the change; `mitra tie` and `mitra ingest` already turn its
+code and tests into evidence.
 
 ---
 
@@ -94,7 +99,7 @@ now even though the harness itself comes later.
 | | UC1 | UC2 | UC3 |
 |---|---|---|---|
 | Who asks Mitra | developer, demo app | CI pipeline | agent harness |
-| Where the model comes from | written by hand | derived from a change | derived from an agent's actions |
+| Where the model comes from | written by a person or an agent | written by the agent with the change | derived from an agent's actions |
 | What the answer drives | understanding, tests | merge / human / block | continue / gather / human / stop |
 | Needs the limiting element | to explain | to tell the author what to add | to pick the next action |
 | When | first | later | later |

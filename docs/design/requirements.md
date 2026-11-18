@@ -1,7 +1,11 @@
 # Design: requirements and traceability
 
 Status: **proposal**, not implemented. A layer on top of the core: it must
-not shape the core.
+not shape the core. The sketches are in the
+[earlier syntax](../reference/language.md); in the
+[reworked one](../reference/reworked.md) a requirement would be a claim
+of a subject, and "these claims say what the prose means" the review
+that vouches for it.
 
 ## Claims are per property, not per function
 

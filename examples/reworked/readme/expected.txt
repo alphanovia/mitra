@@ -1,0 +1,60 @@
+calc::div::spec: fails
+  fails on        `calc::div(8, 4)`
+  passes on       `calc::div(6, 2)`
+  no evidence on  98 inputs
+calc::div_small: holds
+calc::by_zero: unverified
+  no evidence on  the statement itself
+calc::div_rest: fails
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:4  fn div(a: 0..=9, b: 0..=9) -> 0..=9 { if b == 0 { 0 } else { a / b } }
+
+  `calc::div::spec` fails on `calc::div(8, 4)`.
+  The evidence that says so:
+
+    output    evidence.mitra:3  evidence bug_report { for div given a = 8, b = 4 gives 4 trust 0.8 }
+
+  The code, the claim or the evidence is wrong. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                      trust  left
+    possible  the code of `calc::div`, model.mitra:4  none   0.00 to 0.71
+    likely    evidence.mitra:3 (bug_report)           0.8    0.29 to 0.36
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  help: if the evidence is right, fix `calc::div`; if not, correct the evidence
+
+error[M002]: evidence denies an assumption
+  --> model.mitra:6  claim div_rest = represented(div, { (a, b) | b != 0 });
+
+  `calc::div_rest` says one input stands for the others, and two of them
+  do not behave the same:
+
+    vouches   evidence.mitra:1  evidence unit_test { for div_small holds source "test:div_by_two" }
+    output    evidence.mitra:3  evidence bug_report { for div given a = 8, b = 4 gives 4 trust 0.8 }
+
+  These can't all be right. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                             trust  left
+    likely    evidence.mitra:3 (bug_report)  0.8    0.29 to 0.36
+    unlikely  evidence.mitra:2 (review:ana)  0.9    0.64 to 0.71
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  note: the trust given says these are probably all right, which can't
+  be: at least one is trusted more than it deserves
+
+  help: correct or remove the claim, or correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:8  claim by_zero() { div(1, 0) == 0 }
+
+  No evidence on the statement itself.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

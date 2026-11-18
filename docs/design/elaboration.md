@@ -1,6 +1,10 @@
 # Design: elaboration
 
-Status: **proposal**, not implemented.
+Status: **proposal**. Built since, in part: claims that follow from the
+specs of what they call (section 1, derived claims), `mitra plan`, which
+lists the evidence owed per claim (section 4, without generating stubs),
+and library claims (`std::claims`) an agent can instantiate (section 5).
+Not built: splitting, mining, obligations for Lean and Verus.
 
 Developers give partial knowledge, such as a few claims, a shape or a
 dependency. Mitra **elaborates** it: it works out what follows from that

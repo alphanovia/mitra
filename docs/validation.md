@@ -39,11 +39,12 @@ not. Mitra never sees it; it is what Mitra's output is scored against.
 
 ## Evidence
 
-- **Model.** Each rung has a store: subjects, claims and `test`
-  declarations, with test reports ingested as evidence.
+- **Model.** Each rung has a store: a model aside from the code
+  (subjects, claims, point claims), the code tied to it, and test
+  reports ingested as evidence for the claims the tests name.
 - **Usage.** A simulator plays a user: it samples inputs (mostly small numbers,
   sometimes huge ones, occasionally junk), runs the CLI, and appends
-  `evidence correct(add(a, b)) at c` or `evidence not correct(add(a, b)) at c`.
+  an evidence block that `holds` or `fails` on `add` for these inputs, with trust `c`.
   Evidence arrives one run at a time, which exercises incremental use.
 - **Human trust.** The simulated user sets the bias of each run: high
   when it can check the result, low when it cannot, and it is occasionally
@@ -69,10 +70,12 @@ The metrics above check Mitra's verdicts. These check that Mitra is useful
 
 1. **Root-cause rank.** Inject mutations (one wrong function at a time) into
    the add ladder and into `mitra-ds`, add a bug report as
-   evidence, and record the rank of the mutated function in `mitra diag`
-   ([proposed](design/workflow.md)). Target: top 1 to 3.
+   evidence, and record the rank of the mutated function among the
+   candidates of the error. Target: top 1 to 3. `scripts/breaks.py`
+   does the injection on Mitra's own crates
+   ([dogfooding](design/dogfooding.md)).
 2. **Tests to nothing missed.** Count the tests needed until every claim
-   holds when following `mitra next`, against a naive baseline (random
+   holds when following `mitra plan` and `mitra next`, against a naive baseline (random
    inputs) and a coverage-guided one. Target: clearly fewer.
 3. **Escaped defects.** On the dogfood repository, count bugs found after a
    claim covering them held. Target: rare, and each one explained by a

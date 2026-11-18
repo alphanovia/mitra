@@ -13,11 +13,12 @@ proven, so what is worth having is good-enough evidence management.
 
 ### T1: a small Rust project, built with Mitra
 
-The developer writes a small Rust program, with its claims, `test`s and
-store kept up to date as the code grows, the way mitra-ds is
-([dogfooding](design/dogfooding.md)).
+The developer writes a small Rust program, with its model aside, its
+ties and its store kept up to date as the code grows, the way mitra-ds is
+([dogfooding](design/dogfooding.md)). The language is the
+[reworked syntax](reference/reworked.md).
 
-- **Stresses:** the dev loop (`add`, `ingest`, `next`, `--rev`), claims on
+- **Stresses:** the dev loop (`plan`, `tie`, `ingest`, `add`, `next`, `--rev`), claims on
   code that changes, and the cost of keeping the model current.
 - **Questions:** Does `next` point at the code worth testing? Does a verdict
   ever change what the developer does? How long does the model take to
@@ -27,10 +28,12 @@ store kept up to date as the code grows, the way mitra-ds is
 - **Success:** at least one decision (what to test, what to ship) is made
   differently, and better, because of a verdict. **Failure:** the model is
   written once and then left behind, or only repeats what `cargo test` says.
-- **Likely gaps:** subjects are not linked to code, so staleness is per
-  revision, not per function; no records or lists; most failed tests
-  give no evidence; `uses` claims are not checked against the code
-  ([composition](design/composition.md)).
+- **Likely gaps:** staleness is per revision, not per function; the
+  reader of ties reads text, not Rust's syntax tree; a test over a
+  sequence of calls has no form yet ([state](design/state.md)). Closed
+  since this plan was written: subjects are tied to code, `uses` is
+  checked by `mitra tie`, records and lists exist, a failed tied test is
+  evidence.
 
 ### T2: an abstract model of an agile organisation, judged from news
 
@@ -51,10 +54,10 @@ agile way. The model states what such an organisation should achieve
   steps.
 - **Likely gaps:** a doubtful news report counts fully for the verdict:
   its bias only ranks it among the pieces to doubt when reports
-  contradict each other; `source` is recorded but not used;
-  inputs are numbers, strings and booleans, so organisations, teams or
-  years become names or numbered cases; no time: evidence can't age except
-  by `--rev`.
+  contradict each other; `source` is recorded but not used; no time:
+  evidence can't age except by `--rev`. Closed since: records, enums and
+  sets describe organisations and teams, and a boundary may answer
+  differently each time.
 
 ### T3: a skill and its spec, judging an agent that uses it
 
@@ -71,10 +74,13 @@ should make the agent do; the evidence is the agent's runs.
   task is an error because runs disagree, or the
   spec can't be written in Mitra and lives only in prose.
 - **Likely gaps:** an agent that passes a task some of the time gives a
-  pass and a failure on the same input, which is an error, not a rate; a failed run on a set gives no evidence (Mitra can't tell which
-  input was wrong); a spec must be a total pure `def`, so "follows the
-  skill" is a subject's `correct`, judged by someone; no notion of a judge
-  (person or LLM) and how much to trust it.
+  pass and a failure on the same input: an error on a subject, two
+  answers that both stand on a boundary, and a rate only through a
+  measure claim (`rate(…) >= 0.9`) with measurement evidence; a failed
+  run on a set gives no evidence (Mitra can't tell which input was
+  wrong); a spec must be a total pure body, so "follows the skill" is a
+  subject's `correct`, judged by someone; the judge (person or LLM) is
+  only a `source` and a trust.
 
 ## Where the outputs go
 
@@ -97,7 +103,7 @@ trials/
 ## How findings feed back
 
 Each finding is reviewed together. A wrong verdict becomes a golden case
-([reference](reference/language.md#golden-set)) before it is fixed. A
+([reference](reference/language.md#golden-set), or an example under `examples/reworked/`) before it is fixed. A
 missing feature goes to the design doc it belongs to, or to a new one, and
 is built only once the language change is settled. A finding that recurs
 across trials ranks higher. A trial that fails in the way listed above is a

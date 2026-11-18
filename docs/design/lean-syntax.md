@@ -1,7 +1,11 @@
 # Design: syntax inspired by Lean 4
 
-Status: **implemented**. The [reference](../reference/language.md) has the
-exact syntax.
+Status: **implemented, and superseded for writing models** (2026-11-18).
+This is the earlier syntax ([reference](../reference/language.md)). The
+engine still reads it, and the [reworked syntax](../reference/reworked.md),
+which reads like Rust (`subject`, `fn`, `claim … { }`), is translated to
+it. The decision below that still stands: Mitra is a standalone language
+and tool, not a Lean library.
 
 Decision (2026-11-17): Mitra stays a standalone language and tool, with its
 own Rust parser. It is not a Lean library. Lean 4 is the inspiration for

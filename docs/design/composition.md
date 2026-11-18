@@ -1,9 +1,14 @@
 # Design: composition and tests
 
-Status: **proposal**. Implemented so far: derived claims
-(`:= by derive [...]`), whose implication is checked on finite domains, and
-`test` declarations, `uniform` and `uses` claims ([reference](../reference/language.md)). Syntax below
-not in the reference is a sketch. Verdicts and trust in evidence are in
+Status: **earlier proposal, kept for its reasoning**; the examples are
+in the [earlier syntax](../reference/language.md). Built since, another
+way ([reworked syntax](../reference/reworked.md)): a claim follows from
+the specs of the functions it calls with no `derive` to write, and is an
+error when they contradict it (section 1, definitional); `uses` is a
+clause on a function, checked against the code by `mitra tie` (section
+2); a test is tied to a claim by a comment, and its evidence is a
+candidate in an error, without claims on the test itself (section 3).
+Syntax below not in a reference is a sketch. Verdicts and trust in evidence are in
 [semantics.md](semantics.md).
 
 ## 1. Composition is implication
@@ -45,8 +50,8 @@ code (near certain), or a human review (less so).
 
 ## 3. Tests are subjects too
 
-Today a `test` declares the evidence its result stands for, and that
-evidence counts at 1. But a test is code, so what it proves depends on
+In the earlier syntax a `test` declares the evidence its result stands
+for, and that evidence counts at 1. But a test is code, so what it proves depends on
 claims about the test itself:
 
 ```lean

@@ -67,22 +67,24 @@ Write Mitra's own rules as Mitra specs: set operations, the verdict rule
 **executable reference semantics** and the start of a **standard library**.
 The Rust core is then claimed to match it:
 
-```lean
-opaque rust_union(s: Value, t: Value) -> Value
-def union(s: Value, t: Value) -> Value := …
-claim core_union : forall s, forall t, rust_union(s, t) = union(s, t)
+```rust
+subject set {
+    fn union(s: Value, t: Value) -> Value { … }   // the spec; the claim is set::union::spec
+}
 ```
 
-with evidence from the Rust tests and, later, Verus.
+with `// mitra: implements set::union` above the Rust function, and
+evidence from the Rust tests and, later, Verus. The first slice exists
+in `crates/mitra-core/.mitra/model.mitra`.
 
-Self-hosting the parser is not possible yet: specs are total and first
-order, with no lists or recursion. What applies now is **bootstrapping
+Self-hosting the parser is not tried: specs are total, and recursion is
+structural only. What applies now is **bootstrapping
 trust**: each release's model of itself is evaluated by the previous
 release, and the fixed point is reached when both give the same verdicts.
 
 ## Order
 
-1. Richer specs: records, lists (needed by both tracks).
+1. Richer specs: records, lists (done).
 2. Track 2: the verdict rule and set operations as specs. Cheap, and it
    checks the language on a real example.
 3. Track 1: the opinion on evidence in `mitra-core`, computed with the

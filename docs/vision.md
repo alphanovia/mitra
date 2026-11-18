@@ -35,11 +35,11 @@ which assumption broke.
 
 ## What Mitra is first
 
-A **language for trust**: subjects under review, claims that they are
-correct on some of their inputs, assumptions such as uniformity, and
-evidence that records runs judged correct or wrong, with the trust its
-author puts in it (see the [language reference](reference/language.md)
-for what exists today). The first thing to test
+A **language for trust**: subjects (the real code under review),
+boundaries (the environment), claims on them, assumptions such as "one
+tested input stands for this set", and evidence from tests, reviews and
+reports, with the trust its author puts in it (see the
+[language reference](reference/reworked.md) for what exists today). The first thing to test
 is whether this language is right: whether small, well-understood situations
 can be written in it naturally and give the verdicts a careful person would
 reach ([validation.md](validation.md), [trials](trials.md)). Everything
@@ -49,6 +49,35 @@ else (CI gates, agent harnesses, apps) is built on top later.
 possibly "holds assuming" a dependency nobody gave evidence for. Numbers are kept for
 the evidence: when something does not add up, Mitra says which piece is
 most plausibly wrong ([semantics](design/semantics.md)).
+
+## Who it is for
+
+Modelling used to be double work: write the model, then the code. With
+agents doing the writing it is no longer a human cost, and the model
+becomes the thing a person reads.
+
+- **The agent models and codes.** A person gives the intent and some
+  requirements. An agent writes the model and the code, a second agent
+  diagnoses with Mitra, and the person reads the model and the report.
+  Mitra is there to catch intent that drifted and sloppy work: a
+  requirement with no claim, a claim with no evidence, a test weakened
+  until it passes.
+- **The person writes the model as a scaffold** of the project. Mitra
+  checks that the code produced is tied to it and covered. Human effort
+  goes to the architecture.
+
+The agent learns while it codes, so it must be able to say the model is
+wrong: it does so with evidence, and Mitra shows the conflict with the
+model's own statement as a candidate.
+
+**The model lives aside from the code**, as in model-based design. It is
+checked alone; the code is checked against it; when the model changes the
+code may be rewritten. The code keeps one comment per function and per
+test that names what it implements or supports.
+
+**Everything is a suspect.** A claim, an assumption, a signature, a
+`uses` clause, a piece of evidence and the code can each be the piece
+that is wrong, and each is a candidate in an error.
 
 ## The core, and what can be automated
 
@@ -62,8 +91,12 @@ part of the writing and the checking automatic: proposing claims from the
 code, checking a `uses` claim against the call graph, turning test runs
 into evidence. Each of them only writes model lines or ledger entries
 that could have been written by hand, so the core never depends on them.
-Reading `mitra:` comments from Rust sources and ingesting test reports
-are the first two.
+The first three exist: `mitra tie` compares the signatures and calls of
+the Rust code with the model, `mitra ingest` turns test reports into
+evidence for the claims the tests name, and `mitra plan` lists the
+evidence a model owes before any code exists. The core stays agnostic:
+it works with no reader, and Rust is the only language invested in for
+now.
 
 ## What success looks like
 
@@ -87,7 +120,7 @@ approach.
 ## Layers
 
 ```text
-  text syntax   docstrings   Markdown blocks   (projections)
+  reworked syntax   earlier syntax   (projections)
         \            |            /
          v           v           v
    (2) parser: text  ->  AST
@@ -99,12 +132,14 @@ approach.
    (3) incremental use and storage
 ```
 
-1. **Semantic model.** The core. An AST of subjects, specs, claims and
-   evidence.
+1. **Semantic model.** The core. An AST of subjects, boundaries, claims
+   and evidence.
    Evaluation is a pure function from the model and the ledger to a
    verdict per claim.
 2. **Parsing.** Text to AST. The text syntax is one projection of the model,
-   not the model itself; others (JSON, an API) can exist alongside it.
+   not the model itself: two are read today, the
+   [reworked syntax](reference/reworked.md) and the
+   [earlier one](reference/language.md) it is translated to.
 3. **Incremental use and storage.** Add evidence to a stored model and
    re-evaluate. A first store exists (`.mitra/`); re-evaluating only what
    changed does not.
@@ -113,8 +148,8 @@ They are built and tested in that order.
 
 ## Why a language
 
-- **Embeddable.** A few lines fit in a docstring next to the code they talk
-  about, or in a fenced `mitra` block in a skill or harness instructions.
+- **Readable alone.** A model is a few files a person can review without
+  the code, and small enough for a fenced block in a skill or a harness.
 - **LLM-friendly.** LLMs read and write small regular languages well, so an
   agent can state its own claims and evidence, and a harness can check them.
 - **Reviewable.** A model is text that can be diffed, reviewed and versioned.
@@ -135,40 +170,44 @@ They are built and tested in that order.
 
 ## Specs and intent
 
-A spec is a definition, so evidence cannot disprove it: Mitra flags such
-evidence as contested. If a person really means "the spec is wrong", that is
-a validation question, not a verification one: the spec does not match what
-they intend. The way to say it is a claim that treats the spec itself as
-the thing under review, with its own evidence (for example
-`claim neg_intent : forall a, correct(neg(a))`, which is an error today because
-`neg` is a spec).
+A body on a function of a subject says what the code should return, and
+adds the claim that it does. Evidence can refute that claim; the code,
+the claim and the evidence are then the candidates. A claim that the
+bodies themselves contradict is an error with no evidence needed. Whether
+a body says what a person intends is a validation question: it is
+settled by reading the model, which is why the model must read alone.
 
 ## Not now
 
-- Language backends that extract or check parts of a model from code,
-  tests or agent traces (see "The core, and what can be automated").
+- Readers for other languages than Rust, and agent traces as evidence.
+- Simulations, sequences of calls, distributions on what a boundary
+  answers; uniformity proven from the branches of a body.
 - Integrations beyond reading test reports (CI plugins, agent harnesses),
   and any user interface.
 - Learning the trust in a source from data.
 
 ## Glossary
 
-- **Subject:** a function, task or process under review. Mitra never runs it.
-- **Spec:** a definition Mitra can evaluate; true by definition.
-- **Claim:** a subject is correct on a set of its inputs, or matches a spec
-  there. A claim can be derived from other claims.
-- **Evidence:** a run of the subject on given inputs, judged correct or
-  wrong, with the trust its author puts in it, from 0 to 1 (its bias).
+- **Subject:** real code under review, and a namespace for its functions
+  and claims. Mitra never runs it.
+- **Boundary:** the environment (network, clock, a person). It may answer
+  differently each time and is never the piece to fix.
+- **Spec:** the body of a function in the model: what the code should
+  return. Mitra computes it.
+- **Claim:** a property of a subject, true on every input it names. A
+  point claim pins one call (`div(6, 2) == 3`).
+- **Assumption:** a claim taken as true without evidence. What rests on
+  it `holds assuming` it.
+- **Evidence:** what was observed or judged, on a function or a claim,
+  with the trust its author puts in it, from 0 to 1.
 - **Ledger:** the append-only record of all evidence.
-- **Test:** a test of the code, declared with the evidence its result
-  stands for; `mitra ingest` turns its results into evidence.
-- **Uniformity claim:** the assumption that a subject behaves the same on
-  every input of a class, so that one judged input stands for the class.
-  It counts once evidence, such as a review, vouches for it.
-- **Conflict:** claims and evidence that can't all be true, such as a
-  pass and a failure in one class of a uniformity claim. Reported like a
-  compiler error.
-- **Verdict:** Mitra's output for a claim: holds, holds assuming,
-  unverified or fails, with the inputs tested, assumed and missed.
-- **Opinion:** on an error, the belief and plausibility that each piece
-  of evidence or assumption is the wrong one.
+- **Tie:** a comment in the code naming the function of the model it
+  implements, or the claim a test is evidence for.
+- **Representation claim:** the assumption that one tested input stands
+  for a set (`represented`) or for its class (`uniform`). It counts once
+  someone vouches for it.
+- **Conflict:** claims and evidence that can't all be true. Reported like
+  a compiler error.
+- **Verdict:** holds, holds assuming, unverified or fails, with the
+  inputs tested, assumed and missed.
+- **Opinion:** on an error, how plausibly each piece is the wrong one.

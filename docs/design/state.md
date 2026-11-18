@@ -5,6 +5,13 @@ golden cases for sections 1 and 3A with traces written by hand. Decided
 (2026-11-18): traces (A), by hand first; invariants by hand; nothing from
 "not proposed" until the trials ask for it.
 
+The examples are in the [earlier syntax](../reference/language.md).
+Since then, in the [reworked syntax](../reference/reworked.md): S5 has a
+construct, the `boundary`, whose functions may answer differently each
+time, with `assume` for what is taken as true of it; a test is tied to a
+claim, so S1 reads "a tied test checks one point claim, not a sequence".
+Sequences and simulations are deferred.
+
 ## 1. What works today: state is a value
 
 A `&mut` is one more input and one more output. No language change.
