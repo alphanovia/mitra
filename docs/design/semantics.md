@@ -17,6 +17,10 @@ differences are listed in section 6.
   author says how much they trust it (its **bias**). Mitra computes an
   opinion only when something does not add up, to say which piece is most
   plausibly wrong. The opinion is never about how true the model is.
+- **One kind of evidence.** A test result, a review, a proof and a bug
+  report are sugar over one raw form: a judgment on a claim or a subject,
+  over some inputs, with a source and a bias. The kind never changes a
+  verdict rule. A review is plain evidence.
 
 ## 2. Verdicts
 
@@ -28,8 +32,8 @@ are errors; where Mitra is not sure there is an error, it warns.
 
 | Verdict | Meaning | Reported as |
 |---|---|---|
-| `holds` | every input is tested or proven, nothing is assumed | nothing |
-| `holds assuming [A, B]` | every input is tested or follows from A and B, which Mitra can't decide | note; warning if A or B is not vouched for |
+| `holds` | evidence covers every input, directly or through dependencies that hold | nothing |
+| `holds assuming [A, B]` | the same, if A and B hold, and they are unverified | warning on A and B |
 | `unverified` | some inputs are missed | warning |
 | `fails` | evidence refutes the claim | error |
 | `inconsistent` | on a set of claims and evidence that can't all be true | error |
@@ -38,10 +42,16 @@ Coverage is three **sets**, never a percentage: *tested*, *assumed* and
 *missed*. A claim holds only when nothing is missed.
 
 ```text
+div_correct : holds
+  tested   {(1, 0), (6, 3)}
+  assumed  every other input, by div_uniform (evidence line 1, review:alice)
+  missed   nothing
+
 div_correct : holds assuming [div_uniform]
   tested   {(1, 0), (6, 3)}
-  assumed  every other input, by div_uniform (review:alice)
+  assumed  every other input, by div_uniform
   missed   nothing
+warning: div_uniform is unverified: no evidence on it
 
 warning: div_correct is unverified
   tested   {(6, 3)}
@@ -52,9 +62,13 @@ warning: div_correct is unverified
 Dependencies are the claims a verdict rests on: a uniformity claim, the
 premises of `by derive`, what `uses` names.
 
-*Proposed:* anything resting on a review stays `holds assuming`, so
-reviews remain visible. Only tests and proofs give plain `holds`. A
-suspect (`f` holds, but uses `g`, which fails) is a warning on `f`.
+*Decided:* an assumption with evidence, such as a review, holds like any
+claim, and what rests on it can be plain `holds`. `holds assuming [A]` is
+for a dependency A with no evidence at all. The *assumed* set keeps the
+review visible: it names the claim and the evidence it rests on.
+
+*Proposed:* a suspect (`f` holds, but uses `g`, which fails) is a warning
+on `f`.
 
 ## 3. Errors
 
@@ -80,8 +94,8 @@ error: inconsistent: these can't all be true
 Each range is the belief and the plausibility that the line is the wrong
 one (section 4). The numbers above are Dempster's rule on these biases.
 
-*Proposed:* "the model being wrong" is weighed through its reviews: an
-assumption's bias is the bias of the review vouching for it. A claim
+*Proposed:* "the model being wrong" is weighed through its evidence: an
+assumption's bias is the bias of the evidence on it, usually a review. A claim
 that the code is correct has no bias of its own, so it takes whatever
 the evidence leaves.
 
@@ -126,8 +140,7 @@ not knowing what to do, the semantics are wrong there.
 | Mitra says | The user does |
 |---|---|
 | `unverified`, missed M | adds a test in M, or states the assumption that lets existing tests stand for M |
-| `holds assuming [A]`, A not vouched for | reviews A and records the review, or tests more until A is not needed |
-| `holds assuming [A]`, A vouched for | nothing; A is what the next reviewer reads first |
+| `holds assuming [A]` | reviews A and records the review as evidence, or tests more until A is not needed |
 | `holds` | nothing, until the code changes and the evidence goes stale |
 | `fails` | reads the ranking: fixes the code, or corrects the evidence |
 | `inconsistent` | reads the ranking: drops or splits the assumption, fixes the code, or corrects the evidence |
@@ -144,12 +157,12 @@ The build increment is this list.
 |---|---|
 | A verdict per claim and policy: `{ logic, covered, refuted, assumed, domain, belief }` | One verdict per claim: the enum, with tested, assumed and missed |
 | `uncertain` | `unverified` |
-| `holds` with an `assumed` field | `holds assuming [..]` |
-| A uniformity claim not vouched for counts for nothing | open, question 1 |
+| `holds` with an `assumed` field | `holds`, with the assumed set and the evidence it rests on |
+| A uniformity claim not vouched for counts for nothing | `holds assuming [..]`, with a warning on the claim |
 | A pass and a failure on one input: the input counts on neither side, a conflict is printed, the verdict comes from the rest | `inconsistent` error |
 | A pass and a failure in one class: the uniformity claim `fails` | `inconsistent` error naming the claim and both pieces of evidence |
-| Evidence counts only at confidence 1; other values are ignored | the number is a bias, used only in the opinion (question 2) |
-| `policy`, `profile`, `belief`, `coverage` as a ratio | removed (question 3) |
+| Evidence counts only at confidence 1; other values are ignored | the number is a bias, used only in the opinion (question 1) |
+| `policy`, `profile`, `belief`, `coverage` as a ratio | removed (question 2) |
 | `suspect` and `root cause` lines | warnings, and sources for the opinion |
 | No plausibility anywhere; `mitra-core` does not use `mitra-ds` | errors carry belief and plausibility per piece |
 | `--rev R`: evidence at another revision is ignored | staleness is a weight |
@@ -157,26 +170,18 @@ The build increment is this list.
 
 ## 7. Open questions
 
-1. **An assumption nobody vouched for.** "Holds assuming the uncertain
-   dependency holds" reads as: `holds assuming [A]` even when A is
-   unverified, with a warning on A. Today an unvouched uniformity claim
-   gives nothing. Which one?
-2. **Does bias change a verdict?** Proposed: no. Every ledger entry counts
+1. **Does bias change a verdict?** Proposed: no. Every ledger entry counts
    for the verdict; bias matters only when ranking culprits. Then an entry
    at 0 is the one exception (ignored), or is removed from the language.
-3. **Policies and profiles.** Without belief or coverage ratios they have
+2. **Policies and profiles.** Without belief or coverage ratios they have
    no use left. Remove them?
-4. **The verdict of an assumption itself.** A vouched uniformity claim is
-   neither tested nor proven. Proposed: it prints as `assumed
-   (review:alice)`, and never as plain `holds` unless a backend or a
-   proof checks it.
-5. **One culprit or several.** With one wrong thing per frame, two
+3. **One culprit or several.** With one wrong thing per frame, two
    unrelated inconsistent sets are in total conflict. The frame may have
    to be per connected group of errors, or range over sets of culprits.
-6. **Which rule.** Dempster hides conflict by renormalising; Yager moves
+4. **Which rule.** Dempster hides conflict by renormalising; Yager moves
    it to "unknown". Here conflict has a meaning (the biases claim nothing
    is wrong), so it should be shown. To settle on examples.
-7. **Weights.** How much a diff or an age discounts, and who sets it.
+5. **Weights.** How much a diff or an age discounts, and who sets it.
 
 ## Why not a confidence in the claim
 

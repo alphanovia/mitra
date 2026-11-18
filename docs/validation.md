@@ -86,5 +86,5 @@ The metrics above check Mitra's verdicts. These check that Mitra is useful
   would be Mitra suggesting it: a claim with both passing and failing usage is
   a conflict, which is a hint that it should be split.
 - **What counts as "a human would trust it"?** Whether a person accepts
-  `holds assuming [A]` after reading A, to be compared with their own
+  a `holds` that rests on a reviewed assumption A, after reading A, to be compared with their own
   judgment on R0 and R1.

@@ -46,7 +46,7 @@ reach ([validation.md](validation.md), [trials](trials.md)). Everything
 else (CI gates, agent harnesses, apps) is built on top later.
 
 **No number on the model.** A claim holds, fails, or can't be decided,
-possibly "holds assuming" what Mitra can't check. Numbers are kept for
+possibly "holds assuming" a dependency nobody gave evidence for. Numbers are kept for
 the evidence: when something does not add up, Mitra says which piece is
 most plausibly wrong ([semantics](design/semantics.md), not implemented
 yet).

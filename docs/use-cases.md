@@ -44,7 +44,7 @@ nobody has checked.
 **Policy, written by the team:**
 
 ```text
-merge     if  holds, or holds assuming only reviewed assumptions
+merge     if  holds
 block     if  fails or inconsistent
 ask human otherwise
 ```

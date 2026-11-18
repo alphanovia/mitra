@@ -55,8 +55,9 @@ claim t_ex : forall x in 0..=10, exercises t_small (add x)   -- sketch
 claim t_judge : judges t_small add add_spec               -- sketch
 ```
 
-A pass then **derives** evidence on `add` over `0..=10`, assuming `t_ex`
-and `t_judge`: what it supports is `holds assuming` them. A buggy or
+A pass then **derives** evidence on `add` over `0..=10`, resting on `t_ex`
+and `t_judge`: what it supports is `holds assuming` them until they have
+evidence of their own. A buggy or
 vacuous test is then a named assumption that can take the blame, instead
 of silently counting as proof.
 
