@@ -38,7 +38,7 @@ module.exports = grammar({
         seq(repeat($.forall), choice($.correct, $.equation), optional($.derive)),
       ),
     ),
-    uses: $ => seq('uses', field('subject', $.name), '[', sep1($.name, ','), ']'),
+    uses: $ => seq(optional('only'), 'uses', field('subject', $.name), '[', sep1($.name, ','), ']'),
     uniform: $ => seq('uniform', field('subject', $.name), 'by', field('classes', $.name)),
     correct: $ => seq('correct', '(', $.call, ')'),
     equation: $ => seq($.call, '=', $._expr),

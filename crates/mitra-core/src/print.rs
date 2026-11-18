@@ -21,8 +21,10 @@ pub fn print_model(m: &Model) -> String {
             out += &format!("claim {} : uniform {} by {g}\n", c.name, c.func);
             continue;
         }
-        if let Target::Uses(used) = &c.target {
-            out += &format!("claim {} : uses {} [{}]\n", c.name, c.func, used.join(", "));
+        if let Target::Uses { used, only } = &c.target {
+            let only = if *only { "only " } else { "" };
+            let used = used.join(", ");
+            out += &format!("claim {} : {only}uses {} [{used}]\n", c.name, c.func);
             continue;
         }
         let params = m.function(&c.func).map(|f| &f.params[..]).unwrap_or(&[]);
@@ -30,7 +32,7 @@ pub fn print_model(m: &Model) -> String {
         let body = match &c.target {
             Target::Correct => format!("correct ({}{args})", c.func),
             Target::Matches(e) => format!("{}{args} = {}", c.func, expr(e)),
-            Target::Uniform(_) | Target::Uses(_) => unreachable!(),
+            Target::Uniform(_) | Target::Uses { .. } => unreachable!(),
         };
         let from = if c.from.is_empty() {
             String::new()

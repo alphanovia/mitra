@@ -26,7 +26,8 @@ pub use ast::{
     Profile, Target, Test,
 };
 pub use eval::{
-    evaluate, failed_output, Assumed, Conflict, Flag, Implication, Logic, Report, Suspect, Verdict,
+    evaluate, failed_output, Assumed, Conflict, Contradiction, Flag, Implication, Logic, Report,
+    Root, Suspect, Verdict,
 };
 pub use next::next;
 pub use parse::{parse_evidence, parse_model};

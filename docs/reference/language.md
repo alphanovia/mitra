@@ -25,7 +25,8 @@ status 2.
 - `check` parses, checks and evaluates both files, prints
   `ok: F functions, C claims, T tests, E evidence`, then any contested
   evidence.
-- `next` prints first each **conflict** (see Evaluation, uniformity) and
+- `next` prints first the evidence that can't all be true (see Evaluation:
+  contradictions, uniformity) and each root cause, then
   each claim that fails with the inputs refuted. Those on a subject that
   uses nothing failing come first, as the likely root causes; the others
   are followed by `look first at …` (see Evaluation, suspects), and so is
@@ -124,7 +125,7 @@ free: line breaks and indentation mean nothing.
   `&&` `||` `..` `(` `)` `:` `;` `,` `=` `{` `}` `[` `]` `|` `&` `!` `<` `>`
   `+` `-` `*` `\`.
 - Keywords: `opaque def claim test evidence profile policy correct at by
-  derive if then else let true false forall in not uniform uses Bool Int Int8 Int16
+  derive if then else let true false forall in not uniform uses only Bool Int Int8 Int16
   Int32 Int64 UInt8 UInt16 UInt32 Float64 String Value Real for strict
   coverage _`. `Real` is reserved.
 - Lean's Unicode symbols are accepted as aliases: `∀` for `forall`, `∈` for
@@ -141,7 +142,7 @@ def        = "def" name binders ":" set ":=" expr ;
 binders    = binder { binder } ;
 binder     = "(" name { name } ":" set ")" ;
 claim      = "claim" name ":" ( "uniform" name "by" name
-             | "uses" name "[" name { "," name } "]"
+             | [ "only" ] "uses" name "[" name { "," name } "]"
              | { forall }
                ( "correct" "(" name args ")" | name args "=" expr )
                [ ":=" "by" "derive" "[" name { "," name } "]" ] ) ;
@@ -332,13 +333,17 @@ used in the expression after `=`.
   uniformity claim. Mitra can't check it: it counts once evidence vouches
   for it, `evidence div_uniform at 1`, for example from a review that
   the classes follow the branches of the code.
-- `uses f [g, h]`: the subject `f` calls the subjects `g` and `h`. It
-  changes no verdict; it tells Mitra where to look first when `f` fails
-  (see Evaluation, suspects). Evidence can vouch for it or deny it
-  (`not c`), but it is used unless it fails.
+- `uses f [g, h]`: the subject `f` calls the subjects `g` and `h`.
+  `only uses f [g, h]` adds that it calls no other subject. Neither
+  changes a verdict; they tell Mitra where to look when `f` fails (see
+  Evaluation, suspects). Like uniformity, Mitra can't check them:
+  evidence vouches for them (`evidence c at 1`) or denies them (`not c`).
+  Without evidence, a claim may raise suspicion but never trust: an
+  unvouched `uses` or `only uses` still gives suspects, unless denied,
+  and only a vouched `only uses` gives a root cause.
 
   ```lean
-  claim dempster_uses : uses dempster [is_valid, conflict]
+  claim dempster_uses : only uses dempster [is_valid, conflict]
   ```
 
 A `uniform` or `uses` claim can't be a premise of `by derive`.
@@ -450,8 +455,10 @@ where the claim is right and where it is wrong:
    judged. A claim on specs alone over a finite domain is thus decided by
    computation.
 
-An input both right and wrong is a **contradiction** and counts on neither
-side. Then:
+An input both right and wrong is a **contradiction**: the pass and the
+failure can't both be true. It counts on neither side, and each pair of
+pieces of evidence that contradict is reported as a conflict, with the
+inputs they share. Then:
 
 - *refuted* = wrong \ right.
 - *covered* = right \ wrong; if the claim has `by derive`, every premise holds
@@ -469,7 +476,8 @@ share their inputs, whatever their domains. The inputs of a statement are
 those of the evidence in rules 1 to 3 above, also outside a claim's
 domain (an observed output is compared with `e` wherever the claim's
 arguments allow). Evidence over a set counts input by input when the set
-has at most 10 000 inputs; contradicted inputs are left out. The class of
+has at most 10 000 inputs. A contradicted input is neither a pass nor a
+failure, and nothing is assumed for its class. The class of
 an input x is `g x`.
 
 - **Conflict.** If, for one statement, a class holds an input that passed
@@ -497,6 +505,12 @@ an input x is `g x`.
 do not fail, from `f` to what it uses, and on from there. Each subject
 reached that has a failing claim (other than a `uses` claim) is a
 **suspect** for `f`, printed after the verdicts. Verdicts do not change.
+
+**Root cause.** A subject `f` with a failing claim, no suspect, and an
+`only uses` claim that holds (evidence covers it) is a root cause: the
+fault is in `f` itself. If some claim on the subjects it uses does not
+hold, or one of them has no claim, the output adds that the fault may be
+where no claim covers them.
 
 **Checking an implication.** For an `=` claim with `by derive` and a
 finite domain, Mitra evaluates both sides on every input, treating each
@@ -551,18 +565,23 @@ per piece of evidence on a spec:
 contested evidence line 4: `neg` is a spec, true by definition: evidence does not apply to it
 ```
 
-Then each conflict, with the evidence lines as Mitra reads them:
+Then each conflict, with the evidence lines as Mitra reads them: first
+the contradictions on an input, then those within a class:
 
 ```text
+conflict: can't both be true, on {false} of `flip`:
+  evidence line 3: evidence correct (flip false) at 1
+  evidence line 4: evidence not correct (flip false) at 1
 conflict: `div_uniform` can't hold with both, in class "rest" of `div_class`:
   evidence line 4: evidence correct (div 6 3) at 1
   evidence line 5: evidence not correct (div 4 2) at 1
 ```
 
-Then each suspect:
+Then each suspect and each root cause:
 
 ```text
 suspect: `dempster` uses `conflict`, where conflict_spec_ok fails: look there first
+root cause: `quarter` fails and only uses `half`, where nothing fails: the fault is in `quarter` itself
 ```
 
 A spec referring to a name it does not bind, a type error, an overflow or a
@@ -730,6 +749,7 @@ claim div_uniform : uniform div by div_class
 | 05 | vouched; `div 4 2` fails | fails, refuted {(4, 2)} | fails, refuted its whole domain | holds |
 | 06 | vouched; `div 6 3` passes; `div` fails somewhere on `(10.., 10..)` | fails | uncertain: nothing assumed | holds |
 | 07 | vouched; `div 6 3` passes; `not div_correct 4 2` | fails, refuted {(4, 2)} | uncertain | fails, with a conflict |
+| 08 | vouched; `div 6 3` passes and fails; `div 4 2` passes | uncertain, covered {(4, 2)}; a conflict on (6, 3) | uncertain: class "rest" not relied on | holds |
 
 ### `uses`: suspects, under `strict`
 
@@ -748,6 +768,15 @@ claim eighth_uses : uses eighth [quarter]
 |---|---|---|
 | 01 | `half 1` and `quarter 1` fail; `eighth` passes | `half` for `quarter`; `half` and `quarter` for `eighth`, which holds |
 | 02 | the same failures; `not quarter_uses` | only `quarter` for `eighth` |
+
+Cases 03 to 05 have `claim quarter_uses : only uses quarter [half]` and a
+failing `quarter`:
+
+| Case | Evidence | Root cause |
+|---|---|---|
+| 03 | vouched; `half` holds | `quarter` itself |
+| 04 | not vouched; `half` holds | none |
+| 05 | vouched; `half` tested on 0 only | `quarter` itself, or where no claim covers `half` |
 
 ### `numbers`: integer types, ranges and floats, under `strict`
 

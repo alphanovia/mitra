@@ -66,13 +66,14 @@ pub enum Target {
     Uniform(String),
     /// `uses f [g, h]`: the subject calls these subjects, so a failure of
     /// one of them is the first place to look when `f` fails.
-    Uses(Vec<String>),
+    /// `only uses f [g, h]` adds that it calls no other subject.
+    Uses { used: Vec<String>, only: bool },
 }
 
 impl Target {
     /// A claim about the subject's structure, not about its results.
     pub fn is_structural(&self) -> bool {
-        matches!(self, Target::Uniform(_) | Target::Uses(_))
+        matches!(self, Target::Uniform(_) | Target::Uses { .. })
     }
 }
 
@@ -289,7 +290,7 @@ impl Model {
             }
             let g = match &c.target {
                 Target::Uniform(g) => g,
-                Target::Uses(used) => {
+                Target::Uses { used, .. } => {
                     for g in used {
                         if !self.function(g).is_some_and(|g| !g.is_spec()) {
                             return Err(m(c.line, format!("`{g}` is not a subject")));

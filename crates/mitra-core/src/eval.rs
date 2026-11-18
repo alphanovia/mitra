@@ -82,6 +82,9 @@ pub struct Assumed {
     /// A failure over a set too large to sort into classes: no class is
     /// relied on.
     pub blind: bool,
+    /// The classes left out because one of their inputs has both a pass
+    /// and a failure.
+    pub tainted: Vec<Value>,
     /// The classes with an input that passed.
     pub classes: Vec<Value>,
     /// The classes the claim needs that have none.
@@ -114,6 +117,47 @@ pub struct Suspect {
     pub failing: Vec<String>,
 }
 
+/// A pass and a failure on the same input: they can't both be true.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Contradiction {
+    pub subject: String,
+    /// The inputs both are about, as text.
+    pub inputs: String,
+    /// The evidence line and the evidence as text.
+    pub pass: (usize, String),
+    pub fail: (usize, String),
+}
+
+/// A failing subject whose `only uses` claim holds, while nothing fails
+/// in what it uses: the fault is its own.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Root {
+    pub subject: String,
+    /// The `only uses` claim.
+    pub by: String,
+    pub used: Vec<String>,
+    /// Every claim on the subjects used holds. Otherwise the fault may
+    /// also be where no claim covers them.
+    pub covered: bool,
+}
+
+impl Root {
+    pub fn text(&self) -> String {
+        let used: Vec<String> = self.used.iter().map(|g| format!("`{g}`")).collect();
+        format!(
+            "`{}` fails and only uses {}, where nothing fails: the fault is in `{}` itself{}",
+            self.subject,
+            used.join(", "),
+            self.subject,
+            if self.covered {
+                ""
+            } else {
+                ", or where no claim covers them"
+            }
+        )
+    }
+}
+
 /// Evidence Mitra cannot use as given.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Flag {
@@ -125,8 +169,10 @@ pub struct Flag {
 pub struct Report {
     pub verdicts: Vec<Verdict>,
     pub flags: Vec<Flag>,
+    pub contradictions: Vec<Contradiction>,
     pub conflicts: Vec<Conflict>,
     pub suspects: Vec<Suspect>,
+    pub roots: Vec<Root>,
 }
 
 type Env = HashMap<String, Value>;
@@ -453,6 +499,9 @@ struct Direct {
     /// A failure over a set too large to read input by input: its classes
     /// are unknown.
     blind: bool,
+    /// Inputs with both a pass and a failure: their classes are not relied
+    /// on.
+    tainted: Vec<Vec<Value>>,
 }
 
 /// The inputs of `set` one by one, when there are few enough.
@@ -494,7 +543,18 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     };
     let model_err = |e| (Input::Model, e);
 
+    let shown = |line: usize| {
+        let e = model.evidence.iter().find(|e| e.line == line);
+        e.map(|e| {
+            crate::print::print_evidence(std::slice::from_ref(e), Some(model))
+                .trim_end()
+                .to_string()
+        })
+        .unwrap_or_default()
+    };
+
     // 1. What the evidence says about each claim.
+    let mut contradictions: Vec<Contradiction> = Vec::new();
     let mut direct = Vec::new();
     for c in &model.claims {
         let func = model.function(&c.func).expect("checked");
@@ -505,6 +565,9 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let (mut right, mut wrong) = (Tuples::empty(arity), Tuples::empty(arity));
         let mut points: Vec<Point> = Vec::new();
         let mut blind = false;
+        // Each pass or failure with its inputs and evidence line, to find
+        // those that can't both be true.
+        let mut sources: Vec<(Tuples, bool, usize)> = Vec::new();
         for e in model.evidence.iter().filter(believed) {
             let ok = match &e.judgment {
                 Judgment::Holds(ok) if e.about == c.name => *ok,
@@ -519,6 +582,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             let inputs = listed(&set);
             blind |= !ok && inputs.is_empty() && !set.is_empty();
             points.extend(inputs.into_iter().map(|x| (x, ok, e.line)));
+            sources.push((set.clone(), ok, e.line));
             let side = if ok { &mut right } else { &mut wrong };
             *side = side.union(&set);
         }
@@ -554,17 +618,27 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                     .compare(c, target, &x, Subjects::Observed)
                     .map_err(model_err)?
                 {
-                    let line = model
+                    let lines: Vec<usize> = model
                         .evidence
                         .iter()
                         .filter(believed)
-                        .find(|e| {
+                        .filter(|e| {
                             e.about == c.func
                                 && matches!(e.judgment, Judgment::Output(_))
                                 && single(&e.pattern).as_ref() == Some(&x)
                         })
-                        .map_or(0, |e| e.line);
+                        .map(|e| e.line)
+                        .collect();
+                    let line = lines.first().copied().unwrap_or(0);
                     let point = Tuples::point(&x);
+                    if ok {
+                        sources.push((point.clone(), true, line));
+                    }
+                    if ko {
+                        // With two outputs, the other one is the failure.
+                        let other = lines.last().copied().unwrap_or(0);
+                        sources.push((point.clone(), false, if ok { other } else { line }));
+                    }
                     if ok && ko && !inside {
                         continue;
                     }
@@ -584,7 +658,31 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             }
         }
         points.retain(|(x, ok, _)| !(if *ok { &wrong } else { &right }).contains(x));
+        // A pass and a failure on the same input can't both be true.
+        let mut tainted = Vec::new();
+        for (pass, _, a) in sources.iter().filter(|s| s.1) {
+            for (fail, _, b) in sources.iter().filter(|s| !s.1) {
+                let both = pass.intersect(fail);
+                if both.is_empty() {
+                    continue;
+                }
+                let inputs = listed(&both);
+                blind |= inputs.is_empty();
+                tainted.extend(inputs);
+                let known = |k: &Contradiction| (k.pass.0, k.fail.0) == (*a, *b);
+                if !contradictions.iter().any(known) {
+                    contradictions.push(Contradiction {
+                        subject: c.func.clone(),
+                        inputs: both.show(&func.domain()),
+                        pass: (*a, shown(*a)),
+                        fail: (*b, shown(*b)),
+                    });
+                }
+            }
+        }
+        points.retain(|(x, _, _)| !tainted.contains(x));
         direct.push(Direct {
+            tainted,
             right: right.intersect(&domain),
             wrong: wrong.intersect(&domain),
             domain,
@@ -661,15 +759,6 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
 
     // 2. Uniformity: a class with a pass and a failure is a conflict.
     let mut conflicts = Vec::new();
-    let shown = |line: usize| {
-        let e = model.evidence.iter().find(|e| e.line == line);
-        e.map(|e| {
-            crate::print::print_evidence(std::slice::from_ref(e), Some(model))
-                .trim_end()
-                .to_string()
-        })
-        .unwrap_or_default()
-    };
     for u in &model.claims {
         let Target::Uniform(spec) = &u.target else {
             continue;
@@ -766,6 +855,17 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                     side.push(class);
                 }
             }
+            // A class with a contradicted input is not relied on.
+            let mut tainted = Vec::new();
+            for j in (0..direct.len()).filter(|j| same(i, *j)) {
+                for x in &direct[j].tainted {
+                    let class = class_of(spec, x, line)?;
+                    classes.retain(|k| k != &class);
+                    if !tainted.contains(&class) {
+                        tainted.push(class);
+                    }
+                }
+            }
             classes.sort();
             let blind = blind(i);
             if blind {
@@ -804,6 +904,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             classes.sort();
             assumed = Some(Assumed {
                 blind,
+                tainted,
                 by: model.claims[u].name.clone(),
                 spec: spec.clone(),
                 holds,
@@ -863,7 +964,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     let failing = |subject: &str| -> Vec<String> {
         let fails = |c: &&Claim| {
             c.func == subject
-                && !matches!(c.target, Target::Uses(_))
+                && !matches!(c.target, Target::Uses { .. })
                 && logic_of[c.name.as_str()] == Logic::Fails
         };
         model
@@ -879,7 +980,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         let mut todo = vec![&f.name];
         while let Some(g) = todo.pop() {
             for c in model.claims.iter().filter(|c| &c.func == g) {
-                let Target::Uses(list) = &c.target else {
+                let Target::Uses { used: list, .. } = &c.target else {
                     continue;
                 };
                 if logic_of[c.name.as_str()] == Logic::Fails {
@@ -905,9 +1006,41 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             }
         }
     }
+    // 5. Root causes: a failing subject that only uses subjects where
+    // nothing fails.
+    let mut roots = Vec::new();
+    for (i, c) in model.claims.iter().enumerate() {
+        let Target::Uses { used, only: true } = &c.target else {
+            continue;
+        };
+        let suspect = suspects.iter().any(|s: &Suspect| s.subject == c.func);
+        if failing(&c.func).is_empty() || suspect || !uniform_holds(i) {
+            continue;
+        }
+        // Every claim on what it uses holds: the fault can only be here.
+        let covered = used.iter().all(|g| {
+            let mut on = model.claims.iter().filter(|d| &d.func == g);
+            let mut on = on
+                .by_ref()
+                .filter(|d| !matches!(d.target, Target::Uses { .. }));
+            let mut any = false;
+            on.all(|d| {
+                any = true;
+                logic_of[d.name.as_str()] == Logic::Holds
+            }) && any
+        });
+        roots.push(Root {
+            subject: c.func.clone(),
+            by: c.name.clone(),
+            used: used.clone(),
+            covered,
+        });
+    }
     Ok(Report {
+        roots,
         verdicts,
         flags,
+        contradictions,
         conflicts,
         suspects,
     })
@@ -1019,6 +1152,12 @@ impl Report {
         for f in &self.flags {
             out += &format!("contested evidence line {}: {}\n", f.line, f.message);
         }
+        for k in &self.contradictions {
+            out += &format!(
+                "conflict: can't both be true, on {} of `{}`:\n  evidence line {}: {}\n  evidence line {}: {}\n",
+                k.inputs, k.subject, k.pass.0, k.pass.1, k.fail.0, k.fail.1
+            );
+        }
         for k in &self.conflicts {
             out += &format!(
                 "conflict: `{}` can't hold with both, in class {} of `{}`:\n  evidence line {}: {}\n  evidence line {}: {}\n",
@@ -1033,6 +1172,9 @@ impl Report {
                 s.failing.join(", "),
                 if s.failing.len() == 1 { "s" } else { "" }
             );
+        }
+        for r in &self.roots {
+            out += &format!("root cause: {}\n", r.text());
         }
         out
     }

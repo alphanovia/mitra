@@ -113,7 +113,7 @@ impl Mass {
     /// mitra:   else if conflict_spec b1 d1 u1 b2 d2 u2 >= 1.0 - 0.000000001 then "total conflict"
     /// mitra:   else "partial conflict"
     /// mitra: claim dempster_uniform : uniform dempster by dempster_class
-    /// mitra: claim dempster_uses : uses dempster [is_valid, conflict]
+    /// mitra: claim dempster_uses : only uses dempster [is_valid, conflict]
     pub fn dempster(&self, o: &Mass) -> Option<Mass> {
         if !self.is_valid() || !o.is_valid() {
             return None;
@@ -142,7 +142,7 @@ impl Mass {
     /// mitra:   if !valid_spec b1 d1 u1 then "first invalid"
     /// mitra:   else if !valid_spec b2 d2 u2 then "second invalid" else "valid"
     /// mitra: claim yager_uniform : uniform yager by yager_class
-    /// mitra: claim yager_uses : uses yager [is_valid, conflict]
+    /// mitra: claim yager_uses : only uses yager [is_valid, conflict]
     pub fn yager(&self, o: &Mass) -> Option<(Mass, f64)> {
         if !self.is_valid() || !o.is_valid() {
             return None;

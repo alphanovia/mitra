@@ -24,11 +24,11 @@ const PUNCT: [&str; 35] = [
 ];
 
 /// Reserved words: never names. Kept in step with the reference grammar.
-pub const KEYWORDS: [&str; 39] = [
+pub const KEYWORDS: [&str; 40] = [
     "opaque", "def", "claim", "test", "evidence", "profile", "policy", "correct", "at", "by",
     "derive", "if", "then", "else", "let", "true", "false", "forall", "in", "not", "Bool", "Int",
     "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "Float64", "String", "Value",
-    "for", "strict", "coverage", "_", "Real", "uniform", "uses",
+    "for", "strict", "coverage", "_", "Real", "uniform", "uses", "only",
 ];
 
 /// The whole text as tokens, each with its line.
@@ -623,8 +623,12 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                     });
                     continue;
                 }
+                let only = p.eat_keyword("only");
+                if only && !p.is_keyword("uses") {
+                    return p.err("expected `uses` after `only`");
+                }
                 if p.eat_keyword("uses") {
-                    // claim n : uses f [g, h]
+                    // claim n : [only] uses f [g, h]
                     let func = p.ident()?;
                     p.expect("[")?;
                     let mut used = vec![p.ident()?];
@@ -636,7 +640,7 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                         name,
                         func,
                         pattern: Vec::new(),
-                        target: Target::Uses(used),
+                        target: Target::Uses { used, only },
                         from: Vec::new(),
                         line,
                     });

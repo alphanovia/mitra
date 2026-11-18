@@ -1,0 +1,4 @@
+half_correct [strict] := { logic := .holds, covered := 0..=1, domain := 0..=1, belief := 1 }
+quarter_correct [strict] := { logic := .fails, refuted := {1}, domain := 0..=1, belief := 0 }
+quarter_uses [strict] := { logic := .holds, covered := Int, domain := Int, belief := 1 }
+root cause: `quarter` fails and only uses `half`, where nothing fails: the fault is in `quarter` itself

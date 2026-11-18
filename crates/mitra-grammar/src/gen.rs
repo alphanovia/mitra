@@ -282,7 +282,8 @@ fn command(r: &mut Rng) -> String {
             }
             if r.chance(15) {
                 let used = r.many(1, 3, name).join(" , ");
-                return format!("claim {} : uses {} [ {used} ]", name(r), name(r));
+                let only = if r.chance(50) { "only " } else { "" };
+                return format!("claim {} : {only}uses {} [ {used} ]", name(r), name(r));
             }
             let (forall, args) = call_args(r, 1);
             let body = if r.chance(50) {

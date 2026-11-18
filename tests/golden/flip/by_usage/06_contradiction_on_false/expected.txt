@@ -1,2 +1,5 @@
 flip_correct [by_usage] := { logic := .uncertain, covered := {true}, domain := Bool, belief := 0.5 }
 flip_on_true [by_usage] := { logic := .holds, covered := {true}, domain := {true}, belief := 1 }
+conflict: can't both be true, on {false} of `flip`:
+  evidence line 3: evidence correct (flip false) at 1
+  evidence line 4: evidence not correct (flip false) at 1

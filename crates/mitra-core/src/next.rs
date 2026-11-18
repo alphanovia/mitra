@@ -13,6 +13,15 @@ const WIDE: usize = 100;
 
 pub fn next(model: &Model, report: &Report) -> String {
     let mut out = String::new();
+    for k in &report.contradictions {
+        out += &format!(
+            "evidence lines {} and {} can't both be true, on {} of `{}`: settle them\n",
+            k.pass.0, k.fail.0, k.inputs, k.subject
+        );
+    }
+    for r in &report.roots {
+        out += &format!("root cause: {}\n", r.text());
+    }
     // One verdict per claim; among failing claims, first those on a
     // subject that uses nothing failing: the likely root causes.
     let mut verdicts: Vec<&crate::eval::Verdict> = Vec::new();
@@ -90,7 +99,23 @@ pub fn next(model: &Model, report: &Report) -> String {
             };
             continue;
         }
-        if matches!(c.target, Target::Uses(_)) {
+        if let Target::Uses { used, only } = &c.target {
+            let used: Vec<String> = used.iter().map(|g| format!("`{g}`")).collect();
+            let (more, until) = if *only {
+                (
+                    " and no other subject",
+                    "until then it gives suspects, but no root cause",
+                )
+            } else {
+                ("", "until then it still gives suspects")
+            };
+            out += &format!(
+                "{} : not vouched for\n  review that `{}` calls {}{more}, then:\n  evidence {} at 1\n  {until}\n",
+                c.name,
+                c.func,
+                used.join(", "),
+                c.name
+            );
             continue;
         }
         let missing = v.domain.minus(&v.covered);
@@ -152,6 +177,13 @@ pub fn next(model: &Model, report: &Report) -> String {
                 out += "  some inputs have both a pass and a failure: settle them\n";
             }
             for class in &a.untested {
+                if a.tainted.contains(class) {
+                    out += &format!(
+                        "  class {class} of `{}` has an input with both a pass and a failure: not relied on\n",
+                        a.spec
+                    );
+                    continue;
+                }
                 out += &format!(
                     "  no passing input in class {class} of `{}`: one test there stands for the class\n",
                     a.spec
