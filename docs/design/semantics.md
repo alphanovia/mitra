@@ -101,10 +101,23 @@ the evidence leaves.
 
 ## 4. Opinion: which piece is wrong
 
-*Decided.* Dempster-Shafer stays, for this computation. It must handle
-several pieces of evidence fighting each other, a bug query giving the
-plausibility of each node being broken, and staleness or the place of
-the last diff as weights. It is not expected to be simple.
+*Decided.*
+
+- The computation weighs the **candidate culprits**, and nothing else.
+  What a number could mean on an unverified claim is left for later.
+- **Bias never changes a verdict**: either the model holds or it does
+  not. Bias only changes what we think is wrong, like a person reasoning
+  about a bug from what is tested and enduring, what just changed, and so
+  on.
+- An entry at **bias 0** is still evidence for the verdict. If an error
+  is raised, it is the top candidate.
+- On a model where all the evidence agrees and everything is verified,
+  the computation collapses to **fully trusting**: nothing is suspect.
+- It should be correct and consistent all the time, if possible.
+- Dempster-Shafer stays, for this computation. It must handle several
+  pieces of evidence fighting each other, a bug query giving the
+  plausibility of each node being broken, and staleness or the place of
+  the last diff as weights. It is not expected to be simple.
 
 *Proposed.* The frame is the set of things that could be wrong: ledger
 entries, assumptions, and subjects (the code). Each source below is a
@@ -126,11 +139,27 @@ a bug query ranks subjects by them.
 `mitra-ds` keeps its role and its dogfooding. What goes away is the mass
 per input (correct, wrong, unknown) that measured the truth of a claim.
 
-What the combination must satisfy, kept from the retired calculus spec:
-order-free (the ledger is merged by union); the same observation
-recorded twice counts once (by source, input and revision); a bias of 0
-changes nothing; small changes in a bias give small changes in the
-result.
+*Proposed:* the properties the ranking must satisfy. Each becomes a
+test, and later a proof.
+
+- **P1. No error, no suspect.** Without an error or a bug report, no
+  opinion is computed and nothing is doubted, whatever the biases.
+- **P2. Bias 0 ranks first.** In an error, an entry at bias 0 is the top
+  candidate.
+- **P3. Full trust shifts the blame.** If every entry against a claim
+  has bias 1, the claim is the culprit, with belief 1. If every piece of
+  an error is trusted at 1, assumption included, Mitra says so and ranks
+  nothing: it never divides by zero.
+- **P4. Only candidates are doubted.** Belief of being wrong is 0 for
+  anything outside every inconsistent set and unreachable from every bug
+  report.
+- **P5. Monotone.** Lowering an entry's bias never lowers its rank.
+- **P6. Order-free.** The result depends on the set of entries, not on
+  their order or grouping: the ledger is merged by union.
+- **P7. No double counting.** The same observation recorded twice (same
+  source, input and revision) counts once.
+- **P8. Continuous.** A small change in a bias gives a small change in
+  the result.
 
 ## 5. The loop these semantics are judged against
 
@@ -149,6 +178,11 @@ not knowing what to do, the semantics are wrong there.
 The loop: write the model, run the tests, ingest, read the verdicts, act
 on the first error or warning, repeat.
 
+**Not in the core** (*decided*). Treating warnings as errors, requiring
+some coverage of a domain, or allowing a share of unverified claims are
+choices of whoever runs the tool. They belong to the tool and its
+integrations, and are deferred. There is no policy on the opinion score.
+
 ## 6. What the code does differently today
 
 The build increment is this list.
@@ -161,8 +195,8 @@ The build increment is this list.
 | A uniformity claim not vouched for counts for nothing | `holds assuming [..]`, with a warning on the claim |
 | A pass and a failure on one input: the input counts on neither side, a conflict is printed, the verdict comes from the rest | `inconsistent` error |
 | A pass and a failure in one class: the uniformity claim `fails` | `inconsistent` error naming the claim and both pieces of evidence |
-| Evidence counts only at confidence 1; other values are ignored | the number is a bias, used only in the opinion (question 1) |
-| `policy`, `profile`, `belief`, `coverage` as a ratio | removed (question 2) |
+| Evidence counts only at confidence 1; other values are ignored | every entry counts for the verdict; the number is a bias, used only to rank culprits |
+| `policy`, `profile`, `belief`, `coverage` as a ratio | removed from the core; gates come later, in the tool |
 | `suspect` and `root cause` lines | warnings, and sources for the opinion |
 | No plausibility anywhere; `mitra-core` does not use `mitra-ds` | errors carry belief and plausibility per piece |
 | `--rev R`: evidence at another revision is ignored | staleness is a weight |
@@ -170,18 +204,21 @@ The build increment is this list.
 
 ## 7. Open questions
 
-1. **Does bias change a verdict?** Proposed: no. Every ledger entry counts
-   for the verdict; bias matters only when ranking culprits. Then an entry
-   at 0 is the one exception (ignored), or is removed from the language.
-2. **Policies and profiles.** Without belief or coverage ratios they have
-   no use left. Remove them?
-3. **One culprit or several.** With one wrong thing per frame, two
-   unrelated inconsistent sets are in total conflict. The frame may have
-   to be per connected group of errors, or range over sets of culprits.
-4. **Which rule.** Dempster hides conflict by renormalising; Yager moves
-   it to "unknown". Here conflict has a meaning (the biases claim nothing
-   is wrong), so it should be shown. To settle on examples.
-5. **Weights.** How much a diff or an age discounts, and who sets it.
+1. **One culprit or several.** With one wrong thing per frame, two
+   unrelated errors are in total conflict. Proposed: one frame per group
+   of errors that share a piece, and one culprit per frame. Two wrong
+   things in one group are then found in two rounds: fix the first, run
+   again.
+2. **Which rule, and the mass of a bias.** Dempster hides conflict by
+   renormalising; Yager moves it to "unknown". With "b on: e is not the
+   wrong one", an entry at bias 0 gets plausibility 1 but belief 0, so P2
+   holds only when ranking by plausibility. Proposed: rank by
+   plausibility, show the conflict, and choose the rule by checking P1
+   to P8 on both, on written examples.
+3. **Weights.** How much a diff or an age discounts, and who sets it.
+   Proposed: fixed defaults in the tool (stale evidence halves its bias;
+   the last diff gets a small fixed weight), tuned on the mitra-ds
+   benchmark, not set in the model.
 
 ## Why not a confidence in the claim
 
