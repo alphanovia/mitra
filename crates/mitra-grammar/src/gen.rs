@@ -205,6 +205,11 @@ fn set_atom(r: &mut Rng, depth: usize) -> String {
         6 => format!("( {} )", set(r, depth - 1)),
         // Tuples, records with their fields, lists.
         7 if r.chance(10) => "( )".into(),
+        7 if r.chance(10) => format!(
+            "( {} ) -> {}",
+            r.many(0, 2, |r| set(r, depth - 1)).join(" , "),
+            TYPES[r.below(TYPES.len())]
+        ),
         7 => format!("( {} )", r.many(2, 3, |r| set(r, depth - 1)).join(" , ")),
         8 => format!(
             "{} ( {} )",
@@ -386,6 +391,14 @@ fn binders(r: &mut Rng) -> String {
     format!(" ( {} )", params.join(" , "))
 }
 
+/// Type parameters, now and then: ` ( T , U )`.
+fn type_params(r: &mut Rng) -> String {
+    match r.chance(15) {
+        true => format!(" ( {} )", ["T", "T , U"][r.below(2)]),
+        false => String::new(),
+    }
+}
+
 /// The parameters of a function: `()` now and then.
 fn fn_binders(r: &mut Rng) -> String {
     match r.chance(10) {
@@ -396,15 +409,32 @@ fn fn_binders(r: &mut Rng) -> String {
 
 fn command(r: &mut Rng) -> String {
     if r.chance(10) {
-        return format!("record {}{}", name(r), binders(r));
+        // With type parameters it is declared like an enum: a name of
+        // its own, used nowhere above.
+        return match r.chance(15) {
+            true => format!(
+                "record {} ( {} ){}",
+                ["Box", "Both"][r.below(2)],
+                ["T", "T , U"][r.below(2)],
+                binders(r)
+            ),
+            false => format!("record {}{}", name(r), binders(r)),
+        };
     }
 
     match r.below(4) {
         3 => format!("test {} : {}", name(r), judgment(r)),
-        0 => format!("opaque {}{} -> {}", name(r), fn_binders(r), set(r, 2)),
-        1 => format!(
-            "def {}{} -> {} := {}",
+        0 => format!(
+            "opaque {}{}{} -> {}",
             name(r),
+            type_params(r),
+            fn_binders(r),
+            set(r, 2)
+        ),
+        1 => format!(
+            "def {}{}{} -> {} := {}",
+            name(r),
+            type_params(r),
             fn_binders(r),
             set(r, 2),
             expr(r, 3)

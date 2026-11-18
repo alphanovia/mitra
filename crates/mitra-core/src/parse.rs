@@ -162,8 +162,15 @@ struct P {
     in_enum: bool,
     /// How deep inside a value the parser is.
     nested: usize,
-    /// Whether a type named itself since this was last cleared.
+    /// The functions declared so far: a function type holds those that
+    /// fit, and the name of one is a value.
+    functions: Vec<Function>,
+    /// Whether this reads the parameters of a function type.
+    contra: bool,
+    /// Whether a type named itself since this was last cleared, and
+    /// whether it did so as the whole type of a field.
     met: bool,
+    direct: bool,
     /// A set can't hold a type that contains itself. Read plainly, the
     /// type inside itself is `Value`; read `deep`, it is a mark, `$Tree(Int)`,
     /// and `recursive` gives the set each mark stands for. Values are
@@ -216,7 +223,10 @@ impl P {
             me: None,
             in_enum: false,
             nested: 0,
+            functions: Vec::new(),
+            contra: false,
             met: false,
+            direct: false,
             deep: false,
             recursive: BTreeMap::new(),
         })
@@ -501,18 +511,55 @@ impl P {
             };
         }
     }
+    /// `()`, `(S)`, `(S, T)`: the sets between parentheses.
+    fn sets_in_parentheses(&mut self) -> Result<Vec<Set>, Error> {
+        self.expect("(")?;
+        let mut parts = Vec::new();
+        if self.eat(")") {
+            return Ok(parts);
+        }
+        parts.push(self.set()?);
+        while self.eat(",") {
+            parts.push(self.set()?);
+        }
+        self.expect(")")?;
+        Ok(parts)
+    }
     fn set_atom(&mut self) -> Result<Set, Error> {
-        if self.eat("(") {
-            if self.eat(")") {
-                // `()`: the unit type, whose one value is `()`.
-                return Ok(Set::tuple(Vec::new()));
+        if self.is("(") {
+            let start = self.pos;
+            let mut parts = self.sets_in_parentheses()?;
+            if self.eat("->") {
+                // `(A, B) -> C`: the functions declared above that take
+                // an A and a B, or more, and give a C. A type parameter
+                // is any value in a result, and no value at all in a
+                // parameter, so that every function fits.
+                if !self.params.is_empty() {
+                    self.pos = start;
+                    self.contra = !self.contra;
+                    let again = self.sets_in_parentheses();
+                    self.contra = !self.contra;
+                    parts = again?;
+                    self.expect("->")?;
+                }
+                let result = self.set_atom()?;
+                let fits = |f: &&Function| {
+                    f.params.len() == parts.len()
+                        && f.params.iter().zip(&parts).all(|(p, a)| a.is_subset(&p.1))
+                        && f.range.is_subset(&result)
+                };
+                let named = |f: &Function| Set::record(&f.name, Vec::new());
+                let all = self.functions.iter().filter(fits).map(named);
+                let set = all.fold(Set::empty(), |s, f| s.union(&f));
+                let each: Vec<String> = parts.iter().map(|p| p.to_string()).collect();
+                let written = format!("({}) -> {}", each.join(", "), crate::set::paren(&result));
+                if !set.is_empty() {
+                    self.aliases.push((set.to_string(), written));
+                }
+                return Ok(set);
             }
-            // `(S)` groups; `(S, T)` is the tuples of one value from each.
-            let mut parts = vec![self.set()?];
-            while self.eat(",") {
-                parts.push(self.set()?);
-            }
-            self.expect(")")?;
+            // `()` is the unit type; `(S)` groups; `(S, T)` is the tuples
+            // of one value from each.
             return Ok(match parts.len() {
                 1 => parts.remove(0),
                 _ => Set::tuple(parts),
@@ -549,7 +596,10 @@ impl P {
             let line = self.line();
             let name = self.ident()?;
             if let Some((_, set)) = self.params.iter().find(|p| p.0 == name) {
-                return Ok(set.clone());
+                return Ok(match self.contra {
+                    true => Set::empty(),
+                    false => set.clone(),
+                });
             }
             let mut args = Vec::new();
             if self.eat("(") {
@@ -708,6 +758,8 @@ impl P {
         let (mut closed, mut holds_itself) = (false, false);
         // The enums declared before this one.
         p.records = self.records.clone();
+        p.functions = self.functions.clone();
+        p.contra = self.contra;
         let before = self.enums.iter().take_while(|e| e.name != of.name);
         p.enums = before.cloned().collect();
         p.params = params;
@@ -715,11 +767,12 @@ impl P {
         loop {
             let name = p.ident().map_err(at)?;
             p.met = false;
+            p.direct = false;
             let fields = match p.is("(") {
                 true => p.binders().map_err(at)?,
                 false => Vec::new(),
             };
-            closed |= !p.met;
+            closed |= !p.direct;
             holds_itself |= p.met;
             if fields.is_empty()
                 && p.toks
@@ -755,6 +808,13 @@ impl P {
 
     // ---- binders, arguments, patterns ----
 
+    /// At `(T)` or `(T, …`: type parameters, not `(x: T, …)` or `()`.
+    fn generic(&self) -> bool {
+        let at = |i: usize| self.toks.get(self.pos + i).map(|t| &t.0);
+        self.is("(")
+            && matches!(at(1), Some(Tok::Ident(_)))
+            && matches!(at(2), Some(Tok::Punct("," | ")")))
+    }
     /// Reads the same types twice: plainly, then deep.
     fn both(
         &mut self,
@@ -778,7 +838,16 @@ impl P {
         loop {
             let name = self.ident()?;
             self.expect(":")?;
-            params.push((name, self.set()?));
+            let before = std::mem::take(&mut self.met);
+            let set = self.set()?;
+            // The type itself, alone: a value would need a value.
+            let mark = self
+                .me
+                .as_ref()
+                .map(|me| Set::record(&format!("${}", me.1), Vec::new()));
+            self.direct |= self.met && (set == Set::any() || Some(&set) == mark.as_ref());
+            self.met |= before;
+            params.push((name, set));
             if !self.eat(",") {
                 self.expect(")")?;
                 return Ok(params);
@@ -815,11 +884,13 @@ impl P {
             // A name followed by `(` is a record; a name that no `forall`
             // binds is a variant without fields, when one is declared.
             let variant = |x: &String| {
+                // A variant without fields, or a function, as a value.
                 !bound.iter().any(|b| &b.0 == x)
-                    && self
-                        .records
-                        .iter()
-                        .any(|r| &r.name == x && r.fields.is_empty())
+                    && (self.functions.iter().any(|f| &f.name == x)
+                        || self
+                            .records
+                            .iter()
+                            .any(|r| &r.name == x && r.fields.is_empty()))
             };
             let record = self.is_name()
                 && (matches!(self.toks.get(self.pos + 1), Some((Tok::Punct("("), _)))
@@ -1223,6 +1294,37 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
             "record" => {
                 // record Name(field: T, …)
                 let name = p.ident()?;
+                if p.generic() {
+                    // record Name(T, …)(field: T, …) is the enum
+                    // Name(T, …) of one variant, Name(field: T, …).
+                    let start = p.pos - 2;
+                    let Some(open) = p.toks[p.pos..].iter().position(|t| t.0 == Tok::Punct(")"))
+                    else {
+                        return p.err("expected `)`");
+                    };
+                    let open = p.pos + open + 1;
+                    let mut depth = 0;
+                    let close = p.toks[open..].iter().position(|t| {
+                        match t.0 {
+                            Tok::Punct("(") => depth += 1,
+                            Tok::Punct(")") => depth -= 1,
+                            _ => {}
+                        }
+                        depth == 0
+                    });
+                    let Some(close) =
+                        close.filter(|_| p.toks.get(open).is_some_and(|t| t.0 == Tok::Punct("(")))
+                    else {
+                        p.pos = open.min(p.toks.len());
+                        return p.err(format!("expected the fields of `{name}`: `(field: T, …)`"));
+                    };
+                    p.toks.insert(open + close + 1, (Tok::Punct("}"), line));
+                    p.toks.insert(open, (Tok::Ident(name.clone()), line));
+                    p.toks.insert(open, (Tok::Punct("{"), line));
+                    p.toks[start].0 = Tok::Ident("enum".into());
+                    p.pos = start;
+                    continue;
+                }
                 p.me = Some((name.clone(), name.clone()));
                 p.met = false;
                 let both = p.both(P::binders);
@@ -1320,9 +1422,34 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
             "opaque" | "def" => {
                 // opaque f (a : T) … : R   |   def f (a : T) … : R := expr
                 let name = p.ident()?;
-                let (params, mut deep) = p.both(P::binders)?;
-                p.expect("->")?;
-                let (range, deep_range) = p.both(|p| Ok(vec![(String::new(), p.set()?)]))?;
+                // opaque f(T, …)(x: T, …) -> T: each parameter in the
+                // first parentheses is a type, any value.
+                let head = p.pos;
+                if p.generic() {
+                    p.expect("(")?;
+                    loop {
+                        let t = p.ident()?;
+                        if p.params.iter().any(|x| x.0 == t) {
+                            return p.err(format!("`{name}` has two parameters `{t}`"));
+                        }
+                        p.params.push((t, Set::any()));
+                        if !p.eat(",") {
+                            p.expect(")")?;
+                            break;
+                        }
+                    }
+                }
+                let read = p.both(P::binders).and_then(|(params, deep)| {
+                    p.expect("->")?;
+                    let range = p.both(|p| Ok(vec![(String::new(), p.set()?)]))?;
+                    Ok((params, deep, range))
+                });
+                let generic = !std::mem::take(&mut p.params).is_empty();
+                let (params, mut deep, (range, deep_range)) = read?;
+                let written = generic.then(|| {
+                    let toks: Vec<Tok> = p.toks[head..p.pos].iter().map(|t| t.0.clone()).collect();
+                    join(&toks)
+                });
                 let range = range[0].1.clone();
                 deep.extend(deep_range);
                 m.deep.insert(name.clone(), deep);
@@ -1332,13 +1459,16 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
                 } else {
                     None
                 };
-                m.functions.push(Function {
+                let function = Function {
                     name,
                     params,
                     range,
                     body,
+                    written,
                     line,
-                });
+                };
+                p.functions.push(function.clone());
+                m.functions.push(function);
             }
             "claim" => {
                 // claim n : forall …, correct(f(args)) | f(args) = expr  [:= by derive [c, …]]
@@ -1509,9 +1639,10 @@ pub fn parse_model(src: &str) -> Result<Model, Error> {
         };
         let mut used = Vec::new();
         let variant = |x: &String| {
-            m.records
-                .iter()
-                .any(|r| &r.name == x && r.fields.is_empty())
+            m.functions.iter().any(|f| &f.name == x)
+                || m.records
+                    .iter()
+                    .any(|r| &r.name == x && r.fields.is_empty())
         };
         if let Some(x) = free(e, &mut Vec::new(), &mut used)
             .into_iter()
@@ -1651,6 +1782,7 @@ pub fn parse_evidence_for(src: &str, model: &Model) -> Result<Vec<Evidence>, Err
     let mut p = P::new(src)?;
     p.records = model.records.clone();
     p.enums = model.enums.clone();
+    p.functions = model.functions.clone();
     let mut out = Vec::new();
     while !p.at_end() {
         let line = p.line();

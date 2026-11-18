@@ -1,0 +1,2 @@
+evidence swap(Pair(1, "a")) = Pair("a", 1) at 1
+evidence correct(ints(Pair(1, "a"))) at 1

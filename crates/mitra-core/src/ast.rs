@@ -99,6 +99,9 @@ pub struct Function {
     /// The result's type.
     pub range: Set,
     pub body: Option<Expr>,
+    /// With type parameters, `f(T)(x: T) -> T`: its parameters and result
+    /// as written. In the sets, each type parameter is `Value`.
+    pub written: Option<String>,
     pub line: usize,
 }
 
@@ -406,7 +409,11 @@ impl Model {
         let m = |line, msg: String| (Input::Model, Error::new(line, msg));
         let mut names: Vec<(&String, usize)> =
             self.records.iter().map(|r| (&r.name, r.line)).collect();
-        names.extend(self.enums.iter().map(|e| (&e.name, e.line)));
+        // A record with type parameters is an enum of one variant, of
+        // the same name.
+        let generic_record = |e: &&Enum| e.variants.len() == 1 && e.variants[0] == e.name;
+        let enums = self.enums.iter().filter(|e| !generic_record(e));
+        names.extend(enums.map(|e| (&e.name, e.line)));
         for r in &self.records {
             for (i, (field, _)) in r.fields.iter().enumerate() {
                 if r.fields[..i].iter().any(|f| &f.0 == field) {
@@ -448,9 +455,21 @@ impl Model {
                         ),
                     ));
                 }
+                // A name the spec binds may hold a function.
+                let mut bound: Vec<String> = f.params.iter().map(|p| p.0.clone()).collect();
+                walk(body, &mut |e| match e {
+                    Expr::Let(x, ..) | Expr::Each(_, x, ..) | Expr::Rate(x, ..) => {
+                        bound.push(x.clone())
+                    }
+                    Expr::Match(_, arms) => {
+                        let names = arms.iter().filter_map(|a| a.variant.as_ref());
+                        bound.extend(names.flat_map(|v| v.1.clone()));
+                    }
+                    _ => {}
+                });
                 if let Some(bad) = calls(body)
                     .into_iter()
-                    .find(|c| !earlier.contains(&c.as_str()))
+                    .find(|c| !earlier.contains(&c.as_str()) && !bound.contains(c))
                 {
                     return Err(m(
                         f.line,
@@ -525,6 +544,10 @@ impl Model {
                 continue;
             };
             for (g, n) in arities(e) {
+                // A bound name may hold a function.
+                if c.pattern.iter().any(|p| p.var.as_ref() == Some(&g)) {
+                    continue;
+                }
                 match self.declared_function(&g) {
                     None => return Err(m(c.line, format!("unknown function `{g}`"))),
                     Some(f) if f.params.len() != n => {
@@ -571,6 +594,7 @@ impl Model {
                 params,
                 range: Set::bool(),
                 body: None,
+                written: None,
                 line: c.line,
             });
         }
@@ -638,7 +662,8 @@ impl Model {
                     Expr::Var(v) => v.clone(),
                     _ => unreachable!(),
                 })) {
-                    if self.declared_function(&name).is_none() {
+                    // A bound name may hold a function.
+                    if self.declared_function(&name).is_none() && !bound(&name) {
                         return Err(m(c.line, format!("unknown function `{name}`")));
                     }
                 }

@@ -1,0 +1,4 @@
+evidence apply(double, 3) = 6 at 1
+evidence apply(negate, 3) = 3 at 1
+evidence parse("1") = 1 at 1
+evidence parse("2") = 2 at 1

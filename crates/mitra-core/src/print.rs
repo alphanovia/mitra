@@ -41,13 +41,24 @@ pub fn print_model(m: &Model) -> String {
                     true => String::new(),
                     false => format!("({})", e.params.join(", ")),
                 };
-                out += &format!("enum {}{params} {{ {} }}\n", e.name, e.body);
+                out += &match e.body.strip_prefix(&e.name) {
+                    // A record with type parameters.
+                    Some(fields) if e.variants == [e.name.clone()] => {
+                        format!("record {}{params}{fields}\n", e.name)
+                    }
+                    _ => format!("enum {}{params} {{ {} }}\n", e.name, e.body),
+                };
             }
         }
     }
     for f in &m.functions {
-        let head = format!("{}{} -> {}", f.name, binders(&f.params), f.range);
-        let head = m.named_recursive(&head);
+        let head = match &f.written {
+            Some(written) => format!("{}{written}", f.name),
+            None => {
+                let head = format!("{}{} -> {}", f.name, binders(&f.params), f.range);
+                m.named_recursive(&head)
+            }
+        };
         out += &match &f.body {
             None => format!("opaque {head}\n"),
             Some(e) => format!("def {head} := {}\n", expr(e)),

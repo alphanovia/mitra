@@ -98,3 +98,45 @@ fn each_element() {
     let e = error("claim c : fold(x in [1], x) == 1", "");
     assert!(e.contains("`fold` starts from a value"), "{e}");
 }
+
+#[test]
+fn type_parameters() {
+    let pair = "record Pair(A, B)(first: A, second: B)\n\
+                opaque ints(p: Pair(Int, String)) -> Int\n\
+                claim ints_ok : forall p, correct(ints(p))\n";
+    assert_eq!(
+        error(pair, "evidence correct(ints(Pair(1, \"a\"))) at 1"),
+        ""
+    );
+    let e = error(pair, "evidence correct(ints(Pair(\"a\", 1))) at 1");
+    assert!(e.contains("outside the domain"), "{e}");
+    let e = error(
+        "record Pair(A, B)(first: A)\nopaque f(p: Pair(Int)) -> Int",
+        "",
+    );
+    assert!(e.contains("takes 2 set(s)"), "{e}");
+    let e = error("record Pair(A, B)", "");
+    assert!(e.contains("expected the fields"), "{e}");
+    let e = error("opaque f(T, T)(x: T) -> T", "");
+    assert!(e.contains("two parameters `T`"), "{e}");
+    // A type parameter does not outlive its function.
+    let e = error("opaque f(T)(x: T) -> T\nopaque g(x: T) -> Int", "");
+    assert!(e.contains("unknown type `T`"), "{e}");
+}
+
+#[test]
+fn function_types() {
+    let model = "def double(x: Int) -> Int := x * 2\n\
+                 def shout(s: String) -> String := s\n\
+                 opaque apply(f: (Int) -> Int, x: Int) -> Int\n\
+                 claim apply_is : forall f, forall x, apply(f, x) = f(x)\n";
+    assert_eq!(error(model, "evidence apply(double, 3) = 6 at 1"), "");
+    let e = error(model, "evidence apply(shout, 3) = 6 at 1");
+    assert!(e.contains("outside the domain"), "{e}");
+    // Only the functions declared above the type.
+    let late = format!("{model}def triple(x: Int) -> Int := x * 3\n");
+    let e = error(&late, "evidence apply(triple, 3) = 9 at 1");
+    assert!(e.contains("outside the domain"), "{e}");
+    let e = error("def f(x: Int) -> Int := x(1)\nclaim c : f(1) == 1", "");
+    assert!(e.contains("not a function"), "{e}");
+}

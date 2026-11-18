@@ -155,12 +155,12 @@ free: line breaks and indentation mean nothing.
 model      = { command } ;
 command    = record | enum | opaque | def | claim | test ;
 
-record     = "record" name params ;
-enum       = "enum" name [ "(" name { "," name } ")" ]
-             "{" variant { "," variant } "}" ;
+record     = "record" name [ type-params ] params ;
+enum       = "enum" name [ type-params ] "{" variant { "," variant } "}" ;
+type-params = "(" name { "," name } ")" ;
 variant    = name [ params ] ;
-opaque     = "opaque" name fn-params "->" set ;
-def        = "def" name fn-params "->" set ":=" expr ;
+opaque     = "opaque" name [ type-params ] fn-params "->" set ;
+def        = "def" name [ type-params ] fn-params "->" set ":=" expr ;
 fn-params  = params | "(" ")" ;
 params     = "(" param { "," param } ")" ;
 param      = name ":" set ;
@@ -187,7 +187,7 @@ inter      = set-atom { ( "&" | "\" ) set-atom } ;
 set-atom   = "Bool" | "Int" | "Int8" | "Int16" | "Int32" | "Int64"
            | "UInt8" | "UInt16" | "UInt32" | "Float64" | "String" | "Value"
            | "{" [ value { "," value } ] "}"
-           | "(" [ set { "," set } ] ")"
+           | "(" [ set { "," set } ] ")" [ "->" set-atom ]
            | name [ "(" set { "," set } ")" ]
            | "List" "(" set ")" | "Set" "(" set ")"
            | "Map" "(" set [ "," set ] ")"
@@ -257,6 +257,8 @@ Beyond the grammar, the parser checks:
   not hold it; a record may hold itself inside a list, a set, a map or
   an enum, not as a field alone;
 - a value is nested 64 deep at most;
+- type parameters come first, in parentheses of their own, and are told
+  from fields by having no `:`: `record Pair(A, B)(first: A, second: B)`;
 - an arm of a `match` names a variant, with one name for each field;
 - `t.0.1` reads `0.1` as a number: write `(t.0).1`.
 
@@ -374,6 +376,19 @@ Variant names are shared by the whole model: two enums can't both have a
 `None`, and a variant can't be named like a record, a function or a
 claim. An enum is declared above its first use.
 
+A record takes type parameters like an enum, and is then used with a set
+for each: `Pair(Int, String)`.
+
+```lean
+record Pair(A, B)(first: A, second: B)
+opaque swap(A, B)(p: Pair(A, B)) -> Pair(B, A)
+def first(T)(xs: List(T)) -> Option(T) := if len(xs) == 0 then None else Some(xs[0])
+```
+
+A function takes type parameters too, before its own. In a function
+each one is any value: Mitra does not check that the `T` going in is the
+`T` coming out, and reports print `Pair(Value, Value)`.
+
 A type may contain itself:
 
 ```lean
@@ -412,6 +427,26 @@ evidence log("started") = () at 1
 A subject may have no parameter: it has one input, and is called as
 `open_account()`. `()` is the unit type, with one value `()`, for a
 function that returns nothing, as in Rust. A `def` takes `()` too.
+
+A function type, `(Int) -> Int` or `(A, B) -> C` or `() -> Int`, holds
+the functions **declared above it** that fit: the same number of
+parameters, each accepting at least what the type says, and a result
+within the type's. The name of a function is then a value, and a name
+that holds a function is called like one:
+
+```lean
+def double(x: Int) -> Int := x * 2
+opaque apply(f: (Int) -> Int, x: Int) -> Int
+def each(T, U)(xs: List(T), f: (T) -> U) -> List(U) := map(x in xs, f(x))
+claim apply_is : forall f, forall x, apply(f, x) = f(x)
+evidence apply(double, 3) = 6 at 1
+```
+
+Such a type is a finite set, `{double, negate}`, so a claim over it can
+be covered input by input. The result after `->` is one type: write
+`(Int) -> (Int | String)` for a union. A subject can be passed as well as
+a spec. Inside a function type, a type parameter accepts every function
+(`(T) -> U` holds each function of one parameter).
 
 A function that changes a state takes the state and returns it: `fn
 withdraw(&mut self, n: u64) -> bool` is `opaque withdraw(a: Account, n:
@@ -1371,6 +1406,13 @@ Three models: `get` on `Option(Int)` with the classes "none" and "some"
 | 01 | `enum Expr`, a spec `value` that calls itself, classes by the outer variant | `eval_is` fails on `Neg(Neg(Lit(2)))`, passes on two others |
 | 02 | `record Dir` with a list of `Dir`; `fold`, `map`, `filter`, `any`, `all` | `usage_is` holds by its classes; a claim on constants holds |
 | 03 | a type inside itself through `Option`, a list, a set, a map, and as the parameter of `Tree` | nothing fails; the inputs are checked all the way down |
+
+### `kit`: type parameters and function types
+
+| Case | Model | Verdicts |
+|---|---|---|
+| 01 | `record Pair(A, B)`, a list `Node(T)` through `Option`, `swap(A, B)`, `first(T)` | a claim on constants holds; `Pair("a", 1)` is not a `Pair(Int, String)` |
+| 02 | `apply(f: (Int) -> Int, x: Int)` against `f(x)`; `each` passing a spec and a subject | `apply_is` fails on `apply(negate, 3)` and passes on `apply(double, 3)` |
 
 ### `measures`: rates, precision, recall
 

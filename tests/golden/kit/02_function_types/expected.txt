@@ -1,0 +1,26 @@
+apply_is: fails
+  fails on        `apply(negate, 3)`
+  passes on       `apply(double, 3)`
+  no evidence on  (f, x) in ({negate}, Int \ {3}) | ({double}, Int \ {3})
+c: holds
+parse_each: holds
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:11  claim apply_is : forall f, forall x, apply(f, x) = f(x)
+
+  `apply_is` fails on `apply(negate, 3)`.
+  The evidence that says so:
+
+    output    evidence.mitra:2  evidence apply(negate, 3) = 3 at 1
+
+  Either the code is wrong or the evidence is. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                  trust  left
+    certain   the code of `apply`, model.mitra:9  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  help: if the evidence is right, fix `apply`; if not, correct the evidence
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

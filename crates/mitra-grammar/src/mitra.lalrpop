@@ -28,13 +28,14 @@ Comma1<T>: () = T ("," T)* => ();
 
 pub Model: () = Command* => ();
 Command: () = { Record, Enum, Opaque, Def, Claim, Test };
-Record: () = "record" NAME Params => ();
+Record: () = "record" NAME TypeParams? Params => ();
+TypeParams: () = "(" Comma1<NAME> ")" => ();
 Enum: () = "enum" NAME ("(" Comma1<NAME> ")")? "{" Comma1<Variant> "}" => ();
 Variant: () = NAME Params? => ();
 Test: () = "test" NAME ":" Forall* Judgment => ();
 
-Opaque: () = "opaque" NAME FnParams "->" Set => ();
-Def: () = "def" NAME FnParams "->" Set ":=" Expr => ();
+Opaque: () = "opaque" NAME TypeParams? FnParams "->" Set => ();
+Def: () = "def" NAME TypeParams? FnParams "->" Set ":=" Expr => ();
 Params: () = "(" Comma1<Param> ")" => ();
 FnParams: () = { "(" ")" => (), Params };
 Param: () = NAME ":" Set => ();
@@ -99,6 +100,8 @@ SetAtom: () = {
     "{" Comma1<Value> "}" => (),
     "(" ")" => (),
     "(" Comma1<Set> ")" => (),
+    "(" ")" "->" SetAtom => (),
+    "(" Comma1<Set> ")" "->" SetAtom => (),
     NAME => (),
     NAME "(" Comma1<Set> ")" => (),
     "List" "(" Set ")" => (),

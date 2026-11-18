@@ -442,6 +442,10 @@ impl Eval<'_> {
                 None if self.model.record(x).is_some_and(|r| r.fields.is_empty()) => {
                     vec![Value::Record(x.clone(), Vec::new())]
                 }
+                // A function, as a value: its name.
+                None if self.model.declared_function(x).is_some() => {
+                    vec![Value::Record(x.clone(), Vec::new())]
+                }
                 None => return err(format!("unknown name `{x}`")),
             },
             Expr::Match(a, arms) => {
@@ -472,6 +476,12 @@ impl Eval<'_> {
                     .iter()
                     .map(|a| self.eval(a, env, line, subjects))
                     .collect::<Result<Vec<_>, _>>()?;
+                // A name that holds a function: the function it holds.
+                let f = match env.get(f) {
+                    Some(Value::Record(g, none)) if none.is_empty() => g,
+                    Some(v) => return err(format!("`{f}` is {v}, not a function")),
+                    None => f,
+                };
                 let mut out = Vec::new();
                 for tuple in product(&args) {
                     out.extend(self.call(f, &tuple, line, subjects)?);

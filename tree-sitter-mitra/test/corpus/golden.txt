@@ -1199,3 +1199,112 @@ claim algebra : {1, 2} | {2, 3} == {3, 2, 1} && {1, 2} & {2, 3} == {2} && {1, 2}
           (len
             (map))
           (nat))))))
+
+==================
+the kit: type parameters, recursion, function types
+==================
+
+record Pair(A, B)(first: A, second: B)
+enum Expr { Lit(n: Int), Add(l: Expr, r: Expr) }
+def first(T)(xs: List(T)) -> Option(T) := if len(xs) == 0 then None else Some(xs[0])
+opaque apply(f: (Int) -> Int, x: Int) -> Int
+opaque tick() -> ()
+def total(xs: List(Int)) -> Int := fold(x in xs, let sum := 0; sum + x)
+
+---
+
+(source_file
+  (record
+    (name)
+    (type_parameters
+      (name)
+      (name))
+    (parameters
+      (parameter
+        (name)
+        (record_type
+          (name)))
+      (parameter
+        (name)
+        (record_type
+          (name)))))
+  (enum
+    (name)
+    (variant
+      (name)
+      (parameters
+        (parameter
+          (name)
+          (set_name))))
+    (variant
+      (name)
+      (parameters
+        (parameter
+          (name)
+          (record_type
+            (name)))
+        (parameter
+          (name)
+          (record_type
+            (name))))))
+  (def
+    (name)
+    (type_parameters
+      (name))
+    (parameters
+      (parameter
+        (name)
+        (list_type
+          (record_type
+            (name)))))
+    (record_type
+      (name)
+      (record_type
+        (name)))
+    (if
+      (binary
+        (len
+          (name))
+        (nat))
+      (name)
+      (application
+        (name)
+        (index
+          (name)
+          (nat)))))
+  (opaque
+    (name)
+    (parameters
+      (parameter
+        (name)
+        (function_type
+          (set_paren
+            (set_name))
+          (set_name)))
+      (parameter
+        (name)
+        (set_name)))
+    (set_name))
+  (opaque
+    (name)
+    (unit)
+    (unit))
+  (def
+    (name)
+    (parameters
+      (parameter
+        (name)
+        (list_type
+          (set_name))))
+    (set_name)
+    (application
+      (name)
+      (binary
+        (name)
+        (name))
+      (let
+        (name)
+        (nat)
+        (binary
+          (name)
+          (name))))))

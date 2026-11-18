@@ -5,7 +5,9 @@
 
 Model         = Command Model | ;
 Command       = Record | Enum | Opaque | Def | Claim | Test ;
-Record        = "record" NAME Params ;
+Record        = "record" NAME "(" NAME RecordRest ;
+# Fields, or type parameters then fields.
+RecordRest    = ":" Set ParamsTail ")" | NamesTail ")" Params ;
 Enum          = "enum" NAME EnumParams "{" Variant VariantsTail "}" ;
 EnumParams    = "(" NAME NamesTail ")" | ;
 Variant       = NAME VariantFields ;
@@ -16,7 +18,9 @@ Opaque        = "opaque" NAME FnParams "->" Set ;
 Def           = "def" NAME FnParams "->" Set ":=" Expr ;
 Params        = "(" Param ParamsTail ")" ;
 FnParams      = "(" FnParamsRest ;
-FnParamsRest  = ")" | Param ParamsTail ")" ;
+FnParamsRest  = ")" | NAME FnAfterName ;
+FnAfterName   = ":" Set ParamsTail ")" | NamesTail ")" "(" FnFields ;
+FnFields      = ")" | Param ParamsTail ")" ;
 ParamsTail    = "," Param ParamsTail | ;
 Param         = NAME ":" Set ;
 Claim         = "claim" NAME ":" ClaimRest ;
@@ -69,7 +73,9 @@ SetAtom       = "Bool" | "Int" | "Int8" | "Int16" | "Int32" | "Int64"
 MapValues     = "," Set | ;
 SetArgs       = "(" Set SetsTail ")" | ;
 SetsTail      = "," Set SetsTail | ;
-SetsRest      = ")" | Set SetsTail ")" ;
+SetsRest      = ")" Arrow | Set SetsTail ")" Arrow ;
+# `(A, B) -> C`: a function type.
+Arrow         = "->" SetAtom | ;
 RangeOp       = "..=" Bound | ".." OptBound ;
 Bound         = NAT | "-" NAT ;
 OptBound      = Bound | ;
