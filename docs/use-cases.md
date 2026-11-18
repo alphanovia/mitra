@@ -44,8 +44,8 @@ nobody has checked.
 **Policy, written by the team:**
 
 ```text
-merge     if  logic = holds and belief >= 0.90
-block     if  logic = fails
+merge     if  holds, or holds assuming only reviewed assumptions
+block     if  fails or inconsistent
 ask human otherwise
 ```
 

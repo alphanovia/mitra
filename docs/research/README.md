@@ -6,7 +6,8 @@ These notes were written against an earlier draft of the language: its
 constructs (`via`, `split`, `unless`, `assume`, the `conflicts` query, toy
 model 6) are not in the current one. Code snippets are illustrative only;
 the [language reference](../reference/language.md) is the language, and
-[design/calculus.md](../design/calculus.md) is the current calculus plan.
+[design/semantics.md](../design/semantics.md) is the current plan: no
+confidence on claims, opinions only on evidence.
 
 | File | What it covers | Read time |
 |---|---|---|

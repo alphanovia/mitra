@@ -10,8 +10,8 @@ or unsupported.
 It is quality engineering made checkable. Like a compiler, Mitra does not
 run the code: it reads the claims, assumptions and evidence, and reports
 what can't all be true as an error, with the pieces in conflict. Its
-verdicts (logic, coverage and belief) are meant as policy inputs for
-programs, and the analyser itself is to be formally verified.
+verdicts are meant as inputs for programs (a merge gate, an agent
+harness), and the analyser itself is to be formally verified.
 
 *Tests check, Lean proves, Mitra weighs.*
 
@@ -20,12 +20,12 @@ programs, and the analyser itself is to be formally verified.
 Most software can't be proven correct, and won't be. What a project needs is
 **good-enough evidence management**: knowing what the tests, reviews and
 usage actually establish, and where that is not much. A proof is just the
-strongest evidence, at confidence 1 over its whole domain. Mitra's value is
-on the unproven code.
+strongest evidence, over its whole domain. Mitra's value is on the
+unproven code.
 
 Earlier attempts to measure confidence in software failed because they
 treated code as a black box, needed inputs nobody had, and gave numbers
-nobody could act on ([calculus](design/calculus.md#6-why-earlier-confidence-measures-failed)).
+nobody could act on ([semantics](design/semantics.md#why-not-a-confidence-in-the-claim)).
 Mitra writes down the hypotheses developers already rely on, such as "the
 code behaves the same on all these inputs, so one passing test stands for
 them". That is why tests are cheaper than proofs and usually accepted: the
@@ -37,14 +37,19 @@ which assumption broke.
 
 A **language for trust**: subjects under review, claims that they are
 correct on some of their inputs, assumptions such as uniformity, and
-evidence that records runs judged correct or wrong with a confidence (see the
-[language reference](reference/language.md) for what exists today). The first thing to test
+evidence that records runs judged correct or wrong, with the trust its
+author puts in it (see the [language reference](reference/language.md)
+for what exists today). The first thing to test
 is whether this language is right: whether small, well-understood situations
 can be written in it naturally and give the verdicts a careful person would
-reach ([validation.md](validation.md), [trials](trials.md)). The
-confidence calculus is specified by axioms before it is chosen
-([calculus](design/calculus.md)). Everything else (CI gates, agent
-harnesses, apps) is built on top later.
+reach ([validation.md](validation.md), [trials](trials.md)). Everything
+else (CI gates, agent harnesses, apps) is built on top later.
+
+**No number on the model.** A claim holds, fails, or can't be decided,
+possibly "holds assuming" what Mitra can't check. Numbers are kept for
+the evidence: when something does not add up, Mitra says which piece is
+most plausibly wrong ([semantics](design/semantics.md), not implemented
+yet).
 
 ## The core, and what can be automated
 
@@ -68,9 +73,9 @@ Mitra succeeds if it makes software more reliable for less effort:
 - **Faster root cause.** After a bug report, the faulty part is near the
   top of Mitra's diagnosis.
 - **Fewer tests for the same confidence.** Mitra points at the evidence that
-  matters, so fewer tests reach a good coverage.
-- **Fewer escaped defects.** A claim Mitra believes strongly rarely turns
-  out wrong, and its belief can be trusted as a number.
+  matters, so fewer tests leave nothing missed.
+- **Fewer escaped defects.** A claim that holds rarely turns out wrong,
+  and when one does, the assumption that broke is named.
 
 How each one is measured is in [validation.md](validation.md#success-criteria).
 
@@ -89,7 +94,7 @@ approach.
    (2) parser: text  ->  AST
                      |
                      v
-   (1) semantic model / AST  --evaluate-->  verdict (logic, coverage, belief)
+   (1) semantic model / AST  --evaluate-->  verdicts, errors, warnings
                      |
                      v
    (3) incremental use and storage
@@ -97,8 +102,8 @@ approach.
 
 1. **Semantic model.** The core. An AST of subjects, specs, claims and
    evidence.
-   Evaluation is a pure function from model to a verdict per claim and
-   policy.
+   Evaluation is a pure function from the model and the ledger to a
+   verdict per claim.
 2. **Parsing.** Text to AST. The text syntax is one projection of the model,
    not the model itself; others (JSON, an API) can exist alongside it.
 3. **Incremental use and storage.** Add evidence to a stored model and
@@ -117,11 +122,11 @@ They are built and tested in that order.
 
 ## Principles
 
-1. **Never a single score.** Every claim gets its logic (holds, fails,
-   uncertain), the inputs covered, and a belief. "No evidence yet" and "evidence against" are
-   different answers.
-2. **Counterexamples decide.** Claims are universal: one trusted failure
-   refutes a claim, while passes only build confidence.
+1. **Never a score.** Every claim gets a verdict (holds, holds assuming,
+   unverified, fails) and the inputs tested, assumed and missed. "No
+   evidence yet" and "evidence against" are different answers.
+2. **Counterexamples decide.** Claims are universal: one failure refutes
+   a claim, while passes only cover inputs.
 3. **Precise semantics.** Every rule can be computed by hand and checked.
 4. **Specified by example.** Small models with hand-written results (the
    golden set in the [language reference](reference/language.md)) are the
@@ -145,7 +150,7 @@ the thing under review, with its own evidence (for example
   tests or agent traces (see "The core, and what can be automated").
 - Integrations beyond reading test reports (CI plugins, agent harnesses),
   and any user interface.
-- Learning or calibrating confidences from data.
+- Learning the trust in a source from data.
 
 ## Glossary
 
@@ -154,8 +159,8 @@ the thing under review, with its own evidence (for example
 - **Claim:** a subject is correct on a set of its inputs, or matches a spec
   there. A claim can be derived from other claims.
 - **Evidence:** a run of the subject on given inputs, judged correct or
-  wrong, with a confidence from 0 (distrusted) to 1 (fully believed): the
-  probability that the observation is valid.
+  wrong, with the trust its author puts in it, from 0 to 1 (its bias).
+- **Ledger:** the append-only record of all evidence.
 - **Test:** a test of the code, declared with the evidence its result
   stands for; `mitra ingest` turns its results into evidence.
 - **Uniformity claim:** the assumption that a subject behaves the same on
@@ -164,7 +169,9 @@ the thing under review, with its own evidence (for example
 - **Conflict:** claims and evidence that can't all be true, such as a
   pass and a failure in one class of a uniformity claim. Reported like a
   compiler error.
-- **Policy:** how evidence becomes belief, chosen by configuration so
-  policies can be compared (`strict`, `coverage` of a usage profile).
-- **Verdict:** Mitra's output for a claim under a policy: the logic (holds,
-  fails or uncertain), the inputs covered or refuted, and a belief.
+- **Verdict:** Mitra's output for a claim: holds, holds assuming,
+  unverified or fails, with the inputs tested, assumed and missed. Today's
+  code still prints a belief under a policy
+  ([semantics](design/semantics.md#6-what-the-code-does-differently-today)).
+- **Opinion:** on an error, the belief and plausibility that each piece
+  of evidence or assumption is the wrong one.

@@ -3,8 +3,8 @@
 Status: **proposal**. Implemented so far: derived claims
 (`:= by derive [...]`), whose implication is checked on finite domains, and
 `test` declarations, `uniform` and `uses` claims ([reference](../reference/language.md)). Syntax below
-not in the reference is a sketch. Confidence between 0 and 1 is in
-[calculus.md](calculus.md).
+not in the reference is a sketch. Verdicts and trust in evidence are in
+[semantics.md](semantics.md).
 
 ## 1. Composition is implication
 
@@ -55,9 +55,10 @@ claim t_ex : forall x in 0..=10, exercises t_small (add x)   -- sketch
 claim t_judge : judges t_small add add_spec               -- sketch
 ```
 
-A pass then **derives** evidence on `add` over `0..=10`, with confidence
-= belief that `t_ex` and `t_judge` hold. A buggy or vacuous test lowers
-that belief instead of silently counting as proof.
+A pass then **derives** evidence on `add` over `0..=10`, assuming `t_ex`
+and `t_judge`: what it supports is `holds assuming` them. A buggy or
+vacuous test is then a named assumption that can take the blame, instead
+of silently counting as proof.
 
 `t_ex` says which inputs the test runs, not that one run stands for more.
 That **uniformity hypothesis** is a claim on the subject, `uniform f by
@@ -73,6 +74,6 @@ yet: a failed test over a set gives no evidence today.
    prover (SMT, Lean). Until then, only finite domains are checked.
 2. **Existential failures.** How "wrong somewhere in S" shows in the
    output, and how a later pass on part of S narrows it.
-3. **Suspects.** How far suspicion spreads through `uses`, and whether it
-   lowers belief or only flags.
+3. **Suspects.** How far suspicion spreads through `uses`, and how much
+   weight it gets in the opinion ([semantics](semantics.md#4-opinion-which-piece-is-wrong)).
 4. **Naming the implication** of a derived claim, so evidence can target it.

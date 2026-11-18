@@ -37,12 +37,12 @@ evidence like any other, usually a review:
 
 That is the validation gap traceability tools skip: a link between a
 requirement and a test says nothing about whether the test checks what the
-requirement means. Here the link itself is weighed.
+requirement means. Here the link itself is a reviewed assumption.
 
 ## What it gives
 
-- **Measured coverage per requirement**: not "a test is linked", but the
-  requirement's verdict, with what is unknown.
+- **Coverage per requirement**: not "a test is linked", but the
+  requirement's verdict, with what is assumed and what is missed.
 - **Impact of change**: when evidence goes stale, the requirements that
   lost support are listed.
 - **Orphans both ways**: requirements with no claim, and claims or subjects

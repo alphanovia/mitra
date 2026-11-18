@@ -47,14 +47,13 @@ merges never conflict. `--rev R` counts only evidence recorded at R.
 
 Proposed: record a **content hash** of the subject each piece observed, so
 evidence goes stale only when its subject changes, not on every commit.
-The policy then decides how much stale evidence still counts.
+Staleness then lowers the trust in that evidence when culprits are ranked.
 
 ## Bugs and root causes (proposed)
 
 `mitra bug` adds the bug report as a counterexample. `mitra diag` then ranks
 where the bug most likely is:
 
-1. the weakest premise of the refuted claim (lowest belief first);
-2. evidence that went stale because its subject changed;
-3. subjects linked to the refuted claim by `uses` that changed since the
-   claim last held.
+by the plausibility of each subject being broken, computed from the
+report, the `uses` claims, stale evidence and the last diff
+([semantics](semantics.md#4-opinion-which-piece-is-wrong)).

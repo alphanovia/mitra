@@ -6,13 +6,16 @@ they contradict each other and how much of each claim is tested, assumed
 or unsupported.**
 
 *Tests check, Lean proves, Mitra weighs.* Tests and Lean proofs each produce
-evidence. Mitra combines that evidence into a verdict for each claim.
+evidence. Mitra judges each claim against that evidence, and when things
+do not add up, weighs which piece is most plausibly wrong.
 
 > Status: early. The code evaluates claims, specs, derivations and
 > uniformity assumptions against evidence at confidence 0 or 1, under two
 > policies, reads the model from comments in Rust code, and keeps a
 > project's evidence in a store fed by test reports
-> ([language reference](docs/reference/language.md)).
+> ([language reference](docs/reference/language.md)). The verdicts are
+> being redesigned: no number on a claim, opinions only on evidence
+> ([semantics](docs/design/semantics.md)).
 
 ## The idea
 
@@ -42,11 +45,11 @@ flip_correct [strict] := { logic := .fails, refuted := {false}, domain := Bool, 
 flip_on_true [strict] := { logic := .holds, covered := {true}, domain := {true}, belief := 1 }
 ```
 
-Never a single score: logic, coverage and belief are kept apart. One trusted
-counterexample refutes a claim; on an infinite domain, tests alone never
-prove it. Confidences between 0 and 1 are specified by axioms first
-([calculus](docs/design/calculus.md)); the maths that meets them is not
-chosen yet.
+One trusted counterexample refutes a claim; on an infinite domain, tests
+alone never prove it. The `belief` number and the policies are to go: the
+next semantics give each claim a verdict without a number, and compute an
+opinion only on which evidence to doubt
+([semantics](docs/design/semantics.md)).
 
 The core is a **semantic model** (an AST). The text above is only one
 projection of it, small enough to live in a code docstring or a Markdown block
@@ -69,9 +72,9 @@ direction, not the current language.
 | Doc | What it covers |
 |---|---|
 | [docs/vision.md](docs/vision.md) | What Mitra is, how it is layered, principles, non-goals |
-| [docs/design/calculus.md](docs/design/calculus.md) | Spec: the axioms a confidence calculus must meet, the operators, candidates scored, why earlier confidence measures failed |
+| [docs/design/semantics.md](docs/design/semantics.md) | Design: verdicts without numbers, opinions on evidence, the loop they are judged against, and what the code does differently today |
 | [docs/design/composition.md](docs/design/composition.md) | Proposal: composition as implication, structure claims, tests as subjects |
-| [docs/design/dogfooding.md](docs/design/dogfooding.md) | Plan: Mitra on Mitra: the calculus crate judged from its own tests, and Mitra's semantics written in Mitra |
+| [docs/design/dogfooding.md](docs/design/dogfooding.md) | Plan: Mitra on Mitra: the Dempster-Shafer crate judged from its own tests, and Mitra's semantics written in Mitra |
 | [docs/design/requirements.md](docs/design/requirements.md) | Proposal: prose requirements as opaque propositions derived from claims, for traceability |
 | [docs/design/elaboration.md](docs/design/elaboration.md) | Proposal: Mitra elaborates partial knowledge into claims, splits, specs and proof obligations |
 | [docs/review/2026-11-18.md](docs/review/2026-11-18.md) | Review list from the overnight prototype run: decisions, open questions, how to test |

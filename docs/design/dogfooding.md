@@ -3,10 +3,12 @@
 Status: **plan**, with a first slice of Track 1 implemented. Two tracks
 that use Mitra on Mitra.
 
-## Track 1: the calculus crate, judged by Mitra
+## Track 1: the Dempster-Shafer crate, judged by Mitra
 
-A standalone crate implements the calculus ([calculus.md](calculus.md)),
-and Mitra judges it from its own test runs. If the verdicts help while the
+A standalone crate implements the combination rules Mitra will use to say
+which evidence is most plausibly wrong
+([semantics.md](semantics.md#4-opinion-which-piece-is-wrong)), and Mitra
+judges it from its own test runs. If the verdicts help while the
 crate is built and maintained, that is the first sign Mitra is useful.
 
 **What exists.** `crates/mitra-ds` has masses, Dempster's rule and
@@ -25,15 +27,14 @@ holds from one passing test per class. A review is recorded by hand, with
 and goes stale when the code changes. What the model can't say yet is
 listed in the review list (2026-11-18, increments 8 and 9).
 
-**Next.** Rename it `mitra-calculus`, with one claim per axiom and operator
-instead of "is Dempster–Shafer". Evidence then comes from three sources,
-from weakest to strongest: unit tests (points), property tests (samples)
-and Verus proofs (the whole domain).
+**Next.** Masses over a frame of possible culprits instead of three
+numbers, once the semantics are agreed. Evidence then comes from three
+sources, from weakest to strongest: unit tests (points), property tests
+(samples) and Verus proofs (the whole domain).
 
 **Circularity.** Mitra would judge the code it computes with, so a bug in
-the crate could hide itself. The anchors outside the loop are Verus (a
-proof does not depend on Mitra's calculus) and the golden set at 0 and 1,
-which does not use the crate.
+the crate could hide itself. Verdicts do not use the crate, only the ranking
+of culprits does; the other anchor is Verus.
 
 **Prerequisites:** sampled evidence (property tests), records (a mass as
 one value), and a proof source for infinite domains.
@@ -41,7 +42,7 @@ one value), and a proof source for infinite domains.
 ## Track 2: Mitra's semantics written in Mitra
 
 Write Mitra's own rules as Mitra specs: set operations, the verdict rule
-(contradiction, covered, refuted, logic) and the calculus. This gives an
+(tested, assumed, missed, the verdict). This gives an
 **executable reference semantics** and the start of a **standard library**.
 The Rust core is then claimed to match it:
 
@@ -63,5 +64,5 @@ release, and the fixed point is reached when both give the same verdicts.
 1. Richer specs: records, lists (needed by both tracks).
 2. Track 2: the verdict rule and set operations as specs. Cheap, and it
    checks the language on a real example.
-3. Track 1: `mitra-calculus` against the axioms, then confidences between
-   0 and 1 in `mitra-core`.
+3. Track 1: the opinion on evidence in `mitra-core`, computed with the
+   crate.

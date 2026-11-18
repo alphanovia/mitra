@@ -54,8 +54,7 @@ not. Mitra never sees it; it is what Mitra's output is scored against.
 1. **Evidence to verdict (headline curve).** For each rung, the number of
    usage runs until every region has the correct verdict (holds or fails, not
    uncertain). Plotted per rung, this should drop sharply from R0 to R4.
-2. **Accuracy.** No region ever gets the wrong verdict; the confidence of
-   correct verdicts is scored against ground truth (Brier score).
+2. **Accuracy.** No region ever gets the wrong verdict.
 3. **Honesty.** Regions with no evidence are uncertain. A doubtful
    counterexample leaves a region uncertain, never holds.
 4. **Diagnosis.** On R1, `mitra next` points first at a region with a real
@@ -68,23 +67,24 @@ The metrics above check Mitra's verdicts. These check that Mitra is useful
 ([vision.md](vision.md#what-success-looks-like)):
 
 1. **Root-cause rank.** Inject mutations (one wrong function at a time) into
-   the add ladder and into the calculus crate, add a bug report as
+   the add ladder and into `mitra-ds`, add a bug report as
    evidence, and record the rank of the mutated function in `mitra diag`
    ([proposed](design/workflow.md)). Target: top 1 to 3.
-2. **Tests to target belief.** Count the tests needed to reach a target
-   belief when following `mitra next`, against a naive baseline (random
+2. **Tests to nothing missed.** Count the tests needed until every claim
+   holds when following `mitra next`, against a naive baseline (random
    inputs) and a coverage-guided one. Target: clearly fewer.
 3. **Escaped defects.** On the dogfood repository, count bugs found after a
-   claim covering them held with high belief. Target: rare, and each one
-   explained.
-4. **Calibration.** Claims held at belief b should survive later evidence
-   at a rate close to b.
+   claim covering them held. Target: rare, and each one explained by a
+   named assumption.
+4. **Culprit rank.** On an error with a known cause (a wrong test, a wrong
+   assumption, a wrong function), the cause is the most plausible piece
+   in the report.
 
 ## Open questions
 
 - **Who writes the split?** Here it is written from the spec. A stronger result
   would be Mitra suggesting it: a claim with both passing and failing usage is
   a conflict, which is a hint that it should be split.
-- **What counts as "a human would trust it"?** The belief thresholds a
-  policy uses are a first guess, to be compared with a person's own
+- **What counts as "a human would trust it"?** Whether a person accepts
+  `holds assuming [A]` after reading A, to be compared with their own
   judgment on R0 and R1.
