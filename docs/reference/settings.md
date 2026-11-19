@@ -10,7 +10,7 @@ included, to `.mitra/build/settings.toml`.
 ```toml
 [sample]
 tolerance = 0.001   # the share of its domain a sampled claim may fail on unseen
-counts = true       # a passing sample lets a claim read `holds assuming [c::sample]`
+counts = false      # true: a passing sample lets a claim read `holds assuming [c::sample]`
 
 [erasure]           # the cost of an erasure of the reader, from 0 to 1
 width = 0.02
@@ -35,8 +35,10 @@ have met a failure with that chance.
 |---|---|---|---|---|
 | trust at 0.001 | 0.10 | 0.63 | 0.95 | 1.00 |
 
-`counts = false`: a sample covers nothing, and the claim stays
-`unverified` ([sampled](kw-evidence.md#sampled)).
+By default a sample covers nothing: the claim stays `unverified`, with
+the sample and its trust under it ([sampled](kw-evidence.md#sampled)).
+`counts = true`: a claim whose inputs without evidence are all inside
+a passing sample reads `holds assuming [c::sample]`.
 
 ## An erasure
 

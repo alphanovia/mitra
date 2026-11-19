@@ -59,9 +59,11 @@ more than `eps` of its domain, `n` draws would have missed it with
 chance `(1 - eps)^n`. Its trust is `1 - (1 - eps)^n`: 0.63 at
 `n = 1000`, `eps = 0.001`; it grows less and less with `n`.
 
-A claim whose inputs without evidence are all inside a passing sample
-reads `holds assuming [c::sample]`, with the trust of the sample in
-the report. One setting turns this off.
+The report prints that trust under the claim, which stays
+`unverified`: the user has not agreed that a sample makes a claim hold
+("I haven't agreed to that yet", 2026-11-19). With `counts = true`, a
+claim whose inputs without evidence are all inside a passing sample
+reads `holds assuming [c::sample]`.
 
 ## Settings
 
@@ -71,7 +73,7 @@ handed to the core and to the reader. Absent, the defaults.
 ```toml
 [sample]
 tolerance = 0.001
-counts = true
+counts = false
 
 [erasure]
 width = 0.02

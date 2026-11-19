@@ -107,10 +107,9 @@ add_commutes: unverified
 and passed. The domain is the `given` before it: a set, or a helper of
 the model that says which values are in (`m in valid`); with none, the
 inputs of the claim. The count and the domain are the author's word.
-Drawn from every input nothing else judges, it lets the claim read
-`holds assuming [c::sample]`; drawn from a part, or from a helper's
-domain, the claim stays `unverified`. Its trust comes from its count
-([settings.md](settings.md)). `sampled 1000 fails`: one of them failed, the claim fails,
+A sample covers no input: the claim stays `unverified`, with the
+sample and the trust its count gives under it. A setting lets a sample
+count ([settings.md](settings.md)). `sampled 1000 fails`: one of them failed, the claim fails,
 and no input is named. From a test: `// mitra: evidence for halves
 given a in small sampled 1000`.
 

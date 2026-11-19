@@ -1120,7 +1120,7 @@ fn settings_set_the_trust_of_a_tie_and_of_a_sample() {
     std::fs::write(&ledger, sample).unwrap();
     // The defaults.
     let (_, out, _) = mitra(&dir, &["eval"]);
-    let want = "s::never_negative: holds assuming [s::never_negative::sample]\n  \
+    let want = "s::never_negative: unverified\n  \
                 sampled on      1000 drawn from its inputs (review:me), trust 0.63 at tolerance 0.001\n";
     assert!(out.contains(want), "{out}");
     assert_eq!(mitra(&dir, &["tie"]).0, Some(0));
@@ -1132,16 +1132,16 @@ fn settings_set_the_trust_of_a_tie_and_of_a_sample() {
     let written = std::fs::read_to_string(dir.join(".mitra/build/settings.toml")).unwrap();
     assert!(
         written.starts_with(
-            "[sample]\ntolerance = 0.001\ncounts = true\n\n[erasure]\nreference = 0\n"
+            "[sample]\ntolerance = 0.001\ncounts = false\n\n[erasure]\nreference = 0\n"
         ),
         "{written}"
     );
-    // A file: another tolerance, a sample that does not count, a cost.
+    // A file: another tolerance, a sample that counts, a cost.
     let settings = dir.join(".mitra/settings.toml");
-    let text = "[sample]\ntolerance = 0.01\ncounts = false\n\n[erasure]\nrange = 0\nwidth = 0.5\n";
+    let text = "[sample]\ntolerance = 0.01\ncounts = true\n\n[erasure]\nrange = 0\nwidth = 0.5\n";
     std::fs::write(&settings, text).unwrap();
     let (_, out, _) = mitra(&dir, &["eval"]);
-    let want = "s::never_negative: unverified\n  \
+    let want = "s::never_negative: holds assuming [s::never_negative::sample]\n  \
                 sampled on      1000 drawn from its inputs (review:me), trust 1 at tolerance 0.01\n";
     assert!(out.contains(want), "{out}");
     assert_eq!(mitra(&dir, &["tie"]).0, Some(0));

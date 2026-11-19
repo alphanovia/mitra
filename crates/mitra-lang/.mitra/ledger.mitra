@@ -27,7 +27,7 @@ subject ledger {
     ensure pinned_is_an_output = "Evidence that pins an input records the output the code gave there: every claim that reads that output is judged with it.";
     ensure vouch_covers_the_claim = "A person's word that a claim holds covers every input the claim names.";
     ensure unstated_covers_nothing = "A test that passed on inputs it does not state covers no input: the claim stays unverified.";
-    ensure sample_is_trusted_for_its_draws = "A test that passed on inputs drawn from every input nothing else judges lets the claim hold assuming its sample, `c::sample`. The sample is trusted for its count: more draws, more trust, each adding less. Drawn from a part only, the claim stays unverified.";
+    ensure sample_covers_nothing_unless_set = "A test that passed on drawn inputs covers no input: the claim stays unverified, with the sample and its trust under it. Only when the settings say a sample counts, and it was drawn from every input nothing else judges, does the claim hold assuming its sample, `c::sample`.";
     ensure failing_sample_refutes = "A test that failed on a drawn input refutes the claim, on an input it does not state.";
     ensure orphaned_judges_nothing = "Evidence of a ledger on a piece the model does not have is set aside: kept, shown, judging nothing. New evidence on such a piece is refused.";
     ensure stale_judges_nothing = "Evidence that keeps the fingerprint of its piece judges nothing once the piece has another one: it is set aside, with both fingerprints.";
@@ -166,11 +166,11 @@ subject ledger {
         }
     }
 
-    // sample_is_trusted_for_its_draws
-    claim whole_sample_holds_assuming() {
+    // sample_covers_nothing_unless_set
+    claim sample_stays_unverified() {
         match verdicts::run("subject fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 }", "evidence t { for c sampled 100 }") {
             Err(e) => false,
-            Ok(r) => map(v in r.verdicts, v.logic) == [Assuming, Unverified, Unverified],
+            Ok(r) => map(v in r.verdicts, v.logic) == [Unverified, Unverified, Unverified],
         }
     }
     claim part_sample_stays_unverified() {

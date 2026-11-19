@@ -11,7 +11,7 @@ pub struct Settings {
     /// The share of its domain a sampled claim may fail on unseen.
     pub tolerance: f64,
     /// Whether a passing sample lets a claim read `holds assuming
-    /// [c::sample]`.
+    /// [c::sample]`. Not by default: a sample then covers nothing.
     pub counts: bool,
     /// The cost of each erasure of a reader, by name, where the file
     /// says one: the reader has its own for the others.
@@ -22,7 +22,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             tolerance: 0.001,
-            counts: true,
+            counts: false,
             erasure: BTreeMap::new(),
         }
     }
@@ -141,10 +141,10 @@ mod tests {
     #[test]
     fn file_is_read() {
         let s = Settings::read(
-            "[sample]\ntolerance = 0.01 # loose\ncounts = false\n[erasure]\nwidth = 0.5\n",
+            "[sample]\ntolerance = 0.01 # loose\ncounts = true\n[erasure]\nwidth = 0.5\n",
         )
         .unwrap();
-        assert_eq!((s.tolerance, s.counts), (0.01, false));
+        assert_eq!((s.tolerance, s.counts), (0.01, true));
         assert_eq!(s.erasure.get("width"), Some(&0.5));
     }
 

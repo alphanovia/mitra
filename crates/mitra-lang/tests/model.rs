@@ -373,15 +373,19 @@ fn passes_stays_unverified() {
     assert_eq!(words(C, "evidence t { for c passes }"), UNTOUCHED);
 }
 
-// mitra: evidence for ledger::whole_sample_holds_assuming
+// mitra: evidence for ledger::sample_stays_unverified
 #[test]
-fn whole_sample_holds_assuming() {
-    let e = "evidence t { for c sampled 100 }";
-    assert_eq!(
-        words(C, e),
-        [Logic::Assuming, Logic::Unverified, Logic::Unverified]
-    );
-    let report = run(C, e).unwrap();
+fn sample_stays_unverified() {
+    assert_eq!(words(C, "evidence t { for c sampled 100 }"), UNTOUCHED);
+}
+
+/// With the setting, a sample drawn from every input counts.
+#[test]
+fn a_sample_counts_when_set() {
+    let mut m = load(C, "evidence t { for c sampled 100 }").unwrap();
+    m.settings.counts = true;
+    let report = evaluate(&m).unwrap();
+    assert_eq!(report.verdicts[0].logic, Logic::Assuming);
     assert_eq!(report.verdicts[0].assuming, ["c::sample"]);
 }
 
