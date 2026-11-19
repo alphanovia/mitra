@@ -1,7 +1,7 @@
 # Keywords
 
 Part of the [language reference](language.md). One entry per keyword,
-each with a model that runs. `cargo test -p mitra-core --test reference`
+each with a model that runs. `cargo test -p mitra-lang --test reference`
 reads and evaluates every example, and checks the output shown.
 
 To try one: copy the model into `model.mitra`, the evidence into

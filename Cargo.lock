@@ -6,16 +6,17 @@ version = 4
 name = "mitra-cli"
 version = "0.1.0"
 dependencies = [
- "mitra-core",
+ "mitra-lang",
+ "mitra-rust",
 ]
 
 [[package]]
-name = "mitra-core"
+name = "mitra-lang"
+version = "0.1.0"
+
+[[package]]
+name = "mitra-rust"
 version = "0.1.0"
 dependencies = [
- "mitra-ds",
+ "mitra-lang",
 ]
-
-[[package]]
-name = "mitra-ds"
-version = "0.1.0"

@@ -1,6 +1,0 @@
-[package]
-name = "mitra-ds"
-description = "Dempster–Shafer on the binary frame {correct, wrong}: masses, Dempster's and Yager's rules. Dogfooded with Mitra (see .mitra/)."
-version.workspace = true
-edition.workspace = true
-license.workspace = true

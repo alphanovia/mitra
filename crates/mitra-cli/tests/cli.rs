@@ -247,16 +247,15 @@ fn a_broken_store_is_blamed_not_the_new_evidence() {
     let _ = std::fs::remove_dir_all(dir);
 }
 
-/// Dogfood: mitra-ds's store (its claims, and evidence from its own test
+/// Dogfood: each store of Mitra (its claims, and evidence from its own test
 /// runs, recorded by scripts/dogfood.sh) gives the expected verdicts.
 #[test]
-fn mitra_ds_store_evaluates() {
-    // The same for mitra-core and mitra-cli (scripts/dogfood.sh <crate>).
+fn mitra_stores_evaluate() {
     // Not while scripts/breaks.py replaces the evidence.
     if std::env::var_os("MITRA_BREAKS").is_some() {
         return;
     }
-    for name in ["mitra-ds", "mitra-core", "mitra-cli"] {
+    for name in ["mitra-lang", "mitra-rust"] {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join(name);
@@ -269,14 +268,14 @@ fn mitra_ds_store_evaluates() {
 
 /// Naming a store's two files from another folder reads the same model.
 #[test]
-fn mitra_ds_store_evaluates_by_path() {
+fn mitra_store_evaluates_by_path() {
     if std::env::var_os("MITRA_BREAKS").is_some() {
         return;
     }
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let files = [
-        "crates/mitra-ds/.mitra/model.mitra",
-        "crates/mitra-ds/.mitra/evidence.mitra",
+        "crates/mitra-lang/.mitra/model.mitra",
+        "crates/mitra-lang/.mitra/evidence.mitra",
     ];
     let (code, out, err) = mitra(&root, &["eval", files[0], files[1]]);
     assert_eq!(code, Some(0), "{err}");

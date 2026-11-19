@@ -1,13 +1,13 @@
 #!/bin/sh
 # Run a crate's tests and record the results as evidence in its store.
-# Usage: scripts/dogfood.sh [crate]   (from the repository root; default mitra-ds)
+# Usage: scripts/dogfood.sh [crate]   (from the repository root; default mitra-lang)
 #
 # The revision is the git hash of the crate's code (src/, tests/,
 # Cargo.toml), not of the commit: committing new evidence does not make it
 # stale, and only a change to the code does. The code must be committed,
 # so the hash names what was tested.
 set -eu
-crate=${1:-mitra-ds}
+crate=${1:-mitra-lang}
 code=""
 for p in src tests Cargo.toml; do
     [ -e "crates/$crate/$p" ] && code="$code crates/$crate/$p"

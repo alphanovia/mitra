@@ -14,7 +14,7 @@ proven, so what is worth having is good-enough evidence management.
 ### T1: a small Rust project, built with Mitra
 
 The developer writes a small Rust program, with its model aside, its
-ties and its store kept up to date as the code grows, the way mitra-ds is
+ties and its store kept up to date as the code grows, the way Mitra's own crates are
 ([dogfooding](design/dogfooding.md)). The language is the
 [language](reference/language.md).
 

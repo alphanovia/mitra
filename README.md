@@ -130,10 +130,11 @@ direction, not the current language.
 | Doc | What it covers |
 |---|---|
 | [docs/vision.md](docs/vision.md) | What Mitra is, how it is layered, principles, non-goals |
+| [docs/design/product.md](docs/design/product.md) | Planned: the product in four levels (model alone, with the code, with the ledger, with a bug), the build artifact, the work loops |
 | [docs/design/semantics.md](docs/design/semantics.md) | Design: verdicts without numbers, opinions on evidence, the loop they are judged against, and what the code does differently today |
 | [docs/design/composition.md](docs/design/composition.md) | Earlier proposal, in part built another way: composition as implication, structure claims, tests as subjects |
 | [docs/coverage.md](docs/coverage.md) | How much of Mitra its own model covers: every function, tied or not, written by `scripts/coverage.py --write` |
-| [docs/design/dogfooding.md](docs/design/dogfooding.md) | Mitra on Mitra: three crates with a model aside, tied to the code and judged from their own tests |
+| [docs/design/dogfooding.md](docs/design/dogfooding.md) | Mitra on Mitra: two crates with a model aside, tied to the code and judged from their own tests |
 | [docs/design/requirements.md](docs/design/requirements.md) | Earlier proposal for prose requirements; built since as `ensure` and `require` ([reference](docs/reference/kw-requirements.md)) |
 | [docs/design/elaboration.md](docs/design/elaboration.md) | Proposal: Mitra elaborates partial knowledge into claims, splits, specs and proof obligations |
 | [docs/review/2026-11-18.md](docs/review/2026-11-18.md) | Review list: every decision taken alone, open questions, how to test |

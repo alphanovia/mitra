@@ -1,6 +1,6 @@
 # Design: dogfooding
 
-Status: Track 1 implemented on three crates; Track 2 is a plan, with a
+Status: Track 1 implemented on two crates; Track 2 is a plan, with a
 first slice (the operators of specs). Two tracks
 that use Mitra on Mitra.
 
@@ -29,11 +29,12 @@ unit test gives its input and the output it checks, and the test names
 it: `// mitra: evidence for t_judged_correct`. The ranking of
 culprits (`rank`) has its types and its tests in the model, and no spec.
 
-Three crates have a store: `mitra-ds` (every public function),
-`mitra-cli` (the readers of test reports and of `mitra:` lines; not
-the reader of ties) and
-`mitra-core` (the operators of specs, a few printers). Most of
-`mitra-core` is not modelled: its types are recursive (`Expr`, `Set`) or
+Two crates have a store: `mitra-lang` (the language: reader, types,
+evaluation, and the trust calculus in `.mitra/trust.mitra`, every
+public function of it) and `mitra-rust` (the readers of test reports
+and of `mitra:` lines; not the reader of ties). `mitra-cli` has none:
+it is one consumer of the two. Most of
+`mitra-lang` is not modelled: its types are recursive (`Expr`, `Set`) or
 its functions keep state. The gaps are listed in the review list
 (2026-11-18, increment 22).
 
@@ -76,7 +77,7 @@ subject set {
 
 with `// mitra: implements set::union` above the Rust function, and
 evidence from the Rust tests and, later, Verus. The first slice exists
-in `crates/mitra-core/.mitra/model.mitra`.
+in `crates/mitra-lang/.mitra/model.mitra`.
 
 Self-hosting the parser is not tried: specs are total, and recursion is
 structural only. What applies now is **bootstrapping
@@ -88,5 +89,5 @@ release, and the fixed point is reached when both give the same verdicts.
 1. Richer specs: records, lists (done).
 2. Track 2: the verdict rule and set operations as specs. Cheap, and it
    checks the language on a real example.
-3. Track 1: the opinion on evidence in `mitra-core`, computed with the
+3. Track 1: the opinion on evidence in `mitra-lang`, computed with the
    crate.

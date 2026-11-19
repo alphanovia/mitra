@@ -1,0 +1,255 @@
+as_str: two verdicts read the same
+crates/mitra-lang/src/eval.rs
+--
+            Logic::Assuming => "holds assuming",
+--
+            Logic::Assuming => "holds",
+==
+unary: `!` keeps the value
+crates/mitra-lang/src/eval.rs
+--
+        ("!", Value::Bool(b)) => Some(Value::Bool(!b)),
+--
+        ("!", Value::Bool(b)) => Some(Value::Bool(*b)),
+==
+unary: `-` wraps
+crates/mitra-lang/src/eval.rs
+--
+        ("-", Value::Int(i)) => i.checked_neg().map(Value::Int),
+--
+        ("-", Value::Int(i)) => Some(Value::Int(i.wrapping_neg().wrapping_sub(0))),
+==
+binary: `+` wraps on overflow
+crates/mitra-lang/src/eval.rs
+--
+        ("+", Int(a), Int(b)) => Int(a.checked_add(*b)?),
+--
+        ("+", Int(a), Int(b)) => Int(a.wrapping_add(*b)),
+==
+binary: `-` swapped
+crates/mitra-lang/src/eval.rs
+--
+        ("-", Int(a), Int(b)) => Int(a.checked_sub(*b)?),
+--
+        ("-", Int(a), Int(b)) => Int(b.checked_sub(*a)?),
+==
+binary: `/` rounds down
+crates/mitra-lang/src/eval.rs
+--
+        ("/", Int(a), Int(b)) => Int(a.checked_div(*b)?),
+--
+        ("/", Int(a), Int(b)) => Int(a.checked_div_euclid(*b)?),
+==
+binary: `!=` on numbers only
+crates/mitra-lang/src/eval.rs
+--
+        ("!=", x, y) => Bool(x != y),
+--
+        ("!=", Int(x), Int(y)) => Bool(x != y),
+==
+binary: `<=` is `<`
+crates/mitra-lang/src/eval.rs
+--
+        ("<=", Int(a), Int(b)) => Bool(a <= b),
+--
+        ("<=", Int(a), Int(b)) => Bool(a < b),
+==
+binary: `*` on floats adds
+crates/mitra-lang/src/eval.rs
+--
+        ("*", Float(a), Float(b)) => Float(a * b),
+--
+        ("*", Float(a), Float(b)) => Float(a + b),
+==
+level: `/` binds like `+`
+crates/mitra-lang/src/print.rs
+--
+        "*" | "/" | "&" => 5,
+--
+        "*" | "&" => 5,
+        "/" => 4,
+==
+level: `&&` binds like `||`
+crates/mitra-lang/src/print.rs
+--
+        "&&" => 2,
+--
+        "&&" => 1,
+==
+negative: zero counts
+crates/mitra-lang/src/print.rs
+--
+        Value::Int(i) => *i < 0,
+--
+        Value::Int(i) => *i <= 0,
+==
+negative: floats never
+crates/mitra-lang/src/print.rs
+--
+        Value::Float(x) => x.is_sign_negative(),
+--
+        Value::Float(_) => false,
+==
+word: `likely` from 0.6
+crates/mitra-lang/src/report.rs
+--
+    } else if c.belief >= 0.5 {
+--
+    } else if c.belief >= 0.6 {
+==
+word: `certain` from 0.9
+crates/mitra-lang/src/report.rs
+--
+    if c.belief >= 0.995 {
+--
+    if c.belief >= 0.9 {
+==
+quote: a tab is kept
+crates/mitra-lang/src/set.rs
+--
+            '\t' => out += "\\t",
+--
+==
+quote: a backslash is kept
+crates/mitra-lang/src/set.rs
+--
+            '\\' => out += "\\\\",
+--
+==
+yager: drop `+ k`
+crates/mitra-lang/src/trust.rs
+--
+Mass { u: a.u + k, ..a }
+--
+Mass { u: a.u, ..a }
+==
+dempster: cutoff `1 + EPSILON`
+crates/mitra-lang/src/trust.rs
+--
+        if k >= 1.0 - EPSILON {
+--
+        if k >= 1.0 + EPSILON {
+==
+agreement: drop a term
+crates/mitra-lang/src/trust.rs
+--
+            b: self.b * o.b + self.b * o.u + self.u * o.b,
+--
+            b: self.b * o.b + self.b * o.u,
+==
+conflict: wrong term
+crates/mitra-lang/src/trust.rs
+--
+        self.b * o.d + self.d * o.b
+--
+        self.b * o.d + self.d * o.d
+==
+judged: swap b and d
+crates/mitra-lang/src/trust.rs
+--
+if ok { (c, 0.0) } else { (0.0, c) }
+--
+if ok { (0.0, c) } else { (c, 0.0) }
+==
+judged: drop the range check
+crates/mitra-lang/src/trust.rs
+--
+        if !(0.0..=1.0).contains(&c) {
+--
+        if c.is_nan() {
+==
+dempster: skip the check of the second mass
+crates/mitra-lang/src/trust.rs
+--
+        if !self.is_valid() || !o.is_valid() {
+            return None;
+        }
+        let k = self.conflict(o);
+        if k
+--
+        if !self.is_valid() {
+            return None;
+        }
+        let k = self.conflict(o);
+        if k
+==
+dempster: skip the check of the first mass
+crates/mitra-lang/src/trust.rs
+--
+        if !self.is_valid() || !o.is_valid() {
+            return None;
+        }
+        let k = self.conflict(o);
+        if k
+--
+        if !o.is_valid() {
+            return None;
+        }
+        let k = self.conflict(o);
+        if k
+==
+is_valid: drop the sum check
+crates/mitra-lang/src/trust.rs
+--
+            && (parts.iter().sum::<f64>() - 1.0).abs() <= EPSILON
+--
+            && true
+==
+dempster: cutoff `0.9`
+crates/mitra-lang/src/trust.rs
+--
+        if k >= 1.0 - EPSILON {
+--
+        if k >= 0.9 {
+==
+is_valid: drop the upper bound
+crates/mitra-lang/src/trust.rs
+--
+(-EPSILON..=1.0 + EPSILON).contains(x)
+--
+(-EPSILON..).contains(x)
+==
+is_valid: sum slack `1e-6`
+crates/mitra-lang/src/trust.rs
+--
+.abs() <= EPSILON
+--
+.abs() <= 1e-6
+==
+rank: skip the check of the clauses
+crates/mitra-lang/src/trust/culprits.rs
+--
+    if !biases.iter().all(valid) || clauses.iter().flatten().any(|i| *i >= n) {
+--
+    if !biases.iter().all(valid) {
+==
+rank: conflict is the possible mass
+crates/mitra-lang/src/trust/culprits.rs
+--
+        conflict: if doubted > 0 { 1.0 } else { 1.0 - possible },
+--
+        conflict: if doubted > 0 { 1.0 } else { possible },
+==
+rank: belief not normalised
+crates/mitra-lang/src/trust/culprits.rs
+--
+    for v in belief.iter_mut().chain(plausibility.iter_mut()) {
+--
+    for v in plausibility.iter_mut() {
+==
+rank: one plausibility too many
+crates/mitra-lang/src/trust/culprits.rs
+--
+    let mut tally = vec![(0.0, vec![0.0; n], vec![0.0; n]); levels];
+--
+    let mut tally = vec![(0.0, vec![0.0; n], vec![0.0; n + 1]); levels];
+==
+rank: no limit on open pieces
+crates/mitra-lang/src/trust/culprits.rs
+--
+    if open.len() > MAX_OPEN {
+        return Err(NoRanking::TooMany);
+    }
+    let sure
+--
+    let sure

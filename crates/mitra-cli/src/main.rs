@@ -1,4 +1,5 @@
-//! The `mitra` command line: a thin wrapper over mitra-core.
+//! The `mitra` command line: a wrapper over mitra-lang, with
+//! mitra-rust to read Rust code and test reports.
 //!
 //! ```text
 //! mitra init
@@ -14,10 +15,10 @@
 //! append-only `evidence.mitra`. The store's model also holds the `mitra:`
 //! comments of the Rust files under `src/` and `tests/` next to it.
 
-mod report;
 mod source;
 mod store;
-mod tie;
+
+use mitra_rust::{report, tie};
 
 use source::Source;
 
@@ -84,10 +85,10 @@ fn read(p: &str) -> Result<String, String> {
 fn located<'a>(
     m: &'a Source,
     e: &'a str,
-) -> impl Fn((mitra_core::Input, mitra_core::Error)) -> String + 'a {
+) -> impl Fn((mitra_lang::Input, mitra_lang::Error)) -> String + 'a {
     move |(input, err)| match input {
-        mitra_core::Input::Model => m.locate(&err),
-        mitra_core::Input::Evidence => format!("{e}: {err}"),
+        mitra_lang::Input::Model => m.locate(&err),
+        mitra_lang::Input::Evidence => format!("{e}: {err}"),
     }
 }
 
@@ -106,7 +107,7 @@ struct Places<'a> {
     evidence: &'a str,
 }
 
-impl mitra_core::Places for Places<'_> {
+impl mitra_lang::Places for Places<'_> {
     fn model(&self, line: usize) -> String {
         relative(&self.model.place(line))
     }
@@ -134,17 +135,17 @@ fn evaluate(
     m: &Source,
     e: &str,
     rev: Option<&str>,
-) -> Result<(mitra_core::Model, mitra_core::Report), String> {
+) -> Result<(mitra_lang::Model, mitra_lang::Report), String> {
     let evidence = match e {
         "" => String::new(),
         e => read(e)?,
     };
-    let mut model = mitra_core::load(&m.text, &evidence).map_err(located(m, e))?;
+    let mut model = mitra_lang::load(&m.text, &evidence).map_err(located(m, e))?;
     if let Some(rev) = rev {
         let before = model.evidence.len();
         // What the model itself declares (`assume`, `uses`) has no revision.
         let files = model.written.as_ref().map(|w| w.1.len());
-        let declared = |x: &mitra_core::Evidence| files.is_some_and(|n| x.line > n);
+        let declared = |x: &mitra_lang::Evidence| files.is_some_and(|n| x.line > n);
         model
             .evidence
             .retain(|x| x.rev.as_deref() == Some(rev) || declared(x));
@@ -153,7 +154,7 @@ fn evaluate(
             eprintln!("mitra: {stale} evidence left out: not recorded at revision {rev}");
         }
     }
-    let report = mitra_core::evaluate(&model).map_err(located(m, e))?;
+    let report = mitra_lang::evaluate(&model).map_err(located(m, e))?;
     Ok((model, report))
 }
 
@@ -189,8 +190,8 @@ fn take_value(name: &str, rest: &mut Vec<String>) -> Result<Option<String>, Stri
 
 /// How much of each error `eval` shows: `--candidates <n>`, `--threshold
 /// <p>`, or `--all` for every candidate.
-fn take_display(rest: &mut Vec<String>) -> Result<mitra_core::Display, String> {
-    let mut display = mitra_core::Display::default();
+fn take_display(rest: &mut Vec<String>) -> Result<mitra_lang::Display, String> {
+    let mut display = mitra_lang::Display::default();
     if let Some(n) = take_value("--candidates", rest)? {
         display.max = n
             .parse()
@@ -225,7 +226,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
     let rev = rev.as_deref();
     let display = match cmd.as_str() {
         "eval" => take_display(&mut rest)?,
-        _ => mitra_core::Display::default(),
+        _ => mitra_lang::Display::default(),
     };
     let rest = rest.as_slice();
     match cmd.as_str() {
@@ -255,13 +256,13 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
         "next" => {
             let (m, e) = inputs(rest)?;
             let (model, report) = evaluate(&m, &e, rev)?;
-            print!("{}", mitra_core::next(&model, &report));
+            print!("{}", mitra_lang::next(&model, &report));
             Ok(0)
         }
         "plan" => {
             let (m, e) = inputs(rest)?;
             let (model, report) = evaluate(&m, &e, rev)?;
-            print!("{}", mitra_core::plan(&model, &report));
+            print!("{}", mitra_lang::plan(&model, &report));
             Ok(0)
         }
         "eval" => {
@@ -294,11 +295,11 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                 return Err(USAGE.into());
             };
             // A module shipped with the tool: its text.
-            if let Some(text) = mitra_core::parse::library(code) {
+            if let Some(text) = mitra_lang::parse::library(code) {
                 print!("{text}");
                 return Ok(0);
             }
-            if let Some(text) = mitra_core::explain(code) {
+            if let Some(text) = mitra_lang::explain(code) {
                 print!("{text}");
                 return Ok(0);
             }
@@ -306,8 +307,8 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let (m, e) = inputs(paths).map_err(|_| format!("explain `{code}`: no such code"))?;
             let (model, report) = evaluate(&m, &e, rev)?;
             let ends =
-                |c: &&mitra_core::Claim| c.name == *code || c.name.ends_with(&format!("::{code}"));
-            let found: Vec<&mitra_core::Claim> = model.claims.iter().filter(ends).collect();
+                |c: &&mitra_lang::Claim| c.name == *code || c.name.ends_with(&format!("::{code}"));
+            let found: Vec<&mitra_lang::Claim> = model.claims.iter().filter(ends).collect();
             let [c] = found[..] else {
                 let names: Vec<&str> = found.iter().map(|c| c.name.as_str()).collect();
                 return Err(match names.is_empty() {
@@ -321,14 +322,14 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             };
             println!("claim {}", c.name);
             let written = model.written.as_ref();
-            if let Some(w) = written.and_then(|w| mitra_core::parse::written(&w.0, c.line)) {
+            if let Some(w) = written.and_then(|w| mitra_lang::parse::written(&w.0, c.line)) {
                 println!("  written   {w}");
             }
-            let read = mitra_core::print::contract(&model, c);
+            let read = mitra_lang::print::contract(&model, c);
             println!("  read as   {}", model.named(&read));
             let about = model.evidence.iter().filter(|e| e.about == c.name).count();
             println!("  evidence  {about} piece(s) on the claim itself");
-            let text = report.to_text_at(&mitra_core::Display::default(), &places);
+            let text = report.to_text_at(&mitra_lang::Display::default(), &places);
             let mut lines = text
                 .lines()
                 .skip_while(|l| !l.starts_with(&format!("{}: ", c.name)));
@@ -460,10 +461,10 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                     }
                     continue;
                 }
-                let ends = |c: &&mitra_core::Claim| {
+                let ends = |c: &&mitra_lang::Claim| {
                     c.name == t.claim || c.name.ends_with(&format!("::{}", t.claim))
                 };
-                let found: Vec<&mitra_core::Claim> = model.claims.iter().filter(ends).collect();
+                let found: Vec<&mitra_lang::Claim> = model.claims.iter().filter(ends).collect();
                 let [c] = found[..] else {
                     let why = if found.is_empty() {
                         "no claim"

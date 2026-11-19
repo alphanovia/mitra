@@ -15,6 +15,14 @@ harness), and the analyser itself is to be formally verified.
 
 *Tests check, Lean proves, Mitra weighs.*
 
+Mitra is a language that compiles to a diagnostic. It reduces the
+engineer's work to modelling and what matters, and says what a human
+must review and what can be delegated to an agent: "a boundary between
+two actors, agent or human" (the user, 2026-11-19). The product is
+planned in four levels, each a question: the model alone, the model and
+the code, both with the evidence ledger, and all three with a bug
+([design/product.md](design/product.md)).
+
 ## Core hypothesis
 
 Most software can't be proven correct, and won't be. What a project needs is
@@ -114,7 +122,7 @@ How each one is measured is in [validation.md](validation.md#success-criteria).
 
 **Kill criterion.** On unproven code, Mitra's verdicts must beat the
 developer's own guess about what is reliable. If they don't, or if
-dogfooding has not changed one real decision by the time `mitra-ds` is
+dogfooding has not changed one real decision by the time the trust module is
 annotated ([design/dogfooding.md](design/dogfooding.md)), rethink the
 approach.
 
@@ -144,6 +152,11 @@ approach.
    changed does not.
 
 They are built and tested in that order.
+
+In crates: `mitra-lang` is (1) and (2), with the trust calculus;
+`mitra-rust` reads Rust code and test reports and brings what it finds
+as evidence; `mitra-cli` is (3). Nothing of a language of code is in
+`mitra-lang`.
 
 ## Why a language
 

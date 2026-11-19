@@ -4,6 +4,10 @@ Status: **partly implemented**. The references
 ([language](../reference/language.md), [commands](../reference/commands.md))
 describe what exists; the rest is a proposal.
 
+The commands below are today's. How they are planned to group into
+four levels (`build`, `conform`, `assess`, `diagnose`) is in
+[product.md](product.md).
+
 ## The loop
 
 1. Write the model, aside from the code: subjects, what each promises
@@ -37,8 +41,8 @@ you need to ensure then remove it." Per subject, in this order:
    they need, and nothing more. A record states only the fields a claim
    reads (`..`, or `record R;`).
 
-Mitra's model of mitra-core is written this way
-(`crates/mitra-core/.mitra/model.mitra`).
+Mitra's model of mitra-lang is written this way
+(`crates/mitra-lang/.mitra/model.mitra`).
 
 ## Commands
 

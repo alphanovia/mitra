@@ -193,7 +193,7 @@ Combining them gives, for each entry, assumption and subject, a belief
 and a plausibility of being the culprit. Errors print them (section 3);
 a bug query ranks subjects by them.
 
-`mitra-ds` keeps its role and its dogfooding. What goes away is the mass
+The trust module (`mitra_lang::trust`, once the crate `mitra-ds`) keeps its role and its dogfooding. What goes away is the mass
 per input (correct, wrong, unknown) that measured the truth of a claim.
 
 *Proposed:* the properties the ranking must satisfy. Each becomes a
@@ -290,7 +290,7 @@ Not built, and whose layer they belong to:
    different amounts gives other limits, so P8 still fails there.
 3. **Weights.** How much a diff or an age discounts, and who sets it.
    Proposed: fixed defaults in the tool (stale evidence halves its bias;
-   the last diff gets a small fixed weight), tuned on the mitra-ds
+   the last diff gets a small fixed weight), tuned on the trust module's
    benchmark, not set in the model.
 4. **Display defaults.** Proposed: at most 5 candidates, none under a
    plausibility of 0.05, and one line saying how many were hidden and how

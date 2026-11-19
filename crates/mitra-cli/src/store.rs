@@ -109,8 +109,8 @@ impl Store {
                 return Err(format!("`{v}`: quotes and line breaks are not allowed"));
             }
         }
-        let text = mitra_core::parse::stamp(text, source.as_deref(), rev.as_deref())?;
-        let new = mitra_core::read_evidence(&self.source()?.text, &text)
+        let text = mitra_lang::parse::stamp(text, source.as_deref(), rev.as_deref())?;
+        let new = mitra_lang::read_evidence(&self.source()?.text, &text)
             .map_err(|err| format!("evidence to add: {err}"))?;
         if new.is_empty() {
             return Err("no evidence given".into());
@@ -120,12 +120,12 @@ impl Store {
     }
 
     /// The store's model, checked against its evidence.
-    pub fn model(&self) -> Result<mitra_core::Model, String> {
+    pub fn model(&self) -> Result<mitra_lang::Model, String> {
         let (m, e) = (self.source()?, self.evidence_path());
         let old = std::fs::read_to_string(&e).map_err(|err| format!("{e}: {err}"))?;
-        mitra_core::load(&m.text, &old).map_err(|(input, err)| match input {
-            mitra_core::Input::Model => m.locate(&err),
-            mitra_core::Input::Evidence => format!("{e}: {err}"),
+        mitra_lang::load(&m.text, &old).map_err(|(input, err)| match input {
+            mitra_lang::Input::Model => m.locate(&err),
+            mitra_lang::Input::Evidence => format!("{e}: {err}"),
         })
     }
 
@@ -137,13 +137,13 @@ impl Store {
         let (m, e) = (self.source()?, self.evidence_path());
         let old = std::fs::read_to_string(&e).map_err(|err| format!("{e}: {err}"))?;
         let model = &m.text;
-        let located = |input, err: mitra_core::Error| match input {
-            mitra_core::Input::Model => m.locate(&err),
-            mitra_core::Input::Evidence => format!("{e}: {err}"),
+        let located = |input, err: mitra_lang::Error| match input {
+            mitra_lang::Input::Model => m.locate(&err),
+            mitra_lang::Input::Evidence => format!("{e}: {err}"),
         };
         // The store must be sound before anything is added to it.
-        let before = mitra_core::load(model, &old).map_err(|(i, err)| located(i, err))?;
-        mitra_core::evaluate(&before).map_err(|(i, err)| located(i, err))?;
+        let before = mitra_lang::load(model, &old).map_err(|(i, err)| located(i, err))?;
+        mitra_lang::evaluate(&before).map_err(|(i, err)| located(i, err))?;
         let sep = if old.is_empty() || old.ends_with('\n') {
             ""
         } else {
@@ -151,8 +151,8 @@ impl Store {
         };
         let printed = format!("{new}\n");
         let offset = format!("{old}{sep}").lines().count();
-        let blame = |input, err: mitra_core::Error| match input {
-            mitra_core::Input::Evidence if err.line > offset => format!(
+        let blame = |input, err: mitra_lang::Error| match input {
+            mitra_lang::Input::Evidence if err.line > offset => format!(
                 "evidence to add: line {}: {}",
                 err.line - offset,
                 err.message
@@ -160,8 +160,8 @@ impl Store {
             i => located(i, err),
         };
         let all = format!("{old}{sep}{printed}");
-        let after = mitra_core::load(model, &all).map_err(|(i, err)| blame(i, err))?;
-        mitra_core::evaluate(&after).map_err(|(i, err)| blame(i, err))?;
+        let after = mitra_lang::load(model, &all).map_err(|(i, err)| blame(i, err))?;
+        mitra_lang::evaluate(&after).map_err(|(i, err)| blame(i, err))?;
         use std::io::Write;
         std::fs::OpenOptions::new()
             .append(true)

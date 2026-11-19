@@ -69,7 +69,7 @@ The metrics above check Mitra's verdicts. These check that Mitra is useful
 ([vision.md](vision.md#what-success-looks-like)):
 
 1. **Root-cause rank.** Inject mutations (one wrong function at a time) into
-   the add ladder and into `mitra-ds`, add a bug report as
+   the add ladder and into the trust module, add a bug report as
    evidence, and record the rank of the mutated function among the
    candidates of the error. Target: top 1 to 3. `scripts/breaks.py`
    does the injection on Mitra's own crates

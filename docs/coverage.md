@@ -5,86 +5,16 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 
 | Crate | Functions | Tied | Share | Lines in functions | In tied ones | Share | Code lines | Model lines | Model / code |
 |---|---|---|---|---|---|---|---|---|---|
-| mitra-ds | 8 | 6 | 75% | 118 | 60 | 51% | 146 | 62 | 42% |
-| mitra-cli | 52 | 7 | 13% | 1407 | 133 | 9% | 1493 | 16 | 1% |
-| mitra-core | 338 | 15 | 4% | 11415 | 2254 | 20% | 12052 | 156 | 1% |
-| all | 398 | 28 | 7% | 12940 | 2447 | 19% | 13691 | 234 | 2% |
+| mitra-lang | 346 | 21 | 6% | 11533 | 2314 | 20% | 12199 | 217 | 2% |
+| mitra-rust | 22 | 7 | 32% | 745 | 133 | 18% | 791 | 16 | 2% |
+| mitra-cli | 30 | 0 | 0% | 662 | 0 | 0% | 706 | 0 | 0% |
+| all | 398 | 28 | 7% | 12940 | 2447 | 19% | 13696 | 233 | 2% |
 
-- mitra-ds: 62 lines of model over 146 lines of code, in 2 subjects with 3 ensures and 0 requires; apart from it, 0 lines of point claims and 45 tests pinned in the code.
-- mitra-cli: 16 lines of model over 1493 lines of code, in 2 subjects with 2 ensures and 0 requires; apart from it, 58 lines of point claims and 3 tests pinned in the code.
-- mitra-core: 156 lines of model over 12052 lines of code, in 7 subjects with 16 ensures and 4 requires; apart from it, 67 lines of point claims and 0 tests pinned in the code.
+- mitra-lang: 217 lines of model over 12199 lines of code, in 9 subjects with 19 ensures and 4 requires; apart from it, 67 lines of point claims and 45 tests pinned in the code.
+- mitra-rust: 16 lines of model over 791 lines of code, in 2 subjects with 2 ensures and 0 requires; apart from it, 58 lines of point claims and 0 tests pinned in the code.
+- mitra-cli: 0 lines of model over 706 lines of code, in 0 subjects with 0 ensures and 0 requires; apart from it, 0 lines of point claims and 3 tests pinned in the code.
 
-## mitra-ds
-
-| File | Function | Line | Lines | Tied to |
-|---|---|---|---|---|
-| culprits.rs | `rank` | 58 | 22 | culprits::rank |
-| lib.rs | `judged` | 46 | 7 | mass::Mass::judged |
-| lib.rs | `is_valid` | 56 | 5 | mass::Mass::is_valid |
-| lib.rs | `conflict` | 64 | 3 | mass::Mass::conflict |
-| lib.rs | `dempster` | 83 | 15 | mass::Mass::dempster |
-| lib.rs | `yager` | 102 | 8 | mass::Mass::yager |
-| culprits.rs | `weigh` | 87 | 51 |  |
-| lib.rs | `agreement` | 70 | 7 |  |
-
-## mitra-cli
-
-| File | Function | Line | Lines | Tied to |
-|---|---|---|---|---|
-| report.rs | `short` | 20 | 4 | report::short |
-| report.rs | `libtest` | 26 | 17 | report::libtest |
-| report.rs | `attr` | 48 | 30 | report::attr |
-| report.rs | `strip` | 81 | 11 | report::strip |
-| report.rs | `junit` | 94 | 28 | report::junit |
-| source.rs | `mitra_line` | 119 | 8 | source::mitra_line |
-| source.rs | `fn_below` | 200 | 35 | source::fn_below |
-| main.rs | `main` | 39 | 17 |  |
-| main.rs | `inputs` | 61 | 14 |  |
-| main.rs | `read` | 79 | 3 |  |
-| main.rs | `located` | 84 | 9 |  |
-| main.rs | `relative` | 95 | 7 |  |
-| main.rs | `model` | 110 | 3 |  |
-| main.rs | `evidence` | 113 | 3 |  |
-| main.rs | `check_rev` | 120 | 8 |  |
-| main.rs | `evaluate` | 133 | 25 |  |
-| main.rs | `take_rev` | 161 | 15 |  |
-| main.rs | `take_value` | 178 | 11 |  |
-| main.rs | `take_display` | 192 | 20 |  |
-| main.rs | `run` | 214 | 3 |  |
-| main.rs | `run_command` | 219 | 335 |  |
-| source.rs | `file` | 18 | 19 |  |
-| source.rs | `add_file` | 40 | 6 |  |
-| source.rs | `push_lines` | 47 | 7 |  |
-| source.rs | `add_rust` | 57 | 24 |  |
-| source.rs | `place` | 86 | 6 |  |
-| source.rs | `locate` | 93 | 6 |  |
-| source.rs | `rust_files` | 101 | 14 |  |
-| source.rs | `scan` | 140 | 55 |  |
-| source.rs | `is_tie` | 238 | 3 |  |
-| store.rs | `find` | 27 | 12 |  |
-| store.rs | `of` | 42 | 6 |  |
-| store.rs | `init` | 50 | 14 |  |
-| store.rs | `root` | 66 | 3 |  |
-| store.rs | `model_path` | 70 | 3 |  |
-| store.rs | `source` | 75 | 17 |  |
-| store.rs | `evidence_path` | 95 | 3 |  |
-| store.rs | `add` | 101 | 20 |  |
-| store.rs | `model` | 123 | 8 |  |
-| store.rs | `append` | 136 | 35 |  |
-| tie.rs | `shape_below` | 40 | 22 |  |
-| tie.rs | `fields` | 64 | 18 |  |
-| tie.rs | `balanced` | 84 | 12 |  |
-| tie.rs | `pieces` | 99 | 20 |  |
-| tie.rs | `as_model` | 121 | 45 |  |
-| tie.rs | `fits` | 171 | 25 |  |
-| tie.rs | `implemented` | 201 | 12 |  |
-| tie.rs | `words` | 215 | 13 |  |
-| tie.rs | `read` | 230 | 79 |  |
-| tie.rs | `calls` | 314 | 8 |  |
-| tie.rs | `tests` | 350 | 37 |  |
-| tie.rs | `tie` | 388 | 249 |  |
-
-## mitra-core
+## mitra-lang
 
 | File | Function | Line | Lines | Tied to |
 |---|---|---|---|---|
@@ -93,9 +23,9 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | eval.rs | `unary` | 1493 | 12 | eval::unary |
 | eval.rs | `binary` | 1508 | 63 | eval::binary |
 | eval.rs | `evaluate` | 1826 | 1336 | verdicts::evaluate |
-| lib.rs | `load` | 78 | 7 | types::load |
-| lib.rs | `read` | 87 | 48 | types::read |
-| lib.rs | `run` | 391 | 3 | verdicts::run |
+| lib.rs | `load` | 79 | 7 | types::load |
+| lib.rs | `read` | 88 | 48 | types::read |
+| lib.rs | `run` | 392 | 3 | verdicts::run |
 | parse.rs | `model` | 3591 | 3 | reader::model |
 | plan.rs | `plan` | 17 | 272 | advice::plan |
 | print.rs | `negative` | 101 | 7 | print::negative |
@@ -103,6 +33,12 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | prove.rs | `derive` | 478 | 45 | verdicts::derive |
 | report.rs | `word` | 194 | 11 | report::word |
 | set.rs | `quote` | 1121 | 13 | print::quote |
+| trust.rs | `judged` | 45 | 7 | mass::Mass::judged |
+| trust.rs | `is_valid` | 55 | 5 | mass::Mass::is_valid |
+| trust.rs | `conflict` | 63 | 3 | mass::Mass::conflict |
+| trust.rs | `dempster` | 82 | 15 | mass::Mass::dempster |
+| trust.rs | `yager` | 101 | 8 | mass::Mass::yager |
+| trust/culprits.rs | `rank` | 58 | 22 | culprits::rank |
 | ast.rs | `set` | 92 | 6 |  |
 | ast.rs | `is_spec` | 117 | 3 |  |
 | ast.rs | `domain` | 121 | 3 |  |
@@ -161,15 +97,15 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | eval.rs | `brief` | 3511 | 14 |  |
 | eval.rs | `warnings` | 3536 | 10 |  |
 | eval.rs | `own_word` | 3552 | 3 |  |
-| lib.rs | `new` | 52 | 6 |  |
-| lib.rs | `fmt` | 61 | 3 |  |
-| lib.rs | `points` | 142 | 84 |  |
-| lib.rs | `determinism` | 232 | 24 |  |
-| lib.rs | `invariants` | 260 | 40 |  |
-| lib.rs | `tie` | 302 | 16 |  |
-| lib.rs | `tie_uses` | 321 | 23 |  |
-| lib.rs | `tie_records` | 347 | 34 |  |
-| lib.rs | `read_evidence` | 384 | 4 |  |
+| lib.rs | `new` | 53 | 6 |  |
+| lib.rs | `fmt` | 62 | 3 |  |
+| lib.rs | `points` | 143 | 84 |  |
+| lib.rs | `determinism` | 233 | 24 |  |
+| lib.rs | `invariants` | 261 | 40 |  |
+| lib.rs | `tie` | 303 | 16 |  |
+| lib.rs | `tie_uses` | 322 | 23 |  |
+| lib.rs | `tie_records` | 348 | 34 |  |
+| lib.rs | `read_evidence` | 385 | 4 |  |
 | next.rs | `next` | 16 | 385 |  |
 | next.rs | `ask` | 391 | 17 |  |
 | next.rs | `vouch` | 410 | 4 |  |
@@ -399,6 +335,8 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | set.rs | `fmt` | 971 | 134 |  |
 | set.rs | `n_is_set` | 1115 | 3 |  |
 | set.rs | `paren` | 1136 | 8 |  |
+| trust.rs | `agreement` | 69 | 7 |  |
+| trust/culprits.rs | `weigh` | 87 | 51 |  |
 | tuples.rs | `empty` | 21 | 6 |  |
 | tuples.rs | `product` | 29 | 9 |  |
 | tuples.rs | `point` | 39 | 3 |  |
@@ -426,3 +364,65 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | types.rs | `needs` | 67 | 11 |  |
 | types.rs | `call` | 80 | 8 |  |
 | types.rs | `of` | 90 | 210 |  |
+
+## mitra-rust
+
+| File | Function | Line | Lines | Tied to |
+|---|---|---|---|---|
+| report.rs | `short` | 20 | 4 | report::short |
+| report.rs | `libtest` | 26 | 17 | report::libtest |
+| report.rs | `attr` | 48 | 30 | report::attr |
+| report.rs | `strip` | 81 | 11 | report::strip |
+| report.rs | `junit` | 94 | 28 | report::junit |
+| source.rs | `mitra_line` | 24 | 8 | source::mitra_line |
+| source.rs | `fn_below` | 105 | 35 | source::fn_below |
+| source.rs | `rust_files` | 6 | 14 |  |
+| source.rs | `scan` | 45 | 55 |  |
+| source.rs | `is_tie` | 143 | 3 |  |
+| tie.rs | `shape_below` | 40 | 22 |  |
+| tie.rs | `fields` | 64 | 18 |  |
+| tie.rs | `balanced` | 84 | 12 |  |
+| tie.rs | `pieces` | 99 | 20 |  |
+| tie.rs | `as_model` | 121 | 45 |  |
+| tie.rs | `fits` | 171 | 25 |  |
+| tie.rs | `implemented` | 201 | 12 |  |
+| tie.rs | `words` | 215 | 13 |  |
+| tie.rs | `read` | 230 | 79 |  |
+| tie.rs | `calls` | 314 | 8 |  |
+| tie.rs | `tests` | 350 | 37 |  |
+| tie.rs | `tie` | 388 | 249 |  |
+
+## mitra-cli
+
+| File | Function | Line | Lines | Tied to |
+|---|---|---|---|---|
+| main.rs | `main` | 40 | 17 |  |
+| main.rs | `inputs` | 62 | 14 |  |
+| main.rs | `read` | 80 | 3 |  |
+| main.rs | `located` | 85 | 9 |  |
+| main.rs | `relative` | 96 | 7 |  |
+| main.rs | `model` | 111 | 3 |  |
+| main.rs | `evidence` | 114 | 3 |  |
+| main.rs | `check_rev` | 121 | 8 |  |
+| main.rs | `evaluate` | 134 | 25 |  |
+| main.rs | `take_rev` | 162 | 15 |  |
+| main.rs | `take_value` | 179 | 11 |  |
+| main.rs | `take_display` | 193 | 20 |  |
+| main.rs | `run` | 215 | 3 |  |
+| main.rs | `run_command` | 220 | 335 |  |
+| source.rs | `file` | 20 | 19 |  |
+| source.rs | `add_file` | 42 | 6 |  |
+| source.rs | `push_lines` | 49 | 7 |  |
+| source.rs | `add_rust` | 59 | 24 |  |
+| source.rs | `place` | 88 | 6 |  |
+| source.rs | `locate` | 95 | 6 |  |
+| store.rs | `find` | 27 | 12 |  |
+| store.rs | `of` | 42 | 6 |  |
+| store.rs | `init` | 50 | 14 |  |
+| store.rs | `root` | 66 | 3 |  |
+| store.rs | `model_path` | 70 | 3 |  |
+| store.rs | `source` | 75 | 17 |  |
+| store.rs | `evidence_path` | 95 | 3 |  |
+| store.rs | `add` | 101 | 20 |  |
+| store.rs | `model` | 123 | 8 |  |
+| store.rs | `append` | 136 | 35 |  |

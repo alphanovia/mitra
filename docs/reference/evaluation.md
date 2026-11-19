@@ -78,7 +78,7 @@ evidence; never the code.
 
 **Most plausibly wrong.** For each error Mitra computes, for every
 candidate, the belief and the plausibility that it is wrong, with
-Dempster's rule (`mitra_ds::culprits`): a piece trusted at `t` puts `t`
+Dempster's rule (`mitra_lang::trust::culprits`): a piece trusted at `t` puts `t`
 on "this piece is right"; each error says its pieces are not all right.
 Several pieces can be wrong at once, and errors that share a piece are
 computed together. When the pieces trusted at 1 can't all be right, the

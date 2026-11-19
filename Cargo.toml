@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/mitra-core", "crates/mitra-cli", "crates/mitra-ds"]
+members = ["crates/mitra-lang", "crates/mitra-rust", "crates/mitra-cli"]
 
 [workspace.package]
 version = "0.1.0"

@@ -1,0 +1,6 @@
+[package]
+name = "mitra-lang"
+description = "Mitra's embeddable library: parse a model and evidence, compute verdicts."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
