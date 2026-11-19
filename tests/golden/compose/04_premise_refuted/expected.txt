@@ -1,3 +1,7 @@
+flip::correct: unverified
+  no evidence on  `flip(false)`, `flip(true)`
+flip_not::correct: unverified
+  no evidence on  `flip_not(false)`, `flip_not(true)`
 neg_twice: holds
 flip_spec: fails
   fails on        `flip(true)`
@@ -44,5 +48,17 @@ error[M001]: evidence refutes a claim
   The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `flip_not`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn flip(a: Bool) -> Bool;
+
+  No evidence on `flip(false)`, `flip(true)`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:5  subject fn flip_not(a: Bool) -> Bool;
+
+  No evidence on `flip_not(false)`, `flip_not(true)`.
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

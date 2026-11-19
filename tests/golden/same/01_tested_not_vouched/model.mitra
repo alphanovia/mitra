@@ -1,4 +1,4 @@
 import std::claims::{uniform};
-fn add(left: Int, right: Int) -> Int;
+subject fn add(left: Int, right: Int) -> Int;
 claim add_ok(left, right) { correct(add(left, right)) }
 claim add_uniform = uniform(add);

@@ -1,4 +1,4 @@
 import std::claims::{uniform};
-fn add(left: Int, right: Int) -> Int;
+subject fn add(left: Int, right: Int) -> Int;
 claim add_commutative(left, right) { add(left, right) == add(right, left) }
 claim add_uniform = uniform(add);

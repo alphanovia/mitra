@@ -1,5 +1,5 @@
-fn add(a: Int, b: Int) -> Int;
-fn max(a: Int, b: Int) -> Int;
+subject fn add(a: Int, b: Int) -> Int;
+subject fn max(a: Int, b: Int) -> Int;
 claim add_assoc(a, b, c) { add(add(a, b), c) == add(a, add(b, c)) }
 claim add_zero(a: 0..=2) { add(a, 0) == a }
 claim max_bounds(a, b) { max(a, b) >= a && max(a, b) >= b }

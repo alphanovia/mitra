@@ -14,7 +14,7 @@ Evidence lives in `evidence.mitra`, never in the model. `mitra add`,
 free and may repeat.
 
 ```mitra
-fn abs(x: -2..=2) -> 0..=2;
+subject fn abs(x: -2..=2) -> 0..=2;
 claim abs_is(x) { abs(x) == if x < 0 { 0 - x } else { x } }
 ```
 ```evidence
@@ -28,6 +28,8 @@ evidence run_1 {
 }
 ```
 ```text
+abs::correct: unverified
+  no evidence on  x in -2..=2
 abs_is: unverified
   passes on       `abs(-2)`
   no evidence on  x in -1..=2
@@ -45,7 +47,7 @@ every value. An observed output (`gives`) needs one value per input. With no `gi
 claim.
 
 ```mitra
-fn add(a: 0..=3, b: 0..=3) -> 0..=6;
+subject fn add(a: 0..=3, b: 0..=3) -> 0..=6;
 claim add_ok(a, b) { correct(add(a, b)) }
 ```
 ```evidence
@@ -65,7 +67,7 @@ the claim is true / false there; with no `given`, someone vouches for
 the whole claim.
 
 ```mitra
-fn add(a: 0..=1, b: 0..=1) -> 0..=2;
+subject fn add(a: 0..=1, b: 0..=1) -> 0..=2;
 claim add_ok(a, b) { correct(add(a, b)) }
 claim add_commutes(a: 0..=1, b: 0..=1) { add(a, b) == add(b, a) }
 ```
@@ -87,7 +89,7 @@ add_commutes: holds
 claim that holds one measure.
 
 ```mitra
-fn up(day: 1..=4) -> Bool;
+subject fn up(day: 1..=4) -> Bool;
 claim day_one() { up(1) }
 claim mostly_up() { rate(d in 1..=4, up(d)) >= 0.75 }
 ```
@@ -96,6 +98,8 @@ evidence o { for up given day = 1 gives true }
 evidence m { for mostly_up gives rate = 0.5 }
 ```
 ```text
+up::correct: unverified
+  no evidence on  day in 1..=4
 day_one: holds
 mostly_up: fails
   fails on        the statement itself
@@ -108,7 +112,7 @@ believed. It never changes a verdict. When two pieces contradict each
 other, it ranks which is more plausibly wrong.
 
 ```mitra
-fn inc(x: 0..=2) -> 1..=3;
+subject fn inc(x: 0..=2) -> 1..=3;
 claim inc_ok(x) { correct(inc(x)) }
 ```
 ```evidence

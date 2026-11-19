@@ -10,12 +10,12 @@ To try one: copy the model into `model.mitra`, the evidence into
 
 | Keyword | What it is | Entry |
 |---|---|---|
-| `subject` | real code under review | [kw-declarations.md](kw-declarations.md#subject) |
-| `boundary` | the environment | [kw-declarations.md](kw-declarations.md#boundary) |
-| `fn` | a function: code, code with its spec, or a helper | [kw-declarations.md](kw-declarations.md#fn) |
+| `subject`, `subject fn` | real code under review | [kw-declarations.md](kw-declarations.md#subject) |
+| `boundary`, `boundary fn` | the environment | [kw-declarations.md](kw-declarations.md#boundary) |
+| `fn` | a function: code, code with its spec, or a helper of the model | [kw-declarations.md](kw-declarations.md#fn) |
 | `uses`, `only` | what the code of a function calls | [kw-declarations.md](kw-declarations.md#uses) |
-| `record` | a value with named fields | [kw-declarations.md](kw-declarations.md#record) |
-| `enum` | a value that is one of several variants | [kw-declarations.md](kw-declarations.md#enum) |
+| `record` | a value with named fields | [kw-records.md](kw-records.md#record) |
+| `enum` | a value that is one of several variants | [kw-records.md](kw-records.md#enum) |
 | `import` | declarations of another file or of `std` | [kw-declarations.md](kw-declarations.md#import) |
 | `//` | a comment | [kw-declarations.md](kw-declarations.md#comments) |
 | `claim` | what must be true for every input | [kw-claims.md](kw-claims.md#claim) |

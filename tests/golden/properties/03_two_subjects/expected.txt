@@ -1,3 +1,7 @@
+sort::correct: unverified
+  no evidence on  classes "empty", "many", "one" of `size`
+total::correct: unverified
+  no evidence on  xs in List<Int>
 sort_len: unverified
   passes on       `xs = [3, 1, 2]`
   assumed on      class "many" of `size`, by `sort_uniform`, which is not vouched for
@@ -31,6 +35,18 @@ error[M001]: evidence refutes a claim
   A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `total` or `sort`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn sort(xs: List<Int>) -> List<Int>;
+
+  No evidence on classes "empty", "many", "one" of `size`.
+  help: one passing test in such a class stands for the class
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn total(xs: List<Int>) -> Int;
+
+  No evidence on xs in List<Int>.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:5  claim sort_len(xs) { len(sort(xs)) == len(xs) }

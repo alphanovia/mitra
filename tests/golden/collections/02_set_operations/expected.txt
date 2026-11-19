@@ -1,3 +1,5 @@
+tags::correct: unverified
+  no evidence on  classes "none", "some" of `tags_class`
 tags_uniform: holds
 tags_small: holds
   passes on       `xs = []`, `xs = ["b", "a", "b"]`
@@ -6,3 +8,11 @@ tags_from_list: holds
   passes on       `xs = []`, `xs = ["b", "a", "b"]`
   assumed on      classes "none", "some" of `tags_class`, by `tags_uniform`
 algebra: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn tags(xs: List<String>) -> Set<String>;
+
+  No evidence on classes "none", "some" of `tags_class`.
+  help: one passing test in such a class stands for the class
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

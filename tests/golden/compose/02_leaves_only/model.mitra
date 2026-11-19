@@ -1,8 +1,8 @@
 fn neg(a: Bool) -> Bool { !a }
 fn same(a: Bool) -> Bool { a }
 
-fn flip(a: Bool) -> Bool;
-fn flip_not(a: Bool) -> Bool;
+subject fn flip(a: Bool) -> Bool;
+subject fn flip_not(a: Bool) -> Bool;
 
 // From the specs alone: Mitra computes it.
 claim neg_twice(a) { same(a) == neg(neg(a)) }

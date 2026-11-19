@@ -1,7 +1,7 @@
 import std::claims::{uniform};
 // A division: the developer assumes it behaves the same on every input,
 // except when dividing by zero.
-fn div(a: Int, b: Int) -> Int;
+subject fn div(a: Int, b: Int) -> Int;
 fn div_class(a: Int, b: Int) -> {"zero", "rest"} { if b == 0 { "zero" } else { "rest" } }
 
 claim div_correct(a, b) { correct(div(a, b)) }

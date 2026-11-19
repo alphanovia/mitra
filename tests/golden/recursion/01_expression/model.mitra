@@ -6,6 +6,6 @@ fn value(e: Expr) -> Int {
   match e { Lit(n) => n, Add(l, r) => value(l) + value(r), Neg(x) => 0 - value(x) } }
 fn shape(e: Expr) -> {"literal", "sum", "negation"} {
   match e { Lit(n) => "literal", Add(l, r) => "sum", Neg(x) => "negation" } }
-fn eval(e: Expr) -> Int;
+subject fn eval(e: Expr) -> Int;
 claim eval_is(e) { eval(e) == value(e) }
 claim eval_uniform = uniform(eval, shape);

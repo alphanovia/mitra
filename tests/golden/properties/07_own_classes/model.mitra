@@ -1,7 +1,7 @@
 import std::claims::{uniform};
 // Two subjects whose classes can't all meet: (big, zero) never happens.
-fn half(x: Int) -> Int;
-fn sign(x: Int) -> Int;
+subject fn half(x: Int) -> Int;
+subject fn sign(x: Int) -> Int;
 fn half_class(x: Int) -> {"small", "big"} { if x < 100 && x > -100 { "small" } else { "big" } }
 fn sign_class(x: Int) -> {"neg", "zero", "pos"} { if x < 0 { "neg" } else { if x == 0 { "zero" } else { "pos" } } }
 claim half_uniform = uniform(half, half_class);

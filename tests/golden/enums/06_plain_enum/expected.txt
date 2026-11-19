@@ -1,3 +1,13 @@
+warm::correct: unverified
+  no evidence on  `warm(Blue)`, `warm(Green)`, `warm(Red)`
 warm_is: holds
 pick_red: holds
 pick_ok: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn warm(c: Color) -> Bool;
+
+  No evidence on `warm(Blue)`, `warm(Green)`, `warm(Red)`.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

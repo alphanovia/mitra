@@ -1,5 +1,5 @@
 enum Option<T> { None, Some(value: T) }
 enum Color { Red, Green, Blue }
-fn pick(c: Option<Color>) -> Color;
+subject fn pick(c: Option<Color>) -> Color;
 claim pick_same(c: Color) { pick(Some(c)) == c }
 claim pick_default() { pick(None) == Red }

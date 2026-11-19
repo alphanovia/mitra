@@ -1,7 +1,23 @@
+f::correct: unverified
+  no evidence on  x in Int
+g::correct: unverified
+  no evidence on  x in Int
 f_g: unverified
   passes on       `f(1)`
   no evidence on  x in Int \ {1}
 f_uniform: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn f(x: Int) -> Int;
+
+  No evidence on x in Int.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn g(x: Int) -> Int;
+
+  No evidence on x in Int.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:4  claim f_g(x) { f(x) == g(x) }

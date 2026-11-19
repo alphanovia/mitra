@@ -1,3 +1,7 @@
+add::correct: unverified
+  no evidence on  (a, b) in (Int, Int)
+max::correct: unverified
+  no evidence on  (a, b) in (Int, Int)
 add_assoc: unverified
   passes on       `a = 0, b = 0, c = 0`, `a = 1, b = 0, c = 0`, `a = 1, b = 2, c = 3`
   no evidence on  (a, b, c) in (Int \ 0..=1, Int, Int) | ({1}, Int \ {0, 2}, Int) | ({1}, {2}, Int \ {3}) | ({1}, {0}, Int \ {0}) | ({0}, Int \ {0}, Int) | ({0}, {0}, Int \ {0})
@@ -26,6 +30,18 @@ error[M001]: evidence refutes a claim
   The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `max`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:1  subject fn add(a: Int, b: Int) -> Int;
+
+  No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn max(a: Int, b: Int) -> Int;
+
+  No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:3  claim add_assoc(a, b, c) { add(add(a, b), c) == add(a, add(b, c)) }

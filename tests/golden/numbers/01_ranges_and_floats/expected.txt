@@ -1,8 +1,16 @@
+half::correct: unverified
+  no evidence on  x in Float64
 inc_correct: unverified
   passes on       x in 0..=99
   no evidence on  x in -9223372036854775808..=-1 | 100..=9223372036854775807
 inc_small: holds
 half_spec: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn half(x: Float64) -> Float64;
+
+  No evidence on x in Float64.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:7  claim inc_correct(x) { correct(inc(x)) }

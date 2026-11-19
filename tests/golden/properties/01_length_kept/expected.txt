@@ -1,9 +1,25 @@
+sort::correct: unverified
+  no evidence on  classes "empty", "many", "one" of `size`
+total::correct: unverified
+  no evidence on  xs in List<Int>
 sort_len: holds
   passes on       `xs = []`, `xs = [3, 1, 2]`, `xs = [5]`
   assumed on      classes "empty", "many", "one" of `size`, by `sort_uniform`
 sort_uniform: holds
 same_total: unverified
   no evidence on  xs in List<Int>
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn sort(xs: List<Int>) -> List<Int>;
+
+  No evidence on classes "empty", "many", "one" of `size`.
+  help: one passing test in such a class stands for the class
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn total(xs: List<Int>) -> Int;
+
+  No evidence on xs in List<Int>.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:7  claim same_total(xs) { total(sort(xs)) == total(xs) }

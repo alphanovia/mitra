@@ -1,8 +1,8 @@
 import std::claims::{uniform};
 record Number { value: Int, unit: String }
-fn sort(xs: List<Int>) -> List<Int>;
+subject fn sort(xs: List<Int>) -> List<Int>;
 fn size(xs: List<Int>) -> {"empty", "one", "many"} { if len(xs) == 0 { "empty" } else { if len(xs) == 1 { "one" } else { "many" } } }
-fn total(ns: List<Number>) -> Number;
+subject fn total(ns: List<Number>) -> Number;
 claim sort_ok(xs) { correct(sort(xs)) }
 claim sort_one(xs: {[7]}) { sort(xs) == [xs[0]] }
 claim sort_uniform = uniform(sort, size);

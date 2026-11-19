@@ -1,6 +1,6 @@
 import std::claims::{uniform};
-fn sort(xs: List<Int>) -> List<Int>;
-fn total(xs: List<Int>) -> Int;
+subject fn sort(xs: List<Int>) -> List<Int>;
+subject fn total(xs: List<Int>) -> Int;
 fn size(xs: List<Int>) -> {"empty", "one", "many"} { if len(xs) == 0 { "empty" } else { if len(xs) == 1 { "one" } else { "many" } } }
 claim sort_len(xs) { len(sort(xs)) == len(xs) }
 claim sort_uniform = uniform(sort, size);

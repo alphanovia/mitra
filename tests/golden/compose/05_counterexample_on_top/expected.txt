@@ -1,3 +1,7 @@
+flip::correct: unverified
+  no evidence on  `flip(false)`, `flip(true)`
+flip_not::correct: unverified
+  no evidence on  `flip_not(false)`, `flip_not(true)`
 neg_twice: holds
 flip_spec: holds
 flip_not_shape: unverified
@@ -54,6 +58,18 @@ error[M003]: two pieces of evidence contradict each other
 
   note: until this is settled, neither counts for these inputs
   help: find out which one is right, and correct the other
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn flip(a: Bool) -> Bool;
+
+  No evidence on `flip(false)`, `flip(true)`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:5  subject fn flip_not(a: Bool) -> Bool;
+
+  No evidence on `flip_not(false)`, `flip_not(true)`.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:12  claim flip_not_shape(a) { flip_not(a) == flip(flip(a)) }

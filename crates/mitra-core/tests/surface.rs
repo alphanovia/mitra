@@ -340,8 +340,10 @@ fn a_function_of_a_subject_is_claimed_correct() {
     // No body: the implied claim. A body: the spec says what correct is.
     let m = "subject s { fn f(a: 0..=1) -> Int;\nfn g(a: 0..=1) -> Int { a } }";
     assert_eq!(names(m), ["s::f::correct", "s::g::spec"]);
-    // Not on a boundary, not outside a subject.
-    assert!(names("boundary b { fn f(a: 0..=1) -> Int; }\nfn h(a: 0..=1) -> Int;").is_empty());
+    // Not on a boundary. With one word or an unnamed block, named as written.
+    let m = "boundary b { fn f(a: 0..=1) -> Int; }\nboundary fn now() -> Int;\n\
+             subject fn h(a: 0..=1) -> Int;\nsubject { fn k() -> Int; }";
+    assert_eq!(names(m), ["h::correct", "k::correct"]);
     // The model's own claim replaces it: nothing is claimed on 0.
     let m = "subject s { fn div(a: 0..=2, b: 0..=2) -> Int;\n\
              claim div_ok(a, b: 1..=2) { correct(div(a, b)) } }";
@@ -352,4 +354,24 @@ fn a_function_of_a_subject_is_claimed_correct() {
     // Evidence on the function is evidence for it.
     let out = verdicts(m, "evidence e { for s::f holds }");
     assert!(out.starts_with("s::f::correct: holds\n"), "{out}");
+}
+
+/// What an unnamed subject or boundary holds is imported by its name.
+#[test]
+fn import_reaches_into_unnamed_blocks() {
+    let dir = std::env::temp_dir().join(format!("mitra-unnamed-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let lib = "subject fn div(a: 0..=4, b: 1..=2) -> 0..=4;\n\
+               subject { fn half(x: 0..=4) -> 0..=2;\nfn other() -> Int;\n\
+               claim half_small(x) { half(x) <= 2 } }\n\
+               boundary { fn now() -> Int; }";
+    std::fs::write(dir.join("lib.mitra"), lib).unwrap();
+    mitra_core::parse::imports_from(Some(&dir));
+    let m = "import lib::{div, half, half_small, now};\n\
+             claim t() { div(4, 2) == half(4) + now() }";
+    let model = mitra_core::load(m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
+    let names: Vec<&str> = model.claims.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(names, ["half_small", "div::correct", "half::correct", "t"]);
+    assert_eq!(model.boundaries, ["now"]);
+    let _ = std::fs::remove_dir_all(dir);
 }

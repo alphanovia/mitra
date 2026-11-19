@@ -1,6 +1,6 @@
 import std::claims::{uniform};
 // A division, with evidence trusted more or less by its authors.
-fn div(a: Int, b: Int) -> Int;
+subject fn div(a: Int, b: Int) -> Int;
 fn div_class(a: Int, b: Int) -> {"zero", "rest"} { if b == 0 { "zero" } else { "rest" } }
 
 claim div_correct(a, b) { correct(div(a, b)) }

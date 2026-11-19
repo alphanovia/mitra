@@ -1,3 +1,3 @@
 fn one(x: Int) -> Int { 1 }
-fn f(x: Int) -> Int;
+subject fn f(x: Int) -> Int;
 claim fs(x: 0..=0) { f(x) == one(x) }

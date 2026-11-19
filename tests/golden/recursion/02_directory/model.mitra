@@ -6,8 +6,8 @@ fn total(d: Dir) -> 0.. { fold(c in d.children, let sum = d.size; sum + total(c)
 fn names(d: Dir) -> List<String> { map(c in d.children, c.name) }
 fn empty(d: Dir) -> List<String> { names(Dir("", 0, filter(c in d.children, total(c) == 0))) }
 fn deep(d: Dir) -> Bool { any(c in d.children, len(c.children) > 0) }
-fn disk_usage(d: Dir) -> 0..;
-fn empty_children(d: Dir) -> List<String>;
+subject fn disk_usage(d: Dir) -> 0..;
+subject fn empty_children(d: Dir) -> List<String>;
 claim usage_is(d) { disk_usage(d) == total(d) }
 claim empty_is(d) { empty_children(d) == empty(d) }
 fn flat(d: Dir) -> {"flat", "deep"} { if deep(d) { "deep" } else { "flat" } }

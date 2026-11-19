@@ -1,7 +1,7 @@
 // A function without parameters, and one that returns nothing: `()`.
 record Account { balance: 0.., open: Bool }
-fn open_account() -> Account;
-fn log(message: String) -> ();
+subject fn open_account() -> Account;
+subject fn log(message: String) -> ();
 fn fresh() -> Account { Account(0, true) }
 claim open_is() { open_account() == fresh() }
 claim open_correct() { correct(open_account()) }

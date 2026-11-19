@@ -1,3 +1,9 @@
+add::correct: unverified
+  no evidence on  (a, b) in (Int, Int)
+negate::correct: unverified
+  no evidence on  b in Int
+minus::correct: unverified
+  no evidence on  (a, b) in (Int, Int)
 add_spec: fails
   fails on        `add(1, -1)`
   passes on       (a, b) in {(0, -2), (0, -1), (0, 0), (1, -2), (1, 0), (2, -2), (2, -1), (2, 0)}
@@ -44,5 +50,23 @@ error[M001]: evidence refutes a claim
   The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `minus`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:5  subject fn add(a: Int, b: Int) -> Int;
+
+  No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  subject fn negate(b: Int) -> Int;
+
+  No evidence on b in Int.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:7  subject fn minus(a: Int, b: Int) -> Int;
+
+  No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

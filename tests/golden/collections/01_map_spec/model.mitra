@@ -1,9 +1,9 @@
 // A stock: how many of each item. A map is a value, like a list.
-fn add_stock(stock: Map<String, 0..>, item: String, n: 0..) -> Map<String, 0..>;
+subject fn add_stock(stock: Map<String, 0..>, item: String, n: 0..) -> Map<String, 0..>;
 fn add_spec(stock: Map<String, 0..>, item: String, n: 0..) -> Map<String, 0..> {
   stock | {item: (if item in stock { stock[item] } else { 0 }) + n} }
 claim add_is(stock, item, n) { add_stock(stock, item, n) == add_spec(stock, item, n) }
 claim add_keeps_items( stock , item , n
 ) { keys(add_stock(stock, item, n)) == keys(stock) | {item} }
-fn remove(stock: Map<String, 0..>, gone: Set<String>) -> Map<String, 0..>;
+subject fn remove(stock: Map<String, 0..>, gone: Set<String>) -> Map<String, 0..>;
 claim remove_is(stock, gone) { remove(stock, gone) == stock \ gone }

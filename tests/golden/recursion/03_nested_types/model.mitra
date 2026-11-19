@@ -5,9 +5,9 @@ enum Expr { Lit(n: Int), Neg(e: Expr), Opt(o: Option<Expr>), Many(es: List<Expr>
 enum Tree<T> { Leaf, Node(l: Tree<T>, v: T, r: Tree<T>) }
 record N { kids: Set<N> }
 fn depth(e: Expr) -> 0.. { match e { Lit(n) => 0, Neg(x) => 1 + depth(x), Opt(o) => match o { None => 0, Some(x) => depth(x) }, Many(es) => fold(x in es, let d = 0; d + depth(x)), M(m) => 0 } }
-fn f(t: Tree<Expr>) -> Option<Expr>;
-fn g(n: N) -> Int;
-fn h(e: Expr) -> 0..;
+subject fn f(t: Tree<Expr>) -> Option<Expr>;
+subject fn g(n: N) -> Int;
+subject fn h(e: Expr) -> 0..;
 claim f_ok(t) { correct(f(t)) }
 claim g_ok(n) { correct(g(n)) }
 claim h_is(e) { h(e) == depth(e) }

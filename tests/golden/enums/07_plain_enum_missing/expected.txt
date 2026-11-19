@@ -1,3 +1,5 @@
+warm::correct: unverified
+  no evidence on  `warm(Blue)`, `warm(Green)`, `warm(Red)`
 warm_is: unverified
   passes on       `warm(Red)`
   no evidence on  `warm(Blue)`, `warm(Green)`
@@ -6,6 +8,12 @@ pick_red: unverified
 pick_ok: unverified
   passes on       `pick(None)`
   no evidence on  `pick(Some(Blue))`, `pick(Some(Green))`, `pick(Some(Red))`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn warm(c: Color) -> Bool;
+
+  No evidence on `warm(Blue)`, `warm(Green)`, `warm(Red)`.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:6  claim warm_is(c) { warm(c) == is_warm(c) }

@@ -1,3 +1,5 @@
+half::correct: unverified
+  no evidence on  x in Float64
 inc_correct: fails
   fails on        x in -5..=-1
   no evidence on  x in -9223372036854775808..=-6 | 0..=9223372036854775807
@@ -44,6 +46,12 @@ error[M001]: evidence refutes a claim
   The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `half`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn half(x: Float64) -> Float64;
+
+  No evidence on x in Float64.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:9  claim inc_small(x: 0..100) { correct(inc(x)) }

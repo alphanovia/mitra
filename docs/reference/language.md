@@ -66,10 +66,11 @@ subject loader {
 | Declaration | Meaning |
 |---|---|
 | `subject name { … }` | Real code under review. A namespace: its functions and claims are `name::f`. Inside, a sibling is named without the prefix. |
-| `boundary name { … }` | The environment. Same namespace rule. Its functions may answer differently each time, and are never the piece to fix (see Boundaries). |
-| `fn f(a: T) -> U;` | No body: the code is opaque. Without `-> U` the result is `()`. In a subject, Mitra adds the claim `name::f::correct`, "the code is right on every input", unless the model has its own claim `correct(f(…))` with inputs. |
+| `subject { … }`, `subject fn f(a: T) -> U;` | The same with no name: what it holds is named as written (`f`). The second form is one function. Several per file. |
+| `boundary name { … }`, `boundary { … }`, `boundary fn f(…);` | The environment. Same rules. Its functions may answer differently each time, and are never the piece to fix (see Boundaries). |
+| `fn f(a: T) -> U;` in a subject or boundary | No body: the code is opaque. Without `-> U` the result is `()`. Outside both it is refused: write `subject fn` or `boundary fn`. In a subject, Mitra adds the claim `name::f::correct`, "the code is right on every input", unless the model has its own claim `correct(f(…))` with inputs. |
 | `fn f(a: T) -> U { e }` in a subject or boundary | Opaque code **and** its specification: Mitra adds the claim `name::f::spec`, "the code returns what the body returns". |
-| `fn f(a: T) -> U { e }` outside | A helper for the model: computed, no code behind it, no claim. |
+| `fn f(a: T) -> U { e }` outside | A helper for the model: computed, no code behind it, no claim, never a suspect. It needs a body. |
 | `fn f(…) -> U uses g, h;` | What the code calls; `uses only g, h` when it calls nothing else. Adds the claim `name::f::uses`, taken as declared (evidence with source `declared`). |
 | `claim c(a: T, b: U) when cond { e }` | For every input where `cond` holds, `e` is true. `when` is optional. A type may be left out (`claim c(a, b)`): it is the type of the function the input is passed to. |
 | `claim c(a: T) trust 0.8 { e }` | The trust given to the statement itself, 1 when not said. In an error the claim is a candidate like evidence. Also on `assume`, and after a `uses` list. |

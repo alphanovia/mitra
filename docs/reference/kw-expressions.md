@@ -5,8 +5,7 @@ Part of the [language reference](language.md); index in
 `evidence` is evidence for it, `text` is what `mitra eval` prints for
 the two. A test runs them all.
 
-Most examples here are point claims on helpers: Mitra computes them, so
-they hold with no evidence.
+Most examples are point claims on helpers: computed, they hold alone.
 
 ## Operators
 
@@ -51,7 +50,7 @@ means: holds
 ## match
 
 `match e { A => …, B(x) => …, _ => … }`: by variant of an
-[enum](kw-declarations.md#enum), with a name for each field. `_` is
+[enum](kw-records.md#enum), with a name for each field. `_` is
 every other variant.
 
 ```mitra
@@ -70,15 +69,16 @@ weights: holds
 
 ```mitra
 import std::rust::{Result};
-fn parse(s: {"1", "x"}) -> Result<Int, String>;
+subject fn parse(s: {"1", "x"}) -> Result<Int, String>;
 claim rejects_letters() { parse("x") is Err }
 ```
 ```evidence
 evidence t { for parse given s = "x" gives Err("not a number") }
 ```
 ```text
+parse::correct: unverified
+  no evidence on  `parse("1")`, `parse("x")`
 rejects_letters: holds
-
 ```
 
 ## in
@@ -140,15 +140,16 @@ true, from 0 to 1. Computed from the outputs observed when they cover
 `S`; else measured, with `gives rate = …`.
 
 ```mitra
-fn up(day: 1..=4) -> Bool;
+subject fn up(day: 1..=4) -> Bool;
 claim mostly_up() { rate(d in 1..=4, up(d)) >= 0.75 }
 ```
 ```evidence
 evidence m { for mostly_up gives rate = 0.8 source "monitor:week_12" }
 ```
 ```text
+up::correct: unverified
+  no evidence on  day in 1..=4
 mostly_up: holds
-
 ```
 
 ## precision, recall, false_positive_rate
@@ -157,7 +158,7 @@ Measures of a function that answers true or false, from its observed
 outputs (`gives`) and from what was judged right (`holds` / `fails`).
 
 ```mitra
-fn is_spam(mail: 1..=4) -> Bool;
+subject fn is_spam(mail: 1..=4) -> Bool;
 claim precise() { precision(is_spam) >= 0.5 }
 claim finds_most() { recall(is_spam) >= 0.9 }
 claim few_alarms() { false_positive_rate(is_spam) <= 0.5 }
@@ -172,10 +173,12 @@ evidence d { for is_spam given mail = 2 fails }
 evidence e { for is_spam given mail in 3..=4 holds }
 ```
 ```text
+is_spam::correct: fails
+  fails on        `is_spam(2)`
+  passes on       `is_spam(1)`, `is_spam(3)`, `is_spam(4)`
 precise: holds
 finds_most: holds
 few_alarms: holds
-
 ```
 
 ## Inline functions

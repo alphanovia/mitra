@@ -1,6 +1,6 @@
 import std::claims::{uniform};
 // Sets as values: no order, no repeats.
-fn tags(xs: List<String>) -> Set<String>;
+subject fn tags(xs: List<String>) -> Set<String>;
 fn tags_class(xs: List<String>) -> {"none", "some"} { if len(xs) == 0 { "none" } else { "some" } }
 claim tags_uniform = uniform(tags, tags_class);
 claim tags_small(xs) { len(tags(xs)) <= len(xs) }

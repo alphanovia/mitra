@@ -366,8 +366,8 @@ mod tests {
     #[test]
     fn lists_what_is_missing() {
         let model = "fn neg(a: Bool) -> Bool { !a }\n\
-                     fn flip(a: Bool) -> Bool;\n\
-                     fn id(x: Value) -> Value;\n\
+                     subject fn flip(a: Bool) -> Bool;\n\
+                     subject fn id(x: Value) -> Value;\n\
                      claim flip_spec(a) { flip(a) == neg(a) }\n\
                      claim flip_correct(a) { correct(flip(a)) }\n\
                      claim id_correct(x) { correct(id(x)) }\n\
@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     fn sizes_large_sets() {
-        let model = "fn pair(x: Int, y: Int) -> Bool;\n\
+        let model = "subject fn pair(x: Int, y: Int) -> Bool;\n\
                      claim huge(x: 0..=999999999, y: 0..=9) { correct(pair(x, y)) }";
         let text = say(model, "evidence t { for pair given x = 0, y = 0 holds }");
         assert!(text.contains("  9999999999 inputs: test them"), "{text}");
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn names_untested_classes_and_conflicts() {
         let model = "import std::claims::{uniform};\n\
-                     fn div(a: Int, b: Int) -> Int;\n\
+                     subject fn div(a: Int, b: Int) -> Int;\n\
                      fn div_class(a: Int, b: Int) -> {\"zero\", \"rest\"} { if b == 0 { \"zero\" } else { \"rest\" } }\n\
                      claim div_correct(a, b) { correct(div(a, b)) }\n\
                      claim div_uniform = uniform(div, div_class);";

@@ -2,9 +2,9 @@ fn plus(a: Int, b: Int) -> Int { a + b }
 fn opposite(b: Int) -> Int { -b }
 fn difference(a: Int, b: Int) -> Int { a - b }
 
-fn add(a: Int, b: Int) -> Int;
-fn negate(b: Int) -> Int;
-fn minus(a: Int, b: Int) -> Int;
+subject fn add(a: Int, b: Int) -> Int;
+subject fn negate(b: Int) -> Int;
+subject fn minus(a: Int, b: Int) -> Int;
 
 // add, on the inputs minus uses.
 claim add_spec(a: 0..=2, b: -2..=0) { add(a, b) == plus(a, b) }

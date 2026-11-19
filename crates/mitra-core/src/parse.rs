@@ -202,7 +202,7 @@ pub struct Names {
     pub trust: BTreeMap<String, f64>,
     /// Evidence the model itself brings: what is assumed or declared.
     pub declared: Vec<Evidence>,
-    /// The boundaries.
+    /// The functions of the boundaries.
     pub boundaries: BTreeSet<String>,
     /// The `represented` claims: name, function, the spec of the set, line.
     pub represented: Vec<(String, String, String, usize)>,
@@ -287,6 +287,8 @@ struct P {
     pos: usize,
     /// The subject or boundary being read.
     scope: Option<String>,
+    /// `subject` or `boundary`, inside one: with a name (`scope`) or not.
+    block: Option<String>,
     /// Every function and claim of the file, by full name.
     all: BTreeSet<String>,
     /// How many fields each variant has.
@@ -1715,15 +1717,24 @@ impl P {
                     self.eat(";");
                     self.import(line, &path, &names)?;
                 }
-                "subject" | "boundary" if self.scope.is_none() => {
-                    self.scope = Some(self.name()?);
-                    if kw == "boundary" {
-                        self.names.boundaries.extend(self.scope.clone());
+                // subject fn f(a: T) -> U;  one function, named as written.
+                "subject" | "boundary" if self.block.is_none() && self.is("fn") => {
+                    self.block = Some(kw.clone());
+                    self.pos += 1;
+                    let done = self.function(line);
+                    self.block = None;
+                    done?;
+                }
+                // subject name { … }, or subject { … }: named as written.
+                "subject" | "boundary" if self.block.is_none() => {
+                    if !self.is("{") {
+                        self.scope = Some(self.name()?);
                     }
+                    self.block = Some(kw.clone());
                     self.expect("{")?;
                     self.items()?;
                     self.expect("}")?;
-                    self.scope = None;
+                    (self.scope, self.block) = (None, None);
                 }
                 "subject" | "boundary" => {
                     self.pos -= 1;
@@ -1877,13 +1888,24 @@ impl P {
             uses = Some((only, used, self.trust()?.unwrap_or(1.0)));
         }
         self.names.fns.insert(q.clone(), sig.clone());
-        if self.is(";") || self.scope.is_some() {
+        if self.block.is_some() {
             self.names.opaque.insert(q.clone());
+        }
+        if self.block.as_deref() == Some("boundary") {
+            self.names.boundaries.insert(q.clone());
+        }
+        if self.is(";") && self.block.is_none() {
+            let msg = format!(
+                "`fn {name}` has no body: write `subject fn {name}(…)` if it is your code, \
+                 `boundary fn {name}(…)` if it is the world. A plain `fn` is a helper \
+                 of the model and needs a body"
+            );
+            return Err(Error::new(line, msg));
         }
         if self.eat(";") {
             self.define(&q, &sig, range, None, line);
         } else {
-            let in_subject = self.scope.is_some();
+            let in_subject = self.block.is_some();
             let body_name = match in_subject {
                 true => format!("{q}::body"),
                 false => q.clone(),
@@ -2414,16 +2436,39 @@ impl P {
         let toks = lex(&src).map_err(inside)?;
         // Only what is named, and what the module itself imports.
         let (mut kept, mut found, mut depth, mut keep) = (Vec::new(), Vec::new(), 0, false);
+        // Inside `subject { … }` with no name: its word, put before each
+        // function taken out of it.
+        let mut unnamed: Option<&Tok> = None;
+        let block = |t: &Tok| t.text == "subject" || t.text == "boundary";
         for (i, t) in toks.iter().enumerate() {
-            if depth == 0 && t.kind == Kind::Name && ITEMS.contains(&t.text.as_str()) {
-                let item = toks.get(i + 1).map_or("", |n| n.text.as_str());
-                keep = t.text == "import" || names.iter().any(|n| n == item);
+            let next = |n: usize| toks.get(i + n).map_or("", |n| n.text.as_str());
+            let item = t.kind == Kind::Name && ITEMS.contains(&t.text.as_str());
+            let word_before = i > 0 && depth == 0 && block(&toks[i - 1]) && t.text == "fn";
+            if depth == 0 && item && block(t) && next(1) == "{" {
+                (unnamed, keep) = (Some(t), false);
+            } else if depth == 0 && item && block(t) && next(1) == "fn" {
+                // subject fn f(…): one function, with its word.
+                keep = names.iter().any(|n| n == next(2));
+                if keep {
+                    found.push(next(2).to_string());
+                }
+            } else if depth == 0 && item && !word_before {
+                keep = t.text == "import" || names.iter().any(|n| n == next(1));
                 if keep && t.text != "import" {
-                    found.push(item.to_string());
+                    found.push(next(1).to_string());
+                }
+            } else if depth == 1 && item && unnamed.is_some() {
+                keep = names.iter().any(|n| n == next(1));
+                if keep {
+                    found.push(next(1).to_string());
+                    kept.extend(unnamed.filter(|_| t.text == "fn").cloned());
                 }
             }
             if t.kind == Kind::Punct {
                 depth += (t.text == "{") as i32 - (t.text == "}") as i32;
+                if depth == 0 && t.text == "}" && unnamed.take().is_some() {
+                    keep = false;
+                }
             }
             if keep {
                 kept.push(t.clone());
@@ -2760,8 +2805,7 @@ impl P {
         // spec says what correct is.
         let mut implied = Vec::new();
         for f in m.functions.iter().filter(|f| !f.is_spec()) {
-            let scope = f.name.rsplit_once("::").map(|s| s.0.to_string());
-            let in_subject = scope.is_some_and(|s| !self.names.boundaries.contains(&s));
+            let in_subject = !self.names.boundaries.contains(&f.name);
             // A point (`correct(f(1, 2))`, what a test pins) narrows nothing.
             let own = |c: &Claim| {
                 let inputs = c.pattern.iter().any(|p| p.var.is_some());
@@ -2824,7 +2868,7 @@ fn declared(toks: &[Tok]) -> BTreeSet<String> {
                     scope = None;
                 }
             }
-            ("subject" | "boundary", Kind::Name, Some(n)) if depth == 0 => {
+            ("subject" | "boundary", Kind::Name, Some(n)) if depth == 0 && n.text != "fn" => {
                 scope = Some(n.text.clone())
             }
             ("fn" | "claim" | "assume", Kind::Name, Some(n)) if depth <= 1 => {
@@ -3102,7 +3146,7 @@ mod tests {
 
     #[test]
     fn reads_the_64_bit_extremes() {
-        let ok = "fn f(a: Int) -> Int;\n\
+        let ok = "subject fn f(a: Int) -> Int;\n\
                   claim c() { f(-9223372036854775808) == 9223372036854775807 }";
         assert!(model(ok).is_ok());
         let e = error("claim c() { 9223372036854775808 == 1 }");
@@ -3111,7 +3155,7 @@ mod tests {
 
     #[test]
     fn set_operators_bind_as_documented() {
-        let (m, _) = model("fn f(a: 0..=9 \\ {3} | {20} & 15..=25) -> Int;").unwrap();
+        let (m, _) = model("subject fn f(a: 0..=9 \\ {3} | {20} & 15..=25) -> Int;").unwrap();
         let a = &m.functions[0].params[0].1;
         assert!(a.contains(&Value::Int(20)) && a.contains(&Value::Int(4)));
         assert!(!a.contains(&Value::Int(3)) && !a.contains(&Value::Int(15)));
@@ -3119,27 +3163,27 @@ mod tests {
 
     #[test]
     fn errors_point_at_their_line() {
-        let e = error("fn f(a: Int) -> Int;\n\nfn g(a: Nope) -> Int;");
+        let e = error("subject fn f(a: Int) -> Int;\n\nsubject fn g(a: Nope) -> Int;");
         assert_eq!(e.line, 3);
         assert!(e.message.contains("unknown type `Nope`"), "{e}");
-        let e = error("fn if(a: Int) -> Int;");
+        let e = error("subject fn if(a: Int) -> Int;");
         assert!(e.message.contains("`if` is a keyword"), "{e}");
-        let e = error("fn f(a: String) -> Int;\nclaim c() { f(\"a\\qb\") == 1 }");
+        let e = error("subject fn f(a: String) -> Int;\nclaim c() { f(\"a\\qb\") == 1 }");
         assert_eq!(e.line, 2);
         assert!(e.message.contains("in a string"), "{e}");
     }
 
     #[test]
     fn rust_names_are_the_same_types() {
-        let (m, _) = model("fn f(a: Vec<i32>, b: usize) -> bool;").unwrap();
-        let (n, _) = model("fn f(a: List<Int32>, b: 0..) -> Bool;").unwrap();
+        let (m, _) = model("subject fn f(a: Vec<i32>, b: usize) -> bool;").unwrap();
+        let (n, _) = model("subject fn f(a: List<Int32>, b: 0..) -> Bool;").unwrap();
         assert_eq!(m.functions[0].params, n.functions[0].params);
         assert_eq!(m.functions[0].range, n.functions[0].range);
     }
 
     #[test]
     fn trust_goes_from_0_to_1() {
-        let (m, names) = model("fn f(a: Int) -> Int;").unwrap();
+        let (m, names) = model("subject fn f(a: Int) -> Int;").unwrap();
         let read = |e: &str| evidence_alone(e, &m, &names);
         assert!(read("evidence t { for f given a = 1 holds trust 0.5 }").is_ok());
         let e = read("evidence t { for f given a = 1 holds trust 2 }").unwrap_err();
@@ -3149,14 +3193,38 @@ mod tests {
     }
 
     #[test]
+    fn a_function_with_no_body_is_code_or_the_world() {
+        let e = error("fn f(a: Int) -> Int;");
+        assert!(e.message.contains("write `subject fn f(…)`"), "{e}");
+        // Named as written, with or without a name on the block.
+        let (m, names) = model(
+            "subject fn f(a: Int) -> Int;\nboundary fn now() -> Int;\n\
+             subject { fn g(a: Int) -> Int { a } }\nboundary { fn h() -> Int; }\n\
+             subject s { fn k() -> Int; }",
+        )
+        .unwrap();
+        let fns: Vec<&str> = m.functions.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(fns, ["f", "now", "g", "g::body", "h", "s::k"]);
+        let claims: Vec<&str> = m.claims.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(claims, ["f::correct", "g::spec", "s::k::correct"]);
+        let outside: Vec<&String> = names.boundaries.iter().collect();
+        assert_eq!(outside, ["h", "now"]);
+        // Several unnamed blocks share the names of the file.
+        let twice = "subject { fn f() -> Int; }\nsubject { fn f() -> Int; }";
+        let e = crate::load(twice, "").unwrap_err().1;
+        assert!(e.message.contains("`f`"), "{e}");
+    }
+
+    #[test]
     fn an_import_is_read_in_place() {
         let (m, _) = model(
             "import std::claims::{commutative};\n\
-             fn add(a: 0..=3, b: 0..=3) -> Int;\n\
+             subject fn add(a: 0..=3, b: 0..=3) -> Int;\n\
              claim add_commutes = commutative(add, 0..=3);",
         )
         .unwrap();
-        assert_eq!(m.claims.len(), 1);
+        let names: Vec<&str> = m.claims.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["add::correct", "add_commutes"]);
         let e = error("import std::claims::{nope};");
         assert!(e.message.contains("declares no `nope`"), "{e}");
     }

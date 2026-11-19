@@ -1,8 +1,16 @@
+abs::correct: unverified
+  no evidence on  classes "neg", "pos", "zero" of `sign`
 abs_even: unverified
   passes on       `abs(2)`
   assumed on      classes ("pos", "neg") of `abs(x)`, `abs(-x)`, by `abs_uniform`
   no evidence on  x in -3..=0
 abs_uniform: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn abs(x: Int) -> Int;
+
+  No evidence on classes "neg", "pos", "zero" of `sign`.
+  help: one passing test in such a class stands for the class
 
 warning[M101]: a claim is not verified
   --> model.mitra:4  claim abs_even(x: -3..=3) { abs(x) == abs(-x) }

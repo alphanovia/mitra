@@ -14,13 +14,15 @@ function `|a, b| b > 0`. Written above its use.
 
 ```mitra
 claim never_above(f, T, top) { given a: T then f(a) <= top }
-fn clamp(x: 0..=9) -> 0..=9;
+subject fn clamp(x: 0..=9) -> 0..=9;
 claim clamp_low = never_above(clamp, 0..=9, 5) trust 0.9;
 ```
 ```evidence
 evidence t { for clamp given x = 7 gives 5 }
 ```
 ```text
+clamp::correct: unverified
+  no evidence on  x in 0..=9
 clamp_low: unverified
   passes on       `a = 7`
   no evidence on  a in 0..=6 | 8..=9
@@ -45,10 +47,10 @@ explain std::claims` prints them.
 
 ```mitra
 import std::claims::{commutative, neutral, within};
-fn add(a: 0..=1, b: 0..=1) -> 0..=2;
+subject fn add(a: 0..=1, b: 0..=1) -> 0..=2;
 claim add_commutes = commutative(add, 0..=1);
 claim add_zero = neutral(add, 0..=1, 0);
-fn half(x: 0..=4) -> 0..=2;
+subject fn half(x: 0..=4) -> 0..=2;
 claim half_small = within(half, 0..=4, 0, 2);
 ```
 ```evidence
@@ -56,12 +58,16 @@ evidence a { for add given a = 0, b = 1 gives 1 }
 evidence b { for add given a = 1, b = 0 gives 1 }
 ```
 ```text
+add::correct: unverified
+  no evidence on  (a, b) in (0..=1, 0..=1)
 add_commutes: unverified
   passes on       `add(0, 1)`, `add(1, 0)`
   no evidence on  `add(0, 0)`, `add(1, 1)`
 add_zero: unverified
   passes on       `a = 1`
   no evidence on  `a = 0`
+half::correct: unverified
+  no evidence on  x in 0..=4
 half_small: unverified
   no evidence on  a in 0..=4
 ```
@@ -75,7 +81,7 @@ function.
 
 ```mitra
 import std::claims::{uniform};
-fn div(a: 0..=9, b: 0..=9) -> 0..=9;
+subject fn div(a: 0..=9, b: 0..=9) -> 0..=9;
 claim div_ok(a, b) { correct(div(a, b)) }
 claim div_classes = uniform(div, |a, b| b == 0);
 ```
@@ -98,7 +104,7 @@ div_classes: holds
 
 ```mitra
 import std::claims::{represented};
-fn div(a: 0..=9, b: 0..=9) -> 0..=9;
+subject fn div(a: 0..=9, b: 0..=9) -> 0..=9;
 claim div_ok(a, b) { correct(div(a, b)) }
 claim div_rest = represented(div, { (a, b) | b != 0 });
 ```

@@ -1,3 +1,5 @@
+h::correct: unverified
+  no evidence on  e in Expr
 f_ok: unverified
   passes on       `f(Node(Leaf, Opt(Some(Many([Lit(1), M({"a": Neg(Lit(2))})]))), Leaf))`
   no evidence on  a set too long to print
@@ -7,6 +9,12 @@ g_ok: unverified
 h_is: unverified
   passes on       `h(Many([Neg(Lit(1)), Opt(Some(Neg(Neg(Lit(1)))))]))`
   no evidence on  e in Expr \ {Many([Neg(Lit(1)), Opt(Some(Neg(Neg(Lit(1)))))])}
+
+warning[M101]: a claim is not verified
+  --> model.mitra:10  subject fn h(e: Expr) -> 0..;
+
+  No evidence on e in Expr.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:11  claim f_ok(t) { correct(f(t)) }

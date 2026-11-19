@@ -13,7 +13,7 @@ fn error(model: &str, evidence: &str) -> String {
 }
 
 const EXPR: &str = "enum Expr { Lit(n: Int), Add(l: Expr, r: Expr) }\n\
-                    fn eval(e: Expr) -> Int;\n\
+                    subject fn eval(e: Expr) -> Int;\n\
                     claim eval_ok(e) { correct(eval(e)) }\n";
 
 /// `evidence e { for f given … }`
@@ -48,7 +48,7 @@ fn a_type_needs_a_value() {
 #[test]
 fn a_type_inside_itself_keeps_its_parameters() {
     let tree = "enum Tree<T> { Leaf, Node(l: Tree<T>, v: T, r: Tree<T>) }\n\
-                fn size(t: Tree<Int>) -> Int;\n\
+                subject fn size(t: Tree<Int>) -> Int;\n\
                 claim size_ok(t) { correct(size(t)) }\n";
     assert_eq!(
         error(tree, &on("size", "t = Node(Leaf, 1, Leaf)", "holds")),
@@ -112,7 +112,7 @@ fn each_element() {
 #[test]
 fn type_parameters() {
     let pair = "record Pair<A, B> { first: A, second: B }\n\
-                fn ints(p: Pair<Int, String>) -> Int;\n\
+                subject fn ints(p: Pair<Int, String>) -> Int;\n\
                 claim ints_ok(p) { correct(ints(p)) }\n";
     assert_eq!(error(pair, &on("ints", "p = Pair(1, \"a\")", "holds")), "");
     let e = error(pair, &on("ints", "p = Pair(\"a\", 1)", "holds"));
@@ -122,10 +122,10 @@ fn type_parameters() {
         "",
     );
     assert!(e.contains("takes 2 type(s)"), "{e}");
-    let e = error("fn f<T, T>(x: T) -> T;", "");
+    let e = error("subject fn f<T, T>(x: T) -> T;", "");
     assert!(e.contains("two parameters `T`"), "{e}");
     // A type parameter does not outlive its function.
-    let e = error("fn f<T>(x: T) -> T;\nfn g(x: T) -> Int;", "");
+    let e = error("subject fn f<T>(x: T) -> T;\nfn g(x: T) -> Int;", "");
     assert!(e.contains("unknown type `T`"), "{e}");
 }
 
@@ -133,7 +133,7 @@ fn type_parameters() {
 fn function_types() {
     let model = "fn double(x: Int) -> Int { x * 2 }\n\
                  fn shout(s: String) -> String { s }\n\
-                 fn apply(f: fn(Int) -> Int, x: Int) -> Int;\n\
+                 subject fn apply(f: fn(Int) -> Int, x: Int) -> Int;\n\
                  claim apply_is(f, x) { apply(f, x) == f(x) }\n";
     assert_eq!(
         error(model, &on("apply", "f = double, x = 3", "gives 6")),

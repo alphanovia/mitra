@@ -1,5 +1,5 @@
 fn neg(a: Bool) -> Bool { !a }
-fn flip(a: Bool) -> Bool;
+subject fn flip(a: Bool) -> Bool;
 
 // flip computes neg on every input.
 claim flip_spec(a) { flip(a) == neg(a) }

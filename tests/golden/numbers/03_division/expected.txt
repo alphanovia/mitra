@@ -1,9 +1,25 @@
+half::correct: unverified
+  no evidence on  x in Int
+ratio::correct: unverified
+  no evidence on  (a, b) in (Float64, Float64)
 half_is: unverified
   passes on       `half(-3)`, `half(1)`, `half(3)`
   no evidence on  x in {2} | -2..=0
 ratio_is: unverified
   passes on       `ratio(1.0, 4.0)`
   no evidence on  `ratio(1.0, 0.0)`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn half(x: Int) -> Int;
+
+  No evidence on x in Int.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn ratio(a: Float64, b: Float64) -> Float64;
+
+  No evidence on (a, b) in (Float64, Float64).
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:4  claim half_is(x: -3..=3) { half(x) == 6 / 2 * x / 2 }

@@ -92,10 +92,7 @@ fn read(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
             (c.from, c.auto) = (specs, true);
         }
     }
-    let outside = |f: &&Function| {
-        let scope = f.name.split("::").next().unwrap_or("");
-        !f.is_spec() && f.name.contains("::") && names.boundaries.contains(scope)
-    };
+    let outside = |f: &&Function| !f.is_spec() && names.boundaries.contains(&f.name);
     m.boundaries = m
         .functions
         .iter()

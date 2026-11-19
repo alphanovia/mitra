@@ -1,3 +1,7 @@
+deposit::correct: unverified
+  no evidence on  (a, n) in (Account, 0..)
+withdraw::correct: unverified
+  no evidence on  classes "closed", "covered", "overdraw" of `account_class`
 deposit_is: unverified
   passes on       `deposit(Account(0, true), 5)`
   no evidence on  (a, n) in (Account \ {Account(0, true)}, 0..) | ({Account(0, true)}, 0..=4 | 6..)
@@ -28,6 +32,18 @@ error[M001]: evidence refutes a claim
   The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `withdraw`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn deposit(a: Account, n: 0..) -> Account;
+
+  No evidence on (a, n) in (Account, 0..).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:5  subject fn withdraw(a: Account, n: 0..) -> (Account, Bool);
+
+  No evidence on classes "closed", "covered", "overdraw" of `account_class`.
+  help: one passing test in such a class stands for the class
 
 warning[M101]: a claim is not verified
   --> model.mitra:10  claim deposit_is(a, n) { deposit(a, n) == deposit_spec(a, n) }

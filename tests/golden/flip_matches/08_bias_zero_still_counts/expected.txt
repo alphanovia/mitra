@@ -1,3 +1,5 @@
+flip::correct: unverified
+  no evidence on  `flip(false)`, `flip(true)`
 flip_spec: fails
   fails on        `flip(false)`
   no evidence on  `flip(true)`
@@ -28,6 +30,12 @@ warning[M104]: evidence that can't be used
   --> evidence.mitra:3  evidence e { for neg given a = true gives true trust 0 }
 
   `neg` is a spec, true by definition: evidence does not apply to it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn flip(a: Bool) -> Bool;
+
+  No evidence on `flip(false)`, `flip(true)`.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:7  claim flip_on_true() { flip(true) == neg(true) }

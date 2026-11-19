@@ -1,7 +1,15 @@
+goal_met::correct: unverified
+  no evidence on  (team, sprint) in ({"payments", "search"}, Int)
 steady: unverified
   no evidence on  the statement itself
 adapts: holds
 ever: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:1  subject fn goal_met(team: {"payments", "search"}, sprint: Int) -> Bool;
+
+  No evidence on (team, sprint) in ({"payments", "search"}, Int).
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:2  claim steady() { rate(s in 1..=4, goal_met("payments", s)) >= 0.5 }

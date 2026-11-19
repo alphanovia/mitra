@@ -1,4 +1,4 @@
-fn id(x: Value) -> Value;
+subject fn id(x: Value) -> Value;
 
 // id is correct on every input.
 claim id_correct(x) { correct(id(x)) }

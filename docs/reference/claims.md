@@ -41,7 +41,7 @@ Where none was observed, Mitra looks for it in this order.
    they do. Mitra keeps the fewest that are enough and prints them.
 
    ```rust
-   fn add(a: Int, b: Int) -> Int;
+   subject fn add(a: Int, b: Int) -> Int;
    claim add_commutes = commutative(add, Int);
    fn sum3(a: Int, b: Int, c: Int) -> Int { add(add(a, b), c) }
    claim sum3_swaps(a: Int, b: Int, c: Int) { sum3(a, b, c) == sum3(b, a, c) }

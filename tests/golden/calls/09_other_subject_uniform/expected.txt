@@ -1,8 +1,24 @@
+f::correct: unverified
+  no evidence on  x in Int
+g::correct: unverified
+  no evidence on  x in Int
 f_g: holds assuming [g_uniform]
   passes on       `f(1)`
   assumed on      every input, by `f_uniform`, `g_uniform`; not vouched for: `g_uniform`
 f_uniform: holds
 g_uniform: unverified
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn f(x: Int) -> Int;
+
+  No evidence on x in Int.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn g(x: Int) -> Int;
+
+  No evidence on x in Int.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M102]: a claim holds only under assumptions
   --> model.mitra:4  claim f_g(x) { f(x) == g(x) }
@@ -16,4 +32,4 @@ warning[M103]: an assumption is not vouched for
   Nothing says that `g_uniform` holds, and Mitra can't check it.
   help: review it against the code, then record: evidence <name> { for g_uniform holds source "review:<who>" }
 
-`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M102`.
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

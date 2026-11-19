@@ -1,8 +1,8 @@
 //! Uniformity claims: cases the red team found, kept as tests.
 
 const MODEL: &str = "import std::claims::{uniform};\n\
-    fn f(a: Int8) -> Int;\n\
-    fn h(a: Int8) -> Int;\n\
+    subject fn f(a: Int8) -> Int;\n\
+    subject fn h(a: Int8) -> Int;\n\
     fn g(a: Int8) -> Int { a + a }\n\
     fn cls(a: Int8) -> {\"neg\", \"pos\"} { if a < 0 { \"neg\" } else { \"pos\" } }\n\
     claim f_spec(a) { f(a) == g(a) }\n\

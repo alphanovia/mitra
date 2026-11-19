@@ -1,3 +1,7 @@
+half::correct: unverified
+  no evidence on  classes "big", "small" of `half_class`
+sign::correct: unverified
+  no evidence on  classes "neg", "pos", "zero" of `sign_class`
 half_uniform: holds
 sign_uniform: holds
 half_keeps_sign: unverified
@@ -7,6 +11,18 @@ same_sign: holds
   passes on       `x = -7`, `x = 0`, `x = 8`
   assumed on      classes "neg", "pos", "zero" of `sign_class`, by `same_sign_uniform`
 same_sign_uniform: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn half(x: Int) -> Int;
+
+  No evidence on classes "big", "small" of `half_class`.
+  help: one passing test in such a class stands for the class
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn sign(x: Int) -> Int;
+
+  No evidence on classes "neg", "pos", "zero" of `sign_class`.
+  help: one passing test in such a class stands for the class
 
 warning[M101]: a claim is not verified
   --> model.mitra:9  claim half_keeps_sign(x) { sign(half(x) * 2) == sign(x) || half(x) == 0 }

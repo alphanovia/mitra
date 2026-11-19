@@ -1,4 +1,4 @@
-fn flip(a: Bool) -> Bool;
+subject fn flip(a: Bool) -> Bool;
 
 // flip is correct on every input.
 claim flip_correct(a) { correct(flip(a)) }

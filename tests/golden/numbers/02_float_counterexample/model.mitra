@@ -1,7 +1,7 @@
 // Integer types and ranges, and 64-bit floats.
-fn inc(x: Int64) -> Int64;
+subject fn inc(x: Int64) -> Int64;
 fn halve(x: Float64) -> Float64 { x * 0.5 }
-fn half(x: Float64) -> Float64;
+subject fn half(x: Float64) -> Float64;
 
 // inc is correct on every 64-bit integer: tests can't cover that.
 claim inc_correct(x) { correct(inc(x)) }

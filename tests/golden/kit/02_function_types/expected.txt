@@ -1,3 +1,8 @@
+parse::correct: unverified
+  no evidence on  s in String
+apply::correct: unverified
+  no evidence on  (f, x) in (fn(Int) -> Int, Int)
+retry::correct: holds
 apply_is: fails
   fails on        `apply(negate, 3)`
   passes on       `apply(double, 3)`
@@ -22,5 +27,17 @@ error[M001]: evidence refutes a claim
   The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `apply`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  subject fn parse(s: String) -> Int;
+
+  No evidence on s in String.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  subject fn apply(f: fn(Int) -> Int, x: Int) -> Int;
+
+  No evidence on (f, x) in (fn(Int) -> Int, Int).
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

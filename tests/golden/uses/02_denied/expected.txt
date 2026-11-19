@@ -53,7 +53,7 @@ error[M003]: two pieces of evidence contradict each other
 
   On the inputs Int of `quarter`, these two say opposite things:
 
-    declared  model.mitra:3  fn quarter(x: Int) -> Int uses half;
+    declared  model.mitra:3  subject fn quarter(x: Int) -> Int uses half;
     denies    evidence.mitra:3  evidence e { for quarter::uses fails }
 
   These can't all be right. Below, the trust given to each
@@ -73,7 +73,7 @@ error[M003]: two pieces of evidence contradict each other
   help: find out which one is right, and correct the other
 
 warning[M103]: an assumption is not vouched for
-  --> model.mitra:3  fn quarter(x: Int) -> Int uses half;
+  --> model.mitra:3  subject fn quarter(x: Int) -> Int uses half;
 
   Nothing says that `quarter::uses` holds, and Mitra can't check it.
   help: review it against the code, then record: evidence <name> { for quarter::uses holds source "review:<who>" }

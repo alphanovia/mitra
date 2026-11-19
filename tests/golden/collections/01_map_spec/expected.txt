@@ -1,3 +1,5 @@
+add_stock::correct: unverified
+  no evidence on  (stock, item, n) in (Map<String, 0..>, String, 0..)
 add_is: fails
   fails on        `add_stock({"bolt": 1, "nut": 2}, "bolt", 1)`
   passes on       `add_stock({:}, "bolt", 1)`, `add_stock({"nut": 2}, "nut", 3)`
@@ -5,6 +7,8 @@ add_is: fails
 add_keeps_items: unverified
   passes on       `stock = {:}, item = "bolt", n = 1`, `stock = {"bolt": 1, "nut": 2}, item = "bolt", n = 1`, `stock = {"nut": 2}, item = "nut", n = 3`
   no evidence on  a set too long to print
+remove::correct: unverified
+  no evidence on  (stock, gone) in (Map<String, 0..>, Set<String>)
 remove_is: unverified
   passes on       `remove({"bolt": 1, "nut": 2}, {"nut", "x"})`
   no evidence on  (stock, gone) in (Map<String, 0..> \ {{"bolt": 1, "nut": 2}}, Set<String>) | ({{"bolt": 1, "nut": 2}}, Set<String> \ {{"nut", "x"}})
@@ -28,9 +32,21 @@ error[M001]: evidence refutes a claim
   help: if the evidence is right, fix `add_stock`; if not, correct the evidence
 
 warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn add_stock(stock: Map<String, 0..>, item: String, n: 0..) -> Map<String, 0..>;
+
+  No evidence on (stock, item, n) in (Map<String, 0..>, String, 0..).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:6  claim add_keeps_items( stock , item , n
 
   No evidence on a set too long to print.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:8  subject fn remove(stock: Map<String, 0..>, gone: Set<String>) -> Map<String, 0..>;
+
+  No evidence on (stock, gone) in (Map<String, 0..>, Set<String>).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

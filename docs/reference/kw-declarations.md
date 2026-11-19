@@ -28,8 +28,28 @@ calc::add_small: unverified
   no evidence on  (a, b) in {(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (2, 0), (2, 1), (2, 2)}
 ```
 
-Functions and claims may also be written outside any subject: they are
-then named as written (`add`, `add_small`).
+Without a name, what it holds is named as written (`add`,
+`add_small`), in the file and in a file that imports it. For one
+function, one word is enough: `subject fn add(…) -> T;`. Claims on it
+are then written beside it. A file may hold several unnamed blocks.
+
+```mitra
+subject fn add(a: 0..=2, b: 0..=2) -> 0..=4;
+subject {
+    fn half(x: 0..=4) -> 0..=2;
+}
+claim add_small(a: 0..=2, b: 0..=2) { add(a, b) <= 4 }
+```
+```text
+add::correct: unverified
+  no evidence on  (a, b) in (0..=2, 0..=2)
+half::correct: unverified
+  no evidence on  x in 0..=4
+add_small: unverified
+  no evidence on  (a, b) in (0..=2, 0..=2)
+```
+
+Only a named subject can be pointed at as a whole.
 
 ## boundary
 
@@ -61,22 +81,42 @@ loader::falls_back: unverified
 
 The two answers of `fetch("b")` both stand.
 
+Like a subject, a boundary may have no name, and one function takes one
+word:
+
+```mitra
+boundary fn now() -> 0..=9;
+assume noon() { now() == 5 }
+subject fn left() -> 0..=9;
+claim left_fits() { left() + now() <= 9 }
+```
+```evidence
+evidence l { for left gives 3 }
+```
+```text
+noon: holds assuming [itself]
+left::correct: unverified
+  no evidence on  `left()`
+left_fits: holds assuming [noon]
+```
+
 ## fn
 
 Three forms.
 
-`fn f(a: T) -> U;` with no body: code that is not modelled. Only claims
-and evidence say something of it. Without `-> U` the result is `()`. In
-a subject, Mitra adds the claim `f::correct`: the code is right on every
-input ([correct](kw-claims.md#correct)).
+`fn f(a: T) -> U;` with no body, in a subject or a boundary (or after
+the word: `subject fn f(…);`, `boundary fn f(…);`): code that is not
+modelled. Only claims and evidence say something of it. Without `-> U`
+the result is `()`. In a subject, Mitra adds the claim `f::correct`: the
+code is right on every input ([correct](kw-claims.md#correct)).
 
-`fn f(a: T) -> U { e }` inside a subject: the code, and its
-specification. Mitra adds the claim `f::spec`: the code returns what the
-body returns.
+`fn f(a: T) -> U { e }` in a subject: the code, and its specification.
+Mitra adds the claim `f::spec`: the code returns what the body returns.
 
-`fn f(a: T) -> U { e }` outside a subject: a helper of the model. It is
-computed, there is no code behind it and no claim. It is written above
-the bodies that call it.
+`fn f(a: T) -> U { e }` alone: a helper of the model. It is computed,
+there is no code behind it, no claim, and it is never a suspect. It is
+written above the bodies that call it. Alone, a `fn` with no body is
+refused: Mitra asks whether it is your code or the world.
 
 ```mitra
 fn double(x: Int) -> Int { x * 2 }
@@ -124,40 +164,6 @@ shop::price::correct: unverified
 shop::total::uses: holds
 shop::total::correct: unverified
   no evidence on  (a, b) in ({"ink", "pen"}, {"ink", "pen"})
-```
-
-## record
-
-A value with named fields. Written `Point(1, 2)`, read `p.x`. Global,
-also when written inside a subject. Type parameters: `record Box<T> {
-item: T }`.
-
-```mitra
-record Point { x: 0..=9, y: 0..=9 }
-fn flip(p: Point) -> Point { Point(p.y, p.x) }
-claim flips() { flip(Point(1, 2)).x == 2 }
-```
-```text
-flips: holds
-
-```
-
-## enum
-
-A value that is one of several variants, each with or without fields.
-Unnamed fields are named `v0`, `v1`. Read with
-[match](kw-expressions.md#match) and [is](kw-expressions.md#is).
-
-```mitra
-enum Shape { Dot, Circle(r: 1..=9), Rect(1..=9, 1..=9) }
-fn area(s: Shape) -> Int {
-    match s { Dot => 0, Circle(r) => 3 * r * r, Rect(w, h) => w * h }
-}
-claim areas() { area(Rect(2, 3)) == 6 && area(Dot) == 0 && Circle(1).r == 1 }
-```
-```text
-areas: holds
-
 ```
 
 ## import

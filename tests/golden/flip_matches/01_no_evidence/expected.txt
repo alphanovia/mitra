@@ -1,7 +1,15 @@
+flip::correct: unverified
+  no evidence on  `flip(false)`, `flip(true)`
 flip_spec: unverified
   no evidence on  `flip(false)`, `flip(true)`
 flip_on_true: unverified
   no evidence on  the statement itself
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn flip(a: Bool) -> Bool;
+
+  No evidence on `flip(false)`, `flip(true)`.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:5  claim flip_spec(a) { flip(a) == neg(a) }

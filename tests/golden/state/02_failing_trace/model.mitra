@@ -1,8 +1,8 @@
 import std::claims::{uniform};
 // `&mut self` is one more input and one more output: the state is a value.
 record Account { balance: 0.., open: Bool }
-fn deposit(a: Account, n: 0..) -> Account;
-fn withdraw(a: Account, n: 0..) -> (Account, Bool);
+subject fn deposit(a: Account, n: 0..) -> Account;
+subject fn withdraw(a: Account, n: 0..) -> (Account, Bool);
 fn deposit_spec(a: Account, n: 0..) -> Account {
   if a.open { Account(a.balance + n, true) } else { a } }
 fn withdraw_spec(a: Account, n: 0..) -> (Account, Bool) {

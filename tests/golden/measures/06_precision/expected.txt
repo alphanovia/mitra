@@ -1,8 +1,31 @@
+is_spam::correct: fails
+  fails on        `is_spam(2)`
+  passes on       `is_spam(1)`, `is_spam(3)`, `is_spam(4)`
 precise: fails
   fails on        the statement itself
 few_false_alarms: fails
   fails on        the statement itself
 finds_most: holds
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:1  subject fn is_spam(mail: 1..=4) -> Bool;
+
+  `is_spam::correct` fails on `is_spam(2)`.
+  The evidence that says so:
+
+    fails     evidence.mitra:6  evidence e { for is_spam given mail = 2 fails trust 0.8 }
+
+  The code, the claim or the evidence is wrong. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                    trust  left
+    likely    the code of `is_spam`, model.mitra:1  none   0.00 to 0.20
+    unlikely  evidence.mitra:6 (e)                  0.8    0.80 to 1.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+  A range means the evidence does not settle it.
+
+  help: if the evidence is right, fix `is_spam`; if not, correct the evidence
 
 error[M001]: evidence refutes a claim
   --> model.mitra:2  claim precise() { precision(is_spam) >= 0.9 }
