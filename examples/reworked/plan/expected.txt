@@ -1,5 +1,7 @@
 calc::div::spec: unverified
   no evidence on  (a, b) in (0..=9, 0..=9)
+calc::add::correct: unverified
+  no evidence on  (a, b) in (0..=1, 0..=1)
 calc::div_classes: unverified
 calc::div_small: holds assuming [calc::div::spec]
   assumed on      the statement itself: the specs of what it calls imply it
@@ -12,6 +14,12 @@ warning[M101]: a claim is not verified
   --> model.mitra:6  fn div(a: 0..=9, b: 0..=9) -> 0..=9 { if b == 0 { 0 } else { a / b } }
 
   No evidence on (a, b) in (0..=9, 0..=9).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:7  fn add(a: 0..=1, b: 0..=1) -> 0..=2;
+
+  No evidence on (a, b) in (0..=1, 0..=1).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for

@@ -1,3 +1,7 @@
+arith::add::correct: unverified
+  no evidence on  (a, b) in (Int, Int)
+arith::le::correct: unverified
+  no evidence on  (a, b) in (Int, Int)
 arith::add_commutes: unverified
   no evidence on  (a, b) in (Int, Int)
 arith::add_associates: unverified
@@ -17,17 +21,35 @@ arith::between_orders: holds assuming [arith::le_transitive, arith::between::spe
 arith::sum3_drops: unverified
   no evidence on  (a, b, c) in (Int, Int, Int)
 arith::total::uses: holds
+arith::total::correct: unverified
+  no evidence on  (a, b) in (Int, Int)
 arith::total_commutes: unverified
   no evidence on  (a, b) in (Int, Int)
 arith::plus::uses: holds
+arith::plus::correct: unverified
+  no evidence on  (a, b) in (Int, Int)
 arith::plus_adds: unverified
   no evidence on  (a, b) in (Int, Int)
 arith::plus_commutes: holds assuming [arith::add_commutes, arith::plus_adds]
   assumed on      (a, b) in (Int, Int): it follows from `arith::add_commutes`, `arith::plus_adds`
+arith::other::correct: unverified
+  no evidence on  (a, b) in (Int, Int)
 arith::other_adds: unverified
   no evidence on  (a, b) in (Int, Int)
 arith::other_commutes: unverified
   no evidence on  (a, b) in (Int, Int)
+
+warning[M101]: a claim is not verified
+  --> model.mitra:7  fn add(a: Int, b: Int) -> Int;
+
+  No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:8  fn le(a: Int, b: Int) -> bool;
+
+  No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:10  claim add_commutes = commutative(add, Int);
@@ -84,7 +106,19 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> model.mitra:27  fn total(a: Int, b: Int) -> Int uses add;
+
+  No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:28  claim total_commutes(a: Int, b: Int) { total(a, b) == total(b, a) }
+
+  No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:31  fn plus(a: Int, b: Int) -> Int uses add;
 
   No evidence on (a, b) in (Int, Int).
   help: `mitra next` lists the evidence that would settle it
@@ -100,6 +134,12 @@ warning[M102]: a claim holds only under assumptions
 
   `arith::plus_commutes` holds if `arith::add_commutes`, `arith::plus_adds` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
+
+warning[M101]: a claim is not verified
+  --> model.mitra:36  fn other(a: Int, b: Int) -> Int;
+
+  No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:37  claim other_adds(a: Int, b: Int) { other(a, b) == add(a, b) }

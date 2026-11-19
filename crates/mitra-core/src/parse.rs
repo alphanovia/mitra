@@ -2755,6 +2755,52 @@ impl P {
                 records_in(e, &names);
             }
         }
+        // The code of a subject is claimed correct: `f::correct`, unless
+        // the model has its own claim on `correct(f(…))`, or a body, whose
+        // spec says what correct is.
+        let mut implied = Vec::new();
+        for f in m.functions.iter().filter(|f| !f.is_spec()) {
+            let scope = f.name.rsplit_once("::").map(|s| s.0.to_string());
+            let in_subject = scope.is_some_and(|s| !self.names.boundaries.contains(&s));
+            // A point (`correct(f(1, 2))`, what a test pins) narrows nothing.
+            let own = |c: &Claim| {
+                let inputs = c.pattern.iter().any(|p| p.var.is_some());
+                c.func == f.name && c.target == Target::Correct && inputs
+            };
+            let specified = self.names.specified.contains_key(&f.name);
+            if !in_subject || !self.names.opaque.contains(&f.name) || specified {
+                continue;
+            }
+            if m.claims.iter().any(own) {
+                continue;
+            }
+            let inputs: Vec<String> = f.params.iter().map(|p| p.0.clone()).collect();
+            let pattern = inputs.iter().map(|x| Position {
+                var: Some(x.clone()),
+                set: None,
+            });
+            implied.push(Claim {
+                name: format!("{}::correct", f.name),
+                func: f.name.clone(),
+                pattern: pattern.collect(),
+                target: Target::Correct,
+                from: Vec::new(),
+                auto: false,
+                proved: false,
+                trust: None,
+                line: f.line,
+            });
+            let name = format!("{}::correct", f.name);
+            self.names
+                .claims
+                .entry(name)
+                .or_insert((inputs, Vec::new()));
+        }
+        for c in implied {
+            // Beside the function: before the first claim written after it.
+            let at = m.claims.iter().position(|d| d.line > c.line);
+            m.claims.insert(at.unwrap_or(m.claims.len()), c);
+        }
         Ok((m, self.names))
     }
 }

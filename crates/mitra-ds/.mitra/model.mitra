@@ -108,7 +108,6 @@ subject culprits {
     // No body: the spec would loop over the lists.
     fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
 
-    claim rank_correct(biases, clauses) { correct(rank(biases, clauses)) }
 
     // One belief and one plausibility per piece, and a conflict in [0, 1].
     claim rank_shape(biases, clauses) {

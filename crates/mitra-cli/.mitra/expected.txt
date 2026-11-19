@@ -1,27 +1,27 @@
-report::short_correct: unverified
+report::short::correct: unverified
   passes on       path in {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
   no evidence on  path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
 report::short_once: unverified
   passes on       path in {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
   no evidence on  path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
 report::libtest::uses: holds
-report::libtest_correct: unverified
+report::libtest::correct: unverified
   passes on       6 inputs
   no evidence on  a set too long to print
-report::attr_correct: unverified
+report::attr::correct: unverified
   passes on       5 inputs
   no evidence on  a set too long to print
-report::strip_correct: unverified
+report::strip::correct: unverified
   passes on       `report::strip("a<x>b", "<x>", "</x>")`, `report::strip("a<x>b</x>c", "<x>", "</x>")`, `report::strip("abc", "<x>", "</x>")`
   no evidence on  a set too long to print
 report::junit::uses: holds
-report::junit_correct: unverified
+report::junit::correct: unverified
   passes on       6 inputs
   no evidence on  a set too long to print
-source::mitra_line_correct: unverified
+source::mitra_line::correct: unverified
   passes on       5 inputs
   no evidence on  a set too long to print
-source::fn_below_correct: unverified
+source::fn_below::correct: unverified
   passes on       code in {"", "#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}", "fn f() {}", "pub struct S;\nfn f() {}", "pub(crate) const unsafe fn f() {}"}
   no evidence on  code in String \ {"", "#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}", "fn f() {}", "pub struct S;\nfn f() {}", "pub(crate) const unsafe fn f() {}"}
 t_short_path: holds
@@ -67,49 +67,49 @@ source::fn_below::tied: holds
 source::mitra_line::tied: holds
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:21  claim short_correct(path) { correct(short(path)) }
+  --> .mitra/model.mitra:20  fn short(path: String) -> String;
 
   No evidence on path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:23  claim short_once(path) { short(short(path)) == short(path) }
+  --> .mitra/model.mitra:22  claim short_once(path) { short(short(path)) == short(path) }
 
   No evidence on path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:26  claim libtest_correct(text) { correct(libtest(text)) }
+  --> .mitra/model.mitra:24  fn libtest(text: String) -> Vec<Outcome> uses only short;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:30  claim attr_correct(tag, attr) { correct(attr(tag, attr)) }
+  --> .mitra/model.mitra:27  fn attr(tag: String, attr: String) -> Option<String>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:34  claim strip_correct(text, open, close) { correct(strip(text, open, close)) }
+  --> .mitra/model.mitra:30  fn strip(text: String, open: String, close: String) -> String;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:37  claim junit_correct(xml) { correct(junit(xml)) }
+  --> .mitra/model.mitra:32  fn junit(xml: String) -> Vec<Outcome> uses only strip, attr, short;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:44  claim mitra_line_correct(line) { correct(mitra_line(line)) }
+  --> .mitra/model.mitra:38  fn mitra_line(line: String) -> Option<String>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:48  claim fn_below_correct(code) { correct(fn_below(code)) }
+  --> .mitra/model.mitra:41  fn fn_below(code: String) -> Option<String>;
 
   No evidence on code in String \ {"", "#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}", "fn f() {}", "pub struct S;\nfn f() {}", "pub(crate) const unsafe fn f() {}"}.
   help: `mitra next` lists the evidence that would settle it

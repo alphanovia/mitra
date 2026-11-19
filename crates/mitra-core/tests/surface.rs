@@ -49,7 +49,9 @@ evidence b { for half given n = 2 gives 1 }";
     assert!(out.contains("no evidence on  `n = 4`"), "{out}");
     let e = format!("{e}\nevidence c {{ for math::half given n = 4 gives 2 }}");
     assert_eq!(
-        verdicts(HALF, &e).lines().next(),
+        verdicts(HALF, &e)
+            .lines()
+            .find(|l| l.contains("even_exact")),
         Some("math::even_exact: holds")
     );
 }
@@ -74,7 +76,7 @@ evidence a { for half given n = 0 gives 0 source \"x\" }
 evidence b { for half given n in {2, 4} holds }
 evidence c { for even_exact given n = 2 fails trust 0.5 }";
     let out = verdicts(HALF, e);
-    assert!(out.starts_with("math::even_exact: fails"), "{out}");
+    assert!(out.contains("\nmath::even_exact: fails"), "{out}");
     let e = refused(HALF, "evidence math::half(0) = 0 at 1");
     assert!(e.contains("line 1: expected an `evidence` block"), "{e}");
     let e = refused("opaque f(a: Bool) -> Bool", "");
@@ -132,8 +134,9 @@ fn a_claim_with_parameters_is_written_once() {
              subject s { fn add(a: 0..=1, b: 0..=1) -> 0..=2;\n\
              claim add_commutes = commutes(add, 0..=1); }";
     let model = mitra_core::load(m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
-    assert_eq!(model.claims.len(), 1);
-    assert_eq!(model.claims[0].name, "s::add_commutes");
+    // With the claim every function of a subject has: its code is correct.
+    let names: Vec<&str> = model.claims.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(names, ["s::add::correct", "s::add_commutes"]);
     let bad = m.replace("commutes(add, 0..=1)", "commutes(add)");
     let e = mitra_core::load(&bad, "").unwrap_err().1.message;
     assert!(e.contains("takes 2 parameter(s), got 1"), "{e}");
@@ -181,7 +184,7 @@ fn import_takes_what_it_names() {
              subject s { fn add(a: 0..=1, b: 0..=1) -> 0..=2;\n\
              claim add_commutes = commutative(add, 0..=1); }";
     let model = mitra_core::load(m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
-    assert_eq!(model.claims.len(), 1);
+    assert_eq!(model.claims.len(), 2);
     let error = |m: &str| mitra_core::load(m, "").unwrap_err().1.message;
     // Not named, not there.
     let e = error(&m.replace("{commutative}", "{neutral}"));
@@ -325,4 +328,28 @@ fn assumptions_and_uses_clauses_are_suspects() {
             .any(|p| matches!(p, Piece::Evidence(n) if *n > 1)),
         "{got:?}"
     );
+}
+
+/// The code of a subject is claimed correct without a line for it.
+#[test]
+fn a_function_of_a_subject_is_claimed_correct() {
+    let names = |m: &str| -> Vec<String> {
+        let model = mitra_core::load(m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
+        model.claims.iter().map(|c| c.name.clone()).collect()
+    };
+    // No body: the implied claim. A body: the spec says what correct is.
+    let m = "subject s { fn f(a: 0..=1) -> Int;\nfn g(a: 0..=1) -> Int { a } }";
+    assert_eq!(names(m), ["s::f::correct", "s::g::spec"]);
+    // Not on a boundary, not outside a subject.
+    assert!(names("boundary b { fn f(a: 0..=1) -> Int; }\nfn h(a: 0..=1) -> Int;").is_empty());
+    // The model's own claim replaces it: nothing is claimed on 0.
+    let m = "subject s { fn div(a: 0..=2, b: 0..=2) -> Int;\n\
+             claim div_ok(a, b: 1..=2) { correct(div(a, b)) } }";
+    assert_eq!(names(m), ["s::div_ok"]);
+    // A point pins one call: it narrows nothing.
+    let m = "subject s { fn f(a: 0..=1) -> Int;\nclaim t() { correct(f(1)) } }";
+    assert_eq!(names(m), ["s::f::correct", "s::t"]);
+    // Evidence on the function is evidence for it.
+    let out = verdicts(m, "evidence e { for s::f holds }");
+    assert!(out.starts_with("s::f::correct: holds\n"), "{out}");
 }

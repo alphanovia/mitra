@@ -21,6 +21,8 @@ subject calc {
 evidence t { for calc::add given a = 1, b = 2 gives 3 }
 ```
 ```text
+calc::add::correct: unverified
+  no evidence on  (a, b) in (0..=2, 0..=2)
 calc::add_small: unverified
   passes on       `a = 1, b = 2`
   no evidence on  (a, b) in {(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (2, 0), (2, 1), (2, 2)}
@@ -50,6 +52,8 @@ evidence down { for net::fetch given url = "b" gives "down" }
 evidence l { for loader::load given url = "b" gives "default" }
 ```
 ```text
+loader::load::correct: unverified
+  no evidence on  `loader::load("a")`, `loader::load("b")`
 loader::falls_back: unverified
   passes on       `url = "b"`
   no evidence on  `url = "a"`
@@ -62,7 +66,9 @@ The two answers of `fetch("b")` both stand.
 Three forms.
 
 `fn f(a: T) -> U;` with no body: code that is not modelled. Only claims
-and evidence say something of it. Without `-> U` the result is `()`.
+and evidence say something of it. Without `-> U` the result is `()`. In
+a subject, Mitra adds the claim `f::correct`: the code is right on every
+input ([correct](kw-claims.md#correct)).
 
 `fn f(a: T) -> U { e }` inside a subject: the code, and its
 specification. Mitra adds the claim `f::spec`: the code returns what the
@@ -86,6 +92,8 @@ evidence a { for calc::twice given x = 1 gives 2 }
 evidence b { for calc::half given x = 2 gives 1 }
 ```
 ```text
+calc::half::correct: unverified
+  no evidence on  x in 0..=4
 calc::twice::spec: unverified
   passes on       `calc::twice(1)`
   no evidence on  `calc::twice(0)`, `calc::twice(2)`
@@ -111,8 +119,11 @@ subject shop {
 }
 ```
 ```text
+shop::price::correct: unverified
+  no evidence on  `shop::price("ink")`, `shop::price("pen")`
 shop::total::uses: holds
-
+shop::total::correct: unverified
+  no evidence on  (a, b) in ({"ink", "pen"}, {"ink", "pen"})
 ```
 
 ## record

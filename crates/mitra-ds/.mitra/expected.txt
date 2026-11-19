@@ -30,7 +30,7 @@ mass::dempster_renormalises_yager: holds
   passes on       9 inputs
   assumed on      classes "first invalid", "partial conflict", "second invalid", "total conflict" of `dempster_class`, by `mass::renormalises_uniform`
 mass::renormalises_uniform: holds
-culprits::rank_correct: unverified
+culprits::rank::correct: unverified
   passes on       10 inputs
   no evidence on  a set too long to print
 culprits::rank_shape: unverified
@@ -87,13 +87,13 @@ mass::judged::tied: holds
 mass::yager::tied: holds
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:111  claim rank_correct(biases, clauses) { correct(rank(biases, clauses)) }
+  --> .mitra/model.mitra:109  fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:114  claim rank_shape(biases, clauses) { match rank(biases, clauses) { Err(_) => true, Ok(r) => len(r.belief) == len(biases) && len(r.plausibility) == len(biases) && r.conflict >= 0.0 && r.conflict <= 1.0, …
+  --> .mitra/model.mitra:113  claim rank_shape(biases, clauses) { match rank(biases, clauses) { Err(_) => true, Ok(r) => len(r.belief) == len(biases) && len(r.plausibility) == len(biases) && r.conflict >= 0.0 && r.conflict <= 1.0, …
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it

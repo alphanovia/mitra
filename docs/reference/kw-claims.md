@@ -107,17 +107,27 @@ inputs, as judged by a test or a person (`holds` / `fails` evidence on
 `f`). Nothing is computed. Inside a larger expression it is a value
 with three states ([claims.md](claims.md)).
 
+A function of a subject with no body has this claim without a line for
+it, on all its inputs: `f::correct`. Write your own only to claim less,
+as below: `div` is not claimed correct on 0, and `div::correct` is not
+added. A point (`claim t() { correct(div(6, 2)) }`) narrows nothing.
+
 ```mitra
-fn sort(xs: List<Int>) -> List<Int>;
-claim sort_ok(xs: {[], [2, 1]}) { correct(sort(xs)) }
+subject calc {
+    fn sort(xs: {[], [2, 1]}) -> List<Int>;
+    fn div(a: 0..=2, b: 0..=2) -> 0..=2;
+    claim div_ok(a, b: 1..=2) { correct(div(a, b)) }
+}
 ```
 ```evidence
-evidence r { for sort given xs = [2, 1] holds source "review:me" }
+evidence r { for calc::sort given xs = [2, 1] holds source "review:me" }
 ```
 ```text
-sort_ok: unverified
-  passes on       `sort([2, 1])`
-  no evidence on  `sort([])`
+calc::sort::correct: unverified
+  passes on       `calc::sort([2, 1])`
+  no evidence on  `calc::sort([])`
+calc::div_ok: unverified
+  no evidence on  (a, b) in (0..=2, 1..=2)
 ```
 
 ## assume
@@ -141,5 +151,7 @@ evidence l { for timer::left gives 3 }
 ```
 ```text
 clock::noon: holds assuming [itself]
+timer::left::correct: unverified
+  no evidence on  `timer::left()`
 timer::left_fits: holds assuming [clock::noon]
 ```

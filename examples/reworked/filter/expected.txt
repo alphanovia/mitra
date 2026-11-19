@@ -1,3 +1,5 @@
+filter::is_spam::correct: unverified
+  no evidence on  m in Mail
 filter::route::spec: unverified
   passes on       `filter::route(Spam, None)`
   no evidence on  (v, folder) in ({Ham}, Option<String>) | ({Spam}, Some(String))
@@ -10,6 +12,12 @@ filter::catches_most: holds
 filter::spam_goes_to_junk: unverified
   no evidence on  folder in Option<String>
 filter::by_sender: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:8  fn is_spam(m: Mail) -> bool;
+
+  No evidence on m in Mail.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:11  fn route(v: Verdict, folder: Option<String>) -> String { match v { Spam => "junk", Ham => match folder { Some(name) => name, None => "inbox", }, } }

@@ -67,14 +67,14 @@ subject loader {
 |---|---|
 | `subject name { … }` | Real code under review. A namespace: its functions and claims are `name::f`. Inside, a sibling is named without the prefix. |
 | `boundary name { … }` | The environment. Same namespace rule. Its functions may answer differently each time, and are never the piece to fix (see Boundaries). |
-| `fn f(a: T) -> U;` | No body: the code is opaque. Without `-> U` the result is `()`. |
+| `fn f(a: T) -> U;` | No body: the code is opaque. Without `-> U` the result is `()`. In a subject, Mitra adds the claim `name::f::correct`, "the code is right on every input", unless the model has its own claim `correct(f(…))` with inputs. |
 | `fn f(a: T) -> U { e }` in a subject or boundary | Opaque code **and** its specification: Mitra adds the claim `name::f::spec`, "the code returns what the body returns". |
 | `fn f(a: T) -> U { e }` outside | A helper for the model: computed, no code behind it, no claim. |
 | `fn f(…) -> U uses g, h;` | What the code calls; `uses only g, h` when it calls nothing else. Adds the claim `name::f::uses`, taken as declared (evidence with source `declared`). |
 | `claim c(a: T, b: U) when cond { e }` | For every input where `cond` holds, `e` is true. `when` is optional. A type may be left out (`claim c(a, b)`): it is the type of the function the input is passed to. |
 | `claim c(a: T) trust 0.8 { e }` | The trust given to the statement itself, 1 when not said. In an error the claim is a candidate like evidence. Also on `assume`, and after a `uses` list. |
 | `claim c { given a: T, b: U  when cond  then e }` | The same claim, as a contract. |
-| `claim c(a: T) { correct(f(a)) }` | The code is right on these inputs, as judged by a test or a person. No `when` with it yet. |
+| `claim c(a: T) { correct(f(a)) }` | The code is right on these inputs, as judged by a test or a person. No `when` with it yet. Needed only to claim less than every input, or outside a subject. |
 | `claim c = uniform(f);` | Every input of `f` behaves the same: one tested input stands for all. With `import std::claims::{uniform};`, as for the next two. |
 | `claim c = uniform(f, \|a, b\| b == 0);` | The same within each class. The class is a Bool, or typed: `\|m\| -> {"x", "y"} { m.kind }`. A function name also works: `uniform(f, g)`. |
 | `claim c(f, T) { given a: T then f(a) == a }` | A claim with parameters: names without a type, and a contract as body. It is not a claim by itself. |

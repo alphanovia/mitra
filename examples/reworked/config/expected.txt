@@ -1,9 +1,25 @@
 network::mostly_up: holds
+loader::parse::correct: unverified
+  no evidence on  text in String
 loader::load::uses: holds
+loader::load::correct: unverified
+  no evidence on  `loader::load("a")`, `loader::load("b")`
 loader::falls_back: holds
 loader::retries_bounded: unverified
   passes on       `url = "a"`
   no evidence on  `url = "b"`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:18  fn parse(text: String) -> Result<Config, String>;
+
+  No evidence on text in String.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:20  fn load(url: {"a", "b"}) -> Config uses network::fetch, parse;
+
+  No evidence on `loader::load("a")`, `loader::load("b")`.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:26  claim retries_bounded(url: {"a", "b"}) { let c = load(url); c.retries <= 5 }

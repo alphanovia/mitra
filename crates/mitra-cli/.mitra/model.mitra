@@ -18,32 +18,25 @@ record Outcome { name: String, passed: bool }
 subject report {
     // The name of a test without its module path.
     fn short(path: String) -> String;
-    claim short_correct(path) { correct(short(path)) }
     // A short name is already short.
     claim short_once(path) { short(short(path)) == short(path) }
 
     fn libtest(text: String) -> Vec<Outcome> uses only short;
-    claim libtest_correct(text) { correct(libtest(text)) }
 
     // The value of an attribute in an XML tag.
     fn attr(tag: String, attr: String) -> Option<String>;
-    claim attr_correct(tag, attr) { correct(attr(tag, attr)) }
 
     // The text without what stands between `open` and `close`.
     fn strip(text: String, open: String, close: String) -> String;
-    claim strip_correct(text, open, close) { correct(strip(text, open, close)) }
 
     fn junit(xml: String) -> Vec<Outcome> uses only strip, attr, short;
-    claim junit_correct(xml) { correct(junit(xml)) }
 }
 
 // The comments of a Rust file that tie its code to the model.
 subject source {
     // The text after `mitra:` in a comment line.
     fn mitra_line(line: String) -> Option<String>;
-    claim mitra_line_correct(line) { correct(mitra_line(line)) }
 
     // The name of the `fn` that the code starts with.
     fn fn_below(code: String) -> Option<String>;
-    claim fn_below_correct(code) { correct(fn_below(code)) }
 }

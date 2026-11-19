@@ -1,6 +1,14 @@
 net::a_is_up: holds assuming [itself]
+loader::load::correct: unverified
+  no evidence on  `loader::load("a")`, `loader::load("b")`
 loader::falls_back: holds assuming [net::a_is_up]
 loader::a_loads: holds assuming [net::a_is_up]
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  fn load(url: {"a", "b"}) -> {"page", "default"};
+
+  No evidence on `loader::load("a")`, `loader::load("b")`.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M102]: a claim holds only under assumptions
   --> model.mitra:10  claim falls_back(url: {"a", "b"}) when net::fetch(url) == "down" { load(url) == "default" }
@@ -14,4 +22,4 @@ warning[M102]: a claim holds only under assumptions
   `loader::a_loads` holds if `net::a_is_up` holds, and no evidence supports it.
   help: review it, then record it as evidence, or test until it is not needed
 
-`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M102`.
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

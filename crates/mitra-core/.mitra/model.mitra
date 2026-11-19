@@ -42,7 +42,6 @@ subject eval {
 
     // An operator of one value. `None` when it does not apply to the value.
     fn unary(op: String, v: Value) -> Option<Value>;
-    claim unary_correct(op, v) { correct(unary(op, v)) }
 
     // The operators of specs, stated with the operators of specs: each
     // side is computed by this code, the tests give the outputs.
@@ -53,7 +52,6 @@ subject eval {
 
     // An operator of two values.
     fn binary(op: String, x: Value, y: Value) -> Option<Value>;
-    claim binary_correct(op, x, y) { correct(binary(op, x, y)) }
 
     claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
     claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
@@ -76,13 +74,11 @@ subject eval {
 subject set {
     // A string as a spec writes it, with its quotes and escapes.
     fn quote(s: String) -> String;
-    claim quote_correct(s) { correct(quote(s)) }
 }
 
 subject print {
     // Whether a value prints with a minus sign.
     fn negative(v: Value) -> bool;
-    claim negative_correct(v) { correct(negative(v)) }
     // `Value` hides the type: a spec can't ask whether `v` is a number.
     claim negative_ints(v: Int) { negative(v) == (v < 0) }
 
