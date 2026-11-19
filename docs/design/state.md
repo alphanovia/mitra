@@ -6,7 +6,7 @@ golden cases for sections 1 and 3A with traces written by hand. Decided
 "not proposed" until the trials ask for it.
 
 The examples are in the first syntax, which is no longer read.
-Since then, in the [language](../reference/reworked.md): S5 has a
+Since then, in the [language](../reference/language.md): S5 has a
 construct, the `boundary`, whose functions may answer differently each
 time, with `assume` for what is taken as true of it; a test is tied to a
 claim, so S1 reads "a tied test checks one point claim, not a sequence".

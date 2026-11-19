@@ -17,7 +17,7 @@ pub struct Store {
 }
 
 const MODEL_STUB: &str = "// The model: subjects, boundaries, claims.\n\
-// See docs/reference/reworked.md.\n";
+// See docs/reference/language.md.\n";
 const EVIDENCE_STUB: &str =
     "// Evidence, append-only: `mitra add`, `mitra ingest` and `mitra tie` write here.\n";
 const GITATTRIBUTES: &str = "evidence.mitra merge=union\n";

@@ -13,7 +13,7 @@ do not add up, weighs which piece is most plausibly wrong.
 > that the Rust code is tied to it, turns test reports into evidence,
 > gives each claim a verdict, lists the evidence still owed, and on an
 > error ranks what is most plausibly wrong
-> ([language reference](docs/reference/reworked.md)).
+> ([language reference](docs/reference/language.md)).
 
 ## The idea
 
@@ -113,7 +113,11 @@ to it.
 
 | Doc | What it covers |
 |---|---|
-| [docs/reference/reworked.md](docs/reference/reworked.md) | The language and the tool: model, evidence, ties, tests, commands, evaluation, output and error codes |
+| [docs/reference/language.md](docs/reference/language.md) | Start here: a project start to end, the model, types, expressions, what is not read |
+| [docs/reference/claims.md](docs/reference/claims.md) | What a claim rests on without evidence, boundaries, `correct(…)`, `represented`, `uniform` |
+| [docs/reference/evidence.md](docs/reference/evidence.md) | Evidence blocks, the tie to the code, tests |
+| [docs/reference/commands.md](docs/reference/commands.md) | The commands, and `mitra plan` |
+| [docs/reference/evaluation.md](docs/reference/evaluation.md) | How verdicts are worked out, the output and the error codes |
 
 **General docs**: purpose, positioning and research. These describe
 direction, not the current language.

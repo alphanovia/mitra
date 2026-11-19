@@ -14,7 +14,7 @@ crate is built and maintained, that is the first sign Mitra is useful.
 
 **What exists.** The model is aside from the code, in each crate's
 `.mitra/model.mitra` (and `.mitra/points.mitra`), in the
-[language](../reference/reworked.md), with the same types as the
+[language](../reference/language.md), with the same types as the
 Rust code: `Mass` is a record, `Option` and `Result` are enums, a `Vec`
 is a list. The code keeps one comment per modelled function,
 `// mitra: implements mass::judged`, and `mitra tie` checks that the two

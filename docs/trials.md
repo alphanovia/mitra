@@ -16,7 +16,7 @@ proven, so what is worth having is good-enough evidence management.
 The developer writes a small Rust program, with its model aside, its
 ties and its store kept up to date as the code grows, the way mitra-ds is
 ([dogfooding](design/dogfooding.md)). The language is the
-[language](reference/reworked.md).
+[language](reference/language.md).
 
 - **Stresses:** the dev loop (`plan`, `tie`, `ingest`, `add`, `next`, `--rev`), claims on
   code that changes, and the cost of keeping the model current.

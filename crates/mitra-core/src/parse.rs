@@ -1,6 +1,6 @@
 //! The reader of the Mitra language: `subject` and `boundary` blocks,
 //! `fn`, `claim` with inputs, `assume`, evidence blocks. It builds the
-//! model as it reads (docs/reference/reworked.md).
+//! model as it reads (docs/reference/language.md).
 
 use crate::ast::*;
 use crate::set::{Set, Value, MAP, SET};

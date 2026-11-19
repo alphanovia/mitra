@@ -1,7 +1,7 @@
 # Design: syntax inspired by Lean 4
 
 Status: **history** (2026-11-18). This first syntax is no longer read:
-models are written in [the language](../reference/reworked.md), which
+models are written in [the language](../reference/language.md), which
 reads like Rust (`subject`, `fn`, `claim … { }`). The engine still
 translates a model to this form inside. The decision below that stands:
 Mitra is a standalone language and tool, not a Lean library. The grammar

@@ -39,7 +39,7 @@ A **language for trust**: subjects (the real code under review),
 boundaries (the environment), claims on them, assumptions such as "one
 tested input stands for this set", and evidence from tests, reviews and
 reports, with the trust its author puts in it (see the
-[language reference](reference/reworked.md) for what exists today). The first thing to test
+[language reference](reference/language.md) for what exists today). The first thing to test
 is whether this language is right: whether small, well-understood situations
 can be written in it naturally and give the verdicts a careful person would
 reach ([validation.md](validation.md), [trials](trials.md)). Everything
@@ -137,7 +137,7 @@ approach.
    Evaluation is a pure function from the model and the ledger to a
    verdict per claim.
 2. **Parsing.** Text to AST. The text syntax is one projection of the model,
-   not the model itself. One is read: [the language](reference/reworked.md).
+   not the model itself. One is read: [the language](reference/language.md).
 3. **Incremental use and storage.** Add evidence to a stored model and
    re-evaluate. A first store exists (`.mitra/`); re-evaluating only what
    changed does not.

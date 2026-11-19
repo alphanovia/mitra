@@ -1,7 +1,7 @@
 # Design: the developer loop
 
 Status: **partly implemented**. The references
-([language](../reference/reworked.md), [commands](../reference/reworked.md#commands))
+([language](../reference/language.md), [commands](../reference/commands.md))
 describe what exists; the rest is a proposal.
 
 ## The loop
@@ -43,7 +43,7 @@ describe what exists; the rest is a proposal.
 ## Tying code and tests to the model (done)
 
 Two comments, read by `mitra tie` and `mitra ingest`
-([reference](../reference/reworked.md#the-tie-to-the-code)). CI needs no
+([reference](../reference/evidence.md#the-tie-to-the-code)). CI needs no
 plugin, only steps that run them and keep the store. A test names a claim,
 usually a point claim; its result is evidence for that claim and, on a
 point claim, the observed output of the code.

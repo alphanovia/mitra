@@ -2,7 +2,7 @@
 
 Status: **earlier proposal, kept for its reasoning**; the examples are
 in the first syntax, which is no longer read. Built since, another
-way ([language](../reference/reworked.md)): a claim follows from
+way ([language](../reference/language.md)): a claim follows from
 the specs of the functions it calls with no `derive` to write, and is an
 error when they contradict it (section 1, definitional); `uses` is a
 clause on a function, checked against the code by `mitra tie` (section
@@ -69,7 +69,7 @@ of silently counting as proof.
 `t_ex` says which inputs the test runs, not that one run stands for more.
 That **uniformity hypothesis** is a claim on the subject, `uniform f by
 classes`, which is implemented
-([reference](../reference/reworked.md#evaluation)).
+([reference](../reference/evaluation.md)).
 
 A failure gives only "wrong **somewhere** in S", which Mitra cannot record
 yet: a failed test over a set gives no evidence today.
