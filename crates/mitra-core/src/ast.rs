@@ -189,6 +189,9 @@ pub struct Claim {
     /// the claim calls. It then follows only where the implication is
     /// checked on every input.
     pub auto: bool,
+    /// It follows from its premises on every input, by reasoning on the
+    /// claims of the functions it reaches.
+    pub proved: bool,
     /// The trust given to the statement itself, when one is.
     pub trust: Option<f64>,
     pub line: usize,
@@ -460,9 +463,16 @@ impl Model {
                     }
                     _ => {}
                 });
+                // A body may call the code of a subject: it is then
+                // computed where that code was observed, and reasoned
+                // about from the claims on it.
+                let code = |c: &String| {
+                    let opaque = self.functions.iter().any(|g| &g.name == c && !g.is_spec());
+                    opaque && !self.boundaries.contains(c)
+                };
                 if let Some(bad) = calls(body)
                     .into_iter()
-                    .find(|c| !earlier.contains(&c.as_str()) && !bound.contains(c))
+                    .find(|c| !earlier.contains(&c.as_str()) && !bound.contains(c) && !code(c))
                 {
                     return Err(m(
                         f.line,

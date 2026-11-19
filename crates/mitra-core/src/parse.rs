@@ -1576,6 +1576,7 @@ impl P {
             target,
             from: Vec::new(),
             auto: false,
+            proved: false,
             trust: None,
             line,
         });

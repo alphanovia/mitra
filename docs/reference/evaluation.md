@@ -26,7 +26,7 @@ neither side. Then:
 - *tested*: right and not wrong.
 - *assumed*: what other claims give: the inputs a `uniform` or
   `represented` claim covers from a passing input, and the inputs the
-  specs imply.
+  specs or the claims on what it reaches imply.
 - *missed*: the rest of D.
 
 The **verdict** is `fails` if something is refuted; `unverified` if

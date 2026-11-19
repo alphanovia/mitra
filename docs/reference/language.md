@@ -145,8 +145,8 @@ comments is refused.
   `correct`, `rate`, `precision`, `recall`, `false_positive_rate`, `len`,
   `keys`.
 - Derivations from named premises (`by derive` before the rework): a
-  claim follows from the specs of what it calls or from a vouched claim,
-  not from premises it lists. Nine engine tests that needed them are
+  claim follows from the specs of what it calls, from a vouched claim
+  or from the claims on what it reaches, not from premises it lists. Nine engine tests that needed them are
   kept in `tests/aside/`, not run.
 - A vouched claim that reads `correct(…)` settles other calls only on a
   finite set of inputs; `represented` and `uniform` have no such limit.
@@ -157,6 +157,9 @@ comments is refused.
   function is not a value. Two claims with parameters may share a name
   when they take a different number of parameters.
 - A body can't call a boundary: a spec is computed, and a boundary is not.
+  It can call the code of a subject (`fn sum3(..) { add(add(a, b), c) }`
+  with `add` not modelled): the body is then not computed, and claims
+  on it follow from the claims on `add` (claims.md).
 - Distributions on what a boundary answers, sequences. Simulations: later.
 - An imported file is read from the
   folder of the model; in a store, put modules in a subfolder

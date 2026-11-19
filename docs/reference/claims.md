@@ -32,6 +32,31 @@ Where none was observed, Mitra looks for it in this order.
    claim fails there, with the claim and the specs as candidates, and no
    evidence needed. `examples/reworked/clock`.
 
+3. **The claims on the functions it reaches**, for a claim with inputs.
+   A function is reached when the claim calls it, when the body of a
+   reached function calls it, or when a reached function declares it
+   with `uses`. The claims above that name only reached functions are
+   the candidates, vouched or not. When some of them imply the claim on
+   every input, it is `assumed on` its whole domain, and holds as far as
+   they do. Mitra keeps the fewest that are enough and prints them.
+
+   ```rust
+   fn add(a: Int, b: Int) -> Int;
+   claim add_commutes = commutative(add, Int);
+   fn sum3(a: Int, b: Int, c: Int) -> Int { add(add(a, b), c) }
+   claim sum3_swaps(a: Int, b: Int, c: Int) { sum3(a, b, c) == sum3(b, a, c) }
+   ```
+
+   `sum3_swaps: holds assuming [add_commutes, sum3::spec]`, on every
+   integer. A premise that fails stops it. `uses` alone carries nothing:
+   it puts the claims on `add` in reach, and a body or a claim such as
+   `plus(a, b) == add(a, b)` says how the two are tied. The reasoning
+   treats code as unknown: equal inputs give equal outputs, the premises
+   are tried on the terms at hand, and nothing is known of `+` or `<` on
+   unknown values. It may miss a consequence, never invent one. Records,
+   lists and `match` on unknown values are not followed.
+   `examples/reworked/arithmetic`.
+
 ## Boundaries
 
 - Two different outputs on one input of a boundary function both stand:

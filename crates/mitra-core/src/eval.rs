@@ -1457,7 +1457,7 @@ fn product(lists: &[Vec<Value>]) -> Vec<Vec<Value>> {
 }
 
 // mitra: implements eval::unary
-fn unary(op: &str, v: &Value) -> Option<Value> {
+pub(crate) fn unary(op: &str, v: &Value) -> Option<Value> {
     match (op, v) {
         ("!", Value::Bool(b)) => Some(Value::Bool(!b)),
         ("-", Value::Int(i)) => i.checked_neg().map(Value::Int),
@@ -1472,7 +1472,7 @@ fn unary(op: &str, v: &Value) -> Option<Value> {
 }
 
 // mitra: implements eval::binary
-fn binary(op: &str, x: &Value, y: &Value) -> Option<Value> {
+pub(crate) fn binary(op: &str, x: &Value, y: &Value) -> Option<Value> {
     use Value::*;
     Some(match (op, x, y) {
         ("==", x, y) => Bool(x == y),
@@ -2368,6 +2368,8 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         // beats a derivation.
         let implication = if c.from.is_empty() {
             None
+        } else if c.proved {
+            Some(Implication::Checked)
         } else {
             let premises: Vec<&Claim> = c
                 .from

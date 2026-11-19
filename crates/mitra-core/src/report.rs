@@ -340,10 +340,12 @@ impl Writer<'_> {
             }
             if let Some(i) = v.implication {
                 if !v.derived.is_empty() {
+                    let names: Vec<String> = c.from.iter().map(|p| format!("`{p}`")).collect();
                     let how = match (i, c.auto) {
-                        (_, true) => "the specs of what it calls imply it",
-                        (Implication::Checked, _) => "its premises imply it",
-                        _ => "from its premises, the implication not checked",
+                        _ if c.proved => format!("it follows from {}", names.join(", ")),
+                        (_, true) => "the specs of what it calls imply it".to_string(),
+                        (Implication::Checked, _) => "its premises imply it".to_string(),
+                        _ => "from its premises, the implication not checked".to_string(),
                     };
                     *out += &format!("  assumed on      {}: {how}\n", inputs(&v.derived));
                 } else if i == Implication::Refuted && c.auto {

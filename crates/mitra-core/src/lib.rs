@@ -18,6 +18,7 @@ pub mod next;
 pub mod parse;
 pub mod plan;
 pub mod print;
+mod prove;
 pub mod report;
 pub mod set;
 pub mod tuples;
@@ -109,6 +110,7 @@ fn read(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
             target: Target::Represented(set.clone()),
             from: Vec::new(),
             auto: false,
+            proved: false,
             trust: names.trust.get(name).copied(),
             line: *line,
         });
@@ -122,7 +124,9 @@ fn read(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     let mut written = own(evidence);
     written.truncate(lines);
     m.written = Some((own(model), written));
-    m.check()
+    let mut m = m.check()?;
+    prove::derive(&mut m);
+    Ok(m)
 }
 
 /// What evidence on a point claim says of the code. A test tied to
@@ -228,6 +232,7 @@ fn tie(m: &mut Model, evidence: &[Evidence], names: &parse::Names) {
             target: Target::Tied,
             from: Vec::new(),
             auto: false,
+            proved: false,
             trust: None,
             line,
         });
