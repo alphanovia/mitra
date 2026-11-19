@@ -1,4 +1,8 @@
+half::deterministic: unverified
+  no evidence on  `half` giving one output per input
 quarter::uses: holds
+quarter::deterministic: unverified
+  no evidence on  `quarter` giving one output per input
 half_correct: holds
 quarter_correct: fails
   fails on        `quarter(1)`
@@ -23,5 +27,17 @@ error[M001]: evidence refutes a claim
   A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `quarter`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn half(x: Int) -> Int;
+
+  No evidence on `half` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn quarter(x: Int) -> Int uses only half;
+
+  No evidence on `quarter` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

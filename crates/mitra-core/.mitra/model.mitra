@@ -118,6 +118,7 @@ subject verdicts {
     ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
     ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
     ensure follows = "A claim said to follow from other claims is true whenever they are.";
+    ensure never_runs = "No code is run: the same model and evidence always give the same report.";
     // What a claim's verdict says.
     enum Logic { Holds, Assuming, Unverified, Fails }
     // An error of a report: nothing of it is read here.
@@ -128,6 +129,9 @@ subject verdicts {
     fn derive(model: Model);
     fn run(model: String, evidence: String) -> Result<Report, (Input, Error)> uses types::load, evaluate;
 
+    // What `never_runs` stands on, under its own name.
+    claim same_report = deterministic(run);
+
     claim one_verdict_each(m: Model) {
         match evaluate(m) {
             Err(e) => true,
@@ -135,25 +139,25 @@ subject verdicts {
         }
     }
     claim untested_is_unverified() {
-        match run("subject fn f() -> Bool;", "") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Unverified] }
+        match run("subject fn f() -> Bool;", "") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Unverified, Unverified] }
     }
     claim tested_holds() {
-        match run("subject fn f() -> Bool;", "evidence a { for f holds }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds] }
+        match run("subject fn f() -> Bool;", "evidence a { for f holds }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds, Unverified] }
     }
     claim refuted_fails() {
-        match run("subject fn f() -> Bool;", "evidence a { for f fails }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Fails] }
+        match run("subject fn f() -> Bool;", "evidence a { for f fails }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Fails, Unverified] }
     }
     claim trust_changes_no_verdict() {
-        match run("subject fn f() -> Bool;", "evidence a { for f holds trust 0.1 }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds] }
+        match run("subject fn f() -> Bool;", "evidence a { for f holds trust 0.1 }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds, Unverified] }
     }
     claim conflict_counts_for_neither() {
         match run("subject fn f() -> Bool;", "evidence a { for f holds } evidence b { for f fails }") {
             Err(e) => false,
-            Ok(r) => len(r.problems) == 1 && map(v in r.verdicts, v.logic) == [Unverified],
+            Ok(r) => len(r.problems) == 1 && map(v in r.verdicts, v.logic) == [Unverified, Unverified],
         }
     }
     claim follows_from_a_vouched_claim() {
-        match run("subject fn add(a: Int, b: Int) -> Int; claim c(a: Int, b: Int) { add(a, b) == add(b, a) } claim d(a: Int, b: Int) { add(b, a) == add(a, b) }", "evidence r { for c holds }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds, Holds, Unverified] }
+        match run("subject fn add(a: Int, b: Int) -> Int; claim c(a: Int, b: Int) { add(a, b) == add(b, a) } claim d(a: Int, b: Int) { add(b, a) == add(a, b) }", "evidence r { for c holds }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds, Holds, Unverified, Unverified] }
     }
 }
 

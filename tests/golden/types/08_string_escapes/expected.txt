@@ -1,3 +1,5 @@
+lines::deterministic: unverified
+  no evidence on  `lines` giving one output per input
 lines_correct: fails
   fails on        `lines("c:\\dir")`
   passes on       `lines("a\nb")`, `lines("say \"hi\"")`
@@ -20,5 +22,11 @@ error[M001]: evidence refutes a claim
   The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `lines`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn lines(text: String) -> List<String>;
+
+  No evidence on `lines` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

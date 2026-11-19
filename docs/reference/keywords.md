@@ -28,6 +28,7 @@ To try one: copy the model into `model.mitra`, the evidence into
 | `given`, `then` | a claim as a contract | [kw-claims.md](kw-claims.md#given-then) |
 | `trust` | how much a statement or a piece of evidence is trusted | [kw-claims.md](kw-claims.md#trust) |
 | `correct` | the code is right, as judged | [kw-claims.md](kw-claims.md#correct) |
+| `deterministic` | the same input always gives the same output | [kw-claims.md](kw-claims.md#deterministic) |
 | `assume` | a claim on a boundary, true without evidence | [kw-claims.md](kw-claims.md#assume) |
 | `claim c(f, T)` | a claim with parameters | [kw-library.md](kw-library.md#claims-with-parameters) |
 | `commutative`, `associative`, `idempotent`, `neutral`, `inverse`, `monotone`, `within` | claims shipped with Mitra | [kw-library.md](kw-library.md#stdclaims) |

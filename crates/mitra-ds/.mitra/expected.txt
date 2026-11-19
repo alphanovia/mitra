@@ -1,14 +1,20 @@
 mass::judged::spec: holds
   passes on       (ok, c) in {(false, -0.5), (false, 0.25), (false, 1.0), (true, 0.0), (true, 0.25), (true, 1.5)}
   assumed on      classes "correct", "rejected", "wrong" of `mass::judged_uniform`, by `mass::judged_uniform`
+mass::judged::deterministic: unverified
+  no evidence on  `mass::judged` giving one output per input
 mass::judged_uniform: holds
 mass::is_valid::spec: holds
   passes on       m in {Mass(-0.5, 0.5, 1.0), Mass(0.5, 0.0, 0.5), Mass(0.5, 0.0, 0.5000000001), Mass(0.5, 0.5, 0.5)}
   assumed on      classes "part out of range", "sum off", "valid" of `mass::is_valid_uniform`, by `mass::is_valid_uniform`
+mass::is_valid::deterministic: unverified
+  no evidence on  `mass::is_valid` giving one output per input
 mass::is_valid_uniform: holds
 mass::conflict::spec: holds
   passes on       5 inputs
   assumed on      every input, by `mass::conflict_uniform`
+mass::conflict::deterministic: unverified
+  no evidence on  `mass::conflict` giving one output per input
 mass::conflict_uniform: holds
 mass::conflict_symmetric: holds
   passes on       `mass::conflict(Mass(1.0, 0.0, 0.0), Mass(1.0, 0.0, 0.0))`
@@ -17,11 +23,15 @@ mass::dempster::spec: holds
   passes on       9 inputs
   assumed on      classes "first invalid", "partial conflict", "second invalid", "total conflict" of `dempster_class`, by `mass::dempster_uniform`
 mass::dempster::uses: holds
+mass::dempster::deterministic: unverified
+  no evidence on  `mass::dempster` giving one output per input
 mass::dempster_uniform: holds
 mass::yager::spec: holds
   passes on       9 inputs
   assumed on      classes "first invalid", "second invalid", "valid" of `mass::yager_uniform`, by `mass::yager_uniform`
 mass::yager::uses: holds
+mass::yager::deterministic: unverified
+  no evidence on  `mass::yager` giving one output per input
 mass::yager_uniform: holds
 mass::yager_reports_conflict: holds
   passes on       5 inputs
@@ -33,6 +43,8 @@ mass::renormalises_uniform: holds
 culprits::rank::correct: unverified
   passes on       10 inputs
   no evidence on  a set too long to print
+culprits::rank::deterministic: unverified
+  no evidence on  `culprits::rank` giving one output per input
 culprits::rank_shape: unverified
   passes on       `biases = [None, Some(1.0)], clauses = [[0, 1]]`, `biases = [Some(0.5)], clauses = [[3]]`, `biases = [Some(1.5)], clauses = []`
   no evidence on  a set too long to print
@@ -106,9 +118,45 @@ warning[M105]: a requirement that nothing leans on
   help: say which function `uses` it, or remove the `require`
 
 warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:26  fn judged(ok: bool, c: f64) -> Option<Mass> { if c >= 0.0 && c <= 1.0 { Some(if ok { Mass(c, 0.0, 1.0 - c) } else { Mass(0.0, c, 1.0 - c) }) } else { None } }
+
+  No evidence on `mass::judged` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:37  fn is_valid(m: Mass) -> bool { let s = m.b + m.d + m.u - 1.0; in_range(m.b) && in_range(m.d) && in_range(m.u) && s <= 0.000000001 && -s <= 0.000000001 }
+
+  No evidence on `mass::is_valid` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:48  fn conflict(m: Mass, o: Mass) -> f64 { m.b * o.d + m.d * o.b }
+
+  No evidence on `mass::conflict` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:54  fn dempster(m: Mass, o: Mass) -> Option<Mass> uses only is_valid, conflict { let k = conflict(m, o); let a = agreement(m, o); if !is_valid(m) || !is_valid(o) || k >= 1.0 - 0.000000001 { None } else {  …
+
+  No evidence on `mass::dempster` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:66  fn yager(m: Mass, o: Mass) -> Option<(Mass, f64)> uses only is_valid, conflict { let k = conflict(m, o); let a = agreement(m, o); if !is_valid(m) || !is_valid(o) { None } else { Some((Mass(a.b, a.d, a …
+
+  No evidence on `mass::yager` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> .mitra/model.mitra:112  fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
 
   No evidence on a set too long to print.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:112  fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
+
+  No evidence on `culprits::rank` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

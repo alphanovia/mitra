@@ -1,5 +1,11 @@
+half::deterministic: unverified
+  no evidence on  `half` giving one output per input
 quarter::uses: unverified
+quarter::deterministic: unverified
+  no evidence on  `quarter` giving one output per input
 eighth::uses: holds
+eighth::deterministic: unverified
+  no evidence on  `eighth` giving one output per input
 half_correct: fails
   fails on        `half(1)`
   no evidence on  `half(0)`
@@ -72,11 +78,29 @@ error[M003]: two pieces of evidence contradict each other
   note: until this is settled, neither counts for these inputs
   help: find out which one is right, and correct the other
 
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn half(x: Int) -> Int;
+
+  No evidence on `half` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
 warning[M103]: an assumption is not vouched for
   --> model.mitra:3  subject fn quarter(x: Int) -> Int uses half;
 
   Nothing says that `quarter::uses` holds, and Mitra can't check it.
   help: review it against the code, then record: evidence <name> { for quarter::uses holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn quarter(x: Int) -> Int uses half;
+
+  No evidence on `quarter` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn eighth(x: Int) -> Int uses quarter;
+
+  No evidence on `eighth` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:8  claim eighth_correct(x: 0..=1) { correct(eighth(x)) }

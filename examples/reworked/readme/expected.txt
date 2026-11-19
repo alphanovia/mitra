@@ -2,6 +2,8 @@ calc::div::spec: fails
   fails on        `calc::div(8, 4)`
   passes on       `calc::div(6, 2)`
   no evidence on  98 inputs
+calc::div::deterministic: unverified
+  no evidence on  `calc::div` giving one output per input
 calc::div_small: holds
 calc::by_zero: unverified
   no evidence on  the statement itself
@@ -50,6 +52,12 @@ error[M002]: evidence denies an assumption
   be: at least one is trusted more than it deserves
 
   help: correct or remove the claim, or correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  fn div(a: 0..=9, b: 0..=9) -> 0..=9 { if b == 0 { 0 } else { a / b } }
+
+  No evidence on `calc::div` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:8  claim by_zero() { div(1, 0) == 0 }

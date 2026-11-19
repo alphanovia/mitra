@@ -1,7 +1,11 @@
 half::correct: unverified
   no evidence on  classes "big", "small" of `half_class`
+half::deterministic: unverified
+  no evidence on  `half` giving one output per input
 sign::correct: unverified
   no evidence on  classes "neg", "pos", "zero" of `sign_class`
+sign::deterministic: unverified
+  no evidence on  `sign` giving one output per input
 half_uniform: holds
 sign_uniform: holds
 half_keeps_sign: unverified
@@ -19,10 +23,22 @@ warning[M101]: a claim is not verified
   help: one passing test in such a class stands for the class
 
 warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn half(x: Int) -> Int;
+
+  No evidence on `half` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:4  subject fn sign(x: Int) -> Int;
 
   No evidence on classes "neg", "pos", "zero" of `sign_class`.
   help: one passing test in such a class stands for the class
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn sign(x: Int) -> Int;
+
+  No evidence on `sign` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:9  claim half_keeps_sign(x) { sign(half(x) * 2) == sign(x) || half(x) == 0 }

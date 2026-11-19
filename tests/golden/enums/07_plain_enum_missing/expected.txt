@@ -1,5 +1,9 @@
 warm::correct: unverified
   no evidence on  `warm(Blue)`, `warm(Green)`, `warm(Red)`
+warm::deterministic: unverified
+  no evidence on  `warm` giving one output per input
+pick::deterministic: unverified
+  no evidence on  `pick` giving one output per input
 warm_is: unverified
   passes on       `warm(Red)`
   no evidence on  `warm(Blue)`, `warm(Green)`
@@ -13,6 +17,18 @@ warning[M101]: a claim is not verified
   --> model.mitra:3  subject fn warm(c: Color) -> Bool;
 
   No evidence on `warm(Blue)`, `warm(Green)`, `warm(Red)`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn warm(c: Color) -> Bool;
+
+  No evidence on `warm` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn pick(c: Option<Color>) -> Color;
+
+  No evidence on `pick` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

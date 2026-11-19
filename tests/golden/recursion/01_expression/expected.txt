@@ -1,5 +1,7 @@
 eval::correct: unverified
   no evidence on  classes "literal", "negation", "sum" of `shape`
+eval::deterministic: unverified
+  no evidence on  `eval` giving one output per input
 eval_is: fails
   fails on        `eval(Neg(Neg(Lit(2))))`
   passes on       `eval(Add(Lit(1), Neg(Lit(2))))`, `eval(Lit(3))`
@@ -29,5 +31,11 @@ warning[M101]: a claim is not verified
 
   No evidence on classes "literal", "negation", "sum" of `shape`.
   help: one passing test in such a class stands for the class
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  subject fn eval(e: Expr) -> Int;
+
+  No evidence on `eval` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

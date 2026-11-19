@@ -1,3 +1,5 @@
+half::deterministic: unverified
+  no evidence on  `half` giving one output per input
 half_correct: unverified
   passes on       `half(4)`
   no evidence on  n in {5} | 0..=3
@@ -46,6 +48,12 @@ error[M006]: evidence does not fit the model
 
   note: until this is settled, the evidence judges nothing
   help: if the observation is real, change the signature of `half`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn half(n: 0..=5) -> 0..=2;
+
+  No evidence on `half` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:3  claim half_correct(n) { correct(half(n)) }

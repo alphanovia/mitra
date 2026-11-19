@@ -1,5 +1,11 @@
+half::deterministic: unverified
+  no evidence on  `half` giving one output per input
 quarter::uses: holds
+quarter::deterministic: unverified
+  no evidence on  `quarter` giving one output per input
 eighth::uses: holds
+eighth::deterministic: unverified
+  no evidence on  `eighth` giving one output per input
 half_correct: fails
   fails on        `half(1)`
   no evidence on  `half(0)`
@@ -46,6 +52,24 @@ error[M001]: evidence refutes a claim
 
   help: look first at `half`, which `quarter` uses: half_correct fails there
   help: if the evidence is right, fix `quarter`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn half(x: Int) -> Int;
+
+  No evidence on `half` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn quarter(x: Int) -> Int uses half;
+
+  No evidence on `quarter` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn eighth(x: Int) -> Int uses quarter;
+
+  No evidence on `eighth` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 note: `eighth` uses `half`, where half_correct fails: look there first
 note: `eighth` uses `quarter`, where quarter_correct fails: look there first

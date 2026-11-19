@@ -242,6 +242,10 @@ pub enum Decl {
 #[derive(Debug, Clone, PartialEq, Default)]
 // mitra: implements reader::Model
 pub struct Model {
+    /// The claims on determinism: the claim, its function, and whether
+    /// it says the same input always gives the same output (`false`:
+    /// that it may not, `!deterministic(f)`).
+    pub determinism: Vec<(String, String, bool)>,
     pub records: Vec<Record>,
     pub enums: Vec<Enum>,
     /// Sets written with an enum, such as `Option(Int)`, by their printed

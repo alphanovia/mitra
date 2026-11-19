@@ -1,4 +1,8 @@
 open_account::correct: holds
+open_account::deterministic: unverified
+  no evidence on  `open_account` giving one output per input
+log::deterministic: unverified
+  no evidence on  `log` giving one output per input
 open_is: holds
 open_correct: holds
 log_correct: unverified
@@ -6,6 +10,18 @@ log_correct: unverified
 log_returns: unverified
   passes on       `log("started")`
   no evidence on  message in String \ {"started"}
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn open_account() -> Account;
+
+  No evidence on `open_account` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn log(message: String) -> ();
+
+  No evidence on `log` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:8  claim log_correct(message) { correct(log(message)) }

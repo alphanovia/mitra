@@ -23,6 +23,23 @@ pub fn plan(model: &Model, report: &Report) -> String {
         }
         seen.push(&v.claim);
         let c = model.claim(&v.claim).expect("verdicts name claims");
+        // That a function is deterministic: no single test says it.
+        if let Some((_, f, same)) = model.determinism.iter().find(|d| d.0 == c.name) {
+            if v.logic == Logic::Unverified {
+                let what = match same {
+                    true => format!("a reviewer's word that `{f}` gives one output per input"),
+                    false => format!("two different outputs of `{f}` on one input"),
+                };
+                out += &format!("{} owed: {what}\n", c.name);
+                if *same {
+                    out += &format!(
+                        "  evidence <name> {{ for {} holds source \"review:<who>\" }}\n",
+                        c.name
+                    );
+                }
+            }
+            continue;
+        }
         // A requirement in prose: what it owes is not a test.
         if model.captured(&c.name).is_some() {
             if v.logic == Logic::Unverified {

@@ -123,9 +123,30 @@ fn a_boundary_may_answer_differently_each_time() {
     );
     assert!(out.starts_with("game::small: fails"), "{out}");
     assert!(!out.contains("the code of `dice::roll`"), "{out}");
-    // A subject can't: two outputs on one input contradict each other.
+    // A subject is claimed deterministic: two outputs on one input
+    // refute that, unless the model says it is not.
     let m = m.replace("boundary", "subject");
-    assert!(verdicts(&m, two).contains("M003"));
+    let out = verdicts(&m, two);
+    assert!(out.contains("dice::roll::deterministic: fails"), "{out}");
+    assert!(out.contains("the code of `dice::roll`"), "{out}");
+    let free = m.replace(
+        "fn roll() -> 1..=6;",
+        "fn roll() -> 1..=6; claim free = !deterministic(roll);",
+    );
+    let out = verdicts(&free, two);
+    assert!(
+        out.contains("dice::free: holds") && !out.contains("error["),
+        "{out}"
+    );
+    let named = m.replace(
+        "fn roll() -> 1..=6;",
+        "fn roll() -> 1..=6; claim same = deterministic(roll) trust 0.9;",
+    );
+    let out = verdicts(&named, "evidence r { for dice::same holds }");
+    assert!(
+        out.contains("dice::same: holds") && !out.contains("roll::deterministic"),
+        "{out}"
+    );
 }
 
 #[test]
@@ -136,7 +157,14 @@ fn a_claim_with_parameters_is_written_once() {
     let model = mitra_core::load(m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
     // With the claim every function of a subject has: its code is correct.
     let names: Vec<&str> = model.claims.iter().map(|c| c.name.as_str()).collect();
-    assert_eq!(names, ["s::add::correct", "s::add_commutes"]);
+    assert_eq!(
+        names,
+        [
+            "s::add::correct",
+            "s::add::deterministic",
+            "s::add_commutes"
+        ]
+    );
     let bad = m.replace("commutes(add, 0..=1)", "commutes(add)");
     let e = mitra_core::load(&bad, "").unwrap_err().1.message;
     assert!(e.contains("takes 2 parameter(s), got 1"), "{e}");
@@ -184,7 +212,7 @@ fn import_takes_what_it_names() {
              subject s { fn add(a: 0..=1, b: 0..=1) -> 0..=2;\n\
              claim add_commutes = commutative(add, 0..=1); }";
     let model = mitra_core::load(m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
-    assert_eq!(model.claims.len(), 2);
+    assert_eq!(model.claims.len(), 3);
     let error = |m: &str| mitra_core::load(m, "").unwrap_err().1.message;
     // Not named, not there.
     let e = error(&m.replace("{commutative}", "{neutral}"));
@@ -339,18 +367,34 @@ fn a_function_of_a_subject_is_claimed_correct() {
     };
     // No body: the implied claim. A body: the spec says what correct is.
     let m = "subject s { fn f(a: 0..=1) -> Int;\nfn g(a: 0..=1) -> Int { a } }";
-    assert_eq!(names(m), ["s::f::correct", "s::g::spec"]);
+    assert_eq!(
+        names(m),
+        [
+            "s::f::correct",
+            "s::f::deterministic",
+            "s::g::spec",
+            "s::g::deterministic"
+        ]
+    );
     // Not on a boundary. With one word or an unnamed block, named as written.
     let m = "boundary b { fn f(a: 0..=1) -> Int; }\nboundary fn now() -> Int;\n\
              subject fn h(a: 0..=1) -> Int;\nsubject { fn k() -> Int; }";
-    assert_eq!(names(m), ["h::correct", "k::correct"]);
+    assert_eq!(
+        names(m),
+        [
+            "h::correct",
+            "h::deterministic",
+            "k::correct",
+            "k::deterministic"
+        ]
+    );
     // The model's own claim replaces it: nothing is claimed on 0.
     let m = "subject s { fn div(a: 0..=2, b: 0..=2) -> Int;\n\
              claim div_ok(a, b: 1..=2) { correct(div(a, b)) } }";
-    assert_eq!(names(m), ["s::div_ok"]);
+    assert_eq!(names(m), ["s::div::deterministic", "s::div_ok"]);
     // A point pins one call: it narrows nothing.
     let m = "subject s { fn f(a: 0..=1) -> Int;\nclaim t() { correct(f(1)) } }";
-    assert_eq!(names(m), ["s::f::correct", "s::t"]);
+    assert_eq!(names(m), ["s::f::correct", "s::f::deterministic", "s::t"]);
     // Evidence on the function is evidence for it.
     let out = verdicts(m, "evidence e { for s::f holds }");
     assert!(out.starts_with("s::f::correct: holds\n"), "{out}");
@@ -371,7 +415,17 @@ fn import_reaches_into_unnamed_blocks() {
              claim t() { div(4, 2) == half(4) + now() }";
     let model = mitra_core::load(m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
     let names: Vec<&str> = model.claims.iter().map(|c| c.name.as_str()).collect();
-    assert_eq!(names, ["half_small", "div::correct", "half::correct", "t"]);
+    assert_eq!(
+        names,
+        [
+            "half_small",
+            "div::correct",
+            "half::correct",
+            "div::deterministic",
+            "half::deterministic",
+            "t"
+        ]
+    );
     assert_eq!(model.boundaries, ["now"]);
     let _ = std::fs::remove_dir_all(dir);
 }

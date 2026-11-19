@@ -1,7 +1,11 @@
 add::correct: unverified
   no evidence on  (a, b) in (Int, Int)
+add::deterministic: unverified
+  no evidence on  `add` giving one output per input
 max::correct: unverified
   no evidence on  (a, b) in (Int, Int)
+max::deterministic: unverified
+  no evidence on  `max` giving one output per input
 add_assoc: unverified
   passes on       `a = 0, b = 0, c = 0`, `a = 1, b = 0, c = 0`, `a = 1, b = 2, c = 3`
   no evidence on  (a, b, c) in (Int \ 0..=1, Int, Int) | ({1}, Int \ {0, 2}, Int) | ({1}, {2}, Int \ {3}) | ({1}, {0}, Int \ {0}) | ({0}, Int \ {0}, Int) | ({0}, {0}, Int \ {0})
@@ -38,9 +42,21 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> model.mitra:1  subject fn add(a: Int, b: Int) -> Int;
+
+  No evidence on `add` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:2  subject fn max(a: Int, b: Int) -> Int;
 
   No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn max(a: Int, b: Int) -> Int;
+
+  No evidence on `max` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

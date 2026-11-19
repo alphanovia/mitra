@@ -1,7 +1,11 @@
 sort::correct: unverified
   no evidence on  classes "empty", "many", "one" of `size`
+sort::deterministic: unverified
+  no evidence on  `sort` giving one output per input
 total::correct: unverified
   no evidence on  xs in List<Int>
+total::deterministic: unverified
+  no evidence on  `total` giving one output per input
 sort_len: unverified
   passes on       `xs = [3, 1, 2]`
   assumed on      class "many" of `size`, by `sort_uniform`, which is not vouched for
@@ -43,9 +47,21 @@ warning[M101]: a claim is not verified
   help: one passing test in such a class stands for the class
 
 warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn sort(xs: List<Int>) -> List<Int>;
+
+  No evidence on `sort` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:3  subject fn total(xs: List<Int>) -> Int;
 
   No evidence on xs in List<Int>.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn total(xs: List<Int>) -> Int;
+
+  No evidence on `total` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

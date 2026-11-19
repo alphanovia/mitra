@@ -7,12 +7,12 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 |---|---|---|---|---|---|---|---|---|---|
 | mitra-ds | 8 | 6 | 75% | 118 | 60 | 51% | 146 | 164 | 112% |
 | mitra-cli | 52 | 7 | 13% | 1324 | 133 | 10% | 1409 | 74 | 5% |
-| mitra-core | 328 | 15 | 5% | 10722 | 2175 | 20% | 11343 | 219 | 2% |
-| all | 388 | 28 | 7% | 12164 | 2368 | 19% | 12898 | 457 | 4% |
+| mitra-core | 329 | 15 | 5% | 10866 | 2206 | 20% | 11489 | 221 | 2% |
+| all | 389 | 28 | 7% | 12308 | 2399 | 19% | 13044 | 459 | 4% |
 
 - mitra-ds: 164 lines of model over 146 lines of code, in 2 subjects with 2 ensures and 1 require.
 - mitra-cli: 74 lines of model over 1409 lines of code, in 2 subjects with 2 ensures and 0 requires.
-- mitra-core: 219 lines of model over 11343 lines of code, in 7 subjects with 15 ensures and 4 requires.
+- mitra-core: 221 lines of model over 11489 lines of code, in 7 subjects with 16 ensures and 4 requires.
 
 ## mitra-ds
 
@@ -88,16 +88,16 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 
 | File | Function | Line | Lines | Tied to |
 |---|---|---|---|---|
-| ast.rs | `check` | 482 | 416 | types::Model::check |
+| ast.rs | `check` | 486 | 416 | types::Model::check |
 | eval.rs | `as_str` | 28 | 8 | report::Logic::as_str |
 | eval.rs | `unary` | 1486 | 12 | eval::unary |
 | eval.rs | `binary` | 1501 | 63 | eval::binary |
-| eval.rs | `evaluate` | 1819 | 1276 | verdicts::evaluate |
+| eval.rs | `evaluate` | 1819 | 1290 | verdicts::evaluate |
 | lib.rs | `load` | 77 | 7 | types::load |
-| lib.rs | `read` | 86 | 46 | types::read |
-| lib.rs | `run` | 335 | 3 | verdicts::run |
-| parse.rs | `model` | 3398 | 3 | reader::model |
-| plan.rs | `plan` | 17 | 256 | advice::plan |
+| lib.rs | `read` | 86 | 47 | types::read |
+| lib.rs | `run` | 363 | 3 | verdicts::run |
+| parse.rs | `model` | 3468 | 3 | reader::model |
+| plan.rs | `plan` | 17 | 272 | advice::plan |
 | print.rs | `negative` | 94 | 7 | print::negative |
 | print.rs | `level` | 108 | 9 | print::level |
 | prove.rs | `derive` | 478 | 45 | verdicts::derive |
@@ -107,28 +107,28 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | ast.rs | `is_spec` | 117 | 3 |  |
 | ast.rs | `domain` | 121 | 3 |  |
 | ast.rs | `is_structural` | 171 | 6 |  |
-| ast.rs | `spec_of_classes` | 315 | 22 |  |
-| ast.rs | `conforms` | 341 | 4 |  |
-| ast.rs | `named` | 348 | 28 |  |
-| ast.rs | `named_recursive` | 380 | 16 |  |
-| ast.rs | `record` | 396 | 3 |  |
-| ast.rs | `function` | 400 | 4 |  |
-| ast.rs | `ensure` | 405 | 3 |  |
-| ast.rs | `captured` | 410 | 4 |  |
-| ast.rs | `invariant` | 417 | 17 |  |
-| ast.rs | `declared_function` | 436 | 3 |  |
-| ast.rs | `scored` | 441 | 8 |  |
-| ast.rs | `subjects_of` | 451 | 14 |  |
-| ast.rs | `claim` | 465 | 3 |  |
-| ast.rs | `covers` | 470 | 9 |  |
-| ast.rs | `arities` | 919 | 9 |  |
-| ast.rs | `passed` | 930 | 13 |  |
-| ast.rs | `descents` | 950 | 61 |  |
-| ast.rs | `part` | 951 | 7 |  |
-| ast.rs | `walk` | 1013 | 26 |  |
-| ast.rs | `arms` | 1041 | 21 |  |
-| ast.rs | `calls` | 1064 | 21 |  |
-| ast.rs | `single` | 1087 | 5 |  |
+| ast.rs | `spec_of_classes` | 319 | 22 |  |
+| ast.rs | `conforms` | 345 | 4 |  |
+| ast.rs | `named` | 352 | 28 |  |
+| ast.rs | `named_recursive` | 384 | 16 |  |
+| ast.rs | `record` | 400 | 3 |  |
+| ast.rs | `function` | 404 | 4 |  |
+| ast.rs | `ensure` | 409 | 3 |  |
+| ast.rs | `captured` | 414 | 4 |  |
+| ast.rs | `invariant` | 421 | 17 |  |
+| ast.rs | `declared_function` | 440 | 3 |  |
+| ast.rs | `scored` | 445 | 8 |  |
+| ast.rs | `subjects_of` | 455 | 14 |  |
+| ast.rs | `claim` | 469 | 3 |  |
+| ast.rs | `covers` | 474 | 9 |  |
+| ast.rs | `arities` | 923 | 9 |  |
+| ast.rs | `passed` | 934 | 13 |  |
+| ast.rs | `descents` | 954 | 61 |  |
+| ast.rs | `part` | 955 | 7 |  |
+| ast.rs | `walk` | 1017 | 26 |  |
+| ast.rs | `arms` | 1045 | 21 |  |
+| ast.rs | `calls` | 1068 | 21 |  |
+| ast.rs | `single` | 1091 | 5 |  |
 | eval.rs | `as_str` | 53 | 7 |  |
 | eval.rs | `text` | 191 | 14 |  |
 | eval.rs | `declared_claim` | 241 | 7 |  |
@@ -155,123 +155,124 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | eval.rs | `subject_calls` | 1656 | 34 |  |
 | eval.rs | `sorted` | 1693 | 86 |  |
 | eval.rs | `listed` | 1811 | 6 |  |
-| eval.rs | `represented` | 3225 | 23 |  |
-| eval.rs | `computed` | 3251 | 22 |  |
-| eval.rs | `rank` | 3276 | 136 |  |
-| eval.rs | `brief` | 3421 | 14 |  |
-| eval.rs | `warnings` | 3446 | 10 |  |
-| eval.rs | `own_word` | 3462 | 3 |  |
+| eval.rs | `represented` | 3243 | 23 |  |
+| eval.rs | `computed` | 3269 | 22 |  |
+| eval.rs | `rank` | 3294 | 136 |  |
+| eval.rs | `brief` | 3439 | 14 |  |
+| eval.rs | `warnings` | 3464 | 10 |  |
+| eval.rs | `own_word` | 3480 | 3 |  |
 | lib.rs | `new` | 51 | 6 |  |
 | lib.rs | `fmt` | 60 | 3 |  |
-| lib.rs | `points` | 139 | 84 |  |
-| lib.rs | `invariants` | 230 | 40 |  |
-| lib.rs | `tie` | 272 | 16 |  |
-| lib.rs | `tie_records` | 291 | 34 |  |
-| lib.rs | `read_evidence` | 328 | 4 |  |
-| next.rs | `next` | 16 | 370 |  |
-| next.rs | `ask` | 375 | 17 |  |
-| next.rs | `vouch` | 394 | 4 |  |
+| lib.rs | `points` | 140 | 84 |  |
+| lib.rs | `determinism` | 230 | 24 |  |
+| lib.rs | `invariants` | 258 | 40 |  |
+| lib.rs | `tie` | 300 | 16 |  |
+| lib.rs | `tie_records` | 319 | 34 |  |
+| lib.rs | `read_evidence` | 356 | 4 |  |
+| next.rs | `next` | 16 | 385 |  |
+| next.rs | `ask` | 391 | 17 |  |
+| next.rs | `vouch` | 410 | 4 |  |
 | parse.rs | `imports_from` | 25 | 3 |  |
 | parse.rs | `library` | 30 | 3 |  |
 | parse.rs | `module` | 35 | 18 |  |
 | parse.rs | `lex` | 82 | 67 |  |
 | parse.rs | `earlier` | 154 | 31 |  |
-| parse.rs | `unquote` | 276 | 15 |  |
-| parse.rs | `join` | 293 | 4 |  |
-| parse.rs | `bin` | 387 | 3 |  |
-| parse.rs | `line` | 392 | 4 |  |
-| parse.rs | `err` | 396 | 3 |  |
-| parse.rs | `peek` | 399 | 3 |  |
-| parse.rs | `peek_at` | 402 | 3 |  |
-| parse.rs | `kind` | 405 | 3 |  |
-| parse.rs | `kind_at` | 408 | 3 |  |
-| parse.rs | `is` | 411 | 3 |  |
-| parse.rs | `eat` | 414 | 5 |  |
-| parse.rs | `expect` | 419 | 12 |  |
-| parse.rs | `name` | 431 | 9 |  |
-| parse.rs | `path` | 441 | 7 |  |
-| parse.rs | `qualified` | 448 | 6 |  |
-| parse.rs | `resolve` | 455 | 19 |  |
-| parse.rs | `find` | 477 | 18 |  |
-| parse.rs | `old` | 496 | 9 |  |
-| parse.rs | `next_old` | 505 | 5 |  |
-| parse.rs | `at_end` | 510 | 3 |  |
-| parse.rs | `is_name` | 513 | 3 |  |
-| parse.rs | `ident` | 517 | 9 |  |
-| parse.rs | `word` | 528 | 6 |  |
-| parse.rs | `local` | 536 | 6 |  |
-| parse.rs | `is_keyword` | 542 | 3 |  |
-| parse.rs | `eat_keyword` | 545 | 5 |  |
-| parse.rs | `number` | 554 | 12 |  |
-| parse.rs | `signed` | 567 | 16 |  |
-| parse.rs | `numeral` | 584 | 12 |  |
-| parse.rs | `values` | 597 | 8 |  |
-| parse.rs | `value` | 607 | 10 |  |
-| parse.rs | `value_inner` | 618 | 86 |  |
-| parse.rs | `bound` | 709 | 20 |  |
-| parse.rs | `set` | 733 | 7 |  |
-| parse.rs | `set_inter` | 741 | 12 |  |
-| parse.rs | `sets_in_parentheses` | 754 | 13 |  |
-| parse.rs | `set_atom` | 767 | 212 |  |
-| parse.rs | `variants` | 1000 | 70 |  |
-| parse.rs | `both` | 1072 | 12 |  |
-| parse.rs | `set_both` | 1085 | 4 |  |
-| parse.rs | `binders` | 1090 | 30 |  |
-| parse.rs | `args` | 1123 | 60 |  |
-| parse.rs | `expr` | 1190 | 7 |  |
-| parse.rs | `or` | 1197 | 7 |  |
-| parse.rs | `and` | 1204 | 7 |  |
-| parse.rs | `compare` | 1211 | 25 |  |
-| parse.rs | `sum` | 1237 | 11 |  |
-| parse.rs | `product` | 1249 | 11 |  |
-| parse.rs | `unary` | 1260 | 42 |  |
-| parse.rs | `method` | 1308 | 44 |  |
-| parse.rs | `exprs` | 1352 | 11 |  |
-| parse.rs | `block` | 1364 | 6 |  |
-| parse.rs | `sequence` | 1371 | 13 |  |
-| parse.rs | `bars` | 1385 | 11 |  |
-| parse.rs | `primary` | 1396 | 256 |  |
-| parse.rs | `trust` | 1666 | 10 |  |
-| parse.rs | `state` | 1680 | 20 |  |
-| parse.rs | `define` | 1701 | 13 |  |
-| parse.rs | `declare` | 1715 | 11 |  |
-| parse.rs | `type_params` | 1727 | 17 |  |
-| parse.rs | `type_tokens` | 1745 | 15 |  |
-| parse.rs | `enumeration` | 1762 | 35 |  |
-| parse.rs | `items` | 1799 | 243 |  |
-| parse.rs | `function` | 2057 | 100 |  |
-| parse.rs | `sig` | 2164 | 11 |  |
-| parse.rs | `inputs` | 2178 | 23 |  |
-| parse.rs | `claim` | 2202 | 191 |  |
-| parse.rs | `equivalence` | 2414 | 124 |  |
-| parse.rs | `represented` | 2547 | 87 |  |
-| parse.rs | `import` | 2638 | 66 |  |
-| parse.rs | `instance` | 2712 | 92 |  |
-| parse.rs | `evidence` | 2810 | 138 |  |
-| parse.rs | `finish` | 2954 | 134 |  |
-| parse.rs | `requirements` | 3101 | 140 |  |
-| parse.rs | `reliance` | 3255 | 123 |  |
-| parse.rs | `declared` | 3404 | 26 |  |
-| parse.rs | `types_of` | 3435 | 55 |  |
-| parse.rs | `merge_types` | 3493 | 27 |  |
-| parse.rs | `scope_types` | 3524 | 56 |  |
-| parse.rs | `impls` | 3587 | 99 |  |
-| parse.rs | `read` | 3689 | 29 |  |
-| parse.rs | `evidence` | 3720 | 11 |  |
-| parse.rs | `evidence_alone` | 3733 | 43 |  |
-| parse.rs | `free` | 3782 | 60 |  |
-| parse.rs | `unwritten` | 3844 | 6 |  |
-| parse.rs | `records_in` | 3851 | 32 |  |
-| parse.rs | `written` | 3886 | 20 |  |
-| parse.rs | `stamp` | 3909 | 46 |  |
-| parse.rs | `tied` | 3958 | 4 |  |
-| plan.rs | `owed` | 62 | 158 |  |
-| plan.rs | `point` | 226 | 6 |  |
-| plan.rs | `subject_call` | 233 | 3 |  |
-| plan.rs | `calls_no_subject` | 237 | 5 |  |
-| plan.rs | `class_set` | 244 | 24 |  |
-| plan.rs | `observed` | 270 | 8 |  |
-| plan.rs | `set_text` | 280 | 11 |  |
+| parse.rs | `unquote` | 279 | 15 |  |
+| parse.rs | `join` | 296 | 4 |  |
+| parse.rs | `bin` | 390 | 3 |  |
+| parse.rs | `line` | 395 | 4 |  |
+| parse.rs | `err` | 399 | 3 |  |
+| parse.rs | `peek` | 402 | 3 |  |
+| parse.rs | `peek_at` | 405 | 3 |  |
+| parse.rs | `kind` | 408 | 3 |  |
+| parse.rs | `kind_at` | 411 | 3 |  |
+| parse.rs | `is` | 414 | 3 |  |
+| parse.rs | `eat` | 417 | 5 |  |
+| parse.rs | `expect` | 422 | 12 |  |
+| parse.rs | `name` | 434 | 9 |  |
+| parse.rs | `path` | 444 | 7 |  |
+| parse.rs | `qualified` | 451 | 6 |  |
+| parse.rs | `resolve` | 458 | 19 |  |
+| parse.rs | `find` | 480 | 18 |  |
+| parse.rs | `old` | 499 | 9 |  |
+| parse.rs | `next_old` | 508 | 5 |  |
+| parse.rs | `at_end` | 513 | 3 |  |
+| parse.rs | `is_name` | 516 | 3 |  |
+| parse.rs | `ident` | 520 | 9 |  |
+| parse.rs | `word` | 531 | 6 |  |
+| parse.rs | `local` | 539 | 6 |  |
+| parse.rs | `is_keyword` | 545 | 3 |  |
+| parse.rs | `eat_keyword` | 548 | 5 |  |
+| parse.rs | `number` | 557 | 12 |  |
+| parse.rs | `signed` | 570 | 16 |  |
+| parse.rs | `numeral` | 587 | 12 |  |
+| parse.rs | `values` | 600 | 8 |  |
+| parse.rs | `value` | 610 | 10 |  |
+| parse.rs | `value_inner` | 621 | 86 |  |
+| parse.rs | `bound` | 712 | 20 |  |
+| parse.rs | `set` | 736 | 7 |  |
+| parse.rs | `set_inter` | 744 | 12 |  |
+| parse.rs | `sets_in_parentheses` | 757 | 13 |  |
+| parse.rs | `set_atom` | 770 | 212 |  |
+| parse.rs | `variants` | 1003 | 70 |  |
+| parse.rs | `both` | 1075 | 12 |  |
+| parse.rs | `set_both` | 1088 | 4 |  |
+| parse.rs | `binders` | 1093 | 30 |  |
+| parse.rs | `args` | 1126 | 60 |  |
+| parse.rs | `expr` | 1193 | 7 |  |
+| parse.rs | `or` | 1200 | 7 |  |
+| parse.rs | `and` | 1207 | 7 |  |
+| parse.rs | `compare` | 1214 | 25 |  |
+| parse.rs | `sum` | 1240 | 11 |  |
+| parse.rs | `product` | 1252 | 11 |  |
+| parse.rs | `unary` | 1263 | 42 |  |
+| parse.rs | `method` | 1311 | 44 |  |
+| parse.rs | `exprs` | 1355 | 11 |  |
+| parse.rs | `block` | 1367 | 6 |  |
+| parse.rs | `sequence` | 1374 | 13 |  |
+| parse.rs | `bars` | 1388 | 11 |  |
+| parse.rs | `primary` | 1399 | 256 |  |
+| parse.rs | `trust` | 1669 | 10 |  |
+| parse.rs | `state` | 1683 | 20 |  |
+| parse.rs | `define` | 1704 | 13 |  |
+| parse.rs | `declare` | 1718 | 11 |  |
+| parse.rs | `type_params` | 1730 | 17 |  |
+| parse.rs | `type_tokens` | 1748 | 15 |  |
+| parse.rs | `enumeration` | 1765 | 35 |  |
+| parse.rs | `items` | 1802 | 243 |  |
+| parse.rs | `function` | 2060 | 100 |  |
+| parse.rs | `sig` | 2167 | 11 |  |
+| parse.rs | `inputs` | 2181 | 23 |  |
+| parse.rs | `claim` | 2205 | 212 |  |
+| parse.rs | `equivalence` | 2439 | 124 |  |
+| parse.rs | `represented` | 2572 | 87 |  |
+| parse.rs | `import` | 2663 | 66 |  |
+| parse.rs | `instance` | 2737 | 92 |  |
+| parse.rs | `evidence` | 2835 | 138 |  |
+| parse.rs | `finish` | 2979 | 176 |  |
+| parse.rs | `requirements` | 3171 | 140 |  |
+| parse.rs | `reliance` | 3325 | 123 |  |
+| parse.rs | `declared` | 3474 | 30 |  |
+| parse.rs | `types_of` | 3509 | 55 |  |
+| parse.rs | `merge_types` | 3567 | 27 |  |
+| parse.rs | `scope_types` | 3598 | 56 |  |
+| parse.rs | `impls` | 3661 | 99 |  |
+| parse.rs | `read` | 3763 | 29 |  |
+| parse.rs | `evidence` | 3794 | 11 |  |
+| parse.rs | `evidence_alone` | 3807 | 43 |  |
+| parse.rs | `free` | 3856 | 60 |  |
+| parse.rs | `unwritten` | 3918 | 6 |  |
+| parse.rs | `records_in` | 3925 | 32 |  |
+| parse.rs | `written` | 3960 | 20 |  |
+| parse.rs | `stamp` | 3983 | 46 |  |
+| parse.rs | `tied` | 4032 | 4 |  |
+| plan.rs | `owed` | 79 | 158 |  |
+| plan.rs | `point` | 243 | 6 |  |
+| plan.rs | `subject_call` | 250 | 3 |  |
+| plan.rs | `calls_no_subject` | 254 | 5 |  |
+| plan.rs | `class_set` | 261 | 24 |  |
+| plan.rs | `observed` | 287 | 8 |  |
+| plan.rs | `set_text` | 297 | 11 |  |
 | print.rs | `print_claim` | 8 | 3 |  |
 | print.rs | `print_evidence` | 14 | 50 |  |
 | print.rs | `pattern` | 66 | 19 |  |
@@ -311,17 +312,17 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | report.rs | `stated` | 276 | 6 |  |
 | report.rs | `evidence_at` | 284 | 6 |  |
 | report.rs | `role` | 291 | 15 |  |
-| report.rs | `inputs` | 308 | 34 |  |
-| report.rs | `missed` | 345 | 21 |  |
-| report.rs | `verdicts` | 369 | 123 |  |
-| report.rs | `quoted` | 495 | 13 |  |
-| report.rs | `piece` | 510 | 83 |  |
-| report.rs | `ranking` | 596 | 79 |  |
-| report.rs | `error` | 679 | 220 |  |
-| report.rs | `warnings` | 902 | 150 |  |
-| report.rs | `to_text` | 996 | 3 |  |
-| report.rs | `to_text_with` | 1001 | 7 |  |
-| report.rs | `to_text_at` | 1012 | 47 |  |
+| report.rs | `inputs` | 308 | 41 |  |
+| report.rs | `missed` | 353 | 21 |  |
+| report.rs | `verdicts` | 377 | 123 |  |
+| report.rs | `quoted` | 503 | 13 |  |
+| report.rs | `piece` | 518 | 83 |  |
+| report.rs | `ranking` | 604 | 79 |  |
+| report.rs | `error` | 687 | 220 |  |
+| report.rs | `warnings` | 910 | 150 |  |
+| report.rs | `to_text` | 1004 | 3 |  |
+| report.rs | `to_text_with` | 1009 | 7 |  |
+| report.rs | `to_text_at` | 1020 | 47 |  |
 | set.rs | `set_of` | 47 | 5 |  |
 | set.rs | `map_of` | 53 | 11 |  |
 | set.rs | `as_set` | 65 | 9 |  |

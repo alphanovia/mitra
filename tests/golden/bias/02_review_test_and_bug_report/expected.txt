@@ -1,3 +1,5 @@
+div::deterministic: unverified
+  no evidence on  `div` giving one output per input
 div_correct: fails
   fails on        `div(4, 2)`
   passes on       `div(6, 3)`
@@ -50,5 +52,11 @@ error[M004]: an assumption is contradicted by the evidence
 
   help: check that `div(4, 2)` really fails; if it does, class "rest" is
   too wide: split it in `div_class`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn div(a: Int, b: Int) -> Int;
+
+  No evidence on `div` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

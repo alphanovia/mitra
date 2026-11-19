@@ -1,7 +1,11 @@
 flip::correct: unverified
   no evidence on  `flip(false)`, `flip(true)`
+flip::deterministic: unverified
+  no evidence on  `flip` giving one output per input
 flip_not::correct: unverified
   no evidence on  `flip_not(false)`, `flip_not(true)`
+flip_not::deterministic: unverified
+  no evidence on  `flip_not` giving one output per input
 neg_twice: holds
 flip_spec: holds
 flip_not_shape: unverified
@@ -66,9 +70,21 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn flip(a: Bool) -> Bool;
+
+  No evidence on `flip` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:5  subject fn flip_not(a: Bool) -> Bool;
 
   No evidence on `flip_not(false)`, `flip_not(true)`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:5  subject fn flip_not(a: Bool) -> Bool;
+
+  No evidence on `flip_not` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

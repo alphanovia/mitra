@@ -1,8 +1,12 @@
 clock::next::spec: holds
   passes on       `clock::next(1)`
   assumed on      every input, by `clock::next_uniform`
+clock::next::deterministic: unverified
+  no evidence on  `clock::next` giving one output per input
 clock::back::spec: unverified
   no evidence on  h in 0..=3
+clock::back::deterministic: unverified
+  no evidence on  `clock::back` giving one output per input
 clock::next_uniform: holds
 clock::back_uniform: unverified
 clock::round_trip: holds assuming [clock::back::spec]
@@ -36,9 +40,21 @@ error[M007]: a claim contradicts the specs of what it calls
   help: correct the claim, or the body of the function it contradicts
 
 warning[M101]: a claim is not verified
+  --> model.mitra:6  fn next(h: 0..=3) -> 0..=3 { if h == 3 { 0 } else { h + 1 } }
+
+  No evidence on `clock::next` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:7  fn back(h: 0..=3) -> 0..=3 { if h == 0 { 3 } else { h - 1 } }
 
   No evidence on h in 0..=3.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:7  fn back(h: 0..=3) -> 0..=3 { if h == 0 { 3 } else { h - 1 } }
+
+  No evidence on `clock::back` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for

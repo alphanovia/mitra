@@ -1,5 +1,7 @@
 plane::add::correct: unverified
   no evidence on  (a, b) in (Point, Point)
+plane::add::deterministic: unverified
+  no evidence on  `plane::add` giving one output per input
 plane::add_commutes: unverified
   passes on       `plane::add(Point(0, 0), Point(1, 2))`, `plane::add(Point(1, 2), Point(0, 0))`
   no evidence on  79 inputs
@@ -11,6 +13,12 @@ warning[M101]: a claim is not verified
   --> model.mitra:7  fn add(a: Point, b: Point) -> Point;
 
   No evidence on (a, b) in (Point, Point).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:7  fn add(a: Point, b: Point) -> Point;
+
+  No evidence on `plane::add` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

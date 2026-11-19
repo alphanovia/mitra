@@ -1,8 +1,14 @@
 parse::correct: unverified
   no evidence on  s in String
+parse::deterministic: unverified
+  no evidence on  `parse` giving one output per input
 apply::correct: unverified
   no evidence on  (f, x) in (fn(Int) -> Int, Int)
+apply::deterministic: unverified
+  no evidence on  `apply` giving one output per input
 retry::correct: holds
+retry::deterministic: unverified
+  no evidence on  `retry` giving one output per input
 apply_is: fails
   fails on        `apply(negate, 3)`
   passes on       `apply(double, 3)`
@@ -35,9 +41,27 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> model.mitra:6  subject fn parse(s: String) -> Int;
+
+  No evidence on `parse` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:9  subject fn apply(f: fn(Int) -> Int, x: Int) -> Int;
 
   No evidence on (f, x) in (fn(Int) -> Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  subject fn apply(f: fn(Int) -> Int, x: Int) -> Int;
+
+  No evidence on `apply` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:10  subject fn retry(op: fn() -> Int, times: 1..=3) -> Int;
+
+  No evidence on `retry` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

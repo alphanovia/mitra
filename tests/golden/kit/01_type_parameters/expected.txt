@@ -1,5 +1,9 @@
 swap::correct: unverified
   no evidence on  p in Pair<Any, Any>
+swap::deterministic: unverified
+  no evidence on  `swap` giving one output per input
+ints::deterministic: unverified
+  no evidence on  `ints` giving one output per input
 swap_is: unverified
   passes on       `swap(Pair(1, "a"))`
   no evidence on  p in Pair<Any, Any> \ {Pair(1, "a")}
@@ -12,6 +16,18 @@ warning[M101]: a claim is not verified
   --> model.mitra:5  subject fn swap<A, B>(p: Pair<A, B>) -> Pair<B, A>;
 
   No evidence on p in Pair<Any, Any>.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:5  subject fn swap<A, B>(p: Pair<A, B>) -> Pair<B, A>;
+
+  No evidence on `swap` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  subject fn ints(p: Pair<Int, String>) -> Int;
+
+  No evidence on `ints` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

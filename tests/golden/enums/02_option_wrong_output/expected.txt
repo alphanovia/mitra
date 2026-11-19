@@ -1,5 +1,7 @@
 get::correct: unverified
   no evidence on  classes "none", "some" of `kind`
+get::deterministic: unverified
+  no evidence on  `get` giving one output per input
 get_is: fails
   fails on        `get(Some(4))`
   passes on       `get(None)`
@@ -29,5 +31,11 @@ warning[M101]: a claim is not verified
 
   No evidence on classes "none", "some" of `kind`.
   help: one passing test in such a class stands for the class
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn get(o: Option<Int>) -> Int;
+
+  No evidence on `get` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

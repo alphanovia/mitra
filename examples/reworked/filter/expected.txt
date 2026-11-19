@@ -1,10 +1,16 @@
 filter::is_spam::correct: unverified
   no evidence on  m in Mail
+filter::is_spam::deterministic: unverified
+  no evidence on  `filter::is_spam` giving one output per input
 filter::route::spec: unverified
   passes on       `filter::route(Spam, None)`
   no evidence on  (v, folder) in ({Ham}, Option<String>) | ({Spam}, Some(String))
+filter::route::deterministic: unverified
+  no evidence on  `filter::route` giving one output per input
 filter::score::spec: unverified
   no evidence on  m in Mail
+filter::score::deterministic: unverified
+  no evidence on  `filter::score` giving one output per input
 filter::boss_never_spam: holds
   passes on       `m = Mail("boss", 1)`
   assumed on      class "boss" of `filter::by_sender`, by `filter::by_sender`
@@ -20,15 +26,33 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> model.mitra:8  fn is_spam(m: Mail) -> bool;
+
+  No evidence on `filter::is_spam` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:11  fn route(v: Verdict, folder: Option<String>) -> String { match v { Spam => "junk", Ham => match folder { Some(name) => name, None => "inbox", }, } }
 
   No evidence on (v, folder) in ({Ham}, Option<String>) | ({Spam}, Some(String)).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> model.mitra:11  fn route(v: Verdict, folder: Option<String>) -> String { match v { Spam => "junk", Ham => match folder { Some(name) => name, None => "inbox", }, } }
+
+  No evidence on `filter::route` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:21  fn score(m: Mail) -> 0..=4 { let base = if m.sender == "stranger" { 2 } else { 0 }; base + m.links }
 
   No evidence on m in Mail.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:21  fn score(m: Mail) -> 0..=4 { let base = if m.sender == "stranger" { 2 } else { 0 }; base + m.links }
+
+  No evidence on `filter::score` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

@@ -166,11 +166,11 @@ fn store_init_add_check_eval() {
     let (code, out, _) = mitra(&sub, &["check"]);
     assert_eq!(
         (code, out.as_str()),
-        (Some(0), "ok: 1 functions, 2 claims, 2 evidence\n")
+        (Some(0), "ok: 1 functions, 3 claims, 2 evidence\n")
     );
     let (code, out, err) = mitra(&sub, &["eval"]);
     assert!(
-        out.starts_with(
+        out.contains(
             "s::flip_correct: fails\n  fails on        `s::flip(false)`\n  \
              passes on       `s::flip(true)`\ns::flip_on_true: holds\n"
         ),
@@ -178,7 +178,7 @@ fn store_init_add_check_eval() {
     );
     assert_eq!(
         (code, err.as_str()),
-        (Some(1), "mitra: 1 errors, 0 warnings\n")
+        (Some(1), "mitra: 1 errors, 1 warnings\n")
     );
     let _ = std::fs::remove_dir_all(dir);
 }
@@ -214,7 +214,7 @@ fn ingest_turns_test_results_into_evidence() {
         "{evidence}"
     );
     let (_, out, _) = mitra(&dir, &["eval"]);
-    assert!(out.starts_with("s::flip_correct: fails\n"), "{out}");
+    assert!(out.contains("\ns::flip_correct: fails\n"), "{out}");
     assert!(
         out.contains(".mitra/evidence.mitra:3  evidence test { for t::on_false fails"),
         "{out}"
@@ -293,21 +293,21 @@ fn rev_leaves_out_stale_evidence() {
     // pass would outlive any newer failure.
     mitra(&dir, &["add", &on("true")]);
     let (_, all, _) = mitra(&dir, &["eval"]);
-    assert!(all.starts_with("s::flip_correct: holds\n"), "{all}");
+    assert!(all.contains("\ns::flip_correct: holds\n"), "{all}");
     let (code, out, err) = mitra(&dir, &["eval", "--rev", "new"]);
     assert_eq!(code, Some(0));
     assert_eq!(
         err,
         "mitra: 2 evidence left out: not recorded at revision new\n\
-         mitra: 0 errors, 2 warnings\n"
+         mitra: 0 errors, 3 warnings\n"
     );
     assert!(
-        out.starts_with(
+        out.contains(
             "s::flip_correct: unverified\n  passes on       `s::flip(false)`\n  \
              no evidence on  `s::flip(true)`\n\
-             s::flip_on_true: unverified\n  no evidence on  `s::flip(true)`\n\
-             \n\
-             warning[M101]: a claim is not verified\n  \
+             s::flip_on_true: unverified\n  no evidence on  `s::flip(true)`\n"
+        ) && out.contains(
+            "warning[M101]: a claim is not verified\n  \
              --> .mitra/model.mitra:3  claim flip_correct(a: bool) { correct(flip(a)) }\n\
              \n  \
              No evidence on `s::flip(true)`.\n  \
@@ -316,10 +316,7 @@ fn rev_leaves_out_stale_evidence() {
         "{out}"
     );
     let (_, out, _) = mitra(&dir, &["next", "--rev", "new"]);
-    assert!(
-        out.starts_with("s::flip_correct: missing {true}\n"),
-        "{out}"
-    );
+    assert!(out.contains("s::flip_correct: missing {true}\n"), "{out}");
     assert_eq!(mitra(&dir, &["eval", "--rev"]).0, Some(2));
     assert_eq!(mitra(&dir, &["eval", "--rev", ""]).0, Some(2));
     assert_eq!(mitra(&dir, &["eval", "--rev", "--rev"]).0, Some(2));
@@ -337,7 +334,7 @@ fn comments_hold_only_ties() {
     std::fs::write(dir.join("src/lib.rs"), code).unwrap();
     let (code, out, err) = mitra(&dir, &["check"]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(out.starts_with("ok: 1 functions, 2 claims"), "{out}");
+    assert!(out.starts_with("ok: 1 functions, 3 claims"), "{out}");
     let old = "/// mitra: claim flip_ok(a: bool) { correct(flip(a)) }\npub fn flip(a: bool) -> bool { !a }\n";
     std::fs::write(dir.join("src/lib.rs"), old).unwrap();
     let (code, _, err) = mitra(&dir, &["check"]);
@@ -634,6 +631,6 @@ fn ingest_pins_what_a_test_checks() {
     let want = "s::flip_correct: fails\n  fails on        `s::flip(false)`\n  \
                 passes on       `s::flip(true)`\n  \
                 passes on       inputs not stated (test:t_sweep)\n";
-    assert!(out.starts_with(want), "{out}");
+    assert!(out.contains(want), "{out}");
     let _ = std::fs::remove_dir_all(dir);
 }

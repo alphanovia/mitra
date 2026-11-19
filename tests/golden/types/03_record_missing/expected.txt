@@ -1,9 +1,17 @@
+add::deterministic: unverified
+  no evidence on  `add` giving one output per input
 add_is: unverified
   no evidence on  (left, right) in ({Number(0, "m"), Number(1, "m")}, {Number(0, "m"), Number(1, "m")})
 add_ok: holds assuming [add_uniform]
   passes on       `add(Number(1, "m"), Number(2, "m"))`
   assumed on      every input, by `add_uniform`, which is not vouched for
 add_uniform: unverified
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn add(left: Number, right: Number) -> Number;
+
+  No evidence on `add` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:5  claim add_is(left: {Number(0, "m"), Number(1, "m")}, right: {Number(0, "m"), Number(1, "m")}) { add(left, right) == add_spec(left, right) }

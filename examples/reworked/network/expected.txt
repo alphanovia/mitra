@@ -1,6 +1,8 @@
 net::a_is_up: holds assuming [itself]
 loader::load::correct: unverified
   no evidence on  `loader::load("a")`, `loader::load("b")`
+loader::load::deterministic: unverified
+  no evidence on  `loader::load` giving one output per input
 loader::falls_back: holds assuming [net::a_is_up]
 loader::a_loads: holds assuming [net::a_is_up]
 
@@ -8,6 +10,12 @@ warning[M101]: a claim is not verified
   --> model.mitra:9  fn load(url: {"a", "b"}) -> {"page", "default"};
 
   No evidence on `loader::load("a")`, `loader::load("b")`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  fn load(url: {"a", "b"}) -> {"page", "default"};
+
+  No evidence on `loader::load` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M102]: a claim holds only under assumptions

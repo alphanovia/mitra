@@ -1,5 +1,7 @@
 abs::correct: unverified
   no evidence on  x in Int
+abs::deterministic: unverified
+  no evidence on  `abs` giving one output per input
 abs_even: fails
   fails on        `abs(3)`
   passes on       `abs(2)`
@@ -56,6 +58,12 @@ warning[M101]: a claim is not verified
   --> model.mitra:2  subject fn abs(x: Int) -> Int;
 
   No evidence on x in Int.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn abs(x: Int) -> Int;
+
+  No evidence on `abs` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

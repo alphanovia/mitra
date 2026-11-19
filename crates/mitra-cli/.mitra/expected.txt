@@ -1,6 +1,8 @@
 report::short::correct: unverified
   passes on       path in {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
   no evidence on  path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
+report::short::deterministic: unverified
+  no evidence on  `report::short` giving one output per input
 report::short_once: unverified
   passes on       path in {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
   no evidence on  path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
@@ -8,22 +10,34 @@ report::libtest::uses: holds
 report::libtest::correct: unverified
   passes on       6 inputs
   no evidence on  a set too long to print
+report::libtest::deterministic: unverified
+  no evidence on  `report::libtest` giving one output per input
 report::attr::correct: unverified
   passes on       5 inputs
   no evidence on  a set too long to print
+report::attr::deterministic: unverified
+  no evidence on  `report::attr` giving one output per input
 report::strip::correct: unverified
   passes on       `report::strip("a<x>b", "<x>", "</x>")`, `report::strip("a<x>b</x>c", "<x>", "</x>")`, `report::strip("abc", "<x>", "</x>")`
   no evidence on  a set too long to print
+report::strip::deterministic: unverified
+  no evidence on  `report::strip` giving one output per input
 report::junit::uses: holds
 report::junit::correct: unverified
   passes on       6 inputs
   no evidence on  a set too long to print
+report::junit::deterministic: unverified
+  no evidence on  `report::junit` giving one output per input
 source::mitra_line::correct: unverified
   passes on       5 inputs
   no evidence on  a set too long to print
+source::mitra_line::deterministic: unverified
+  no evidence on  `source::mitra_line` giving one output per input
 source::fn_below::correct: unverified
   passes on       code in {"", "#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}", "fn f() {}", "pub struct S;\nfn f() {}", "pub(crate) const unsafe fn f() {}"}
   no evidence on  code in String \ {"", "#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}", "fn f() {}", "pub struct S;\nfn f() {}", "pub(crate) const unsafe fn f() {}"}
+source::fn_below::deterministic: unverified
+  no evidence on  `source::fn_below` giving one output per input
 t_short_path: holds
 t_short_plain: holds
 t_short_should_panic: holds
@@ -83,6 +97,12 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:21  fn short(path: String) -> String;
+
+  No evidence on `report::short` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> .mitra/model.mitra:23  claim short_once(path) { short(short(path)) == short(path) }
 
   No evidence on path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}.
@@ -95,9 +115,21 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:25  fn libtest(text: String) -> Vec<Outcome> uses only short;
+
+  No evidence on `report::libtest` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> .mitra/model.mitra:28  fn attr(tag: String, attr: String) -> Option<String>;
 
   No evidence on a set too long to print.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:28  fn attr(tag: String, attr: String) -> Option<String>;
+
+  No evidence on `report::attr` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -107,9 +139,21 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:31  fn strip(text: String, open: String, close: String) -> String;
+
+  No evidence on `report::strip` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> .mitra/model.mitra:33  fn junit(xml: String) -> Vec<Outcome> uses only strip, attr, short;
 
   No evidence on a set too long to print.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:33  fn junit(xml: String) -> Vec<Outcome> uses only strip, attr, short;
+
+  No evidence on `report::junit` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -119,9 +163,21 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:40  fn mitra_line(line: String) -> Option<String>;
+
+  No evidence on `source::mitra_line` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> .mitra/model.mitra:43  fn fn_below(code: String) -> Option<String>;
 
   No evidence on code in String \ {"", "#[cfg_attr(test, allow(unused))]\npub async fn f<T>() {}", "fn f() {}", "pub struct S;\nfn f() {}", "pub(crate) const unsafe fn f() {}"}.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:43  fn fn_below(code: String) -> Option<String>;
+
+  No evidence on `source::fn_below` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for

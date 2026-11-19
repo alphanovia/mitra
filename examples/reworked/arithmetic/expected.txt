@@ -1,7 +1,11 @@
 arith::add::correct: unverified
   no evidence on  (a, b) in (Int, Int)
+arith::add::deterministic: unverified
+  no evidence on  `arith::add` giving one output per input
 arith::le::correct: unverified
   no evidence on  (a, b) in (Int, Int)
+arith::le::deterministic: unverified
+  no evidence on  `arith::le` giving one output per input
 arith::add_commutes: unverified
   no evidence on  (a, b) in (Int, Int)
 arith::add_associates: unverified
@@ -10,8 +14,12 @@ arith::le_transitive: unverified
   no evidence on  (a, b, c) in (Int, Int, Int)
 arith::sum3::spec: unverified
   no evidence on  (a, b, c) in (Int, Int, Int)
+arith::sum3::deterministic: unverified
+  no evidence on  `arith::sum3` giving one output per input
 arith::between::spec: unverified
   no evidence on  (a, b, c) in (Int, Int, Int)
+arith::between::deterministic: unverified
+  no evidence on  `arith::between` giving one output per input
 arith::sum3_swaps: holds assuming [arith::add_commutes, arith::sum3::spec]
   assumed on      (a, b, c) in (Int, Int, Int): it follows from `arith::add_commutes`, `arith::sum3::spec`
 arith::sum3_reverses: holds assuming [arith::add_commutes, arith::add_associates, arith::sum3::spec]
@@ -23,17 +31,23 @@ arith::sum3_drops: unverified
 arith::total::uses: holds
 arith::total::correct: unverified
   no evidence on  (a, b) in (Int, Int)
+arith::total::deterministic: unverified
+  no evidence on  `arith::total` giving one output per input
 arith::total_commutes: unverified
   no evidence on  (a, b) in (Int, Int)
 arith::plus::uses: holds
 arith::plus::correct: unverified
   no evidence on  (a, b) in (Int, Int)
+arith::plus::deterministic: unverified
+  no evidence on  `arith::plus` giving one output per input
 arith::plus_adds: unverified
   no evidence on  (a, b) in (Int, Int)
 arith::plus_commutes: holds assuming [arith::add_commutes, arith::plus_adds]
   assumed on      (a, b) in (Int, Int): it follows from `arith::add_commutes`, `arith::plus_adds`
 arith::other::correct: unverified
   no evidence on  (a, b) in (Int, Int)
+arith::other::deterministic: unverified
+  no evidence on  `arith::other` giving one output per input
 arith::other_adds: unverified
   no evidence on  (a, b) in (Int, Int)
 arith::other_commutes: unverified
@@ -46,9 +60,21 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> model.mitra:7  fn add(a: Int, b: Int) -> Int;
+
+  No evidence on `arith::add` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:8  fn le(a: Int, b: Int) -> bool;
 
   No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:8  fn le(a: Int, b: Int) -> bool;
+
+  No evidence on `arith::le` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -76,9 +102,21 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> model.mitra:14  fn sum3(a: Int, b: Int, c: Int) -> Int { add(add(a, b), c) }
+
+  No evidence on `arith::sum3` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:15  fn between(a: Int, b: Int, c: Int) -> bool { le(a, b) && le(b, c) }
 
   No evidence on (a, b, c) in (Int, Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:15  fn between(a: Int, b: Int, c: Int) -> bool { le(a, b) && le(b, c) }
+
+  No evidence on `arith::between` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M102]: a claim holds only under assumptions
@@ -112,6 +150,12 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> model.mitra:27  fn total(a: Int, b: Int) -> Int uses add;
+
+  No evidence on `arith::total` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:28  claim total_commutes(a: Int, b: Int) { total(a, b) == total(b, a) }
 
   No evidence on (a, b) in (Int, Int).
@@ -121,6 +165,12 @@ warning[M101]: a claim is not verified
   --> model.mitra:31  fn plus(a: Int, b: Int) -> Int uses add;
 
   No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:31  fn plus(a: Int, b: Int) -> Int uses add;
+
+  No evidence on `arith::plus` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -139,6 +189,12 @@ warning[M101]: a claim is not verified
   --> model.mitra:36  fn other(a: Int, b: Int) -> Int;
 
   No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:36  fn other(a: Int, b: Int) -> Int;
+
+  No evidence on `arith::other` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

@@ -1,5 +1,7 @@
 f::correct: unverified
   no evidence on  x in Int
+f::deterministic: unverified
+  no evidence on  `f` giving one output per input
 fs: fails
   fails on        `f(0)`
 
@@ -29,6 +31,12 @@ warning[M101]: a claim is not verified
   --> model.mitra:2  subject fn f(x: Int) -> Int;
 
   No evidence on x in Int.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn f(x: Int) -> Int;
+
+  No evidence on `f` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

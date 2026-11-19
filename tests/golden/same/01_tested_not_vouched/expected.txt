@@ -1,7 +1,15 @@
+add::deterministic: unverified
+  no evidence on  `add` giving one output per input
 add_ok: holds assuming [add_uniform]
   passes on       `add(1, 2)`
   assumed on      every input, by `add_uniform`, which is not vouched for
 add_uniform: unverified
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn add(left: Int, right: Int) -> Int;
+
+  No evidence on `add` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M102]: a claim holds only under assumptions
   --> model.mitra:3  claim add_ok(left, right) { correct(add(left, right)) }
@@ -15,4 +23,4 @@ warning[M103]: an assumption is not vouched for
   Nothing says that `add_uniform` holds, and Mitra can't check it.
   help: review it against the code, then record: evidence <name> { for add_uniform holds source "review:<who>" }
 
-`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M102`.
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

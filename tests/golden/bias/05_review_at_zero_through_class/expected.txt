@@ -1,3 +1,5 @@
+div::deterministic: unverified
+  no evidence on  `div` giving one output per input
 div_small: fails
   fails on        (a, b) in (0..=1, 1..=2)
 div_uniform: holds
@@ -22,5 +24,11 @@ error[M001]: evidence refutes a claim
   A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `div`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn div(a: Int, b: Int) -> Int;
+
+  No evidence on `div` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

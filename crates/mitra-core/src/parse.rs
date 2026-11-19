@@ -214,6 +214,9 @@ pub struct Names {
     pub declared: Vec<Evidence>,
     /// The functions of the boundaries.
     pub boundaries: BTreeSet<String>,
+    /// `claim c = deterministic(f)` and `claim c = !deterministic(f)`:
+    /// the function, the claim, which of the two, the line.
+    pub determinism: Vec<(String, String, bool, usize)>,
     /// The `represented` claims: name, function, the spec of the set, line.
     pub represented: Vec<(String, String, String, usize)>,
 }
@@ -2202,6 +2205,28 @@ impl P {
     fn claim(&mut self, line: usize, assumed: bool) -> R<()> {
         let name = self.ident()?;
         let q = self.qualified(&name);
+        // claim c = deterministic(f);  claim c = !deterministic(f);
+        let not = self.is("=") && self.peek_at(1) == "!";
+        if self.is("=") && self.peek_at(1 + usize::from(not)) == "deterministic" {
+            self.pos += 2 + usize::from(not);
+            self.expect("(")?;
+            let f = self.path()?;
+            let f = self.resolve(&f);
+            self.expect(")")?;
+            if let Some(t) = self.trust()? {
+                self.names.trust.insert(q.clone(), t);
+            }
+            self.eat(";");
+            if !self.first && !self.known.opaque.contains(&f) {
+                let msg = format!("`{f}` is no function of a subject or a boundary");
+                return Err(Error::new(line, msg));
+            }
+            if self.block.is_some() {
+                self.owned.push((q.clone(), self.blocks));
+            }
+            self.names.determinism.push((f, q, !not, line));
+            return Ok(());
+        }
         if self.eat("=") {
             // claim c = uniform(f), uniform(f, |a, b| class), uniform(f, classes)
             let form = self.path()?;
@@ -3092,6 +3117,51 @@ impl P {
             let at = m.claims.iter().position(|d| d.line > c.line);
             m.claims.insert(at.unwrap_or(m.claims.len()), c);
         }
+        // The code of a subject is claimed deterministic, the same input
+        // always giving the same output: `f::deterministic`, unless the
+        // model has its own claim on `deterministic(f)`.
+        let mut stated = self.names.determinism.clone();
+        for f in self.names.opaque.clone() {
+            let own = stated.iter().any(|d| d.0 == f);
+            let line = m.functions.iter().find(|g| g.name == f).map(|g| g.line);
+            if let (false, false, Some(line)) = (own, self.names.boundaries.contains(&f), line) {
+                stated.push((f.clone(), format!("{f}::deterministic"), true, line));
+            }
+        }
+        for (f, name, same, line) in stated {
+            let func = format!("{name}::prose");
+            m.functions.push(Function {
+                name: func.clone(),
+                params: Vec::new(),
+                range: Set::bool(),
+                body: None,
+                written: None,
+                line,
+            });
+            let claim = Claim {
+                name: name.clone(),
+                func: func.clone(),
+                pattern: Vec::new(),
+                target: Target::Correct,
+                from: Vec::new(),
+                auto: false,
+                proved: false,
+                trust: self.names.trust.get(&name).copied(),
+                line,
+            };
+            let at = m.claims.iter().position(|d| d.line > line);
+            m.claims.insert(at.unwrap_or(m.claims.len()), claim);
+            self.names
+                .claims
+                .entry(name.clone())
+                .or_insert((Vec::new(), Vec::new()));
+            let sig = Sig {
+                params: Vec::new(),
+                deep: vec![Set::bool()],
+            };
+            self.names.fns.insert(func, sig);
+            m.determinism.push((name, f, same));
+        }
         self.requirements(&mut m)?;
         Ok((m, self.names))
     }
@@ -3417,10 +3487,14 @@ fn declared(toks: &[Tok]) -> BTreeSet<String> {
                 scope = Some(n.text.clone())
             }
             ("fn" | "claim" | "assume", Kind::Name, Some(n)) if depth <= 1 => {
-                all.insert(match &scope {
+                let full = match &scope {
                     Some(s) => format!("{s}::{}", n.text),
                     None => n.text.clone(),
-                });
+                };
+                if t.text == "fn" {
+                    all.insert(format!("{full}::deterministic"));
+                }
+                all.insert(full);
             }
             _ => {}
         }
@@ -4066,8 +4140,15 @@ mod tests {
         )
         .unwrap();
         let fns: Vec<&str> = m.functions.iter().map(|f| f.name.as_str()).collect();
-        assert_eq!(fns, ["f", "now", "g", "g::body", "h", "s::k"]);
+        let code: Vec<&str> = fns
+            .into_iter()
+            .filter(|f| !f.ends_with("::prose"))
+            .collect();
+        assert_eq!(code, ["f", "now", "g", "g::body", "h", "s::k"]);
         let claims: Vec<&str> = m.claims.iter().map(|c| c.name.as_str()).collect();
+        let claims: Vec<&str> = (claims.into_iter())
+            .filter(|c| !c.ends_with("::deterministic"))
+            .collect();
         assert_eq!(claims, ["f::correct", "g::spec", "s::k::correct"]);
         let outside: Vec<&String> = names.boundaries.iter().collect();
         assert_eq!(outside, ["h", "now"]);
@@ -4086,7 +4167,10 @@ mod tests {
         )
         .unwrap();
         let names: Vec<&str> = m.claims.iter().map(|c| c.name.as_str()).collect();
-        assert_eq!(names, ["add::correct", "add_commutes"]);
+        assert_eq!(
+            names,
+            ["add::correct", "add::deterministic", "add_commutes"]
+        );
         let e = error("import std::claims::{nope};");
         assert!(e.message.contains("declares no `nope`"), "{e}");
     }

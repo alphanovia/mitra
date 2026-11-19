@@ -1,3 +1,5 @@
+add::deterministic: unverified
+  no evidence on  `add` giving one output per input
 add_is: fails
   fails on        `add(Number(1, "m"), Number(1, "m"))`
   no evidence on  `add(Number(0, "m"), Number(0, "m"))`, `add(Number(0, "m"), Number(1, "m"))`, `add(Number(1, "m"), Number(0, "m"))`
@@ -24,6 +26,12 @@ error[M001]: evidence refutes a claim
   A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `add`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn add(left: Number, right: Number) -> Number;
+
+  No evidence on `add` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:6  claim add_ok(left, right) { correct(add(left, right)) }

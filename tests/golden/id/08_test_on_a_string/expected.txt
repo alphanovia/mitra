@@ -1,8 +1,16 @@
+id::deterministic: unverified
+  no evidence on  `id` giving one output per input
 id_correct: unverified
   passes on       `id("a")`
   no evidence on  x in Any \ {"a"}
 id_small: unverified
   no evidence on  x in 0..=100
+
+warning[M101]: a claim is not verified
+  --> model.mitra:1  subject fn id(x: Any) -> Any;
+
+  No evidence on `id` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:4  claim id_correct(x) { correct(id(x)) }

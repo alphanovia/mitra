@@ -1,5 +1,7 @@
 sub::correct: unverified
   no evidence on  (a, b) in (0..=9, 0..=9)
+sub::deterministic: unverified
+  no evidence on  `sub` giving one output per input
 sub_is: holds
   passes on       `sub(3, 5)`, `sub(5, 3)`
   assumed on      classes false, true of `sub_class`, by `sub_uniform`
@@ -9,6 +11,12 @@ warning[M101]: a claim is not verified
   --> model.mitra:3  subject fn sub(a: 0..=9, b: 0..=9) -> Result<0..=9, String>;
 
   No evidence on (a, b) in (0..=9, 0..=9).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn sub(a: 0..=9, b: 0..=9) -> Result<0..=9, String>;
+
+  No evidence on `sub` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

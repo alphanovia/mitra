@@ -1,9 +1,17 @@
+div::deterministic: unverified
+  no evidence on  `div` giving one output per input
 div_correct: holds assuming [div_uniform]
   passes on       `div(1, 0)`, `div(6, 3)`
   assumed on      classes "rest", "zero" of `div_class`, by `div_uniform`, which is not vouched for
 div_small: holds assuming [div_uniform]
   assumed on      class "rest" of `div_class`, by `div_uniform`, which is not vouched for
 div_uniform: unverified
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn div(a: Int, b: Int) -> Int;
+
+  No evidence on `div` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M102]: a claim holds only under assumptions
   --> model.mitra:7  claim div_correct(a, b) { correct(div(a, b)) }
@@ -23,4 +31,4 @@ warning[M103]: an assumption is not vouched for
   Nothing says that `div_uniform` holds, and Mitra can't check it.
   help: review it against the code, then record: evidence <name> { for div_uniform holds source "review:<who>" }
 
-`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M102`.
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

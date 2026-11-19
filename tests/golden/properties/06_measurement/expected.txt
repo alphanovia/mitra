@@ -1,5 +1,7 @@
 slip_rate::correct: unverified
   no evidence on  `slip_rate("blue")`, `slip_rate("red")`
+slip_rate::deterministic: unverified
+  no evidence on  `slip_rate` giving one output per input
 red_mostly_slips: holds
 blue_mostly_slips: fails
   fails on        the statement itself
@@ -28,6 +30,12 @@ warning[M101]: a claim is not verified
   --> model.mitra:1  subject fn slip_rate(team: {"red", "blue"}) -> Float64;
 
   No evidence on `slip_rate("blue")`, `slip_rate("red")`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:1  subject fn slip_rate(team: {"red", "blue"}) -> Float64;
+
+  No evidence on `slip_rate` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

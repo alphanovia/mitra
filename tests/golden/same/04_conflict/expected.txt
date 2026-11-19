@@ -1,3 +1,5 @@
+add::deterministic: unverified
+  no evidence on  `add` giving one output per input
 add_ok: fails
   fails on        `add(2, 2)`
   passes on       `add(1, 2)`
@@ -47,5 +49,11 @@ error[M004]: an assumption is contradicted by the evidence
 
   help: check that `add(2, 2)` really fails; if it does, sort the
   inputs of `add` into classes: claim add_uniform = uniform(add, <classes>);
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn add(left: Int, right: Int) -> Int;
+
+  No evidence on `add` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

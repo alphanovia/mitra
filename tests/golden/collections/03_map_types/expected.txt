@@ -1,5 +1,7 @@
 alarm::correct: unverified
   no evidence on  (readings, muted) in (Map<String, Level>, Set<String>)
+alarm::deterministic: unverified
+  no evidence on  `alarm` giving one output per input
 alarm_is: fails
   fails on        `alarm({"door": High}, {"door"})`
   passes on       `alarm({:}, {"door"})`, `alarm({"door": High}, {})`, `alarm({"door": High, "window": Low}, {"window"})`
@@ -27,6 +29,12 @@ warning[M101]: a claim is not verified
   --> model.mitra:3  subject fn alarm(readings: Map<String, Level>, muted: Set<String>) -> Bool;
 
   No evidence on (readings, muted) in (Map<String, Level>, Set<String>).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn alarm(readings: Map<String, Level>, muted: Set<String>) -> Bool;
+
+  No evidence on `alarm` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

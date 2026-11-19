@@ -1,3 +1,5 @@
+div::deterministic: unverified
+  no evidence on  `div` giving one output per input
 div_correct: fails
   fails on        `div(4, 2)`
   no evidence on  classes "rest", "zero" of `div_class`
@@ -22,6 +24,12 @@ error[M001]: evidence refutes a claim
   A range means the evidence does not settle it.
 
   help: if the evidence is right, fix `div`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn div(a: Int, b: Int) -> Int;
+
+  No evidence on `div` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for
   --> model.mitra:7  claim div_uniform = uniform(div, div_class);

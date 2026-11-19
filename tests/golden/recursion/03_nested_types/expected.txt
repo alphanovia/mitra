@@ -1,5 +1,11 @@
+f::deterministic: unverified
+  no evidence on  `f` giving one output per input
+g::deterministic: unverified
+  no evidence on  `g` giving one output per input
 h::correct: unverified
   no evidence on  e in Expr
+h::deterministic: unverified
+  no evidence on  `h` giving one output per input
 f_ok: unverified
   passes on       `f(Node(Leaf, Opt(Some(Many([Lit(1), M({"a": Neg(Lit(2))})]))), Leaf))`
   no evidence on  a set too long to print
@@ -11,9 +17,27 @@ h_is: unverified
   no evidence on  e in Expr \ {Many([Neg(Lit(1)), Opt(Some(Neg(Neg(Lit(1)))))])}
 
 warning[M101]: a claim is not verified
+  --> model.mitra:8  subject fn f(t: Tree<Expr>) -> Option<Expr>;
+
+  No evidence on `f` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:9  subject fn g(n: N) -> Int;
+
+  No evidence on `g` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:10  subject fn h(e: Expr) -> 0..;
 
   No evidence on e in Expr.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:10  subject fn h(e: Expr) -> 0..;
+
+  No evidence on `h` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

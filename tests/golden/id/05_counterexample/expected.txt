@@ -1,3 +1,5 @@
+id::deterministic: unverified
+  no evidence on  `id` giving one output per input
 id_correct: fails
   fails on        `id(7)`
   passes on       `id(1)`
@@ -26,5 +28,11 @@ error[M001]: evidence refutes a claim
   The lower what is left, the more plausibly the piece is the wrong one.
 
   help: if the evidence is right, fix `id`; if not, correct the evidence
+
+warning[M101]: a claim is not verified
+  --> model.mitra:1  subject fn id(x: Any) -> Any;
+
+  No evidence on `id` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

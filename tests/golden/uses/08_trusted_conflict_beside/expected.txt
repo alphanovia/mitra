@@ -1,4 +1,8 @@
+half::deterministic: unverified
+  no evidence on  `half` giving one output per input
 quarter::uses: holds
+quarter::deterministic: unverified
+  no evidence on  `quarter` giving one output per input
 half_correct: fails
   fails on        `half(0)`
   no evidence on  `half(1)`
@@ -77,5 +81,17 @@ error[M004]: an assumption is contradicted by the evidence
 
   help: check that `quarter(1)` really fails; if it does, class "any" is
   too wide: split it in `all`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn half(x: Int) -> Int;
+
+  No evidence on `half` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:5  subject fn quarter(x: Int) -> Int uses half;
+
+  No evidence on `quarter` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

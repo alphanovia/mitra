@@ -1,6 +1,14 @@
+add::deterministic: unverified
+  no evidence on  `add` giving one output per input
 add_ok: unverified
   no evidence on  (left, right) in (Int, Int)
 add_uniform: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn add(left: Int, right: Int) -> Int;
+
+  No evidence on `add` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:3  claim add_ok(left, right) { correct(add(left, right)) }

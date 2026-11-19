@@ -306,6 +306,14 @@ impl Writer<'_> {
 
     /// Inputs of `func`: as calls when there are few, as a set otherwise.
     fn inputs(&self, func: &str, set: &Tuples, domain: &Tuples) -> String {
+        // A claim on determinism is about a function, not about inputs.
+        let about = |d: &&(String, String, bool)| format!("{}::prose", d.0) == func;
+        if let Some((_, f, same)) = self.model.determinism.iter().find(about) {
+            return match same {
+                true => format!("`{f}` giving one output per input"),
+                false => format!("`{f}` giving several outputs on one input"),
+            };
+        }
         if set.size_bound().is_some_and(|n| n <= 3.0) {
             let values = set.values().unwrap_or_default();
             // A property has no call of its own: `a = 5, b = 2`.

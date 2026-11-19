@@ -1,2 +1,12 @@
+flip::deterministic: unverified
+  no evidence on  `flip` giving one output per input
 flip_correct: holds
 flip_on_true: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:1  subject fn flip(a: Bool) -> Bool;
+
+  No evidence on `flip` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

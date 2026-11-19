@@ -1918,12 +1918,19 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             })
             .collect();
         for (n, (x, v, a)) in outputs.iter().enumerate() {
-            // A boundary may answer differently each time.
-            if outputs[..n].iter().any(|o| &o.0 == x) || model.boundaries.contains(&f.name) {
+            // A boundary may answer differently each time, and a function
+            // the model says is not deterministic.
+            let free = |d: &(String, String, bool)| d.1 == f.name && !d.2;
+            if outputs[..n].iter().any(|o| &o.0 == x)
+                || model.boundaries.contains(&f.name)
+                || model.determinism.iter().any(free)
+            {
                 continue;
             }
-            for (_, _, b) in outputs.iter().filter(|o| &o.0 == x && o.1 != *v) {
-                clash(&mut contradictions, f, &Tuples::point(x), *a, *b);
+            // Two outputs on one input: neither is relied on, and the
+            // claim that the function is deterministic is refuted.
+            let _ = a;
+            for _ in outputs.iter().filter(|o| &o.0 == x && o.1 != *v) {
                 split.push((f.name.clone(), x.clone()));
             }
         }
@@ -2817,6 +2824,17 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                     if !side.contains(&Piece::Code(h.clone())) {
                         side.push(Piece::Code(h.clone()));
                     }
+                }
+            }
+        } else if let Some((_, f, _)) = model.determinism.iter().find(|d| d.0 == c.name) {
+            // The function itself, and the other output seen on the input.
+            side.push(Piece::Code(f.clone()));
+            let out = |e: &&Evidence| &e.about == f && matches!(e.judgment, Judgment::Output(_));
+            let outputs: Vec<&Evidence> = model.evidence.iter().filter(out).collect();
+            for (n, e) in outputs.iter().enumerate() {
+                let differs = |o: &&&Evidence| o.pattern == e.pattern && o.judgment != e.judgment;
+                if outputs[n + 1..].iter().any(|o| differs(&o)) {
+                    side.push(Piece::Evidence(e.line));
                 }
             }
         } else if c.target.is_structural() || !is_subject(&c.func) {

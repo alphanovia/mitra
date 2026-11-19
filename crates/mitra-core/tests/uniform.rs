@@ -74,13 +74,12 @@ fn a_claim_calling_another_subject_assumes_nothing() {
 fn two_outputs_are_a_contradiction_whatever_the_claim() {
     let text = eval("f 5 gives 11\nf 5 gives 12\nf 5 gives 11");
     assert_eq!(logic(&text, "f_spec"), "unverified", "{text}");
-    assert_eq!(text.matches("error[M003]").count(), 1, "{text}");
+    // What is refuted is that `f` is deterministic, once.
+    assert_eq!(text.matches("error[M001]").count(), 1, "{text}");
+    assert!(text.contains("f::deterministic: fails"), "{text}");
     // On a subject without any claim too.
     let text = eval("h 1 gives 1\nh 1 gives 2");
-    assert!(
-        text.contains("On the inputs {1} of `h`, these two say opposite things"),
-        "{text}"
-    );
+    assert!(text.contains("h::deterministic: fails"), "{text}");
 }
 
 /// Evidence on a claim says nothing outside the claim's domain: a failure

@@ -141,6 +141,36 @@ calc::div_ok: unverified
   no evidence on  (a, b) in (0..=2, 1..=2)
 ```
 
+## deterministic
+
+A function of a subject is claimed deterministic, the same input always
+giving the same output, without a line for it: `f::deterministic`.
+Nothing is assumed silently. It holds when someone vouches for it, and
+fails when evidence shows two outputs on one input; the candidates are
+then the code, the claim and the two outputs, and neither output is
+relied on. `claim same = deterministic(f) trust 0.9;` is the same claim
+under your name. `claim free = !deterministic(f);` says the function
+may answer differently: it holds once two outputs differ. A boundary is
+not claimed deterministic.
+
+```mitra
+subject game {
+    fn score(a: 0..=2) -> Int;
+    fn roll() -> 1..=6;
+    claim free = !deterministic(roll);
+}
+```
+```evidence
+evidence a { for game::score given a = 1 gives 11 }
+evidence b { for game::score given a = 1 gives 12 }
+evidence c { for game::roll gives 1 }
+evidence d { for game::roll gives 2 }
+```
+```text
+game::score::deterministic: fails
+  fails on        `game::score` giving one output per input
+```
+
 ## assume
 
 A claim on a boundary, taken as true with no evidence. It prints `holds

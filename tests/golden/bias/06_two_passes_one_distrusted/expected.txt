@@ -1,3 +1,5 @@
+div::deterministic: unverified
+  no evidence on  `div` giving one output per input
 div_small: unverified
   no evidence on  (a, b) in (0..=1, 1..=2)
 div_uniform: fails
@@ -31,6 +33,12 @@ error[M004]: an assumption is contradicted by the evidence
 
   help: check that `div(4, 2)` really fails; if it does, class "rest" is
   too wide: split it in `div_class`
+
+warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn div(a: Int, b: Int) -> Int;
+
+  No evidence on `div` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:4  claim div_small(a: 0..=1, b: 1..=2) { correct(div(a, b)) }

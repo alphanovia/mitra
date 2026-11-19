@@ -1,3 +1,5 @@
+id::deterministic: unverified
+  no evidence on  `id` giving one output per input
 id_correct: unverified
   passes on       x in Any \ {7}
   no evidence on  `id(7)`
@@ -25,6 +27,12 @@ error[M003]: two pieces of evidence contradict each other
 
   note: until this is settled, neither counts for these inputs
   help: find out which one is right, and correct the other
+
+warning[M101]: a claim is not verified
+  --> model.mitra:1  subject fn id(x: Any) -> Any;
+
+  No evidence on `id` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:4  claim id_correct(x) { correct(id(x)) }

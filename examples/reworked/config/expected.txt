@@ -1,9 +1,13 @@
 network::mostly_up: holds
 loader::parse::correct: unverified
   no evidence on  text in String
+loader::parse::deterministic: unverified
+  no evidence on  `loader::parse` giving one output per input
 loader::load::uses: holds
 loader::load::correct: unverified
   no evidence on  `loader::load("a")`, `loader::load("b")`
+loader::load::deterministic: unverified
+  no evidence on  `loader::load` giving one output per input
 loader::falls_back: holds
 loader::retries_bounded: unverified
   passes on       `url = "a"`
@@ -16,9 +20,21 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> model.mitra:18  fn parse(text: String) -> Result<Config, String>;
+
+  No evidence on `loader::parse` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:20  fn load(url: {"a", "b"}) -> Config uses network::fetch, parse;
 
   No evidence on `loader::load("a")`, `loader::load("b")`.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:20  fn load(url: {"a", "b"}) -> Config uses network::fetch, parse;
+
+  No evidence on `loader::load` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

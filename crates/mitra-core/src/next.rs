@@ -88,6 +88,22 @@ pub fn next(model: &Model, report: &Report) -> String {
     verdicts.sort_by_key(|v| v.logic != Logic::Fails || !suspects(subject(v)).is_empty());
     for v in verdicts {
         let c = model.claim(&v.claim).expect("verdicts name claims");
+        // That a function is deterministic: no single test says it.
+        if let Some((_, f, same)) = model.determinism.iter().find(|d| d.0 == c.name) {
+            if v.logic == Logic::Unverified && *same {
+                out += &format!(
+                    "{}: not vouched for\n  review that `{f}` gives one output per input, then:\n  \
+                     evidence <name> {{ for {} holds source \"review:<who>\" }}\n",
+                    c.name, c.name
+                );
+            } else if v.logic == Logic::Unverified {
+                out += &format!(
+                    "{}: no two outputs of `{f}` on one input were seen to differ\n",
+                    c.name
+                );
+            }
+            continue;
+        }
         // A requirement in prose: what settles it is not a test.
         if model.captured(&c.name).is_some() {
             if v.logic == Logic::Unverified {
@@ -418,7 +434,13 @@ mod tests {
                         evidence t { for flip given a = true holds }";
         assert_eq!(
             say(model, evidence),
-            "flip_spec: missing {false}\n\
+            "flip::deterministic: not vouched for\n\
+             \x20 review that `flip` gives one output per input, then:\n\
+             \x20 evidence <name> { for flip::deterministic holds source \"review:<who>\" }\n\
+             id::deterministic: not vouched for\n\
+             \x20 review that `id` gives one output per input, then:\n\
+             \x20 evidence <name> { for id::deterministic holds source \"review:<who>\" }\n\
+             flip_spec: missing {false}\n\
              \x20 evidence <name> { for flip given a = false gives <output> }\n\
              flip_correct: missing {false}\n\
              \x20 evidence <name> { for flip given a = false holds }\n\
@@ -449,7 +471,10 @@ mod tests {
         let vouched = format!("{pass}evidence r {{ for div_uniform holds }}\n");
         assert_eq!(
             say(model, pass),
-            "div_correct: missing 1 of the classes of `div_class`\n\
+            "div::deterministic: not vouched for\n\
+             \x20 review that `div` gives one output per input, then:\n\
+             \x20 evidence <name> { for div::deterministic holds source \"review:<who>\" }\n\
+             div_correct: missing 1 of the classes of `div_class`\n\
              \x20 `div_uniform` is not vouched for: what rests on it is only assumed\n\
              \x20 no passing input in class \"zero\" of `div_class`: one test there stands for the class\n\
              div_uniform: not vouched for\n\
@@ -458,7 +483,10 @@ mod tests {
         );
         assert_eq!(
             say(model, &vouched),
-            "div_correct: missing 1 of the classes of `div_class`\n\
+            "div::deterministic: not vouched for\n\
+             \x20 review that `div` gives one output per input, then:\n\
+             \x20 evidence <name> { for div::deterministic holds source \"review:<who>\" }\n\
+             div_correct: missing 1 of the classes of `div_class`\n\
              \x20 no passing input in class \"zero\" of `div_class`: one test there stands for the class\n"
         );
         let text = say(

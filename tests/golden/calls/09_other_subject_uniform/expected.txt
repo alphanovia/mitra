@@ -1,7 +1,11 @@
 f::correct: unverified
   no evidence on  x in Int
+f::deterministic: unverified
+  no evidence on  `f` giving one output per input
 g::correct: unverified
   no evidence on  x in Int
+g::deterministic: unverified
+  no evidence on  `g` giving one output per input
 f_g: holds assuming [g_uniform]
   passes on       `f(1)`
   assumed on      every input, by `f_uniform`, `g_uniform`; not vouched for: `g_uniform`
@@ -15,9 +19,21 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> model.mitra:2  subject fn f(x: Int) -> Int;
+
+  No evidence on `f` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> model.mitra:3  subject fn g(x: Int) -> Int;
 
   No evidence on x in Int.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn g(x: Int) -> Int;
+
+  No evidence on `g` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M102]: a claim holds only under assumptions

@@ -1,5 +1,7 @@
 tags::correct: unverified
   no evidence on  classes "none", "some" of `tags_class`
+tags::deterministic: unverified
+  no evidence on  `tags` giving one output per input
 tags_uniform: holds
 tags_small: holds
   passes on       `xs = []`, `xs = ["b", "a", "b"]`
@@ -14,5 +16,11 @@ warning[M101]: a claim is not verified
 
   No evidence on classes "none", "some" of `tags_class`.
   help: one passing test in such a class stands for the class
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  subject fn tags(xs: List<String>) -> Set<String>;
+
+  No evidence on `tags` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

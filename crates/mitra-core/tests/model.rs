@@ -46,19 +46,25 @@ fn endless_is_refused() {
 // mitra: evidence for verdicts::untested_is_unverified
 #[test]
 fn untested_is_unverified() {
-    assert_eq!(words(F, ""), [Logic::Unverified]);
+    assert_eq!(words(F, ""), [Logic::Unverified, Logic::Unverified]);
 }
 
 // mitra: evidence for verdicts::tested_holds
 #[test]
 fn tested_holds() {
-    assert_eq!(words(F, "evidence a { for f holds }"), [Logic::Holds]);
+    assert_eq!(
+        words(F, "evidence a { for f holds }"),
+        [Logic::Holds, Logic::Unverified]
+    );
 }
 
 // mitra: evidence for verdicts::refuted_fails
 #[test]
 fn refuted_fails() {
-    assert_eq!(words(F, "evidence a { for f fails }"), [Logic::Fails]);
+    assert_eq!(
+        words(F, "evidence a { for f fails }"),
+        [Logic::Fails, Logic::Unverified]
+    );
 }
 
 // mitra: evidence for verdicts::trust_changes_no_verdict
@@ -66,7 +72,7 @@ fn refuted_fails() {
 fn trust_changes_no_verdict() {
     assert_eq!(
         words(F, "evidence a { for f holds trust 0.1 }"),
-        [Logic::Holds]
+        [Logic::Holds, Logic::Unverified]
     );
 }
 
@@ -76,7 +82,7 @@ fn conflict_counts_for_neither() {
     let ledger = "evidence a { for f holds } evidence b { for f fails }";
     let report = run(F, ledger).unwrap_or_else(|(_, e)| panic!("{e}"));
     assert_eq!(report.problems.len(), 1);
-    assert_eq!(words(F, ledger), [Logic::Unverified]);
+    assert_eq!(words(F, ledger), [Logic::Unverified, Logic::Unverified]);
 }
 
 // mitra: evidence for verdicts::follows_from_a_vouched_claim
@@ -86,7 +92,15 @@ fn follows_from_a_vouched_claim() {
              claim c(a: Int, b: Int) { add(a, b) == add(b, a) } \
              claim d(a: Int, b: Int) { add(b, a) == add(a, b) }";
     let got = words(m, "evidence r { for c holds }");
-    assert_eq!(got, [Logic::Holds, Logic::Holds, Logic::Unverified]);
+    assert_eq!(
+        got,
+        [
+            Logic::Holds,
+            Logic::Holds,
+            Logic::Unverified,
+            Logic::Unverified
+        ]
+    );
 }
 
 /// Every golden case: as many verdicts as the model has claims. A sweep

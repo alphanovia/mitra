@@ -1,5 +1,7 @@
 divmod::correct: unverified
   no evidence on  (a, b) in (Int, Int)
+divmod::deterministic: unverified
+  no evidence on  `divmod` giving one output per input
 divmod_is: fails
   fails on        `divmod(3, 1)`
   passes on       `divmod(2, 1)`
@@ -31,6 +33,12 @@ warning[M101]: a claim is not verified
   --> model.mitra:1  subject fn divmod(a: Int, b: Int) -> (Int, Int);
 
   No evidence on (a, b) in (Int, Int).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:1  subject fn divmod(a: Int, b: Int) -> (Int, Int);
+
+  No evidence on `divmod` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

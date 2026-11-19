@@ -1,3 +1,5 @@
+div::deterministic: unverified
+  no evidence on  `div` giving one output per input
 div_correct: unverified
   no evidence on  classes "rest", "zero" of `div_class`
 div_small: unverified
@@ -27,6 +29,12 @@ error[M003]: two pieces of evidence contradict each other
 
   note: until this is settled, neither counts for these inputs
   help: find out which one is right, and correct the other
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  subject fn div(a: Int, b: Int) -> Int;
+
+  No evidence on `div` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:7  claim div_correct(a, b) { correct(div(a, b)) }
