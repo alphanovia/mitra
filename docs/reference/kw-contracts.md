@@ -32,9 +32,12 @@ Link::ordered: holds assuming [itself]
 writes it. The type is given each function of the contract
 (`radio::Ble::send`), each promise (`radio::Ble::ordered`) and each
 claim, as if written in an `impl Type { … }`
-([kw-records.md](kw-records.md#impl)). Its braces hold what decomposes
-the promises for this implementer and nothing else: `assume` lines in a
-boundary, claims in a subject.
+([kw-records.md](kw-records.md#impl)). Its braces hold what is this
+implementer's: `assume` lines in a boundary or claims in a subject,
+which decompose the promises; `require` lines; and a function of the
+contract written again, exactly as the contract writes it, to add what
+it `uses` or a body. Nothing else. Where no function of the contract
+takes `self`, the type need not be declared: it names the implementer.
 
 A contract is not built or bought: its implementers are. In a boundary
 the functions are the world's and the claims of the contract are
@@ -155,8 +158,8 @@ subject sync {
 
 - No associated types, no default methods, no trait objects, no blanket
   impls. Type parameters and bounds: [kw-generics.md](kw-generics.md).
-- A contract and its implementers are in one store: a contract is not
-  brought from another store by `import`.
+- A contract is brought from another store by `import store::Contract;`
+  ([stores.md](stores.md)), not from a module file.
 - No verdict per implementer on the user of a contract: `sync::delivered`
   has one verdict. An observation on `sync::push` cannot say which link
   it was given.

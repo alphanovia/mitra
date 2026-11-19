@@ -731,6 +731,13 @@ impl Set {
         let shape = Shape::Record(name.to_string(), fields.len());
         Set::composite(shape, Tuples::product(fields))
     }
+    /// What field `i` of the record `name` of `n` fields can be, in this
+    /// set: none when it holds no such record.
+    pub fn component(&self, name: &str, n: usize, i: usize) -> Option<Set> {
+        let t = (self.composites.shapes).get(&Shape::Record(name.to_string(), n))?;
+        let all = t.boxes().iter().filter_map(|b| b.get(i));
+        Some(all.fold(Set::empty(), |s, b| s.union(b)))
+    }
     /// The integers from `lo` to `hi`, both included.
     pub fn interval(lo: i64, hi: i64) -> Set {
         let ints = if lo <= hi {

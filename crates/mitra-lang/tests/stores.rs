@@ -16,6 +16,11 @@ subject other {
     record Model { name: String }
     ensure kept = "Another promise.";
 }
+contract Reader<Place> {
+    fn results(report: String) -> Vec<results::Outcome>;
+    fn find(root: Place) -> other::Model;
+    ensure faithful = "Every result is read.";
+}
 "#;
 
 fn read(texts: &[&str]) -> Result<mitra_lang::Model, String> {
@@ -95,4 +100,49 @@ fn refusals() {
     assert!(e.contains("is a block of this model too"), "{e}");
     let e = said("import there::results::{kept};\nimport second::results::{Outcome};");
     assert!(e.contains("was brought from `there` already"), "{e}");
+}
+
+// mitra: evidence for modules::a_contract_is_brought
+#[test]
+fn a_contract_of_another_store_is_brought() {
+    // Filled here: the promise rests on this store's implementer. A type
+    // the contract names is brought with it, or is any value.
+    let m = read(&["import there::Reader;
+        import there::results::{Outcome};
+        subject rust { record Path;
+            impl Reader<Path> for Rust {
+                claim one() { Rust::results(\"a\") == [Outcome(\"a\", true)] }
+            } }"])
+    .unwrap();
+    let b = m.block_of("Reader::results").unwrap();
+    assert_eq!(
+        (b.side, b.from.as_deref()),
+        (mitra_lang::Side::Contract, Some("there"))
+    );
+    let f = |n: &str| m.functions.iter().find(|f| f.name == n).unwrap();
+    assert_eq!(
+        m.named(&f("rust::Rust::results").range.to_string()),
+        "List<results::Outcome>"
+    );
+    assert_eq!(f("rust::Rust::find").range.to_string(), "Any");
+    assert_eq!(
+        m.named(&f("rust::Rust::find").params[0].1.to_string()),
+        "rust::Path"
+    );
+    let promise = m.claim("Reader::faithful").unwrap();
+    assert_eq!(promise.from, ["rust::Rust::faithful"]);
+    // Leaned on and not filled: assumed, as a promise of another store.
+    let m = read(&[
+        "import there::{Reader};
+         subject tool { require read = Reader::faithful;
+            fn run(text: String) -> Int uses Reader::results; }",
+        "import there::Reader;\nsubject more { fn again(r: impl Reader) -> Int; }",
+    ])
+    .unwrap();
+    assert!(m.lints.is_empty(), "{:?}", m.lints);
+    assert_eq!(m.claim("tool::read").unwrap().from, ["Reader::faithful"]);
+    assert!(m.claim("Reader::faithful").unwrap().from.is_empty());
+    // A name that is no contract there.
+    let e = read(&["import there::Missing;"]).unwrap_err();
+    assert!(e.contains("has no `contract Missing`"), "{e}");
 }

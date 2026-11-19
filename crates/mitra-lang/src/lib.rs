@@ -16,6 +16,7 @@ pub mod ast;
 pub mod build;
 pub mod eval;
 pub mod fingerprint;
+mod instances;
 pub mod levels;
 pub mod modules;
 pub mod next;

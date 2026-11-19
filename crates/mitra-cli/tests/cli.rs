@@ -613,6 +613,7 @@ fn tie_compares_bounds_and_type_parameters() {
                  subject sync {\n\
                  fn push<L: Link>(l: L, data: List<Int>) -> Bool uses Link::send;\n\
                  fn pull<L>(l: &L) -> List<Int> where L: Link;\n\
+                 fn more<L: Link, M>(l: L, m: M) -> Bool;\n\
                  fn both(a: impl Link, b: impl Link, c: impl Link) -> Bool;\n\
                  record Stack<T> { items: List<T> }\n\
                  record Pair<A, B> { first: A }\n\
@@ -623,6 +624,8 @@ fn tie_compares_bounds_and_type_parameters() {
                 pub fn push<L: Link + Clone>(l: L, data: Vec<i64>) -> bool { l.send(data) }\n\
                 // mitra: implements sync::pull\n\
                 pub fn pull<L>(l: &L) -> Vec<i64> where L: Clone { vec![] }\n\
+                // mitra: implements sync::more\n\
+                pub fn more<L: Link + Ord, M: Send + 'static>(l: L, m: M) -> bool { true }\n\
                 // mitra: implements sync::both\n\
                 pub fn both<C>(a: impl Link, b: &dyn Link, c: C) -> bool\n\
                 where C: crate::Link { true }\n\
@@ -640,9 +643,10 @@ fn tie_compares_bounds_and_type_parameters() {
     std::fs::write(dir.join("src/lib.rs"), code).unwrap();
     let (code, out, err) = mitra(&dir, &["tie"]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(out.starts_with("4 agree, 3 differ"), "{out}");
+    assert!(out.starts_with("4 agree, 4 differ"), "{out}");
     for want in [
-        "sync::pull::tied: input `l` is bound by `Link` in the model, by `Clone` in the code",
+        "sync::pull::tied: input `l` is bound by `Link` in the model, by nothing in the code",
+        "sync::more::tied: input `l` is bound by `Ord` in the code, which the model does not say",
         "sync::Stack::swap::tied: input `u` is bound by `Link` in the model, by nothing in the code",
         "sync::Pair::tied: the struct has a field `second` the record does not state",
     ] {
@@ -650,6 +654,13 @@ fn tie_compares_bounds_and_type_parameters() {
     }
     // A contract is nobody's code.
     assert!(!out.contains("no code is tied to"), "{out}");
+    // Bounds that say nothing of a value are set aside, and said.
+    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    assert!(
+        ledger.contains("for sync::push::tied holds")
+            && ledger.contains("l is also Clone in the code"),
+        "{ledger}"
+    );
     // The interface is written with the parameters and the bounds.
     assert_eq!(mitra(&dir, &["build"]).0, Some(0));
     let interface = std::fs::read_to_string(dir.join(".mitra/build/interface.mitra")).unwrap();

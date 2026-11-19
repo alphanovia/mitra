@@ -15,7 +15,7 @@ pub fn check(m: &Model) -> Result<(), Error> {
     let at = |line: usize| move |msg: String| Error::new(line, msg);
     for f in m.functions.iter().chain(&m.properties) {
         let Some(body) = &f.body else { continue };
-        let mut env: Env = f.params.clone();
+        let mut env: Env = inside(m, plain(&f.name), &f.params);
         let got = of(m, body, &mut env).map_err(at(f.line))?;
         if got.intersect(&f.range).is_empty() && f.written.is_none() {
             let (got, want) = (show(m, &got), show(m, &f.range));
@@ -31,7 +31,7 @@ pub fn check(m: &Model) -> Result<(), Error> {
             continue;
         };
         let params = m.function(&c.func).map(|f| f.params.clone());
-        let mut env: Env = params.unwrap_or_default();
+        let mut env: Env = inside(m, &c.func, &params.unwrap_or_default());
         let got = of(m, e, &mut env).map_err(at(c.line))?;
         if matches!(c.target, Target::Property(_)) && got.intersect(&Set::bool()).is_empty() {
             let msg = format!("`{}` is {}, never true or false", c.name, show(m, &got));
@@ -39,6 +39,27 @@ pub fn check(m: &Model) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+/// The inputs of a function or a claim as its own text sees them: an
+/// opaque type where it has a type parameter or an `impl Contract`.
+fn inside(m: &Model, name: &str, params: &[(String, Set)]) -> Env {
+    let mut env: Env = params.to_vec();
+    if let Some(g) = m.generics.iter().find(|g| g.function == name) {
+        for (x, set) in &g.params {
+            for e in env.iter_mut().filter(|e| &e.0 == x) {
+                e.1 = set.clone();
+            }
+        }
+    }
+    env
+}
+
+/// The contract a function is of, when it takes `self`.
+fn contract<'a>(m: &'a Model, f: &Function) -> Option<&'a str> {
+    let block = m.block_of(&f.name)?;
+    let own = f.params.first().is_some_and(|p| p.0 == "self");
+    (block.side == crate::ast::Side::Contract && own).then_some(block.name.as_str())
 }
 
 /// The name of a function as the model writes it.
@@ -100,6 +121,30 @@ pub fn of(m: &Model, e: &Expr, env: &mut Env) -> Result<Set, String> {
             None => any,
         },
         Expr::Call(f, args) => match m.function(f) {
+            Some(g) if contract(m, g).is_some() && !args.is_empty() => {
+                // A function of a contract, on an opaque value: only
+                // where the contract bounds it.
+                let (c, got) = (contract(m, g).expect("checked"), of(m, &args[0], env)?);
+                let known = m.generics.iter().flat_map(|g| &g.known);
+                if let Some((_, by)) = known.clone().find(|k| k.0 == got) {
+                    if !by.iter().any(|b| b == c) {
+                        let text = crate::print::expr(&args[0]);
+                        return Err(format!(
+                            "`{text}` is {}, which is not bound by `{c}`: `{}` is not known of it",
+                            show(m, &got),
+                            plain(&g.name)
+                        ));
+                    }
+                }
+                if g.written.is_none() && g.params.len() == args.len() {
+                    call(m, g, args, env)?;
+                    return Ok(g.range.clone());
+                }
+                for a in &args[1..] {
+                    of(m, a, env)?;
+                }
+                any
+            }
             Some(g) if g.written.is_none() && g.params.len() == args.len() => {
                 call(m, g, args, env)?;
                 g.range.clone()
@@ -212,8 +257,11 @@ pub fn of(m: &Model, e: &Expr, env: &mut Env) -> Result<Set, String> {
             let records: Vec<&crate::ast::Record> = m.records.iter().filter(can).collect();
             let mut out = Set::empty();
             for r in &records {
-                if let Some((_, set)) = r.fields.iter().find(|f| &f.0 == name) {
-                    out = out.union(set);
+                if let Some(i) = r.fields.iter().position(|f| &f.0 == name) {
+                    // What this value holds there, where it says: a
+                    // `Pair<A, B>` holds an `A`.
+                    let held = got.component(&r.name, r.fields.len(), i);
+                    out = out.union(&held.unwrap_or(r.fields[i].1.clone()));
                 }
                 // A record with parts left out may hold it.
                 if r.open {

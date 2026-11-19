@@ -89,6 +89,7 @@ fn build(s: &store::Store, display: &mitra_lang::Display) -> Result<Built, Strin
 
 /// The model and the code: every piece of a subject is tied, the ties
 /// agree, and how much of the code the model covers. Gives 1 on drift.
+// mitra: implements commands::conform
 fn conform(s: &store::Store, built: &Built, rev: Option<&str>) -> Result<usize, String> {
     let model = &built.model;
     let found = tie::tie(&s.root(), model, rev)?;

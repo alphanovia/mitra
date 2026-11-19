@@ -142,7 +142,7 @@ fn what_is_kept_out_is_refused() {
         (
             "contract C { fn f(&self) -> Int; }
              subject s { record R; impl C for R { fn g(&self) -> Int; } }",
-            "holds only what decomposes the promises",
+            "is not a function of the contract",
         ),
         (
             "contract C { fn f(&self) -> Int; }\nsubject s { record R; impl C { } }",
@@ -363,4 +363,105 @@ fn bound_is_kept_by_input() {
         bounds(&m),
         [("s::g", "x", vec!["C"]), ("s::g", "y", vec!["C"])]
     );
+}
+
+// mitra: evidence for contracts::parameter_is_opaque
+#[test]
+fn parameter_is_opaque() {
+    let two = "contract A { fn a(&self) -> Bool; } contract B { fn b(&self) -> Bool; }";
+    // Inside its function, a type parameter is a type of its own: only
+    // what its bounds promise is known of it.
+    let no = [
+        ("fn f<T>(x: T) -> Int { x + 1 }", "`x` is `T`"),
+        (
+            "fn f<T>(x: T) -> Int { x.size }",
+            "`x` is `T`, which has no `.size`",
+        ),
+        (
+            "fn h(a: Int) -> Int { a } fn f<T>(x: T) -> Int { h(x) }",
+            "takes `Int`, and `x` is `T`",
+        ),
+        (
+            "record P<A, B> { first: A, second: B }
+             impl<A, B> P<A, B> { fn f(&self) -> Int { self.first + 1 } }",
+            "`self.first` is `A`",
+        ),
+        (
+            "claim c(x: impl A) { x.b() }",
+            "`x` is `impl A`, which has no method `b`",
+        ),
+        (
+            "claim c(x: impl A) { B::b(x) }",
+            "`x` is `impl A`, which is not bound by `B`",
+        ),
+        ("claim c(x: impl A) { x + 1 == 2 }", "`x` is `impl A`"),
+    ];
+    for (src, want) in no {
+        let got = refused(&format!("{two}\n{src}"));
+        assert!(got.contains(want), "{src}\n  gave `{got}`, not `{want}`");
+    }
+    // What stays: passing it on, comparing it, and what its bounds give.
+    let yes = "fn id<T>(x: T) -> T { x }
+               fn same<T>(x: T, y: T) -> Bool { id(x) == y }
+               claim c() { same(1, 1) && id(\"a\") == \"a\" }
+               claim d(x: impl A + B) { x.a() == A::a(x) && x.b() == B::b(x) }";
+    let text = mitra_lang::run(&format!("{two}\n{yes}"), "")
+        .unwrap()
+        .to_text();
+    assert!(text.contains("c: holds"), "{text}");
+    // A caller still gives any value.
+    let m = mitra_lang::load("fn id<T>(x: T) -> T { x }", "").unwrap();
+    assert_eq!(m.functions[0].params[0].1.to_string(), "Any");
+    assert_eq!(m.generics.len(), 1);
+}
+
+#[test]
+fn the_report_says_where_a_generic_was_seen() {
+    let model = "import std::rust::{Option};
+        subject s {
+            fn first<T>(xs: List<T>) -> Option<T>;
+            record Pair<A, B> { first: A, second: B }
+            impl<A, B> Pair<A, B> { fn swap(&self) -> Pair<B, A>; }
+            fn plain(n: Int) -> Int;
+        }";
+    let seen = "evidence a { for s::first given xs = [1, 2] gives Some(1) }
+        evidence b { for s::first given xs = [\"a\"] gives Some(\"a\") }
+        evidence c { for s::first given xs = [] gives None }
+        evidence d { for s::Pair::swap given self = s::Pair(1, \"a\") gives s::Pair(\"a\", 1) }
+        evidence e { for s::plain given n = 1 gives 1 }";
+    let text = mitra_lang::run(model, seen).unwrap().to_text();
+    for want in [
+        "s::first::correct: unverified\n  seen at         T = Int; T = String\n",
+        "  no evidence at  any other type\ns::first::deterministic",
+        "s::Pair::swap::correct: unverified\n  seen at         A = Int, B = String\n",
+        "s::plain::correct: unverified\n  no evidence on  n in Int\ns::plain::deterministic",
+    ] {
+        assert!(text.contains(want), "no `{want}` in\n{text}");
+    }
+    // With no evidence, nothing is said of instances.
+    let text = mitra_lang::run(model, "").unwrap().to_text();
+    assert!(!text.contains("seen at"), "{text}");
+}
+
+#[test]
+fn an_implementer_says_what_it_requires_and_uses() {
+    let m = model(
+        "boundary disk { ensure whole = \"A file is read whole.\"; fn read(p: String) -> String; }
+         subject wires { record Cable;
+            impl Link for Cable {
+                require files = disk::whole;
+                fn send(&self, bytes: List<Int>) -> Bool uses disk::read;
+            } }",
+    );
+    // The need is the implementer's, and its promise rests on it.
+    assert_eq!(from(&m, "wires::Cable::files"), ["disk::whole"]);
+    assert!(from(&m, "wires::Cable::ordered").contains(&"wires::Cable::files".to_string()));
+    assert!(m.claim("wires::Cable::send::uses").is_some());
+    assert!(m.lints.is_empty(), "{:?}", m.lints);
+    // Written again, a function is the contract's, as the contract writes it.
+    let other = format!(
+        "{LINK} subject wires {{ record Cable;
+            impl Link for Cable {{ fn send(&self, bytes: List<Bool>) -> Bool; }} }}"
+    );
+    assert!(refused(&other).contains("is not a function of the contract"));
 }

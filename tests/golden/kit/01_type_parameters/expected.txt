@@ -1,5 +1,7 @@
 swap::correct: unverified
+  seen at         A = Int, B = String
   no evidence on  p in Pair<Any, Any>
+  no evidence at  any other type
 swap::deterministic: unverified
   no evidence on  `swap` giving one output per input
 ints::deterministic: unverified

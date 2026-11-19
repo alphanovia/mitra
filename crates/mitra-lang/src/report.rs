@@ -546,8 +546,22 @@ impl Writer<'_> {
                     }
                 );
             }
+            // A function with type parameters: the instances it was
+            // seen at. Each is a point, and stands for no other.
+            let last = c.name.rsplit("::").next().unwrap_or_default();
+            let generic = self.model.function(&c.func).filter(|_| {
+                c.name.strip_suffix(last) == Some(&format!("{}::", c.func))
+                    && ["correct", "spec"].contains(&last)
+            });
+            let at = generic.map_or(Vec::new(), |f| crate::instances::seen(self.model, f));
+            if !at.is_empty() {
+                *out += &format!("  seen at         {}\n", at.join("; "));
+            }
             if let Some(missed) = self.missed(v, &c.func) {
                 *out += &format!("  no evidence on  {missed}\n");
+            }
+            if !at.is_empty() && v.logic != Logic::Holds {
+                *out += "  no evidence at  any other type\n";
             }
         }
     }

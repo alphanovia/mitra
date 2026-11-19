@@ -6,10 +6,10 @@
 // the model. What it finds is brought as evidence.
 //
 //   code.mitra     the boundary: the Rust files and where they come from
-//   report.mitra   reading the report of `cargo test`
+//   reader.mitra   the contract `Reader` of mitra-lang, filled for Rust:
+//                  the report of `cargo test`, the tied tests, the ties
 //   source.mitra   finding tie comments in a Rust file
-//   ties.mitra     comparing tied code with the model
 //   points.mitra   the single calls the unit tests pin
 //
-// A comment `// mitra: implements report::libtest` above a `fn` ties it to
+// A comment `// mitra: implements reader::Rust::results` above a `fn` ties it to
 // a function here, and `mitra tie` checks that the two agree.

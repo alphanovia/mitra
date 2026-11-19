@@ -1,6 +1,7 @@
 // Evidence: `mitra add`, `mitra ingest` and `mitra tie` write here, `mitra remove` takes out.
-evidence test { for commands::plain_rev_is_taken holds source "test:plain_rev_is_taken" rev "b10134f2d7b4" }
-evidence test { for commands::empty_rev_is_refused holds source "test:empty_rev_is_refused" rev "b10134f2d7b4" }
-evidence test { for commands::option_as_rev_is_refused holds source "test:option_as_rev_is_refused" rev "b10134f2d7b4" }
-evidence test { for commands::quoted_rev_is_refused holds source "test:quoted_rev_is_refused" rev "b10134f2d7b4" }
-evidence tie { for commands::check_rev::tied holds source "reader:rust src/main.rs:377; not compared: the result is Result<{()}, String> in the model and Result<(), String> in the code" rev "b10134f2d7b4" }
+evidence test { for commands::plain_rev_is_taken holds source "test:plain_rev_is_taken" rev "28480b7ea7b8" }
+evidence test { for commands::empty_rev_is_refused holds source "test:empty_rev_is_refused" rev "28480b7ea7b8" }
+evidence test { for commands::option_as_rev_is_refused holds source "test:option_as_rev_is_refused" rev "28480b7ea7b8" }
+evidence test { for commands::quoted_rev_is_refused holds source "test:quoted_rev_is_refused" rev "28480b7ea7b8" }
+evidence tie { for commands::conform::tied holds source "reader:rust src/main.rs:92; not compared: the result is Result<0.., String> in the model and Result<usize, String> in the code" rev "28480b7ea7b8" }
+evidence tie { for commands::check_rev::tied holds source "reader:rust src/main.rs:378; not compared: the result is Result<{()}, String> in the model and Result<(), String> in the code" rev "28480b7ea7b8" }

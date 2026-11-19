@@ -1,0 +1,47 @@
+// mitra-rust as a reader of code (src/report.rs, src/tie.rs).
+//
+// It fills the contract `Reader` of mitra-lang for Rust: the report of
+// `cargo test` as plain results, the tests tied to claims, and the code
+// tied to the model compared with it. What the contract promises of any
+// reader is owed here for Rust, as `reader::Rust::compares_shape` and
+// the others. JUnit XML is not Rust's: mitra-lang reads it.
+//
+// `Rust` is no value of the code: it names the reader. Its functions
+// are those of the contract, written again where they use the disk.
+
+import std::rust::{Option, Result};
+
+import mitra_lang::Reader;
+// A model, a test result and a test tied to a claim: mitra-lang's,
+// stated and tied in its own model. `Model` comes without its fields:
+// they name types of mitra-lang that are not brought here.
+import mitra_lang::model::{Model};
+import mitra_lang::results::{Outcome, Tied};
+
+subject reader {
+    // What the reader found: evidence lines, and what it prints.
+    record Found {
+        evidence: Vec<String>,
+        notes: Vec<String>,
+        agree: usize,
+        differ: usize,
+        // The functions, records and enums no code is tied to.
+        untied: Vec<String>,
+        // The lines of `src/` that are code.
+        code_lines: usize,
+    }
+
+    impl Reader<Path, Found> for Rust {
+        require code_read = code::reads_what_is_there;
+        require right_revision = code::is_the_revision_named;
+        require comments_found = source::finds_ties;
+
+        // Every test of `src/` and `tests/` tied to a claim.
+        fn tests(root: Path) -> Result<Vec<results::Tied>, String>
+            uses code::read_to_string, code::read_dir, source::mitra_line, source::fn_below;
+
+        // Compare the code under `root` with the model.
+        fn tie(root: Path, model: model::Model, rev: Option<String>) -> Result<Found, String>
+            uses code::read_to_string, code::read_dir;
+    }
+}

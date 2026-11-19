@@ -58,3 +58,30 @@ is refused: bring the type it holds with it.
 - No renaming: two stores with a block of the same name cannot both be
   brought from, and neither can a block named like one of this model.
 - A store is found beside this one only; no path, no registry.
+
+## Bringing a contract
+
+```
+import mitra_lang::Reader;
+import mitra_lang::results::{Outcome, Tied};
+
+subject reader {
+    impl Reader<Path, Found> for Rust { … }
+}
+```
+
+`import store::Contract;` (or `import store::{A, B};`) brings a
+`contract` of the model of another store, whole: its functions, its
+promises and its claims ([kw-contracts.md](kw-contracts.md)). It is
+then filled here, leaned on here, or both.
+
+- Filled here, its promise rests on the implementers of this store.
+  Leaned on and not filled, it is assumed, as any promise of another
+  store: `Reader::reads_only: holds assuming [itself]`.
+- A type the contract names, `results::Outcome`, is the one brought by
+  `import store::results::{Outcome};`. Not brought, it is any value.
+- The implementers of the other store do not come.
+
+Mitra's own model uses it: mitra-lang states `Reader`, what any reader
+of code owes the core; mitra-rust fills it for Rust; mitra-cli requires
+its promises.

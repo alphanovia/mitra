@@ -89,8 +89,8 @@ Numbered in [the review](../review/2026-11-18.md), increment 71.
 - A claim written in a contract is owed by each implementer (a claim
   in a subject, an assumption in a boundary). The contract itself keeps
   only its promises.
-- A contract and its implementers are in one store. The reader role
-  that mitra-rust fills for mitra-lang is across two stores, so
-  Mitra's own model does not use a contract yet.
+- A contract is brought from another store by `import store::Contract;`
+  (increment 73). Mitra's own model uses it: `Reader` in mitra-lang,
+  filled by mitra-rust, required by mitra-cli.
 - `impl Link` is read as `Any`: the type system gains nothing. The
   interface `mitra build` writes therefore prints `Any`.

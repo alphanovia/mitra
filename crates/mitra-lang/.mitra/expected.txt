@@ -407,6 +407,11 @@ contracts::bound_is_what_is_leaned_on::captured: unverified
 contracts::bound_is_what_is_leaned_on: holds assuming [contracts::bound_is_what_is_leaned_on::captured]
   says            "A type parameter is any value; a bound names the contracts its function leans on, kept by input, and `impl Contract` is the same with no name."
   rests on        `contracts::implementer_is_given_the_contract`, `contracts::unfilled_is_assumed`, `contracts::contract_is_neither_built_nor_bought`, `contracts::bound_is_kept_by_input`
+contracts::parameter_is_opaque::captured: unverified
+  nobody vouched that the claims say what the text says
+contracts::parameter_is_opaque: holds assuming [contracts::parameter_is_opaque::captured]
+  says            "Inside its function a type parameter, or an input written `impl Contract`, is a type of its own: only what its bounds promise is known of it, and anything else is refused. A caller still gives any value."
+  rests on        `contracts::implementer_is_given_the_contract`, `contracts::unfilled_is_assumed`, `contracts::contract_is_neither_built_nor_bought`, `contracts::bound_is_kept_by_input`
 contracts::neither_built_nor_bought::captured: unverified
   nobody vouched that the claims say what the text says
 contracts::neither_built_nor_bought: holds assuming [contracts::neither_built_nor_bought::captured]
@@ -592,6 +597,11 @@ modules::bought_not_built::captured: unverified
 modules::bought_not_built: holds assuming [modules::Modules::alone::correct, modules::Modules::new::correct, modules::Modules::text::correct, modules::Modules::place::correct, modules::Modules::locate::correct, modules::imports::correct, modules::bought_not_built::captured]
   says            "What a model brings from another store is a boundary: the records, enums and promises it names, the promises assumed. The functions and claims of that store stay there."
   rests on        `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::unknown_module_is_refused`, `modules::one_text_is_read_as_it_is`, `modules::imports_are_listed`, `modules::an_import_is_listed_once`, `modules::line_is_placed`, `modules::fault_is_located`
+modules::a_contract_is_brought::captured: unverified
+  nobody vouched that the claims say what the text says
+modules::a_contract_is_brought: holds assuming [modules::Modules::alone::correct, modules::Modules::new::correct, modules::Modules::text::correct, modules::Modules::place::correct, modules::Modules::locate::correct, modules::imports::correct, modules::a_contract_is_brought::captured]
+  says            "A contract of another store is brought whole by its name, `import store::Contract;`: its functions, promises and claims, to be filled here or leaned on. A type it names that is not brought with it is any value."
+  rests on        `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::unknown_module_is_refused`, `modules::one_text_is_read_as_it_is`, `modules::imports_are_listed`, `modules::an_import_is_listed_once`, `modules::line_is_placed`, `modules::fault_is_located`
 modules::order_is_not_the_writer_s::captured: unverified
   nobody vouched that the claims say what the text says
 modules::order_is_not_the_writer_s: holds assuming [modules::Modules::alone::correct, modules::Modules::new::correct, modules::Modules::text::correct, modules::Modules::place::correct, modules::Modules::locate::correct, modules::imports::correct, modules::order_is_not_the_writer_s::captured]
@@ -617,6 +627,18 @@ results::reads_junit: holds assuming [results::from_tests::correct, results::sho
   says            "Every test case of a JUnit report is read, with its name and whether it passed; skipped ones are left out."
   rests on        `results::from_tests::correct`, `results::unpinned_pass_only_passes`, `results::pass_on_a_point_holds`, `results::pinned_pass_is_written_as_it_stands`, `results::sample_keeps_its_count`, `results::pinned_failure_denies_the_pin`, `results::unpinned_failure_fails_the_claim`, `results::failing_sample_says_fails`, `results::short::correct`, `results::short_once`, `results::attr::correct`, `results::strip::correct`, `results::junit::correct`
   requires        `results::judged_as_written`
+Reader::every_result_is_read: holds assuming [itself]
+  says            "Every test in a report of the language's test runner is read, with its name and whether it passed."
+Reader::compares_shape: holds assuming [itself]
+  says            "A function or a record of the model tied to code is compared with it: inputs, result and fields. What agrees and what differs is brought as evidence on its tie."
+Reader::compares_calls: holds assuming [itself]
+  says            "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it."
+Reader::says_what_it_did_not_compare: holds assuming [itself]
+  says            "What the reader could not compare is written in the evidence it brings."
+Reader::reads_only: holds assuming [itself]
+  says            "The code is read as text: it is never built, run or changed."
+Reader::plain_to_the_core: holds assuming [itself]
+  says            "What a reader brings is in the core's own words: results and tied tests by name, evidence as text the core reads like any other. Nothing of the language reaches the core."
 types::read_first: holds assuming [reader::model::correct, reader::fault_is_placed, reader::reads::captured]
   needs           `reader::reads`
 types::declared::captured: unverified
@@ -828,7 +850,7 @@ warning[M105]: a requirement that nothing leans on
 warning[M106]: a function uses what its subject does not require
   --> .mitra/types.mitra:24  fn load(model: String, evidence: String) -> Result<model::Model, (Input, reader::Error)>
 
-  `types::load` uses `modules::Modules::alone`, and no `require` beside it names a promise made beside `modules::Modules::alone` (`modules::handed_only`, `modules::faults_name_their_file`, `modules::bought_not_built`, `modules::order_is_not_the_writer_s`).
+  `types::load` uses `modules::Modules::alone`, and no `require` beside it names a promise made beside `modules::Modules::alone` (`modules::handed_only`, `modules::faults_name_their_file`, `modules::bought_not_built`, `modules::a_contract_is_brought`, `modules::order_is_not_the_writer_s`).
   help: write `require <name> = modules::handed_only;` beside `types::load`
 
 warning[M101]: a claim is not verified
@@ -880,13 +902,13 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:80  fn block_of(&self, piece: String) -> Option<Block>;
+  --> .mitra/model.mitra:81  fn block_of(&self, piece: String) -> Option<Block>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:80  fn block_of(&self, piece: String) -> Option<Block>;
+  --> .mitra/model.mitra:81  fn block_of(&self, piece: String) -> Option<Block>;
 
   No evidence on `model::Model::block_of` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -1054,73 +1076,73 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:29  fn alone(text: String) -> Self;
+  --> .mitra/modules.mitra:30  fn alone(text: String) -> Self;
 
   No evidence on text in String.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:29  fn alone(text: String) -> Self;
+  --> .mitra/modules.mitra:30  fn alone(text: String) -> Self;
 
   No evidence on `modules::Modules::alone` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:30  fn new(files: Vec<Module>, handed: Handed) -> Self;
+  --> .mitra/modules.mitra:31  fn new(files: Vec<Module>, handed: Handed) -> Self;
 
   No evidence on (files, handed) in (List<modules::Module>, modules::Handed).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:30  fn new(files: Vec<Module>, handed: Handed) -> Self;
+  --> .mitra/modules.mitra:31  fn new(files: Vec<Module>, handed: Handed) -> Self;
 
   No evidence on `modules::Modules::new` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:32  fn text(&self) -> String;
+  --> .mitra/modules.mitra:33  fn text(&self) -> String;
 
   No evidence on self in modules::Modules.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:32  fn text(&self) -> String;
+  --> .mitra/modules.mitra:33  fn text(&self) -> String;
 
   No evidence on `modules::Modules::text` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:34  fn place(&self, line: usize) -> String;
+  --> .mitra/modules.mitra:35  fn place(&self, line: usize) -> String;
 
   No evidence on (self, line) in (modules::Modules, 0..).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:34  fn place(&self, line: usize) -> String;
+  --> .mitra/modules.mitra:35  fn place(&self, line: usize) -> String;
 
   No evidence on `modules::Modules::place` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:36  fn locate(&self, err: reader::Error) -> String;
+  --> .mitra/modules.mitra:37  fn locate(&self, err: reader::Error) -> String;
 
   No evidence on (self, err) in (modules::Modules, reader::Error).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:36  fn locate(&self, err: reader::Error) -> String;
+  --> .mitra/modules.mitra:37  fn locate(&self, err: reader::Error) -> String;
 
   No evidence on `modules::Modules::locate` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:40  fn imports(src: String) -> Vec<String>;
+  --> .mitra/modules.mitra:41  fn imports(src: String) -> Vec<String>;
 
   No evidence on src in String \ {"import a::b::x;\nimport std::rust::{Option};\nimport c::{y, z};", "import a::x;\nimport a::y;"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:40  fn imports(src: String) -> Vec<String>;
+  --> .mitra/modules.mitra:41  fn imports(src: String) -> Vec<String>;
 
   No evidence on `modules::imports` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -1402,13 +1424,25 @@ warning[M102]: a claim holds only under assumptions
   help: review it, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/contracts.mitra:22  ensure neither_built_nor_bought = "A contract is a side of its own: no code is tied to its functions.";
+  --> .mitra/contracts.mitra:22  ensure parameter_is_opaque = "Inside its function a type parameter, or an input written `impl Contract`, is a type of its own: only what its bounds promise is known of it, and anything else is refused …
+
+  Nobody vouched that the claims `contracts::parameter_is_opaque` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for contracts::parameter_is_opaque::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/contracts.mitra:22  ensure parameter_is_opaque = "Inside its function a type parameter, or an input written `impl Contract`, is a type of its own: only what its bounds promise is known of it, and anything else is refused …
+
+  `contracts::parameter_is_opaque` holds if `contracts::parameter_is_opaque::captured` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/contracts.mitra:23  ensure neither_built_nor_bought = "A contract is a side of its own: no code is tied to its functions.";
 
   Nobody vouched that the claims `contracts::neither_built_nor_bought` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for contracts::neither_built_nor_bought::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/contracts.mitra:22  ensure neither_built_nor_bought = "A contract is a side of its own: no code is tied to its functions.";
+  --> .mitra/contracts.mitra:23  ensure neither_built_nor_bought = "A contract is a side of its own: no code is tied to its functions.";
 
   `contracts::neither_built_nor_bought` holds if `contracts::neither_built_nor_bought::captured` holds, and no evidence supports it.
   help: review it, then record it as evidence, or test until it is not needed
@@ -1690,37 +1724,37 @@ warning[M102]: a claim holds only under assumptions
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:41  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
+  --> .mitra/model.mitra:42  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
 
   Nobody vouched that the claims `model::holds_everything` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for model::holds_everything::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:41  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
+  --> .mitra/model.mitra:42  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
 
   `model::holds_everything` holds if `model::Model::block_of::correct`, `model::holds_everything::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:42  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
+  --> .mitra/model.mitra:43  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
 
   Nobody vouched that the claims `model::world_apart` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for model::world_apart::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:42  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
+  --> .mitra/model.mitra:43  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
 
   `model::world_apart` holds if `model::Model::block_of::correct`, `model::world_apart::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:43  ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
+  --> .mitra/model.mitra:44  ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
 
   Nobody vouched that the claims `model::blocks_are_things` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for model::blocks_are_things::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:43  ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
+  --> .mitra/model.mitra:44  ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
 
   `model::blocks_are_things` holds if `model::Model::block_of::correct`, `model::blocks_are_things::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
@@ -1846,13 +1880,25 @@ warning[M102]: a claim holds only under assumptions
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/modules.mitra:13  ensure order_is_not_the_writer_s = "The files of a model are read so that a type is declared above its use, whatever the files are called.";
+  --> .mitra/modules.mitra:13  ensure a_contract_is_brought = "A contract of another store is brought whole by its name, `import store::Contract;`: its functions, promises and claims, to be filled here or leaned on. A type it names …
+
+  Nobody vouched that the claims `modules::a_contract_is_brought` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for modules::a_contract_is_brought::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/modules.mitra:13  ensure a_contract_is_brought = "A contract of another store is brought whole by its name, `import store::Contract;`: its functions, promises and claims, to be filled here or leaned on. A type it names …
+
+  `modules::a_contract_is_brought` holds if `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::a_contract_is_brought::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/modules.mitra:14  ensure order_is_not_the_writer_s = "The files of a model are read so that a type is declared above its use, whatever the files are called.";
 
   Nobody vouched that the claims `modules::order_is_not_the_writer_s` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for modules::order_is_not_the_writer_s::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/modules.mitra:13  ensure order_is_not_the_writer_s = "The files of a model are read so that a type is declared above its use, whatever the files are called.";
+  --> .mitra/modules.mitra:14  ensure order_is_not_the_writer_s = "The files of a model are read so that a type is declared above its use, whatever the files are called.";
 
   `modules::order_is_not_the_writer_s` holds if `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::order_is_not_the_writer_s::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed

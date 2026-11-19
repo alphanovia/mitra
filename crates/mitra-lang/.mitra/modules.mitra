@@ -10,6 +10,7 @@ subject modules {
     ensure handed_only = "mitra-lang reads nothing but what it is handed: an import of a module that was not handed is an error at its line, never a file it goes to read.";
     ensure faults_name_their_file = "A line of the model is given back as the file it was handed in and its line there.";
     ensure bought_not_built = "What a model brings from another store is a boundary: the records, enums and promises it names, the promises assumed. The functions and claims of that store stay there.";
+    ensure a_contract_is_brought = "A contract of another store is brought whole by its name, `import store::Contract;`: its functions, promises and claims, to be filled here or leaned on. A type it names that is not brought with it is any value.";
     ensure order_is_not_the_writer_s = "The files of a model are read so that a type is declared above its use, whatever the files are called.";
 
     // One file, as text.

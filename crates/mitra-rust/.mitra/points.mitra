@@ -4,22 +4,22 @@
 
 // src/report.rs
 
-claim t_libtest_ok() { report::libtest("test tests::t_small ... ok") == [Outcome("t_small", true)] }
+claim t_libtest_ok() { reader::Rust::results("test tests::t_small ... ok") == [Outcome("t_small", true)] }
 
-claim t_libtest_failed() { report::libtest("test t_big ... FAILED") == [Outcome("t_big", false)] }
+claim t_libtest_failed() { reader::Rust::results("test t_big ... FAILED") == [Outcome("t_big", false)] }
 
 claim t_libtest_timed() {
-    report::libtest("test t_timed ... ok <0.001s>") == [Outcome("t_timed", true)]
+    reader::Rust::results("test t_timed ... ok <0.001s>") == [Outcome("t_timed", true)]
 }
 
-claim t_libtest_ignored() { report::libtest("test tests::slow ... ignored") == [] }
+claim t_libtest_ignored() { reader::Rust::results("test tests::slow ... ignored") == [] }
 
 claim t_libtest_other_lines() {
-    report::libtest("running 3 tests\ntest result: FAILED. 1 passed; 1 failed") == []
+    reader::Rust::results("running 3 tests\ntest result: FAILED. 1 passed; 1 failed") == []
 }
 
 claim t_libtest_two() {
-    report::libtest("test a ... ok\ntest b ... FAILED") == [Outcome("a", true), Outcome("b", false)]
+    reader::Rust::results("test a ... ok\ntest b ... FAILED") == [Outcome("a", true), Outcome("b", false)]
 }
 
 // src/source.rs

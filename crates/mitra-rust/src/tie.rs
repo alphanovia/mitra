@@ -27,6 +27,22 @@ struct Code {
     bounds: Vec<(String, Vec<String>)>,
 }
 
+/// Bounds of the code that say nothing of a value of the model, which
+/// has no memory, no thread and is always comparable and printable.
+const ASIDE: [&str; 11] = [
+    "Clone",
+    "Copy",
+    "Send",
+    "Sync",
+    "Sized",
+    "?Sized",
+    "Unpin",
+    "PartialEq",
+    "Eq",
+    "Debug",
+    "Display",
+];
+
 /// The traits of `Link + Store<K, V> + 'a`, by name.
 fn traits(bound: &str) -> Vec<String> {
     let name = |t: &str| {
@@ -47,8 +63,13 @@ fn traits(bound: &str) -> Vec<String> {
 /// `where`), added to `into`.
 fn bounds_of(text: &str, into: &mut Vec<(String, Vec<String>)>) {
     for piece in pieces(text) {
-        if let Some((name, bound)) = piece.split_once(':') {
-            into.push((name.trim().to_string(), traits(bound)));
+        // A lifetime and a `const N: usize` are no type.
+        if piece.starts_with('\'') || piece.starts_with("const ") {
+            continue;
+        }
+        match piece.split_once(':') {
+            Some((name, bound)) => into.push((name.trim().to_string(), traits(bound))),
+            None => into.push((piece.trim().to_string(), Vec::new())),
         }
     }
 }
@@ -410,7 +431,7 @@ fn calls(body: &str, name: &str) -> bool {
 }
 
 /// What the reader found: evidence lines, and what it prints.
-// mitra: implements ties::Found
+// mitra: implements reader::Found
 pub struct Found {
     pub evidence: Vec<String>,
     pub notes: Vec<String>,
@@ -427,7 +448,7 @@ pub struct Found {
 pub use mitra_lang::results::Tied;
 
 /// Every test of `src/` and `tests/` tied to a claim.
-// mitra: implements ties::tests
+// mitra: implements reader::Rust::tests
 pub fn tests(root: &Path) -> Result<Vec<Tied>, String> {
     let mut files = Vec::new();
     for d in ["src", "tests"] {
@@ -466,7 +487,7 @@ pub fn tests(root: &Path) -> Result<Vec<Tied>, String> {
     Ok(out)
 }
 
-// mitra: implements ties::tie
+// mitra: implements reader::Rust::tie
 pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, String> {
     let mut files = Vec::new();
     for d in ["src", "tests"] {
@@ -712,10 +733,17 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
                 ));
             }
         }
-        // An input bound by contracts: the same traits bound it in the
-        // code, on its type parameter or as `impl Trait`.
-        for b in model.bounds.iter().filter(|b| b.function == f.name) {
-            let Some((_, Some(ty))) = c.params.iter().find(|p| p.0 == b.input) else {
+        // An input of an opaque type, a type parameter or `impl
+        // Contract`: the traits that bound it in the code, on its type
+        // parameter or as `impl Trait`, are the contracts of the model.
+        // Bounds that say nothing of a value are set aside, and said.
+        let mut aside: Vec<String> = Vec::new();
+        let inside = model.generics.iter().find(|g| g.function == f.name);
+        for (input, set) in inside.iter().flat_map(|g| &g.params) {
+            let known = inside.and_then(|g| g.known.iter().find(|k| &k.0 == set));
+            let (Some((_, contracts)), Some((_, Some(ty)))) =
+                (known, c.params.iter().find(|p| &p.0 == input))
+            else {
                 continue;
             };
             let mut t = ty.trim();
@@ -723,21 +751,35 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
                 t = t.strip_prefix(prefix).unwrap_or(t).trim_start();
             }
             let direct = t.strip_prefix("impl ").or(t.strip_prefix("dyn "));
-            let code: Vec<String> = match direct {
+            let parameter = c.bounds.iter().any(|p| p.0 == t);
+            let all: Vec<String> = match direct {
                 Some(d) => traits(d),
-                None => {
+                None if parameter => {
                     let of = c.bounds.iter().filter(|p| p.0 == t);
                     of.flat_map(|p| p.1.clone()).collect()
                 }
+                // A type of its own in the code: nothing to compare.
+                None => continue,
             };
-            if let Some(missing) = b.contracts.iter().find(|m| !code.contains(m)) {
-                let by = match code.is_empty() {
-                    true => "nothing".to_string(),
-                    false => format!("`{}`", code.join(" + ")),
-                };
+            let (set_aside, code): (Vec<String>, Vec<String>) =
+                all.into_iter().partition(|t| ASIDE.contains(&t.as_str()));
+            if !set_aside.is_empty() {
+                aside.push(format!(
+                    "{input} is also {} in the code",
+                    set_aside.join(" + ")
+                ));
+            }
+            let by = match code.is_empty() {
+                true => "nothing".to_string(),
+                false => format!("`{}`", code.join(" + ")),
+            };
+            if let Some(missing) = contracts.iter().find(|m| !code.contains(m)) {
                 why = why.or(Some(format!(
-                    "input `{}` is bound by `{missing}` in the model, by {by} in the code",
-                    b.input
+                    "input `{input}` is bound by `{missing}` in the model, by {by} in the code"
+                )));
+            } else if let Some(more) = code.iter().find(|t| !contracts.contains(t)) {
+                why = why.or(Some(format!(
+                    "input `{input}` is bound by `{more}` in the code, which the model does not say"
                 )));
             }
         }
@@ -755,7 +797,7 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
                 .iter()
                 .any(|n| m.contains(n))
         };
-        let mut taken: Vec<String> = Vec::new();
+        let mut taken: Vec<String> = aside;
         let mut numbers = range.contains("Int") || range.contains("Float");
         for ((name, ty), (_, mty)) in c.params.iter().zip(&f.params) {
             let mty = model.named(&mty.to_string());

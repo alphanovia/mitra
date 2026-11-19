@@ -1,0 +1,31 @@
+// The reader of code: what any language owes the core.
+//
+// The core reads no code. A reader does, for one language, and brings
+// what it finds in the core's own words: test results by name, tests
+// tied to claims, and evidence on each tie, as text. mitra-rust fills
+// this contract for Rust; the command line leans on the contract.
+//
+// `Place` is where a reader finds the code (a folder, for Rust) and
+// `Found` what it hands back from comparing: they are the reader's own.
+// Nobody fills the contract in this store: here its promises are
+// assumed, and shown in the store of each reader.
+
+import std::rust::{Option, Result};
+
+contract Reader<Place, Found> {
+    // A report of the language's test runner, as plain results.
+    fn results(text: String) -> Vec<results::Outcome>;
+
+    // Every test of the code tied to a claim.
+    fn tests(root: Place) -> Result<Vec<results::Tied>, String>;
+
+    // The code tied to the model, compared with it.
+    fn tie(root: Place, model: model::Model, rev: Option<String>) -> Result<Found, String>;
+
+    ensure every_result_is_read = "Every test in a report of the language's test runner is read, with its name and whether it passed.";
+    ensure compares_shape = "A function or a record of the model tied to code is compared with it: inputs, result and fields. What agrees and what differs is brought as evidence on its tie.";
+    ensure compares_calls = "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it.";
+    ensure says_what_it_did_not_compare = "What the reader could not compare is written in the evidence it brings.";
+    ensure reads_only = "The code is read as text: it is never built, run or changed.";
+    ensure plain_to_the_core = "What a reader brings is in the core's own words: results and tied tests by name, evidence as text the core reads like any other. Nothing of the language reaches the core.";
+}

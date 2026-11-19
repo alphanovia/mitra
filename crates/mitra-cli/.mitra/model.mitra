@@ -1,21 +1,24 @@
 // mitra-cli as Mitra sees it.
 //
 // mitra-cli is the `mitra` command: it reads its arguments, asks
-// mitra-store for the model and the ledger, mitra-rust for what the code
-// and the test reports say, mitra-lang for the verdicts, and prints.
+// mitra-store for the model and the ledger, a reader of code for what the
+// code and the test reports say (mitra-rust, the one there is), mitra-lang for the verdicts, and prints.
 // The code is in src/main.rs.
 
 import std::rust::{Option, Result};
 
 // What the command line leans on in the three crates under it: their
 // promises, taken here as bought.
-import mitra_store::store::{whole_folder};
+import mitra_store::store::{whole_folder, Store};
 import mitra_store::ledger::{sound_or_untouched};
 import mitra_lang::verdicts::{one_each, never_runs};
 import mitra_lang::results::{a_pass_is_not_overstated, a_failure_is_kept};
-import mitra_lang::build::{every_piece_is_listed};
+import mitra_lang::build::{every_piece_is_listed, Built};
 import mitra_lang::levels::{observation_is_compared};
 import mitra_store::keeping::{machine_is_a_snapshot};
+// What any reader of code owes: the command line leans on the contract,
+// not on what mitra-rust says of itself.
+import mitra_lang::Reader;
 
 // The person or the script that runs a command. What they say is taken
 // as said: Mitra has no way to check it.
@@ -38,6 +41,12 @@ subject commands {
     require compiled = build::every_piece_is_listed;
     require compared = levels::observation_is_compared;
     require snapshot = keeping::machine_is_a_snapshot;
+    require results_read = Reader::every_result_is_read;
+    require shape_compared = Reader::compares_shape;
+    require calls_compared = Reader::compares_calls;
+    require not_compared_is_said = Reader::says_what_it_did_not_compare;
+    require code_untouched = Reader::reads_only;
+    require plain_words = Reader::plain_to_the_core;
 
     ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
     ensure levels_in_order = "`build`, `conform`, `assess` and `diagnose` are four levels: the model alone, then with the code, then with the ledger, then with an observation. Each runs the levels before it and stops at the first that fails.";
@@ -45,6 +54,13 @@ subject commands {
     ensure diagnose_writes_nothing = "`diagnose` judges an observation without writing it to the ledger, and says how to file it.";
     ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";
     ensure rev_is_safe_to_write = "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger.";
+
+    ensure any_reader_the_same = "What the command line does with a reader of code is what the contract `Reader` states, for any language: it writes the evidence the reader brings and counts what it found.";
+
+    // The model and the code: the ties are written to the ledger, and
+    // what is not tied is counted. Gives 1 on drift.
+    fn conform(s: Store, built: Built, rev: Option<String>) -> Result<usize, String>
+        uses Reader::tie, Reader::tests;
 
     // A revision given with `--rev`.
     fn check_rev(rev: String) -> Result<(), String>;

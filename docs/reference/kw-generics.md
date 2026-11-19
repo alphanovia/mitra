@@ -3,11 +3,29 @@
 Part of the [keyword reference](keywords.md). Rust's grammar, kept
 narrow. Why: [design/generics.md](../design/generics.md).
 
-A type parameter is any value, bound or not: `T` is read as `Any`
-([kw-types.md](kw-types.md#type-parameters)). The instance is chosen at
-the call and nothing is written for it. What a parameter adds is what a
-reader and the tie to the code see: which inputs are the same type, and
-which contract a value is known by.
+Inside its function a type parameter is opaque: a type of its own with
+nothing stated, as `record T;` is, known only by the contracts that
+bound it. A body may pass it on, compare it with `==`, and call on it
+what its bounds give. Anything else is refused: `x + 1`, a field, a
+function that takes an `Int`, a method of a contract it is not bound
+by. `x: impl Link` is the same, in a function or in a claim.
+
+For a caller a type parameter is any value: the instance is chosen at
+the call and nothing is written for it.
+
+```mitra
+contract Link { fn send(&self, n: Int) -> Bool; }
+fn id<T>(x: T) -> T { x }
+fn same<T>(x: T, y: T) -> Bool { id(x) == y }
+claim sames() { same(1, 1) && id("a") == "a" }
+claim sends(l: impl Link) { l.send(1) == Link::send(l, 1) }
+```
+```text
+sames: holds
+```
+
+`fn inc<T>(x: T) -> Int { x + 1 }` is refused: ``` `+` takes `Int |
+Float64`, and `x` is `T` ```.
 
 ## Bounds
 
@@ -90,8 +108,9 @@ Store::kept: holds assuming [cache::Names::get::correct, cache::Names::kept::cap
 ## Evidence at an instance
 
 A test runs at one instance of `T`. It is recorded as what it is: an
-output for those inputs. Nothing lets one instance stand for the
-others.
+output for those inputs. The report says at which instances a function
+was seen, from the values of its evidence, and that nothing is known
+of any other. Nothing lets one instance stand for the others.
 
 ```mitra
 subject fn first<T>(xs: List<T>) -> T;
@@ -102,14 +121,17 @@ evidence words { for first given xs = ["a"] gives "a" }
 ```
 ```text
 first::correct: unverified
+  seen at         T = Int; T = String
   no evidence on  xs in List<Any>
+  no evidence at  any other type
 ```
 
 ## Not in the language
 
-- A parameter is not opaque: a body may do with a `T` what it may do
-  with any value, bound or not. The bound is what the block declares it
-  leans on, not what the reader enforces.
+- A claim written in an `impl<T>` reads `T` as any value: a claim takes
+  no type parameter. `==` is known of every value, bound or not.
+- What a generic function gives back is not followed: `id(x)` is any
+  value to the reader, so what is done with it is not refused.
 - No bound on a `record` or an `enum`. No parameter on a `subject` or a
   `boundary`.
 - No specialisation, no associated types, no const generics, no
@@ -118,11 +140,19 @@ first::correct: unverified
 
 ## In Rust
 
-`mitra tie` compares, for each input the model binds by a contract, the
-traits that bound it in the code: on its type parameter (`<L: Link>`,
-`where L: Link`, or on the `impl`), or written `impl Link` or
-`&dyn Link`. The code may bound it by more. A trait is matched to a
-contract by name. `record R<T> { … }` is compared with its `struct`
-field by field. The interface `mitra build` writes prints functions
-with their parameters and bounds. A difference reads: ``input `l` is
-bound by `Link` in the model, by `Clone` in the code``.
+`mitra tie` compares, for each input of an opaque type, the traits that
+bound it in the code with the contracts of the model: on its type
+parameter (`<L: Link>`, `where L: Link`, or on the `impl`), or written
+`impl Link` or `&dyn Link`. A trait is matched to a contract by name.
+A bound on one side only is a difference: ``input `l` is bound by
+`Ord` in the code, which the model does not say``.
+
+Bounds that say nothing of a value of the model are set aside, and the
+tie says so in its evidence (`not compared: l is also Clone in the
+code`): `Clone`, `Copy`, `Send`, `Sync`, `Sized`, `?Sized`, `Unpin`,
+lifetimes, `PartialEq`, `Eq`, `Debug`, `Display`. A model cannot write
+them: `T: Clone` is refused.
+
+`record R<T> { … }` is compared with its `struct` field by field. The
+interface `mitra build` writes prints functions with their parameters
+and bounds.

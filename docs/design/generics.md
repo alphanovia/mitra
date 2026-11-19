@@ -39,10 +39,13 @@ subject sync {
 
 ## What it means
 
-A type parameter is any value, bound or not: the type system gains
-nothing. A bound says what the function leans on, exactly as
-`impl Contract` does: the block is judged against the contract, and a
-`require` on one of its promises is expected (M106 without).
+Inside its function a type parameter is opaque, known by the contracts
+that bound it; the user settled it (2026-11-19): "T opaque record yes".
+It is the type `record T;` already was: nothing stated. The type
+system gains no new kind of type. For a caller it is any value. A bound
+says what the function leans on, exactly as `impl Contract` does: the
+block is judged against the contract, and a `require` on one of its
+promises is expected (M106 without).
 
 The instance is chosen at the call, as in Rust: nothing is written for
 it, and any value fits.
@@ -50,8 +53,9 @@ it, and any value fits.
 ## Evidence
 
 A test runs at one instance. It is recorded as what it is, a point: an
-output for inputs of that instance. Nothing lets one instance stand
-for the others. An implied piece `f::parametric`, the assumption that
+output for inputs of that instance. The report lists the instances
+seen ("Instance list yes"). Nothing lets one instance stand for the
+others. An implied piece `f::parametric`, the assumption that
 would, is not built: every input type that holds a type parameter is
 infinite today, so no finite evidence covers it with or without that
 assumption. It would matter once a domain can be finite up to the
@@ -65,17 +69,20 @@ on a `subject` or a `boundary`. No bound on a `record` or an `enum`.
 
 ## Chosen alone, the smaller option each time
 
-Numbered in [the review](../review/2026-11-18.md), increment 72.
+Numbered in [the review](../review/2026-11-18.md), increments 72 and 73.
 
-- A type parameter stays `Any`. Rust's rule that a body may use of `T`
-  only what its bounds promise is not enforced: it needs an opaque
-  type, and the type system was to stop growing.
+- What a generic function gives back is any value to the reader, so
+  the rule is not followed through a call. A claim of an `impl<T>`
+  reads `T` as any value.
+- The tie sets aside the bounds that say nothing of a value (`Clone`,
+  `Copy`, `Send`, `Sync`, `Sized`, `Unpin`, lifetimes, and by my
+  choice `PartialEq`, `Eq`, `Debug`, `Display`), and says so.
 - A bound names contracts only. Rust's own traits (`Clone`, `Ord`) are
   not contracts and cannot be written.
 - `f::parametric` is not built (see Evidence).
 - In a bound, the types given to a contract (`S: Store<Int, String>`)
   are read and not used.
-- The tie compares bounds by the name of the trait, and lets the code
-  bound an input by more than the model says.
+- The tie compares bounds by the name of the trait; a bound on one
+  side only is a difference.
 - No bound on a `record` or an `enum`, no parameter on a `subject` or a
   `boundary`.

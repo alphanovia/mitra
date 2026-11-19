@@ -7,7 +7,7 @@
 
 pub use mitra_lang::results::{short, Outcome};
 
-// mitra: implements report::libtest
+// mitra: implements reader::Rust::results
 pub fn libtest(text: &str) -> Vec<Outcome> {
     text.lines()
         .filter_map(|l| {

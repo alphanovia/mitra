@@ -10,6 +10,7 @@
 //   claims.mitra      a claim, an assumption, `uses`, the implied claims
 //   intent.mitra      an `ensure`, a `require`, the capture between prose and claims
 //   contracts.mitra   a contract, the types that fill it, a value known by it
+//   frontend.mitra    the contract a reader of code fills, for any language
 //   ledger.mitra      evidence: pinned, passes, sampled, vouched
 //   model.mitra       the model that holds them (this file)
 //

@@ -19,6 +19,7 @@ subject contracts {
     ensure each_is_its_own_suspect = "A type that fills a contract is a group of its own: its promises rest on its own claims, not on those of the block around it.";
     ensure as_good_as_every_implementer = "A promise of a contract is at best as good as the same promise of every type that fills it; with none it is assumed, as a promise of the world.";
     ensure bound_is_what_is_leaned_on = "A type parameter is any value; a bound names the contracts its function leans on, kept by input, and `impl Contract` is the same with no name.";
+    ensure parameter_is_opaque = "Inside its function a type parameter, or an input written `impl Contract`, is a type of its own: only what its bounds promise is known of it, and anything else is refused. A caller still gives any value.";
     ensure neither_built_nor_bought = "A contract is a side of its own: no code is tied to its functions.";
 
     // owed_by_each, each_is_its_own_suspect, as_good_as_every_implementer

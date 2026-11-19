@@ -346,6 +346,18 @@ pub struct Model {
     /// The inputs bound by a contract, `l: impl Link` or `l: L` with
     /// `L: Link`.
     pub bounds: Vec<Bounded>,
+    /// The functions with an opaque input, as their bodies see them.
+    pub generics: Vec<Generic>,
+}
+
+/// A function as its own body sees it: a type parameter, or an input
+/// written `impl Contract`, is an opaque type there, known by the
+/// contracts that bound it. A caller gives any value.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Generic {
+    pub function: String,
+    pub params: Vec<(String, Set)>,
+    pub known: Vec<(Set, Vec<String>)>,
 }
 
 /// An input of a function known only by the contracts it fills.
