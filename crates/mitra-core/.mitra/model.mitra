@@ -5,8 +5,10 @@
 // the two agree. The points the tests pin are in points.mitra.
 //
 // Modelled: the operators of specs, the words of a verdict and of a
-// ranking, and a few functions of the printer. Not modelled: the parser,
-// the sets, the evaluation of claims, the ranking itself (in mitra-ds).
+// ranking, and a few functions of the printer. In prose only, with no
+// claim yet (`reader`, `types`, `verdicts` at the end): the reader, the
+// checks on a model, the evaluation of claims. Not modelled: the sets,
+// the ranking itself (in mitra-ds).
 // A Rust `Value` is any Mitra value: the type `Value`.
 
 // Rust's own, which the code uses.
@@ -109,4 +111,34 @@ subject report {
     }
     // One class per word.
     claim word_uniform = uniform(word, |c| -> {"certain", "likely", "possible", "unlikely"} { word(c) });
+}
+
+// The language itself, in prose only: what each part promises. No claim
+// says any of it yet, so each prints as unverified.
+
+// From text to a model (src/parse.rs).
+subject reader {
+    ensure reads = "A model written as the language reference says is read, and reads the same whatever its layout and comments.";
+    ensure refuses = "A text that is not a model is refused with its line and what to write instead; nothing is guessed.";
+    ensure names_in_full = "Whatever a subject or a boundary holds is known by one full name, and a short name is accepted only where one thing has it.";
+}
+
+// What a model must satisfy before anything is judged (`check`, src/ast.rs).
+subject types {
+    require read = reader::reads;
+    ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
+    ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts; evidence outside them is reported, never dropped.";
+    ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
+}
+
+// From a model and its evidence to verdicts (`evaluate`, src/eval.rs).
+subject verdicts {
+    require checked = types::fits;
+    require computed = eval::computes;
+    ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
+    ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
+    ensure fails_is_shown = "A claim fails only on an input that evidence or the model itself shows, and the report gives that input.";
+    ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
+    ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
+    ensure never_runs = "No code is run: the same model and evidence always give the same report.";
 }

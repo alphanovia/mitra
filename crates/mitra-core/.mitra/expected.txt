@@ -129,6 +129,81 @@ report::words::captured: unverified
 report::words: holds assuming [report::words::captured]
   says            "The word beside a candidate says how plausibly it is the wrong piece."
   rests on        `report::word::spec`
+reader::reads::captured: unverified
+  nobody vouched that the claims say what the text says
+reader::reads: unverified
+  says            "A model written as the language reference says is read, and reads the same whatever its layout and comments."
+  no claim in its subject: nothing says it is met
+reader::refuses::captured: unverified
+  nobody vouched that the claims say what the text says
+reader::refuses: unverified
+  says            "A text that is not a model is refused with its line and what to write instead; nothing is guessed."
+  no claim in its subject: nothing says it is met
+reader::names_in_full::captured: unverified
+  nobody vouched that the claims say what the text says
+reader::names_in_full: unverified
+  says            "Whatever a subject or a boundary holds is known by one full name, and a short name is accepted only where one thing has it."
+  no claim in its subject: nothing says it is met
+types::read: holds assuming [reader::reads]
+  needs           `reader::reads`
+types::declared::captured: unverified
+  nobody vouched that the claims say what the text says
+types::declared: unverified
+  says            "Every function, type, variant and claim a model names is declared, and declared once."
+  no claim in its subject: nothing says it is met
+  requires        `types::read`
+types::fits::captured: unverified
+  nobody vouched that the claims say what the text says
+types::fits: unverified
+  says            "A function is called with the inputs it takes, and a claim names only inputs its function accepts; evidence outside them is reported, never dropped."
+  no claim in its subject: nothing says it is met
+  requires        `types::read`
+types::ends::captured: unverified
+  nobody vouched that the claims say what the text says
+types::ends: unverified
+  says            "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input."
+  no claim in its subject: nothing says it is met
+  requires        `types::read`
+verdicts::checked: holds assuming [types::fits]
+  needs           `types::fits`
+verdicts::computed: holds assuming [eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured]
+  needs           `eval::computes`
+verdicts::one_each::captured: unverified
+  nobody vouched that the claims say what the text says
+verdicts::one_each: unverified
+  says            "Every claim gets one verdict: holds, holds assuming, unverified or fails."
+  no claim in its subject: nothing says it is met
+  requires        `verdicts::checked`, `verdicts::computed`
+verdicts::holds_is_covered::captured: unverified
+  nobody vouched that the claims say what the text says
+verdicts::holds_is_covered: unverified
+  says            "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named."
+  no claim in its subject: nothing says it is met
+  requires        `verdicts::checked`, `verdicts::computed`
+verdicts::fails_is_shown::captured: unverified
+  nobody vouched that the claims say what the text says
+verdicts::fails_is_shown: unverified
+  says            "A claim fails only on an input that evidence or the model itself shows, and the report gives that input."
+  no claim in its subject: nothing says it is met
+  requires        `verdicts::checked`, `verdicts::computed`
+verdicts::trust_apart::captured: unverified
+  nobody vouched that the claims say what the text says
+verdicts::trust_apart: unverified
+  says            "The trust given to a piece never changes a verdict; it only orders the candidates of an error."
+  no claim in its subject: nothing says it is met
+  requires        `verdicts::checked`, `verdicts::computed`
+verdicts::conflict_kept::captured: unverified
+  nobody vouched that the claims say what the text says
+verdicts::conflict_kept: unverified
+  says            "Evidence that can't all be true is reported as an error and counts for neither side until it is settled."
+  no claim in its subject: nothing says it is met
+  requires        `verdicts::checked`, `verdicts::computed`
+verdicts::never_runs::captured: unverified
+  nobody vouched that the claims say what the text says
+verdicts::never_runs: unverified
+  says            "No code is run: the same model and evidence always give the same report."
+  no claim in its subject: nothing says it is met
+  requires        `verdicts::checked`, `verdicts::computed`
 eval::as_str::tied: holds
 eval::binary::tied: holds
 eval::unary::tied: holds
@@ -137,118 +212,280 @@ print::negative::tied: holds
 report::word::tied: holds
 set::quote::tied: holds
 
+warning[M105]: a requirement that nothing uses
+  --> .mitra/model.mitra:128  require read = reader::reads;
+
+  `types::read` needs `reader::reads`, and no function declared beside it `uses` a function declared beside `reader::reads`.
+  help: say which function `uses` it, or remove the `require`
+
+warning[M105]: a requirement that nothing uses
+  --> .mitra/model.mitra:136  require checked = types::fits;
+
+  `verdicts::checked` needs `types::fits`, and no function declared beside it `uses` a function declared beside `types::fits`.
+  help: say which function `uses` it, or remove the `require`
+
+warning[M105]: a requirement that nothing uses
+  --> .mitra/model.mitra:137  require computed = eval::computes;
+
+  `verdicts::computed` needs `eval::computes`, and no function declared beside it `uses` a function declared beside `eval::computes`.
+  help: say which function `uses` it, or remove the `require`
+
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:47  fn unary(op: String, v: Value) -> Option<Value>;
+  --> .mitra/model.mitra:49  fn unary(op: String, v: Value) -> Option<Value>;
 
   No evidence on (op, v) in (String \ {"!", "-", "keys"}, Value) | ({"keys"}, Value \ {{"a": 1, "b": 2}, {1}}) | ({"-"}, Value \ {-3, 3, 0.5, "a"}) | ({"!"}, Value \ Bool).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:52  claim twice_negated(v: Int) { match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) } }
+  --> .mitra/model.mitra:54  claim twice_negated(v: Int) { match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) } }
 
   No evidence on v in Int \ {-3, 3}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:57  fn binary(op: String, x: Value, y: Value) -> Option<Value>;
+  --> .mitra/model.mitra:59  fn binary(op: String, x: Value, y: Value) -> Option<Value>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:59  claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
+  --> .mitra/model.mitra:61  claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:60  claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
+  --> .mitra/model.mitra:62  claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
 
   No evidence on (x, y) in (Value \ {-3, 4}, Value) | ({4}, Value \ {-3}) | ({-3}, Value \ {4}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:61  claim minus_is_plus_negated(x: Int, y: Int) { match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) } }
+  --> .mitra/model.mitra:63  claim minus_is_plus_negated(x: Int, y: Int) { match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) } }
 
   No evidence on (x, y) in (Int \ {2}, Int) | ({2}, Int \ {3}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:64  claim different_is_not_equal(x, y) { match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) } }
+  --> .mitra/model.mitra:66  claim different_is_not_equal(x, y) { match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) } }
 
   No evidence on (x, y) in (Value \ {2}, Value) | ({2}, Value \ {2, "2"}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:67  claim union_commutes(x: Set<Int>, y: Set<Int>) { binary("|", x, y) == binary("|", y, x) }
+  --> .mitra/model.mitra:69  claim union_commutes(x: Set<Int>, y: Set<Int>) { binary("|", x, y) == binary("|", y, x) }
 
   No evidence on (x, y) in (Set<Int> \ {{1, 2}, {2, 3}}, Set<Int>) | ({{2, 3}}, Set<Int> \ {{1, 2}}) | ({{1, 2}}, Set<Int> \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:69  claim difference_apart(x: Set<Int>, y: Set<Int>) { match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) } }
+  --> .mitra/model.mitra:71  claim difference_apart(x: Set<Int>, y: Set<Int>) { match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) } }
 
   No evidence on (x, y) in (Set<Int> \ {{1, 2}}, Set<Int>) | ({{1, 2}}, Set<Int> \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:72  claim divides_back(x: Int, y: Int \ {0}) { match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) } }
+  --> .mitra/model.mitra:74  claim divides_back(x: Int, y: Int \ {0}) { match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) } }
 
   No evidence on (x, y) in (Int \ {4}, Int \ {0}) | ({4}, Int \ {-3, 0}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:79  fn quote(s: String) -> String;
+  --> .mitra/model.mitra:81  fn quote(s: String) -> String;
 
   No evidence on s in String \ {"", "a b", "a\"b\\c\nd\te"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:85  fn negative(v: Value) -> bool;
+  --> .mitra/model.mitra:87  fn negative(v: Value) -> bool;
 
   No evidence on v in Value \ ({-0.5, "-1"} | -1..=0).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:87  claim negative_ints(v: Int) { negative(v) == (v < 0) }
+  --> .mitra/model.mitra:89  claim negative_ints(v: Int) { negative(v) == (v < 0) }
 
   No evidence on v in Int \ -1..=0.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:36  ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
+  --> .mitra/model.mitra:38  ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
 
   Nobody vouched that the claims `eval::computes` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for eval::computes::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:36  ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
+  --> .mitra/model.mitra:38  ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
 
   `eval::computes` holds if `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:83  ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
+  --> .mitra/model.mitra:85  ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
 
   Nobody vouched that the claims `print::prints_back` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for print::prints_back::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:83  ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
+  --> .mitra/model.mitra:85  ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
 
   `print::prints_back` holds if `print::negative::correct`, `print::negative_ints`, `print::prints_back::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:102  ensure words = "The word beside a candidate says how plausibly it is the wrong piece.";
+  --> .mitra/model.mitra:104  ensure words = "The word beside a candidate says how plausibly it is the wrong piece.";
 
   Nobody vouched that the claims `report::words` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for report::words::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:102  ensure words = "The word beside a candidate says how plausibly it is the wrong piece.";
+  --> .mitra/model.mitra:104  ensure words = "The word beside a candidate says how plausibly it is the wrong piece.";
 
   `report::words` holds if `report::words::captured` holds, and no evidence supports it.
   help: review it, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:121  ensure reads = "A model written as the language reference says is read, and reads the same whatever its layout and comments.";
+
+  Nobody vouched that the claims `reader::reads` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for reader::reads::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:121  ensure reads = "A model written as the language reference says is read, and reads the same whatever its layout and comments.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:122  ensure refuses = "A text that is not a model is refused with its line and what to write instead; nothing is guessed.";
+
+  Nobody vouched that the claims `reader::refuses` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for reader::refuses::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:122  ensure refuses = "A text that is not a model is refused with its line and what to write instead; nothing is guessed.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:123  ensure names_in_full = "Whatever a subject or a boundary holds is known by one full name, and a short name is accepted only where one thing has it.";
+
+  Nobody vouched that the claims `reader::names_in_full` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for reader::names_in_full::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:123  ensure names_in_full = "Whatever a subject or a boundary holds is known by one full name, and a short name is accepted only where one thing has it.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:129  ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
+
+  Nobody vouched that the claims `types::declared` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for types::declared::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:129  ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:130  ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts; evidence outside them is reported, never dropped.";
+
+  Nobody vouched that the claims `types::fits` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for types::fits::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:130  ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts; evidence outside them is reported, never dropped.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:131  ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
+
+  Nobody vouched that the claims `types::ends` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for types::ends::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:131  ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:138  ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
+
+  Nobody vouched that the claims `verdicts::one_each` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for verdicts::one_each::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:138  ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:139  ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
+
+  Nobody vouched that the claims `verdicts::holds_is_covered` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for verdicts::holds_is_covered::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:139  ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:140  ensure fails_is_shown = "A claim fails only on an input that evidence or the model itself shows, and the report gives that input.";
+
+  Nobody vouched that the claims `verdicts::fails_is_shown` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for verdicts::fails_is_shown::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:140  ensure fails_is_shown = "A claim fails only on an input that evidence or the model itself shows, and the report gives that input.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:141  ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
+
+  Nobody vouched that the claims `verdicts::trust_apart` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for verdicts::trust_apart::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:141  ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:142  ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
+
+  Nobody vouched that the claims `verdicts::conflict_kept` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for verdicts::conflict_kept::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:142  ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:143  ensure never_runs = "No code is run: the same model and evidence always give the same report.";
+
+  Nobody vouched that the claims `verdicts::never_runs` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for verdicts::never_runs::captured holds source "review:<who>" }
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:143  ensure never_runs = "No code is run: the same model and evidence always give the same report.";
+
+  No claim in its subject says it, or a claim it rests on is not settled.
+  help: write the claims that say it, in the same subject
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.
