@@ -90,6 +90,24 @@ appends one block per tied test that ran, `evidence test { for
 calc::div_small holds source "test:div_by_two" rev "R" }`, with `fails`
 when it failed.
 
+- **A test settles what it pins.** On a claim with no input the result
+  is the claim's (`holds`, `fails`). On a claim with inputs, a passing
+  test that states none is recorded as `passes`: it shows under the
+  claim as `passes on inputs not stated`, the claim stays `unverified`,
+  and `ingest` prints a warning naming the test. A failing one is
+  `fails` on the whole claim. To make it count, pin it: the comment
+  takes the clauses of an evidence block, one comment per point,
+
+  ```rust
+  // mitra: evidence for div given a = 6, b = 2 gives 3
+  // mitra: evidence for div_exact given a = 6, b = 2
+  #[test]
+  fn div_by_two() { assert_eq!(div(6, 2), 3); }
+  ```
+
+  written as they stand when the test passes (`holds` added when none
+  is said), and as `given … fails` when it fails. So a test serves a
+  function or a general claim directly, with no point claim.
 - The test's name is free. The claim is named in full
   (`calc::div_small`) or by its last part when only one claim has it.
   A comment that names no claim of the model is refused.

@@ -294,7 +294,7 @@ impl Writer<'_> {
         }
         let e = self.entry(line);
         match e.map(|e| &e.judgment) {
-            Some(Judgment::Correct(true)) => "passes",
+            Some(Judgment::Correct(true) | Judgment::Passed) => "passes",
             Some(Judgment::Correct(false)) => "fails",
             Some(Judgment::Output(_)) => "output",
             Some(Judgment::Holds(true)) => "vouches",
@@ -427,6 +427,18 @@ impl Writer<'_> {
             }
             if !v.tested.is_empty() && !v.tested.same(&v.domain) {
                 *out += &format!("  passes on       {}\n", inputs(&v.tested));
+            }
+            // Tests that passed on inputs they do not state.
+            let whole = c.target == crate::Target::Correct;
+            let on = |e: &&crate::Evidence| {
+                e.judgment == Judgment::Passed
+                    && (e.about == c.name || (whole && e.about == c.func))
+            };
+            let by: Vec<&str> = (self.model.evidence.iter().filter(on))
+                .map(|e| e.source.as_deref().unwrap_or("a test"))
+                .collect();
+            if !by.is_empty() && v.logic != Logic::Holds {
+                *out += &format!("  passes on       inputs not stated ({})\n", by.join(", "));
             }
             if let Some(i) = v.implication {
                 if !v.derived.is_empty() {

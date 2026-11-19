@@ -17,6 +17,7 @@ To try one: copy the model into `model.mitra`, the evidence into
 | `record`, `record R;`, `..` | a value with named fields, stated in full, in part or not at all | [kw-records.md](kw-records.md#record) |
 | `impl`, `self`, `Self` | the functions and claims of a record, as Rust writes them | [kw-records.md](kw-records.md#impl) |
 | `r#word` | a word of the language used as a name | [kw-records.md](kw-records.md#names-and-r) |
+| `passes` | a test passed on inputs it does not state | [kw-evidence.md](kw-evidence.md#passes) |
 | `enum` | a value that is one of several variants | [kw-records.md](kw-records.md#enum) |
 | `ensure` | what a subject promises, in plain words | [kw-requirements.md](kw-requirements.md#ensure) |
 | `require` | a named need: a promise made elsewhere, or one nobody makes yet | [kw-requirements.md](kw-requirements.md#require) |

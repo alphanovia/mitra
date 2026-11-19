@@ -6,13 +6,13 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | Crate | Functions | Tied | Share | Lines in functions | In tied ones | Share | Code lines | Model lines | Model / code |
 |---|---|---|---|---|---|---|---|---|---|
 | mitra-ds | 8 | 6 | 75% | 118 | 60 | 51% | 146 | 164 | 112% |
-| mitra-cli | 52 | 7 | 13% | 1274 | 133 | 10% | 1358 | 74 | 5% |
-| mitra-core | 328 | 15 | 5% | 10698 | 2174 | 20% | 11318 | 219 | 2% |
-| all | 388 | 28 | 7% | 12090 | 2367 | 20% | 12822 | 457 | 4% |
+| mitra-cli | 52 | 7 | 13% | 1324 | 133 | 10% | 1409 | 74 | 5% |
+| mitra-core | 328 | 15 | 5% | 10722 | 2175 | 20% | 11343 | 219 | 2% |
+| all | 388 | 28 | 7% | 12164 | 2368 | 19% | 12898 | 457 | 4% |
 
 - mitra-ds: 164 lines of model over 146 lines of code, in 2 subjects with 2 ensures and 1 require.
-- mitra-cli: 74 lines of model over 1358 lines of code, in 2 subjects with 2 ensures and 0 requires.
-- mitra-core: 219 lines of model over 11318 lines of code, in 7 subjects with 15 ensures and 4 requires.
+- mitra-cli: 74 lines of model over 1409 lines of code, in 2 subjects with 2 ensures and 0 requires.
+- mitra-core: 219 lines of model over 11343 lines of code, in 7 subjects with 15 ensures and 4 requires.
 
 ## mitra-ds
 
@@ -51,7 +51,7 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | main.rs | `take_value` | 178 | 11 |  |
 | main.rs | `take_display` | 192 | 20 |  |
 | main.rs | `run` | 214 | 3 |  |
-| main.rs | `run_command` | 219 | 278 |  |
+| main.rs | `run_command` | 219 | 325 |  |
 | source.rs | `file` | 18 | 19 |  |
 | source.rs | `add_file` | 40 | 6 |  |
 | source.rs | `push_lines` | 47 | 7 |  |
@@ -81,14 +81,14 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | tie.rs | `words` | 212 | 13 |  |
 | tie.rs | `read` | 227 | 68 |  |
 | tie.rs | `calls` | 299 | 8 |  |
-| tie.rs | `tests` | 330 | 34 |  |
-| tie.rs | `tie` | 365 | 187 |  |
+| tie.rs | `tests` | 335 | 37 |  |
+| tie.rs | `tie` | 373 | 187 |  |
 
 ## mitra-core
 
 | File | Function | Line | Lines | Tied to |
 |---|---|---|---|---|
-| ast.rs | `check` | 479 | 415 | types::Model::check |
+| ast.rs | `check` | 482 | 416 | types::Model::check |
 | eval.rs | `as_str` | 28 | 8 | report::Logic::as_str |
 | eval.rs | `unary` | 1486 | 12 | eval::unary |
 | eval.rs | `binary` | 1501 | 63 | eval::binary |
@@ -96,10 +96,10 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | lib.rs | `load` | 77 | 7 | types::load |
 | lib.rs | `read` | 86 | 46 | types::read |
 | lib.rs | `run` | 335 | 3 | verdicts::run |
-| parse.rs | `model` | 3385 | 3 | reader::model |
+| parse.rs | `model` | 3398 | 3 | reader::model |
 | plan.rs | `plan` | 17 | 256 | advice::plan |
-| print.rs | `negative` | 93 | 7 | print::negative |
-| print.rs | `level` | 107 | 9 | print::level |
+| print.rs | `negative` | 94 | 7 | print::negative |
+| print.rs | `level` | 108 | 9 | print::level |
 | prove.rs | `derive` | 478 | 45 | verdicts::derive |
 | report.rs | `word` | 194 | 11 | report::word |
 | set.rs | `quote` | 1121 | 13 | print::quote |
@@ -107,28 +107,28 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | ast.rs | `is_spec` | 117 | 3 |  |
 | ast.rs | `domain` | 121 | 3 |  |
 | ast.rs | `is_structural` | 171 | 6 |  |
-| ast.rs | `spec_of_classes` | 312 | 22 |  |
-| ast.rs | `conforms` | 338 | 4 |  |
-| ast.rs | `named` | 345 | 28 |  |
-| ast.rs | `named_recursive` | 377 | 16 |  |
-| ast.rs | `record` | 393 | 3 |  |
-| ast.rs | `function` | 397 | 4 |  |
-| ast.rs | `ensure` | 402 | 3 |  |
-| ast.rs | `captured` | 407 | 4 |  |
-| ast.rs | `invariant` | 414 | 17 |  |
-| ast.rs | `declared_function` | 433 | 3 |  |
-| ast.rs | `scored` | 438 | 8 |  |
-| ast.rs | `subjects_of` | 448 | 14 |  |
-| ast.rs | `claim` | 462 | 3 |  |
-| ast.rs | `covers` | 467 | 9 |  |
-| ast.rs | `arities` | 914 | 9 |  |
-| ast.rs | `passed` | 925 | 13 |  |
-| ast.rs | `descents` | 945 | 61 |  |
-| ast.rs | `part` | 946 | 7 |  |
-| ast.rs | `walk` | 1008 | 26 |  |
-| ast.rs | `arms` | 1036 | 21 |  |
-| ast.rs | `calls` | 1059 | 21 |  |
-| ast.rs | `single` | 1082 | 5 |  |
+| ast.rs | `spec_of_classes` | 315 | 22 |  |
+| ast.rs | `conforms` | 341 | 4 |  |
+| ast.rs | `named` | 348 | 28 |  |
+| ast.rs | `named_recursive` | 380 | 16 |  |
+| ast.rs | `record` | 396 | 3 |  |
+| ast.rs | `function` | 400 | 4 |  |
+| ast.rs | `ensure` | 405 | 3 |  |
+| ast.rs | `captured` | 410 | 4 |  |
+| ast.rs | `invariant` | 417 | 17 |  |
+| ast.rs | `declared_function` | 436 | 3 |  |
+| ast.rs | `scored` | 441 | 8 |  |
+| ast.rs | `subjects_of` | 451 | 14 |  |
+| ast.rs | `claim` | 465 | 3 |  |
+| ast.rs | `covers` | 470 | 9 |  |
+| ast.rs | `arities` | 919 | 9 |  |
+| ast.rs | `passed` | 930 | 13 |  |
+| ast.rs | `descents` | 950 | 61 |  |
+| ast.rs | `part` | 951 | 7 |  |
+| ast.rs | `walk` | 1013 | 26 |  |
+| ast.rs | `arms` | 1041 | 21 |  |
+| ast.rs | `calls` | 1064 | 21 |  |
+| ast.rs | `single` | 1087 | 5 |  |
 | eval.rs | `as_str` | 53 | 7 |  |
 | eval.rs | `text` | 191 | 14 |  |
 | eval.rs | `declared_claim` | 241 | 7 |  |
@@ -247,24 +247,24 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | parse.rs | `represented` | 2547 | 87 |  |
 | parse.rs | `import` | 2638 | 66 |  |
 | parse.rs | `instance` | 2712 | 92 |  |
-| parse.rs | `evidence` | 2810 | 127 |  |
-| parse.rs | `finish` | 2941 | 134 |  |
-| parse.rs | `requirements` | 3088 | 140 |  |
-| parse.rs | `reliance` | 3242 | 123 |  |
-| parse.rs | `declared` | 3391 | 26 |  |
-| parse.rs | `types_of` | 3422 | 55 |  |
-| parse.rs | `merge_types` | 3480 | 27 |  |
-| parse.rs | `scope_types` | 3511 | 56 |  |
-| parse.rs | `impls` | 3574 | 99 |  |
-| parse.rs | `read` | 3676 | 29 |  |
-| parse.rs | `evidence` | 3707 | 11 |  |
-| parse.rs | `evidence_alone` | 3720 | 43 |  |
-| parse.rs | `free` | 3769 | 60 |  |
-| parse.rs | `unwritten` | 3831 | 6 |  |
-| parse.rs | `records_in` | 3838 | 32 |  |
-| parse.rs | `written` | 3873 | 20 |  |
-| parse.rs | `stamp` | 3896 | 46 |  |
-| parse.rs | `tied` | 3945 | 4 |  |
+| parse.rs | `evidence` | 2810 | 138 |  |
+| parse.rs | `finish` | 2954 | 134 |  |
+| parse.rs | `requirements` | 3101 | 140 |  |
+| parse.rs | `reliance` | 3255 | 123 |  |
+| parse.rs | `declared` | 3404 | 26 |  |
+| parse.rs | `types_of` | 3435 | 55 |  |
+| parse.rs | `merge_types` | 3493 | 27 |  |
+| parse.rs | `scope_types` | 3524 | 56 |  |
+| parse.rs | `impls` | 3587 | 99 |  |
+| parse.rs | `read` | 3689 | 29 |  |
+| parse.rs | `evidence` | 3720 | 11 |  |
+| parse.rs | `evidence_alone` | 3733 | 43 |  |
+| parse.rs | `free` | 3782 | 60 |  |
+| parse.rs | `unwritten` | 3844 | 6 |  |
+| parse.rs | `records_in` | 3851 | 32 |  |
+| parse.rs | `written` | 3886 | 20 |  |
+| parse.rs | `stamp` | 3909 | 46 |  |
+| parse.rs | `tied` | 3958 | 4 |  |
 | plan.rs | `owed` | 62 | 158 |  |
 | plan.rs | `point` | 226 | 6 |  |
 | plan.rs | `subject_call` | 233 | 3 |  |
@@ -273,12 +273,12 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | plan.rs | `observed` | 270 | 8 |  |
 | plan.rs | `set_text` | 280 | 11 |  |
 | print.rs | `print_claim` | 8 | 3 |  |
-| print.rs | `print_evidence` | 14 | 49 |  |
-| print.rs | `pattern` | 65 | 19 |  |
-| print.rs | `call` | 87 | 4 |  |
-| print.rs | `expr` | 117 | 3 |  |
-| print.rs | `contract` | 122 | 112 |  |
-| print.rs | `at` | 238 | 99 |  |
+| print.rs | `print_evidence` | 14 | 50 |  |
+| print.rs | `pattern` | 66 | 19 |  |
+| print.rs | `call` | 88 | 4 |  |
+| print.rs | `expr` | 118 | 3 |  |
+| print.rs | `contract` | 123 | 112 |  |
+| print.rs | `at` | 239 | 99 |  |
 | prove.rs | `val` | 36 | 7 |  |
 | prove.rs | `app` | 43 | 4 |  |
 | prove.rs | `add` | 47 | 9 |  |
@@ -313,15 +313,15 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | report.rs | `role` | 291 | 15 |  |
 | report.rs | `inputs` | 308 | 34 |  |
 | report.rs | `missed` | 345 | 21 |  |
-| report.rs | `verdicts` | 369 | 112 |  |
-| report.rs | `quoted` | 483 | 13 |  |
-| report.rs | `piece` | 498 | 83 |  |
-| report.rs | `ranking` | 584 | 79 |  |
-| report.rs | `error` | 667 | 220 |  |
-| report.rs | `warnings` | 890 | 150 |  |
-| report.rs | `to_text` | 984 | 3 |  |
-| report.rs | `to_text_with` | 989 | 7 |  |
-| report.rs | `to_text_at` | 1000 | 47 |  |
+| report.rs | `verdicts` | 369 | 123 |  |
+| report.rs | `quoted` | 495 | 13 |  |
+| report.rs | `piece` | 510 | 83 |  |
+| report.rs | `ranking` | 596 | 79 |  |
+| report.rs | `error` | 679 | 220 |  |
+| report.rs | `warnings` | 902 | 150 |  |
+| report.rs | `to_text` | 996 | 3 |  |
+| report.rs | `to_text_with` | 1001 | 7 |  |
+| report.rs | `to_text_at` | 1012 | 47 |  |
 | set.rs | `set_of` | 47 | 5 |  |
 | set.rs | `map_of` | 53 | 11 |  |
 | set.rs | `as_set` | 65 | 9 |  |

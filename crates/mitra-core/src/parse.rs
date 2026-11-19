@@ -2817,7 +2817,9 @@ impl P {
         let target = self.find(&target)?;
         let (mut given, mut says, mut trust) = (Vec::new(), None, 1.0);
         let (mut source, mut rev) = (label, None);
-        let clauses = ["given", "holds", "fails", "gives", "trust", "source", "rev"];
+        let clauses = [
+            "given", "holds", "fails", "passes", "gives", "trust", "source", "rev",
+        ];
         while !self.eat("}") {
             let at = self.line();
             let clause = self.name()?;
@@ -2837,7 +2839,7 @@ impl P {
                         break;
                     }
                 },
-                "holds" | "fails" => says = Some((clause, None, 0.0)),
+                "holds" | "fails" | "passes" => says = Some((clause, None, 0.0)),
                 "gives" if self.is("rate") && self.peek_at(1) == "=" => {
                     self.pos += 2;
                     let negative = self.eat("-");
@@ -2873,7 +2875,7 @@ impl P {
         let Some((says, value, rate)) = says else {
             return Err(Error::new(
                 line,
-                "the evidence says nothing: `holds`, `fails` or `gives …`",
+                "the evidence says nothing: `holds`, `fails`, `passes` or `gives …`",
             ));
         };
         let at = |m: String| Err(Error::new(line, m));
@@ -2915,6 +2917,17 @@ impl P {
                     _ => return at(format!("`{target}` is not a claim on one measure")),
                 }
             }
+            // A test that states no input: on a claim or a function with
+            // inputs it supports and settles nothing; with none, it holds.
+            ("passes", _, _) if !given.is_empty() => {
+                return at("`passes` states no input: with `given`, write `holds`".to_string())
+            }
+            ("passes", _, _) if !names.is_empty() => {
+                pattern.clear();
+                Judgment::Passed
+            }
+            ("passes", true, _) => Judgment::Correct(true),
+            ("passes", false, _) => Judgment::Holds(true),
             ("gives", true, Some(v)) => Judgment::Output(v),
             ("gives", _, _) => return at(format!("`{target}` is a claim: `holds` or `fails`")),
             (says, true, _) => Judgment::Correct(says == "holds"),

@@ -82,6 +82,25 @@ add_ok: fails
 add_commutes: holds
 ```
 
+## passes
+
+A test passed on inputs it does not state: what `mitra ingest` writes
+for a test tied to a claim with inputs by a comment that pins nothing.
+It supports the claim and settles nothing. On a claim or a function
+with no input it is `holds`.
+
+```mitra
+subject fn add(a: 0..=1, b: 0..=1) -> 0..=2;
+claim add_commutes(a: 0..=1, b: 0..=1) { add(a, b) == add(b, a) }
+```
+```evidence
+evidence test { for add_commutes passes source "test:sweep" }
+```
+```text
+add_commutes: unverified
+  passes on       inputs not stated (test:sweep)
+```
+
 ## gives
 
 `gives value`: the output observed on these inputs. `gives rate = 0.9`

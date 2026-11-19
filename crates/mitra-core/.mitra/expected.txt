@@ -44,7 +44,9 @@ print::level::spec: holds
 print::level_uniform: holds
 reader::model::correct: unverified
   no evidence on  src in String
-reader::fault_is_placed: holds
+reader::fault_is_placed: unverified
+  passes on       inputs not stated (test:fault_is_placed)
+  no evidence on  src in String
 reader::reads_a_subject: holds
 reader::refuses_a_bare_fn: holds
 types::Model::check::correct: unverified
@@ -67,7 +69,9 @@ verdicts::derive::correct: unverified
 verdicts::run::uses: holds
 verdicts::run::correct: unverified
   no evidence on  (model, evidence) in (String, String)
-verdicts::one_verdict_each: holds
+verdicts::one_verdict_each: unverified
+  passes on       inputs not stated (test:one_verdict_each)
+  no evidence on  m in reader::Model
 verdicts::untested_is_unverified: holds
 verdicts::tested_holds: holds
 verdicts::refuted_fails: holds
@@ -160,71 +164,71 @@ print::prints_back: holds assuming [print::quote::correct, print::negative::corr
   rests on        `print::quote::correct`, `print::negative::correct`, `print::negative_ints`, `print::level::spec`
 reader::reads::captured: unverified
   nobody vouched that the claims say what the text says
-reader::reads: holds assuming [reader::model::correct, reader::reads::captured]
+reader::reads: holds assuming [reader::model::correct, reader::fault_is_placed, reader::reads::captured]
   says            "A model written as the language reference says is read."
   rests on        `reader::model::correct`, `reader::fault_is_placed`, `reader::reads_a_subject`, `reader::refuses_a_bare_fn`
 reader::refuses::captured: unverified
   nobody vouched that the claims say what the text says
-reader::refuses: holds assuming [reader::model::correct, reader::refuses::captured]
+reader::refuses: holds assuming [reader::model::correct, reader::fault_is_placed, reader::refuses::captured]
   says            "A text that is not a model is refused, with the line of the fault and what is wrong."
   rests on        `reader::model::correct`, `reader::fault_is_placed`, `reader::reads_a_subject`, `reader::refuses_a_bare_fn`
-types::read_first: holds assuming [reader::model::correct, reader::reads::captured]
+types::read_first: holds assuming [reader::model::correct, reader::fault_is_placed, reader::reads::captured]
   needs           `reader::reads`
 types::declared::captured: unverified
   nobody vouched that the claims say what the text says
-types::declared: holds assuming [types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::declared::captured]
+types::declared: holds assuming [types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::declared::captured]
   says            "Every function, type, variant and claim a model names is declared, and declared once."
   rests on        `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `types::good_is_read`, `types::unknown_is_refused`, `types::twice_is_refused`, `types::arity_is_refused`, `types::endless_is_refused`
   requires        `types::read_first`
 types::fits::captured: unverified
   nobody vouched that the claims say what the text says
-types::fits: holds assuming [types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured]
+types::fits: holds assuming [types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured]
   says            "A function is called with the inputs it takes, and a claim names only inputs its function accepts."
   rests on        `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `types::good_is_read`, `types::unknown_is_refused`, `types::twice_is_refused`, `types::arity_is_refused`, `types::endless_is_refused`
   requires        `types::read_first`
 types::ends::captured: unverified
   nobody vouched that the claims say what the text says
-types::ends: holds assuming [types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::ends::captured]
+types::ends: holds assuming [types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::ends::captured]
   says            "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input."
   rests on        `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `types::good_is_read`, `types::unknown_is_refused`, `types::twice_is_refused`, `types::arity_is_refused`, `types::endless_is_refused`
   requires        `types::read_first`
-verdicts::checked: holds assuming [types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured]
+verdicts::checked: holds assuming [types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured]
   needs           `types::fits`
 verdicts::computed: holds assuming [eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured]
   needs           `eval::computes`
 verdicts::one_each::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::one_each: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::one_each::captured]
+verdicts::one_each: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, verdicts::one_verdict_each, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::one_each::captured]
   says            "Every claim gets one verdict: holds, holds assuming, unverified or fails."
   rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
 verdicts::holds_is_covered::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::holds_is_covered: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::holds_is_covered::captured]
+verdicts::holds_is_covered: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, verdicts::one_verdict_each, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::holds_is_covered::captured]
   says            "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named."
   rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
 verdicts::fails_is_shown::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::fails_is_shown: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::fails_is_shown::captured]
+verdicts::fails_is_shown: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, verdicts::one_verdict_each, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::fails_is_shown::captured]
   says            "A claim fails only where evidence or the model itself shows it, or because something it rests on fails."
   rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
 verdicts::trust_apart::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::trust_apart: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::trust_apart::captured]
+verdicts::trust_apart: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, verdicts::one_verdict_each, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::trust_apart::captured]
   says            "The trust given to a piece never changes a verdict; it only orders the candidates of an error."
   rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
 verdicts::conflict_kept::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::conflict_kept: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::conflict_kept::captured]
+verdicts::conflict_kept: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, verdicts::one_verdict_each, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::conflict_kept::captured]
   says            "Evidence that can't all be true is reported as an error and counts for neither side until it is settled."
   rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
 verdicts::follows::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::follows: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::follows::captured]
+verdicts::follows: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, verdicts::one_verdict_each, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::follows::captured]
   says            "A claim said to follow from other claims is true whenever they are."
   rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
@@ -233,11 +237,11 @@ report::words::captured: unverified
 report::words: holds assuming [report::words::captured]
   says            "A verdict and a candidate are printed with the word the reference gives them."
   rests on        `report::Logic::as_str::spec`, `report::word::spec`
-advice::judged: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::one_each::captured]
+advice::judged: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, verdicts::one_verdict_each, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::one_each::captured]
   needs           `verdicts::one_each`
 advice::owed::captured: unverified
   nobody vouched that the claims say what the text says
-advice::owed: holds assuming [advice::plan::correct, verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::one_each::captured, advice::owed::captured]
+advice::owed: holds assuming [advice::plan::correct, verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, verdicts::one_verdict_each, types::Model::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::one_each::captured, advice::owed::captured]
   says            "For each claim that does not hold yet, the evidence that would settle it is listed."
   rests on        `advice::plan::correct`
   requires        `advice::judged`
@@ -357,6 +361,12 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:82  claim fault_is_placed(src: String) { match model(src) { Ok(read) => true, Err(e) => e.line >= 1 && e.message != "" } }
+
+  No evidence on src in String.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> .mitra/model.mitra:98  fn check(self) -> Result<Self, (Input, Error)>;
 
   No evidence on self in reader::Model.
@@ -390,6 +400,12 @@ warning[M101]: a claim is not verified
   --> .mitra/model.mitra:129  fn run(model: String, evidence: String) -> Result<Report, (Input, Error)> uses types::load, evaluate;
 
   No evidence on (model, evidence) in (String, String).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:131  claim one_verdict_each(m: Model) { match evaluate(m) { Err(e) => true, Ok(r) => len(r.verdicts) == len(m.claims), } }
+
+  No evidence on m in reader::Model.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -431,7 +447,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:72  ensure reads = "A model written as the language reference says is read.";
 
-  `reader::reads` holds if `reader::model::correct`, `reader::reads::captured` hold, and no evidence supports them.
+  `reader::reads` holds if `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -443,7 +459,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:73  ensure refuses = "A text that is not a model is refused, with the line of the fault and what is wrong.";
 
-  `reader::refuses` holds if `reader::model::correct`, `reader::refuses::captured` hold, and no evidence supports them.
+  `reader::refuses` holds if `reader::model::correct`, `reader::fault_is_placed`, `reader::refuses::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -455,7 +471,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:92  ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
 
-  `types::declared` holds if `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::declared::captured` hold, and no evidence supports them.
+  `types::declared` holds if `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::declared::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -467,7 +483,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:93  ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts.";
 
-  `types::fits` holds if `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured` hold, and no evidence supports them.
+  `types::fits` holds if `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -479,7 +495,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:94  ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
 
-  `types::ends` holds if `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::ends::captured` hold, and no evidence supports them.
+  `types::ends` holds if `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::ends::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -491,7 +507,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:115  ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
 
-  `verdicts::one_each` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::one_each::captured` hold, and no evidence supports them.
+  `verdicts::one_each` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::one_each::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -503,7 +519,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:116  ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
 
-  `verdicts::holds_is_covered` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::holds_is_covered::captured` hold, and no evidence supports them.
+  `verdicts::holds_is_covered` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::holds_is_covered::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -515,7 +531,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:117  ensure fails_is_shown = "A claim fails only where evidence or the model itself shows it, or because something it rests on fails.";
 
-  `verdicts::fails_is_shown` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::fails_is_shown::captured` hold, and no evidence supports them.
+  `verdicts::fails_is_shown` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::fails_is_shown::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -527,7 +543,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:118  ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
 
-  `verdicts::trust_apart` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::trust_apart::captured` hold, and no evidence supports them.
+  `verdicts::trust_apart` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::trust_apart::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -539,7 +555,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:119  ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
 
-  `verdicts::conflict_kept` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::conflict_kept::captured` hold, and no evidence supports them.
+  `verdicts::conflict_kept` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::conflict_kept::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -551,7 +567,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:120  ensure follows = "A claim said to follow from other claims is true whenever they are.";
 
-  `verdicts::follows` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::follows::captured` hold, and no evidence supports them.
+  `verdicts::follows` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::follows::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -575,7 +591,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:202  ensure owed = "For each claim that does not hold yet, the evidence that would settle it is listed.";
 
-  `advice::owed` holds if `advice::plan::correct`, `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::one_each::captured`, `advice::owed::captured` hold, and no evidence supports them.
+  `advice::owed` holds if `advice::plan::correct`, `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::one_each::captured`, `advice::owed::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

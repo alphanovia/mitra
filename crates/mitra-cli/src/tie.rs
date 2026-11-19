@@ -317,11 +317,16 @@ pub struct Found {
 /// Compare the code under `root` with the model.
 /// A test tied to a claim: `// mitra: evidence for math::div_small` above
 /// its `fn`. A pass is evidence that the claim holds, a failure that it
-/// does not.
+/// does not. The comment may pin what the test checks, with the clauses
+/// of an evidence block: `evidence for math::div given a = 6, b = 3
+/// gives 2`. Without them, on a claim with inputs, a pass only `passes`.
 pub struct Tied {
     /// The name of the test function.
     pub test: String,
     pub claim: String,
+    /// What the comment pins, as in an evidence block: `given a = 1`,
+    /// `given a = 1, b = 2 gives 3`. Empty when it states no input.
+    pub pinned: String,
     /// The file and line of the comment.
     pub place: String,
 }
@@ -352,9 +357,12 @@ pub fn tests(root: &Path) -> Result<Vec<Tied>, String> {
                     "{place}: `evidence for` must sit above a test `fn`"
                 ));
             };
+            let claim = claim.trim();
+            let (claim, pinned) = claim.split_once(char::is_whitespace).unwrap_or((claim, ""));
             out.push(Tied {
                 test: test.to_string(),
-                claim: claim.trim().to_string(),
+                claim: claim.to_string(),
+                pinned: pinned.trim().to_string(),
                 place,
             });
         }

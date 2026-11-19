@@ -411,7 +411,42 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                 Some(r) => format!(" rev \"{r}\""),
                 None => String::new(),
             };
+            let mut loose = Vec::new();
             for t in &tied {
+                let ran: Vec<&report::Outcome> =
+                    outcomes.iter().filter(|o| o.name == t.test).collect();
+                let passed = match ran[..] {
+                    [] if t.pinned.is_empty() => None,
+                    [] => continue,
+                    [o] => Some(o.passed),
+                    _ => {
+                        tied_notes.push(format!(
+                            "test {} appears {} times in the report: left out",
+                            t.test,
+                            ran.len()
+                        ));
+                        continue;
+                    }
+                };
+                // What the comment pins is written as it stands; a failure
+                // denies it on the same inputs.
+                if !t.pinned.is_empty() {
+                    let words: Vec<&str> = t.pinned.split_whitespace().collect();
+                    let said = words
+                        .iter()
+                        .position(|w| ["gives", "holds", "fails"].contains(w));
+                    let given = words[..said.unwrap_or(words.len())].join(" ");
+                    let says = match (passed == Some(true), said) {
+                        (true, Some(_)) => t.pinned.clone(),
+                        (true, None) => format!("{given} holds"),
+                        (false, _) => format!("{given} fails"),
+                    };
+                    lines.push(format!(
+                        "evidence test {{ for {} {says} source \"test:{}\"{attrs} }}",
+                        t.claim, t.test
+                    ));
+                    continue;
+                }
                 let ends = |c: &&mitra_core::Claim| {
                     c.name == t.claim || c.name.ends_with(&format!("::{}", t.claim))
                 };
@@ -424,23 +459,28 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                     };
                     return Err(format!("{}: the model has {why} `{}`", t.place, t.claim));
                 };
-                let ran: Vec<&report::Outcome> =
-                    outcomes.iter().filter(|o| o.name == t.test).collect();
-                match ran[..] {
-                    [] => {}
-                    [o] => {
-                        let says = if o.passed { "holds" } else { "fails" };
-                        lines.push(format!(
-                            "evidence test {{ for {} {says} source \"test:{}\"{attrs} }}",
-                            c.name, t.test
-                        ));
+                let Some(passed) = passed else { continue };
+                // On a claim with inputs, a test that states none passes
+                // on some of them: it settles nothing. A failure refutes.
+                let takes = model
+                    .function(&c.func)
+                    .is_some_and(|f| !f.params.is_empty());
+                let point = match c.pattern.is_empty() {
+                    true => !takes,
+                    false => c.pattern.iter().all(|p| p.var.is_none()),
+                };
+                let says = match (passed, point) {
+                    (false, _) => "fails",
+                    (true, true) => "holds",
+                    (true, false) => {
+                        loose.push(format!("{}: {} on `{}`", t.place, t.test, c.name));
+                        "passes"
                     }
-                    _ => tied_notes.push(format!(
-                        "test {} appears {} times in the report: left out",
-                        t.test,
-                        ran.len()
-                    )),
-                }
+                };
+                lines.push(format!(
+                    "evidence test {{ for {} {says} source \"test:{}\"{attrs} }}",
+                    c.name, t.test
+                ));
             }
             lines.dedup();
             if !lines.is_empty() {
@@ -463,6 +503,17 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             );
             for n in tied_notes {
                 println!("{n}");
+            }
+            if !loose.is_empty() {
+                println!(
+                    "warning: {} tied test(s) state no input on a claim that has inputs: \
+                     recorded as `passes`, which settles nothing. Pin what each checks, \
+                     `// mitra: evidence for <claim> given a = 1`, or tie it to a point claim:",
+                    loose.len()
+                );
+                for l in &loose {
+                    println!("  {l}");
+                }
             }
             if !outside.is_empty() {
                 println!(

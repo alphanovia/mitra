@@ -43,6 +43,7 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
         let says = match &e.judgment {
             Judgment::Correct(true) | Judgment::Holds(true) => "holds".to_string(),
             Judgment::Correct(false) | Judgment::Holds(false) => "fails".to_string(),
+            Judgment::Passed => "passes".to_string(),
             Judgment::Output(v) => format!("gives {v}"),
             Judgment::Measured(_, value) => format!("gives rate = {value}"),
         };
