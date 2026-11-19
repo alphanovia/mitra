@@ -2,9 +2,6 @@
 
 import std::rust::{Option, Result};
 
-// A folder: Rust's own `std::path::Path`.
-record Path;
-
 // A model, and a test tied to a claim: mitra-lang's, stated and tied in
 // its own model. `Model` comes without its fields: they name types of
 // mitra-lang that are not brought here.
@@ -27,6 +24,10 @@ subject ties {
         notes: Vec<String>,
         agree: usize,
         differ: usize,
+        // The functions, records and enums no code is tied to.
+        untied: Vec<String>,
+        // The lines of `src/` that are code.
+        code_lines: usize,
     }
 
     // Every test of `src/` and `tests/` tied to a claim.

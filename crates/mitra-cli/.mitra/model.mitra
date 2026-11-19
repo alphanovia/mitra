@@ -13,6 +13,9 @@ import mitra_store::store::{whole_folder};
 import mitra_store::ledger::{sound_or_untouched};
 import mitra_lang::verdicts::{one_each, never_runs};
 import mitra_lang::results::{a_pass_is_not_overstated, a_failure_is_kept};
+import mitra_lang::build::{every_piece_is_listed};
+import mitra_lang::levels::{observation_is_compared};
+import mitra_store::keeping::{machine_is_a_snapshot};
 
 // The person or the script that runs a command. What they say is taken
 // as said: Mitra has no way to check it.
@@ -32,8 +35,14 @@ subject commands {
     require same_report = verdicts::never_runs;
     require pass_not_overstated = results::a_pass_is_not_overstated;
     require failure_kept = results::a_failure_is_kept;
+    require compiled = build::every_piece_is_listed;
+    require compared = levels::observation_is_compared;
+    require snapshot = keeping::machine_is_a_snapshot;
 
     ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
+    ensure levels_in_order = "`build`, `conform`, `assess` and `diagnose` are four levels: the model alone, then with the code, then with the ledger, then with an observation. Each runs the levels before it and stops at the first that fails.";
+    ensure build_says_nothing_owed = "`build` says whether the model reads and whether anything in it contradicts anything else, and writes the build files. It says nothing of the evidence owed.";
+    ensure diagnose_writes_nothing = "`diagnose` judges an observation without writing it to the ledger, and says how to file it.";
     ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";
     ensure rev_is_safe_to_write = "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger.";
 

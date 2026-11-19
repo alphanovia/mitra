@@ -137,3 +137,164 @@ fn another_store_is_read_beside_this_one() {
     assert!(source.handed.stores.contains_key("one_a"));
     let _ = fs::remove_dir_all(root);
 }
+
+const CALC: &str = "subject calc {\n    fn add(a: Int, b: Int) -> Int;\n    claim commutes(a: Int, b: Int) { add(a, b) == add(b, a) }\n}\n";
+
+/// machine_is_a_snapshot, nothing_leaves_unshown.
+// mitra: evidence for keeping::Store::replace::correct
+#[test]
+fn a_run_replaces_what_its_machine_said() {
+    let (root, s) = store("replace", CALC);
+    let test = |n: &str, rev: &str| {
+        format!("evidence test {{ for calc::add given a = 1, b = 2 gives 3 source \"test:{n}\" rev \"{rev}\" }}")
+    };
+    s.add(
+        "evidence r { for calc::commutes holds }",
+        Some("review:ana".into()),
+        None,
+    )
+    .unwrap();
+    let first = s
+        .replace(
+            "test:",
+            &format!("{}\n{}", test("one", "r1"), test("two", "r1")),
+        )
+        .unwrap();
+    assert_eq!((first.before, first.written, first.gone.len()), (0, 2, 0));
+    // The next run: `one` is observed again, `two` is not.
+    let next = s.replace("test:", &test("one", "r2")).unwrap();
+    assert_eq!((next.before, next.written), (2, 1));
+    assert_eq!(next.revs, ["r1"]);
+    assert_eq!(next.gone, [test("two", "r1")]);
+    let ledger = fs::read_to_string(s.evidence_path()).unwrap();
+    assert!(
+        !ledger.contains("r1") && ledger.contains(&test("one", "r2")),
+        "{ledger}"
+    );
+    // What a person said is still there, and so is the head of the file.
+    assert!(ledger.contains("source \"review:ana\""), "{ledger}");
+    assert!(ledger.starts_with("// Evidence"), "{ledger}");
+    // The reader of the code is another machine.
+    assert_eq!(s.replace("reader:", "").unwrap().before, 0);
+    assert_eq!(fs::read_to_string(s.evidence_path()).unwrap(), ledger);
+    let _ = fs::remove_dir_all(root);
+}
+
+/// sound_or_untouched.
+// mitra: evidence for keeping::Store::replace::correct
+#[test]
+fn a_refused_run_leaves_the_ledger() {
+    let (root, s) = store("refused-run", CALC);
+    let good = "evidence test { for calc::add given a = 1, b = 2 gives 3 source \"test:one\" }";
+    s.replace("test:", good).unwrap();
+    let before = fs::read_to_string(s.evidence_path()).unwrap();
+    let e = s.replace(
+        "test:",
+        "evidence test { for calc::nope holds source \"test:x\" }",
+    );
+    assert!(e.unwrap_err().contains("no function or claim `calc::nope`"));
+    assert_eq!(fs::read_to_string(s.evidence_path()).unwrap(), before);
+    let _ = fs::remove_dir_all(root);
+}
+
+/// human_is_never_dropped_silently, removal_is_explicit.
+// mitra: evidence for keeping::Store::remove::correct
+#[test]
+fn what_a_person_said_leaves_only_when_removed() {
+    use mitra_store::store::Which;
+    let (root, s) = store("remove", CALC);
+    s.add(
+        "evidence r { for calc::commutes holds }",
+        Some("review:ana".into()),
+        None,
+    )
+    .unwrap();
+    s.add(
+        "evidence b { for calc::commutes given a = 1, b = 2 fails }",
+        Some("ticket:7".into()),
+        None,
+    )
+    .unwrap();
+    s.add(
+        "evidence o { for calc::add holds }",
+        Some("review:bob".into()),
+        None,
+    )
+    .unwrap();
+    // The claim is reworded and the function renamed: all three stay.
+    let reworded = CALC
+        .replace("add(a, b) == add(b, a)", "sum(b, a) == sum(a, b)")
+        .replace("add(", "sum(");
+    fs::write(s.model_path(), reworded).unwrap();
+    s.replace("test:", "").unwrap();
+    let model = s.model().unwrap();
+    assert_eq!(model.aside.len(), 3, "{:?}", model.aside);
+    assert!(model
+        .evidence
+        .iter()
+        .all(|e| e.source.as_deref() != Some("review:ana")));
+    // Removal lists what goes.
+    let gone = s.remove(&Which::Orphaned).unwrap();
+    assert_eq!(gone.len(), 1);
+    assert!(
+        gone[0].contains("for calc::add holds source \"review:bob\""),
+        "{gone:?}"
+    );
+    let gone = s.remove(&Which::Source("ticket:7".into())).unwrap();
+    assert!(gone[0].contains("fails source \"ticket:7\""), "{gone:?}");
+    assert!(s
+        .remove(&Which::Stale(Some("calc::add".into())))
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        s.remove(&Which::Stale(Some("commutes".into())))
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(s
+        .remove(&Which::Piece("commutes".into()))
+        .unwrap()
+        .is_empty());
+    assert!(s.model().unwrap().aside.is_empty());
+    let _ = fs::remove_dir_all(root);
+}
+
+// mitra: evidence for ledger::Store::add::correct
+#[test]
+fn what_a_person_says_keeps_the_fingerprint_of_its_piece() {
+    let (root, s) = store("seen", CALC);
+    s.add(
+        "evidence r { for calc::commutes holds }",
+        Some("review:ana".into()),
+        None,
+    )
+    .unwrap();
+    s.add(
+        "evidence t { for calc::add given a = 1, b = 2 gives 3 source \"test:x\" }",
+        None,
+        None,
+    )
+    .unwrap();
+    let ledger = fs::read_to_string(s.evidence_path()).unwrap();
+    let lines: Vec<&str> = ledger.lines().collect();
+    assert!(lines[1].contains(" seen \""), "{ledger}");
+    assert!(!lines[2].contains("seen"), "{ledger}");
+    let _ = fs::remove_dir_all(root);
+}
+
+/// build_is_written_again.
+// mitra: evidence for store::Store::write_build::correct
+#[test]
+fn a_build_is_written_again() {
+    let (root, s) = store("build", MODEL);
+    let file = |text: &str| [("model.lock".to_string(), text.to_string())];
+    let dir = s.write_build(&file("one\n")).unwrap();
+    assert!(dir.ends_with(".mitra/build"), "{dir}");
+    s.write_build(&file("two\n")).unwrap();
+    let read = fs::read_to_string(root.join(".mitra/build/model.lock")).unwrap();
+    assert_eq!(read, "two\n");
+    // A build is no model file: the store reads as before.
+    assert!(s.model().is_ok());
+    let _ = fs::remove_dir_all(root);
+}

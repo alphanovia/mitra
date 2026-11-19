@@ -38,12 +38,12 @@ source::evidence_for_is_a_tie: holds
 source::a_line_of_model_is_no_tie: holds
 ties::tests::uses: holds
 ties::tests::correct: unverified
-  no evidence on  root in Path
+  no evidence on  root in code::Path
 ties::tests::deterministic: unverified
   no evidence on  `ties::tests` giving one output per input
 ties::tie::uses: holds
 ties::tie::correct: unverified
-  no evidence on  (root, model, rev) in (Path, model::Model, Option<String>)
+  no evidence on  (root, model, rev) in (code::Path, model::Model, Option<String>)
 ties::tie::deterministic: unverified
   no evidence on  `ties::tie` giving one output per input
 code::reads_what_is_there: holds assuming [itself]
@@ -99,7 +99,7 @@ ties::tie::tied: holds
 ties::Found::tied: holds
 
 warning[M105]: a requirement that nothing leans on
-  --> .mitra/ties.mitra:17  require comments_found = source::finds_ties;
+  --> .mitra/ties.mitra:14  require comments_found = source::finds_ties;
 
   `ties::comments_found` needs `source::finds_ties`, and nothing declared beside it leans on what is declared beside `source::finds_ties`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
@@ -153,25 +153,25 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/ties.mitra:33  fn tests(root: Path) -> Result<Vec<Tied>, String>
+  --> .mitra/ties.mitra:34  fn tests(root: Path) -> Result<Vec<Tied>, String>
 
-  No evidence on root in Path.
+  No evidence on root in code::Path.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/ties.mitra:33  fn tests(root: Path) -> Result<Vec<Tied>, String>
+  --> .mitra/ties.mitra:34  fn tests(root: Path) -> Result<Vec<Tied>, String>
 
   No evidence on `ties::tests` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/ties.mitra:37  fn tie(root: Path, model: Model, rev: Option<String>) -> Result<Found, String>
+  --> .mitra/ties.mitra:38  fn tie(root: Path, model: Model, rev: Option<String>) -> Result<Found, String>
 
-  No evidence on (root, model, rev) in (Path, model::Model, Option<String>).
+  No evidence on (root, model, rev) in (code::Path, model::Model, Option<String>).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/ties.mitra:37  fn tie(root: Path, model: Model, rev: Option<String>) -> Result<Found, String>
+  --> .mitra/ties.mitra:38  fn tie(root: Path, model: Model, rev: Option<String>) -> Result<Found, String>
 
   No evidence on `ties::tie` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -201,49 +201,49 @@ warning[M102]: a claim holds only under assumptions
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/ties.mitra:19  ensure compares_shape = "A function or a record of the model tied to code is compared with it: inputs, result and fields. What agrees and what differs is brought as evidence on its tie.";
+  --> .mitra/ties.mitra:16  ensure compares_shape = "A function or a record of the model tied to code is compared with it: inputs, result and fields. What agrees and what differs is brought as evidence on its tie.";
 
   Nobody vouched that the claims `ties::compares_shape` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for ties::compares_shape::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/ties.mitra:19  ensure compares_shape = "A function or a record of the model tied to code is compared with it: inputs, result and fields. What agrees and what differs is brought as evidence on its tie.";
+  --> .mitra/ties.mitra:16  ensure compares_shape = "A function or a record of the model tied to code is compared with it: inputs, result and fields. What agrees and what differs is brought as evidence on its tie.";
 
   `ties::compares_shape` holds if `ties::tests::correct`, `ties::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `ties::compares_shape::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/ties.mitra:20  ensure compares_calls = "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it.";
+  --> .mitra/ties.mitra:17  ensure compares_calls = "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it.";
 
   Nobody vouched that the claims `ties::compares_calls` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for ties::compares_calls::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/ties.mitra:20  ensure compares_calls = "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it.";
+  --> .mitra/ties.mitra:17  ensure compares_calls = "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it.";
 
   `ties::compares_calls` holds if `ties::tests::correct`, `ties::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `ties::compares_calls::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/ties.mitra:21  ensure says_what_it_did_not_compare = "What the reader could not compare is written in the evidence it brings.";
+  --> .mitra/ties.mitra:18  ensure says_what_it_did_not_compare = "What the reader could not compare is written in the evidence it brings.";
 
   Nobody vouched that the claims `ties::says_what_it_did_not_compare` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for ties::says_what_it_did_not_compare::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/ties.mitra:21  ensure says_what_it_did_not_compare = "What the reader could not compare is written in the evidence it brings.";
+  --> .mitra/ties.mitra:18  ensure says_what_it_did_not_compare = "What the reader could not compare is written in the evidence it brings.";
 
   `ties::says_what_it_did_not_compare` holds if `ties::tests::correct`, `ties::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `ties::says_what_it_did_not_compare::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/ties.mitra:22  ensure reads_only = "The code is read as text: it is never built, run or changed.";
+  --> .mitra/ties.mitra:19  ensure reads_only = "The code is read as text: it is never built, run or changed.";
 
   Nobody vouched that the claims `ties::reads_only` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for ties::reads_only::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/ties.mitra:22  ensure reads_only = "The code is read as text: it is never built, run or changed.";
+  --> .mitra/ties.mitra:19  ensure reads_only = "The code is read as text: it is never built, run or changed.";
 
   `ties::reads_only` holds if `ties::tests::correct`, `ties::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `ties::reads_only::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed

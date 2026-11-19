@@ -64,6 +64,9 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
         if let Some(r) = &e.rev {
             more += &format!(" rev {}", crate::set::quote(r));
         }
+        if let Some(s) = &e.seen {
+            more += &format!(" seen {}", crate::set::quote(s));
+        }
         out += &format!("evidence e {{ for {}{given} {says}{more} }}\n", e.about);
     }
     out

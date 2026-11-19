@@ -64,6 +64,7 @@ To try one: copy the model into `model.mitra`, the evidence into
 | `trust` | how much a piece of evidence is believed | [kw-evidence.md](kw-evidence.md#trust) |
 | `source` | where the evidence comes from | [kw-evidence.md](kw-evidence.md#source) |
 | `rev` | the revision of the code | [kw-evidence.md](kw-evidence.md#rev) |
+| `seen` | the fingerprint of the piece when a person said it | [kw-evidence.md](kw-evidence.md#seen) |
 
 Not keywords, and refused with advice: `test`, `opaque`, `def`,
 `forall`, `derive`. What the language does not read yet is listed in

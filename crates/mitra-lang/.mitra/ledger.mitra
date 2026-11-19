@@ -14,6 +14,11 @@
 // author trusts it (`trust`, 1 when not said). The ledger is the list of
 // them, in the order they were written. Keeping it on a disk is
 // mitra-store's work.
+//
+// Not everything in a ledger judges. Evidence on a piece the model no
+// longer has, and evidence a person said of a piece that reads
+// otherwise today (`seen`, see fingerprint.mitra), is set aside: kept,
+// shown in every report, counting for nothing.
 
 import std::rust::{Option, Result};
 
@@ -23,6 +28,9 @@ subject ledger {
     ensure vouch_covers_the_claim = "A person's word that a claim holds covers every input the claim names.";
     ensure unstated_covers_nothing = "A test that passed on inputs it does not state, counted or not, covers no input: the claim stays unverified.";
     ensure failing_sample_refutes = "A test that failed on a drawn input refutes the claim, on an input it does not state.";
+    ensure orphaned_judges_nothing = "Evidence of a ledger on a piece the model does not have is set aside: kept, shown, judging nothing. New evidence on such a piece is refused.";
+    ensure stale_judges_nothing = "Evidence that keeps the fingerprint of its piece judges nothing once the piece has another one: it is set aside, with both fingerprints.";
+    ensure machine_or_person = "Evidence whose source starts with `test:` or `reader:` was observed by a machine; any other is someone's word.";
 
     // What was observed. The field names are the model's.
     enum Judgment {
@@ -42,8 +50,79 @@ subject ledger {
         confidence: f64,
         source: Option<String>,
         rev: Option<String>,
+        // The fingerprint of its piece when a person said it.
+        seen: Option<String>,
         line: usize,
         ..
+    }
+
+    impl Evidence {
+        // Whether a machine observed it.
+        fn by_machine(&self) -> bool;
+    }
+
+    // Why evidence of the ledger counts for nothing.
+    enum Why {
+        Orphaned,                              // the model has no such piece
+        Stale(seen: String, now: String)       // its piece says something else now
+    }
+
+    // Evidence set aside.
+    record Aside {
+        about: String,
+        source: Option<String>,
+        rev: Option<String>,
+        why: Why,
+        line: usize,
+    }
+
+    // One evidence block of a ledger, read without a model: the piece
+    // it names as written, and its first and last line.
+    record Entry {
+        about: String,
+        source: Option<String>,
+        rev: Option<String>,
+        seen: Option<String>,
+        first: usize,
+        last: usize,
+    }
+
+    fn entries(src: String) -> Vec<Entry>;
+
+    // orphaned_judges_nothing
+    claim orphan_is_set_aside() {
+        match types::load("subject fn f() -> Bool;", "evidence r { for g holds source \"review:me\" }") {
+            Err(e) => false,
+            Ok(m) => map(a in m.aside, a.about) == ["g"]
+                && map(a in m.aside, a.why) == [Orphaned]
+                && len(m.evidence) == 0,
+        }
+    }
+
+    // stale_judges_nothing
+    claim stale_is_set_aside() {
+        match types::load("subject fn f() -> Bool;", "evidence r { for f holds seen \"000000000000\" }") {
+            Err(e) => false,
+            Ok(m) => map(a in m.aside, a.about) == ["f"] && len(m.evidence) == 0,
+        }
+    }
+    claim seen_as_it_is_judges() {
+        match types::load("subject fn f() -> Bool;", "evidence r { for f holds }") {
+            Err(e) => false,
+            Ok(m) => len(m.aside) == 0 && len(m.evidence) == 1,
+        }
+    }
+
+    // What `entries` reads.
+    claim t_entries_one() {
+        entries("evidence r { for a::b holds source \"review:me\" rev \"1\" }")
+            == [Entry("a::b", Some("review:me"), Some("1"), None, 1, 1)]
+    }
+    claim t_entries_label_is_the_source() {
+        entries("evidence ci {\n  for f given a = 1 gives 2\n}") == [Entry("f", Some("ci"), None, None, 1, 3)]
+    }
+    claim t_entries_none() {
+        entries("// nothing") == []
     }
 
     // says_who_and_when

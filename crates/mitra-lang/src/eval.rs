@@ -3544,7 +3544,10 @@ impl Report {
         let warns = |v: &&Verdict| {
             matches!(v.logic, Logic::Unverified | Logic::Assuming) && !v.own_word() && !need(v)
         };
-        self.verdicts.iter().filter(warns).count() + self.flags.len() + self.model.lints.len()
+        self.verdicts.iter().filter(warns).count()
+            + self.flags.len()
+            + self.model.lints.len()
+            + self.model.aside.len()
     }
 }
 

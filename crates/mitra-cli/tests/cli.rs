@@ -40,10 +40,28 @@ fn bad_evidence_names_the_file_and_line() {
         .arg(dir.join("ev.mitra"))
         .output()
         .unwrap();
+    // Evidence on a piece the model does not have is set aside and
+    // shown; evidence that does not read stops the command.
+    assert_eq!(out.status.code(), Some(0));
+    let said = String::from_utf8(out.stdout).unwrap();
+    assert!(said.contains("warning[M107]"), "{said}");
+    assert!(
+        said.contains("ev.mitra:2  evidence e { for flop holds }"),
+        "{said}"
+    );
+    assert!(
+        said.contains("The model has no `flop`. It judges nothing."),
+        "{said}"
+    );
+    std::fs::write(dir.join("ev.mitra"), "\nevidence e { flop }\n").unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_mitra"))
+        .args(["eval", &format!("{EXAMPLE}/model.mitra")])
+        .arg(dir.join("ev.mitra"))
+        .output()
+        .unwrap();
     assert_eq!(out.status.code(), Some(2));
     let err = String::from_utf8(out.stderr).unwrap();
     assert!(err.contains("ev.mitra: line 2: "), "{err}");
-    assert!(err.contains("`flop`"), "{err}");
     let _ = std::fs::remove_dir_all(dir);
 }
 
@@ -141,7 +159,7 @@ fn store_init_add_check_eval() {
     );
     assert!(
         before.ends_with(
-            "evidence r { for flip given a = true holds source \"review:ana\" rev \"3f2a\" }\n"
+            "evidence r { for flip given a = true holds source \"review:ana\" rev \"3f2a\" seen \"47d8e0c71f5a\" }\n"
         ),
         "{before}"
     );
@@ -201,7 +219,7 @@ fn ingest_turns_test_results_into_evidence() {
     assert_eq!(code, Some(0), "{err}");
     assert_eq!(
         out,
-        "4 results: 2 passed, 2 failed; 2 evidence added\n\
+        "4 results: 2 passed, 2 failed; 2 evidence written\n\
          FAILED, and tied to no claim, so no verdict shows it: t_all\n\
          tied to no claim: t_other\n"
     );
@@ -234,7 +252,7 @@ fn ingest_turns_test_results_into_evidence() {
 fn a_broken_store_is_blamed_not_the_new_evidence() {
     let dir = store("broken", FLIP);
     let ev = dir.join(".mitra/evidence.mitra");
-    let broken = std::fs::read_to_string(&ev).unwrap() + "evidence x { for nope holds }\n";
+    let broken = std::fs::read_to_string(&ev).unwrap() + "evidence x { for flip nope }\n";
     std::fs::write(&ev, &broken).unwrap();
     let (code, _, err) = mitra(
         &dir,
@@ -371,7 +389,7 @@ fn a_failed_bool_output_test_gives_the_other_output() {
     .unwrap();
     let (code, out, err) = mitra(&dir, &["ingest", "report.txt"]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(out.contains("3 evidence added"), "{out}");
+    assert!(out.contains("3 evidence written"), "{out}");
     let (_, out, _) = mitra(&dir, &["eval"]);
     // `dec(5)` was not 4, which is what the spec says it is.
     assert!(
@@ -425,7 +443,7 @@ fn tie_compares_the_code_with_the_model() {
     let (code, out, err) = mitra(&dir, &["tie", "--rev", "abc"]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
-        out.starts_with("2 agree, 2 differ; 4 evidence added"),
+        out.starts_with("2 agree, 2 differ; 4 evidence written"),
         "{out}"
     );
     assert!(
@@ -447,7 +465,7 @@ fn tie_compares_the_code_with_the_model() {
     std::fs::write(dir.join("report.txt"), report).unwrap();
     let (code, out, err) = mitra(&dir, &["ingest", "report.txt", "--rev", "abc"]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(out.contains("1 evidence added"), "{out}");
+    assert!(out.contains("1 evidence written"), "{out}");
     assert!(
         out.contains("tied to no claim, so no verdict shows it: other"),
         "{out}"
@@ -705,5 +723,213 @@ fn tie_reports_a_call_the_model_does_not_state() {
     assert!(!out.contains("a::h::uses"), "{out}");
     let (_, out, _) = mitra(&dir, &["eval"]);
     assert!(out.contains("a::f::uses: fails"), "{out}");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// The ledger over time: a run of the tests replaces the last one, what a
+/// person said stays until `mitra remove`, and both say what left.
+#[test]
+fn the_ledger_is_kept_not_only_grown() {
+    let dir = store("kept", FLIP);
+    std::fs::create_dir_all(dir.join("tests")).unwrap();
+    let tests = "// mitra: evidence for flip_on_true\n#[test]\nfn t_true() {}\n\
+                // mitra: evidence for flip given a = false gives true\n#[test]\nfn t_false() {}\n";
+    std::fs::write(dir.join("tests/t.rs"), tests).unwrap();
+    std::fs::write(
+        dir.join("r1.txt"),
+        "test t_true ... ok\ntest t_false ... ok\n",
+    )
+    .unwrap();
+    let (_, out, err) = mitra(&dir, &["ingest", "r1.txt", "--rev", "r1"]);
+    assert!(
+        out.starts_with("2 results: 2 passed, 0 failed; 2 evidence written\n"),
+        "{out}{err}"
+    );
+    let (_, _, err) = mitra(
+        &dir,
+        &[
+            "add",
+            "evidence r { for flip_correct holds }",
+            "--source",
+            "review:ana",
+        ],
+    );
+    assert_eq!(err, "");
+    // The second run no longer has `t_false`.
+    std::fs::write(dir.join("r2.txt"), "test t_true ... ok\n").unwrap();
+    let (_, out, _) = mitra(&dir, &["ingest", "r2.txt", "--rev", "r2"]);
+    assert!(
+        out.starts_with(
+            "1 results: 1 passed, 0 failed; 1 evidence written, in place of 2 test results of rev r1\n\
+             no longer observed, removed (1):\n  evidence test { for flip given a = false gives true source \"test:t_false\" rev \"r1\" }\n"
+        ),
+        "{out}"
+    );
+    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    assert!(
+        !ledger.contains("\"r1\"") && ledger.contains("review:ana"),
+        "{ledger}"
+    );
+    // The claim is reworded: the review is stale, shown, and judges nothing.
+    let model = FLIP.replace(
+        "claim flip_correct(a: bool) { correct(flip(a)) }",
+        "claim flip_correct(a: bool) { flip(flip(a)) == a }",
+    );
+    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    let (_, out, _) = mitra(&dir, &["eval"]);
+    assert!(out.contains("s::flip_correct: unverified"), "{out}");
+    assert!(
+        out.contains("warning[M108]: evidence said before its piece changed"),
+        "{out}"
+    );
+    let (code, out, _) = mitra(&dir, &["remove", "--stale"]);
+    assert_eq!(code, Some(0));
+    assert!(out.starts_with("removed 1 evidence from "), "{out}");
+    assert!(
+        out.contains("\n  evidence r { for flip_correct holds source \"review:ana\" seen \""),
+        "{out}"
+    );
+    let (_, out, _) = mitra(&dir, &["eval"]);
+    assert!(!out.contains("M108"), "{out}");
+    let (code, _, _) = mitra(&dir, &["remove"]);
+    assert_eq!(code, Some(2));
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+const CALC: &str = "subject calc {
+    ensure adds = \"Adds two numbers.\";
+    fn add(a: Int, b: Int) -> Int;
+    claim small() { add(1, 2) == 3 }
+}
+";
+
+/// The four levels, each running the ones before it and stopping at the
+/// first that fails.
+#[test]
+fn the_four_levels() {
+    let dir = store("levels", CALC);
+    // build: the model alone. Nothing on what is owed.
+    let (code, out, err) = mitra(&dir, &["build"]);
+    assert_eq!((code, err.as_str()), (Some(0), ""), "{out}");
+    assert!(out.starts_with("build: ok, model "), "{out}");
+    assert!(
+        out.contains("functions 1, claims 1, promises 1, requires 0, blocks 1, warnings 0\n"),
+        "{out}"
+    );
+    assert!(!out.contains("M101") && !out.contains(" owed:"), "{out}");
+    let lock = std::fs::read_to_string(dir.join(".mitra/build/model.lock")).unwrap();
+    assert!(lock.starts_with("mitra build 1\nmodel "), "{lock}");
+    assert!(lock.contains("\nimplied calc::add::correct "), "{lock}");
+    let interface = std::fs::read_to_string(dir.join(".mitra/build/interface.mitra")).unwrap();
+    assert!(
+        interface.ends_with("// mitra: implements calc::add\nfn add(a: Int, b: Int) -> Int;\n"),
+        "{interface}"
+    );
+    let owed = std::fs::read_to_string(dir.join(".mitra/build/owed.txt")).unwrap();
+    assert!(owed.contains("calc::small owed:"), "{owed}");
+    // conform: no code yet, so the model is not tied: drift, and assess
+    // stops there.
+    let (code, out, _) = mitra(&dir, &["conform"]);
+    assert_eq!(code, Some(1), "{out}");
+    assert!(out.contains("no code is tied to: calc::add\nconform: drift: 0 ties agree, 0 differ, 1 pieces untied"), "{out}");
+    let (code, out, _) = mitra(&dir, &["assess"]);
+    assert_eq!(code, Some(1));
+    assert!(
+        out.contains("conform: drift") && !out.contains("assess:"),
+        "{out}"
+    );
+    // With the code and a tied test.
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    std::fs::create_dir_all(dir.join("tests")).unwrap();
+    let code =
+        "// mitra: implements calc::add\npub fn add(a: i64, b: i64) -> i64 {\n    a + b\n}\n";
+    std::fs::write(dir.join("src/lib.rs"), code).unwrap();
+    let test = "// mitra: evidence for calc::small\n#[test]\nfn small() {}\n";
+    std::fs::write(dir.join("tests/t.rs"), test).unwrap();
+    let (code, out, _) = mitra(&dir, &["conform"]);
+    assert_eq!(code, Some(0), "{out}");
+    assert!(
+        out.contains(
+            "conform: ok: 1 ties agree, 0 differ, 0 pieces untied; 1 tests tied, 0 pin an input\n"
+        ),
+        "{out}"
+    );
+    assert!(
+        out.contains(
+            "  5 lines of model over 3 lines of code, in 1 blocks with 1 promises and 0 requires\n"
+        ),
+        "{out}"
+    );
+    // assess: the report, then who settles what is left.
+    std::fs::write(dir.join("r.txt"), "test small ... ok\n").unwrap();
+    let (code, out, _) = mitra(&dir, &["assess", "r.txt", "--rev", "r1"]);
+    assert_eq!(code, Some(0), "{out}");
+    assert!(
+        out.contains("1 results: 1 passed, 0 failed; 1 evidence written\n"),
+        "{out}"
+    );
+    assert!(out.contains("calc::small: holds\n"), "{out}");
+    let tail = "  for a person to review or decide (2):\n    \
+                calc::add::deterministic: a reviewer's word that `calc::add` gives one output per input\n    \
+                calc::adds::captured: a reviewer's word that the claims say what the text says\n  \
+                to hand over (tests to write, code to tie) (1):\n    calc::add::correct:";
+    assert!(out.contains(tail), "{out}");
+    // diagnose: an observation that agrees, then one that does not.
+    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let agrees = "evidence seen { for calc::add given a = 5, b = 5 gives 10 }";
+    let (code, out, _) = mitra(&dir, &["diagnose", agrees]);
+    assert_eq!(code, Some(0), "{out}");
+    assert!(out.contains("assess: 0 errors"), "{out}");
+    assert!(
+        out.contains("diagnose: the observation contradicts nothing"),
+        "{out}"
+    );
+    let bug = "evidence bug { for calc::add given a = 1, b = 2 gives 4 }";
+    let (code, out, _) = mitra(&dir, &["diagnose", bug]);
+    assert_eq!(code, Some(1), "{out}");
+    assert!(
+        out.contains("diagnose: the observation contradicts what the model and its ledger say\n"),
+        "{out}"
+    );
+    assert!(
+        out.contains(" -> fails\n") && out.contains("error[M"),
+        "{out}"
+    );
+    assert!(
+        out.contains(&format!("  to file it: mitra add '{bug}' --source <who>\n")),
+        "{out}"
+    );
+    // Neither observation was written: only the ties, read again.
+    let after = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    assert!(
+        !after.contains("gives") && ledger.lines().count() == after.lines().count(),
+        "{after}"
+    );
+    let (code, _, err) = mitra(&dir, &["diagnose", "evidence bug { for calc::nope holds }"]);
+    assert_eq!(code, Some(2));
+    assert!(
+        err.contains("the observation: line 1: the model has no function or claim `calc::nope`"),
+        "{err}"
+    );
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// A model that contradicts itself does not build, and nothing is written.
+#[test]
+fn a_model_that_contradicts_itself_does_not_build() {
+    let model =
+        "subject s { fn double(n: 0..=2) -> 0..=4 { n + n } claim odd() { double(1) == 3 } }\n";
+    let dir = store("nobuild", model);
+    let (code, out, _) = mitra(&dir, &["build"]);
+    assert_eq!(code, Some(1), "{out}");
+    assert!(
+        out.contains("error[M007]")
+            && out.ends_with("build: 1 errors in the model, nothing written\n"),
+        "{out}"
+    );
+    assert!(!dir.join(".mitra/build").exists());
+    let (code, out, _) = mitra(&dir, &["conform"]);
+    assert_eq!(code, Some(1));
+    assert!(!out.contains("conform:"), "{out}");
     let _ = std::fs::remove_dir_all(dir);
 }

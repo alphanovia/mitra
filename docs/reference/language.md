@@ -6,14 +6,17 @@ the code. Examples: [`examples/reworked/`](../../examples/reworked).
 
 One rule for every declaration: `keyword name(inputs) -> Output { body }`.
 
-The reference is in five files, each short enough to read in one go:
+The reference is in eight files, each short enough to read in one go:
 
 | File | What it holds |
 |---|---|
 | [language.md](language.md) | This page: a project start to end, the model, types, expressions, what is not read |
 | [claims.md](claims.md) | What a claim rests on without evidence, boundaries, `correct(…)`, `represented`, `uniform` |
 | [evidence.md](evidence.md) | Evidence blocks, the tie to the code, tests |
-| [commands.md](commands.md) | The commands, and `mitra plan` |
+| [levels.md](levels.md) | The four levels: `build`, `conform`, `assess`, `diagnose`, and the build files |
+| [commands.md](commands.md) | The commands under them, and `mitra plan` |
+| [ledger.md](ledger.md) | How the evidence file is kept: what a run replaces, stale and orphaned evidence, `mitra remove` |
+| [stores.md](stores.md) | A store that leans on another one |
 | [evaluation.md](evaluation.md) | How verdicts are worked out, the output, the codes |
 
 ## A project, start to end

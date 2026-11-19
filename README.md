@@ -130,7 +130,7 @@ direction, not the current language.
 | Doc | What it covers |
 |---|---|
 | [docs/vision.md](docs/vision.md) | What Mitra is, how it is layered, principles, non-goals |
-| [docs/design/product.md](docs/design/product.md) | Planned: the product in four levels (model alone, with the code, with the ledger, with a bug), the build artifact, the work loops |
+| [docs/design/product.md](docs/design/product.md) | The product in four levels (model alone, with the code, with the ledger, with a bug), the build artifact, the work loops; what of it is on main and what is planned |
 | [docs/design/semantics.md](docs/design/semantics.md) | Design: verdicts without numbers, opinions on evidence, the loop they are judged against, and what the code does differently today |
 | [docs/design/composition.md](docs/design/composition.md) | Earlier proposal, in part built another way: composition as implication, structure claims, tests as subjects |
 | [docs/coverage.md](docs/coverage.md) | How much of Mitra its own model covers: every function, tied or not, written by `scripts/coverage.py --write` |

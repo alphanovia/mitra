@@ -359,6 +359,11 @@ pub struct Found {
     pub notes: Vec<String>,
     pub agree: usize,
     pub differ: usize,
+    /// The functions, records and enums of the model no code is tied to.
+    pub untied: Vec<String>,
+    /// The lines of `src/` that are code: not blank, not a comment, and
+    /// above the unit tests of their file.
+    pub code_lines: usize,
 }
 
 /// Compare the code under `root` with the model.
@@ -412,11 +417,16 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
     }
     files.sort();
     let (mut code, mut tests) = (Vec::new(), String::new());
-    let mut shapes = Vec::new();
+    let (mut shapes, mut code_lines) = (Vec::new(), 0);
     for f in files {
         let shown = f.strip_prefix(root).unwrap_or(&f).display().to_string();
         let text = std::fs::read_to_string(&f).map_err(|e| format!("{shown}: {e}"))?;
         read(&shown, &text, &mut code, &mut shapes)?;
+        if shown.starts_with("src") {
+            let above = text.lines().take_while(|l| l.trim() != "#[cfg(test)]");
+            let counted = |l: &&str| !l.trim().is_empty() && !l.trim().starts_with("//");
+            code_lines += above.filter(counted).count();
+        }
         tests += &text;
     }
     let mut found = Found {
@@ -424,6 +434,8 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
         notes: Vec::new(),
         agree: 0,
         differ: 0,
+        untied: Vec::new(),
+        code_lines,
     };
     let attrs = match rev {
         Some(r) => format!(" rev \"{r}\""),
@@ -754,5 +766,6 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
             .notes
             .push(format!("no code is tied to: {}", names.join(", ")));
     }
+    found.untied = names.iter().map(|n| n.to_string()).collect();
     Ok(found)
 }

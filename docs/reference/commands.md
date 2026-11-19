@@ -5,16 +5,21 @@ today, and changes in the same commit as the code.
 
 ```sh
 mitra init
+mitra build | conform | assess | diagnose      # the four levels: levels.md
 mitra check [model.mitra [evidence.mitra]] [--rev <commit>]
 mitra eval  [model.mitra [evidence.mitra]] [--rev <commit>] [--candidates <n>]
             [--threshold <p>] [--all] [-o result.txt]
 mitra plan  [model.mitra [evidence.mitra]] [--rev <commit>]
 mitra next  [model.mitra [evidence.mitra]] [--rev <commit>]
 mitra add   '<evidence blocks>' [--source <who>] [--rev <commit>]
-mitra ingest <report> [--format libtest|junit] [--rev <commit>]
+mitra ingest <report>... [--format libtest|junit] [--rev <commit>]
 mitra tie   [--rev <commit>]
+mitra remove --orphaned | --stale [<piece>] | --source <who> | <piece>
 mitra explain <code | claim | std::module>
 ```
+
+The four levels ([levels.md](levels.md)) are the commands to start
+from; the ones below are the steps they are made of.
 
 When Mitra can't read or check its input it prints `file: line N:
 message` and exits with status 2.
@@ -26,8 +31,8 @@ message` and exits with status 2.
   the files whose records and enums it names (otherwise `model.mitra`
   first, then by name). `init` creates it, with a
   `.gitattributes` that merges `evidence.mitra` with git's `union`
-  driver, and never overwrites one. The evidence file is only appended
-  to, so two branches that add evidence merge as the union of their lines.
+  driver, and never overwrites one. How the evidence file is kept over
+  time: [ledger.md](ledger.md).
 - **Without a store**, name the model and the evidence file, or the
   model alone: it is then read with no evidence, which is the way to
   check a model while writing it. `explain <claim>` takes them too.
@@ -49,8 +54,15 @@ message` and exits with status 2.
   `--rev` into each block that does not say them (twice is an error),
   checks the store with the new evidence, and appends the blocks as
   written. The store must evaluate without a read error before and
-  after; otherwise nothing is written.
-- **`ingest`** and **`tie`**: see Tests and The tie to the code. Report
+  after; otherwise nothing is written. What a person says also gets
+  `seen "…"`, the fingerprint of its piece ([ledger.md](ledger.md)).
+- **`remove`** takes entries out of the evidence file and prints each
+  one: those on a piece the model no longer has, those said before
+  their piece changed (all, or on one piece), those of one source, or
+  those on one piece.
+- **`ingest`** and **`tie`**: see Tests and The tie to the code. Each
+  run replaces what its machine wrote before ([ledger.md](ledger.md));
+  `ingest` takes every report of the revision at once. Report
   formats: `libtest` (lines `test <path> ... ok|FAILED` as `cargo test`
   prints them) and `junit` (`<testcase name="…">`, failed with
   `<failure` or `<error`, left out with `<skipped`); a report starting

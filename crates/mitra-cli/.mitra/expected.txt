@@ -18,6 +18,12 @@ results::a_pass_is_not_overstated: holds assuming [itself]
   says            "A passing test becomes evidence for exactly what its tie comment pins: with no input stated, on a claim with inputs, it only passes."
 results::a_failure_is_kept: holds assuming [itself]
   says            "A failing test becomes evidence against what its tie comment pins, or against the whole claim when it pins nothing."
+build::every_piece_is_listed: holds assuming [itself]
+  says            "A compiled model lists every piece once: what is written, and what the model implies and never writes (`f::correct`, `f::deterministic`, captures), each with its kind and its fingerprint, in the order of their names."
+levels::observation_is_compared: holds assuming [itself]
+  says            "An observation is judged by the report with it against the report without it: it contradicts when a claim comes to fail or a new error appears, and each verdict that changes is listed."
+keeping::machine_is_a_snapshot: holds assuming [itself]
+  says            "Evidence observed by a machine (ties, test results, samples) is a snapshot of one revision: each run of that machine takes out what it wrote before and writes again, and says what it replaced."
 caller::names_the_right_revision: holds assuming [itself]
   says            "The revision given with `--rev` names the code the evidence was observed on."
 caller::report_is_of_that_code: holds assuming [itself]
@@ -42,126 +48,204 @@ commands::pass_not_overstated: holds assuming [results::a_pass_is_not_overstated
   needs           `results::a_pass_is_not_overstated`
 commands::failure_kept: holds assuming [results::a_failure_is_kept]
   needs           `results::a_failure_is_kept`
+commands::compiled: holds assuming [build::every_piece_is_listed]
+  needs           `build::every_piece_is_listed`
+commands::compared: holds assuming [levels::observation_is_compared]
+  needs           `levels::observation_is_compared`
+commands::snapshot: holds assuming [keeping::machine_is_a_snapshot]
+  needs           `keeping::machine_is_a_snapshot`
 commands::commands_only::captured: unverified
   nobody vouched that the claims say what the text says
-commands::commands_only: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, commands::commands_only::captured]
+commands::commands_only: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, commands::commands_only::captured]
   says            "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang."
   rests on        `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
-  requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`
+  requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`
+commands::levels_in_order::captured: unverified
+  nobody vouched that the claims say what the text says
+commands::levels_in_order: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, commands::levels_in_order::captured]
+  says            "`build`, `conform`, `assess` and `diagnose` are four levels: the model alone, then with the code, then with the ledger, then with an observation. Each runs the levels before it and stops at the first that fails."
+  rests on        `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
+  requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`
+commands::build_says_nothing_owed::captured: unverified
+  nobody vouched that the claims say what the text says
+commands::build_says_nothing_owed: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, commands::build_says_nothing_owed::captured]
+  says            "`build` says whether the model reads and whether anything in it contradicts anything else, and writes the build files. It says nothing of the evidence owed."
+  rests on        `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
+  requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`
+commands::diagnose_writes_nothing::captured: unverified
+  nobody vouched that the claims say what the text says
+commands::diagnose_writes_nothing: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, commands::diagnose_writes_nothing::captured]
+  says            "`diagnose` judges an observation without writing it to the ledger, and says how to file it."
+  rests on        `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
+  requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`
 commands::exit_says_it::captured: unverified
   nobody vouched that the claims say what the text says
-commands::exit_says_it: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, commands::exit_says_it::captured]
+commands::exit_says_it: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, commands::exit_says_it::captured]
   says            "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run."
   rests on        `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
-  requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`
+  requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`
 commands::rev_is_safe_to_write::captured: unverified
   nobody vouched that the claims say what the text says
-commands::rev_is_safe_to_write: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, commands::rev_is_safe_to_write::captured]
+commands::rev_is_safe_to_write: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, commands::rev_is_safe_to_write::captured]
   says            "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger."
   rests on        `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
-  requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`
+  requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`
 commands::check_rev::tied: holds
 
 warning[M105]: a requirement that nothing leans on
-  --> .mitra/model.mitra:26  require revision = caller::names_the_right_revision;
+  --> .mitra/model.mitra:29  require revision = caller::names_the_right_revision;
 
   `commands::revision` needs `caller::names_the_right_revision`, and nothing declared beside it leans on what is declared beside `caller::names_the_right_revision`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
 
 warning[M105]: a requirement that nothing leans on
-  --> .mitra/model.mitra:27  require report = caller::report_is_of_that_code;
+  --> .mitra/model.mitra:30  require report = caller::report_is_of_that_code;
 
   `commands::report` needs `caller::report_is_of_that_code`, and nothing declared beside it leans on what is declared beside `caller::report_is_of_that_code`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
 
 warning[M105]: a requirement that nothing leans on
-  --> .mitra/model.mitra:28  require who = caller::says_who;
+  --> .mitra/model.mitra:31  require who = caller::says_who;
 
   `commands::who` needs `caller::says_who`, and nothing declared beside it leans on what is declared beside `caller::says_who`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
 
 warning[M105]: a requirement that nothing leans on
-  --> .mitra/model.mitra:29  require whole_model = store::whole_folder;
+  --> .mitra/model.mitra:32  require whole_model = store::whole_folder;
 
   `commands::whole_model` needs `store::whole_folder`, and nothing declared beside it leans on what is declared beside `store::whole_folder`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
 
 warning[M105]: a requirement that nothing leans on
-  --> .mitra/model.mitra:30  require ledger_sound = ledger::sound_or_untouched;
+  --> .mitra/model.mitra:33  require ledger_sound = ledger::sound_or_untouched;
 
   `commands::ledger_sound` needs `ledger::sound_or_untouched`, and nothing declared beside it leans on what is declared beside `ledger::sound_or_untouched`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
 
 warning[M105]: a requirement that nothing leans on
-  --> .mitra/model.mitra:31  require one_verdict = verdicts::one_each;
+  --> .mitra/model.mitra:34  require one_verdict = verdicts::one_each;
 
   `commands::one_verdict` needs `verdicts::one_each`, and nothing declared beside it leans on what is declared beside `verdicts::one_each`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
 
 warning[M105]: a requirement that nothing leans on
-  --> .mitra/model.mitra:32  require same_report = verdicts::never_runs;
+  --> .mitra/model.mitra:35  require same_report = verdicts::never_runs;
 
   `commands::same_report` needs `verdicts::never_runs`, and nothing declared beside it leans on what is declared beside `verdicts::never_runs`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
 
 warning[M105]: a requirement that nothing leans on
-  --> .mitra/model.mitra:33  require pass_not_overstated = results::a_pass_is_not_overstated;
+  --> .mitra/model.mitra:36  require pass_not_overstated = results::a_pass_is_not_overstated;
 
   `commands::pass_not_overstated` needs `results::a_pass_is_not_overstated`, and nothing declared beside it leans on what is declared beside `results::a_pass_is_not_overstated`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
 
 warning[M105]: a requirement that nothing leans on
-  --> .mitra/model.mitra:34  require failure_kept = results::a_failure_is_kept;
+  --> .mitra/model.mitra:37  require failure_kept = results::a_failure_is_kept;
 
   `commands::failure_kept` needs `results::a_failure_is_kept`, and nothing declared beside it leans on what is declared beside `results::a_failure_is_kept`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
 
+warning[M105]: a requirement that nothing leans on
+  --> .mitra/model.mitra:38  require compiled = build::every_piece_is_listed;
+
+  `commands::compiled` needs `build::every_piece_is_listed`, and nothing declared beside it leans on what is declared beside `build::every_piece_is_listed`: no `uses`, no call, no type.
+  help: say which function `uses` it, or remove the `require`
+
+warning[M105]: a requirement that nothing leans on
+  --> .mitra/model.mitra:39  require compared = levels::observation_is_compared;
+
+  `commands::compared` needs `levels::observation_is_compared`, and nothing declared beside it leans on what is declared beside `levels::observation_is_compared`: no `uses`, no call, no type.
+  help: say which function `uses` it, or remove the `require`
+
+warning[M105]: a requirement that nothing leans on
+  --> .mitra/model.mitra:40  require snapshot = keeping::machine_is_a_snapshot;
+
+  `commands::snapshot` needs `keeping::machine_is_a_snapshot`, and nothing declared beside it leans on what is declared beside `keeping::machine_is_a_snapshot`: no `uses`, no call, no type.
+  help: say which function `uses` it, or remove the `require`
+
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:41  fn check_rev(rev: String) -> Result<(), String>;
+  --> .mitra/model.mitra:50  fn check_rev(rev: String) -> Result<(), String>;
 
   No evidence on rev in String.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:41  fn check_rev(rev: String) -> Result<(), String>;
+  --> .mitra/model.mitra:50  fn check_rev(rev: String) -> Result<(), String>;
 
   No evidence on `commands::check_rev` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:36  ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
+  --> .mitra/model.mitra:42  ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
 
   Nobody vouched that the claims `commands::commands_only` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for commands::commands_only::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:36  ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
+  --> .mitra/model.mitra:42  ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
 
-  `commands::commands_only` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `commands::commands_only::captured` hold, and no evidence supports them.
+  `commands::commands_only` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `commands::commands_only::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:37  ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";
+  --> .mitra/model.mitra:43  ensure levels_in_order = "`build`, `conform`, `assess` and `diagnose` are four levels: the model alone, then with the code, then with the ledger, then with an observation. Each runs the levels before  …
+
+  Nobody vouched that the claims `commands::levels_in_order` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for commands::levels_in_order::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:43  ensure levels_in_order = "`build`, `conform`, `assess` and `diagnose` are four levels: the model alone, then with the code, then with the ledger, then with an observation. Each runs the levels before  …
+
+  `commands::levels_in_order` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `commands::levels_in_order::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:44  ensure build_says_nothing_owed = "`build` says whether the model reads and whether anything in it contradicts anything else, and writes the build files. It says nothing of the evidence owed.";
+
+  Nobody vouched that the claims `commands::build_says_nothing_owed` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for commands::build_says_nothing_owed::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:44  ensure build_says_nothing_owed = "`build` says whether the model reads and whether anything in it contradicts anything else, and writes the build files. It says nothing of the evidence owed.";
+
+  `commands::build_says_nothing_owed` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `commands::build_says_nothing_owed::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:45  ensure diagnose_writes_nothing = "`diagnose` judges an observation without writing it to the ledger, and says how to file it.";
+
+  Nobody vouched that the claims `commands::diagnose_writes_nothing` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for commands::diagnose_writes_nothing::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:45  ensure diagnose_writes_nothing = "`diagnose` judges an observation without writing it to the ledger, and says how to file it.";
+
+  `commands::diagnose_writes_nothing` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `commands::diagnose_writes_nothing::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:46  ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";
 
   Nobody vouched that the claims `commands::exit_says_it` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for commands::exit_says_it::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:37  ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";
+  --> .mitra/model.mitra:46  ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";
 
-  `commands::exit_says_it` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `commands::exit_says_it::captured` hold, and no evidence supports them.
+  `commands::exit_says_it` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `commands::exit_says_it::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:38  ensure rev_is_safe_to_write = "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger.";
+  --> .mitra/model.mitra:47  ensure rev_is_safe_to_write = "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger.";
 
   Nobody vouched that the claims `commands::rev_is_safe_to_write` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for commands::rev_is_safe_to_write::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:38  ensure rev_is_safe_to_write = "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger.";
+  --> .mitra/model.mitra:47  ensure rev_is_safe_to_write = "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger.";
 
-  `commands::rev_is_safe_to_write` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `commands::rev_is_safe_to_write::captured` hold, and no evidence supports them.
+  `commands::rev_is_safe_to_write` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `commands::rev_is_safe_to_write::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

@@ -28,11 +28,17 @@ store::Store::source::correct: unverified
   no evidence on  self in store::Store
 store::Store::source::deterministic: unverified
   no evidence on  `store::Store::source` giving one output per input
+store::Store::write_build::uses: holds
+store::Store::write_build::correct: unverified
+  passes on       inputs not stated (test:a_build_is_written_again)
+  no evidence on  (self, files) in (store::Store, List<(String, String)>)
+store::Store::write_build::deterministic: unverified
+  no evidence on  `store::Store::write_build` giving one output per input
 store::a_model_file_names_its_store: holds
 store::another_file_is_no_store: holds
 ledger::Store::add::uses: holds
 ledger::Store::add::correct: unverified
-  passes on       inputs not stated (test:written_evidence_reads_back)
+  passes on       inputs not stated (test:written_evidence_reads_back, test:what_a_person_says_keeps_the_fingerprint_of_its_piece)
   no evidence on  (self, text, source, rev) in (store::Store, String, Option<String>, Option<String>)
 ledger::Store::add::deterministic: unverified
   no evidence on  `ledger::Store::add` giving one output per input
@@ -42,6 +48,18 @@ ledger::Store::append::correct: unverified
   no evidence on  (self, new) in (store::Store, String)
 ledger::Store::append::deterministic: unverified
   no evidence on  `ledger::Store::append` giving one output per input
+keeping::Store::replace::uses: holds
+keeping::Store::replace::correct: unverified
+  passes on       inputs not stated (test:a_run_replaces_what_its_machine_said, test:a_refused_run_leaves_the_ledger)
+  no evidence on  (self, prefix, new) in (store::Store, String, String)
+keeping::Store::replace::deterministic: unverified
+  no evidence on  `keeping::Store::replace` giving one output per input
+keeping::Store::remove::uses: holds
+keeping::Store::remove::correct: unverified
+  passes on       inputs not stated (test:what_a_person_said_leaves_only_when_removed)
+  no evidence on  (self, which) in (store::Store, keeping::Which)
+keeping::Store::remove::deterministic: unverified
+  no evidence on  `keeping::Store::remove` giving one output per input
 disk::reads_what_was_written::captured: unverified
   nobody vouched that the claims say what the text says
 disk::reads_what_was_written: holds assuming [disk::read_is_stable, disk::reads_what_was_written::captured]
@@ -94,21 +112,27 @@ store::handed: holds assuming [files::read::correct, files::file::correct, disk:
   needs           `files::handed_unchanged`
 store::whole_folder::captured: unverified
   nobody vouched that the claims say what the text says
-store::whole_folder: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::whole_folder::captured]
+store::whole_folder: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::whole_folder::captured]
   says            "The model of a store is every `.mitra` file of its folder, the ledger aside, with `model.mitra` handed first."
-  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
+  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
   requires        `store::listed`, `store::handed`
 store::nearest::captured: unverified
   nobody vouched that the claims say what the text says
-store::nearest: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::nearest::captured]
+store::nearest: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::nearest::captured]
   says            "A command run in a folder uses the nearest `.mitra/` at or above it."
-  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
+  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
+  requires        `store::listed`, `store::handed`
+store::build_is_written_again::captured: unverified
+  nobody vouched that the claims say what the text says
+store::build_is_written_again: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::build_is_written_again::captured]
+  says            "The files of a build are written under `.mitra/build/` in place of the last ones: a build is never edited, and never read back to judge."
+  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
   requires        `store::listed`, `store::handed`
 store::never_overwrites::captured: unverified
   nobody vouched that the claims say what the text says
-store::never_overwrites: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::never_overwrites::captured]
+store::never_overwrites: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::never_overwrites::captured]
   says            "A store is created only where there is none."
-  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
+  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
   requires        `store::listed`, `store::handed`
 ledger::reads: holds assuming [disk::read_is_stable, disk::reads_what_was_written::captured]
   needs           `disk::reads_what_was_written`
@@ -136,39 +160,52 @@ ledger::sound_or_untouched: holds assuming [ledger::Store::add::correct, ledger:
   requires        `ledger::reads`, `ledger::appends`, `ledger::left_alone`
 keeping::ledger_reads: holds assuming [ledger::Store::add::correct, ledger::Store::append::correct, disk::read_is_stable, disk::reads_what_was_written::captured, disk::appends_at_the_end::captured, disk::ledger_is_left_alone::captured, ledger::reads_back::captured]
   needs           `ledger::reads_back`
+keeping::left_alone: holds assuming [disk::read_is_stable, disk::ledger_is_left_alone::captured]
+  needs           `disk::ledger_is_left_alone`
 keeping::nothing_leaves_unshown::captured: unverified
   nobody vouched that the claims say what the text says
-keeping::nothing_leaves_unshown: unverified
-  says            "Nothing leaves the ledger without being shown."
-  no claim in its subject: nothing says it is met
-  requires        `keeping::ledger_reads`
+keeping::nothing_leaves_unshown: holds assuming [keeping::Store::replace::correct, keeping::Store::remove::correct, ledger::Store::add::correct, ledger::Store::append::correct, disk::read_is_stable, disk::reads_what_was_written::captured, disk::appends_at_the_end::captured, disk::ledger_is_left_alone::captured, ledger::reads_back::captured, keeping::nothing_leaves_unshown::captured]
+  says            "Nothing leaves the ledger without being shown: every entry taken out is given back as it was written."
+  rests on        `keeping::Store::replace::correct`, `keeping::Store::remove::correct`
+  requires        `keeping::ledger_reads`, `keeping::left_alone`
 keeping::machine_is_a_snapshot::captured: unverified
   nobody vouched that the claims say what the text says
-keeping::machine_is_a_snapshot: unverified
-  says            "Evidence observed by a machine (ties, test results, samples) is a snapshot of one revision: each run writes it again, and the report says what was replaced."
-  no claim in its subject: nothing says it is met
-  requires        `keeping::ledger_reads`
+keeping::machine_is_a_snapshot: holds assuming [keeping::Store::replace::correct, keeping::Store::remove::correct, ledger::Store::add::correct, ledger::Store::append::correct, disk::read_is_stable, disk::reads_what_was_written::captured, disk::appends_at_the_end::captured, disk::ledger_is_left_alone::captured, ledger::reads_back::captured, keeping::machine_is_a_snapshot::captured]
+  says            "Evidence observed by a machine (ties, test results, samples) is a snapshot of one revision: each run of that machine takes out what it wrote before and writes again, and says what it replaced."
+  rests on        `keeping::Store::replace::correct`, `keeping::Store::remove::correct`
+  requires        `keeping::ledger_reads`, `keeping::left_alone`
 keeping::human_is_never_dropped_silently::captured: unverified
   nobody vouched that the claims say what the text says
-keeping::human_is_never_dropped_silently: unverified
-  says            "Evidence said by a person (a vouch, a review, a bug report) is never dropped silently: when its piece is gone or was reworded it is listed as orphaned or stale, counts for nothing, and waits for a decision."
-  no claim in its subject: nothing says it is met
-  requires        `keeping::ledger_reads`
+keeping::human_is_never_dropped_silently: holds assuming [keeping::Store::replace::correct, keeping::Store::remove::correct, ledger::Store::add::correct, ledger::Store::append::correct, disk::read_is_stable, disk::reads_what_was_written::captured, disk::appends_at_the_end::captured, disk::ledger_is_left_alone::captured, ledger::reads_back::captured, keeping::human_is_never_dropped_silently::captured]
+  says            "Evidence said by a person (a vouch, a review, a bug report) is never taken out by a run of a machine: when its piece is gone or was reworded it stays in the ledger, where it is listed as orphaned or stale and counts for nothing, and waits for a decision."
+  rests on        `keeping::Store::replace::correct`, `keeping::Store::remove::correct`
+  requires        `keeping::ledger_reads`, `keeping::left_alone`
 keeping::removal_is_explicit::captured: unverified
   nobody vouched that the claims say what the text says
-keeping::removal_is_explicit: unverified
-  says            "Removing evidence is an act of its own, which lists what goes."
-  no claim in its subject: nothing says it is met
-  requires        `keeping::ledger_reads`
+keeping::removal_is_explicit: holds assuming [keeping::Store::replace::correct, keeping::Store::remove::correct, ledger::Store::add::correct, ledger::Store::append::correct, disk::read_is_stable, disk::reads_what_was_written::captured, disk::appends_at_the_end::captured, disk::ledger_is_left_alone::captured, ledger::reads_back::captured, keeping::removal_is_explicit::captured]
+  says            "Removing what a person said is an act of its own, `mitra remove`, which lists what goes."
+  rests on        `keeping::Store::replace::correct`, `keeping::Store::remove::correct`
+  requires        `keeping::ledger_reads`, `keeping::left_alone`
+keeping::sound_or_untouched::captured: unverified
+  nobody vouched that the claims say what the text says
+keeping::sound_or_untouched: holds assuming [keeping::Store::replace::correct, keeping::Store::remove::correct, ledger::Store::add::correct, ledger::Store::append::correct, disk::read_is_stable, disk::reads_what_was_written::captured, disk::appends_at_the_end::captured, disk::ledger_is_left_alone::captured, ledger::reads_back::captured, keeping::sound_or_untouched::captured]
+  says            "The ledger is rewritten only when the store with it still reads and evaluates: on an error it is left as it was."
+  rests on        `keeping::Store::replace::correct`, `keeping::Store::remove::correct`
+  requires        `keeping::ledger_reads`, `keeping::left_alone`
 files::file::tied: holds
 files::read::tied: holds
+keeping::Store::remove::tied: holds
+keeping::Store::replace::tied: holds
 ledger::Store::add::tied: holds
 ledger::Store::append::tied: holds
 store::Store::evidence_path::tied: holds
 store::Store::model_path::tied: holds
 store::Store::of::tied: holds
 store::Store::source::tied: holds
+store::Store::write_build::tied: holds
 store::Store::tied: holds
+keeping::Replaced::tied: holds
+keeping::Which::tied: holds
 
 warning[M105]: a requirement that nothing leans on
   --> .mitra/store.mitra:11  require handed = files::handed_unchanged;
@@ -177,7 +214,7 @@ warning[M105]: a requirement that nothing leans on
   help: say which function `uses` it, or remove the `require`
 
 warning[M105]: a requirement that nothing leans on
-  --> .mitra/ledger.mitra:35  require ledger_reads = ledger::reads_back;
+  --> .mitra/ledger.mitra:38  require ledger_reads = ledger::reads_back;
 
   `keeping::ledger_reads` needs `ledger::reads_back`, and nothing declared beside it leans on what is declared beside `ledger::reads_back`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
@@ -207,51 +244,63 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:22  fn of(model: String) -> Option<Self>;
+  --> .mitra/store.mitra:23  fn of(model: String) -> Option<Self>;
 
   No evidence on model in String.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:22  fn of(model: String) -> Option<Self>;
+  --> .mitra/store.mitra:23  fn of(model: String) -> Option<Self>;
 
   No evidence on `store::Store::of` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:23  fn model_path(&self) -> String;
+  --> .mitra/store.mitra:24  fn model_path(&self) -> String;
 
   No evidence on self in store::Store.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:23  fn model_path(&self) -> String;
+  --> .mitra/store.mitra:24  fn model_path(&self) -> String;
 
   No evidence on `store::Store::model_path` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:24  fn evidence_path(&self) -> String;
+  --> .mitra/store.mitra:25  fn evidence_path(&self) -> String;
 
   No evidence on self in store::Store.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:24  fn evidence_path(&self) -> String;
+  --> .mitra/store.mitra:25  fn evidence_path(&self) -> String;
 
   No evidence on `store::Store::evidence_path` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:26  fn source(&self) -> Result<Modules, String>
+  --> .mitra/store.mitra:27  fn source(&self) -> Result<Modules, String>
 
   No evidence on self in store::Store.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:26  fn source(&self) -> Result<Modules, String>
+  --> .mitra/store.mitra:27  fn source(&self) -> Result<Modules, String>
 
   No evidence on `store::Store::source` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/store.mitra:31  fn write_build(&self, files: Vec<(String, String)>) -> Result<String, String>
+
+  No evidence on (self, files) in (store::Store, List<(String, String)>).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/store.mitra:31  fn write_build(&self, files: Vec<(String, String)>) -> Result<String, String>
+
+  No evidence on `store::Store::write_build` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -276,6 +325,30 @@ warning[M101]: a claim is not verified
   --> .mitra/ledger.mitra:24  fn append(&self, new: String) -> Result<(), String>
 
   No evidence on `ledger::Store::append` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/ledger.mitra:68  fn replace(&self, prefix: String, new: String) -> Result<Replaced, String>
+
+  No evidence on (self, prefix, new) in (store::Store, String, String).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/ledger.mitra:68  fn replace(&self, prefix: String, new: String) -> Result<Replaced, String>
+
+  No evidence on `keeping::Store::replace` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/ledger.mitra:71  fn remove(&self, which: Which) -> Result<Vec<String>, String>
+
+  No evidence on (self, which) in (store::Store, keeping::Which).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/ledger.mitra:71  fn remove(&self, which: Which) -> Result<Vec<String>, String>
+
+  No evidence on `keeping::Store::remove` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for
@@ -383,7 +456,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/store.mitra:13  ensure whole_folder = "The model of a store is every `.mitra` file of its folder, the ledger aside, with `model.mitra` handed first.";
 
-  `store::whole_folder` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::whole_folder::captured` hold, and no evidence supports them.
+  `store::whole_folder` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::whole_folder::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -395,19 +468,31 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/store.mitra:14  ensure nearest = "A command run in a folder uses the nearest `.mitra/` at or above it.";
 
-  `store::nearest` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::nearest::captured` hold, and no evidence supports them.
+  `store::nearest` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::nearest::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/store.mitra:15  ensure never_overwrites = "A store is created only where there is none.";
+  --> .mitra/store.mitra:15  ensure build_is_written_again = "The files of a build are written under `.mitra/build/` in place of the last ones: a build is never edited, and never read back to judge.";
+
+  Nobody vouched that the claims `store::build_is_written_again` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for store::build_is_written_again::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/store.mitra:15  ensure build_is_written_again = "The files of a build are written under `.mitra/build/` in place of the last ones: a build is never edited, and never read back to judge.";
+
+  `store::build_is_written_again` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::build_is_written_again::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/store.mitra:16  ensure never_overwrites = "A store is created only where there is none.";
 
   Nobody vouched that the claims `store::never_overwrites` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for store::never_overwrites::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/store.mitra:15  ensure never_overwrites = "A store is created only where there is none.";
+  --> .mitra/store.mitra:16  ensure never_overwrites = "A store is created only where there is none.";
 
-  `store::never_overwrites` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::never_overwrites::captured` hold, and no evidence supports them.
+  `store::never_overwrites` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::never_overwrites::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -447,51 +532,63 @@ warning[M102]: a claim holds only under assumptions
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/ledger.mitra:37  ensure nothing_leaves_unshown = "Nothing leaves the ledger without being shown.";
+  --> .mitra/ledger.mitra:41  ensure nothing_leaves_unshown = "Nothing leaves the ledger without being shown: every entry taken out is given back as it was written.";
 
   Nobody vouched that the claims `keeping::nothing_leaves_unshown` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for keeping::nothing_leaves_unshown::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/ledger.mitra:37  ensure nothing_leaves_unshown = "Nothing leaves the ledger without being shown.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/ledger.mitra:41  ensure nothing_leaves_unshown = "Nothing leaves the ledger without being shown: every entry taken out is given back as it was written.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `keeping::nothing_leaves_unshown` holds if `keeping::Store::replace::correct`, `keeping::Store::remove::correct`, `ledger::Store::add::correct`, `ledger::Store::append::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `disk::appends_at_the_end::captured`, `disk::ledger_is_left_alone::captured`, `ledger::reads_back::captured`, `keeping::nothing_leaves_unshown::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/ledger.mitra:38  ensure machine_is_a_snapshot = "Evidence observed by a machine (ties, test results, samples) is a snapshot of one revision: each run writes it again, and the report says what was replaced.";
+  --> .mitra/ledger.mitra:42  ensure machine_is_a_snapshot = "Evidence observed by a machine (ties, test results, samples) is a snapshot of one revision: each run of that machine takes out what it wrote before and writes again, an …
 
   Nobody vouched that the claims `keeping::machine_is_a_snapshot` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for keeping::machine_is_a_snapshot::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/ledger.mitra:38  ensure machine_is_a_snapshot = "Evidence observed by a machine (ties, test results, samples) is a snapshot of one revision: each run writes it again, and the report says what was replaced.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/ledger.mitra:42  ensure machine_is_a_snapshot = "Evidence observed by a machine (ties, test results, samples) is a snapshot of one revision: each run of that machine takes out what it wrote before and writes again, an …
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `keeping::machine_is_a_snapshot` holds if `keeping::Store::replace::correct`, `keeping::Store::remove::correct`, `ledger::Store::add::correct`, `ledger::Store::append::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `disk::appends_at_the_end::captured`, `disk::ledger_is_left_alone::captured`, `ledger::reads_back::captured`, `keeping::machine_is_a_snapshot::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/ledger.mitra:39  ensure human_is_never_dropped_silently = "Evidence said by a person (a vouch, a review, a bug report) is never dropped silently: when its piece is gone or was reworded it is listed as orphaned or stal …
+  --> .mitra/ledger.mitra:43  ensure human_is_never_dropped_silently = "Evidence said by a person (a vouch, a review, a bug report) is never taken out by a run of a machine: when its piece is gone or was reworded it stays in the l …
 
   Nobody vouched that the claims `keeping::human_is_never_dropped_silently` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for keeping::human_is_never_dropped_silently::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/ledger.mitra:39  ensure human_is_never_dropped_silently = "Evidence said by a person (a vouch, a review, a bug report) is never dropped silently: when its piece is gone or was reworded it is listed as orphaned or stal …
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/ledger.mitra:43  ensure human_is_never_dropped_silently = "Evidence said by a person (a vouch, a review, a bug report) is never taken out by a run of a machine: when its piece is gone or was reworded it stays in the l …
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `keeping::human_is_never_dropped_silently` holds if `keeping::Store::replace::correct`, `keeping::Store::remove::correct`, `ledger::Store::add::correct`, `ledger::Store::append::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `disk::appends_at_the_end::captured`, `disk::ledger_is_left_alone::captured`, `ledger::reads_back::captured`, `keeping::human_is_never_dropped_silently::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/ledger.mitra:40  ensure removal_is_explicit = "Removing evidence is an act of its own, which lists what goes.";
+  --> .mitra/ledger.mitra:44  ensure removal_is_explicit = "Removing what a person said is an act of its own, `mitra remove`, which lists what goes.";
 
   Nobody vouched that the claims `keeping::removal_is_explicit` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for keeping::removal_is_explicit::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/ledger.mitra:40  ensure removal_is_explicit = "Removing evidence is an act of its own, which lists what goes.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/ledger.mitra:44  ensure removal_is_explicit = "Removing what a person said is an act of its own, `mitra remove`, which lists what goes.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `keeping::removal_is_explicit` holds if `keeping::Store::replace::correct`, `keeping::Store::remove::correct`, `ledger::Store::add::correct`, `ledger::Store::append::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `disk::appends_at_the_end::captured`, `disk::ledger_is_left_alone::captured`, `ledger::reads_back::captured`, `keeping::removal_is_explicit::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/ledger.mitra:45  ensure sound_or_untouched = "The ledger is rewritten only when the store with it still reads and evaluates: on an error it is left as it was.";
+
+  Nobody vouched that the claims `keeping::sound_or_untouched` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for keeping::sound_or_untouched::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/ledger.mitra:45  ensure sound_or_untouched = "The ledger is rewritten only when the store with it still reads and evaluates: on an error it is left as it was.";
+
+  `keeping::sound_or_untouched` holds if `keeping::Store::replace::correct`, `keeping::Store::remove::correct`, `ledger::Store::add::correct`, `ledger::Store::append::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `disk::appends_at_the_end::captured`, `disk::ledger_is_left_alone::captured`, `ledger::reads_back::captured`, `keeping::sound_or_untouched::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

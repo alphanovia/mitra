@@ -243,6 +243,46 @@ pub struct Evidence {
     pub source: Option<String>,
     /// `rev "…"`: the revision of the code it was observed on.
     pub rev: Option<String>,
+    /// `seen "…"`: the fingerprint of its piece when a person said it.
+    pub seen: Option<String>,
+    pub line: usize,
+}
+
+impl Evidence {
+    /// Whether a machine observed it: a test (`test:`) or the reader of
+    /// the code (`reader:`). Such evidence is a snapshot, written again
+    /// by each run; any other is someone's word.
+    // mitra: implements ledger::Evidence::by_machine
+    pub fn by_machine(&self) -> bool {
+        machine(self.source.as_deref())
+    }
+}
+
+/// Whether a source names a machine: `test:…` or `reader:…`.
+pub fn machine(source: Option<&str>) -> bool {
+    source.is_some_and(|s| s.starts_with("test:") || s.starts_with("reader:"))
+}
+
+/// Why evidence of the ledger counts for nothing.
+#[derive(Debug, Clone, PartialEq)]
+// mitra: implements ledger::Why
+pub enum Why {
+    /// The model has no piece of that name any more.
+    Orphaned,
+    /// Its piece says something else than when it was said.
+    Stale { seen: String, now: String },
+}
+
+/// Evidence set aside: kept in the ledger, shown in every report,
+/// judging nothing, until someone removes it or says it again.
+#[derive(Debug, Clone, PartialEq)]
+// mitra: implements ledger::Aside
+pub struct Aside {
+    /// The piece it names, as written.
+    pub about: String,
+    pub source: Option<String>,
+    pub rev: Option<String>,
+    pub why: Why,
     pub line: usize,
 }
 
@@ -269,6 +309,8 @@ pub struct Model {
     pub enums: Vec<Enum>,
     /// The named blocks, in the order written.
     pub blocks: Vec<Block>,
+    /// The evidence of the ledger that counts for nothing, and why.
+    pub aside: Vec<Aside>,
     /// Sets written with an enum, such as `Option(Int)`, by their printed
     /// form: reports print them as written.
     pub aliases: Vec<(String, String)>,
@@ -331,6 +373,12 @@ pub struct Block {
 }
 
 impl Model {
+    /// The promises of a subject that no claim of it says.
+    pub fn bare_ensures(&self) -> Vec<&Ensure> {
+        let bare = |e: &&Ensure| !e.boundary && e.needs.is_none() && e.claims.is_empty();
+        self.ensures.iter().filter(bare).collect()
+    }
+
     /// The block a piece is declared in, by the name of the piece.
     // mitra: implements model::Model::block_of
     pub fn block_of(&self, piece: &str) -> Option<&Block> {

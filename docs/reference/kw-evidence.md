@@ -6,7 +6,7 @@ Part of the [language reference](language.md); index in
 the two. A test runs them all.
 
 Evidence lives in `evidence.mitra`, never in the model. `mitra add`,
-`mitra ingest` and `mitra tie` append to it; it can be written by hand.
+`mitra ingest` and `mitra tie` write to it; it can be written by hand.
 
 ## evidence
 
@@ -178,3 +178,21 @@ from. The name of the block when not said. Errors quote it.
 
 `rev "3f2a1c"`: the revision of the code it was seen on. `mitra eval
 --rev R` counts only the evidence recorded at `R`.
+
+## seen
+
+`seen "c998bf7e792a"`: the fingerprint of the piece when a person said
+this. `mitra add` writes it. Once the piece says something else the
+entry is stale: kept, shown, judging nothing ([ledger.md](ledger.md)).
+
+```mitra
+subject fn half(n: Int) -> Int;
+claim small() { half(4) == 2 }
+```
+```evidence
+evidence r { for small holds source "review:ana" seen "000000000000" }
+```
+```text
+small: unverified
+warning[M108]: evidence said before its piece changed
+```

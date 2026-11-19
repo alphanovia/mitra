@@ -72,8 +72,17 @@ fn evidence_names_what_it_is_for() {
     let e = "evidence a { for half given m = 0 gives 0 }";
     assert_eq!(refused(HALF, e), "line 1: `math::half` has no input `m`");
     let e = "evidence a { for third given n = 0 gives 0 }";
+    // A piece the model does not have: set aside and shown, not refused.
+    let out = verdicts(HALF, e);
+    assert!(out.contains("warning[M107]"), "{out}");
+    assert!(
+        out.contains("The model has no `third`. It judges nothing."),
+        "{out}"
+    );
+    // New evidence is refused on it: only what is in a ledger is kept.
+    let said = mitra_lang::read_evidence(&mitra_lang::Modules::alone(HALF), e).unwrap_err();
     assert_eq!(
-        refused(HALF, e),
+        said.to_string(),
         "line 1: the model has no function or claim `third`"
     );
     let e = "evidence a { for half given n = 0 }";

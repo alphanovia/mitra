@@ -221,7 +221,8 @@ settled by reading the model, which is why the model must read alone.
   the text of a requirement says. Not vouched, it is an assumption.
 - **Evidence:** what was observed or judged, on a function or a claim,
   with the trust its author puts in it, from 0 to 1.
-- **Ledger:** the append-only record of all evidence.
+- **Ledger:** the record of the evidence. What a machine observed is
+  written again at each run; what a person said stays until removed.
 - **Tie:** a comment in the code naming the function of the model it
   implements, or the claim a test is evidence for.
 - **Representation claim:** the assumption that one tested input stands

@@ -594,3 +594,204 @@ fn failing_sample_says_fails() {
     let expected = "evidence test { for c given a in 0..=9 sampled 10 fails source \"test:t\" }";
     assert_eq!(said.evidence, [expected]);
 }
+
+// What a ledger holds that judges nothing (ledger.mitra), and the
+// fingerprints that say so (fingerprint.mitra).
+
+// mitra: evidence for ledger::orphan_is_set_aside
+#[test]
+fn orphan_is_set_aside() {
+    let e = "evidence r { for g holds source \"review:me\" }";
+    let m = load("subject fn f() -> Bool;", e).unwrap();
+    assert!(m.evidence.is_empty());
+    let [a] = &m.aside[..] else {
+        panic!("{:?}", m.aside)
+    };
+    assert_eq!(
+        (a.about.as_str(), &a.why, a.line),
+        ("g", &mitra_lang::Why::Orphaned, 1)
+    );
+    assert_eq!(a.source.as_deref(), Some("review:me"));
+}
+
+// mitra: evidence for ledger::stale_is_set_aside
+#[test]
+fn stale_is_set_aside() {
+    let e = "evidence r { for f holds seen \"000000000000\" }";
+    let m = load("subject fn f() -> Bool;", e).unwrap();
+    assert!(m.evidence.is_empty());
+    let now = mitra_lang::fingerprint::all(&m)["f"].clone();
+    let why = mitra_lang::Why::Stale {
+        seen: "000000000000".into(),
+        now: now.clone(),
+    };
+    assert_eq!(m.aside[0].why, why);
+    // Said of the piece as it reads now, it judges.
+    let e = format!("evidence r {{ for f holds seen \"{now}\" }}");
+    let m = load("subject fn f() -> Bool;", &e).unwrap();
+    assert!(m.aside.is_empty() && m.evidence.len() == 1);
+}
+
+// mitra: evidence for ledger::seen_as_it_is_judges
+#[test]
+fn seen_as_it_is_judges() {
+    let m = load("subject fn f() -> Bool;", "evidence r { for f holds }").unwrap();
+    assert!(m.aside.is_empty() && m.evidence.len() == 1);
+}
+
+#[test]
+fn evidence_set_aside_judges_nothing() {
+    let model = "subject fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 }";
+    let stale = "evidence r { for c holds seen \"000000000000\" }";
+    let out = mitra_lang::run(model, stale).unwrap().to_text();
+    assert!(out.starts_with("c: unverified"), "{out}");
+    assert!(out.contains("warning[M108]"), "{out}");
+}
+
+const ONE: &str = "subject s { fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 } }";
+
+// mitra: evidence for fingerprint::writing_does_not_count
+#[test]
+fn writing_does_not_count() {
+    let other = "// why\nsubject s {\n  claim c(a: Int) {   f(a) >= 0 }\n  fn f(a: Int) -> Int;\n}";
+    let (m, n) = (load(ONE, "").unwrap(), load(other, "").unwrap());
+    assert_eq!(
+        mitra_lang::fingerprint::all(&m),
+        mitra_lang::fingerprint::all(&n)
+    );
+}
+
+// mitra: evidence for fingerprint::another_claim_counts
+#[test]
+fn another_claim_counts() {
+    let other = ONE.replace(">=", ">");
+    let m = mitra_lang::fingerprint::all(&load(ONE, "").unwrap());
+    let n = mitra_lang::fingerprint::all(&load(&other, "").unwrap());
+    assert_ne!(m["s::c"], n["s::c"]);
+    assert_eq!(m["s::f"], n["s::f"]);
+}
+
+// mitra: evidence for fingerprint::a_new_claim_changes_the_capture
+#[test]
+fn a_new_claim_changes_the_capture() {
+    let one = "subject s { ensure e = \"x\"; fn f(a: Int) -> Int; }";
+    let two = "subject s { ensure e = \"x\"; fn f(a: Int) -> Int; claim c(a: Int) { f(a) > 0 } }";
+    let m = mitra_lang::fingerprint::all(&load(one, "").unwrap());
+    let n = mitra_lang::fingerprint::all(&load(two, "").unwrap());
+    assert_ne!(m["s::e::captured"], n["s::e::captured"]);
+    assert_eq!(m["s::e"], n["s::e"]);
+    // Another prose is another promise, and another capture.
+    let p = mitra_lang::fingerprint::all(&load(&one.replace("\"x\"", "\"y\""), "").unwrap());
+    assert_ne!(m["s::e"], p["s::e"]);
+    assert_ne!(m["s::e::captured"], p["s::e::captured"]);
+}
+
+// A model, compiled, and what the levels add (build.mitra).
+
+const PROMISE: &str =
+    "subject s { ensure e = \"x\"; fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 } }";
+
+// mitra: evidence for build::implied_pieces_are_listed
+#[test]
+fn implied_pieces_are_listed() {
+    let built = mitra_lang::build::build(&load(PROMISE, "").unwrap());
+    let said: Vec<(&str, &str)> = (built.items.iter())
+        .map(|i| (i.kind.as_str(), i.name.as_str()))
+        .collect();
+    let want = [
+        ("claim", "s::c"),
+        ("ensure", "s::e"),
+        ("capture", "s::e::captured"),
+        ("function", "s::f"),
+        ("implied", "s::f::correct"),
+        ("implied", "s::f::deterministic"),
+    ];
+    assert_eq!(said, want);
+    assert!(built.items.iter().all(|i| i.print.len() == 12));
+    assert_eq!(built.count("implied"), 2);
+    let lock = built.lock();
+    let head = format!("mitra build 1\nmodel {}\nclaim s::c ", built.model);
+    assert!(lock.starts_with(&head), "{lock}");
+    assert!(
+        lock.contains(" <- s::f::correct, s::c, s::e::captured\n"),
+        "{lock}"
+    );
+}
+
+// mitra: evidence for build::a_promise_lists_what_it_rests_on
+#[test]
+fn a_promise_lists_what_it_rests_on() {
+    let m = load("subject s { ensure e = \"x\"; fn f(a: Int) -> Int; }", "").unwrap();
+    let built = mitra_lang::build::build(&m);
+    assert_eq!(built.items[0].on, ["s::f::correct", "s::e::captured"]);
+    assert!(built.items[1..].iter().all(|i| i.on.is_empty()));
+}
+
+// mitra: evidence for build::writing_does_not_change_the_build
+#[test]
+fn writing_does_not_change_the_build() {
+    let m = load("subject s { fn f(a: Int) -> Int; }", "").unwrap();
+    let n = load("// why\nsubject s {\n    fn f(a: Int) -> Int;\n}", "").unwrap();
+    assert_eq!(mitra_lang::build::build(&m), mitra_lang::build::build(&n));
+}
+
+// mitra: evidence for build::another_type_changes_the_build
+#[test]
+fn another_type_changes_the_build() {
+    let m = load("subject s { fn f(a: Int) -> Int; }", "").unwrap();
+    let n = load("subject s { fn f(a: Int) -> Bool; }", "").unwrap();
+    assert_ne!(
+        mitra_lang::build::build(&m).model,
+        mitra_lang::build::build(&n).model
+    );
+}
+
+// mitra: evidence for build::the_world_is_not_in_the_interface
+#[test]
+fn the_world_is_not_in_the_interface() {
+    let text = "boundary clock { fn now() -> Int; } subject s { fn f(a: Int) -> Int; }";
+    let said = mitra_lang::build::interface(&load(text, "").unwrap());
+    assert!(
+        said.ends_with("\n\n// mitra: implements s::f\nfn f(a: Int) -> Int;\n"),
+        "{said}"
+    );
+    assert!(!said.contains("now"), "{said}");
+}
+
+// mitra: evidence for levels::a_capture_is_a_person_s
+#[test]
+fn a_capture_is_a_person_s() {
+    let text = "subject s { ensure e = \"x\"; fn f(a: 0..=1) -> Int; }";
+    let (m, r) = (load(text, "").unwrap(), run(text, "").unwrap());
+    let left = mitra_lang::levels::left(&m, &r);
+    assert_eq!(left.person.len(), 2, "{left:?}");
+    assert!(
+        left.person[1].starts_with("s::e::captured: a reviewer's word"),
+        "{left:?}"
+    );
+    assert_eq!(left.delegate.len(), 1, "{left:?}");
+    assert!(left.delegate[0].starts_with("s::f::correct:"), "{left:?}");
+}
+
+#[test]
+fn an_observation_is_compared() {
+    let model = "subject s { fn f(a: Int) -> Int; claim c() { f(1) == 2 } }";
+    let before = run(model, "evidence t { for s::f given a = 1 gives 2 }").unwrap();
+    let files = mitra_lang::Files {
+        model: "m",
+        evidence: "e",
+    };
+    let display = mitra_lang::Display::default();
+    let same = mitra_lang::levels::diagnosis(&before, &before, &display, &files);
+    assert!(!same.contradicts && same.changed.is_empty());
+    assert!(same.text.contains("no verdict changes"), "{}", same.text);
+    let after = run(model, "evidence t { for s::f given a = 1 gives 3 }").unwrap();
+    let said = mitra_lang::levels::diagnosis(&before, &after, &display, &files);
+    assert!(said.contradicts);
+    assert!(
+        said.changed.contains(&"s::c: holds -> fails".to_string()),
+        "{:?}",
+        said.changed
+    );
+    assert!(said.text.contains("error[M001]"), "{}", said.text);
+}

@@ -26,16 +26,49 @@ subject ledger {
     }
 }
 
-// Agreed in outline with the user on 2026-11-19, details to settle
-// (docs/design/product.md). NOT on main: nothing below is built, so
-// nothing supports these promises. Today the ledger only grows, `tie`
-// and `ingest` add to what earlier runs wrote, and evidence that names a
-// piece the model no longer has is an error that stops every command.
+// How the ledger is kept over time. Agreed in outline with the user on
+// 2026-11-19; the details are choices to review (review increment 70).
+//
+// The ledger is not append-only. What a machine observed is a snapshot:
+// its next run writes it again. What a person said stays, even when its
+// piece is gone or reads otherwise (mitra-lang then sets it aside and
+// every report shows it), until `mitra remove` takes it out.
+
 subject keeping {
     require ledger_reads = ledger::reads_back;
+    require left_alone = disk::ledger_is_left_alone;
 
-    ensure nothing_leaves_unshown = "Nothing leaves the ledger without being shown.";
-    ensure machine_is_a_snapshot = "Evidence observed by a machine (ties, test results, samples) is a snapshot of one revision: each run writes it again, and the report says what was replaced.";
-    ensure human_is_never_dropped_silently = "Evidence said by a person (a vouch, a review, a bug report) is never dropped silently: when its piece is gone or was reworded it is listed as orphaned or stale, counts for nothing, and waits for a decision.";
-    ensure removal_is_explicit = "Removing evidence is an act of its own, which lists what goes.";
+    ensure nothing_leaves_unshown = "Nothing leaves the ledger without being shown: every entry taken out is given back as it was written.";
+    ensure machine_is_a_snapshot = "Evidence observed by a machine (ties, test results, samples) is a snapshot of one revision: each run of that machine takes out what it wrote before and writes again, and says what it replaced.";
+    ensure human_is_never_dropped_silently = "Evidence said by a person (a vouch, a review, a bug report) is never taken out by a run of a machine: when its piece is gone or was reworded it stays in the ledger, where it is listed as orphaned or stale and counts for nothing, and waits for a decision.";
+    ensure removal_is_explicit = "Removing what a person said is an act of its own, `mitra remove`, which lists what goes.";
+    ensure sound_or_untouched = "The ledger is rewritten only when the store with it still reads and evaluates: on an error it is left as it was.";
+
+    // What a run of a machine put in place of its earlier evidence.
+    record Replaced {
+        // How many entries of that machine left, and their revisions.
+        before: usize,
+        revs: Vec<String>,
+        written: usize,
+        // Those with nothing written in their place, as written.
+        gone: Vec<String>,
+    }
+
+    // The entries `mitra remove` takes out.
+    enum Which {
+        Orphaned,
+        Stale(piece: Option<String>),
+        Source(who: String),
+        Piece(name: String)
+    }
+
+    impl Store {
+        // Every entry whose source starts with `prefix` leaves, `new` is
+        // written in its place.
+        fn replace(&self, prefix: String, new: String) -> Result<Replaced, String>
+            uses disk::read_to_string, disk::write;
+        // The entries picked leave; they are given back as written.
+        fn remove(&self, which: Which) -> Result<Vec<String>, String>
+            uses disk::read_to_string, disk::write;
+    }
 }

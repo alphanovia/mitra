@@ -3,16 +3,18 @@
 //!
 //! ```text
 //! mitra init
+//! mitra build | conform | assess [<report>...] | diagnose '<evidence>' [<report>...]
 //! mitra check [<model> <evidence>] [--rev <commit>]
 //! mitra eval  [<model> <evidence>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [-o <result.txt>]
 //! mitra add   '<evidence>' [--source <who>] [--rev <commit>]
 //! mitra next  [<model> <evidence>] [--rev <commit>]
-//! mitra ingest <report> [--format libtest|junit] [--rev <commit>]
+//! mitra ingest <report>... [--format libtest|junit] [--rev <commit>]
+//! mitra remove --orphaned | --stale [<piece>] | --source <who> | <piece>
 //! ```
 //!
 //! Without paths, commands use the project store: the nearest `.mitra/`
 //! folder at or above the current one, holding `model.mitra` and the
-//! append-only `evidence.mitra`. The store's model also holds the `mitra:`
+//! ledger `evidence.mitra`. The store's model also holds the `mitra:`
 //! comments of the Rust files under `src/` and `tests/` next to it.
 
 use mitra_rust::{report, tie};
@@ -22,15 +24,223 @@ use mitra_store::{source, store};
 
 use std::process::ExitCode;
 
+/// What `mitra build` found.
+struct Built {
+    errors: usize,
+    model: mitra_lang::Model,
+    built: mitra_lang::build::Built,
+}
+
+/// The model alone: it reads, nothing in it contradicts anything else,
+/// and it is compiled under `.mitra/build/`. Nothing on what is owed.
+fn build(s: &store::Store, display: &mitra_lang::Display) -> Result<Built, String> {
+    let source = ties_only(s)?;
+    let (model, report) = evaluate(&source, "", None)?;
+    let places = Places {
+        model: &source,
+        evidence: "",
+    };
+    let built = mitra_lang::build::build(&model);
+    let errors = report.problems.len();
+    print!(
+        "{}",
+        report
+            .model_text_at(display, &places)
+            .trim_start_matches('\n')
+    );
+    if errors > 0 {
+        println!("build: {errors} errors in the model, nothing written");
+        return Ok(Built {
+            errors,
+            model,
+            built,
+        });
+    }
+    let files = [
+        ("model.lock".to_string(), built.lock()),
+        (
+            "interface.mitra".to_string(),
+            mitra_lang::build::interface(&model),
+        ),
+        ("owed.txt".to_string(), mitra_lang::plan(&model, &report)),
+    ];
+    let dir = s.write_build(&files)?;
+    let count = |kinds: &[&str]| kinds.iter().map(|k| built.count(k)).sum::<usize>();
+    println!(
+        "build: ok, model {}: functions {}, claims {}, promises {}, requires {}, blocks {}, warnings {}",
+        built.model,
+        count(&["function", "spec", "world"]),
+        count(&["claim"]),
+        count(&["ensure", "promise"]),
+        count(&["require"]),
+        model.blocks.len(),
+        report.model_warnings()
+    );
+    println!(
+        "  written: {}/model.lock, interface.mitra, owed.txt",
+        relative(&dir)
+    );
+    Ok(Built {
+        errors,
+        model,
+        built,
+    })
+}
+
+/// The model and the code: every piece of a subject is tied, the ties
+/// agree, and how much of the code the model covers. Gives 1 on drift.
+fn conform(s: &store::Store, built: &Built, rev: Option<&str>) -> Result<usize, String> {
+    let model = &built.model;
+    let found = tie::tie(&s.root(), model, rev)?;
+    let replaced = s.replace("reader:", &found.evidence.join("\n"))?;
+    let ours = |n: &&String| match model.block_of(n) {
+        Some(b) => b.side == mitra_lang::Side::Subject,
+        None => !model.boundaries.contains(n),
+    };
+    let untied: Vec<&String> = found.untied.iter().filter(ours).collect();
+    let tests = tie::tests(&s.root())?;
+    let pinned = tests.iter().filter(|t| !t.pinned.is_empty()).count();
+    let model_lines: usize = s
+        .source()?
+        .files()
+        .iter()
+        .flat_map(|f| f.text.lines())
+        .filter(|l| !l.trim().is_empty() && !l.trim().starts_with("//"))
+        .count();
+    for n in &found.notes {
+        if !n.starts_with("no code is tied to") {
+            println!("{n}");
+        }
+    }
+    if !untied.is_empty() {
+        let names: Vec<&str> = untied.iter().map(|n| n.as_str()).collect();
+        println!("no code is tied to: {}", names.join(", "));
+    }
+    shown(&replaced);
+    let drift = found.differ > 0 || !untied.is_empty();
+    println!(
+        "conform: {}: {} ties agree, {} differ, {} pieces untied; {} tests tied, {} pin an input",
+        if drift { "drift" } else { "ok" },
+        found.agree,
+        found.differ,
+        untied.len(),
+        tests.len(),
+        pinned
+    );
+    println!(
+        "  {model_lines} lines of model over {} lines of code, in {} blocks with {} promises and {} requires",
+        found.code_lines,
+        model.blocks.iter().filter(|b| b.from.is_none()).count(),
+        built.built.count("ensure") + built.built.count("promise"),
+        built.built.count("require")
+    );
+    Ok(drift as usize)
+}
+
+/// The model, the code and the ledger: the report, then what is left to
+/// a person and what can be handed over.
+fn assess(
+    s: &store::Store,
+    display: &mitra_lang::Display,
+    rev: Option<&str>,
+    full: bool,
+) -> Result<usize, String> {
+    let (m, e) = (ties_only(s)?, s.evidence_path());
+    let (model, report) = evaluate(&m, &e, rev)?;
+    let places = Places {
+        model: &m,
+        evidence: &e,
+    };
+    let (errors, warnings) = (report.problems.len(), report.warnings());
+    // On the way to a diagnosis, only what stops it.
+    if !full {
+        if errors > 0 {
+            for p in report.problem_texts(display, &places) {
+                print!("{p}");
+            }
+        }
+        println!("assess: {errors} errors, {warnings} warnings");
+        return Ok(errors);
+    }
+    print!("{}", report.to_text_at(display, &places));
+    let left = mitra_lang::levels::left(&model, &report);
+    println!("\nassess: {errors} errors, {warnings} warnings");
+    for (title, names) in [
+        ("for a person to review or decide", &left.person),
+        ("to hand over (tests to write, code to tie)", &left.delegate),
+    ] {
+        println!("  {title} ({}):", names.len());
+        for n in names {
+            println!("    {n}");
+        }
+    }
+    Ok(errors)
+}
+
+/// An observation, not written to the ledger: what it contradicts, and
+/// who is suspected.
+fn diagnose(s: &store::Store, seen: &str, display: &mitra_lang::Display) -> Result<usize, String> {
+    let (m, e) = (ties_only(s)?, s.evidence_path());
+    let ledger = read(&e)?;
+    mitra_lang::read_evidence(&m, seen).map_err(|err| format!("the observation: {err}"))?;
+    let before = mitra_lang::load_modules(&m, &ledger).map_err(located(&m, &e))?;
+    let before = mitra_lang::evaluate(&before).map_err(located(&m, &e))?;
+    let sep = if ledger.is_empty() || ledger.ends_with('\n') {
+        ""
+    } else {
+        "\n"
+    };
+    let with = format!("{ledger}{sep}{}\n", seen.trim());
+    let after = mitra_lang::load_modules(&m, &with).map_err(located(&m, &e))?;
+    let after = mitra_lang::evaluate(&after).map_err(located(&m, &e))?;
+    let places = Seen {
+        ledger: Places {
+            model: &m,
+            evidence: &e,
+        },
+        lines: ledger.lines().count(),
+    };
+    let said = mitra_lang::levels::diagnosis(&before, &after, display, &places);
+    print!("{}", said.text);
+    if said.contradicts {
+        println!("  to file it: mitra add '{}' --source <who>", seen.trim());
+    }
+    Ok(said.contradicts as usize)
+}
+
+/// ", in place of 12 test results of rev abc": what a run replaced.
+fn in_place(r: &store::Replaced, what: &str) -> String {
+    match (r.before, r.revs.is_empty()) {
+        (0, _) => String::new(),
+        (n, true) => format!(", in place of {n} {what}"),
+        (n, false) => format!(", in place of {n} {what} of rev {}", r.revs.join(", ")),
+    }
+}
+
+/// What left the ledger with nothing written in its place.
+fn shown(r: &store::Replaced) {
+    if !r.gone.is_empty() {
+        println!("no longer observed, removed ({}):", r.gone.len());
+        for g in &r.gone {
+            println!("  {g}");
+        }
+    }
+}
+
 const USAGE: &str = "usage:
   mitra init
+  mitra build                                  the model alone
+  mitra conform  [--rev <commit>]              then the model and the code
+  mitra assess   [<report>...] [--rev <commit>]  then the ledger
+  mitra diagnose '<evidence>' [<report>...] [--rev <commit>]  then an observation
   mitra check [<model.mitra> [<evidence.mitra>]] [--rev <commit>]
   mitra eval  [<model.mitra> [<evidence.mitra>]] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [-o <result.txt>]
   mitra add   '<evidence>' [--source <who>] [--rev <commit>]
   mitra next  [<model.mitra> [<evidence.mitra>]] [--rev <commit>]
   mitra plan  [<model.mitra> [<evidence.mitra>]] [--rev <commit>]
-  mitra ingest <report> [--format libtest|junit] [--rev <commit>]
+  mitra ingest <report>... [--format libtest|junit] [--rev <commit>]
   mitra tie   [--rev <commit>]
+  mitra remove --orphaned | --stale [<piece>] | --source <who> | <piece>
   mitra explain <code>
   mitra explain <claim> [<model.mitra> [<evidence.mitra>]]
   mitra explain std::claims";
@@ -144,6 +354,24 @@ impl mitra_lang::Places for Places<'_> {
     }
 }
 
+/// The places of a ledger with an observation read after it.
+struct Seen<'a> {
+    ledger: Places<'a>,
+    lines: usize,
+}
+
+impl mitra_lang::Places for Seen<'_> {
+    fn model(&self, line: usize) -> String {
+        mitra_lang::Places::model(&self.ledger, line)
+    }
+    fn evidence(&self, line: usize) -> String {
+        match line > self.lines {
+            true => "the observation".to_string(),
+            false => mitra_lang::Places::evidence(&self.ledger, line),
+        }
+    }
+}
+
 /// A revision given with `--rev`: not empty, not an option, no quotes or
 /// line breaks (it is written into the evidence file).
 // mitra: implements commands::check_rev
@@ -189,7 +417,10 @@ fn evaluate(
 
 /// Remove `--rev <value>` from the arguments of `check`, `eval` and `next`.
 fn take_rev(cmd: &str, rest: &mut Vec<String>) -> Result<Option<String>, String> {
-    if !["check", "eval", "next", "plan", "tie"].contains(&cmd) {
+    let takes = [
+        "check", "eval", "next", "plan", "tie", "conform", "assess", "diagnose",
+    ];
+    if !takes.contains(&cmd) {
         return Ok(None);
     }
     let Some(i) = rest.iter().position(|a| a == "--rev") else {
@@ -254,7 +485,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
     let rev = take_rev(cmd, &mut rest)?;
     let rev = rev.as_deref();
     let display = match cmd.as_str() {
-        "eval" => take_display(&mut rest)?,
+        "eval" | "build" | "conform" | "assess" | "diagnose" => take_display(&mut rest)?,
         _ => mitra_lang::Display::default(),
     };
     let rest = rest.as_slice();
@@ -407,9 +638,13 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             Ok(0)
         }
         "ingest" => {
-            let [path, opts @ ..] = rest else {
+            // One run takes every report of the revision: what the tests
+            // said before leaves the ledger.
+            let paths = rest.iter().take_while(|w| !w.starts_with("--")).count();
+            let (paths, opts) = rest.split_at(paths);
+            if paths.is_empty() {
                 return Err(USAGE.into());
-            };
+            }
             let (mut format, mut rev) = (None, None);
             let mut opts = opts.iter();
             while let Some(o) = opts.next() {
@@ -420,15 +655,18 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                     _ => return Err(USAGE.into()),
                 }
             }
-            let text = read(path)?;
-            let text = text.trim_start_matches('\u{feff}');
-            let outcomes = match format.as_deref() {
-                Some("junit") => mitra_lang::results::junit(text),
-                Some("libtest") => report::libtest(text),
-                None if text.trim_start().starts_with('<') => mitra_lang::results::junit(text),
-                None => report::libtest(text),
-                Some(f) => return Err(format!("unknown format `{f}` (libtest, junit)")),
-            };
+            let mut outcomes = Vec::new();
+            for path in paths {
+                let text = read(path)?;
+                let text = text.trim_start_matches('\u{feff}');
+                outcomes.extend(match format.as_deref() {
+                    Some("junit") => mitra_lang::results::junit(text),
+                    Some("libtest") => report::libtest(text),
+                    None if text.trim_start().starts_with('<') => mitra_lang::results::junit(text),
+                    None => report::libtest(text),
+                    Some(f) => return Err(format!("unknown format `{f}` (libtest, junit)")),
+                });
+            }
             if let Some(r) = &rev {
                 check_rev(r)?;
             }
@@ -438,9 +676,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let tied = tie::tests(&s.root())?;
             let said = mitra_lang::results::from_tests(&model, &tied, &outcomes, rev.as_deref())?;
             let (lines, tied_notes, loose) = (said.evidence, said.notes, said.loose);
-            if !lines.is_empty() {
-                s.add(&lines.join("\n"), None, None)?;
-            }
+            let replaced = s.replace("test:", &lines.join("\n"))?;
             let claimed = |name: &str| tied.iter().any(|t| t.test == name);
             let (mut unknown, mut outside) = (Vec::new(), Vec::new());
             let passed = outcomes.iter().filter(|o| o.passed).count();
@@ -451,11 +687,13 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                 }
             }
             println!(
-                "{} results: {passed} passed, {} failed; {} evidence added",
+                "{} results: {passed} passed, {} failed; {} evidence written{}",
                 outcomes.len(),
                 outcomes.len() - passed,
-                lines.len()
+                lines.len(),
+                in_place(&replaced, "test results")
             );
+            shown(&replaced);
             for n in tied_notes {
                 println!("{n}");
             }
@@ -481,20 +719,84 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             }
             Ok(0)
         }
+        // The four levels: each runs the ones before it and stops at the
+        // first that fails.
+        "build" if rest.is_empty() => {
+            let s = store::Store::find()?;
+            Ok(build(&s, &display)?.errors)
+        }
+        "conform" if rest.is_empty() => {
+            let s = store::Store::find()?;
+            let built = build(&s, &display)?;
+            if built.errors > 0 {
+                return Ok(built.errors);
+            }
+            Ok(conform(&s, &built, rev)?)
+        }
+        "assess" | "diagnose" => {
+            let s = store::Store::find()?;
+            let (seen, reports) = match (cmd.as_str(), rest) {
+                ("diagnose", [seen, reports @ ..]) => (Some(seen), reports),
+                ("diagnose", []) => return Err(USAGE.into()),
+                (_, reports) => (None, reports),
+            };
+            if reports.iter().any(|r| r.starts_with("--")) {
+                return Err(USAGE.into());
+            }
+            let built = build(&s, &display)?;
+            if built.errors > 0 {
+                return Ok(built.errors);
+            }
+            let drift = conform(&s, &built, rev)?;
+            if drift > 0 {
+                return Ok(drift);
+            }
+            if !reports.is_empty() {
+                let mut args = vec!["ingest".to_string()];
+                args.extend(reports.iter().cloned());
+                args.extend(
+                    rev.iter()
+                        .flat_map(|r| ["--rev".to_string(), r.to_string()]),
+                );
+                run_command(args)?;
+            }
+            let errors = assess(&s, &display, rev, seen.is_none())?;
+            match seen {
+                Some(seen) if errors == 0 => diagnose(&s, seen, &display),
+                _ => Ok(errors),
+            }
+        }
+        "remove" => {
+            let which = match rest {
+                [o] if o == "--orphaned" => store::Which::Orphaned,
+                [o] if o == "--stale" => store::Which::Stale(None),
+                [o, piece] if o == "--stale" => store::Which::Stale(Some(piece.clone())),
+                [o, who] if o == "--source" => store::Which::Source(who.clone()),
+                [piece] if !piece.starts_with("--") => store::Which::Piece(piece.clone()),
+                _ => return Err(USAGE.into()),
+            };
+            let s = store::Store::find()?;
+            let gone = s.remove(&which)?;
+            println!("removed {} evidence from {}", gone.len(), s.evidence_path());
+            for g in &gone {
+                println!("  {g}");
+            }
+            Ok(0)
+        }
         "tie" if rest.is_empty() => {
             let s = store::Store::find()?;
             let model = s.model()?;
             let root = s.root();
             let found = tie::tie(&root, &model, rev)?;
-            if !found.evidence.is_empty() {
-                s.add(&found.evidence.join("\n"), None, None)?;
-            }
+            let replaced = s.replace("reader:", &found.evidence.join("\n"))?;
             println!(
-                "{} agree, {} differ; {} evidence added",
+                "{} agree, {} differ; {} evidence written{}",
                 found.agree,
                 found.differ,
-                found.evidence.len()
+                found.evidence.len(),
+                in_place(&replaced, "ties")
             );
+            shown(&replaced);
             for n in &found.notes {
                 println!("{n}");
             }

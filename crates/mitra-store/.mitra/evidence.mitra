@@ -1,18 +1,28 @@
-// Evidence, append-only: `mitra add`, `mitra ingest` and `mitra tie` write here.
-evidence test { for store::a_model_file_names_its_store holds source "test:a_model_file_names_its_store" rev "a2e2fb0d5b28" }
-evidence test { for store::another_file_is_no_store holds source "test:another_file_is_no_store" rev "a2e2fb0d5b28" }
-evidence test { for store::Store::source::correct passes source "test:the_model_is_the_whole_folder" rev "a2e2fb0d5b28" }
-evidence test { for ledger::Store::add::correct passes source "test:written_evidence_reads_back" rev "a2e2fb0d5b28" }
-evidence test { for ledger::Store::append::correct passes source "test:refused_evidence_is_not_written" rev "a2e2fb0d5b28" }
-evidence test { for files::file::correct passes source "test:an_import_is_read_beside_the_model" rev "a2e2fb0d5b28" }
-evidence test { for files::file::correct passes source "test:another_store_is_read_beside_this_one" rev "a2e2fb0d5b28" }
-evidence tie { for store::Store::tied holds source "reader:rust src/store.rs:16" rev "a2e2fb0d5b28" }
-evidence tie { for files::read::tied holds source "reader:rust src/source.rs:9" rev "a2e2fb0d5b28" }
-evidence tie { for files::file::tied holds source "reader:rust src/source.rs:15" rev "a2e2fb0d5b28" }
-evidence tie { for store::Store::of::tied holds source "reader:rust src/store.rs:44" rev "a2e2fb0d5b28" }
-evidence tie { for store::Store::model_path::tied holds source "reader:rust src/store.rs:73" rev "a2e2fb0d5b28" }
-evidence tie { for store::Store::source::tied holds source "reader:rust src/store.rs:81" rev "a2e2fb0d5b28" }
-evidence tie { for store::Store::evidence_path::tied holds source "reader:rust src/store.rs:95" rev "a2e2fb0d5b28" }
-evidence tie { for ledger::Store::add::tied holds source "reader:rust src/store.rs:102; not compared: the result is Result<0.., String> in the model and Result<usize, String> in the code" rev "a2e2fb0d5b28" }
-evidence tie { for ledger::Store::add::uses holds source "reader:rust src/store.rs:102" rev "a2e2fb0d5b28" }
-evidence tie { for ledger::Store::append::tied holds source "reader:rust src/store.rs:138; not compared: the result is Result<{()}, String> in the model and Result<(), String> in the code" rev "a2e2fb0d5b28" }
+// Evidence: `mitra add`, `mitra ingest` and `mitra tie` write here, `mitra remove` takes out.
+evidence test { for store::a_model_file_names_its_store holds source "test:a_model_file_names_its_store" rev "c0a1acfeca97" }
+evidence test { for store::another_file_is_no_store holds source "test:another_file_is_no_store" rev "c0a1acfeca97" }
+evidence test { for store::Store::source::correct passes source "test:the_model_is_the_whole_folder" rev "c0a1acfeca97" }
+evidence test { for ledger::Store::add::correct passes source "test:written_evidence_reads_back" rev "c0a1acfeca97" }
+evidence test { for ledger::Store::append::correct passes source "test:refused_evidence_is_not_written" rev "c0a1acfeca97" }
+evidence test { for files::file::correct passes source "test:an_import_is_read_beside_the_model" rev "c0a1acfeca97" }
+evidence test { for files::file::correct passes source "test:another_store_is_read_beside_this_one" rev "c0a1acfeca97" }
+evidence test { for keeping::Store::replace::correct passes source "test:a_run_replaces_what_its_machine_said" rev "c0a1acfeca97" }
+evidence test { for keeping::Store::replace::correct passes source "test:a_refused_run_leaves_the_ledger" rev "c0a1acfeca97" }
+evidence test { for keeping::Store::remove::correct passes source "test:what_a_person_said_leaves_only_when_removed" rev "c0a1acfeca97" }
+evidence test { for ledger::Store::add::correct passes source "test:what_a_person_says_keeps_the_fingerprint_of_its_piece" rev "c0a1acfeca97" }
+evidence test { for store::Store::write_build::correct passes source "test:a_build_is_written_again" rev "c0a1acfeca97" }
+evidence tie { for keeping::Replaced::tied holds source "reader:rust src/store.rs:20" rev "c0a1acfeca97" }
+evidence tie { for keeping::Which::tied holds source "reader:rust src/store.rs:35" rev "c0a1acfeca97" }
+evidence tie { for store::Store::tied holds source "reader:rust src/store.rs:57" rev "c0a1acfeca97" }
+evidence tie { for files::read::tied holds source "reader:rust src/source.rs:9" rev "c0a1acfeca97" }
+evidence tie { for files::file::tied holds source "reader:rust src/source.rs:15" rev "c0a1acfeca97" }
+evidence tie { for store::Store::of::tied holds source "reader:rust src/store.rs:85" rev "c0a1acfeca97" }
+evidence tie { for store::Store::model_path::tied holds source "reader:rust src/store.rs:114" rev "c0a1acfeca97" }
+evidence tie { for store::Store::source::tied holds source "reader:rust src/store.rs:122" rev "c0a1acfeca97" }
+evidence tie { for store::Store::evidence_path::tied holds source "reader:rust src/store.rs:136" rev "c0a1acfeca97" }
+evidence tie { for ledger::Store::add::tied holds source "reader:rust src/store.rs:143; not compared: the result is Result<0.., String> in the model and Result<usize, String> in the code" rev "c0a1acfeca97" }
+evidence tie { for ledger::Store::add::uses holds source "reader:rust src/store.rs:143" rev "c0a1acfeca97" }
+evidence tie { for store::Store::write_build::tied holds source "reader:rust src/store.rs:227" rev "c0a1acfeca97" }
+evidence tie { for keeping::Store::replace::tied holds source "reader:rust src/store.rs:242" rev "c0a1acfeca97" }
+evidence tie { for keeping::Store::remove::tied holds source "reader:rust src/store.rs:289" rev "c0a1acfeca97" }
+evidence tie { for ledger::Store::append::tied holds source "reader:rust src/store.rs:332; not compared: the result is Result<{()}, String> in the model and Result<(), String> in the code" rev "c0a1acfeca97" }

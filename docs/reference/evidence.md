@@ -32,7 +32,7 @@ a reviewer's word that the claims of the subject say what its text says
 ([kw-requirements.md](kw-requirements.md)).
 
 Evidence is written in blocks only. `mitra add`, `mitra ingest` and
-`mitra tie` append blocks to `evidence.mitra`. `//` starts a comment.
+`mitra tie` write blocks to `evidence.mitra` ([ledger.md](ledger.md)). `//` starts a comment.
 
 ## The tie to the code
 
@@ -47,7 +47,7 @@ pub fn withdraw(&self, n: u64) -> (Account, bool) { … }
 ```
 
 `mitra tie [--rev R]` reads `src/` and `tests/`, compares each tied `fn`
-with the function of the model, and appends what it finds as evidence
+with the function of the model, and writes what it finds as evidence
 (source `reader:rust file:line`, with the reason when they differ):
 
 | It compares | Agreement | Evidence on |
@@ -98,7 +98,7 @@ fn div_by_two() { assert_eq!(div(6, 2), 3); }
 ```
 
 `cargo test > report.txt 2>&1`, then `mitra ingest report.txt --rev R`
-appends one block per tied test that ran, `evidence test { for
+writes one block per tied test that ran, `evidence test { for
 calc::div_small holds source "test:div_by_two" rev "R" }`, with `fails`
 when it failed.
 

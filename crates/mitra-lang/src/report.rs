@@ -10,6 +10,7 @@ use crate::eval::{
 };
 use crate::print::{call, print_claim, print_evidence};
 use crate::tuples::Tuples;
+use crate::Why;
 
 /// Where a line of the model or of the evidence is, as `file:line`.
 pub trait Places {
@@ -33,7 +34,7 @@ impl Places for Files<'_> {
 }
 
 /// Every code, with its headline and its long explanation.
-const CODES: [(&str, &str, &str); 13] = [
+const CODES: [(&str, &str, &str); 15] = [
     (
         "M001",
         "evidence refutes a claim",
@@ -176,6 +177,29 @@ const CODES: [(&str, &str, &str); 13] = [
          Only a subject or boundary that states an `ensure` or a `require`\n\
          is held to this.\n\n\
          To fix: write `require <name> = other::promise;` beside the function.",
+    ),
+    (
+        "M107",
+        "evidence on a piece the model no longer has",
+        "An entry of the ledger names a function or a claim that is not in\n\
+         the model: it was removed or renamed. The entry is kept and judges\n\
+         nothing. What a machine observed (a test, a tie) goes at its next\n\
+         run; what a person said stays until someone decides.\n\n\
+         To fix: `mitra remove --orphaned` lists these entries and removes\n\
+         them; or say it again on the piece as it is named now, with\n\
+         `mitra add`, then remove the old entry.",
+    ),
+    (
+        "M108",
+        "evidence said before its piece changed",
+        "A person said this of a piece that reads otherwise today: the\n\
+         entry keeps the fingerprint of the piece as it was (`seen`), and\n\
+         the piece has another one now. The entry is kept and judges\n\
+         nothing: a review of a claim does not carry over to the claim\n\
+         reworded, and a bug reported on it may or may not still stand.\n\n\
+         To fix: look at the piece again. If the entry still stands, say\n\
+         it again with `mitra add`; then `mitra remove --stale <piece>`\n\
+         removes the old one.",
     ),
 ];
 
@@ -831,6 +855,9 @@ impl Writer<'_> {
                 let f = &self.claim(claim).func;
                 *out += &self.at_claim(claim);
                 *out += &match f.strip_suffix("::tied::prose") {
+                    Some(r) if self.model.enums.iter().any(|e| e.name == r) => format!(
+                        "\n  The enum `{r}` and the enum of the code do not agree, says this evidence:\n\n"
+                    ),
                     Some(r) => format!(
                         "\n  The record `{r}` and its struct do not agree, says this evidence:\n\n"
                     ),
@@ -978,7 +1005,8 @@ impl Writer<'_> {
         }
     }
 
-    fn warnings(&self, out: &mut String) {
+    /// The warnings the model gives by itself, before any evidence.
+    fn lints(&self, out: &mut String) {
         for l in &self.model.lints {
             let written = self.model.written.as_ref();
             let text = written.and_then(|w| crate::parse::written(&w.0, l.line));
@@ -989,6 +1017,39 @@ impl Writer<'_> {
                 text.unwrap_or_default()
             );
             *out += &format!("\n  {}\n  help: {}\n", l.message, l.help);
+        }
+    }
+
+    fn warnings(&self, out: &mut String) {
+        self.lints(out);
+        for a in &self.model.aside {
+            let (code, said) = match &a.why {
+                Why::Orphaned => ("M107", format!("The model has no `{}`.", a.about)),
+                Why::Stale { seen, now } => (
+                    "M108",
+                    format!(
+                        "`{}` was {seen} when this was said; it is {now} now.",
+                        a.about
+                    ),
+                ),
+            };
+            let help = match (&a.why, crate::ast::machine(a.source.as_deref())) {
+                (Why::Orphaned, true) => "the next run of its machine removes it".to_string(),
+                (Why::Orphaned, false) => {
+                    "say it again on the piece as it is named now, or `mitra remove --orphaned`"
+                        .to_string()
+                }
+                (Why::Stale { .. }, _) => format!(
+                    "look at `{0}` again; if this still stands say it again, then `mitra remove --stale {0}`",
+                    a.about
+                ),
+            };
+            *out += &format!(
+                "\nwarning[{code}]: {}\n  --> {}  {}\n\n  {said} It judges nothing.\n  help: {help}\n",
+                headline(code),
+                self.evidence_at(a.line),
+                self.evidence_text(a.line),
+            );
         }
         for f in &self.report.flags {
             *out += &format!(
@@ -1083,6 +1144,53 @@ impl Report {
             evidence: "evidence.mitra",
         };
         self.to_text_at(display, &files)
+    }
+
+    /// What can be said of the model alone: the errors found with no
+    /// evidence, the warnings on its `require` and `uses`, and each
+    /// promise of a subject that no claim says. Nothing on what is owed.
+    pub fn model_text_at(&self, display: &Display, places: &dyn Places) -> String {
+        let w = Writer {
+            report: self,
+            model: &self.model,
+            display,
+            places,
+        };
+        let (mut out, mut attached) = (String::new(), Vec::new());
+        for p in &self.problems {
+            w.error(p, &mut attached, &mut out);
+        }
+        w.lints(&mut out);
+        for e in self.model.bare_ensures() {
+            out += &format!("\nwarning[M101]: {}\n", headline("M101"));
+            out += &w.at_claim(&e.name);
+            out += "\n  No claim in its subject says it.\n  \
+                    help: write the claims that say it, in the same subject\n";
+        }
+        out
+    }
+
+    /// Each error, as the report prints it.
+    pub fn problem_texts(&self, display: &Display, places: &dyn Places) -> Vec<String> {
+        let w = Writer {
+            report: self,
+            model: &self.model,
+            display,
+            places,
+        };
+        let mut attached = Vec::new();
+        let mut each = Vec::new();
+        for p in &self.problems {
+            let mut out = String::new();
+            w.error(p, &mut attached, &mut out);
+            each.push(out);
+        }
+        each
+    }
+
+    /// How many warnings [`Report::model_text_at`] prints.
+    pub fn model_warnings(&self) -> usize {
+        self.model.lints.len() + self.model.bare_ensures().len()
     }
 
     /// The result: each claim's verdict, then the errors, the warnings and

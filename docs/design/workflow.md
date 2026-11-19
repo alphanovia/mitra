@@ -75,13 +75,14 @@ a candidate in every error it takes part in.
 
 ## Evidence store
 
-Done: `.mitra/evidence.mitra` is an append-only file of evidence lines,
-each with its `source` and `rev`. Git merges it with the `union` driver, so
+Done: `.mitra/evidence.mitra` is a file of evidence lines, each with its
+`source` and `rev`, kept as `docs/reference/ledger.md` says. Git merges it with the `union` driver, so
 merges never conflict. `--rev R` counts only evidence recorded at R.
 
-Proposed: record a **content hash** of the subject each piece observed, so
-evidence goes stale only when its subject changes, not on every commit.
-Staleness then lowers the trust in that evidence when culprits are ranked.
+Done for what a person says: `seen`, the fingerprint of its piece
+(`docs/reference/ledger.md`). Proposed for what a machine observed: the
+same, so that it goes stale only when its subject changes, not on every
+commit.
 
 ## Bugs and root causes (proposed)
 

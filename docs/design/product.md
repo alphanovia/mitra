@@ -1,8 +1,10 @@
 # Design: the product, in four levels
 
-Status: **planned**. Nothing here renames or adds a command on main.
-What exists is in the [commands reference](../reference/commands.md);
-the table below says which of today's commands each level is made of.
+Status: **the four commands are on main** in a first form
+([levels](../reference/levels.md)), with the build file and the ledger
+rules. Not on main: `explore`, the comparison of two builds, the final
+verbs of the small commands. What exists is in the
+[commands reference](../reference/commands.md).
 Settled with the user in chat on 2026-11-19, unless marked open.
 
 ## What Mitra is for
@@ -65,10 +67,25 @@ point). It cannot speak about code the model does not cover.
 | `mitra explain` | every level | unchanged |
 | `mitra init` | before build | unchanged |
 
-Not on main: `build` as a command and its artifact, `conform`, `assess`
-and `diagnose` as macro commands, `explore`, `coverage` as a command,
-`file`, `suspects`, `review`, `vouch`. The final verbs of the small
-commands are open.
+On main: the four macro commands, and `mitra remove`. Not on main:
+`explore`, `coverage` as a command, `file`, `suspects`, `review`,
+`vouch`.
+
+**The small verbs (proposed, decision 396, nothing renamed).** The user
+does not find today's verbs meaningful. Every one of them still works.
+The proposal, to accept, change or drop:
+
+| Today | Proposed | Why |
+|---|---|---|
+| `check` | folded into `build` | `build` says the same and writes the build |
+| `plan` | `owed` | it lists the evidence owed |
+| `tie` | folded into `conform` | `conform` does it and counts |
+| `ingest` | `observe <report>` | a machine's observation enters the ledger |
+| `eval` | `report` | it prints the report |
+| `add` | `vouch` (a person's word), `file` (a bug or an observation) | two acts, one verb today |
+| `remove` | `remove` | |
+| `next` | `next` | |
+| `explain`, `init` | unchanged | |
 
 ## The build artifact (agreed: "yes to build")
 
@@ -89,9 +106,15 @@ What it is for:
   detected without git;
 - comparing two builds shows a change of intent.
 
-Open, proposed by the coordinator and not decided: commit a small
-lockfile-like part of the build; never edit it by hand; later commands
-refuse a build older than the model.
+Built: `model.lock`, `interface.mitra` and `owed.txt`
+([levels](../reference/levels.md)). The fingerprints are used by the
+ledger: what a person says keeps the fingerprint of its piece.
+
+Open: whether to commit `model.lock` (it is ignored by git in this
+repository, decision 393); whether a later level should refuse a build
+older than the model (today each level builds again, decision 394);
+resolved types and expanded library claims in the build file; the
+comparison of two builds.
 
 ## The loops
 
@@ -159,21 +182,20 @@ remove the dead code, and I'll work with you on the trust model, and
 calculus will come back when we need it from the model." It is removed;
 `culprits::rank` is what runs.
 
-## Where the build file lives (proposed, not confirmed)
+## Where the build file lives
 
-The coordinator's answer to the user's question, not built:
+As the user confirmed ("mitra-store it is"):
 
-- `mitra-lang`: the content of a compiled model (pieces, types, links,
-  fingerprints) and its text form. Pure.
-- `mitra-store`: writing and reading `.mitra/build/`, and noticing that
-  it is older than the model.
+- `mitra-lang`: the content of a compiled model (`build::build`) and
+  its text form. Pure.
+- `mitra-store`: writing `.mitra/build/`.
 - `mitra-cli`: the `mitra build` command and what it prints.
 
 The fingerprint is computed in `mitra-lang` from what a piece means, not
 from the bytes of its file: reformatting or a comment does not make
 evidence look stale.
 
-## Keeping the ledger (agreed in outline, details to settle)
+## Keeping the ledger (built; the details are choices to review)
 
 The user does not want an append-only ledger: "if the model changes a
 lot, some evidence doesn't mean anything anymore. You don't want to keep
@@ -189,14 +211,15 @@ work out the details later"):
   as orphaned or stale, counts for nothing, and waits for a decision
   instead of expiring.
 - Removing evidence is an act of its own, which lists what goes.
-- Possibly two files in the store: one written again, one kept.
 
-Not built: it needs the fingerprints of the build. On main the ledger
-only grows, and evidence naming a piece the model no longer has is an
-error that stops every command. The four promises are written in
-mitra-store's own model (`crates/mitra-store/.mitra/ledger.mitra`,
-subject `keeping`) with nothing to support them, which is their honest
-state.
+Built as `docs/reference/ledger.md` describes. The details chosen alone
+are decisions 382 to 391 of the review (increment 70): who is a machine
+(the source prefix), one file and not two, `seen` written by `mitra
+add`, what a fingerprint follows, a run replacing every entry of its
+machine, `mitra remove` asking nothing. The case raised and not
+answered, a bug ticket on a reworded claim: the ticket is stale, stays
+in the file and in every report as `M108`, and judges nothing until
+someone says it again or removes it.
 
 ## Open decisions
 

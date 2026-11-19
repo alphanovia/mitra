@@ -13,7 +13,10 @@
 //! ```
 
 pub mod ast;
+pub mod build;
 pub mod eval;
+pub mod fingerprint;
+pub mod levels;
 pub mod modules;
 pub mod next;
 pub mod parse;
@@ -28,8 +31,8 @@ pub mod tuples;
 pub mod types;
 
 pub use ast::{
-    Arm, Block, Claim, Decl, Enum, Evidence, Expr, Function, Judgment, Model, Pattern, Position,
-    Record, Side, Target,
+    Arm, Aside, Block, Claim, Decl, Enum, Evidence, Expr, Function, Judgment, Model, Pattern,
+    Position, Record, Side, Target, Why,
 };
 pub use eval::{
     evaluate, Assumed, Candidate, Conflict, Contradiction, Display, Flag, Implication, Kind, Logic,
@@ -132,6 +135,32 @@ fn read(model: &Modules, evidence: &str) -> Result<Model, (Input, Error)> {
     }
     let lines = evidence.lines().count();
     let read = parse::evidence(evidence, &m, &names).map_err(|e| (Input::Evidence, e))?;
+    let (mut read, aside) = read;
+    m.aside = aside;
+    // Said by a person of a piece that reads otherwise today: stale.
+    let prints = fingerprint::all(&m);
+    read.retain(|e| {
+        let now = fingerprint::of(&prints, &e.about);
+        let stale = match (&e.seen, now) {
+            (Some(seen), Some(now)) if seen != now => Some((seen.clone(), now.clone())),
+            _ => None,
+        };
+        if let Some((seen, now)) = &stale {
+            let (about, source, rev) = (e.about.clone(), e.source.clone(), e.rev.clone());
+            let why = Why::Stale {
+                seen: seen.clone(),
+                now: now.clone(),
+            };
+            m.aside.push(Aside {
+                about,
+                source,
+                rev,
+                why,
+                line: e.line,
+            });
+        }
+        stale.is_none()
+    });
     tie(&mut m, &read, &names);
     tie_records(&mut m, &read);
     tie_uses(&mut m, &read, &names);

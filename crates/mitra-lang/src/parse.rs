@@ -210,6 +210,23 @@ pub fn imports(src: &str) -> Vec<String> {
     out
 }
 
+/// How an error on a name the model does not have starts.
+const NO_PIECE: &str = "the model has no function or claim";
+
+/// One evidence block of a ledger, read without a model.
+#[derive(Debug, Clone, Default, PartialEq)]
+// mitra: implements ledger::Entry
+pub struct Entry {
+    /// The piece it names, as written.
+    pub about: String,
+    pub source: Option<String>,
+    pub rev: Option<String>,
+    pub seen: Option<String>,
+    /// Its first and its last line.
+    pub first: usize,
+    pub last: usize,
+}
+
 /// The declarations at the top of a file that start an item.
 pub const ITEMS: [&str; 11] = [
     "subject", "boundary", "record", "enum", "fn", "claim", "assume", "test", "import", "ensure",
@@ -659,7 +676,7 @@ impl P {
         let found: Vec<&String> = self.all.iter().filter(|n| n.ends_with(&tail)).collect();
         match found[..] {
             [one] => Ok(one.clone()),
-            [] => self.err(format!("the model has no function or claim `{name}`")),
+            [] => self.err(format!("{NO_PIECE} `{name}`")),
             _ => {
                 let each: Vec<String> = found.iter().map(|n| format!("`{n}`")).collect();
                 self.err(format!(
@@ -1954,6 +1971,7 @@ impl P {
             confidence: trust,
             source: Some(source.to_string()),
             rev: None,
+            seen: None,
             line: 0,
         });
     }
@@ -3159,7 +3177,7 @@ impl P {
         let target = self.path()?;
         let target = self.find(&target)?;
         let (mut given, mut says, mut trust) = (Vec::new(), None, 1.0);
-        let (mut source, mut rev) = (label, None);
+        let (mut source, mut rev, mut seen) = (label, None, None);
         // `sampled 1000`: the count, whether it passed, and the domain as
         // written (`m in valid, o in valid`).
         let mut sampled: Option<(u64, bool)> = None;
@@ -3167,6 +3185,7 @@ impl P {
         let mut by_helper = false;
         let clauses = [
             "given", "holds", "fails", "passes", "gives", "sampled", "trust", "source", "rev",
+            "seen",
         ];
         while !self.eat("}") {
             let at = self.line();
@@ -3230,14 +3249,15 @@ impl P {
                         ));
                     }
                 }
-                "source" | "rev" => {
+                "source" | "rev" | "seen" => {
                     let Some(Old::Str(s)) = self.next_old() else {
                         self.pos -= 1;
                         return self.err(format!("`{clause}` needs a string"));
                     };
-                    match clause == "rev" {
-                        true => rev = Some(s),
-                        false => source = s,
+                    match clause.as_str() {
+                        "rev" => rev = Some(s),
+                        "seen" => seen = Some(s),
+                        _ => source = s,
                     }
                 }
                 other => {
@@ -3337,6 +3357,7 @@ impl P {
             confidence: trust,
             source: Some(source),
             rev,
+            seen,
             line,
         })
     }
@@ -4187,9 +4208,11 @@ fn read(toks: Vec<Tok>, handed: Rc<Handed>) -> Result<P, Error> {
     Ok(last)
 }
 
-/// The evidence, then what the model itself declares.
-pub fn evidence(src: &str, m: &Model, names: &Names) -> Result<Vec<Evidence>, Error> {
-    let mut out = evidence_alone(src, m, names)?;
+/// The evidence of a ledger, then what the model itself declares. A
+/// block on a piece the model no longer has is set aside, not refused.
+pub fn evidence(src: &str, m: &Model, names: &Names) -> Result<(Vec<Evidence>, Vec<Aside>), Error> {
+    let mut aside = Vec::new();
+    let mut out = blocks(src, m, names, Some(&mut aside))?;
     let lines = src.lines().count().max(out.last().map_or(0, |e| e.line));
     for (i, d) in names.declared.iter().enumerate() {
         out.push(Evidence {
@@ -4197,11 +4220,77 @@ pub fn evidence(src: &str, m: &Model, names: &Names) -> Result<Vec<Evidence>, Er
             ..d.clone()
         });
     }
-    Ok(out)
+    Ok((out, aside))
 }
 
-/// The evidence blocks of a file.
+/// The evidence blocks of a text, each on a piece the model has.
 pub fn evidence_alone(src: &str, m: &Model, names: &Names) -> Result<Vec<Evidence>, Error> {
+    blocks(src, m, names, None)
+}
+
+/// The words after `source`, `rev` and `seen` in each evidence block of
+/// a text, with its first and last line and the piece it names as
+/// written: read without a model.
+// mitra: implements ledger::entries
+pub fn entries(src: &str) -> Vec<Entry> {
+    let toks = lex(src).unwrap_or_default();
+    let (mut out, mut i) = (Vec::new(), 0);
+    while i < toks.len() {
+        let open = toks[i].text == "evidence" && toks.get(i + 2).is_some_and(|t| t.text == "{");
+        if !open {
+            i += 1;
+            continue;
+        }
+        let mut e = Entry {
+            first: toks[i].line,
+            source: Some(toks[i + 1].text.clone()),
+            ..Entry::default()
+        };
+        let (mut depth, mut j) = (0, i + 2);
+        while j < toks.len() {
+            let word = |w: &str| toks[j].kind == Kind::Name && toks[j].text == w && depth == 1;
+            let said = toks.get(j + 1).filter(|t| t.kind == Kind::Str);
+            let said = said.map(|t| unquote(&t.text));
+            match toks[j].text.as_str() {
+                "{" => depth += 1,
+                "}" => depth -= 1,
+                _ if word("source") && said.is_some() => e.source = said,
+                _ if word("rev") && said.is_some() => e.rev = said,
+                _ if word("seen") && said.is_some() => e.seen = said,
+                _ if word("for") && e.about.is_empty() => {
+                    // `a::b::c`: names with `::` between them.
+                    let mut k = j + 1;
+                    while let Some(t) = toks.get(k).filter(|t| t.kind == Kind::Name) {
+                        e.about += &t.text;
+                        if toks.get(k + 1).is_none_or(|t| t.text != "::") {
+                            break;
+                        }
+                        e.about += "::";
+                        k += 2;
+                    }
+                }
+                _ => {}
+            }
+            if depth == 0 {
+                break;
+            }
+            j += 1;
+        }
+        e.last = toks.get(j).map_or(e.first, |t| t.line);
+        out.push(e);
+        i = j + 1;
+    }
+    out
+}
+
+/// The evidence blocks of a file. With `aside`, a block on a piece the
+/// model does not have is put there; without, it is an error.
+fn blocks(
+    src: &str,
+    m: &Model,
+    names: &Names,
+    mut aside: Option<&mut Vec<Aside>>,
+) -> Result<Vec<Evidence>, Error> {
     let mut all: BTreeSet<String> = names.fns.keys().cloned().collect();
     all.extend(names.claims.keys().cloned());
     // The tie of each function to its code: `for f::tied`.
@@ -4247,7 +4336,32 @@ pub fn evidence_alone(src: &str, m: &Model, names: &Names) -> Result<Vec<Evidenc
     while p.pos < p.toks.len() {
         let block = p.is("evidence") && p.peek_at(2) == "{" && p.kind_at(1) == Some(Kind::Name);
         if block {
-            out.push(p.evidence()?);
+            let (start, line) = (p.pos, p.line());
+            match (p.evidence(), aside.as_deref_mut()) {
+                (Ok(e), _) => out.push(e),
+                (Err(e), Some(aside)) if e.message.starts_with(NO_PIECE) => {
+                    // To the end of the block.
+                    let (mut depth, mut end) = (0, start + 2);
+                    while let Some(t) = p.toks.get(end) {
+                        depth += (t.text == "{") as i32 - (t.text == "}") as i32;
+                        end += 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                    p.pos = end;
+                    let known = entries(src).into_iter().find(|x| x.first == line);
+                    let known = known.unwrap_or_default();
+                    aside.push(Aside {
+                        about: known.about,
+                        source: known.source,
+                        rev: known.rev,
+                        why: Why::Orphaned,
+                        line,
+                    });
+                }
+                (Err(e), _) => return Err(e),
+            }
             continue;
         }
         let line = p.line();
@@ -4391,7 +4505,13 @@ pub fn written(lines: &[String], line: usize) -> Option<String> {
 
 /// Evidence blocks with `source "…"` and `rev "…"` added to each block
 /// that does not say it. A block that already has the clause is an error.
-pub fn stamp(text: &str, source: Option<&str>, rev: Option<&str>) -> Result<String, String> {
+pub fn stamp(
+    text: &str,
+    source: Option<&str>,
+    rev: Option<&str>,
+    seen: &[Option<String>],
+) -> Result<String, String> {
+    let mut block = 0;
     let mut out = String::new();
     let (mut depth, mut quoted, mut escaped) = (0usize, false, false);
     // The block being read, without its strings: where a clause shows.
@@ -4426,6 +4546,14 @@ pub fn stamp(text: &str, source: Option<&str>, rev: Option<&str>) -> Result<Stri
                     }
                     out += &format!("{k} \"{v}\" ");
                 }
+                // The fingerprint of its piece, block by block.
+                if let Some(Some(v)) = seen.get(block) {
+                    if !out.ends_with(' ') {
+                        out.push(' ');
+                    }
+                    out += &format!("seen \"{v}\" ");
+                }
+                block += 1;
                 bare.clear();
             }
             '}' => depth = depth.saturating_sub(1),
@@ -4451,6 +4579,48 @@ mod tests {
 
     fn error(text: &str) -> Error {
         model(text).map(|_| ()).unwrap_err()
+    }
+
+    fn entry(about: &str, source: Option<&str>, rev: Option<&str>, lines: (usize, usize)) -> Entry {
+        Entry {
+            about: about.to_string(),
+            source: source.map(String::from),
+            rev: rev.map(String::from),
+            seen: None,
+            first: lines.0,
+            last: lines.1,
+        }
+    }
+
+    // mitra: evidence for ledger::t_entries_one
+    #[test]
+    fn t_entries_one() {
+        let text = "evidence r { for a::b holds source \"review:me\" rev \"1\" }";
+        let one = entry("a::b", Some("review:me"), Some("1"), (1, 1));
+        assert_eq!(entries(text), [one]);
+    }
+
+    // mitra: evidence for ledger::t_entries_label_is_the_source
+    #[test]
+    fn t_entries_label_is_the_source() {
+        let text = "evidence ci {\n  for f given a = 1 gives 2\n}";
+        assert_eq!(entries(text), [entry("f", Some("ci"), None, (1, 3))]);
+    }
+
+    // mitra: evidence for ledger::t_entries_none
+    #[test]
+    fn t_entries_none() {
+        assert_eq!(entries("// nothing"), []);
+    }
+
+    #[test]
+    fn entries_read_each_block() {
+        let text = "// head\nevidence a { for f holds seen \"12\" }\nevidence b { for g given s = \"source\" gives 1 }";
+        let read = entries(text);
+        assert_eq!(read.len(), 2);
+        assert_eq!(read[0].seen.as_deref(), Some("12"));
+        assert_eq!((read[1].about.as_str(), read[1].first), ("g", 3));
+        assert_eq!(read[1].source.as_deref(), Some("b"));
     }
 
     #[test]
