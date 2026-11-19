@@ -97,9 +97,9 @@ subject types {
     impl Model {
         fn check(self) -> Result<Self, (Input, Error)>;
     }
-    fn read(model: String, ledger: String) -> Result<Model, (Input, Error)>
+    fn read(model: String, evidence: String) -> Result<Model, (Input, Error)>
         uses reader::model, Model::check;
-    fn load(model: String, ledger: String) -> Result<Model, (Input, Error)> uses read;
+    fn load(model: String, evidence: String) -> Result<Model, (Input, Error)> uses read;
 
     claim good_is_read() { load("subject fn f() -> Bool;", "") is Ok }
     claim unknown_is_refused() { load("claim c() { g() }", "") is Err }
@@ -122,12 +122,11 @@ subject verdicts {
     enum Logic { Holds, Assuming, Unverified, Fails }
     // An error of a report: nothing of it is read here.
     record Problem;
-    // (The field `claim` of the code can't be stated: the word is taken.)
-    record Verdict { logic: Logic, .. }
+    record Verdict { claim: String, logic: Logic, .. }
     record Report { verdicts: Vec<Verdict>, problems: Vec<Problem>, .. }
     fn evaluate(model: Model) -> Result<Report, (Input, Error)>;
     fn derive(model: Model);
-    fn run(model: String, ledger: String) -> Result<Report, (Input, Error)> uses types::load, evaluate;
+    fn run(model: String, evidence: String) -> Result<Report, (Input, Error)> uses types::load, evaluate;
 
     claim one_verdict_each(m: Model) {
         match evaluate(m) {

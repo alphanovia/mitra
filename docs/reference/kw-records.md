@@ -125,3 +125,23 @@ claim areas() { area(Rect(2, 3)) == 6 && area(Dot) == 0 && Circle(1).r == 1 }
 areas: holds
 
 ```
+
+## names and r#
+
+A word of the language is still a name where nothing else can stand:
+any word as a field (`claim: String`) and after a dot (`v.claim`); as
+an input or a `let`, the words that only start a declaration (`record`,
+`fn`, `claim`, `evidence`, `enum`). Elsewhere write Rust's raw
+identifier, `r#match`: the tie reads `r#match` and `match` as one name.
+
+```mitra
+subject s {
+    record Verdict { claim: String, match: 0..=2, r#in: Bool }
+    fn name(evidence: Verdict) -> String { let claim = evidence.claim; claim }
+    fn level(v: Verdict, r#if: 0..=1) -> Int { v.match + r#if }
+    claim levels() { level(Verdict("a", 2, true), 1) == 3 && name(Verdict("a", 0, false)) == "a" }
+}
+```
+```text
+s::levels: holds assuming [s::level::spec, s::name::spec]
+```

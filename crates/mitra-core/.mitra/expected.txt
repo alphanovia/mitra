@@ -51,10 +51,10 @@ types::Model::check::correct: unverified
   no evidence on  self in reader::Model
 types::read::uses: holds
 types::read::correct: unverified
-  no evidence on  (model, ledger) in (String, String)
+  no evidence on  (model, evidence) in (String, String)
 types::load::uses: holds
 types::load::correct: unverified
-  no evidence on  (model, ledger) in (String, String)
+  no evidence on  (model, evidence) in (String, String)
 types::good_is_read: holds
 types::unknown_is_refused: holds
 types::twice_is_refused: holds
@@ -66,7 +66,7 @@ verdicts::derive::correct: unverified
   no evidence on  model in reader::Model
 verdicts::run::uses: holds
 verdicts::run::correct: unverified
-  no evidence on  (model, ledger) in (String, String)
+  no evidence on  (model, evidence) in (String, String)
 verdicts::one_verdict_each: holds
 verdicts::untested_is_unverified: holds
 verdicts::tested_holds: holds
@@ -266,16 +266,10 @@ verdicts::Verdict::tied: holds
 verdicts::Report::tied: holds
 report::Candidate::tied: holds
 
-warning[M105]: a requirement that nothing uses
+warning[M105]: a requirement that nothing leans on
   --> .mitra/model.mitra:114  require computed = eval::computes;
 
-  `verdicts::computed` needs `eval::computes`, and no function declared beside it `uses` a function declared beside `eval::computes`.
-  help: say which function `uses` it, or remove the `require`
-
-warning[M105]: a requirement that nothing uses
-  --> .mitra/model.mitra:202  require judged = verdicts::one_each;
-
-  `advice::judged` needs `verdicts::one_each`, and no function declared beside it `uses` a function declared beside `verdicts::one_each`.
+  `verdicts::computed` needs `eval::computes`, and nothing declared beside it leans on what is declared beside `eval::computes`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
 
 warning[M101]: a claim is not verified
@@ -369,37 +363,37 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:100  fn read(model: String, ledger: String) -> Result<Model, (Input, Error)>
+  --> .mitra/model.mitra:100  fn read(model: String, evidence: String) -> Result<Model, (Input, Error)>
 
-  No evidence on (model, ledger) in (String, String).
+  No evidence on (model, evidence) in (String, String).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:102  fn load(model: String, ledger: String) -> Result<Model, (Input, Error)> uses read;
+  --> .mitra/model.mitra:102  fn load(model: String, evidence: String) -> Result<Model, (Input, Error)> uses read;
 
-  No evidence on (model, ledger) in (String, String).
+  No evidence on (model, evidence) in (String, String).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:128  fn evaluate(model: Model) -> Result<Report, (Input, Error)>;
+  --> .mitra/model.mitra:127  fn evaluate(model: Model) -> Result<Report, (Input, Error)>;
 
   No evidence on model in reader::Model.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:129  fn derive(model: Model);
+  --> .mitra/model.mitra:128  fn derive(model: Model);
 
   No evidence on model in reader::Model.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:130  fn run(model: String, ledger: String) -> Result<Report, (Input, Error)> uses types::load, evaluate;
+  --> .mitra/model.mitra:129  fn run(model: String, evidence: String) -> Result<Report, (Input, Error)> uses types::load, evaluate;
 
-  No evidence on (model, ledger) in (String, String).
+  No evidence on (model, evidence) in (String, String).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:204  fn plan(model: Model, report: Report) -> String;
+  --> .mitra/model.mitra:203  fn plan(model: Model, report: Report) -> String;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
@@ -561,25 +555,25 @@ warning[M102]: a claim holds only under assumptions
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:177  ensure words = "A verdict and a candidate are printed with the word the reference gives them.";
+  --> .mitra/model.mitra:176  ensure words = "A verdict and a candidate are printed with the word the reference gives them.";
 
   Nobody vouched that the claims `report::words` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for report::words::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:177  ensure words = "A verdict and a candidate are printed with the word the reference gives them.";
+  --> .mitra/model.mitra:176  ensure words = "A verdict and a candidate are printed with the word the reference gives them.";
 
   `report::words` holds if `report::words::captured` holds, and no evidence supports it.
   help: review it, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:203  ensure owed = "For each claim that does not hold yet, the evidence that would settle it is listed.";
+  --> .mitra/model.mitra:202  ensure owed = "For each claim that does not hold yet, the evidence that would settle it is listed.";
 
   Nobody vouched that the claims `advice::owed` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for advice::owed::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:203  ensure owed = "For each claim that does not hold yet, the evidence that would settle it is listed.";
+  --> .mitra/model.mitra:202  ensure owed = "For each claim that does not hold yet, the evidence that would settle it is listed.";
 
   `advice::owed` holds if `advice::plan::correct`, `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::Model::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::one_each::captured`, `advice::owed::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed

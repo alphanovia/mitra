@@ -583,6 +583,22 @@ fn require_and_uses_are_compared() {
     assert!(got.is_empty(), "{got:?}");
     let got = codes("subject s { require power = \"There is power.\";\nfn f(u: 0..=1) -> Bool; }");
     assert!(got.is_empty(), "{got:?}");
+    // A need is justified by anything that leans on the block: a call
+    // through another subject, a call in a claim, one of its types.
+    let through = "subject mid { fn relay(u: 0..=1) -> Bool uses mailer::send; }\n\
+                   subject s { require mail = mailer::delivers;\n\
+                   fn f(u: 0..=1) -> Bool uses mid::relay; }";
+    assert!(codes(through).is_empty());
+    let called = "subject s { require mail = mailer::delivers;\n\
+                  fn f(u: 0..=1) -> Bool;\n\
+                  claim c(u: 0..=1) { f(u) == mailer::send(u) } }";
+    assert!(codes(called).is_empty());
+    let typed = "subject data { ensure kept = \"Kept.\"; record Row { id: 0..=1 } }\n\
+                 subject s { require rows = data::kept; fn f(r: data::Row) -> Bool; }";
+    assert!(codes(typed).is_empty());
+    let apart = "subject data { ensure kept = \"Kept.\"; record Row { id: 0..=1 } }\n\
+                 subject s { require rows = data::kept; fn f(u: 0..=1) -> Bool; }";
+    assert_eq!(codes(apart), ["M105"]);
     assert!(mitra_core::explain("M105").is_some() && mitra_core::explain("M106").is_some());
 }
 
@@ -711,4 +727,37 @@ fn an_impl_is_read_as_rust_writes_it() {
         "`s::B` has no method `size`",
     );
     refused("impl A<T> { }", "`impl R { … }` is the only form");
+}
+
+/// A word of the language is a name where nothing else can stand: a
+/// field, after a dot, an input when the word only starts a
+/// declaration. Elsewhere `r#word`, as in Rust.
+#[test]
+fn a_keyword_is_a_name_where_it_cannot_be_confused() {
+    let m = "subject s { record Verdict { claim: String, match: 0..=2, r#in: Bool }\n\
+             fn name(evidence: Verdict, r#if: 0..=1) -> String { let claim = evidence.claim; claim }\n\
+             fn level(v: Verdict) -> Int { v.match + (if v.r#in { 1 } else { 0 }) }\n\
+             claim c(claim: Verdict) { name(claim, 0) == claim.claim }\n\
+             claim d() { level(Verdict(\"a\", 2, true)) == 3 } }";
+    let e =
+        "evidence e { for s::name given evidence = Verdict(\"a\", 1, true), r#if = 0 gives \"a\" }";
+    let text = mitra_core::run(m, e)
+        .unwrap_or_else(|(_, e)| panic!("{e}"))
+        .to_text();
+    assert!(
+        text.contains("s::d: holds assuming [s::level::spec]"),
+        "{text}"
+    );
+    assert!(
+        text.contains("passes on       `claim = s::Verdict(\"a\", 1, true)`"),
+        "{text}"
+    );
+    let e = mitra_core::run("subject fn f(match: Int) -> Int;", "")
+        .map(|_| ())
+        .unwrap_err()
+        .1;
+    assert!(
+        e.to_string().contains("as an input, write `r#match`"),
+        "{e}"
+    );
 }

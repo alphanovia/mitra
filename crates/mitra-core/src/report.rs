@@ -157,12 +157,13 @@ const CODES: [(&str, &str, &str); 13] = [
     ),
     (
         "M105",
-        "a requirement that nothing uses",
+        "a requirement that nothing leans on",
         "`require need = other::promise;` says this subject leans on a promise\n\
-         made elsewhere, and no function declared beside the `require` has a\n\
-         `uses` clause naming a function declared beside that promise. The\n\
-         intent leans on it, and nothing calls it: the need is stale, or the\n\
-         design is not built yet.\n\n\
+         made elsewhere, and nothing declared beside the `require` shows it:\n\
+         no function `uses` one declared beside that promise, directly or\n\
+         through other functions, no body or claim calls one, and no\n\
+         signature or record field names one of its types. The need is\n\
+         stale, or the design is not built yet.\n\n\
          To fix: add the `uses` clause to the function that calls it, or\n\
          remove the `require`.",
     ),

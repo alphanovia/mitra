@@ -153,7 +153,8 @@ comments is refused.
 ## Not yet
 
 - No formal grammar of the language is checked yet.
-- Reserved words can't be names: the types (`Bool`, `Int`, `String`,
+- Reserved words are names only as fields, or written `r#word`
+  ([names](kw-records.md#names-and-r)): the types (`Bool`, `Int`, `String`,
   `List`, `Set`, `Map`, `Any`, …) and `fn`, `claim`, `evidence`,
   `record`, `enum`, `match`, `if`, `else`, `let`, `in`, `true`, `false`,
   `correct`, `rate`, `precision`, `recall`, `false_positive_rate`, `len`,

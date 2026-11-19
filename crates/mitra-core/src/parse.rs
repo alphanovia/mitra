@@ -129,9 +129,13 @@ fn lex(src: &str) -> Result<Vec<Tok>, Error> {
             push(Kind::Num, &rest[..end], line);
             rest = &rest[end..];
         } else if c.is_ascii_alphabetic() || c == '_' {
-            let end = rest
+            // `r#match`, Rust's raw identifier: a name, whatever the word.
+            let word = |c: char| c.is_ascii_alphabetic() || c == '_';
+            let raw = rest.strip_prefix("r#").filter(|r| r.starts_with(word));
+            let from = if raw.is_some() { 2 } else { 0 };
+            let end = rest[from..]
                 .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
-                .unwrap_or(rest.len());
+                .map_or(rest.len(), |n| n + from);
             push(Kind::Name, &rest[..end], line);
             rest = &rest[end..];
         } else if let Some(p) = PUNCT.iter().find(|p| rest.starts_with(**p)) {
@@ -263,6 +267,10 @@ pub const KEYWORDS: [&str; 36] = [
     "_",
     "Real",
 ];
+
+/// The reserved words that only start a declaration: nothing else
+/// begins with them, so each can also name an input.
+const DECLARING: [&str; 5] = ["record", "fn", "claim", "evidence", "enum"];
 
 /// The text of a string as written between quotes.
 fn unquote(raw: &str) -> String {
@@ -513,6 +521,22 @@ impl P {
                 self.err(format!("`{}` is a keyword, expected a name", self.peek()))
             }
             _ => self.err("expected a name"),
+        }
+    }
+    /// Any word, reserved or not: where only a name can stand, after a
+    /// dot or before the `:` of a field.
+    fn word(&mut self) -> R<String> {
+        match self.kind() {
+            Some(Kind::Name) => self.name(),
+            _ => self.err("expected a name"),
+        }
+    }
+    /// The name of an input or of a `let`: also a word that only starts
+    /// a declaration, such as `claim`.
+    fn local(&mut self) -> R<String> {
+        match self.kind() == Some(Kind::Name) && DECLARING.contains(&self.peek()) {
+            true => self.name(),
+            false => self.ident(),
         }
     }
     fn is_keyword(&self, k: &str) -> bool {
@@ -1070,7 +1094,10 @@ impl P {
             return Ok(params);
         }
         loop {
-            let name = self.ident()?;
+            let name = match self.peek_at(1) == ":" {
+                true => self.word()?,
+                false => self.ident()?,
+            };
             if !self.is(":") {
                 return self.err(format!("the input `{name}` needs a type"));
             }
@@ -1253,7 +1280,7 @@ impl P {
                 a = Expr::Index(Box::new(a), Box::new(i));
             } else if self.eat(".") {
                 let position = self.kind() == Some(Kind::Num) && !self.peek().contains('.');
-                if !position && !self.is_name() {
+                if !position && self.kind() != Some(Kind::Name) {
                     return self.err(
                         "expected a field name, or a position such as `.0`; \
                          for a position inside a position write `(t.0).1`",
@@ -1345,7 +1372,7 @@ impl P {
         if !self.eat("let") {
             return self.expr();
         }
-        let x = self.ident()?;
+        let x = self.local()?;
         self.expect("=")?;
         let v = self.expr()?;
         self.expect(";")?;
@@ -1358,7 +1385,7 @@ impl P {
     fn bars(&mut self) -> R<Vec<String>> {
         let mut names = Vec::new();
         while !self.eat("|") {
-            names.push(self.ident()?);
+            names.push(self.local()?);
             if !self.eat(",") {
                 self.expect("|")?;
                 break;
@@ -1502,7 +1529,7 @@ impl P {
                 let variant = match self.eat("_") {
                     true => None,
                     false => {
-                        let v = self.ident()?;
+                        let v = self.local()?;
                         let mut fields = Vec::new();
                         if self.eat("(") {
                             while !self.eat(")") {
@@ -1512,7 +1539,7 @@ impl P {
                                         self.fresh += 1;
                                         format!("unread_{}", self.fresh)
                                     }
-                                    false => self.ident()?,
+                                    false => self.local()?,
                                 };
                                 fields.push(x);
                                 if !self.eat(",") {
@@ -1562,7 +1589,7 @@ impl P {
         if self.is("rate") && self.peek_at(1) == "(" {
             // rate(x in Type, cond): the share of the type where cond holds.
             self.pos += 2;
-            let x = self.ident()?;
+            let x = self.local()?;
             self.expect("in")?;
             let set = self.set()?;
             self.expect(",")?;
@@ -1588,7 +1615,7 @@ impl P {
         if let Some(kind) = each.filter(|_| self.peek_at(1) == "(" && self.peek_at(3) == "in") {
             // all(x in xs, cond): over each element.
             self.pos += 2;
-            let x = self.ident()?;
+            let x = self.local()?;
             self.expect("in")?;
             let list = self.sum()?;
             self.expect(",")?;
@@ -1614,7 +1641,9 @@ impl P {
                 });
             }
         }
-        if !self.is_name() {
+        let input =
+            DECLARING.contains(&self.peek()) && self.locals.iter().any(|l| l == self.peek());
+        if !self.is_name() && !input {
             return self.err("expected an expression");
         }
         let name = self.path()?;
@@ -2044,6 +2073,12 @@ impl P {
             });
         let generic = !std::mem::take(&mut self.generics).is_empty();
         let (params, mut deep, (range, deep_range)) = read?;
+        // An input can be read in a body: not a word an expression starts with.
+        let taken = |p: &&(String, Set)| KEYWORDS.contains(&&*p.0) && !DECLARING.contains(&&*p.0);
+        if let Some((word, _)) = params.iter().find(taken) {
+            let msg = format!("`{word}` is a keyword: as an input, write `r#{word}`");
+            return Err(Error::new(line, msg));
+        }
         let written = generic.then(|| join(&self.toks[head..self.pos]));
         deep.push(deep_range);
         let sig = Sig { params, deep };
@@ -2143,7 +2178,7 @@ impl P {
     fn inputs(&mut self, close: &str, into: &mut Vec<(Bound, Option<Set>)>) -> R<()> {
         while !self.is(close) {
             let line = self.line();
-            let x = self.ident()?;
+            let x = self.local()?;
             if into.iter().any(|i| i.0 .0 == x) {
                 return Err(Error::new(line, format!("`{x}` is an input twice")));
             }
@@ -3230,18 +3265,70 @@ impl P {
                 }
             }
         }
+        // What a block leans on, beyond `uses`: the calls of its bodies
+        // and of its claims, then all of it through other blocks.
+        let mut leans: Vec<(usize, usize)> = calls.iter().map(|c| (c.2, c.3)).collect();
+        let code = |g: &str| {
+            let g = g.strip_suffix("::spec").or(g.strip_suffix("::body"));
+            g.map(str::to_string)
+        };
+        let mut reach = |from: Option<usize>, e: &Expr| {
+            for g in crate::ast::calls(e) {
+                let to = home(&code(&g).unwrap_or(g));
+                if let (Some(from), Some(to)) = (from, to.filter(|to| Some(*to) != from)) {
+                    leans.push((from, to));
+                }
+            }
+        };
+        for f in &m.functions {
+            if let Some(body) = &f.body {
+                let name = code(&f.name).unwrap_or(f.name.clone());
+                reach(home(&name), body);
+            }
+        }
+        for c in &m.claims {
+            let from = self.owned.iter().find(|o| o.0 == c.name).map(|o| o.1);
+            if let Target::Property(e) | Target::Matches(e) = &c.target {
+                reach(from, e);
+            }
+        }
+        loop {
+            let more: Vec<(usize, usize)> = leans
+                .iter()
+                .flat_map(|a| leans.iter().filter(|b| b.0 == a.1).map(|b| (a.0, b.1)))
+                .filter(|e| e.0 != e.1 && !leans.contains(e))
+                .collect();
+            if more.is_empty() {
+                break;
+            }
+            leans.extend(more);
+            leans.sort();
+            leans.dedup();
+        }
+        // A type of the other block, in a signature or a field here.
+        let typed = |block: usize, here: Option<&str>, there: &str| {
+            let there = format!("{there}::");
+            let names = |s: &Set| s.to_string().contains(&there);
+            let sig = |f: &Function| f.params.iter().any(|p| names(&p.1)) || names(&f.range);
+            let own = |f: &&Function| home(&code(&f.name).unwrap_or(f.name.clone())) == Some(block);
+            let mine = |r: &&Record| here.is_some_and(|h| r.name.starts_with(&format!("{h}::")));
+            m.functions.iter().filter(own).any(sig)
+                || (m.records.iter().filter(mine)).any(|r| r.fields.iter().any(|f| names(&f.1)))
+        };
+        let scope = |name: &str| name.rsplit_once("::").map(|n| n.0.to_string());
         let mut lints = Vec::new();
         for (i, (name, _, kind, block, line, _)) in ensures.iter().enumerate() {
             let Prose::Need(_) = kind else { continue };
             let promise = &waits[i][0];
             let to = made(promise).expect("named");
-            if !calls.iter().any(|c| c.2 == *block && c.3 == to) {
+            let shares = scope(promise).is_some_and(|t| typed(*block, scope(name).as_deref(), &t));
+            if !leans.contains(&(*block, to)) && !shares {
                 lints.push(Lint {
                     code: "M105",
                     line: *line,
                     message: format!(
-                        "`{name}` needs `{promise}`, and no function declared beside it \
-                         `uses` a function declared beside `{promise}`."
+                        "`{name}` needs `{promise}`, and nothing declared beside it leans on \
+                         what is declared beside `{promise}`: no `uses`, no call, no type."
                     ),
                     help: "say which function `uses` it, or remove the `require`".to_string(),
                 });

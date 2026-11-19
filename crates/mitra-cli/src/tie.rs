@@ -431,7 +431,8 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
             Some(fields) => {
                 for (name, set) in &stated {
                     let mty = model.named(&set.to_string());
-                    match fields.iter().find(|f| &f.0 == name) {
+                    let bare = |n: &str| n.strip_prefix("r#").unwrap_or(n).to_string();
+                    match fields.iter().find(|f| bare(&f.0) == bare(name)) {
                         None => why = Some(format!("the struct has no field `{name}`")),
                         Some((_, ty)) if !fits(&mty, ty) => {
                             why = Some(format!(
@@ -444,7 +445,10 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
                         break;
                     }
                 }
-                let extra = fields.iter().find(|f| !stated.iter().any(|m| m.0 == f.0));
+                let bare = |n: &str| n.strip_prefix("r#").unwrap_or(n).to_string();
+                let extra = fields
+                    .iter()
+                    .find(|f| !stated.iter().any(|m| bare(&m.0) == bare(&f.0)));
                 if let Some((name, _)) = extra.filter(|_| why.is_none() && !r.open) {
                     why = Some(format!(
                         "the struct has a field `{name}` the record does not state, and no `..`"
@@ -479,7 +483,9 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
             if why.is_some() {
                 break;
             }
-            if name != mname && name != "self" {
+            // `r#match` and `match` are one name.
+            let bare = |n: &str| n.strip_prefix("r#").unwrap_or(n).to_string();
+            if bare(name) != bare(mname) && name != "self" {
                 why = Some(format!(
                     "input `{name}` in the code is `{mname}` in the model"
                 ));

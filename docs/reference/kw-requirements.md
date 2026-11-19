@@ -140,7 +140,8 @@ in the block it is taken on its word: `holds assuming [itself]`.
 
 `require` is to intent what [uses](kw-declarations.md#uses) is to code,
 and the two are compared. M105: a `require` on a promise of a block
-that no function beside it `uses`. M106: a function that `uses` a block
+that nothing beside it leans on: no `uses` reaching it, no call in a
+body or a claim, none of its types in a signature or a field. M106: a function that `uses` a block
 which makes promises, with no `require` beside it naming one; only in a
 block that states an `ensure` or a `require`.
 

@@ -99,10 +99,10 @@ mass::is_valid::tied: holds
 mass::judged::tied: holds
 mass::yager::tied: holds
 
-warning[M105]: a requirement that nothing uses
+warning[M105]: a requirement that nothing leans on
   --> .mitra/model.mitra:110  require combining = mass::combines;
 
-  `culprits::combining` needs `mass::combines`, and no function declared beside it `uses` a function declared beside `mass::combines`.
+  `culprits::combining` needs `mass::combines`, and nothing declared beside it leans on what is declared beside `mass::combines`: no `uses`, no call, no type.
   help: say which function `uses` it, or remove the `require`
 
 warning[M101]: a claim is not verified
