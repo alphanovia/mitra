@@ -343,6 +343,18 @@ pub struct Model {
     /// Where what a block requires and what its functions use disagree.
     pub lints: Vec<Lint>,
     pub evidence: Vec<Evidence>,
+    /// The inputs bound by a contract, `l: impl Link` or `l: L` with
+    /// `L: Link`.
+    pub bounds: Vec<Bounded>,
+}
+
+/// An input of a function known only by the contracts it fills.
+#[derive(Debug, Clone, PartialEq)]
+// mitra: implements model::Bounded
+pub struct Bounded {
+    pub function: String,
+    pub input: String,
+    pub contracts: Vec<String>,
 }
 
 /// `ensure name "prose";`: what a subject promises, or what a boundary

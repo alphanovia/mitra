@@ -137,7 +137,8 @@ finds: holds
 ## Type parameters
 
 `fn first<T>(xs: List<T>) -> T`, `record Pair<A, B> { … }`, `enum
-Tree<T> { … }`: each parameter is any value.
+Tree<T> { … }`: each parameter is any value. Bounds, `impl<T>` and
+contracts with parameters: [kw-generics.md](kw-generics.md).
 
 ```mitra
 record Pair<A, B> { first: A, second: B }

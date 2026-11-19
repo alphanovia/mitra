@@ -6,6 +6,7 @@
 //   }
 //   boundary radio { record Ble; impl Link for Ble { } }
 //   subject sync { fn push(l: impl Link) -> Bool uses Link::send; }
+//   subject sync { fn pull<L: Link>(l: L) -> Bool; }      the same, named
 //
 // A contract is not built or bought: the types that fill it are. Each
 // is given the functions, the promises and the claims of the contract,
@@ -17,6 +18,7 @@ subject contracts {
     ensure owed_by_each = "What a contract states is given to each type that fills it: its functions, its promises and its claims.";
     ensure each_is_its_own_suspect = "A type that fills a contract is a group of its own: its promises rest on its own claims, not on those of the block around it.";
     ensure as_good_as_every_implementer = "A promise of a contract is at best as good as the same promise of every type that fills it; with none it is assumed, as a promise of the world.";
+    ensure bound_is_what_is_leaned_on = "A type parameter is any value; a bound names the contracts its function leans on, kept by input, and `impl Contract` is the same with no name.";
     ensure neither_built_nor_bought = "A contract is a side of its own: no code is tied to its functions.";
 
     // owed_by_each, each_is_its_own_suspect, as_good_as_every_implementer
@@ -43,6 +45,15 @@ subject contracts {
         match types::load("contract C { fn f(&self) -> Int; ensure p = \"x\"; claim c(self) { self.f() >= 0 } } subject s { record R; impl C for R { } }", "") {
             Err(e) => false,
             Ok(m) => map(b in m.blocks, b.side) == [Contract, Subject],
+        }
+    }
+
+    // bound_is_what_is_leaned_on
+    claim bound_is_kept_by_input() {
+        match types::load("contract C { fn f(&self) -> Int; } subject s { fn g<T: C>(x: T, y: impl C) -> Int; }", "") {
+            Err(e) => false,
+            Ok(m) => map(b in m.bounds, b.input) == ["x", "y"]
+                && map(b in m.bounds, b.contracts) == [["C"], ["C"]],
         }
     }
 }

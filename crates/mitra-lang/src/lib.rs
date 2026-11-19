@@ -31,8 +31,8 @@ pub mod tuples;
 pub mod types;
 
 pub use ast::{
-    Arm, Aside, Block, Claim, Decl, Enum, Evidence, Expr, Function, Judgment, Model, Pattern,
-    Position, Record, Side, Target, Why,
+    Arm, Aside, Block, Bounded, Claim, Decl, Enum, Evidence, Expr, Function, Judgment, Model,
+    Pattern, Position, Record, Side, Target, Why,
 };
 pub use eval::{
     evaluate, Assumed, Candidate, Conflict, Contradiction, Display, Flag, Implication, Kind, Logic,

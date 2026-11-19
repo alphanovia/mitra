@@ -599,6 +599,72 @@ fn tie_compares_an_implementer_with_its_impl() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// Type parameters and bounds are compared with the code: a record
+/// with a parameter with its struct, an input bound by a contract with
+/// the traits that bound it.
+#[test]
+fn tie_compares_bounds_and_type_parameters() {
+    let dir = std::env::temp_dir().join(format!("mitra-tie-generics-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    assert_eq!(mitra(&dir, &["init"]).0, Some(0));
+    let model = "import std::rust::{Option};\n\
+                 contract Link { fn send(&self, bytes: List<Int>) -> Bool; }\n\
+                 subject sync {\n\
+                 fn push<L: Link>(l: L, data: List<Int>) -> Bool uses Link::send;\n\
+                 fn pull<L>(l: &L) -> List<Int> where L: Link;\n\
+                 fn both(a: impl Link, b: impl Link, c: impl Link) -> Bool;\n\
+                 record Stack<T> { items: List<T> }\n\
+                 record Pair<A, B> { first: A }\n\
+                 impl<T> Stack<T> { fn top(&self) -> Option<T>;\n\
+                 fn swap<U: Link>(&self, u: U) -> Stack<U>; }\n}\n";
+    let code = "pub trait Link { fn send(&self, bytes: Vec<i64>) -> bool; }\n\
+                // mitra: implements sync::push\n\
+                pub fn push<L: Link + Clone>(l: L, data: Vec<i64>) -> bool { l.send(data) }\n\
+                // mitra: implements sync::pull\n\
+                pub fn pull<L>(l: &L) -> Vec<i64> where L: Clone { vec![] }\n\
+                // mitra: implements sync::both\n\
+                pub fn both<C>(a: impl Link, b: &dyn Link, c: C) -> bool\n\
+                where C: crate::Link { true }\n\
+                // mitra: implements sync::Stack\n\
+                pub struct Stack<T> { items: Vec<T> }\n\
+                // mitra: implements sync::Pair\n\
+                pub struct Pair<A, B> { first: A, second: B }\n\
+                impl<T> Stack<T> {\n\
+                // mitra: implements sync::Stack::top\n\
+                pub fn top(&self) -> Option<T> { None }\n\
+                // mitra: implements sync::Stack::swap\n\
+                pub fn swap<U>(&self, u: U) -> Stack<U> { Stack { items: vec![] } }\n\
+                }\n";
+    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("src/lib.rs"), code).unwrap();
+    let (code, out, err) = mitra(&dir, &["tie"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.starts_with("4 agree, 3 differ"), "{out}");
+    for want in [
+        "sync::pull::tied: input `l` is bound by `Link` in the model, by `Clone` in the code",
+        "sync::Stack::swap::tied: input `u` is bound by `Link` in the model, by nothing in the code",
+        "sync::Pair::tied: the struct has a field `second` the record does not state",
+    ] {
+        assert!(out.contains(want), "{out}");
+    }
+    // A contract is nobody's code.
+    assert!(!out.contains("no code is tied to"), "{out}");
+    // The interface is written with the parameters and the bounds.
+    assert_eq!(mitra(&dir, &["build"]).0, Some(0));
+    let interface = std::fs::read_to_string(dir.join(".mitra/build/interface.mitra")).unwrap();
+    for want in [
+        "fn push<L: Link>(l: L, data: List<Int>) -> Bool;",
+        "fn pull<L>(l: &L) -> List<Int> where L: Link;",
+        "fn both(a: impl Link, b: impl Link, c: impl Link) -> Bool;",
+        "record Stack<T> { items: List<T> }",
+        "fn swap<T, U: Link>(self: sync::Stack<T>, u: U) -> sync::Stack<U>;",
+    ] {
+        assert!(interface.contains(want), "no `{want}` in\n{interface}");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// `mitra explain <claim>`: the claim as written, as read, and its verdict.
 #[test]
 fn explain_a_claim() {

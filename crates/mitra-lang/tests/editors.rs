@@ -6,7 +6,7 @@ use std::path::Path;
 
 /// The clauses of an evidence block, and the words of a declaration that
 /// are not reserved: the reader matches them where they stand.
-const CLAUSES: [&str; 22] = [
+const CLAUSES: [&str; 23] = [
     "for",
     "given",
     "holds",
@@ -29,6 +29,7 @@ const CLAUSES: [&str; 22] = [
     "uniform",
     "represented",
     "ensure",
+    "where",
 ];
 
 #[test]

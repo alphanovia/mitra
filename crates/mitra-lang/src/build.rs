@@ -174,20 +174,41 @@ pub fn interface(m: &Model) -> String {
                     .find(|e| e.name == i.name)
                     .expect("built from it");
                 let body: Vec<&str> = e.body.split_whitespace().collect();
-                format!("enum {short} {{ {} }}", body.join(" "))
+                let body = crate::parse::tidy(&body.join(" "));
+                let params = match e.params.is_empty() {
+                    true => String::new(),
+                    false => format!("<{}>", e.params.join(", ")),
+                };
+                // `record R<T> { … }` is read as an enum of one variant.
+                let alone = e.variants.len() == 1 && e.variants[0] == e.name;
+                let fields = body.split_once('(').and_then(|b| b.1.strip_suffix(')'));
+                match fields.filter(|_| alone) {
+                    Some(fields) => format!("record {short}{params} {{ {fields} }}"),
+                    None => format!("enum {short}{params} {{ {body} }}"),
+                }
             }
             "function" | "spec" => {
                 let f = m.function(&i.name).expect("built from it");
+                // An input written `impl Contract` is printed so.
+                let bound = |input: &str| {
+                    let mut all = m.bounds.iter();
+                    let b = all.find(|b| b.function == i.name && b.input == input)?;
+                    Some(format!("impl {}", b.contracts.join(" + ")))
+                };
                 let params: Vec<String> = f
                     .params
                     .iter()
-                    .map(|p| format!("{}: {}", p.0, p.1))
+                    .map(|p| format!("{}: {}", p.0, bound(&p.0).unwrap_or(p.1.to_string())))
                     .collect();
                 let body = match &f.body {
                     Some(b) => format!(" {{ {} }}", crate::print::expr(b)),
                     None => ";".to_string(),
                 };
-                format!("fn {short}({}) -> {}{body}", params.join(", "), f.range)
+                match &f.written {
+                    // With type parameters: as written.
+                    Some(w) => format!("fn {short}{w}{body}"),
+                    None => format!("fn {short}({}) -> {}{body}", params.join(", "), f.range),
+                }
             }
             _ => continue,
         };

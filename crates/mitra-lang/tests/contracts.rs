@@ -116,7 +116,7 @@ fn a_user_is_judged_against_the_contract() {
     let lints = model(bare).lints;
     assert_eq!(lints.len(), 1, "{lints:?}");
     assert_eq!(lints[0].code, "M106");
-    assert!(lints[0].message.contains("takes an `impl Link`"));
+    assert!(lints[0].message.contains("takes a value bound by `Link`"));
     // Said once where a function also `uses` the contract.
     let both = "subject sync { ensure delivered = \"Whole or lost.\";
         fn push(l: impl Link, data: List<Int>) -> Bool uses Link::send; }";
@@ -195,4 +195,172 @@ fn contract_is_neither_built_nor_bought() {
     let m = mitra_lang::load(FILLED, "").unwrap_or_else(|(_, e)| panic!("{e}"));
     let sides: Vec<Side> = m.blocks.iter().map(|b| b.side).collect();
     assert_eq!(sides, [Side::Contract, Side::Subject]);
+}
+
+fn bounds(m: &mitra_lang::Model) -> Vec<(&str, &str, Vec<&str>)> {
+    let mut all = Vec::new();
+    for b in &m.bounds {
+        let contracts = b.contracts.iter().map(String::as_str).collect();
+        all.push((b.function.as_str(), b.input.as_str(), contracts));
+    }
+    all
+}
+
+#[test]
+fn a_bound_names_contracts() {
+    let m = model(
+        "contract Other { fn stop(&self) -> Bool; }
+         subject sync {
+            require transport = Link::ordered;
+            fn push<L: Link>(l: L, n: Int) -> Bool uses Link::send;
+            fn pull<L, M>(l: &L, m: &mut M, n: List<L>) -> Bool where L: Link + Other, M: Other;
+            fn both(a: impl Link + Other, b: impl Link) -> Bool; }",
+    );
+    // A bound parameter is any value; what it is bound by is kept by input.
+    let push = m.functions.iter().find(|f| f.name == "sync::push").unwrap();
+    assert_eq!(push.params[0].1.to_string(), "Any");
+    assert_eq!(
+        push.written.as_deref(),
+        Some("<L: Link>(l: L, n: Int) -> Bool")
+    );
+    assert_eq!(
+        bounds(&m),
+        [
+            ("sync::push", "l", vec!["Link"]),
+            ("sync::pull", "l", vec!["Link", "Other"]),
+            ("sync::pull", "m", vec!["Other"]),
+            ("sync::both", "a", vec!["Link", "Other"]),
+            ("sync::both", "b", vec!["Link"]),
+        ]
+    );
+    // A bound leans on the contract, as `impl Contract` does: `Other`
+    // promises nothing, `Link` is required.
+    assert!(m.lints.is_empty(), "{:?}", m.lints);
+    let bare = "subject sync { ensure e = \"x\"; fn push<L>(l: L) -> Bool where L: Link; }";
+    let lints = model(bare).lints;
+    assert_eq!(lints.len(), 1, "{lints:?}");
+    assert!(lints[0].message.contains("takes a value bound by `Link`"));
+}
+
+#[test]
+fn an_impl_has_type_parameters() {
+    let m = model(
+        "subject s { record Stack<T> { items: List<T> }
+            impl<T> Stack<T> {
+                fn top(&self) -> T;
+                fn zip<U: Link>(&self, other: Stack<U>, with: U) -> Stack<(T, U)>;
+                fn same(&self) -> Self;
+                claim kept(self) { self.same().items == self.items }
+            }
+            record Line<T> { items: List<T> }
+            impl Line<Int> { fn sum(&self) -> Int; } }",
+    );
+    let written = |f: &str| {
+        let f = m.functions.iter().find(|g| g.name == f).unwrap();
+        f.written.clone().unwrap_or_default()
+    };
+    // Each function has the parameter of its `impl`, before its own.
+    assert_eq!(written("s::Stack::top"), "<T>(self: s::Stack<T>) -> T");
+    assert_eq!(
+        written("s::Stack::zip"),
+        "<T, U: Link>(self: s::Stack<T>, other: s::Stack<U>, with: U) -> s::Stack<(T, U)>"
+    );
+    assert_eq!(
+        written("s::Stack::same"),
+        "<T>(self: s::Stack<T>) -> s::Stack<T>"
+    );
+    assert_eq!(bounds(&m), [("s::Stack::zip", "with", vec!["Link"])]);
+    // A claim of it is over every `T`.
+    assert!(m.claim("s::Stack::kept").is_some());
+    // `impl R<Int>`: the functions of one instance.
+    let sum = m
+        .functions
+        .iter()
+        .find(|f| f.name == "s::Line::sum")
+        .unwrap();
+    assert_eq!(sum.written, None);
+    assert_eq!(m.named(&sum.params[0].1.to_string()), "s::Line<Int>");
+}
+
+const STORE: &str = "import std::rust::{Option};
+    contract Store<K, V> {
+        fn get(&self, key: K) -> Option<V>;
+        fn put(&self, key: K, value: V) -> Self;
+        ensure kept = \"What is put is got.\";
+        claim got(self, k: K, v: V) { self.put(k, v).get(k) == Some(v) }
+    }";
+
+#[test]
+fn a_contract_has_type_parameters() {
+    let src = format!(
+        "{STORE}
+         subject s {{ record Cache; record Shelf<T> {{ item: T }}
+            impl Store<Int, String> for Cache {{ }}
+            impl<T> Store<Int, T> for Shelf<T> {{ }}
+            fn read<S: Store<Int, String>>(s: S) -> Int uses Store::get; }}"
+    );
+    let m = mitra_lang::load(&src, "").unwrap_or_else(|(_, e)| panic!("{e}"));
+    let f = |name: &str| m.functions.iter().find(|g| g.name == name).unwrap();
+    // The contract: its parameters on each function.
+    let get = f("Store::get").written.clone().unwrap_or_default();
+    assert_eq!(get, "<K, V>(self: Any, key: K) -> Option<V>");
+    // An implementer is given the functions with the types it names.
+    let get = f("s::Cache::get");
+    assert_eq!(get.written, None);
+    assert_eq!(get.params[1].1.to_string(), "Int");
+    assert_eq!(m.named(&get.range.to_string()), "Option<String>");
+    let get = f("s::Shelf::get").written.clone().unwrap_or_default();
+    assert_eq!(get, "<T>(self: s::Shelf<T>, key: Int) -> Option<T>");
+    assert!(m.claim("s::Cache::got").is_some() && m.claim("s::Shelf::got").is_some());
+    assert_eq!(
+        from(&m, "Store::kept"),
+        ["s::Cache::kept", "s::Shelf::kept"]
+    );
+    assert_eq!(bounds(&m), [("s::read", "s", vec!["Store"])]);
+    // As many types as the contract has parameters.
+    let short = format!("{STORE} subject s {{ record Cache; impl Store<Int> for Cache {{ }} }}");
+    let said = refused(&short);
+    assert!(said.contains("`Store` takes 2 type(s)"), "{said}");
+}
+
+#[test]
+fn what_generics_leave_out_is_refused() {
+    let no = [
+        (
+            "subject s { fn f<T: Missing>(x: T) -> T; }",
+            "`Missing` is not a contract: a bound names a contract",
+        ),
+        (
+            "contract C { fn f(&self) -> Int; }\nsubject s { fn f<T>(x: T) -> T where U: C; }",
+            "`f` has no type parameter `U`",
+        ),
+        (
+            "contract C { fn f(&self) -> Int; }\nsubject s { record R<T: C> { x: T } }",
+            "a bound is written on a function, an `impl` or a contract",
+        ),
+        (
+            "contract C { fn f(&self) -> Int; }\nsubject s { fn f(x: impl C + D) -> Int; }",
+            "`D` is not a contract",
+        ),
+        (
+            "subject s { record R; impl<T R { fn f(&self) -> Int; } }",
+            "an `impl` is `impl R { … }`, `impl<T> R<T> { … }`",
+        ),
+    ];
+    for (src, want) in no {
+        let got = refused(src);
+        assert!(got.contains(want), "{src}\n  gave `{got}`, not `{want}`");
+    }
+}
+
+// mitra: evidence for contracts::bound_is_kept_by_input
+#[test]
+fn bound_is_kept_by_input() {
+    let src = "contract C { fn f(&self) -> Int; } \
+               subject s { fn g<T: C>(x: T, y: impl C) -> Int; }";
+    let m = mitra_lang::load(src, "").unwrap_or_else(|(_, e)| panic!("{e}"));
+    assert_eq!(
+        bounds(&m),
+        [("s::g", "x", vec!["C"]), ("s::g", "y", vec!["C"])]
+    );
 }

@@ -55,6 +55,14 @@ subject model {
         ..
     }
 
+    // An input known only by the contracts it fills: `l: impl Link`, or
+    // `l: L` with `L: Link`.
+    record Bounded {
+        function: String,
+        input: String,
+        contracts: Vec<String>,
+    }
+
     record Model {
         functions: Vec<functions::Function>,
         claims: Vec<claims::Claim>,
@@ -63,6 +71,7 @@ subject model {
         // The functions written in a boundary, by name.
         boundaries: Vec<String>,
         blocks: Vec<Block>,
+        bounds: Vec<Bounded>,
         ..
     }
 

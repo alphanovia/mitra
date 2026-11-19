@@ -97,6 +97,7 @@ subject loader {
 | `record R;`, `record R { a: T, .. }` | Contents left out, all or some: fields stated are read, no value can be written. Tied to its `struct` by `// mitra: implements subject::R`. |
 | `impl R { fn m(self) -> T; claim c(self) { … } }` | Rust's form: `s::R::m`, `self` an `R`, `Self` the record; called `r.m()` or `R::m(r)`. |
 | `contract C { fn f(&self) -> T; ensure p = "…"; }`, `impl C for R { }`, `x: impl C` | A role and what every type that fills it owes; each implementer is a group of its own. [More](kw-contracts.md). |
+| `fn f<L: Link>(l: L)`, `where L: Link`, `impl<T> R<T> { … }`, `contract C<K> { … }` | Type parameters and bounds, as Rust writes them; a bound names contracts. [More](kw-generics.md). |
 | `subject s { record R { … } }` | A record or an enum written in a subject or boundary belongs to it: `R` inside, `s::R` elsewhere. A claim on a record alone (`claim c(r: R) { … }`, no call) is judged on every `R` an observed output shows. |
 | `enum E<T> { A, B(T), C(x: T, y: T) }` | Unnamed fields are named `v0`, `v1`. |
 | `claim t() { f(6, 2) == 3 }` | A point claim: no input, one call pinned. It is what a test of the code checks (see Tests). |

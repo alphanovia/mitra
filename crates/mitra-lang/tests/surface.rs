@@ -814,7 +814,10 @@ fn an_impl_is_read_as_rust_writes_it() {
         &format!("{two} claim c(xs: List<Any>) {{ xs[0].size() == 1 }} }}"),
         "a method of several records",
     );
-    refused("impl A<T> { }", "`impl R { … }` is the only form");
+    refused(
+        "impl A<T { }",
+        "an `impl` is `impl R { … }`, `impl<T> R<T> { … }`",
+    );
 }
 
 /// A word of the language is a name where nothing else can stand: a

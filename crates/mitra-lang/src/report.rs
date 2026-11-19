@@ -175,7 +175,8 @@ const CODES: [(&str, &str, &str); 15] = [
          makes promises (`ensure`), and no `require` beside the function names\n\
          one of them: the code relies on something the intent does not say.\n\
          Only a subject or boundary that states an `ensure` or a `require`\n\
-         is held to this.\n\n\
+         is held to this. The same goes for a value taken by its contract,\n\
+         `x: impl Contract` or a type parameter bound by one.\n\n\
          To fix: write `require <name> = other::promise;` beside the function.",
     ),
     (

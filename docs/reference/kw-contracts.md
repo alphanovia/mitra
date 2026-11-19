@@ -148,19 +148,18 @@ subject sync {
 }
 ```
 ```text
-`sync` takes an `impl Link`, and no `require` in it names a promise of `Link` (`Link::ordered`).
+`sync` takes a value bound by `Link`, and no `require` in it names a promise of `Link` (`Link::ordered`).
 ```
 
 ## Not in the language
 
 - No associated types, no default methods, no trait objects, no blanket
-  impls.
+  impls. Type parameters and bounds: [kw-generics.md](kw-generics.md).
 - A contract and its implementers are in one store: a contract is not
   brought from another store by `import`.
 - No verdict per implementer on the user of a contract: `sync::delivered`
   has one verdict. An observation on `sync::push` cannot say which link
   it was given.
-- `impl Contract` prints as `Any` in the interface `mitra build` writes.
 
 ## In Rust
 

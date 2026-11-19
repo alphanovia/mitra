@@ -22,6 +22,52 @@ struct Code {
     /// The free functions its file defines: a call by one of these names
     /// is a call to the one beside it.
     beside: Vec<String>,
+    /// Each type parameter with the traits that bound it: its own
+    /// `<L: Link>` and `where`, and those of the `impl` it is in.
+    bounds: Vec<(String, Vec<String>)>,
+}
+
+/// The traits of `Link + Store<K, V> + 'a`, by name.
+fn traits(bound: &str) -> Vec<String> {
+    let name = |t: &str| {
+        let t = t.trim().split('<').next().unwrap_or("").trim();
+        t.rsplit("::").next().unwrap_or(t).to_string()
+    };
+    let mut depth = 0;
+    let split = |c: char| {
+        depth += (c == '<') as i32 - (c == '>') as i32;
+        c == '+' && depth == 0
+    };
+    let all = bound.split(split).map(name);
+    all.filter(|t| !t.is_empty() && !t.starts_with('\''))
+        .collect()
+}
+
+/// The bounds written in `L: Link, M` (between `<` and `>`, or after
+/// `where`), added to `into`.
+fn bounds_of(text: &str, into: &mut Vec<(String, Vec<String>)>) {
+    for piece in pieces(text) {
+        if let Some((name, bound)) = piece.split_once(':') {
+            into.push((name.trim().to_string(), traits(bound)));
+        }
+    }
+}
+
+/// The bounds of a `fn` or `impl` head, the text from its keyword to its
+/// `{` or `;`: its `<…>` and its `where`.
+fn head_bounds(head: &str, into: &mut Vec<(String, Vec<String>)>) {
+    let (list, clause) = match head.split_once(" where ") {
+        Some((l, c)) => (l, c),
+        None => (head, ""),
+    };
+    // The first `<` before any `(`: the parameters.
+    let open = list
+        .find('<')
+        .filter(|i| list.find('(').is_none_or(|p| *i < p));
+    if let Some(inside) = open.and_then(|i| balanced(&list[i + 1..], '<', '>')) {
+        bounds_of(inside, into);
+    }
+    bounds_of(clause, into);
 }
 
 /// A `struct` or an `enum` of the code tied to a record of the model.
@@ -307,7 +353,8 @@ fn read(
         let inside = inside.ok_or(format!("{place}: unclosed `(` after `fn {name}`"))?;
         let rest = &after[open + 1 + inside.len() + 1..];
         let end = rest.find(['{', ';']).unwrap_or(rest.len());
-        let head = rest[..end].split(" where ").next().unwrap_or("");
+        let head = rest[..end].replace('\n', " ");
+        let head = head.split(" where ").next().unwrap_or("");
         let result = head.trim().strip_prefix("->").map_or("()", str::trim);
         let body = match rest[end..].strip_prefix('{') {
             Some(b) => balanced(b, '{', '}').unwrap_or(b),
@@ -320,6 +367,15 @@ fn read(
             None => ty.to_string(),
         };
         let result = own(result);
+        let mut bounds = Vec::new();
+        let whole = after.find(['{', ';']).unwrap_or(after.len());
+        // `->` would close a `<`: the bounds hold none.
+        let spaced = after[..whole].replace("->", "==").replace('\n', " ");
+        head_bounds(&spaced, &mut bounds);
+        let around = lines[..i].iter().rev().find(|l| implemented(l).is_some());
+        if let Some(line) = around {
+            head_bounds(line.trim_end_matches('{').trim(), &mut bounds);
+        }
         let params = pieces(inside).into_iter().map(|p| {
             let (name, ty) = match p.split_once(':') {
                 Some((n, t)) => (n.trim().to_string(), Some(own(t.trim()))),
@@ -336,6 +392,7 @@ fn read(
             result,
             body: body.to_string(),
             beside: beside.clone(),
+            bounds,
         });
     }
     Ok(())
@@ -476,7 +533,43 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
             }
             let last = |n: &str| n.rsplit("::").next().unwrap_or(n).to_string();
             let mut why = None;
+            // `record R<T> { … }` is read as an enum of one variant.
+            let alone = e.variants.len() == 1 && e.variants[0] == e.name;
+            let record = (model.records.iter())
+                .find(|r| r.name == e.name && r.of.as_deref() == Some(e.name.as_str()));
+            let whole = record.filter(|_| alone && s.kind == "struct");
+            if let (None, Some(fields), Some(r)) = (&s.variants, &s.fields, whole) {
+                {
+                    for (name, set) in r.fields.iter().filter(|f| f.0 != "..") {
+                        let mty = model.named(&set.to_string());
+                        match fields.iter().find(|f| &f.0 == name) {
+                            None => why = Some(format!("the struct has no field `{name}`")),
+                            Some((_, ty)) if !fits(&mty, ty) => {
+                                why = Some(format!(
+                                    "field `{name}` is `{ty}` in the code, `{mty}` in the model"
+                                ))
+                            }
+                            Some(_) => {}
+                        }
+                        if why.is_some() {
+                            break;
+                        }
+                    }
+                    let stated = |f: &&(String, String)| r.fields.iter().any(|m| m.0 == f.0);
+                    if let Some((name, _)) = fields
+                        .iter()
+                        .find(|f| !stated(f))
+                        .filter(|_| why.is_none() && !r.open)
+                    {
+                        why = Some(format!(
+                            "the struct has a field `{name}` the record does not state, and no `..`"
+                        ));
+                    }
+                }
+            }
+            let compared = alone && s.kind == "struct" && s.fields.is_some() && record.is_some();
             match &s.variants {
+                _ if compared => {}
                 None => why = Some(format!("the code is a `{}`, not an enum", s.kind)),
                 Some(_) if !e.params.is_empty() => {
                     why = Some("an enum with type parameters is not compared".to_string())
@@ -619,6 +712,35 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
                 ));
             }
         }
+        // An input bound by contracts: the same traits bound it in the
+        // code, on its type parameter or as `impl Trait`.
+        for b in model.bounds.iter().filter(|b| b.function == f.name) {
+            let Some((_, Some(ty))) = c.params.iter().find(|p| p.0 == b.input) else {
+                continue;
+            };
+            let mut t = ty.trim();
+            for prefix in ["&", "mut "] {
+                t = t.strip_prefix(prefix).unwrap_or(t).trim_start();
+            }
+            let direct = t.strip_prefix("impl ").or(t.strip_prefix("dyn "));
+            let code: Vec<String> = match direct {
+                Some(d) => traits(d),
+                None => {
+                    let of = c.bounds.iter().filter(|p| p.0 == t);
+                    of.flat_map(|p| p.1.clone()).collect()
+                }
+            };
+            if let Some(missing) = b.contracts.iter().find(|m| !code.contains(m)) {
+                let by = match code.is_empty() {
+                    true => "nothing".to_string(),
+                    false => format!("`{}`", code.join(" + ")),
+                };
+                why = why.or(Some(format!(
+                    "input `{}` is bound by `{missing}` in the model, by {by} in the code",
+                    b.input
+                )));
+            }
+        }
         let range = model.named(&f.range.to_string());
         if why.is_none() && !fits(&range, &c.result) {
             let r = &c.result;
@@ -754,10 +876,15 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
     let loose =
         |r: &&mitra_lang::Record| r.of.is_none() && !shapes.iter().any(|s| s.implements == r.name);
     // What another store declares is tied there.
-    let here = |n: &&str| model.block_of(n).is_none_or(|b| b.from.is_none());
+    // A contract is nobody's code.
+    let here = |n: &&str| {
+        let block = model.block_of(n);
+        block.is_none_or(|b| b.from.is_none() && b.side != mitra_lang::Side::Contract)
+    };
     names.extend(model.records.iter().filter(loose).map(|r| r.name.as_str()));
     let loose = |e: &&mitra_lang::Enum| {
-        e.params.is_empty() && !shapes.iter().any(|s| s.implements == e.name)
+        let record = e.variants.len() == 1 && e.variants[0] == e.name;
+        (e.params.is_empty() || record) && !shapes.iter().any(|s| s.implements == e.name)
     };
     names.extend(model.enums.iter().filter(loose).map(|e| e.name.as_str()));
     let names: Vec<&str> = names.into_iter().filter(here).collect();

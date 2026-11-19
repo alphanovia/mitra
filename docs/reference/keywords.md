@@ -58,6 +58,9 @@ To try one: copy the model into `model.mitra`, the evidence into
 | `List`, `Vec`, `Set`, `Map` | collections | [kw-types.md](kw-types.md#list-set-map) |
 | `Option`, `Result` | enums of `std::rust` | [kw-types.md](kw-types.md#option-result) |
 | `<T>` | type parameters | [kw-types.md](kw-types.md#type-parameters) |
+| `T: Contract`, `where` | a type parameter known by the contracts it fills | [kw-generics.md](kw-generics.md#bounds) |
+| `impl<T> R<T>` | the functions of a record with parameters | [kw-generics.md](kw-generics.md#impl-with-parameters) |
+| `contract C<K>` | a contract with type parameters | [kw-generics.md](kw-generics.md#contracts-with-parameters) |
 | `fn(A) -> B` | function types | [kw-types.md](kw-types.md#function-types) |
 | `evidence` | one thing someone saw or judged | [kw-evidence.md](kw-evidence.md#evidence) |
 | `for` | what the evidence is on | [kw-evidence.md](kw-evidence.md#for) |
