@@ -28,7 +28,7 @@ The four crates have a store. `mitra-lang` models what a model is
 does with one (reader, checks, verdicts, report, ranking of culprits);
 it has no boundary, since it reads no file. `mitra-store` models the
 files of a model and the ledger file, behind the boundary `disk`.
-`mitra-rust` models the readers of test reports and of ties, behind the
+`mitra-rust` models the readers of `cargo test` reports and of ties, behind the
 boundary `code`. `mitra-cli` models what the caller is taken to say
 (boundary `caller`) and the check of a revision. Most of
 `mitra-lang` is not modelled: its types are recursive (`Expr`, `Set`) or

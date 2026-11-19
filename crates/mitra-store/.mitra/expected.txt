@@ -5,6 +5,7 @@ files::read::deterministic: unverified
   no evidence on  `files::read` giving one output per input
 files::file::uses: holds
 files::file::correct: unverified
+  passes on       inputs not stated (test:an_import_is_read_beside_the_model, test:another_store_is_read_beside_this_one)
   no evidence on  path in String
 files::file::deterministic: unverified
   no evidence on  `files::file` giving one output per input
@@ -23,6 +24,7 @@ store::Store::evidence_path::deterministic: unverified
   no evidence on  `store::Store::evidence_path` giving one output per input
 store::Store::source::uses: holds
 store::Store::source::correct: unverified
+  passes on       inputs not stated (test:the_model_is_the_whole_folder)
   no evidence on  self in store::Store
 store::Store::source::deterministic: unverified
   no evidence on  `store::Store::source` giving one output per input
@@ -30,11 +32,13 @@ store::a_model_file_names_its_store: holds
 store::another_file_is_no_store: holds
 ledger::Store::add::uses: holds
 ledger::Store::add::correct: unverified
+  passes on       inputs not stated (test:written_evidence_reads_back)
   no evidence on  (self, text, source, rev) in (store::Store, String, Option<String>, Option<String>)
 ledger::Store::add::deterministic: unverified
   no evidence on  `ledger::Store::add` giving one output per input
 ledger::Store::append::uses: holds
 ledger::Store::append::correct: unverified
+  passes on       inputs not stated (test:refused_evidence_is_not_written)
   no evidence on  (self, new) in (store::Store, String)
 ledger::Store::append::deterministic: unverified
   no evidence on  `ledger::Store::append` giving one output per input
@@ -55,6 +59,12 @@ files::imports_beside::captured: unverified
   nobody vouched that the claims say what the text says
 files::imports_beside: holds assuming [files::read::correct, files::file::correct, disk::read_is_stable, disk::reads_what_was_written::captured, files::imports_beside::captured]
   says            "`import a::b::x;` is answered by the file `a/b.mitra` beside the first model file, and by what that file imports in turn."
+  rests on        `files::read::correct`, `files::file::correct`
+  requires        `files::disk_reads`
+files::stores_beside::captured: unverified
+  nobody vouched that the claims say what the text says
+files::stores_beside: holds assuming [files::read::correct, files::file::correct, disk::read_is_stable, disk::reads_what_was_written::captured, files::stores_beside::captured]
+  says            "`import other::block::{..}` with no such file beside the model is answered by the whole model of the store `other` beside this one, its ledger aside."
   rests on        `files::read::correct`, `files::file::correct`
   requires        `files::disk_reads`
 files::missing_is_said_at_the_import::captured: unverified
@@ -173,25 +183,25 @@ warning[M105]: a requirement that nothing leans on
   help: say which function `uses` it, or remove the `require`
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:29  fn read(path: String) -> Result<String, String>
+  --> .mitra/model.mitra:30  fn read(path: String) -> Result<String, String>
 
   No evidence on path in String.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:29  fn read(path: String) -> Result<String, String>
+  --> .mitra/model.mitra:30  fn read(path: String) -> Result<String, String>
 
   No evidence on `files::read` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:33  fn file(path: String) -> Result<Modules, String>
+  --> .mitra/model.mitra:34  fn file(path: String) -> Result<Modules, String>
 
   No evidence on path in String.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:33  fn file(path: String) -> Result<Modules, String>
+  --> .mitra/model.mitra:34  fn file(path: String) -> Result<Modules, String>
 
   No evidence on `files::file` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -305,13 +315,25 @@ warning[M102]: a claim holds only under assumptions
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:26  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
+  --> .mitra/model.mitra:26  ensure stores_beside = "`import other::block::{..}` with no such file beside the model is answered by the whole model of the store `other` beside this one, its ledger aside.";
+
+  Nobody vouched that the claims `files::stores_beside` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for files::stores_beside::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:26  ensure stores_beside = "`import other::block::{..}` with no such file beside the model is answered by the whole model of the store `other` beside this one, its ledger aside.";
+
+  `files::stores_beside` holds if `files::read::correct`, `files::file::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::stores_beside::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:27  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
 
   Nobody vouched that the claims `files::missing_is_said_at_the_import` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for files::missing_is_said_at_the_import::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:26  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
+  --> .mitra/model.mitra:27  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
 
   `files::missing_is_said_at_the_import` holds if `files::read::correct`, `files::file::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::missing_is_said_at_the_import::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed

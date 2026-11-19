@@ -140,6 +140,7 @@ pub struct Position {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements claims::Target
 pub enum Target {
     /// Judged by people: evidence says `correct` or `wrong`.
     Correct,
@@ -205,6 +206,7 @@ pub struct Claim {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements ledger::Judgment
 pub enum Judgment {
     /// `holds` / `fails`, on a function of the code.
     Correct(bool),
@@ -265,6 +267,8 @@ pub struct Model {
     pub helper_trust: Vec<(String, f64)>,
     pub records: Vec<Record>,
     pub enums: Vec<Enum>,
+    /// The named blocks, in the order written.
+    pub blocks: Vec<Block>,
     /// Sets written with an enum, such as `Option(Int)`, by their printed
     /// form: reports print them as written.
     pub aliases: Vec<(String, String)>,
@@ -304,6 +308,39 @@ pub struct Model {
 /// same name, which rests on `claims`, on the requirements it needs
 /// (`require other::name;`) and, in a subject, on `name::captured`:
 /// someone's word that the claims say what the prose says.
+/// Which side of the line a block is on: `subject`, code we built, or
+/// `boundary`, an environment we bought.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// mitra: implements model::Side
+pub enum Side {
+    Subject,
+    Boundary,
+}
+
+/// `subject name { … }` or `boundary name { … }`: what is declared in it
+/// is named `name::…`. A block written twice is one block.
+#[derive(Debug, Clone, PartialEq)]
+// mitra: implements model::Block
+pub struct Block {
+    pub name: String,
+    pub side: Side,
+    /// The store it was brought from, `import store::name::{…};`: its
+    /// code is tied there, not here.
+    pub from: Option<String>,
+    pub line: usize,
+}
+
+impl Model {
+    /// The block a piece is declared in, by the name of the piece.
+    // mitra: implements model::Model::block_of
+    pub fn block_of(&self, piece: &str) -> Option<&Block> {
+        let first = piece.split("::").next()?;
+        self.blocks
+            .iter()
+            .find(|b| b.name == first && piece != first)
+    }
+}
+
 /// A warning from the model alone: its code, its line, what it says and
 /// what to do.
 #[derive(Debug, Clone, PartialEq)]

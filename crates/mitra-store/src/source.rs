@@ -50,6 +50,10 @@ pub fn files(paths: &[PathBuf]) -> Result<Modules, String> {
             }
             // Said when the import is read, at its line.
             Err(e) => {
+                let first = name.split("::").next().unwrap_or_default();
+                if let Some(text) = other_store(dir, first) {
+                    handed.stores.insert(first.to_string(), text);
+                }
                 handed
                     .missing
                     .insert(name, format!("{}: {e}", file.display()));
@@ -57,4 +61,32 @@ pub fn files(paths: &[PathBuf]) -> Result<Modules, String> {
         }
     }
     Ok(Modules::new(read_files, handed))
+}
+
+/// The whole model of the store beside this one, `mitra_lang` being the
+/// folder `mitra_lang` or `mitra-lang` next to the folder of this store:
+/// every file of its `.mitra` but the ledger, one after the other.
+fn other_store(dir: &Path, name: &str) -> Option<String> {
+    let here = dir.canonicalize().ok()?;
+    if here.file_name()? != crate::store::DIR {
+        return None;
+    }
+    let beside = here.parent()?.parent()?;
+    let found = [name.to_string(), name.replace('_', "-")]
+        .iter()
+        .map(|n| beside.join(n).join(crate::store::DIR))
+        .find(|d| d.join("model.mitra").is_file())?;
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&found)
+        .ok()?
+        .filter_map(|e| Some(e.ok()?.path()))
+        .filter(|p| p.extension().is_some_and(|x| x == "mitra"))
+        .filter(|p| p.file_name().is_some_and(|n| n != "evidence.mitra"))
+        .collect();
+    files.sort();
+    let mut text = String::new();
+    for f in files {
+        text += &std::fs::read_to_string(f).ok()?;
+        text.push('\n');
+    }
+    Some(text)
 }

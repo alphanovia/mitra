@@ -1,0 +1,33 @@
+check_rev: an empty revision is taken
+crates/mitra-cli/src/main.rs
+--
+    if rev.is_empty() || rev.starts_with('-') || rev.contains(['"', '\n', '\r']) {
+--
+    if rev.starts_with('-') || rev.contains(['"', '\n', '\r']) {
+==
+check_rev: an option is taken as a revision
+crates/mitra-cli/src/main.rs
+--
+    if rev.is_empty() || rev.starts_with('-') || rev.contains(['"', '\n', '\r']) {
+--
+    if rev.is_empty() || rev.contains(['"', '\n', '\r']) {
+==
+check_rev: quotes are taken
+crates/mitra-cli/src/main.rs
+--
+    if rev.is_empty() || rev.starts_with('-') || rev.contains(['"', '\n', '\r']) {
+--
+    if rev.is_empty() || rev.starts_with('-') || rev.contains(['\n', '\r']) {
+==
+check_rev: every revision is refused
+crates/mitra-cli/src/main.rs
+--
+    Ok(())
+}
+
+/// Parse, check and evaluate both files.
+--
+    Err(String::new())
+}
+
+/// Parse, check and evaluate both files.

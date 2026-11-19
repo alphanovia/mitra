@@ -65,6 +65,7 @@ impl Modules {
     }
 
     /// The whole model, as it is read.
+    // mitra: implements modules::Modules::text
     pub fn text(&self) -> &str {
         &self.text
     }
@@ -80,6 +81,7 @@ impl Modules {
 
     /// An error of the model, at its own file and line. An error past
     /// the last line names the first file.
+    // mitra: implements modules::Modules::locate
     pub fn locate(&self, err: &Error) -> String {
         match self.lines.get(err.line.wrapping_sub(1)) {
             Some((file, n)) => format!("{}: line {n}: {}", self.files[*file].name, err.message),

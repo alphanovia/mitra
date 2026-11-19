@@ -1,0 +1,70 @@
+of: any file named model.mitra is a store
+crates/mitra-store/src/store.rs
+--
+        let store = path.file_name()? == "model.mitra" && dir.file_name()? == DIR;
+--
+        let store = path.file_name()? == "model.mitra";
+==
+of: no file is a store
+crates/mitra-store/src/store.rs
+--
+        store.then(|| Store { dir: dir.into() })
+--
+        (!store).then(|| Store { dir: dir.into() })
+==
+init: overwrites a store
+crates/mitra-store/src/store.rs
+--
+        if dir.exists() {
+            return Err(format!("{} already exists", dir.display()));
+        }
+--
+        if dir.exists() {
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+==
+source: the ledger is read as model
+crates/mitra-store/src/store.rs
+--
+            .filter(|p| !p.ends_with("model.mitra") && !p.ends_with("evidence.mitra"))
+--
+            .filter(|p| !p.ends_with("model.mitra"))
+==
+source: only model.mitra is read
+crates/mitra-store/src/store.rs
+--
+        more.sort();
+        more.insert(0, PathBuf::from(self.model_path()));
+--
+        more.clear();
+        more.insert(0, PathBuf::from(self.model_path()));
+==
+append: written before it is checked
+crates/mitra-store/src/store.rs
+--
+        mitra_lang::evaluate(&after).map_err(|(i, err)| blame(i, err))?;
+        use std::io::Write;
+--
+        use std::io::Write;
+        let _ = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&e)
+            .and_then(|mut f| f.write_all(format!("{sep}{printed}").as_bytes()));
+        mitra_lang::evaluate(&after).map_err(|(i, err)| blame(i, err))?;
+==
+append: rewrites the ledger
+crates/mitra-store/src/store.rs
+--
+        std::fs::OpenOptions::new()
+            .append(true)
+--
+        std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+==
+files: an import beside the model is not read
+crates/mitra-store/src/source.rs
+--
+                handed.modules.insert(name, text);
+--
+                let _ = (name, text);

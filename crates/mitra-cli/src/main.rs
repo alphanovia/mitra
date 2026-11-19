@@ -423,9 +423,9 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let text = read(path)?;
             let text = text.trim_start_matches('\u{feff}');
             let outcomes = match format.as_deref() {
-                Some("junit") => report::junit(text),
+                Some("junit") => mitra_lang::results::junit(text),
                 Some("libtest") => report::libtest(text),
-                None if text.trim_start().starts_with('<') => report::junit(text),
+                None if text.trim_start().starts_with('<') => mitra_lang::results::junit(text),
                 None => report::libtest(text),
                 Some(f) => return Err(format!("unknown format `{f}` (libtest, junit)")),
             };
@@ -436,96 +436,8 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let model = s.model()?;
             // Tests tied to a claim by a comment: `// mitra: evidence for c`.
             let tied = tie::tests(&s.root())?;
-            let (mut lines, mut tied_notes) = (Vec::new(), Vec::new());
-            let attrs = match &rev {
-                Some(r) => format!(" rev \"{r}\""),
-                None => String::new(),
-            };
-            let mut loose = Vec::new();
-            for t in &tied {
-                let ran: Vec<&report::Outcome> =
-                    outcomes.iter().filter(|o| o.name == t.test).collect();
-                let passed = match ran[..] {
-                    [] if t.pinned.is_empty() => None,
-                    [] => continue,
-                    [o] => Some(o.passed),
-                    _ => {
-                        tied_notes.push(format!(
-                            "test {} appears {} times in the report: left out",
-                            t.test,
-                            ran.len()
-                        ));
-                        continue;
-                    }
-                };
-                // What the comment pins is written as it stands; a failure
-                // denies it on the same inputs.
-                if !t.pinned.is_empty() {
-                    let words: Vec<&str> = t.pinned.split_whitespace().collect();
-                    let said = words
-                        .iter()
-                        .position(|w| ["gives", "holds", "fails"].contains(w));
-                    let given = words[..said.unwrap_or(words.len())].join(" ");
-                    // A sample: the domain and the count stand, passed or not.
-                    let drawn = words.contains(&"sampled");
-                    let says = match (passed == Some(true), said) {
-                        (true, _) if drawn => t.pinned.clone(),
-                        (false, _) if drawn => format!("{} fails", t.pinned),
-                        (true, Some(_)) => t.pinned.clone(),
-                        (true, None) => format!("{given} holds"),
-                        (false, _) => format!("{given} fails"),
-                    };
-                    lines.push(format!(
-                        "evidence test {{ for {} {says} source \"test:{}\"{attrs} }}",
-                        t.claim, t.test
-                    ));
-                    // A test that compares with the output it expects also
-                    // says the code is right on that input.
-                    let gives = said.is_some_and(|n| words[n] == "gives");
-                    if passed == Some(true) && gives && model.function(&t.claim).is_some() {
-                        lines.push(format!(
-                            "evidence test {{ for {} {given} holds source \"test:{}\"{attrs} }}",
-                            t.claim, t.test
-                        ));
-                    }
-                    continue;
-                }
-                let ends = |c: &&mitra_lang::Claim| {
-                    c.name == t.claim || c.name.ends_with(&format!("::{}", t.claim))
-                };
-                let found: Vec<&mitra_lang::Claim> = model.claims.iter().filter(ends).collect();
-                let [c] = found[..] else {
-                    let why = if found.is_empty() {
-                        "no claim"
-                    } else {
-                        "several claims"
-                    };
-                    return Err(format!("{}: the model has {why} `{}`", t.place, t.claim));
-                };
-                let Some(passed) = passed else { continue };
-                // On a claim with inputs, a test that states none passes
-                // on some of them: it settles nothing. A failure refutes.
-                let takes = model
-                    .function(&c.func)
-                    .is_some_and(|f| !f.params.is_empty());
-                let point = match c.pattern.is_empty() {
-                    true => !takes,
-                    false => c.pattern.iter().all(|p| p.var.is_none()),
-                };
-                let says = match (passed, point) {
-                    (false, _) => "fails",
-                    (true, true) => "holds",
-                    (true, false) => {
-                        loose.push(format!("{}: {} on `{}`", t.place, t.test, c.name));
-                        "passes"
-                    }
-                };
-                lines.push(format!(
-                    "evidence test {{ for {} {says} source \"test:{}\"{attrs} }}",
-                    c.name, t.test
-                ));
-            }
-            lines.dedup();
+            let said = mitra_lang::results::from_tests(&model, &tied, &outcomes, rev.as_deref())?;
+            let (lines, tied_notes, loose) = (said.evidence, said.notes, said.loose);
             if !lines.is_empty() {
                 s.add(&lines.join("\n"), None, None)?;
             }

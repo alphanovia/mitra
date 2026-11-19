@@ -5,9 +5,11 @@ import std::rust::{Option, Result};
 // A folder: Rust's own `std::path::Path`.
 record Path;
 
-// A model: mitra-lang's, stated in its own model. A record does not
-// cross stores.
-record Model;
+// A model, and a test tied to a claim: mitra-lang's, stated and tied in
+// its own model. `Model` comes without its fields: they name types of
+// mitra-lang that are not brought here.
+import mitra_lang::model::{Model};
+import mitra_lang::results::{Tied};
 
 subject ties {
     require code_read = code::reads_what_is_there;
@@ -25,14 +27,6 @@ subject ties {
         notes: Vec<String>,
         agree: usize,
         differ: usize,
-    }
-
-    // A test tied to a claim, with what its comment pins.
-    record Tied {
-        test: String,
-        claim: String,
-        pinned: String,
-        place: String,
     }
 
     // Every test of `src/` and `tests/` tied to a claim.

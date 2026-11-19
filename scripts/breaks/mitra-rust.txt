@@ -1,17 +1,3 @@
-short: keep the path
-crates/mitra-rust/src/report.rs
---
-    path.rsplit("::").next().unwrap_or(path).trim().to_string()
---
-    path.trim().to_string()
-==
-short: keep ` - should panic`
-crates/mitra-rust/src/report.rs
---
-    let path = path.trim().trim_end_matches(" - should panic");
---
-    let path = path.trim();
-==
 libtest: a failure reads as a pass
 crates/mitra-rust/src/report.rs
 --
@@ -29,60 +15,6 @@ crates/mitra-rust/src/report.rs
                 _ => true,
             };
             Some(Outcome {
-==
-attr: no entity decoded
-crates/mitra-rust/src/report.rs
---
-                .replace("&lt;", "<")
---
-                .replace("&lt;", "&lt;")
-==
-attr: `&amp;` decoded first
-crates/mitra-rust/src/report.rs
---
-            value[..end]
-                .replace("&lt;", "<")
---
-            value[..end]
-                .replace("&amp;", "&")
-                .replace("&lt;", "<")
-==
-attr: any text before the name
-crates/mitra-rust/src/report.rs
---
-        if !before.is_some_and(char::is_whitespace) {
-            continue;
-        }
---
-        let _ = before;
-==
-strip: an unclosed part is kept
-crates/mitra-rust/src/report.rs
---
-            .map_or("", |j| &rest[i + j + close.len()..]);
---
-            .map_or(&rest[i + open.len()..], |j| &rest[i + j + close.len()..]);
-==
-junit: an error passes
-crates/mitra-rust/src/report.rs
---
-passed: !body.contains("<failure") && !body.contains("<error"),
---
-passed: !body.contains("<failure"),
-==
-junit: skipped tests pass
-crates/mitra-rust/src/report.rs
---
-            if !body.contains("<skipped") {
---
-            if true {
-==
-junit: logs are not dropped
-crates/mitra-rust/src/report.rs
---
-    let xml = strip(xml, "<![CDATA[", "]]>");
---
-    let xml = xml.to_string();
 ==
 mitra_line: the indent is lost
 crates/mitra-rust/src/source.rs

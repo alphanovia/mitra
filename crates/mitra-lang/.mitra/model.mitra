@@ -20,6 +20,7 @@
 //   report.mitra      the pieces that can be wrong, and the words printed
 //   culprits.mitra    how the pieces of a conflict are ranked
 //   advice.mitra      the evidence still owed
+//   results.mitra     test results as evidence, and the JUnit format
 //   operators.mitra   the operators of the language
 //   print.mitra       printing values back
 //   points.mitra      the single calls the unit tests pin
@@ -38,6 +39,19 @@ import std::rust::{Option, Result};
 subject model {
     ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
     ensure world_apart = "The functions of the environment are listed apart from the code under review.";
+    ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
+
+    // The side of the line a block is on: built by us, or bought.
+    enum Side { Subject, Boundary }
+
+    // `subject name { … }` or `boundary name { … }`.
+    record Block {
+        name: String,
+        side: Side,
+        // The store it was brought from, `import store::name::{…};`.
+        from: Option<String>,
+        ..
+    }
 
     record Model {
         functions: Vec<functions::Function>,
@@ -46,7 +60,13 @@ subject model {
         evidence: Vec<ledger::Evidence>,
         // The functions written in a boundary, by name.
         boundaries: Vec<String>,
+        blocks: Vec<Block>,
         ..
+    }
+
+    impl Model {
+        // The block a piece is declared in, by the name of the piece.
+        fn block_of(&self, piece: String) -> Option<Block>;
     }
 
     // holds_everything
@@ -54,6 +74,23 @@ subject model {
         match types::load("", "") {
             Err(e) => false,
             Ok(m) => len(m.functions) == 0 && len(m.claims) == 0 && len(m.ensures) == 0 && len(m.evidence) == 0,
+        }
+    }
+
+    // blocks_are_things
+    claim blocks_are_listed() {
+        match types::load("boundary clock { fn now() -> Int; } subject s { fn f() -> Int; }", "") {
+            Err(e) => false,
+            Ok(m) => len(m.blocks) == 2
+                && m.blocks[0].name == "clock" && m.blocks[0].side == Boundary
+                && m.blocks[1].name == "s" && m.blocks[1].side == Subject
+                && m.blocks[1].from == None,
+        }
+    }
+    claim a_block_written_twice_is_one() {
+        match types::load("subject s { fn f() -> Int; } subject s { fn g() -> Int; }", "") {
+            Err(e) => false,
+            Ok(m) => len(m.blocks) == 1,
         }
     }
 

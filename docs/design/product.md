@@ -143,9 +143,9 @@ On main:
 
 | Crate | Holds | Touches |
 |---|---|---|
-| `mitra-lang` | the language and its evaluation, with the ranking of culprits | nothing: it is handed named texts and reads no file |
+| `mitra-lang` | the language and its evaluation, the ranking of culprits, the rules that turn a test result into evidence, the JUnit reader | nothing: it is handed named texts and reads no file |
 | `mitra-store` | everything Mitra keeps on disk: the model files, the files they import, the ledger | the file system |
-| `mitra-rust` | the reader of Rust code and of test reports | the Rust files |
+| `mitra-rust` | the reader of Rust code and of `cargo test` reports | the Rust files |
 | `mitra-cli` | the commands | arguments, the terminal |
 
 `mitra-lang` is pure so that it can be proven: "better for proving it if
@@ -207,5 +207,3 @@ state.
    one warning per function.
 3. The final verbs of the small commands.
 4. The committed part of the build, and refusing an old build.
-5. Where the rules that turn a test result into evidence live (today
-   in the command line; review list, increment 66).

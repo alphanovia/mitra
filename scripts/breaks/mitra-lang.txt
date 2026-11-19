@@ -153,3 +153,71 @@ crates/mitra-lang/src/trust/culprits.rs
     let sure
 --
     let sure
+==
+short: keep the path
+crates/mitra-lang/src/results.rs
+--
+    path.rsplit("::").next().unwrap_or(path).trim().to_string()
+--
+    path.trim().to_string()
+==
+short: keep ` - should panic`
+crates/mitra-lang/src/results.rs
+--
+    let path = path.trim().trim_end_matches(" - should panic");
+--
+    let path = path.trim();
+==
+attr: no entity decoded
+crates/mitra-lang/src/results.rs
+--
+                .replace("&lt;", "<")
+--
+                .replace("&lt;", "&lt;")
+==
+attr: `&amp;` decoded first
+crates/mitra-lang/src/results.rs
+--
+            value[..end]
+                .replace("&lt;", "<")
+--
+            value[..end]
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+==
+attr: any text before the name
+crates/mitra-lang/src/results.rs
+--
+        if !before.is_some_and(char::is_whitespace) {
+            continue;
+        }
+--
+        let _ = before;
+==
+strip: an unclosed part is kept
+crates/mitra-lang/src/results.rs
+--
+            .map_or("", |j| &rest[i + j + close.len()..]);
+--
+            .map_or(&rest[i + open.len()..], |j| &rest[i + j + close.len()..]);
+==
+junit: an error passes
+crates/mitra-lang/src/results.rs
+--
+passed: !body.contains("<failure") && !body.contains("<error"),
+--
+passed: !body.contains("<failure"),
+==
+junit: skipped tests pass
+crates/mitra-lang/src/results.rs
+--
+            if !body.contains("<skipped") {
+--
+            if true {
+==
+junit: logs are not dropped
+crates/mitra-lang/src/results.rs
+--
+    let xml = strip(xml, "<![CDATA[", "]]>");
+--
+    let xml = xml.to_string();

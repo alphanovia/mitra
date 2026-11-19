@@ -5,9 +5,11 @@ culprits::rank::deterministic: unverified
   no evidence on  `culprits::rank` giving one output per input
 culprits::rank_shape: unverified
   passes on       `biases = [None, Some(1.0)], clauses = [[0, 1]]`, `biases = [Some(0.5)], clauses = [[3]]`, `biases = [Some(1.5)], clauses = []`
+  sampled on      24 drawn from (biases in { [ ] , [ None ] , [ Some ( 0.5 ) ] , [ None , Some ( 0.8 ) ] , [ Some ( 1.0 ) , Some ( 1.0 ) ] , [ Some ( 0.0 ) , Some ( 0.6 ) , Some ( 0.7 ) ] }, clauses in { [ ] , [ [ 0 ] ] , [ [ 0 , 1 ] ] , [ [ 0 , 1 ] , [ 1 , 2 ] ] }) (test:rank_shape)
   no evidence on  a set too long to print
 culprits::no_clause_no_belief: unverified
   passes on       `biases = [None, Some(1.0)], clauses = [[0, 1]]`, `biases = [Some(0.5)], clauses = [[3]]`, `biases = [Some(1.5)], clauses = []`
+  sampled on      6 drawn from (biases in { [ ] , [ None ] , [ Some ( 0.5 ) ] , [ None , Some ( 0.8 ) ] , [ Some ( 1.0 ) , Some ( 1.0 ) ] , [ Some ( 0.0 ) , Some ( 0.6 ) , Some ( 0.7 ) ] }, clauses in { [ ] }) (test:no_clause_no_belief_on_any)
   no evidence on  a set too long to print
 functions::code_is_claimed_correct: holds
 functions::spec_replaces_correct: holds
@@ -30,22 +32,14 @@ ledger::vouched_holds: holds
 ledger::passes_stays_unverified: holds
 ledger::sample_stays_unverified: holds
 ledger::failing_sample_fails: holds
+model::Model::block_of::correct: unverified
+  no evidence on  a set too long to print
+model::Model::block_of::deterministic: unverified
+  no evidence on  `model::Model::block_of` giving one output per input
 model::nothing_written_nothing_held: holds
+model::blocks_are_listed: holds
+model::a_block_written_twice_is_one: holds
 model::world_is_listed: holds
-modules::Modules::alone::correct: unverified
-  no evidence on  text in String
-modules::Modules::alone::deterministic: unverified
-  no evidence on  `modules::Modules::alone` giving one output per input
-modules::Modules::new::correct: unverified
-  no evidence on  (files, handed) in (List<modules::Module>, modules::Handed)
-modules::Modules::new::deterministic: unverified
-  no evidence on  `modules::Modules::new` giving one output per input
-modules::Modules::place::correct: unverified
-  no evidence on  (self, line) in (modules::Modules, 0..)
-modules::Modules::place::deterministic: unverified
-  no evidence on  `modules::Modules::place` giving one output per input
-modules::unknown_module_is_refused: holds
-modules::line_is_placed: holds
 eval::unary::correct: unverified
   passes on       (op, v) in {("!", false), ("!", true), ("-", -3), ("-", 3), ("-", 0.5), ("-", "a"), ("keys", {"a": 1, "b": 2}), ("keys", {1})}
   no evidence on  (op, v) in (String \ {"!", "-", "keys"}, Any) | ({"keys"}, Any \ {{"a": 1, "b": 2}, {1}}) | ({"-"}, Any \ {-3, 3, 0.5, "a"}) | ({"!"}, Any \ Bool)
@@ -59,27 +53,35 @@ eval::binary::deterministic: unverified
 eval::not_is: holds
 eval::twice_negated: unverified
   passes on       `v = -3`, `v = 3`
+  sampled on      201 drawn from (v in - 100 ..= 100) (test:twice_negated)
   no evidence on  v in Int \ {-3, 3}
 eval::plus_commutes: unverified
   passes on       (x, y) in {(true, 2), (1, 9223372036854775807), (2, true), (2, 3), (3, 2), (9223372036854775807, 1), (0.25, 0.5), (0.5, 0.25)}
+  sampled on      625 drawn from (x in - 12 ..= 12, y in - 12 ..= 12) (test:plus_commutes)
   no evidence on  a set too long to print
 eval::times_commutes: unverified
   passes on       `x = -3, y = 4`, `x = 4, y = -3`
+  sampled on      625 drawn from (x in - 12 ..= 12, y in - 12 ..= 12) (test:times_commutes)
   no evidence on  (x, y) in (Any \ {-3, 4}, Any) | ({4}, Any \ {-3}) | ({-3}, Any \ {4})
 eval::minus_is_plus_negated: unverified
   passes on       `x = 2, y = 3`
+  sampled on      625 drawn from (x in - 12 ..= 12, y in - 12 ..= 12) (test:minus_is_plus_negated)
   no evidence on  (x, y) in (Int \ {2}, Int) | ({2}, Int \ {3})
 eval::different_is_not_equal: unverified
   passes on       `x = 2, y = 2`, `x = 2, y = "2"`
+  sampled on      169 drawn from (x in - 5 ..= 5 | { true , "a" }, y in - 5 ..= 5 | { true , "a" }) (test:different_is_not_equal)
   no evidence on  (x, y) in (Any \ {2}, Any) | ({2}, Any \ {2, "2"})
 eval::union_commutes: unverified
   passes on       `x = {1, 2}, y = {2, 3}`, `x = {2, 3}, y = {1, 2}`
+  sampled on      16 drawn from (x in { { } , { 1 } , { 1 , 2 } , { 2 , 3 } }, y in { { } , { 1 } , { 1 , 2 } , { 2 , 3 } }) (test:union_commutes)
   no evidence on  (x, y) in (Set<Int> \ {{1, 2}, {2, 3}}, Set<Int>) | ({{2, 3}}, Set<Int> \ {{1, 2}}) | ({{1, 2}}, Set<Int> \ {{2, 3}})
 eval::difference_apart: unverified
   passes on       `x = {1, 2}, y = {2, 3}`
+  sampled on      16 drawn from (x in { { } , { 1 } , { 1 , 2 } , { 2 , 3 } }, y in { { } , { 1 } , { 1 , 2 } , { 2 , 3 } }) (test:difference_apart)
   no evidence on  (x, y) in (Set<Int> \ {{1, 2}}, Set<Int>) | ({{1, 2}}, Set<Int> \ {{2, 3}})
 eval::divides_back: unverified
   passes on       `x = 4, y = -3`
+  sampled on      600 drawn from (x in - 12 ..= 12, y in - 12 ..= 12 \ { 0 }) (test:divides_back)
   no evidence on  (x, y) in (Int \ {4}, Int \ {0}) | ({4}, Int \ {-3, 0})
 t_holds: holds
 t_assuming: holds
@@ -148,6 +150,24 @@ t_word_unlikely: holds
 t_quote_plain: holds
 t_quote_empty: holds
 t_quote_escapes: holds
+t_short_path: holds
+t_short_plain: holds
+t_short_should_panic: holds
+t_short_panics_once: holds
+t_attr_double: holds
+t_attr_single: holds
+t_attr_missing: holds
+t_attr_inside_another: holds
+t_attr_entities: holds
+t_strip_one: holds
+t_strip_unclosed: holds
+t_strip_nothing: holds
+t_junit_passed: holds
+t_junit_failure: holds
+t_junit_error: holds
+t_junit_skipped: holds
+t_junit_failure_in_a_log: holds
+t_junit_path: holds
 print::quote::correct: unverified
   passes on       `print::quote("")`, `print::quote("a b")`, `print::quote("a\"b\\c\nd\te")`
   no evidence on  s in String \ {"", "a b", "a\"b\\c\nd\te"}
@@ -160,6 +180,7 @@ print::negative::deterministic: unverified
   no evidence on  `print::negative` giving one output per input
 print::negative_ints: unverified
   passes on       `print::negative(-1)`, `print::negative(0)`
+  sampled on      201 drawn from (v in - 100 ..= 100) (test:negative_ints)
   no evidence on  v in Int \ -1..=0
 print::level::spec: holds
   passes on       op in {"&", "&&", "-", "/", "<=", "in", "|", "||"}
@@ -176,6 +197,73 @@ reader::refuses_a_bare_fn: holds
 reader::fault_is_placed: unverified
   sampled on      13 drawn from its inputs (test:fault_is_placed)
   no evidence on  src in String
+modules::Modules::alone::correct: unverified
+  no evidence on  text in String
+modules::Modules::alone::deterministic: unverified
+  no evidence on  `modules::Modules::alone` giving one output per input
+modules::Modules::new::correct: unverified
+  no evidence on  (files, handed) in (List<modules::Module>, modules::Handed)
+modules::Modules::new::deterministic: unverified
+  no evidence on  `modules::Modules::new` giving one output per input
+modules::Modules::text::correct: unverified
+  no evidence on  self in modules::Modules
+modules::Modules::text::deterministic: unverified
+  no evidence on  `modules::Modules::text` giving one output per input
+modules::Modules::place::correct: unverified
+  no evidence on  (self, line) in (modules::Modules, 0..)
+modules::Modules::place::deterministic: unverified
+  no evidence on  `modules::Modules::place` giving one output per input
+modules::Modules::locate::correct: unverified
+  no evidence on  (self, err) in (modules::Modules, reader::Error)
+modules::Modules::locate::deterministic: unverified
+  no evidence on  `modules::Modules::locate` giving one output per input
+modules::imports::correct: unverified
+  passes on       `modules::imports("import a::b::x;\nimport std::rust::{Option};\nimport c::{y, z};")`, `modules::imports("import a::x;\nimport a::y;")`
+  no evidence on  src in String \ {"import a::b::x;\nimport std::rust::{Option};\nimport c::{y, z};", "import a::x;\nimport a::y;"}
+modules::imports::deterministic: unverified
+  no evidence on  `modules::imports` giving one output per input
+modules::unknown_module_is_refused: holds
+modules::one_text_is_read_as_it_is: holds
+modules::imports_are_listed: holds
+modules::an_import_is_listed_once: holds
+modules::line_is_placed: holds
+modules::fault_is_located: holds
+results::from_tests::correct: unverified
+  no evidence on  a set too long to print
+results::from_tests::deterministic: unverified
+  no evidence on  `results::from_tests` giving one output per input
+results::unpinned_pass_only_passes: holds
+results::pass_on_a_point_holds: holds
+results::pinned_pass_is_written_as_it_stands: holds
+results::sample_keeps_its_count: holds
+results::pinned_failure_denies_the_pin: holds
+results::unpinned_failure_fails_the_claim: holds
+results::failing_sample_says_fails: holds
+results::short::correct: unverified
+  passes on       path in {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
+  no evidence on  path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
+results::short::deterministic: unverified
+  no evidence on  `results::short` giving one output per input
+results::short_once: unverified
+  passes on       path in {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
+  sampled on      6 drawn from (path in { "" , "t" , "a::t" , "a::b::t" , "a::t - should panic" , " a::t " }) (test:short_once)
+  no evidence on  path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}
+results::attr::correct: unverified
+  passes on       5 inputs
+  no evidence on  a set too long to print
+results::attr::deterministic: unverified
+  no evidence on  `results::attr` giving one output per input
+results::strip::correct: unverified
+  passes on       `results::strip("a<x>b", "<x>", "</x>")`, `results::strip("a<x>b</x>c", "<x>", "</x>")`, `results::strip("abc", "<x>", "</x>")`
+  no evidence on  a set too long to print
+results::strip::deterministic: unverified
+  no evidence on  `results::strip` giving one output per input
+results::junit::uses: holds
+results::junit::correct: unverified
+  passes on       6 inputs
+  no evidence on  a set too long to print
+results::junit::deterministic: unverified
+  no evidence on  `results::junit` giving one output per input
 types::Model::check::correct: unverified
   no evidence on  a set too long to print
 types::Model::check::deterministic: unverified
@@ -206,6 +294,7 @@ verdicts::run::uses: holds
 verdicts::run::correct: unverified
   no evidence on  (model, evidence) in (String, String)
 verdicts::same_report: unverified
+  sampled on      8 drawn from its inputs (test:same_report)
   no evidence on  `verdicts::run` giving one output per input
 verdicts::one_verdict_each: unverified
   sampled on      50 drawn from its inputs (test:one_verdict_each)
@@ -331,29 +420,19 @@ ledger::failing_sample_refutes: holds assuming [ledger::failing_sample_refutes::
   rests on        `ledger::source_rev_and_trust_are_kept`, `ledger::pinned_keeps_the_output`, `ledger::pinned_output_refutes_a_claim`, `ledger::vouched_holds`, `ledger::passes_stays_unverified`, `ledger::sample_stays_unverified`, `ledger::failing_sample_fails`
 model::holds_everything::captured: unverified
   nobody vouched that the claims say what the text says
-model::holds_everything: holds assuming [model::holds_everything::captured]
+model::holds_everything: holds assuming [model::Model::block_of::correct, model::holds_everything::captured]
   says            "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts."
-  rests on        `model::nothing_written_nothing_held`, `model::world_is_listed`
+  rests on        `model::Model::block_of::correct`, `model::nothing_written_nothing_held`, `model::blocks_are_listed`, `model::a_block_written_twice_is_one`, `model::world_is_listed`
 model::world_apart::captured: unverified
   nobody vouched that the claims say what the text says
-model::world_apart: holds assuming [model::world_apart::captured]
+model::world_apart: holds assuming [model::Model::block_of::correct, model::world_apart::captured]
   says            "The functions of the environment are listed apart from the code under review."
-  rests on        `model::nothing_written_nothing_held`, `model::world_is_listed`
-modules::handed_only::captured: unverified
+  rests on        `model::Model::block_of::correct`, `model::nothing_written_nothing_held`, `model::blocks_are_listed`, `model::a_block_written_twice_is_one`, `model::world_is_listed`
+model::blocks_are_things::captured: unverified
   nobody vouched that the claims say what the text says
-modules::handed_only: holds assuming [modules::Modules::alone::correct, modules::Modules::new::correct, modules::Modules::place::correct, modules::handed_only::captured]
-  says            "mitra-lang reads nothing but what it is handed: an import of a module that was not handed is an error at its line, never a file it goes to read."
-  rests on        `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::place::correct`, `modules::unknown_module_is_refused`, `modules::line_is_placed`
-modules::faults_name_their_file::captured: unverified
-  nobody vouched that the claims say what the text says
-modules::faults_name_their_file: holds assuming [modules::Modules::alone::correct, modules::Modules::new::correct, modules::Modules::place::correct, modules::faults_name_their_file::captured]
-  says            "A line of the model is given back as the file it was handed in and its line there."
-  rests on        `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::place::correct`, `modules::unknown_module_is_refused`, `modules::line_is_placed`
-modules::order_is_not_the_writer_s::captured: unverified
-  nobody vouched that the claims say what the text says
-modules::order_is_not_the_writer_s: holds assuming [modules::Modules::alone::correct, modules::Modules::new::correct, modules::Modules::place::correct, modules::order_is_not_the_writer_s::captured]
-  says            "The files of a model are read so that a type is declared above its use, whatever the files are called."
-  rests on        `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::place::correct`, `modules::unknown_module_is_refused`, `modules::line_is_placed`
+model::blocks_are_things: holds assuming [model::Model::block_of::correct, model::blocks_are_things::captured]
+  says            "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name."
+  rests on        `model::Model::block_of::correct`, `model::nothing_written_nothing_held`, `model::blocks_are_listed`, `model::a_block_written_twice_is_one`, `model::world_is_listed`
 eval::computes::captured: unverified
   nobody vouched that the claims say what the text says
 eval::computes: holds assuming [eval::unary::correct, eval::binary::correct, eval::twice_negated, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured]
@@ -374,6 +453,46 @@ reader::refuses::captured: unverified
 reader::refuses: holds assuming [reader::model::correct, reader::fault_is_placed, reader::refuses::captured]
   says            "A text that is not a model is refused, with the line of the fault and what is wrong."
   rests on        `reader::model::correct`, `reader::reads_a_subject`, `reader::refuses_a_bare_fn`, `reader::fault_is_placed`
+modules::handed_only::captured: unverified
+  nobody vouched that the claims say what the text says
+modules::handed_only: holds assuming [modules::Modules::alone::correct, modules::Modules::new::correct, modules::Modules::text::correct, modules::Modules::place::correct, modules::Modules::locate::correct, modules::imports::correct, modules::handed_only::captured]
+  says            "mitra-lang reads nothing but what it is handed: an import of a module that was not handed is an error at its line, never a file it goes to read."
+  rests on        `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::unknown_module_is_refused`, `modules::one_text_is_read_as_it_is`, `modules::imports_are_listed`, `modules::an_import_is_listed_once`, `modules::line_is_placed`, `modules::fault_is_located`
+modules::faults_name_their_file::captured: unverified
+  nobody vouched that the claims say what the text says
+modules::faults_name_their_file: holds assuming [modules::Modules::alone::correct, modules::Modules::new::correct, modules::Modules::text::correct, modules::Modules::place::correct, modules::Modules::locate::correct, modules::imports::correct, modules::faults_name_their_file::captured]
+  says            "A line of the model is given back as the file it was handed in and its line there."
+  rests on        `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::unknown_module_is_refused`, `modules::one_text_is_read_as_it_is`, `modules::imports_are_listed`, `modules::an_import_is_listed_once`, `modules::line_is_placed`, `modules::fault_is_located`
+modules::bought_not_built::captured: unverified
+  nobody vouched that the claims say what the text says
+modules::bought_not_built: holds assuming [modules::Modules::alone::correct, modules::Modules::new::correct, modules::Modules::text::correct, modules::Modules::place::correct, modules::Modules::locate::correct, modules::imports::correct, modules::bought_not_built::captured]
+  says            "What a model brings from another store is a boundary: the records, enums and promises it names, the promises assumed. The functions and claims of that store stay there."
+  rests on        `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::unknown_module_is_refused`, `modules::one_text_is_read_as_it_is`, `modules::imports_are_listed`, `modules::an_import_is_listed_once`, `modules::line_is_placed`, `modules::fault_is_located`
+modules::order_is_not_the_writer_s::captured: unverified
+  nobody vouched that the claims say what the text says
+modules::order_is_not_the_writer_s: holds assuming [modules::Modules::alone::correct, modules::Modules::new::correct, modules::Modules::text::correct, modules::Modules::place::correct, modules::Modules::locate::correct, modules::imports::correct, modules::order_is_not_the_writer_s::captured]
+  says            "The files of a model are read so that a type is declared above its use, whatever the files are called."
+  rests on        `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::unknown_module_is_refused`, `modules::one_text_is_read_as_it_is`, `modules::imports_are_listed`, `modules::an_import_is_listed_once`, `modules::line_is_placed`, `modules::fault_is_located`
+results::judged_as_written: holds assuming [ledger::unstated_covers_nothing::captured]
+  needs           `ledger::unstated_covers_nothing`
+results::a_pass_is_not_overstated::captured: unverified
+  nobody vouched that the claims say what the text says
+results::a_pass_is_not_overstated: holds assuming [results::from_tests::correct, results::short::correct, results::short_once, results::attr::correct, results::strip::correct, results::junit::correct, ledger::unstated_covers_nothing::captured, results::a_pass_is_not_overstated::captured]
+  says            "A passing test becomes evidence for exactly what its tie comment pins: with no input stated, on a claim with inputs, it only passes."
+  rests on        `results::from_tests::correct`, `results::unpinned_pass_only_passes`, `results::pass_on_a_point_holds`, `results::pinned_pass_is_written_as_it_stands`, `results::sample_keeps_its_count`, `results::pinned_failure_denies_the_pin`, `results::unpinned_failure_fails_the_claim`, `results::failing_sample_says_fails`, `results::short::correct`, `results::short_once`, `results::attr::correct`, `results::strip::correct`, `results::junit::correct`
+  requires        `results::judged_as_written`
+results::a_failure_is_kept::captured: unverified
+  nobody vouched that the claims say what the text says
+results::a_failure_is_kept: holds assuming [results::from_tests::correct, results::short::correct, results::short_once, results::attr::correct, results::strip::correct, results::junit::correct, ledger::unstated_covers_nothing::captured, results::a_failure_is_kept::captured]
+  says            "A failing test becomes evidence against what its tie comment pins, or against the whole claim when it pins nothing."
+  rests on        `results::from_tests::correct`, `results::unpinned_pass_only_passes`, `results::pass_on_a_point_holds`, `results::pinned_pass_is_written_as_it_stands`, `results::sample_keeps_its_count`, `results::pinned_failure_denies_the_pin`, `results::unpinned_failure_fails_the_claim`, `results::failing_sample_says_fails`, `results::short::correct`, `results::short_once`, `results::attr::correct`, `results::strip::correct`, `results::junit::correct`
+  requires        `results::judged_as_written`
+results::reads_junit::captured: unverified
+  nobody vouched that the claims say what the text says
+results::reads_junit: holds assuming [results::from_tests::correct, results::short::correct, results::short_once, results::attr::correct, results::strip::correct, results::junit::correct, ledger::unstated_covers_nothing::captured, results::reads_junit::captured]
+  says            "Every test case of a JUnit report is read, with its name and whether it passed; skipped ones are left out."
+  rests on        `results::from_tests::correct`, `results::unpinned_pass_only_passes`, `results::pass_on_a_point_holds`, `results::pinned_pass_is_written_as_it_stands`, `results::sample_keeps_its_count`, `results::pinned_failure_denies_the_pin`, `results::unpinned_failure_fails_the_claim`, `results::failing_sample_says_fails`, `results::short::correct`, `results::short_once`, `results::attr::correct`, `results::strip::correct`, `results::junit::correct`
+  requires        `results::judged_as_written`
 types::read_first: holds assuming [reader::model::correct, reader::fault_is_placed, reader::reads::captured]
   needs           `reader::reads`
 types::declared::captured: unverified
@@ -460,15 +579,24 @@ advice::plan::tied: holds
 culprits::rank::tied: holds
 eval::binary::tied: holds
 eval::unary::tied: holds
+model::Model::block_of::tied: holds
 modules::Modules::alone::tied: holds
+modules::Modules::locate::tied: holds
 modules::Modules::new::tied: holds
 modules::Modules::place::tied: holds
+modules::Modules::text::tied: holds
+modules::imports::tied: holds
 print::level::tied: holds
 print::negative::tied: holds
 print::quote::tied: holds
 reader::model::tied: holds
 report::Logic::as_str::tied: holds
 report::word::tied: holds
+results::attr::tied: holds
+results::from_tests::tied: holds
+results::junit::tied: holds
+results::short::tied: holds
+results::strip::tied: holds
 types::Model::check::tied: holds
 types::load::tied: holds
 types::load_modules::tied: holds
@@ -481,17 +609,27 @@ functions::Function::tied: holds
 claims::Claim::tied: holds
 intent::Ensure::tied: holds
 ledger::Evidence::tied: holds
+model::Block::tied: holds
 model::Model::tied: holds
+reader::Error::tied: holds
+reader::Names::tied: holds
 modules::Module::tied: holds
 modules::Handed::tied: holds
 modules::Modules::tied: holds
-reader::Error::tied: holds
-reader::Names::tied: holds
+results::Outcome::tied: holds
+results::Tied::tied: holds
+results::Ingested::tied: holds
 types::Input::tied: holds
 verdicts::Verdict::tied: holds
 verdicts::Problem::tied: holds
 verdicts::Report::tied: holds
 report::Candidate::tied: holds
+culprits::NoRanking::tied: holds
+claims::Target::tied: holds
+ledger::Judgment::tied: holds
+model::Side::tied: holds
+verdicts::Logic::tied: holds
+report::Piece::tied: holds
 
 warning[M105]: a requirement that nothing leans on
   --> .mitra/verdicts.mitra:14  require computed = eval::computes;
@@ -508,7 +646,7 @@ warning[M105]: a requirement that nothing leans on
 warning[M106]: a function uses what its subject does not require
   --> .mitra/types.mitra:24  fn load(model: String, evidence: String) -> Result<model::Model, (Input, reader::Error)>
 
-  `types::load` uses `modules::Modules::alone`, and no `require` beside it names a promise made beside `modules::Modules::alone` (`modules::handed_only`, `modules::faults_name_their_file`, `modules::order_is_not_the_writer_s`).
+  `types::load` uses `modules::Modules::alone`, and no `require` beside it names a promise made beside `modules::Modules::alone` (`modules::handed_only`, `modules::faults_name_their_file`, `modules::bought_not_built`, `modules::order_is_not_the_writer_s`).
   help: write `require <name> = modules::handed_only;` beside `types::load`
 
 warning[M101]: a claim is not verified
@@ -536,39 +674,15 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:28  fn alone(text: String) -> Self;
+  --> .mitra/model.mitra:69  fn block_of(&self, piece: String) -> Option<Block>;
 
-  No evidence on text in String.
+  No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:28  fn alone(text: String) -> Self;
+  --> .mitra/model.mitra:69  fn block_of(&self, piece: String) -> Option<Block>;
 
-  No evidence on `modules::Modules::alone` giving one output per input.
-  help: `mitra next` lists the evidence that would settle it
-
-warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:29  fn new(files: Vec<Module>, handed: Handed) -> Self;
-
-  No evidence on (files, handed) in (List<modules::Module>, modules::Handed).
-  help: `mitra next` lists the evidence that would settle it
-
-warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:29  fn new(files: Vec<Module>, handed: Handed) -> Self;
-
-  No evidence on `modules::Modules::new` giving one output per input.
-  help: `mitra next` lists the evidence that would settle it
-
-warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:31  fn place(&self, line: usize) -> String;
-
-  No evidence on (self, line) in (modules::Modules, 0..).
-  help: `mitra next` lists the evidence that would settle it
-
-warning[M101]: a claim is not verified
-  --> .mitra/modules.mitra:31  fn place(&self, line: usize) -> String;
-
-  No evidence on `modules::Modules::place` giving one output per input.
+  No evidence on `model::Model::block_of` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -695,6 +809,144 @@ warning[M101]: a claim is not verified
   --> .mitra/reader.mitra:29  claim fault_is_placed(src: String) { match model(src) { Ok(read) => true, Err(e) => e.line >= 1 && e.message != "", } }
 
   No evidence on src in String.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:29  fn alone(text: String) -> Self;
+
+  No evidence on text in String.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:29  fn alone(text: String) -> Self;
+
+  No evidence on `modules::Modules::alone` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:30  fn new(files: Vec<Module>, handed: Handed) -> Self;
+
+  No evidence on (files, handed) in (List<modules::Module>, modules::Handed).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:30  fn new(files: Vec<Module>, handed: Handed) -> Self;
+
+  No evidence on `modules::Modules::new` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:32  fn text(&self) -> String;
+
+  No evidence on self in modules::Modules.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:32  fn text(&self) -> String;
+
+  No evidence on `modules::Modules::text` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:34  fn place(&self, line: usize) -> String;
+
+  No evidence on (self, line) in (modules::Modules, 0..).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:34  fn place(&self, line: usize) -> String;
+
+  No evidence on `modules::Modules::place` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:36  fn locate(&self, err: reader::Error) -> String;
+
+  No evidence on (self, err) in (modules::Modules, reader::Error).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:36  fn locate(&self, err: reader::Error) -> String;
+
+  No evidence on `modules::Modules::locate` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:40  fn imports(src: String) -> Vec<String>;
+
+  No evidence on src in String \ {"import a::b::x;\nimport std::rust::{Option};\nimport c::{y, z};", "import a::x;\nimport a::y;"}.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/modules.mitra:40  fn imports(src: String) -> Vec<String>;
+
+  No evidence on `modules::imports` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/results.mitra:46  fn from_tests(model: model::Model, tied: Vec<Tied>, outcomes: Vec<Outcome>, rev: Option<String>) -> Result<Ingested, String>;
+
+  No evidence on a set too long to print.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/results.mitra:46  fn from_tests(model: model::Model, tied: Vec<Tied>, outcomes: Vec<Outcome>, rev: Option<String>) -> Result<Ingested, String>;
+
+  No evidence on `results::from_tests` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/results.mitra:121  fn short(path: String) -> String;
+
+  No evidence on path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/results.mitra:121  fn short(path: String) -> String;
+
+  No evidence on `results::short` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/results.mitra:124  claim short_once(path) { short(short(path)) == short(path) }
+
+  No evidence on path in String \ {"t_panics", "t_panics - should panic", "t_small", "tests::t_small"}.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/results.mitra:129  fn attr(tag: String, attr: String) -> Option<String>;
+
+  No evidence on a set too long to print.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/results.mitra:129  fn attr(tag: String, attr: String) -> Option<String>;
+
+  No evidence on `results::attr` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/results.mitra:132  fn strip(text: String, open: String, close: String) -> String;
+
+  No evidence on a set too long to print.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/results.mitra:132  fn strip(text: String, open: String, close: String) -> String;
+
+  No evidence on `results::strip` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/results.mitra:134  fn junit(xml: String) -> Vec<Outcome>
+
+  No evidence on a set too long to print.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/results.mitra:134  fn junit(xml: String) -> Vec<Outcome>
+
+  No evidence on `results::junit` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -1040,63 +1292,39 @@ warning[M102]: a claim holds only under assumptions
   help: review it, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:39  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
+  --> .mitra/model.mitra:40  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
 
   Nobody vouched that the claims `model::holds_everything` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for model::holds_everything::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:39  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
+  --> .mitra/model.mitra:40  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
 
-  `model::holds_everything` holds if `model::holds_everything::captured` holds, and no evidence supports it.
-  help: review it, then record it as evidence, or test until it is not needed
+  `model::holds_everything` holds if `model::Model::block_of::correct`, `model::holds_everything::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:40  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
+  --> .mitra/model.mitra:41  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
 
   Nobody vouched that the claims `model::world_apart` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for model::world_apart::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:40  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
+  --> .mitra/model.mitra:41  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
 
-  `model::world_apart` holds if `model::world_apart::captured` holds, and no evidence supports it.
-  help: review it, then record it as evidence, or test until it is not needed
-
-warning[M103]: an assumption is not vouched for
-  --> .mitra/modules.mitra:10  ensure handed_only = "mitra-lang reads nothing but what it is handed: an import of a module that was not handed is an error at its line, never a file it goes to read.";
-
-  Nobody vouched that the claims `modules::handed_only` rests on say what its text says.
-  help: review them against the text, then record: evidence <name> { for modules::handed_only::captured holds source "review:<who>" }
-
-warning[M102]: a claim holds only under assumptions
-  --> .mitra/modules.mitra:10  ensure handed_only = "mitra-lang reads nothing but what it is handed: an import of a module that was not handed is an error at its line, never a file it goes to read.";
-
-  `modules::handed_only` holds if `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::place::correct`, `modules::handed_only::captured` hold, and no evidence supports them.
+  `model::world_apart` holds if `model::Model::block_of::correct`, `model::world_apart::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/modules.mitra:11  ensure faults_name_their_file = "A line of the model is given back as the file it was handed in and its line there.";
+  --> .mitra/model.mitra:42  ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
 
-  Nobody vouched that the claims `modules::faults_name_their_file` rests on say what its text says.
-  help: review them against the text, then record: evidence <name> { for modules::faults_name_their_file::captured holds source "review:<who>" }
-
-warning[M102]: a claim holds only under assumptions
-  --> .mitra/modules.mitra:11  ensure faults_name_their_file = "A line of the model is given back as the file it was handed in and its line there.";
-
-  `modules::faults_name_their_file` holds if `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::place::correct`, `modules::faults_name_their_file::captured` hold, and no evidence supports them.
-  help: review them, then record it as evidence, or test until it is not needed
-
-warning[M103]: an assumption is not vouched for
-  --> .mitra/modules.mitra:12  ensure order_is_not_the_writer_s = "The files of a model are read so that a type is declared above its use, whatever the files are called.";
-
-  Nobody vouched that the claims `modules::order_is_not_the_writer_s` rests on say what its text says.
-  help: review them against the text, then record: evidence <name> { for modules::order_is_not_the_writer_s::captured holds source "review:<who>" }
+  Nobody vouched that the claims `model::blocks_are_things` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for model::blocks_are_things::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/modules.mitra:12  ensure order_is_not_the_writer_s = "The files of a model are read so that a type is declared above its use, whatever the files are called.";
+  --> .mitra/model.mitra:42  ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
 
-  `modules::order_is_not_the_writer_s` holds if `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::place::correct`, `modules::order_is_not_the_writer_s::captured` hold, and no evidence supports them.
+  `model::blocks_are_things` holds if `model::Model::block_of::correct`, `model::blocks_are_things::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -1145,6 +1373,90 @@ warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:7  ensure refuses = "A text that is not a model is refused, with the line of the fault and what is wrong.";
 
   `reader::refuses` holds if `reader::model::correct`, `reader::fault_is_placed`, `reader::refuses::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/modules.mitra:10  ensure handed_only = "mitra-lang reads nothing but what it is handed: an import of a module that was not handed is an error at its line, never a file it goes to read.";
+
+  Nobody vouched that the claims `modules::handed_only` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for modules::handed_only::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/modules.mitra:10  ensure handed_only = "mitra-lang reads nothing but what it is handed: an import of a module that was not handed is an error at its line, never a file it goes to read.";
+
+  `modules::handed_only` holds if `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::handed_only::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/modules.mitra:11  ensure faults_name_their_file = "A line of the model is given back as the file it was handed in and its line there.";
+
+  Nobody vouched that the claims `modules::faults_name_their_file` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for modules::faults_name_their_file::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/modules.mitra:11  ensure faults_name_their_file = "A line of the model is given back as the file it was handed in and its line there.";
+
+  `modules::faults_name_their_file` holds if `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::faults_name_their_file::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/modules.mitra:12  ensure bought_not_built = "What a model brings from another store is a boundary: the records, enums and promises it names, the promises assumed. The functions and claims of that store stay there.";
+
+  Nobody vouched that the claims `modules::bought_not_built` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for modules::bought_not_built::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/modules.mitra:12  ensure bought_not_built = "What a model brings from another store is a boundary: the records, enums and promises it names, the promises assumed. The functions and claims of that store stay there.";
+
+  `modules::bought_not_built` holds if `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::bought_not_built::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/modules.mitra:13  ensure order_is_not_the_writer_s = "The files of a model are read so that a type is declared above its use, whatever the files are called.";
+
+  Nobody vouched that the claims `modules::order_is_not_the_writer_s` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for modules::order_is_not_the_writer_s::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/modules.mitra:13  ensure order_is_not_the_writer_s = "The files of a model are read so that a type is declared above its use, whatever the files are called.";
+
+  `modules::order_is_not_the_writer_s` holds if `modules::Modules::alone::correct`, `modules::Modules::new::correct`, `modules::Modules::text::correct`, `modules::Modules::place::correct`, `modules::Modules::locate::correct`, `modules::imports::correct`, `modules::order_is_not_the_writer_s::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/results.mitra:16  ensure a_pass_is_not_overstated = "A passing test becomes evidence for exactly what its tie comment pins: with no input stated, on a claim with inputs, it only passes.";
+
+  Nobody vouched that the claims `results::a_pass_is_not_overstated` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for results::a_pass_is_not_overstated::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/results.mitra:16  ensure a_pass_is_not_overstated = "A passing test becomes evidence for exactly what its tie comment pins: with no input stated, on a claim with inputs, it only passes.";
+
+  `results::a_pass_is_not_overstated` holds if `results::from_tests::correct`, `results::short::correct`, `results::short_once`, `results::attr::correct`, `results::strip::correct`, `results::junit::correct`, `ledger::unstated_covers_nothing::captured`, `results::a_pass_is_not_overstated::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/results.mitra:17  ensure a_failure_is_kept = "A failing test becomes evidence against what its tie comment pins, or against the whole claim when it pins nothing.";
+
+  Nobody vouched that the claims `results::a_failure_is_kept` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for results::a_failure_is_kept::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/results.mitra:17  ensure a_failure_is_kept = "A failing test becomes evidence against what its tie comment pins, or against the whole claim when it pins nothing.";
+
+  `results::a_failure_is_kept` holds if `results::from_tests::correct`, `results::short::correct`, `results::short_once`, `results::attr::correct`, `results::strip::correct`, `results::junit::correct`, `ledger::unstated_covers_nothing::captured`, `results::a_failure_is_kept::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/results.mitra:18  ensure reads_junit = "Every test case of a JUnit report is read, with its name and whether it passed; skipped ones are left out.";
+
+  Nobody vouched that the claims `results::reads_junit` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for results::reads_junit::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/results.mitra:18  ensure reads_junit = "Every test case of a JUnit report is read, with its name and whether it passed; skipped ones are left out.";
+
+  `results::reads_junit` holds if `results::from_tests::correct`, `results::short::correct`, `results::short_once`, `results::attr::correct`, `results::strip::correct`, `results::junit::correct`, `ledger::unstated_covers_nothing::captured`, `results::reads_junit::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for

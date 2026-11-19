@@ -497,6 +497,44 @@ fn tie_compares_a_record_with_its_struct() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// An enum is tied to the enum of the code: the same variants, each
+/// holding as many values, of types that fit.
+#[test]
+fn tie_compares_an_enum_with_its_enum() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-enums-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    assert_eq!(mitra(&dir, &["init"]).0, Some(0));
+    let model = "subject shapes {\n\
+                 enum Shape { Dot, Circle(radius: f64), Box(w: f64, h: f64) }\n\
+                 enum Side { Left, Right }\n\
+                 enum Unit { Mm(n: Int), Inch(n: Int) }\n}\n";
+    let code = "// mitra: implements shapes::Shape\n\
+                pub enum Shape { Dot, Circle(f64), Box { w: f64, h: f64 } }\n\
+                // mitra: implements shapes::Side\n\
+                pub enum Side { Left, Right, Up }\n\
+                // mitra: implements shapes::Unit\n\
+                pub enum Unit { Mm(i64), Inch(String) }\n";
+    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("src/lib.rs"), code).unwrap();
+    let (code, out, err) = mitra(&dir, &["tie"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.starts_with("1 agree, 2 differ"), "{out}");
+    assert!(
+        out.contains("the enum has a variant `Up` the model does not state"),
+        "{out}"
+    );
+    assert!(
+        out.contains("`n` of variant `Inch` is `String` in the code, `Int` in the model"),
+        "{out}"
+    );
+    let (_, out, _) = mitra(&dir, &["eval"]);
+    for want in ["shapes::Shape::tied: holds", "shapes::Side::tied: fails"] {
+        assert!(out.contains(want), "{out}");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// `mitra explain <claim>`: the claim as written, as read, and its verdict.
 #[test]
 fn explain_a_claim() {

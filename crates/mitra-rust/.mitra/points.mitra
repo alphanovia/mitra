@@ -4,14 +4,6 @@
 
 // src/report.rs
 
-claim t_short_path() { report::short("tests::t_small") == "t_small" }
-
-claim t_short_plain() { report::short("t_small") == "t_small" }
-
-claim t_short_should_panic() { report::short("t_panics - should panic") == "t_panics" }
-
-claim t_short_panics_once() { report::short("t_panics") == "t_panics" }
-
 claim t_libtest_ok() { report::libtest("test tests::t_small ... ok") == [Outcome("t_small", true)] }
 
 claim t_libtest_failed() { report::libtest("test t_big ... FAILED") == [Outcome("t_big", false)] }
@@ -29,46 +21,6 @@ claim t_libtest_other_lines() {
 claim t_libtest_two() {
     report::libtest("test a ... ok\ntest b ... FAILED") == [Outcome("a", true), Outcome("b", false)]
 }
-
-claim t_attr_double() { report::attr("<testcase name=\"t\"", "name") == Some("t") }
-
-claim t_attr_single() { report::attr("<testcase name='t'", "name") == Some("t") }
-
-claim t_attr_missing() { report::attr("<testcase time=\"1\"", "name") == None }
-
-claim t_attr_inside_another() {
-    report::attr("<testcase\tclassname=\"name=x\" name = \"t\"", "name") == Some("t")
-}
-
-claim t_attr_entities() {
-    report::attr("<a name=\"a &lt; b &amp;lt;\"", "name") == Some("a < b &lt;")
-}
-
-claim t_strip_one() { report::strip("a<x>b</x>c", "<x>", "</x>") == "ac" }
-
-claim t_strip_unclosed() { report::strip("a<x>b", "<x>", "</x>") == "a" }
-
-claim t_strip_nothing() { report::strip("abc", "<x>", "</x>") == "abc" }
-
-claim t_junit_passed() {
-    report::junit("<testcase classname=\"add\" name=\"t\"/>") == [Outcome("t", true)]
-}
-
-claim t_junit_failure() {
-    report::junit("<testcase name=\"t\"><failure message=\"boom\"/></testcase>") == [Outcome("t", false)]
-}
-
-claim t_junit_error() {
-    report::junit("<testcase name=\"t\"><error/></testcase>") == [Outcome("t", false)]
-}
-
-claim t_junit_skipped() { report::junit("<testcase name=\"t\"><skipped/></testcase>") == [] }
-
-claim t_junit_failure_in_a_log() {
-    report::junit("<testcase name='t'><system-out><![CDATA[ <failure> ]]></system-out></testcase>") == [Outcome("t", true)]
-}
-
-claim t_junit_path() { report::junit("<testcase name=\"tests::t\"/>") == [Outcome("t", true)] }
 
 // src/source.rs
 

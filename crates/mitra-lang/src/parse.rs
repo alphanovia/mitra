@@ -25,6 +25,9 @@ pub struct Handed {
     pub modules: BTreeMap<String, String>,
     /// Why a module is not there, in the words of whoever looked for it.
     pub missing: BTreeMap<String, String>,
+    /// The whole model of each other store that could be found, by the
+    /// name of the store: `import store::block::{Name};` reads there.
+    pub stores: BTreeMap<String, String>,
 }
 
 /// The text of a module shipped with the tool.
@@ -49,8 +52,136 @@ fn module(handed: &Handed, path: &[String]) -> Result<String, String> {
     })
 }
 
+/// What `import store::block::{names};` brings from the model of another
+/// store: each named record, enum or `ensure` of that block, in a
+/// `boundary` of the same name. Another store is bought here, not built:
+/// what it promises is assumed, and its functions and claims stay there.
+fn from_store(toks: &[Tok], block: &str, names: &[String]) -> Result<Vec<Tok>, String> {
+    let open = |t: &Tok| t.kind == Kind::Name && (t.text == "subject" || t.text == "boundary");
+    let start = (0..toks.len()).find(|&i| {
+        open(&toks[i])
+            && (i == 0 || toks[i - 1].text == ";" || toks[i - 1].text == "}")
+            && toks.get(i + 1).is_some_and(|n| n.text == block)
+            && toks.get(i + 2).is_some_and(|b| b.text == "{")
+    });
+    let Some(start) = start else {
+        return Err(format!("that store has no block `{block}`"));
+    };
+    // Every record and enum that store declares, by its short name.
+    let decl =
+        |w: &&[Tok]| w[0].kind == Kind::Name && matches!(w[0].text.as_str(), "record" | "enum");
+    let theirs: BTreeSet<String> = toks
+        .windows(2)
+        .filter(decl)
+        .map(|w| w[1].text.clone())
+        .collect();
+    let mut word = toks[start].clone();
+    word.text = "boundary".to_string();
+    let mut kept = vec![word, toks[start + 1].clone(), toks[start + 2].clone()];
+    let (mut found, mut depth, mut keep, mut fresh) = (Vec::new(), 1, false, true);
+    // Where the item being kept starts in `kept`.
+    let mut item = 0;
+    let mut i = start + 3;
+    while i < toks.len() && depth > 0 {
+        let t = &toks[i];
+        if depth == 1 && fresh && t.kind == Kind::Name {
+            let named = toks.get(i + 1).map_or("", |n| n.text.as_str());
+            keep = matches!(t.text.as_str(), "record" | "enum" | "ensure")
+                && names.iter().any(|n| n == named);
+            if keep {
+                found.push(named.to_string());
+                item = kept.len();
+            }
+        }
+        fresh = false;
+        if t.kind == Kind::Punct {
+            depth += (t.text == "{") as i32 - (t.text == "}") as i32;
+            // An item ends at its `;`, or at the brace that closes it.
+            fresh = depth == 1 && (t.text == ";" || t.text == "}");
+        }
+        if keep || depth == 0 {
+            kept.push(t.clone());
+        }
+        // A record whose fields name a type of that store which is not
+        // brought is brought without its fields: `record Model;`.
+        if keep && fresh && t.text == "}" {
+            let at = item;
+            let body = &kept[at + 2..];
+            let missing = |(j, k): (usize, &Tok)| {
+                k.kind == Kind::Name
+                    && body.get(j + 1).is_none_or(|n| n.text != ":")
+                    && theirs.contains(&k.text)
+                    && !names.contains(&k.text)
+            };
+            if kept[at].text == "record" && body.iter().enumerate().any(missing) {
+                kept.truncate(at + 2);
+                let mut end = t.clone();
+                end.text = ";".to_string();
+                kept.push(end);
+            } else if let Some((_, k)) = body.iter().enumerate().find(|x| missing(*x)) {
+                return Err(format!(
+                    "`{}` holds a `{}`, which must be brought with it",
+                    kept[at + 1].text,
+                    k.text
+                ));
+            }
+        }
+        i += 1;
+    }
+    match names.iter().find(|n| !found.contains(n)) {
+        Some(n) => Err(format!(
+            "its block `{block}` has no record, enum or `ensure` named `{n}`"
+        )),
+        None => Ok(kept),
+    }
+}
+
+/// Each `import` at the top of a text: its path and the names it brings.
+fn imports_of(toks: &[Tok]) -> Vec<(Vec<String>, Vec<String>)> {
+    let (mut out, mut depth) = (Vec::new(), 0);
+    for (i, t) in toks.iter().enumerate() {
+        if t.kind == Kind::Punct {
+            depth += (t.text == "{") as i32 - (t.text == "}") as i32;
+        }
+        if depth != 0 || t.kind != Kind::Name || t.text != "import" {
+            continue;
+        }
+        let mut words: Vec<String> = Vec::new();
+        let mut j = i + 1;
+        while toks.get(j).is_some_and(|n| n.text != ";" && n.text != "}") {
+            if toks[j].kind == Kind::Name {
+                words.push(toks[j].text.clone());
+            }
+            j += 1;
+        }
+        let braces = toks[i + 1..j.min(toks.len())].iter().any(|t| t.text == "{");
+        let cut = if braces {
+            2.min(words.len())
+        } else {
+            words.len().saturating_sub(1)
+        };
+        // With braces, only `store::block::{…}` matters here.
+        if braces && toks.get(i + 4).is_none_or(|t| t.text != "::") {
+            continue;
+        }
+        let names = words.split_off(cut);
+        out.push((words, names));
+    }
+    out
+}
+
+/// Whether a path names a block of another store: nothing handed has
+/// that name, and the model of a store named as its first word was.
+fn of_store(handed: &Handed, path: &[String]) -> bool {
+    path.len() == 2
+        && path[0] != "std"
+        && !handed.modules.contains_key(&path.join("::"))
+        && handed.stores.contains_key(&path[0])
+}
+
 /// The modules a text imports, `std` aside, each once: what must be
 /// handed with it.
+// mitra: implements modules::imports
 pub fn imports(src: &str) -> Vec<String> {
     let toks = lex(src).unwrap_or_default();
     let (mut out, mut depth) = (Vec::new(), 0);
@@ -366,6 +497,12 @@ struct P {
     imported: BTreeSet<(String, String)>,
     /// The modules that can be imported.
     handed: Rc<Handed>,
+    /// The blocks this model declares itself, by name.
+    own_blocks: Rc<BTreeSet<String>>,
+    /// The blocks brought from other stores: the block, then its store.
+    brought: BTreeMap<String, String>,
+    /// While a block of another store is read: that store.
+    bringing: Option<String>,
     /// Each enum already met with sets for its parameters, read deep or
     /// not, and the set it gave.
     instances: Vec<(String, bool, Vec<Set>, Set)>,
@@ -1936,7 +2073,21 @@ impl P {
                 // subject name { … }, or subject { … }: named as written.
                 "subject" | "boundary" if self.block.is_none() => {
                     if !self.is("{") {
-                        self.scope = Some(self.name()?);
+                        let name = self.name()?;
+                        let side = match kw.as_str() {
+                            "subject" => Side::Subject,
+                            _ => Side::Boundary,
+                        };
+                        if !self.m.blocks.iter().any(|b| b.name == name) {
+                            let (name, from) = (name.clone(), self.bringing.clone());
+                            self.m.blocks.push(Block {
+                                name,
+                                side,
+                                from,
+                                line,
+                            });
+                        }
+                        self.scope = Some(name);
                     }
                     self.blocks += 1;
                     self.block = Some(kw.clone());
@@ -2799,48 +2950,80 @@ impl P {
         for n in names {
             self.imported.insert((name.clone(), n.clone()));
         }
-        let src = module(&self.handed, path).map_err(|e| Error::new(line, e))?;
         let inside =
             |e: Error| Error::new(line, format!("in `{name}`, line {}: {}", e.line, e.message));
-        let toks = lex(&src).map_err(inside)?;
-        // Only what is named, and what the module itself imports.
         let (mut kept, mut found, mut depth, mut keep) = (Vec::new(), Vec::new(), 0, false);
-        // Inside `subject { … }` with no name: its word, put before each
-        // function taken out of it.
-        let mut unnamed: Option<&Tok> = None;
-        let block = |t: &Tok| t.text == "subject" || t.text == "boundary";
-        for (i, t) in toks.iter().enumerate() {
-            let next = |n: usize| toks.get(i + n).map_or("", |n| n.text.as_str());
-            let item = t.kind == Kind::Name && ITEMS.contains(&t.text.as_str());
-            let word_before = i > 0 && depth == 0 && block(&toks[i - 1]) && t.text == "fn";
-            if depth == 0 && item && block(t) && next(1) == "{" {
-                (unnamed, keep) = (Some(t), false);
-            } else if depth == 0 && item && block(t) && next(1) == "fn" {
-                // subject fn f(…): one function, with its word.
-                keep = names.iter().any(|n| n == next(2));
-                if keep {
-                    found.push(next(2).to_string());
-                }
-            } else if depth == 0 && item && !word_before {
-                keep = t.text == "import" || names.iter().any(|n| n == next(1));
-                if keep && t.text != "import" {
-                    found.push(next(1).to_string());
-                }
-            } else if depth == 1 && item && unnamed.is_some() {
-                keep = names.iter().any(|n| n == next(1));
-                if keep {
-                    found.push(next(1).to_string());
-                    kept.extend(unnamed.filter(|_| t.text == "fn").cloned());
-                }
+        if of_store(&self.handed, path) {
+            // A block of another store: its records and promises alone.
+            if self.own_blocks.contains(&path[1]) {
+                let said = format!(
+                    "`{}` is a block of this model too: a block of another store cannot be brought under the name of one declared here",
+                    path[1]
+                );
+                return Err(Error::new(line, said));
             }
-            if t.kind == Kind::Punct {
-                depth += (t.text == "{") as i32 - (t.text == "}") as i32;
-                if depth == 0 && t.text == "}" && unnamed.take().is_some() {
-                    keep = false;
-                }
+            let from = self
+                .brought
+                .entry(path[1].clone())
+                .or_insert(path[0].clone());
+            if *from != path[0] {
+                let said = format!(
+                    "a block `{}` was brought from `{from}` already: two stores cannot bring a block of the same name",
+                    path[1]
+                );
+                return Err(Error::new(line, said));
             }
-            if keep {
-                kept.push(t.clone());
+            let toks = lex(&self.handed.stores[&path[0]]).map_err(inside)?;
+            let said = |e| Error::new(line, format!("`{}`: {e}", path[0]));
+            // A type known by its path was written short: `Outcome`.
+            let short = |n: &String| n.rsplit("::").next().unwrap_or(n).to_string();
+            let wanted: Vec<String> = names.iter().map(short).collect();
+            kept = from_store(&toks, &path[1], &wanted).map_err(said)?;
+            let (scoped, top) = types_of(&kept);
+            self.bringing = Some(path[0].clone());
+            kept = scope_types(kept, &scoped, &top, false);
+            found = names.to_vec();
+        } else {
+            let src = module(&self.handed, path).map_err(|e| Error::new(line, e))?;
+            let toks = lex(&src).map_err(inside)?;
+            // Only what is named, and what the module itself imports.
+            // Inside `subject { … }` with no name: its word, put before each
+            // function taken out of it.
+            let mut unnamed: Option<&Tok> = None;
+            let block = |t: &Tok| t.text == "subject" || t.text == "boundary";
+            for (i, t) in toks.iter().enumerate() {
+                let next = |n: usize| toks.get(i + n).map_or("", |n| n.text.as_str());
+                let item = t.kind == Kind::Name && ITEMS.contains(&t.text.as_str());
+                let word_before = i > 0 && depth == 0 && block(&toks[i - 1]) && t.text == "fn";
+                if depth == 0 && item && block(t) && next(1) == "{" {
+                    (unnamed, keep) = (Some(t), false);
+                } else if depth == 0 && item && block(t) && next(1) == "fn" {
+                    // subject fn f(…): one function, with its word.
+                    keep = names.iter().any(|n| n == next(2));
+                    if keep {
+                        found.push(next(2).to_string());
+                    }
+                } else if depth == 0 && item && !word_before {
+                    keep = t.text == "import" || names.iter().any(|n| n == next(1));
+                    if keep && t.text != "import" {
+                        found.push(next(1).to_string());
+                    }
+                } else if depth == 1 && item && unnamed.is_some() {
+                    keep = names.iter().any(|n| n == next(1));
+                    if keep {
+                        found.push(next(1).to_string());
+                        kept.extend(unnamed.filter(|_| t.text == "fn").cloned());
+                    }
+                }
+                if t.kind == Kind::Punct {
+                    depth += (t.text == "{") as i32 - (t.text == "}") as i32;
+                    if depth == 0 && t.text == "}" && unnamed.take().is_some() {
+                        keep = false;
+                    }
+                }
+                if keep {
+                    kept.push(t.clone());
+                }
             }
         }
         if let Some(n) = names.iter().find(|n| !found.contains(n)) {
@@ -2858,6 +3041,7 @@ impl P {
             done = self.err(format!("unexpected `{}`", self.peek()));
         }
         self.stack.pop();
+        self.bringing = None;
         self.at = at;
         (self.toks, self.pos) = (toks, pos);
         let module = std::mem::replace(&mut self.all, all);
@@ -3949,8 +4133,27 @@ fn impls(toks: Vec<Tok>) -> Result<(Vec<Tok>, BTreeSet<String>), Error> {
 
 fn read(toks: Vec<Tok>, handed: Rc<Handed>) -> Result<P, Error> {
     let (toks, methods) = impls(toks)?;
-    let (scoped, top) = types_of(&toks);
+    let (mut scoped, top) = types_of(&toks);
+    // The types brought from a block of another store, by their path.
+    for (path, names) in imports_of(&toks) {
+        if of_store(&handed, &path) {
+            let there = lex(&handed.stores[&path[0]]).unwrap_or_default();
+            if let Ok(kept) = from_store(&there, &path[1], &names) {
+                scoped.extend(types_of(&kept).0);
+            }
+        }
+    }
     let toks = scope_types(toks, &scoped, &top, false);
+    let block = |i: &usize| {
+        let word =
+            toks[*i].kind == Kind::Name && matches!(toks[*i].text.as_str(), "subject" | "boundary");
+        word && toks.get(i + 2).is_some_and(|b| b.text == "{")
+    };
+    let blocks: BTreeSet<String> = (0..toks.len())
+        .filter(block)
+        .map(|i| toks[i + 1].text.clone())
+        .collect();
+    let blocks = Rc::new(blocks);
     let all = declared(&toks);
     let mut known = Names::default();
     let mut last = None;
@@ -3965,6 +4168,7 @@ fn read(toks: Vec<Tok>, handed: Rc<Handed>) -> Result<P, Error> {
             scoped: scoped.clone(),
             methods: methods.clone(),
             handed: handed.clone(),
+            own_blocks: blocks.clone(),
             ..P::default()
         };
         p.items()?;
@@ -4019,6 +4223,12 @@ pub fn evidence_alone(src: &str, m: &Model, names: &Names) -> Result<Vec<Evidenc
     // And of each record to its struct: `for Record::tied`.
     for r in m.records.iter().filter(|r| r.of.is_none()) {
         let tied = format!("{}::tied", r.name);
+        names.claims.insert(tied.clone(), (Vec::new(), Vec::new()));
+        all.insert(tied);
+    }
+    // And of each enum to the enum of the code: `for Enum::tied`.
+    for e in &m.enums {
+        let tied = format!("{}::tied", e.name);
         names.claims.insert(tied.clone(), (Vec::new(), Vec::new()));
         all.insert(tied);
     }

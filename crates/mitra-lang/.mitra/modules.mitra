@@ -9,6 +9,7 @@ import std::rust::{Option, Result};
 subject modules {
     ensure handed_only = "mitra-lang reads nothing but what it is handed: an import of a module that was not handed is an error at its line, never a file it goes to read.";
     ensure faults_name_their_file = "A line of the model is given back as the file it was handed in and its line there.";
+    ensure bought_not_built = "What a model brings from another store is a boundary: the records, enums and promises it names, the promises assumed. The functions and claims of that store stay there.";
     ensure order_is_not_the_writer_s = "The files of a model are read so that a type is declared above its use, whatever the files are called.";
 
     // One file, as text.
@@ -27,18 +28,38 @@ subject modules {
         // A model in one text, called `model`, importing nothing but `std`.
         fn alone(text: String) -> Self;
         fn new(files: Vec<Module>, handed: Handed) -> Self;
+        // The whole model, as it is read.
+        fn text(&self) -> String;
         // A line of the whole model, as `file:line`.
         fn place(&self, line: usize) -> String;
+        // A fault of the model, at its file and line.
+        fn locate(&self, err: reader::Error) -> String;
     }
+
+    // The modules a text imports, `std` aside: what must be handed with it.
+    fn imports(src: String) -> Vec<String>;
 
     // handed_only
     claim unknown_module_is_refused() {
         types::load("import lib::thing;", "") is Err
     }
 
+    claim one_text_is_read_as_it_is() {
+        Modules::alone("subject fn f() -> Bool;").text() == "subject fn f() -> Bool;"
+    }
+    claim imports_are_listed() {
+        imports("import a::b::x;\nimport std::rust::{Option};\nimport c::{y, z};") == ["a::b", "c"]
+    }
+    claim an_import_is_listed_once() {
+        imports("import a::x;\nimport a::y;") == ["a"]
+    }
+
     // faults_name_their_file
     claim line_is_placed() {
         Modules::alone("subject fn f() -> Bool;\nsubject fn g() -> Bool;").place(2) == "model:2"
+    }
+    claim fault_is_located() {
+        Modules::alone("subject fn f() -> Bool;\nsubject fn g() -> Bool;").locate(reader::Error(2, "wrong")) == "model: line 2: wrong"
     }
 
     // order_is_not_the_writer_s rests on `Modules::new` being correct: a

@@ -68,6 +68,12 @@ field. `record Claim;` only asks that a `struct` or an `enum` is there.
 A method of an `impl` the same way, `implements bank::Account::open`
 above it (`examples/tie/methods`). The evidence is on `check::Claim::tied`. `examples/tie/records`.
 
+`// mitra: implements report::Piece` above an `enum` ties it to an enum
+of the model: the same variants, each holding as many values, of types
+that fit (`Box(w: f64, h: f64)` fits `Box { w: f64, h: f64 }`). The
+evidence is on `report::Piece::tied`. An enum with type parameters is
+not compared.
+
 `f::tied` is a claim that exists once evidence names it: without a
 reader, a reviewer brings the same evidence
 (`evidence e { for withdraw::tied holds source "review:me" }`). When it

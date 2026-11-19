@@ -140,6 +140,7 @@ pub fn fn_below(code: &str) -> Option<&str> {
 
 /// A comment that ties code to a model kept aside: not a line of model.
 /// `implements f` above a function, `evidence for c` above a test.
+// mitra: implements source::is_tie
 pub fn is_tie(m: &str) -> bool {
     m.starts_with("implements ") || m.starts_with("evidence for ")
 }
@@ -220,5 +221,23 @@ mod tests {
     #[test]
     fn t_below_nothing() {
         assert_eq!(fn_below(""), None);
+    }
+
+    // mitra: evidence for source::implements_is_a_tie
+    #[test]
+    fn implements_is_a_tie() {
+        assert!(is_tie("implements a::f"));
+    }
+
+    // mitra: evidence for source::evidence_for_is_a_tie
+    #[test]
+    fn evidence_for_is_a_tie() {
+        assert!(is_tie("evidence for a::c given x = 1 gives 2"));
+    }
+
+    // mitra: evidence for source::a_line_of_model_is_no_tie
+    #[test]
+    fn a_line_of_model_is_no_tie() {
+        assert!(!is_tie("subject fn f() -> Bool;"));
     }
 }

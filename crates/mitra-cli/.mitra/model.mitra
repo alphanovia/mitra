@@ -7,6 +7,13 @@
 
 import std::rust::{Option, Result};
 
+// What the command line leans on in the three crates under it: their
+// promises, taken here as bought.
+import mitra_store::store::{whole_folder};
+import mitra_store::ledger::{sound_or_untouched};
+import mitra_lang::verdicts::{one_each, never_runs};
+import mitra_lang::results::{a_pass_is_not_overstated, a_failure_is_kept};
+
 // The person or the script that runs a command. What they say is taken
 // as said: Mitra has no way to check it.
 boundary caller {
@@ -19,11 +26,16 @@ subject commands {
     require revision = caller::names_the_right_revision;
     require report = caller::report_is_of_that_code;
     require who = caller::says_who;
+    require whole_model = store::whole_folder;
+    require ledger_sound = ledger::sound_or_untouched;
+    require one_verdict = verdicts::one_each;
+    require same_report = verdicts::never_runs;
+    require pass_not_overstated = results::a_pass_is_not_overstated;
+    require failure_kept = results::a_failure_is_kept;
 
     ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
     ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";
     ensure rev_is_safe_to_write = "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger.";
-    ensure a_pass_is_not_overstated = "A passing test becomes evidence for exactly what its tie comment pins: with no input stated, on a claim with inputs, it only passes.";
 
     // A revision given with `--rev`.
     fn check_rev(rev: String) -> Result<(), String>;

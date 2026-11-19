@@ -21,14 +21,15 @@ pub mod plan;
 pub mod print;
 mod prove;
 pub mod report;
+pub mod results;
 pub mod set;
 pub mod trust;
 pub mod tuples;
 pub mod types;
 
 pub use ast::{
-    Arm, Claim, Decl, Enum, Evidence, Expr, Function, Judgment, Model, Pattern, Position, Record,
-    Target,
+    Arm, Block, Claim, Decl, Enum, Evidence, Expr, Function, Judgment, Model, Pattern, Position,
+    Record, Side, Target,
 };
 pub use eval::{
     evaluate, Assumed, Candidate, Conflict, Contradiction, Display, Flag, Implication, Kind, Logic,
@@ -363,10 +364,22 @@ fn tie_records(m: &mut Model, evidence: &[Evidence]) {
             .any(|e| e.about == format!("{}::tied", r.name))
     };
     let all = m.records.iter().filter(|r| r.of.is_none());
-    let all: Vec<(String, usize)> = all
+    let mut all: Vec<(String, usize)> = all
         .filter(spoken)
         .map(|r| (r.name.clone(), r.line))
         .collect();
+    // And for an enum and the enum of the code.
+    let said = |e: &&Enum| {
+        evidence
+            .iter()
+            .any(|x| x.about == format!("{}::tied", e.name))
+    };
+    all.extend(
+        m.enums
+            .iter()
+            .filter(said)
+            .map(|e| (e.name.clone(), e.line)),
+    );
     for (name, line) in all {
         let func = format!("{name}::tied::prose");
         m.functions.push(Function {

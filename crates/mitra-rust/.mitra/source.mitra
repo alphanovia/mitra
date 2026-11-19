@@ -11,4 +11,17 @@ subject source {
 
     // The name of the `fn` that the code starts with.
     fn fn_below(code: String) -> Option<String>;
+
+    // Whether the text after `mitra:` ties code to the model.
+    fn is_tie(m: String) -> bool;
+
+    claim implements_is_a_tie() {
+        is_tie("implements a::f")
+    }
+    claim evidence_for_is_a_tie() {
+        is_tie("evidence for a::c given x = 1 gives 2")
+    }
+    claim a_line_of_model_is_no_tie() {
+        !is_tie("subject fn f() -> Bool;")
+    }
 }

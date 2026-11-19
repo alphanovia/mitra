@@ -10,19 +10,20 @@
 //   ledger.mitra   the ledger file: what is true of it today, and what
 //                  was agreed in outline and is not built
 //
-// The types of mitra-lang (`Modules`) are named here and tied in
-// mitra-lang's own model: a record does not cross stores.
+// The types of mitra-lang (`Modules`) are brought from its model, where
+// they are tied.
 
 import std::rust::{Option, Result};
 
-// The files of one model as named texts: mitra-lang's, stated there.
-record Modules;
+// The files of one model as named texts: mitra-lang's.
+import mitra_lang::modules::{Modules};
 
 subject files {
     require disk_reads = disk::reads_what_was_written;
 
     ensure handed_unchanged = "A model file is handed to mitra-lang under its path, with its text unchanged.";
     ensure imports_beside = "`import a::b::x;` is answered by the file `a/b.mitra` beside the first model file, and by what that file imports in turn.";
+    ensure stores_beside = "`import other::block::{..}` with no such file beside the model is answered by the whole model of the store `other` beside this one, its ledger aside.";
     ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
 
     // The text of a file, or why it can't be read, with its path.

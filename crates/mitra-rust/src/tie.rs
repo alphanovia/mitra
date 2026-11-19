@@ -33,6 +33,36 @@ struct Shape {
     /// Each named field with its type; none for an enum, a tuple struct
     /// or a unit struct.
     fields: Option<Vec<(String, String)>>,
+    /// For an enum: each variant with the types it holds, in order.
+    variants: Option<Vec<(String, Vec<String>)>>,
+}
+
+/// The variants of an enum, from the text after its name: `A`, `A(T, U)`
+/// and `A { x: T }`, each with the types it holds.
+fn variants(after: &str) -> Option<Vec<(String, Vec<String>)>> {
+    let open = after.find('{')?;
+    let inside = balanced(&after[open + 1..], '{', '}')?;
+    let mut out = Vec::new();
+    for p in pieces(inside) {
+        let mut p = p.trim();
+        while let Some(r) = p.strip_prefix('#') {
+            p = r[r.find(']')? + 1..].trim_start();
+        }
+        let end = p.find(|c: char| !(c.is_alphanumeric() || c == '_'));
+        let (name, rest) = p.split_at(end.unwrap_or(p.len()));
+        let rest = rest.trim_start();
+        let held = if let Some(r) = rest.strip_prefix('(') {
+            pieces(balanced(r, '(', ')')?)
+        } else if let Some(r) = rest.strip_prefix('{') {
+            let named = pieces(balanced(r, '{', '}')?);
+            let ty = |f: &String| f.split_once(':').map(|t| t.1.trim().to_string());
+            named.iter().map(ty).collect::<Option<Vec<String>>>()?
+        } else {
+            Vec::new()
+        };
+        out.push((name.to_string(), held));
+    }
+    Some(out)
 }
 
 /// The `struct` or `enum` at the start of `code`, past attributes and
@@ -261,6 +291,7 @@ fn read(
                 place,
                 kind: kind.to_string(),
                 fields: fields(after).filter(|_| kind == "struct"),
+                variants: variants(after).filter(|_| kind == "enum"),
             });
             continue;
         }
@@ -331,22 +362,7 @@ pub struct Found {
 }
 
 /// Compare the code under `root` with the model.
-/// A test tied to a claim: `// mitra: evidence for math::div_small` above
-/// its `fn`. A pass is evidence that the claim holds, a failure that it
-/// does not. The comment may pin what the test checks, with the clauses
-/// of an evidence block: `evidence for math::div given a = 6, b = 3
-/// gives 2`. Without them, on a claim with inputs, a pass only `passes`.
-// mitra: implements ties::Tied
-pub struct Tied {
-    /// The name of the test function.
-    pub test: String,
-    pub claim: String,
-    /// What the comment pins, as in an evidence block: `given a = 1`,
-    /// `given a = 1, b = 2 gives 3`. Empty when it states no input.
-    pub pinned: String,
-    /// The file and line of the comment.
-    pub place: String,
-}
+pub use mitra_lang::results::Tied;
 
 /// Every test of `src/` and `tests/` tied to a claim.
 // mitra: implements ties::tests
@@ -434,6 +450,75 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
     // Records: every field the model states is in the struct, with a type
     // that fits; without `..` the struct has no other field.
     for s in &shapes {
+        // An enum of the model: the same variants, each holding as many
+        // values, of types that fit.
+        if let Some(e) = model.enums.iter().find(|e| e.name == s.implements) {
+            if shapes
+                .iter()
+                .filter(|d| d.implements == s.implements)
+                .count()
+                > 1
+            {
+                let msg = format!("{}: `{}` is implemented twice", s.place, s.implements);
+                return Err(msg);
+            }
+            let last = |n: &str| n.rsplit("::").next().unwrap_or(n).to_string();
+            let mut why = None;
+            match &s.variants {
+                None => why = Some(format!("the code is a `{}`, not an enum", s.kind)),
+                Some(_) if !e.params.is_empty() => {
+                    why = Some("an enum with type parameters is not compared".to_string())
+                }
+                Some(code) => {
+                    for v in &e.variants {
+                        let of = |r: &&mitra_lang::Record| {
+                            r.name == *v && r.of.as_deref() == Some(e.name.as_str())
+                        };
+                        let Some(r) = model.records.iter().find(of) else {
+                            continue;
+                        };
+                        let stated: Vec<&(String, mitra_lang::Set)> =
+                            r.fields.iter().filter(|f| f.0 != "..").collect();
+                        let name = last(v);
+                        match code.iter().find(|c| c.0 == name) {
+                            None => why = Some(format!("the enum has no variant `{name}`")),
+                            Some((_, held)) if held.len() != stated.len() => {
+                                why = Some(format!(
+                                "variant `{name}` holds {} value(s) in the code, {} in the model",
+                                held.len(),
+                                stated.len()
+                            ))
+                            }
+                            Some((_, held)) => {
+                                for ((field, set), ty) in stated.iter().zip(held) {
+                                    let mty = model.named(&set.to_string());
+                                    if !fits(&mty, ty) && why.is_none() {
+                                        why = Some(format!(
+                                            "`{field}` of variant `{name}` is `{ty}` in the code, \
+                                             `{mty}` in the model"
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                        if why.is_some() {
+                            break;
+                        }
+                    }
+                    let known =
+                        |c: &&(String, Vec<String>)| e.variants.iter().any(|v| last(v) == c.0);
+                    if let Some((name, _)) =
+                        code.iter().find(|c| !known(c)).filter(|_| why.is_none())
+                    {
+                        why = Some(format!(
+                            "the enum has a variant `{name}` the model does not state"
+                        ));
+                    }
+                }
+            }
+            say(&mut found, &format!("{}::tied", e.name), &s.place, why);
+            continue;
+        }
         let record = model.records.iter().find(|r| r.name == s.implements);
         let Some(r) = record.filter(|r| r.of.is_none()) else {
             let msg = format!("{}: the model has no record `{}`", s.place, s.implements);
@@ -625,7 +710,14 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
             for d in code.iter().filter(|d| d.implements != f.name) {
                 // Another function of the same name may be the one called.
                 let same = |e: &&Code| e.name == d.name && used.contains(&e.implements);
-                if calls(&c.body, &d.name) && !code.iter().any(|e| same(&e)) && why.is_none() {
+                // A function written in a type is called as `Type::name(`:
+                // through a dot it may be any type's.
+                let of = d.implements.rsplit("::").nth(1).unwrap_or("");
+                let called = match of.starts_with(char::is_uppercase) {
+                    true => c.body.contains(&format!("{of}::{}(", d.name)),
+                    false => calls(&c.body, &d.name),
+                };
+                if called && !code.iter().any(|e| same(&e)) && why.is_none() {
                     let (n, g) = (&c.name, &d.implements);
                     why = Some(format!("`{n}` also calls `{}`, which is `{g}`", d.name));
                 }
@@ -649,7 +741,14 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
     let mut names: Vec<&str> = names;
     let loose =
         |r: &&mitra_lang::Record| r.of.is_none() && !shapes.iter().any(|s| s.implements == r.name);
+    // What another store declares is tied there.
+    let here = |n: &&str| model.block_of(n).is_none_or(|b| b.from.is_none());
     names.extend(model.records.iter().filter(loose).map(|r| r.name.as_str()));
+    let loose = |e: &&mitra_lang::Enum| {
+        e.params.is_empty() && !shapes.iter().any(|s| s.implements == e.name)
+    };
+    names.extend(model.enums.iter().filter(loose).map(|e| e.name.as_str()));
+    let names: Vec<&str> = names.into_iter().filter(here).collect();
     if !names.is_empty() {
         found
             .notes

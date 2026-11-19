@@ -182,6 +182,7 @@ None, Some(value: T) }`, `Result<T, E> { Ok(value: T), Err(error: E)
 
 `import geometry::{Point};` brings them from `geometry.mitra`, beside the
 model (`a::b::{x}` reads `a/b.mitra`). Only the names listed come, once.
+From another store, `import store::block::{..}`: [stores.md](stores.md).
 
 ```mitra
 import std::rust::{Option};
@@ -190,7 +191,6 @@ claim firsts() { first([3, 4]) == Some(3) && first([]) == None }
 ```
 ```text
 firsts: holds
-
 ```
 
 ## Comments

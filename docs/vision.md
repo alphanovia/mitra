@@ -156,8 +156,9 @@ They are built and tested in that order.
 In crates: `mitra-lang` is (1) and (2), with the ranking of culprits; it
 reads no file and is handed the model as named texts. `mitra-store` is
 what Mitra keeps on disk: it finds and reads the files of a model and
-keeps the ledger. `mitra-rust` reads Rust code and test reports and
-brings what it finds as evidence. `mitra-cli` is the commands. Nothing of
+keeps the ledger. `mitra-rust` reads Rust code and the report of
+`cargo test`; the rules that turn a test result into evidence, and the
+JUnit format, are in `mitra-lang`, for any language of code. `mitra-cli` is the commands. Nothing of
 a language of code is in `mitra-lang`.
 
 ## Why a language

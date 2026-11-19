@@ -425,4 +425,13 @@ mod tests {
     fn t_negative_string() {
         assert!(!negative(&Value::Str("-1".into())));
     }
+
+    // A sweep: the claim on every input of the stated set.
+    // mitra: evidence for print::negative_ints given v in -100..=100 sampled 201
+    #[test]
+    fn negative_ints() {
+        for v in -100..=100 {
+            assert_eq!(negative(&Value::Int(v)), v < 0);
+        }
+    }
 }

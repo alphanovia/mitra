@@ -143,3 +143,53 @@ claim t_quote_plain() { print::quote("a b") == "\"a b\"" }
 claim t_quote_empty() { print::quote("") == "\"\"" }
 
 claim t_quote_escapes() { print::quote("a\"b\\c\nd\te") == "\"a\\\"b\\\\c\\nd\\te\"" }
+
+// src/results.rs
+
+claim t_short_path() { results::short("tests::t_small") == "t_small" }
+
+claim t_short_plain() { results::short("t_small") == "t_small" }
+
+claim t_short_should_panic() { results::short("t_panics - should panic") == "t_panics" }
+
+claim t_short_panics_once() { results::short("t_panics") == "t_panics" }
+
+claim t_attr_double() { results::attr("<testcase name=\"t\"", "name") == Some("t") }
+
+claim t_attr_single() { results::attr("<testcase name='t'", "name") == Some("t") }
+
+claim t_attr_missing() { results::attr("<testcase time=\"1\"", "name") == None }
+
+claim t_attr_inside_another() {
+    results::attr("<testcase\tclassname=\"name=x\" name = \"t\"", "name") == Some("t")
+}
+
+claim t_attr_entities() {
+    results::attr("<a name=\"a &lt; b &amp;lt;\"", "name") == Some("a < b &lt;")
+}
+
+claim t_strip_one() { results::strip("a<x>b</x>c", "<x>", "</x>") == "ac" }
+
+claim t_strip_unclosed() { results::strip("a<x>b", "<x>", "</x>") == "a" }
+
+claim t_strip_nothing() { results::strip("abc", "<x>", "</x>") == "abc" }
+
+claim t_junit_passed() {
+    results::junit("<testcase classname=\"add\" name=\"t\"/>") == [Outcome("t", true)]
+}
+
+claim t_junit_failure() {
+    results::junit("<testcase name=\"t\"><failure message=\"boom\"/></testcase>") == [Outcome("t", false)]
+}
+
+claim t_junit_error() {
+    results::junit("<testcase name=\"t\"><error/></testcase>") == [Outcome("t", false)]
+}
+
+claim t_junit_skipped() { results::junit("<testcase name=\"t\"><skipped/></testcase>") == [] }
+
+claim t_junit_failure_in_a_log() {
+    results::junit("<testcase name='t'><system-out><![CDATA[ <failure> ]]></system-out></testcase>") == [Outcome("t", true)]
+}
+
+claim t_junit_path() { results::junit("<testcase name=\"tests::t\"/>") == [Outcome("t", true)] }

@@ -43,6 +43,7 @@ pub struct Ranking {
 /// Why there is no ranking.
 ///
 #[derive(Debug, Clone, Copy, PartialEq)]
+// mitra: implements culprits::NoRanking
 pub enum NoRanking {
     /// More than [`MAX_OPEN`] pieces with a bias strictly between 0 and 1,
     /// counting those trusted at 1 when they can't all be right.
@@ -298,5 +299,59 @@ mod tests {
     fn rejects_too_many() {
         let many = vec![Some(0.5); MAX_OPEN + 1];
         assert_eq!(rank(&many, &[]), Err(NoRanking::TooMany));
+    }
+
+    // Sweeps: a claim of culprits.mitra on every pair of the stated sets.
+
+    fn some_biases() -> Vec<Vec<Option<f64>>> {
+        vec![
+            vec![],
+            vec![None],
+            vec![Some(0.5)],
+            vec![None, Some(0.8)],
+            vec![Some(1.0), Some(1.0)],
+            vec![Some(0.0), Some(0.6), Some(0.7)],
+        ]
+    }
+
+    fn some_clauses() -> Vec<Vec<Vec<usize>>> {
+        vec![
+            vec![],
+            vec![vec![0]],
+            vec![vec![0, 1]],
+            vec![vec![0, 1], vec![1, 2]],
+        ]
+    }
+
+    // mitra: evidence for culprits::rank_shape given biases in {[], [None], [Some(0.5)], [None, Some(0.8)], [Some(1.0), Some(1.0)], [Some(0.0), Some(0.6), Some(0.7)]}, clauses in {[], [[0]], [[0, 1]], [[0, 1], [1, 2]]} sampled 24
+    #[test]
+    fn rank_shape() {
+        let within = |x: &f64| (0.0..=1.0).contains(x);
+        let (mut ranked, mut seen) = (0, 0);
+        for biases in some_biases() {
+            for clauses in some_clauses() {
+                seen += 1;
+                let Ok(r) = rank(&biases, &clauses) else {
+                    continue;
+                };
+                ranked += 1;
+                assert_eq!(r.belief.len(), biases.len());
+                assert_eq!(r.plausibility.len(), biases.len());
+                assert!(within(&r.conflict));
+                assert!(r.belief.iter().all(within) && r.plausibility.iter().all(within));
+            }
+        }
+        // Some pairs name a piece that is not there: no ranking for those.
+        assert_eq!(seen, 24);
+        assert!(ranked >= 12, "{ranked}");
+    }
+
+    // mitra: evidence for culprits::no_clause_no_belief given biases in {[], [None], [Some(0.5)], [None, Some(0.8)], [Some(1.0), Some(1.0)], [Some(0.0), Some(0.6), Some(0.7)]}, clauses in {[]} sampled 6
+    #[test]
+    fn no_clause_no_belief_on_any() {
+        for biases in some_biases() {
+            let r = rank(&biases, &[]).unwrap();
+            assert!(r.belief.iter().all(|x| *x == 0.0));
+        }
     }
 }

@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, HashMap};
 
 ///
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// mitra: implements verdicts::Logic
 pub enum Logic {
     /// Evidence covers every input, directly or through claims that hold.
     Holds,
@@ -214,6 +215,7 @@ pub struct Flag {
 /// Something that may be wrong.
 ///
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements report::Piece
 pub enum Piece {
     /// A ledger entry, by its line.
     Evidence(usize),
@@ -3958,5 +3960,103 @@ mod tests {
     #[test]
     fn t_keys_of_a_set() {
         assert_eq!(unary("keys", &ints(&[1])), None);
+    }
+
+    // Sweeps: each runs a claim of operators.mitra on every input of a
+    // stated set. The comment says the set and how many inputs it is.
+
+    fn small() -> Vec<Value> {
+        (-12..=12).map(Value::Int).collect()
+    }
+
+    fn sets() -> Vec<Value> {
+        vec![ints(&[]), ints(&[1]), ints(&[1, 2]), ints(&[2, 3])]
+    }
+
+    // mitra: evidence for eval::twice_negated given v in -100..=100 sampled 201
+    #[test]
+    fn twice_negated() {
+        for v in (-100..=100).map(Value::Int) {
+            let n = unary("-", &v).unwrap();
+            assert_eq!(unary("-", &n), Some(v));
+        }
+    }
+
+    // mitra: evidence for eval::plus_commutes given x in -12..=12, y in -12..=12 sampled 625
+    #[test]
+    fn plus_commutes() {
+        for (x, y) in small()
+            .iter()
+            .flat_map(|x| small().into_iter().map(move |y| (x.clone(), y)))
+        {
+            assert_eq!(binary("+", &x, &y), binary("+", &y, &x));
+        }
+    }
+
+    // mitra: evidence for eval::times_commutes given x in -12..=12, y in -12..=12 sampled 625
+    #[test]
+    fn times_commutes() {
+        for (x, y) in small()
+            .iter()
+            .flat_map(|x| small().into_iter().map(move |y| (x.clone(), y)))
+        {
+            assert_eq!(binary("*", &x, &y), binary("*", &y, &x));
+        }
+    }
+
+    // mitra: evidence for eval::minus_is_plus_negated given x in -12..=12, y in -12..=12 sampled 625
+    #[test]
+    fn minus_is_plus_negated() {
+        for (x, y) in small()
+            .iter()
+            .flat_map(|x| small().into_iter().map(move |y| (x.clone(), y)))
+        {
+            let n = unary("-", &y).unwrap();
+            assert_eq!(binary("-", &x, &y), binary("+", &x, &n));
+        }
+    }
+
+    // mitra: evidence for eval::different_is_not_equal given x in -5..=5 | {true, "a"}, y in -5..=5 | {true, "a"} sampled 169
+    #[test]
+    fn different_is_not_equal() {
+        let mut all: Vec<Value> = (-5..=5).map(Value::Int).collect();
+        all.extend([Value::Bool(true), text("a")]);
+        for (x, y) in all.iter().flat_map(|x| all.iter().map(move |y| (x, y))) {
+            let e = binary("==", x, y).unwrap();
+            assert_eq!(binary("!=", x, y), unary("!", &e));
+        }
+    }
+
+    // mitra: evidence for eval::union_commutes given x in {{}, {1}, {1, 2}, {2, 3}}, y in {{}, {1}, {1, 2}, {2, 3}} sampled 16
+    #[test]
+    fn union_commutes() {
+        for (x, y) in sets()
+            .iter()
+            .flat_map(|x| sets().into_iter().map(move |y| (x.clone(), y)))
+        {
+            assert_eq!(binary("|", &x, &y), binary("|", &y, &x));
+        }
+    }
+
+    // mitra: evidence for eval::difference_apart given x in {{}, {1}, {1, 2}, {2, 3}}, y in {{}, {1}, {1, 2}, {2, 3}} sampled 16
+    #[test]
+    fn difference_apart() {
+        for (x, y) in sets()
+            .iter()
+            .flat_map(|x| sets().into_iter().map(move |y| (x.clone(), y)))
+        {
+            let d = binary("\\", &x, &y).unwrap();
+            assert_eq!(binary("&", &d, &y), Some(ints(&[])));
+        }
+    }
+
+    // mitra: evidence for eval::divides_back given x in -12..=12, y in -12..=12 \ {0} sampled 600
+    #[test]
+    fn divides_back() {
+        let ys = small().into_iter().filter(|y| *y != Value::Int(0));
+        for (x, y) in ys.flat_map(|y| small().into_iter().map(move |x| (x, y.clone()))) {
+            let p = binary("*", &x, &y).unwrap();
+            assert_eq!(binary("/", &p, &y), Some(x));
+        }
     }
 }

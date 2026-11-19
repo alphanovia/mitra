@@ -168,6 +168,30 @@ fn world_is_listed() {
     assert_eq!(m.boundaries, ["now"]);
 }
 
+// mitra: evidence for model::blocks_are_listed
+#[test]
+fn blocks_are_listed() {
+    let text = "boundary clock { fn now() -> Int; } subject s { fn f() -> Int; }";
+    let m = load(text, "").unwrap();
+    let said: Vec<_> = m.blocks.iter().map(|b| (b.name.as_str(), b.side)).collect();
+    use mitra_lang::Side::{Boundary, Subject};
+    assert_eq!(said, [("clock", Boundary), ("s", Subject)]);
+    assert!(m.blocks.iter().all(|b| b.from.is_none()));
+    assert_eq!(m.block_of("s::f").map(|b| b.side), Some(Subject));
+    assert!(m.block_of("s").is_none() && m.block_of("other::f").is_none());
+}
+
+// mitra: evidence for model::a_block_written_twice_is_one
+#[test]
+fn a_block_written_twice_is_one() {
+    let m = load(
+        "subject s { fn f() -> Int; } subject s { fn g() -> Int; }",
+        "",
+    )
+    .unwrap();
+    assert_eq!(m.blocks.len(), 1);
+}
+
 // mitra: evidence for functions::code_is_claimed_correct
 #[test]
 fn code_is_claimed_correct() {
@@ -424,4 +448,149 @@ fn the_crate_reads_no_disk() {
         }
     }
     assert!(seen > 10);
+}
+
+/// never_runs: the same model and evidence give the same report, on each
+/// pair below, run twice.
+// mitra: evidence for verdicts::same_report sampled 8
+#[test]
+fn same_report() {
+    let pairs = [
+        (F, ""),
+        (F, "evidence a { for f holds }"),
+        (F, "evidence a { for f holds } evidence b { for f fails }"),
+        (C, ""),
+        (C, "evidence t { for f given a = 1 gives -2 }"),
+        (C, "evidence t { for c sampled 100 fails }"),
+        (SAFE, ""),
+        (CLOCK, ""),
+    ];
+    for (model, ledger) in pairs {
+        let text = |_: usize| run(model, ledger).unwrap().to_text();
+        assert_eq!(text(0), text(1), "{model}");
+    }
+}
+
+// mitra: evidence for modules::one_text_is_read_as_it_is
+#[test]
+fn one_text_is_read_as_it_is() {
+    let m = mitra_lang::Modules::alone("subject fn f() -> Bool;");
+    assert_eq!(m.text(), "subject fn f() -> Bool;");
+}
+
+// mitra: evidence for modules::imports_are_listed
+#[test]
+fn imports_are_listed() {
+    let text = "import a::b::x;\nimport std::rust::{Option};\nimport c::{y, z};";
+    assert_eq!(mitra_lang::parse::imports(text), ["a::b", "c"]);
+}
+
+// mitra: evidence for modules::an_import_is_listed_once
+#[test]
+fn an_import_is_listed_once() {
+    assert_eq!(
+        mitra_lang::parse::imports("import a::x;\nimport a::y;"),
+        ["a"]
+    );
+}
+
+// mitra: evidence for modules::fault_is_located
+#[test]
+fn fault_is_located() {
+    let m = mitra_lang::Modules::alone("subject fn f() -> Bool;\nsubject fn g() -> Bool;");
+    let e = mitra_lang::Error::new(2, "wrong");
+    assert_eq!(m.locate(&e), "model: line 2: wrong");
+}
+
+// The rules that turn a test result into evidence (results.mitra).
+
+fn said(
+    model: &str,
+    pinned: &str,
+    passed: bool,
+    rev: Option<&str>,
+) -> mitra_lang::results::Ingested {
+    use mitra_lang::results::{from_tests, Outcome, Tied};
+    let m = load(model, "").unwrap_or_else(|(_, e)| panic!("{e}"));
+    let claim = if model.contains("claim c") { "c" } else { "f" };
+    let tied = Tied {
+        test: "t".into(),
+        claim: claim.into(),
+        pinned: pinned.into(),
+        place: "lib.rs:1".into(),
+    };
+    let outcome = Outcome {
+        name: "t".into(),
+        passed,
+    };
+    from_tests(&m, &[tied], &[outcome], rev).unwrap()
+}
+
+const FA: &str = "subject fn f(a: Int) -> Int;";
+
+// mitra: evidence for results::unpinned_pass_only_passes
+#[test]
+fn unpinned_pass_only_passes() {
+    let said = said(C, "", true, None);
+    assert_eq!(
+        said.evidence,
+        ["evidence test { for c passes source \"test:t\" }"]
+    );
+    assert_eq!(said.loose.len(), 1);
+}
+
+// mitra: evidence for results::pass_on_a_point_holds
+#[test]
+fn pass_on_a_point_holds() {
+    let m = "subject fn f(a: Int) -> Int; claim c() { f(1) >= 0 }";
+    let said = said(m, "", true, None);
+    assert_eq!(
+        said.evidence,
+        ["evidence test { for c holds source \"test:t\" }"]
+    );
+}
+
+// mitra: evidence for results::pinned_pass_is_written_as_it_stands
+#[test]
+fn pinned_pass_is_written_as_it_stands() {
+    let said = said(FA, "given a = 6 gives 3", true, Some("abc"));
+    let expected = [
+        "evidence test { for f given a = 6 gives 3 source \"test:t\" rev \"abc\" }",
+        "evidence test { for f given a = 6 holds source \"test:t\" rev \"abc\" }",
+    ];
+    assert_eq!(said.evidence, expected);
+}
+
+// mitra: evidence for results::sample_keeps_its_count
+#[test]
+fn sample_keeps_its_count() {
+    let said = said(C, "given a in 0..=9 sampled 10", true, None);
+    let expected = "evidence test { for c given a in 0..=9 sampled 10 source \"test:t\" }";
+    assert_eq!(said.evidence, [expected]);
+}
+
+// mitra: evidence for results::pinned_failure_denies_the_pin
+#[test]
+fn pinned_failure_denies_the_pin() {
+    let said = said(FA, "given a = 6 gives 3", false, None);
+    let expected = "evidence test { for f given a = 6 fails source \"test:t\" }";
+    assert_eq!(said.evidence, [expected]);
+}
+
+// mitra: evidence for results::unpinned_failure_fails_the_claim
+#[test]
+fn unpinned_failure_fails_the_claim() {
+    let said = said(C, "", false, None);
+    assert_eq!(
+        said.evidence,
+        ["evidence test { for c fails source \"test:t\" }"]
+    );
+}
+
+// mitra: evidence for results::failing_sample_says_fails
+#[test]
+fn failing_sample_says_fails() {
+    let said = said(C, "given a in 0..=9 sampled 10", false, None);
+    let expected = "evidence test { for c given a in 0..=9 sampled 10 fails source \"test:t\" }";
+    assert_eq!(said.evidence, [expected]);
 }
