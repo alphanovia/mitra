@@ -148,6 +148,11 @@ calc::back: unverified
 says it calls nothing else. It adds the claim `f::uses`, taken as
 declared. `mitra tie` checks it against the Rust code.
 
+With no `uses` written it is implied. A body gives `uses only` what it
+calls of the code and of the world. With no body, `f` is taken to call
+nothing outside its own subject: `mitra tie` says `f::uses` fails when
+the code plainly calls a function tied to another subject.
+
 `uses` says that `f` depends on `g`, not how. Claims on `g` reach a
 claim on `f` only through a body, or through a claim that ties the two
 ([claims.md](claims.md), item 3).

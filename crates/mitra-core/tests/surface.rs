@@ -924,3 +924,31 @@ fn a_sample_covers_nothing_and_can_refute() {
     let read = mitra_core::read_evidence(m, e).unwrap();
     assert_eq!(mitra_core::print::print_evidence(&read, Some(&model)), e);
 }
+
+/// With no `uses` written, a body says what the function calls.
+#[test]
+fn uses_is_implied_by_a_body() {
+    let m = "subject s { fn half(a: Int) -> Int;\n\
+             fn quarter(a: Int) -> Int { half(half(a)) }\n\
+             fn same(a: Int) -> Int { a }\n\
+             fn eighth(a: Int) -> Int uses half { half(quarter(a)) } }";
+    let model = mitra_core::load(m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
+    let uses = |f: &str| {
+        model
+            .claim(&format!("s::{f}::uses"))
+            .map(|c| match &c.target {
+                mitra_core::Target::Uses { used, only } => (used.clone(), *only),
+                _ => panic!("not a uses claim"),
+            })
+    };
+    assert_eq!(uses("quarter"), Some((vec!["s::half".to_string()], true)));
+    // Nothing called, nothing claimed; what is written stands.
+    assert_eq!(uses("same"), None);
+    assert_eq!(uses("eighth"), Some((vec!["s::half".to_string()], false)));
+    // A reader of the code may speak of a function that states none.
+    let e = "evidence tie { for s::half::uses fails source \"reader\" }";
+    let text = mitra_core::run(m, e)
+        .unwrap_or_else(|(_, e)| panic!("{e}"))
+        .to_text();
+    assert!(text.contains("s::half::uses: fails"), "{text}");
+}

@@ -6,13 +6,13 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | Crate | Functions | Tied | Share | Lines in functions | In tied ones | Share | Code lines | Model lines | Model / code |
 |---|---|---|---|---|---|---|---|---|---|
 | mitra-ds | 8 | 6 | 75% | 118 | 60 | 51% | 146 | 62 | 42% |
-| mitra-cli | 52 | 7 | 13% | 1334 | 133 | 10% | 1419 | 16 | 1% |
-| mitra-core | 337 | 15 | 4% | 11288 | 2218 | 20% | 11922 | 154 | 1% |
-| all | 397 | 28 | 7% | 12740 | 2411 | 19% | 13487 | 232 | 2% |
+| mitra-cli | 52 | 7 | 13% | 1380 | 133 | 10% | 1466 | 16 | 1% |
+| mitra-core | 338 | 15 | 4% | 11331 | 2219 | 20% | 11965 | 154 | 1% |
+| all | 398 | 28 | 7% | 12829 | 2412 | 19% | 13577 | 232 | 2% |
 
 - mitra-ds: 62 lines of model over 146 lines of code, in 2 subjects with 3 ensures and 0 requires; apart from it, 0 lines of point claims and 45 tests pinned in the code.
-- mitra-cli: 16 lines of model over 1419 lines of code, in 2 subjects with 2 ensures and 0 requires; apart from it, 58 lines of point claims and 3 tests pinned in the code.
-- mitra-core: 154 lines of model over 11922 lines of code, in 7 subjects with 16 ensures and 4 requires; apart from it, 67 lines of point claims and 0 tests pinned in the code.
+- mitra-cli: 16 lines of model over 1466 lines of code, in 2 subjects with 2 ensures and 0 requires; apart from it, 58 lines of point claims and 3 tests pinned in the code.
+- mitra-core: 154 lines of model over 11965 lines of code, in 7 subjects with 16 ensures and 4 requires; apart from it, 67 lines of point claims and 0 tests pinned in the code.
 
 ## mitra-ds
 
@@ -71,18 +71,18 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | store.rs | `add` | 101 | 20 |  |
 | store.rs | `model` | 123 | 8 |  |
 | store.rs | `append` | 136 | 35 |  |
-| tie.rs | `shape_below` | 37 | 22 |  |
-| tie.rs | `fields` | 61 | 18 |  |
-| tie.rs | `balanced` | 81 | 12 |  |
-| tie.rs | `pieces` | 96 | 20 |  |
-| tie.rs | `as_model` | 118 | 45 |  |
-| tie.rs | `fits` | 168 | 25 |  |
-| tie.rs | `implemented` | 198 | 12 |  |
-| tie.rs | `words` | 212 | 13 |  |
-| tie.rs | `read` | 227 | 68 |  |
-| tie.rs | `calls` | 299 | 8 |  |
-| tie.rs | `tests` | 335 | 37 |  |
-| tie.rs | `tie` | 373 | 187 |  |
+| tie.rs | `shape_below` | 40 | 22 |  |
+| tie.rs | `fields` | 64 | 18 |  |
+| tie.rs | `balanced` | 84 | 12 |  |
+| tie.rs | `pieces` | 99 | 20 |  |
+| tie.rs | `as_model` | 121 | 45 |  |
+| tie.rs | `fits` | 171 | 25 |  |
+| tie.rs | `implemented` | 201 | 12 |  |
+| tie.rs | `words` | 215 | 13 |  |
+| tie.rs | `read` | 230 | 79 |  |
+| tie.rs | `calls` | 314 | 8 |  |
+| tie.rs | `tests` | 350 | 37 |  |
+| tie.rs | `tie` | 388 | 222 |  |
 
 ## mitra-core
 
@@ -94,9 +94,9 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | eval.rs | `binary` | 1501 | 63 | eval::binary |
 | eval.rs | `evaluate` | 1819 | 1301 | verdicts::evaluate |
 | lib.rs | `load` | 78 | 7 | types::load |
-| lib.rs | `read` | 87 | 47 | types::read |
-| lib.rs | `run` | 364 | 3 | verdicts::run |
-| parse.rs | `model` | 3571 | 3 | reader::model |
+| lib.rs | `read` | 87 | 48 | types::read |
+| lib.rs | `run` | 391 | 3 | verdicts::run |
+| parse.rs | `model` | 3585 | 3 | reader::model |
 | plan.rs | `plan` | 17 | 272 | advice::plan |
 | print.rs | `negative` | 101 | 7 | print::negative |
 | print.rs | `level` | 115 | 9 | print::level |
@@ -163,12 +163,13 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | eval.rs | `own_word` | 3494 | 3 |  |
 | lib.rs | `new` | 52 | 6 |  |
 | lib.rs | `fmt` | 61 | 3 |  |
-| lib.rs | `points` | 141 | 84 |  |
-| lib.rs | `determinism` | 231 | 24 |  |
-| lib.rs | `invariants` | 259 | 40 |  |
-| lib.rs | `tie` | 301 | 16 |  |
-| lib.rs | `tie_records` | 320 | 34 |  |
-| lib.rs | `read_evidence` | 357 | 4 |  |
+| lib.rs | `points` | 142 | 84 |  |
+| lib.rs | `determinism` | 232 | 24 |  |
+| lib.rs | `invariants` | 260 | 40 |  |
+| lib.rs | `tie` | 302 | 16 |  |
+| lib.rs | `tie_uses` | 321 | 23 |  |
+| lib.rs | `tie_records` | 347 | 34 |  |
+| lib.rs | `read_evidence` | 384 | 4 |  |
 | next.rs | `next` | 16 | 385 |  |
 | next.rs | `ask` | 391 | 17 |  |
 | next.rs | `vouch` | 410 | 4 |  |
@@ -240,32 +241,32 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | parse.rs | `type_tokens` | 1797 | 15 |  |
 | parse.rs | `enumeration` | 1814 | 35 |  |
 | parse.rs | `items` | 1851 | 243 |  |
-| parse.rs | `function` | 2109 | 100 |  |
-| parse.rs | `sig` | 2216 | 11 |  |
-| parse.rs | `inputs` | 2230 | 27 |  |
-| parse.rs | `claim` | 2260 | 212 |  |
-| parse.rs | `equivalence` | 2494 | 124 |  |
-| parse.rs | `represented` | 2627 | 87 |  |
-| parse.rs | `import` | 2718 | 66 |  |
-| parse.rs | `instance` | 2792 | 92 |  |
-| parse.rs | `evidence` | 2890 | 182 |  |
-| parse.rs | `finish` | 3082 | 176 |  |
-| parse.rs | `requirements` | 3274 | 140 |  |
-| parse.rs | `reliance` | 3428 | 123 |  |
-| parse.rs | `declared` | 3577 | 30 |  |
-| parse.rs | `types_of` | 3612 | 55 |  |
-| parse.rs | `merge_types` | 3670 | 27 |  |
-| parse.rs | `scope_types` | 3701 | 56 |  |
-| parse.rs | `impls` | 3764 | 99 |  |
-| parse.rs | `read` | 3866 | 34 |  |
-| parse.rs | `evidence` | 3902 | 11 |  |
-| parse.rs | `evidence_alone` | 3915 | 43 |  |
-| parse.rs | `free` | 3964 | 60 |  |
-| parse.rs | `unwritten` | 4026 | 6 |  |
-| parse.rs | `records_in` | 4033 | 32 |  |
-| parse.rs | `written` | 4068 | 20 |  |
-| parse.rs | `stamp` | 4091 | 46 |  |
-| parse.rs | `tied` | 4140 | 4 |  |
+| parse.rs | `function` | 2109 | 112 |  |
+| parse.rs | `sig` | 2230 | 11 |  |
+| parse.rs | `inputs` | 2244 | 27 |  |
+| parse.rs | `claim` | 2274 | 212 |  |
+| parse.rs | `equivalence` | 2508 | 124 |  |
+| parse.rs | `represented` | 2641 | 87 |  |
+| parse.rs | `import` | 2732 | 66 |  |
+| parse.rs | `instance` | 2806 | 92 |  |
+| parse.rs | `evidence` | 2904 | 182 |  |
+| parse.rs | `finish` | 3096 | 176 |  |
+| parse.rs | `requirements` | 3288 | 140 |  |
+| parse.rs | `reliance` | 3442 | 123 |  |
+| parse.rs | `declared` | 3591 | 30 |  |
+| parse.rs | `types_of` | 3626 | 55 |  |
+| parse.rs | `merge_types` | 3684 | 27 |  |
+| parse.rs | `scope_types` | 3715 | 56 |  |
+| parse.rs | `impls` | 3778 | 99 |  |
+| parse.rs | `read` | 3880 | 34 |  |
+| parse.rs | `evidence` | 3916 | 11 |  |
+| parse.rs | `evidence_alone` | 3929 | 50 |  |
+| parse.rs | `free` | 3986 | 60 |  |
+| parse.rs | `unwritten` | 4048 | 6 |  |
+| parse.rs | `records_in` | 4055 | 32 |  |
+| parse.rs | `written` | 4090 | 20 |  |
+| parse.rs | `stamp` | 4113 | 46 |  |
+| parse.rs | `tied` | 4162 | 4 |  |
 | plan.rs | `owed` | 79 | 158 |  |
 | plan.rs | `point` | 243 | 6 |  |
 | plan.rs | `subject_call` | 250 | 3 |  |

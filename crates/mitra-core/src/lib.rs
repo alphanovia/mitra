@@ -121,6 +121,7 @@ fn read(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     let read = parse::evidence(evidence, &m, &names).map_err(|e| (Input::Evidence, e))?;
     tie(&mut m, &read, &names);
     tie_records(&mut m, &read);
+    tie_uses(&mut m, &read, &names);
     m.evidence = read;
     points(&mut m);
     invariants(&mut m);
@@ -311,6 +312,32 @@ fn tie(m: &mut Model, evidence: &[Evidence], names: &parse::Names) {
             proved: false,
             trust: None,
             line,
+        });
+    }
+}
+
+/// A function that states no `uses` is taken to call nothing outside its
+/// own subject. The claim exists once a reader of the code speaks of it.
+fn tie_uses(m: &mut Model, evidence: &[Evidence], names: &parse::Names) {
+    for f in &names.opaque {
+        let name = format!("{f}::uses");
+        let spoken = evidence.iter().any(|e| e.about == name);
+        if !spoken || m.claim(&name).is_some() {
+            continue;
+        }
+        m.claims.push(Claim {
+            name,
+            func: f.clone(),
+            pattern: Vec::new(),
+            target: Target::Uses {
+                used: Vec::new(),
+                only: true,
+            },
+            from: Vec::new(),
+            auto: false,
+            proved: false,
+            trust: None,
+            line: m.function(f).map_or(0, |f| f.line),
         });
     }
 }

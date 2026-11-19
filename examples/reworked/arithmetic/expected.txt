@@ -14,10 +14,12 @@ arith::le_transitive: unverified
   no evidence on  (a, b, c) in (Int, Int, Int)
 arith::sum3::spec: unverified
   no evidence on  (a, b, c) in (Int, Int, Int)
+arith::sum3::uses: holds
 arith::sum3::deterministic: unverified
   no evidence on  `arith::sum3` giving one output per input
 arith::between::spec: unverified
   no evidence on  (a, b, c) in (Int, Int, Int)
+arith::between::uses: holds
 arith::between::deterministic: unverified
   no evidence on  `arith::between` giving one output per input
 arith::sum3_swaps: holds assuming [arith::add_commutes, arith::sum3::spec]

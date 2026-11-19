@@ -642,3 +642,31 @@ fn ingest_pins_what_a_test_checks() {
     assert!(out.contains(want), "{out}");
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// A function that states no `uses` calls nothing outside its subject:
+/// the reader says so when the text settles it, and only then.
+#[test]
+fn tie_reports_a_call_the_model_does_not_state() {
+    let model = "subject a { fn f(x: Int) -> Int; fn h(x: Int) -> Int; }\n\
+                 subject b { record R { n: Int } impl R { fn size(&self) -> Int; }\n\
+                 fn g(x: Int) -> Int; fn k(x: Int) -> Int; }";
+    let dir = store("implied", model);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    let code = "// mitra: implements a::f\npub fn f(x: i64) -> i64 { g(x) + h(x) }\n\
+                // mitra: implements a::h\npub fn h(x: i64) -> i64 {\n    let k = |y: i64| y;\n    \
+                k(x) + x.to_string().size() as i64\n}\n\
+                // mitra: implements b::g\npub fn g(x: i64) -> i64 { x }\n\
+                // mitra: implements b::k\npub fn k(x: i64) -> i64 { x }\n\
+                // mitra: implements b::R\npub struct R { pub n: i64 }\n\
+                impl R {\n    // mitra: implements b::R::size\n    pub fn size(&self) -> i64 { self.n }\n}\n";
+    std::fs::write(dir.join("src/lib.rs"), code).unwrap();
+    let (code, out, err) = mitra(&dir, &["tie"]);
+    assert_eq!(code, Some(0), "{err}");
+    let why = "a::f::uses: `f` calls `g`, which is `b::g`, and the model states no `uses`";
+    assert!(out.contains(why), "{out}");
+    // A `let` of the body and a method through a dot settle nothing.
+    assert!(!out.contains("a::h::uses"), "{out}");
+    let (_, out, _) = mitra(&dir, &["eval"]);
+    assert!(out.contains("a::f::uses: fails"), "{out}");
+    let _ = std::fs::remove_dir_all(dir);
+}

@@ -19,6 +19,9 @@ struct Code {
     params: Vec<(String, Option<String>)>,
     result: String,
     body: String,
+    /// The free functions its file defines: a call by one of these names
+    /// is a call to the one beside it.
+    beside: Vec<String>,
 }
 
 /// A `struct` or an `enum` of the code tied to a record of the model.
@@ -232,6 +235,17 @@ fn read(
 ) -> Result<(), String> {
     let lines: Vec<&str> = text.lines().collect();
     let scanned = scan(text);
+    // `fn name` at the start of a line, whatever stands before `fn`.
+    let free = |l: &&str| {
+        let head = l.split("fn ").next().unwrap_or("");
+        let plain = head
+            .split_whitespace()
+            .all(|w| w.starts_with("pub") || w == "const");
+        let name = l[head.len()..].strip_prefix("fn ")?;
+        let end = name.find(|c: char| !c.is_alphanumeric() && c != '_')?;
+        (plain && !l.starts_with(' ')).then(|| name[..end].to_string())
+    };
+    let beside: Vec<String> = lines.iter().filter_map(|l| free(&l)).collect();
     for i in 0..lines.len() {
         let tie = mitra_line(lines[i]).and_then(|m| m.strip_prefix("implements "));
         let Some(implements) = tie.filter(|_| scanned[i].0) else {
@@ -290,6 +304,7 @@ fn read(
             params: params.collect(),
             result,
             body: body.to_string(),
+            beside: beside.clone(),
         });
     }
     Ok(())
@@ -517,6 +532,46 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
             _ => None,
         });
         let Some((claim, used, only)) = uses else {
+            // No `uses`, written or implied by a body: it calls nothing
+            // outside its own subject.
+            let block = |name: &str| name.split_once("::").map_or("", |p| p.0).to_string();
+            let file = |place: &str| place.rsplit_once(':').map_or("", |p| p.0).to_string() + ":";
+            let home = block(&f.name);
+            let own = |d: &Code| {
+                code.iter()
+                    .any(|e| e.name == d.name && block(&e.implements) == home)
+            };
+            // Only what the text settles: a method through a dot may be
+            // any type's, and a name the file defines is its own.
+            let plainly = |d: &Code| match d.params.first() {
+                Some((x, None)) if x == "self" => {
+                    let mut path = d.implements.rsplit("::");
+                    let of = path.nth(1).unwrap_or("");
+                    c.body.contains(&format!("{of}::{}(", d.name))
+                }
+                _ => {
+                    // Its own: a function of the file, or a `let` of the body.
+                    let bound = c.body.contains(&format!("let {} =", d.name));
+                    let beside = c.beside.contains(&d.name);
+                    let local = bound || (beside && !d.place.starts_with(&file(&c.place)));
+                    !local && calls(&c.body.replace(&format!(".{}", d.name), ""), &d.name)
+                }
+            };
+            let outside = code
+                .iter()
+                .find(|d| block(&d.implements) != home && !own(d) && plainly(d));
+            if let Some(d) = outside {
+                let why = format!(
+                    "`{}` calls `{}`, which is `{}`, and the model states no `uses`",
+                    c.name, d.name, d.implements
+                );
+                say(
+                    &mut found,
+                    &format!("{}::uses", f.name),
+                    &c.place,
+                    Some(why),
+                );
+            }
             continue;
         };
         let code_of = |g: &str| code.iter().find(|d| d.implements == g);

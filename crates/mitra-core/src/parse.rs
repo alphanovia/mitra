@@ -2178,6 +2178,20 @@ impl P {
             self.own = None;
             self.locals.clear();
             let body = body?;
+            // No `uses` written: what the body calls of the code and of
+            // the world, and nothing else, is implied.
+            if in_subject && uses.is_none() {
+                let mut used: Vec<String> = Vec::new();
+                for g in crate::ast::calls(&body) {
+                    let code = self.known.opaque.contains(&g) || self.names.opaque.contains(&g);
+                    if code && g != q && !used.contains(&g) {
+                        used.push(g);
+                    }
+                }
+                if !used.is_empty() {
+                    uses = Some((true, used, 1.0));
+                }
+            }
             if in_subject {
                 let spec = format!("{q}::spec");
                 self.names.specified.insert(q.clone(), body_name.clone());
@@ -3922,6 +3936,14 @@ pub fn evidence_alone(src: &str, m: &Model, names: &Names) -> Result<Vec<Evidenc
             .claims
             .insert(format!("{f}::tied"), (Vec::new(), Vec::new()));
         all.insert(format!("{f}::tied"));
+    }
+    // What a function with no `uses` calls outside its block: `for f::uses`.
+    for f in names.opaque.clone() {
+        let uses = format!("{f}::uses");
+        if !names.claims.contains_key(&uses) {
+            names.claims.insert(uses.clone(), (Vec::new(), Vec::new()));
+            all.insert(uses);
+        }
     }
     // And of each record to its struct: `for Record::tied`.
     for r in m.records.iter().filter(|r| r.of.is_none()) {
