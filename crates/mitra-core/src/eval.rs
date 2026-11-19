@@ -2429,7 +2429,16 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 refuted = refuted.union(&Tuples::point(x));
             }
         }
-        let tested = right.minus(wrong).minus(&refuted);
+        // A word for a requirement of a subject, or for a named need, does
+        // not stand in for what it rests on: its claims, its capture, the
+        // promise it names.
+        let rests = model
+            .ensure(&c.name)
+            .is_some_and(|e| !e.boundary || e.needs.is_some());
+        let tested = match rests {
+            true => Tuples::empty(domain.arity()),
+            false => right.minus(wrong).minus(&refuted),
+        };
         let derived = if follows {
             domain.minus(wrong).minus(&tested)
         } else {

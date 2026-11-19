@@ -113,6 +113,9 @@ candidates: the text, the word that the claims say it, the ticket.
     unlikely  evidence.mitra:7 (support:ticket-812)                            0.9    0.90 to 1.00
 ```
 
+Evidence that the requirement holds (`for signup::confirms holds`) says
+nothing: it holds only as far as its claims and its capture.
+
 A subject with an `ensure` and no claim: the requirement is
 `unverified`, and `mitra plan` owes a claim that says it.
 

@@ -719,9 +719,12 @@ impl Writer<'_> {
                 if let Some((line, _)) = p.evidence.first() {
                     *out += &format!("  --> {}\n", self.evidence_at(*line));
                 }
-                *out += &format!(
-                    "\n  On the inputs {inputs} of `{subject}`, these two say opposite things:\n\n"
-                );
+                *out += &match subject.strip_suffix("::prose") {
+                    Some(name) => format!("\n  On `{name}`, these two say opposite things:\n\n"),
+                    None => format!(
+                        "\n  On the inputs {inputs} of `{subject}`, these two say opposite things:\n\n"
+                    ),
+                };
                 self.quoted(p, out);
                 self.ranking(p, out);
                 *out += "\n  note: until this is settled, neither counts for these inputs\n  \

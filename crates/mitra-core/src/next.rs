@@ -16,9 +16,14 @@ const WIDE: usize = 100;
 pub fn next(model: &Model, report: &Report) -> String {
     let mut out = String::new();
     for k in &report.contradictions {
+        // A requirement in prose is named, not the function that holds it.
+        let on = match k.subject.strip_suffix("::prose") {
+            Some(name) => format!("`{name}`"),
+            None => format!("{} of `{}`", k.inputs, k.subject),
+        };
         out += &format!(
-            "evidence lines {} and {} can't both be true, on {} of `{}`: settle them\n",
-            k.pass.0, k.fail.0, k.inputs, k.subject
+            "evidence lines {} and {} can't both be true, on {on}: settle them\n",
+            k.pass.0, k.fail.0
         );
     }
     for r in &report.roots {

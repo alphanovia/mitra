@@ -483,4 +483,25 @@ fn a_requirement_with_no_claim_is_unverified() {
     .unwrap_or_else(|(_, e)| panic!("{e}"))
     .to_text();
     assert!(text.contains("s::power: holds assuming [itself]"), "{text}");
+    // A word straight on a requirement does not stand in for its claims
+    // and its capture.
+    let text = mitra_core::run(
+        "subject s { ensure works = \"It works.\";\nfn f() -> Bool; }",
+        "evidence v { for s::works holds }",
+    )
+    .unwrap_or_else(|(_, e)| panic!("{e}"))
+    .to_text();
+    assert!(
+        text.contains("s::works: holds assuming [s::f::correct, s::works::captured]"),
+        "{text}"
+    );
+    // Evidence against an assumed one names it, not what holds it.
+    let text = mitra_core::run(
+        "subject s { ensure works = \"It works.\";\nrequire power = \"There is power.\"; }",
+        "evidence x { for s::power fails trust 0.8 }",
+    )
+    .unwrap_or_else(|(_, e)| panic!("{e}"))
+    .to_text();
+    assert!(text.contains("On `s::power`, these two"), "{text}");
+    assert!(!text.contains("::prose"), "{text}");
 }
