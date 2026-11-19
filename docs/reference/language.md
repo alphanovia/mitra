@@ -36,6 +36,9 @@ Without a store, name the files: `mitra eval model.mitra
 evidence.mitra`, or the model alone to check it before any evidence
 exists: `mitra check model.mitra`.
 
+For one entry per keyword, each with a model that runs, see
+[keywords.md](keywords.md).
+
 ## Model
 
 ```rust

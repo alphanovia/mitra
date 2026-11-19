@@ -114,6 +114,7 @@ to it.
 | Doc | What it covers |
 |---|---|
 | [docs/reference/language.md](docs/reference/language.md) | Start here: a project start to end, the model, types, expressions, what is not read |
+| [docs/reference/keywords.md](docs/reference/keywords.md) | One entry per keyword, each with a model that runs (`kw-*.md`), and the index |
 | [docs/reference/claims.md](docs/reference/claims.md) | What a claim rests on without evidence, boundaries, `correct(…)`, `represented`, `uniform` |
 | [docs/reference/evidence.md](docs/reference/evidence.md) | Evidence blocks, the tie to the code, tests |
 | [docs/reference/commands.md](docs/reference/commands.md) | The commands, and `mitra plan` |
