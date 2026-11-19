@@ -193,8 +193,11 @@ Combining them gives, for each entry, assumption and subject, a belief
 and a plausibility of being the culprit. Errors print them (section 3);
 a bug query ranks subjects by them.
 
-The trust module (`mitra_lang::trust`, once the crate `mitra-ds`) keeps its role and its dogfooding. What goes away is the mass
-per input (correct, wrong, unknown) that measured the truth of a claim.
+The ranking (`mitra_lang::trust::culprits`) is what runs. The mass per
+input (correct, wrong, unknown) that measured the truth of a claim, with
+Dempster's and Yager's rules on it, was never called by the evaluation
+and was removed on 2026-11-19; it comes back when the trust model asks
+for it.
 
 *Proposed:* the properties the ranking must satisfy. Each becomes a
 test, and later a proof.

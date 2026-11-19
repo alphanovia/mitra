@@ -1,0 +1,35 @@
+// Test reports: libtest's text and JUnit's XML (src/report.rs).
+//
+// A report reaches this code as text: reading the file is the caller's.
+
+import std::rust::{Option, Result};
+
+subject report {
+    ensure reads_results = "Every test in a cargo test or JUnit report is read, with its name and whether it passed.";
+
+    // One test of a report, and whether it passed.
+    record Outcome {
+        name: String,
+        passed: bool,
+    }
+
+    // The name of a test without its module path.
+    fn short(path: String) -> String;
+
+    // A short name is already short.
+    claim short_once(path) {
+        short(short(path)) == short(path)
+    }
+
+    fn libtest(text: String) -> Vec<Outcome>
+        uses only short;
+
+    // The value of an attribute in an XML tag.
+    fn attr(tag: String, attr: String) -> Option<String>;
+
+    // The text without what stands between `open` and `close`.
+    fn strip(text: String, open: String, close: String) -> String;
+
+    fn junit(xml: String) -> Vec<Outcome>
+        uses only strip, attr, short;
+}

@@ -11,8 +11,19 @@ fn examples() {
     for entry in fs::read_dir(root).unwrap() {
         let dir = entry.unwrap().path();
         let read = |f: &str| fs::read_to_string(dir.join(f)).unwrap();
-        mitra_lang::parse::imports_from(Some(&dir));
-        let report = mitra_lang::run(&read("model.mitra"), &read("evidence.mitra"))
+        // The test does the work of mitra-store: it reads the modules the
+        // model imports and hands them over.
+        let model = read("model.mitra");
+        let mut handed = mitra_lang::Handed::default();
+        for name in mitra_lang::parse::imports(&model) {
+            let file = format!("{}.mitra", name.replace("::", "/"));
+            handed.modules.insert(name, read(&file));
+        }
+        let name = "model.mitra".to_string();
+        let files = vec![mitra_lang::Module { name, text: model }];
+        let model = mitra_lang::Modules::new(files, handed);
+        let report = mitra_lang::load_modules(&model, &read("evidence.mitra"))
+            .and_then(|m| mitra_lang::evaluate(&m))
             .unwrap_or_else(|(_, e)| panic!("{}: {e}", dir.display()));
         if std::env::var("MITRA_RECORD").is_ok() {
             fs::write(dir.join("expected.txt"), report.to_text()).unwrap();
@@ -403,17 +414,18 @@ fn a_function_of_a_subject_is_claimed_correct() {
 /// What an unnamed subject or boundary holds is imported by its name.
 #[test]
 fn import_reaches_into_unnamed_blocks() {
-    let dir = std::env::temp_dir().join(format!("mitra-unnamed-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
     let lib = "subject fn div(a: 0..=4, b: 1..=2) -> 0..=4;\n\
                subject { fn half(x: 0..=4) -> 0..=2;\nfn other() -> Int;\n\
                claim half_small(x) { half(x) <= 2 } }\n\
                boundary { fn now() -> Int; }";
-    std::fs::write(dir.join("lib.mitra"), lib).unwrap();
-    mitra_lang::parse::imports_from(Some(&dir));
+    let mut handed = mitra_lang::Handed::default();
+    handed.modules.insert("lib".into(), lib.into());
     let m = "import lib::{div, half, half_small, now};\n\
              claim t() { div(4, 2) == half(4) + now() }";
-    let model = mitra_lang::load(m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
+    let name = "m".to_string();
+    let text = m.to_string();
+    let files = mitra_lang::Modules::new(vec![mitra_lang::Module { name, text }], handed);
+    let model = mitra_lang::load_modules(&files, "").unwrap_or_else(|(_, e)| panic!("{e}"));
     let names: Vec<&str> = model.claims.iter().map(|c| c.name.as_str()).collect();
     assert_eq!(
         names,
@@ -427,7 +439,6 @@ fn import_reaches_into_unnamed_blocks() {
         ]
     );
     assert_eq!(model.boundaries, ["now"]);
-    let _ = std::fs::remove_dir_all(dir);
 }
 
 /// A requirement in prose holds as far as the claims of its subject,
@@ -921,7 +932,7 @@ fn a_sample_covers_nothing_and_can_refute() {
     // Written back as read.
     let (model, _) = mitra_lang::parse::model(m).unwrap();
     let e = "evidence e { for halves given a in small sampled 7 fails source \"x\" }\n";
-    let read = mitra_lang::read_evidence(m, e).unwrap();
+    let read = mitra_lang::read_evidence(&mitra_lang::Modules::alone(m), e).unwrap();
     assert_eq!(mitra_lang::print::print_evidence(&read, Some(&model)), e);
 }
 

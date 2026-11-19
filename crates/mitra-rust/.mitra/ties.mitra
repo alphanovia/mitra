@@ -1,0 +1,45 @@
+// Comparing tied code with the model (src/tie.rs).
+
+import std::rust::{Option, Result};
+
+// A folder: Rust's own `std::path::Path`.
+record Path;
+
+// A model: mitra-lang's, stated in its own model. A record does not
+// cross stores.
+record Model;
+
+subject ties {
+    require code_read = code::reads_what_is_there;
+    require right_revision = code::is_the_revision_named;
+    require comments_found = source::finds_ties;
+
+    ensure compares_shape = "A function or a record of the model tied to code is compared with it: inputs, result and fields. What agrees and what differs is brought as evidence on its tie.";
+    ensure compares_calls = "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it.";
+    ensure says_what_it_did_not_compare = "What the reader could not compare is written in the evidence it brings.";
+    ensure reads_only = "The code is read as text: it is never built, run or changed.";
+
+    // What the reader found: evidence lines, and what it prints.
+    record Found {
+        evidence: Vec<String>,
+        notes: Vec<String>,
+        agree: usize,
+        differ: usize,
+    }
+
+    // A test tied to a claim, with what its comment pins.
+    record Tied {
+        test: String,
+        claim: String,
+        pinned: String,
+        place: String,
+    }
+
+    // Every test of `src/` and `tests/` tied to a claim.
+    fn tests(root: Path) -> Result<Vec<Tied>, String>
+        uses code::read_to_string, code::read_dir;
+
+    // Compare the code under `root` with the model.
+    fn tie(root: Path, model: Model, rev: Option<String>) -> Result<Found, String>
+        uses code::read_to_string, code::read_dir;
+}

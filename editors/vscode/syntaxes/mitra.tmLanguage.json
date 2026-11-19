@@ -1,0 +1,124 @@
+{
+  "name": "Mitra",
+  "scopeName": "source.mitra",
+  "fileTypes": ["mitra"],
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#declaration" },
+    { "include": "#evidence" },
+    { "include": "#control" },
+    { "include": "#constant" },
+    { "include": "#type" },
+    { "include": "#builtin" },
+    { "include": "#path" },
+    { "include": "#call" },
+    { "include": "#operator" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.double-slash.mitra",
+      "match": "//.*$"
+    },
+    "string": {
+      "name": "string.quoted.double.mitra",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [{ "name": "constant.character.escape.mitra", "match": "\\\\." }]
+    },
+    "number": {
+      "name": "constant.numeric.mitra",
+      "match": "\\b\\d+(\\.\\d+)?\\b"
+    },
+    "declaration": {
+      "patterns": [
+        {
+          "match": "\\b(subject|boundary)\\s+(?!fn\\b)([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mitra" },
+            "2": { "name": "entity.name.namespace.mitra" }
+          }
+        },
+        {
+          "match": "\\b(fn|claim|assume)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mitra" },
+            "2": { "name": "entity.name.function.mitra" }
+          }
+        },
+        {
+          "match": "\\b(record|enum|impl)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mitra" },
+            "2": { "name": "entity.name.type.mitra" }
+          }
+        },
+        {
+          "match": "\\b(ensure|require)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mitra" },
+            "2": { "name": "entity.name.tag.mitra" }
+          }
+        },
+        {
+          "match": "\\b(evidence)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mitra" },
+            "2": { "name": "entity.name.section.mitra" }
+          }
+        },
+        {
+          "name": "keyword.declaration.mitra",
+          "match": "\\b(subject|boundary|fn|claim|assume|record|enum|impl|ensure|require|evidence|import|test)\\b"
+        },
+        {
+          "name": "keyword.other.mitra",
+          "match": "\\b(uses|only|trust|when|given|then)\\b"
+        }
+      ]
+    },
+    "evidence": {
+      "name": "keyword.other.evidence.mitra",
+      "match": "\\b(for|holds|fails|passes|gives|sampled|source|rev)\\b"
+    },
+    "control": {
+      "name": "keyword.control.mitra",
+      "match": "\\b(if|else|match|let|in|is|all|any|map|filter)\\b"
+    },
+    "constant": {
+      "patterns": [
+        { "name": "constant.language.mitra", "match": "\\b(true|false|None)\\b" },
+        { "name": "variable.language.mitra", "match": "\\b(self|Self|_)\\b" }
+      ]
+    },
+    "type": {
+      "patterns": [
+        {
+          "name": "support.type.mitra",
+          "match": "\\b(Bool|Int|Int8|Int16|Int32|Int64|UInt8|UInt16|UInt32|Float64|Real|String|Any|Set|Map|List|Vec|Option|Result|bool|i8|i16|i32|i64|u8|u16|u32|u64|usize|f64)\\b"
+        },
+        { "name": "entity.name.type.mitra", "match": "\\b[A-Z][A-Za-z0-9_]*\\b" }
+      ]
+    },
+    "builtin": {
+      "name": "support.function.mitra",
+      "match": "\\b(correct|deterministic|uniform|represented|len|keys|rate|precision|recall|false_positive_rate|commutative|associative|idempotent|neutral|inverse|monotone|within)\\b"
+    },
+    "path": {
+      "match": "\\b([a-z_][A-Za-z0-9_]*)(::)",
+      "captures": {
+        "1": { "name": "entity.name.namespace.mitra" },
+        "2": { "name": "punctuation.separator.namespace.mitra" }
+      }
+    },
+    "call": {
+      "match": "\\b([a-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+      "captures": { "1": { "name": "entity.name.function.call.mitra" } }
+    },
+    "operator": {
+      "name": "keyword.operator.mitra",
+      "match": "<=>|\\.\\.=|\\.\\.|=>|->|==|!=|<=|>=|&&|\\|\\||[-+*/!|&\\\\<>=@]"
+    }
+  }
+}

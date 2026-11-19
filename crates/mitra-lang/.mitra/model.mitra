@@ -1,210 +1,67 @@
-// mitra-lang as Mitra sees it: the model, aside from the code.
+// mitra-lang as Mitra sees it. Start here.
 //
-// The code is in src/. A comment `// mitra: implements eval::unary`
-// above a `fn` ties it to a function here, and `mitra tie` checks that
-// the two agree. The points the tests pin are in points.mitra.
+// The model is aside from the code (src/), one file per subject. Each
+// file reads alone: it says what its subject promises (`ensure`), what
+// it needs (`require`), then the records, functions and claims that
+// serve those promises, and nothing else.
 //
-// Each subject says what it promises (`ensure`), what it needs
-// (`require`), then only the functions and claims that serve those.
-// Records state only the fields a claim reads; `..` and `record R;`
-// leave the rest to the code. A Rust `Value` is the type `Any`.
+// What a model is made of, in reading order:
+//   functions.mitra   a function: code, spec, helper, world
+//   claims.mitra      a claim, an assumption, `uses`, the implied claims
+//   intent.mitra      an `ensure`, a `require`, the capture between prose and claims
+//   ledger.mitra      evidence: pinned, passes, sampled, vouched
+//   model.mitra       the model that holds them (this file)
+//
+// What Mitra does with one:
+//   modules.mitra     what it is handed: named texts, never a disk
+//   reader.mitra      from text to a model
+//   types.mitra       what a model must satisfy before anything is judged
+//   verdicts.mitra    from a model and its evidence to verdicts
+//   report.mitra      the pieces that can be wrong, and the words printed
+//   culprits.mitra    how the pieces of a conflict are ranked
+//   advice.mitra      the evidence still owed
+//   operators.mitra   the operators of the language
+//   print.mitra       printing values back
+//   points.mitra      the single calls the unit tests pin
+//
+// A comment `// mitra: implements model::Model` above a `struct` or a
+// `fn` ties it to a record or a function here, and `mitra tie` checks
+// that the two agree. A record states only the fields a claim reads:
+// `..` and `record R;` leave the rest to the code. A Rust `Value` is the
+// type `Any`.
+//
+// mitra-lang has no boundary: it reads no file, no clock and no network
+// (modules.mitra says so). The disk is in mitra-store's model.
 
-// Rust's own, which the code uses.
-import std::claims::{uniform};
 import std::rust::{Option, Result};
 
-subject eval {
-    ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
-    // An operator of one value. `None` when it does not apply to the value.
-    fn unary(op: String, v: Any) -> Option<Any>;
+subject model {
+    ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
+    ensure world_apart = "The functions of the environment are listed apart from the code under review.";
 
-    // The operators of specs, stated with the operators of specs: each
-    // side is computed by this code, the tests give the outputs.
-    claim not_is(v: bool) { unary("!", v) == Some(!v) }
-    claim twice_negated(v: Int) {
-        match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) }
+    record Model {
+        functions: Vec<functions::Function>,
+        claims: Vec<claims::Claim>,
+        ensures: Vec<intent::Ensure>,
+        evidence: Vec<ledger::Evidence>,
+        // The functions written in a boundary, by name.
+        boundaries: Vec<String>,
+        ..
     }
 
-    // An operator of two values.
-    fn binary(op: String, x: Any, y: Any) -> Option<Any>;
-
-    claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
-    claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
-    claim minus_is_plus_negated(x: Int, y: Int) {
-        match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) }
-    }
-    claim different_is_not_equal(x, y) {
-        match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) }
-    }
-    claim union_commutes(x: Set<Int>, y: Set<Int>) { binary("|", x, y) == binary("|", y, x) }
-    // What is left of x without y has nothing of y.
-    claim difference_apart(x: Set<Int>, y: Set<Int>) {
-        match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) }
-    }
-    claim divides_back(x: Int, y: Int \ {0}) {
-        match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) }
-    }
-}
-
-subject print {
-    ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
-    // A string as a spec writes it, with its quotes and escapes.
-    fn quote(s: String) -> String;
-    // Whether a value prints with a minus sign.
-    fn negative(v: Any) -> bool;
-    // `Any` hides the type: a spec can't ask whether `v` is a number.
-    claim negative_ints(v: Int) { negative(v) == (v < 0) }
-
-    // How tightly an operator binds: the printer adds parentheses from it.
-    fn level(op: String) -> u8 {
-        if op == "||" { 1 }
-        else if op == "&&" { 2 }
-        else if op in {"+", "-", "|", "\\"} { 4 }
-        else if op in {"*", "/", "&"} { 5 }
-        else { 3 }
-    }
-    // One class per level.
-    claim level_uniform = uniform(level, |op| -> 1..=5 { level(op) });
-}
-
-// From text to a model (src/parse.rs).
-subject reader {
-    ensure reads = "A model written as the language reference says is read.";
-    ensure refuses = "A text that is not a model is refused, with the line of the fault and what is wrong.";
-    // A fault in a text, with its line.
-    record Error { line: usize, message: String }
-    // What the reader keeps of names: nothing of it is read here.
-    record Names;
-    record Claim { name: String, .. }
-    record Model { claims: Vec<Claim>, .. }
-    fn model(src: String) -> Result<(Model, Names), Error>;
-
-    claim fault_is_placed(src: String) {
-        match model(src) { Ok(read) => true, Err(e) => e.line >= 1 && e.message != "" }
-    }
-    claim reads_a_subject() { model("subject fn f() -> Bool;") is Ok }
-    claim refuses_a_bare_fn() { model("fn f() -> Bool;") is Err }
-}
-
-// What a model must satisfy before anything is judged (src/ast.rs, src/lib.rs).
-subject types {
-    require read_first = reader::reads;
-    ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
-    ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts.";
-    ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
-    // Which text a fault is in.
-    record Input;
-    impl Model {
-        fn check(self) -> Result<Self, (Input, Error)>;
-    }
-    fn read(model: String, evidence: String) -> Result<Model, (Input, Error)>
-        uses reader::model, Model::check;
-    fn load(model: String, evidence: String) -> Result<Model, (Input, Error)> uses read;
-
-    claim good_is_read() { load("subject fn f() -> Bool;", "") is Ok }
-    claim unknown_is_refused() { load("claim c() { g() }", "") is Err }
-    claim twice_is_refused() { load("subject fn f() -> Bool; subject fn f() -> Bool;", "") is Err }
-    claim arity_is_refused() { load("subject fn f(a: Int) -> Bool; claim c() { f(1, 2) }", "") is Err }
-    claim endless_is_refused() { load("fn f(a: Int) -> Int { g(a) } fn g(a: Int) -> Int { f(a) }", "") is Err }
-}
-
-// From a model and its evidence to verdicts (src/eval.rs, src/prove.rs).
-subject verdicts {
-    require checked = types::fits;
-    require computed = eval::computes;
-    ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
-    ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
-    ensure fails_is_shown = "A claim fails only where evidence or the model itself shows it, or because something it rests on fails.";
-    ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
-    ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
-    ensure follows = "A claim said to follow from other claims is true whenever they are.";
-    ensure never_runs = "No code is run: the same model and evidence always give the same report.";
-    // What a claim's verdict says.
-    enum Logic { Holds, Assuming, Unverified, Fails }
-    // An error of a report: nothing of it is read here.
-    record Problem;
-    record Verdict { claim: String, logic: Logic, .. }
-    record Report { verdicts: Vec<Verdict>, problems: Vec<Problem>, .. }
-    fn evaluate(model: Model) -> Result<Report, (Input, Error)>;
-    fn derive(model: Model);
-    fn run(model: String, evidence: String) -> Result<Report, (Input, Error)> uses types::load, evaluate;
-
-    // What `never_runs` stands on, under its own name.
-    claim same_report = deterministic(run);
-
-    claim one_verdict_each(m: Model) {
-        match evaluate(m) {
-            Err(e) => true,
-            Ok(r) => len(r.verdicts) == len(m.claims),
-        }
-    }
-    claim untested_is_unverified() {
-        match run("subject fn f() -> Bool;", "") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Unverified, Unverified] }
-    }
-    claim tested_holds() {
-        match run("subject fn f() -> Bool;", "evidence a { for f holds }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds, Unverified] }
-    }
-    claim refuted_fails() {
-        match run("subject fn f() -> Bool;", "evidence a { for f fails }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Fails, Unverified] }
-    }
-    claim trust_changes_no_verdict() {
-        match run("subject fn f() -> Bool;", "evidence a { for f holds trust 0.1 }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds, Unverified] }
-    }
-    claim conflict_counts_for_neither() {
-        match run("subject fn f() -> Bool;", "evidence a { for f holds } evidence b { for f fails }") {
+    // holds_everything
+    claim nothing_written_nothing_held() {
+        match types::load("", "") {
             Err(e) => false,
-            Ok(r) => len(r.problems) == 1 && map(v in r.verdicts, v.logic) == [Unverified, Unverified],
-        }
-    }
-    claim follows_from_a_vouched_claim() {
-        match run("subject fn add(a: Int, b: Int) -> Int; claim c(a: Int, b: Int) { add(a, b) == add(b, a) } claim d(a: Int, b: Int) { add(b, a) == add(a, b) }", "evidence r { for c holds }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds, Holds, Unverified, Unverified] }
-    }
-}
-
-subject report {
-    // A piece that may be the wrong one: everything is a suspect. Rust's
-    // variants hold unnamed values; the field names are the model's.
-    enum Piece {
-        Evidence(line: usize),        // a piece of evidence someone brought
-        Code(subject: String),        // the code of a function
-        Claim(name: String),          // the statement of a claim
-        Signature(function: String),  // the inputs and result type of a function
-        Assumption(name: String),     // an `assume`, taken as true
-        Uses(function: String),       // the `uses` clause of a function
-        Requirement(name: String),    // the text of an `ensure`
-        Capture(name: String),        // that the claims say what that text says
-        Helper(name: String),         // a helper of the model, as a definition
-        Tie(function: String)         // that a function and its code agree
-    }
-
-    // A piece, how much it must be wrong and how much it can be.
-    record Candidate { piece: Piece, belief: f64, plausibility: f64 }
-    ensure words = "A verdict and a candidate are printed with the word the reference gives them.";
-    impl Logic {
-        fn as_str(self) -> String {
-            match self {
-                Holds => "holds",
-                Assuming => "holds assuming",
-                Unverified => "unverified",
-                Fails => "fails",
-            }
+            Ok(m) => len(m.functions) == 0 && len(m.claims) == 0 && len(m.ensures) == 0 && len(m.evidence) == 0,
         }
     }
 
-    // The word a ranking prints beside a candidate.
-    fn word(c: Candidate) -> String {
-        if c.belief >= 0.995 { "certain" }
-        else if c.belief >= 0.5 { "likely" }
-        else if c.plausibility >= 0.5 { "possible" }
-        else { "unlikely" }
+    // world_apart
+    claim world_is_listed() {
+        match types::load("boundary fn now() -> Int; subject fn f() -> Int;", "") {
+            Err(e) => false,
+            Ok(m) => m.boundaries == ["now"],
+        }
     }
-    // One class per word.
-    claim word_uniform = uniform(word, |c| -> {"certain", "likely", "possible", "unlikely"} { word(c) });
-}
-
-// What to do next (src/plan.rs).
-subject advice {
-    require judged = verdicts::one_each;
-    ensure owed = "For each claim that does not hold yet, the evidence that would settle it is listed.";
-    fn plan(model: Model, report: Report) -> String;
 }

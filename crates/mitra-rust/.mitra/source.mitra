@@ -1,0 +1,14 @@
+// The comments of a Rust file that tie its code to the model
+// (src/source.rs).
+
+import std::rust::{Option, Result};
+
+subject source {
+    ensure finds_ties = "A tie comment in Rust code is found, with the name of the function or test written below it.";
+
+    // The text after `mitra:` in a comment line.
+    fn mitra_line(line: String) -> Option<String>;
+
+    // The name of the `fn` that the code starts with.
+    fn fn_below(code: String) -> Option<String>;
+}

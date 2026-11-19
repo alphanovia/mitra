@@ -322,6 +322,7 @@ fn calls(body: &str, name: &str) -> bool {
 }
 
 /// What the reader found: evidence lines, and what it prints.
+// mitra: implements ties::Found
 pub struct Found {
     pub evidence: Vec<String>,
     pub notes: Vec<String>,
@@ -335,6 +336,7 @@ pub struct Found {
 /// does not. The comment may pin what the test checks, with the clauses
 /// of an evidence block: `evidence for math::div given a = 6, b = 3
 /// gives 2`. Without them, on a claim with inputs, a pass only `passes`.
+// mitra: implements ties::Tied
 pub struct Tied {
     /// The name of the test function.
     pub test: String,
@@ -347,6 +349,7 @@ pub struct Tied {
 }
 
 /// Every test of `src/` and `tests/` tied to a claim.
+// mitra: implements ties::tests
 pub fn tests(root: &Path) -> Result<Vec<Tied>, String> {
     let mut files = Vec::new();
     for d in ["src", "tests"] {
@@ -385,6 +388,7 @@ pub fn tests(root: &Path) -> Result<Vec<Tied>, String> {
     Ok(out)
 }
 
+// mitra: implements ties::tie
 pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, String> {
     let mut files = Vec::new();
     for d in ["src", "tests"] {
@@ -572,13 +576,16 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
             };
             // Only what the text settles: a method through a dot may be
             // any type's, and a name the file defines is its own.
-            let plainly = |d: &Code| match d.params.first() {
-                Some((x, None)) if x == "self" => {
-                    let mut path = d.implements.rsplit("::");
-                    let of = path.nth(1).unwrap_or("");
-                    c.body.contains(&format!("{of}::{}(", d.name))
-                }
-                _ => {
+            // The type a function is written in, `Modules` for
+            // `modules::Modules::new`: it is then called as `Modules::new(`,
+            // with or without `self`.
+            let of_type = |d: &Code| {
+                let of = d.implements.rsplit("::").nth(1).unwrap_or("");
+                of.starts_with(char::is_uppercase).then(|| of.to_string())
+            };
+            let plainly = |d: &Code| match of_type(d) {
+                Some(of) => c.body.contains(&format!("{of}::{}(", d.name)),
+                None => {
                     // Its own: a function of the file, or a `let` of the body.
                     let bound = c.body.contains(&format!("let {} =", d.name));
                     let beside = c.beside.contains(&d.name);

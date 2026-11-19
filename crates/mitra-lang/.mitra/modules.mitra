@@ -1,0 +1,47 @@
+// What Mitra is handed (src/modules.rs).
+//
+// A model reaches mitra-lang as named texts: its files, and the modules
+// they import. mitra-lang reads no disk: finding the files and reading
+// them is mitra-store's work. So this crate has no boundary.
+
+import std::rust::{Option, Result};
+
+subject modules {
+    ensure handed_only = "mitra-lang reads nothing but what it is handed: an import of a module that was not handed is an error at its line, never a file it goes to read.";
+    ensure faults_name_their_file = "A line of the model is given back as the file it was handed in and its line there.";
+    ensure order_is_not_the_writer_s = "The files of a model are read so that a type is declared above its use, whatever the files are called.";
+
+    // One file, as text.
+    record Module {
+        name: String,
+        text: String,
+    }
+
+    // The modules that can be imported. Nothing of it is read here.
+    record Handed;
+
+    // The files of one model, with what they may import.
+    record Modules;
+
+    impl Modules {
+        // A model in one text, called `model`, importing nothing but `std`.
+        fn alone(text: String) -> Self;
+        fn new(files: Vec<Module>, handed: Handed) -> Self;
+        // A line of the whole model, as `file:line`.
+        fn place(&self, line: usize) -> String;
+    }
+
+    // handed_only
+    claim unknown_module_is_refused() {
+        types::load("import lib::thing;", "") is Err
+    }
+
+    // faults_name_their_file
+    claim line_is_placed() {
+        Modules::alone("subject fn f() -> Bool;\nsubject fn g() -> Bool;").place(2) == "model:2"
+    }
+
+    // order_is_not_the_writer_s rests on `Modules::new` being correct: a
+    // value of `Handed` can't be written here, so no call of it is pinned.
+    // The test `a_type_is_read_before_its_use` (tests/model.rs) checks it.
+}

@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 /// Expressions of the spec language: a small, pure, first-order core.
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements functions::Expr
 pub enum Expr {
     Lit(Value),
     Var(String),
@@ -100,6 +101,7 @@ impl Record {
 /// A function: the code under review (observed) when `body` is `None`, a
 /// `spec` (a definition Mitra evaluates) otherwise.
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements functions::Function
 pub struct Function {
     pub name: String,
     /// Each parameter with its type: the set of values it accepts.
@@ -181,7 +183,7 @@ pub const MAX_CLASSES: f64 = 64.0;
 
 /// `claim name(a: S, …) { correct(f(args)) }`, `{ f(args) == e }`, any
 /// expression with a Bool value, or `claim name = uniform(f, g);`
-// mitra: implements reader::Claim
+// mitra: implements claims::Claim
 #[derive(Debug, Clone, PartialEq)]
 pub struct Claim {
     pub name: String,
@@ -228,6 +230,7 @@ pub enum Judgment {
 
 /// `evidence name { for target given … holds|fails|gives v trust t }`
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements ledger::Evidence
 pub struct Evidence {
     /// A subject, or a claim for `holds`/`fails`.
     pub about: String,
@@ -248,8 +251,11 @@ pub enum Decl {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-// mitra: implements reader::Model
+// mitra: implements model::Model
 pub struct Model {
+    /// How each record prints, kept for [`Model::named`]: the number of
+    /// records it was worked out for, and the texts.
+    wholes: std::cell::RefCell<(usize, std::rc::Rc<Vec<(String, String)>>)>,
     /// The claims on determinism: the claim, its function, and whether
     /// it says the same input always gives the same output (`false`:
     /// that it may not, `!deterministic(f)`).
@@ -309,6 +315,7 @@ pub struct Lint {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements intent::Ensure
 pub struct Ensure {
     pub name: String,
     pub prose: String,
@@ -358,6 +365,25 @@ impl Model {
         self.recursive.is_empty() || deep.is_none_or(|s| s.conforms(v, &self.recursive))
     }
 
+    /// Each record's whole set as it prints, the records declared above
+    /// it written by name, with its name. Worked out once for the records
+    /// there are: a record of records prints long.
+    fn wholes(&self) -> std::rc::Rc<Vec<(String, String)>> {
+        let mut kept = self.wholes.borrow_mut();
+        if kept.0 != self.records.len() {
+            let mut all: Vec<(String, String)> = Vec::new();
+            for r in self.records.iter().filter(|r| r.of.is_none()) {
+                // In the order declared, as each was written when read.
+                let whole = all
+                    .iter()
+                    .fold(r.set().to_string(), |t, o| t.replace(&o.0, &o.1));
+                all.push((whole, r.name.clone()));
+            }
+            *kept = (self.records.len(), std::rc::Rc::new(all));
+        }
+        kept.1.clone()
+    }
+
     /// `text` with each record's whole set, `Number(Int, String)`, written
     /// as its name. Both read back as the same set.
     pub fn named(&self, text: &str) -> String {
@@ -368,16 +394,10 @@ impl Model {
             out = out.replace(set, written);
             out = out.replace(&format!("({written}) \\"), &format!("{written} \\"));
         }
-        for r in self.records.iter().filter(|r| r.of.is_none()) {
-            let whole = self
-                .records
-                .iter()
-                .take_while(|o| o.name != r.name)
-                .filter(|o| o.of.is_none())
-                .fold(r.set().to_string(), |t, o| {
-                    t.replace(&o.set().to_string(), &o.name)
-                });
-            out = out.replace(&whole, &r.name);
+        for (whole, name) in self.wholes().iter() {
+            if out.contains(whole.as_str()) {
+                out = out.replace(whole.as_str(), name);
+            }
         }
         // The names Mitra gives to a body and to classes written inline
         // are not shown: the function, the claim.

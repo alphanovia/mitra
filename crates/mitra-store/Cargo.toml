@@ -1,0 +1,9 @@
+[package]
+name = "mitra-store"
+description = "What Mitra keeps on disk: finds and reads the files of a model and its ledger, and hands them to mitra-lang."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mitra-lang = { path = "../mitra-lang" }

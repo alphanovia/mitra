@@ -13,27 +13,24 @@ judges it from its own test runs. If the verdicts help while the
 crate is built and maintained, that is the first sign Mitra is useful.
 
 **What exists.** The model is aside from the code, in each crate's
-`.mitra/model.mitra` (point claims, where a crate keeps some, in
-`.mitra/points.mitra`), in the
-[language](../reference/language.md), with the same types as the
-Rust code: `Mass` is a record, `Option` and `Result` are enums, a `Vec`
-is a list. The code keeps one comment per modelled function,
-`// mitra: implements mass::Mass::judged`, and `mitra tie` checks that the two
-agree (inputs, result, calls). Each modelled function sits in a subject
-named after its module, with a body where a spec can be written
-(`dempster`, `yager`, `judged`, `is_valid`, `conflict`), a `uniform`
-claim whose classes follow the branches of its code, and claims that
-relate functions to each other (`yager` reports the conflict `conflict`
-computes; Dempster's rule is Yager's renormalised). One point claim per
-unit test gives its input and the output it checks, and the test names
-it: `// mitra: evidence for t_judged_correct`. The ranking of
-culprits (`rank`) has its types and its tests in the model, and no spec.
+`.mitra/` folder, one file per subject, starting at `model.mitra`, in the
+[language](../reference/language.md), with the same types as the Rust
+code: a struct is a record, `Option` and `Result` are enums, a `Vec` is
+a list. The code keeps one comment per modelled function or struct,
+`// mitra: implements claims::Claim`, and `mitra tie` checks that the two
+agree (fields, inputs, result, calls). Each subject says what it promises
+(`ensure`), what it needs (`require`), then the records, functions and
+claims that serve those. A test names the claim it checks:
+`// mitra: evidence for ledger::vouched_holds`.
 
-Two crates have a store: `mitra-lang` (the language: reader, types,
-evaluation, and the trust calculus in `.mitra/trust.mitra`, every
-public function of it) and `mitra-rust` (the readers of test reports
-and of `mitra:` lines; not the reader of ties). `mitra-cli` has none:
-it is one consumer of the two. Most of
+The four crates have a store. `mitra-lang` models what a model is
+(function, claim, intent, evidence, the model itself), then what Mitra
+does with one (reader, checks, verdicts, report, ranking of culprits);
+it has no boundary, since it reads no file. `mitra-store` models the
+files of a model and the ledger file, behind the boundary `disk`.
+`mitra-rust` models the readers of test reports and of ties, behind the
+boundary `code`. `mitra-cli` models what the caller is taken to say
+(boundary `caller`) and the check of a revision. Most of
 `mitra-lang` is not modelled: its types are recursive (`Expr`, `Set`) or
 its functions keep state. The gaps are listed in the review list
 (2026-11-18, increment 22).
@@ -77,7 +74,7 @@ subject set {
 
 with `// mitra: implements set::union` above the Rust function, and
 evidence from the Rust tests and, later, Verus. The first slice exists
-in `crates/mitra-lang/.mitra/model.mitra`.
+in `crates/mitra-lang/.mitra/operators.mitra`.
 
 Self-hosting the parser is not tried: specs are total, and recursion is
 structural only. What applies now is **bootstrapping

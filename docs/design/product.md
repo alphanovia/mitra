@@ -139,10 +139,64 @@ evidence like any other.
 
 ## Crates
 
-`mitra-lang` (the language and its evaluation), `mitra-rust` (the
-reader of Rust code and test reports), `mitra-cli`. A judge crate is
-separated only "when we prove it" (the user). What the split showed is
-in the review list (increment 66).
+On main:
+
+| Crate | Holds | Touches |
+|---|---|---|
+| `mitra-lang` | the language and its evaluation, with the ranking of culprits | nothing: it is handed named texts and reads no file |
+| `mitra-store` | everything Mitra keeps on disk: the model files, the files they import, the ledger | the file system |
+| `mitra-rust` | the reader of Rust code and of test reports | the Rust files |
+| `mitra-cli` | the commands | arguments, the terminal |
+
+`mitra-lang` is pure so that it can be proven: "better for proving it if
+there is no IO" (the user). A judge crate is separated only "when we
+prove it" (the user). What the splits showed is in the review list
+(increments 66 and 68).
+
+The trust calculus on one question (`Mass`, Dempster's and Yager's
+rules) was never called by the evaluation. The user, 2026-11-19: "let's
+remove the dead code, and I'll work with you on the trust model, and
+calculus will come back when we need it from the model." It is removed;
+`culprits::rank` is what runs.
+
+## Where the build file lives (proposed, not confirmed)
+
+The coordinator's answer to the user's question, not built:
+
+- `mitra-lang`: the content of a compiled model (pieces, types, links,
+  fingerprints) and its text form. Pure.
+- `mitra-store`: writing and reading `.mitra/build/`, and noticing that
+  it is older than the model.
+- `mitra-cli`: the `mitra build` command and what it prints.
+
+The fingerprint is computed in `mitra-lang` from what a piece means, not
+from the bytes of its file: reformatting or a comment does not make
+evidence look stale.
+
+## Keeping the ledger (agreed in outline, details to settle)
+
+The user does not want an append-only ledger: "if the model changes a
+lot, some evidence doesn't mean anything anymore. You don't want to keep
+a big ledger of noise". The outline, approved 2026-11-19 ("lgtm, we will
+work out the details later"):
+
+- Nothing leaves the ledger without being shown.
+- Evidence observed by a machine (ties, test results, samples) is a
+  snapshot of one revision: each run writes it again, and the report
+  says what was replaced.
+- Evidence said by a person (a vouch, a review, a bug report) is never
+  dropped silently. When its piece is gone or was reworded it is listed
+  as orphaned or stale, counts for nothing, and waits for a decision
+  instead of expiring.
+- Removing evidence is an act of its own, which lists what goes.
+- Possibly two files in the store: one written again, one kept.
+
+Not built: it needs the fingerprints of the build. On main the ledger
+only grows, and evidence naming a piece the model no longer has is an
+error that stops every command. The four promises are written in
+mitra-store's own model (`crates/mitra-store/.mitra/ledger.mitra`,
+subject `keeping`) with nothing to support them, which is their honest
+state.
 
 ## Open decisions
 

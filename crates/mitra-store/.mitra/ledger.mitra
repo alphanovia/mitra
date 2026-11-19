@@ -1,0 +1,41 @@
+// The ledger file of a store, `.mitra/evidence.mitra` (src/store.rs).
+//
+// What an entry means is mitra-lang's (its ledger.mitra). Here: how the
+// file is kept.
+
+import std::rust::{Option, Result};
+
+// What main does today.
+subject ledger {
+    require reads = disk::reads_what_was_written;
+    require appends = disk::appends_at_the_end;
+    require left_alone = disk::ledger_is_left_alone;
+
+    ensure reads_back = "Reading the ledger gives exactly what was written to it.";
+    ensure keeps_who_and_when = "An entry is written with who said it and on which revision, as they were given with it.";
+    ensure sound_or_untouched = "Evidence is added only when the store with it still reads and evaluates: on an error nothing is written.";
+
+    impl Store {
+        // Evidence blocks, stamped with who says so and on which revision.
+        // Gives how many pieces were added.
+        fn add(&self, text: String, source: Option<String>, rev: Option<String>) -> Result<usize, String>
+            uses Store::append;
+        // Checks the store with the new evidence, then writes it.
+        fn append(&self, new: String) -> Result<(), String>
+            uses disk::read_to_string, disk::append;
+    }
+}
+
+// Agreed in outline with the user on 2026-11-19, details to settle
+// (docs/design/product.md). NOT on main: nothing below is built, so
+// nothing supports these promises. Today the ledger only grows, `tie`
+// and `ingest` add to what earlier runs wrote, and evidence that names a
+// piece the model no longer has is an error that stops every command.
+subject keeping {
+    require ledger_reads = ledger::reads_back;
+
+    ensure nothing_leaves_unshown = "Nothing leaves the ledger without being shown.";
+    ensure machine_is_a_snapshot = "Evidence observed by a machine (ties, test results, samples) is a snapshot of one revision: each run writes it again, and the report says what was replaced.";
+    ensure human_is_never_dropped_silently = "Evidence said by a person (a vouch, a review, a bug report) is never dropped silently: when its piece is gone or was reworded it is listed as orphaned or stale, counts for nothing, and waits for a decision.";
+    ensure removal_is_explicit = "Removing evidence is an act of its own, which lists what goes.";
+}

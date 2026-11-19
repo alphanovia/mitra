@@ -1,6 +1,6 @@
 //! The project store: a `.mitra/` folder with `model.mitra` and the
-//! append-only `evidence.mitra`. The model also holds the `mitra:` comments
-//! of the Rust files under `src/` and `tests/` beside `.mitra/`.
+//! append-only `evidence.mitra`. Every other `.mitra` file of the folder
+//! is model too.
 //!
 //! Evidence is only ever appended, one line per piece, so two branches that
 //! both add evidence merge as the union of their lines: `.mitra/.gitattributes`
@@ -8,10 +8,12 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::source::Source;
+use crate::source;
+use mitra_lang::Modules;
 
 pub const DIR: &str = ".mitra";
 
+// mitra: implements store::Store
 pub struct Store {
     dir: PathBuf,
 }
@@ -39,6 +41,7 @@ impl Store {
 
     /// The store that `model` is the model file of, if it is one: a
     /// `model.mitra` inside a `.mitra/` folder.
+    // mitra: implements store::Store::of
     pub fn of(model: &str) -> Option<Store> {
         let path = Path::new(model);
         let dir = path.parent()?;
@@ -67,15 +70,16 @@ impl Store {
         self.dir.parent().unwrap_or(Path::new(".")).to_path_buf()
     }
 
+    // mitra: implements store::Store::model_path
     pub fn model_path(&self) -> String {
         self.dir.join("model.mitra").display().to_string()
     }
 
-    /// `model.mitra`, then the `mitra:` lines of the Rust sources.
-    pub fn source(&self) -> Result<Source, String> {
-        let mut s = Source::file(&self.model_path())?;
-        // The other `.mitra` files of the store are model too: a model
-        // kept aside from the code may be long.
+    /// The model of the store: `model.mitra`, then the other `.mitra`
+    /// files beside it, the ledger aside. A model kept aside from the
+    /// code may be long, and is one file per subject.
+    // mitra: implements store::Store::source
+    pub fn source(&self) -> Result<Modules, String> {
         let mut more: Vec<PathBuf> = std::fs::read_dir(&self.dir)
             .map_err(|e| format!("{}: {e}", self.dir.display()))?
             .flatten()
@@ -84,20 +88,18 @@ impl Store {
             .filter(|p| !p.ends_with("model.mitra") && !p.ends_with("evidence.mitra"))
             .collect();
         more.sort();
-        for p in more {
-            s.add_file(&p.display().to_string())?;
-        }
-        let root = self.dir.parent().unwrap_or(Path::new("."));
-        s.add_rust(&[root.join("src"), root.join("tests")])?;
-        Ok(s)
+        more.insert(0, PathBuf::from(self.model_path()));
+        source::files(&more)
     }
 
+    // mitra: implements store::Store::evidence_path
     pub fn evidence_path(&self) -> String {
         self.dir.join("evidence.mitra").display().to_string()
     }
 
     /// Evidence blocks, with `--source` and `--rev` written into each,
     /// then [`Store::append`]ed as they were given.
+    // mitra: implements ledger::Store::add
     pub fn add(
         &self,
         text: &str,
@@ -110,7 +112,7 @@ impl Store {
             }
         }
         let text = mitra_lang::parse::stamp(text, source.as_deref(), rev.as_deref())?;
-        let new = mitra_lang::read_evidence(&self.source()?.text, &text)
+        let new = mitra_lang::read_evidence(&self.source()?, &text)
             .map_err(|err| format!("evidence to add: {err}"))?;
         if new.is_empty() {
             return Err("no evidence given".into());
@@ -123,7 +125,7 @@ impl Store {
     pub fn model(&self) -> Result<mitra_lang::Model, String> {
         let (m, e) = (self.source()?, self.evidence_path());
         let old = std::fs::read_to_string(&e).map_err(|err| format!("{e}: {err}"))?;
-        mitra_lang::load(&m.text, &old).map_err(|(input, err)| match input {
+        mitra_lang::load_modules(&m, &old).map_err(|(input, err)| match input {
             mitra_lang::Input::Model => m.locate(&err),
             mitra_lang::Input::Evidence => format!("{e}: {err}"),
         })
@@ -133,16 +135,17 @@ impl Store {
     /// there, evaluate, then append it as written. Nothing is written on an
     /// error. Errors in the store name its file; errors in the new evidence
     /// are numbered from its first line.
+    // mitra: implements ledger::Store::append
     pub fn append(&self, new: &str) -> Result<(), String> {
         let (m, e) = (self.source()?, self.evidence_path());
         let old = std::fs::read_to_string(&e).map_err(|err| format!("{e}: {err}"))?;
-        let model = &m.text;
+        let model = &m;
         let located = |input, err: mitra_lang::Error| match input {
             mitra_lang::Input::Model => m.locate(&err),
             mitra_lang::Input::Evidence => format!("{e}: {err}"),
         };
         // The store must be sound before anything is added to it.
-        let before = mitra_lang::load(model, &old).map_err(|(i, err)| located(i, err))?;
+        let before = mitra_lang::load_modules(model, &old).map_err(|(i, err)| located(i, err))?;
         mitra_lang::evaluate(&before).map_err(|(i, err)| located(i, err))?;
         let sep = if old.is_empty() || old.ends_with('\n') {
             ""
@@ -160,7 +163,7 @@ impl Store {
             i => located(i, err),
         };
         let all = format!("{old}{sep}{printed}");
-        let after = mitra_lang::load(model, &all).map_err(|(i, err)| blame(i, err))?;
+        let after = mitra_lang::load_modules(model, &all).map_err(|(i, err)| blame(i, err))?;
         mitra_lang::evaluate(&after).map_err(|(i, err)| blame(i, err))?;
         use std::io::Write;
         std::fs::OpenOptions::new()

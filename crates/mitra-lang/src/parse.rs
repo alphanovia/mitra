@@ -5,9 +5,8 @@
 use crate::ast::*;
 use crate::set::{Set, Value, MAP, SET};
 use crate::Error;
-use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 /// The modules shipped with the tool: plain Mitra, `mitra explain std::claims`
 /// prints one.
@@ -16,14 +15,16 @@ const STD: [(&str, &str); 2] = [
     ("std::rust", include_str!("../std/rust.mitra")),
 ];
 
-thread_local! {
-    /// Where `import a::b::name;` looks for `a/b.mitra`.
-    static ROOT: RefCell<Option<PathBuf>> = const { RefCell::new(None) };
-}
-
-/// Read imported modules beside the model: `dir/a/b.mitra` for `a::b`.
-pub fn imports_from(dir: Option<&Path>) {
-    ROOT.with(|r| *r.borrow_mut() = dir.map(Path::to_path_buf));
+/// The modules a model may import, as they were handed to Mitra: this
+/// crate reads no file. `a::b` is the name of what `import a::b::x;`
+/// reads.
+#[derive(Debug, Clone, Default, PartialEq)]
+// mitra: implements modules::Handed
+pub struct Handed {
+    /// The text of each module, by name.
+    pub modules: BTreeMap<String, String>,
+    /// Why a module is not there, in the words of whoever looked for it.
+    pub missing: BTreeMap<String, String>,
 }
 
 /// The text of a module shipped with the tool.
@@ -31,28 +32,55 @@ pub fn library(module: &str) -> Option<&'static str> {
     STD.iter().find(|m| m.0 == module).map(|m| m.1)
 }
 
-/// The text of a module, and where it was looked for.
-fn module(path: &[String]) -> Result<String, String> {
+/// The text of a module: shipped with the tool, or handed.
+fn module(handed: &Handed, path: &[String]) -> Result<String, String> {
     let name = path.join("::");
     if path[0] == "std" {
         let known: Vec<&str> = STD.iter().map(|m| m.0).collect();
         let none = format!("no module `{name}` in `std`: it has {}", known.join(", "));
         return library(&name).map(String::from).ok_or(none);
     }
-    let Some(root) = ROOT.with(|r| r.borrow().clone()) else {
-        return Err(format!(
-            "no module `{name}`: this model has no folder to import from"
-        ));
-    };
-    let mut file = root;
-    file.extend(path);
-    file.set_extension("mitra");
-    std::fs::read_to_string(&file)
-        .map_err(|e| format!("no module `{name}`: {}: {e}", file.display()))
+    if let Some(text) = handed.modules.get(&name) {
+        return Ok(text.clone());
+    }
+    Err(match handed.missing.get(&name) {
+        Some(why) => format!("no module `{name}`: {why}"),
+        None => format!("no module `{name}`: this model was handed none of that name"),
+    })
+}
+
+/// The modules a text imports, `std` aside, each once: what must be
+/// handed with it.
+pub fn imports(src: &str) -> Vec<String> {
+    let toks = lex(src).unwrap_or_default();
+    let (mut out, mut depth) = (Vec::new(), 0);
+    for (i, t) in toks.iter().enumerate() {
+        if t.kind == Kind::Punct {
+            depth += (t.text == "{") as i32 - (t.text == "}") as i32;
+        }
+        if depth != 0 || t.kind != Kind::Name || t.text != "import" {
+            continue;
+        }
+        // import a::b::name;  import a::b::{x, y};
+        let mut path: Vec<&str> = Vec::new();
+        let mut j = i + 1;
+        while let (Some(n), Some(sep)) = (toks.get(j), toks.get(j + 1)) {
+            if n.kind != Kind::Name || sep.text != "::" {
+                break;
+            }
+            path.push(&n.text);
+            j += 2;
+        }
+        let name = path.join("::");
+        if !path.is_empty() && path[0] != "std" && !out.contains(&name) {
+            out.push(name);
+        }
+    }
+    out
 }
 
 /// The declarations at the top of a file that start an item.
-const ITEMS: [&str; 11] = [
+pub const ITEMS: [&str; 11] = [
     "subject", "boundary", "record", "enum", "fn", "claim", "assume", "test", "import", "ensure",
     "require",
 ];
@@ -334,6 +362,13 @@ struct P {
     impure: bool,
     /// The claims with parameters: their parameters and their body.
     templates: BTreeMap<String, (Vec<String>, Vec<Tok>)>,
+    /// What was imported so far: the module and the name.
+    imported: BTreeSet<(String, String)>,
+    /// The modules that can be imported.
+    handed: Rc<Handed>,
+    /// Each enum already met with sets for its parameters, read deep or
+    /// not, and the set it gave.
+    instances: Vec<(String, bool, Vec<Set>, Set)>,
     /// The modules being imported, outermost first.
     stack: Vec<String>,
     /// A claim of the shape "the same judgement on every input of a set
@@ -913,10 +948,20 @@ impl P {
                         ),
                     ));
                 }
+                // The same enum with the same sets, met again: a record
+                // of records is long to print, so it is worked out once.
+                let again = |i: &&(String, bool, Vec<Set>, Set)| {
+                    i.0 == name && i.1 == self.deep && i.2 == args
+                };
+                if let Some(met) = self.instances.iter().find(again) {
+                    return Ok(met.3.clone());
+                }
                 let written = written(&args);
+                let key = (name.clone(), self.deep, args.clone());
                 let params = e.params.iter().cloned().zip(args).collect();
                 let (variants, _, recursive) = self.variants(&e, params, line)?;
                 let set = variants.iter().fold(Set::empty(), |s, v| s.union(&v.set()));
+                self.instances.push((key.0, key.1, key.2, set.clone()));
                 self.aliases.push((set.to_string(), written.clone()));
                 // Under its plain name too: the printer names it.
                 if let Some(recursive) = recursive {
@@ -2740,7 +2785,21 @@ impl P {
         if self.stack.contains(&name) {
             return Err(Error::new(line, format!("`{name}` imports itself")));
         }
-        let src = module(path).map_err(|e| Error::new(line, e))?;
+        // A name already brought from this module is there: each file of
+        // a model states what it reads, and several may read the same.
+        let fresh: Vec<String> = names
+            .iter()
+            .filter(|n| !self.imported.contains(&(name.clone(), (*n).clone())))
+            .cloned()
+            .collect();
+        if fresh.is_empty() && !names.is_empty() {
+            return Ok(());
+        }
+        let names = &fresh[..];
+        for n in names {
+            self.imported.insert((name.clone(), n.clone()));
+        }
+        let src = module(&self.handed, path).map_err(|e| Error::new(line, e))?;
         let inside =
             |e: Error| Error::new(line, format!("in `{name}`, line {}: {}", e.line, e.message));
         let toks = lex(&src).map_err(inside)?;
@@ -3589,7 +3648,12 @@ enum Prose {
 /// The model, and its names for the evidence.
 // mitra: implements reader::model
 pub fn model(src: &str) -> Result<(Model, Names), Error> {
-    read(lex(src)?)?.finish()
+    model_with(src, &Handed::default())
+}
+
+/// The model, importing from the modules handed with it.
+pub fn model_with(src: &str, handed: &Handed) -> Result<(Model, Names), Error> {
+    read(lex(src)?, Rc::new(handed.clone()))?.finish()
 }
 
 /// Every function and claim a file declares, by full name: one may name
@@ -3883,7 +3947,7 @@ fn impls(toks: Vec<Tok>) -> Result<(Vec<Tok>, BTreeSet<String>), Error> {
     Ok((out, methods))
 }
 
-fn read(toks: Vec<Tok>) -> Result<P, Error> {
+fn read(toks: Vec<Tok>, handed: Rc<Handed>) -> Result<P, Error> {
     let (toks, methods) = impls(toks)?;
     let (scoped, top) = types_of(&toks);
     let toks = scope_types(toks, &scoped, &top, false);
@@ -3900,6 +3964,7 @@ fn read(toks: Vec<Tok>) -> Result<P, Error> {
             known,
             scoped: scoped.clone(),
             methods: methods.clone(),
+            handed: handed.clone(),
             ..P::default()
         };
         p.items()?;

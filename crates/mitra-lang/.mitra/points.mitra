@@ -4,7 +4,7 @@
 
 // src/eval.rs
 
-claim t_holds() { Holds.as_str() == "holds" }
+claim t_holds() { verdicts::Holds.as_str() == "holds" }
 
 claim t_assuming() { Assuming.as_str() == "holds assuming" }
 

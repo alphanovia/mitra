@@ -1,0 +1,102 @@
+// Evidence, and the ledger that holds it (src/ast.rs, `Evidence` and
+// `Judgment`).
+//
+// One piece of evidence is one thing somebody observed or judged, about
+// a function or a claim:
+//
+//   for f given a = 6 gives 3     pinned: one input, the output observed
+//   for c holds                   vouched: a person says the claim is true
+//   for c fails                   refuted: a counterexample, or a bug report
+//   for c passes                  a test passed on inputs it does not state
+//   for c sampled 1000            a test passed on 1000 drawn inputs
+//
+// with who says so (`source`), on which code (`rev`), and how much its
+// author trusts it (`trust`, 1 when not said). The ledger is the list of
+// them, in the order they were written. Keeping it on a disk is
+// mitra-store's work.
+
+import std::rust::{Option, Result};
+
+subject ledger {
+    ensure says_who_and_when = "Each piece of evidence keeps who or what observed it, the revision of the code it was observed on, and the trust its author puts in it.";
+    ensure pinned_is_an_output = "Evidence that pins an input records the output the code gave there: every claim that reads that output is judged with it.";
+    ensure vouch_covers_the_claim = "A person's word that a claim holds covers every input the claim names.";
+    ensure unstated_covers_nothing = "A test that passed on inputs it does not state, counted or not, covers no input: the claim stays unverified.";
+    ensure failing_sample_refutes = "A test that failed on a drawn input refutes the claim, on an input it does not state.";
+
+    // What was observed. The field names are the model's.
+    enum Judgment {
+        Correct(ok: bool),                                // right or wrong, on a function
+        Output(value: Any),                               // the output observed
+        Holds(ok: bool),                                  // true or false, on a claim
+        Passed,                                           // a test passed, inputs not stated
+        Sampled(count: u64, ok: bool, domain: String),    // on that many drawn inputs
+        Measured(measure: functions::Expr, value: f64)    // a measure, as measured
+    }
+
+    record Evidence {
+        // The function or the claim it is about.
+        about: String,
+        judgment: Judgment,
+        // The trust of its author, from 0 to 1.
+        confidence: f64,
+        source: Option<String>,
+        rev: Option<String>,
+        line: usize,
+        ..
+    }
+
+    // says_who_and_when
+    claim source_rev_and_trust_are_kept() {
+        match types::load("subject fn f() -> Bool;", "evidence r { for f holds source \"review:me\" rev \"abc\" trust 0.9 }") {
+            Err(e) => false,
+            Ok(m) => map(x in m.evidence, x.source) == [Some("review:me")]
+                && map(x in m.evidence, x.rev) == [Some("abc")]
+                && map(x in m.evidence, x.confidence) == [0.9],
+        }
+    }
+
+    // pinned_is_an_output
+    claim pinned_keeps_the_output() {
+        match types::load("subject fn f(a: Int) -> Int;", "evidence t { for f given a = 1 gives 2 }") {
+            Err(e) => false,
+            Ok(m) => map(x in m.evidence, x.judgment) == [Output(2)],
+        }
+    }
+    claim pinned_output_refutes_a_claim() {
+        match verdicts::run("subject fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 }", "evidence t { for f given a = 1 gives -2 }") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.logic) == [Fails, Unverified, Unverified],
+        }
+    }
+
+    // vouch_covers_the_claim
+    claim vouched_holds() {
+        match verdicts::run("subject fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 }", "evidence r { for c holds }") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.logic) == [verdicts::Holds, Unverified, Unverified],
+        }
+    }
+
+    // unstated_covers_nothing
+    claim passes_stays_unverified() {
+        match verdicts::run("subject fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 }", "evidence t { for c passes }") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.logic) == [Unverified, Unverified, Unverified],
+        }
+    }
+    claim sample_stays_unverified() {
+        match verdicts::run("subject fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 }", "evidence t { for c sampled 100 }") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.logic) == [Unverified, Unverified, Unverified],
+        }
+    }
+
+    // failing_sample_refutes
+    claim failing_sample_fails() {
+        match verdicts::run("subject fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 }", "evidence t { for c sampled 100 fails }") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.logic) == [Fails, Unverified, Unverified],
+        }
+    }
+}

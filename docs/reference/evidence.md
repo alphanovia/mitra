@@ -37,7 +37,8 @@ Evidence is written in blocks only. `mitra add`, `mitra ingest` and
 ## The tie to the code
 
 The model lives aside from the code: `.mitra/model.mitra`, and any other
-`.mitra/*.mitra` file (not `evidence.mitra`), such as `points.mitra`. It is
+`.mitra/*.mitra` file (not `evidence.mitra`): one file per subject reads
+well. It is
 checked alone, with no code present. The code points at it:
 
 ```rust

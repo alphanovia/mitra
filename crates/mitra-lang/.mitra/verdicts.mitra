@@ -1,0 +1,113 @@
+// From a model and its evidence to verdicts (src/eval.rs, src/prove.rs).
+//
+// A verdict is one word per claim:
+//
+//   holds            every input the claim names is covered
+//   holds assuming   the same, given pieces nobody brought evidence for
+//   unverified       not covered, and nothing against it
+//   fails            something shows it false
+
+import std::rust::{Option, Result};
+
+subject verdicts {
+    require checked = types::fits;
+    require computed = eval::computes;
+
+    ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
+    ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
+    ensure fails_is_shown = "A claim fails only where evidence or the model itself shows it, or because something it rests on fails.";
+    ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
+    ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
+    ensure follows = "A claim said to follow from other claims is true whenever they are.";
+    ensure never_runs = "No code is run: the same model and evidence always give the same report.";
+
+    // The word of a verdict.
+    enum Logic {
+        Holds,
+        Assuming,
+        Unverified,
+        Fails
+    }
+
+    record Verdict {
+        // The name of the claim.
+        claim: String,
+        logic: Logic,
+        ..
+    }
+
+    // An error of a report: pieces that can't all be right. Nothing of it
+    // is read here.
+    record Problem;
+
+    record Report {
+        verdicts: Vec<Verdict>,
+        problems: Vec<Problem>,
+        ..
+    }
+
+    fn evaluate(model: model::Model) -> Result<Report, (types::Input, reader::Error)>;
+
+    // Works out which claims follow from which.
+    fn derive(model: model::Model);
+
+    fn run(model: String, evidence: String) -> Result<Report, (types::Input, reader::Error)>
+        uses types::load, evaluate;
+
+    // never_runs
+    claim same_report = deterministic(run);
+
+    // one_each
+    claim one_verdict_each(m: model::Model) {
+        match evaluate(m) {
+            Err(e) => true,
+            Ok(r) => len(r.verdicts) == len(m.claims),
+        }
+    }
+    claim untested_is_unverified() {
+        match run("subject fn f() -> Bool;", "") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.logic) == [Unverified, Unverified],
+        }
+    }
+
+    // holds_is_covered
+    claim tested_holds() {
+        match run("subject fn f() -> Bool;", "evidence a { for f holds }") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.logic) == [Holds, Unverified],
+        }
+    }
+
+    // fails_is_shown
+    claim refuted_fails() {
+        match run("subject fn f() -> Bool;", "evidence a { for f fails }") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.logic) == [Fails, Unverified],
+        }
+    }
+
+    // trust_apart
+    claim trust_changes_no_verdict() {
+        match run("subject fn f() -> Bool;", "evidence a { for f holds trust 0.1 }") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.logic) == [Holds, Unverified],
+        }
+    }
+
+    // conflict_kept
+    claim conflict_counts_for_neither() {
+        match run("subject fn f() -> Bool;", "evidence a { for f holds } evidence b { for f fails }") {
+            Err(e) => false,
+            Ok(r) => len(r.problems) == 1 && map(v in r.verdicts, v.logic) == [Unverified, Unverified],
+        }
+    }
+
+    // follows
+    claim follows_from_a_vouched_claim() {
+        match run("subject fn add(a: Int, b: Int) -> Int; claim c(a: Int, b: Int) { add(a, b) == add(b, a) } claim d(a: Int, b: Int) { add(b, a) == add(a, b) }", "evidence r { for c holds }") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.logic) == [Holds, Holds, Unverified, Unverified],
+        }
+    }
+}

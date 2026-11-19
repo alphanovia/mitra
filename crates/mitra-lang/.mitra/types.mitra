@@ -1,0 +1,47 @@
+// What a model must satisfy before anything is judged (src/ast.rs,
+// src/lib.rs, src/types.rs).
+
+import std::rust::{Option, Result};
+
+subject types {
+    require read_first = reader::reads;
+
+    ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
+    ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts.";
+    ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
+
+    // Which text a fault is in: the model or the evidence.
+    record Input;
+
+    impl Model {
+        fn check(self) -> Result<Self, (Input, reader::Error)>;
+    }
+
+    // A model handed as files, with its evidence.
+    fn load_modules(model: modules::Modules, evidence: String) -> Result<model::Model, (Input, reader::Error)>;
+
+    // A model in one text.
+    fn load(model: String, evidence: String) -> Result<model::Model, (Input, reader::Error)>
+        uses load_modules, modules::Modules::alone;
+
+    // declared
+    claim good_is_read() {
+        load("subject fn f() -> Bool;", "") is Ok
+    }
+    claim unknown_is_refused() {
+        load("claim c() { g() }", "") is Err
+    }
+    claim twice_is_refused() {
+        load("subject fn f() -> Bool; subject fn f() -> Bool;", "") is Err
+    }
+
+    // fits
+    claim arity_is_refused() {
+        load("subject fn f(a: Int) -> Bool; claim c() { f(1, 2) }", "") is Err
+    }
+
+    // ends
+    claim endless_is_refused() {
+        load("fn f(a: Int) -> Int { g(a) } fn g(a: Int) -> Int { f(a) }", "") is Err
+    }
+}

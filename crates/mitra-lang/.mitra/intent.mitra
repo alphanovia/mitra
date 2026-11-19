@@ -1,0 +1,73 @@
+// Intent: what a subject promises and what it needs, in plain words
+// (src/ast.rs, `Ensure`).
+//
+//   subject s {
+//       ensure safe = "Never negative.";    a promise of s
+//       require time = clock::ticks;        a promise of another block that s needs
+//   }
+//
+// Mitra never reads the prose. A promise stands on three things, each a
+// piece that can be the wrong one: the claims of its block, what its
+// block requires, and its capture: a reviewer's word that those claims
+// say what the prose says.
+
+import std::rust::{Option, Result};
+
+subject intent {
+    ensure always_named = "A promise and a need each have a name: a report says which one is not kept.";
+    ensure rests_on_claims = "A promise of a subject rests on the claims of its subject: it is at best as good as they are.";
+    ensure capture_is_a_piece = "That the claims say what the prose says is a claim of its own, `name::captured`, unverified until someone vouches for it.";
+    ensure need_names_a_promise = "A need names the promise of another block that answers it, and is at best as good as that promise.";
+    ensure world_is_assumed = "A promise written in a boundary is the world's: it is assumed, never shown, and what rests on it says so.";
+
+    record Ensure {
+        name: String,
+        prose: String,
+        // Written in a boundary: a promise of the world.
+        world: bool,
+        // For a `require`: the promise it names.
+        needs: Option<String>,
+        // The claims of its block, which it rests on.
+        claims: Vec<String>,
+        // The needs of its block, which it rests on too.
+        requires: Vec<String>,
+        line: usize,
+        ..
+    }
+
+    // always_named, rests_on_claims
+    claim promise_lists_its_claims() {
+        match types::load("subject s { ensure safe = \"Never negative.\"; fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 } }", "") {
+            Err(e) => false,
+            Ok(m) => map(x in m.ensures, x.name) == ["s::safe"]
+                && map(x in m.ensures, x.claims) == [["s::f::correct", "s::c"]],
+        }
+    }
+
+    // capture_is_a_piece
+    claim capture_is_unverified_until_vouched() {
+        match verdicts::run("subject s { ensure safe = \"Never negative.\"; fn f(a: Int) -> Int; }", "") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.claim) == ["s::f::correct", "s::f::deterministic", "s::safe::captured", "s::safe"]
+                && map(v in r.verdicts, v.logic) == [Unverified, Unverified, Unverified, Assuming],
+        }
+    }
+
+    // need_names_a_promise
+    claim need_names_its_promise() {
+        match types::load("boundary clock { ensure ticks = \"Time goes forward.\"; fn now() -> Int; } subject s { require time = clock::ticks; fn f() -> Int uses clock::now; }", "") {
+            Err(e) => false,
+            Ok(m) => map(x in m.ensures, x.name) == ["clock::ticks", "s::time"]
+                && map(x in m.ensures, x.needs) == [None, Some("clock::ticks")],
+        }
+    }
+
+    // world_is_assumed
+    claim world_promise_is_assumed() {
+        match verdicts::run("boundary clock { ensure ticks = \"Time goes forward.\"; fn now() -> Int; }", "") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.claim) == ["clock::ticks"]
+                && map(v in r.verdicts, v.logic) == [Assuming],
+        }
+    }
+}

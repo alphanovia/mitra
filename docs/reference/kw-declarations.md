@@ -180,8 +180,8 @@ module shipped with Mitra: `std::claims` (see
 None, Some(value: T) }`, `Result<T, E> { Ok(value: T), Err(error: E)
 }`). `mitra explain std::rust` prints a module.
 
-`import geometry::{Point};` brings them from `geometry.mitra`, beside
-the model (`a::b::{x}` reads `a/b.mitra`). Only the names listed come.
+`import geometry::{Point};` brings them from `geometry.mitra`, beside the
+model (`a::b::{x}` reads `a/b.mitra`). Only the names listed come, once.
 
 ```mitra
 import std::rust::{Option};

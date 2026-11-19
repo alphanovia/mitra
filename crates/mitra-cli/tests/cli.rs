@@ -255,7 +255,7 @@ fn mitra_stores_evaluate() {
     if std::env::var_os("MITRA_BREAKS").is_some() {
         return;
     }
-    for name in ["mitra-lang", "mitra-rust"] {
+    for name in ["mitra-lang", "mitra-store", "mitra-rust", "mitra-cli"] {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join(name);
@@ -279,7 +279,7 @@ fn mitra_store_evaluates_by_path() {
     ];
     let (code, out, err) = mitra(&root, &["eval", files[0], files[1]]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(out.contains("mass::Mass::judged::tied: holds"), "{out}");
+    assert!(out.contains("model::Model::tied: holds"), "{out}");
 }
 
 #[test]

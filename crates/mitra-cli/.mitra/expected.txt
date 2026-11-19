@@ -1,0 +1,125 @@
+commands::check_rev::correct: unverified
+  no evidence on  rev in String
+commands::check_rev::deterministic: unverified
+  no evidence on  `commands::check_rev` giving one output per input
+commands::plain_rev_is_taken: holds
+commands::empty_rev_is_refused: holds
+commands::option_as_rev_is_refused: holds
+commands::quoted_rev_is_refused: holds
+caller::names_the_right_revision: holds assuming [itself]
+  says            "The revision given with `--rev` names the code the evidence was observed on."
+caller::report_is_of_that_code: holds assuming [itself]
+  says            "A test report given to `ingest` is the whole output of the tests of that revision."
+caller::says_who: holds assuming [itself]
+  says            "The source given with `--source` is who or what vouches."
+commands::revision: holds assuming [caller::names_the_right_revision]
+  needs           `caller::names_the_right_revision`
+commands::report: holds assuming [caller::report_is_of_that_code]
+  needs           `caller::report_is_of_that_code`
+commands::who: holds assuming [caller::says_who]
+  needs           `caller::says_who`
+commands::commands_only::captured: unverified
+  nobody vouched that the claims say what the text says
+commands::commands_only: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, commands::commands_only::captured]
+  says            "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang."
+  rests on        `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
+  requires        `commands::revision`, `commands::report`, `commands::who`
+commands::exit_says_it::captured: unverified
+  nobody vouched that the claims say what the text says
+commands::exit_says_it: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, commands::exit_says_it::captured]
+  says            "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run."
+  rests on        `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
+  requires        `commands::revision`, `commands::report`, `commands::who`
+commands::rev_is_safe_to_write::captured: unverified
+  nobody vouched that the claims say what the text says
+commands::rev_is_safe_to_write: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, commands::rev_is_safe_to_write::captured]
+  says            "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger."
+  rests on        `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
+  requires        `commands::revision`, `commands::report`, `commands::who`
+commands::a_pass_is_not_overstated::captured: unverified
+  nobody vouched that the claims say what the text says
+commands::a_pass_is_not_overstated: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, commands::a_pass_is_not_overstated::captured]
+  says            "A passing test becomes evidence for exactly what its tie comment pins: with no input stated, on a claim with inputs, it only passes."
+  rests on        `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
+  requires        `commands::revision`, `commands::report`, `commands::who`
+commands::check_rev::tied: holds
+
+warning[M105]: a requirement that nothing leans on
+  --> .mitra/model.mitra:19  require revision = caller::names_the_right_revision;
+
+  `commands::revision` needs `caller::names_the_right_revision`, and nothing declared beside it leans on what is declared beside `caller::names_the_right_revision`: no `uses`, no call, no type.
+  help: say which function `uses` it, or remove the `require`
+
+warning[M105]: a requirement that nothing leans on
+  --> .mitra/model.mitra:20  require report = caller::report_is_of_that_code;
+
+  `commands::report` needs `caller::report_is_of_that_code`, and nothing declared beside it leans on what is declared beside `caller::report_is_of_that_code`: no `uses`, no call, no type.
+  help: say which function `uses` it, or remove the `require`
+
+warning[M105]: a requirement that nothing leans on
+  --> .mitra/model.mitra:21  require who = caller::says_who;
+
+  `commands::who` needs `caller::says_who`, and nothing declared beside it leans on what is declared beside `caller::says_who`: no `uses`, no call, no type.
+  help: say which function `uses` it, or remove the `require`
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:29  fn check_rev(rev: String) -> Result<(), String>;
+
+  No evidence on rev in String.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:29  fn check_rev(rev: String) -> Result<(), String>;
+
+  No evidence on `commands::check_rev` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:23  ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
+
+  Nobody vouched that the claims `commands::commands_only` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for commands::commands_only::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:23  ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
+
+  `commands::commands_only` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `commands::commands_only::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:24  ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";
+
+  Nobody vouched that the claims `commands::exit_says_it` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for commands::exit_says_it::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:24  ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";
+
+  `commands::exit_says_it` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `commands::exit_says_it::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:25  ensure rev_is_safe_to_write = "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger.";
+
+  Nobody vouched that the claims `commands::rev_is_safe_to_write` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for commands::rev_is_safe_to_write::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:25  ensure rev_is_safe_to_write = "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger.";
+
+  `commands::rev_is_safe_to_write` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `commands::rev_is_safe_to_write::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:26  ensure a_pass_is_not_overstated = "A passing test becomes evidence for exactly what its tie comment pins: with no input stated, on a claim with inputs, it only passes.";
+
+  Nobody vouched that the claims `commands::a_pass_is_not_overstated` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for commands::a_pass_is_not_overstated::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:26  ensure a_pass_is_not_overstated = "A passing test becomes evidence for exactly what its tie comment pins: with no input stated, on a claim with inputs, it only passes.";
+
+  `commands::a_pass_is_not_overstated` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `commands::a_pass_is_not_overstated::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

@@ -122,8 +122,8 @@ How each one is measured is in [validation.md](validation.md#success-criteria).
 
 **Kill criterion.** On unproven code, Mitra's verdicts must beat the
 developer's own guess about what is reliable. If they don't, or if
-dogfooding has not changed one real decision by the time the trust module is
-annotated ([design/dogfooding.md](design/dogfooding.md)), rethink the
+dogfooding has not changed one real decision by the time Mitra's own crates are
+modelled ([design/dogfooding.md](design/dogfooding.md)), rethink the
 approach.
 
 ## Layers
@@ -153,10 +153,12 @@ approach.
 
 They are built and tested in that order.
 
-In crates: `mitra-lang` is (1) and (2), with the trust calculus;
-`mitra-rust` reads Rust code and test reports and brings what it finds
-as evidence; `mitra-cli` is (3). Nothing of a language of code is in
-`mitra-lang`.
+In crates: `mitra-lang` is (1) and (2), with the ranking of culprits; it
+reads no file and is handed the model as named texts. `mitra-store` is
+what Mitra keeps on disk: it finds and reads the files of a model and
+keeps the ledger. `mitra-rust` reads Rust code and test reports and
+brings what it finds as evidence. `mitra-cli` is the commands. Nothing of
+a language of code is in `mitra-lang`.
 
 ## Why a language
 

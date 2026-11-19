@@ -15,7 +15,7 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-CRATES = ["mitra-lang", "mitra-rust", "mitra-cli"]
+CRATES = ["mitra-lang", "mitra-store", "mitra-rust", "mitra-cli"]
 FN = re.compile(r"^\s*(?:pub(?:\([a-z]+\))? )?(?:const )?fn (\w+)")
 
 

@@ -41,8 +41,10 @@ you need to ensure then remove it." Per subject, in this order:
    they need, and nothing more. A record states only the fields a claim
    reads (`..`, or `record R;`).
 
-Mitra's model of mitra-lang is written this way
-(`crates/mitra-lang/.mitra/model.mitra`).
+Mitra's model of itself is written this way, one file per subject
+(`crates/mitra-lang/.mitra/`, starting at `model.mitra`). Since
+2026-11-19 readability outranks line count there: one declaration per
+line, short comments where they help.
 
 ## Commands
 

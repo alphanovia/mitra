@@ -1,44 +1,14 @@
-// mitra-cli as Mitra sees it: the model, aside from the code.
+// mitra-rust as Mitra sees it. Start here.
 //
-// The code is in src/. A comment `// mitra: implements report::short`
-// above a `fn` ties it to a function here, and `mitra tie` checks that
-// the two agree. The points the tests pin are in points.mitra.
+// mitra-rust is what Mitra knows of Rust: it reads test reports, finds
+// the tie comments of Rust files and compares the code under them with
+// the model. What it finds is brought as evidence.
 //
-// Modelled: reading test reports (src/report.rs) and reading the model
-// lines of a Rust file (src/source.rs). Not modelled: the commands, the
-// store, the reader of ties.
-
-// Rust's own, which the code uses.
-import std::rust::{Option, Result};
-
-// One test of a report, and whether it passed.
-record Outcome { name: String, passed: bool }
-
-// Test reports: libtest's text and JUnit's XML.
-subject report {
-    ensure reads_results = "Every test in a cargo test or JUnit report is read, with its name and whether it passed.";
-    // The name of a test without its module path.
-    fn short(path: String) -> String;
-    // A short name is already short.
-    claim short_once(path) { short(short(path)) == short(path) }
-
-    fn libtest(text: String) -> Vec<Outcome> uses only short;
-
-    // The value of an attribute in an XML tag.
-    fn attr(tag: String, attr: String) -> Option<String>;
-
-    // The text without what stands between `open` and `close`.
-    fn strip(text: String, open: String, close: String) -> String;
-
-    fn junit(xml: String) -> Vec<Outcome> uses only strip, attr, short;
-}
-
-// The comments of a Rust file that tie its code to the model.
-subject source {
-    ensure finds_ties = "A tie comment in Rust code is found, with the name of the function or test written below it.";
-    // The text after `mitra:` in a comment line.
-    fn mitra_line(line: String) -> Option<String>;
-
-    // The name of the `fn` that the code starts with.
-    fn fn_below(code: String) -> Option<String>;
-}
+//   code.mitra     the boundary: the Rust files and where they come from
+//   report.mitra   reading test reports
+//   source.mitra   finding tie comments in a Rust file
+//   ties.mitra     comparing tied code with the model
+//   points.mitra   the single calls the unit tests pin
+//
+// A comment `// mitra: implements report::short` above a `fn` ties it to
+// a function here, and `mitra tie` checks that the two agree.

@@ -14,6 +14,7 @@
 
 pub mod ast;
 pub mod eval;
+pub mod modules;
 pub mod next;
 pub mod parse;
 pub mod plan;
@@ -33,7 +34,9 @@ pub use eval::{
     evaluate, Assumed, Candidate, Conflict, Contradiction, Display, Flag, Implication, Kind, Logic,
     Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
 };
+pub use modules::{Module, Modules};
 pub use next::next;
+pub use parse::Handed;
 pub use plan::plan;
 pub use report::{explain, Files, Places};
 pub use set::{Set, Value};
@@ -74,19 +77,27 @@ pub enum Input {
     Evidence,
 }
 
-/// Parse both inputs and check them against each other.
+/// Parse both inputs and check them against each other: a model in one
+/// text, importing nothing but `std`.
 // mitra: implements types::load
 pub fn load(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
-    if let Some((line, hint)) = parse::earlier(model) {
+    load_modules(&Modules::alone(model), evidence)
+}
+
+/// Parse a model handed as several files, with its evidence, and check
+/// them against each other.
+// mitra: implements types::load_modules
+pub fn load_modules(model: &Modules, evidence: &str) -> Result<Model, (Input, Error)> {
+    if let Some((line, hint)) = parse::earlier(model.text()) {
         let msg = format!("this syntax is no longer read: {hint}");
         return Err((Input::Model, Error::new(line, msg)));
     }
     read(model, evidence)
 }
 
-// mitra: implements types::read
-fn read(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
-    let (mut m, names) = parse::model(model).map_err(|e| (Input::Model, e))?;
+fn read(model: &Modules, evidence: &str) -> Result<Model, (Input, Error)> {
+    let read = parse::model_with(model.text(), &model.handed);
+    let (mut m, names) = read.map_err(|e| (Input::Model, e))?;
     // A claim follows from the specs of the functions it calls, when
     // their claims are above it.
     let above: Vec<String> = m.claims.iter().map(|c| c.name.clone()).collect();
@@ -130,7 +141,7 @@ fn read(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     let own = |s: &str| s.lines().map(String::from).collect::<Vec<_>>();
     let mut written = own(evidence);
     written.truncate(lines);
-    m.written = Some((own(model), written));
+    m.written = Some((own(model.text()), written));
     let mut m = m.check()?;
     prove::derive(&mut m);
     Ok(m)
@@ -382,8 +393,8 @@ fn tie_records(m: &mut Model, evidence: &[Evidence]) {
 
 /// Parse new evidence for a model, in the syntax the model is written in.
 /// Nothing is checked against the model beyond its names.
-pub fn read_evidence(model: &str, evidence: &str) -> Result<Vec<Evidence>, Error> {
-    let (m, names) = parse::model(model)?;
+pub fn read_evidence(model: &Modules, evidence: &str) -> Result<Vec<Evidence>, Error> {
+    let (m, names) = parse::model_with(model.text(), &model.handed)?;
     parse::evidence_alone(evidence, &m, &names)
 }
 

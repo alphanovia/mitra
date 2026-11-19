@@ -10,6 +10,7 @@
 
 ///
 #[derive(Debug, PartialEq)]
+// mitra: implements report::Outcome
 pub struct Outcome {
     pub name: String,
     pub passed: bool,

@@ -11,4 +11,5 @@ path = "src/main.rs"
 
 [dependencies]
 mitra-lang = { path = "../mitra-lang" }
+mitra-store = { path = "../mitra-store" }
 mitra-rust = { path = "../mitra-rust" }

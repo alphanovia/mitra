@@ -1,0 +1,44 @@
+// mitra-cli as Mitra sees it.
+//
+// mitra-cli is the `mitra` command: it reads its arguments, asks
+// mitra-store for the model and the ledger, mitra-rust for what the code
+// and the test reports say, mitra-lang for the verdicts, and prints.
+// The code is in src/main.rs.
+
+import std::rust::{Option, Result};
+
+// The person or the script that runs a command. What they say is taken
+// as said: Mitra has no way to check it.
+boundary caller {
+    ensure names_the_right_revision = "The revision given with `--rev` names the code the evidence was observed on.";
+    ensure report_is_of_that_code = "A test report given to `ingest` is the whole output of the tests of that revision.";
+    ensure says_who = "The source given with `--source` is who or what vouches.";
+}
+
+subject commands {
+    require revision = caller::names_the_right_revision;
+    require report = caller::report_is_of_that_code;
+    require who = caller::says_who;
+
+    ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
+    ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";
+    ensure rev_is_safe_to_write = "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger.";
+    ensure a_pass_is_not_overstated = "A passing test becomes evidence for exactly what its tie comment pins: with no input stated, on a claim with inputs, it only passes.";
+
+    // A revision given with `--rev`.
+    fn check_rev(rev: String) -> Result<(), String>;
+
+    // rev_is_safe_to_write
+    claim plain_rev_is_taken() {
+        check_rev("abc123") is Ok
+    }
+    claim empty_rev_is_refused() {
+        check_rev("") is Err
+    }
+    claim option_as_rev_is_refused() {
+        check_rev("--source") is Err
+    }
+    claim quoted_rev_is_refused() {
+        check_rev("a\"b") is Err
+    }
+}

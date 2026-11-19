@@ -1,0 +1,37 @@
+// The store of a project: its `.mitra/` folder (src/store.rs).
+//
+//   .mitra/model.mitra      the model, handed first
+//   .mitra/*.mitra          the rest of the model, one file per subject
+//   .mitra/evidence.mitra   the ledger
+
+import std::rust::{Option, Result};
+
+subject store {
+    require listed = disk::lists_what_is_there;
+    require handed = files::handed_unchanged;
+
+    ensure whole_folder = "The model of a store is every `.mitra` file of its folder, the ledger aside, with `model.mitra` handed first.";
+    ensure nearest = "A command run in a folder uses the nearest `.mitra/` at or above it.";
+    ensure never_overwrites = "A store is created only where there is none.";
+
+    // The folder of a store. Nothing of it is read here.
+    record Store;
+
+    impl Store {
+        // The store a file is the `model.mitra` of, if it is one.
+        fn of(model: String) -> Option<Self>;
+        fn model_path(&self) -> String;
+        fn evidence_path(&self) -> String;
+        // The model of the store, as named texts.
+        fn source(&self) -> Result<Modules, String>
+            uses disk::read_dir;
+    }
+
+    // whole_folder
+    claim a_model_file_names_its_store() {
+        Store::of("a/.mitra/model.mitra") is Some
+    }
+    claim another_file_is_no_store() {
+        Store::of("a/model.mitra") is None
+    }
+}

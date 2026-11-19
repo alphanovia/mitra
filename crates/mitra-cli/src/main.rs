@@ -15,12 +15,10 @@
 //! append-only `evidence.mitra`. The store's model also holds the `mitra:`
 //! comments of the Rust files under `src/` and `tests/` next to it.
 
-mod source;
-mod store;
-
 use mitra_rust::{report, tie};
 
-use source::Source;
+use mitra_lang::Modules as Source;
+use mitra_store::{source, store};
 
 use std::process::ExitCode;
 
@@ -63,22 +61,52 @@ fn inputs(paths: &[String]) -> Result<(Source, String), String> {
     match paths {
         // A store's model file brings the `mitra:` lines of its Rust sources.
         [m, e] => match store::Store::of(m) {
-            Some(s) => Ok((s.source()?, e.clone())),
-            None => Ok((Source::file(m)?, e.clone())),
+            Some(s) => Ok((ties_only(&s)?, e.clone())),
+            None => Ok((source::file(m)?, e.clone())),
         },
         // The model alone, with no evidence: what it says before any is
         // brought.
         [m] => inputs(&[m.clone(), String::new()]),
         [] => {
             let s = store::Store::find()?;
-            Ok((s.source()?, s.evidence_path()))
+            Ok((ties_only(&s)?, s.evidence_path()))
         }
         _ => Err(USAGE.into()),
     }
 }
 
 fn read(p: &str) -> Result<String, String> {
-    std::fs::read_to_string(p).map_err(|e| format!("{p}: {e}"))
+    source::read(p)
+}
+
+/// The model of a store, once the `mitra:` comments of the Rust files
+/// beside it were checked: the model is kept aside, a comment only ties
+/// code to it.
+fn ties_only(s: &store::Store) -> Result<Source, String> {
+    use mitra_rust::source::{is_tie, mitra_line, rust_files, scan};
+    let model = s.source()?;
+    let mut files = Vec::new();
+    for d in [s.root().join("src"), s.root().join("tests")] {
+        rust_files(&d, &mut files);
+    }
+    files.sort();
+    for f in files {
+        let shown = f.display().to_string();
+        let text = read(&shown)?;
+        let scanned = scan(&text);
+        let other = |(i, l): (usize, &str)| {
+            let model = mitra_line(l).is_some_and(|m| !is_tie(m));
+            (scanned[i].0 && model).then_some(i + 1)
+        };
+        if let Some(n) = text.lines().enumerate().find_map(other) {
+            return Err(format!(
+                "{shown}: line {n}: a model in `mitra:` comments is no longer read: \
+                 write it in `.mitra/model.mitra`; a comment is `// mitra: implements \
+                 <function>` or `// mitra: evidence for <claim>`"
+            ));
+        }
+    }
+    Ok(model)
 }
 
 /// An error, prefixed with the file it belongs to.
@@ -118,6 +146,7 @@ impl mitra_lang::Places for Places<'_> {
 
 /// A revision given with `--rev`: not empty, not an option, no quotes or
 /// line breaks (it is written into the evidence file).
+// mitra: implements commands::check_rev
 pub fn check_rev(rev: &str) -> Result<(), String> {
     if rev.is_empty() || rev.starts_with('-') || rev.contains(['"', '\n', '\r']) {
         return Err(format!(
@@ -140,7 +169,7 @@ fn evaluate(
         "" => String::new(),
         e => read(e)?,
     };
-    let mut model = mitra_lang::load(&m.text, &evidence).map_err(located(m, e))?;
+    let mut model = mitra_lang::load_modules(m, &evidence).map_err(located(m, e))?;
     if let Some(rev) = rev {
         let before = model.evidence.len();
         // What the model itself declares (`assume`, `uses`) has no revision.
@@ -560,5 +589,34 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             Ok(0)
         }
         _ => Err(USAGE.into()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::check_rev;
+
+    // mitra: evidence for commands::plain_rev_is_taken
+    #[test]
+    fn plain_rev_is_taken() {
+        assert!(check_rev("abc123").is_ok());
+    }
+
+    // mitra: evidence for commands::empty_rev_is_refused
+    #[test]
+    fn empty_rev_is_refused() {
+        assert!(check_rev("").is_err());
+    }
+
+    // mitra: evidence for commands::option_as_rev_is_refused
+    #[test]
+    fn option_as_rev_is_refused() {
+        assert!(check_rev("--source").is_err());
+    }
+
+    // mitra: evidence for commands::quoted_rev_is_refused
+    #[test]
+    fn quoted_rev_is_refused() {
+        assert!(check_rev("a\"b").is_err());
     }
 }

@@ -5,7 +5,7 @@
 //! the type is `Any`, and nothing is refused.
 
 use crate::ast::{Expr, Function, Model, Target};
-use crate::set::Set;
+use crate::set::{Set, Value};
 use crate::Error;
 
 type Env = Vec<(String, Set)>;
@@ -56,7 +56,11 @@ fn show(m: &Model, set: &Set) -> String {
 }
 
 fn unknown(set: &Set) -> bool {
-    Set::any().is_subset(set)
+    // `Any` holds a truth value, a number and a text: a set without one
+    // of them is not `Any`, and saying so is cheap. A record of records
+    // is long to compare whole.
+    let some = [Value::Bool(true), Value::Int(0), Value::Str(String::new())];
+    some.iter().all(|v| set.contains(v)) && Set::any().is_subset(set)
 }
 
 fn numbers() -> Set {

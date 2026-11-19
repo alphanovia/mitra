@@ -820,6 +820,19 @@ impl Set {
     }
 
     pub fn minus(&self, o: &Set) -> Set {
+        // A set with no tuple and no record loses none to those of `o`:
+        // their complement is long to work out, and changes nothing here.
+        if self.composites.shapes.is_empty() && !self.composites.rest {
+            let light = Set {
+                bools: o.bools,
+                ints: o.ints.clone(),
+                floats: o.floats.clone(),
+                strs: o.strs.clone(),
+                lists: o.lists.clone(),
+                composites: Composites::none(),
+            };
+            return self.intersect(&light.complement());
+        }
         self.intersect(&o.complement())
     }
 
@@ -1072,6 +1085,11 @@ impl fmt::Display for Set {
             let single = |b: &Vec<Set>| b.iter().map(Set::single).collect::<Option<Vec<Value>>>();
             if let Some(vs) = t.boxes().iter().map(single).collect::<Option<Vec<_>>>() {
                 points.extend(vs.into_iter().map(|v| shape.value(v).to_string()));
+                continue;
+            }
+            // One product of sets is its own hull: no value is missing.
+            if let [only] = t.boxes() {
+                parts.push(show(only));
                 continue;
             }
             // One product of sets without a few values: `Number(..) \ {..}`.

@@ -20,8 +20,11 @@ When Mitra can't read or check its input it prints `file: line N:
 message` and exits with status 2.
 
 - **The store** is the nearest `.mitra/` at or above the current folder:
-  `model.mitra`, every other `.mitra` file beside it (read after it, in
-  name order) and `evidence.mitra`. `init` creates it, with a
+  `model.mitra`, every other `.mitra` file beside it and
+  `evidence.mitra`. The files are one model, one file per subject if you
+  like: each may repeat the imports it needs, and a file is read after
+  the files whose records and enums it names (otherwise `model.mitra`
+  first, then by name). `init` creates it, with a
   `.gitattributes` that merges `evidence.mitra` with git's `union`
   driver, and never overwrites one. The evidence file is only appended
   to, so two branches that add evidence merge as the union of their lines.
