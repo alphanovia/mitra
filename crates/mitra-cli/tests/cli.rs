@@ -487,14 +487,14 @@ fn tie_compares_a_record_with_its_struct() {
     let (code, out, _) = mitra(&dir, &["eval"]);
     assert_eq!(code, Some(1));
     for want in [
-        "Model::tied: holds",
-        "Claim::tied: holds",
-        "Point::tied: fails",
+        "check::Model::tied: holds",
+        "check::Claim::tied: holds",
+        "check::Point::tied: fails",
     ] {
         assert!(out.contains(want), "{out}");
     }
     assert!(
-        out.contains("The record `Point` and its struct do not agree"),
+        out.contains("The record `check::Point` and its struct do not agree"),
         "{out}"
     );
     assert!(!out.contains("::prose"), "{out}");

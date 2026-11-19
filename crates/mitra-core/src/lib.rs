@@ -41,7 +41,7 @@ use std::fmt;
 
 /// A problem in an input file, with the 1-based line it was found on.
 #[derive(Debug, Clone, PartialEq)]
-// mitra: implements Error
+// mitra: implements reader::Error
 pub struct Error {
     pub line: usize,
     pub message: String,
@@ -66,7 +66,7 @@ impl std::error::Error for Error {}
 
 /// Which input an error belongs to.
 #[derive(Debug, Clone, Copy, PartialEq)]
-// mitra: implements Input
+// mitra: implements types::Input
 pub enum Input {
     Model,
     Evidence,
@@ -122,6 +122,7 @@ fn read(model: &str, ledger: &str) -> Result<Model, (Input, Error)> {
     tie_records(&mut m, &read);
     m.evidence = read;
     points(&mut m);
+    invariants(&mut m);
     let own = |s: &str| s.lines().map(String::from).collect::<Vec<_>>();
     let mut written = own(ledger);
     written.truncate(lines);
@@ -218,6 +219,50 @@ fn points(m: &mut Model) {
                 }
             }
             _ => {}
+        }
+    }
+    m.evidence.extend(more);
+}
+
+/// A claim on a record, `claim c(r: R) { … }` calling no code, is true of
+/// every `R` the code builds: an output observed on a function that
+/// returns an `R` is evidence for or against it, on that value.
+fn invariants(m: &mut Model) {
+    let mut more = Vec::new();
+    for c in &m.claims {
+        let (Target::Property(statement), true) = (&c.target, m.invariant(c)) else {
+            continue;
+        };
+        let [Position {
+            var: Some(name),
+            set: Some(of),
+        }] = c.pattern.as_slice()
+        else {
+            continue;
+        };
+        for e in &m.evidence {
+            let Judgment::Output(v) = &e.judgment else {
+                continue;
+            };
+            let built = m
+                .declared_function(&e.about)
+                .is_some_and(|g| &g.range == of);
+            if !built || !of.contains(v) {
+                continue;
+            }
+            let Some(Value::Bool(ok)) = eval::computed(m, statement, &[(name.clone(), v.clone())])
+            else {
+                continue;
+            };
+            more.push(Evidence {
+                about: c.name.clone(),
+                pattern: vec![Position {
+                    var: None,
+                    set: Some(Set::point(v)),
+                }],
+                judgment: Judgment::Holds(ok),
+                ..e.clone()
+            });
         }
     }
     m.evidence.extend(more);

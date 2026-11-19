@@ -181,6 +181,7 @@ pub const MAX_CLASSES: f64 = 64.0;
 
 /// `claim name(a: S, …) { correct(f(args)) }`, `{ f(args) == e }`, any
 /// expression with a Bool value, or `claim name = uniform(f, g);`
+// mitra: implements reader::Claim
 #[derive(Debug, Clone, PartialEq)]
 pub struct Claim {
     pub name: String,
@@ -236,7 +237,7 @@ pub enum Decl {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-// mitra: implements Model
+// mitra: implements reader::Model
 pub struct Model {
     pub records: Vec<Record>,
     pub enums: Vec<Enum>,
@@ -407,6 +408,27 @@ impl Model {
         let of = name.strip_suffix("::captured")?;
         self.ensure(of).filter(|e| !e.boundary)
     }
+    /// Whether `c` is a claim on a record alone, `claim c(r: R) { … }`
+    /// calling no code: true of every `R` the code builds, so judged on
+    /// the values observed, never on every value of the type.
+    pub fn invariant(&self, c: &Claim) -> bool {
+        let (
+            Target::Property(statement),
+            [Position {
+                var: Some(_),
+                set: Some(of),
+            }],
+        ) = (&c.target, c.pattern.as_slice())
+        else {
+            return false;
+        };
+        let code = |g: &String| self.declared_function(g).is_some_and(|g| !g.is_spec());
+        self.records
+            .iter()
+            .any(|r| r.of.is_none() && &r.set() == of)
+            && !calls(statement).iter().any(code)
+    }
+
     /// A function the model declares.
     pub fn declared_function(&self, name: &str) -> Option<&Function> {
         self.functions.iter().find(|f| f.name == name)

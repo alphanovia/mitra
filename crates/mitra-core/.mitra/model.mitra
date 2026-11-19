@@ -13,39 +13,6 @@
 import std::claims::{uniform};
 import std::rust::{Option, Result};
 
-// What a claim's verdict says.
-enum Logic { Holds, Assuming, Unverified, Fails }
-
-// A piece that may be the wrong one: everything is a suspect. Rust's
-// variants hold unnamed values; the field names are the model's.
-enum Piece {
-    Evidence(line: usize),        // a piece of evidence someone brought
-    Code(subject: String),        // the code of a function
-    Claim(name: String),          // the statement of a claim
-    Signature(function: String),  // the inputs and result type of a function
-    Assumption(name: String),     // an `assume`, taken as true
-    Uses(function: String),       // the `uses` clause of a function
-    Requirement(name: String),    // the text of an `ensure`
-    Capture(name: String)         // that the claims say what that text says
-}
-
-// A piece, how much it must be wrong and how much it can be.
-record Candidate { piece: Piece, belief: f64, plausibility: f64 }
-
-// A fault in a text, with its line.
-record Error { line: usize, message: String }
-// Which text it is in, what the reader keeps of names, an error of a
-// report: nothing of them is read here.
-record Input;
-record Names;
-record Problem;
-// Its claims are counted, not read: `Claim` and `Evidence` are variants
-// of Piece here, so the structs of those names can't be stated.
-record Model { claims: Vec<Any>, .. }
-// (The field `claim` of the code can't be stated: the word is taken.)
-record Verdict { logic: Logic, .. }
-record Report { verdicts: Vec<Verdict>, problems: Vec<Problem>, .. }
-
 subject eval {
     ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
     // An operator of one value. `None` when it does not apply to the value.
@@ -100,7 +67,111 @@ subject print {
     claim level_uniform = uniform(level, |op| -> 1..=5 { level(op) });
 }
 
+// From text to a model (src/parse.rs).
+subject reader {
+    ensure reads = "A model written as the language reference says is read.";
+    ensure refuses = "A text that is not a model is refused, with the line of the fault and what is wrong.";
+    // A fault in a text, with its line.
+    record Error { line: usize, message: String }
+    // What the reader keeps of names: nothing of it is read here.
+    record Names;
+    record Claim { name: String, .. }
+    record Model { claims: Vec<Claim>, .. }
+    fn model(src: String) -> Result<(Model, Names), Error>;
+
+    claim fault_is_placed(src: String) {
+        match model(src) { Ok(read) => true, Err(e) => e.line >= 1 && e.message != "" }
+    }
+    claim reads_a_subject() { model("subject fn f() -> Bool;") is Ok }
+    claim refuses_a_bare_fn() { model("fn f() -> Bool;") is Err }
+}
+
+// What a model must satisfy before anything is judged (src/ast.rs, src/lib.rs).
+subject types {
+    require read_first = reader::reads;
+    ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
+    ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts.";
+    ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
+    // Which text a fault is in.
+    record Input;
+    fn check(m: Model) -> Result<Model, (Input, Error)>;
+    fn read(model: String, ledger: String) -> Result<Model, (Input, Error)>
+        uses reader::model, check;
+    fn load(model: String, ledger: String) -> Result<Model, (Input, Error)> uses read;
+
+    claim good_is_read() { load("subject fn f() -> Bool;", "") is Ok }
+    claim unknown_is_refused() { load("claim c() { g() }", "") is Err }
+    claim twice_is_refused() { load("subject fn f() -> Bool; subject fn f() -> Bool;", "") is Err }
+    claim arity_is_refused() { load("subject fn f(a: Int) -> Bool; claim c() { f(1, 2) }", "") is Err }
+    claim endless_is_refused() { load("fn f(a: Int) -> Int { g(a) } fn g(a: Int) -> Int { f(a) }", "") is Err }
+}
+
+// From a model and its evidence to verdicts (src/eval.rs, src/prove.rs).
+subject verdicts {
+    require checked = types::fits;
+    require computed = eval::computes;
+    ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
+    ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
+    ensure fails_is_shown = "A claim fails only where evidence or the model itself shows it, or because something it rests on fails.";
+    ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
+    ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
+    ensure follows = "A claim said to follow from other claims is true whenever they are.";
+    // What a claim's verdict says.
+    enum Logic { Holds, Assuming, Unverified, Fails }
+    // An error of a report: nothing of it is read here.
+    record Problem;
+    // (The field `claim` of the code can't be stated: the word is taken.)
+    record Verdict { logic: Logic, .. }
+    record Report { verdicts: Vec<Verdict>, problems: Vec<Problem>, .. }
+    fn evaluate(model: Model) -> Result<Report, (Input, Error)>;
+    fn derive(model: Model);
+    fn run(model: String, ledger: String) -> Result<Report, (Input, Error)> uses types::load, evaluate;
+
+    claim one_verdict_each(m: Model) {
+        match evaluate(m) {
+            Err(e) => true,
+            Ok(r) => len(r.verdicts) == len(m.claims),
+        }
+    }
+    claim untested_is_unverified() {
+        match run("subject fn f() -> Bool;", "") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Unverified] }
+    }
+    claim tested_holds() {
+        match run("subject fn f() -> Bool;", "evidence a { for f holds }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds] }
+    }
+    claim refuted_fails() {
+        match run("subject fn f() -> Bool;", "evidence a { for f fails }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Fails] }
+    }
+    claim trust_changes_no_verdict() {
+        match run("subject fn f() -> Bool;", "evidence a { for f holds trust 0.1 }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds] }
+    }
+    claim conflict_counts_for_neither() {
+        match run("subject fn f() -> Bool;", "evidence a { for f holds } evidence b { for f fails }") {
+            Err(e) => false,
+            Ok(r) => len(r.problems) == 1 && map(v in r.verdicts, v.logic) == [Unverified],
+        }
+    }
+    claim follows_from_a_vouched_claim() {
+        match run("subject fn add(a: Int, b: Int) -> Int; claim c(a: Int, b: Int) { add(a, b) == add(b, a) } claim d(a: Int, b: Int) { add(b, a) == add(a, b) }", "evidence r { for c holds }") { Err(e) => false, Ok(r) => map(v in r.verdicts, v.logic) == [Holds, Holds, Unverified] }
+    }
+}
+
 subject report {
+    // A piece that may be the wrong one: everything is a suspect. Rust's
+    // variants hold unnamed values; the field names are the model's.
+    enum Piece {
+        Evidence(line: usize),        // a piece of evidence someone brought
+        Code(subject: String),        // the code of a function
+        Claim(name: String),          // the statement of a claim
+        Signature(function: String),  // the inputs and result type of a function
+        Assumption(name: String),     // an `assume`, taken as true
+        Uses(function: String),       // the `uses` clause of a function
+        Requirement(name: String),    // the text of an `ensure`
+        Capture(name: String)         // that the claims say what that text says
+    }
+
+    // A piece, how much it must be wrong and how much it can be.
+    record Candidate { piece: Piece, belief: f64, plausibility: f64 }
     ensure words = "A verdict and a candidate are printed with the word the reference gives them.";
     fn as_str(l: Logic) -> String {
         match l {
@@ -120,82 +191,6 @@ subject report {
     }
     // One class per word.
     claim word_uniform = uniform(word, |c| -> {"certain", "likely", "possible", "unlikely"} { word(c) });
-}
-
-// From text to a model (src/parse.rs).
-subject reader {
-    ensure reads = "A model written as the language reference says is read.";
-    ensure refuses = "A text that is not a model is refused, with the line of the fault and what is wrong.";
-    fn model(src: String) -> Result<(Model, Names), Error>;
-
-    claim fault_is_placed(src: String) {
-        match model(src) { Ok(read) => true, Err(e) => e.line >= 1 && e.message != "" }
-    }
-    claim reads_a_subject() { model("subject fn f() -> Bool;") is Ok }
-    claim refuses_a_bare_fn() { model("fn f() -> Bool;") is Err }
-}
-
-// What a model must satisfy before anything is judged (src/ast.rs, src/lib.rs).
-subject types {
-    require read_first = reader::reads;
-    ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
-    ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts.";
-    ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
-    fn check(m: Model) -> Result<Model, (Input, Error)>;
-    fn read(model: String, ledger: String) -> Result<Model, (Input, Error)>
-        uses reader::model, check;
-    fn load(model: String, ledger: String) -> Result<Model, (Input, Error)> uses read;
-
-    claim good_is_read() { load("subject fn f() -> Bool;", "") is Ok }
-    claim unknown_is_refused() { load("claim c() { g() }", "") is Err }
-    claim twice_is_refused() { load("subject fn f() -> Bool; subject fn f() -> Bool;", "") is Err }
-    claim arity_is_refused() { load("subject fn f(a: Int) -> Bool; claim c() { f(1, 2) }", "") is Err }
-    claim endless_is_refused() { load("fn f(a: Int) -> Int { g(a) } fn g(a: Int) -> Int { f(a) }", "") is Err }
-}
-
-// The verdicts of a report, in order.
-fn words(r: Result<Report, (Input, Error)>) -> Vec<Logic> {
-    match r { Err(e) => [], Ok(report) => map(v in report.verdicts, v.logic) }
-}
-
-// From a model and its evidence to verdicts (src/eval.rs, src/prove.rs).
-subject verdicts {
-    require checked = types::fits;
-    require computed = eval::computes;
-    ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
-    ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
-    ensure fails_is_shown = "A claim fails only where evidence or the model itself shows it, or because something it rests on fails.";
-    ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
-    ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
-    ensure follows = "A claim said to follow from other claims is true whenever they are.";
-    fn evaluate(model: Model) -> Result<Report, (Input, Error)>;
-    fn derive(model: Model);
-    fn run(model: String, ledger: String) -> Result<Report, (Input, Error)> uses types::load, evaluate;
-
-    claim one_verdict_each(m: Model) {
-        match evaluate(m) {
-            Err(e) => true,
-            Ok(r) => len(r.verdicts) == len(m.claims),
-        }
-    }
-    claim untested_is_unverified() { words(run("subject fn f() -> Bool;", "")) == [Unverified] }
-    claim tested_holds() { words(run("subject fn f() -> Bool;", "evidence a { for f holds }")) == [Holds] }
-    claim refuted_fails() { words(run("subject fn f() -> Bool;", "evidence a { for f fails }")) == [Fails] }
-    claim trust_changes_no_verdict() {
-        words(run("subject fn f() -> Bool;", "evidence a { for f holds trust 0.1 }")) == [Holds]
-    }
-    claim conflict_counts_for_neither() {
-        match run("subject fn f() -> Bool;", "evidence a { for f holds } evidence b { for f fails }") {
-            Err(e) => false,
-            Ok(r) => len(r.problems) == 1 && words(Ok(r)) == [Unverified],
-        }
-    }
-    claim follows_from_a_vouched_claim() {
-        words(run(
-            "subject fn add(a: Int, b: Int) -> Int; claim c(a: Int, b: Int) { add(a, b) == add(b, a) } claim d(a: Int, b: Int) { add(b, a) == add(a, b) }",
-            "evidence r { for c holds }"
-        )) == [Holds, Holds, Unverified]
-    }
 }
 
 // What to do next (src/plan.rs).

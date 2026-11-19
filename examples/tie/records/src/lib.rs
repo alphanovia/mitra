@@ -1,10 +1,10 @@
-// mitra: implements Model
+// mitra: implements check::Model
 #[derive(Debug, Clone)]
 pub struct Model {
     pub claims: Vec<Claim>,
 }
 
-// mitra: implements Claim
+// mitra: implements check::Claim
 #[derive(Debug, Clone)]
 pub struct Claim {
     pub name: String,
@@ -14,14 +14,14 @@ pub struct Claim {
 }
 
 // The model says `y: Int`.
-// mitra: implements Point
+// mitra: implements check::Point
 pub struct Point {
     pub x: i64,
     pub y: String,
 }
 
 // The model states no `b`, and has no `..`.
-// mitra: implements Wide
+// mitra: implements check::Wide
 pub struct Wide {
     pub a: i64,
     pub b: i64,

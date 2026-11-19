@@ -61,7 +61,7 @@ impl Implication {
 
 /// The verdict on one claim.
 #[derive(Debug, Clone, PartialEq)]
-// mitra: implements Verdict
+// mitra: implements verdicts::Verdict
 pub struct Verdict {
     /// The inputs a tested one stands for, with the `represented` claim
     /// that says so.
@@ -250,7 +250,7 @@ impl Piece {
 /// How plausibly a piece is the wrong one.
 ///
 #[derive(Debug, Clone, PartialEq)]
-// mitra: implements Candidate
+// mitra: implements report::Candidate
 pub struct Candidate {
     pub piece: Piece,
     pub belief: f64,
@@ -267,7 +267,7 @@ pub enum Unranked {
 
 /// An error: a claim that fails, or pieces that can't all be true.
 #[derive(Debug, Clone, PartialEq)]
-// mitra: implements Problem
+// mitra: implements verdicts::Problem
 pub struct Problem {
     pub kind: Kind,
     /// The evidence failing the model: line and text.
@@ -344,7 +344,7 @@ impl Default for Display {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-// mitra: implements Report
+// mitra: implements verdicts::Report
 pub struct Report {
     pub verdicts: Vec<Verdict>,
     pub problems: Vec<Problem>,
@@ -1983,15 +1983,19 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         if let Target::Matches(target) | Target::Property(target) = &c.target {
             let property = matches!(c.target, Target::Property(_));
             // Every input of a finite domain; otherwise every observed input.
-            let inputs = domain.values().unwrap_or_else(|| match property {
-                true => ev.candidates(c, target, &domain),
-                false => ev
-                    .observed
-                    .keys()
-                    .map(|(_, x)| x.clone())
-                    .filter(|x| x.len() == arity && domain.contains(x))
-                    .collect(),
-            });
+            // A claim on a record is judged on the values observed only.
+            let seen = model.invariant(c).then(Vec::new);
+            let inputs = seen
+                .or_else(|| domain.values())
+                .unwrap_or_else(|| match property {
+                    true => ev.candidates(c, target, &domain),
+                    false => ev
+                        .observed
+                        .keys()
+                        .map(|(_, x)| x.clone())
+                        .filter(|x| x.len() == arity && domain.contains(x))
+                        .collect(),
+                });
             // For classes, also the observed inputs outside the domain that
             // the same statement reaches: those that fit the claim's values.
             let reach: Pattern = c
@@ -2829,6 +2833,25 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
             }
         }
+        // A claim on a record: the code that built a value against it.
+        if let (Target::Property(_), Some([(_, of)])) = (
+            &c.target,
+            model.function(&c.func).map(|f| f.params.as_slice()),
+        ) {
+            let denied = |l: usize| {
+                let no = |e: &Evidence| e.about == c.name && e.judgment == Judgment::Holds(false);
+                model.evidence.iter().any(|e| e.line == l && no(e))
+            };
+            for e in &model.evidence {
+                let built = matches!(e.judgment, Judgment::Output(_))
+                    && model
+                        .declared_function(&e.about)
+                        .is_some_and(|g| &g.range == of);
+                if built && denied(e.line) && !side.contains(&Piece::Code(e.about.clone())) {
+                    side.push(Piece::Code(e.about.clone()));
+                }
+            }
+        }
         // A boundary has no code of ours to be wrong: it answers as it
         // does.
         side.retain(|p| !matches!(p, Piece::Code(g) if model.boundaries.contains(g)));
@@ -2884,8 +2907,11 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             }
             // A claim refuted by evidence on the claim itself.
             let stated = |l: &&usize| {
-                let on = model.evidence.iter().find(|e| e.line == **l);
-                on.is_some_and(|e| matches!(e.judgment, Judgment::Holds(_)))
+                let first = model.evidence.iter().find(|e| e.line == **l);
+                let said = |e: &Evidence| matches!(e.judgment, Judgment::Holds(_));
+                // Also what an observed output says of a claim on a record.
+                let on = |e: &&Evidence| e.line == **l && e.about == c.name && said(e);
+                first.is_some_and(said) || model.evidence.iter().any(|e| on(&e))
             };
             clauses.extend(lines.iter().filter(stated).map(with));
         }

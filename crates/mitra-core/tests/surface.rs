@@ -613,3 +613,47 @@ fn a_record_may_leave_parts_unstated() {
         "{text}"
     );
 }
+
+/// A record or an enum written in a subject is named by it: short inside,
+/// `subject::Name` elsewhere, or short where one subject has the name.
+#[test]
+fn a_record_belongs_to_its_subject() {
+    let m = "enum Piece { Claim(name: String), Code }\n\
+             subject model { record Claim { name: String, line: 0..=3 }\n\
+             enum Kind { Point, Wide(n: 0..=2) }\n\
+             fn first() -> Claim;\n\
+             fn kind(c: Claim) -> Kind;\n\
+             claim line_from_one(c: Claim) trust 0.8 { c.line >= 1 } }\n\
+             subject other { fn pass(c: model::Claim) -> Kind;\n\
+             claim seen() { pass(model::Claim(\"a\", 1)) == Wide(1) }\n\
+             fn piece(p: Piece) -> Bool { p is Claim } }";
+    let run = |e: &str| mitra_core::run(m, e).unwrap_or_else(|(_, e)| panic!("{e}"));
+    // Short names in evidence are those of the function's subject.
+    let text = run(
+        "evidence a { for model::kind given c = Claim(\"a\", 0) gives Point }\n\
+                    evidence b { for other::pass given c = model::Claim(\"a\", 1) gives Wide(1) }",
+    )
+    .to_text();
+    assert!(text.contains("other::seen: holds"), "{text}");
+    // A claim on a record is true of every value the code builds: an
+    // output that fits it is evidence for it, one that breaks it against.
+    let text = run("evidence a { for model::first gives Claim(\"a\", 2) }").to_text();
+    assert!(
+        text.contains("model::line_from_one: unverified\n  passes on"),
+        "{text}"
+    );
+    let report = run("evidence a { for model::first gives Claim(\"a\", 0) trust 0.9 }");
+    let text = report.to_text();
+    assert!(text.contains("model::line_from_one: fails"), "{text}");
+    let all = report.problems.iter();
+    let got: Vec<mitra_core::Piece> = all
+        .flat_map(|p| p.candidates.clone().unwrap_or_default())
+        .map(|c| c.piece)
+        .collect();
+    use mitra_core::Piece::{Claim, Code};
+    assert!(got.contains(&Code("model::first".into())), "{got:?}");
+    assert!(
+        got.contains(&Claim("model::line_from_one".into())),
+        "{got:?}"
+    );
+}

@@ -55,11 +55,11 @@ with the function of the model, and appends what it finds as evidence
 | Result | The same rule. | `f::tied` |
 | Calls | For `uses g, h`: the body calls the `fn` tied to each. For `uses only`: it calls no other tied `fn`. A function with no tie is not checked. | `f::uses` |
 
-A record is tied the same way, `// mitra: implements Claim` above its
+A record is tied the same way, `// mitra: implements check::Claim` above its
 `struct`: every field the model states is in the struct with a type that
 fits, and, unless the record ends with `..`, the struct has no other
 field. `record Claim;` only asks that a `struct` or an `enum` is there.
-The evidence is on `Claim::tied`. `examples/tie/records`.
+The evidence is on `check::Claim::tied`. `examples/tie/records`.
 
 `f::tied` is a claim that exists once evidence names it: without a
 reader, a reviewer brings the same evidence

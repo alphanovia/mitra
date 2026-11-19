@@ -189,7 +189,7 @@ struct Sig {
 
 /// What the model declares, for the evidence that names it.
 #[derive(Debug, Default, Clone)]
-// mitra: implements Names
+// mitra: implements reader::Names
 pub struct Names {
     fns: BTreeMap<String, Sig>,
     /// Each claim with its inputs, and the measures in its body.
@@ -198,6 +198,10 @@ pub struct Names {
     specified: BTreeMap<String, String>,
     /// The functions whose code is outside the model.
     pub opaque: BTreeSet<String>,
+    /// The records, enums and variants of a block, by their full name,
+    /// and those outside any block.
+    pub scoped: BTreeSet<String>,
+    pub top: BTreeSet<String>,
     /// For each claim, the spec claims of the functions it calls.
     pub derived: BTreeMap<String, Vec<String>>,
     /// The trust given to the statement of a claim.
@@ -332,6 +336,8 @@ struct P {
     properties: Vec<(usize, Vec<Bound>)>,
     /// The records and enums declared so far.
     records: Vec<Record>,
+    /// The types and variants of the blocks, by their full name.
+    scoped: BTreeSet<String>,
     enums: Vec<Enum>,
     /// The sets the type parameters stand for, where the parser is.
     generics: Vec<(String, Set)>,
@@ -971,7 +977,7 @@ impl P {
     ) -> R<(Vec<Record>, Vec<String>, Option<BTreeMap<String, Set>>)> {
         let at = |e: Error| Error::new(line, e.message);
         let mut p = P {
-            toks: lex(&of.body).map_err(at)?,
+            toks: merge_types(lex(&of.body).map_err(at)?, &self.scoped),
             ..P::default()
         };
         let each: Vec<String> = params.iter().map(|p| p.1.to_string()).collect();
@@ -3260,7 +3266,160 @@ fn declared(toks: &[Tok]) -> BTreeSet<String> {
 }
 
 /// One file, read twice: the second reading knows every function of it.
+/// The records, enums and variants declared inside `subject name { … }`
+/// or `boundary name { … }`, as `name::Record`, and those declared
+/// outside any block.
+fn types_of(toks: &[Tok]) -> (BTreeSet<String>, BTreeSet<String>) {
+    let (mut scoped, mut top) = (BTreeSet::new(), BTreeSet::new());
+    let (mut depth, mut scope): (usize, Option<String>) = (0, None);
+    let mut i = 0;
+    while i < toks.len() {
+        let t = &toks[i];
+        let next = toks.get(i + 1).filter(|n| n.kind == Kind::Name);
+        let mut add = |name: &str, scope: &Option<String>| match scope {
+            Some(s) => scoped.insert(format!("{s}::{name}")),
+            None => top.insert(name.to_string()),
+        };
+        match (t.text.as_str(), &t.kind, next) {
+            ("{", Kind::Punct, _) => depth += 1,
+            ("}", Kind::Punct, _) => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    scope = None;
+                }
+            }
+            ("subject" | "boundary", Kind::Name, Some(n)) if depth == 0 && n.text != "fn" => {
+                scope = Some(n.text.clone())
+            }
+            ("record", Kind::Name, Some(n)) if depth <= 1 => {
+                add(&n.text, &scope);
+            }
+            ("enum", Kind::Name, Some(n)) if depth <= 1 => {
+                add(&n.text, &scope);
+                // Its variants: each name at the first level of its braces.
+                let mut j = i + 2;
+                while j < toks.len() && toks[j].text != "{" && toks[j].text != ";" {
+                    j += 1;
+                }
+                let (mut inner, mut first) = (0usize, true);
+                while j < toks.len() {
+                    match toks[j].text.as_str() {
+                        "{" | "(" | "<" => inner += 1,
+                        "}" | ")" | ">" => inner = inner.saturating_sub(1),
+                        "," if inner == 1 => first = true,
+                        _ if inner == 1 && first && toks[j].kind == Kind::Name => {
+                            add(&toks[j].text, &scope);
+                            first = false;
+                        }
+                        _ => {}
+                    }
+                    if inner == 0 {
+                        break;
+                    }
+                    j += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    (scoped, top)
+}
+
+/// `a :: X` as one name, where `a::X` is a type or a variant of a block.
+fn merge_types(toks: Vec<Tok>, scoped: &BTreeSet<String>) -> Vec<Tok> {
+    let mut out: Vec<Tok> = Vec::new();
+    let mut i = 0;
+    while i < toks.len() {
+        let joined = match (toks.get(i + 1), toks.get(i + 2)) {
+            (Some(c), Some(x)) if toks[i].kind == Kind::Name && c.text == "::" => {
+                Some(format!("{}::{}", toks[i].text, x.text)).filter(|f| scoped.contains(f))
+            }
+            _ => None,
+        };
+        match joined {
+            Some(text) => {
+                out.push(Tok {
+                    kind: Kind::Name,
+                    text,
+                    line: toks[i].line,
+                });
+                i += 3;
+            }
+            None => {
+                out.push(toks[i].clone());
+                i += 1;
+            }
+        }
+    }
+    out
+}
+
+/// Give each type and variant of a block its full name: inside the
+/// block by its short name, elsewhere by its path, or by its short name
+/// where one block has it and nothing outside any block does.
+fn scope_types(
+    toks: Vec<Tok>,
+    scoped: &BTreeSet<String>,
+    top: &BTreeSet<String>,
+    evidence: bool,
+) -> Vec<Tok> {
+    if scoped.is_empty() {
+        return toks;
+    }
+    let mut toks = merge_types(toks, scoped);
+    let (mut depth, mut scope): (usize, Option<String>) = (0, None);
+    for i in 0..toks.len() {
+        let text = toks[i].text.clone();
+        match text.as_str() {
+            "{" if toks[i].kind == Kind::Punct => depth += 1,
+            "}" if toks[i].kind == Kind::Punct => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    scope = None;
+                }
+            }
+            "subject" | "boundary" if depth == 0 && toks[i].kind == Kind::Name => {
+                let n = toks
+                    .get(i + 1)
+                    .filter(|n| n.kind == Kind::Name && n.text != "fn");
+                scope = n.map(|n| n.text.clone());
+            }
+            // Evidence `for block::f`: short names are those of the block.
+            "for" if evidence && toks.get(i + 2).is_some_and(|c| c.text == "::") => {
+                scope = toks.get(i + 1).map(|n| n.text.clone());
+            }
+            _ => {}
+        }
+        if toks[i].kind != Kind::Name || text.contains("::") {
+            continue;
+        }
+        let before = i.checked_sub(1).map(|j| toks[j].text.as_str());
+        let after = toks.get(i + 1).map(|t| t.text.as_str());
+        // A field read, the rest of a path, the head of one, a label.
+        if matches!(before, Some("." | "::")) || matches!(after, Some("::" | ":")) {
+            continue;
+        }
+        let own = scope.as_ref().map(|s| format!("{s}::{text}"));
+        if let Some(full) = own.filter(|f| scoped.contains(f)) {
+            toks[i].text = full;
+            continue;
+        }
+        if top.contains(&text) {
+            continue;
+        }
+        let ends = format!("::{text}");
+        let mut with = scoped.iter().filter(|f| f.ends_with(&ends));
+        if let (Some(full), None) = (with.next(), with.next()) {
+            toks[i].text = full.clone();
+        }
+    }
+    toks
+}
+
 fn read(toks: Vec<Tok>) -> Result<P, Error> {
+    let (scoped, top) = types_of(&toks);
+    let toks = scope_types(toks, &scoped, &top, false);
     let all = declared(&toks);
     let mut known = Names::default();
     let mut last = None;
@@ -3270,6 +3429,7 @@ fn read(toks: Vec<Tok>) -> Result<P, Error> {
             all: all.clone(),
             first: pass == 0,
             known,
+            scoped: scoped.clone(),
             ..P::default()
         };
         p.items()?;
@@ -3279,7 +3439,10 @@ fn read(toks: Vec<Tok>) -> Result<P, Error> {
         known = p.names.clone();
         last = Some(p);
     }
-    Ok(last.expect("read twice"))
+    let mut last = last.expect("read twice");
+    last.names.scoped = scoped;
+    last.names.top = top;
+    Ok(last)
 }
 
 /// The evidence, then what the model itself declares.
@@ -3314,7 +3477,7 @@ pub fn evidence_alone(src: &str, m: &Model, names: &Names) -> Result<Vec<Evidenc
         all.insert(tied);
     }
     let mut p = P {
-        toks: lex(src)?,
+        toks: scope_types(lex(src)?, &names.scoped, &names.top, true),
         all,
         known: names.clone(),
         names,

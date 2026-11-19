@@ -7,9 +7,11 @@ the two. A test runs them all.
 
 ## record
 
-A value with named fields. Written `Point(1, 2)`, read `p.x`. Global,
-also when written inside a subject. Type parameters: `record Box<T> {
-item: T }`.
+A value with named fields. Written `Point(1, 2)`, read `p.x`. Type
+parameters: `record Box<T> { item: T }`. Written in a subject or a
+boundary it belongs to it, like a function: `Point` inside, `geo::Point`
+elsewhere, or `Point` alone where only one block has the name and
+nothing outside any block does. The same for an enum and its variants.
 
 ```mitra
 record Point { x: 0..=9, y: 0..=9 }
@@ -46,8 +48,28 @@ check::named::spec: unverified
 ```
 
 A record is tied to its struct like a function to its code:
-`// mitra: implements Claim` above the `struct`, see
+`// mitra: implements check::Claim` above the `struct`, see
 [the tie](evidence.md#the-tie-to-the-code).
+
+A claim on a record, calling no code, is true of every value the code
+builds. An output observed on a function that returns the record is
+evidence for it or against it; against, the code of that function is a
+candidate with the claim and the evidence.
+
+```mitra
+subject geo {
+    record Point { x: 0..=9, y: 0..=9 }
+    fn origin() -> Point;
+    claim on_the_diagonal(p: Point) { p.x == p.y }
+}
+```
+```evidence
+evidence seen { for geo::origin gives Point(0, 1) }
+```
+```text
+geo::on_the_diagonal: fails
+  fails on        `p = geo::Point(0, 1)`
+```
 
 ## enum
 

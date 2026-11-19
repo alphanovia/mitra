@@ -1,16 +1,16 @@
 pair::add::spec: unverified
-  passes on       `pair::add(Pair(1, 2), Pair(3, 4))`
-  no evidence on  (p1, p2) in (Pair \ {Pair(1, 2)}, Pair) | ({Pair(1, 2)}, Pair \ {Pair(3, 4)})
+  passes on       `pair::add(pair::Pair(1, 2), pair::Pair(3, 4))`
+  no evidence on  (p1, p2) in (pair::Pair \ {pair::Pair(1, 2)}, pair::Pair) | ({pair::Pair(1, 2)}, pair::Pair \ {pair::Pair(3, 4)})
 pair::minus::correct: unverified
-  no evidence on  (p1, p2) in (Pair, Pair)
+  no evidence on  (p1, p2) in (pair::Pair, pair::Pair)
 pair::scale::uses: holds
 pair::minus_undoes_add: unverified
-  passes on       `p1 = Pair(1, 2), p2 = Pair(3, 4)`
-  no evidence on  (p1, p2) in (Pair \ {Pair(1, 2)}, Pair) | ({Pair(1, 2)}, Pair \ {Pair(3, 4)})
+  passes on       `p1 = pair::Pair(1, 2), p2 = pair::Pair(3, 4)`
+  no evidence on  (p1, p2) in (pair::Pair \ {pair::Pair(1, 2)}, pair::Pair) | ({pair::Pair(1, 2)}, pair::Pair \ {pair::Pair(3, 4)})
 pair::scale_zero: unverified
   no evidence on  classes false, true of `pair::scale_uniform`
 pair::scale_correct: unverified
-  passes on       `pair::scale(Pair(1, 2), 2)`
+  passes on       `pair::scale(pair::Pair(1, 2), 2)`
   assumed on      class false of `pair::scale_uniform`, by `pair::scale_uniform`
   no evidence on  class true of `pair::scale_uniform`
 pair::scale_uniform: holds
@@ -18,19 +18,19 @@ pair::scale_uniform: holds
 warning[M101]: a claim is not verified
   --> model.mitra:7  fn add(p1: Pair, p2: Pair) -> Pair { Pair(p1.first + p2.first, p1.second + p2.second) }
 
-  No evidence on (p1, p2) in (Pair \ {Pair(1, 2)}, Pair) | ({Pair(1, 2)}, Pair \ {Pair(3, 4)}).
+  No evidence on (p1, p2) in (pair::Pair \ {pair::Pair(1, 2)}, pair::Pair) | ({pair::Pair(1, 2)}, pair::Pair \ {pair::Pair(3, 4)}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:12  fn minus(p1: Pair, p2: Pair) -> Pair;
 
-  No evidence on (p1, p2) in (Pair, Pair).
+  No evidence on (p1, p2) in (pair::Pair, pair::Pair).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:16  claim minus_undoes_add(p1: Pair, p2: Pair) { minus(add(p1, p2), p2) == p1 }
 
-  No evidence on (p1, p2) in (Pair \ {Pair(1, 2)}, Pair) | ({Pair(1, 2)}, Pair \ {Pair(3, 4)}).
+  No evidence on (p1, p2) in (pair::Pair \ {pair::Pair(1, 2)}, pair::Pair) | ({pair::Pair(1, 2)}, pair::Pair \ {pair::Pair(3, 4)}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

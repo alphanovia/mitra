@@ -173,7 +173,15 @@ fn fits(model: &str, rust: &str) -> bool {
     let ints = [
         "UInt8", "UInt16", "UInt32", "Int8", "Int16", "Int32", "Int64",
     ];
-    let mut plain = model.to_string();
+    // A type of a block is `block::Name` in the model, `Name` in the code.
+    let mut plain = String::new();
+    for (i, part) in model.split("::").enumerate() {
+        let part = match i + 1 < model.split("::").count() {
+            true => part.trim_end_matches(|c: char| c.is_alphanumeric() || c == '_'),
+            false => part,
+        };
+        plain += part;
+    }
     for i in ints {
         plain = plain.replace(i, "Int");
     }
