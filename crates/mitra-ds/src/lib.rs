@@ -8,9 +8,10 @@
 //! reported).
 //!
 //! The crate is dogfooded: its model is aside, in `.mitra/model.mitra`
-//! and `.mitra/points.mitra`. A comment `// mitra: implements mass::judged`
-//! above a function ties it to the model, `mitra tie` checks that the two
-//! agree, and `.mitra/evidence.mitra` holds the results of its own test
+//! (what it promises, not how it computes). A comment
+//! `// mitra: implements mass::Mass::judged` above a function ties it to
+//! the model, `mitra tie` checks that the two agree, a test's comment
+//! `// mitra: evidence for … given …` says which input it pins, and `.mitra/evidence.mitra` holds the results of its own test
 //! runs.
 
 pub mod culprits;
@@ -18,6 +19,7 @@ pub mod culprits;
 /// Belief split on {correct, wrong}: `b + d + u = 1`, each in [0, 1].
 ///
 #[derive(Debug, Clone, Copy, PartialEq)]
+// mitra: implements mass::Mass
 pub struct Mass {
     /// Belief the subject is correct.
     pub b: f64,
@@ -40,7 +42,7 @@ impl Mass {
 
     /// The mass of one piece of evidence: `correct` or wrong, at confidence
     /// `c` in [0, 1]. `None` if `c` is outside [0, 1] or not a number.
-    // mitra: implements mass::judged
+    // mitra: implements mass::Mass::judged
     pub fn judged(ok: bool, c: f64) -> Option<Mass> {
         if !(0.0..=1.0).contains(&c) {
             return None;
@@ -50,7 +52,7 @@ impl Mass {
     }
 
     /// Each part in [0, 1] and the parts sum to 1, up to [`EPSILON`].
-    // mitra: implements mass::is_valid
+    // mitra: implements mass::Mass::is_valid
     pub fn is_valid(&self) -> bool {
         let parts = [self.b, self.d, self.u];
         parts.iter().all(|x| (-EPSILON..=1.0 + EPSILON).contains(x))
@@ -58,7 +60,7 @@ impl Mass {
     }
 
     /// The mass two sources give to opposite sides: `b₁d₂ + d₁b₂`.
-    // mitra: implements mass::conflict
+    // mitra: implements mass::Mass::conflict
     pub fn conflict(&self, o: &Mass) -> f64 {
         self.b * o.d + self.d * o.b
     }
@@ -77,7 +79,7 @@ impl Mass {
     /// conflict (two fully believed, opposite judgments), taken as a
     /// conflict within [`EPSILON`] of 1 (renormalising by less is
     /// numerically meaningless), and when either mass is not valid.
-    // mitra: implements mass::dempster
+    // mitra: implements mass::Mass::dempster
     pub fn dempster(&self, o: &Mass) -> Option<Mass> {
         if !self.is_valid() || !o.is_valid() {
             return None;
@@ -96,7 +98,7 @@ impl Mass {
 
     /// Yager's rule: the conflict goes to unknown. Returns the combined
     /// mass and the conflict; `None` if either mass is not valid.
-    // mitra: implements mass::yager
+    // mitra: implements mass::Mass::yager
     pub fn yager(&self, o: &Mass) -> Option<(Mass, f64)> {
         if !self.is_valid() || !o.is_valid() {
             return None;

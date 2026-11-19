@@ -75,7 +75,8 @@ geo::on_the_diagonal: fails
 
 `impl R { … }`, as Rust writes it, in the subject or boundary of what it
 holds. A `fn` or a `claim` there is named `R::name`. `self` (also
-`&self`, `&mut self`) is an input of type `R`, and `Self` is `R`. A
+`&self`, `&mut self`) is an input of type `R`, `Self` is `R`, and an
+input written `o: &R` is an `R`. A
 function taking `self` is a method, called `p.flip()` or
 `Point::flip(p)`; one without is called `Point::new(0, 1)`. A claim on
 `self` alone is a claim on the record, as above. Tied by

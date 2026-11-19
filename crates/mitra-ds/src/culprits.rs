@@ -29,6 +29,7 @@ pub const MAX_OPEN: usize = 20;
 /// Belief and plausibility that each piece is wrong.
 ///
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements culprits::Ranking
 pub struct Ranking {
     pub belief: Vec<f64>,
     pub plausibility: Vec<f64>,
@@ -146,7 +147,7 @@ mod tests {
 
     /// A failure at bias 0.8 against the code: the code is wrong with
     /// belief 0.8, the evidence with plausibility 0.2.
-    // mitra: evidence for code_against_one_failure
+    // mitra: evidence for culprits::rank given biases = [None, Some(0.8)], clauses = [[0, 1]]
     #[test]
     fn code_against_one_failure() {
         let r = rank(&[None, Some(0.8)], &[vec![0, 1]]).unwrap();
@@ -157,7 +158,7 @@ mod tests {
 
     /// A review at 0.9, a pass at 0.99 and a failure at 0.8 that can't all
     /// be true: hand-computed with Dempster's rule.
-    // mitra: evidence for three_pieces_in_conflict
+    // mitra: evidence for culprits::rank given biases = [Some(0.9), Some(0.99), Some(0.8)], clauses = [[0, 1, 2]]
     #[test]
     fn three_pieces_in_conflict() {
         let r = rank(&[Some(0.9), Some(0.99), Some(0.8)], &[vec![0, 1, 2]]).unwrap();
@@ -170,7 +171,7 @@ mod tests {
     }
 
     /// P1: without a clause nothing is believed wrong, whatever the biases.
-    // mitra: evidence for no_clause_no_belief
+    // mitra: evidence for culprits::rank given biases = [Some(0.3), Some(1.0), None, Some(0.0)], clauses = []
     #[test]
     fn no_clause_no_belief() {
         let r = rank(&[Some(0.3), Some(1.0), None, Some(0.0)], &[]).unwrap();
@@ -179,7 +180,7 @@ mod tests {
     }
 
     /// P2: a piece at bias 0 in a clause has plausibility 1.
-    // mitra: evidence for distrust_shows
+    // mitra: evidence for culprits::rank given biases = [Some(0.0), Some(0.6), Some(0.7)], clauses = [[0, 1, 2]]
     #[test]
     fn distrust_shows() {
         let r = rank(&[Some(0.0), Some(0.6), Some(0.7)], &[vec![0, 1, 2]]).unwrap();
@@ -188,7 +189,7 @@ mod tests {
     }
 
     /// P3: full trust in the evidence puts the blame on the code.
-    // mitra: evidence for full_trust
+    // mitra: evidence for culprits::rank given biases = [None, Some(1.0)], clauses = [[0, 1]] gives Ok(Ranking([1.0, 0.0], [1.0, 0.0], 0.0, 0))
     #[test]
     fn full_trust() {
         let r = rank(&[None, Some(1.0)], &[vec![0, 1]]).unwrap();
@@ -224,7 +225,7 @@ mod tests {
 
     /// Two trusted passes, one distrusted pass, a trusted failure and a
     /// trusted review: by hand, over the ways with one trusted piece wrong.
-    // mitra: evidence for a_tie_beside_a_distrusted_piece
+    // mitra: evidence for culprits::rank given biases = [Some(1.0), Some(0.1), Some(1.0), Some(1.0)], clauses = [[0, 1, 3], [0, 2, 3]]
     #[test]
     fn a_tie_beside_a_distrusted_piece() {
         // 0 review, 1 pass at 0.1, 2 pass, 3 failure.
@@ -238,7 +239,7 @@ mod tests {
     }
 
     /// P4: a piece in no clause is never believed wrong.
-    // mitra: evidence for outside_every_clause
+    // mitra: evidence for culprits::rank given biases = [None, Some(0.5), Some(0.5)], clauses = [[0, 1]]
     #[test]
     fn outside_every_clause() {
         let r = rank(&[None, Some(0.5), Some(0.5)], &[vec![0, 1]]).unwrap();
@@ -273,20 +274,20 @@ mod tests {
 
     /// Two failures against the code: both would have to be wrong for the
     /// code to be right.
-    // mitra: evidence for two_failures_agree
+    // mitra: evidence for culprits::rank given biases = [None, Some(0.8), Some(0.8)], clauses = [[0, 1], [0, 2]]
     #[test]
     fn two_failures_agree() {
         let r = rank(&[None, Some(0.8), Some(0.8)], &[vec![0, 1], vec![0, 2]]).unwrap();
         assert!(close(r.belief[0], 1.0 - 0.2 * 0.2));
     }
 
-    // mitra: evidence for rejects_bias_above_one
+    // mitra: evidence for culprits::rank given biases = [Some(1.5)], clauses = [] gives Err(Invalid)
     #[test]
     fn rejects_bias_above_one() {
         assert_eq!(rank(&[Some(1.5)], &[]), Err(NoRanking::Invalid));
     }
 
-    // mitra: evidence for rejects_unknown_piece
+    // mitra: evidence for culprits::rank given biases = [Some(0.5)], clauses = [[3]] gives Err(Invalid)
     #[test]
     fn rejects_unknown_piece() {
         assert_eq!(rank(&[Some(0.5)], &[vec![3]]), Err(NoRanking::Invalid));

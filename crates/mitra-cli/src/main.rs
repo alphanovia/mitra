@@ -445,6 +445,15 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                         "evidence test {{ for {} {says} source \"test:{}\"{attrs} }}",
                         t.claim, t.test
                     ));
+                    // A test that compares with the output it expects also
+                    // says the code is right on that input.
+                    let gives = said.is_some_and(|n| words[n] == "gives");
+                    if passed == Some(true) && gives && model.function(&t.claim).is_some() {
+                        lines.push(format!(
+                            "evidence test {{ for {} {given} holds source \"test:{}\"{attrs} }}",
+                            t.claim, t.test
+                        ));
+                    }
                     continue;
                 }
                 let ends = |c: &&mitra_core::Claim| {

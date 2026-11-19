@@ -1107,6 +1107,11 @@ impl P {
                 return self.err(format!("the input `{name}` needs a type"));
             }
             self.expect(":")?;
+            // `o: &Mass`, as Rust writes it: a borrowed value is the same
+            // value here.
+            if self.eat("&") {
+                self.eat("mut");
+            }
             let before = std::mem::take(&mut self.met);
             let set = self.set()?;
             // The type itself, alone: a value would need a value.
@@ -2231,6 +2236,11 @@ impl P {
             }
             let (set, deep) = match self.eat(":") {
                 true => {
+                    // `o: &Mass`, as Rust writes it: a borrowed value is
+                    // the same value here.
+                    if self.eat("&") {
+                        self.eat("mut");
+                    }
                     let (set, deep) = self.set_both()?;
                     (Some(set), Some(deep))
                 }

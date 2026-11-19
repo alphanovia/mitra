@@ -280,7 +280,7 @@ fn mitra_ds_store_evaluates_by_path() {
     ];
     let (code, out, err) = mitra(&root, &["eval", files[0], files[1]]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(out.contains("conflict_uniform: holds"), "{out}");
+    assert!(out.contains("mass::Mass::judged::tied: holds"), "{out}");
 }
 
 #[test]
@@ -622,6 +622,7 @@ fn ingest_pins_what_a_test_checks() {
     for want in [
         "for s::flip_correct passes source \"test:t_sweep\"",
         "for s::flip given a = true gives false source \"test:t_pinned\"",
+        "for s::flip given a = true holds source \"test:t_pinned\"",
         "for s::flip_correct given a = true holds source \"test:t_pinned\"",
         "for s::flip given a = false fails source \"test:t_broken\"",
     ] {

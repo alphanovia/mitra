@@ -106,8 +106,9 @@ when it failed.
   ```
 
   written as they stand when the test passes (`holds` added when none
-  is said), and as `given … fails` when it fails. So a test serves a
-  function or a general claim directly, with no point claim.
+  is said), and as `given … fails` when it fails. A passing `gives` on
+  a function also writes `given … holds`: the code is right there. So
+  a test serves a function or a claim directly, with no point claim.
 - The test's name is free. The claim is named in full
   (`calc::div_small`) or by its last part when only one claim has it.
   A comment that names no claim of the model is refused.

@@ -64,13 +64,23 @@ def crate(name):
         code += n
         rows += [(path.relative_to(src).as_posix(), *f) for f in found]
     store = ROOT / "crates" / name / ".mitra"
-    model, words = 0, {"subject": 0, "ensure": 0, "require": 0}
+    # The points the tests pin are counted apart: lines of `points.mitra`,
+    # and tests whose tie comment pins an input.
+    model, words = 0, {"subject": 0, "ensure": 0, "require": 0, "points": 0, "pinned": 0}
     for path in sorted(store.glob("*.mitra")):
-        if path.name != "evidence.mitra":
-            lines = path.read_text().split("\n")
-            model += sum(counted(l) for l in lines)
-            for w in words:
-                words[w] += sum(l.split()[:1] == [w] for l in lines)
+        if path.name == "evidence.mitra":
+            continue
+        lines = path.read_text().split("\n")
+        if path.name == "points.mitra":
+            words["points"] += sum(counted(l) for l in lines)
+            continue
+        model += sum(counted(l) for l in lines)
+        for w in ("subject", "ensure", "require"):
+            words[w] += sum(l.split()[:1] == [w] for l in lines)
+    for path in sorted((ROOT / "crates" / name).rglob("*.rs")):
+        if "target" not in path.parts:
+            pins = re.findall(r"^\s*// mitra: evidence for \S+ given ", path.read_text(), re.M)
+            words["pinned"] += len(pins)
     return rows, code, model, words
 
 
@@ -82,7 +92,9 @@ def sized(name, code, model, words):
     """The model beside the code, in one line."""
     s, e, r = (words[w] for w in ("subject", "ensure", "require"))
     return (f"{name}: {model} lines of model over {code} lines of code, in "
-            f"{plural(s, 'subject')} with {plural(e, 'ensure')} and {plural(r, 'require')}.")
+            f"{plural(s, 'subject')} with {plural(e, 'ensure')} and {plural(r, 'require')}; "
+            f"apart from it, {plural(words['points'], 'line')} of point claims and "
+            f"{plural(words['pinned'], 'test')} pinned in the code.")
 
 
 def report(listing):

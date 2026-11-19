@@ -1,58 +1,90 @@
 // Evidence, append-only: `mitra add`, `mitra ingest` and `mitra tie` write here.
-evidence test { for code_against_one_failure holds source "test:code_against_one_failure" rev "c42b4e740113" }
-evidence test { for three_pieces_in_conflict holds source "test:three_pieces_in_conflict" rev "c42b4e740113" }
-evidence test { for no_clause_no_belief holds source "test:no_clause_no_belief" rev "c42b4e740113" }
-evidence test { for distrust_shows holds source "test:distrust_shows" rev "c42b4e740113" }
-evidence test { for full_trust holds source "test:full_trust" rev "c42b4e740113" }
-evidence test { for a_tie_beside_a_distrusted_piece holds source "test:a_tie_beside_a_distrusted_piece" rev "c42b4e740113" }
-evidence test { for outside_every_clause holds source "test:outside_every_clause" rev "c42b4e740113" }
-evidence test { for two_failures_agree holds source "test:two_failures_agree" rev "c42b4e740113" }
-evidence test { for rejects_bias_above_one holds source "test:rejects_bias_above_one" rev "c42b4e740113" }
-evidence test { for rejects_unknown_piece holds source "test:rejects_unknown_piece" rev "c42b4e740113" }
-evidence test { for t_yager_agree holds source "test:t_yager_agree" rev "c42b4e740113" }
-evidence test { for t_yager_contradict holds source "test:t_yager_contradict" rev "c42b4e740113" }
-evidence test { for t_yager_contradict_swapped holds source "test:t_yager_contradict_swapped" rev "c42b4e740113" }
-evidence test { for t_yager_with_nothing holds source "test:t_yager_with_nothing" rev "c42b4e740113" }
-evidence test { for t_yager_nothing_first holds source "test:t_yager_nothing_first" rev "c42b4e740113" }
-evidence test { for t_yager_nothing holds source "test:t_yager_nothing" rev "c42b4e740113" }
-evidence test { for t_dempster_agree holds source "test:t_dempster_agree" rev "c42b4e740113" }
-evidence test { for t_dempster_contradict holds source "test:t_dempster_contradict" rev "c42b4e740113" }
-evidence test { for t_dempster_contradict_swapped holds source "test:t_dempster_contradict_swapped" rev "c42b4e740113" }
-evidence test { for t_dempster_with_nothing holds source "test:t_dempster_with_nothing" rev "c42b4e740113" }
-evidence test { for t_dempster_nothing_first holds source "test:t_dempster_nothing_first" rev "c42b4e740113" }
-evidence test { for t_dempster_nothing holds source "test:t_dempster_nothing" rev "c42b4e740113" }
-evidence test { for t_judged_correct holds source "test:t_judged_correct" rev "c42b4e740113" }
-evidence test { for t_judged_wrong holds source "test:t_judged_wrong" rev "c42b4e740113" }
-evidence test { for t_judged_at_zero holds source "test:t_judged_at_zero" rev "c42b4e740113" }
-evidence test { for t_judged_at_one holds source "test:t_judged_at_one" rev "c42b4e740113" }
-evidence test { for t_judged_rejects_above holds source "test:t_judged_rejects_above" rev "c42b4e740113" }
-evidence test { for t_judged_rejects_below holds source "test:t_judged_rejects_below" rev "c42b4e740113" }
-evidence test { for t_yager_rejects_negative holds source "test:t_yager_rejects_negative" rev "c42b4e740113" }
-evidence test { for t_yager_rejects_sum holds source "test:t_yager_rejects_sum" rev "c42b4e740113" }
-evidence test { for t_yager_rejects_second holds source "test:t_yager_rejects_second" rev "c42b4e740113" }
-evidence test { for t_dempster_rejects_first holds source "test:t_dempster_rejects_first" rev "c42b4e740113" }
-evidence test { for t_dempster_rejects_negative holds source "test:t_dempster_rejects_negative" rev "c42b4e740113" }
-evidence test { for t_dempster_rejects_sum holds source "test:t_dempster_rejects_sum" rev "c42b4e740113" }
-evidence test { for t_valid_yes holds source "test:t_valid_yes" rev "c42b4e740113" }
-evidence test { for t_valid_slack holds source "test:t_valid_slack" rev "c42b4e740113" }
-evidence test { for t_valid_negative holds source "test:t_valid_negative" rev "c42b4e740113" }
-evidence test { for t_valid_sum holds source "test:t_valid_sum" rev "c42b4e740113" }
-evidence test { for t_conflict_total holds source "test:t_conflict_total" rev "c42b4e740113" }
-evidence test { for t_conflict_mixed holds source "test:t_conflict_mixed" rev "c42b4e740113" }
-evidence test { for t_conflict_none holds source "test:t_conflict_none" rev "c42b4e740113" }
-evidence test { for t_conflict_invalid_first holds source "test:t_conflict_invalid_first" rev "c42b4e740113" }
-evidence test { for t_conflict_invalid_second holds source "test:t_conflict_invalid_second" rev "c42b4e740113" }
-evidence tie { for culprits::rank::tied holds source "reader:rust src/culprits.rs:56" rev "c42b4e740113" }
-evidence tie { for mass::judged::tied holds source "reader:rust src/lib.rs:43" rev "c42b4e740113" }
-evidence tie { for mass::is_valid::tied holds source "reader:rust src/lib.rs:53" rev "c42b4e740113" }
-evidence tie { for mass::conflict::tied holds source "reader:rust src/lib.rs:61" rev "c42b4e740113" }
-evidence tie { for mass::dempster::tied holds source "reader:rust src/lib.rs:80" rev "c42b4e740113" }
-evidence tie { for mass::dempster::uses holds source "reader:rust src/lib.rs:80" rev "c42b4e740113" }
-evidence tie { for mass::yager::tied holds source "reader:rust src/lib.rs:99" rev "c42b4e740113" }
-evidence tie { for mass::yager::uses holds source "reader:rust src/lib.rs:99" rev "c42b4e740113" }
-evidence review { for mass::conflict_uniform holds source "review:claude" rev "c42b4e740113" }
-evidence review { for mass::dempster_uniform holds source "review:claude" rev "c42b4e740113" }
-evidence review { for mass::is_valid_uniform holds source "review:claude" rev "c42b4e740113" }
-evidence review { for mass::judged_uniform holds source "review:claude" rev "c42b4e740113" }
-evidence review { for mass::renormalises_uniform holds source "review:claude" rev "c42b4e740113" }
-evidence review { for mass::yager_uniform holds source "review:claude" rev "c42b4e740113" }
+evidence test { for culprits::rank given biases = [None, Some(0.8)], clauses = [[0, 1]] holds source "test:code_against_one_failure" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [Some(0.9), Some(0.99), Some(0.8)], clauses = [[0, 1, 2]] holds source "test:three_pieces_in_conflict" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [Some(0.3), Some(1.0), None, Some(0.0)], clauses = [] holds source "test:no_clause_no_belief" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [Some(0.0), Some(0.6), Some(0.7)], clauses = [[0, 1, 2]] holds source "test:distrust_shows" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [None, Some(1.0)], clauses = [[0, 1]] gives Ok(Ranking([1.0, 0.0], [1.0, 0.0], 0.0, 0)) source "test:full_trust" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [None, Some(1.0)], clauses = [[0, 1]] holds source "test:full_trust" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [Some(1.0), Some(0.1), Some(1.0), Some(1.0)], clauses = [[0, 1, 3], [0, 2, 3]] holds source "test:a_tie_beside_a_distrusted_piece" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [None, Some(0.5), Some(0.5)], clauses = [[0, 1]] holds source "test:outside_every_clause" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [None, Some(0.8), Some(0.8)], clauses = [[0, 1], [0, 2]] holds source "test:two_failures_agree" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [Some(1.5)], clauses = [] gives Err(Invalid) source "test:rejects_bias_above_one" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [Some(1.5)], clauses = [] holds source "test:rejects_bias_above_one" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [Some(0.5)], clauses = [[3]] gives Err(Invalid) source "test:rejects_unknown_piece" rev "89d998e0c6d3" }
+evidence test { for culprits::rank given biases = [Some(0.5)], clauses = [[3]] holds source "test:rejects_unknown_piece" rev "89d998e0c6d3" }
+evidence test { for mass::yager_combines passes source "test:t_yager_random" rev "89d998e0c6d3" }
+evidence test { for mass::dempster_combines passes source "test:t_dempster_random" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(1.0, 0.0, 0.0), o = Mass(1.0, 0.0, 0.0) gives Some((Mass(1.0, 0.0, 0.0), 0.0)) source "test:t_yager_agree" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(1.0, 0.0, 0.0), o = Mass(1.0, 0.0, 0.0) holds source "test:t_yager_agree" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 1.0, 0.0) gives Some((Mass(0.0, 0.0, 1.0), 1.0)) source "test:t_yager_contradict" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 1.0, 0.0) holds source "test:t_yager_contradict" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(0.0, 1.0, 0.0), o = Mass(1.0, 0.0, 0.0) gives Some((Mass(0.0, 0.0, 1.0), 1.0)) source "test:t_yager_contradict_swapped" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(0.0, 1.0, 0.0), o = Mass(1.0, 0.0, 0.0) holds source "test:t_yager_contradict_swapped" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 0.0, 1.0) gives Some((Mass(1.0, 0.0, 0.0), 0.0)) source "test:t_yager_with_nothing" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 0.0, 1.0) holds source "test:t_yager_with_nothing" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(0.0, 0.0, 1.0), o = Mass(1.0, 0.0, 0.0) gives Some((Mass(1.0, 0.0, 0.0), 0.0)) source "test:t_yager_nothing_first" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(0.0, 0.0, 1.0), o = Mass(1.0, 0.0, 0.0) holds source "test:t_yager_nothing_first" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(0.0, 0.0, 1.0), o = Mass(0.0, 0.0, 1.0) gives Some((Mass(0.0, 0.0, 1.0), 0.0)) source "test:t_yager_nothing" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(0.0, 0.0, 1.0), o = Mass(0.0, 0.0, 1.0) holds source "test:t_yager_nothing" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(1.0, 0.0, 0.0), o = Mass(1.0, 0.0, 0.0) gives Some(Mass(1.0, 0.0, 0.0)) source "test:t_dempster_agree" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(1.0, 0.0, 0.0), o = Mass(1.0, 0.0, 0.0) holds source "test:t_dempster_agree" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 1.0, 0.0) gives None source "test:t_dempster_contradict" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 1.0, 0.0) holds source "test:t_dempster_contradict" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(0.0, 1.0, 0.0), o = Mass(1.0, 0.0, 0.0) gives None source "test:t_dempster_contradict_swapped" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(0.0, 1.0, 0.0), o = Mass(1.0, 0.0, 0.0) holds source "test:t_dempster_contradict_swapped" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 0.0, 1.0) gives Some(Mass(1.0, 0.0, 0.0)) source "test:t_dempster_with_nothing" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 0.0, 1.0) holds source "test:t_dempster_with_nothing" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(1.0, 0.0, 0.0) gives Some(Mass(1.0, 0.0, 0.0)) source "test:t_dempster_nothing_first" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(1.0, 0.0, 0.0) holds source "test:t_dempster_nothing_first" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(0.0, 0.0, 1.0) gives Some(Mass(0.0, 0.0, 1.0)) source "test:t_dempster_nothing" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(0.0, 0.0, 1.0) holds source "test:t_dempster_nothing" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = true, c = 0.25 gives Some(Mass(0.25, 0.0, 0.75)) source "test:t_judged_correct" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = true, c = 0.25 holds source "test:t_judged_correct" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = false, c = 0.25 gives Some(Mass(0.0, 0.25, 0.75)) source "test:t_judged_wrong" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = false, c = 0.25 holds source "test:t_judged_wrong" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = true, c = 0.0 gives Some(Mass(0.0, 0.0, 1.0)) source "test:t_judged_at_zero" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = true, c = 0.0 holds source "test:t_judged_at_zero" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = false, c = 1.0 gives Some(Mass(0.0, 1.0, 0.0)) source "test:t_judged_at_one" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = false, c = 1.0 holds source "test:t_judged_at_one" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = true, c = 1.5 gives None source "test:t_judged_rejects_above" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = true, c = 1.5 holds source "test:t_judged_rejects_above" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = false, c = -0.5 gives None source "test:t_judged_rejects_below" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::judged given ok = false, c = -0.5 holds source "test:t_judged_rejects_below" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(-0.5, 0.5, 1.0), o = Mass(0.0, 0.0, 1.0) gives None source "test:t_yager_rejects_negative" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(-0.5, 0.5, 1.0), o = Mass(0.0, 0.0, 1.0) holds source "test:t_yager_rejects_negative" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(0.5, 0.5, 0.5), o = Mass(0.0, 0.0, 1.0) gives None source "test:t_yager_rejects_sum" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(0.5, 0.5, 0.5), o = Mass(0.0, 0.0, 1.0) holds source "test:t_yager_rejects_sum" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(0.0, 0.0, 1.0), o = Mass(0.5, 0.5, 0.5) gives None source "test:t_yager_rejects_second" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::yager given self = Mass(0.0, 0.0, 1.0), o = Mass(0.5, 0.5, 0.5) holds source "test:t_yager_rejects_second" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(-0.5, 0.5, 1.0), o = Mass(0.0, 0.0, 1.0) gives None source "test:t_dempster_rejects_first" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(-0.5, 0.5, 1.0), o = Mass(0.0, 0.0, 1.0) holds source "test:t_dempster_rejects_first" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(-0.5, 0.5, 1.0) gives None source "test:t_dempster_rejects_negative" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(-0.5, 0.5, 1.0) holds source "test:t_dempster_rejects_negative" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(0.5, 0.5, 0.5) gives None source "test:t_dempster_rejects_sum" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(0.5, 0.5, 0.5) holds source "test:t_dempster_rejects_sum" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::is_valid given self = Mass(0.5, 0.0, 0.5) gives true source "test:t_valid_yes" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::is_valid given self = Mass(0.5, 0.0, 0.5) holds source "test:t_valid_yes" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::is_valid given self = Mass(0.5, 0.0, 0.5000000001) gives true source "test:t_valid_slack" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::is_valid given self = Mass(0.5, 0.0, 0.5000000001) holds source "test:t_valid_slack" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::is_valid given self = Mass(-0.5, 0.5, 1.0) gives false source "test:t_valid_negative" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::is_valid given self = Mass(-0.5, 0.5, 1.0) holds source "test:t_valid_negative" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::is_valid given self = Mass(0.5, 0.5, 0.5) gives false source "test:t_valid_sum" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::is_valid given self = Mass(0.5, 0.5, 0.5) holds source "test:t_valid_sum" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::conflict given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 1.0, 0.0) gives 1.0 source "test:t_conflict_total" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::conflict given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 1.0, 0.0) holds source "test:t_conflict_total" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::conflict given self = Mass(0.5, 0.25, 0.25), o = Mass(0.25, 0.5, 0.25) gives 0.3125 source "test:t_conflict_mixed" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::conflict given self = Mass(0.5, 0.25, 0.25), o = Mass(0.25, 0.5, 0.25) holds source "test:t_conflict_mixed" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::conflict given self = Mass(1.0, 0.0, 0.0), o = Mass(1.0, 0.0, 0.0) gives 0.0 source "test:t_conflict_none" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::conflict given self = Mass(1.0, 0.0, 0.0), o = Mass(1.0, 0.0, 0.0) holds source "test:t_conflict_none" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::conflict given self = Mass(-0.5, 0.5, 1.0), o = Mass(0.0, 0.0, 1.0) gives 0.0 source "test:t_conflict_invalid_first" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::conflict given self = Mass(-0.5, 0.5, 1.0), o = Mass(0.0, 0.0, 1.0) holds source "test:t_conflict_invalid_first" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::conflict given self = Mass(0.0, 0.0, 1.0), o = Mass(0.5, 0.5, 0.5) gives 0.0 source "test:t_conflict_invalid_second" rev "89d998e0c6d3" }
+evidence test { for mass::Mass::conflict given self = Mass(0.0, 0.0, 1.0), o = Mass(0.5, 0.5, 0.5) holds source "test:t_conflict_invalid_second" rev "89d998e0c6d3" }
+evidence tie { for culprits::Ranking::tied holds source "reader:rust src/culprits.rs:32" rev "89d998e0c6d3" }
+evidence tie { for mass::Mass::tied holds source "reader:rust src/lib.rs:22" rev "89d998e0c6d3" }
+evidence tie { for culprits::rank::tied holds source "reader:rust src/culprits.rs:57" rev "89d998e0c6d3" }
+evidence tie { for mass::Mass::judged::tied holds source "reader:rust src/lib.rs:45" rev "89d998e0c6d3" }
+evidence tie { for mass::Mass::is_valid::tied holds source "reader:rust src/lib.rs:55" rev "89d998e0c6d3" }
+evidence tie { for mass::Mass::conflict::tied holds source "reader:rust src/lib.rs:63" rev "89d998e0c6d3" }
+evidence tie { for mass::Mass::dempster::tied holds source "reader:rust src/lib.rs:82" rev "89d998e0c6d3" }
+evidence tie { for mass::Mass::yager::tied holds source "reader:rust src/lib.rs:101" rev "89d998e0c6d3" }

@@ -13,11 +13,12 @@ judges it from its own test runs. If the verdicts help while the
 crate is built and maintained, that is the first sign Mitra is useful.
 
 **What exists.** The model is aside from the code, in each crate's
-`.mitra/model.mitra` (and `.mitra/points.mitra`), in the
+`.mitra/model.mitra` (point claims, where a crate keeps some, in
+`.mitra/points.mitra`), in the
 [language](../reference/language.md), with the same types as the
 Rust code: `Mass` is a record, `Option` and `Result` are enums, a `Vec`
 is a list. The code keeps one comment per modelled function,
-`// mitra: implements mass::judged`, and `mitra tie` checks that the two
+`// mitra: implements mass::Mass::judged`, and `mitra tie` checks that the two
 agree (inputs, result, calls). Each modelled function sits in a subject
 named after its module, with a body where a spec can be written
 (`dempster`, `yager`, `judged`, `is_valid`, `conflict`), a `uniform`

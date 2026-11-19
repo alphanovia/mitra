@@ -736,6 +736,7 @@ fn an_impl_is_read_as_rust_writes_it() {
              impl Point { fn new(x: 0..=2, y: 0..=2) -> Self;\n\
              fn flip(&self) -> Self { Point(self.y, self.x) }\n\
              fn sum(&mut self) -> Int;\n\
+             fn meets(&self, o: &Point) -> Bool;\n\
              claim flat(self) { self.x == self.y }\n\
              claim back(self) { self.flip().flip() == Self::flip(Point::flip(self)) } }\n\
              claim sums(p: Point) { p.sum() == Point::sum(p.flip()) } }\n\

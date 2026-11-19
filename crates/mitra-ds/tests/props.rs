@@ -1,5 +1,5 @@
-//! mitra-ds's tests. A test named in `.mitra/tests.mitra` stands for the
-//! evidence written there (see the claims in `.mitra/model.mitra`).
+//! mitra-ds's tests. The comment above a test says what it is evidence
+//! for in `.mitra/model.mitra`, and which input it pins.
 
 use mitra_ds::Mass;
 
@@ -82,8 +82,9 @@ fn dempster_ok(m1: Mass, m2: Mass) -> bool {
     }
 }
 
-// Not in the model: Mitra can't record evidence from sampled inputs yet
-// (review list, gap G3). Same for `t_dempster_random`.
+// A sweep over sampled inputs: it pins none, so it is recorded as
+// `passes`. Same for `t_dempster_random`.
+// mitra: evidence for mass::yager_combines
 #[test]
 fn t_yager_random() {
     assert!((0..1000).all(|n| {
@@ -92,6 +93,7 @@ fn t_yager_random() {
     }));
 }
 
+// mitra: evidence for mass::dempster_combines
 #[test]
 fn t_dempster_random() {
     assert!((0..1000).all(|n| {
@@ -102,37 +104,37 @@ fn t_dempster_random() {
 
 // The extremes of Mitra's golden sets, one input each.
 
-// mitra: evidence for t_yager_agree
+// mitra: evidence for mass::Mass::yager given self = Mass(1.0, 0.0, 0.0), o = Mass(1.0, 0.0, 0.0) gives Some((Mass(1.0, 0.0, 0.0), 0.0))
 #[test]
 fn t_yager_agree() {
     assert_eq!(SURE.yager(&SURE), Some((SURE, 0.0)));
 }
 
-// mitra: evidence for t_yager_contradict
+// mitra: evidence for mass::Mass::yager given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 1.0, 0.0) gives Some((Mass(0.0, 0.0, 1.0), 1.0))
 #[test]
 fn t_yager_contradict() {
     assert_eq!(SURE.yager(&SURE_WRONG), Some((Mass::VACUOUS, 1.0)));
 }
 
-// mitra: evidence for t_yager_contradict_swapped
+// mitra: evidence for mass::Mass::yager given self = Mass(0.0, 1.0, 0.0), o = Mass(1.0, 0.0, 0.0) gives Some((Mass(0.0, 0.0, 1.0), 1.0))
 #[test]
 fn t_yager_contradict_swapped() {
     assert_eq!(SURE_WRONG.yager(&SURE), Some((Mass::VACUOUS, 1.0)));
 }
 
-// mitra: evidence for t_yager_with_nothing
+// mitra: evidence for mass::Mass::yager given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 0.0, 1.0) gives Some((Mass(1.0, 0.0, 0.0), 0.0))
 #[test]
 fn t_yager_with_nothing() {
     assert_eq!(SURE.yager(&Mass::VACUOUS), Some((SURE, 0.0)));
 }
 
-// mitra: evidence for t_yager_nothing_first
+// mitra: evidence for mass::Mass::yager given self = Mass(0.0, 0.0, 1.0), o = Mass(1.0, 0.0, 0.0) gives Some((Mass(1.0, 0.0, 0.0), 0.0))
 #[test]
 fn t_yager_nothing_first() {
     assert_eq!(Mass::VACUOUS.yager(&SURE), Some((SURE, 0.0)));
 }
 
-// mitra: evidence for t_yager_nothing
+// mitra: evidence for mass::Mass::yager given self = Mass(0.0, 0.0, 1.0), o = Mass(0.0, 0.0, 1.0) gives Some((Mass(0.0, 0.0, 1.0), 0.0))
 #[test]
 fn t_yager_nothing() {
     assert_eq!(
@@ -141,37 +143,37 @@ fn t_yager_nothing() {
     );
 }
 
-// mitra: evidence for t_dempster_agree
+// mitra: evidence for mass::Mass::dempster given self = Mass(1.0, 0.0, 0.0), o = Mass(1.0, 0.0, 0.0) gives Some(Mass(1.0, 0.0, 0.0))
 #[test]
 fn t_dempster_agree() {
     assert_eq!(SURE.dempster(&SURE), Some(SURE));
 }
 
-// mitra: evidence for t_dempster_contradict
+// mitra: evidence for mass::Mass::dempster given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 1.0, 0.0) gives None
 #[test]
 fn t_dempster_contradict() {
     assert_eq!(SURE.dempster(&SURE_WRONG), None, "total conflict");
 }
 
-// mitra: evidence for t_dempster_contradict_swapped
+// mitra: evidence for mass::Mass::dempster given self = Mass(0.0, 1.0, 0.0), o = Mass(1.0, 0.0, 0.0) gives None
 #[test]
 fn t_dempster_contradict_swapped() {
     assert_eq!(SURE_WRONG.dempster(&SURE), None, "total conflict");
 }
 
-// mitra: evidence for t_dempster_with_nothing
+// mitra: evidence for mass::Mass::dempster given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 0.0, 1.0) gives Some(Mass(1.0, 0.0, 0.0))
 #[test]
 fn t_dempster_with_nothing() {
     assert_eq!(SURE.dempster(&Mass::VACUOUS), Some(SURE));
 }
 
-// mitra: evidence for t_dempster_nothing_first
+// mitra: evidence for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(1.0, 0.0, 0.0) gives Some(Mass(1.0, 0.0, 0.0))
 #[test]
 fn t_dempster_nothing_first() {
     assert_eq!(Mass::VACUOUS.dempster(&SURE), Some(SURE));
 }
 
-// mitra: evidence for t_dempster_nothing
+// mitra: evidence for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(0.0, 0.0, 1.0) gives Some(Mass(0.0, 0.0, 1.0))
 #[test]
 fn t_dempster_nothing() {
     assert_eq!(Mass::VACUOUS.dempster(&Mass::VACUOUS), Some(Mass::VACUOUS));
@@ -179,37 +181,37 @@ fn t_dempster_nothing() {
 
 // `judged`, one input per test: a failed test then names its input.
 
-// mitra: evidence for t_judged_correct
+// mitra: evidence for mass::Mass::judged given ok = true, c = 0.25 gives Some(Mass(0.25, 0.0, 0.75))
 #[test]
 fn t_judged_correct() {
     assert_eq!(Mass::judged(true, 0.25), Some(mass(0.25, 0.0, 0.75)));
 }
 
-// mitra: evidence for t_judged_wrong
+// mitra: evidence for mass::Mass::judged given ok = false, c = 0.25 gives Some(Mass(0.0, 0.25, 0.75))
 #[test]
 fn t_judged_wrong() {
     assert_eq!(Mass::judged(false, 0.25), Some(mass(0.0, 0.25, 0.75)));
 }
 
-// mitra: evidence for t_judged_at_zero
+// mitra: evidence for mass::Mass::judged given ok = true, c = 0.0 gives Some(Mass(0.0, 0.0, 1.0))
 #[test]
 fn t_judged_at_zero() {
     assert_eq!(Mass::judged(true, 0.0), Some(Mass::VACUOUS));
 }
 
-// mitra: evidence for t_judged_at_one
+// mitra: evidence for mass::Mass::judged given ok = false, c = 1.0 gives Some(Mass(0.0, 1.0, 0.0))
 #[test]
 fn t_judged_at_one() {
     assert_eq!(Mass::judged(false, 1.0), Some(SURE_WRONG));
 }
 
-// mitra: evidence for t_judged_rejects_above
+// mitra: evidence for mass::Mass::judged given ok = true, c = 1.5 gives None
 #[test]
 fn t_judged_rejects_above() {
     assert_eq!(Mass::judged(true, 1.5), None);
 }
 
-// mitra: evidence for t_judged_rejects_below
+// mitra: evidence for mass::Mass::judged given ok = false, c = -0.5 gives None
 #[test]
 fn t_judged_rejects_below() {
     assert_eq!(Mass::judged(false, -0.5), None);
@@ -224,13 +226,13 @@ fn t_judged_rejects_nan() {
 // Invalid masses, as the first argument of `yager` and the second of
 // `dempster`: a negative part, or parts that do not sum to 1.
 
-// mitra: evidence for t_yager_rejects_negative
+// mitra: evidence for mass::Mass::yager given self = Mass(-0.5, 0.5, 1.0), o = Mass(0.0, 0.0, 1.0) gives None
 #[test]
 fn t_yager_rejects_negative() {
     assert_eq!(mass(-0.5, 0.5, 1.0).yager(&Mass::VACUOUS), None);
 }
 
-// mitra: evidence for t_yager_rejects_sum
+// mitra: evidence for mass::Mass::yager given self = Mass(0.5, 0.5, 0.5), o = Mass(0.0, 0.0, 1.0) gives None
 #[test]
 fn t_yager_rejects_sum() {
     assert_eq!(mass(0.5, 0.5, 0.5).yager(&Mass::VACUOUS), None);
@@ -239,25 +241,25 @@ fn t_yager_rejects_sum() {
 // `mitra next` asked for these two: the classes "second invalid" of
 // `yager` and "first invalid" of `dempster` had no test.
 
-// mitra: evidence for t_yager_rejects_second
+// mitra: evidence for mass::Mass::yager given self = Mass(0.0, 0.0, 1.0), o = Mass(0.5, 0.5, 0.5) gives None
 #[test]
 fn t_yager_rejects_second() {
     assert_eq!(Mass::VACUOUS.yager(&mass(0.5, 0.5, 0.5)), None);
 }
 
-// mitra: evidence for t_dempster_rejects_first
+// mitra: evidence for mass::Mass::dempster given self = Mass(-0.5, 0.5, 1.0), o = Mass(0.0, 0.0, 1.0) gives None
 #[test]
 fn t_dempster_rejects_first() {
     assert_eq!(mass(-0.5, 0.5, 1.0).dempster(&Mass::VACUOUS), None);
 }
 
-// mitra: evidence for t_dempster_rejects_negative
+// mitra: evidence for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(-0.5, 0.5, 1.0) gives None
 #[test]
 fn t_dempster_rejects_negative() {
     assert_eq!(Mass::VACUOUS.dempster(&mass(-0.5, 0.5, 1.0)), None);
 }
 
-// mitra: evidence for t_dempster_rejects_sum
+// mitra: evidence for mass::Mass::dempster given self = Mass(0.0, 0.0, 1.0), o = Mass(0.5, 0.5, 0.5) gives None
 #[test]
 fn t_dempster_rejects_sum() {
     assert_eq!(Mass::VACUOUS.dempster(&mass(0.5, 0.5, 0.5)), None);
@@ -271,38 +273,38 @@ fn t_rejects_nan_mass() {
     assert_eq!(Mass::VACUOUS.dempster(&m), None);
 }
 
-// mitra: evidence for t_valid_yes
+// mitra: evidence for mass::Mass::is_valid given self = Mass(0.5, 0.0, 0.5) gives true
 #[test]
 fn t_valid_yes() {
     assert!(mass(0.5, 0.0, 0.5).is_valid());
 }
 
 // Within EPSILON of a sum of 1.
-// mitra: evidence for t_valid_slack
+// mitra: evidence for mass::Mass::is_valid given self = Mass(0.5, 0.0, 0.5000000001) gives true
 #[test]
 fn t_valid_slack() {
     assert!(mass(0.5, 0.0, 0.5000000001).is_valid());
 }
 
-// mitra: evidence for t_valid_negative
+// mitra: evidence for mass::Mass::is_valid given self = Mass(-0.5, 0.5, 1.0) gives false
 #[test]
 fn t_valid_negative() {
     assert!(!mass(-0.5, 0.5, 1.0).is_valid());
 }
 
-// mitra: evidence for t_valid_sum
+// mitra: evidence for mass::Mass::is_valid given self = Mass(0.5, 0.5, 0.5) gives false
 #[test]
 fn t_valid_sum() {
     assert!(!mass(0.5, 0.5, 0.5).is_valid());
 }
 
-// mitra: evidence for t_conflict_total
+// mitra: evidence for mass::Mass::conflict given self = Mass(1.0, 0.0, 0.0), o = Mass(0.0, 1.0, 0.0) gives 1.0
 #[test]
 fn t_conflict_total() {
     assert_eq!(SURE.conflict(&SURE_WRONG), 1.0);
 }
 
-// mitra: evidence for t_conflict_mixed
+// mitra: evidence for mass::Mass::conflict given self = Mass(0.5, 0.25, 0.25), o = Mass(0.25, 0.5, 0.25) gives 0.3125
 #[test]
 fn t_conflict_mixed() {
     assert_eq!(
@@ -315,19 +317,19 @@ fn t_conflict_mixed() {
 // `dempster` to `conflict` need the conflict on the inputs the rules are
 // tested on.
 
-// mitra: evidence for t_conflict_none
+// mitra: evidence for mass::Mass::conflict given self = Mass(1.0, 0.0, 0.0), o = Mass(1.0, 0.0, 0.0) gives 0.0
 #[test]
 fn t_conflict_none() {
     assert_eq!(SURE.conflict(&SURE), 0.0);
 }
 
-// mitra: evidence for t_conflict_invalid_first
+// mitra: evidence for mass::Mass::conflict given self = Mass(-0.5, 0.5, 1.0), o = Mass(0.0, 0.0, 1.0) gives 0.0
 #[test]
 fn t_conflict_invalid_first() {
     assert_eq!(mass(-0.5, 0.5, 1.0).conflict(&Mass::VACUOUS), 0.0);
 }
 
-// mitra: evidence for t_conflict_invalid_second
+// mitra: evidence for mass::Mass::conflict given self = Mass(0.0, 0.0, 1.0), o = Mass(0.5, 0.5, 0.5) gives 0.0
 #[test]
 fn t_conflict_invalid_second() {
     assert_eq!(Mass::VACUOUS.conflict(&mass(0.5, 0.5, 0.5)), 0.0);
