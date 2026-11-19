@@ -78,7 +78,7 @@ pub struct Record {
     pub name: String,
     pub fields: Vec<(String, Set)>,
     /// The enum it is a variant of. A field typed by a parameter of the
-    /// enum is then `Value`.
+    /// enum is then `Any`.
     pub of: Option<String>,
     pub line: usize,
 }
@@ -104,7 +104,7 @@ pub struct Function {
     pub range: Set,
     pub body: Option<Expr>,
     /// With type parameters, `f(T)(x: T) -> T`: its parameters and result
-    /// as written. In the sets, each type parameter is `Value`.
+    /// as written. In the sets, each type parameter is `Any`.
     pub written: Option<String>,
     pub line: usize,
 }
@@ -239,7 +239,7 @@ pub struct Model {
     /// form: reports print them as written.
     pub aliases: Vec<(String, String)>,
     /// The types that contain themselves, as written (`Tree(Int)`). In a
-    /// set, such a type inside itself is `Value`; here it is the mark
+    /// set, such a type inside itself is `Any`; here it is the mark
     /// `$Tree(Int)`, so that a value can be checked all the way down.
     pub recursive: BTreeMap<String, Set>,
     /// For each function, the types of its parameters then of its result,

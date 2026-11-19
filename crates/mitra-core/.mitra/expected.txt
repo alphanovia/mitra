@@ -1,7 +1,7 @@
 eval::as_str::spec: holds
 eval::unary::correct: unverified
   passes on       (op, v) in {("!", false), ("!", true), ("-", -3), ("-", 3), ("-", 0.5), ("-", "a"), ("keys", {"a": 1, "b": 2}), ("keys", {1})}
-  no evidence on  (op, v) in (String \ {"!", "-", "keys"}, Value) | ({"keys"}, Value \ {{"a": 1, "b": 2}, {1}}) | ({"-"}, Value \ {-3, 3, 0.5, "a"}) | ({"!"}, Value \ Bool)
+  no evidence on  (op, v) in (String \ {"!", "-", "keys"}, Any) | ({"keys"}, Any \ {{"a": 1, "b": 2}, {1}}) | ({"-"}, Any \ {-3, 3, 0.5, "a"}) | ({"!"}, Any \ Bool)
 eval::not_is: holds
 eval::twice_negated: unverified
   passes on       `v = -3`, `v = 3`
@@ -14,13 +14,13 @@ eval::plus_commutes: unverified
   no evidence on  a set too long to print
 eval::times_commutes: unverified
   passes on       `x = -3, y = 4`, `x = 4, y = -3`
-  no evidence on  (x, y) in (Value \ {-3, 4}, Value) | ({4}, Value \ {-3}) | ({-3}, Value \ {4})
+  no evidence on  (x, y) in (Any \ {-3, 4}, Any) | ({4}, Any \ {-3}) | ({-3}, Any \ {4})
 eval::minus_is_plus_negated: unverified
   passes on       `x = 2, y = 3`
   no evidence on  (x, y) in (Int \ {2}, Int) | ({2}, Int \ {3})
 eval::different_is_not_equal: unverified
   passes on       `x = 2, y = 2`, `x = 2, y = "2"`
-  no evidence on  (x, y) in (Value \ {2}, Value) | ({2}, Value \ {2, "2"})
+  no evidence on  (x, y) in (Any \ {2}, Any) | ({2}, Any \ {2, "2"})
 eval::union_commutes: unverified
   passes on       `x = {1, 2}, y = {2, 3}`, `x = {2, 3}, y = {1, 2}`
   no evidence on  (x, y) in (Set<Int> \ {{1, 2}, {2, 3}}, Set<Int>) | ({{2, 3}}, Set<Int> \ {{1, 2}}) | ({{1, 2}}, Set<Int> \ {{2, 3}})
@@ -35,7 +35,7 @@ set::quote::correct: unverified
   no evidence on  s in String \ {"", "a b", "a\"b\\c\nd\te"}
 print::negative::correct: unverified
   passes on       v in {-0.5, "-1"} | -1..=0
-  no evidence on  v in Value \ ({-0.5, "-1"} | -1..=0)
+  no evidence on  v in Any \ ({-0.5, "-1"} | -1..=0)
 print::negative_ints: unverified
   passes on       `print::negative(-1)`, `print::negative(0)`
   no evidence on  v in Int \ -1..=0
@@ -231,9 +231,9 @@ warning[M105]: a requirement that nothing uses
   help: say which function `uses` it, or remove the `require`
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:49  fn unary(op: String, v: Value) -> Option<Value>;
+  --> .mitra/model.mitra:49  fn unary(op: String, v: Any) -> Option<Any>;
 
-  No evidence on (op, v) in (String \ {"!", "-", "keys"}, Value) | ({"keys"}, Value \ {{"a": 1, "b": 2}, {1}}) | ({"-"}, Value \ {-3, 3, 0.5, "a"}) | ({"!"}, Value \ Bool).
+  No evidence on (op, v) in (String \ {"!", "-", "keys"}, Any) | ({"keys"}, Any \ {{"a": 1, "b": 2}, {1}}) | ({"-"}, Any \ {-3, 3, 0.5, "a"}) | ({"!"}, Any \ Bool).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -243,7 +243,7 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:59  fn binary(op: String, x: Value, y: Value) -> Option<Value>;
+  --> .mitra/model.mitra:59  fn binary(op: String, x: Any, y: Any) -> Option<Any>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
@@ -257,7 +257,7 @@ warning[M101]: a claim is not verified
 warning[M101]: a claim is not verified
   --> .mitra/model.mitra:62  claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
 
-  No evidence on (x, y) in (Value \ {-3, 4}, Value) | ({4}, Value \ {-3}) | ({-3}, Value \ {4}).
+  No evidence on (x, y) in (Any \ {-3, 4}, Any) | ({4}, Any \ {-3}) | ({-3}, Any \ {4}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -269,7 +269,7 @@ warning[M101]: a claim is not verified
 warning[M101]: a claim is not verified
   --> .mitra/model.mitra:66  claim different_is_not_equal(x, y) { match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) } }
 
-  No evidence on (x, y) in (Value \ {2}, Value) | ({2}, Value \ {2, "2"}).
+  No evidence on (x, y) in (Any \ {2}, Any) | ({2}, Any \ {2, "2"}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -297,9 +297,9 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:87  fn negative(v: Value) -> bool;
+  --> .mitra/model.mitra:87  fn negative(v: Any) -> bool;
 
-  No evidence on v in Value \ ({-0.5, "-1"} | -1..=0).
+  No evidence on v in Any \ ({-0.5, "-1"} | -1..=0).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

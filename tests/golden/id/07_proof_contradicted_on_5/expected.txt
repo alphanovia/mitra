@@ -1,6 +1,6 @@
 id_correct: unverified
   passes on       x in 0..=4 | 6..=100
-  no evidence on  x in Value \ (0..=4 | 6..=100)
+  no evidence on  x in Any \ (0..=4 | 6..=100)
 id_small: unverified
   passes on       x in 0..=4 | 6..=100
   no evidence on  `id(5)`
@@ -32,7 +32,7 @@ error[M003]: two pieces of evidence contradict each other
 warning[M101]: a claim is not verified
   --> model.mitra:4  claim id_correct(x) { correct(id(x)) }
 
-  No evidence on x in Value \ (0..=4 | 6..=100).
+  No evidence on x in Any \ (0..=4 | 6..=100).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

@@ -254,7 +254,7 @@ pub const KEYWORDS: [&str; 36] = [
     "UInt32",
     "Float64",
     "String",
-    "Value",
+    "Any",
     "_",
     "Real",
 ];
@@ -895,7 +895,7 @@ impl P {
                     line,
                     format!(
                         "unknown type `{name}` (Bool, Int, Int8 to Int64, UInt8 to UInt32, \
-                         Float64, String, Value, or a record or an enum declared above)"
+                         Float64, String, Any, or a record or an enum declared above)"
                     ),
                 )),
             };
@@ -939,14 +939,14 @@ impl P {
                 "Int" => Set::int(),
                 "Float64" => Set::float(),
                 "String" => Set::string(),
-                "Value" => Set::any(),
+                "Any" => Set::any(),
                 "Real" => return self.err("`Real` is not supported yet: use `Float64`"),
                 t => match Set::int_type(t) {
                     Some(s) => s,
                     None => {
                         return self.err(format!(
                             "unknown type `{t}` (Bool, Int, Int8 to Int64, UInt8 to UInt32, \
-                             Float64, String, Value)"
+                             Float64, String, Any)"
                         ))
                     }
                 },

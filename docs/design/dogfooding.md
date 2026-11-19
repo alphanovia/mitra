@@ -69,7 +69,7 @@ The Rust core is then claimed to match it:
 
 ```rust
 subject set {
-    fn union(s: Value, t: Value) -> Value { … }   // the spec; the claim is set::union::spec
+    fn union(s: Any, t: Any) -> Any { … }   // the spec; the claim is set::union::spec
 }
 ```
 

@@ -8,10 +8,10 @@ the two. A test runs them all.
 A type is a set of values. Anywhere a type is written, a narrower set
 may be: the narrower it is, the less evidence a claim owes.
 
-## Bool, Int, Float64, String, Value
+## Bool, Int, Float64, String, Any
 
 `Bool` (`bool`), `Int` (every integer), `Float64` (`f64`), `String`,
-`Value` (everything). Rust's integer types are ranges: `i8`…`i64`,
+`Any` (everything). Rust's integer types are ranges: `i8`…`i64`,
 `u8`…`u32`, `u64` and `usize` (`0..`). `()` is the type with one value.
 
 ```mitra

@@ -110,7 +110,7 @@ fn as_model(ty: &str) -> String {
 /// model may be narrower (a range, a list of values): then nothing is
 /// compared.
 fn fits(model: &str, rust: &str) -> bool {
-    let narrow = ["..", "{", "|", "\\", "&", "Value"];
+    let narrow = ["..", "{", "|", "\\", "&", "Any"];
     if narrow.iter().any(|n| model.contains(n)) {
         return true;
     }

@@ -1,8 +1,8 @@
 swap::correct: unverified
-  no evidence on  p in Pair<Value, Value>
+  no evidence on  p in Pair<Any, Any>
 swap_is: unverified
   passes on       `swap(Pair(1, "a"))`
-  no evidence on  p in Pair<Value, Value> \ {Pair(1, "a")}
+  no evidence on  p in Pair<Any, Any> \ {Pair(1, "a")}
 ints_ok: unverified
   passes on       `ints(Pair(1, "a"))`
   no evidence on  p in Pair<Int, String> \ {Pair(1, "a")}
@@ -11,13 +11,13 @@ c: holds
 warning[M101]: a claim is not verified
   --> model.mitra:5  subject fn swap<A, B>(p: Pair<A, B>) -> Pair<B, A>;
 
-  No evidence on p in Pair<Value, Value>.
+  No evidence on p in Pair<Any, Any>.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
   --> model.mitra:10  claim swap_is(p) { swap(p) == swap_spec(p) }
 
-  No evidence on p in Pair<Value, Value> \ {Pair(1, "a")}.
+  No evidence on p in Pair<Any, Any> \ {Pair(1, "a")}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

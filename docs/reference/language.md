@@ -111,7 +111,7 @@ observed the claim is not judged.
 
 A type is a set of values. `bool`, `i8`…`i64`, `u8`…`u32`,
 `u64`/`usize` (`0..`), `f64`, `String`, and Mitra's `Bool`, `Int` (every
-integer), `Float64`, `Value` (everything). Ranges `0..=9`, `1..`. Sets of values
+integer), `Float64`, `Any` (everything). Ranges `0..=9`, `1..`. Sets of values
 `{"a", "b"}`. Tuples `(A, B)`, unit `()`. `Vec<T>`/`List<T>`, `Set<T>`,
 `Map<K, V>`, `Option<T>` and `Result<T, E>` once declared as enums.
 Function types `fn(A) -> B`. `A | B`, `A & B`, `A \ B`.
@@ -151,7 +151,7 @@ comments is refused.
 
 - No formal grammar of the language is checked yet.
 - Reserved words can't be names: the types (`Bool`, `Int`, `String`,
-  `List`, `Set`, `Map`, `Value`, …) and `fn`, `claim`, `evidence`,
+  `List`, `Set`, `Map`, `Any`, …) and `fn`, `claim`, `evidence`,
   `record`, `enum`, `match`, `if`, `else`, `let`, `in`, `true`, `false`,
   `correct`, `rate`, `precision`, `recall`, `false_positive_rate`, `len`,
   `keys`.

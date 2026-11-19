@@ -9,7 +9,7 @@
 // claim yet (`reader`, `types`, `verdicts` at the end): the reader, the
 // checks on a model, the evaluation of claims. Not modelled: the sets,
 // the ranking itself (in mitra-ds).
-// A Rust `Value` is any Mitra value: the type `Value`.
+// A Rust `Value` is any Mitra value: the type `Any`.
 
 // Rust's own, which the code uses.
 import std::claims::{uniform};
@@ -46,7 +46,7 @@ subject eval {
     }
 
     // An operator of one value. `None` when it does not apply to the value.
-    fn unary(op: String, v: Value) -> Option<Value>;
+    fn unary(op: String, v: Any) -> Option<Any>;
 
     // The operators of specs, stated with the operators of specs: each
     // side is computed by this code, the tests give the outputs.
@@ -56,7 +56,7 @@ subject eval {
     }
 
     // An operator of two values.
-    fn binary(op: String, x: Value, y: Value) -> Option<Value>;
+    fn binary(op: String, x: Any, y: Any) -> Option<Any>;
 
     claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
     claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
@@ -84,8 +84,8 @@ subject set {
 subject print {
     ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
     // Whether a value prints with a minus sign.
-    fn negative(v: Value) -> bool;
-    // `Value` hides the type: a spec can't ask whether `v` is a number.
+    fn negative(v: Any) -> bool;
+    // `Any` hides the type: a spec can't ask whether `v` is a number.
     claim negative_ints(v: Int) { negative(v) == (v < 0) }
 
     // How tightly an operator binds: the printer adds parentheses from it.

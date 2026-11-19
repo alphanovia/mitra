@@ -1,12 +1,12 @@
 id_correct: unverified
-  no evidence on  x in Value
+  no evidence on  x in Any
 id_small: unverified
   no evidence on  x in 0..=100
 
 warning[M101]: a claim is not verified
   --> model.mitra:4  claim id_correct(x) { correct(id(x)) }
 
-  No evidence on x in Value.
+  No evidence on x in Any.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified

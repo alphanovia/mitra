@@ -1,6 +1,6 @@
 //! Sets of values: the types and every subset of inputs Mitra talks about.
 //!
-//! The universe `Value` splits into booleans, integers, 64-bit floats,
+//! The universe `Any` splits into booleans, integers, 64-bit floats,
 //! strings and everything else. A set is stored per part, in a normal form,
 //! so equal sets compare equal.
 
@@ -966,15 +966,15 @@ impl Set {
 }
 
 impl fmt::Display for Set {
-    /// The shortest readable form: `Value`, `Bool`, `{1, "a"}`, `0..=100`,
+    /// The shortest readable form: `Any`, `Bool`, `{1, "a"}`, `0..=100`,
     /// `Int \ {5}`, joined by ` | `.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.composites.rest {
             let rest = self.complement();
             return if rest.is_empty() {
-                write!(f, "Value")
+                write!(f, "Any")
             } else {
-                write!(f, "Value \\ {}", paren(&rest))
+                write!(f, "Any \\ {}", paren(&rest))
             };
         }
         let mut points: Vec<String> = Vec::new();
@@ -1197,7 +1197,7 @@ mod tests {
     #[test]
     fn display() {
         let show = |s: Set| s.to_string();
-        assert_eq!(show(Set::any()), "Value");
+        assert_eq!(show(Set::any()), "Any");
         assert_eq!(show(Set::empty()), "{}");
         assert_eq!(show(Set::bool()), "Bool");
         assert_eq!(show(Set::point(&Value::Bool(true))), "{true}");
@@ -1219,12 +1219,12 @@ mod tests {
         );
         assert_eq!(
             show(Set::any().minus(&Set::point(&Value::Int(5)))),
-            "Value \\ {5}"
+            "Any \\ {5}"
         );
         // Found by the grammar fuzzer: the part after `\` needs parentheses.
         assert_eq!(
             show(Set::any().minus(&Set::interval(-3, 2).union(&Set::string()))),
-            "Value \\ (-3..=2 | String)"
+            "Any \\ (-3..=2 | String)"
         );
     }
 }

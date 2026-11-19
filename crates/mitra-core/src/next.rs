@@ -409,7 +409,7 @@ mod tests {
     fn lists_what_is_missing() {
         let model = "fn neg(a: Bool) -> Bool { !a }\n\
                      subject fn flip(a: Bool) -> Bool;\n\
-                     subject fn id(x: Value) -> Value;\n\
+                     subject fn id(x: Any) -> Any;\n\
                      claim flip_spec(a) { flip(a) == neg(a) }\n\
                      claim flip_correct(a) { correct(flip(a)) }\n\
                      claim id_correct(x) { correct(id(x)) }\n\
@@ -422,7 +422,7 @@ mod tests {
              \x20 evidence <name> { for flip given a = false gives <output> }\n\
              flip_correct: missing {false}\n\
              \x20 evidence <name> { for flip given a = false holds }\n\
-             id_correct: missing Value\n\
+             id_correct: missing Any\n\
              \x20 infinite: tests can't cover it, only evidence over a set (a proof),\n\
              \x20 or a `uniform` claim, so that one test stands for a class of inputs\n\
              big: missing 0..=99\n\

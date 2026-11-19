@@ -64,7 +64,7 @@ fn a_type_inside_itself_keeps_its_parameters() {
     );
     assert!(e.contains("outside the inputs"), "{e}");
     let e = error("enum Tree<T> { Leaf, Node(l: Tree<Int>, v: T) }", "");
-    assert!(e.contains("is written `Tree<Value>`"), "{e}");
+    assert!(e.contains("is written `Tree<Any>`"), "{e}");
 }
 
 #[test]

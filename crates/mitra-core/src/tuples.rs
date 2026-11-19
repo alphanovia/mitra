@@ -158,7 +158,7 @@ impl Tuples {
             // A type that contains itself has `Value` inside: without a
             // few values it reads `Expr \ {Lit(1)}`, not piece by piece.
             let (set, all) = (self.as_set(), domain.as_set());
-            let inside = all.shapes() >= 1 && all.to_string().contains("Value");
+            let inside = all.shapes() >= 1 && all.to_string().contains("Any");
             let gone = all.minus(&set).values().filter(|vs| !vs.is_empty());
             return match gone {
                 Some(vs) if inside && set.count().is_none() => {

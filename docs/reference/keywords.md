@@ -42,7 +42,7 @@ To try one: copy the model into `model.mitra`, the evidence into
 | `precision`, `recall`, `false_positive_rate` | measures of a true/false function | [kw-expressions.md](kw-expressions.md#precision-recall-false_positive_rate) |
 | `\\|a, b\\| e` | an inline function | [kw-expressions.md](kw-expressions.md#inline-functions) |
 | `true`, `false` | the two values of `Bool` | [kw-expressions.md](kw-expressions.md#true-false) |
-| `Bool`, `bool`, `Int`, `i64`, `u8`, `Float64`, `f64`, `String`, `Value`, `()` | plain types | [kw-types.md](kw-types.md#bool-int-float64-string-value) |
+| `Bool`, `bool`, `Int`, `i64`, `u8`, `Float64`, `f64`, `String`, `Any`, `()` | plain types | [kw-types.md](kw-types.md#bool-int-float64-string-any) |
 | `0..=9`, `1..` | ranges | [kw-types.md](kw-types.md#ranges) |
 | `{"a", "b"}` | sets of values | [kw-types.md](kw-types.md#sets-of-values) |
 | `A \\| B`, `A & B`, `A \\ B` | union, both, minus | [kw-types.md](kw-types.md#union-both-minus) |
