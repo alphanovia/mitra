@@ -52,8 +52,9 @@ fn module(path: &[String]) -> Result<String, String> {
 }
 
 /// The declarations at the top of a file that start an item.
-const ITEMS: [&str; 9] = [
-    "subject", "boundary", "record", "enum", "fn", "claim", "assume", "test", "import",
+const ITEMS: [&str; 11] = [
+    "subject", "boundary", "record", "enum", "fn", "claim", "assume", "test", "import", "ensure",
+    "require",
 ];
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -289,6 +290,14 @@ struct P {
     scope: Option<String>,
     /// `subject` or `boundary`, inside one: with a name (`scope`) or not.
     block: Option<String>,
+    /// The blocks read so far: each `subject` or `boundary` has a number.
+    blocks: usize,
+    /// Each claim and function of a block, with the number of its block.
+    owned: Vec<(String, usize)>,
+    /// `ensure`: name, prose, of a boundary, block, line.
+    ensures: Vec<(String, String, bool, usize, usize)>,
+    /// `require`: the requirement named, block, line.
+    requires: Vec<(String, usize, usize)>,
     /// Every function and claim of the file, by full name.
     all: BTreeSet<String>,
     /// How many fields each variant has.
@@ -1571,6 +1580,9 @@ impl P {
 
     /// A claim of the model being built.
     fn state(&mut self, name: &str, func: &str, pattern: Pattern, target: Target, line: usize) {
+        if self.block.is_some() {
+            self.owned.push((name.to_string(), self.blocks));
+        }
         self.m.claims.push(Claim {
             name: name.to_string(),
             func: func.to_string(),
@@ -1719,6 +1731,7 @@ impl P {
                 }
                 // subject fn f(a: T) -> U;  one function, named as written.
                 "subject" | "boundary" if self.block.is_none() && self.is("fn") => {
+                    self.blocks += 1;
                     self.block = Some(kw.clone());
                     self.pos += 1;
                     let done = self.function(line);
@@ -1730,6 +1743,7 @@ impl P {
                     if !self.is("{") {
                         self.scope = Some(self.name()?);
                     }
+                    self.blocks += 1;
                     self.block = Some(kw.clone());
                     self.expect("{")?;
                     self.items()?;
@@ -1841,6 +1855,33 @@ impl P {
                     );
                 }
                 "fn" => self.function(line)?,
+                // ensure name "prose";  what this subject promises.
+                "ensure" if self.block.is_some() => {
+                    let name = self.ident()?;
+                    let q = self.qualified(&name);
+                    if self.kind() != Some(Kind::Str) {
+                        return self.err(format!(
+                            "`ensure {name}` needs its text: ensure {name} \"what is promised\";"
+                        ));
+                    }
+                    let prose = unquote(&self.toks[self.pos].text);
+                    self.pos += 1;
+                    self.expect(";")?;
+                    let outside = self.block.as_deref() == Some("boundary");
+                    self.ensures.push((q, prose, outside, self.blocks, line));
+                }
+                // require other::name;  a promise made elsewhere, needed here.
+                "require" if self.block.is_some() => {
+                    let path = self.path()?;
+                    self.expect(";")?;
+                    self.requires.push((path, self.blocks, line));
+                }
+                "ensure" | "require" => {
+                    self.pos -= 1;
+                    return self.err(format!(
+                        "`{kw}` is written in a `subject {{ … }}` or a `boundary {{ … }}`"
+                    ));
+                }
                 "claim" | "assume" => self.claim(line, kw == "assume")?,
                 other => {
                     self.pos -= 1;
@@ -1890,6 +1931,7 @@ impl P {
         self.names.fns.insert(q.clone(), sig.clone());
         if self.block.is_some() {
             self.names.opaque.insert(q.clone());
+            self.owned.push((format!("{q}::correct"), self.blocks));
         }
         if self.block.as_deref() == Some("boundary") {
             self.names.boundaries.insert(q.clone());
@@ -2845,7 +2887,121 @@ impl P {
             let at = m.claims.iter().position(|d| d.line > c.line);
             m.claims.insert(at.unwrap_or(m.claims.len()), c);
         }
+        self.requirements(&mut m)?;
         Ok((m, self.names))
+    }
+
+    /// Each `ensure` as a claim that rests on the claims of its block, on
+    /// what the block requires and, in a subject, on `name::captured`.
+    fn requirements(&mut self, m: &mut Model) -> R<()> {
+        let ensures = std::mem::take(&mut self.ensures);
+        let requires = std::mem::take(&mut self.requires);
+        let named = |path: &str| {
+            let mut all = ensures.iter().map(|e| &e.0);
+            let ends = |q: &&String| *q == path || q.ends_with(&format!("::{path}"));
+            all.find(|q| *q == path)
+                .or_else(|| ensures.iter().map(|e| &e.0).find(ends))
+        };
+        for (path, _, line) in &requires {
+            if named(path).is_none() {
+                let msg = format!("`require {path}`: no `ensure` has this name");
+                return Err(Error::new(*line, msg));
+            }
+        }
+        // What is required is read first.
+        let needs = |block: usize| -> Vec<String> {
+            let of = requires.iter().filter(|r| r.1 == block);
+            of.filter_map(|r| named(&r.0).cloned()).collect()
+        };
+        let mut order: Vec<usize> = Vec::new();
+        while order.len() < ensures.len() {
+            let ready = (0..ensures.len()).find(|i| {
+                let done = |n: &String| order.iter().any(|j| &ensures[*j].0 == n);
+                !order.contains(i)
+                    && needs(ensures[*i].3)
+                        .iter()
+                        .all(|n| done(n) || n == &ensures[*i].0)
+            });
+            let Some(i) = ready else {
+                let (name, .., line) =
+                    &ensures[(0..ensures.len()).find(|i| !order.contains(i)).unwrap()];
+                let msg = format!("`{name}` requires itself, through what it requires");
+                return Err(Error::new(*line, msg));
+            };
+            order.push(i);
+        }
+        let all: Vec<String> = ensures.iter().map(|e| e.0.clone()).collect();
+        for i in order {
+            let (name, prose, boundary, block, line) = ensures[i].clone();
+            if m.claims.iter().any(|c| c.name == name) || m.functions.iter().any(|f| f.name == name)
+            {
+                return Err(Error::new(line, format!("`{name}` is declared twice")));
+            }
+            // Its claims: those of the block that say something of results.
+            let exists = |n: &String| {
+                m.claims
+                    .iter()
+                    .any(|c| &c.name == n && !c.target.is_structural())
+            };
+            let mut claims: Vec<String> = Vec::new();
+            for (c, b) in &self.owned {
+                if *b == block && exists(c) && !claims.contains(c) && !all.contains(c) {
+                    claims.push(c.clone());
+                }
+            }
+            let requires: Vec<String> = needs(block).into_iter().filter(|n| n != &name).collect();
+            let mut state = |m: &mut Model, name: &str, from: Vec<String>| {
+                m.functions.push(Function {
+                    name: format!("{name}::prose"),
+                    params: Vec::new(),
+                    range: Set::bool(),
+                    body: None,
+                    written: None,
+                    line,
+                });
+                m.claims.push(Claim {
+                    name: name.to_string(),
+                    func: format!("{name}::prose"),
+                    pattern: Vec::new(),
+                    target: Target::Correct,
+                    from,
+                    auto: false,
+                    proved: false,
+                    trust: None,
+                    line,
+                });
+                self.names
+                    .claims
+                    .entry(name.to_string())
+                    .or_insert((Vec::new(), Vec::new()));
+                let sig = Sig {
+                    params: Vec::new(),
+                    deep: vec![Set::bool()],
+                };
+                self.names.fns.insert(format!("{name}::prose"), sig);
+            };
+            let mut from = claims.clone();
+            from.extend(requires.clone());
+            if boundary {
+                // A promise of the world: assumed, as far as it is not observed.
+                state(m, &name, requires.clone());
+                self.declare(&name, "assumed", 1.0);
+            } else {
+                let captured = format!("{name}::captured");
+                state(m, &captured, Vec::new());
+                from.push(captured);
+                state(m, &name, from);
+            }
+            m.ensures.push(Ensure {
+                name,
+                prose,
+                boundary,
+                claims,
+                requires,
+                line,
+            });
+        }
+        Ok(())
     }
 }
 

@@ -367,6 +367,8 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
     // What has no tie.
     let untied =
         |f: &&mitra_core::Function| !f.is_spec() && !code.iter().any(|c| c.implements == f.name);
+    // The text of a requirement is no code.
+    let untied = |f: &&mitra_core::Function| untied(f) && !f.name.ends_with("::prose");
     let names: Vec<&str> = model
         .functions
         .iter()

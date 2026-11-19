@@ -1,0 +1,14 @@
+// Requirements in prose. `ensure` is what a subject promises, or what a
+// boundary is promised to do; `require` names a promise made elsewhere.
+// Mitra never reads the text: the claims of the subject stand for it, and
+// someone vouches that they say the same (`signup::confirms::captured`).
+boundary mailer {
+    ensure delivers "The provider delivers a message within one minute, or reports a failure.";
+    fn send(to: {"a@x", "b@x"}) -> {"sent", "failed"};
+}
+subject signup {
+    ensure confirms "A new user receives a confirmation email.";
+    require mailer::delivers;
+    fn register(email: {"a@x", "b@x"}) -> {"created", "refused"} uses mailer::send;
+    claim confirmation_sent(email) when register(email) == "created" { mailer::send(email) == "sent" }
+}

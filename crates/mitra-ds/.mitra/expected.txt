@@ -79,6 +79,17 @@ t_conflict_mixed: holds
 t_conflict_none: holds
 t_conflict_invalid_first: holds
 t_conflict_invalid_second: holds
+mass::combines::captured: unverified
+  nobody vouched that the claims say what the text says
+mass::combines: holds assuming [mass::combines::captured]
+  says            "Two valid opinions on one question combine into one valid opinion, and how much they contradict each other is measured, never lost."
+  rests on        `mass::judged::spec`, `mass::is_valid::spec`, `mass::conflict::spec`, `mass::conflict_symmetric`, `mass::dempster::spec`, `mass::yager::spec`, `mass::yager_reports_conflict`, `mass::dempster_renormalises_yager`
+culprits::ranks::captured: unverified
+  nobody vouched that the claims say what the text says
+culprits::ranks: holds assuming [culprits::rank::correct, culprits::rank_shape, mass::combines::captured, culprits::ranks::captured]
+  says            "From how much each piece is trusted and which pieces can't all be right, each piece gets how much it must be wrong and how much it can be."
+  rests on        `culprits::rank::correct`, `culprits::rank_shape`
+  requires        `mass::combines`
 culprits::rank::tied: holds
 mass::conflict::tied: holds
 mass::dempster::tied: holds
@@ -87,15 +98,39 @@ mass::judged::tied: holds
 mass::yager::tied: holds
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:109  fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
+  --> .mitra/model.mitra:112  fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:113  claim rank_shape(biases, clauses) { match rank(biases, clauses) { Err(_) => true, Ok(r) => len(r.belief) == len(biases) && len(r.plausibility) == len(biases) && r.conflict >= 0.0 && r.conflict <= 1.0, …
+  --> .mitra/model.mitra:116  claim rank_shape(biases, clauses) { match rank(biases, clauses) { Err(_) => true, Ok(r) => len(r.belief) == len(biases) && len(r.plausibility) == len(biases) && r.conflict >= 0.0 && r.conflict <= 1.0, …
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:24  ensure combines "Two valid opinions on one question combine into one valid opinion, and how much they contradict each other is measured, never lost.";
+
+  Nobody vouched that the claims `mass::combines` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for mass::combines::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:24  ensure combines "Two valid opinions on one question combine into one valid opinion, and how much they contradict each other is measured, never lost.";
+
+  `mass::combines` holds if `mass::combines::captured` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:109  ensure ranks "From how much each piece is trusted and which pieces can't all be right, each piece gets how much it must be wrong and how much it can be.";
+
+  Nobody vouched that the claims `culprits::ranks` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for culprits::ranks::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:109  ensure ranks "From how much each piece is trusted and which pieces can't all be right, each piece gets how much it must be wrong and how much it can be.";
+
+  `culprits::ranks` holds if `culprits::rank::correct`, `culprits::rank_shape`, `mass::combines::captured`, `culprits::ranks::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

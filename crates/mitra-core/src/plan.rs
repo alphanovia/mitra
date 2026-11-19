@@ -22,6 +22,23 @@ pub fn plan(model: &Model, report: &Report) -> String {
         }
         seen.push(&v.claim);
         let c = model.claim(&v.claim).expect("verdicts name claims");
+        // A requirement in prose: what it owes is not a test.
+        if model.captured(&c.name).is_some() {
+            if v.logic == Logic::Unverified {
+                out += &format!(
+                    "{} owed: a reviewer's word that the claims say what the text says\n  \
+                     evidence <name> {{ for {} holds source \"review:<who>\" }}\n",
+                    c.name, c.name
+                );
+            }
+            continue;
+        }
+        if let Some(e) = model.ensure(&c.name) {
+            if !e.boundary && e.claims.is_empty() {
+                out += &format!("{} owed: a claim in its subject that says it\n", c.name);
+            }
+            continue;
+        }
         match v.logic {
             Logic::Fails => out += &format!("{} owes nothing: it fails (`mitra eval`)\n", c.name),
             Logic::Unverified => out += &owed(model, report, c, v),

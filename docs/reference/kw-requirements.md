@@ -1,0 +1,157 @@
+# Keywords: requirements in prose
+
+Part of the [language reference](language.md); index in
+[keywords.md](keywords.md). Every block fenced `mitra` is a whole model,
+`evidence` is evidence for it, `text` is what `mitra eval` prints for
+the two. A test runs them all.
+
+## ensure
+
+`ensure name "text";` in a subject: what it promises, in plain words.
+Mitra never reads the text. The requirement is a claim, `signup::confirms`,
+that rests on:
+
+- every claim of its subject (also `f::correct` and `f::spec`);
+- `signup::confirms::captured`: someone's word that these claims say
+  what the text says. Nobody can compute it; a reviewer vouches for it;
+- what the subject [requires](#require).
+
+It holds as far as they do, and fails when one of its claims fails.
+
+```mitra
+subject signup {
+    ensure confirms "A new user receives a confirmation email.";
+    fn register(email: {"a@x", "b@x"}) -> {"created", "refused"};
+    fn sent(email: {"a@x", "b@x"}) -> Bool;
+    claim confirmation_sent(email) when register(email) == "created" { sent(email) }
+}
+```
+```evidence
+evidence a { for register given email = "a@x" gives "created" }
+evidence b { for register given email = "b@x" gives "refused" }
+evidence c { for sent given email = "a@x" gives true }
+evidence r { for register holds source "review:me" }
+evidence s { for sent holds source "review:me" }
+```
+```text
+signup::register::correct: holds
+signup::sent::correct: holds
+signup::confirmation_sent: holds
+signup::confirms::captured: unverified
+  nobody vouched that the claims say what the text says
+signup::confirms: holds assuming [signup::confirms::captured]
+  says            "A new user receives a confirmation email."
+  rests on        `signup::register::correct`, `signup::sent::correct`, `signup::confirmation_sent`
+```
+
+Once a reviewer agrees that the claims say what the text says:
+
+```mitra
+subject signup {
+    ensure confirms "A new user receives a confirmation email.";
+    fn register(email: {"a@x", "b@x"}) -> {"created", "refused"};
+    fn sent(email: {"a@x", "b@x"}) -> Bool;
+    claim confirmation_sent(email) when register(email) == "created" { sent(email) }
+}
+```
+```evidence
+evidence a { for register given email = "a@x" gives "created" }
+evidence b { for register given email = "b@x" gives "refused" }
+evidence c { for sent given email = "a@x" gives true }
+evidence r { for register holds source "review:me" }
+evidence s { for sent holds source "review:me" }
+evidence v { for signup::confirms::captured holds source "review:me" trust 0.8 }
+```
+```text
+signup::register::correct: holds
+signup::sent::correct: holds
+signup::confirmation_sent: holds
+signup::confirms::captured: holds
+signup::confirms: holds
+  says            "A new user receives a confirmation email."
+  rests on        `signup::register::correct`, `signup::sent::correct`, `signup::confirmation_sent`
+```
+
+Evidence may be brought on the requirement itself, by someone who knows
+nothing of the model: a support ticket. With the same model and the
+evidence above, one more line:
+
+```mitra
+subject signup {
+    ensure confirms "A new user receives a confirmation email.";
+    fn register(email: {"a@x", "b@x"}) -> {"created", "refused"};
+    fn sent(email: {"a@x", "b@x"}) -> Bool;
+    claim confirmation_sent(email) when register(email) == "created" { sent(email) }
+}
+```
+```evidence
+evidence a { for register given email = "a@x" gives "created" }
+evidence b { for register given email = "b@x" gives "refused" }
+evidence c { for sent given email = "a@x" gives true }
+evidence r { for register holds source "review:me" }
+evidence s { for sent holds source "review:me" }
+evidence v { for signup::confirms::captured holds source "review:me" trust 0.8 }
+evidence bug_812 { for signup::confirms fails trust 0.9 source "support:ticket-812" }
+```
+```text
+signup::register::correct: holds
+signup::sent::correct: holds
+signup::confirmation_sent: holds
+signup::confirms::captured: holds
+signup::confirms: fails
+  says            "A new user receives a confirmation email."
+  fails: evidence says it is not met
+  rests on        `signup::register::correct`, `signup::sent::correct`, `signup::confirmation_sent`
+```
+
+The claims still hold, so something else is wrong. The error lists the
+candidates: the text, the word that the claims say it, the ticket.
+
+```text
+    likely    the text of `signup::confirms`, model.mitra:2                    none   0.00 to 0.28
+    unlikely  that the claims say what `signup::confirms` says, model.mitra:2  0.8    0.80 to 1.00
+    unlikely  evidence.mitra:7 (support:ticket-812)                            0.9    0.90 to 1.00
+```
+
+A subject with an `ensure` and no claim: the requirement is
+`unverified`, and `mitra plan` owes a claim that says it.
+
+## require
+
+`require other::name;` in a subject or a boundary: it needs a promise
+made elsewhere. It carries no text: it names an `ensure`. Every
+requirement of the block then rests on it too.
+
+In a boundary, `ensure` is what the world is promised to do. It is
+assumed, like [assume](kw-claims.md#assume): `holds assuming [itself]`,
+and never your code to fix.
+
+```mitra
+boundary mailer {
+    ensure delivers "The provider delivers a message within one minute, or reports a failure.";
+    fn send(to: {"a@x", "b@x"}) -> {"sent", "failed"};
+}
+subject signup {
+    ensure confirms "A new user receives a confirmation email.";
+    require mailer::delivers;
+    fn register(email: {"a@x", "b@x"}) -> {"created", "refused"} uses mailer::send;
+    claim confirmation_sent(email) when register(email) == "created" { mailer::send(email) == "sent" }
+}
+```
+```text
+signup::register::uses: holds
+signup::register::correct: unverified
+  no evidence on  `signup::register("a@x")`, `signup::register("b@x")`
+signup::confirmation_sent: unverified
+  no evidence on  `email = "a@x"`, `email = "b@x"`
+mailer::delivers: holds assuming [itself]
+  says            "The provider delivers a message within one minute, or reports a failure."
+signup::confirms::captured: unverified
+  nobody vouched that the claims say what the text says
+signup::confirms: holds assuming [signup::register::correct, signup::confirmation_sent, mailer::delivers, signup::confirms::captured]
+  says            "A new user receives a confirmation email."
+  rests on        `signup::register::correct`, `signup::confirmation_sent`
+  requires        `mailer::delivers`
+```
+
+`require` of a name no `ensure` has is refused.

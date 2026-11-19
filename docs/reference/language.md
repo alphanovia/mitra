@@ -84,6 +84,8 @@ subject loader {
 | `import std::claims::{commutative};` | The same from the modules shipped with Mitra; `mitra explain std::claims` prints one. `std::claims`: `commutative`, `associative`, `idempotent`, `neutral`, `inverse`, `monotone`, `within`, `represented`, `uniform`. `std::rust`: `Option<T> { None, Some(value: T) }`, `Result<T, E> { Ok(value: T), Err(error: E) }`. |
 | `claim c = represented(f, { (a, b) \| b != 0 });` | One tested input of the set stands for all of it; nothing is said outside. With `import std::claims::{represented};`. A set per input also works: `represented(abs, 0..=9)`, `represented(div, (0..=9, 1..=9))`. Several on one function. |
 | `assume c() { e }` | A claim taken as true without evidence (evidence with source `assumed`): `holds assuming [itself]` until the boundary is observed. Evidence against it is an error. |
+| `ensure name "text";` | In a subject: what it promises, in plain words. Mitra never reads the text. `s::name` rests on every claim of the subject, on `s::name::captured` (a reviewer's word that the claims say what the text says) and on what the subject requires. In a boundary: assumed. [More](kw-requirements.md). |
+| `require other::name;` | In a subject or a boundary: every `ensure` of the block also rests on that one. A name no `ensure` has is refused. |
 | `record R { a: T, b: U }`, `record Box<T> { item: T }` | Values are written `R(1, 2)`. |
 | `enum E<T> { A, B(T), C(x: T, y: T) }` | Unnamed fields are named `v0`, `v1`. |
 | `claim t() { f(6, 2) == 3 }` | A point claim: no input, one call pinned. It is what a test of the code checks (see Tests). |

@@ -83,6 +83,40 @@ pub fn next(model: &Model, report: &Report) -> String {
     verdicts.sort_by_key(|v| v.logic != Logic::Fails || !suspects(subject(v)).is_empty());
     for v in verdicts {
         let c = model.claim(&v.claim).expect("verdicts name claims");
+        // A requirement in prose: what settles it is not a test.
+        if model.captured(&c.name).is_some() {
+            if v.logic == Logic::Unverified {
+                out += &format!(
+                    "{}: nobody vouched that the claims say what the text says\n  \
+                     review them against the text, then: evidence <name> {{ for {} holds source \"review:<who>\" }}\n",
+                    c.name, c.name
+                );
+            }
+            continue;
+        }
+        if let Some(e) = model.ensure(&c.name) {
+            out += &match v.logic {
+                Logic::Fails if v.refuted.is_empty() => {
+                    format!("{}: fails with a claim it rests on\n", c.name)
+                }
+                Logic::Fails => format!(
+                    "{}: fails: evidence says it is not met\n  \
+                     write the claim that would have caught it, or correct the evidence\n",
+                    c.name
+                ),
+                Logic::Unverified if e.claims.is_empty() && !e.boundary => format!(
+                    "{}: no claim in its subject says it\n  write the claims that say it\n",
+                    c.name
+                ),
+                Logic::Assuming if !v.own_word() => format!(
+                    "{}: holds assuming [{}]\n  settle what it rests on\n",
+                    c.name,
+                    v.assuming.join(", ")
+                ),
+                _ => String::new(),
+            };
+            continue;
+        }
         let conflict = report.conflicts.iter().any(|k| k.claim == c.name);
         if v.logic == Logic::Fails && c.target.is_structural() && !conflict {
             out += &format!("{}: fails: evidence says so\n", c.name);

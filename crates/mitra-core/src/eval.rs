@@ -227,6 +227,12 @@ pub enum Piece {
     Assumption(String),
     /// The `uses` clause of a function: what its code is declared to call.
     Uses(String),
+    /// A requirement in prose (`ensure`), by its name: the prose itself
+    /// may be what is wrong, or no longer what is wanted.
+    Requirement(String),
+    /// That the claims of a subject say what the prose of a requirement
+    /// says: someone's word, by the name of the requirement.
+    Capture(String),
 }
 
 impl Piece {
@@ -2399,7 +2405,12 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             true => i == Implication::Checked,
             false => i != Implication::Refuted,
         };
+        // A requirement in prose with no claim behind it rests on nothing.
+        let orphan = model
+            .ensure(&c.name)
+            .is_some_and(|e| !e.boundary && e.claims.is_empty());
         let follows = implication.is_some_and(enough)
+            && !orphan
             && c.from.iter().all(|p| logic_of[p.as_str()] != Logic::Fails);
         // An input both right and wrong is a contradiction: it counts on
         // neither side.
@@ -2650,6 +2661,14 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
             }
         }
+        // A requirement in prose fails when a claim it rests on fails, or a
+        // requirement it needs.
+        if let Some(e) = model.ensure(&c.name) {
+            let mut rests = e.claims.iter().chain(&e.requires);
+            if rests.any(|p| logic_of[p.as_str()] == Logic::Fails) {
+                logic = Logic::Fails;
+            }
+        }
         if logic != Logic::Assuming {
             assuming.clear();
         }
@@ -2706,6 +2725,10 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     for (i, c) in model.claims.iter().enumerate() {
         let v = &verdicts[i];
         if v.logic != Logic::Fails || broken(&c.name) {
+            continue;
+        }
+        // A requirement that fails with its claims: their errors say why.
+        if model.ensure(&c.name).is_some() && v.refuted.is_empty() {
             continue;
         }
         if let Some((_, _, Some((pass, fail)))) = stands.iter().find(|s| s.0 == i) {
@@ -2800,6 +2823,18 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         if c.target == Target::Tied {
             side.push(Piece::Signature(c.func.clone()));
             side.push(Piece::Code(c.func.clone()));
+        } else if let Some(e) = model.ensure(&c.name) {
+            // Evidence against a requirement in prose: the prose, the word
+            // that its claims say it, or a requirement it needs. Not code.
+            side.clear();
+            side.push(Piece::Requirement(e.name.clone()));
+            if !e.boundary {
+                side.push(Piece::Capture(e.name.clone()));
+            }
+            side.extend(e.requires.iter().cloned().map(Piece::Requirement));
+        } else if let Some(e) = model.captured(&c.name) {
+            side.clear();
+            side.push(Piece::Capture(e.name.clone()));
         } else {
             side.push(Piece::Claim(c.name.clone()));
         }
@@ -3226,6 +3261,15 @@ fn rank(model: &Model, problems: &mut [Problem]) {
         Piece::Claim(c) => Some(model.claim(c).and_then(|c| c.trust).unwrap_or(1.0)),
         // What the model states is trusted like evidence: 1 unless said.
         Piece::Signature(_) => Some(1.0),
+        // The prose is what is judged: no trust is given to it. The word
+        // that the claims say it is trusted as its vouch is, if any.
+        Piece::Requirement(_) => None,
+        Piece::Capture(c) => {
+            let about = format!("{c}::captured");
+            let vouch = |e: &&Evidence| e.about == about && e.judgment == Judgment::Holds(true);
+            let all = model.evidence.iter().filter(vouch);
+            all.map(|e| e.confidence).reduce(f64::max)
+        }
         Piece::Assumption(_) | Piece::Uses(_) => {
             let name = p.declared_claim().expect("declared");
             Some(declared(&name).map_or(1.0, |e| e.confidence))

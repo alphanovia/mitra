@@ -375,3 +375,93 @@ fn import_reaches_into_unnamed_blocks() {
     assert_eq!(model.boundaries, ["now"]);
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// A requirement in prose holds as far as the claims of its subject,
+/// the word that they say it, and what it requires.
+#[test]
+fn a_requirement_in_prose_rests_on_its_claims_and_a_vouch() {
+    use mitra_core::Piece;
+    let m = "boundary mailer { ensure delivers \"Mail arrives.\";\n\
+             fn send(to: 0..=1) -> Bool; }\n\
+             subject signup { ensure confirms \"A new user gets a mail.\";\n\
+             require mailer::delivers;\n\
+             fn register(u: 0..=1) -> Bool uses mailer::send;\n\
+             claim sent(u) when register(u) { mailer::send(u) } }";
+    let run = |evidence: &str| mitra_core::run(m, evidence).unwrap_or_else(|(_, e)| panic!("{e}"));
+    let seen = "evidence a { for signup::register given u = 0 gives true }\n\
+                evidence b { for signup::register given u = 1 gives false }\n\
+                evidence c { for mailer::send given to = 0 gives true }\n\
+                evidence r { for signup::register holds }\n";
+    // Nothing known: it holds only assuming all it rests on.
+    let text = run("").to_text();
+    assert!(
+        text.contains("mailer::delivers: holds assuming [itself]"),
+        "{text}"
+    );
+    assert!(
+        text.contains("signup::confirms::captured: unverified"),
+        "{text}"
+    );
+    assert!(
+        text.contains("signup::confirms: holds assuming ["),
+        "{text}"
+    );
+    // The claims hold, nobody vouched.
+    let text = run(seen).to_text();
+    assert!(
+        text.contains(
+            "signup::confirms: holds assuming [mailer::delivers, signup::confirms::captured]"
+        ),
+        "{text}"
+    );
+    // Vouched: only the boundary's promise is left assumed.
+    let vouched =
+        format!("{seen}evidence v {{ for signup::confirms::captured holds trust 0.8 }}\n");
+    let text = run(&vouched).to_text();
+    assert!(
+        text.contains("signup::confirms: holds assuming [mailer::delivers]"),
+        "{text}"
+    );
+    // A ticket against the requirement: the text, the vouch, what it
+    // requires and the ticket are the candidates, never the code.
+    let report = run(&format!(
+        "{vouched}evidence bug {{ for signup::confirms fails trust 0.9 }}\n"
+    ));
+    assert!(report.to_text().contains("signup::confirms: fails"));
+    let got: Vec<Piece> = report
+        .problems
+        .iter()
+        .flat_map(|p| p.candidates.clone().unwrap_or_default())
+        .map(|c| c.piece)
+        .collect();
+    for want in [
+        Piece::Requirement("signup::confirms".into()),
+        Piece::Capture("signup::confirms".into()),
+        Piece::Requirement("mailer::delivers".into()),
+    ] {
+        assert!(got.contains(&want), "{want:?} not in {got:?}");
+    }
+    assert!(!got.iter().any(|p| matches!(p, Piece::Code(_))), "{got:?}");
+    // A claim of the subject fails: so does the requirement.
+    let text = run(
+        "evidence a { for signup::register given u = 0 gives true }\n\
+                    evidence c { for mailer::send given to = 0 gives false }\n",
+    )
+    .to_text();
+    assert!(text.contains("signup::confirms: fails"), "{text}");
+}
+
+/// A subject with a requirement and no claim says nothing of it; a
+/// `require` names an `ensure`.
+#[test]
+fn a_requirement_with_no_claim_is_unverified() {
+    let text = mitra_core::run("subject s { ensure works \"It works.\"; }", "")
+        .unwrap_or_else(|(_, e)| panic!("{e}"))
+        .to_text();
+    assert!(text.contains("s::works: unverified"), "{text}");
+    let bad = mitra_core::run("subject s { require t::nothing; fn f() -> Bool; }", "");
+    let (_, e) = bad.err().expect("refused");
+    assert!(e.to_string().contains("no `ensure` has this name"), "{e}");
+    let outside = mitra_core::run("ensure works \"It works.\";", "");
+    assert!(outside.is_err());
+}

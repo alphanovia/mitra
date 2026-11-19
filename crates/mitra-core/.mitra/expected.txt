@@ -114,6 +114,21 @@ t_word_unlikely: holds
 t_quote_plain: holds
 t_quote_empty: holds
 t_quote_escapes: holds
+eval::computes::captured: unverified
+  nobody vouched that the claims say what the text says
+eval::computes: holds assuming [eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured]
+  says            "An operator computes what the language reference says, and gives no value where it does not apply."
+  rests on        `eval::as_str::spec`, `eval::unary::correct`, `eval::not_is`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`
+print::prints_back::captured: unverified
+  nobody vouched that the claims say what the text says
+print::prints_back: holds assuming [print::negative::correct, print::negative_ints, print::prints_back::captured]
+  says            "What Mitra prints reads back as what was written: signs and the order of operators are kept."
+  rests on        `print::negative::correct`, `print::negative_ints`, `print::level::spec`
+report::words::captured: unverified
+  nobody vouched that the claims say what the text says
+report::words: holds assuming [report::words::captured]
+  says            "The word beside a candidate says how plausibly it is the wrong piece."
+  rests on        `report::word::spec`
 eval::as_str::tied: holds
 eval::binary::tied: holds
 eval::unary::tied: holds
@@ -123,81 +138,117 @@ report::word::tied: holds
 set::quote::tied: holds
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:44  fn unary(op: String, v: Value) -> Option<Value>;
+  --> .mitra/model.mitra:47  fn unary(op: String, v: Value) -> Option<Value>;
 
   No evidence on (op, v) in (String \ {"!", "-", "keys"}, Value) | ({"keys"}, Value \ {{"a": 1, "b": 2}, {1}}) | ({"-"}, Value \ {-3, 3, 0.5, "a"}) | ({"!"}, Value \ Bool).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:49  claim twice_negated(v: Int) { match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) } }
+  --> .mitra/model.mitra:52  claim twice_negated(v: Int) { match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) } }
 
   No evidence on v in Int \ {-3, 3}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:54  fn binary(op: String, x: Value, y: Value) -> Option<Value>;
+  --> .mitra/model.mitra:57  fn binary(op: String, x: Value, y: Value) -> Option<Value>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:56  claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
+  --> .mitra/model.mitra:59  claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:57  claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
+  --> .mitra/model.mitra:60  claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
 
   No evidence on (x, y) in (Value \ {-3, 4}, Value) | ({4}, Value \ {-3}) | ({-3}, Value \ {4}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:58  claim minus_is_plus_negated(x: Int, y: Int) { match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) } }
+  --> .mitra/model.mitra:61  claim minus_is_plus_negated(x: Int, y: Int) { match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) } }
 
   No evidence on (x, y) in (Int \ {2}, Int) | ({2}, Int \ {3}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:61  claim different_is_not_equal(x, y) { match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) } }
+  --> .mitra/model.mitra:64  claim different_is_not_equal(x, y) { match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) } }
 
   No evidence on (x, y) in (Value \ {2}, Value) | ({2}, Value \ {2, "2"}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:64  claim union_commutes(x: Set<Int>, y: Set<Int>) { binary("|", x, y) == binary("|", y, x) }
+  --> .mitra/model.mitra:67  claim union_commutes(x: Set<Int>, y: Set<Int>) { binary("|", x, y) == binary("|", y, x) }
 
   No evidence on (x, y) in (Set<Int> \ {{1, 2}, {2, 3}}, Set<Int>) | ({{2, 3}}, Set<Int> \ {{1, 2}}) | ({{1, 2}}, Set<Int> \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:66  claim difference_apart(x: Set<Int>, y: Set<Int>) { match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) } }
+  --> .mitra/model.mitra:69  claim difference_apart(x: Set<Int>, y: Set<Int>) { match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) } }
 
   No evidence on (x, y) in (Set<Int> \ {{1, 2}}, Set<Int>) | ({{1, 2}}, Set<Int> \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:69  claim divides_back(x: Int, y: Int \ {0}) { match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) } }
+  --> .mitra/model.mitra:72  claim divides_back(x: Int, y: Int \ {0}) { match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) } }
 
   No evidence on (x, y) in (Int \ {4}, Int \ {0}) | ({4}, Int \ {-3, 0}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:76  fn quote(s: String) -> String;
+  --> .mitra/model.mitra:79  fn quote(s: String) -> String;
 
   No evidence on s in String \ {"", "a b", "a\"b\\c\nd\te"}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:81  fn negative(v: Value) -> bool;
+  --> .mitra/model.mitra:85  fn negative(v: Value) -> bool;
 
   No evidence on v in Value \ ({-0.5, "-1"} | -1..=0).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:83  claim negative_ints(v: Int) { negative(v) == (v < 0) }
+  --> .mitra/model.mitra:87  claim negative_ints(v: Int) { negative(v) == (v < 0) }
 
   No evidence on v in Int \ -1..=0.
   help: `mitra next` lists the evidence that would settle it
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:36  ensure computes "An operator computes what the language reference says, and gives no value where it does not apply.";
+
+  Nobody vouched that the claims `eval::computes` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for eval::computes::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:36  ensure computes "An operator computes what the language reference says, and gives no value where it does not apply.";
+
+  `eval::computes` holds if `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:83  ensure prints_back "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
+
+  Nobody vouched that the claims `print::prints_back` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for print::prints_back::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:83  ensure prints_back "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
+
+  `print::prints_back` holds if `print::negative::correct`, `print::negative_ints`, `print::prints_back::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:102  ensure words "The word beside a candidate says how plausibly it is the wrong piece.";
+
+  Nobody vouched that the claims `report::words` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for report::words::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:102  ensure words "The word beside a candidate says how plausibly it is the wrong piece.";
+
+  `report::words` holds if `report::words::captured` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

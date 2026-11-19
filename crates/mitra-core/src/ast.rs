@@ -262,7 +262,27 @@ pub struct Model {
     /// The functions of the environment: one may answer
     /// differently each time, so two outputs on one input both stand.
     pub boundaries: Vec<String>,
+    /// The requirements in prose (`ensure name "…";`).
+    pub ensures: Vec<Ensure>,
     pub evidence: Vec<Evidence>,
+}
+
+/// `ensure name "prose";`: what a subject promises, or what a boundary
+/// is promised to do. Mitra never reads the prose. It is a claim of the
+/// same name, which rests on `claims`, on the requirements it needs
+/// (`require other::name;`) and, in a subject, on `name::captured`:
+/// someone's word that the claims say what the prose says.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Ensure {
+    pub name: String,
+    pub prose: String,
+    /// Of a boundary: assumed, with nothing of yours behind it.
+    pub boundary: bool,
+    /// The claims of its subject.
+    pub claims: Vec<String>,
+    /// The requirements it needs.
+    pub requires: Vec<String>,
+    pub line: usize,
 }
 
 impl Model {
@@ -355,6 +375,16 @@ impl Model {
     pub fn function(&self, name: &str) -> Option<&Function> {
         let hidden = || self.properties.iter().find(|f| f.name == name);
         self.declared_function(name).or_else(hidden)
+    }
+    /// The requirement in prose of this name.
+    pub fn ensure(&self, name: &str) -> Option<&Ensure> {
+        self.ensures.iter().find(|e| e.name == name)
+    }
+    /// The requirement that the claim `name::captured` is about: someone's
+    /// word that its claims say what its prose says.
+    pub fn captured(&self, name: &str) -> Option<&Ensure> {
+        let of = name.strip_suffix("::captured")?;
+        self.ensure(of).filter(|e| !e.boundary)
     }
     /// A function the model declares.
     pub fn declared_function(&self, name: &str) -> Option<&Function> {

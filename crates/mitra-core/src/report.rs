@@ -232,6 +232,12 @@ impl Writer<'_> {
         self.model.claim(&e.about)
     }
 
+    /// The verdict of a claim.
+    fn logic(&self, name: &str) -> Option<Logic> {
+        let v = self.report.verdicts.iter().find(|v| v.claim == name);
+        v.map(|v| v.logic)
+    }
+
     /// The evidence the model declares for an `assume` or a `uses` clause.
     fn stated(&self, name: &str) -> Option<&crate::Evidence> {
         let files = self.model.written.as_ref().map_or(0, |w| w.1.len());
@@ -337,6 +343,41 @@ impl Writer<'_> {
             }
             *out += "\n";
             if c.target.is_structural() {
+                continue;
+            }
+            if self.model.captured(&v.claim).is_some() {
+                if v.logic == Logic::Unverified {
+                    *out += "  nobody vouched that the claims say what the text says\n";
+                }
+                continue;
+            }
+            if let Some(e) = self.model.ensure(&v.claim) {
+                *out += &format!("  says            \"{}\"\n", e.prose);
+                let names = |all: &[String]| -> String {
+                    let all: Vec<String> = all.iter().map(|n| format!("`{n}`")).collect();
+                    all.join(", ")
+                };
+                let failing: Vec<String> = e
+                    .claims
+                    .iter()
+                    .chain(&e.requires)
+                    .filter(|p| self.logic(p) == Some(Logic::Fails))
+                    .cloned()
+                    .collect();
+                if !v.refuted.is_empty() {
+                    *out += "  fails: evidence says it is not met\n";
+                }
+                if !failing.is_empty() {
+                    *out += &format!("  fails with      {}\n", names(&failing));
+                }
+                if !e.boundary && e.claims.is_empty() {
+                    *out += "  no claim in its subject: nothing says it is met\n";
+                } else if !e.boundary {
+                    *out += &format!("  rests on        {}\n", names(&e.claims));
+                }
+                if !e.requires.is_empty() {
+                    *out += &format!("  requires        {}\n", names(&e.requires));
+                }
                 continue;
             }
             let inputs = |set: &Tuples| self.inputs(&c.func, set, &v.domain);
@@ -447,6 +488,18 @@ impl Writer<'_> {
                 let place = self.places.model(line);
                 (format!("the signature of `{f}`, {place}"), "1".to_string())
             }
+            Piece::Requirement(c) => {
+                let place = self.places.model(self.claim(c).line);
+                (format!("the text of `{c}`, {place}"), "none".to_string())
+            }
+            Piece::Capture(c) => {
+                let place = self.places.model(self.claim(c).line);
+                let text = format!("that the claims say what `{c}` says, {place}");
+                let about = format!("{c}::captured");
+                let vouches = self.model.evidence.iter().filter(|e| e.about == about);
+                let trust = vouches.map(|e| e.confidence).reduce(f64::max);
+                (text, trust.map_or("none".to_string(), |t| format!("{t}")))
+            }
             Piece::Assumption(_) | Piece::Uses(_) => {
                 let name = piece.declared_claim().expect("declared");
                 let how = match piece {
@@ -471,7 +524,11 @@ impl Writer<'_> {
                 return;
             }
         };
-        *out += match p.kind {
+        let prose = |c: &String| self.model.ensure(c).is_some();
+        *out += match &p.kind {
+            Kind::Fails { claims } if claims.iter().any(prose) => {
+                "\n  The text, the word that the claims say it, what it requires or the\n  evidence is wrong."
+            }
             Kind::Fails { .. } => "\n  The code, the claim or the evidence is wrong.",
             Kind::Misfit { .. } => "\n  Either the model is wrong or the evidence is.",
             Kind::Against { .. } => "\n  The claim or a spec is wrong.",
@@ -552,6 +609,10 @@ impl Writer<'_> {
                 *out += "\n";
                 for name in claims {
                     let (c, v) = (self.claim(name), self.verdict(name));
+                    if self.model.ensure(name).is_some() {
+                        *out += &format!("  `{name}` is not met.\n");
+                        continue;
+                    }
                     *out += &format!(
                         "  `{name}` fails on {}.\n",
                         self.inputs(&c.func, &v.refuted, &v.domain)
@@ -568,6 +629,7 @@ impl Writer<'_> {
                 // those it calls.
                 let mut subjects = self.model.subjects_of(self.claim(&claims[0]));
                 subjects.retain(|f| !self.model.boundaries.contains(f));
+                subjects.retain(|f| !f.ends_with("::prose"));
                 subjects.retain(|f| {
                     self.model
                         .declared_function(f)
@@ -590,7 +652,11 @@ impl Writer<'_> {
                         attached.push(format!("root {f}"));
                     }
                 }
-                *out += &if !subjects.is_empty() {
+                *out += &if self.model.ensure(&claims[0]).is_some() {
+                    "  help: if the evidence is right, the claims miss what the text says: write the\n  \
+                     claim that would have caught it; if not, correct the evidence\n"
+                        .to_string()
+                } else if !subjects.is_empty() {
                     let f = subjects.join("` or `");
                     format!(
                         "  help: if the evidence is right, fix `{f}`; if not, correct the evidence\n"
@@ -755,10 +821,25 @@ impl Writer<'_> {
             let c = self.claim(&v.claim);
             let name = &v.claim;
             match v.logic {
-                Logic::Unverified if c.target.is_structural() => {
+                Logic::Unverified if self.model.ensure(name).is_some() => {
+                    *out += &format!("\nwarning[M101]: {}\n", headline("M101"));
+                    *out += &self.at_claim(name);
+                    *out += "\n  No claim in its subject says it, or a claim it rests on is not settled.\n  \
+                             help: write the claims that say it, in the same subject\n";
+                }
+                Logic::Unverified
+                    if c.target.is_structural() || self.model.captured(name).is_some() =>
+                {
                     *out += &format!("\nwarning[M103]: {}\n", headline("M103"));
                     *out += &self.at_claim(name);
-                    *out += &if v.tested.is_empty() {
+                    *out += &if let Some(e) = self.model.captured(name) {
+                        format!(
+                            "\n  Nobody vouched that the claims `{}` rests on say what its text says.\n  \
+                             help: review them against the text, then record: \
+                             evidence <name> {{ for {name} holds source \"review:<who>\" }}\n",
+                            e.name
+                        )
+                    } else if v.tested.is_empty() {
                         format!(
                             "\n  Nothing says that `{name}` holds, and Mitra can't check it.\n  \
                              help: review it against the code, then record: {}",

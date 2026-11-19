@@ -120,6 +120,20 @@ pub fn expr(e: &Expr) -> String {
 
 /// One claim as a model would write it in full: `given a: S, b: T then e`.
 pub fn contract(m: &Model, c: &Claim) -> String {
+    if let Some(e) = m.captured(&c.name) {
+        return format!("the claims of its subject say what `{}` says", e.name);
+    }
+    if let Some(e) = m.ensure(&c.name) {
+        let mut on = e.claims.clone();
+        on.extend(e.requires.iter().cloned());
+        if !e.boundary {
+            on.push(format!("{}::captured", e.name));
+        }
+        return match on.is_empty() {
+            true => format!("{:?}, assumed", e.prose),
+            false => format!("{:?}, resting on {}", e.prose, on.join(", ")),
+        };
+    }
     match &c.target {
         Target::Uniform(None) => format!("uniform({})", c.func),
         Target::Uniform(Some(g)) => {

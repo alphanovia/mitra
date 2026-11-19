@@ -239,7 +239,11 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let (model, report) = evaluate(&m, &e, rev)?;
             println!(
                 "ok: {} functions, {} claims, {} evidence",
-                model.functions.len(),
+                model
+                    .functions
+                    .iter()
+                    .filter(|f| !f.name.ends_with("::prose"))
+                    .count(),
                 model.claims.len(),
                 model.evidence.len()
             );

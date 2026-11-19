@@ -16,6 +16,7 @@ record Outcome { name: String, passed: bool }
 
 // Test reports: libtest's text and JUnit's XML.
 subject report {
+    ensure reads_results "Every test in a cargo test or JUnit report is read, with its name and whether it passed.";
     // The name of a test without its module path.
     fn short(path: String) -> String;
     // A short name is already short.
@@ -34,6 +35,7 @@ subject report {
 
 // The comments of a Rust file that tie its code to the model.
 subject source {
+    ensure finds_ties "A tie comment in Rust code is found, with the name of the function or test written below it.";
     // The text after `mitra:` in a comment line.
     fn mitra_line(line: String) -> Option<String>;
 

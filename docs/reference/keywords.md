@@ -16,6 +16,8 @@ To try one: copy the model into `model.mitra`, the evidence into
 | `uses`, `only` | what the code of a function calls | [kw-declarations.md](kw-declarations.md#uses) |
 | `record` | a value with named fields | [kw-records.md](kw-records.md#record) |
 | `enum` | a value that is one of several variants | [kw-records.md](kw-records.md#enum) |
+| `ensure` | what a subject promises, in plain words | [kw-requirements.md](kw-requirements.md#ensure) |
+| `require` | a promise made elsewhere that this one needs | [kw-requirements.md](kw-requirements.md#require) |
 | `import` | declarations of another file or of `std` | [kw-declarations.md](kw-declarations.md#import) |
 | `//` | a comment | [kw-declarations.md](kw-declarations.md#comments) |
 | `claim` | what must be true for every input | [kw-claims.md](kw-claims.md#claim) |
