@@ -510,6 +510,14 @@ impl Writer<'_> {
                 (text, format!("{trust}"))
             }
             Piece::Code(f) => {
+                if let Some(r) = self
+                    .model
+                    .record(f)
+                    .filter(|_| self.model.function(f).is_none())
+                {
+                    let place = self.places.model(r.line);
+                    return (format!("the struct of `{f}`, {place}"), "none".to_string());
+                }
                 let line = self.model.function(f).map_or(0, |f| f.line);
                 let place = self.places.model(line);
                 (format!("the code of `{f}`, {place}"), "none".to_string())
@@ -524,6 +532,17 @@ impl Writer<'_> {
                 )
             }
             Piece::Signature(f) => {
+                if let Some(r) = self
+                    .model
+                    .record(f)
+                    .filter(|_| self.model.function(f).is_none())
+                {
+                    let place = self.places.model(r.line);
+                    return (
+                        format!("the record `{f}` as written, {place}"),
+                        "1".to_string(),
+                    );
+                }
                 let line = self.model.function(f).map_or(0, |f| f.line);
                 let place = self.places.model(line);
                 (format!("the signature of `{f}`, {place}"), "1".to_string())
@@ -719,9 +738,14 @@ impl Writer<'_> {
             Kind::Denied { claim } if self.claim(claim).target == crate::Target::Tied => {
                 let f = &self.claim(claim).func;
                 *out += &self.at_claim(claim);
-                *out += &format!(
-                    "\n  The model and the code of `{f}` do not agree, says this evidence:\n\n"
-                );
+                *out += &match f.strip_suffix("::tied::prose") {
+                    Some(r) => format!(
+                        "\n  The record `{r}` and its struct do not agree, says this evidence:\n\n"
+                    ),
+                    None => format!(
+                        "\n  The model and the code of `{f}` do not agree, says this evidence:\n\n"
+                    ),
+                };
                 self.quoted(p, out);
                 self.ranking(p, out);
                 *out += "\n  help: change the model or the code so that they say the same\n";

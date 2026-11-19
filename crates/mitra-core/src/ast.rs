@@ -80,6 +80,10 @@ pub struct Record {
     /// The enum it is a variant of. A field typed by a parameter of the
     /// enum is then `Any`.
     pub of: Option<String>,
+    /// `record R;` or `record R { a: T, .. }`: it has parts the model
+    /// does not state, held in a last field named `..`. No value of it
+    /// can be written.
+    pub open: bool,
     pub line: usize,
 }
 

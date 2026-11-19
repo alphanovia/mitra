@@ -160,7 +160,10 @@ pub fn contract(m: &Model, c: &Claim) -> String {
             let only = if *only { "only " } else { "" };
             format!("fn {} uses {only}{}", c.func, used.join(", "))
         }
-        Target::Tied => format!("the code of {} is tied to the model", c.func),
+        Target::Tied => match c.func.strip_suffix("::tied::prose") {
+            Some(r) => format!("the struct of {r} is tied to the record"),
+            None => format!("the code of {} is tied to the model", c.func),
+        },
         Target::Represented(set) => {
             let g = m.function(set);
             let names: Vec<String> = g

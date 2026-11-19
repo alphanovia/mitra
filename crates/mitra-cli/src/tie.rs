@@ -21,6 +21,62 @@ struct Code {
     body: String,
 }
 
+/// A `struct` or an `enum` of the code tied to a record of the model.
+struct Shape {
+    implements: String,
+    place: String,
+    /// `struct` or `enum`.
+    kind: String,
+    /// Each named field with its type; none for an enum, a tuple struct
+    /// or a unit struct.
+    fields: Option<Vec<(String, String)>>,
+}
+
+/// The `struct` or `enum` at the start of `code`, past attributes and
+/// `pub`: its kind, and the text after its name.
+fn shape_below(code: &str) -> Option<(&str, &str)> {
+    let mut rest = code.trim_start();
+    loop {
+        if let Some(r) = rest.strip_prefix('#') {
+            rest = r[r.find(']')? + 1..].trim_start();
+        } else if let Some(r) = rest.strip_prefix("pub(") {
+            rest = r[r.find(')')? + 1..].trim_start();
+        } else if let Some(r) = rest.strip_prefix("pub ") {
+            rest = r.trim_start();
+        } else {
+            break;
+        }
+    }
+    for kind in ["struct", "enum"] {
+        if let Some(r) = rest.strip_prefix(kind).filter(|r| r.starts_with(' ')) {
+            let r = r.trim_start();
+            let end = r.find(|c: char| !(c.is_alphanumeric() || c == '_'));
+            return Some((kind, &r[end.unwrap_or(r.len())..]));
+        }
+    }
+    None
+}
+
+/// The named fields of a struct, from the text after its name.
+fn fields(after: &str) -> Option<Vec<(String, String)>> {
+    let open = after.find(['{', ';', '('])?;
+    let inside = balanced(after[open..].strip_prefix('{')?, '{', '}')?;
+    let mut out = Vec::new();
+    for p in pieces(inside) {
+        let mut p = p.trim();
+        while let Some(r) = p.strip_prefix('#') {
+            p = r[r.find(']')? + 1..].trim_start();
+        }
+        if let Some(r) = p.strip_prefix("pub(") {
+            p = r[r.find(')')? + 1..].trim_start();
+        }
+        let p = p.strip_prefix("pub ").unwrap_or(p);
+        let (name, ty) = p.split_once(':')?;
+        out.push((name.trim().to_string(), ty.trim().to_string()));
+    }
+    Some(out)
+}
+
 /// The piece of `s` up to the bracket that closes the one opened before it.
 fn balanced(s: &str, open: char, close: char) -> Option<&str> {
     let mut depth = 1;
@@ -131,7 +187,12 @@ fn fits(model: &str, rust: &str) -> bool {
 }
 
 /// The ties of one Rust file.
-fn read(path: &str, text: &str, out: &mut Vec<Code>) -> Result<(), String> {
+fn read(
+    path: &str,
+    text: &str,
+    out: &mut Vec<Code>,
+    shapes: &mut Vec<Shape>,
+) -> Result<(), String> {
     let lines: Vec<&str> = text.lines().collect();
     let scanned = scan(text);
     for i in 0..lines.len() {
@@ -143,8 +204,18 @@ fn read(path: &str, text: &str, out: &mut Vec<Code>) -> Result<(), String> {
         // The code below: past the other comments of the block.
         let code: Vec<&str> = scanned[i + 1..].iter().map(|l| l.1.as_str()).collect();
         let code = code.join("\n");
+        if let Some((kind, after)) = shape_below(&code) {
+            shapes.push(Shape {
+                implements: implements.trim().to_string(),
+                place,
+                kind: kind.to_string(),
+                fields: fields(after).filter(|_| kind == "struct"),
+            });
+            continue;
+        }
         let Some(name) = fn_below(&code) else {
-            return Err(format!("{place}: `implements` must sit above a `fn`"));
+            let msg = "`implements` must sit above a `fn`, a `struct` or an `enum`";
+            return Err(format!("{place}: {msg}"));
         };
         let after = &code[code.find(&format!("fn {name}")).unwrap_or(0)..];
         let open = after
@@ -254,10 +325,11 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
     }
     files.sort();
     let (mut code, mut tests) = (Vec::new(), String::new());
+    let mut shapes = Vec::new();
     for f in files {
         let shown = f.strip_prefix(root).unwrap_or(&f).display().to_string();
         let text = std::fs::read_to_string(&f).map_err(|e| format!("{shown}: {e}"))?;
-        read(&shown, &text, &mut code)?;
+        read(&shown, &text, &mut code, &mut shapes)?;
         tests += &text;
     }
     let mut found = Found {
@@ -288,6 +360,56 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
             ));
         }
     };
+    // Records: every field the model states is in the struct, with a type
+    // that fits; without `..` the struct has no other field.
+    for s in &shapes {
+        let record = model.records.iter().find(|r| r.name == s.implements);
+        let Some(r) = record.filter(|r| r.of.is_none()) else {
+            let msg = format!("{}: the model has no record `{}`", s.place, s.implements);
+            return Err(msg);
+        };
+        if shapes
+            .iter()
+            .filter(|d| d.implements == s.implements)
+            .count()
+            > 1
+        {
+            let msg = format!("{}: `{}` is implemented twice", s.place, s.implements);
+            return Err(msg);
+        }
+        let stated: Vec<&(String, mitra_core::Set)> =
+            r.fields.iter().filter(|f| f.0 != "..").collect();
+        let mut why = None;
+        match &s.fields {
+            // Nothing of it is stated: any struct or enum will do.
+            _ if stated.is_empty() && r.open => {}
+            None => why = Some(format!("the code has no named fields (`{}`)", s.kind)),
+            Some(fields) => {
+                for (name, set) in &stated {
+                    let mty = model.named(&set.to_string());
+                    match fields.iter().find(|f| &f.0 == name) {
+                        None => why = Some(format!("the struct has no field `{name}`")),
+                        Some((_, ty)) if !fits(&mty, ty) => {
+                            why = Some(format!(
+                                "field `{name}` is `{ty}` in the code, `{mty}` in the model"
+                            ))
+                        }
+                        Some(_) => {}
+                    }
+                    if why.is_some() {
+                        break;
+                    }
+                }
+                let extra = fields.iter().find(|f| !stated.iter().any(|m| m.0 == f.0));
+                if let Some((name, _)) = extra.filter(|_| why.is_none() && !r.open) {
+                    why = Some(format!(
+                        "the struct has a field `{name}` the record does not state, and no `..`"
+                    ));
+                }
+            }
+        }
+        say(&mut found, &format!("{}::tied", r.name), &s.place, why);
+    }
     for c in &code {
         let Some(f) = model
             .declared_function(&c.implements)
@@ -375,6 +497,10 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
         .filter(untied)
         .map(|f| f.name.as_str())
         .collect();
+    let mut names: Vec<&str> = names;
+    let loose =
+        |r: &&mitra_core::Record| r.of.is_none() && !shapes.iter().any(|s| s.implements == r.name);
+    names.extend(model.records.iter().filter(loose).map(|r| r.name.as_str()));
     if !names.is_empty() {
         found
             .notes

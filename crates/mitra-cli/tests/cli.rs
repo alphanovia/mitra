@@ -461,6 +461,46 @@ fn tie_compares_the_code_with_the_model() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// A record is tied to its struct: the fields the model states are
+/// there, and no other unless the record says `..`.
+#[test]
+fn tie_compares_a_record_with_its_struct() {
+    let from = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/tie/records");
+    let dir = std::env::temp_dir().join(format!("mitra-cli-records-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    assert_eq!(mitra(&dir, &["init"]).0, Some(0));
+    for f in [".mitra/model.mitra", "src/lib.rs"] {
+        std::fs::copy(from.join(f), dir.join(f)).unwrap();
+    }
+    let (code, out, err) = mitra(&dir, &["tie"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.starts_with("4 agree, 2 differ"), "{out}");
+    assert!(
+        out.contains("field `y` is `String` in the code, `Int` in the model"),
+        "{out}"
+    );
+    assert!(
+        out.contains("a field `b` the record does not state, and no `..`"),
+        "{out}"
+    );
+    let (code, out, _) = mitra(&dir, &["eval"]);
+    assert_eq!(code, Some(1));
+    for want in [
+        "Model::tied: holds",
+        "Claim::tied: holds",
+        "Point::tied: fails",
+    ] {
+        assert!(out.contains(want), "{out}");
+    }
+    assert!(
+        out.contains("The record `Point` and its struct do not agree"),
+        "{out}"
+    );
+    assert!(!out.contains("::prose"), "{out}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// `mitra explain <claim>`: the claim as written, as read, and its verdict.
 #[test]
 fn explain_a_claim() {

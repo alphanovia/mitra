@@ -115,6 +115,7 @@ fn read(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
     let lines = evidence.lines().count();
     let read = parse::evidence(evidence, &m, &names).map_err(|e| (Input::Evidence, e))?;
     tie(&mut m, &read, &names);
+    tie_records(&mut m, &read);
     m.evidence = read;
     points(&mut m);
     let own = |s: &str| s.lines().map(String::from).collect::<Vec<_>>();
@@ -225,6 +226,43 @@ fn tie(m: &mut Model, evidence: &[Evidence], names: &parse::Names) {
         m.claims.push(Claim {
             name: format!("{f}::tied"),
             func: f,
+            pattern: Vec::new(),
+            target: Target::Tied,
+            from: Vec::new(),
+            auto: false,
+            proved: false,
+            trust: None,
+            line,
+        });
+    }
+}
+
+/// The same for a record and its struct: the claim is held by a hidden
+/// function with no input, as the text of a requirement is.
+fn tie_records(m: &mut Model, evidence: &[Evidence]) {
+    let spoken = |r: &&Record| {
+        evidence
+            .iter()
+            .any(|e| e.about == format!("{}::tied", r.name))
+    };
+    let all = m.records.iter().filter(|r| r.of.is_none());
+    let all: Vec<(String, usize)> = all
+        .filter(spoken)
+        .map(|r| (r.name.clone(), r.line))
+        .collect();
+    for (name, line) in all {
+        let func = format!("{name}::tied::prose");
+        m.functions.push(Function {
+            name: func.clone(),
+            params: Vec::new(),
+            range: Set::bool(),
+            body: None,
+            written: None,
+            line,
+        });
+        m.claims.push(Claim {
+            name: format!("{name}::tied"),
+            func,
             pattern: Vec::new(),
             target: Target::Tied,
             from: Vec::new(),

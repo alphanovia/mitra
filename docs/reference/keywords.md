@@ -14,7 +14,7 @@ To try one: copy the model into `model.mitra`, the evidence into
 | `boundary`, `boundary fn` | the environment | [kw-declarations.md](kw-declarations.md#boundary) |
 | `fn` | a function: code, code with its spec, or a helper of the model | [kw-declarations.md](kw-declarations.md#fn) |
 | `uses`, `only` | what the code of a function calls | [kw-declarations.md](kw-declarations.md#uses) |
-| `record` | a value with named fields | [kw-records.md](kw-records.md#record) |
+| `record`, `record R;`, `..` | a value with named fields, stated in full, in part or not at all | [kw-records.md](kw-records.md#record) |
 | `enum` | a value that is one of several variants | [kw-records.md](kw-records.md#enum) |
 | `ensure` | what a subject promises, in plain words | [kw-requirements.md](kw-requirements.md#ensure) |
 | `require` | a named need: a promise made elsewhere, or one nobody makes yet | [kw-requirements.md](kw-requirements.md#require) |

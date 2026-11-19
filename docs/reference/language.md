@@ -91,6 +91,7 @@ subject loader {
 | `ensure name = "text";` | In a subject: what it promises, in plain words. Mitra never reads the text. `s::name` rests on every claim of the subject, on `s::name::captured` (a reviewer's word that the claims say what the text says) and on what the subject requires. In a boundary it rests the same way on the `assume` lines of the block; with none, it is assumed. `trust n` before the `;`. [More](kw-requirements.md). |
 | `require need = other::name;` | In a subject or a boundary: `s::need` holds as far as the `ensure` it names, and every `ensure` of the block rests on it. `require need = "text";` when nobody promises it yet: assumed. A name no `ensure` has is refused. |
 | `record R { a: T, b: U }`, `record Box<T> { item: T }` | Values are written `R(1, 2)`. |
+| `record R;`, `record R { a: T, .. }` | Contents left out, all or some: fields stated are read, no value can be written. Tied to its `struct` by `// mitra: implements R`. |
 | `enum E<T> { A, B(T), C(x: T, y: T) }` | Unnamed fields are named `v0`, `v1`. |
 | `claim t() { f(6, 2) == 3 }` | A point claim: no input, one call pinned. It is what a test of the code checks (see Tests). |
 

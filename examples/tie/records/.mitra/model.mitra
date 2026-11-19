@@ -1,0 +1,10 @@
+// Records stated as far as the model needs them, tied to the structs.
+record Model;                                      // nothing of it is stated
+record Claim { name: String, line: usize, .. }     // these fields, and others
+record Point { x: Int, y: Int }                    // exactly these fields
+record Wide { a: Int }
+
+subject check {
+    fn named(c: Claim) -> String { c.name }
+    fn ok(m: Model) -> Bool;
+}

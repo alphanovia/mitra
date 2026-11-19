@@ -585,3 +585,31 @@ fn require_and_uses_are_compared() {
     assert!(got.is_empty(), "{got:?}");
     assert!(mitra_core::explain("M105").is_some() && mitra_core::explain("M106").is_some());
 }
+
+/// A record may leave its contents out: `record R;`, or `..` after the
+/// fields that matter. No value of it can be written.
+#[test]
+fn a_record_may_leave_parts_unstated() {
+    let m = "record Model;\nrecord Claim { name: String, .. }\n\
+             subject check { fn ok(m: Model) -> Bool;\n\
+             fn named(c: Claim) -> String { c.name } }";
+    let run = |e: &str| mitra_core::run(m, e).unwrap_or_else(|(_, e)| panic!("{e}"));
+    let text = run("evidence r { for check::ok holds }").to_text();
+    assert!(text.contains("check::ok::correct: holds"), "{text}");
+    assert!(text.contains("check::named::spec: unverified"), "{text}");
+    let refused = |m: &str, e: &str| mitra_core::run(m, e).err().expect("refused").1.to_string();
+    let e = refused(m, "evidence r { for check::ok given m = Model() holds }");
+    assert!(e.contains("no value of it can be written"), "{e}");
+    let e = refused(
+        "record M { a: Int, .. }\nsubject s { fn f() -> M { M(1) } }",
+        "",
+    );
+    assert!(e.contains("no value of it can be written"), "{e}");
+    // The tie of a record is a claim once evidence names it.
+    let text = run("evidence t { for Claim::tied fails }").to_text();
+    assert!(text.contains("Claim::tied: fails"), "{text}");
+    assert!(
+        text.contains("The record `Claim` and its struct do not agree"),
+        "{text}"
+    );
+}

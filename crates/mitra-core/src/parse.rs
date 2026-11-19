@@ -603,6 +603,9 @@ impl P {
                 true => scoped,
                 false => name,
             };
+            if self.records.iter().any(|r| r.name == name && r.open) {
+                return self.err(unwritten(&name));
+            }
             let parts = match self.eat("(") {
                 true => self.values()?,
                 false => Vec::new(),
@@ -1012,6 +1015,7 @@ impl P {
                 name,
                 fields,
                 of: None,
+                open: false,
                 line,
             });
             if p.at_end() {
@@ -1774,11 +1778,45 @@ impl P {
                         self.enumeration(name, params, body, line)?;
                         continue;
                     }
+                    // `record Name;`: nothing of it is stated. `..` before
+                    // the `}`: it has more than the fields stated.
+                    let mut open = self.eat(";");
+                    let nothing = open;
+                    if !open && self.is("{") {
+                        let (mut depth, mut end) = (0, self.pos);
+                        while let Some(t) = self.toks.get(end) {
+                            match t.text.as_str() {
+                                "{" => depth += 1,
+                                "}" => depth -= 1,
+                                _ => {}
+                            }
+                            if depth == 0 {
+                                break;
+                            }
+                            end += 1;
+                        }
+                        if end > self.pos + 1
+                            && self.toks.get(end - 1).is_some_and(|t| t.text == "..")
+                        {
+                            open = true;
+                            self.toks.remove(end - 1);
+                            if end > self.pos + 2 && self.toks[end - 2].text == "," {
+                                self.toks.remove(end - 2);
+                            }
+                        }
+                    }
                     self.me = Some((name.clone(), name.clone()));
                     self.met = false;
-                    let both = self.both(|p| p.binders("{", "}"));
+                    let both = match nothing {
+                        true => Ok((Vec::new(), Vec::new())),
+                        false => self.both(|p| p.binders("{", "}")),
+                    };
                     self.me = None;
-                    let (fields, deep) = both?;
+                    let (mut fields, mut deep) = both?;
+                    if open {
+                        fields.push(("..".to_string(), Set::any()));
+                        deep.push(Set::any());
+                    }
                     if self.met {
                         let mark = Set::record(&format!("${name}"), Vec::new());
                         if deep.contains(&mark) {
@@ -1801,6 +1839,7 @@ impl P {
                         name,
                         fields,
                         of: None,
+                        open,
                         line,
                     };
                     self.m.declared.push(Decl::Record(self.m.records.len()));
@@ -2866,6 +2905,30 @@ impl P {
                 records_in(e, &names);
             }
         }
+        // No value of a record with unstated parts can be written.
+        let built = |e: &Expr| -> Option<String> {
+            let mut found = None;
+            crate::ast::walk(e, &mut |x| {
+                if let Expr::Record(n, _) = x {
+                    if m.records.iter().any(|r| &r.name == n && r.open) {
+                        found = Some(n.clone());
+                    }
+                }
+            });
+            found
+        };
+        for f in &m.functions {
+            if let Some(n) = f.body.as_ref().and_then(&built) {
+                return Err(Error::new(f.line, unwritten(&n)));
+            }
+        }
+        for c in &m.claims {
+            if let Target::Matches(e) | Target::Property(e) = &c.target {
+                if let Some(n) = built(e) {
+                    return Err(Error::new(c.line, unwritten(&n)));
+                }
+            }
+        }
         // The code of a subject is claimed correct: `f::correct`, unless
         // the model has its own claim on `correct(f(…))`, or a body, whose
         // spec says what correct is.
@@ -3242,6 +3305,12 @@ pub fn evidence_alone(src: &str, m: &Model, names: &Names) -> Result<Vec<Evidenc
             .insert(format!("{f}::tied"), (Vec::new(), Vec::new()));
         all.insert(format!("{f}::tied"));
     }
+    // And of each record to its struct: `for Record::tied`.
+    for r in m.records.iter().filter(|r| r.of.is_none()) {
+        let tied = format!("{}::tied", r.name);
+        names.claims.insert(tied.clone(), (Vec::new(), Vec::new()));
+        all.insert(tied);
+    }
     let mut p = P {
         toks: lex(src)?,
         all,
@@ -3333,6 +3402,14 @@ fn free(e: &Expr, scope: &mut Vec<String>, used: &mut Vec<String>) -> Vec<String
         }
     }
     used.clone()
+}
+
+/// Why a value of a record with unstated parts is refused.
+fn unwritten(name: &str) -> String {
+    format!(
+        "`{name}` has parts the model does not state (`record {name};` or `..`): \
+         no value of it can be written"
+    )
 }
 
 fn records_in(e: &mut Expr, names: &[String]) {

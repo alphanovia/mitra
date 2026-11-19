@@ -2830,8 +2830,10 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         // The statement of the claim is a piece like the others. For a
         // tie: what the model says of the function, or the code.
         if c.target == Target::Tied {
-            side.push(Piece::Signature(c.func.clone()));
-            side.push(Piece::Code(c.func.clone()));
+            // For a record: what the model says of it, or the struct.
+            let of = c.func.strip_suffix("::tied::prose").unwrap_or(&c.func);
+            side.push(Piece::Signature(of.to_string()));
+            side.push(Piece::Code(of.to_string()));
         } else if let Some(e) = model.ensure(&c.name) {
             // Evidence against a requirement in prose: the prose, the word
             // that its claims say it, or a requirement it needs. Not code.
