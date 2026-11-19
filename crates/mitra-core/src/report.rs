@@ -42,18 +42,23 @@ const CODES: [(&str, &str, &str); 11] = [
          evidence may refute the claim directly, or through a class: with a\n\
          `uniform` claim that is vouched for, one failing input stands for its\n\
          whole class.\n\n\
-         Either the code is wrong, or the evidence is. Mitra lists the code of\n\
-         the function, the code of what it uses, and each piece of evidence,\n\
-         with how plausible it is that each is the wrong one. Evidence trusted\n\
-         at 1 can't be the wrong one, so the code is.\n\n\
+         One piece is wrong. Mitra lists the code of the function, the code\n\
+         of what it uses, what the model states (the claim, an assumption, a\n\
+         `uses` clause) and each piece of evidence, with how plausible it is\n\
+         that each is the wrong one. A piece trusted at 1 can't be the wrong\n\
+         one.\n\n\
+         On a requirement (`ensure`), evidence says the promise was not met\n\
+         while its claims hold. The candidates are then its text, the word\n\
+         that the claims say what the text says, what it requires and the\n\
+         evidence, not the code: write the claim that would have caught it.\n\n\
          To fix: correct the code and record new evidence, or correct the\n\
          evidence if it is the one that is wrong.",
     ),
     (
         "M002",
         "evidence denies an assumption",
-        "A `uniform` or `uses` claim can't be checked by Mitra: evidence\n\
-         vouches for it or denies it. Here a piece of evidence denies it, so\n\
+        "A `uniform`, `represented` or `uses` claim can't be checked by Mitra:\n\
+         evidence vouches for it or denies it. Here a piece of evidence denies it, so\n\
          nothing rests on it any more.\n\n\
          To fix: correct or remove the claim, or correct the evidence.",
     ),
@@ -83,8 +88,8 @@ const CODES: [(&str, &str, &str); 11] = [
         "M005",
         "a measurement does not fit the other evidence",
         "A measure such as `rate(x in S, cond)` has a value either from a\n\
-         measurement (`evidence rate(…) = 0.4 at 0.7`) or from counting the\n\
-         observed outputs. Here a measurement disagrees with another\n\
+         measurement (`evidence m { for <claim> gives rate = 0.4 }`) or from\n\
+         counting the observed outputs. Here a measurement disagrees with another\n\
          measurement of the same measure, or with what the observed outputs\n\
          leave possible.\n\n\
          To fix: find out which one is right, and correct the other.",
@@ -112,26 +117,33 @@ const CODES: [(&str, &str, &str); 11] = [
         "a claim is not verified",
         "No evidence covers some inputs of the claim: nothing was tested\n\
          there, and no assumption lets a tested input stand for them.\n\n\
-         To fix: add a test on the missing inputs, or state a `uniform` claim\n\
-         so that the tests you have stand for their classes. `mitra next`\n\
+         A requirement (`ensure`) is not verified while its subject has no\n\
+         claim.\n\n\
+         To fix: add a test on the missing inputs, or state a `represented`\n\
+         or `uniform` claim so that the tests you have stand for the others. `mitra next`\n\
          lists what would settle each claim.",
     ),
     (
         "M102",
         "a claim holds only under assumptions",
         "Every input of the claim is covered, but part of the cover rests on\n\
-         claims that no evidence supports: a `uniform` claim nobody vouched\n\
-         for, an `assume`, or the spec of a function it calls that is not\n\
-         verified.\n\n\
+         claims that no evidence supports: a `uniform` or `represented` claim\n\
+         nobody vouched for, an `assume`, the spec of a function it calls\n\
+         that is not verified, or, for a requirement (`ensure`), a claim of\n\
+         its subject, its capture or a requirement it names.\n\n\
          To fix: review each assumption and record the review as evidence\n\
          (`evidence r { for <claim> holds }`), or test until it is not needed.",
     ),
     (
         "M103",
         "an assumption is not vouched for",
-        "A `uniform` or `uses` claim can't be checked by Mitra. Until a piece\n\
-         of evidence vouches for it, what rests on it is only assumed.\n\n\
-         To fix: have someone review it against the code, then record it:\n\
+        "A `uniform`, `represented` or `uses` claim can't be checked by Mitra.\n\
+         Neither can the capture of a requirement (`<ensure>::captured`):\n\
+         that the claims of a subject say what the text of its `ensure`\n\
+         says. Until a piece of evidence vouches for it, what rests on it is\n\
+         only assumed.\n\n\
+         To fix: have someone review it against the code, or the claims\n\
+         against the text, then record it:\n\
          `evidence r { for <claim> holds source \"review:<who>\" }`.",
     ),
     (
