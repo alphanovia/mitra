@@ -57,7 +57,8 @@ model states (the claim, the signature, an assumption, a `uses` clause).
 Code has no trust; what the model states is trusted at 1 unless it says
 `trust n`. Evidence outside a signature is kept and reported as M006,
 with the evidence and the signature as candidates. A boundary is never a
-candidate.
+candidate. An assumption prints as `` `clock::noon` as assumed ``, a
+`uses` clause as `` `timer::left::uses` as declared ``.
 
 **Most plausibly wrong.** For each error Mitra computes, for every
 candidate, the belief and the plausibility that it is wrong, with

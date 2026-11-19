@@ -222,6 +222,22 @@ pub enum Piece {
     Claim(String),
     /// The signature of a function: its inputs and its result type.
     Signature(String),
+    /// An `assume`, by the name of its claim: taken as true, it may be
+    /// what is wrong.
+    Assumption(String),
+    /// The `uses` clause of a function: what its code is declared to call.
+    Uses(String),
+}
+
+impl Piece {
+    /// The claim an assumption or a `uses` clause is stated as.
+    pub fn declared_claim(&self) -> Option<String> {
+        match self {
+            Piece::Assumption(c) => Some(c.clone()),
+            Piece::Uses(f) => Some(format!("{f}::uses")),
+            _ => None,
+        }
+    }
 }
 
 /// How plausibly a piece is the wrong one.
@@ -3183,10 +3199,24 @@ fn rank(model: &Model, problems: &mut [Problem]) {
     };
     let canon = |p: &Piece| match p {
         Piece::Evidence(line) => {
+            // What the model itself declares is a piece of its own kind.
+            let files = model.written.as_ref().map(|w| w.1.len());
+            let stated = entry(*line).filter(|_| files.is_some_and(|n| *line > n));
+            if let Some(c) = stated.and_then(|e| model.claim(&e.about)) {
+                return match c.target {
+                    Target::Uses { .. } => Piece::Uses(c.func.clone()),
+                    _ => Piece::Assumption(c.name.clone()),
+                };
+            }
             let first = entry(*line).and_then(|e| model.evidence.iter().find(|o| same(o, e)));
             Piece::Evidence(first.map_or(*line, |o| o.line))
         }
         other => other.clone(),
+    };
+    let declared = |name: &str| {
+        let files = model.written.as_ref().map_or(0, |w| w.1.len());
+        let mut all = model.evidence.iter().chain(set_aside.clone());
+        all.find(|e| e.about == name && e.line > files)
     };
     let bias = |p: &Piece| match p {
         Piece::Evidence(line) => entry(*line).map(|e| {
@@ -3196,6 +3226,10 @@ fn rank(model: &Model, problems: &mut [Problem]) {
         Piece::Claim(c) => Some(model.claim(c).and_then(|c| c.trust).unwrap_or(1.0)),
         // What the model states is trusted like evidence: 1 unless said.
         Piece::Signature(_) => Some(1.0),
+        Piece::Assumption(_) | Piece::Uses(_) => {
+            let name = p.declared_claim().expect("declared");
+            Some(declared(&name).map_or(1.0, |e| e.confidence))
+        }
         Piece::Code(_) => None,
     };
     for p in problems.iter_mut() {

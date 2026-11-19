@@ -287,3 +287,42 @@ fn the_shape_of_a_set_is_read_whatever_its_name() {
         "{e}"
     );
 }
+
+/// An assumption and a `uses` clause are suspects of their own kind.
+#[test]
+fn assumptions_and_uses_clauses_are_suspects() {
+    use mitra_core::Piece;
+    let m = "boundary clock { fn now() -> 0..=9;\nassume noon() trust 0.7 { now() == 5 } }\n\
+             subject timer { fn left() -> 0..=9 uses clock::now;\n\
+             claim left_fits() { left() + clock::now() <= 9 } }";
+    let pieces = |evidence: &str| -> Vec<Piece> {
+        let report = mitra_core::run(m, evidence).unwrap_or_else(|(_, e)| panic!("{e}"));
+        let all = report
+            .problems
+            .iter()
+            .flat_map(|p| p.candidates.clone().unwrap());
+        all.map(|c| c.piece).collect()
+    };
+    // A claim fails on what the assumption gave: the assumption is a
+    // candidate, with the code.
+    let got = pieces("evidence l { for timer::left gives 6 }");
+    assert!(
+        got.contains(&Piece::Assumption("clock::noon".into())),
+        "{got:?}"
+    );
+    assert!(got.contains(&Piece::Code("timer::left".into())), "{got:?}");
+    // An observation against the assumption.
+    let got = pieces("evidence n { for clock::now gives 7 }");
+    assert!(
+        got.contains(&Piece::Assumption("clock::noon".into())),
+        "{got:?}"
+    );
+    // The reader denies the `uses` clause.
+    let got = pieces("evidence u { for timer::left::uses fails }");
+    assert!(got.contains(&Piece::Uses("timer::left".into())), "{got:?}");
+    assert!(
+        !got.iter()
+            .any(|p| matches!(p, Piece::Evidence(n) if *n > 1)),
+        "{got:?}"
+    );
+}

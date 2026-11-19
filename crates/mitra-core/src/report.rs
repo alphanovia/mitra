@@ -232,6 +232,14 @@ impl Writer<'_> {
         self.model.claim(&e.about)
     }
 
+    /// The evidence the model declares for an `assume` or a `uses` clause.
+    fn stated(&self, name: &str) -> Option<&crate::Evidence> {
+        let files = self.model.written.as_ref().map_or(0, |w| w.1.len());
+        let aside = self.model.misfits.iter().map(|m| &m.0);
+        let mut all = self.model.evidence.iter().chain(aside);
+        all.find(|e| e.about == name && e.line > files)
+    }
+
     /// Where a piece of evidence is.
     fn evidence_at(&self, line: usize) -> String {
         match self.declared(line) {
@@ -439,6 +447,16 @@ impl Writer<'_> {
                 let place = self.places.model(line);
                 (format!("the signature of `{f}`, {place}"), "1".to_string())
             }
+            Piece::Assumption(_) | Piece::Uses(_) => {
+                let name = piece.declared_claim().expect("declared");
+                let how = match piece {
+                    Piece::Uses(_) => "declared",
+                    _ => "assumed",
+                };
+                let place = self.places.model(self.claim(&name).line);
+                let trust = self.stated(&name).map_or(1.0, |e| e.confidence);
+                (format!("`{name}` as {how}, {place}"), format!("{trust}"))
+            }
         }
     }
 
@@ -506,6 +524,10 @@ impl Writer<'_> {
             Piece::Evidence(line) => {
                 let e = self.model.evidence.iter().find(|e| e.line == *line);
                 e.is_some_and(|e| e.confidence >= 1.0) && c.plausibility > 0.0
+            }
+            Piece::Assumption(_) | Piece::Uses(_) => {
+                let name = c.piece.declared_claim().expect("declared");
+                self.stated(&name).is_some_and(|e| e.confidence >= 1.0) && c.plausibility > 0.0
             }
             _ => false,
         };
