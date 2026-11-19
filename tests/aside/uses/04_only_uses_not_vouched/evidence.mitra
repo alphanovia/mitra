@@ -1,4 +1,0 @@
--- Nobody vouched for `only uses`: it grants nothing, so no root cause.
-evidence correct(half(0)) at 1
-evidence correct(half(1)) at 1
-evidence not correct(quarter(1)) at 1

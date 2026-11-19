@@ -47,6 +47,20 @@ fn bad_evidence_names_the_file_and_line() {
     let _ = std::fs::remove_dir_all(dir);
 }
 
+/// The model alone: no evidence file is needed to check it.
+#[test]
+fn the_evidence_file_is_optional() {
+    let model = format!("{EXAMPLE}/model.mitra");
+    let dir = std::env::temp_dir();
+    let (code, out, err) = mitra(&dir, &["check", &model]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.starts_with("ok: "), "{out}");
+    let (code, out, _) = mitra(&dir, &["eval", &model]);
+    assert_eq!(code, Some(0));
+    assert!(out.contains("unverified"), "{out}");
+    assert!(!out.contains("fails"), "{out}");
+}
+
 /// The syntax of before the rework is refused, with what to write.
 #[test]
 fn the_earlier_syntax_is_refused() {

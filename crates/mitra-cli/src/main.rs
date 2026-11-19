@@ -25,15 +25,15 @@ use std::process::ExitCode;
 
 const USAGE: &str = "usage:
   mitra init
-  mitra check [<model.mitra> <evidence.mitra>] [--rev <commit>]
-  mitra eval  [<model.mitra> <evidence.mitra>] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [-o <result.txt>]
+  mitra check [<model.mitra> [<evidence.mitra>]] [--rev <commit>]
+  mitra eval  [<model.mitra> [<evidence.mitra>]] [--rev <commit>] [--candidates <n>] [--threshold <p>] [--all] [-o <result.txt>]
   mitra add   '<evidence>' [--source <who>] [--rev <commit>]
-  mitra next  [<model.mitra> <evidence.mitra>] [--rev <commit>]
-  mitra plan  [<model.mitra> <evidence.mitra>] [--rev <commit>]
+  mitra next  [<model.mitra> [<evidence.mitra>]] [--rev <commit>]
+  mitra plan  [<model.mitra> [<evidence.mitra>]] [--rev <commit>]
   mitra ingest <report> [--format libtest|junit] [--rev <commit>]
   mitra tie   [--rev <commit>]
   mitra explain <code>
-  mitra explain <claim> [<model.mitra> <evidence.mitra>]
+  mitra explain <claim> [<model.mitra> [<evidence.mitra>]]
   mitra explain std::claims";
 
 fn main() -> ExitCode {
@@ -57,6 +57,7 @@ fn main() -> ExitCode {
 }
 
 /// The model and the evidence file, from the arguments or from the store.
+/// The path of the evidence is empty when only the model is named.
 fn inputs(paths: &[String]) -> Result<(Source, String), String> {
     match paths {
         // A store's model file brings the `mitra:` lines of its Rust sources.
@@ -64,6 +65,9 @@ fn inputs(paths: &[String]) -> Result<(Source, String), String> {
             Some(s) => Ok((s.source()?, e.clone())),
             None => Ok((Source::file(m)?, e.clone())),
         },
+        // The model alone, with no evidence: what it says before any is
+        // brought.
+        [m] => inputs(&[m.clone(), String::new()]),
         [] => {
             let s = store::Store::find()?;
             Ok((s.source()?, s.evidence_path()))
@@ -131,7 +135,11 @@ fn evaluate(
     e: &str,
     rev: Option<&str>,
 ) -> Result<(mitra_core::Model, mitra_core::Report), String> {
-    let mut model = mitra_core::load(&m.text, &read(e)?).map_err(located(m, e))?;
+    let evidence = match e {
+        "" => String::new(),
+        e => read(e)?,
+    };
+    let mut model = mitra_core::load(&m.text, &evidence).map_err(located(m, e))?;
     if let Some(rev) = rev {
         let before = model.evidence.len();
         // What the model itself declares (`assume`, `uses`) has no revision.

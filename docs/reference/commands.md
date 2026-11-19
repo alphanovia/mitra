@@ -5,11 +5,11 @@ today, and changes in the same commit as the code.
 
 ```sh
 mitra init
-mitra check [model.mitra evidence.mitra] [--rev <commit>]
-mitra eval  [model.mitra evidence.mitra] [--rev <commit>] [--candidates <n>]
+mitra check [model.mitra [evidence.mitra]] [--rev <commit>]
+mitra eval  [model.mitra [evidence.mitra]] [--rev <commit>] [--candidates <n>]
             [--threshold <p>] [--all] [-o result.txt]
-mitra plan  [model.mitra evidence.mitra] [--rev <commit>]
-mitra next  [model.mitra evidence.mitra] [--rev <commit>]
+mitra plan  [model.mitra [evidence.mitra]] [--rev <commit>]
+mitra next  [model.mitra [evidence.mitra]] [--rev <commit>]
 mitra add   '<evidence blocks>' [--source <who>] [--rev <commit>]
 mitra ingest <report> [--format libtest|junit] [--rev <commit>]
 mitra tie   [--rev <commit>]
@@ -25,6 +25,9 @@ message` and exits with status 2.
   `.gitattributes` that merges `evidence.mitra` with git's `union`
   driver, and never overwrites one. The evidence file is only appended
   to, so two branches that add evidence merge as the union of their lines.
+- **Without a store**, name the model and the evidence file, or the
+  model alone: it is then read with no evidence, which is the way to
+  check a model while writing it. `explain <claim>` takes them too.
 - **`check`** reads and evaluates, and prints `ok: F functions, C claims,
   E evidence`.
 - **`eval`** prints each claim's verdict, then errors and warnings (see

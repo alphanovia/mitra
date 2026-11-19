@@ -32,8 +32,9 @@ mitra eval --rev $R
 mitra add 'evidence r { for div_rest holds source "review:me" }' --rev $R
 ```
 
-Without a store, name the two files: `mitra eval model.mitra
-evidence.mitra`.
+Without a store, name the files: `mitra eval model.mitra
+evidence.mitra`, or the model alone to check it before any evidence
+exists: `mitra check model.mitra`.
 
 ## Model
 
@@ -144,10 +145,6 @@ comments is refused.
   `record`, `enum`, `match`, `if`, `else`, `let`, `in`, `true`, `false`,
   `correct`, `rate`, `precision`, `recall`, `false_positive_rate`, `len`,
   `keys`.
-- Derivations from named premises (`by derive` before the rework): a
-  claim follows from the specs of what it calls, from a vouched claim
-  or from the claims on what it reaches, not from premises it lists. Nine engine tests that needed them are
-  kept in `tests/aside/`, not run.
 - A vouched claim that reads `correct(…)` settles other calls only on a
   finite set of inputs; `represented` and `uniform` have no such limit.
 - Several `uniform` claims on one function (several `represented` work).

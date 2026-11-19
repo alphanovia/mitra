@@ -1,5 +1,0 @@
--- A review vouches that `quarter` only uses `half`, and `half` holds.
-evidence quarter_uses at 1
-evidence correct(half(0)) at 1
-evidence correct(half(1)) at 1
-evidence not correct(quarter(1)) at 1

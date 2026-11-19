@@ -6,6 +6,3 @@ language ([`docs/reference/language.md`](../../docs/reference/language.md)).
 
 `MITRA_RECORD=1 cargo test -p mitra-core --test golden` records the
 outputs again.
-
-Nine cases whose meaning the language cannot keep are in
-[`tests/aside/`](../aside/README.md), with what each tested.
