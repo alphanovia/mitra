@@ -1,3 +1,6 @@
+contracts::implementer_is_given_the_contract: holds
+contracts::unfilled_is_assumed: holds
+contracts::contract_is_neither_built_nor_bought: holds
 culprits::rank::correct: unverified
   passes on       10 inputs
   no evidence on  a set too long to print
@@ -383,6 +386,26 @@ report::word::spec: holds
 report::word::deterministic: unverified
   no evidence on  `report::word` giving one output per input
 report::word_uniform: holds
+contracts::owed_by_each::captured: unverified
+  nobody vouched that the claims say what the text says
+contracts::owed_by_each: holds assuming [contracts::owed_by_each::captured]
+  says            "What a contract states is given to each type that fills it: its functions, its promises and its claims."
+  rests on        `contracts::implementer_is_given_the_contract`, `contracts::unfilled_is_assumed`, `contracts::contract_is_neither_built_nor_bought`
+contracts::each_is_its_own_suspect::captured: unverified
+  nobody vouched that the claims say what the text says
+contracts::each_is_its_own_suspect: holds assuming [contracts::each_is_its_own_suspect::captured]
+  says            "A type that fills a contract is a group of its own: its promises rest on its own claims, not on those of the block around it."
+  rests on        `contracts::implementer_is_given_the_contract`, `contracts::unfilled_is_assumed`, `contracts::contract_is_neither_built_nor_bought`
+contracts::as_good_as_every_implementer::captured: unverified
+  nobody vouched that the claims say what the text says
+contracts::as_good_as_every_implementer: holds assuming [contracts::as_good_as_every_implementer::captured]
+  says            "A promise of a contract is at best as good as the same promise of every type that fills it; with none it is assumed, as a promise of the world."
+  rests on        `contracts::implementer_is_given_the_contract`, `contracts::unfilled_is_assumed`, `contracts::contract_is_neither_built_nor_bought`
+contracts::neither_built_nor_bought::captured: unverified
+  nobody vouched that the claims say what the text says
+contracts::neither_built_nor_bought: holds assuming [contracts::neither_built_nor_bought::captured]
+  says            "A contract is a side of its own: no code is tied to its functions."
+  rests on        `contracts::implementer_is_given_the_contract`, `contracts::unfilled_is_assumed`, `contracts::contract_is_neither_built_nor_bought`
 culprits::ranks::captured: unverified
   nobody vouched that the claims say what the text says
 culprits::ranks: holds assuming [culprits::rank::correct, culprits::rank_shape, culprits::no_clause_no_belief, culprits::ranks::captured]
@@ -850,13 +873,13 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:69  fn block_of(&self, piece: String) -> Option<Block>;
+  --> .mitra/model.mitra:71  fn block_of(&self, piece: String) -> Option<Block>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:69  fn block_of(&self, piece: String) -> Option<Block>;
+  --> .mitra/model.mitra:71  fn block_of(&self, piece: String) -> Option<Block>;
 
   No evidence on `model::Model::block_of` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -1324,6 +1347,54 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for
+  --> .mitra/contracts.mitra:17  ensure owed_by_each = "What a contract states is given to each type that fills it: its functions, its promises and its claims.";
+
+  Nobody vouched that the claims `contracts::owed_by_each` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for contracts::owed_by_each::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/contracts.mitra:17  ensure owed_by_each = "What a contract states is given to each type that fills it: its functions, its promises and its claims.";
+
+  `contracts::owed_by_each` holds if `contracts::owed_by_each::captured` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/contracts.mitra:18  ensure each_is_its_own_suspect = "A type that fills a contract is a group of its own: its promises rest on its own claims, not on those of the block around it.";
+
+  Nobody vouched that the claims `contracts::each_is_its_own_suspect` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for contracts::each_is_its_own_suspect::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/contracts.mitra:18  ensure each_is_its_own_suspect = "A type that fills a contract is a group of its own: its promises rest on its own claims, not on those of the block around it.";
+
+  `contracts::each_is_its_own_suspect` holds if `contracts::each_is_its_own_suspect::captured` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/contracts.mitra:19  ensure as_good_as_every_implementer = "A promise of a contract is at best as good as the same promise of every type that fills it; with none it is assumed, as a promise of the world.";
+
+  Nobody vouched that the claims `contracts::as_good_as_every_implementer` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for contracts::as_good_as_every_implementer::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/contracts.mitra:19  ensure as_good_as_every_implementer = "A promise of a contract is at best as good as the same promise of every type that fills it; with none it is assumed, as a promise of the world.";
+
+  `contracts::as_good_as_every_implementer` holds if `contracts::as_good_as_every_implementer::captured` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/contracts.mitra:20  ensure neither_built_nor_bought = "A contract is a side of its own: no code is tied to its functions.";
+
+  Nobody vouched that the claims `contracts::neither_built_nor_bought` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for contracts::neither_built_nor_bought::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/contracts.mitra:20  ensure neither_built_nor_bought = "A contract is a side of its own: no code is tied to its functions.";
+
+  `contracts::neither_built_nor_bought` holds if `contracts::neither_built_nor_bought::captured` holds, and no evidence supports it.
+  help: review it, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
   --> .mitra/culprits.mitra:8  ensure ranks = "From how much each piece is trusted and which pieces can't all be right, each piece gets how much it must be wrong and how much it can be.";
 
   Nobody vouched that the claims `culprits::ranks` rests on say what its text says.
@@ -1600,37 +1671,37 @@ warning[M102]: a claim holds only under assumptions
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:40  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
+  --> .mitra/model.mitra:41  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
 
   Nobody vouched that the claims `model::holds_everything` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for model::holds_everything::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:40  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
+  --> .mitra/model.mitra:41  ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
 
   `model::holds_everything` holds if `model::Model::block_of::correct`, `model::holds_everything::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:41  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
+  --> .mitra/model.mitra:42  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
 
   Nobody vouched that the claims `model::world_apart` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for model::world_apart::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:41  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
+  --> .mitra/model.mitra:42  ensure world_apart = "The functions of the environment are listed apart from the code under review.";
 
   `model::world_apart` holds if `model::Model::block_of::correct`, `model::world_apart::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:42  ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
+  --> .mitra/model.mitra:43  ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
 
   Nobody vouched that the claims `model::blocks_are_things` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for model::blocks_are_things::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:42  ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
+  --> .mitra/model.mitra:43  ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
 
   `model::blocks_are_things` holds if `model::Model::block_of::correct`, `model::blocks_are_things::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed

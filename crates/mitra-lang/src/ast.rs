@@ -357,6 +357,8 @@ pub struct Model {
 pub enum Side {
     Subject,
     Boundary,
+    /// `contract name { … }`: a role, filled by subjects and boundaries.
+    Contract,
 }
 
 /// `subject name { … }` or `boundary name { … }`: what is declared in it

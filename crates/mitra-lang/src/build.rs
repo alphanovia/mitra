@@ -55,6 +55,7 @@ pub fn build(m: &Model) -> Built {
     for f in m.functions.iter().filter(|f| !hidden(&f.name)) {
         let block = m.block_of(&f.name).map(|b| b.side);
         let kind = match (m.boundaries.contains(&f.name), f.is_spec(), block) {
+            (true, _, Some(Side::Contract)) => "contract",
             (true, _, _) => "world",
             (_, false, _) => "function",
             (_, true, Some(Side::Subject)) => "spec",

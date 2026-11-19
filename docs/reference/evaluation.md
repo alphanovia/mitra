@@ -152,7 +152,7 @@ least 0.5), else `unlikely`. At most 5 pieces of evidence are quoted.
 | `M103` | warning | an assumption is not vouched for |
 | `M104` | warning | evidence that can't be used: it is about a helper, which is computed |
 | `M105` | warning | a `require` on a promise of a block that nothing beside it leans on |
-| `M106` | warning | a function `uses` a block that makes promises, and no `require` beside it names one (only where the block states an `ensure` or a `require`) |
+| `M106` | warning | a function `uses` a block that makes promises, and no `require` beside it names one (only where the block states an `ensure` or a `require`); the same for a block that takes an `impl Contract` |
 | `M107` | warning | an entry of the ledger names a piece the model no longer has: kept, judges nothing ([ledger.md](ledger.md)) |
 | `M108` | warning | an entry a person said keeps another fingerprint than its piece has now: kept, judges nothing |
 

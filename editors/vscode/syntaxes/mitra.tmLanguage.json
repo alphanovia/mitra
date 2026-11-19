@@ -34,7 +34,7 @@
     "declaration": {
       "patterns": [
         {
-          "match": "\\b(subject|boundary)\\s+(?!fn\\b)([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(subject|boundary|contract)\\s+(?!fn\\b)([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.declaration.mitra" },
             "2": { "name": "entity.name.namespace.mitra" }
@@ -70,7 +70,7 @@
         },
         {
           "name": "keyword.declaration.mitra",
-          "match": "\\b(subject|boundary|fn|claim|assume|record|enum|impl|ensure|require|evidence|import|test)\\b"
+          "match": "\\b(subject|boundary|contract|fn|claim|assume|record|enum|impl|ensure|require|evidence|import|test)\\b"
         },
         {
           "name": "keyword.other.mitra",

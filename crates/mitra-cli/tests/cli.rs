@@ -553,6 +553,52 @@ fn tie_compares_an_enum_with_its_enum() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// A method of `impl Trait for Type` is tied as the function the
+/// contract gives its implementer; `impl Trait` in the code fits an
+/// `impl Contract` of the model.
+#[test]
+fn tie_compares_an_implementer_with_its_impl() {
+    let dir = std::env::temp_dir().join(format!("mitra-tie-contract-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    assert_eq!(mitra(&dir, &["init"]).0, Some(0));
+    let model = "contract Shape { fn area(&self) -> Int; fn scale(&self, by: Int) -> Self; }\n\
+                 subject shapes {\n\
+                 record Square { side: Int }\n\
+                 record Dot;\n\
+                 impl Shape for Square { }\n\
+                 impl Shape for Dot { }\n\
+                 fn total(s: impl Shape) -> Int uses Shape::area;\n}\n";
+    let code = "pub trait Shape { fn area(&self) -> i64; fn scale(&self, by: i64) -> Self; }\n\
+                // mitra: implements shapes::Square\n\
+                pub struct Square { side: i64 }\n\
+                pub struct Dot;\n\
+                impl Shape for Square {\n\
+                // mitra: implements shapes::Square::area\n\
+                fn area(&self) -> i64 { self.side * self.side }\n\
+                // mitra: implements shapes::Square::scale\n\
+                fn scale(&self, by: i64) -> Self { Square { side: self.side * by } }\n\
+                }\n\
+                impl Shape for Dot {\n\
+                // mitra: implements shapes::Dot::area\n\
+                fn area(&self) -> String { String::new() }\n\
+                fn scale(&self, by: i64) -> Self { Dot }\n\
+                }\n\
+                // mitra: implements shapes::total\n\
+                pub fn total(s: impl Shape) -> i64 { s.area() }\n";
+    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("src/lib.rs"), code).unwrap();
+    let (code, out, err) = mitra(&dir, &["tie"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.starts_with("4 agree, 1 differ"), "{out}");
+    assert!(out.contains("shapes::Dot::area"), "{out}");
+    // What the contract gives an implementer and no code is tied to.
+    let (_, out, _) = mitra(&dir, &["conform"]);
+    assert!(out.contains("shapes::Dot::scale"), "{out}");
+    assert!(!out.contains("Shape::area\n"), "{out}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// `mitra explain <claim>`: the claim as written, as read, and its verdict.
 #[test]
 fn explain_a_claim() {

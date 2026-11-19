@@ -228,9 +228,9 @@ pub struct Entry {
 }
 
 /// The declarations at the top of a file that start an item.
-pub const ITEMS: [&str; 11] = [
+pub const ITEMS: [&str; 12] = [
     "subject", "boundary", "record", "enum", "fn", "claim", "assume", "test", "import", "ensure",
-    "require",
+    "require", "contract",
 ];
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -540,6 +540,7 @@ struct P {
     scoped: BTreeSet<String>,
     /// The functions of an `impl` that take `self`, by their full name.
     methods: BTreeSet<String>,
+    contracts: Rc<Contracts>,
     /// The inputs of the function or claim being read, with their types.
     typed: Vec<(String, Set)>,
     /// The functions and records of the first reading: what a call gives.
@@ -1539,7 +1540,12 @@ impl P {
         let full = match (&kind, &named[..]) {
             (Some(k), _) => {
                 let fits = |m: &&String| takes(m).is_some_and(|t| !t.intersect(k).is_empty());
-                let fit: Vec<&String> = named.iter().filter(fits).collect();
+                let mut fit: Vec<&String> = named.iter().filter(fits).collect();
+                // Its own method before that of a contract, which any
+                // value has.
+                if fit.iter().any(|m| !self.contracts.methods.contains(*m)) {
+                    fit.retain(|m| !self.contracts.methods.contains(*m));
+                }
                 match fit[..] {
                     [one] => one.clone(),
                     [] => {
@@ -1560,6 +1566,17 @@ impl P {
             }
             (None, [one]) => one.clone(),
             (None, _) if self.first => named[0].clone(),
+            // Any value: the method of the contract, where only one has it.
+            (None, _)
+                if named
+                    .iter()
+                    .filter(|m| self.contracts.methods.contains(*m))
+                    .count()
+                    == 1 =>
+            {
+                let of = named.iter().find(|m| self.contracts.methods.contains(*m));
+                of.expect("counted").clone()
+            }
             (None, _) => {
                 let each: Vec<String> = named.iter().map(|n| format!("`{n}`")).collect();
                 let msg = format!(
@@ -2094,6 +2111,7 @@ impl P {
                         let name = self.name()?;
                         let side = match kw.as_str() {
                             "subject" => Side::Subject,
+                            _ if self.contracts.names.contains(&name) => Side::Contract,
                             _ => Side::Boundary,
                         };
                         if !self.m.blocks.iter().any(|b| b.name == name) {
@@ -2308,11 +2326,17 @@ impl P {
                     ));
                 }
                 "claim" | "assume" => self.claim(line, kw == "assume")?,
+                "contract" => {
+                    self.pos -= 1;
+                    let msg = "a `contract` is written outside any block, with a name and \
+                               braces, in the model that fills it: `import` does not bring one";
+                    return self.err(msg);
+                }
                 other => {
                     self.pos -= 1;
                     return self.err(format!(
-                        "expected `import`, `subject`, `boundary`, `record`, `enum`, `fn`, \
-                         `claim` or `assume`, got `{other}`"
+                        "expected `import`, `subject`, `boundary`, `contract`, `record`, `enum`, \
+                         `fn`, `claim` or `assume`, got `{other}`"
                     ));
                 }
             }
@@ -3588,7 +3612,11 @@ impl P {
                 Prose::Promise | Prose::World => {
                     let of = ensures.iter().filter(|e| e.3 == *block);
                     let needs = of.filter(|e| matches!(e.2, Prose::Need(_) | Prose::Wanted));
-                    needs.map(|e| e.0.clone()).collect()
+                    let mut waits: Vec<String> = needs.map(|e| e.0.clone()).collect();
+                    // A promise of a contract: the same of each implementer.
+                    let fills = self.contracts.fills.iter().filter(|f| &f.0 == name);
+                    waits.extend(fills.map(|f| f.1.clone()));
+                    waits
                 }
             });
         }
@@ -3672,8 +3700,10 @@ impl P {
             };
             let mut from = claims.clone();
             from.extend(requires.clone());
-            if let Prose::Need(_) = kind {
-                // It holds as far as the promise it names.
+            let filled = self.contracts.fills.iter().any(|f| f.0 == name);
+            if matches!(kind, Prose::Need(_)) || (filled && boundary) {
+                // It holds as far as the promise it names; that of a
+                // contract, as far as its implementers keep it.
                 state(m, &name, requires.clone(), trust);
             } else if boundary {
                 // A promise of the world: assumed, as far as it is not observed.
@@ -3792,7 +3822,14 @@ impl P {
             let promise = &waits[i][0];
             let to = made(promise).expect("named");
             let shares = scope(promise).is_some_and(|t| typed(*block, scope(name).as_deref(), &t));
-            if !leans.contains(&(*block, to)) && !shares {
+            // `x: impl C` in a signature beside it leans on the contract.
+            let pair = scope(name).zip(scope(promise));
+            let leans_on = |p: (String, String)| {
+                let mut all = self.contracts.leans.iter();
+                all.any(|l| l.0 == p.0 && l.1 == p.1)
+            };
+            let takes = pair.is_some_and(leans_on);
+            if !leans.contains(&(*block, to)) && !shares && !takes {
                 lints.push(Lint {
                     code: "M105",
                     line: *line,
@@ -3833,6 +3870,46 @@ impl P {
                     "write `require <name> = {};` beside `{}`",
                     promises[0], c.func
                 ),
+            });
+        }
+        // `x: impl C` in a block that states its intent, and no `require`
+        // beside it names a promise of the contract.
+        let mut told: Vec<(&String, &String)> = Vec::new();
+        for (block, contract, line) in &self.contracts.leans {
+            let inside = |e: &&(String, String, Prose, usize, usize, Option<f64>)| {
+                scope(&e.0).as_ref() == Some(block)
+            };
+            let promises: Vec<&String> = ensures
+                .iter()
+                .filter(|e| scope(&e.0).as_ref() == Some(contract))
+                .filter(|e| matches!(e.2, Prose::Promise | Prose::World))
+                .map(|e| &e.0)
+                .collect();
+            let required = ensures.iter().enumerate().any(|(i, e)| {
+                inside(&e) && matches!(e.2, Prose::Need(_)) && promises.contains(&&waits[i][0])
+            });
+            let states = ensures.iter().any(|e| inside(&e));
+            // Already said, of a function that `uses` the contract.
+            let to = promises.first().and_then(|p| made(p));
+            let own = format!("{block}::");
+            let said = (seen.iter()).any(|s| Some(s.1) == to && s.0.starts_with(&own));
+            if !states || promises.is_empty() || required || said {
+                continue;
+            }
+            if told.contains(&(block, contract)) {
+                continue;
+            }
+            told.push((block, contract));
+            let all: Vec<String> = promises.iter().map(|p| format!("`{p}`")).collect();
+            lints.push(Lint {
+                code: "M106",
+                line: *line,
+                message: format!(
+                    "`{block}` takes an `impl {contract}`, and no `require` in it names a \
+                     promise of `{contract}` ({}).",
+                    all.join(", ")
+                ),
+                help: format!("write `require <name> = {};` in `{block}`", promises[0]),
             });
         }
         m.lints = lints;
@@ -4101,7 +4178,7 @@ fn impls(toks: Vec<Tok>) -> Result<(Vec<Tok>, BTreeSet<String>), Error> {
                 i += 1;
                 continue;
             }
-            ("fn" | "claim" | "assume", Some((r, at))) if word && depth == at + 1 => {
+            ("fn" | "claim" | "assume" | "ensure", Some((r, at))) if word && depth == at + 1 => {
                 let Some(n) = name(toks.get(i + 1)) else {
                     out.push(t.clone());
                     i += 1;
@@ -4152,8 +4229,327 @@ fn impls(toks: Vec<Tok>) -> Result<(Vec<Tok>, BTreeSet<String>), Error> {
     Ok((out, methods))
 }
 
+/// What the contracts of a file come to, once read as blocks.
+#[derive(Debug, Clone, Default)]
+struct Contracts {
+    names: BTreeSet<String>,
+    /// A promise of a contract, and the same promise of one implementer.
+    fills: Vec<(String, String)>,
+    /// A block, a contract a signature of it names, and the line.
+    leans: Vec<(String, String, usize)>,
+    /// The functions of a contract that take `self`.
+    methods: BTreeSet<String>,
+}
+
+/// The tokens from `open`, a `{`, to the `}` that closes it: the index
+/// of that `}`.
+fn closing(toks: &[Tok], open: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    for (j, t) in toks.iter().enumerate().skip(open) {
+        match (t.kind == Kind::Punct, t.text.as_str()) {
+            (true, "{") => depth += 1,
+            (true, "}") => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(j);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// `contract C { … }`, `impl C for T { … }` and `x: impl C`, read as what
+/// they stand for. A contract is a block of its own: its functions take
+/// any value as `self`. An implementer is given each function and each
+/// promise of the contract, in a group of its own after its block, so
+/// its promises rest on what it says and on nothing else. `impl C` as a
+/// type is any value.
+fn contracts(toks: Vec<Tok>) -> Result<(Vec<Tok>, Contracts), Error> {
+    let word = |t: &Tok, w: &str| t.kind == Kind::Name && t.text == w;
+    let punct = |t: &Tok, w: &str| t.kind == Kind::Punct && t.text == w;
+    let is = |i: usize, w: &str| {
+        toks.get(i)
+            .is_some_and(|t| t.text == w && t.kind != Kind::Str)
+    };
+    let named = |i: usize| toks.get(i).filter(|t| t.kind == Kind::Name);
+    // What each contract holds: its signatures, its promises, its claims.
+    struct Held {
+        fns: Vec<Vec<Tok>>,
+        ensures: Vec<(String, Vec<Tok>)>,
+        claims: Vec<Vec<Tok>>,
+    }
+    let mut held: BTreeMap<String, Held> = BTreeMap::new();
+    let mut spans: Vec<(usize, usize, String)> = Vec::new();
+    let (mut depth, mut i) = (0usize, 0);
+    while i < toks.len() {
+        let t = &toks[i];
+        if punct(t, "{") {
+            depth += 1;
+        } else if punct(t, "}") {
+            depth = depth.saturating_sub(1);
+        } else if word(t, "contract") && depth == 0 && is(i + 2, "{") && named(i + 1).is_some() {
+            let name = toks[i + 1].text.clone();
+            let Some(end) = closing(&toks, i + 2) else {
+                return Err(Error::new(
+                    t.line,
+                    format!("`contract {name}` is not closed"),
+                ));
+            };
+            if held.contains_key(&name) {
+                return Err(Error::new(
+                    t.line,
+                    format!("`contract {name}` is declared twice"),
+                ));
+            }
+            let mut h = Held {
+                fns: Vec::new(),
+                ensures: Vec::new(),
+                claims: Vec::new(),
+            };
+            let mut j = i + 3;
+            while j < end {
+                let start = j;
+                let kw = toks[j].text.clone();
+                let only = "a contract holds `fn` signatures, `ensure` lines and claims";
+                match kw.as_str() {
+                    "fn" | "ensure" if toks[j].kind == Kind::Name => {
+                        while j < end && !punct(&toks[j], ";") {
+                            if punct(&toks[j], "{") {
+                                let msg = match kw.as_str() {
+                                    "fn" => "a function of a contract has no body: \
+                                             no default method"
+                                        .to_string(),
+                                    _ => only.to_string(),
+                                };
+                                return Err(Error::new(toks[j].line, msg));
+                            }
+                            j += 1;
+                        }
+                        j += 1;
+                        let item = toks[start..j.min(end)].to_vec();
+                        match kw.as_str() {
+                            "fn" => h.fns.push(item),
+                            _ => {
+                                let n = named(start + 1).map(|n| n.text.clone());
+                                h.ensures.push((n.unwrap_or_default(), item));
+                            }
+                        }
+                    }
+                    "claim" if toks[j].kind == Kind::Name => {
+                        // To its `;`, or to the `}` of its braces.
+                        while j < end && !punct(&toks[j], ";") && !punct(&toks[j], "{") {
+                            j += 1;
+                        }
+                        if j < end && punct(&toks[j], "{") {
+                            j = closing(&toks[..end], j).unwrap_or(end - 1);
+                        }
+                        j += 1;
+                        h.claims.push(toks[start..j.min(end)].to_vec());
+                    }
+                    _ => return Err(Error::new(toks[j].line, format!("`{kw}`: {only}"))),
+                }
+            }
+            spans.push((i, end, name.clone()));
+            held.insert(name, h);
+            i = end + 1;
+            continue;
+        }
+        i += 1;
+    }
+    let mut c = Contracts {
+        names: held.keys().cloned().collect(),
+        ..Contracts::default()
+    };
+    if c.names.is_empty() && !toks.iter().any(|t| word(t, "for")) {
+        return Ok((toks, c));
+    }
+    let any = |at: &Tok| Tok {
+        kind: Kind::Name,
+        text: "Any".into(),
+        line: at.line,
+    };
+    let mut out: Vec<Tok> = Vec::new();
+    // The groups to write after the block being read.
+    let mut after: Vec<Tok> = Vec::new();
+    let mut filled: Vec<(String, String)> = Vec::new();
+    let (mut depth, mut scope): (usize, Option<(String, String)>) = (0, None);
+    let mut i = 0;
+    while i < toks.len() {
+        let t = &toks[i];
+        if let Some((_, end, name)) = spans.iter().find(|s| s.0 == i) {
+            // The contract: a block of the world, `self` any value.
+            let h = &held[name];
+            out.push(Tok {
+                text: "boundary".into(),
+                ..t.clone()
+            });
+            out.extend(toks[i + 1..i + 3].iter().cloned());
+            for f in &h.fns {
+                let mut k = 0;
+                while k < f.len() {
+                    // `(self`, `(&self`, `(&mut self`: an input `self: Any`.
+                    let mut s = k + 1;
+                    s += usize::from(f.get(s).is_some_and(|a| a.text == "&"));
+                    s += usize::from(f.get(s).is_some_and(|a| a.text == "mut"));
+                    let own = k == 2
+                        && punct(&f[k], "(")
+                        && f.get(s).is_some_and(|a| word(a, "self"))
+                        && f.get(s + 1).is_none_or(|a| a.text != ":");
+                    if own {
+                        out.push(f[k].clone());
+                        out.push(f[s].clone());
+                        out.push(Tok {
+                            kind: Kind::Punct,
+                            text: ":".into(),
+                            line: f[s].line,
+                        });
+                        out.push(any(&f[s]));
+                        c.methods.insert(format!("{name}::{}", f[1].text));
+                        k = s + 1;
+                        continue;
+                    }
+                    out.push(match word(&f[k], "Self") {
+                        true => any(&f[k]),
+                        false => f[k].clone(),
+                    });
+                    k += 1;
+                }
+            }
+            for (_, e) in &h.ensures {
+                out.extend(e.iter().cloned());
+            }
+            out.push(toks[*end].clone());
+            i = end + 1;
+            continue;
+        }
+        if punct(t, "{") {
+            depth += 1;
+        } else if punct(t, "}") {
+            depth = depth.saturating_sub(1);
+            if depth == 0 {
+                scope = None;
+                out.push(t.clone());
+                out.append(&mut after);
+                i += 1;
+                continue;
+            }
+        } else if (word(t, "subject") || word(t, "boundary")) && depth == 0 && is(i + 2, "{") {
+            scope = Some((t.text.clone(), toks[i + 1].text.clone()));
+        } else if word(t, "impl") && is(i + 2, "for") {
+            // impl C for T { … }
+            let (Some(of), Some(by)) = (named(i + 1), named(i + 3)) else {
+                return Err(Error::new(
+                    t.line,
+                    "expected `impl Contract for Type { … }`",
+                ));
+            };
+            let Some(h) = held.get(&of.text) else {
+                let msg = format!("`{}` is not a contract: no `contract {0} {{ … }}`", of.text);
+                return Err(Error::new(t.line, msg));
+            };
+            let Some((side, block)) = scope.clone().filter(|_| depth == 1) else {
+                let msg = format!(
+                    "`impl {} for {}` is written in a `subject {{ … }}` or a `boundary {{ … }}`",
+                    of.text, by.text
+                );
+                return Err(Error::new(t.line, msg));
+            };
+            if !is(i + 4, "{") {
+                let msg = "`impl Contract for Type { … }`: no type parameters";
+                return Err(Error::new(t.line, msg));
+            }
+            let Some(end) = closing(&toks, i + 4) else {
+                return Err(Error::new(t.line, "this `impl` is not closed"));
+            };
+            let (mut inner, mut k) = (0usize, i + 5);
+            while k < end {
+                let b = &toks[k];
+                inner += usize::from(punct(b, "{"));
+                inner -= usize::from(punct(b, "}"));
+                let starts = k == i + 5 || punct(&toks[k - 1], "}") || punct(&toks[k - 1], ";");
+                if inner == 0 && starts && !word(b, "claim") && !word(b, "assume") {
+                    let msg = format!(
+                        "`{}`: an `impl {} for {}` holds only what decomposes the promises \
+                         of the contract: `claim` in a subject, `assume` in a boundary",
+                        b.text, of.text, by.text
+                    );
+                    return Err(Error::new(b.line, msg));
+                }
+                k += 1;
+            }
+            let pair = (format!("{block}::{}", by.text), of.text.clone());
+            if filled.contains(&pair) {
+                let msg = format!("`{}` fills `{}` twice", pair.0, pair.1);
+                return Err(Error::new(t.line, msg));
+            }
+            filled.push(pair);
+            let at = |text: &str, kind: Kind| Tok {
+                kind,
+                text: text.into(),
+                line: t.line,
+            };
+            let here = |f: &Tok| Tok {
+                line: t.line,
+                ..f.clone()
+            };
+            after.push(at(&side, Kind::Name));
+            after.push(at(&block, Kind::Name));
+            after.push(at("{", Kind::Punct));
+            after.push(at("impl", Kind::Name));
+            after.push(here(by));
+            after.push(at("{", Kind::Punct));
+            for f in &h.fns {
+                after.extend(f.iter().map(here));
+            }
+            for (n, e) in &h.ensures {
+                after.extend(e.iter().map(here));
+                let fill = format!("{block}::{}::{n}", by.text);
+                c.fills.push((format!("{}::{n}", of.text), fill));
+            }
+            let said = match side.as_str() {
+                "boundary" => "assume",
+                _ => "claim",
+            };
+            for claim in &h.claims {
+                after.push(at(said, Kind::Name));
+                after.extend(claim[1..].iter().map(here));
+            }
+            after.extend(toks[i + 5..end].iter().cloned());
+            after.push(at("}", Kind::Punct));
+            after.push(at("}", Kind::Punct));
+            i = end + 1;
+            continue;
+        } else if word(t, "impl") && named(i + 1).is_some_and(|n| c.names.contains(&n.text)) {
+            // x: impl C
+            if is(i + 2, "{") {
+                let msg = format!(
+                    "`{}` is a contract: a type fills it with `impl {0} for Type {{ … }}`",
+                    toks[i + 1].text
+                );
+                return Err(Error::new(t.line, msg));
+            }
+            if let Some((_, block)) = &scope {
+                c.leans
+                    .push((block.clone(), toks[i + 1].text.clone(), t.line));
+            }
+            out.push(any(t));
+            i += 2;
+            continue;
+        }
+        out.push(t.clone());
+        i += 1;
+    }
+    out.append(&mut after);
+    Ok((out, c))
+}
+
 fn read(toks: Vec<Tok>, handed: Rc<Handed>) -> Result<P, Error> {
-    let (toks, methods) = impls(toks)?;
+    let (toks, contracts) = contracts(toks)?;
+    let (toks, mut methods) = impls(toks)?;
+    methods.extend(contracts.methods.iter().cloned());
+    let contracts = Rc::new(contracts);
     let (mut scoped, top) = types_of(&toks);
     // The types brought from a block of another store, by their path.
     for (path, names) in imports_of(&toks) {
@@ -4190,6 +4586,7 @@ fn read(toks: Vec<Tok>, handed: Rc<Handed>) -> Result<P, Error> {
             methods: methods.clone(),
             handed: handed.clone(),
             own_blocks: blocks.clone(),
+            contracts: contracts.clone(),
             ..P::default()
         };
         p.items()?;

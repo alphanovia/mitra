@@ -16,6 +16,9 @@ To try one: copy the model into `model.mitra`, the evidence into
 | `uses`, `only` | what the code of a function calls | [kw-declarations.md](kw-declarations.md#uses) |
 | `record`, `record R;`, `..` | a value with named fields, stated in full, in part or not at all | [kw-records.md](kw-records.md#record) |
 | `impl`, `self`, `Self` | the functions and claims of a record, as Rust writes them | [kw-records.md](kw-records.md#impl) |
+| `contract` | a role: signatures and what every piece that fills it owes | [kw-contracts.md](kw-contracts.md#contract) |
+| `impl … for` | a type fills a contract, in a subject or a boundary | [kw-contracts.md](kw-contracts.md#impl-for) |
+| `impl Contract` | as a type: any value, known by what the contract promises | [kw-contracts.md](kw-contracts.md#impl-contract) |
 | `r#word` | a word of the language used as a name | [kw-records.md](kw-records.md#names-and-r) |
 | `passes` | a test passed on inputs it does not state | [kw-evidence.md](kw-evidence.md#passes) |
 | `sampled` | a test ran on inputs drawn from a stated domain | [kw-evidence.md](kw-evidence.md#sampled) |

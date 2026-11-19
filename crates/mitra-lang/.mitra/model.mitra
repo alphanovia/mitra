@@ -9,6 +9,7 @@
 //   functions.mitra   a function: code, spec, helper, world
 //   claims.mitra      a claim, an assumption, `uses`, the implied claims
 //   intent.mitra      an `ensure`, a `require`, the capture between prose and claims
+//   contracts.mitra   a contract, the types that fill it, a value known by it
 //   ledger.mitra      evidence: pinned, passes, sampled, vouched
 //   model.mitra       the model that holds them (this file)
 //
@@ -42,9 +43,10 @@ subject model {
     ensure blocks_are_things = "Each named `subject` and `boundary` is held as a block, with the side it is on and the store it was brought from if any; a piece finds its block by its name.";
 
     // The side of the line a block is on: built by us, or bought.
-    enum Side { Subject, Boundary }
+    // A contract is neither: a role, filled by subjects and boundaries.
+    enum Side { Subject, Boundary, Contract }
 
-    // `subject name { … }` or `boundary name { … }`.
+    // `subject name { … }`, `boundary name { … }` or `contract name { … }`.
     record Block {
         name: String,
         side: Side,
