@@ -236,6 +236,7 @@ pub enum Decl {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
+// mitra: implements Model
 pub struct Model {
     pub records: Vec<Record>,
     pub enums: Vec<Enum>,
@@ -452,6 +453,7 @@ impl Model {
     }
 
     /// Check names, references and that patterns stay inside domains.
+    // mitra: implements types::check
     pub fn check(mut self) -> Result<Model, (Input, Error)> {
         let m = |line, msg: String| (Input::Model, Error::new(line, msg));
         let mut names: Vec<(&String, usize)> =

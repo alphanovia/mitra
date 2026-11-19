@@ -1,4 +1,3 @@
-eval::as_str::spec: holds
 eval::unary::correct: unverified
   passes on       (op, v) in {("!", false), ("!", true), ("-", -3), ("-", 3), ("-", 0.5), ("-", "a"), ("keys", {"a": 1, "b": 2}), ("keys", {1})}
   no evidence on  (op, v) in (String \ {"!", "-", "keys"}, Any) | ({"keys"}, Any \ {{"a": 1, "b": 2}, {1}}) | ({"-"}, Any \ {-3, 3, 0.5, "a"}) | ({"!"}, Any \ Bool)
@@ -30,8 +29,8 @@ eval::difference_apart: unverified
 eval::divides_back: unverified
   passes on       `x = 4, y = -3`
   no evidence on  (x, y) in (Int \ {4}, Int \ {0}) | ({4}, Int \ {-3, 0})
-set::quote::correct: unverified
-  passes on       `set::quote("")`, `set::quote("a b")`, `set::quote("a\"b\\c\nd\te")`
+print::quote::correct: unverified
+  passes on       `print::quote("")`, `print::quote("a b")`, `print::quote("a\"b\\c\nd\te")`
   no evidence on  s in String \ {"", "a b", "a\"b\\c\nd\te"}
 print::negative::correct: unverified
   passes on       v in {-0.5, "-1"} | -1..=0
@@ -43,10 +42,45 @@ print::level::spec: holds
   passes on       op in {"&", "&&", "-", "/", "<=", "in", "|", "||"}
   assumed on      classes 1, 2, 3, 4, 5 of `print::level_uniform`, by `print::level_uniform`
 print::level_uniform: holds
+report::as_str::spec: holds
 report::word::spec: holds
   passes on       c in {Candidate(Code("f"), 0.0, 0.25), Candidate(Code("f"), 0.0, 0.5), Candidate(Code("f"), 0.5, 1.0), Candidate(Code("f"), 1.0, 1.0)}
   assumed on      classes "certain", "likely", "possible", "unlikely" of `report::word_uniform`, by `report::word_uniform`
 report::word_uniform: holds
+reader::model::correct: unverified
+  no evidence on  src in String
+reader::fault_is_placed: holds
+reader::reads_a_subject: holds
+reader::refuses_a_bare_fn: holds
+types::check::correct: unverified
+  no evidence on  m in Model
+types::read::uses: holds
+types::read::correct: unverified
+  no evidence on  (model, ledger) in (String, String)
+types::load::uses: holds
+types::load::correct: unverified
+  no evidence on  (model, ledger) in (String, String)
+types::good_is_read: holds
+types::unknown_is_refused: holds
+types::twice_is_refused: holds
+types::arity_is_refused: holds
+types::endless_is_refused: holds
+verdicts::evaluate::correct: unverified
+  no evidence on  model in Model
+verdicts::derive::correct: unverified
+  no evidence on  model in Model
+verdicts::run::uses: holds
+verdicts::run::correct: unverified
+  no evidence on  (model, ledger) in (String, String)
+verdicts::one_verdict_each: holds
+verdicts::untested_is_unverified: holds
+verdicts::tested_holds: holds
+verdicts::refuted_fails: holds
+verdicts::trust_changes_no_verdict: holds
+verdicts::conflict_counts_for_neither: holds
+verdicts::follows_from_a_vouched_claim: holds
+advice::plan::correct: unverified
+  no evidence on  (model, report) in (Model, Report(List<Verdict(Logic, Any)>, List<Problem>, Any))
 t_holds: holds
 t_assuming: holds
 t_unverified: holds
@@ -118,180 +152,193 @@ eval::computes::captured: unverified
   nobody vouched that the claims say what the text says
 eval::computes: holds assuming [eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured]
   says            "An operator computes what the language reference says, and gives no value where it does not apply."
-  rests on        `eval::as_str::spec`, `eval::unary::correct`, `eval::not_is`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`
+  rests on        `eval::unary::correct`, `eval::not_is`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`
 print::prints_back::captured: unverified
   nobody vouched that the claims say what the text says
-print::prints_back: holds assuming [print::negative::correct, print::negative_ints, print::prints_back::captured]
+print::prints_back: holds assuming [print::quote::correct, print::negative::correct, print::negative_ints, print::prints_back::captured]
   says            "What Mitra prints reads back as what was written: signs and the order of operators are kept."
-  rests on        `print::negative::correct`, `print::negative_ints`, `print::level::spec`
+  rests on        `print::quote::correct`, `print::negative::correct`, `print::negative_ints`, `print::level::spec`
 report::words::captured: unverified
   nobody vouched that the claims say what the text says
 report::words: holds assuming [report::words::captured]
-  says            "The word beside a candidate says how plausibly it is the wrong piece."
-  rests on        `report::word::spec`
+  says            "A verdict and a candidate are printed with the word the reference gives them."
+  rests on        `report::as_str::spec`, `report::word::spec`
 reader::reads::captured: unverified
   nobody vouched that the claims say what the text says
-reader::reads: unverified
-  says            "A model written as the language reference says is read, and reads the same whatever its layout and comments."
-  no claim in its subject: nothing says it is met
+reader::reads: holds assuming [reader::model::correct, reader::reads::captured]
+  says            "A model written as the language reference says is read."
+  rests on        `reader::model::correct`, `reader::fault_is_placed`, `reader::reads_a_subject`, `reader::refuses_a_bare_fn`
 reader::refuses::captured: unverified
   nobody vouched that the claims say what the text says
-reader::refuses: unverified
-  says            "A text that is not a model is refused with its line and what to write instead; nothing is guessed."
-  no claim in its subject: nothing says it is met
-reader::names_in_full::captured: unverified
-  nobody vouched that the claims say what the text says
-reader::names_in_full: unverified
-  says            "Whatever a subject or a boundary holds is known by one full name, and a short name is accepted only where one thing has it."
-  no claim in its subject: nothing says it is met
-types::read: holds assuming [reader::reads]
+reader::refuses: holds assuming [reader::model::correct, reader::refuses::captured]
+  says            "A text that is not a model is refused, with the line of the fault and what is wrong."
+  rests on        `reader::model::correct`, `reader::fault_is_placed`, `reader::reads_a_subject`, `reader::refuses_a_bare_fn`
+types::read_first: holds assuming [reader::model::correct, reader::reads::captured]
   needs           `reader::reads`
 types::declared::captured: unverified
   nobody vouched that the claims say what the text says
-types::declared: unverified
+types::declared: holds assuming [types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::declared::captured]
   says            "Every function, type, variant and claim a model names is declared, and declared once."
-  no claim in its subject: nothing says it is met
-  requires        `types::read`
+  rests on        `types::check::correct`, `types::read::correct`, `types::load::correct`, `types::good_is_read`, `types::unknown_is_refused`, `types::twice_is_refused`, `types::arity_is_refused`, `types::endless_is_refused`
+  requires        `types::read_first`
 types::fits::captured: unverified
   nobody vouched that the claims say what the text says
-types::fits: unverified
-  says            "A function is called with the inputs it takes, and a claim names only inputs its function accepts; evidence outside them is reported, never dropped."
-  no claim in its subject: nothing says it is met
-  requires        `types::read`
+types::fits: holds assuming [types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured]
+  says            "A function is called with the inputs it takes, and a claim names only inputs its function accepts."
+  rests on        `types::check::correct`, `types::read::correct`, `types::load::correct`, `types::good_is_read`, `types::unknown_is_refused`, `types::twice_is_refused`, `types::arity_is_refused`, `types::endless_is_refused`
+  requires        `types::read_first`
 types::ends::captured: unverified
   nobody vouched that the claims say what the text says
-types::ends: unverified
+types::ends: holds assuming [types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::ends::captured]
   says            "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input."
-  no claim in its subject: nothing says it is met
-  requires        `types::read`
-verdicts::checked: holds assuming [types::fits]
+  rests on        `types::check::correct`, `types::read::correct`, `types::load::correct`, `types::good_is_read`, `types::unknown_is_refused`, `types::twice_is_refused`, `types::arity_is_refused`, `types::endless_is_refused`
+  requires        `types::read_first`
+verdicts::checked: holds assuming [types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured]
   needs           `types::fits`
 verdicts::computed: holds assuming [eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured]
   needs           `eval::computes`
 verdicts::one_each::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::one_each: unverified
+verdicts::one_each: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::one_each::captured]
   says            "Every claim gets one verdict: holds, holds assuming, unverified or fails."
-  no claim in its subject: nothing says it is met
+  rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
 verdicts::holds_is_covered::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::holds_is_covered: unverified
+verdicts::holds_is_covered: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::holds_is_covered::captured]
   says            "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named."
-  no claim in its subject: nothing says it is met
+  rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
 verdicts::fails_is_shown::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::fails_is_shown: unverified
-  says            "A claim fails only on an input that evidence or the model itself shows, and the report gives that input."
-  no claim in its subject: nothing says it is met
+verdicts::fails_is_shown: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::fails_is_shown::captured]
+  says            "A claim fails only where evidence or the model itself shows it, or because something it rests on fails."
+  rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
 verdicts::trust_apart::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::trust_apart: unverified
+verdicts::trust_apart: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::trust_apart::captured]
   says            "The trust given to a piece never changes a verdict; it only orders the candidates of an error."
-  no claim in its subject: nothing says it is met
+  rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
 verdicts::conflict_kept::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::conflict_kept: unverified
+verdicts::conflict_kept: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::conflict_kept::captured]
   says            "Evidence that can't all be true is reported as an error and counts for neither side until it is settled."
-  no claim in its subject: nothing says it is met
+  rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
-verdicts::never_runs::captured: unverified
+verdicts::follows::captured: unverified
   nobody vouched that the claims say what the text says
-verdicts::never_runs: unverified
-  says            "No code is run: the same model and evidence always give the same report."
-  no claim in its subject: nothing says it is met
+verdicts::follows: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::follows::captured]
+  says            "A claim said to follow from other claims is true whenever they are."
+  rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
-eval::as_str::tied: holds
+advice::judged: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::one_each::captured]
+  needs           `verdicts::one_each`
+advice::owed::captured: unverified
+  nobody vouched that the claims say what the text says
+advice::owed: holds assuming [advice::plan::correct, verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, types::check::correct, types::read::correct, types::load::correct, reader::model::correct, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::twice_negated, eval::binary::correct, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::one_each::captured, advice::owed::captured]
+  says            "For each claim that does not hold yet, the evidence that would settle it is listed."
+  rests on        `advice::plan::correct`
+  requires        `advice::judged`
+advice::plan::tied: holds
 eval::binary::tied: holds
 eval::unary::tied: holds
 print::level::tied: holds
 print::negative::tied: holds
+print::quote::tied: holds
+reader::model::tied: holds
+report::as_str::tied: holds
 report::word::tied: holds
-set::quote::tied: holds
+types::check::tied: holds
+types::load::tied: holds
+types::read::tied: holds
+verdicts::derive::tied: holds
+verdicts::evaluate::tied: holds
+verdicts::run::tied: holds
+Candidate::tied: holds
+Error::tied: holds
+Input::tied: holds
+Names::tied: holds
+Problem::tied: holds
+Model::tied: holds
+Verdict::tied: holds
+Report::tied: holds
 
 warning[M105]: a requirement that nothing uses
-  --> .mitra/model.mitra:128  require read = reader::reads;
-
-  `types::read` needs `reader::reads`, and no function declared beside it `uses` a function declared beside `reader::reads`.
-  help: say which function `uses` it, or remove the `require`
-
-warning[M105]: a requirement that nothing uses
-  --> .mitra/model.mitra:136  require checked = types::fits;
-
-  `verdicts::checked` needs `types::fits`, and no function declared beside it `uses` a function declared beside `types::fits`.
-  help: say which function `uses` it, or remove the `require`
-
-warning[M105]: a requirement that nothing uses
-  --> .mitra/model.mitra:137  require computed = eval::computes;
+  --> .mitra/model.mitra:164  require computed = eval::computes;
 
   `verdicts::computed` needs `eval::computes`, and no function declared beside it `uses` a function declared beside `eval::computes`.
   help: say which function `uses` it, or remove the `require`
 
+warning[M105]: a requirement that nothing uses
+  --> .mitra/model.mitra:203  require judged = verdicts::one_each;
+
+  `advice::judged` needs `verdicts::one_each`, and no function declared beside it `uses` a function declared beside `verdicts::one_each`.
+  help: say which function `uses` it, or remove the `require`
+
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:49  fn unary(op: String, v: Any) -> Option<Any>;
+  --> .mitra/model.mitra:52  fn unary(op: String, v: Any) -> Option<Any>;
 
   No evidence on (op, v) in (String \ {"!", "-", "keys"}, Any) | ({"keys"}, Any \ {{"a": 1, "b": 2}, {1}}) | ({"-"}, Any \ {-3, 3, 0.5, "a"}) | ({"!"}, Any \ Bool).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:54  claim twice_negated(v: Int) { match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) } }
+  --> .mitra/model.mitra:57  claim twice_negated(v: Int) { match unary("-", v) { None => true, Some(n) => unary("-", n) == Some(v) } }
 
   No evidence on v in Int \ {-3, 3}.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:59  fn binary(op: String, x: Any, y: Any) -> Option<Any>;
+  --> .mitra/model.mitra:62  fn binary(op: String, x: Any, y: Any) -> Option<Any>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:61  claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
+  --> .mitra/model.mitra:64  claim plus_commutes(x, y) { binary("+", x, y) == binary("+", y, x) }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:62  claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
+  --> .mitra/model.mitra:65  claim times_commutes(x, y) { binary("*", x, y) == binary("*", y, x) }
 
   No evidence on (x, y) in (Any \ {-3, 4}, Any) | ({4}, Any \ {-3}) | ({-3}, Any \ {4}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:63  claim minus_is_plus_negated(x: Int, y: Int) { match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) } }
+  --> .mitra/model.mitra:66  claim minus_is_plus_negated(x: Int, y: Int) { match unary("-", y) { None => true, Some(n) => binary("-", x, y) == binary("+", x, n) } }
 
   No evidence on (x, y) in (Int \ {2}, Int) | ({2}, Int \ {3}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:66  claim different_is_not_equal(x, y) { match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) } }
+  --> .mitra/model.mitra:69  claim different_is_not_equal(x, y) { match binary("==", x, y) { None => false, Some(e) => binary("!=", x, y) == unary("!", e) } }
 
   No evidence on (x, y) in (Any \ {2}, Any) | ({2}, Any \ {2, "2"}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:69  claim union_commutes(x: Set<Int>, y: Set<Int>) { binary("|", x, y) == binary("|", y, x) }
+  --> .mitra/model.mitra:72  claim union_commutes(x: Set<Int>, y: Set<Int>) { binary("|", x, y) == binary("|", y, x) }
 
   No evidence on (x, y) in (Set<Int> \ {{1, 2}, {2, 3}}, Set<Int>) | ({{2, 3}}, Set<Int> \ {{1, 2}}) | ({{1, 2}}, Set<Int> \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:71  claim difference_apart(x: Set<Int>, y: Set<Int>) { match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) } }
+  --> .mitra/model.mitra:74  claim difference_apart(x: Set<Int>, y: Set<Int>) { match binary("\\", x, y) { None => false, Some(d) => binary("&", d, y) == Some({}) } }
 
   No evidence on (x, y) in (Set<Int> \ {{1, 2}}, Set<Int>) | ({{1, 2}}, Set<Int> \ {{2, 3}}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:74  claim divides_back(x: Int, y: Int \ {0}) { match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) } }
+  --> .mitra/model.mitra:77  claim divides_back(x: Int, y: Int \ {0}) { match binary("*", x, y) { None => true, Some(p) => binary("/", p, y) == Some(x) } }
 
   No evidence on (x, y) in (Int \ {4}, Int \ {0}) | ({4}, Int \ {-3, 0}).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:81  fn quote(s: String) -> String;
+  --> .mitra/model.mitra:85  fn quote(s: String) -> String;
 
   No evidence on s in String \ {"", "a b", "a\"b\\c\nd\te"}.
   help: `mitra next` lists the evidence that would settle it
@@ -308,184 +355,232 @@ warning[M101]: a claim is not verified
   No evidence on v in Int \ -1..=0.
   help: `mitra next` lists the evidence that would settle it
 
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:129  fn model(src: String) -> Result<(Model, Names), Error>;
+
+  No evidence on src in String.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:144  fn check(m: Model) -> Result<Model, (Input, Error)>;
+
+  No evidence on m in Model.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:145  fn read(model: String, ledger: String) -> Result<Model, (Input, Error)>
+
+  No evidence on (model, ledger) in (String, String).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:147  fn load(model: String, ledger: String) -> Result<Model, (Input, Error)> uses read;
+
+  No evidence on (model, ledger) in (String, String).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:171  fn evaluate(model: Model) -> Result<Report, (Input, Error)>;
+
+  No evidence on model in Model.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:172  fn derive(model: Model);
+
+  No evidence on model in Model.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:173  fn run(model: String, ledger: String) -> Result<Report, (Input, Error)> uses types::load, evaluate;
+
+  No evidence on (model, ledger) in (String, String).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:205  fn plan(model: Model, report: Report) -> String;
+
+  No evidence on (model, report) in (Model, Report(List<Verdict(Logic, Any)>, List<Problem>, Any)).
+  help: `mitra next` lists the evidence that would settle it
+
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:38  ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
+  --> .mitra/model.mitra:50  ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
 
   Nobody vouched that the claims `eval::computes` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for eval::computes::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:38  ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
+  --> .mitra/model.mitra:50  ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
 
   `eval::computes` holds if `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:85  ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
+  --> .mitra/model.mitra:83  ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
 
   Nobody vouched that the claims `print::prints_back` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for print::prints_back::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:85  ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
+  --> .mitra/model.mitra:83  ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
 
-  `print::prints_back` holds if `print::negative::correct`, `print::negative_ints`, `print::prints_back::captured` hold, and no evidence supports them.
+  `print::prints_back` holds if `print::quote::correct`, `print::negative::correct`, `print::negative_ints`, `print::prints_back::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:104  ensure words = "The word beside a candidate says how plausibly it is the wrong piece.";
+  --> .mitra/model.mitra:104  ensure words = "A verdict and a candidate are printed with the word the reference gives them.";
 
   Nobody vouched that the claims `report::words` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for report::words::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:104  ensure words = "The word beside a candidate says how plausibly it is the wrong piece.";
+  --> .mitra/model.mitra:104  ensure words = "A verdict and a candidate are printed with the word the reference gives them.";
 
   `report::words` holds if `report::words::captured` holds, and no evidence supports it.
   help: review it, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:121  ensure reads = "A model written as the language reference says is read, and reads the same whatever its layout and comments.";
+  --> .mitra/model.mitra:127  ensure reads = "A model written as the language reference says is read.";
 
   Nobody vouched that the claims `reader::reads` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for reader::reads::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:121  ensure reads = "A model written as the language reference says is read, and reads the same whatever its layout and comments.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:127  ensure reads = "A model written as the language reference says is read.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `reader::reads` holds if `reader::model::correct`, `reader::reads::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:122  ensure refuses = "A text that is not a model is refused with its line and what to write instead; nothing is guessed.";
+  --> .mitra/model.mitra:128  ensure refuses = "A text that is not a model is refused, with the line of the fault and what is wrong.";
 
   Nobody vouched that the claims `reader::refuses` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for reader::refuses::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:122  ensure refuses = "A text that is not a model is refused with its line and what to write instead; nothing is guessed.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:128  ensure refuses = "A text that is not a model is refused, with the line of the fault and what is wrong.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
-
-warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:123  ensure names_in_full = "Whatever a subject or a boundary holds is known by one full name, and a short name is accepted only where one thing has it.";
-
-  Nobody vouched that the claims `reader::names_in_full` rests on say what its text says.
-  help: review them against the text, then record: evidence <name> { for reader::names_in_full::captured holds source "review:<who>" }
-
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:123  ensure names_in_full = "Whatever a subject or a boundary holds is known by one full name, and a short name is accepted only where one thing has it.";
-
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `reader::refuses` holds if `reader::model::correct`, `reader::refuses::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:129  ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
+  --> .mitra/model.mitra:141  ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
 
   Nobody vouched that the claims `types::declared` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for types::declared::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:129  ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:141  ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `types::declared` holds if `types::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::declared::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:130  ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts; evidence outside them is reported, never dropped.";
+  --> .mitra/model.mitra:142  ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts.";
 
   Nobody vouched that the claims `types::fits` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for types::fits::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:130  ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts; evidence outside them is reported, never dropped.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:142  ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `types::fits` holds if `types::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:131  ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
+  --> .mitra/model.mitra:143  ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
 
   Nobody vouched that the claims `types::ends` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for types::ends::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:131  ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:143  ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `types::ends` holds if `types::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::ends::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:138  ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
+  --> .mitra/model.mitra:165  ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
 
   Nobody vouched that the claims `verdicts::one_each` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for verdicts::one_each::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:138  ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:165  ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `verdicts::one_each` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::one_each::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:139  ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
+  --> .mitra/model.mitra:166  ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
 
   Nobody vouched that the claims `verdicts::holds_is_covered` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for verdicts::holds_is_covered::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:139  ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:166  ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `verdicts::holds_is_covered` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::holds_is_covered::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:140  ensure fails_is_shown = "A claim fails only on an input that evidence or the model itself shows, and the report gives that input.";
+  --> .mitra/model.mitra:167  ensure fails_is_shown = "A claim fails only where evidence or the model itself shows it, or because something it rests on fails.";
 
   Nobody vouched that the claims `verdicts::fails_is_shown` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for verdicts::fails_is_shown::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:140  ensure fails_is_shown = "A claim fails only on an input that evidence or the model itself shows, and the report gives that input.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:167  ensure fails_is_shown = "A claim fails only where evidence or the model itself shows it, or because something it rests on fails.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `verdicts::fails_is_shown` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::fails_is_shown::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:141  ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
+  --> .mitra/model.mitra:168  ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
 
   Nobody vouched that the claims `verdicts::trust_apart` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for verdicts::trust_apart::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:141  ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:168  ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `verdicts::trust_apart` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::trust_apart::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:142  ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
+  --> .mitra/model.mitra:169  ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
 
   Nobody vouched that the claims `verdicts::conflict_kept` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for verdicts::conflict_kept::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:142  ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:169  ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `verdicts::conflict_kept` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::conflict_kept::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:143  ensure never_runs = "No code is run: the same model and evidence always give the same report.";
+  --> .mitra/model.mitra:170  ensure follows = "A claim said to follow from other claims is true whenever they are.";
 
-  Nobody vouched that the claims `verdicts::never_runs` rests on say what its text says.
-  help: review them against the text, then record: evidence <name> { for verdicts::never_runs::captured holds source "review:<who>" }
+  Nobody vouched that the claims `verdicts::follows` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for verdicts::follows::captured holds source "review:<who>" }
 
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:143  ensure never_runs = "No code is run: the same model and evidence always give the same report.";
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:170  ensure follows = "A claim said to follow from other claims is true whenever they are.";
 
-  No claim in its subject says it, or a claim it rests on is not settled.
-  help: write the claims that say it, in the same subject
+  `verdicts::follows` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::follows::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:204  ensure owed = "For each claim that does not hold yet, the evidence that would settle it is listed.";
+
+  Nobody vouched that the claims `advice::owed` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for advice::owed::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:204  ensure owed = "For each claim that does not hold yet, the evidence that would settle it is listed.";
+
+  `advice::owed` holds if `advice::plan::correct`, `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `types::check::correct`, `types::read::correct`, `types::load::correct`, `reader::model::correct`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::one_each::captured`, `advice::owed::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

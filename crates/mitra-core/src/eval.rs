@@ -24,7 +24,7 @@ pub enum Logic {
 }
 
 impl Logic {
-    // mitra: implements eval::as_str
+    // mitra: implements report::as_str
     pub fn as_str(self) -> &'static str {
         match self {
             Logic::Holds => "holds",
@@ -61,6 +61,7 @@ impl Implication {
 
 /// The verdict on one claim.
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements Verdict
 pub struct Verdict {
     /// The inputs a tested one stands for, with the `represented` claim
     /// that says so.
@@ -249,6 +250,7 @@ impl Piece {
 /// How plausibly a piece is the wrong one.
 ///
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements Candidate
 pub struct Candidate {
     pub piece: Piece,
     pub belief: f64,
@@ -265,6 +267,7 @@ pub enum Unranked {
 
 /// An error: a claim that fails, or pieces that can't all be true.
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements Problem
 pub struct Problem {
     pub kind: Kind,
     /// The evidence failing the model: line and text.
@@ -341,6 +344,7 @@ impl Default for Display {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements Report
 pub struct Report {
     pub verdicts: Vec<Verdict>,
     pub problems: Vec<Problem>,
@@ -1811,6 +1815,7 @@ fn listed(set: &Tuples) -> Vec<Vec<Value>> {
     }
 }
 
+// mitra: implements verdicts::evaluate
 pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
     let mut observed: BTreeMap<(String, Vec<Value>), Vec<Value>> = BTreeMap::new();
     let mut flags = Vec::new();

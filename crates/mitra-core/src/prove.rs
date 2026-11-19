@@ -474,6 +474,7 @@ fn reach(model: &Model, c: &Claim) -> Vec<String> {
 
 /// For each claim that follows from claims above it on the functions it
 /// reaches: the fewest of them that are enough.
+// mitra: implements verdicts::derive
 pub fn derive(model: &mut Model) {
     for i in 0..model.claims.len() {
         let c = &model.claims[i];

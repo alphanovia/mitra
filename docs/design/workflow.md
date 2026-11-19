@@ -25,6 +25,21 @@ describe what exists; the rest is a proposal.
 7. When evidence shows the model is wrong, change the model, then the
    code.
 
+## Writing a model: ensures first (the user's process, 2026-11-19)
+
+"The correct measure here is: are my ensures captured? If a claim is not
+serving an ensure then you don't need it. If an ensure is not something
+you need to ensure then remove it." Per subject, in this order:
+
+1. Name its responsibility: the `ensure` lines.
+2. Name what it needs: the `require` lines.
+3. Write the claims and assumptions that support those, the signatures
+   they need, and nothing more. A record states only the fields a claim
+   reads (`..`, or `record R;`).
+
+Mitra's model of mitra-core is written this way
+(`crates/mitra-core/.mitra/model.mitra`).
+
 ## Commands
 
 | Command | Does | Status |

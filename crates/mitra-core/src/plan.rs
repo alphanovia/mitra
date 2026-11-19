@@ -13,6 +13,7 @@ const LIST: f64 = 12.0;
 /// A set printed longer than this is not printed.
 const WIDE: usize = 160;
 
+// mitra: implements advice::plan
 pub fn plan(model: &Model, report: &Report) -> String {
     let mut out = String::new();
     let mut seen: Vec<&str> = Vec::new();

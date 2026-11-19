@@ -4,16 +4,14 @@
 // above a `fn` ties it to a function here, and `mitra tie` checks that
 // the two agree. The points the tests pin are in points.mitra.
 //
-// Modelled: the operators of specs, the words of a verdict and of a
-// ranking, and a few functions of the printer. In prose only, with no
-// claim yet (`reader`, `types`, `verdicts` at the end): the reader, the
-// checks on a model, the evaluation of claims. Not modelled: the sets,
-// the ranking itself (in mitra-ds).
-// A Rust `Value` is any Mitra value: the type `Any`.
+// Each subject says what it promises (`ensure`), what it needs
+// (`require`), then only the functions and claims that serve those.
+// Records state only the fields a claim reads; `..` and `record R;`
+// leave the rest to the code. A Rust `Value` is the type `Any`.
 
 // Rust's own, which the code uses.
 import std::claims::{uniform};
-import std::rust::{Option};
+import std::rust::{Option, Result};
 
 // What a claim's verdict says.
 enum Logic { Holds, Assuming, Unverified, Fails }
@@ -34,17 +32,22 @@ enum Piece {
 // A piece, how much it must be wrong and how much it can be.
 record Candidate { piece: Piece, belief: f64, plausibility: f64 }
 
+// A fault in a text, with its line.
+record Error { line: usize, message: String }
+// Which text it is in, what the reader keeps of names, an error of a
+// report: nothing of them is read here.
+record Input;
+record Names;
+record Problem;
+// Its claims are counted, not read: `Claim` and `Evidence` are variants
+// of Piece here, so the structs of those names can't be stated.
+record Model { claims: Vec<Any>, .. }
+// (The field `claim` of the code can't be stated: the word is taken.)
+record Verdict { logic: Logic, .. }
+record Report { verdicts: Vec<Verdict>, problems: Vec<Problem>, .. }
+
 subject eval {
     ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
-    fn as_str(l: Logic) -> String {
-        match l {
-            Holds => "holds",
-            Assuming => "holds assuming",
-            Unverified => "unverified",
-            Fails => "fails",
-        }
-    }
-
     // An operator of one value. `None` when it does not apply to the value.
     fn unary(op: String, v: Any) -> Option<Any>;
 
@@ -76,13 +79,10 @@ subject eval {
     }
 }
 
-subject set {
-    // A string as a spec writes it, with its quotes and escapes.
-    fn quote(s: String) -> String;
-}
-
 subject print {
     ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
+    // A string as a spec writes it, with its quotes and escapes.
+    fn quote(s: String) -> String;
     // Whether a value prints with a minus sign.
     fn negative(v: Any) -> bool;
     // `Any` hides the type: a spec can't ask whether `v` is a number.
@@ -101,7 +101,16 @@ subject print {
 }
 
 subject report {
-    ensure words = "The word beside a candidate says how plausibly it is the wrong piece.";
+    ensure words = "A verdict and a candidate are printed with the word the reference gives them.";
+    fn as_str(l: Logic) -> String {
+        match l {
+            Holds => "holds",
+            Assuming => "holds assuming",
+            Unverified => "unverified",
+            Fails => "fails",
+        }
+    }
+
     // The word a ranking prints beside a candidate.
     fn word(c: Candidate) -> String {
         if c.belief >= 0.995 { "certain" }
@@ -113,32 +122,85 @@ subject report {
     claim word_uniform = uniform(word, |c| -> {"certain", "likely", "possible", "unlikely"} { word(c) });
 }
 
-// The language itself, in prose only: what each part promises. No claim
-// says any of it yet, so each prints as unverified.
-
 // From text to a model (src/parse.rs).
 subject reader {
-    ensure reads = "A model written as the language reference says is read, and reads the same whatever its layout and comments.";
-    ensure refuses = "A text that is not a model is refused with its line and what to write instead; nothing is guessed.";
-    ensure names_in_full = "Whatever a subject or a boundary holds is known by one full name, and a short name is accepted only where one thing has it.";
+    ensure reads = "A model written as the language reference says is read.";
+    ensure refuses = "A text that is not a model is refused, with the line of the fault and what is wrong.";
+    fn model(src: String) -> Result<(Model, Names), Error>;
+
+    claim fault_is_placed(src: String) {
+        match model(src) { Ok(read) => true, Err(e) => e.line >= 1 && e.message != "" }
+    }
+    claim reads_a_subject() { model("subject fn f() -> Bool;") is Ok }
+    claim refuses_a_bare_fn() { model("fn f() -> Bool;") is Err }
 }
 
-// What a model must satisfy before anything is judged (`check`, src/ast.rs).
+// What a model must satisfy before anything is judged (src/ast.rs, src/lib.rs).
 subject types {
-    require read = reader::reads;
+    require read_first = reader::reads;
     ensure declared = "Every function, type, variant and claim a model names is declared, and declared once.";
-    ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts; evidence outside them is reported, never dropped.";
+    ensure fits = "A function is called with the inputs it takes, and a claim names only inputs its function accepts.";
     ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
+    fn check(m: Model) -> Result<Model, (Input, Error)>;
+    fn read(model: String, ledger: String) -> Result<Model, (Input, Error)>
+        uses reader::model, check;
+    fn load(model: String, ledger: String) -> Result<Model, (Input, Error)> uses read;
+
+    claim good_is_read() { load("subject fn f() -> Bool;", "") is Ok }
+    claim unknown_is_refused() { load("claim c() { g() }", "") is Err }
+    claim twice_is_refused() { load("subject fn f() -> Bool; subject fn f() -> Bool;", "") is Err }
+    claim arity_is_refused() { load("subject fn f(a: Int) -> Bool; claim c() { f(1, 2) }", "") is Err }
+    claim endless_is_refused() { load("fn f(a: Int) -> Int { g(a) } fn g(a: Int) -> Int { f(a) }", "") is Err }
 }
 
-// From a model and its evidence to verdicts (`evaluate`, src/eval.rs).
+// The verdicts of a report, in order.
+fn words(r: Result<Report, (Input, Error)>) -> Vec<Logic> {
+    match r { Err(e) => [], Ok(report) => map(v in report.verdicts, v.logic) }
+}
+
+// From a model and its evidence to verdicts (src/eval.rs, src/prove.rs).
 subject verdicts {
     require checked = types::fits;
     require computed = eval::computes;
     ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
     ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
-    ensure fails_is_shown = "A claim fails only on an input that evidence or the model itself shows, and the report gives that input.";
+    ensure fails_is_shown = "A claim fails only where evidence or the model itself shows it, or because something it rests on fails.";
     ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
     ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
-    ensure never_runs = "No code is run: the same model and evidence always give the same report.";
+    ensure follows = "A claim said to follow from other claims is true whenever they are.";
+    fn evaluate(model: Model) -> Result<Report, (Input, Error)>;
+    fn derive(model: Model);
+    fn run(model: String, ledger: String) -> Result<Report, (Input, Error)> uses types::load, evaluate;
+
+    claim one_verdict_each(m: Model) {
+        match evaluate(m) {
+            Err(e) => true,
+            Ok(r) => len(r.verdicts) == len(m.claims),
+        }
+    }
+    claim untested_is_unverified() { words(run("subject fn f() -> Bool;", "")) == [Unverified] }
+    claim tested_holds() { words(run("subject fn f() -> Bool;", "evidence a { for f holds }")) == [Holds] }
+    claim refuted_fails() { words(run("subject fn f() -> Bool;", "evidence a { for f fails }")) == [Fails] }
+    claim trust_changes_no_verdict() {
+        words(run("subject fn f() -> Bool;", "evidence a { for f holds trust 0.1 }")) == [Holds]
+    }
+    claim conflict_counts_for_neither() {
+        match run("subject fn f() -> Bool;", "evidence a { for f holds } evidence b { for f fails }") {
+            Err(e) => false,
+            Ok(r) => len(r.problems) == 1 && words(Ok(r)) == [Unverified],
+        }
+    }
+    claim follows_from_a_vouched_claim() {
+        words(run(
+            "subject fn add(a: Int, b: Int) -> Int; claim c(a: Int, b: Int) { add(a, b) == add(b, a) } claim d(a: Int, b: Int) { add(b, a) == add(a, b) }",
+            "evidence r { for c holds }"
+        )) == [Holds, Holds, Unverified]
+    }
+}
+
+// What to do next (src/plan.rs).
+subject advice {
+    require judged = verdicts::one_each;
+    ensure owed = "For each claim that does not hold yet, the evidence that would settle it is listed.";
+    fn plan(model: Model, report: Report) -> String;
 }

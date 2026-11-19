@@ -1117,7 +1117,7 @@ fn n_is_set(shape: &Shape) -> bool {
 }
 
 /// A string as written in Mitra, with its escapes.
-// mitra: implements set::quote
+// mitra: implements print::quote
 pub fn quote(s: &str) -> String {
     let mut out = String::from("\"");
     for c in s.chars() {

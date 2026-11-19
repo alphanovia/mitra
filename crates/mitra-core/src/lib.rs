@@ -41,6 +41,7 @@ use std::fmt;
 
 /// A problem in an input file, with the 1-based line it was found on.
 #[derive(Debug, Clone, PartialEq)]
+// mitra: implements Error
 pub struct Error {
     pub line: usize,
     pub message: String,
@@ -65,21 +66,24 @@ impl std::error::Error for Error {}
 
 /// Which input an error belongs to.
 #[derive(Debug, Clone, Copy, PartialEq)]
+// mitra: implements Input
 pub enum Input {
     Model,
     Evidence,
 }
 
 /// Parse both inputs and check them against each other.
-pub fn load(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
+// mitra: implements types::load
+pub fn load(model: &str, ledger: &str) -> Result<Model, (Input, Error)> {
     if let Some((line, hint)) = parse::earlier(model) {
         let msg = format!("this syntax is no longer read: {hint}");
         return Err((Input::Model, Error::new(line, msg)));
     }
-    read(model, evidence)
+    read(model, ledger)
 }
 
-fn read(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
+// mitra: implements types::read
+fn read(model: &str, ledger: &str) -> Result<Model, (Input, Error)> {
     let (mut m, names) = parse::model(model).map_err(|e| (Input::Model, e))?;
     // A claim follows from the specs of the functions it calls, when
     // their claims are above it.
@@ -112,14 +116,14 @@ fn read(model: &str, evidence: &str) -> Result<Model, (Input, Error)> {
             line: *line,
         });
     }
-    let lines = evidence.lines().count();
-    let read = parse::evidence(evidence, &m, &names).map_err(|e| (Input::Evidence, e))?;
+    let lines = ledger.lines().count();
+    let read = parse::evidence(ledger, &m, &names).map_err(|e| (Input::Evidence, e))?;
     tie(&mut m, &read, &names);
     tie_records(&mut m, &read);
     m.evidence = read;
     points(&mut m);
     let own = |s: &str| s.lines().map(String::from).collect::<Vec<_>>();
-    let mut written = own(evidence);
+    let mut written = own(ledger);
     written.truncate(lines);
     m.written = Some((own(model), written));
     let mut m = m.check()?;
@@ -282,6 +286,7 @@ pub fn read_evidence(model: &str, evidence: &str) -> Result<Vec<Evidence>, Error
 }
 
 /// Parse both inputs, check them against each other, and evaluate.
-pub fn run(model: &str, evidence: &str) -> Result<Report, (Input, Error)> {
-    evaluate(&load(model, evidence)?)
+// mitra: implements verdicts::run
+pub fn run(model: &str, ledger: &str) -> Result<Report, (Input, Error)> {
+    evaluate(&load(model, ledger)?)
 }

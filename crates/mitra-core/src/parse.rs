@@ -189,6 +189,7 @@ struct Sig {
 
 /// What the model declares, for the evidence that names it.
 #[derive(Debug, Default, Clone)]
+// mitra: implements Names
 pub struct Names {
     fns: BTreeMap<String, Sig>,
     /// Each claim with its inputs, and the measures in its body.
@@ -3224,6 +3225,7 @@ enum Prose {
 }
 
 /// The model, and its names for the evidence.
+// mitra: implements reader::model
 pub fn model(src: &str) -> Result<(Model, Names), Error> {
     read(lex(src)?)?.finish()
 }
@@ -3578,6 +3580,44 @@ mod tests {
         assert!(e.message.contains("from 0 to 1"), "{e}");
         let e = read("evidence t { for f given b = 1 holds }").unwrap_err();
         assert!(e.message.contains("has no input `b`"), "{e}");
+    }
+
+    // mitra: evidence for reader::reads_a_subject
+    #[test]
+    fn reads_a_subject() {
+        assert!(model("subject fn f() -> Bool;").is_ok());
+    }
+
+    // mitra: evidence for reader::refuses_a_bare_fn
+    #[test]
+    fn refuses_a_bare_fn() {
+        assert!(model("fn f() -> Bool;").is_err());
+    }
+
+    /// A sweep over faulty texts at hand, not every text.
+    // mitra: evidence for reader::fault_is_placed
+    #[test]
+    fn fault_is_placed() {
+        let faulty = [
+            "",
+            "fn",
+            "fn f() -> Bool;",
+            "subject s {",
+            "subject s { fn f( -> Bool; }",
+            "claim c() { 1 + }",
+            "record R { }",
+            "enum E { A, A }\nsubject fn f(e: E) -> Bool;",
+            "subject s { ensure w \"x\"; }",
+            "subject s { require t::x; }",
+            "\n\nsubject fn f() -> Nope;",
+            "\"unclosed",
+            "import std::nothing::{x};",
+        ];
+        for text in faulty {
+            if let Err(e) = model(text) {
+                assert!(e.line >= 1 && !e.message.is_empty(), "{text:?}: {e:?}");
+            }
+        }
     }
 
     #[test]

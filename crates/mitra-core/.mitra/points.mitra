@@ -4,13 +4,13 @@
 
 // src/eval.rs
 
-claim t_holds() { eval::as_str(Holds) == "holds" }
+claim t_holds() { report::as_str(Holds) == "holds" }
 
-claim t_assuming() { eval::as_str(Assuming) == "holds assuming" }
+claim t_assuming() { report::as_str(Assuming) == "holds assuming" }
 
-claim t_unverified() { eval::as_str(Unverified) == "unverified" }
+claim t_unverified() { report::as_str(Unverified) == "unverified" }
 
-claim t_fails() { eval::as_str(Fails) == "fails" }
+claim t_fails() { report::as_str(Fails) == "fails" }
 
 claim t_plus() { eval::binary("+", 2, 3) == Some(5) }
 
@@ -138,8 +138,8 @@ claim t_word_unlikely() { report::word(Candidate(Code("f"), 0.0, 0.25)) == "unli
 
 // src/set.rs
 
-claim t_quote_plain() { set::quote("a b") == "\"a b\"" }
+claim t_quote_plain() { print::quote("a b") == "\"a b\"" }
 
-claim t_quote_empty() { set::quote("") == "\"\"" }
+claim t_quote_empty() { print::quote("") == "\"\"" }
 
-claim t_quote_escapes() { set::quote("a\"b\\c\nd\te") == "\"a\\\"b\\\\c\\nd\\te\"" }
+claim t_quote_escapes() { print::quote("a\"b\\c\nd\te") == "\"a\\\"b\\\\c\\nd\\te\"" }
