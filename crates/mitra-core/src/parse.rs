@@ -353,6 +353,8 @@ struct P {
     methods: BTreeSet<String>,
     /// The inputs of the function or claim being read, with their types.
     typed: Vec<(String, Set)>,
+    /// The functions and records of the first reading: what a call gives.
+    seen: Model,
     enums: Vec<Enum>,
     /// The sets the type parameters stand for, where the parser is.
     generics: Vec<(String, Set)>,
@@ -1305,44 +1307,62 @@ impl P {
             }
         }
     }
-    /// The method `name` called on `on`: that of the record `on` is said
-    /// to be, where it is an input with a type; otherwise the only
-    /// method of that name.
+    /// The method `name` called on `on`: the one whose `self` the type
+    /// of `on` can be. Where that type is not known, the only method of
+    /// that name.
     fn method(&mut self, on: &Expr, name: &str) -> R<String> {
-        let of = match on {
-            Expr::Var(v) => self.typed.iter().rev().find(|t| &t.0 == v),
-            _ => None,
-        };
-        let record = of.and_then(|(_, set)| {
-            let plain = |r: &&Record| r.of.is_none() && &r.set() == set;
-            self.records.iter().find(plain).map(|r| r.name.clone())
-        });
         let tail = format!("::{name}");
-        let named: Vec<&String> = self.methods.iter().filter(|m| m.ends_with(&tail)).collect();
-        let full = match (record, &named[..]) {
-            (Some(r), _) if self.methods.contains(&format!("{r}::{name}")) => {
-                format!("{r}::{name}")
+        let named: Vec<String> = (self.methods.iter())
+            .filter(|m| m.ends_with(&tail))
+            .cloned()
+            .collect();
+        let back = |p: &mut P, msg: String| {
+            p.pos -= 2;
+            p.err(msg)
+        };
+        if named.is_empty() {
+            let msg =
+                format!("no method `{name}`: a method is a `fn {name}(self, …)` in an `impl`");
+            return back(self, msg);
+        }
+        // The first reading knows no function yet: any will do.
+        let kind = crate::types::of(&self.seen, on, &mut self.typed.clone()).ok();
+        let kind = kind.filter(|k| !Set::any().is_subset(k) && !self.first);
+        let takes = |m: &String| {
+            let own = self.seen.functions.iter().find(|f| &f.name == m);
+            own.and_then(|f| f.params.first()).map(|p| p.1.clone())
+        };
+        let full = match (&kind, &named[..]) {
+            (Some(k), _) => {
+                let fits = |m: &&String| takes(m).is_some_and(|t| !t.intersect(k).is_empty());
+                let fit: Vec<&String> = named.iter().filter(fits).collect();
+                match fit[..] {
+                    [one] => one.clone(),
+                    [] => {
+                        let text = crate::print::expr(on);
+                        let kind = self.seen.named(&k.to_string());
+                        let msg = format!("`{text}` is `{kind}`, which has no method `{name}`");
+                        return back(self, msg);
+                    }
+                    _ => {
+                        let each: Vec<String> = fit.iter().map(|n| format!("`{n}`")).collect();
+                        let msg = format!(
+                            "`{name}` is a method of several types it can be: write one of {} as a function",
+                            each.join(", ")
+                        );
+                        return back(self, msg);
+                    }
+                }
             }
-            (Some(r), _) => {
-                self.pos -= 2;
-                return self.err(format!(
-                    "`{r}` has no method `{name}`: a method is a `fn {name}(self, …)` in `impl`"
-                ));
-            }
-            (None, [one]) => (*one).clone(),
-            (None, []) => {
-                self.pos -= 2;
-                return self.err(format!(
-                    "no method `{name}`: a method is a `fn {name}(self, …)` in an `impl`"
-                ));
-            }
+            (None, [one]) => one.clone(),
+            (None, _) if self.first => named[0].clone(),
             (None, _) => {
                 let each: Vec<String> = named.iter().map(|n| format!("`{n}`")).collect();
-                self.pos -= 2;
-                return self.err(format!(
+                let msg = format!(
                     "`{name}` is a method of several records: write one of {} as a function",
                     each.join(", ")
-                ));
+                );
+                return back(self, msg);
             }
         };
         let full = self.resolve(&full);
@@ -1380,7 +1400,11 @@ impl P {
         let v = self.expr()?;
         self.expect(";")?;
         self.locals.push(x.clone());
+        // What it is bound to says what its methods are.
+        let kind = crate::types::of(&self.seen, &v, &mut self.typed.clone());
+        self.typed.push((x.clone(), kind.unwrap_or(Set::any())));
         let body = self.sequence();
+        self.typed.pop();
         self.locals.pop();
         Ok(Expr::Let(x, Box::new(v), Box::new(body?)))
     }
@@ -1414,8 +1438,12 @@ impl P {
             let names = self.bars()?;
             let n = self.locals.len();
             self.locals.extend(names.iter().cloned());
+            let typed = self.typed.len();
+            self.typed
+                .extend(names.iter().map(|x| (x.clone(), Set::any())));
             let body = self.expr();
             self.locals.truncate(n);
+            self.typed.truncate(typed);
             let mut body = body?;
             self.expect(")")?;
             if !self.eat("(") {
@@ -1484,8 +1512,10 @@ impl P {
                 let from = self.product()?;
                 self.expect("|")?;
                 self.locals.push(x.clone());
+                self.typed.push((x.clone(), Set::any()));
                 let cond = self.expr();
                 self.locals.pop();
+                self.typed.pop();
                 self.expect("}")?;
                 return Ok(Expr::Each("filter", x, Box::new(from), Box::new(cond?)));
             }
@@ -1529,6 +1559,7 @@ impl P {
             let mut arms = Vec::new();
             while !self.eat("}") {
                 let n = self.locals.len();
+                let typed = self.typed.len();
                 let variant = match self.eat("_") {
                     true => None,
                     false => {
@@ -1552,6 +1583,14 @@ impl P {
                             }
                         }
                         self.locals.extend(fields.iter().cloned());
+                        // A field of a variant has the type the variant gives it.
+                        let of = self.seen.records.iter().find(|r| r.name == v);
+                        let kind = |i: usize| of.and_then(|r| r.fields.get(i)).map(|f| f.1.clone());
+                        let typed = fields.iter().enumerate();
+                        let typed: Vec<(String, Set)> = typed
+                            .map(|(i, x)| (x.clone(), kind(i).unwrap_or(Set::any())))
+                            .collect();
+                        self.typed.extend(typed);
                         Some((v, fields))
                     }
                 };
@@ -1561,6 +1600,7 @@ impl P {
                     false => self.expr(),
                 };
                 self.locals.truncate(n);
+                self.typed.truncate(typed);
                 arms.push(Arm {
                     variant,
                     body: body?,
@@ -1597,8 +1637,10 @@ impl P {
             let set = self.set()?;
             self.expect(",")?;
             self.locals.push(x.clone());
+            self.typed.push((x.clone(), Set::any()));
             let cond = self.expr();
             self.locals.pop();
+            self.typed.pop();
             self.expect(")")?;
             let measure = Expr::Rate(x, set, Box::new(cond?));
             self.measures.push(measure.clone());
@@ -1623,8 +1665,10 @@ impl P {
             let list = self.sum()?;
             self.expect(",")?;
             self.locals.push(x.clone());
+            self.typed.push((x.clone(), Set::any()));
             let body = self.sequence();
             self.locals.pop();
+            self.typed.pop();
             self.expect(")")?;
             let body = body?;
             if *kind == "fold" && !matches!(body, Expr::Let(..)) {
@@ -2193,7 +2237,8 @@ impl P {
                 false => (None, None),
             };
             self.locals.push(x.clone());
-            self.typed.extend(set.clone().map(|s| (x.clone(), s)));
+            self.typed
+                .push((x.clone(), set.clone().unwrap_or(Set::any())));
             into.push(((x, set, line), deep));
             if !self.eat(",") {
                 break;
@@ -3767,8 +3812,10 @@ fn read(toks: Vec<Tok>) -> Result<P, Error> {
     let all = declared(&toks);
     let mut known = Names::default();
     let mut last = None;
+    let mut seen = Model::default();
     for pass in 0..2 {
         let mut p = P {
+            seen: std::mem::take(&mut seen),
             toks: toks.clone(),
             all: all.clone(),
             first: pass == 0,
@@ -3782,6 +3829,9 @@ fn read(toks: Vec<Tok>) -> Result<P, Error> {
             return p.err(format!("unexpected `{}`", p.peek()));
         }
         known = p.names.clone();
+        seen.functions = p.m.functions.clone();
+        seen.records = p.m.records.clone();
+        seen.aliases = p.m.aliases.clone();
         last = Some(p);
     }
     let mut last = last.expect("read twice");

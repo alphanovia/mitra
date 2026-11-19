@@ -104,7 +104,7 @@ fn each_element() {
     let e = error("claim c() { all(x in 3, x > 1) }", "");
     assert!(e.contains("goes over a list or a set"), "{e}");
     let e = error("claim c() { all(x in [1], x + 1) }", "");
-    assert!(e.contains("needs a Bool"), "{e}");
+    assert!(e.contains("`all` takes `Bool`"), "{e}");
     let e = error("claim c() { fold(x in [1], x) == 1 }", "");
     assert!(e.contains("`fold` starts from a value"), "{e}");
 }

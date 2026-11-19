@@ -105,8 +105,9 @@ geo::Point::on_the_diagonal: fails
   fails on        `self = geo::Point(0, 1)`
 ```
 
-`p.name(…)` is the method of the record `p` is declared as; on any
-other expression, the only method of that name.
+`e.name(…)` is the method of the type of `e`, whatever `e` is: an
+input, a call, a field, a `let`. Where that type is not known (an
+element of a `List<Any>`), the only method of that name.
 
 ## enum
 

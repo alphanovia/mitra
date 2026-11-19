@@ -139,6 +139,13 @@ maps `{k: v}`, calls `f(a, b)`, `rate(x in S, cond)`, `precision(f)`,
 | `(\|a, b\| a - b)(3, 1)` | An inline function, on its inputs. It exists only applied: it is not a value. |
 | `{ x in xs \| x > 2 }` | The elements of a list or a set where the condition holds. A union on the left goes in parentheses. |
 
+`mitra check` works out the type of every expression from the text,
+also in claims on code with no body, and refuses what can never fit
+its place: `g(a) + "x"`, `g(a).size` on an `Int`, an input a function
+never takes, a claim that is never true or false, a body that never
+gives its result type. An integer and a float do not mix. What may
+fit (a wider type) is read.
+
 ## What is no longer read
 
 The syntax of before the rework (`opaque`, `def … :=`, `claim c : forall

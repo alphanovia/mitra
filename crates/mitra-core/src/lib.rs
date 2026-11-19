@@ -22,6 +22,7 @@ mod prove;
 pub mod report;
 pub mod set;
 pub mod tuples;
+pub mod types;
 
 pub use ast::{
     Arm, Claim, Decl, Enum, Evidence, Expr, Function, Judgment, Model, Pattern, Position, Record,

@@ -768,17 +768,30 @@ fn an_impl_is_read_as_rust_writes_it() {
         "record A { x: Int } claim c(a: A) { a.size() == 1 }",
         "no method `size`",
     );
+    // The method is that of the type of the expression, whatever it is:
+    // an input, a call, a field, a `let`, a value written out.
+    let two = "subject s { record A { x: 0..=1 } record B { a: A }\n\
+               impl A { fn size(self) -> Int; fn next(self) -> Self; }\n\
+               impl B { fn size(self) -> Int; fn first(self) -> A; }\n\
+               fn pick(b: B) -> A;\n";
+    let reads = |claim: &str| {
+        let m = format!("{two}{claim} }}");
+        mitra_core::load(&m, "").unwrap_or_else(|(_, e)| panic!("{claim}: {e}"))
+    };
+    reads("claim c(b: B) { pick(b).size() == b.a.size() }");
+    reads("claim c(b: B) { b.first().next().size() == A(1).size() }");
+    reads("claim c(b: B) { let a = b.first(); a.size() == b.size() }");
+    let m = reads("claim c(b: B) { pick(b).size() == 1 }");
+    let c = m.claims.iter().find(|c| c.name == "s::c").unwrap();
+    assert!(format!("{:?}", c.target).contains("s::A::size"), "{c:?}");
     refused(
-        "subject s { record A { x: Int } record B { x: Int }\n\
-         impl A { fn size(self) -> Int; } impl B { fn size(self) -> Int; }\n\
-         claim c(a: A) { a.size() == A(1).size() } }",
-        "a method of several records",
+        &format!("{two} claim c(b: B) {{ b.next() == b.a }} }}"),
+        "`b` is `s::B`, which has no method `next`",
     );
+    // Where the type is not known, the name must be enough.
     refused(
-        "subject s { record A { x: Int } record B { x: Int }\n\
-         impl A { fn size(self) -> Int; }\n\
-         claim c(b: B) { b.size() == 1 } }",
-        "`s::B` has no method `size`",
+        &format!("{two} claim c(xs: List<Any>) {{ xs[0].size() == 1 }} }}"),
+        "a method of several records",
     );
     refused("impl A<T> { }", "`impl R { … }` is the only form");
 }
@@ -814,4 +827,47 @@ fn a_keyword_is_a_name_where_it_cannot_be_confused() {
         e.to_string().contains("as an input, write `r#match`"),
         "{e}"
     );
+}
+
+/// The type of every expression is worked out at `check`: what can
+/// never fit its place is refused, also on code with no body.
+#[test]
+fn an_expression_must_fit_its_place() {
+    let refused = |model: &str, want: &str| {
+        let e = mitra_core::load(model, "").map(|_| ()).unwrap_err().1;
+        assert!(e.to_string().contains(want), "{e}");
+    };
+    let g = "record P { x: Int } subject fn g(a: 0..=2) -> Int; subject fn p(a: Int) -> P;\n\
+             subject fn h(s: String) -> Int;\n";
+    let claim = |body: &str| format!("{g}claim c(a: 0..=2) {{ {body} }}");
+    refused(
+        &claim("g(a) + \"x\" == 1"),
+        "`+` takes `Int | Float64`, and `\"x\"` is",
+    );
+    refused(
+        &claim("g(a) + 1.5 > 0.0"),
+        "`+` takes two integers or two floats",
+    );
+    refused(
+        &claim("g(a).size == 1"),
+        "`g(a)` is `Int`, which has no `.size`",
+    );
+    refused(&claim("p(a).y == 1"), "`p(a)` is `P`, which has no `.y`");
+    refused(&claim("!p(a).x"), "`!` takes `Bool`, and `p(a).x` is `Int`");
+    refused(
+        &claim("h(g(a)) == 1"),
+        "`h`, as `s`, takes `String`, and `g(a)` is `Int`",
+    );
+    refused(&claim("g(a) + 1"), "`c` is `Int`, never true or false");
+    refused(
+        &claim("if g(a) { true } else { false }"),
+        "`if` takes `Bool`",
+    );
+    refused(
+        &format!("{g}fn k(a: Int) -> String {{ g(1) + a }} claim c() {{ k(1) == \"\" }}"),
+        "`k` gives `Int`, never its result type `String`",
+    );
+    // What may fit is read: a wider type, a value of another variant.
+    let ok = claim("g(a) + a >= 0 && p(g(a)).x == a && h(\"s\") == 1");
+    mitra_core::load(&ok, "").unwrap_or_else(|(_, e)| panic!("{e}"));
 }

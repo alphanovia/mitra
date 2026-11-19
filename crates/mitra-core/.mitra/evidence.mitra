@@ -1,112 +1,112 @@
 // Evidence, append-only: `mitra add`, `mitra ingest` and `mitra tie` write here.
-evidence test { for t_holds holds source "test:t_holds" rev "38d9bd82c59d" }
-evidence test { for t_assuming holds source "test:t_assuming" rev "38d9bd82c59d" }
-evidence test { for t_unverified holds source "test:t_unverified" rev "38d9bd82c59d" }
-evidence test { for t_fails holds source "test:t_fails" rev "38d9bd82c59d" }
-evidence test { for t_plus holds source "test:t_plus" rev "38d9bd82c59d" }
-evidence test { for t_plus_swapped holds source "test:t_plus_swapped" rev "38d9bd82c59d" }
-evidence test { for t_plus_overflow holds source "test:t_plus_overflow" rev "38d9bd82c59d" }
-evidence test { for t_plus_overflow_swapped holds source "test:t_plus_overflow_swapped" rev "38d9bd82c59d" }
-evidence test { for t_plus_mixed holds source "test:t_plus_mixed" rev "38d9bd82c59d" }
-evidence test { for t_plus_mixed_swapped holds source "test:t_plus_mixed_swapped" rev "38d9bd82c59d" }
-evidence test { for t_plus_floats holds source "test:t_plus_floats" rev "38d9bd82c59d" }
-evidence test { for t_plus_floats_swapped holds source "test:t_plus_floats_swapped" rev "38d9bd82c59d" }
-evidence test { for t_minus holds source "test:t_minus" rev "38d9bd82c59d" }
-evidence test { for t_plus_negated holds source "test:t_plus_negated" rev "38d9bd82c59d" }
-evidence test { for t_times holds source "test:t_times" rev "38d9bd82c59d" }
-evidence test { for t_times_swapped holds source "test:t_times_swapped" rev "38d9bd82c59d" }
-evidence test { for t_divide holds source "test:t_divide" rev "38d9bd82c59d" }
-evidence test { for t_divide_towards_zero holds source "test:t_divide_towards_zero" rev "38d9bd82c59d" }
-evidence test { for t_divide_by_zero holds source "test:t_divide_by_zero" rev "38d9bd82c59d" }
-evidence test { for t_divide_floats holds source "test:t_divide_floats" rev "38d9bd82c59d" }
-evidence test { for t_equal holds source "test:t_equal" rev "38d9bd82c59d" }
-evidence test { for t_different holds source "test:t_different" rev "38d9bd82c59d" }
-evidence test { for t_equal_mixed holds source "test:t_equal_mixed" rev "38d9bd82c59d" }
-evidence test { for t_different_mixed holds source "test:t_different_mixed" rev "38d9bd82c59d" }
-evidence test { for t_less holds source "test:t_less" rev "38d9bd82c59d" }
-evidence test { for t_and holds source "test:t_and" rev "38d9bd82c59d" }
-evidence test { for t_or holds source "test:t_or" rev "38d9bd82c59d" }
-evidence test { for t_unknown_operator holds source "test:t_unknown_operator" rev "38d9bd82c59d" }
-evidence test { for t_not_true holds source "test:t_not_true" rev "38d9bd82c59d" }
-evidence test { for t_not_false holds source "test:t_not_false" rev "38d9bd82c59d" }
-evidence test { for t_negate holds source "test:t_negate" rev "38d9bd82c59d" }
-evidence test { for t_negate_back holds source "test:t_negate_back" rev "38d9bd82c59d" }
-evidence test { for t_negate_float holds source "test:t_negate_float" rev "38d9bd82c59d" }
-evidence test { for t_negate_string holds source "test:t_negate_string" rev "38d9bd82c59d" }
-evidence test { for t_in_set holds source "test:t_in_set" rev "38d9bd82c59d" }
-evidence test { for t_in_list holds source "test:t_in_list" rev "38d9bd82c59d" }
-evidence test { for t_in_map holds source "test:t_in_map" rev "38d9bd82c59d" }
-evidence test { for t_in_number holds source "test:t_in_number" rev "38d9bd82c59d" }
-evidence test { for t_union holds source "test:t_union" rev "38d9bd82c59d" }
-evidence test { for t_union_swapped holds source "test:t_union_swapped" rev "38d9bd82c59d" }
-evidence test { for t_intersection holds source "test:t_intersection" rev "38d9bd82c59d" }
-evidence test { for t_apart holds source "test:t_apart" rev "38d9bd82c59d" }
-evidence test { for t_difference holds source "test:t_difference" rev "38d9bd82c59d" }
-evidence test { for t_map_update holds source "test:t_map_update" rev "38d9bd82c59d" }
-evidence test { for t_map_remove holds source "test:t_map_remove" rev "38d9bd82c59d" }
-evidence test { for t_set_with_map holds source "test:t_set_with_map" rev "38d9bd82c59d" }
-evidence test { for t_keys holds source "test:t_keys" rev "38d9bd82c59d" }
-evidence test { for t_keys_of_a_set holds source "test:t_keys_of_a_set" rev "38d9bd82c59d" }
-evidence test { for reader::reads_a_subject holds source "test:reads_a_subject" rev "38d9bd82c59d" }
-evidence test { for reader::refuses_a_bare_fn holds source "test:refuses_a_bare_fn" rev "38d9bd82c59d" }
-evidence test { for reader::fault_is_placed passes source "test:fault_is_placed" rev "38d9bd82c59d" }
-evidence test { for t_level_or holds source "test:t_level_or" rev "38d9bd82c59d" }
-evidence test { for t_level_and holds source "test:t_level_and" rev "38d9bd82c59d" }
-evidence test { for t_level_compare holds source "test:t_level_compare" rev "38d9bd82c59d" }
-evidence test { for t_level_sum holds source "test:t_level_sum" rev "38d9bd82c59d" }
-evidence test { for t_level_union holds source "test:t_level_union" rev "38d9bd82c59d" }
-evidence test { for t_level_intersection holds source "test:t_level_intersection" rev "38d9bd82c59d" }
-evidence test { for t_level_in holds source "test:t_level_in" rev "38d9bd82c59d" }
-evidence test { for t_level_product holds source "test:t_level_product" rev "38d9bd82c59d" }
-evidence test { for t_negative_int holds source "test:t_negative_int" rev "38d9bd82c59d" }
-evidence test { for t_negative_zero holds source "test:t_negative_zero" rev "38d9bd82c59d" }
-evidence test { for t_negative_float holds source "test:t_negative_float" rev "38d9bd82c59d" }
-evidence test { for t_negative_string holds source "test:t_negative_string" rev "38d9bd82c59d" }
-evidence test { for t_word_certain holds source "test:t_word_certain" rev "38d9bd82c59d" }
-evidence test { for t_word_likely holds source "test:t_word_likely" rev "38d9bd82c59d" }
-evidence test { for t_word_possible holds source "test:t_word_possible" rev "38d9bd82c59d" }
-evidence test { for t_word_unlikely holds source "test:t_word_unlikely" rev "38d9bd82c59d" }
-evidence test { for t_quote_plain holds source "test:t_quote_plain" rev "38d9bd82c59d" }
-evidence test { for t_quote_empty holds source "test:t_quote_empty" rev "38d9bd82c59d" }
-evidence test { for t_quote_escapes holds source "test:t_quote_escapes" rev "38d9bd82c59d" }
-evidence test { for types::good_is_read holds source "test:good_is_read" rev "38d9bd82c59d" }
-evidence test { for types::unknown_is_refused holds source "test:unknown_is_refused" rev "38d9bd82c59d" }
-evidence test { for types::twice_is_refused holds source "test:twice_is_refused" rev "38d9bd82c59d" }
-evidence test { for types::arity_is_refused holds source "test:arity_is_refused" rev "38d9bd82c59d" }
-evidence test { for types::endless_is_refused holds source "test:endless_is_refused" rev "38d9bd82c59d" }
-evidence test { for verdicts::untested_is_unverified holds source "test:untested_is_unverified" rev "38d9bd82c59d" }
-evidence test { for verdicts::tested_holds holds source "test:tested_holds" rev "38d9bd82c59d" }
-evidence test { for verdicts::refuted_fails holds source "test:refuted_fails" rev "38d9bd82c59d" }
-evidence test { for verdicts::trust_changes_no_verdict holds source "test:trust_changes_no_verdict" rev "38d9bd82c59d" }
-evidence test { for verdicts::conflict_counts_for_neither holds source "test:conflict_counts_for_neither" rev "38d9bd82c59d" }
-evidence test { for verdicts::follows_from_a_vouched_claim holds source "test:follows_from_a_vouched_claim" rev "38d9bd82c59d" }
-evidence test { for verdicts::one_verdict_each passes source "test:one_verdict_each" rev "38d9bd82c59d" }
-evidence tie { for reader::Claim::tied holds source "reader:rust src/ast.rs:184" rev "38d9bd82c59d" }
-evidence tie { for reader::Model::tied holds source "reader:rust src/ast.rs:243" rev "38d9bd82c59d" }
-evidence tie { for verdicts::Verdict::tied holds source "reader:rust src/eval.rs:64" rev "38d9bd82c59d" }
-evidence tie { for report::Candidate::tied holds source "reader:rust src/eval.rs:253" rev "38d9bd82c59d" }
-evidence tie { for verdicts::Problem::tied holds source "reader:rust src/eval.rs:270" rev "38d9bd82c59d" }
-evidence tie { for verdicts::Report::tied holds source "reader:rust src/eval.rs:347" rev "38d9bd82c59d" }
-evidence tie { for reader::Error::tied holds source "reader:rust src/lib.rs:44" rev "38d9bd82c59d" }
-evidence tie { for types::Input::tied holds source "reader:rust src/lib.rs:69" rev "38d9bd82c59d" }
-evidence tie { for reader::Names::tied holds source "reader:rust src/parse.rs:196" rev "38d9bd82c59d" }
-evidence tie { for types::Model::check::tied holds source "reader:rust src/ast.rs:485" rev "38d9bd82c59d" }
-evidence tie { for report::Logic::as_str::tied holds source "reader:rust src/eval.rs:27" rev "38d9bd82c59d" }
-evidence tie { for eval::unary::tied holds source "reader:rust src/eval.rs:1485" rev "38d9bd82c59d" }
-evidence tie { for eval::binary::tied holds source "reader:rust src/eval.rs:1500" rev "38d9bd82c59d" }
-evidence tie { for verdicts::evaluate::tied holds source "reader:rust src/eval.rs:1818" rev "38d9bd82c59d" }
-evidence tie { for types::load::tied holds source "reader:rust src/lib.rs:76" rev "38d9bd82c59d" }
-evidence tie { for types::load::uses holds source "reader:rust src/lib.rs:76" rev "38d9bd82c59d" }
-evidence tie { for types::read::tied holds source "reader:rust src/lib.rs:85" rev "38d9bd82c59d" }
-evidence tie { for types::read::uses holds source "reader:rust src/lib.rs:85" rev "38d9bd82c59d" }
-evidence tie { for verdicts::run::tied holds source "reader:rust src/lib.rs:362" rev "38d9bd82c59d" }
-evidence tie { for verdicts::run::uses holds source "reader:rust src/lib.rs:362" rev "38d9bd82c59d" }
-evidence tie { for reader::model::tied holds source "reader:rust src/parse.rs:3467" rev "38d9bd82c59d" }
-evidence tie { for advice::plan::tied holds source "reader:rust src/plan.rs:16" rev "38d9bd82c59d" }
-evidence tie { for print::negative::tied holds source "reader:rust src/print.rs:93" rev "38d9bd82c59d" }
-evidence tie { for print::level::tied holds source "reader:rust src/print.rs:107" rev "38d9bd82c59d" }
-evidence tie { for verdicts::derive::tied holds source "reader:rust src/prove.rs:477" rev "38d9bd82c59d" }
-evidence tie { for report::word::tied holds source "reader:rust src/report.rs:193" rev "38d9bd82c59d" }
-evidence tie { for print::quote::tied holds source "reader:rust src/set.rs:1120" rev "38d9bd82c59d" }
-evidence review { for print::level_uniform holds source "review:claude" rev "38d9bd82c59d" }
-evidence review { for report::word_uniform holds source "review:claude" rev "38d9bd82c59d" }
+evidence test { for t_holds holds source "test:t_holds" rev "f3e848848b6f" }
+evidence test { for t_assuming holds source "test:t_assuming" rev "f3e848848b6f" }
+evidence test { for t_unverified holds source "test:t_unverified" rev "f3e848848b6f" }
+evidence test { for t_fails holds source "test:t_fails" rev "f3e848848b6f" }
+evidence test { for t_plus holds source "test:t_plus" rev "f3e848848b6f" }
+evidence test { for t_plus_swapped holds source "test:t_plus_swapped" rev "f3e848848b6f" }
+evidence test { for t_plus_overflow holds source "test:t_plus_overflow" rev "f3e848848b6f" }
+evidence test { for t_plus_overflow_swapped holds source "test:t_plus_overflow_swapped" rev "f3e848848b6f" }
+evidence test { for t_plus_mixed holds source "test:t_plus_mixed" rev "f3e848848b6f" }
+evidence test { for t_plus_mixed_swapped holds source "test:t_plus_mixed_swapped" rev "f3e848848b6f" }
+evidence test { for t_plus_floats holds source "test:t_plus_floats" rev "f3e848848b6f" }
+evidence test { for t_plus_floats_swapped holds source "test:t_plus_floats_swapped" rev "f3e848848b6f" }
+evidence test { for t_minus holds source "test:t_minus" rev "f3e848848b6f" }
+evidence test { for t_plus_negated holds source "test:t_plus_negated" rev "f3e848848b6f" }
+evidence test { for t_times holds source "test:t_times" rev "f3e848848b6f" }
+evidence test { for t_times_swapped holds source "test:t_times_swapped" rev "f3e848848b6f" }
+evidence test { for t_divide holds source "test:t_divide" rev "f3e848848b6f" }
+evidence test { for t_divide_towards_zero holds source "test:t_divide_towards_zero" rev "f3e848848b6f" }
+evidence test { for t_divide_by_zero holds source "test:t_divide_by_zero" rev "f3e848848b6f" }
+evidence test { for t_divide_floats holds source "test:t_divide_floats" rev "f3e848848b6f" }
+evidence test { for t_equal holds source "test:t_equal" rev "f3e848848b6f" }
+evidence test { for t_different holds source "test:t_different" rev "f3e848848b6f" }
+evidence test { for t_equal_mixed holds source "test:t_equal_mixed" rev "f3e848848b6f" }
+evidence test { for t_different_mixed holds source "test:t_different_mixed" rev "f3e848848b6f" }
+evidence test { for t_less holds source "test:t_less" rev "f3e848848b6f" }
+evidence test { for t_and holds source "test:t_and" rev "f3e848848b6f" }
+evidence test { for t_or holds source "test:t_or" rev "f3e848848b6f" }
+evidence test { for t_unknown_operator holds source "test:t_unknown_operator" rev "f3e848848b6f" }
+evidence test { for t_not_true holds source "test:t_not_true" rev "f3e848848b6f" }
+evidence test { for t_not_false holds source "test:t_not_false" rev "f3e848848b6f" }
+evidence test { for t_negate holds source "test:t_negate" rev "f3e848848b6f" }
+evidence test { for t_negate_back holds source "test:t_negate_back" rev "f3e848848b6f" }
+evidence test { for t_negate_float holds source "test:t_negate_float" rev "f3e848848b6f" }
+evidence test { for t_negate_string holds source "test:t_negate_string" rev "f3e848848b6f" }
+evidence test { for t_in_set holds source "test:t_in_set" rev "f3e848848b6f" }
+evidence test { for t_in_list holds source "test:t_in_list" rev "f3e848848b6f" }
+evidence test { for t_in_map holds source "test:t_in_map" rev "f3e848848b6f" }
+evidence test { for t_in_number holds source "test:t_in_number" rev "f3e848848b6f" }
+evidence test { for t_union holds source "test:t_union" rev "f3e848848b6f" }
+evidence test { for t_union_swapped holds source "test:t_union_swapped" rev "f3e848848b6f" }
+evidence test { for t_intersection holds source "test:t_intersection" rev "f3e848848b6f" }
+evidence test { for t_apart holds source "test:t_apart" rev "f3e848848b6f" }
+evidence test { for t_difference holds source "test:t_difference" rev "f3e848848b6f" }
+evidence test { for t_map_update holds source "test:t_map_update" rev "f3e848848b6f" }
+evidence test { for t_map_remove holds source "test:t_map_remove" rev "f3e848848b6f" }
+evidence test { for t_set_with_map holds source "test:t_set_with_map" rev "f3e848848b6f" }
+evidence test { for t_keys holds source "test:t_keys" rev "f3e848848b6f" }
+evidence test { for t_keys_of_a_set holds source "test:t_keys_of_a_set" rev "f3e848848b6f" }
+evidence test { for reader::reads_a_subject holds source "test:reads_a_subject" rev "f3e848848b6f" }
+evidence test { for reader::refuses_a_bare_fn holds source "test:refuses_a_bare_fn" rev "f3e848848b6f" }
+evidence test { for reader::fault_is_placed passes source "test:fault_is_placed" rev "f3e848848b6f" }
+evidence test { for t_level_or holds source "test:t_level_or" rev "f3e848848b6f" }
+evidence test { for t_level_and holds source "test:t_level_and" rev "f3e848848b6f" }
+evidence test { for t_level_compare holds source "test:t_level_compare" rev "f3e848848b6f" }
+evidence test { for t_level_sum holds source "test:t_level_sum" rev "f3e848848b6f" }
+evidence test { for t_level_union holds source "test:t_level_union" rev "f3e848848b6f" }
+evidence test { for t_level_intersection holds source "test:t_level_intersection" rev "f3e848848b6f" }
+evidence test { for t_level_in holds source "test:t_level_in" rev "f3e848848b6f" }
+evidence test { for t_level_product holds source "test:t_level_product" rev "f3e848848b6f" }
+evidence test { for t_negative_int holds source "test:t_negative_int" rev "f3e848848b6f" }
+evidence test { for t_negative_zero holds source "test:t_negative_zero" rev "f3e848848b6f" }
+evidence test { for t_negative_float holds source "test:t_negative_float" rev "f3e848848b6f" }
+evidence test { for t_negative_string holds source "test:t_negative_string" rev "f3e848848b6f" }
+evidence test { for t_word_certain holds source "test:t_word_certain" rev "f3e848848b6f" }
+evidence test { for t_word_likely holds source "test:t_word_likely" rev "f3e848848b6f" }
+evidence test { for t_word_possible holds source "test:t_word_possible" rev "f3e848848b6f" }
+evidence test { for t_word_unlikely holds source "test:t_word_unlikely" rev "f3e848848b6f" }
+evidence test { for t_quote_plain holds source "test:t_quote_plain" rev "f3e848848b6f" }
+evidence test { for t_quote_empty holds source "test:t_quote_empty" rev "f3e848848b6f" }
+evidence test { for t_quote_escapes holds source "test:t_quote_escapes" rev "f3e848848b6f" }
+evidence test { for types::good_is_read holds source "test:good_is_read" rev "f3e848848b6f" }
+evidence test { for types::unknown_is_refused holds source "test:unknown_is_refused" rev "f3e848848b6f" }
+evidence test { for types::twice_is_refused holds source "test:twice_is_refused" rev "f3e848848b6f" }
+evidence test { for types::arity_is_refused holds source "test:arity_is_refused" rev "f3e848848b6f" }
+evidence test { for types::endless_is_refused holds source "test:endless_is_refused" rev "f3e848848b6f" }
+evidence test { for verdicts::untested_is_unverified holds source "test:untested_is_unverified" rev "f3e848848b6f" }
+evidence test { for verdicts::tested_holds holds source "test:tested_holds" rev "f3e848848b6f" }
+evidence test { for verdicts::refuted_fails holds source "test:refuted_fails" rev "f3e848848b6f" }
+evidence test { for verdicts::trust_changes_no_verdict holds source "test:trust_changes_no_verdict" rev "f3e848848b6f" }
+evidence test { for verdicts::conflict_counts_for_neither holds source "test:conflict_counts_for_neither" rev "f3e848848b6f" }
+evidence test { for verdicts::follows_from_a_vouched_claim holds source "test:follows_from_a_vouched_claim" rev "f3e848848b6f" }
+evidence test { for verdicts::one_verdict_each passes source "test:one_verdict_each" rev "f3e848848b6f" }
+evidence tie { for reader::Claim::tied holds source "reader:rust src/ast.rs:184" rev "f3e848848b6f" }
+evidence tie { for reader::Model::tied holds source "reader:rust src/ast.rs:243" rev "f3e848848b6f" }
+evidence tie { for verdicts::Verdict::tied holds source "reader:rust src/eval.rs:64" rev "f3e848848b6f" }
+evidence tie { for report::Candidate::tied holds source "reader:rust src/eval.rs:253" rev "f3e848848b6f" }
+evidence tie { for verdicts::Problem::tied holds source "reader:rust src/eval.rs:270" rev "f3e848848b6f" }
+evidence tie { for verdicts::Report::tied holds source "reader:rust src/eval.rs:347" rev "f3e848848b6f" }
+evidence tie { for reader::Error::tied holds source "reader:rust src/lib.rs:45" rev "f3e848848b6f" }
+evidence tie { for types::Input::tied holds source "reader:rust src/lib.rs:70" rev "f3e848848b6f" }
+evidence tie { for reader::Names::tied holds source "reader:rust src/parse.rs:196" rev "f3e848848b6f" }
+evidence tie { for types::Model::check::tied holds source "reader:rust src/ast.rs:485" rev "f3e848848b6f" }
+evidence tie { for report::Logic::as_str::tied holds source "reader:rust src/eval.rs:27" rev "f3e848848b6f" }
+evidence tie { for eval::unary::tied holds source "reader:rust src/eval.rs:1485" rev "f3e848848b6f" }
+evidence tie { for eval::binary::tied holds source "reader:rust src/eval.rs:1500" rev "f3e848848b6f" }
+evidence tie { for verdicts::evaluate::tied holds source "reader:rust src/eval.rs:1818" rev "f3e848848b6f" }
+evidence tie { for types::load::tied holds source "reader:rust src/lib.rs:77" rev "f3e848848b6f" }
+evidence tie { for types::load::uses holds source "reader:rust src/lib.rs:77" rev "f3e848848b6f" }
+evidence tie { for types::read::tied holds source "reader:rust src/lib.rs:86" rev "f3e848848b6f" }
+evidence tie { for types::read::uses holds source "reader:rust src/lib.rs:86" rev "f3e848848b6f" }
+evidence tie { for verdicts::run::tied holds source "reader:rust src/lib.rs:363" rev "f3e848848b6f" }
+evidence tie { for verdicts::run::uses holds source "reader:rust src/lib.rs:363" rev "f3e848848b6f" }
+evidence tie { for reader::model::tied holds source "reader:rust src/parse.rs:3512" rev "f3e848848b6f" }
+evidence tie { for advice::plan::tied holds source "reader:rust src/plan.rs:16" rev "f3e848848b6f" }
+evidence tie { for print::negative::tied holds source "reader:rust src/print.rs:93" rev "f3e848848b6f" }
+evidence tie { for print::level::tied holds source "reader:rust src/print.rs:107" rev "f3e848848b6f" }
+evidence tie { for verdicts::derive::tied holds source "reader:rust src/prove.rs:477" rev "f3e848848b6f" }
+evidence tie { for report::word::tied holds source "reader:rust src/report.rs:193" rev "f3e848848b6f" }
+evidence tie { for print::quote::tied holds source "reader:rust src/set.rs:1120" rev "f3e848848b6f" }
+evidence review { for print::level_uniform holds source "review:claude" rev "f3e848848b6f" }
+evidence review { for report::word_uniform holds source "review:claude" rev "f3e848848b6f" }

@@ -915,6 +915,7 @@ impl Model {
             let e = self.evidence.remove(at.expect("its line"));
             self.misfits.push((e, why));
         }
+        crate::types::check(&self).map_err(|e| (Input::Model, e))?;
         Ok(self)
     }
 }
