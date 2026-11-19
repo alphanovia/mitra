@@ -50,6 +50,13 @@ they are counted from the observed outputs when these cover the whole
 set. Two measurements that differ, or one the observed outputs exclude,
 are error M005.
 
+**Requirements.** An `ensure` of a subject holds as far as every claim
+of the subject, its capture (`name::captured`) and what it requires:
+`unverified` with no claim in the subject, `holds assuming […]` while
+some are not settled or the capture is not vouched (M103), `fails` when
+one of its claims fails or evidence against it stands. In a boundary it
+is assumed: `holds assuming [itself]`.
+
 **Errors and candidates.** An error is something that can't all be true.
 Its candidates are the pieces of which at least one is wrong: evidence,
 the code of the functions involved (and of what they use), and what the

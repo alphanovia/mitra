@@ -77,7 +77,8 @@ test that names what it implements or supports.
 
 **Everything is a suspect.** A claim, an assumption, a signature, a
 `uses` clause, a piece of evidence and the code can each be the piece
-that is wrong, and each is a candidate in an error.
+that is wrong, and each is a candidate in an error. So can the text of a
+requirement, and the word that the claims say what it says.
 
 ## The core, and what can be automated
 
@@ -196,6 +197,11 @@ settled by reading the model, which is why the model must read alone.
   point claim pins one call (`div(6, 2) == 3`).
 - **Assumption:** a claim taken as true without evidence. What rests on
   it `holds assuming` it.
+- **Requirement:** a promise in plain words (`ensure`), which Mitra
+  never reads. It rests on the claims of its subject, on its capture and
+  on the requirements it names (`require`).
+- **Capture:** a reviewer's word that the claims of a subject say what
+  the text of a requirement says. Not vouched, it is an assumption.
 - **Evidence:** what was observed or judged, on a function or a claim,
   with the trust its author puts in it, from 0 to 1.
 - **Ledger:** the append-only record of all evidence.

@@ -36,6 +36,10 @@ Without a store, name the files: `mitra eval model.mitra
 evidence.mitra`, or the model alone to check it before any evidence
 exists: `mitra check model.mitra`.
 
+A subject may say what it promises in plain words, `ensure name
+"text";`; a reviewer then vouches that its claims say the same
+([kw-requirements.md](kw-requirements.md)).
+
 For one entry per keyword, each with a model that runs, see
 [keywords.md](keywords.md).
 

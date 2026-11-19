@@ -6,8 +6,8 @@ describe what exists; the rest is a proposal.
 
 ## The loop
 
-1. Write the model, aside from the code: subjects, signatures, claims,
-   assumptions. A person or an agent writes it
+1. Write the model, aside from the code: subjects, what each promises
+   in plain words (`ensure`), signatures, claims, assumptions. A person or an agent writes it
    ([who it is for](../vision.md#who-it-is-for)).
 2. `mitra eval` on the model alone: claims that the specs contradict are
    errors before any code exists. `mitra plan` lists the evidence owed,
@@ -20,7 +20,8 @@ describe what exists; the rest is a proposal.
 5. `mitra eval`, `mitra next`: what holds, what is only assumed, what is
    missing, what conflicts.
 6. Add evidence by hand for the current revision: a review that vouches
-   for an assumption, a bug report.
+   for an assumption or that the claims say what a requirement says, a
+   bug report on a function or on a requirement.
 7. When evidence shows the model is wrong, change the model, then the
    code.
 

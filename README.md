@@ -23,7 +23,10 @@ says what the code should return. A **boundary** is the environment,
 which may answer differently each time. A **claim** is a property of a
 subject, an **assumption** is a claim taken as true until observed, and
 **evidence** is what a test, a review or a report says, with the trust
-its author puts in it. Mitra never runs the code. It gives every claim a
+its author puts in it. A **requirement** is a promise in plain words
+(`ensure confirms "A new user receives a confirmation email.";`): it
+rests on the claims of its subject and on a reviewer's word that they
+say what the text says. Mitra never runs the code. It gives every claim a
 verdict without a number (`holds`, `holds assuming`, `unverified`,
 `fails`), with the inputs tested, assumed and missed.
 
@@ -81,8 +84,9 @@ error[M001]: evidence refutes a claim
 
 A second error says the review can't stand with the report: the code did
 not behave the same on two inputs the reviewer called alike. Everything
-is a suspect: the code, the claim, the signature, the assumption and the
-evidence. `left` is what remains of the trust in each piece once they are
+is a suspect: the code, the claim, the signature, the assumption, the
+evidence, and for a requirement its text and the word that the claims
+say it. `left` is what remains of the trust in each piece once they are
 weighed against each other ([semantics](docs/design/semantics.md)). The
 example is [`examples/reworked/readme`](examples/reworked/readme).
 
@@ -114,7 +118,7 @@ to it.
 | Doc | What it covers |
 |---|---|
 | [docs/reference/language.md](docs/reference/language.md) | Start here: a project start to end, the model, types, expressions, what is not read |
-| [docs/reference/keywords.md](docs/reference/keywords.md) | One entry per keyword, each with a model that runs (`kw-*.md`), and the index |
+| [docs/reference/keywords.md](docs/reference/keywords.md) | One entry per keyword, each with a model that runs (`kw-*.md`), and the index; requirements in prose are in `kw-requirements.md` |
 | [docs/reference/claims.md](docs/reference/claims.md) | What a claim rests on without evidence, boundaries, `correct(…)`, `represented`, `uniform` |
 | [docs/reference/evidence.md](docs/reference/evidence.md) | Evidence blocks, the tie to the code, tests |
 | [docs/reference/commands.md](docs/reference/commands.md) | The commands, and `mitra plan` |
@@ -130,7 +134,7 @@ direction, not the current language.
 | [docs/design/composition.md](docs/design/composition.md) | Earlier proposal, in part built another way: composition as implication, structure claims, tests as subjects |
 | [docs/coverage.md](docs/coverage.md) | How much of Mitra its own model covers: every function, tied or not, written by `scripts/coverage.py --write` |
 | [docs/design/dogfooding.md](docs/design/dogfooding.md) | Mitra on Mitra: three crates with a model aside, tied to the code and judged from their own tests |
-| [docs/design/requirements.md](docs/design/requirements.md) | Proposal: prose requirements as opaque propositions derived from claims, for traceability |
+| [docs/design/requirements.md](docs/design/requirements.md) | Earlier proposal for prose requirements; built since as `ensure` and `require` ([reference](docs/reference/kw-requirements.md)) |
 | [docs/design/elaboration.md](docs/design/elaboration.md) | Proposal: Mitra elaborates partial knowledge into claims, splits, specs and proof obligations |
 | [docs/review/2026-11-18.md](docs/review/2026-11-18.md) | Review list: every decision taken alone, open questions, how to test |
 | [docs/design/lean-syntax.md](docs/design/lean-syntax.md) | History: the first syntax (inspired by Lean 4), no longer read |

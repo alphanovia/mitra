@@ -93,6 +93,8 @@ calc::add_commutes owed:
   stand for".
 - A claim that holds only through other claims (`holds assuming`) still
   lists its own points, with "or nothing, once … holds".
+- A requirement (`ensure`) with no claim in its subject owes "a claim in
+  its subject that says it"; its capture owes a reviewer's word.
 - `uniform`, `uses` and ties owe a review or `mitra tie`. An assumption
   owes nothing. A failing claim owes nothing: `mitra eval` says why.
 

@@ -26,6 +26,11 @@ evidence a_is_down {
 | `source "…"` | Default: the name of the block. |
 | `rev "…"` | The revision of the code. |
 
+On a requirement (`ensure`), `for signup::confirms fails` is a report
+that the promise was not met, and `for signup::confirms::captured holds`
+a reviewer's word that the claims of the subject say what its text says
+([kw-requirements.md](kw-requirements.md)).
+
 Evidence is written in blocks only. `mitra add`, `mitra ingest` and
 `mitra tie` append blocks to `evidence.mitra`. `//` starts a comment.
 

@@ -1,11 +1,11 @@
 # Design: requirements and traceability
 
-Status: **proposal**, not implemented. A layer on top of the core: it must
-not shape the core. The sketches are in the
-first syntax, which is no longer read; in the
-[reworked one](../reference/language.md) a requirement would be a claim
-of a subject, and "these claims say what the prose means" the review
-that vouches for it.
+Status: **built another way**, as `ensure` and `require`
+([reference](../reference/kw-requirements.md)): a requirement rests on
+every claim of its subject, not on claims named by hand, and "these
+claims say what the prose means" is a piece of its own that a reviewer
+vouches for. The rest of this page is the earlier proposal, with
+sketches in the first syntax, which is no longer read.
 
 ## Claims are per property, not per function
 
