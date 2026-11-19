@@ -410,6 +410,9 @@ impl Writer<'_> {
                 *out += &format!(" [{}]", v.assuming.join(", "));
             }
             *out += "\n";
+            if matches!(v.logic, Logic::Holds | Logic::Assuming) {
+                *out += &crate::voices::by_line(self.model, &v.claim);
+            }
             if c.target.is_structural() {
                 continue;
             }

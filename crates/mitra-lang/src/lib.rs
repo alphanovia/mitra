@@ -32,6 +32,7 @@ pub mod settings;
 pub mod trust;
 pub mod tuples;
 pub mod types;
+pub mod voices;
 
 pub use ast::{
     Arm, Aside, Block, Bounded, Claim, Decl, Enum, Evidence, Expr, Function, Judgment, Model,
@@ -166,6 +167,11 @@ fn read(model: &Modules, evidence: &str) -> Result<Model, (Input, Error)> {
         }
         stale.is_none()
     });
+    // A review of evidence is on that evidence, not on the claim: it
+    // judges nothing, and is a second voice on what it names.
+    let (vouches, read): (Vec<Evidence>, Vec<Evidence>) =
+        read.into_iter().partition(|e| e.of.is_some());
+    m.vouches = vouches;
     tie(&mut m, &read, &names);
     tie_records(&mut m, &read);
     tie_uses(&mut m, &read, &names);

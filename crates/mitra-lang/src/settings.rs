@@ -16,7 +16,24 @@ pub struct Settings {
     /// The cost of each erasure of a reader, by name, where the file
     /// says one: the reader has its own for the others.
     pub erasure: BTreeMap<String, f64>,
+    /// How often a word of each kind of voice is wrong, where the file
+    /// says: `agent`, `cold`, `human`, `machine`, `proof`, `unknown`.
+    pub doubt: BTreeMap<String, f64>,
+    /// What a piece must rest on to be within policy, by kind of piece
+    /// (`claim`, `ensure`). Nothing asked by default.
+    pub policy: BTreeMap<String, String>,
 }
+
+/// The kinds of voice, each with how often its word is taken to be
+/// wrong when the file says nothing.
+pub const DOUBT: [(&str, f64); 6] = [
+    ("agent", 0.3),
+    ("cold", 0.15),
+    ("human", 0.05),
+    ("machine", 0.1),
+    ("proof", 0.01),
+    ("unknown", 0.5),
+];
 
 impl Default for Settings {
     fn default() -> Self {
@@ -24,6 +41,8 @@ impl Default for Settings {
             tolerance: 0.001,
             counts: false,
             erasure: BTreeMap::new(),
+            doubt: BTreeMap::new(),
+            policy: BTreeMap::new(),
         }
     }
 }
@@ -45,9 +64,9 @@ impl Settings {
             }
             if let Some(name) = line.strip_prefix('[').and_then(|l| l.strip_suffix(']')) {
                 table = name.trim().to_string();
-                if !["sample", "erasure"].contains(&table.as_str()) {
+                if !["sample", "erasure", "doubt", "policy"].contains(&table.as_str()) {
                     return Err(at(format!(
-                        "no settings `[{table}]` (`[sample]`, `[erasure]`)"
+                        "no settings `[{table}]` (`[sample]`, `[erasure]`, `[doubt]`, `[policy]`)"
                     )));
                 }
                 continue;
@@ -81,6 +100,17 @@ impl Settings {
                 ("erasure", _) => {
                     s.erasure.insert(key.to_string(), share()?);
                 }
+                ("doubt", k) if DOUBT.iter().any(|d| d.0 == k) => {
+                    s.doubt.insert(key.to_string(), share()?);
+                }
+                ("policy", "claim" | "ensure") => {
+                    let text = value.strip_prefix('"').and_then(|v| v.strip_suffix('"'));
+                    let Some(text) = text else {
+                        return Err(at(format!("`{key}` is a text in quotes, not `{value}`")));
+                    };
+                    crate::voices::policy_reads(text).map_err(at)?;
+                    s.policy.insert(key.to_string(), text.to_string());
+                }
                 ("", _) => {
                     return Err(at(format!(
                         "`{key}` is under no table: `[sample]` or `[erasure]`"
@@ -98,6 +128,13 @@ impl Settings {
     // mitra: implements settings::Settings::sample
     pub fn sample(&self, n: u64) -> f64 {
         1.0 - (1.0 - self.tolerance).powf(n as f64)
+    }
+
+    /// How often a word of this kind of voice is wrong.
+    // mitra: implements settings::Settings::doubt
+    pub fn doubt(&self, kind: &str) -> f64 {
+        let own = DOUBT.iter().find(|d| d.0 == kind).map_or(1.0, |d| d.1);
+        self.doubt.get(kind).copied().unwrap_or(own)
     }
 
     /// The trust of a tie whose path took these erasures: the product of
@@ -118,6 +155,15 @@ impl Settings {
         for (name, cost) in profile {
             let cost = self.erasure.get(*name).unwrap_or(cost);
             out += &format!("{name} = {cost}\n");
+        }
+        out += "\n[doubt]\n";
+        for (kind, _) in DOUBT {
+            out += &format!("{kind} = {}\n", self.doubt(kind));
+        }
+        out += "\n[policy]\n";
+        for kind in ["claim", "ensure"] {
+            let asked = self.policy.get(kind).map_or("any", |p| p.as_str());
+            out += &format!("{kind} = \"{asked}\"\n");
         }
         out
     }
@@ -148,9 +194,9 @@ mod tests {
         assert_eq!(s.erasure.get("width"), Some(&0.5));
     }
 
-    // mitra: evidence for settings::unknown_is_refused
+    // mitra: evidence for settings::unknown_setting_is_refused
     #[test]
-    fn unknown_is_refused() {
+    fn unknown_setting_is_refused() {
         assert!(Settings::read("[other]\n").is_err());
         assert!(Settings::read("[sample]\nmore = 1\n").is_err());
         assert!(Settings::read("[erasure]\nwidth = 2\n").is_err());

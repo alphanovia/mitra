@@ -1,8 +1,8 @@
 // Evidence: `mitra add`, `mitra ingest` and `mitra tie` write here, `mitra remove` takes out.
-evidence test { for commands::plain_rev_is_taken holds source "test:plain_rev_is_taken" rev "67f9ad101467" }
-evidence test { for commands::empty_rev_is_refused holds source "test:empty_rev_is_refused" rev "67f9ad101467" }
-evidence test { for commands::option_as_rev_is_refused holds source "test:option_as_rev_is_refused" rev "67f9ad101467" }
-evidence test { for commands::quoted_rev_is_refused holds source "test:quoted_rev_is_refused" rev "67f9ad101467" }
-evidence tie { for commands::conform::tied holds trust 0.95 source "reader:rust src/main.rs:108; erased 5: reference(s), reference(built), reference(rev), reference(reader), range(result: Result<0.., String> for Result<usize, String>)" rev "67f9ad101467" }
-evidence tie { for commands::conform::uses holds source "reader:rust src/main.rs:108" rev "67f9ad101467" }
-evidence tie { for commands::check_rev::tied holds trust 0.95 source "reader:rust src/main.rs:375; erased 2: reference(rev), range(result: Result<{()}, String> for Result<(), String>)" rev "67f9ad101467" }
+evidence test { for commands::plain_rev_is_taken holds act test by "machine:cargo" source "test:plain_rev_is_taken" rev "beefff44caa7" }
+evidence test { for commands::empty_rev_is_refused holds act test by "machine:cargo" source "test:empty_rev_is_refused" rev "beefff44caa7" }
+evidence test { for commands::option_as_rev_is_refused holds act test by "machine:cargo" source "test:option_as_rev_is_refused" rev "beefff44caa7" }
+evidence test { for commands::quoted_rev_is_refused holds act test by "machine:cargo" source "test:quoted_rev_is_refused" rev "beefff44caa7" }
+evidence tie { for commands::conform::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/main.rs:108; erased 5: reference(s), reference(built), reference(rev), reference(reader), range(result: Result<0.., String> for Result<usize, String>)" rev "beefff44caa7" }
+evidence tie { for commands::conform::uses holds act tie by "machine:mitra-rust" source "reader:rust src/main.rs:108" rev "beefff44caa7" }
+evidence tie { for commands::check_rev::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/main.rs:376; erased 2: reference(rev), range(result: Result<{()}, String> for Result<(), String>)" rev "beefff44caa7" }

@@ -28,6 +28,7 @@ reader::Rust::erasures::deterministic: unverified
 reader::Rust::results::deterministic: unverified
   no evidence on  `reader::Rust::results` giving one output per input
 reader::Rust::tests::uses: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 reader::Rust::tests::correct: unverified
   no evidence on  (self, root) in (reader::Rust, code::Path)
 reader::Rust::tests::deterministic: unverified
@@ -124,14 +125,23 @@ Reader::plain_to_the_core: holds assuming [reader::Rust::results::correct, reade
   says            "What a reader brings is in the core's own words: results and tied tests by name, evidence as text the core reads like any other. Nothing of the language reaches the core."
   requires        `reader::Rust::plain_to_the_core`
 reader::Rust::erasures::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 reader::Rust::results::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 reader::Rust::tests::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 reader::Rust::tie::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 reader::libtest::tied: holds
+  by              test (unknown), tie (machine:mitra-rust); doubt 0.05
 source::fn_below::tied: holds
+  by              test (unknown), tie (machine:mitra-rust); doubt 0.05
 source::is_tie::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 source::mitra_line::tied: holds
+  by              test (unknown), tie (machine:mitra-rust); doubt 0.05
 reader::Rust::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 
 warning[M101]: a claim is not verified
   --> .mitra/reader.mitra:29  fn libtest(text: String) -> Vec<results::Outcome>;

@@ -43,6 +43,9 @@ subject results {
         loose: Vec<String>,
     }
 
+    // What a tie comment pins, and who it says wrote the test.
+    fn signed(pinned: String) -> (String, String);
+
     fn from_tests(model: model::Model, tied: Vec<Tied>, outcomes: Vec<Outcome>, rev: Option<String>) -> Result<Ingested, String>;
 
     // a_pass_is_not_overstated

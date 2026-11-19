@@ -60,6 +60,17 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
         if e.confidence != 1.0 {
             more += &format!(" trust {}", e.confidence);
         }
+        if let Some(a) = e.act.as_ref().filter(|a| *a != "sample") {
+            more += &format!(" act {a}");
+        }
+        for (word, said) in [("by", &e.by), ("written", &e.written), ("of", &e.of)] {
+            if let Some(s) = said {
+                more += &format!(" {word} {}", crate::set::quote(s));
+            }
+        }
+        if e.cold {
+            more += " cold";
+        }
         if let Some(s) = &e.source {
             more += &format!(" source {}", crate::set::quote(s));
         }

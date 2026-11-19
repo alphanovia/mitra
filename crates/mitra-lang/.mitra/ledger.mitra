@@ -25,6 +25,7 @@ import std::rust::{Option, Result};
 subject ledger {
     ensure says_who_and_when = "Each piece of evidence keeps who or what observed it, the revision of the code it was observed on, and the trust its author puts in it.";
     ensure pinned_is_an_output = "Evidence that pins an input records the output the code gave there: every claim that reads that output is judged with it.";
+    ensure act_fits_its_claim = "Evidence that states its act is checked against what it says and what it is on: a test is a point, a sample states its count, a set run through is exhaustive, a whole claim or a capture takes a review or a proof, a report only denies. An act that cannot say it is refused with the reason.";
     ensure vouch_covers_the_claim = "A person's word that a claim holds covers every input the claim names.";
     ensure unstated_covers_nothing = "A test that passed on inputs it does not state covers no input: the claim stays unverified.";
     ensure sample_covers_nothing_unless_set = "A test that passed on drawn inputs covers no input: the claim stays unverified, with the sample and its trust under it. Only when the settings say a sample counts, and it was drawn from every input nothing else judges, does the claim hold assuming its sample, `c::sample`.";
@@ -60,6 +61,10 @@ subject ledger {
     impl Evidence {
         // Whether a machine observed it.
         fn by_machine(&self) -> bool;
+        // What was done: the act it states, or the one its shape says.
+        fn act(&self) -> String;
+        // Whose word it is: who wrote what a machine ran, or who did it.
+        fn voice(&self) -> Option<String>;
     }
 
     // Why evidence of the ledger counts for nothing.
@@ -148,6 +153,12 @@ subject ledger {
             Err(e) => false,
             Ok(r) => map(v in r.verdicts, v.logic) == [Fails, Unverified, Unverified],
         }
+    }
+
+    // act_fits_its_claim
+    claim an_act_is_checked_against_its_claim() {
+        verdicts::run("subject fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 }", "evidence t { for c holds act test }") is Err
+            && verdicts::run("subject fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 }", "evidence t { for c holds act review }") is Ok
     }
 
     // vouch_covers_the_claim

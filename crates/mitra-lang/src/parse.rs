@@ -2032,6 +2032,11 @@ impl P {
             rev: None,
             seen: None,
             line: 0,
+            act: None,
+            by: None,
+            written: None,
+            cold: false,
+            of: None,
         });
     }
     /// `<T, U>` after a name.
@@ -3423,8 +3428,9 @@ impl P {
         let mut by_helper = false;
         let clauses = [
             "given", "holds", "fails", "passes", "gives", "sampled", "trust", "source", "rev",
-            "seen",
+            "seen", "act", "by", "written", "cold", "of",
         ];
+        let (mut act, mut by, mut written, mut cold, mut of) = (None, None, None, false, None);
         while !self.eat("}") {
             let at = self.line();
             let clause = self.name()?;
@@ -3487,14 +3493,48 @@ impl P {
                         ));
                     }
                 }
-                "source" | "rev" | "seen" => {
+                "act" => {
+                    let name = self.name()?;
+                    if !crate::ast::ACTS.contains(&name.as_str()) {
+                        let all = crate::ast::ACTS.join(", ");
+                        return Err(Error::new(at, format!("no act `{name}` ({all})")));
+                    }
+                    // `act sample 1000` is `sampled 1000`.
+                    if name == "sample" && self.kind() == Some(Kind::Num) {
+                        let n = self.number()?;
+                        if n < 1.0 || n.fract() != 0.0 {
+                            return Err(Error::new(
+                                at,
+                                "`sample` takes how many inputs were drawn",
+                            ));
+                        }
+                        sampled = Some((n as u64, sampled.is_none_or(|s| s.1)));
+                        says = Some(("sampled".to_string(), None, 0.0));
+                    }
+                    act = Some(name);
+                }
+                "cold" => cold = true,
+                "source" | "rev" | "seen" | "by" | "written" | "of" => {
                     let Some(Old::Str(s)) = self.next_old() else {
                         self.pos -= 1;
                         return self.err(format!("`{clause}` needs a string"));
                     };
+                    let voice = ["by", "written"].contains(&clause.as_str());
+                    if voice && crate::ast::voice_parts(&s).is_none() {
+                        return Err(Error::new(
+                            at,
+                            format!(
+                                "`{s}` is no voice: `agent:vendor/model/session`, \
+                                 `human:name` or `machine:tool`"
+                            ),
+                        ));
+                    }
                     match clause.as_str() {
                         "rev" => rev = Some(s),
                         "seen" => seen = Some(s),
+                        "by" => by = Some(s),
+                        "written" => written = Some(s),
+                        "of" => of = Some(s),
                         _ => source = s,
                     }
                 }
@@ -3589,6 +3629,64 @@ impl P {
                 Judgment::Holds(says == "holds")
             }
         };
+        // What an act can hold is checked against what the block says
+        // and what it is on.
+        if let Some(a) = act.as_deref() {
+            let whole = self
+                .names
+                .claims
+                .get(&target)
+                .is_some_and(|c| c.0.is_empty())
+                && function.is_none();
+            let point = given.iter().all(|g| g.1) && (given.len() == names.len() || whole);
+            let kept = ["::captured", "::tied", "::uses"]
+                .iter()
+                .find(|s| about.ends_with(*s));
+            let judged = matches!(judgment, Judgment::Holds(_) | Judgment::Correct(_));
+            let denies = matches!(
+                judgment,
+                Judgment::Holds(false)
+                    | Judgment::Correct(false)
+                    | Judgment::Sampled { ok: false, .. }
+            );
+            let why = match (a, &judgment) {
+                ("report", _) if !denies => Some("a report is of a failure: it says `fails`"),
+                ("report", _) => None,
+                ("tie", _) if !matches!(kept, Some(&"::tied") | Some(&"::uses")) => {
+                    Some("a tie is on `f::tied` or `f::uses`")
+                }
+                ("test" | "sample" | "exhaustive" | "measure", _) if kept.is_some() => {
+                    Some("it is not about an input: it takes a review, a proof or a tie")
+                }
+                ("sample", Judgment::Sampled { .. }) => None,
+                ("sample", _) => {
+                    Some("a sample says how many inputs were drawn: `act sample 1000`")
+                }
+                (_, Judgment::Sampled { .. }) => Some("inputs that were drawn are `act sample`"),
+                ("measure", Judgment::Measured(..)) => None,
+                ("measure", _) => Some("a measure gives a rate: `gives rate = 0.9`"),
+                (_, Judgment::Measured(..)) => Some("a rate is `act measure`"),
+                ("test", Judgment::Output(_) | Judgment::Passed) => None,
+                ("test", _) if judged && point => None,
+                ("test", _) => Some(
+                    "a test is a point: over a set of inputs it is `act exhaustive` or \
+                     `act sample n`, and on a whole claim a review or a proof",
+                ),
+                ("exhaustive", _) if judged && !given.is_empty() => None,
+                ("exhaustive", _) => {
+                    Some("an exhaustive run states the set it ran through: `given a in …`")
+                }
+                ("review" | "proof", _) if judged => None,
+                ("review" | "proof", _) => Some("a review or a proof says `holds` or `fails`"),
+                _ => None,
+            };
+            if let Some(why) = why {
+                return at(format!("`act {a}` cannot say this of `{about}`: {why}"));
+            }
+        }
+        if of.is_some() && !matches!(judgment, Judgment::Holds(_) | Judgment::Correct(_)) {
+            return at("a review `of` evidence says `holds` or `fails`".to_string());
+        }
         Ok(Evidence {
             about,
             pattern,
@@ -3598,6 +3696,11 @@ impl P {
             rev,
             seen,
             line,
+            act,
+            by,
+            written,
+            cold,
+            of,
         })
     }
 

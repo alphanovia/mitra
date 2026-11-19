@@ -633,7 +633,7 @@ impl Reader<Path> for Rust {
                     said = format!(" trust {}", (trust * 1000.0).round() / 1000.0);
                 }
                 found.evidence.push(format!(
-                    "evidence tie {{ for {claim} holds{said} source \"{source}\"{attrs} }}"
+                    "evidence tie {{ for {claim} holds{said} act tie by \"machine:mitra-rust\" source \"{source}\"{attrs} }}"
                 ));
             }
             Some(why) => {
@@ -641,7 +641,7 @@ impl Reader<Path> for Rust {
                 found.notes.push(format!("{place}: {claim}: {why}"));
                 let source = format!("reader:rust {place}: {}", clean(&why));
                 found.evidence.push(format!(
-                    "evidence tie {{ for {claim} fails source \"{source}\"{attrs} }}"
+                    "evidence tie {{ for {claim} fails act tie by \"machine:mitra-rust\" source \"{source}\"{attrs} }}"
                 ));
             }
         };

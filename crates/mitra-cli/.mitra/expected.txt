@@ -1,4 +1,5 @@
 commands::conform::uses: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 commands::conform::correct: unverified
   no evidence on  (s, built, rev, reader) in (store::Store, build::Built, Option<String>, Any)
 commands::conform::deterministic: unverified
@@ -126,7 +127,9 @@ commands::any_reader_the_same: holds assuming [commands::conform::correct, comma
   rests on        `commands::conform::correct`, `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
   requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`, `commands::results_read`, `commands::shape_compared`, `commands::calls_compared`, `commands::erased_is_said`, `commands::code_untouched`, `commands::plain_words`
 commands::check_rev::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 commands::conform::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 
 warning[M105]: a requirement that nothing leans on
   --> .mitra/model.mitra:32  require revision = caller::names_the_right_revision;

@@ -226,8 +226,8 @@ fn ingest_turns_test_results_into_evidence() {
     let evidence = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
     assert!(
         evidence.ends_with(
-            "evidence test { for s::flip_on_true holds source \"test:t_true\" rev \"3f2a\" }\n\
-             evidence test { for t::on_false fails source \"test:t_false\" rev \"3f2a\" }\n"
+            "evidence test { for s::flip_on_true holds act test by \"machine:cargo\" source \"test:t_true\" rev \"3f2a\" }\n\
+             evidence test { for t::on_false fails act test by \"machine:cargo\" source \"test:t_false\" rev \"3f2a\" }\n"
         ),
         "{evidence}"
     );
@@ -805,13 +805,13 @@ fn ingest_pins_what_a_test_checks() {
     );
     let evidence = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
     for want in [
-        "for s::flip_correct passes source \"test:t_sweep\"",
-        "for s::flip_correct sampled 9 source \"test:t_drawn\"",
-        "for s::flip sampled 4 fails source \"test:t_drawn_bad\"",
-        "for s::flip given a = true gives false source \"test:t_pinned\"",
-        "for s::flip given a = true holds source \"test:t_pinned\"",
-        "for s::flip_correct given a = true holds source \"test:t_pinned\"",
-        "for s::flip given a = false fails source \"test:t_broken\"",
+        "for s::flip_correct passes act test by \"machine:cargo\" source \"test:t_sweep\"",
+        "for s::flip_correct sampled 9 by \"machine:cargo\" source \"test:t_drawn\"",
+        "for s::flip sampled 4 fails by \"machine:cargo\" source \"test:t_drawn_bad\"",
+        "for s::flip given a = true gives false act test by \"machine:cargo\" source \"test:t_pinned\"",
+        "for s::flip given a = true holds act test by \"machine:cargo\" source \"test:t_pinned\"",
+        "for s::flip_correct given a = true holds act test by \"machine:cargo\" source \"test:t_pinned\"",
+        "for s::flip given a = false fails act test by \"machine:cargo\" source \"test:t_broken\"",
     ] {
         assert!(evidence.contains(want), "{evidence}");
     }
@@ -888,7 +888,7 @@ fn the_ledger_is_kept_not_only_grown() {
     assert!(
         out.starts_with(
             "1 results: 1 passed, 0 failed; 1 evidence written, in place of 2 test results of rev r1\n\
-             no longer observed, removed (1):\n  evidence test { for flip given a = false gives true source \"test:t_false\" rev \"r1\" }\n"
+             no longer observed, removed (1):\n  evidence test { for flip given a = false gives true act test by \"machine:cargo\" source \"test:t_false\" rev \"r1\" }\n"
         ),
         "{out}"
     );
@@ -1125,7 +1125,7 @@ fn settings_set_the_trust_of_a_tie_and_of_a_sample() {
     assert!(out.contains(want), "{out}");
     assert_eq!(mitra(&dir, &["tie"]).0, Some(0));
     let read = || std::fs::read_to_string(&ledger).unwrap();
-    let tie = "for s::abs::tied holds trust 0.884 source \"reader:rust src/lib.rs:1; \
+    let tie = "for s::abs::tied holds trust 0.884 act tie by \"machine:mitra-rust\" source \"reader:rust src/lib.rs:1; \
                erased 4: reference(x), range(x: -5..=5 for &i64), range(result: 0..=5 for i64), width\"";
     assert!(read().contains(tie), "{}", read());
     assert_eq!(mitra(&dir, &["build"]).0, Some(0));
@@ -1146,7 +1146,7 @@ fn settings_set_the_trust_of_a_tie_and_of_a_sample() {
     assert!(out.contains(want), "{out}");
     assert_eq!(mitra(&dir, &["tie"]).0, Some(0));
     assert!(
-        read().contains("for s::abs::tied holds trust 0.5 source"),
+        read().contains("for s::abs::tied holds trust 0.5 act tie"),
         "{}",
         read()
     );

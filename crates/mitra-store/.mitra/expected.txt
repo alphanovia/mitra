@@ -42,6 +42,7 @@ store::Store::write_build::deterministic: unverified
 store::a_model_file_names_its_store: holds
 store::another_file_is_no_store: holds
 ledger::Store::add::uses: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 ledger::Store::add::correct: unverified
   passes on       inputs not stated (test:written_evidence_reads_back, test:what_a_person_says_keeps_the_fingerprint_of_its_piece)
   no evidence on  (self, text, source, rev) in (store::Store, String, Option<String>, Option<String>)
@@ -204,20 +205,35 @@ keeping::sound_or_untouched: holds assuming [keeping::Store::replace::correct, k
   rests on        `keeping::Store::replace::correct`, `keeping::Store::remove::correct`
   requires        `keeping::ledger_reads`, `keeping::left_alone`
 files::file::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 files::read::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 keeping::Store::remove::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 keeping::Store::replace::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 ledger::Store::add::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 ledger::Store::append::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 store::Store::evidence_path::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 store::Store::model_path::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 store::Store::of::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 store::Store::settings::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 store::Store::source::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 store::Store::write_build::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 store::Store::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 keeping::Replaced::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 keeping::Which::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
 
 warning[M105]: a requirement that nothing leans on
   --> .mitra/store.mitra:11  require handed = files::handed_unchanged;

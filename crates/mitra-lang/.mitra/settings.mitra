@@ -26,10 +26,13 @@ subject settings {
     }
 
     impl Settings {
-        fn read(text: String) -> Result<Self, String>;
+        fn read(text: String) -> Result<Self, String>
+            uses voices::policy_reads;
         fn sample(&self, n: u64) -> f64;
         fn strength(costs: Vec<f64>) -> f64;
         fn written(&self, profile: Vec<(String, f64)>) -> String;
+        // How often a word of this kind of voice is wrong.
+        fn doubt(&self, kind: String) -> f64;
     }
 
     // defaults_without_a_file
@@ -47,7 +50,7 @@ subject settings {
             Ok(s) => s.counts,
         }
     }
-    claim unknown_is_refused() {
+    claim unknown_setting_is_refused() {
         Settings::read("[other]") is Err && Settings::read("[erasure]\nwidth = 2") is Err
     }
 

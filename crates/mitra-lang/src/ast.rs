@@ -249,9 +249,95 @@ pub struct Evidence {
     /// `seen "…"`: the fingerprint of its piece when a person said it.
     pub seen: Option<String>,
     pub line: usize,
+    /// `act test`: what was done, when the block says it.
+    pub act: Option<String>,
+    /// `by "kind:…"`: who did it.
+    pub by: Option<String>,
+    /// `written "kind:…"`: who wrote what a machine ran.
+    pub written: Option<String>,
+    /// `cold`: done with the model and the code only.
+    pub cold: bool,
+    /// `of "test:name"`: a review of the evidence of that source, not of
+    /// the claim.
+    pub of: Option<String>,
+}
+
+/// What an act is: a point observed, a domain run through, a judgement.
+pub const ACTS: [&str; 8] = [
+    "test",
+    "sample",
+    "exhaustive",
+    "proof",
+    "review",
+    "measure",
+    "tie",
+    "report",
+];
+
+/// How far apart two voices are, from the nearest.
+pub const APART: [&str; 6] = ["same", "session", "model", "vendor", "kind", "unknown"];
+
+/// A voice as its parts: `agent:anthropic/opus-5.5/s-8f2a` is the kind
+/// `agent` and the path `anthropic`, `opus-5.5`, `s-8f2a`.
+// mitra: implements voices::parts
+pub fn voice_parts(voice: &str) -> Option<(&str, Vec<&str>)> {
+    let (kind, rest) = voice.split_once(':')?;
+    let known = ["agent", "human", "machine"].contains(&kind);
+    let path: Vec<&str> = rest.split('/').collect();
+    (known && path.iter().all(|p| !p.is_empty())).then_some((kind, path))
+}
+
+/// How far apart two voices are, as an index in [`APART`]: the same
+/// voice, two sessions of a model, two models of a vendor, two vendors,
+/// two kinds. A voice nobody named is apart from nothing: `unknown`.
+// mitra: implements voices::apart
+pub fn apart(a: &str, b: &str) -> usize {
+    let (Some((ka, pa)), Some((kb, pb))) = (voice_parts(a), voice_parts(b)) else {
+        return 5;
+    };
+    if ka != kb {
+        return 4;
+    }
+    if pa == pb {
+        return 0;
+    }
+    // A human and a machine are a name: two of them are two voices.
+    if ka != "agent" {
+        return 4;
+    }
+    match pa.iter().zip(&pb).take_while(|(x, y)| x == y).count() {
+        0 => 3,
+        1 => 2,
+        _ => 1,
+    }
 }
 
 impl Evidence {
+    /// What was done: the act the block states, or the one its shape
+    /// says. A sample is a sample, a measure a measure; a machine's
+    /// source says a test or a tie; any other is someone's word, a review.
+    // mitra: implements ledger::Evidence::act
+    pub fn act(&self) -> &str {
+        if let Some(a) = &self.act {
+            return a;
+        }
+        let source = self.source.as_deref().unwrap_or("");
+        match &self.judgment {
+            Judgment::Sampled { .. } => "sample",
+            Judgment::Measured(..) => "measure",
+            _ if source.starts_with("reader:") => "tie",
+            _ if source.starts_with("test:") => "test",
+            Judgment::Output(_) | Judgment::Passed => "test",
+            _ => "review",
+        }
+    }
+
+    /// Whose word it is: who wrote what a machine ran, or who did it.
+    // mitra: implements ledger::Evidence::voice
+    pub fn voice(&self) -> Option<&str> {
+        self.written.as_deref().or(self.by.as_deref())
+    }
+
     /// Whether a machine observed it: a test (`test:`) or the reader of
     /// the code (`reader:`). Such evidence is a snapshot, written again
     /// by each run; any other is someone's word.
@@ -353,6 +439,8 @@ pub struct Model {
     pub generics: Vec<Generic>,
     /// The settings in force: what a sample is worth.
     pub settings: crate::settings::Settings,
+    /// The reviews of evidence, `of "test:name"`: they judge nothing.
+    pub vouches: Vec<Evidence>,
 }
 
 /// A function as its own body sees it: a type parameter, or an input

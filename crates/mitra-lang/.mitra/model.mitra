@@ -22,6 +22,7 @@
 //   report.mitra      the pieces that can be wrong, and the words printed
 //   culprits.mitra    how the pieces of a conflict are ranked
 //   settings.mitra    the numbers the trust of a tie and of a sample come from
+//   voices.mitra      on whose word a verdict rests: acts, voices, doubt, policy
 //   advice.mitra      the evidence still owed
 //   results.mitra     test results as evidence, and the JUnit format
 //   operators.mitra   the operators of the language

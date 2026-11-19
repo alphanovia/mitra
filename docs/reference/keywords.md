@@ -21,6 +21,7 @@ To try one: copy the model into `model.mitra`, the evidence into
 | `impl Contract` | as a type: any value, known by what the contract promises | [kw-contracts.md](kw-contracts.md#impl-contract) |
 | `r#word` | a word of the language used as a name | [kw-records.md](kw-records.md#names-and-r) |
 | `passes` | a test passed on inputs it does not state | [kw-evidence.md](kw-evidence.md#passes) |
+| `act`, `by`, `written`, `cold`, `of` | what was done and by whom | [kw-acts.md](kw-acts.md) |
 | `sampled` | a test ran on inputs drawn from a stated domain | [kw-evidence.md](kw-evidence.md#sampled) |
 | `enum` | a value that is one of several variants | [kw-records.md](kw-records.md#enum) |
 | `ensure` | what a subject promises, in plain words | [kw-requirements.md](kw-requirements.md#ensure) |

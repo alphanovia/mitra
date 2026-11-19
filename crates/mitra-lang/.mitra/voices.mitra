@@ -1,0 +1,82 @@
+// On whose word a verdict rests (src/voices.rs, and `apart` in
+// src/ast.rs). Evidence says what was done (its act) and by whom (its
+// voice). From them: the words behind a claim, how far apart their
+// voices are, how likely it is that all of them are wrong, and what a
+// policy asks that is missing. None of it changes a verdict.
+
+import std::rust::{Option, Result};
+
+subject voices {
+    ensure voice_is_who_wrote = "The voice behind a test is who wrote it, not the machine that ran it: a test nobody signed is the word of an unknown voice.";
+    ensure distance_is_ordered = "Two voices are the same, two sessions of a model, two models of a vendor, two vendors, or two kinds, in that order. A person and a machine are their name. An unknown voice is apart from nothing.";
+    ensure review_of_evidence_adds_a_voice = "A review of a piece of evidence, `of` its source, judges nothing of the claim: it is a second voice on what that evidence says.";
+    ensure point_is_not_the_whole = "A word on single inputs of a function speaks for the claim that the function is right and for claims on single calls. It does not speak for a claim on every input.";
+    ensure doubt_from_kinds = "The doubt of a claim is the product of how often each kind of voice behind it is wrong, one factor per voice that is its own. The doubt of a promise is that of its most doubted part.";
+    ensure policy_is_aside = "A policy says what a piece must rest on. A piece that holds and lacks it reads `holds`, with what it lacks under it: a policy never changes a verdict.";
+    ensure summary_counts_promises = "The summary says how many promises hold and on what kind of word each rests at best, and which a person's review would lift the most.";
+
+    // One word behind a claim: what was done and by whom.
+    record Word {
+        act: String,
+        voice: String,
+        cold: bool,
+    }
+
+    record Support {
+        words: Vec<Word>,
+        apart: Option<String>,
+        doubt: f64,
+        below: Vec<String>,
+    }
+
+    // A voice as its kind and its path.
+    fn parts(voice: String) -> Option<(String, Vec<String>)>;
+    // How far apart two voices are, from 0 (the same) to 5 (unknown).
+    fn apart(a: String, b: String) -> 0..=5;
+    fn word(e: ledger::Evidence) -> Word;
+    fn error_rate(settings: settings::Settings, w: Word) -> f64;
+    fn support(model: model::Model, name: String) -> Support;
+    fn missing(asked: String, s: Support, voices: usize) -> Vec<String>;
+    fn policy_reads(asked: String) -> Result<(), String>;
+    fn summary(model: model::Model, report: verdicts::Report) -> String;
+
+    // distance_is_ordered
+    claim voices_apart() {
+        apart("agent:a/m/s1", "agent:a/m/s1") == 0
+            && apart("agent:a/m/s1", "agent:a/m/s2") == 1
+            && apart("agent:a/m/s1", "agent:a/n/s1") == 2
+            && apart("agent:a/m/s1", "agent:b/m/s1") == 3
+            && apart("agent:a/m/s1", "human:ana") == 4
+            && apart("agent:a/m/s1", "unknown") == 5
+    }
+
+    // voice_is_who_wrote
+    claim machine_is_not_the_author() {
+        parts("machine:cargo") is Some && parts("claude") is None
+    }
+
+    // review_of_evidence_adds_a_voice
+    claim review_of_a_test_is_a_second_voice() {
+        missing("voices 2", Support([Word("test", "agent:a/m/s1", false), Word("review", "agent:a/n/s2", true)], Some("model"), 0.045, []), 2) == []
+    }
+
+    // point_is_not_the_whole
+    claim point_does_not_speak_for_every_input() {
+        missing("review", Support([], None, 1.0, []), 0) == ["review"]
+    }
+
+    // policy_is_aside
+    claim policy_never_changes_a_verdict() {
+        policy_reads("cold, doubt 0.1") is Ok && policy_reads("sometimes") is Err
+    }
+
+    // doubt_from_kinds
+    claim promise_is_doubted_as_its_weakest_part() {
+        missing("doubt 0.1", Support([Word("review", "agent:a/m/s1", true)], None, 0.15, []), 1) == ["doubt 0.1"]
+    }
+
+    // summary_counts_promises
+    claim summary_says_what_a_person_would_lift() {
+        missing("human", Support([Word("review", "agent:a/m/s1", true)], None, 0.15, []), 1) == ["human"]
+    }
+}

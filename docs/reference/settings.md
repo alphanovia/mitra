@@ -17,8 +17,8 @@ width = 0.02
 field = 0.05
 ```
 
-The part of TOML that is read: the two tables, `key = value`, numbers,
-`true`, `false`, comments. A table or a key that is not a setting is
+The part of TOML that is read: the four tables, `key = value`,
+numbers, `true`, `false`, a text in quotes, comments. A table or a key that is not a setting is
 refused with its line, and so is an erasure the reader does not have.
 
 Settings never change a verdict from `holds` to `fails` or back. They
@@ -63,6 +63,39 @@ trusted for the product of `1 - cost` over them
 
 A cost of 0 still names the erasure on the tie. A cost of 1 leaves the
 tie no trust; it still agrees.
+
+## Doubt
+
+`[doubt]`: how often a word of each kind of voice is taken to be
+wrong. The doubt under a verdict is their product over the voices
+behind it ([kw-acts.md](kw-acts.md#by-written)).
+
+```toml
+[doubt]
+agent = 0.3      # an agent with the context of the work
+cold = 0.15      # an agent with the model and the code only
+human = 0.05
+machine = 0.1    # a tool that judges by itself: the reader of code
+proof = 0.01
+unknown = 0.5    # a word nobody signed
+```
+
+## Policy
+
+`[policy]`: what a `claim` or an `ensure` must rest on. Requirements
+are separated by commas: an act (`review`, `test`…), `cold` (a cold
+agent or a person), `human`, `voices 2`, `apart model` (`session`,
+`model`, `vendor`, `kind`), `doubt 0.1` (at most). By default `"any"`:
+nothing is asked.
+
+```toml
+[policy]
+claim = "cold"
+ensure = "doubt 0.1"
+```
+
+A piece that holds and lacks what is asked still reads `holds`, with
+`below policy    lacks cold` under it, and `mitra assess` counts them.
 
 ## What is not there
 

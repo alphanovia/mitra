@@ -71,6 +71,14 @@ pub fn from_tests(
         None => String::new(),
     };
     for t in tied {
+        // Who wrote the test, said after what it pins: `written "…" cold`.
+        let (pinned, who) = signed(&t.pinned);
+        let t = &Tied {
+            test: t.test.clone(),
+            claim: t.claim.clone(),
+            pinned,
+            place: t.place.clone(),
+        };
         let ran: Vec<&Outcome> = outcomes.iter().filter(|o| o.name == t.test).collect();
         let passed = match ran[..] {
             [] if t.pinned.is_empty() => None,
@@ -103,7 +111,7 @@ pub fn from_tests(
                 (false, _) => format!("{given} fails"),
             };
             out.evidence.push(format!(
-                "evidence test {{ for {} {says} source \"test:{}\"{attrs} }}",
+                "evidence test {{ for {} {says}{who} source \"test:{}\"{attrs} }}",
                 t.claim, t.test
             ));
             // A test that compares with the output it expects also
@@ -111,7 +119,7 @@ pub fn from_tests(
             let gives = said.is_some_and(|n| words[n] == "gives");
             if passed == Some(true) && gives && model.function(&t.claim).is_some() {
                 out.evidence.push(format!(
-                    "evidence test {{ for {} {given} holds source \"test:{}\"{attrs} }}",
+                    "evidence test {{ for {} {given} holds{who} source \"test:{}\"{attrs} }}",
                     t.claim, t.test
                 ));
             }
@@ -147,12 +155,32 @@ pub fn from_tests(
             }
         };
         out.evidence.push(format!(
-            "evidence test {{ for {} {says} source \"test:{}\"{attrs} }}",
+            "evidence test {{ for {} {says}{who} source \"test:{}\"{attrs} }}",
             c.name, t.test
         ));
     }
     out.evidence.dedup();
     Ok(out)
+}
+
+/// What a tie comment pins, and who it says wrote the test: the words
+/// from `written "…"` or a last `cold`, kept as they are.
+// mitra: implements results::signed
+pub fn signed(pinned: &str) -> (String, String) {
+    let at = match pinned.find("written \"") {
+        Some(i) => Some(i),
+        None => pinned
+            .strip_suffix("cold")
+            .filter(|p| p.is_empty() || p.ends_with(' '))
+            .map(|p| p.len()),
+    };
+    match at {
+        Some(i) => (
+            pinned[..i].trim().to_string(),
+            format!(" {}", pinned[i..].trim()),
+        ),
+        None => (pinned.to_string(), String::new()),
+    }
 }
 
 /// The last segment of a test's path, without ` - should panic`.

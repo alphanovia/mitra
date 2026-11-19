@@ -187,6 +187,7 @@ fn assess(
     print!("{}", report.to_text_at(display, &places));
     let left = mitra_lang::levels::left(&model, &report);
     println!("\nassess: {errors} errors, {warnings} warnings");
+    print!("  {}", mitra_lang::voices::summary(&model, &report));
     for (title, names) in [
         ("for a person to review or decide", &left.person),
         ("to hand over (tests to write, code to tie)", &left.delegate),
@@ -654,13 +655,17 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                 }
             }
             let mut outcomes = Vec::new();
+            let mut junit = false;
             for path in paths {
                 let text = read(path)?;
                 let text = text.trim_start_matches('\u{feff}');
                 outcomes.extend(match format.as_deref() {
                     Some("junit") => mitra_lang::results::junit(text),
                     Some("libtest") => reader().results(text),
-                    None if text.trim_start().starts_with('<') => mitra_lang::results::junit(text),
+                    None if text.trim_start().starts_with('<') => {
+                        junit = true;
+                        mitra_lang::results::junit(text)
+                    }
                     None => reader().results(text),
                     Some(f) => return Err(format!("unknown format `{f}` (libtest, junit)")),
                 });
@@ -673,7 +678,24 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             // Tests tied to a claim by a comment: `// mitra: evidence for c`.
             let tied = reader().tests(&s.root())?;
             let said = mitra_lang::results::from_tests(&model, &tied, &outcomes, rev.as_deref())?;
-            let (lines, tied_notes, loose) = (said.evidence, said.notes, said.loose);
+            // What ran the tests is the machine; who wrote each is what
+            // its comment says, or nobody known.
+            let runner = match format.as_deref() {
+                Some("junit") => "junit",
+                None if junit => "junit",
+                _ => "cargo",
+            };
+            let signed = |l: &String| {
+                let act = if l.contains(" sampled ") {
+                    ""
+                } else {
+                    " act test"
+                };
+                let by = format!("{act} by \"machine:{runner}\" source \"test:");
+                l.replacen(" source \"test:", &by, 1)
+            };
+            let lines: Vec<String> = said.evidence.iter().map(signed).collect();
+            let (tied_notes, loose) = (said.notes, said.loose);
             let replaced = s.replace("test:", &lines.join("\n"))?;
             let claimed = |name: &str| tied.iter().any(|t| t.test == name);
             let (mut unknown, mut outside) = (Vec::new(), Vec::new());
