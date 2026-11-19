@@ -2,13 +2,15 @@
 // boundary is promised to do; `require` names a promise made elsewhere.
 // Mitra never reads the text: the claims of the subject stand for it, and
 // someone vouches that they say the same (`signup::confirms::captured`).
+// A boundary's promise is read the same way, by its `assume` lines.
 boundary mailer {
     ensure delivers = "The provider delivers a message within one minute, or reports a failure.";
     fn send(to: {"a@x", "b@x"}) -> {"sent", "failed"};
+    assume mostly_sent() trust 0.9 { rate(t in {"a@x", "b@x"}, send(t) == "sent") >= 0.5 }
 }
 subject signup {
     ensure confirms = "A new user receives a confirmation email.";
-    require delivery = mailer::delivers;
+    require delivery = mailer::delivers trust 0.8;
     fn register(email: {"a@x", "b@x"}) -> {"created", "refused"} uses mailer::send;
     claim confirmation_sent(email) when register(email) == "created" { mailer::send(email) == "sent" }
 }

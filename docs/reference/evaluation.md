@@ -55,7 +55,8 @@ of the subject, its capture (`name::captured`) and what it requires:
 `unverified` with no claim in the subject, `holds assuming […]` while
 some are not settled or the capture is not vouched (M103), `fails` when
 one of its claims fails or evidence against it stands. In a boundary it
-is assumed: `holds assuming [itself]`.
+rests the same way on the `assume` lines of its block; with none it is
+assumed: `holds assuming [itself]`.
 
 **Errors and candidates.** An error is something that can't all be true.
 Its candidates are the pieces of which at least one is wrong: evidence,

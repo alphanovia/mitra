@@ -83,7 +83,8 @@ div_bounded: unverified
 
 ## trust
 
-`trust n`, from 0 to 1, on a claim, an `assume` or after a `uses` list:
+`trust n`, from 0 to 1, on a claim, an `assume`, after a `uses` list, or
+before the `;` of an [ensure](kw-requirements.md#ensure) or `require`:
 how much the statement itself is trusted, 1 when not said. It never
 changes a verdict. In an error, it ranks the statement among the
 candidates to be wrong. Also a clause of [evidence](kw-evidence.md#trust).

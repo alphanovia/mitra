@@ -2840,6 +2840,15 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             if !e.boundary {
                 side.push(Piece::Capture(e.name.clone()));
             }
+            // A promise of the world: each assumption that reads it.
+            if e.world {
+                let word = |n: &String| {
+                    let said = |x: &Evidence| x.source.as_deref() == Some("assumed");
+                    model.evidence.iter().any(|x| &x.about == n && said(x))
+                };
+                let reads = e.claims.iter().filter(|n| word(n));
+                side.extend(reads.cloned().map(Piece::Assumption));
+            }
             for r in &e.requires {
                 side.push(Piece::Requirement(r.clone()));
                 // Through a named need, the promise it names.
@@ -3277,7 +3286,7 @@ fn rank(model: &Model, problems: &mut [Problem]) {
         Piece::Signature(_) => Some(1.0),
         // The prose is what is judged: no trust is given to it. The word
         // that the claims say it is trusted as its vouch is, if any.
-        Piece::Requirement(_) => None,
+        Piece::Requirement(c) => model.claim(c).and_then(|c| c.trust),
         Piece::Capture(c) => {
             let about = format!("{c}::captured");
             let vouch = |e: &&Evidence| e.about == about && e.judgment == Judgment::Holds(true);

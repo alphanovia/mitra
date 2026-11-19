@@ -130,35 +130,47 @@ error on such an `ensure`, "that `mailer::delivers` is what
 
 `require name = "text";` is a need nobody promises yet: assumed.
 
-In a boundary, `ensure` is what the world is promised to do. It is
-assumed, like [assume](kw-claims.md#assume): `holds assuming [itself]`,
-and never your code to fix.
+In a boundary, `ensure` is what the world is promised to do. It rests
+on the `assume` lines of its block, as a subject's on its claims, with
+its own `mailer::delivers::captured`: someone's word that the
+assumptions read the promise fairly. Evidence against it has as
+candidates the text (the world broke its promise), the capture (the
+model misread it), each assumption and the evidence. With no `assume`
+in the block it is taken on its word: `holds assuming [itself]`.
+
+`trust n` before the `;` of an `ensure` or a `require` is the trust
+given to the text, or to the link; none when not said.
 
 ```mitra
 boundary mailer {
     ensure delivers = "The provider delivers a message within one minute, or reports a failure.";
     fn send(to: {"a@x", "b@x"}) -> {"sent", "failed"};
+    assume mostly_sent() trust 0.9 { rate(t in {"a@x", "b@x"}, send(t) == "sent") >= 0.5 }
 }
 subject signup {
     ensure confirms = "A new user receives a confirmation email.";
-    require delivery = mailer::delivers;
+    require delivery = mailer::delivers trust 0.8;
     fn register(email: {"a@x", "b@x"}) -> {"created", "refused"} uses mailer::send;
     claim confirmation_sent(email) when register(email) == "created" { mailer::send(email) == "sent" }
 }
 ```
 ```text
+mailer::mostly_sent: holds assuming [itself]
 signup::register::uses: holds
 signup::register::correct: unverified
   no evidence on  `signup::register("a@x")`, `signup::register("b@x")`
 signup::confirmation_sent: unverified
   no evidence on  `email = "a@x"`, `email = "b@x"`
-mailer::delivers: holds assuming [itself]
+mailer::delivers::captured: unverified
+  nobody vouched that the claims say what the text says
+mailer::delivers: holds assuming [mailer::mostly_sent, mailer::delivers::captured]
   says            "The provider delivers a message within one minute, or reports a failure."
-signup::delivery: holds assuming [mailer::delivers]
+  rests on        `mailer::mostly_sent`
+signup::delivery: holds assuming [mailer::mostly_sent, mailer::delivers::captured]
   needs           `mailer::delivers`
 signup::confirms::captured: unverified
   nobody vouched that the claims say what the text says
-signup::confirms: holds assuming [signup::register::correct, signup::confirmation_sent, mailer::delivers, signup::confirms::captured]
+signup::confirms: holds assuming [signup::register::correct, signup::confirmation_sent, mailer::mostly_sent, mailer::delivers::captured, signup::confirms::captured]
   says            "A new user receives a confirmation email."
   rests on        `signup::register::correct`, `signup::confirmation_sent`
   requires        `signup::delivery`

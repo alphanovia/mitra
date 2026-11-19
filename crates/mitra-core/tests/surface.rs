@@ -505,3 +505,51 @@ fn a_requirement_with_no_claim_is_unverified() {
     assert!(text.contains("On `s::power`, these two"), "{text}");
     assert!(!text.contains("::prose"), "{text}");
 }
+
+/// A promise of the world rests on the assumptions of its boundary, with
+/// a capture of its own; `trust n` is read on `ensure` and `require`.
+#[test]
+fn a_promise_of_the_world_rests_on_its_assumptions() {
+    use mitra_core::Piece;
+    let m = "boundary mailer { ensure delivers = \"Mail arrives.\" trust 0.9;\n\
+             fn send(to: 0..=1) -> Bool;\n\
+             assume up() trust 0.7 { rate(t in 0..=1, send(t)) >= 0.5 } }\n\
+             subject signup { ensure confirms = \"A new user gets a mail.\";\n\
+             require delivery = mailer::delivers trust 0.8;\n\
+             fn register(u: 0..=1) -> Bool uses mailer::send; }";
+    let run = |evidence: &str| mitra_core::run(m, evidence).unwrap_or_else(|(_, e)| panic!("{e}"));
+    let text = run("").to_text();
+    let want = "mailer::delivers: holds assuming [mailer::up, mailer::delivers::captured]";
+    assert!(text.contains(want), "{text}");
+    let pieces = |evidence: &str| -> Vec<Piece> {
+        let report = run(evidence);
+        let all = report.problems.iter();
+        all.flat_map(|p| p.candidates.clone().unwrap_or_default())
+            .map(|c| c.piece)
+            .collect()
+    };
+    // Evidence against the promise: its text, its capture, the assumption.
+    let got = pieces("evidence t { for mailer::delivers fails trust 0.9 }");
+    for want in [
+        Piece::Requirement("mailer::delivers".into()),
+        Piece::Capture("mailer::delivers".into()),
+        Piece::Assumption("mailer::up".into()),
+    ] {
+        assert!(got.contains(&want), "{want:?} not in {got:?}");
+    }
+    // The text and the link of a named need carry the trust they say.
+    let text = run("evidence t { for signup::confirms fails trust 0.9 }").to_text();
+    let line = |part: &str| text.lines().find(|l| l.contains(part)).unwrap().to_string();
+    assert!(
+        line("is what `signup::delivery` needs").contains(" 0.8 "),
+        "{text}"
+    );
+    assert!(
+        line("the text of `mailer::delivers`").contains(" 0.9 "),
+        "{text}"
+    );
+    assert!(
+        line("the text of `signup::confirms`").contains(" none "),
+        "{text}"
+    );
+}

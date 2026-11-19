@@ -514,7 +514,8 @@ impl Writer<'_> {
                     Some(n) => format!("that `{n}` is what `{c}` needs, {place}"),
                     None => format!("the text of `{c}`, {place}"),
                 };
-                (text, "none".to_string())
+                let trust = self.claim(c).trust;
+                (text, trust.map_or("none".to_string(), |t| format!("{t}")))
             }
             Piece::Capture(c) => {
                 let place = self.places.model(self.claim(c).line);
@@ -551,7 +552,7 @@ impl Writer<'_> {
         let prose = |c: &String| self.model.ensure(c).is_some();
         *out += match &p.kind {
             Kind::Fails { claims } if claims.iter().any(prose) => {
-                "\n  The text, the word that the claims say it, what it requires or the\n  evidence is wrong."
+                "\n  The text, the word that the claims say it, what it rests on or requires,\n  or the evidence is wrong."
             }
             Kind::Fails { .. } => "\n  The code, the claim or the evidence is wrong.",
             Kind::Misfit { .. } => "\n  Either the model is wrong or the evidence is.",
@@ -676,7 +677,12 @@ impl Writer<'_> {
                         attached.push(format!("root {f}"));
                     }
                 }
-                *out += &if self.model.ensure(&claims[0]).is_some() {
+                *out += &if self.model.ensure(&claims[0]).is_some_and(|e| e.world) {
+                    "  help: if the evidence is right, the world did not keep its promise, or the
+  \
+                     assumptions read more into it than it says; if not, correct the evidence\n"
+                        .to_string()
+                } else if self.model.ensure(&claims[0]).is_some() {
                     "  help: if the evidence is right, the claims miss what the text says: write the\n  \
                      claim that would have caught it; if not, correct the evidence\n"
                         .to_string()
