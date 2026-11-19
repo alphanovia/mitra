@@ -553,3 +553,35 @@ fn a_promise_of_the_world_rests_on_its_assumptions() {
         "{text}"
     );
 }
+
+/// What a block requires and what its functions use are compared.
+#[test]
+fn require_and_uses_are_compared() {
+    let world =
+        "boundary mailer { ensure delivers = \"Mail arrives.\";\nfn send(to: 0..=1) -> Bool; }\n\
+                 boundary clock { ensure ticks = \"Time moves.\";\nfn now() -> 0..=9; }\n";
+    let codes = |subject: &str| -> Vec<&'static str> {
+        let m = format!("{world}{subject}");
+        let report = mitra_core::run(&m, "").unwrap_or_else(|(_, e)| panic!("{e}"));
+        report.model.lints.iter().map(|l| l.code).collect()
+    };
+    // A need nothing uses, and a use nothing requires.
+    let got = codes(
+        "subject s { ensure works = \"It works.\";\nrequire time = clock::ticks;\n\
+         fn f(u: 0..=1) -> Bool uses mailer::send; }",
+    );
+    assert_eq!(got, ["M105", "M106"]);
+    // The two agree.
+    let got = codes(
+        "subject s { ensure works = \"It works.\";\nrequire mail = mailer::delivers;\n\
+         fn f(u: 0..=1) -> Bool uses mailer::send; }",
+    );
+    assert!(got.is_empty(), "{got:?}");
+    // A block that states no intent is not held to it; a need in prose
+    // has nobody to use.
+    let got = codes("subject s { fn f(u: 0..=1) -> Bool uses mailer::send; }");
+    assert!(got.is_empty(), "{got:?}");
+    let got = codes("subject s { require power = \"There is power.\";\nfn f(u: 0..=1) -> Bool; }");
+    assert!(got.is_empty(), "{got:?}");
+    assert!(mitra_core::explain("M105").is_some() && mitra_core::explain("M106").is_some());
+}

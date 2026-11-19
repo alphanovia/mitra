@@ -99,6 +99,12 @@ mass::is_valid::tied: holds
 mass::judged::tied: holds
 mass::yager::tied: holds
 
+warning[M105]: a requirement that nothing uses
+  --> .mitra/model.mitra:110  require combining = mass::combines;
+
+  `culprits::combining` needs `mass::combines`, and no function declared beside it `uses` a function declared beside `mass::combines`.
+  help: say which function `uses` it, or remove the `require`
+
 warning[M101]: a claim is not verified
   --> .mitra/model.mitra:112  fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
 

@@ -138,6 +138,12 @@ candidates the text (the world broke its promise), the capture (the
 model misread it), each assumption and the evidence. With no `assume`
 in the block it is taken on its word: `holds assuming [itself]`.
 
+`require` is to intent what [uses](kw-declarations.md#uses) is to code,
+and the two are compared. M105: a `require` on a promise of a block
+that no function beside it `uses`. M106: a function that `uses` a block
+which makes promises, with no `require` beside it naming one; only in a
+block that states an `ensure` or a `require`.
+
 `trust n` before the `;` of an `ensure` or a `require` is the trust
 given to the text, or to the link; none when not said.
 

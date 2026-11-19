@@ -3061,7 +3061,91 @@ impl P {
                 line,
             });
         }
+        self.reliance(m, &ensures, &waits);
         Ok(())
+    }
+}
+
+impl P {
+    /// Intent against calls: a `require` on a block nothing here uses, and
+    /// a `uses` on a block that makes promises, none of them required
+    /// here. Only blocks that state an `ensure` or a `require` are held
+    /// to the second.
+    fn reliance(
+        &self,
+        m: &mut Model,
+        ensures: &[(String, String, Prose, usize, usize, Option<f64>)],
+        waits: &[Vec<String>],
+    ) {
+        // The block of each function, and of each promise.
+        let home = |f: &str| {
+            let own = format!("{f}::correct");
+            self.owned.iter().find(|o| o.0 == own).map(|o| o.1)
+        };
+        let made = |name: &str| ensures.iter().find(|e| e.0 == name).map(|e| e.3);
+        // (function, what it uses, the block of that), across blocks.
+        let mut calls: Vec<(&Claim, &String, usize, usize)> = Vec::new();
+        for c in &m.claims {
+            let Target::Uses { used, .. } = &c.target else {
+                continue;
+            };
+            let Some(from) = home(&c.func) else { continue };
+            for u in used {
+                match home(u) {
+                    Some(to) if to != from => calls.push((c, u, from, to)),
+                    _ => {}
+                }
+            }
+        }
+        let mut lints = Vec::new();
+        for (i, (name, _, kind, block, line, _)) in ensures.iter().enumerate() {
+            let Prose::Need(_) = kind else { continue };
+            let promise = &waits[i][0];
+            let to = made(promise).expect("named");
+            if !calls.iter().any(|c| c.2 == *block && c.3 == to) {
+                lints.push(Lint {
+                    code: "M105",
+                    line: *line,
+                    message: format!(
+                        "`{name}` needs `{promise}`, and no function declared beside it \
+                         `uses` a function declared beside `{promise}`."
+                    ),
+                    help: "say which function `uses` it, or remove the `require`".to_string(),
+                });
+            }
+        }
+        let mut seen: Vec<(&str, usize)> = Vec::new();
+        for (c, used, from, to) in &calls {
+            let states = ensures.iter().any(|e| e.3 == *from);
+            let promises: Vec<&String> = ensures
+                .iter()
+                .filter(|e| e.3 == *to && matches!(e.2, Prose::Promise | Prose::World))
+                .map(|e| &e.0)
+                .collect();
+            let required = ensures.iter().enumerate().any(|(i, e)| {
+                e.3 == *from && matches!(e.2, Prose::Need(_)) && made(&waits[i][0]) == Some(*to)
+            });
+            if !states || promises.is_empty() || required || seen.contains(&(&c.func, *to)) {
+                continue;
+            }
+            seen.push((&c.func, *to));
+            let all: Vec<String> = promises.iter().map(|p| format!("`{p}`")).collect();
+            lints.push(Lint {
+                code: "M106",
+                line: c.line,
+                message: format!(
+                    "`{}` uses `{used}`, and no `require` beside it names a promise made \
+                     beside `{used}` ({}).",
+                    c.func,
+                    all.join(", ")
+                ),
+                help: format!(
+                    "write `require <name> = {};` beside `{}`",
+                    promises[0], c.func
+                ),
+            });
+        }
+        m.lints = lints;
     }
 }
 

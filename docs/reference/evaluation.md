@@ -146,6 +146,8 @@ least 0.5), else `unlikely`. At most 5 pieces of evidence are quoted.
 | `M102` | warning | a claim holds only under assumptions |
 | `M103` | warning | an assumption is not vouched for |
 | `M104` | warning | evidence that can't be used: it is about a helper, which is computed |
+| `M105` | warning | a `require` on a promise of a block that no function beside it `uses` |
+| `M106` | warning | a function `uses` a block that makes promises, and no `require` beside it names one (only where the block states an `ensure` or a `require`) |
 
 The codes are stable. `mitra explain <code>` says what one means and how
 to fix it.

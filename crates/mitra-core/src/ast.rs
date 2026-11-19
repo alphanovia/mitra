@@ -264,6 +264,8 @@ pub struct Model {
     pub boundaries: Vec<String>,
     /// The requirements in prose (`ensure name "…";`).
     pub ensures: Vec<Ensure>,
+    /// Where what a block requires and what its functions use disagree.
+    pub lints: Vec<Lint>,
     pub evidence: Vec<Evidence>,
 }
 
@@ -272,6 +274,16 @@ pub struct Model {
 /// same name, which rests on `claims`, on the requirements it needs
 /// (`require other::name;`) and, in a subject, on `name::captured`:
 /// someone's word that the claims say what the prose says.
+/// A warning from the model alone: its code, its line, what it says and
+/// what to do.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Lint {
+    pub code: &'static str,
+    pub line: usize,
+    pub message: String,
+    pub help: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ensure {
     pub name: String,

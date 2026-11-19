@@ -33,7 +33,7 @@ impl Places for Files<'_> {
 }
 
 /// Every code, with its headline and its long explanation.
-const CODES: [(&str, &str, &str); 11] = [
+const CODES: [(&str, &str, &str); 13] = [
     (
         "M001",
         "evidence refutes a claim",
@@ -154,6 +154,27 @@ const CODES: [(&str, &str, &str); 11] = [
          can neither support nor refute it. The entry is ignored.\n\n\
          To fix: record the evidence on the function under review (one of a\n\
          subject, or one without a body), or on a claim.",
+    ),
+    (
+        "M105",
+        "a requirement that nothing uses",
+        "`require need = other::promise;` says this subject leans on a promise\n\
+         made elsewhere, and no function declared beside the `require` has a\n\
+         `uses` clause naming a function declared beside that promise. The\n\
+         intent leans on it, and nothing calls it: the need is stale, or the\n\
+         design is not built yet.\n\n\
+         To fix: add the `uses` clause to the function that calls it, or\n\
+         remove the `require`.",
+    ),
+    (
+        "M106",
+        "a function uses what its subject does not require",
+        "A function `uses` a function of another subject or boundary, which\n\
+         makes promises (`ensure`), and no `require` beside the function names\n\
+         one of them: the code relies on something the intent does not say.\n\
+         Only a subject or boundary that states an `ensure` or a `require`\n\
+         is held to this.\n\n\
+         To fix: write `require <name> = other::promise;` beside the function.",
     ),
 ];
 
@@ -842,6 +863,17 @@ impl Writer<'_> {
     }
 
     fn warnings(&self, out: &mut String) {
+        for l in &self.model.lints {
+            let written = self.model.written.as_ref();
+            let text = written.and_then(|w| crate::parse::written(&w.0, l.line));
+            *out += &format!("\nwarning[{}]: {}\n", l.code, headline(l.code));
+            *out += &format!(
+                "  --> {}  {}\n",
+                self.places.model(l.line),
+                text.unwrap_or_default()
+            );
+            *out += &format!("\n  {}\n  help: {}\n", l.message, l.help);
+        }
         for f in &self.report.flags {
             *out += &format!(
                 "\nwarning[M104]: evidence that can't be used\n  --> {}  {}\n\n  {}\n",
