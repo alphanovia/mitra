@@ -1,6 +1,6 @@
 commands::conform::uses: holds
 commands::conform::correct: unverified
-  no evidence on  (s, built, rev) in (store::Store, build::Built, Option<String>)
+  no evidence on  (s, built, rev, reader) in (store::Store, build::Built, Option<String>, Any)
 commands::conform::deterministic: unverified
   no evidence on  `commands::conform` giving one output per input
 commands::check_rev::correct: unverified
@@ -189,13 +189,13 @@ warning[M105]: a requirement that nothing leans on
   help: say which function `uses` it, or remove the `require`
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:62  fn conform(s: Store, built: Built, rev: Option<String>) -> Result<usize, String>
+  --> .mitra/model.mitra:62  fn conform(s: Store, built: Built, rev: Option<String>, reader: impl Reader) -> Result<usize, String>
 
-  No evidence on (s, built, rev) in (store::Store, build::Built, Option<String>).
+  No evidence on (s, built, rev, reader) in (store::Store, build::Built, Option<String>, Any).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:62  fn conform(s: Store, built: Built, rev: Option<String>) -> Result<usize, String>
+  --> .mitra/model.mitra:62  fn conform(s: Store, built: Built, rev: Option<String>, reader: impl Reader) -> Result<usize, String>
 
   No evidence on `commands::conform` giving one output per input.
   help: `mitra next` lists the evidence that would settle it

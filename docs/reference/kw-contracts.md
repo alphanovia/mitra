@@ -168,5 +168,8 @@ subject sync {
 
 Each method of `impl Trait for Type` is tied by its own comment,
 `// mitra: implements radio::Ble::send`, like any method
-([evidence.md](evidence.md)). The trait is not tied, and nothing checks that
-the Rust `impl` is of that trait.
+([evidence.md](evidence.md)). A method of the trait is tied to the function
+of the contract the same way, `// mitra: implements Link::send`.
+Nothing checks that the Rust `impl` is of that trait. A `uses Link::send`
+is compared with the code by the name of the method: the body calls
+`send`, on whatever fills the contract.

@@ -241,3 +241,21 @@ mod tests {
         assert!(!is_tie("subject fn f() -> Bool;"));
     }
 }
+
+/// A `mitra:` comment that is no tie: refused, since the model is kept
+/// aside and a comment only ties code to it.
+pub fn stray(shown: &str, text: &str) -> Result<(), String> {
+    let scanned = scan(text);
+    let other = |(i, l): (usize, &str)| {
+        let model = mitra_line(l).is_some_and(|m| !is_tie(m));
+        (scanned[i].0 && model).then_some(i + 1)
+    };
+    match text.lines().enumerate().find_map(other) {
+        Some(n) => Err(format!(
+            "{shown}: line {n}: a model in `mitra:` comments is no longer read: \
+             write it in `.mitra/model.mitra`; a comment is `// mitra: implements \
+             <function>` or `// mitra: evidence for <claim>`"
+        )),
+        None => Ok(()),
+    }
+}

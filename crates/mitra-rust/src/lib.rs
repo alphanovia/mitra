@@ -8,3 +8,5 @@
 pub mod report;
 pub mod source;
 pub mod tie;
+
+pub use tie::Rust;

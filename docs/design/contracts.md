@@ -91,6 +91,8 @@ Numbered in [the review](../review/2026-11-18.md), increment 71.
   only its promises.
 - A contract is brought from another store by `import store::Contract;`
   (increment 73). Mitra's own model uses it: `Reader` in mitra-lang,
-  filled by mitra-rust, required by mitra-cli.
+  filled by mitra-rust, required by mitra-cli. The code has the same
+  seam since increment 74: the trait `mitra_lang::Reader`, `impl` for
+  `mitra_rust::Rust`.
 - `impl Link` is read as `Any`: the type system gains nothing. The
   interface `mitra build` writes therefore prints `Any`.

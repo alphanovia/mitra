@@ -1,274 +1,278 @@
 // Evidence: `mitra add`, `mitra ingest` and `mitra tie` write here, `mitra remove` takes out.
-evidence test { for t_holds holds source "test:t_holds" rev "37b71a9d20be" }
-evidence test { for t_assuming holds source "test:t_assuming" rev "37b71a9d20be" }
-evidence test { for t_unverified holds source "test:t_unverified" rev "37b71a9d20be" }
-evidence test { for t_fails holds source "test:t_fails" rev "37b71a9d20be" }
-evidence test { for t_plus holds source "test:t_plus" rev "37b71a9d20be" }
-evidence test { for t_plus_swapped holds source "test:t_plus_swapped" rev "37b71a9d20be" }
-evidence test { for t_plus_overflow holds source "test:t_plus_overflow" rev "37b71a9d20be" }
-evidence test { for t_plus_overflow_swapped holds source "test:t_plus_overflow_swapped" rev "37b71a9d20be" }
-evidence test { for t_plus_mixed holds source "test:t_plus_mixed" rev "37b71a9d20be" }
-evidence test { for t_plus_mixed_swapped holds source "test:t_plus_mixed_swapped" rev "37b71a9d20be" }
-evidence test { for t_plus_floats holds source "test:t_plus_floats" rev "37b71a9d20be" }
-evidence test { for t_plus_floats_swapped holds source "test:t_plus_floats_swapped" rev "37b71a9d20be" }
-evidence test { for t_minus holds source "test:t_minus" rev "37b71a9d20be" }
-evidence test { for t_plus_negated holds source "test:t_plus_negated" rev "37b71a9d20be" }
-evidence test { for t_times holds source "test:t_times" rev "37b71a9d20be" }
-evidence test { for t_times_swapped holds source "test:t_times_swapped" rev "37b71a9d20be" }
-evidence test { for t_divide holds source "test:t_divide" rev "37b71a9d20be" }
-evidence test { for t_divide_towards_zero holds source "test:t_divide_towards_zero" rev "37b71a9d20be" }
-evidence test { for t_divide_by_zero holds source "test:t_divide_by_zero" rev "37b71a9d20be" }
-evidence test { for t_divide_floats holds source "test:t_divide_floats" rev "37b71a9d20be" }
-evidence test { for t_equal holds source "test:t_equal" rev "37b71a9d20be" }
-evidence test { for t_different holds source "test:t_different" rev "37b71a9d20be" }
-evidence test { for t_equal_mixed holds source "test:t_equal_mixed" rev "37b71a9d20be" }
-evidence test { for t_different_mixed holds source "test:t_different_mixed" rev "37b71a9d20be" }
-evidence test { for t_less holds source "test:t_less" rev "37b71a9d20be" }
-evidence test { for t_and holds source "test:t_and" rev "37b71a9d20be" }
-evidence test { for t_or holds source "test:t_or" rev "37b71a9d20be" }
-evidence test { for t_unknown_operator holds source "test:t_unknown_operator" rev "37b71a9d20be" }
-evidence test { for t_not_true holds source "test:t_not_true" rev "37b71a9d20be" }
-evidence test { for t_not_false holds source "test:t_not_false" rev "37b71a9d20be" }
-evidence test { for t_negate holds source "test:t_negate" rev "37b71a9d20be" }
-evidence test { for t_negate_back holds source "test:t_negate_back" rev "37b71a9d20be" }
-evidence test { for t_negate_float holds source "test:t_negate_float" rev "37b71a9d20be" }
-evidence test { for t_negate_string holds source "test:t_negate_string" rev "37b71a9d20be" }
-evidence test { for t_in_set holds source "test:t_in_set" rev "37b71a9d20be" }
-evidence test { for t_in_list holds source "test:t_in_list" rev "37b71a9d20be" }
-evidence test { for t_in_map holds source "test:t_in_map" rev "37b71a9d20be" }
-evidence test { for t_in_number holds source "test:t_in_number" rev "37b71a9d20be" }
-evidence test { for t_union holds source "test:t_union" rev "37b71a9d20be" }
-evidence test { for t_union_swapped holds source "test:t_union_swapped" rev "37b71a9d20be" }
-evidence test { for t_intersection holds source "test:t_intersection" rev "37b71a9d20be" }
-evidence test { for t_apart holds source "test:t_apart" rev "37b71a9d20be" }
-evidence test { for t_difference holds source "test:t_difference" rev "37b71a9d20be" }
-evidence test { for t_map_update holds source "test:t_map_update" rev "37b71a9d20be" }
-evidence test { for t_map_remove holds source "test:t_map_remove" rev "37b71a9d20be" }
-evidence test { for t_set_with_map holds source "test:t_set_with_map" rev "37b71a9d20be" }
-evidence test { for t_keys holds source "test:t_keys" rev "37b71a9d20be" }
-evidence test { for t_keys_of_a_set holds source "test:t_keys_of_a_set" rev "37b71a9d20be" }
-evidence test { for eval::twice_negated given v in -100..=100 sampled 201 source "test:twice_negated" rev "37b71a9d20be" }
-evidence test { for eval::plus_commutes given x in -12..=12, y in -12..=12 sampled 625 source "test:plus_commutes" rev "37b71a9d20be" }
-evidence test { for eval::times_commutes given x in -12..=12, y in -12..=12 sampled 625 source "test:times_commutes" rev "37b71a9d20be" }
-evidence test { for eval::minus_is_plus_negated given x in -12..=12, y in -12..=12 sampled 625 source "test:minus_is_plus_negated" rev "37b71a9d20be" }
-evidence test { for eval::different_is_not_equal given x in -5..=5 | {true, "a"}, y in -5..=5 | {true, "a"} sampled 169 source "test:different_is_not_equal" rev "37b71a9d20be" }
-evidence test { for eval::union_commutes given x in {{}, {1}, {1, 2}, {2, 3}}, y in {{}, {1}, {1, 2}, {2, 3}} sampled 16 source "test:union_commutes" rev "37b71a9d20be" }
-evidence test { for eval::difference_apart given x in {{}, {1}, {1, 2}, {2, 3}}, y in {{}, {1}, {1, 2}, {2, 3}} sampled 16 source "test:difference_apart" rev "37b71a9d20be" }
-evidence test { for eval::divides_back given x in -12..=12, y in -12..=12 \ {0} sampled 600 source "test:divides_back" rev "37b71a9d20be" }
-evidence test { for fingerprint::hash given text = "" gives "cbf29ce48422" source "test:t_hash_empty" rev "37b71a9d20be" }
-evidence test { for fingerprint::hash given text = "" holds source "test:t_hash_empty" rev "37b71a9d20be" }
-evidence test { for fingerprint::hash given text = "a" gives "af63dc4c8601" source "test:t_hash_a" rev "37b71a9d20be" }
-evidence test { for fingerprint::hash given text = "a" holds source "test:t_hash_a" rev "37b71a9d20be" }
-evidence test { for fingerprint::t_of_the_piece holds source "test:t_of_the_piece" rev "37b71a9d20be" }
-evidence test { for fingerprint::t_of_what_is_under_it holds source "test:t_of_what_is_under_it" rev "37b71a9d20be" }
-evidence test { for fingerprint::t_of_nothing holds source "test:t_of_nothing" rev "37b71a9d20be" }
-evidence test { for ledger::t_entries_one holds source "test:t_entries_one" rev "37b71a9d20be" }
-evidence test { for ledger::t_entries_label_is_the_source holds source "test:t_entries_label_is_the_source" rev "37b71a9d20be" }
-evidence test { for ledger::t_entries_none holds source "test:t_entries_none" rev "37b71a9d20be" }
-evidence test { for reader::reads_a_subject holds source "test:reads_a_subject" rev "37b71a9d20be" }
-evidence test { for reader::refuses_a_bare_fn holds source "test:refuses_a_bare_fn" rev "37b71a9d20be" }
-evidence test { for reader::fault_is_placed sampled 13 source "test:fault_is_placed" rev "37b71a9d20be" }
-evidence test { for t_level_or holds source "test:t_level_or" rev "37b71a9d20be" }
-evidence test { for t_level_and holds source "test:t_level_and" rev "37b71a9d20be" }
-evidence test { for t_level_compare holds source "test:t_level_compare" rev "37b71a9d20be" }
-evidence test { for t_level_sum holds source "test:t_level_sum" rev "37b71a9d20be" }
-evidence test { for t_level_union holds source "test:t_level_union" rev "37b71a9d20be" }
-evidence test { for t_level_intersection holds source "test:t_level_intersection" rev "37b71a9d20be" }
-evidence test { for t_level_in holds source "test:t_level_in" rev "37b71a9d20be" }
-evidence test { for t_level_product holds source "test:t_level_product" rev "37b71a9d20be" }
-evidence test { for t_negative_int holds source "test:t_negative_int" rev "37b71a9d20be" }
-evidence test { for t_negative_zero holds source "test:t_negative_zero" rev "37b71a9d20be" }
-evidence test { for t_negative_float holds source "test:t_negative_float" rev "37b71a9d20be" }
-evidence test { for t_negative_string holds source "test:t_negative_string" rev "37b71a9d20be" }
-evidence test { for print::negative_ints given v in -100..=100 sampled 201 source "test:negative_ints" rev "37b71a9d20be" }
-evidence test { for t_word_certain holds source "test:t_word_certain" rev "37b71a9d20be" }
-evidence test { for t_word_likely holds source "test:t_word_likely" rev "37b71a9d20be" }
-evidence test { for t_word_possible holds source "test:t_word_possible" rev "37b71a9d20be" }
-evidence test { for t_word_unlikely holds source "test:t_word_unlikely" rev "37b71a9d20be" }
-evidence test { for t_short_path holds source "test:t_short_path" rev "37b71a9d20be" }
-evidence test { for t_short_plain holds source "test:t_short_plain" rev "37b71a9d20be" }
-evidence test { for t_short_should_panic holds source "test:t_short_should_panic" rev "37b71a9d20be" }
-evidence test { for t_short_panics_once holds source "test:t_short_panics_once" rev "37b71a9d20be" }
-evidence test { for t_attr_double holds source "test:t_attr_double" rev "37b71a9d20be" }
-evidence test { for t_attr_single holds source "test:t_attr_single" rev "37b71a9d20be" }
-evidence test { for t_attr_missing holds source "test:t_attr_missing" rev "37b71a9d20be" }
-evidence test { for t_attr_inside_another holds source "test:t_attr_inside_another" rev "37b71a9d20be" }
-evidence test { for t_attr_entities holds source "test:t_attr_entities" rev "37b71a9d20be" }
-evidence test { for t_strip_one holds source "test:t_strip_one" rev "37b71a9d20be" }
-evidence test { for t_strip_unclosed holds source "test:t_strip_unclosed" rev "37b71a9d20be" }
-evidence test { for t_strip_nothing holds source "test:t_strip_nothing" rev "37b71a9d20be" }
-evidence test { for t_junit_passed holds source "test:t_junit_passed" rev "37b71a9d20be" }
-evidence test { for t_junit_failure holds source "test:t_junit_failure" rev "37b71a9d20be" }
-evidence test { for t_junit_error holds source "test:t_junit_error" rev "37b71a9d20be" }
-evidence test { for t_junit_skipped holds source "test:t_junit_skipped" rev "37b71a9d20be" }
-evidence test { for t_junit_failure_in_a_log holds source "test:t_junit_failure_in_a_log" rev "37b71a9d20be" }
-evidence test { for t_junit_path holds source "test:t_junit_path" rev "37b71a9d20be" }
-evidence test { for results::short_once given path in {"", "t", "a::t", "a::b::t", "a::t - should panic", " a::t "} sampled 6 source "test:short_once" rev "37b71a9d20be" }
-evidence test { for t_quote_plain holds source "test:t_quote_plain" rev "37b71a9d20be" }
-evidence test { for t_quote_empty holds source "test:t_quote_empty" rev "37b71a9d20be" }
-evidence test { for t_quote_escapes holds source "test:t_quote_escapes" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [None, Some(0.8)], clauses = [[0, 1]] holds source "test:code_against_one_failure" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [Some(0.9), Some(0.99), Some(0.8)], clauses = [[0, 1, 2]] holds source "test:three_pieces_in_conflict" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [Some(0.3), Some(1.0), None, Some(0.0)], clauses = [] holds source "test:no_clause_no_belief" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [Some(0.0), Some(0.6), Some(0.7)], clauses = [[0, 1, 2]] holds source "test:distrust_shows" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [None, Some(1.0)], clauses = [[0, 1]] gives Ok(Ranking([1.0, 0.0], [1.0, 0.0], 0.0, 0)) source "test:full_trust" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [None, Some(1.0)], clauses = [[0, 1]] holds source "test:full_trust" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [Some(1.0), Some(0.1), Some(1.0), Some(1.0)], clauses = [[0, 1, 3], [0, 2, 3]] holds source "test:a_tie_beside_a_distrusted_piece" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [None, Some(0.5), Some(0.5)], clauses = [[0, 1]] holds source "test:outside_every_clause" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [None, Some(0.8), Some(0.8)], clauses = [[0, 1], [0, 2]] holds source "test:two_failures_agree" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [Some(1.5)], clauses = [] gives Err(Invalid) source "test:rejects_bias_above_one" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [Some(1.5)], clauses = [] holds source "test:rejects_bias_above_one" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [Some(0.5)], clauses = [[3]] gives Err(Invalid) source "test:rejects_unknown_piece" rev "37b71a9d20be" }
-evidence test { for culprits::rank given biases = [Some(0.5)], clauses = [[3]] holds source "test:rejects_unknown_piece" rev "37b71a9d20be" }
-evidence test { for culprits::rank_shape given biases in {[], [None], [Some(0.5)], [None, Some(0.8)], [Some(1.0), Some(1.0)], [Some(0.0), Some(0.6), Some(0.7)]}, clauses in {[], [[0]], [[0, 1]], [[0, 1], [1, 2]]} sampled 24 source "test:rank_shape" rev "37b71a9d20be" }
-evidence test { for culprits::no_clause_no_belief given biases in {[], [None], [Some(0.5)], [None, Some(0.8)], [Some(1.0), Some(1.0)], [Some(0.0), Some(0.6), Some(0.7)]}, clauses in {[]} sampled 6 source "test:no_clause_no_belief_on_any" rev "37b71a9d20be" }
-evidence test { for contracts::implementer_is_given_the_contract holds source "test:implementer_is_given_the_contract" rev "37b71a9d20be" }
-evidence test { for contracts::unfilled_is_assumed holds source "test:unfilled_is_assumed" rev "37b71a9d20be" }
-evidence test { for contracts::contract_is_neither_built_nor_bought holds source "test:contract_is_neither_built_nor_bought" rev "37b71a9d20be" }
-evidence test { for contracts::bound_is_kept_by_input holds source "test:bound_is_kept_by_input" rev "37b71a9d20be" }
-evidence test { for contracts::parameter_is_opaque holds source "test:parameter_is_opaque" rev "37b71a9d20be" }
-evidence test { for types::good_is_read holds source "test:good_is_read" rev "37b71a9d20be" }
-evidence test { for types::unknown_is_refused holds source "test:unknown_is_refused" rev "37b71a9d20be" }
-evidence test { for types::twice_is_refused holds source "test:twice_is_refused" rev "37b71a9d20be" }
-evidence test { for types::arity_is_refused holds source "test:arity_is_refused" rev "37b71a9d20be" }
-evidence test { for types::endless_is_refused holds source "test:endless_is_refused" rev "37b71a9d20be" }
-evidence test { for verdicts::untested_is_unverified holds source "test:untested_is_unverified" rev "37b71a9d20be" }
-evidence test { for verdicts::tested_holds holds source "test:tested_holds" rev "37b71a9d20be" }
-evidence test { for verdicts::refuted_fails holds source "test:refuted_fails" rev "37b71a9d20be" }
-evidence test { for verdicts::trust_changes_no_verdict holds source "test:trust_changes_no_verdict" rev "37b71a9d20be" }
-evidence test { for verdicts::conflict_counts_for_neither holds source "test:conflict_counts_for_neither" rev "37b71a9d20be" }
-evidence test { for verdicts::follows_from_a_vouched_claim holds source "test:follows_from_a_vouched_claim" rev "37b71a9d20be" }
-evidence test { for verdicts::one_verdict_each sampled 50 source "test:one_verdict_each" rev "37b71a9d20be" }
-evidence test { for model::nothing_written_nothing_held holds source "test:nothing_written_nothing_held" rev "37b71a9d20be" }
-evidence test { for model::world_is_listed holds source "test:world_is_listed" rev "37b71a9d20be" }
-evidence test { for model::blocks_are_listed holds source "test:blocks_are_listed" rev "37b71a9d20be" }
-evidence test { for model::a_block_written_twice_is_one holds source "test:a_block_written_twice_is_one" rev "37b71a9d20be" }
-evidence test { for functions::code_is_claimed_correct holds source "test:code_is_claimed_correct" rev "37b71a9d20be" }
-evidence test { for functions::spec_replaces_correct holds source "test:spec_replaces_correct" rev "37b71a9d20be" }
-evidence test { for functions::helper_claims_nothing holds source "test:helper_claims_nothing" rev "37b71a9d20be" }
-evidence test { for functions::world_claims_nothing holds source "test:world_claims_nothing" rev "37b71a9d20be" }
-evidence test { for claims::written_claim_is_named holds source "test:written_claim_is_named" rev "37b71a9d20be" }
-evidence test { for claims::assume_is_named_and_assumed holds source "test:assume_is_named_and_assumed" rev "37b71a9d20be" }
-evidence test { for claims::uses_is_named holds source "test:uses_is_named" rev "37b71a9d20be" }
-evidence test { for claims::uses_is_read_from_a_body holds source "test:uses_is_read_from_a_body" rev "37b71a9d20be" }
-evidence test { for claims::tie_is_named_once_evidence_names_it holds source "test:tie_is_named_once_evidence_names_it" rev "37b71a9d20be" }
-evidence test { for claims::trust_is_kept holds source "test:trust_is_kept" rev "37b71a9d20be" }
-evidence test { for intent::promise_lists_its_claims holds source "test:promise_lists_its_claims" rev "37b71a9d20be" }
-evidence test { for intent::capture_is_unverified_until_vouched holds source "test:capture_is_unverified_until_vouched" rev "37b71a9d20be" }
-evidence test { for intent::need_names_its_promise holds source "test:need_names_its_promise" rev "37b71a9d20be" }
-evidence test { for intent::world_promise_is_assumed holds source "test:world_promise_is_assumed" rev "37b71a9d20be" }
-evidence test { for ledger::source_rev_and_trust_are_kept holds source "test:source_rev_and_trust_are_kept" rev "37b71a9d20be" }
-evidence test { for ledger::pinned_keeps_the_output holds source "test:pinned_keeps_the_output" rev "37b71a9d20be" }
-evidence test { for ledger::pinned_output_refutes_a_claim holds source "test:pinned_output_refutes_a_claim" rev "37b71a9d20be" }
-evidence test { for ledger::vouched_holds holds source "test:vouched_holds" rev "37b71a9d20be" }
-evidence test { for ledger::passes_stays_unverified holds source "test:passes_stays_unverified" rev "37b71a9d20be" }
-evidence test { for ledger::sample_stays_unverified holds source "test:sample_stays_unverified" rev "37b71a9d20be" }
-evidence test { for ledger::failing_sample_fails holds source "test:failing_sample_fails" rev "37b71a9d20be" }
-evidence test { for modules::unknown_module_is_refused holds source "test:unknown_module_is_refused" rev "37b71a9d20be" }
-evidence test { for modules::line_is_placed holds source "test:line_is_placed" rev "37b71a9d20be" }
-evidence test { for verdicts::same_report sampled 8 source "test:same_report" rev "37b71a9d20be" }
-evidence test { for modules::one_text_is_read_as_it_is holds source "test:one_text_is_read_as_it_is" rev "37b71a9d20be" }
-evidence test { for modules::imports_are_listed holds source "test:imports_are_listed" rev "37b71a9d20be" }
-evidence test { for modules::an_import_is_listed_once holds source "test:an_import_is_listed_once" rev "37b71a9d20be" }
-evidence test { for modules::fault_is_located holds source "test:fault_is_located" rev "37b71a9d20be" }
-evidence test { for results::unpinned_pass_only_passes holds source "test:unpinned_pass_only_passes" rev "37b71a9d20be" }
-evidence test { for results::pass_on_a_point_holds holds source "test:pass_on_a_point_holds" rev "37b71a9d20be" }
-evidence test { for results::pinned_pass_is_written_as_it_stands holds source "test:pinned_pass_is_written_as_it_stands" rev "37b71a9d20be" }
-evidence test { for results::sample_keeps_its_count holds source "test:sample_keeps_its_count" rev "37b71a9d20be" }
-evidence test { for results::pinned_failure_denies_the_pin holds source "test:pinned_failure_denies_the_pin" rev "37b71a9d20be" }
-evidence test { for results::unpinned_failure_fails_the_claim holds source "test:unpinned_failure_fails_the_claim" rev "37b71a9d20be" }
-evidence test { for results::failing_sample_says_fails holds source "test:failing_sample_says_fails" rev "37b71a9d20be" }
-evidence test { for ledger::orphan_is_set_aside holds source "test:orphan_is_set_aside" rev "37b71a9d20be" }
-evidence test { for ledger::stale_is_set_aside holds source "test:stale_is_set_aside" rev "37b71a9d20be" }
-evidence test { for ledger::seen_as_it_is_judges holds source "test:seen_as_it_is_judges" rev "37b71a9d20be" }
-evidence test { for fingerprint::writing_does_not_count holds source "test:writing_does_not_count" rev "37b71a9d20be" }
-evidence test { for fingerprint::another_claim_counts holds source "test:another_claim_counts" rev "37b71a9d20be" }
-evidence test { for fingerprint::a_new_claim_changes_the_capture holds source "test:a_new_claim_changes_the_capture" rev "37b71a9d20be" }
-evidence test { for build::implied_pieces_are_listed holds source "test:implied_pieces_are_listed" rev "37b71a9d20be" }
-evidence test { for build::a_promise_lists_what_it_rests_on holds source "test:a_promise_lists_what_it_rests_on" rev "37b71a9d20be" }
-evidence test { for build::writing_does_not_change_the_build holds source "test:writing_does_not_change_the_build" rev "37b71a9d20be" }
-evidence test { for build::another_type_changes_the_build holds source "test:another_type_changes_the_build" rev "37b71a9d20be" }
-evidence test { for build::the_world_is_not_in_the_interface holds source "test:the_world_is_not_in_the_interface" rev "37b71a9d20be" }
-evidence test { for levels::a_capture_is_a_person_s holds source "test:a_capture_is_a_person_s" rev "37b71a9d20be" }
-evidence test { for modules::bought_not_built holds source "test:a_block_of_another_store_is_a_boundary" rev "37b71a9d20be" }
-evidence test { for modules::a_contract_is_brought holds source "test:a_contract_of_another_store_is_brought" rev "37b71a9d20be" }
-evidence tie { for functions::Expr::tied holds source "reader:rust src/ast.rs:10" rev "37b71a9d20be" }
-evidence tie { for functions::Function::tied holds source "reader:rust src/ast.rs:104" rev "37b71a9d20be" }
-evidence tie { for claims::Target::tied holds source "reader:rust src/ast.rs:143" rev "37b71a9d20be" }
-evidence tie { for claims::Claim::tied holds source "reader:rust src/ast.rs:187" rev "37b71a9d20be" }
-evidence tie { for ledger::Judgment::tied holds source "reader:rust src/ast.rs:209" rev "37b71a9d20be" }
-evidence tie { for ledger::Evidence::tied holds source "reader:rust src/ast.rs:235" rev "37b71a9d20be" }
-evidence tie { for ledger::Why::tied holds source "reader:rust src/ast.rs:268" rev "37b71a9d20be" }
-evidence tie { for ledger::Aside::tied holds source "reader:rust src/ast.rs:279" rev "37b71a9d20be" }
-evidence tie { for model::Model::tied holds source "reader:rust src/ast.rs:296" rev "37b71a9d20be" }
-evidence tie { for model::Bounded::tied holds source "reader:rust src/ast.rs:365" rev "37b71a9d20be" }
-evidence tie { for model::Side::tied holds source "reader:rust src/ast.rs:380" rev "37b71a9d20be" }
-evidence tie { for model::Block::tied holds source "reader:rust src/ast.rs:391" rev "37b71a9d20be" }
-evidence tie { for intent::Ensure::tied holds source "reader:rust src/ast.rs:429" rev "37b71a9d20be" }
-evidence tie { for build::Item::tied holds source "reader:rust src/build.rs:10" rev "37b71a9d20be" }
-evidence tie { for build::Built::tied holds source "reader:rust src/build.rs:25" rev "37b71a9d20be" }
-evidence tie { for verdicts::Logic::tied holds source "reader:rust src/eval.rs:14" rev "37b71a9d20be" }
-evidence tie { for verdicts::Verdict::tied holds source "reader:rust src/eval.rs:65" rev "37b71a9d20be" }
-evidence tie { for report::Piece::tied holds source "reader:rust src/eval.rs:218" rev "37b71a9d20be" }
-evidence tie { for report::Candidate::tied holds source "reader:rust src/eval.rs:262" rev "37b71a9d20be" }
-evidence tie { for verdicts::Problem::tied holds source "reader:rust src/eval.rs:279" rev "37b71a9d20be" }
-evidence tie { for verdicts::Report::tied holds source "reader:rust src/eval.rs:356" rev "37b71a9d20be" }
-evidence tie { for levels::Left::tied holds source "reader:rust src/levels.rs:11" rev "37b71a9d20be" }
-evidence tie { for levels::Diagnosis::tied holds source "reader:rust src/levels.rs:54" rev "37b71a9d20be" }
-evidence tie { for reader::Error::tied holds source "reader:rust src/lib.rs:54" rev "37b71a9d20be" }
-evidence tie { for types::Input::tied holds source "reader:rust src/lib.rs:79" rev "37b71a9d20be" }
-evidence tie { for modules::Module::tied holds source "reader:rust src/modules.rs:10" rev "37b71a9d20be" }
-evidence tie { for modules::Modules::tied holds source "reader:rust src/modules.rs:19" rev "37b71a9d20be" }
-evidence tie { for modules::Handed::tied holds source "reader:rust src/parse.rs:22" rev "37b71a9d20be" }
-evidence tie { for ledger::Entry::tied holds source "reader:rust src/parse.rs:218" rev "37b71a9d20be" }
-evidence tie { for reader::Names::tied holds source "reader:rust src/parse.rs:372" rev "37b71a9d20be" }
-evidence tie { for results::Outcome::tied holds source "reader:rust src/results.rs:14" rev "37b71a9d20be" }
-evidence tie { for results::Tied::tied holds source "reader:rust src/results.rs:26" rev "37b71a9d20be" }
-evidence tie { for results::Ingested::tied holds source "reader:rust src/results.rs:40" rev "37b71a9d20be" }
-evidence tie { for culprits::Ranking::tied holds source "reader:rust src/trust/culprits.rs:32" rev "37b71a9d20be" }
-evidence tie { for culprits::NoRanking::tied holds source "reader:rust src/trust/culprits.rs:46" rev "37b71a9d20be" }
-evidence tie { for ledger::Evidence::by_machine::tied holds source "reader:rust src/ast.rs:255; not compared: the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for model::Model::block_of::tied holds source "reader:rust src/ast.rs:409; not compared: the result is Option<model::Block(String, model::Side, Option<String>, Any)> in the model and Option<&Block> in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for types::Model::check::tied holds source "reader:rust src/ast.rs:627; not compared: the result is Result<model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any), (types::Input, reader::Error)> in the model and Result<Model, (Input, Error)> in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for build::build::tied holds source "reader:rust src/build.rs:36; not compared: m is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for build::build::uses holds source "reader:rust src/build.rs:36" rev "37b71a9d20be" }
-evidence tie { for build::Built::lock::tied holds source "reader:rust src/build.rs:122" rev "37b71a9d20be" }
-evidence tie { for build::Built::count::tied holds source "reader:rust src/build.rs:128; not compared: the result is 0.. in the model and usize in the code" rev "37b71a9d20be" }
-evidence tie { for build::interface::tied holds source "reader:rust src/build.rs:137; not compared: m is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for report::Logic::as_str::tied holds source "reader:rust src/eval.rs:28" rev "37b71a9d20be" }
-evidence tie { for eval::unary::tied holds source "reader:rust src/eval.rs:1494; not compared: v is Any in the model and &Value in the code, the result is Option<Any> in the model and Option<Value> in the code" rev "37b71a9d20be" }
-evidence tie { for eval::binary::tied holds source "reader:rust src/eval.rs:1509; not compared: x is Any in the model and &Value in the code, y is Any in the model and &Value in the code, the result is Option<Any> in the model and Option<Value> in the code" rev "37b71a9d20be" }
-evidence tie { for verdicts::evaluate::tied holds source "reader:rust src/eval.rs:1827; not compared: model is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, the result is Result<verdicts::Report(List<verdicts::Verdict(String, verdicts::Logic, Any)>, List<verdicts::Problem>, Any), (types::Input, reader::Error)> in the model and Result<Report, (Input, Error)> in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for fingerprint::hash::tied holds source "reader:rust src/fingerprint.rs:11" rev "37b71a9d20be" }
-evidence tie { for fingerprint::all::tied holds source "reader:rust src/fingerprint.rs:86; not compared: m is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for fingerprint::of::tied holds source "reader:rust src/fingerprint.rs:93" rev "37b71a9d20be" }
-evidence tie { for levels::left::tied holds source "reader:rust src/levels.rs:23; not compared: model is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, report is verdicts::Report(List<verdicts::Verdict(String, verdicts::Logic, Any)>, List<verdicts::Problem>, Any) in the model and &Report in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for levels::left::uses holds source "reader:rust src/levels.rs:23" rev "37b71a9d20be" }
-evidence tie { for types::load::tied holds source "reader:rust src/lib.rs:87; not compared: the result is Result<model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any), (types::Input, reader::Error)> in the model and Result<Model, (Input, Error)> in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for types::load::uses holds source "reader:rust src/lib.rs:87" rev "37b71a9d20be" }
-evidence tie { for types::load_modules::tied holds source "reader:rust src/lib.rs:94; not compared: the result is Result<model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any), (types::Input, reader::Error)> in the model and Result<Model, (Input, Error)> in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for verdicts::run::tied holds source "reader:rust src/lib.rs:445; not compared: the result is Result<verdicts::Report(List<verdicts::Verdict(String, verdicts::Logic, Any)>, List<verdicts::Problem>, Any), (types::Input, reader::Error)> in the model and Result<Report, (Input, Error)> in the code" rev "37b71a9d20be" }
-evidence tie { for verdicts::run::uses holds source "reader:rust src/lib.rs:445" rev "37b71a9d20be" }
-evidence tie { for modules::Modules::alone::tied holds source "reader:rust src/modules.rs:31" rev "37b71a9d20be" }
-evidence tie { for modules::Modules::new::tied holds source "reader:rust src/modules.rs:39" rev "37b71a9d20be" }
-evidence tie { for modules::Modules::text::tied holds source "reader:rust src/modules.rs:68" rev "37b71a9d20be" }
-evidence tie { for modules::Modules::place::tied holds source "reader:rust src/modules.rs:74; not compared: line is 0.. in the model and usize in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for modules::Modules::locate::tied holds source "reader:rust src/modules.rs:84" rev "37b71a9d20be" }
-evidence tie { for modules::imports::tied holds source "reader:rust src/parse.rs:184" rev "37b71a9d20be" }
-evidence tie { for reader::model::tied holds source "reader:rust src/parse.rs:4143; not compared: the result is Result<(model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any), reader::Names), reader::Error> in the model and Result<(Model, Names), Error> in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for ledger::entries::tied holds source "reader:rust src/parse.rs:5360; not compared: the result is List<ledger::Entry(String, Option<String>, Option<String>, Option<String>, 0.., 0..)> in the model and Vec<Entry> in the code" rev "37b71a9d20be" }
-evidence tie { for advice::plan::tied holds source "reader:rust src/plan.rs:16; not compared: model is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, report is verdicts::Report(List<verdicts::Verdict(String, verdicts::Logic, Any)>, List<verdicts::Problem>, Any) in the model and &Report in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for print::negative::tied holds source "reader:rust src/print.rs:103; not compared: v is Any in the model and &Value in the code" rev "37b71a9d20be" }
-evidence tie { for print::level::tied holds source "reader:rust src/print.rs:117; not compared: the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for verdicts::derive::tied holds source "reader:rust src/prove.rs:477; not compared: model is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &mut Model in the code, the result is {()} in the model and () in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for report::word::tied holds source "reader:rust src/report.rs:218; not compared: the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for results::from_tests::tied holds source "reader:rust src/results.rs:61; not compared: model is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence tie { for results::short::tied holds source "reader:rust src/results.rs:159" rev "37b71a9d20be" }
-evidence tie { for results::attr::tied holds source "reader:rust src/results.rs:167" rev "37b71a9d20be" }
-evidence tie { for results::strip::tied holds source "reader:rust src/results.rs:200" rev "37b71a9d20be" }
-evidence tie { for results::junit::tied holds source "reader:rust src/results.rs:213" rev "37b71a9d20be" }
-evidence tie { for results::junit::uses holds source "reader:rust src/results.rs:213" rev "37b71a9d20be" }
-evidence tie { for print::quote::tied holds source "reader:rust src/set.rs:1145" rev "37b71a9d20be" }
-evidence tie { for culprits::rank::tied holds source "reader:rust src/trust/culprits.rs:58; not compared: clauses is List<List<0..>> in the model and &[Vec<usize>] in the code, the numbers of the model computed as the code computes" rev "37b71a9d20be" }
-evidence review { for print::level_uniform holds source "review:claude" rev "37b71a9d20be" seen "77ea1f59efb7" }
-evidence review { for report::word_uniform holds source "review:claude" rev "37b71a9d20be" seen "d8fa34330d6d" }
+evidence test { for t_holds holds source "test:t_holds" rev "cfdd15f9911a" }
+evidence test { for t_assuming holds source "test:t_assuming" rev "cfdd15f9911a" }
+evidence test { for t_unverified holds source "test:t_unverified" rev "cfdd15f9911a" }
+evidence test { for t_fails holds source "test:t_fails" rev "cfdd15f9911a" }
+evidence test { for t_plus holds source "test:t_plus" rev "cfdd15f9911a" }
+evidence test { for t_plus_swapped holds source "test:t_plus_swapped" rev "cfdd15f9911a" }
+evidence test { for t_plus_overflow holds source "test:t_plus_overflow" rev "cfdd15f9911a" }
+evidence test { for t_plus_overflow_swapped holds source "test:t_plus_overflow_swapped" rev "cfdd15f9911a" }
+evidence test { for t_plus_mixed holds source "test:t_plus_mixed" rev "cfdd15f9911a" }
+evidence test { for t_plus_mixed_swapped holds source "test:t_plus_mixed_swapped" rev "cfdd15f9911a" }
+evidence test { for t_plus_floats holds source "test:t_plus_floats" rev "cfdd15f9911a" }
+evidence test { for t_plus_floats_swapped holds source "test:t_plus_floats_swapped" rev "cfdd15f9911a" }
+evidence test { for t_minus holds source "test:t_minus" rev "cfdd15f9911a" }
+evidence test { for t_plus_negated holds source "test:t_plus_negated" rev "cfdd15f9911a" }
+evidence test { for t_times holds source "test:t_times" rev "cfdd15f9911a" }
+evidence test { for t_times_swapped holds source "test:t_times_swapped" rev "cfdd15f9911a" }
+evidence test { for t_divide holds source "test:t_divide" rev "cfdd15f9911a" }
+evidence test { for t_divide_towards_zero holds source "test:t_divide_towards_zero" rev "cfdd15f9911a" }
+evidence test { for t_divide_by_zero holds source "test:t_divide_by_zero" rev "cfdd15f9911a" }
+evidence test { for t_divide_floats holds source "test:t_divide_floats" rev "cfdd15f9911a" }
+evidence test { for t_equal holds source "test:t_equal" rev "cfdd15f9911a" }
+evidence test { for t_different holds source "test:t_different" rev "cfdd15f9911a" }
+evidence test { for t_equal_mixed holds source "test:t_equal_mixed" rev "cfdd15f9911a" }
+evidence test { for t_different_mixed holds source "test:t_different_mixed" rev "cfdd15f9911a" }
+evidence test { for t_less holds source "test:t_less" rev "cfdd15f9911a" }
+evidence test { for t_and holds source "test:t_and" rev "cfdd15f9911a" }
+evidence test { for t_or holds source "test:t_or" rev "cfdd15f9911a" }
+evidence test { for t_unknown_operator holds source "test:t_unknown_operator" rev "cfdd15f9911a" }
+evidence test { for t_not_true holds source "test:t_not_true" rev "cfdd15f9911a" }
+evidence test { for t_not_false holds source "test:t_not_false" rev "cfdd15f9911a" }
+evidence test { for t_negate holds source "test:t_negate" rev "cfdd15f9911a" }
+evidence test { for t_negate_back holds source "test:t_negate_back" rev "cfdd15f9911a" }
+evidence test { for t_negate_float holds source "test:t_negate_float" rev "cfdd15f9911a" }
+evidence test { for t_negate_string holds source "test:t_negate_string" rev "cfdd15f9911a" }
+evidence test { for t_in_set holds source "test:t_in_set" rev "cfdd15f9911a" }
+evidence test { for t_in_list holds source "test:t_in_list" rev "cfdd15f9911a" }
+evidence test { for t_in_map holds source "test:t_in_map" rev "cfdd15f9911a" }
+evidence test { for t_in_number holds source "test:t_in_number" rev "cfdd15f9911a" }
+evidence test { for t_union holds source "test:t_union" rev "cfdd15f9911a" }
+evidence test { for t_union_swapped holds source "test:t_union_swapped" rev "cfdd15f9911a" }
+evidence test { for t_intersection holds source "test:t_intersection" rev "cfdd15f9911a" }
+evidence test { for t_apart holds source "test:t_apart" rev "cfdd15f9911a" }
+evidence test { for t_difference holds source "test:t_difference" rev "cfdd15f9911a" }
+evidence test { for t_map_update holds source "test:t_map_update" rev "cfdd15f9911a" }
+evidence test { for t_map_remove holds source "test:t_map_remove" rev "cfdd15f9911a" }
+evidence test { for t_set_with_map holds source "test:t_set_with_map" rev "cfdd15f9911a" }
+evidence test { for t_keys holds source "test:t_keys" rev "cfdd15f9911a" }
+evidence test { for t_keys_of_a_set holds source "test:t_keys_of_a_set" rev "cfdd15f9911a" }
+evidence test { for eval::twice_negated given v in -100..=100 sampled 201 source "test:twice_negated" rev "cfdd15f9911a" }
+evidence test { for eval::plus_commutes given x in -12..=12, y in -12..=12 sampled 625 source "test:plus_commutes" rev "cfdd15f9911a" }
+evidence test { for eval::times_commutes given x in -12..=12, y in -12..=12 sampled 625 source "test:times_commutes" rev "cfdd15f9911a" }
+evidence test { for eval::minus_is_plus_negated given x in -12..=12, y in -12..=12 sampled 625 source "test:minus_is_plus_negated" rev "cfdd15f9911a" }
+evidence test { for eval::different_is_not_equal given x in -5..=5 | {true, "a"}, y in -5..=5 | {true, "a"} sampled 169 source "test:different_is_not_equal" rev "cfdd15f9911a" }
+evidence test { for eval::union_commutes given x in {{}, {1}, {1, 2}, {2, 3}}, y in {{}, {1}, {1, 2}, {2, 3}} sampled 16 source "test:union_commutes" rev "cfdd15f9911a" }
+evidence test { for eval::difference_apart given x in {{}, {1}, {1, 2}, {2, 3}}, y in {{}, {1}, {1, 2}, {2, 3}} sampled 16 source "test:difference_apart" rev "cfdd15f9911a" }
+evidence test { for eval::divides_back given x in -12..=12, y in -12..=12 \ {0} sampled 600 source "test:divides_back" rev "cfdd15f9911a" }
+evidence test { for fingerprint::hash given text = "" gives "cbf29ce48422" source "test:t_hash_empty" rev "cfdd15f9911a" }
+evidence test { for fingerprint::hash given text = "" holds source "test:t_hash_empty" rev "cfdd15f9911a" }
+evidence test { for fingerprint::hash given text = "a" gives "af63dc4c8601" source "test:t_hash_a" rev "cfdd15f9911a" }
+evidence test { for fingerprint::hash given text = "a" holds source "test:t_hash_a" rev "cfdd15f9911a" }
+evidence test { for fingerprint::t_of_the_piece holds source "test:t_of_the_piece" rev "cfdd15f9911a" }
+evidence test { for fingerprint::t_of_what_is_under_it holds source "test:t_of_what_is_under_it" rev "cfdd15f9911a" }
+evidence test { for fingerprint::t_of_nothing holds source "test:t_of_nothing" rev "cfdd15f9911a" }
+evidence test { for ledger::t_entries_one holds source "test:t_entries_one" rev "cfdd15f9911a" }
+evidence test { for ledger::t_entries_label_is_the_source holds source "test:t_entries_label_is_the_source" rev "cfdd15f9911a" }
+evidence test { for ledger::t_entries_none holds source "test:t_entries_none" rev "cfdd15f9911a" }
+evidence test { for reader::reads_a_subject holds source "test:reads_a_subject" rev "cfdd15f9911a" }
+evidence test { for reader::refuses_a_bare_fn holds source "test:refuses_a_bare_fn" rev "cfdd15f9911a" }
+evidence test { for reader::fault_is_placed sampled 13 source "test:fault_is_placed" rev "cfdd15f9911a" }
+evidence test { for t_level_or holds source "test:t_level_or" rev "cfdd15f9911a" }
+evidence test { for t_level_and holds source "test:t_level_and" rev "cfdd15f9911a" }
+evidence test { for t_level_compare holds source "test:t_level_compare" rev "cfdd15f9911a" }
+evidence test { for t_level_sum holds source "test:t_level_sum" rev "cfdd15f9911a" }
+evidence test { for t_level_union holds source "test:t_level_union" rev "cfdd15f9911a" }
+evidence test { for t_level_intersection holds source "test:t_level_intersection" rev "cfdd15f9911a" }
+evidence test { for t_level_in holds source "test:t_level_in" rev "cfdd15f9911a" }
+evidence test { for t_level_product holds source "test:t_level_product" rev "cfdd15f9911a" }
+evidence test { for t_negative_int holds source "test:t_negative_int" rev "cfdd15f9911a" }
+evidence test { for t_negative_zero holds source "test:t_negative_zero" rev "cfdd15f9911a" }
+evidence test { for t_negative_float holds source "test:t_negative_float" rev "cfdd15f9911a" }
+evidence test { for t_negative_string holds source "test:t_negative_string" rev "cfdd15f9911a" }
+evidence test { for print::negative_ints given v in -100..=100 sampled 201 source "test:negative_ints" rev "cfdd15f9911a" }
+evidence test { for t_word_certain holds source "test:t_word_certain" rev "cfdd15f9911a" }
+evidence test { for t_word_likely holds source "test:t_word_likely" rev "cfdd15f9911a" }
+evidence test { for t_word_possible holds source "test:t_word_possible" rev "cfdd15f9911a" }
+evidence test { for t_word_unlikely holds source "test:t_word_unlikely" rev "cfdd15f9911a" }
+evidence test { for t_short_path holds source "test:t_short_path" rev "cfdd15f9911a" }
+evidence test { for t_short_plain holds source "test:t_short_plain" rev "cfdd15f9911a" }
+evidence test { for t_short_should_panic holds source "test:t_short_should_panic" rev "cfdd15f9911a" }
+evidence test { for t_short_panics_once holds source "test:t_short_panics_once" rev "cfdd15f9911a" }
+evidence test { for t_attr_double holds source "test:t_attr_double" rev "cfdd15f9911a" }
+evidence test { for t_attr_single holds source "test:t_attr_single" rev "cfdd15f9911a" }
+evidence test { for t_attr_missing holds source "test:t_attr_missing" rev "cfdd15f9911a" }
+evidence test { for t_attr_inside_another holds source "test:t_attr_inside_another" rev "cfdd15f9911a" }
+evidence test { for t_attr_entities holds source "test:t_attr_entities" rev "cfdd15f9911a" }
+evidence test { for t_strip_one holds source "test:t_strip_one" rev "cfdd15f9911a" }
+evidence test { for t_strip_unclosed holds source "test:t_strip_unclosed" rev "cfdd15f9911a" }
+evidence test { for t_strip_nothing holds source "test:t_strip_nothing" rev "cfdd15f9911a" }
+evidence test { for t_junit_passed holds source "test:t_junit_passed" rev "cfdd15f9911a" }
+evidence test { for t_junit_failure holds source "test:t_junit_failure" rev "cfdd15f9911a" }
+evidence test { for t_junit_error holds source "test:t_junit_error" rev "cfdd15f9911a" }
+evidence test { for t_junit_skipped holds source "test:t_junit_skipped" rev "cfdd15f9911a" }
+evidence test { for t_junit_failure_in_a_log holds source "test:t_junit_failure_in_a_log" rev "cfdd15f9911a" }
+evidence test { for t_junit_path holds source "test:t_junit_path" rev "cfdd15f9911a" }
+evidence test { for results::short_once given path in {"", "t", "a::t", "a::b::t", "a::t - should panic", " a::t "} sampled 6 source "test:short_once" rev "cfdd15f9911a" }
+evidence test { for t_quote_plain holds source "test:t_quote_plain" rev "cfdd15f9911a" }
+evidence test { for t_quote_empty holds source "test:t_quote_empty" rev "cfdd15f9911a" }
+evidence test { for t_quote_escapes holds source "test:t_quote_escapes" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [None, Some(0.8)], clauses = [[0, 1]] holds source "test:code_against_one_failure" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [Some(0.9), Some(0.99), Some(0.8)], clauses = [[0, 1, 2]] holds source "test:three_pieces_in_conflict" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [Some(0.3), Some(1.0), None, Some(0.0)], clauses = [] holds source "test:no_clause_no_belief" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [Some(0.0), Some(0.6), Some(0.7)], clauses = [[0, 1, 2]] holds source "test:distrust_shows" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [None, Some(1.0)], clauses = [[0, 1]] gives Ok(Ranking([1.0, 0.0], [1.0, 0.0], 0.0, 0)) source "test:full_trust" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [None, Some(1.0)], clauses = [[0, 1]] holds source "test:full_trust" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [Some(1.0), Some(0.1), Some(1.0), Some(1.0)], clauses = [[0, 1, 3], [0, 2, 3]] holds source "test:a_tie_beside_a_distrusted_piece" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [None, Some(0.5), Some(0.5)], clauses = [[0, 1]] holds source "test:outside_every_clause" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [None, Some(0.8), Some(0.8)], clauses = [[0, 1], [0, 2]] holds source "test:two_failures_agree" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [Some(1.5)], clauses = [] gives Err(Invalid) source "test:rejects_bias_above_one" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [Some(1.5)], clauses = [] holds source "test:rejects_bias_above_one" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [Some(0.5)], clauses = [[3]] gives Err(Invalid) source "test:rejects_unknown_piece" rev "cfdd15f9911a" }
+evidence test { for culprits::rank given biases = [Some(0.5)], clauses = [[3]] holds source "test:rejects_unknown_piece" rev "cfdd15f9911a" }
+evidence test { for culprits::rank_shape given biases in {[], [None], [Some(0.5)], [None, Some(0.8)], [Some(1.0), Some(1.0)], [Some(0.0), Some(0.6), Some(0.7)]}, clauses in {[], [[0]], [[0, 1]], [[0, 1], [1, 2]]} sampled 24 source "test:rank_shape" rev "cfdd15f9911a" }
+evidence test { for culprits::no_clause_no_belief given biases in {[], [None], [Some(0.5)], [None, Some(0.8)], [Some(1.0), Some(1.0)], [Some(0.0), Some(0.6), Some(0.7)]}, clauses in {[]} sampled 6 source "test:no_clause_no_belief_on_any" rev "cfdd15f9911a" }
+evidence test { for contracts::implementer_is_given_the_contract holds source "test:implementer_is_given_the_contract" rev "cfdd15f9911a" }
+evidence test { for contracts::unfilled_is_assumed holds source "test:unfilled_is_assumed" rev "cfdd15f9911a" }
+evidence test { for contracts::contract_is_neither_built_nor_bought holds source "test:contract_is_neither_built_nor_bought" rev "cfdd15f9911a" }
+evidence test { for contracts::bound_is_kept_by_input holds source "test:bound_is_kept_by_input" rev "cfdd15f9911a" }
+evidence test { for contracts::parameter_is_opaque holds source "test:parameter_is_opaque" rev "cfdd15f9911a" }
+evidence test { for types::good_is_read holds source "test:good_is_read" rev "cfdd15f9911a" }
+evidence test { for types::unknown_is_refused holds source "test:unknown_is_refused" rev "cfdd15f9911a" }
+evidence test { for types::twice_is_refused holds source "test:twice_is_refused" rev "cfdd15f9911a" }
+evidence test { for types::arity_is_refused holds source "test:arity_is_refused" rev "cfdd15f9911a" }
+evidence test { for types::endless_is_refused holds source "test:endless_is_refused" rev "cfdd15f9911a" }
+evidence test { for verdicts::untested_is_unverified holds source "test:untested_is_unverified" rev "cfdd15f9911a" }
+evidence test { for verdicts::tested_holds holds source "test:tested_holds" rev "cfdd15f9911a" }
+evidence test { for verdicts::refuted_fails holds source "test:refuted_fails" rev "cfdd15f9911a" }
+evidence test { for verdicts::trust_changes_no_verdict holds source "test:trust_changes_no_verdict" rev "cfdd15f9911a" }
+evidence test { for verdicts::conflict_counts_for_neither holds source "test:conflict_counts_for_neither" rev "cfdd15f9911a" }
+evidence test { for verdicts::follows_from_a_vouched_claim holds source "test:follows_from_a_vouched_claim" rev "cfdd15f9911a" }
+evidence test { for verdicts::one_verdict_each sampled 50 source "test:one_verdict_each" rev "cfdd15f9911a" }
+evidence test { for model::nothing_written_nothing_held holds source "test:nothing_written_nothing_held" rev "cfdd15f9911a" }
+evidence test { for model::world_is_listed holds source "test:world_is_listed" rev "cfdd15f9911a" }
+evidence test { for model::blocks_are_listed holds source "test:blocks_are_listed" rev "cfdd15f9911a" }
+evidence test { for model::a_block_written_twice_is_one holds source "test:a_block_written_twice_is_one" rev "cfdd15f9911a" }
+evidence test { for functions::code_is_claimed_correct holds source "test:code_is_claimed_correct" rev "cfdd15f9911a" }
+evidence test { for functions::spec_replaces_correct holds source "test:spec_replaces_correct" rev "cfdd15f9911a" }
+evidence test { for functions::helper_claims_nothing holds source "test:helper_claims_nothing" rev "cfdd15f9911a" }
+evidence test { for functions::world_claims_nothing holds source "test:world_claims_nothing" rev "cfdd15f9911a" }
+evidence test { for claims::written_claim_is_named holds source "test:written_claim_is_named" rev "cfdd15f9911a" }
+evidence test { for claims::assume_is_named_and_assumed holds source "test:assume_is_named_and_assumed" rev "cfdd15f9911a" }
+evidence test { for claims::uses_is_named holds source "test:uses_is_named" rev "cfdd15f9911a" }
+evidence test { for claims::uses_is_read_from_a_body holds source "test:uses_is_read_from_a_body" rev "cfdd15f9911a" }
+evidence test { for claims::tie_is_named_once_evidence_names_it holds source "test:tie_is_named_once_evidence_names_it" rev "cfdd15f9911a" }
+evidence test { for claims::trust_is_kept holds source "test:trust_is_kept" rev "cfdd15f9911a" }
+evidence test { for intent::promise_lists_its_claims holds source "test:promise_lists_its_claims" rev "cfdd15f9911a" }
+evidence test { for intent::capture_is_unverified_until_vouched holds source "test:capture_is_unverified_until_vouched" rev "cfdd15f9911a" }
+evidence test { for intent::need_names_its_promise holds source "test:need_names_its_promise" rev "cfdd15f9911a" }
+evidence test { for intent::world_promise_is_assumed holds source "test:world_promise_is_assumed" rev "cfdd15f9911a" }
+evidence test { for ledger::source_rev_and_trust_are_kept holds source "test:source_rev_and_trust_are_kept" rev "cfdd15f9911a" }
+evidence test { for ledger::pinned_keeps_the_output holds source "test:pinned_keeps_the_output" rev "cfdd15f9911a" }
+evidence test { for ledger::pinned_output_refutes_a_claim holds source "test:pinned_output_refutes_a_claim" rev "cfdd15f9911a" }
+evidence test { for ledger::vouched_holds holds source "test:vouched_holds" rev "cfdd15f9911a" }
+evidence test { for ledger::passes_stays_unverified holds source "test:passes_stays_unverified" rev "cfdd15f9911a" }
+evidence test { for ledger::sample_stays_unverified holds source "test:sample_stays_unverified" rev "cfdd15f9911a" }
+evidence test { for ledger::failing_sample_fails holds source "test:failing_sample_fails" rev "cfdd15f9911a" }
+evidence test { for modules::unknown_module_is_refused holds source "test:unknown_module_is_refused" rev "cfdd15f9911a" }
+evidence test { for modules::line_is_placed holds source "test:line_is_placed" rev "cfdd15f9911a" }
+evidence test { for verdicts::same_report sampled 8 source "test:same_report" rev "cfdd15f9911a" }
+evidence test { for modules::one_text_is_read_as_it_is holds source "test:one_text_is_read_as_it_is" rev "cfdd15f9911a" }
+evidence test { for modules::imports_are_listed holds source "test:imports_are_listed" rev "cfdd15f9911a" }
+evidence test { for modules::an_import_is_listed_once holds source "test:an_import_is_listed_once" rev "cfdd15f9911a" }
+evidence test { for modules::fault_is_located holds source "test:fault_is_located" rev "cfdd15f9911a" }
+evidence test { for results::unpinned_pass_only_passes holds source "test:unpinned_pass_only_passes" rev "cfdd15f9911a" }
+evidence test { for results::pass_on_a_point_holds holds source "test:pass_on_a_point_holds" rev "cfdd15f9911a" }
+evidence test { for results::pinned_pass_is_written_as_it_stands holds source "test:pinned_pass_is_written_as_it_stands" rev "cfdd15f9911a" }
+evidence test { for results::sample_keeps_its_count holds source "test:sample_keeps_its_count" rev "cfdd15f9911a" }
+evidence test { for results::pinned_failure_denies_the_pin holds source "test:pinned_failure_denies_the_pin" rev "cfdd15f9911a" }
+evidence test { for results::unpinned_failure_fails_the_claim holds source "test:unpinned_failure_fails_the_claim" rev "cfdd15f9911a" }
+evidence test { for results::failing_sample_says_fails holds source "test:failing_sample_says_fails" rev "cfdd15f9911a" }
+evidence test { for ledger::orphan_is_set_aside holds source "test:orphan_is_set_aside" rev "cfdd15f9911a" }
+evidence test { for ledger::stale_is_set_aside holds source "test:stale_is_set_aside" rev "cfdd15f9911a" }
+evidence test { for ledger::seen_as_it_is_judges holds source "test:seen_as_it_is_judges" rev "cfdd15f9911a" }
+evidence test { for fingerprint::writing_does_not_count holds source "test:writing_does_not_count" rev "cfdd15f9911a" }
+evidence test { for fingerprint::another_claim_counts holds source "test:another_claim_counts" rev "cfdd15f9911a" }
+evidence test { for fingerprint::a_new_claim_changes_the_capture holds source "test:a_new_claim_changes_the_capture" rev "cfdd15f9911a" }
+evidence test { for build::implied_pieces_are_listed holds source "test:implied_pieces_are_listed" rev "cfdd15f9911a" }
+evidence test { for build::a_promise_lists_what_it_rests_on holds source "test:a_promise_lists_what_it_rests_on" rev "cfdd15f9911a" }
+evidence test { for build::writing_does_not_change_the_build holds source "test:writing_does_not_change_the_build" rev "cfdd15f9911a" }
+evidence test { for build::another_type_changes_the_build holds source "test:another_type_changes_the_build" rev "cfdd15f9911a" }
+evidence test { for build::the_world_is_not_in_the_interface holds source "test:the_world_is_not_in_the_interface" rev "cfdd15f9911a" }
+evidence test { for levels::a_capture_is_a_person_s holds source "test:a_capture_is_a_person_s" rev "cfdd15f9911a" }
+evidence test { for modules::bought_not_built holds source "test:a_block_of_another_store_is_a_boundary" rev "cfdd15f9911a" }
+evidence test { for modules::a_contract_is_brought holds source "test:a_contract_of_another_store_is_brought" rev "cfdd15f9911a" }
+evidence tie { for functions::Expr::tied holds source "reader:rust src/ast.rs:10" rev "cfdd15f9911a" }
+evidence tie { for functions::Function::tied holds source "reader:rust src/ast.rs:104" rev "cfdd15f9911a" }
+evidence tie { for claims::Target::tied holds source "reader:rust src/ast.rs:143" rev "cfdd15f9911a" }
+evidence tie { for claims::Claim::tied holds source "reader:rust src/ast.rs:187" rev "cfdd15f9911a" }
+evidence tie { for ledger::Judgment::tied holds source "reader:rust src/ast.rs:209" rev "cfdd15f9911a" }
+evidence tie { for ledger::Evidence::tied holds source "reader:rust src/ast.rs:235" rev "cfdd15f9911a" }
+evidence tie { for ledger::Why::tied holds source "reader:rust src/ast.rs:268" rev "cfdd15f9911a" }
+evidence tie { for ledger::Aside::tied holds source "reader:rust src/ast.rs:279" rev "cfdd15f9911a" }
+evidence tie { for model::Model::tied holds source "reader:rust src/ast.rs:296" rev "cfdd15f9911a" }
+evidence tie { for model::Bounded::tied holds source "reader:rust src/ast.rs:365" rev "cfdd15f9911a" }
+evidence tie { for model::Side::tied holds source "reader:rust src/ast.rs:380" rev "cfdd15f9911a" }
+evidence tie { for model::Block::tied holds source "reader:rust src/ast.rs:391" rev "cfdd15f9911a" }
+evidence tie { for intent::Ensure::tied holds source "reader:rust src/ast.rs:429" rev "cfdd15f9911a" }
+evidence tie { for build::Item::tied holds source "reader:rust src/build.rs:10" rev "cfdd15f9911a" }
+evidence tie { for build::Built::tied holds source "reader:rust src/build.rs:25" rev "cfdd15f9911a" }
+evidence tie { for verdicts::Logic::tied holds source "reader:rust src/eval.rs:14" rev "cfdd15f9911a" }
+evidence tie { for verdicts::Verdict::tied holds source "reader:rust src/eval.rs:65" rev "cfdd15f9911a" }
+evidence tie { for report::Piece::tied holds source "reader:rust src/eval.rs:218" rev "cfdd15f9911a" }
+evidence tie { for report::Candidate::tied holds source "reader:rust src/eval.rs:262" rev "cfdd15f9911a" }
+evidence tie { for verdicts::Problem::tied holds source "reader:rust src/eval.rs:279" rev "cfdd15f9911a" }
+evidence tie { for verdicts::Report::tied holds source "reader:rust src/eval.rs:356" rev "cfdd15f9911a" }
+evidence tie { for frontend::Found::tied holds source "reader:rust src/frontend.rs:12" rev "cfdd15f9911a" }
+evidence tie { for levels::Left::tied holds source "reader:rust src/levels.rs:11" rev "cfdd15f9911a" }
+evidence tie { for levels::Diagnosis::tied holds source "reader:rust src/levels.rs:54" rev "cfdd15f9911a" }
+evidence tie { for reader::Error::tied holds source "reader:rust src/lib.rs:56" rev "cfdd15f9911a" }
+evidence tie { for types::Input::tied holds source "reader:rust src/lib.rs:81" rev "cfdd15f9911a" }
+evidence tie { for modules::Module::tied holds source "reader:rust src/modules.rs:10" rev "cfdd15f9911a" }
+evidence tie { for modules::Modules::tied holds source "reader:rust src/modules.rs:19" rev "cfdd15f9911a" }
+evidence tie { for modules::Handed::tied holds source "reader:rust src/parse.rs:22" rev "cfdd15f9911a" }
+evidence tie { for ledger::Entry::tied holds source "reader:rust src/parse.rs:218" rev "cfdd15f9911a" }
+evidence tie { for reader::Names::tied holds source "reader:rust src/parse.rs:372" rev "cfdd15f9911a" }
+evidence tie { for results::Outcome::tied holds source "reader:rust src/results.rs:14" rev "cfdd15f9911a" }
+evidence tie { for results::Tied::tied holds source "reader:rust src/results.rs:26" rev "cfdd15f9911a" }
+evidence tie { for results::Ingested::tied holds source "reader:rust src/results.rs:40" rev "cfdd15f9911a" }
+evidence tie { for culprits::Ranking::tied holds source "reader:rust src/trust/culprits.rs:32" rev "cfdd15f9911a" }
+evidence tie { for culprits::NoRanking::tied holds source "reader:rust src/trust/culprits.rs:46" rev "cfdd15f9911a" }
+evidence tie { for ledger::Evidence::by_machine::tied holds source "reader:rust src/ast.rs:255; not compared: the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for model::Model::block_of::tied holds source "reader:rust src/ast.rs:409; not compared: the result is Option<model::Block(String, model::Side, Option<String>, Any)> in the model and Option<&Block> in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for types::Model::check::tied holds source "reader:rust src/ast.rs:627; not compared: the result is Result<model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any), (types::Input, reader::Error)> in the model and Result<Model, (Input, Error)> in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for build::build::tied holds source "reader:rust src/build.rs:36; not compared: m is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for build::build::uses holds source "reader:rust src/build.rs:36" rev "cfdd15f9911a" }
+evidence tie { for build::Built::lock::tied holds source "reader:rust src/build.rs:122" rev "cfdd15f9911a" }
+evidence tie { for build::Built::count::tied holds source "reader:rust src/build.rs:128; not compared: the result is 0.. in the model and usize in the code" rev "cfdd15f9911a" }
+evidence tie { for build::interface::tied holds source "reader:rust src/build.rs:137; not compared: m is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for report::Logic::as_str::tied holds source "reader:rust src/eval.rs:28" rev "cfdd15f9911a" }
+evidence tie { for eval::unary::tied holds source "reader:rust src/eval.rs:1494; not compared: v is Any in the model and &Value in the code, the result is Option<Any> in the model and Option<Value> in the code" rev "cfdd15f9911a" }
+evidence tie { for eval::binary::tied holds source "reader:rust src/eval.rs:1509; not compared: x is Any in the model and &Value in the code, y is Any in the model and &Value in the code, the result is Option<Any> in the model and Option<Value> in the code" rev "cfdd15f9911a" }
+evidence tie { for verdicts::evaluate::tied holds source "reader:rust src/eval.rs:1827; not compared: model is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, the result is Result<verdicts::Report(List<verdicts::Verdict(String, verdicts::Logic, Any)>, List<verdicts::Problem>, Any), (types::Input, reader::Error)> in the model and Result<Report, (Input, Error)> in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for fingerprint::hash::tied holds source "reader:rust src/fingerprint.rs:11" rev "cfdd15f9911a" }
+evidence tie { for fingerprint::all::tied holds source "reader:rust src/fingerprint.rs:86; not compared: m is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for fingerprint::of::tied holds source "reader:rust src/fingerprint.rs:93" rev "cfdd15f9911a" }
+evidence tie { for Reader::results::tied holds source "reader:rust src/frontend.rs:29" rev "cfdd15f9911a" }
+evidence tie { for Reader::tests::tied holds source "reader:rust src/frontend.rs:33; not compared: root is Any in the model and &Place in the code" rev "cfdd15f9911a" }
+evidence tie { for Reader::tie::tied holds source "reader:rust src/frontend.rs:37; not compared: root is Any in the model and &Place in the code, model is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for levels::left::tied holds source "reader:rust src/levels.rs:23; not compared: model is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, report is verdicts::Report(List<verdicts::Verdict(String, verdicts::Logic, Any)>, List<verdicts::Problem>, Any) in the model and &Report in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for levels::left::uses holds source "reader:rust src/levels.rs:23" rev "cfdd15f9911a" }
+evidence tie { for types::load::tied holds source "reader:rust src/lib.rs:89; not compared: the result is Result<model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any), (types::Input, reader::Error)> in the model and Result<Model, (Input, Error)> in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for types::load::uses holds source "reader:rust src/lib.rs:89" rev "cfdd15f9911a" }
+evidence tie { for types::load_modules::tied holds source "reader:rust src/lib.rs:96; not compared: the result is Result<model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any), (types::Input, reader::Error)> in the model and Result<Model, (Input, Error)> in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for verdicts::run::tied holds source "reader:rust src/lib.rs:447; not compared: the result is Result<verdicts::Report(List<verdicts::Verdict(String, verdicts::Logic, Any)>, List<verdicts::Problem>, Any), (types::Input, reader::Error)> in the model and Result<Report, (Input, Error)> in the code" rev "cfdd15f9911a" }
+evidence tie { for verdicts::run::uses holds source "reader:rust src/lib.rs:447" rev "cfdd15f9911a" }
+evidence tie { for modules::Modules::alone::tied holds source "reader:rust src/modules.rs:31" rev "cfdd15f9911a" }
+evidence tie { for modules::Modules::new::tied holds source "reader:rust src/modules.rs:39" rev "cfdd15f9911a" }
+evidence tie { for modules::Modules::text::tied holds source "reader:rust src/modules.rs:68" rev "cfdd15f9911a" }
+evidence tie { for modules::Modules::place::tied holds source "reader:rust src/modules.rs:74; not compared: line is 0.. in the model and usize in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for modules::Modules::locate::tied holds source "reader:rust src/modules.rs:84" rev "cfdd15f9911a" }
+evidence tie { for modules::imports::tied holds source "reader:rust src/parse.rs:184" rev "cfdd15f9911a" }
+evidence tie { for reader::model::tied holds source "reader:rust src/parse.rs:4143; not compared: the result is Result<(model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any), reader::Names), reader::Error> in the model and Result<(Model, Names), Error> in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for ledger::entries::tied holds source "reader:rust src/parse.rs:5360; not compared: the result is List<ledger::Entry(String, Option<String>, Option<String>, Option<String>, 0.., 0..)> in the model and Vec<Entry> in the code" rev "cfdd15f9911a" }
+evidence tie { for advice::plan::tied holds source "reader:rust src/plan.rs:16; not compared: model is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, report is verdicts::Report(List<verdicts::Verdict(String, verdicts::Logic, Any)>, List<verdicts::Problem>, Any) in the model and &Report in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for print::negative::tied holds source "reader:rust src/print.rs:103; not compared: v is Any in the model and &Value in the code" rev "cfdd15f9911a" }
+evidence tie { for print::level::tied holds source "reader:rust src/print.rs:117; not compared: the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for verdicts::derive::tied holds source "reader:rust src/prove.rs:477; not compared: model is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &mut Model in the code, the result is {()} in the model and () in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for report::word::tied holds source "reader:rust src/report.rs:218; not compared: the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for results::from_tests::tied holds source "reader:rust src/results.rs:61; not compared: model is model::Model(List<functions::Function(String, Option<functions::Expr>, 0.., Any)>, List<claims::Claim(String, String, claims::Target, Option<Float64>, 0.., Any)>, List<intent::Ensure(String, String, Bool, Option<String>, List<String>, List<String>, 0.., Any)>, List<ledger::Evidence(String, ledger::Judgment, Float64, Option<String>, Option<String>, Option<String>, 0.., Any)>, List<String>, List<model::Block(String, model::Side, Option<String>, Any)>, List<model::Bounded>, Any) in the model and &Model in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence tie { for results::short::tied holds source "reader:rust src/results.rs:159" rev "cfdd15f9911a" }
+evidence tie { for results::attr::tied holds source "reader:rust src/results.rs:167" rev "cfdd15f9911a" }
+evidence tie { for results::strip::tied holds source "reader:rust src/results.rs:200" rev "cfdd15f9911a" }
+evidence tie { for results::junit::tied holds source "reader:rust src/results.rs:213" rev "cfdd15f9911a" }
+evidence tie { for results::junit::uses holds source "reader:rust src/results.rs:213" rev "cfdd15f9911a" }
+evidence tie { for print::quote::tied holds source "reader:rust src/set.rs:1145" rev "cfdd15f9911a" }
+evidence tie { for culprits::rank::tied holds source "reader:rust src/trust/culprits.rs:58; not compared: clauses is List<List<0..>> in the model and &[Vec<usize>] in the code, the numbers of the model computed as the code computes" rev "cfdd15f9911a" }
+evidence review { for print::level_uniform holds source "review:claude" rev "cfdd15f9911a" seen "77ea1f59efb7" }
+evidence review { for report::word_uniform holds source "review:claude" rev "cfdd15f9911a" seen "d8fa34330d6d" }

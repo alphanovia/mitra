@@ -761,6 +761,9 @@ report::words: holds assuming [culprits::rank::correct, culprits::rank_shape, cu
   says            "A verdict and a candidate are printed with the word the reference gives them."
   rests on        `report::Logic::as_str::spec`, `report::word::spec`
   requires        `report::ranked`
+Reader::results::tied: holds
+Reader::tests::tied: holds
+Reader::tie::tied: holds
 advice::plan::tied: holds
 build::Built::count::tied: holds
 build::Built::lock::tied: holds
@@ -818,6 +821,7 @@ modules::Modules::tied: holds
 results::Outcome::tied: holds
 results::Tied::tied: holds
 results::Ingested::tied: holds
+frontend::Found::tied: holds
 types::Input::tied: holds
 verdicts::Verdict::tied: holds
 verdicts::Problem::tied: holds

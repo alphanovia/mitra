@@ -69,20 +69,15 @@ on a `subject` or a `boundary`. No bound on a `record` or an `enum`.
 
 ## Chosen alone, the smaller option each time
 
-Numbered in [the review](../review/2026-11-18.md), increments 72 and 73.
+Numbered in [the review](../review/2026-11-18.md), increments 72 to 74.
 
 - What a generic function gives back is any value to the reader, so
   the rule is not followed through a call. A claim of an `impl<T>`
   reads `T` as any value.
-- The tie sets aside the bounds that say nothing of a value (`Clone`,
-  `Copy`, `Send`, `Sync`, `Sized`, `Unpin`, lifetimes, and by my
-  choice `PartialEq`, `Eq`, `Debug`, `Display`), and says so.
-- A bound names contracts only. Rust's own traits (`Clone`, `Ord`) are
-  not contracts and cannot be written.
-- `f::parametric` is not built (see Evidence).
-- In a bound, the types given to a contract (`S: Store<Int, String>`)
-  are read and not used.
-- The tie compares bounds by the name of the trait; a bound on one
-  side only is a difference.
+- A trait that bounds an input in the code alone is a detail of the
+  code: noted by the tie, no difference. The user: "any T doesn't mean
+  literally any T, it means any suitable T." A contract of the model
+  the code does not bound by is a difference; traits are matched to
+  contracts by name.
 - No bound on a `record` or an `enum`, no parameter on a `subject` or a
   `boundary`.

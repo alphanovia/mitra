@@ -16,6 +16,7 @@ pub mod ast;
 pub mod build;
 pub mod eval;
 pub mod fingerprint;
+pub mod frontend;
 mod instances;
 pub mod levels;
 pub mod modules;
@@ -39,6 +40,7 @@ pub use eval::{
     evaluate, Assumed, Candidate, Conflict, Contradiction, Display, Flag, Implication, Kind, Logic,
     Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
 };
+pub use frontend::{Found, Reader};
 pub use modules::{Module, Modules};
 pub use next::next;
 pub use parse::Handed;

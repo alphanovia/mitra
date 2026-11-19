@@ -354,7 +354,7 @@ fn comments_hold_only_ties() {
     assert!(out.starts_with("ok: 1 functions, 3 claims"), "{out}");
     let old = "/// mitra: claim flip_ok(a: bool) { correct(flip(a)) }\npub fn flip(a: bool) -> bool { !a }\n";
     std::fs::write(dir.join("src/lib.rs"), old).unwrap();
-    let (code, _, err) = mitra(&dir, &["check"]);
+    let (code, _, err) = mitra(&dir, &["tie"]);
     assert_eq!(code, Some(2));
     assert!(
         err.contains("lib.rs: line 1: a model in `mitra:` comments is no longer read"),
@@ -590,7 +590,10 @@ fn tie_compares_an_implementer_with_its_impl() {
     std::fs::write(dir.join("src/lib.rs"), code).unwrap();
     let (code, out, err) = mitra(&dir, &["tie"]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(out.starts_with("4 agree, 1 differ"), "{out}");
+    assert!(out.starts_with("5 agree, 1 differ"), "{out}");
+    // A function of the contract is called by its name: `uses Shape::area`.
+    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    assert!(ledger.contains("for shapes::total::uses holds"), "{ledger}");
     assert!(out.contains("shapes::Dot::area"), "{out}");
     // What the contract gives an implementer and no code is tied to.
     let (_, out, _) = mitra(&dir, &["conform"]);
@@ -643,10 +646,9 @@ fn tie_compares_bounds_and_type_parameters() {
     std::fs::write(dir.join("src/lib.rs"), code).unwrap();
     let (code, out, err) = mitra(&dir, &["tie"]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(out.starts_with("4 agree, 4 differ"), "{out}");
+    assert!(out.starts_with("6 agree, 3 differ"), "{out}");
     for want in [
-        "sync::pull::tied: input `l` is bound by `Link` in the model, by nothing in the code",
-        "sync::more::tied: input `l` is bound by `Ord` in the code, which the model does not say",
+        "sync::pull::tied: input `l` is bound by `Link` in the model, by `Clone` in the code",
         "sync::Stack::swap::tied: input `u` is bound by `Link` in the model, by nothing in the code",
         "sync::Pair::tied: the struct has a field `second` the record does not state",
     ] {
@@ -654,11 +656,13 @@ fn tie_compares_bounds_and_type_parameters() {
     }
     // A contract is nobody's code.
     assert!(!out.contains("no code is tied to"), "{out}");
-    // Bounds that say nothing of a value are set aside, and said.
+    // A bound of the code alone is a detail of the code: said, no drift.
     let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
     assert!(
         ledger.contains("for sync::push::tied holds")
-            && ledger.contains("l is also Clone in the code"),
+            && ledger.contains("l is also Clone in the code")
+            && ledger.contains("for sync::more::tied holds")
+            && ledger.contains("l is also Ord in the code"),
         "{ledger}"
     );
     // The interface is written with the parameters and the bounds.
@@ -1055,4 +1059,41 @@ fn a_model_that_contradicts_itself_does_not_build() {
     assert_eq!(code, Some(1));
     assert!(!out.contains("conform:"), "{out}");
     let _ = std::fs::remove_dir_all(dir);
+}
+
+/// What the code adds to hold or hand over a value is no drift: it is
+/// said with the tie. A different result is one.
+#[test]
+fn tie_takes_boilerplate_as_no_drift() {
+    let dir = std::env::temp_dir().join(format!("mitra-tie-held-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    assert_eq!(mitra(&dir, &["init"]).0, Some(0));
+    let model = "subject s {\n\
+                 record Path;\n\
+                 fn a(p: Path, name: String) -> Path;\n\
+                 fn e(xs: List<Int>, label: String) -> String;\n\
+                 fn g(x: Int) -> Int;\n}\n";
+    let code = "// mitra: implements s::Path\npub struct Path;\n\
+                // mitra: implements s::a\n\
+                pub fn a<'a>(p: &'a Path, name: Cow<'a, str>) -> PathBuf { todo!() }\n\
+                // mitra: implements s::e\n\
+                pub fn e(xs: impl Iterator<Item = i64>, label: impl Into<String>) -> &'static str { \"\" }\n\
+                // mitra: implements s::g\n\
+                pub fn g(x: i64) -> Option<i64> { None }\n";
+    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("src/lib.rs"), code).unwrap();
+    let (code, out, err) = mitra(&dir, &["tie"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.starts_with("3 agree, 1 differ"), "{out}");
+    assert!(
+        out.contains("s::g::tied: the result is `Option<i64>` in the code"),
+        "{out}"
+    );
+    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    assert!(
+        ledger.contains("name is String in the model and Cow<'a, str> in the code"),
+        "{ledger}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
 }

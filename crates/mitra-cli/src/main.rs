@@ -17,11 +17,12 @@
 //! ledger `evidence.mitra`. The store's model also holds the `mitra:`
 //! comments of the Rust files under `src/` and `tests/` next to it.
 
-use mitra_rust::{report, tie};
+use mitra_lang::Reader;
 
 use mitra_lang::Modules as Source;
 use mitra_store::{source, store};
 
+use std::path::Path;
 use std::process::ExitCode;
 
 /// What `mitra build` found.
@@ -34,7 +35,7 @@ struct Built {
 /// The model alone: it reads, nothing in it contradicts anything else,
 /// and it is compiled under `.mitra/build/`. Nothing on what is owed.
 fn build(s: &store::Store, display: &mitra_lang::Display) -> Result<Built, String> {
-    let source = ties_only(s)?;
+    let source = s.source()?;
     let (model, report) = evaluate(&source, "", None)?;
     let places = Places {
         model: &source,
@@ -90,16 +91,21 @@ fn build(s: &store::Store, display: &mitra_lang::Display) -> Result<Built, Strin
 /// The model and the code: every piece of a subject is tied, the ties
 /// agree, and how much of the code the model covers. Gives 1 on drift.
 // mitra: implements commands::conform
-fn conform(s: &store::Store, built: &Built, rev: Option<&str>) -> Result<usize, String> {
+fn conform(
+    s: &store::Store,
+    built: &Built,
+    rev: Option<&str>,
+    reader: &impl Reader<Path>,
+) -> Result<usize, String> {
     let model = &built.model;
-    let found = tie::tie(&s.root(), model, rev)?;
+    let found = reader.tie(&s.root(), model, rev)?;
     let replaced = s.replace("reader:", &found.evidence.join("\n"))?;
     let ours = |n: &&String| match model.block_of(n) {
         Some(b) => b.side == mitra_lang::Side::Subject,
         None => !model.boundaries.contains(n),
     };
     let untied: Vec<&String> = found.untied.iter().filter(ours).collect();
-    let tests = tie::tests(&s.root())?;
+    let tests = reader.tests(&s.root())?;
     let pinned = tests.iter().filter(|t| !t.pinned.is_empty()).count();
     let model_lines: usize = s
         .source()?
@@ -146,7 +152,7 @@ fn assess(
     rev: Option<&str>,
     full: bool,
 ) -> Result<usize, String> {
-    let (m, e) = (ties_only(s)?, s.evidence_path());
+    let (m, e) = (s.source()?, s.evidence_path());
     let (model, report) = evaluate(&m, &e, rev)?;
     let places = Places {
         model: &m,
@@ -181,7 +187,7 @@ fn assess(
 /// An observation, not written to the ledger: what it contradicts, and
 /// who is suspected.
 fn diagnose(s: &store::Store, seen: &str, display: &mitra_lang::Display) -> Result<usize, String> {
-    let (m, e) = (ties_only(s)?, s.evidence_path());
+    let (m, e) = (s.source()?, s.evidence_path());
     let ledger = read(&e)?;
     mitra_lang::read_evidence(&m, seen).map_err(|err| format!("the observation: {err}"))?;
     let before = mitra_lang::load_modules(&m, &ledger).map_err(located(&m, &e))?;
@@ -272,7 +278,7 @@ fn inputs(paths: &[String]) -> Result<(Source, String), String> {
     match paths {
         // A store's model file brings the `mitra:` lines of its Rust sources.
         [m, e] => match store::Store::of(m) {
-            Some(s) => Ok((ties_only(&s)?, e.clone())),
+            Some(s) => Ok((s.source()?, e.clone())),
             None => Ok((source::file(m)?, e.clone())),
         },
         // The model alone, with no evidence: what it says before any is
@@ -280,44 +286,20 @@ fn inputs(paths: &[String]) -> Result<(Source, String), String> {
         [m] => inputs(&[m.clone(), String::new()]),
         [] => {
             let s = store::Store::find()?;
-            Ok((ties_only(&s)?, s.evidence_path()))
+            Ok((s.source()?, s.evidence_path()))
         }
         _ => Err(USAGE.into()),
     }
 }
 
-fn read(p: &str) -> Result<String, String> {
-    source::read(p)
+/// The reader of the code beside a model. Rust is the one there is: this
+/// is the only line that names it.
+fn reader() -> impl Reader<Path> {
+    mitra_rust::Rust
 }
 
-/// The model of a store, once the `mitra:` comments of the Rust files
-/// beside it were checked: the model is kept aside, a comment only ties
-/// code to it.
-fn ties_only(s: &store::Store) -> Result<Source, String> {
-    use mitra_rust::source::{is_tie, mitra_line, rust_files, scan};
-    let model = s.source()?;
-    let mut files = Vec::new();
-    for d in [s.root().join("src"), s.root().join("tests")] {
-        rust_files(&d, &mut files);
-    }
-    files.sort();
-    for f in files {
-        let shown = f.display().to_string();
-        let text = read(&shown)?;
-        let scanned = scan(&text);
-        let other = |(i, l): (usize, &str)| {
-            let model = mitra_line(l).is_some_and(|m| !is_tie(m));
-            (scanned[i].0 && model).then_some(i + 1)
-        };
-        if let Some(n) = text.lines().enumerate().find_map(other) {
-            return Err(format!(
-                "{shown}: line {n}: a model in `mitra:` comments is no longer read: \
-                 write it in `.mitra/model.mitra`; a comment is `// mitra: implements \
-                 <function>` or `// mitra: evidence for <claim>`"
-            ));
-        }
-    }
-    Ok(model)
+fn read(p: &str) -> Result<String, String> {
+    source::read(p)
 }
 
 /// An error, prefixed with the file it belongs to.
@@ -662,9 +644,9 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                 let text = text.trim_start_matches('\u{feff}');
                 outcomes.extend(match format.as_deref() {
                     Some("junit") => mitra_lang::results::junit(text),
-                    Some("libtest") => report::libtest(text),
+                    Some("libtest") => reader().results(text),
                     None if text.trim_start().starts_with('<') => mitra_lang::results::junit(text),
-                    None => report::libtest(text),
+                    None => reader().results(text),
                     Some(f) => return Err(format!("unknown format `{f}` (libtest, junit)")),
                 });
             }
@@ -674,7 +656,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let s = store::Store::find()?;
             let model = s.model()?;
             // Tests tied to a claim by a comment: `// mitra: evidence for c`.
-            let tied = tie::tests(&s.root())?;
+            let tied = reader().tests(&s.root())?;
             let said = mitra_lang::results::from_tests(&model, &tied, &outcomes, rev.as_deref())?;
             let (lines, tied_notes, loose) = (said.evidence, said.notes, said.loose);
             let replaced = s.replace("test:", &lines.join("\n"))?;
@@ -732,7 +714,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             if built.errors > 0 {
                 return Ok(built.errors);
             }
-            Ok(conform(&s, &built, rev)?)
+            Ok(conform(&s, &built, rev, &reader())?)
         }
         "assess" | "diagnose" => {
             let s = store::Store::find()?;
@@ -748,7 +730,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             if built.errors > 0 {
                 return Ok(built.errors);
             }
-            let drift = conform(&s, &built, rev)?;
+            let drift = conform(&s, &built, rev, &reader())?;
             if drift > 0 {
                 return Ok(drift);
             }
@@ -788,7 +770,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let s = store::Store::find()?;
             let model = s.model()?;
             let root = s.root();
-            let found = tie::tie(&root, &model, rev)?;
+            let found = reader().tie(&root, &model, rev)?;
             let replaced = s.replace("reader:", &found.evidence.join("\n"))?;
             println!(
                 "{} agree, {} differ; {} evidence written{}",

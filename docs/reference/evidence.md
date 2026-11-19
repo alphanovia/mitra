@@ -56,6 +56,12 @@ with the function of the model, and writes what it finds as evidence
 | Result | The same rule. | `f::tied` |
 | Calls | For `uses g, h`: the body calls the `fn` tied to each. For `uses only`: it calls no other tied `fn`. A function with no tie is not checked. | `f::uses` |
 
+A difference is a difference of intent. What the code adds to say the
+model in its language is no difference, and is written with the tie:
+how a value is held or handed over (`&T`, `Box<T>`, `Cow<str>`,
+`PathBuf`, `impl Into<T>`, `impl Iterator<Item = T>` for a list), the
+width of a number, a trait that bounds an input in the code alone.
+
 Where they agree, the evidence says what was not compared (`; not
 compared: a is 0..=5 in the model and i64 in the code, the numbers of
 the model computed as the code computes`), and the tie is a candidate

@@ -11,5 +11,5 @@
 //   source.mitra   finding tie comments in a Rust file
 //   points.mitra   the single calls the unit tests pin
 //
-// A comment `// mitra: implements reader::Rust::results` above a `fn` ties it to
+// A comment `// mitra: implements reader::Rust::tie` above a `fn` ties it to
 // a function here, and `mitra tie` checks that the two agree.

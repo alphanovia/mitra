@@ -66,7 +66,8 @@ import mitra_lang::Reader;
 import mitra_lang::results::{Outcome, Tied};
 
 subject reader {
-    impl Reader<Path, Found> for Rust { … }
+    record Rust;
+    impl Reader<Path> for Rust { … }
 }
 ```
 
@@ -82,6 +83,7 @@ then filled here, leaned on here, or both.
   `import store::results::{Outcome};`. Not brought, it is any value.
 - The implementers of the other store do not come.
 
-Mitra's own model uses it: mitra-lang states `Reader`, what any reader
-of code owes the core; mitra-rust fills it for Rust; mitra-cli requires
-its promises.
+Mitra's own model uses it, and its code has the same seam: mitra-lang
+states `Reader` (the trait `mitra_lang::Reader`), mitra-rust fills it
+for Rust (`mitra_rust::Rust`), mitra-cli requires its promises and
+calls a reader only through the trait.

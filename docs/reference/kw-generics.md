@@ -144,14 +144,14 @@ first::correct: unverified
 bound it in the code with the contracts of the model: on its type
 parameter (`<L: Link>`, `where L: Link`, or on the `impl`), or written
 `impl Link` or `&dyn Link`. A trait is matched to a contract by name.
-A bound on one side only is a difference: ``input `l` is bound by
-`Ord` in the code, which the model does not say``.
+A contract of the model the code does not bound by is a difference:
+``input `l` is bound by `Link` in the model, by nothing in the code``.
 
-Bounds that say nothing of a value of the model are set aside, and the
-tie says so in its evidence (`not compared: l is also Clone in the
-code`): `Clone`, `Copy`, `Send`, `Sync`, `Sized`, `?Sized`, `Unpin`,
-lifetimes, `PartialEq`, `Eq`, `Debug`, `Display`. A model cannot write
-them: `T: Clone` is refused.
+A trait that bounds the input in the code alone (`Clone`, `Ord`,
+`Send`…) is a detail of the code, and no difference: a model is not
+held by a compiler, and its "any `T`" means any suitable `T`. The tie
+says it in its evidence (`not compared: l is also Ord in the code`). A
+model cannot write such a bound: `T: Clone` is refused.
 
 `record R<T> { … }` is compared with its `struct` field by field. The
 interface `mitra build` writes prints functions with their parameters
