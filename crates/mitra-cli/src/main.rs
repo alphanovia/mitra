@@ -436,7 +436,11 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                         .iter()
                         .position(|w| ["gives", "holds", "fails"].contains(w));
                     let given = words[..said.unwrap_or(words.len())].join(" ");
+                    // A sample: the domain and the count stand, passed or not.
+                    let drawn = words.contains(&"sampled");
                     let says = match (passed == Some(true), said) {
+                        (true, _) if drawn => t.pinned.clone(),
+                        (false, _) if drawn => format!("{} fails", t.pinned),
                         (true, Some(_)) => t.pinned.clone(),
                         (true, None) => format!("{given} holds"),
                         (false, _) => format!("{given} fails"),

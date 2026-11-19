@@ -2897,8 +2897,13 @@ impl P {
         let target = self.find(&target)?;
         let (mut given, mut says, mut trust) = (Vec::new(), None, 1.0);
         let (mut source, mut rev) = (label, None);
+        // `sampled 1000`: the count, whether it passed, and the domain as
+        // written (`m in valid, o in valid`).
+        let mut sampled: Option<(u64, bool)> = None;
+        let mut domain: Vec<String> = Vec::new();
+        let mut by_helper = false;
         let clauses = [
-            "given", "holds", "fails", "passes", "gives", "trust", "source", "rev",
+            "given", "holds", "fails", "passes", "gives", "sampled", "trust", "source", "rev",
         ];
         while !self.eat("}") {
             let at = self.line();
@@ -2910,15 +2915,41 @@ impl P {
                     if !exact && !self.eat("in") && !self.eat(":") {
                         return self.err(format!("expected `{x} = value` or `{x} in set`"));
                     }
-                    let set = match exact {
-                        true => Set::point(&self.value()?),
-                        false => self.set()?,
-                    };
-                    given.push((x, exact, set));
+                    // `m in valid`: the values a helper of the model says
+                    // yes to. A domain to sample from, never a set to cover.
+                    let helper = (!exact).then(|| self.resolve(self.peek())).filter(|h| {
+                        let one = self.names.fns.get(h).is_some_and(|s| s.params.len() == 1);
+                        one && !self.names.opaque.contains(h)
+                    });
+                    let from = self.pos;
+                    if helper.is_some() {
+                        self.pos += 1;
+                        by_helper = true;
+                        domain.push(format!("{x} in {}", join(&self.toks[from..self.pos])));
+                    } else {
+                        let set = match exact {
+                            true => Set::point(&self.value()?),
+                            false => self.set()?,
+                        };
+                        let word = if exact { "=" } else { "in" };
+                        domain.push(format!("{x} {word} {}", join(&self.toks[from..self.pos])));
+                        given.push((x, exact, set));
+                    }
                     if !self.eat(",") {
                         break;
                     }
                 },
+                "holds" | "fails" if sampled.is_some() => {
+                    sampled = sampled.map(|s| (s.0, clause == "holds"));
+                }
+                "sampled" => {
+                    let n = self.number()?;
+                    if n < 1.0 || n.fract() != 0.0 {
+                        return Err(Error::new(at, "`sampled` takes how many inputs were drawn"));
+                    }
+                    sampled = Some((n as u64, true));
+                    says = Some((clause, None, 0.0));
+                }
                 "holds" | "fails" | "passes" => says = Some((clause, None, 0.0)),
                 "gives" if self.is("rate") && self.peek_at(1) == "=" => {
                     self.pos += 2;
@@ -2955,7 +2986,7 @@ impl P {
         let Some((says, value, rate)) = says else {
             return Err(Error::new(
                 line,
-                "the evidence says nothing: `holds`, `fails`, `passes` or `gives …`",
+                "the evidence says nothing: `holds`, `fails`, `passes`, `sampled n` or `gives …`",
             ));
         };
         let at = |m: String| Err(Error::new(line, m));
@@ -2996,6 +3027,23 @@ impl P {
                     }
                     _ => return at(format!("`{target}` is not a claim on one measure")),
                 }
+            }
+            ("sampled", _, _) => {
+                if given.iter().any(|g| g.1) {
+                    return at("a sample is drawn from a set: `given a in …`".to_string());
+                }
+                let (count, ok) = sampled.expect("read with the clause");
+                pattern.clear();
+                Judgment::Sampled {
+                    count,
+                    ok,
+                    domain: domain.join(", "),
+                }
+            }
+            _ if by_helper => {
+                return at(
+                    "a helper names a domain to sample from: write `sampled 1000`".to_string(),
+                )
             }
             // A test that states no input: on a claim or a function with
             // inputs it supports and settles nothing; with none, it holds.
@@ -4163,7 +4211,7 @@ mod tests {
     }
 
     /// A sweep over faulty texts at hand, not every text.
-    // mitra: evidence for reader::fault_is_placed
+    // mitra: evidence for reader::fault_is_placed sampled 13
     #[test]
     fn fault_is_placed() {
         let faulty = [

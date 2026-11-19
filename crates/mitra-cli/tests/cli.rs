@@ -602,11 +602,14 @@ fn ingest_pins_what_a_test_checks() {
     let dir = store("pins", FLIP);
     std::fs::create_dir_all(dir.join("tests")).unwrap();
     let tests = "// mitra: evidence for s::flip_correct\n#[test]\nfn t_sweep() {}\n\
+                // mitra: evidence for s::flip_correct sampled 9\n#[test]\nfn t_drawn() {}\n\
+                // mitra: evidence for s::flip sampled 4\n#[test]\nfn t_drawn_bad() {}\n\
                 // mitra: evidence for s::flip given a = true gives false\n\
                 // mitra: evidence for s::flip_correct given a = true\n#[test]\nfn t_pinned() {}\n\
                 // mitra: evidence for s::flip given a = false gives true\n#[test]\nfn t_broken() {}\n";
     std::fs::write(dir.join("tests/t.rs"), tests).unwrap();
-    let report = "test t_sweep ... ok\ntest t_pinned ... ok\ntest t_broken ... FAILED\n";
+    let report = "test t_sweep ... ok\ntest t_pinned ... ok\ntest t_broken ... FAILED\n\
+                  test t_drawn ... ok\ntest t_drawn_bad ... FAILED\n";
     std::fs::write(dir.join("report.txt"), report).unwrap();
     let (code, out, err) = mitra(&dir, &["ingest", "report.txt"]);
     assert_eq!(code, Some(0), "{err}");
@@ -621,6 +624,8 @@ fn ingest_pins_what_a_test_checks() {
     let evidence = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
     for want in [
         "for s::flip_correct passes source \"test:t_sweep\"",
+        "for s::flip_correct sampled 9 source \"test:t_drawn\"",
+        "for s::flip sampled 4 fails source \"test:t_drawn_bad\"",
         "for s::flip given a = true gives false source \"test:t_pinned\"",
         "for s::flip given a = true holds source \"test:t_pinned\"",
         "for s::flip_correct given a = true holds source \"test:t_pinned\"",
@@ -630,7 +635,9 @@ fn ingest_pins_what_a_test_checks() {
     }
     let (_, out, _) = mitra(&dir, &["eval"]);
     let want = "s::flip_correct: fails\n  fails on        `s::flip(false)`\n  \
+                fails on        one of 4 drawn from its inputs, not stated (test:t_drawn_bad)\n  \
                 passes on       `s::flip(true)`\n  \
+                sampled on      9 drawn from its inputs (test:t_drawn)\n  \
                 passes on       inputs not stated (test:t_sweep)\n";
     assert!(out.contains(want), "{out}");
     let _ = std::fs::remove_dir_all(dir);

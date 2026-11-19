@@ -872,3 +872,55 @@ fn an_expression_must_fit_its_place() {
     let ok = claim("g(a) + a >= 0 && p(g(a)).x == a && h(\"s\") == 1");
     mitra_core::load(&ok, "").unwrap_or_else(|(_, e)| panic!("{e}"));
 }
+
+/// A sample says what it drew from and how many: it covers nothing when
+/// it passes, and refutes the claim on no stated input when it fails.
+#[test]
+fn a_sample_covers_nothing_and_can_refute() {
+    let m = "fn small(a: Int) -> Bool { a >= 0 && a < 100 }\n\
+             subject fn half(a: Int) -> Int;\n\
+             claim halves(a: Int) { half(a) * 2 <= a }";
+    let run = |e: &str| mitra_core::run(m, e).map(|r| r.to_text());
+    let text = run("evidence t { for halves given a in small sampled 1000 }\n\
+                    evidence p { for half given a = 6 gives 3 }")
+    .unwrap();
+    let want = "halves: unverified\n  passes on       `a = 6`\n  \
+                sampled on      1000 drawn from (a in small) (t)\n";
+    assert!(text.contains(want), "{text}");
+    // A failing sample does not contradict the point that passes.
+    let text = run(
+        "evidence t { for halves given a in small sampled 1000 fails }\n\
+                    evidence p { for half given a = 6 gives 3 }",
+    )
+    .unwrap();
+    let want =
+        "halves: fails\n  fails on        one of 1000 drawn from (a in small), not stated (t)\n";
+    assert!(text.contains(want), "{text}");
+    assert!(
+        text.contains("error[M001]") && !text.contains("M003"),
+        "{text}"
+    );
+    assert!(
+        text.contains("fails on an input a sample drew and does not state"),
+        "{text}"
+    );
+    for (e, why) in [
+        (
+            "evidence t { for halves given a in small holds }",
+            "write `sampled 1000`",
+        ),
+        (
+            "evidence t { for halves given a = 1 sampled 5 }",
+            "drawn from a set",
+        ),
+        ("evidence t { for halves sampled 0 }", "how many inputs"),
+    ] {
+        let err = run(e).unwrap_err().1.message;
+        assert!(err.contains(why), "{err}");
+    }
+    // Written back as read.
+    let (model, _) = mitra_core::parse::model(m).unwrap();
+    let e = "evidence e { for halves given a in small sampled 7 fails source \"x\" }\n";
+    let read = mitra_core::read_evidence(m, e).unwrap();
+    assert_eq!(mitra_core::print::print_evidence(&read, Some(&model)), e);
+}

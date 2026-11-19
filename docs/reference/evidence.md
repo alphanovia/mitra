@@ -95,7 +95,9 @@ when it failed.
   test that states none is recorded as `passes`: it shows under the
   claim as `passes on inputs not stated`, the claim stays `unverified`,
   and `ingest` prints a warning naming the test. A failing one is
-  `fails` on the whole claim. To make it count, pin it: the comment
+  `fails` on the whole claim. A sweep says what it draws from,
+  `// mitra: evidence for c given a in small sampled 1000`
+  ([sampled](kw-evidence.md#sampled)). To make a test count, pin it: the comment
   takes the clauses of an evidence block, one comment per point,
 
   ```rust

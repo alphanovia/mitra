@@ -295,7 +295,8 @@ impl Writer<'_> {
         let e = self.entry(line);
         match e.map(|e| &e.judgment) {
             Some(Judgment::Correct(true) | Judgment::Passed) => "passes",
-            Some(Judgment::Correct(false)) => "fails",
+            Some(Judgment::Sampled { ok: true, .. }) => "sampled",
+            Some(Judgment::Correct(false) | Judgment::Sampled { ok: false, .. }) => "fails",
             Some(Judgment::Output(_)) => "output",
             Some(Judgment::Holds(true)) => "vouches",
             Some(Judgment::Holds(false)) => "denies",
@@ -430,14 +431,41 @@ impl Writer<'_> {
                 continue;
             }
             let inputs = |set: &Tuples| self.inputs(&c.func, set, &v.domain);
-            if v.logic == Logic::Fails {
+            // Tests on inputs drawn from a stated domain.
+            let whole = c.target == crate::Target::Correct;
+            let drawn = |want: bool| {
+                let mut lines = Vec::new();
+                for e in &self.model.evidence {
+                    let Judgment::Sampled { count, ok, domain } = &e.judgment else {
+                        continue;
+                    };
+                    if *ok == want && (e.about == c.name || (whole && e.about == c.func)) {
+                        let from = match domain.is_empty() {
+                            true => "its inputs".to_string(),
+                            false => format!("({domain})"),
+                        };
+                        let by = e.source.as_deref().unwrap_or("a test");
+                        lines.push(match want {
+                            true => format!("{count} drawn from {from} ({by})"),
+                            false => format!("one of {count} drawn from {from}, not stated ({by})"),
+                        });
+                    }
+                }
+                lines
+            };
+            if v.logic == Logic::Fails && !v.refuted.is_empty() {
                 *out += &format!("  fails on        {}\n", inputs(&v.refuted));
+            }
+            for l in drawn(false) {
+                *out += &format!("  fails on        {l}\n");
             }
             if !v.tested.is_empty() && !v.tested.same(&v.domain) {
                 *out += &format!("  passes on       {}\n", inputs(&v.tested));
             }
+            for l in drawn(true).iter().filter(|_| v.logic != Logic::Holds) {
+                *out += &format!("  sampled on      {l}\n");
+            }
             // Tests that passed on inputs they do not state.
-            let whole = c.target == crate::Target::Correct;
             let on = |e: &&crate::Evidence| {
                 e.judgment == Judgment::Passed
                     && (e.about == c.name || (whole && e.about == c.func))
@@ -697,6 +725,12 @@ impl Writer<'_> {
                     let (c, v) = (self.claim(name), self.verdict(name));
                     if self.model.ensure(name).is_some() {
                         *out += &format!("  `{name}` is not met.\n");
+                        continue;
+                    }
+                    if v.refuted.is_empty() {
+                        *out += &format!(
+                            "  `{name}` fails on an input a sample drew and does not state.\n"
+                        );
                         continue;
                     }
                     *out += &format!(

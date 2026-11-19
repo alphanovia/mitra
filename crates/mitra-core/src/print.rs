@@ -44,6 +44,13 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
             Judgment::Correct(true) | Judgment::Holds(true) => "holds".to_string(),
             Judgment::Correct(false) | Judgment::Holds(false) => "fails".to_string(),
             Judgment::Passed => "passes".to_string(),
+            Judgment::Sampled { count, ok, domain } => {
+                let from = match domain.is_empty() {
+                    true => String::new(),
+                    false => format!("given {domain} "),
+                };
+                format!("{from}sampled {count}{}", if *ok { "" } else { " fails" })
+            }
             Judgment::Output(v) => format!("gives {v}"),
             Judgment::Measured(_, value) => format!("gives rate = {value}"),
         };

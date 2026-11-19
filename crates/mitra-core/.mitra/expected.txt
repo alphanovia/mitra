@@ -57,7 +57,7 @@ reader::model::correct: unverified
 reader::model::deterministic: unverified
   no evidence on  `reader::model` giving one output per input
 reader::fault_is_placed: unverified
-  passes on       inputs not stated (test:fault_is_placed)
+  sampled on      13 drawn from its inputs (test:fault_is_placed)
   no evidence on  src in String
 reader::reads_a_subject: holds
 reader::refuses_a_bare_fn: holds
@@ -94,7 +94,7 @@ verdicts::run::correct: unverified
 verdicts::same_report: unverified
   no evidence on  `verdicts::run` giving one output per input
 verdicts::one_verdict_each: unverified
-  passes on       inputs not stated (test:one_verdict_each)
+  sampled on      50 drawn from its inputs (test:one_verdict_each)
   no evidence on  m in reader::Model
 verdicts::untested_is_unverified: holds
 verdicts::tested_holds: holds

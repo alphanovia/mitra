@@ -82,9 +82,9 @@ fn dempster_ok(m1: Mass, m2: Mass) -> bool {
     }
 }
 
-// A sweep over sampled inputs: it pins none, so it is recorded as
-// `passes`. Same for `t_dempster_random`.
-// mitra: evidence for mass::yager_combines
+// A sweep over 1000 pairs of valid masses, drawn with a fixed seed: it
+// says so, and is recorded as a sample. Same for `t_dempster_random`.
+// mitra: evidence for mass::yager_combines given m in valid, o in valid sampled 1000
 #[test]
 fn t_yager_random() {
     assert!((0..1000).all(|n| {
@@ -93,7 +93,7 @@ fn t_yager_random() {
     }));
 }
 
-// mitra: evidence for mass::dempster_combines
+// mitra: evidence for mass::dempster_combines given m in valid, o in valid sampled 1000
 #[test]
 fn t_dempster_random() {
     assert!((0..1000).all(|n| {

@@ -101,6 +101,32 @@ add_commutes: unverified
   passes on       inputs not stated (test:sweep)
 ```
 
+## sampled
+
+`sampled 1000`: a test ran on that many inputs drawn from a domain,
+and passed. The domain is the `given` before it: a set, or a helper of
+the model that says which values are in (`m in valid`); with none, the
+inputs of the claim. The count and the domain are the author's word. A
+sample covers no input: the claim stays `unverified`, with the sample
+under it. `sampled 1000 fails`: one of them failed, the claim fails,
+and no input is named. From a test: `// mitra: evidence for halves
+given a in small sampled 1000`.
+
+```mitra
+fn small(a: Int) -> Bool { a >= 0 && a < 100 }
+subject fn half(a: Int) -> Int;
+claim halves(a: Int) { half(a) * 2 <= a }
+```
+```evidence
+evidence sweep { for halves given a in small sampled 1000 source "test:sweep" }
+evidence other { for halves given a in 100..=199 sampled 20 fails source "test:other" }
+```
+```text
+halves: fails
+  fails on        one of 20 drawn from (a in 100 ..= 199), not stated (test:other)
+  sampled on      1000 drawn from (a in small) (test:sweep)
+```
+
 ## gives
 
 `gives value`: the output observed on these inputs. `gives rate = 0.9`

@@ -213,6 +213,14 @@ pub enum Judgment {
     /// `passes`: a test passed on inputs it does not state. It supports
     /// the claim and settles nothing.
     Passed,
+    /// `sampled 1000`: a test passed (or `sampled 1000 fails`: failed) on
+    /// that many inputs drawn from a stated domain. Passing, it covers no
+    /// input; failing, it refutes the claim on an input it does not state.
+    Sampled {
+        count: u64,
+        ok: bool,
+        domain: String,
+    },
     /// `rate(x in S, cond) = 0.4`: a measure, as measured. The evidence is
     /// then about the measure as written.
     Measured(Expr, f64),
@@ -820,7 +828,7 @@ impl Model {
                     fits(self.function(&c.func).unwrap(), &e.pattern, e.line, input)?
                 }
                 // A test that states no input: nothing to compare.
-                (Judgment::Passed, _, _) => {}
+                (Judgment::Passed | Judgment::Sampled { .. }, _, _) => {}
                 (Judgment::Measured(measure, value), _, _) => {
                     let mut bad = None;
                     if !(0.0..=1.0).contains(value) {

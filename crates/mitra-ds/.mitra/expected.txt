@@ -37,11 +37,11 @@ mass::conflict_bounded: unverified
   no evidence on  a set too long to print
 mass::yager_combines: unverified
   passes on       5 inputs
-  passes on       inputs not stated (test:t_yager_random)
+  sampled on      1000 drawn from (m in valid, o in valid) (test:t_yager_random)
   no evidence on  a set too long to print
 mass::dempster_combines: unverified
   passes on       8 inputs
-  passes on       inputs not stated (test:t_dempster_random)
+  sampled on      1000 drawn from (m in valid, o in valid) (test:t_dempster_random)
   no evidence on  a set too long to print
 mass::nothing_changes_nothing: unverified
   passes on       9 inputs

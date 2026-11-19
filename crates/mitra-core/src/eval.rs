@@ -2351,6 +2351,16 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
         }
     }
     let broken = |name: &str| conflicts.iter().any(|k| k.claim == name);
+    // The samples that failed on a claim, or on the function a claim of
+    // correctness is about: the lines of their evidence.
+    let drawn = |c: &Claim| -> Vec<usize> {
+        let whole = c.target == Target::Correct;
+        let on = |e: &&Evidence| {
+            matches!(e.judgment, Judgment::Sampled { ok: false, .. })
+                && (e.about == c.name || (whole && e.about == c.func))
+        };
+        model.evidence.iter().filter(on).map(|e| e.line).collect()
+    };
     // A structural claim can be relied on while nothing speaks against it,
     // and is vouched for once evidence covers it.
     let usable = |i: usize| !broken(&model.claims[i].name) && direct[i].wrong.is_empty();
@@ -2669,7 +2679,7 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             }
         }
         let split = stands.iter().find(|s| s.0 == i).and_then(|s| s.2);
-        let mut logic = if !refuted.is_empty() || split.is_some() {
+        let mut logic = if !refuted.is_empty() || split.is_some() || !drawn(c).is_empty() {
             Logic::Fails
         } else if !with_assumed.same(domain) {
             Logic::Unverified
@@ -2799,6 +2809,8 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
             }
         }
+        // A sample that failed, on an input it does not state.
+        lines.extend(drawn(c));
         lines.sort();
         lines.dedup();
         lines.retain(|l| *l > 0);
@@ -2926,7 +2938,9 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             // A claim refuted by evidence on the claim itself.
             let stated = |l: &&usize| {
                 let first = model.evidence.iter().find(|e| e.line == **l);
-                let said = |e: &Evidence| matches!(e.judgment, Judgment::Holds(_));
+                let said = |e: &Evidence| {
+                    matches!(e.judgment, Judgment::Holds(_) | Judgment::Sampled { .. })
+                };
                 // Also what an observed output says of a claim on a record.
                 let on = |e: &&Evidence| e.line == **l && e.about == c.name && said(e);
                 first.is_some_and(said) || model.evidence.iter().any(|e| on(&e))

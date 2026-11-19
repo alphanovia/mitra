@@ -105,7 +105,7 @@ fn follows_from_a_vouched_claim() {
 
 /// Every golden case: as many verdicts as the model has claims. A sweep
 /// over what is at hand, not every model.
-// mitra: evidence for verdicts::one_verdict_each
+// mitra: evidence for verdicts::one_verdict_each sampled 50
 #[test]
 fn one_verdict_each() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/golden");
