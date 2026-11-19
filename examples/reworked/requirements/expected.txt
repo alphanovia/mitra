@@ -3,21 +3,23 @@ signup::register::correct: holds
 signup::confirmation_sent: holds
 mailer::delivers: holds assuming [itself]
   says            "The provider delivers a message within one minute, or reports a failure."
+signup::delivery: holds assuming [mailer::delivers]
+  needs           `mailer::delivers`
 signup::confirms::captured: unverified
   nobody vouched that the claims say what the text says
 signup::confirms: holds assuming [mailer::delivers, signup::confirms::captured]
   says            "A new user receives a confirmation email."
   rests on        `signup::register::correct`, `signup::confirmation_sent`
-  requires        `mailer::delivers`
+  requires        `signup::delivery`
 
 warning[M103]: an assumption is not vouched for
-  --> model.mitra:10  ensure confirms "A new user receives a confirmation email.";
+  --> model.mitra:10  ensure confirms = "A new user receives a confirmation email.";
 
   Nobody vouched that the claims `signup::confirms` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for signup::confirms::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> model.mitra:10  ensure confirms "A new user receives a confirmation email.";
+  --> model.mitra:10  ensure confirms = "A new user receives a confirmation email.";
 
   `signup::confirms` holds if `mailer::delivers`, `signup::confirms::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed

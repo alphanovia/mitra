@@ -278,6 +278,8 @@ pub struct Ensure {
     pub prose: String,
     /// Of a boundary: assumed, with nothing of yours behind it.
     pub boundary: bool,
+    /// A `require name = other::promise;`: the promise it names.
+    pub needs: Option<String>,
     /// The claims of its subject.
     pub claims: Vec<String>,
     /// The requirements it needs.

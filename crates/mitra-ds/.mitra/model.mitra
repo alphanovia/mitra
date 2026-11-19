@@ -21,7 +21,7 @@ fn agreement(m: Mass, o: Mass) -> Mass {
 }
 
 subject mass {
-    ensure combines "Two valid opinions on one question combine into one valid opinion, and how much they contradict each other is measured, never lost.";
+    ensure combines = "Two valid opinions on one question combine into one valid opinion, and how much they contradict each other is measured, never lost.";
     // The opinion one judged input gives, with confidence `c`.
     fn judged(ok: bool, c: f64) -> Option<Mass> {
         if c >= 0.0 && c <= 1.0 {
@@ -106,8 +106,8 @@ record Ranking { belief: Vec<f64>, plausibility: Vec<f64>, conflict: f64, doubte
 enum NoRanking { TooMany, Invalid }
 
 subject culprits {
-    ensure ranks "From how much each piece is trusted and which pieces can't all be right, each piece gets how much it must be wrong and how much it can be.";
-    require mass::combines;
+    ensure ranks = "From how much each piece is trusted and which pieces can't all be right, each piece gets how much it must be wrong and how much it can be.";
+    require combining = mass::combines;
     // No body: the spec would loop over the lists.
     fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
 

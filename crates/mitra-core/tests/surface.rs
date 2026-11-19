@@ -381,10 +381,10 @@ fn import_reaches_into_unnamed_blocks() {
 #[test]
 fn a_requirement_in_prose_rests_on_its_claims_and_a_vouch() {
     use mitra_core::Piece;
-    let m = "boundary mailer { ensure delivers \"Mail arrives.\";\n\
+    let m = "boundary mailer { ensure delivers = \"Mail arrives.\";\n\
              fn send(to: 0..=1) -> Bool; }\n\
-             subject signup { ensure confirms \"A new user gets a mail.\";\n\
-             require mailer::delivers;\n\
+             subject signup { ensure confirms = \"A new user gets a mail.\";\n\
+             require delivery = mailer::delivers;\n\
              fn register(u: 0..=1) -> Bool uses mailer::send;\n\
              claim sent(u) when register(u) { mailer::send(u) } }";
     let run = |evidence: &str| mitra_core::run(m, evidence).unwrap_or_else(|(_, e)| panic!("{e}"));
@@ -437,6 +437,7 @@ fn a_requirement_in_prose_rests_on_its_claims_and_a_vouch() {
     for want in [
         Piece::Requirement("signup::confirms".into()),
         Piece::Capture("signup::confirms".into()),
+        Piece::Requirement("signup::delivery".into()),
         Piece::Requirement("mailer::delivers".into()),
     ] {
         assert!(got.contains(&want), "{want:?} not in {got:?}");
@@ -449,19 +450,37 @@ fn a_requirement_in_prose_rests_on_its_claims_and_a_vouch() {
     )
     .to_text();
     assert!(text.contains("signup::confirms: fails"), "{text}");
+    // The need has a name of its own, and says what its promise says.
+    let text = run("").to_text();
+    assert!(
+        text.contains("signup::delivery: holds assuming [mailer::delivers]"),
+        "{text}"
+    );
 }
 
 /// A subject with a requirement and no claim says nothing of it; a
 /// `require` names an `ensure`.
 #[test]
 fn a_requirement_with_no_claim_is_unverified() {
-    let text = mitra_core::run("subject s { ensure works \"It works.\"; }", "")
+    let text = mitra_core::run("subject s { ensure works = \"It works.\"; }", "")
         .unwrap_or_else(|(_, e)| panic!("{e}"))
         .to_text();
     assert!(text.contains("s::works: unverified"), "{text}");
-    let bad = mitra_core::run("subject s { require t::nothing; fn f() -> Bool; }", "");
-    let (_, e) = bad.err().expect("refused");
-    assert!(e.to_string().contains("no `ensure` has this name"), "{e}");
-    let outside = mitra_core::run("ensure works \"It works.\";", "");
-    assert!(outside.is_err());
+    let refused = |m: &str| mitra_core::run(m, "").err().expect("refused").1.to_string();
+    let e = refused("subject s { require n = t::nothing; fn f() -> Bool; }");
+    assert!(e.contains("no `ensure` is named"), "{e}");
+    // The forms without `=` are refused, with the form to write.
+    let e = refused("subject s { ensure works \"It works.\"; }");
+    assert!(e.contains("ensure works = "), "{e}");
+    let e = refused("subject s { require t::x; }");
+    assert!(e.contains("require <name> = t::x;"), "{e}");
+    refused("ensure works = \"It works.\";");
+    // A need with nobody to promise it yet: assumed.
+    let text = mitra_core::run(
+        "subject s { ensure works = \"It works.\";\nrequire power = \"There is power.\"; }",
+        "",
+    )
+    .unwrap_or_else(|(_, e)| panic!("{e}"))
+    .to_text();
+    assert!(text.contains("s::power: holds assuming [itself]"), "{text}");
 }

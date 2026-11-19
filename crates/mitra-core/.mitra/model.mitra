@@ -33,7 +33,7 @@ enum Piece {
 record Candidate { piece: Piece, belief: f64, plausibility: f64 }
 
 subject eval {
-    ensure computes "An operator computes what the language reference says, and gives no value where it does not apply.";
+    ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
     fn as_str(l: Logic) -> String {
         match l {
             Holds => "holds",
@@ -80,7 +80,7 @@ subject set {
 }
 
 subject print {
-    ensure prints_back "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
+    ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
     // Whether a value prints with a minus sign.
     fn negative(v: Value) -> bool;
     // `Value` hides the type: a spec can't ask whether `v` is a number.
@@ -99,7 +99,7 @@ subject print {
 }
 
 subject report {
-    ensure words "The word beside a candidate says how plausibly it is the wrong piece.";
+    ensure words = "The word beside a candidate says how plausibly it is the wrong piece.";
     // The word a ranking prints beside a candidate.
     fn word(c: Candidate) -> String {
         if c.belief >= 0.995 { "certain" }

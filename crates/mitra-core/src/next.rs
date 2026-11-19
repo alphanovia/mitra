@@ -95,6 +95,9 @@ pub fn next(model: &Model, report: &Report) -> String {
             continue;
         }
         if let Some(e) = model.ensure(&c.name) {
+            if e.needs.is_some() && v.logic == Logic::Assuming {
+                continue;
+            }
             out += &match v.logic {
                 Logic::Fails if v.refuted.is_empty() => {
                     format!("{}: fails with a claim it rests on\n", c.name)

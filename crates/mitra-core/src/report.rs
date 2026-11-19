@@ -364,6 +364,13 @@ impl Writer<'_> {
                 continue;
             }
             if let Some(e) = self.model.ensure(&v.claim) {
+                if let Some(n) = &e.needs {
+                    *out += &format!("  needs           `{n}`\n");
+                    if self.logic(n) == Some(Logic::Fails) {
+                        *out += &format!("  fails with      `{n}`\n");
+                    }
+                    continue;
+                }
                 *out += &format!("  says            \"{}\"\n", e.prose);
                 let names = |all: &[String]| -> String {
                     let all: Vec<String> = all.iter().map(|n| format!("`{n}`")).collect();
@@ -502,7 +509,12 @@ impl Writer<'_> {
             }
             Piece::Requirement(c) => {
                 let place = self.places.model(self.claim(c).line);
-                (format!("the text of `{c}`, {place}"), "none".to_string())
+                let needs = self.model.ensure(c).and_then(|e| e.needs.clone());
+                let text = match needs {
+                    Some(n) => format!("that `{n}` is what `{c}` needs, {place}"),
+                    None => format!("the text of `{c}`, {place}"),
+                };
+                (text, "none".to_string())
             }
             Piece::Capture(c) => {
                 let place = self.places.model(self.claim(c).line);
@@ -880,6 +892,8 @@ impl Writer<'_> {
                     *out += &format!("  help: {help}\n");
                 }
                 Logic::Assuming if v.own_word() => {}
+                // A named need says what its promise says: one warning, there.
+                Logic::Assuming if self.model.ensure(name).is_some_and(|e| e.needs.is_some()) => {}
                 Logic::Assuming => {
                     *out += &format!("\nwarning[M102]: {}\n", headline("M102"));
                     *out += &self.at_claim(name);

@@ -7,7 +7,7 @@ the two. A test runs them all.
 
 ## ensure
 
-`ensure name "text";` in a subject: what it promises, in plain words.
+`ensure name = "text";` in a subject: what it promises, in plain words.
 Mitra never reads the text. The requirement is a claim, `signup::confirms`,
 that rests on:
 
@@ -20,7 +20,7 @@ It holds as far as they do, and fails when one of its claims fails.
 
 ```mitra
 subject signup {
-    ensure confirms "A new user receives a confirmation email.";
+    ensure confirms = "A new user receives a confirmation email.";
     fn register(email: {"a@x", "b@x"}) -> {"created", "refused"};
     fn sent(email: {"a@x", "b@x"}) -> Bool;
     claim confirmation_sent(email) when register(email) == "created" { sent(email) }
@@ -48,7 +48,7 @@ Once a reviewer agrees that the claims say what the text says:
 
 ```mitra
 subject signup {
-    ensure confirms "A new user receives a confirmation email.";
+    ensure confirms = "A new user receives a confirmation email.";
     fn register(email: {"a@x", "b@x"}) -> {"created", "refused"};
     fn sent(email: {"a@x", "b@x"}) -> Bool;
     claim confirmation_sent(email) when register(email) == "created" { sent(email) }
@@ -78,7 +78,7 @@ evidence above, one more line:
 
 ```mitra
 subject signup {
-    ensure confirms "A new user receives a confirmation email.";
+    ensure confirms = "A new user receives a confirmation email.";
     fn register(email: {"a@x", "b@x"}) -> {"created", "refused"};
     fn sent(email: {"a@x", "b@x"}) -> Bool;
     claim confirmation_sent(email) when register(email) == "created" { sent(email) }
@@ -118,9 +118,14 @@ A subject with an `ensure` and no claim: the requirement is
 
 ## require
 
-`require other::name;` in a subject or a boundary: it needs a promise
-made elsewhere. It carries no text: it names an `ensure`. Every
-requirement of the block then rests on it too.
+`require name = other::promise;` in a subject or a boundary: it needs a
+promise made elsewhere. The need has a name of its own,
+`signup::delivery`, for reports and evidence. It holds as far as the
+promise it names, and every `ensure` of the block rests on it. In an
+error on such an `ensure`, "that `mailer::delivers` is what
+`signup::delivery` needs" is a candidate, with the promise itself.
+
+`require name = "text";` is a need nobody promises yet: assumed.
 
 In a boundary, `ensure` is what the world is promised to do. It is
 assumed, like [assume](kw-claims.md#assume): `holds assuming [itself]`,
@@ -128,12 +133,12 @@ and never your code to fix.
 
 ```mitra
 boundary mailer {
-    ensure delivers "The provider delivers a message within one minute, or reports a failure.";
+    ensure delivers = "The provider delivers a message within one minute, or reports a failure.";
     fn send(to: {"a@x", "b@x"}) -> {"sent", "failed"};
 }
 subject signup {
-    ensure confirms "A new user receives a confirmation email.";
-    require mailer::delivers;
+    ensure confirms = "A new user receives a confirmation email.";
+    require delivery = mailer::delivers;
     fn register(email: {"a@x", "b@x"}) -> {"created", "refused"} uses mailer::send;
     claim confirmation_sent(email) when register(email) == "created" { mailer::send(email) == "sent" }
 }
@@ -146,12 +151,15 @@ signup::confirmation_sent: unverified
   no evidence on  `email = "a@x"`, `email = "b@x"`
 mailer::delivers: holds assuming [itself]
   says            "The provider delivers a message within one minute, or reports a failure."
+signup::delivery: holds assuming [mailer::delivers]
+  needs           `mailer::delivers`
 signup::confirms::captured: unverified
   nobody vouched that the claims say what the text says
 signup::confirms: holds assuming [signup::register::correct, signup::confirmation_sent, mailer::delivers, signup::confirms::captured]
   says            "A new user receives a confirmation email."
   rests on        `signup::register::correct`, `signup::confirmation_sent`
-  requires        `mailer::delivers`
+  requires        `signup::delivery`
 ```
 
-`require` of a name no `ensure` has is refused.
+`require` of a name no `ensure` has is refused, and so are
+`ensure name "text";` and `require other::promise;`, the forms without `=`.

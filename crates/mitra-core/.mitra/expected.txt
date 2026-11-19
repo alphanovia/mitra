@@ -216,37 +216,37 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:36  ensure computes "An operator computes what the language reference says, and gives no value where it does not apply.";
+  --> .mitra/model.mitra:36  ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
 
   Nobody vouched that the claims `eval::computes` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for eval::computes::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:36  ensure computes "An operator computes what the language reference says, and gives no value where it does not apply.";
+  --> .mitra/model.mitra:36  ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";
 
   `eval::computes` holds if `eval::unary::correct`, `eval::twice_negated`, `eval::binary::correct`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:83  ensure prints_back "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
+  --> .mitra/model.mitra:83  ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
 
   Nobody vouched that the claims `print::prints_back` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for print::prints_back::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:83  ensure prints_back "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
+  --> .mitra/model.mitra:83  ensure prints_back = "What Mitra prints reads back as what was written: signs and the order of operators are kept.";
 
   `print::prints_back` holds if `print::negative::correct`, `print::negative_ints`, `print::prints_back::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:102  ensure words "The word beside a candidate says how plausibly it is the wrong piece.";
+  --> .mitra/model.mitra:102  ensure words = "The word beside a candidate says how plausibly it is the wrong piece.";
 
   Nobody vouched that the claims `report::words` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for report::words::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:102  ensure words "The word beside a candidate says how plausibly it is the wrong piece.";
+  --> .mitra/model.mitra:102  ensure words = "The word beside a candidate says how plausibly it is the wrong piece.";
 
   `report::words` holds if `report::words::captured` holds, and no evidence supports it.
   help: review it, then record it as evidence, or test until it is not needed

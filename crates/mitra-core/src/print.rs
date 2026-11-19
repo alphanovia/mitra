@@ -124,6 +124,9 @@ pub fn contract(m: &Model, c: &Claim) -> String {
         return format!("the claims of its subject say what `{}` says", e.name);
     }
     if let Some(e) = m.ensure(&c.name) {
+        if let Some(n) = &e.needs {
+            return format!("`{n}` is what is needed here");
+        }
         let mut on = e.claims.clone();
         on.extend(e.requires.iter().cloned());
         if !e.boundary {

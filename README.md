@@ -24,7 +24,7 @@ which may answer differently each time. A **claim** is a property of a
 subject, an **assumption** is a claim taken as true until observed, and
 **evidence** is what a test, a review or a report says, with the trust
 its author puts in it. A **requirement** is a promise in plain words
-(`ensure confirms "A new user receives a confirmation email.";`): it
+(`ensure confirms = "A new user receives a confirmation email.";`): it
 rests on the claims of its subject and on a reviewer's word that they
 say what the text says. Mitra never runs the code. It gives every claim a
 verdict without a number (`holds`, `holds assuming`, `unverified`,

@@ -125,25 +125,25 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:19  ensure reads_results "Every test in a cargo test or JUnit report is read, with its name and whether it passed.";
+  --> .mitra/model.mitra:19  ensure reads_results = "Every test in a cargo test or JUnit report is read, with its name and whether it passed.";
 
   Nobody vouched that the claims `report::reads_results` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for report::reads_results::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:19  ensure reads_results "Every test in a cargo test or JUnit report is read, with its name and whether it passed.";
+  --> .mitra/model.mitra:19  ensure reads_results = "Every test in a cargo test or JUnit report is read, with its name and whether it passed.";
 
   `report::reads_results` holds if `report::short::correct`, `report::short_once`, `report::libtest::correct`, `report::attr::correct`, `report::strip::correct`, `report::junit::correct`, `report::reads_results::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:38  ensure finds_ties "A tie comment in Rust code is found, with the name of the function or test written below it.";
+  --> .mitra/model.mitra:38  ensure finds_ties = "A tie comment in Rust code is found, with the name of the function or test written below it.";
 
   Nobody vouched that the claims `source::finds_ties` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for source::finds_ties::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:38  ensure finds_ties "A tie comment in Rust code is found, with the name of the function or test written below it.";
+  --> .mitra/model.mitra:38  ensure finds_ties = "A tie comment in Rust code is found, with the name of the function or test written below it.";
 
   `source::finds_ties` holds if `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed

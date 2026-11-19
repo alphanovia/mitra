@@ -294,10 +294,8 @@ struct P {
     blocks: usize,
     /// Each claim and function of a block, with the number of its block.
     owned: Vec<(String, usize)>,
-    /// `ensure`: name, prose, of a boundary, block, line.
-    ensures: Vec<(String, String, bool, usize, usize)>,
-    /// `require`: the requirement named, block, line.
-    requires: Vec<(String, usize, usize)>,
+    /// `ensure` and `require`: name, prose, kind, block, line.
+    ensures: Vec<(String, String, Prose, usize, usize)>,
     /// Every function and claim of the file, by full name.
     all: BTreeSet<String>,
     /// How many fields each variant has.
@@ -1855,26 +1853,52 @@ impl P {
                     );
                 }
                 "fn" => self.function(line)?,
-                // ensure name "prose";  what this subject promises.
+                // ensure name = "prose";  what this subject promises.
                 "ensure" if self.block.is_some() => {
                     let name = self.ident()?;
                     let q = self.qualified(&name);
-                    if self.kind() != Some(Kind::Str) {
+                    if !self.eat("=") || self.kind() != Some(Kind::Str) {
                         return self.err(format!(
-                            "`ensure {name}` needs its text: ensure {name} \"what is promised\";"
+                            "`ensure {name}` is written with `=` and its text: \
+                             ensure {name} = \"what is promised\";"
                         ));
                     }
                     let prose = unquote(&self.toks[self.pos].text);
                     self.pos += 1;
                     self.expect(";")?;
-                    let outside = self.block.as_deref() == Some("boundary");
-                    self.ensures.push((q, prose, outside, self.blocks, line));
+                    let kind = match self.block.as_deref() {
+                        Some("boundary") => Prose::World,
+                        _ => Prose::Promise,
+                    };
+                    self.ensures.push((q, prose, kind, self.blocks, line));
                 }
-                // require other::name;  a promise made elsewhere, needed here.
+                // require name = other::promise;  a promise made elsewhere,
+                // needed here; or `require name = "prose";`, with nobody to
+                // promise it yet.
                 "require" if self.block.is_some() => {
-                    let path = self.path()?;
+                    let start = self.pos;
+                    let name = self.ident()?;
+                    if !self.eat("=") {
+                        self.pos = start;
+                        let path = self.path()?;
+                        return self.err(format!(
+                            "`require` gives what it needs a name: require <name> = {path}; \
+                             reports and evidence point at it by that name"
+                        ));
+                    }
+                    let q = self.qualified(&name);
+                    if self.kind() == Some(Kind::Str) {
+                        let prose = unquote(&self.toks[self.pos].text);
+                        self.pos += 1;
+                        self.ensures
+                            .push((q, prose, Prose::Wanted, self.blocks, line));
+                    } else {
+                        let path = self.path()?;
+                        let kind = Prose::Need(path);
+                        self.ensures
+                            .push((q, String::new(), kind, self.blocks, line));
+                    }
                     self.expect(";")?;
-                    self.requires.push((path, self.blocks, line));
                 }
                 "ensure" | "require" => {
                     self.pos -= 1;
@@ -2895,32 +2919,45 @@ impl P {
     /// what the block requires and, in a subject, on `name::captured`.
     fn requirements(&mut self, m: &mut Model) -> R<()> {
         let ensures = std::mem::take(&mut self.ensures);
-        let requires = std::mem::take(&mut self.requires);
         let named = |path: &str| {
-            let mut all = ensures.iter().map(|e| &e.0);
-            let ends = |q: &&String| *q == path || q.ends_with(&format!("::{path}"));
-            all.find(|q| *q == path)
-                .or_else(|| ensures.iter().map(|e| &e.0).find(ends))
+            let promise =
+                |e: &&(String, String, Prose, usize, usize)| !matches!(e.2, Prose::Need(_));
+            let ends = |q: &String| q == path || q.ends_with(&format!("::{path}"));
+            let mut exact = ensures.iter().filter(promise).map(|e| &e.0);
+            exact.find(|q| *q == path).or_else(|| {
+                ensures
+                    .iter()
+                    .filter(promise)
+                    .map(|e| &e.0)
+                    .find(|q| ends(q))
+            })
         };
-        for (path, _, line) in &requires {
-            if named(path).is_none() {
-                let msg = format!("`require {path}`: no `ensure` has this name");
-                return Err(Error::new(*line, msg));
-            }
+        // What each one waits for: a `require` for what it names, an
+        // `ensure` for every `require` of its block.
+        let mut waits: Vec<Vec<String>> = Vec::new();
+        for (name, _, kind, block, line) in &ensures {
+            waits.push(match kind {
+                Prose::Need(path) => match named(path) {
+                    Some(q) => vec![q.clone()],
+                    None => {
+                        let msg =
+                            format!("`require {name} = {path}`: no `ensure` is named `{path}`");
+                        return Err(Error::new(*line, msg));
+                    }
+                },
+                Prose::Wanted => Vec::new(),
+                Prose::Promise | Prose::World => {
+                    let of = ensures.iter().filter(|e| e.3 == *block);
+                    let needs = of.filter(|e| matches!(e.2, Prose::Need(_) | Prose::Wanted));
+                    needs.map(|e| e.0.clone()).collect()
+                }
+            });
         }
-        // What is required is read first.
-        let needs = |block: usize| -> Vec<String> {
-            let of = requires.iter().filter(|r| r.1 == block);
-            of.filter_map(|r| named(&r.0).cloned()).collect()
-        };
         let mut order: Vec<usize> = Vec::new();
         while order.len() < ensures.len() {
             let ready = (0..ensures.len()).find(|i| {
                 let done = |n: &String| order.iter().any(|j| &ensures[*j].0 == n);
-                !order.contains(i)
-                    && needs(ensures[*i].3)
-                        .iter()
-                        .all(|n| done(n) || n == &ensures[*i].0)
+                !order.contains(i) && waits[*i].iter().all(done)
             });
             let Some(i) = ready else {
                 let (name, .., line) =
@@ -2932,7 +2969,8 @@ impl P {
         }
         let all: Vec<String> = ensures.iter().map(|e| e.0.clone()).collect();
         for i in order {
-            let (name, prose, boundary, block, line) = ensures[i].clone();
+            let (name, prose, kind, block, line) = ensures[i].clone();
+            let boundary = kind != Prose::Promise;
             if m.claims.iter().any(|c| c.name == name) || m.functions.iter().any(|f| f.name == name)
             {
                 return Err(Error::new(line, format!("`{name}` is declared twice")));
@@ -2949,7 +2987,10 @@ impl P {
                     claims.push(c.clone());
                 }
             }
-            let requires: Vec<String> = needs(block).into_iter().filter(|n| n != &name).collect();
+            let requires = waits[i].clone();
+            if boundary {
+                claims.clear();
+            }
             let mut state = |m: &mut Model, name: &str, from: Vec<String>| {
                 m.functions.push(Function {
                     name: format!("{name}::prose"),
@@ -2982,7 +3023,10 @@ impl P {
             };
             let mut from = claims.clone();
             from.extend(requires.clone());
-            if boundary {
+            if let Prose::Need(_) = kind {
+                // It holds as far as the promise it names.
+                state(m, &name, requires.clone());
+            } else if boundary {
                 // A promise of the world: assumed, as far as it is not observed.
                 state(m, &name, requires.clone());
                 self.declare(&name, "assumed", 1.0);
@@ -2996,6 +3040,10 @@ impl P {
                 name,
                 prose,
                 boundary,
+                needs: match kind {
+                    Prose::Need(_) => requires.first().cloned(),
+                    _ => None,
+                },
                 claims,
                 requires,
                 line,
@@ -3003,6 +3051,17 @@ impl P {
         }
         Ok(())
     }
+}
+
+/// What a line of prose is: a promise of a subject, a promise of the
+/// world (assumed), or the need of a promise made elsewhere.
+#[derive(Clone, PartialEq)]
+enum Prose {
+    Promise,
+    World,
+    Need(String),
+    /// `require name = "prose";`: needed, with nobody to promise it yet.
+    Wanted,
 }
 
 /// The model, and its names for the evidence.

@@ -199,7 +199,8 @@ settled by reading the model, which is why the model must read alone.
   it `holds assuming` it.
 - **Requirement:** a promise in plain words (`ensure`), which Mitra
   never reads. It rests on the claims of its subject, on its capture and
-  on the requirements it names (`require`).
+  on what its subject needs from elsewhere (`require`), each need with
+  a name of its own.
 - **Capture:** a reviewer's word that the claims of a subject say what
   the text of a requirement says. Not vouched, it is an assumption.
 - **Evidence:** what was observed or judged, on a function or a claim,

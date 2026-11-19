@@ -2831,7 +2831,12 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
             if !e.boundary {
                 side.push(Piece::Capture(e.name.clone()));
             }
-            side.extend(e.requires.iter().cloned().map(Piece::Requirement));
+            for r in &e.requires {
+                side.push(Piece::Requirement(r.clone()));
+                // Through a named need, the promise it names.
+                let named = model.ensure(r).and_then(|n| n.needs.clone());
+                side.extend(named.map(Piece::Requirement));
+            }
         } else if let Some(e) = model.captured(&c.name) {
             side.clear();
             side.push(Piece::Capture(e.name.clone()));
@@ -3388,8 +3393,14 @@ pub(crate) const QUOTED: usize = 5;
 impl Report {
     /// The claims that are unverified, or hold only under an assumption.
     pub fn warnings(&self) -> usize {
-        let warns =
-            |v: &&Verdict| matches!(v.logic, Logic::Unverified | Logic::Assuming) && !v.own_word();
+        // A named need says what its promise says: no warning of its own.
+        let need = |v: &Verdict| {
+            let e = self.model.ensure(&v.claim);
+            v.logic == Logic::Assuming && e.is_some_and(|e| e.needs.is_some())
+        };
+        let warns = |v: &&Verdict| {
+            matches!(v.logic, Logic::Unverified | Logic::Assuming) && !v.own_word() && !need(v)
+        };
         self.verdicts.iter().filter(warns).count() + self.flags.len()
     }
 }
