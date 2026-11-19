@@ -373,10 +373,23 @@ fn passes_stays_unverified() {
     assert_eq!(words(C, "evidence t { for c passes }"), UNTOUCHED);
 }
 
-// mitra: evidence for ledger::sample_stays_unverified
+// mitra: evidence for ledger::whole_sample_holds_assuming
 #[test]
-fn sample_stays_unverified() {
-    assert_eq!(words(C, "evidence t { for c sampled 100 }"), UNTOUCHED);
+fn whole_sample_holds_assuming() {
+    let e = "evidence t { for c sampled 100 }";
+    assert_eq!(
+        words(C, e),
+        [Logic::Assuming, Logic::Unverified, Logic::Unverified]
+    );
+    let report = run(C, e).unwrap();
+    assert_eq!(report.verdicts[0].assuming, ["c::sample"]);
+}
+
+// mitra: evidence for ledger::part_sample_stays_unverified
+#[test]
+fn part_sample_stays_unverified() {
+    let e = "evidence t { for c given a in 0..=9 sampled 100 }";
+    assert_eq!(words(C, e), UNTOUCHED);
 }
 
 // mitra: evidence for ledger::failing_sample_fails

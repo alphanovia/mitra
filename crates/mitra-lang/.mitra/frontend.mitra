@@ -42,7 +42,11 @@ contract Reader<Place> {
     ensure every_result_is_read = "Every test in a report of the language's test runner is read, with its name and whether it passed.";
     ensure compares_shape = "A function or a record of the model tied to code is compared with it: inputs, result and fields. What agrees and what differs is brought as evidence on its tie.";
     ensure compares_calls = "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it.";
-    ensure says_what_it_did_not_compare = "What the reader could not compare is written in the evidence it brings.";
+    // What this reader may forget of the code to reach the model, each
+    // erasure by its name with what it costs the tie.
+    fn erasures(&self) -> Vec<(String, f64)>;
+
+    ensure says_what_it_erased = "A tie agrees when what the reader may forget of the code leads to the model, and each erasure it took is named in the evidence it brings, which is trusted for what the erasures leave. Where no erasure applies, the difference is brought as it stands.";
     ensure reads_only = "The code is read as text: it is never built, run or changed.";
     ensure plain_to_the_core = "What a reader brings is in the core's own words: results and tied tests by name, evidence as text the core reads like any other. Nothing of the language reaches the core.";
 }

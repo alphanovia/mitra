@@ -44,7 +44,7 @@ subject commands {
     require results_read = Reader::every_result_is_read;
     require shape_compared = Reader::compares_shape;
     require calls_compared = Reader::compares_calls;
-    require not_compared_is_said = Reader::says_what_it_did_not_compare;
+    require erased_is_said = Reader::says_what_it_erased;
     require code_untouched = Reader::reads_only;
     require plain_words = Reader::plain_to_the_core;
 

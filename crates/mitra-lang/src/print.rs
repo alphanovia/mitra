@@ -44,7 +44,9 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
             Judgment::Correct(true) | Judgment::Holds(true) => "holds".to_string(),
             Judgment::Correct(false) | Judgment::Holds(false) => "fails".to_string(),
             Judgment::Passed => "passes".to_string(),
-            Judgment::Sampled { count, ok, domain } => {
+            Judgment::Sampled {
+                count, ok, domain, ..
+            } => {
                 let from = match domain.is_empty() {
                     true => String::new(),
                     false => format!("given {domain} "),

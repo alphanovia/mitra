@@ -57,15 +57,22 @@ with the function of the model, and writes what it finds as evidence
 | Calls | For `uses g, h`: the body calls the `fn` tied to each. For `uses only`: it calls no other tied `fn`. A function with no tie is not checked. | `f::uses` |
 
 A difference is a difference of intent. What the code adds to say the
-model in its language is no difference, and is written with the tie:
-how a value is held or handed over (`&T`, `Box<T>`, `Cow<str>`,
-`PathBuf`, `impl Into<T>`, `impl Iterator<Item = T>` for a list), the
-width of a number, a trait that bounds an input in the code alone.
+model in its language is an erasure: a detail the reader may forget to
+reach the model (`&T`, `Box<T>`, `Cow<str>`, `impl Into<T>`, the width
+of a number, a trait that bounds an input in the code alone, the type
+of an error). The list, with the cost of each: [settings.md](settings.md).
 
-Where they agree, the evidence says what was not compared (`; not
-compared: a is 0..=5 in the model and i64 in the code, the numbers of
-the model computed as the code computes`), and the tie is a candidate
-of an error on that function.
+A tie agrees when erasures lead from the code to the model. Its
+evidence names them and is trusted for what they leave, the product of
+`1 - cost`:
+
+    evidence tie { for bank::open::tied holds trust 0.931
+                   source "reader:rust src/lib.rs:4; erased 2: error(result: E), width" }
+
+That trust ranks the tie among the suspects of an error on the
+function; it changes no verdict. Where no erasure applies (another
+number of inputs, another type, a failure the model does not state),
+the tie differs and says where.
 
 A record is tied the same way, `// mitra: implements check::Claim` above its
 `struct`: every field the model states is in the struct with a type that

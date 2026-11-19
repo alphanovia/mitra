@@ -28,6 +28,8 @@ pub struct Handed {
     /// The whole model of each other store that could be found, by the
     /// name of the store: `import store::block::{Name};` reads there.
     pub stores: BTreeMap<String, String>,
+    /// The settings of the store, as its file states them.
+    pub settings: crate::settings::Settings,
 }
 
 /// The text of a module shipped with the tool.
@@ -3552,11 +3554,12 @@ impl P {
                     return at("a sample is drawn from a set: `given a in …`".to_string());
                 }
                 let (count, ok) = sampled.expect("read with the clause");
-                pattern.clear();
+                let over = Some(std::mem::take(&mut pattern)).filter(|_| !by_helper);
                 Judgment::Sampled {
                     count,
                     ok,
                     domain: domain.join(", "),
+                    over,
                 }
             }
             _ if by_helper => {
@@ -4147,7 +4150,9 @@ pub fn model(src: &str) -> Result<(Model, Names), Error> {
 
 /// The model, importing from the modules handed with it.
 pub fn model_with(src: &str, handed: &Handed) -> Result<(Model, Names), Error> {
-    read(lex(src)?, Rc::new(handed.clone()))?.finish()
+    let (mut model, names) = read(lex(src)?, Rc::new(handed.clone()))?.finish()?;
+    model.settings = handed.settings.clone();
+    Ok((model, names))
 }
 
 /// Every function and claim a file declares, by full name: one may name

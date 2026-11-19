@@ -106,9 +106,11 @@ add_commutes: unverified
 `sampled 1000`: a test ran on that many inputs drawn from a domain,
 and passed. The domain is the `given` before it: a set, or a helper of
 the model that says which values are in (`m in valid`); with none, the
-inputs of the claim. The count and the domain are the author's word. A
-sample covers no input: the claim stays `unverified`, with the sample
-under it. `sampled 1000 fails`: one of them failed, the claim fails,
+inputs of the claim. The count and the domain are the author's word.
+Drawn from every input nothing else judges, it lets the claim read
+`holds assuming [c::sample]`; drawn from a part, or from a helper's
+domain, the claim stays `unverified`. Its trust comes from its count
+([settings.md](settings.md)). `sampled 1000 fails`: one of them failed, the claim fails,
 and no input is named. From a test: `// mitra: evidence for halves
 given a in small sampled 1000`.
 
@@ -124,7 +126,7 @@ evidence other { for halves given a in 100..=199 sampled 20 fails source "test:o
 ```text
 halves: fails
   fails on        one of 20 drawn from (a in 100 ..= 199), not stated (test:other)
-  sampled on      1000 drawn from (a in small) (test:sweep)
+  sampled on      1000 drawn from (a in small) (test:sweep), trust 0.63 at tolerance 0.001
 ```
 
 ## gives

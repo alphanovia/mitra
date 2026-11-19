@@ -13,6 +13,7 @@ subject store {
     ensure whole_folder = "The model of a store is every `.mitra` file of its folder, the ledger aside, with `model.mitra` handed first.";
     ensure nearest = "A command run in a folder uses the nearest `.mitra/` at or above it.";
     ensure build_is_written_again = "The files of a build are written under `.mitra/build/` in place of the last ones: a build is never edited, and never read back to judge.";
+    ensure settings_beside_the_model = "The settings of a store are read from `settings.toml` in its folder and handed with the model. No file is the defaults; a file that does not read is an error, with its path.";
     ensure never_overwrites = "A store is created only where there is none.";
 
     // The folder of a store. Nothing of it is read here.
@@ -28,6 +29,10 @@ subject store {
             uses disk::read_dir;
         // The files of a build, each by its name, under `.mitra/build/`,
         // in place of what was there. Gives the folder.
+        // The settings of the store, `settings.toml` beside the model.
+        fn settings(&self) -> Result<settings::Settings, String>
+            uses disk::read_to_string;
+
         fn write_build(&self, files: Vec<(String, String)>) -> Result<String, String>
             uses disk::write;
     }

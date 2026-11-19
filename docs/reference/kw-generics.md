@@ -150,7 +150,7 @@ A contract of the model the code does not bound by is a difference:
 A trait that bounds the input in the code alone (`Clone`, `Ord`,
 `Send`…) is a detail of the code, and no difference: a model is not
 held by a compiler, and its "any `T`" means any suitable `T`. The tie
-says it in its evidence (`not compared: l is also Ord in the code`). A
+names it in its evidence (`erased 1: bound(l: Ord)`). A
 model cannot write such a bound: `T: Clone` is refused.
 
 `record R<T> { … }` is compared with its `struct` field by field. The

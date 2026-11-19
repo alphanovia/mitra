@@ -130,7 +130,22 @@ impl Store {
             .collect();
         more.sort();
         more.insert(0, PathBuf::from(self.model_path()));
-        source::files(&more)
+        let mut modules = source::files(&more)?;
+        modules.handed.settings = self.settings()?;
+        Ok(modules)
+    }
+
+    /// The settings of the store, `settings.toml` beside the model: the
+    /// defaults when there is no such file.
+    // mitra: implements store::Store::settings
+    pub fn settings(&self) -> Result<mitra_lang::Settings, String> {
+        let path = self.dir.join("settings.toml");
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(e) => return Err(format!("{}: {e}", path.display())),
+        };
+        mitra_lang::Settings::read(&text).map_err(|e| format!("{}: {e}", path.display()))
     }
 
     // mitra: implements store::Store::evidence_path

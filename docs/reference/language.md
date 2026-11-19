@@ -17,6 +17,7 @@ The reference is in eight files, each short enough to read in one go:
 | [commands.md](commands.md) | The commands under them, and `mitra plan` |
 | [ledger.md](ledger.md) | How the evidence file is kept: what a run replaces, stale and orphaned evidence, `mitra remove` |
 | [stores.md](stores.md) | A store that leans on another one |
+| [settings.md](settings.md) | The numbers the trust of a tie and of a sample come from |
 | [evaluation.md](evaluation.md) | How verdicts are worked out, the output, the codes |
 
 ## A project, start to end

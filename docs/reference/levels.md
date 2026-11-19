@@ -27,7 +27,7 @@ commands ([commands.md](commands.md)) are the small steps under these:
 
 ```
 build: ok, model 2e0e8f214c1c: functions 1, claims 2, promises 1, requires 0, blocks 1, warnings 0
-  written: .mitra/build/model.lock, interface.mitra, owed.txt
+  written: .mitra/build/model.lock, interface.mitra, owed.txt, settings.toml
 ```
 
 It reads the model with no evidence. It prints the errors that need no
@@ -59,6 +59,7 @@ read back by Mitra:
   it. Each function, record and enum of a subject of this store, under
   the comment that ties code to it.
 - `owed.txt`: what `mitra plan` says of the model with no evidence.
+- `settings.toml`: the [settings](settings.md) in force, defaults included.
 
 ## conform
 

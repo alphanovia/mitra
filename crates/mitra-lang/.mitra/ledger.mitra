@@ -26,7 +26,8 @@ subject ledger {
     ensure says_who_and_when = "Each piece of evidence keeps who or what observed it, the revision of the code it was observed on, and the trust its author puts in it.";
     ensure pinned_is_an_output = "Evidence that pins an input records the output the code gave there: every claim that reads that output is judged with it.";
     ensure vouch_covers_the_claim = "A person's word that a claim holds covers every input the claim names.";
-    ensure unstated_covers_nothing = "A test that passed on inputs it does not state, counted or not, covers no input: the claim stays unverified.";
+    ensure unstated_covers_nothing = "A test that passed on inputs it does not state covers no input: the claim stays unverified.";
+    ensure sample_is_trusted_for_its_draws = "A test that passed on inputs drawn from every input nothing else judges lets the claim hold assuming its sample, `c::sample`. The sample is trusted for its count: more draws, more trust, each adding less. Drawn from a part only, the claim stays unverified.";
     ensure failing_sample_refutes = "A test that failed on a drawn input refutes the claim, on an input it does not state.";
     ensure orphaned_judges_nothing = "Evidence of a ledger on a piece the model does not have is set aside: kept, shown, judging nothing. New evidence on such a piece is refused.";
     ensure stale_judges_nothing = "Evidence that keeps the fingerprint of its piece judges nothing once the piece has another one: it is set aside, with both fingerprints.";
@@ -38,7 +39,7 @@ subject ledger {
         Output(value: Any),                               // the output observed
         Holds(ok: bool),                                  // true or false, on a claim
         Passed,                                           // a test passed, inputs not stated
-        Sampled(count: u64, ok: bool, domain: String),    // on that many drawn inputs
+        Sampled(count: u64, ok: bool, domain: String, over: Any),    // on that many drawn inputs
         Measured(measure: functions::Expr, value: f64)    // a measure, as measured
     }
 
@@ -164,8 +165,16 @@ subject ledger {
             Ok(r) => map(v in r.verdicts, v.logic) == [Unverified, Unverified, Unverified],
         }
     }
-    claim sample_stays_unverified() {
+
+    // sample_is_trusted_for_its_draws
+    claim whole_sample_holds_assuming() {
         match verdicts::run("subject fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 }", "evidence t { for c sampled 100 }") {
+            Err(e) => false,
+            Ok(r) => map(v in r.verdicts, v.logic) == [Assuming, Unverified, Unverified],
+        }
+    }
+    claim part_sample_stays_unverified() {
+        match verdicts::run("subject fn f(a: Int) -> Int; claim c(a: Int) { f(a) >= 0 }", "evidence t { for c given a in 0..=9 sampled 100 }") {
             Err(e) => false,
             Ok(r) => map(v in r.verdicts, v.logic) == [Unverified, Unverified, Unverified],
         }

@@ -489,15 +489,14 @@ fn tie_compares_a_record_with_its_struct() {
     }
     let (code, out, err) = mitra(&dir, &["tie"]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(out.starts_with("4 agree, 2 differ"), "{out}");
+    assert!(out.starts_with("5 agree, 1 differ"), "{out}");
     assert!(
         out.contains("field `y` is `String` in the code, `Int` in the model"),
         "{out}"
     );
-    assert!(
-        out.contains("a field `b` the record does not state, and no `..`"),
-        "{out}"
-    );
+    // A field the record does not state is forgotten, and said.
+    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    assert!(ledger.contains("erased 1: field(b)"), "{ledger}");
     let (code, out, _) = mitra(&dir, &["eval"]);
     assert_eq!(code, Some(1));
     for want in [
@@ -646,12 +645,11 @@ fn tie_compares_bounds_and_type_parameters() {
     std::fs::write(dir.join("src/lib.rs"), code).unwrap();
     let (code, out, err) = mitra(&dir, &["tie"]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(out.starts_with("6 agree, 3 differ"), "{out}");
+    assert!(out.starts_with("7 agree, 2 differ"), "{out}");
     for want in [
         "sync::pull::tied: input `l` is bound by `Link` in the model, by `Clone` in the code",
         "sync::Stack::swap::tied: input `u` is bound by `Link` in the model, by nothing in the code",
-        "sync::Pair::tied: the struct has a field `second` the record does not state",
-    ] {
+            ] {
         assert!(out.contains(want), "{out}");
     }
     // A contract is nobody's code.
@@ -660,9 +658,11 @@ fn tie_compares_bounds_and_type_parameters() {
     let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
     assert!(
         ledger.contains("for sync::push::tied holds")
-            && ledger.contains("l is also Clone in the code")
-            && ledger.contains("for sync::more::tied holds")
-            && ledger.contains("l is also Ord in the code"),
+            && ledger.contains("bound(l: Clone)")
+            && ledger.contains("for sync::more::tied holds trust 0.96")
+            && ledger.contains("bound(l: Ord), bound(m: Send)")
+            && ledger.contains("for sync::Pair::tied holds trust 0.95")
+            && ledger.contains("erased 1: field(second)"),
         "{ledger}"
     );
     // The interface is written with the parameters and the bounds.
@@ -819,7 +819,7 @@ fn ingest_pins_what_a_test_checks() {
     let want = "s::flip_correct: fails\n  fails on        `s::flip(false)`\n  \
                 fails on        one of 4 drawn from its inputs, not stated (test:t_drawn_bad)\n  \
                 passes on       `s::flip(true)`\n  \
-                sampled on      9 drawn from its inputs (test:t_drawn)\n  \
+                sampled on      9 drawn from its inputs (test:t_drawn), trust 0.01 at tolerance 0.001\n  \
                 passes on       inputs not stated (test:t_sweep)\n";
     assert!(out.contains(want), "{out}");
     let _ = std::fs::remove_dir_all(dir);
@@ -1092,8 +1092,85 @@ fn tie_takes_boilerplate_as_no_drift() {
     );
     let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
     assert!(
-        ledger.contains("name is String in the model and Cow<'a, str> in the code"),
+        ledger.contains("for s::a::tied holds trust 0.98")
+            && ledger
+                .contains("erased 4: reference(p), reference(name), owned(name), owned(result)"),
         "{ledger}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The settings of a store: read from `.mitra/settings.toml`, written
+/// in force by `build`, and what the trust of a tie and the weight of a
+/// sample come from.
+#[test]
+fn settings_set_the_trust_of_a_tie_and_of_a_sample() {
+    let dir = std::env::temp_dir().join(format!("mitra-settings-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    assert_eq!(mitra(&dir, &["init"]).0, Some(0));
+    let model = "subject s {\n\
+                 fn abs(x: -5..=5) -> 0..=5;\n\
+                 claim never_negative(x) { abs(x) >= 0 }\n}\n";
+    let code = "// mitra: implements s::abs\npub fn abs(x: &i64) -> i64 { x.abs() }\n";
+    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("src/lib.rs"), code).unwrap();
+    let ledger = dir.join(".mitra/evidence.mitra");
+    let sample = "evidence t { for s::never_negative sampled 1000 source \"review:me\" }\n";
+    std::fs::write(&ledger, sample).unwrap();
+    // The defaults.
+    let (_, out, _) = mitra(&dir, &["eval"]);
+    let want = "s::never_negative: holds assuming [s::never_negative::sample]\n  \
+                sampled on      1000 drawn from its inputs (review:me), trust 0.63 at tolerance 0.001\n";
+    assert!(out.contains(want), "{out}");
+    assert_eq!(mitra(&dir, &["tie"]).0, Some(0));
+    let read = || std::fs::read_to_string(&ledger).unwrap();
+    let tie = "for s::abs::tied holds trust 0.884 source \"reader:rust src/lib.rs:1; \
+               erased 4: reference(x), range(x: -5..=5 for &i64), range(result: 0..=5 for i64), width\"";
+    assert!(read().contains(tie), "{}", read());
+    assert_eq!(mitra(&dir, &["build"]).0, Some(0));
+    let written = std::fs::read_to_string(dir.join(".mitra/build/settings.toml")).unwrap();
+    assert!(
+        written.starts_with(
+            "[sample]\ntolerance = 0.001\ncounts = true\n\n[erasure]\nreference = 0\n"
+        ),
+        "{written}"
+    );
+    // A file: another tolerance, a sample that does not count, a cost.
+    let settings = dir.join(".mitra/settings.toml");
+    let text = "[sample]\ntolerance = 0.01\ncounts = false\n\n[erasure]\nrange = 0\nwidth = 0.5\n";
+    std::fs::write(&settings, text).unwrap();
+    let (_, out, _) = mitra(&dir, &["eval"]);
+    let want = "s::never_negative: unverified\n  \
+                sampled on      1000 drawn from its inputs (review:me), trust 1 at tolerance 0.01\n";
+    assert!(out.contains(want), "{out}");
+    assert_eq!(mitra(&dir, &["tie"]).0, Some(0));
+    assert!(
+        read().contains("for s::abs::tied holds trust 0.5 source"),
+        "{}",
+        read()
+    );
+    assert_eq!(mitra(&dir, &["build"]).0, Some(0));
+    let written = std::fs::read_to_string(dir.join(".mitra/build/settings.toml")).unwrap();
+    assert!(
+        written.contains("width = 0.5\n") && written.contains("field = 0.05\n"),
+        "{written}"
+    );
+    // What is not a setting is refused, and so is an erasure the reader
+    // does not have.
+    std::fs::write(&settings, "[sample]\ntolerence = 0.01\n").unwrap();
+    let (code, _, err) = mitra(&dir, &["eval"]);
+    assert_eq!(code, Some(2));
+    assert!(
+        err.contains("settings.toml: line 2: no setting `tolerence` in `[sample]`"),
+        "{err}"
+    );
+    std::fs::write(&settings, "[erasure]\nwidht = 0.1\n").unwrap();
+    let (code, _, err) = mitra(&dir, &["tie"]);
+    assert_eq!(code, Some(2));
+    assert!(
+        err.contains("no erasure `widht` in the profile of this reader"),
+        "{err}"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }

@@ -41,6 +41,15 @@ fn build(s: &store::Store, display: &mitra_lang::Display) -> Result<Built, Strin
         model: &source,
         evidence: "",
     };
+    let profile = reader().erasures();
+    let named = |k: &&String| !profile.iter().any(|p| p.0 == k.as_str());
+    if let Some(name) = model.settings.erasure.keys().find(named) {
+        let known: Vec<&str> = profile.iter().map(|p| p.0).collect();
+        return Err(format!(
+            "settings: no erasure `{name}` in the profile of the reader ({})",
+            known.join(", ")
+        ));
+    }
     let built = mitra_lang::build::build(&model);
     let errors = report.problems.len();
     print!(
@@ -64,6 +73,12 @@ fn build(s: &store::Store, display: &mitra_lang::Display) -> Result<Built, Strin
             mitra_lang::build::interface(&model),
         ),
         ("owed.txt".to_string(), mitra_lang::plan(&model, &report)),
+        // The settings in force, the costs of the reader's erasures with
+        // them: what the trust of a tie and of a sample is computed from.
+        (
+            "settings.toml".to_string(),
+            model.settings.written(&profile),
+        ),
     ];
     let dir = s.write_build(&files)?;
     let count = |kinds: &[&str]| kinds.iter().map(|k| built.count(k)).sum::<usize>();
@@ -78,7 +93,7 @@ fn build(s: &store::Store, display: &mitra_lang::Display) -> Result<Built, Strin
         report.model_warnings()
     );
     println!(
-        "  written: {}/model.lock, interface.mitra, owed.txt",
+        "  written: {}/model.lock, interface.mitra, owed.txt, settings.toml",
         relative(&dir)
     );
     Ok(Built {

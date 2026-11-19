@@ -224,6 +224,9 @@ pub enum Judgment {
         count: u64,
         ok: bool,
         domain: String,
+        /// The domain as inputs, an empty pattern being every input.
+        /// `None` when a helper names it: it is then not worked out.
+        over: Option<Pattern>,
     },
     /// `rate(x in S, cond) = 0.4`: a measure, as measured. The evidence is
     /// then about the measure as written.
@@ -348,6 +351,8 @@ pub struct Model {
     pub bounds: Vec<Bounded>,
     /// The functions with an opaque input, as their bodies see them.
     pub generics: Vec<Generic>,
+    /// The settings in force: what a sample is worth.
+    pub settings: crate::settings::Settings,
 }
 
 /// A function as its own body sees it: a type parameter, or an input

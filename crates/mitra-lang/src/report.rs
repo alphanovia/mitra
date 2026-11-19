@@ -461,7 +461,10 @@ impl Writer<'_> {
             let drawn = |want: bool| {
                 let mut lines = Vec::new();
                 for e in &self.model.evidence {
-                    let Judgment::Sampled { count, ok, domain } = &e.judgment else {
+                    let Judgment::Sampled {
+                        count, ok, domain, ..
+                    } = &e.judgment
+                    else {
                         continue;
                     };
                     if *ok == want && (e.about == c.name || (whole && e.about == c.func)) {
@@ -471,7 +474,14 @@ impl Writer<'_> {
                         };
                         let by = e.source.as_deref().unwrap_or("a test");
                         lines.push(match want {
-                            true => format!("{count} drawn from {from} ({by})"),
+                            true => {
+                                let s = &self.model.settings;
+                                let trust = (s.sample(*count) * 100.0).round() / 100.0;
+                                let eps = s.tolerance;
+                                format!(
+                                    "{count} drawn from {from} ({by}), trust {trust} at tolerance {eps}"
+                                )
+                            }
                             false => format!("one of {count} drawn from {from}, not stated ({by})"),
                         });
                     }
@@ -1130,6 +1140,15 @@ impl Writer<'_> {
                 Logic::Assuming => {
                     *out += &format!("\nwarning[M102]: {}\n", headline("M102"));
                     *out += &self.at_claim(name);
+                    // A sample is trusted for its draws: nothing to review.
+                    if v.assuming == [format!("{name}::sample")] {
+                        *out += &format!(
+                            "\n  `{name}` holds as far as its sample is trusted: no input it \
+                             was not drawn on has evidence.\n  \
+                             help: more draws raise its trust; evidence on the inputs settles it\n"
+                        );
+                        continue;
+                    }
                     let on: Vec<String> = v.assuming.iter().map(|a| format!("`{a}`")).collect();
                     *out += &format!(
                         "\n  `{name}` holds if {} hold{}, and no evidence supports {}.\n  \

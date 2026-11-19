@@ -2687,6 +2687,33 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
             }
         }
+        // A sample that passed, drawn from every input nothing judges:
+        // the claim holds as far as the sample is trusted.
+        let left = domain.minus(&with_assumed).minus(&refuted);
+        if model.settings.counts && refuted.is_empty() && !left.is_empty() {
+            let whole = c.target == Target::Correct;
+            let mut rest = left;
+            for e in &model.evidence {
+                let Judgment::Sampled {
+                    ok: true,
+                    over: Some(over),
+                    ..
+                } = &e.judgment
+                else {
+                    continue;
+                };
+                if e.about == c.name || (whole && e.about == c.func) {
+                    rest = match over.is_empty() {
+                        true => rest.minus(domain),
+                        false => rest.minus(&model.covers(&c.func, over)),
+                    };
+                }
+            }
+            if rest.is_empty() {
+                with_assumed = domain.clone();
+                assuming.push(format!("{}::sample", c.name));
+            }
+        }
         let split = stands.iter().find(|s| s.0 == i).and_then(|s| s.2);
         let mut logic = if !refuted.is_empty() || split.is_some() || !drawn(c).is_empty() {
             Logic::Fails

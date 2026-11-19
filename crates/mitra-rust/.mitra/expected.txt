@@ -21,6 +21,10 @@ reader::libtest::deterministic: unverified
   no evidence on  `reader::libtest` giving one output per input
 reader::Rust::results::correct: unverified
   no evidence on  (self, text) in (reader::Rust, String)
+reader::Rust::erasures::correct: unverified
+  no evidence on  self in reader::Rust
+reader::Rust::erasures::deterministic: unverified
+  no evidence on  `reader::Rust::erasures` giving one output per input
 reader::Rust::results::deterministic: unverified
   no evidence on  `reader::Rust::results` giving one output per input
 reader::Rust::tests::uses: holds
@@ -67,58 +71,59 @@ reader::Rust::comments_found: holds assuming [source::mitra_line::correct, sourc
   needs           `source::finds_ties`
 reader::Rust::every_result_is_read::captured: unverified
   nobody vouched that the claims say what the text says
-reader::Rust::every_result_is_read: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::every_result_is_read::captured]
+reader::Rust::every_result_is_read: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::every_result_is_read::captured]
   says            "Every test in a report of the language's test runner is read, with its name and whether it passed."
-  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`
+  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`
   requires        `reader::Rust::code_read`, `reader::Rust::right_revision`, `reader::Rust::comments_found`
 reader::Rust::compares_shape::captured: unverified
   nobody vouched that the claims say what the text says
-reader::Rust::compares_shape: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::compares_shape::captured]
+reader::Rust::compares_shape: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::compares_shape::captured]
   says            "A function or a record of the model tied to code is compared with it: inputs, result and fields. What agrees and what differs is brought as evidence on its tie."
-  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`
+  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`
   requires        `reader::Rust::code_read`, `reader::Rust::right_revision`, `reader::Rust::comments_found`
 reader::Rust::compares_calls::captured: unverified
   nobody vouched that the claims say what the text says
-reader::Rust::compares_calls: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::compares_calls::captured]
+reader::Rust::compares_calls: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::compares_calls::captured]
   says            "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it."
-  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`
+  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`
   requires        `reader::Rust::code_read`, `reader::Rust::right_revision`, `reader::Rust::comments_found`
-reader::Rust::says_what_it_did_not_compare::captured: unverified
+reader::Rust::says_what_it_erased::captured: unverified
   nobody vouched that the claims say what the text says
-reader::Rust::says_what_it_did_not_compare: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::says_what_it_did_not_compare::captured]
-  says            "What the reader could not compare is written in the evidence it brings."
-  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`
+reader::Rust::says_what_it_erased: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::says_what_it_erased::captured]
+  says            "A tie agrees when what the reader may forget of the code leads to the model, and each erasure it took is named in the evidence it brings, which is trusted for what the erasures leave. Where no erasure applies, the difference is brought as it stands."
+  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`
   requires        `reader::Rust::code_read`, `reader::Rust::right_revision`, `reader::Rust::comments_found`
 reader::Rust::reads_only::captured: unverified
   nobody vouched that the claims say what the text says
-reader::Rust::reads_only: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::reads_only::captured]
+reader::Rust::reads_only: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::reads_only::captured]
   says            "The code is read as text: it is never built, run or changed."
-  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`
+  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`
   requires        `reader::Rust::code_read`, `reader::Rust::right_revision`, `reader::Rust::comments_found`
 reader::Rust::plain_to_the_core::captured: unverified
   nobody vouched that the claims say what the text says
-reader::Rust::plain_to_the_core: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::plain_to_the_core::captured]
+reader::Rust::plain_to_the_core: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::plain_to_the_core::captured]
   says            "What a reader brings is in the core's own words: results and tied tests by name, evidence as text the core reads like any other. Nothing of the language reaches the core."
-  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`
+  rests on        `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`
   requires        `reader::Rust::code_read`, `reader::Rust::right_revision`, `reader::Rust::comments_found`
-Reader::every_result_is_read: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::every_result_is_read::captured]
+Reader::every_result_is_read: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::every_result_is_read::captured]
   says            "Every test in a report of the language's test runner is read, with its name and whether it passed."
   requires        `reader::Rust::every_result_is_read`
-Reader::compares_shape: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::compares_shape::captured]
+Reader::compares_shape: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::compares_shape::captured]
   says            "A function or a record of the model tied to code is compared with it: inputs, result and fields. What agrees and what differs is brought as evidence on its tie."
   requires        `reader::Rust::compares_shape`
-Reader::compares_calls: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::compares_calls::captured]
+Reader::compares_calls: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::compares_calls::captured]
   says            "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it."
   requires        `reader::Rust::compares_calls`
-Reader::says_what_it_did_not_compare: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::says_what_it_did_not_compare::captured]
-  says            "What the reader could not compare is written in the evidence it brings."
-  requires        `reader::Rust::says_what_it_did_not_compare`
-Reader::reads_only: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::reads_only::captured]
+Reader::says_what_it_erased: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::says_what_it_erased::captured]
+  says            "A tie agrees when what the reader may forget of the code leads to the model, and each erasure it took is named in the evidence it brings, which is trusted for what the erasures leave. Where no erasure applies, the difference is brought as it stands."
+  requires        `reader::Rust::says_what_it_erased`
+Reader::reads_only: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::reads_only::captured]
   says            "The code is read as text: it is never built, run or changed."
   requires        `reader::Rust::reads_only`
-Reader::plain_to_the_core: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::plain_to_the_core::captured]
+Reader::plain_to_the_core: holds assuming [reader::Rust::results::correct, reader::Rust::tests::correct, reader::Rust::tie::correct, reader::Rust::erasures::correct, code::reads_what_is_there, code::is_the_revision_named, source::mitra_line::correct, source::fn_below::correct, source::is_tie::correct, source::finds_ties::captured, reader::Rust::plain_to_the_core::captured]
   says            "What a reader brings is in the core's own words: results and tied tests by name, evidence as text the core reads like any other. Nothing of the language reaches the core."
   requires        `reader::Rust::plain_to_the_core`
+reader::Rust::erasures::tied: holds
 reader::Rust::results::tied: holds
 reader::Rust::tests::tied: holds
 reader::Rust::tie::tied: holds
@@ -144,6 +149,18 @@ warning[M101]: a claim is not verified
   --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   No evidence on (self, text) in (reader::Rust, String).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+
+  No evidence on self in reader::Rust.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+
+  No evidence on `reader::Rust::erasures` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
@@ -233,7 +250,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
-  `reader::Rust::every_result_is_read` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::every_result_is_read::captured` hold, and no evidence supports them.
+  `reader::Rust::every_result_is_read` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::every_result_is_read::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -245,7 +262,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
-  `reader::Rust::compares_shape` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::compares_shape::captured` hold, and no evidence supports them.
+  `reader::Rust::compares_shape` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::compares_shape::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -257,19 +274,19 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
-  `reader::Rust::compares_calls` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::compares_calls::captured` hold, and no evidence supports them.
+  `reader::Rust::compares_calls` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::compares_calls::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
   --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
-  Nobody vouched that the claims `reader::Rust::says_what_it_did_not_compare` rests on say what its text says.
-  help: review them against the text, then record: evidence <name> { for reader::Rust::says_what_it_did_not_compare::captured holds source "review:<who>" }
+  Nobody vouched that the claims `reader::Rust::says_what_it_erased` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for reader::Rust::says_what_it_erased::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
-  `reader::Rust::says_what_it_did_not_compare` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::says_what_it_did_not_compare::captured` hold, and no evidence supports them.
+  `reader::Rust::says_what_it_erased` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::says_what_it_erased::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -281,7 +298,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
-  `reader::Rust::reads_only` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::reads_only::captured` hold, and no evidence supports them.
+  `reader::Rust::reads_only` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::reads_only::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -293,43 +310,43 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
-  `reader::Rust::plain_to_the_core` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::plain_to_the_core::captured` hold, and no evidence supports them.
+  `reader::Rust::plain_to_the_core` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::plain_to_the_core::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:15  import mitra_lang::Reader;
 
-  `Reader::every_result_is_read` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::every_result_is_read::captured` hold, and no evidence supports them.
+  `Reader::every_result_is_read` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::every_result_is_read::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:15  import mitra_lang::Reader;
 
-  `Reader::compares_shape` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::compares_shape::captured` hold, and no evidence supports them.
+  `Reader::compares_shape` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::compares_shape::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:15  import mitra_lang::Reader;
 
-  `Reader::compares_calls` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::compares_calls::captured` hold, and no evidence supports them.
+  `Reader::compares_calls` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::compares_calls::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:15  import mitra_lang::Reader;
 
-  `Reader::says_what_it_did_not_compare` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::says_what_it_did_not_compare::captured` hold, and no evidence supports them.
+  `Reader::says_what_it_erased` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::says_what_it_erased::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:15  import mitra_lang::Reader;
 
-  `Reader::reads_only` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::reads_only::captured` hold, and no evidence supports them.
+  `Reader::reads_only` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::reads_only::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
   --> .mitra/reader.mitra:15  import mitra_lang::Reader;
 
-  `Reader::plain_to_the_core` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::plain_to_the_core::captured` hold, and no evidence supports them.
+  `Reader::plain_to_the_core` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `code::reads_what_is_there`, `code::is_the_revision_named`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::is_tie::correct`, `source::finds_ties::captured`, `reader::Rust::plain_to_the_core::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

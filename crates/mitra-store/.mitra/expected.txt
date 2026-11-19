@@ -28,6 +28,11 @@ store::Store::source::correct: unverified
   no evidence on  self in store::Store
 store::Store::source::deterministic: unverified
   no evidence on  `store::Store::source` giving one output per input
+store::Store::settings::uses: holds
+store::Store::settings::correct: unverified
+  no evidence on  self in store::Store
+store::Store::settings::deterministic: unverified
+  no evidence on  `store::Store::settings` giving one output per input
 store::Store::write_build::uses: holds
 store::Store::write_build::correct: unverified
   passes on       inputs not stated (test:a_build_is_written_again)
@@ -112,27 +117,33 @@ store::handed: holds assuming [files::read::correct, files::file::correct, disk:
   needs           `files::handed_unchanged`
 store::whole_folder::captured: unverified
   nobody vouched that the claims say what the text says
-store::whole_folder: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::whole_folder::captured]
+store::whole_folder: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::settings::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::whole_folder::captured]
   says            "The model of a store is every `.mitra` file of its folder, the ledger aside, with `model.mitra` handed first."
-  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
+  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::settings::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
   requires        `store::listed`, `store::handed`
 store::nearest::captured: unverified
   nobody vouched that the claims say what the text says
-store::nearest: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::nearest::captured]
+store::nearest: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::settings::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::nearest::captured]
   says            "A command run in a folder uses the nearest `.mitra/` at or above it."
-  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
+  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::settings::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
   requires        `store::listed`, `store::handed`
 store::build_is_written_again::captured: unverified
   nobody vouched that the claims say what the text says
-store::build_is_written_again: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::build_is_written_again::captured]
+store::build_is_written_again: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::settings::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::build_is_written_again::captured]
   says            "The files of a build are written under `.mitra/build/` in place of the last ones: a build is never edited, and never read back to judge."
-  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
+  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::settings::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
+  requires        `store::listed`, `store::handed`
+store::settings_beside_the_model::captured: unverified
+  nobody vouched that the claims say what the text says
+store::settings_beside_the_model: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::settings::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::settings_beside_the_model::captured]
+  says            "The settings of a store are read from `settings.toml` in its folder and handed with the model. No file is the defaults; a file that does not read is an error, with its path."
+  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::settings::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
   requires        `store::listed`, `store::handed`
 store::never_overwrites::captured: unverified
   nobody vouched that the claims say what the text says
-store::never_overwrites: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::never_overwrites::captured]
+store::never_overwrites: holds assuming [store::Store::of::correct, store::Store::model_path::correct, store::Store::evidence_path::correct, store::Store::source::correct, store::Store::settings::correct, store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::read::correct, files::file::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::never_overwrites::captured]
   says            "A store is created only where there is none."
-  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
+  rests on        `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::settings::correct`, `store::Store::write_build::correct`, `store::a_model_file_names_its_store`, `store::another_file_is_no_store`
   requires        `store::listed`, `store::handed`
 ledger::reads: holds assuming [disk::read_is_stable, disk::reads_what_was_written::captured]
   needs           `disk::reads_what_was_written`
@@ -201,6 +212,7 @@ ledger::Store::append::tied: holds
 store::Store::evidence_path::tied: holds
 store::Store::model_path::tied: holds
 store::Store::of::tied: holds
+store::Store::settings::tied: holds
 store::Store::source::tied: holds
 store::Store::write_build::tied: holds
 store::Store::tied: holds
@@ -220,85 +232,97 @@ warning[M105]: a requirement that nothing leans on
   help: say which function `uses` it, or remove the `require`
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:30  fn read(path: String) -> Result<String, String>
+  --> .mitra/model.mitra:31  fn read(path: String) -> Result<String, String>
 
   No evidence on path in String.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:30  fn read(path: String) -> Result<String, String>
+  --> .mitra/model.mitra:31  fn read(path: String) -> Result<String, String>
 
   No evidence on `files::read` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:34  fn file(path: String) -> Result<Modules, String>
+  --> .mitra/model.mitra:35  fn file(path: String) -> Result<Modules, String>
 
   No evidence on path in String.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:34  fn file(path: String) -> Result<Modules, String>
+  --> .mitra/model.mitra:35  fn file(path: String) -> Result<Modules, String>
 
   No evidence on `files::file` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:23  fn of(model: String) -> Option<Self>;
+  --> .mitra/store.mitra:24  fn of(model: String) -> Option<Self>;
 
   No evidence on model in String.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:23  fn of(model: String) -> Option<Self>;
+  --> .mitra/store.mitra:24  fn of(model: String) -> Option<Self>;
 
   No evidence on `store::Store::of` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:24  fn model_path(&self) -> String;
+  --> .mitra/store.mitra:25  fn model_path(&self) -> String;
 
   No evidence on self in store::Store.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:24  fn model_path(&self) -> String;
+  --> .mitra/store.mitra:25  fn model_path(&self) -> String;
 
   No evidence on `store::Store::model_path` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:25  fn evidence_path(&self) -> String;
+  --> .mitra/store.mitra:26  fn evidence_path(&self) -> String;
 
   No evidence on self in store::Store.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:25  fn evidence_path(&self) -> String;
+  --> .mitra/store.mitra:26  fn evidence_path(&self) -> String;
 
   No evidence on `store::Store::evidence_path` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:27  fn source(&self) -> Result<Modules, String>
+  --> .mitra/store.mitra:28  fn source(&self) -> Result<Modules, String>
 
   No evidence on self in store::Store.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:27  fn source(&self) -> Result<Modules, String>
+  --> .mitra/store.mitra:28  fn source(&self) -> Result<Modules, String>
 
   No evidence on `store::Store::source` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:31  fn write_build(&self, files: Vec<(String, String)>) -> Result<String, String>
+  --> .mitra/store.mitra:33  fn settings(&self) -> Result<settings::Settings, String>
+
+  No evidence on self in store::Store.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/store.mitra:33  fn settings(&self) -> Result<settings::Settings, String>
+
+  No evidence on `store::Store::settings` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/store.mitra:36  fn write_build(&self, files: Vec<(String, String)>) -> Result<String, String>
 
   No evidence on (self, files) in (store::Store, List<(String, String)>).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/store.mitra:31  fn write_build(&self, files: Vec<(String, String)>) -> Result<String, String>
+  --> .mitra/store.mitra:36  fn write_build(&self, files: Vec<(String, String)>) -> Result<String, String>
 
   No evidence on `store::Store::write_build` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -364,49 +388,49 @@ warning[M102]: a claim holds only under assumptions
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:24  ensure handed_unchanged = "A model file is handed to mitra-lang under its path, with its text unchanged.";
+  --> .mitra/model.mitra:25  ensure handed_unchanged = "A model file is handed to mitra-lang under its path, with its text unchanged.";
 
   Nobody vouched that the claims `files::handed_unchanged` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for files::handed_unchanged::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:24  ensure handed_unchanged = "A model file is handed to mitra-lang under its path, with its text unchanged.";
+  --> .mitra/model.mitra:25  ensure handed_unchanged = "A model file is handed to mitra-lang under its path, with its text unchanged.";
 
   `files::handed_unchanged` holds if `files::read::correct`, `files::file::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:25  ensure imports_beside = "`import a::b::x;` is answered by the file `a/b.mitra` beside the first model file, and by what that file imports in turn.";
+  --> .mitra/model.mitra:26  ensure imports_beside = "`import a::b::x;` is answered by the file `a/b.mitra` beside the first model file, and by what that file imports in turn.";
 
   Nobody vouched that the claims `files::imports_beside` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for files::imports_beside::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:25  ensure imports_beside = "`import a::b::x;` is answered by the file `a/b.mitra` beside the first model file, and by what that file imports in turn.";
+  --> .mitra/model.mitra:26  ensure imports_beside = "`import a::b::x;` is answered by the file `a/b.mitra` beside the first model file, and by what that file imports in turn.";
 
   `files::imports_beside` holds if `files::read::correct`, `files::file::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::imports_beside::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:26  ensure stores_beside = "`import other::block::{..}` with no such file beside the model is answered by the whole model of the store `other` beside this one, its ledger aside.";
+  --> .mitra/model.mitra:27  ensure stores_beside = "`import other::block::{..}` with no such file beside the model is answered by the whole model of the store `other` beside this one, its ledger aside.";
 
   Nobody vouched that the claims `files::stores_beside` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for files::stores_beside::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:26  ensure stores_beside = "`import other::block::{..}` with no such file beside the model is answered by the whole model of the store `other` beside this one, its ledger aside.";
+  --> .mitra/model.mitra:27  ensure stores_beside = "`import other::block::{..}` with no such file beside the model is answered by the whole model of the store `other` beside this one, its ledger aside.";
 
   `files::stores_beside` holds if `files::read::correct`, `files::file::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::stores_beside::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:27  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
+  --> .mitra/model.mitra:28  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
 
   Nobody vouched that the claims `files::missing_is_said_at_the_import` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for files::missing_is_said_at_the_import::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:27  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
+  --> .mitra/model.mitra:28  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
 
   `files::missing_is_said_at_the_import` holds if `files::read::correct`, `files::file::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::missing_is_said_at_the_import::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
@@ -456,7 +480,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/store.mitra:13  ensure whole_folder = "The model of a store is every `.mitra` file of its folder, the ledger aside, with `model.mitra` handed first.";
 
-  `store::whole_folder` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::whole_folder::captured` hold, and no evidence supports them.
+  `store::whole_folder` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::settings::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::whole_folder::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -468,7 +492,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/store.mitra:14  ensure nearest = "A command run in a folder uses the nearest `.mitra/` at or above it.";
 
-  `store::nearest` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::nearest::captured` hold, and no evidence supports them.
+  `store::nearest` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::settings::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::nearest::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -480,19 +504,31 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/store.mitra:15  ensure build_is_written_again = "The files of a build are written under `.mitra/build/` in place of the last ones: a build is never edited, and never read back to judge.";
 
-  `store::build_is_written_again` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::build_is_written_again::captured` hold, and no evidence supports them.
+  `store::build_is_written_again` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::settings::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::build_is_written_again::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/store.mitra:16  ensure never_overwrites = "A store is created only where there is none.";
+  --> .mitra/store.mitra:16  ensure settings_beside_the_model = "The settings of a store are read from `settings.toml` in its folder and handed with the model. No file is the defaults; a file that does not read is an error, with  …
+
+  Nobody vouched that the claims `store::settings_beside_the_model` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for store::settings_beside_the_model::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/store.mitra:16  ensure settings_beside_the_model = "The settings of a store are read from `settings.toml` in its folder and handed with the model. No file is the defaults; a file that does not read is an error, with  …
+
+  `store::settings_beside_the_model` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::settings::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::settings_beside_the_model::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/store.mitra:17  ensure never_overwrites = "A store is created only where there is none.";
 
   Nobody vouched that the claims `store::never_overwrites` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for store::never_overwrites::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/store.mitra:16  ensure never_overwrites = "A store is created only where there is none.";
+  --> .mitra/store.mitra:17  ensure never_overwrites = "A store is created only where there is none.";
 
-  `store::never_overwrites` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::never_overwrites::captured` hold, and no evidence supports them.
+  `store::never_overwrites` holds if `store::Store::of::correct`, `store::Store::model_path::correct`, `store::Store::evidence_path::correct`, `store::Store::source::correct`, `store::Store::settings::correct`, `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::read::correct`, `files::file::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::never_overwrites::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for

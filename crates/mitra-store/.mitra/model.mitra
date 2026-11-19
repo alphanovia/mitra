@@ -17,6 +17,7 @@ import std::rust::{Option, Result};
 
 // The files of one model as named texts: mitra-lang's.
 import mitra_lang::modules::{Modules};
+import mitra_lang::settings::{Settings};
 
 subject files {
     require disk_reads = disk::reads_what_was_written;

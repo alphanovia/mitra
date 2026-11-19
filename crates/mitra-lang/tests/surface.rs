@@ -908,7 +908,7 @@ fn a_sample_covers_nothing_and_can_refute() {
                     evidence p { for half given a = 6 gives 3 }")
     .unwrap();
     let want = "halves: unverified\n  passes on       `a = 6`\n  \
-                sampled on      1000 drawn from (a in small) (t)\n";
+                sampled on      1000 drawn from (a in small) (t), trust 0.63 at tolerance 0.001\n";
     assert!(text.contains(want), "{text}");
     // A failing sample does not contradict the point that passes.
     let text = run(

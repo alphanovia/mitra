@@ -36,4 +36,9 @@ pub trait Reader<Place: ?Sized> {
     /// The code tied to the model, compared with it.
     // mitra: implements Reader::tie
     fn tie(&self, root: &Place, model: &Model, rev: Option<&str>) -> Result<Found, String>;
+
+    /// The erasures of this reader, each with its cost: what it may
+    /// forget of the code to reach the model.
+    // mitra: implements Reader::erasures
+    fn erasures(&self) -> Vec<(&'static str, f64)>;
 }

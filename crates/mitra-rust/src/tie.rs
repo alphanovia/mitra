@@ -9,7 +9,7 @@ use std::path::Path;
 use crate::report::libtest;
 use crate::source::{fn_below, mitra_line, rust_files, scan, stray};
 use mitra_lang::results::{Outcome, Tied};
-use mitra_lang::{Found, Model, Reader, Target};
+use mitra_lang::{Found, Model, Reader, Settings, Target};
 
 /// A `fn` of the code, as far as text tells.
 struct Code {
@@ -425,6 +425,85 @@ fn calls(body: &str, name: &str) -> bool {
     })
 }
 
+/// What this reader may forget of the code to reach the model, each
+/// with what it costs the tie: `1 - cost` is what is left of its trust.
+pub const PROFILE: [(&str, f64); 11] = [
+    // `&`, `&mut`, `mut`, a lifetime.
+    ("reference", 0.0),
+    // `Box`, `Rc`, `Arc`.
+    ("pointer", 0.01),
+    // `Cow<str>`, `PathBuf`.
+    ("owned", 0.01),
+    // `impl Into<T>`, `impl AsRef<T>`.
+    ("conversion", 0.02),
+    // `impl Iterator<Item = T>` read as a list.
+    ("sequence", 0.03),
+    // The width of the numbers of a signature.
+    ("width", 0.02),
+    // A trait that bounds an input in the code alone.
+    ("bound", 0.02),
+    // A type the model states narrower than the code can.
+    ("range", 0.05),
+    // A type the model leaves as any value.
+    ("any", 0.05),
+    // The type of the error of a `Result`.
+    ("error", 0.05),
+    // A field of a struct the record does not state, without `..`.
+    ("field", 0.05),
+];
+
+/// An erasure taken on the path of a tie: its name and on what.
+type Erased = Vec<(&'static str, String)>;
+
+/// What is forgotten of one type of the code to read it as the model's.
+fn forgot(on: &str, rust: &str, model: &str, opaque: bool, into: &mut Erased) {
+    let has = |words: &[&str]| words.iter().any(|w| rust.contains(w));
+    let lifetime = rust
+        .match_indices('\'')
+        .any(|(i, _)| rust[i + 1..].starts_with(|c: char| c.is_alphabetic() || c == '_'));
+    let mut took = |name: &'static str, what: String| into.push((name, what));
+    if has(&["&", "mut "]) || lifetime {
+        took("reference", on.to_string());
+    }
+    if has(&["Box<", "Rc<", "Arc<"]) {
+        took("pointer", on.to_string());
+    }
+    if has(&["Cow<", "PathBuf"]) {
+        took("owned", on.to_string());
+    }
+    if has(&["Into<", "AsRef<"]) {
+        took("conversion", on.to_string());
+    }
+    if has(&["Iterator<"]) {
+        took("sequence", on.to_string());
+    }
+    if opaque {
+        // A type parameter on both sides: nothing is forgotten.
+    } else if model.contains("Any") {
+        took("any", format!("{on}: {rust}"));
+    } else if ["..", "{", "|", "\\", "&"]
+        .iter()
+        .any(|n| model.contains(n))
+    {
+        took("range", format!("{on}: {model} for {rust}"));
+    }
+}
+
+/// `Result<T, E>` as its two types; `io::Result<T>` has its error unsaid.
+fn result_of(ty: &str) -> Option<(String, Option<String>)> {
+    let t = ty.trim();
+    let open = t.find('<')?;
+    if t[..open].rsplit("::").next()? != "Result" {
+        return None;
+    }
+    let parts = pieces(t[open + 1..].strip_suffix('>')?);
+    match parts.as_slice() {
+        [ok] => Some((ok.clone(), None)),
+        [ok, err] => Some((ok.clone(), Some(err.clone()))),
+        _ => None,
+    }
+}
+
 /// The reader of Rust code.
 // mitra: implements reader::Rust
 pub struct Rust;
@@ -477,9 +556,27 @@ impl Reader<Path> for Rust {
         Ok(out)
     }
 
+    // mitra: implements reader::Rust::erasures
+    fn erasures(&self) -> Vec<(&'static str, f64)> {
+        PROFILE.to_vec()
+    }
+
     /// Compare the code under `root` with the model.
     // mitra: implements reader::Rust::tie
     fn tie(&self, root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, String> {
+        // The cost of each erasure: the settings', or the profile's.
+        let said = &model.settings.erasure;
+        if let Some(name) = said.keys().find(|k| !PROFILE.iter().any(|p| p.0 == *k)) {
+            let known: Vec<&str> = PROFILE.iter().map(|p| p.0).collect();
+            return Err(format!(
+                "settings: no erasure `{name}` in the profile of this reader ({})",
+                known.join(", ")
+            ));
+        }
+        let cost = |name: &str| {
+            let own = PROFILE.iter().find(|p| p.0 == name).map_or(0.0, |p| p.1);
+            said.get(name).copied().unwrap_or(own)
+        };
         let mut files = Vec::new();
         for d in ["src", "tests"] {
             rust_files(&root.join(d), &mut files);
@@ -512,12 +609,31 @@ impl Reader<Path> for Rust {
             None => String::new(),
         };
         let clean = |why: &str| why.replace(['"', '\\'], "'");
-        let say = |found: &mut Found, claim: &str, place: &str, why: Option<String>| match why {
+        // A tie that agrees says what was erased to get there, and is
+        // trusted for what the erasures leave.
+        let say = |found: &mut Found,
+                   claim: &str,
+                   place: &str,
+                   why: Option<String>,
+                   erased: &Erased| match why {
             None => {
                 found.agree += 1;
-                let source = format!("reader:rust {place}");
+                let costs: Vec<f64> = erased.iter().map(|e| cost(e.0)).collect();
+                let trust = Settings::strength(&costs);
+                let (mut source, mut said) = (format!("reader:rust {place}"), String::new());
+                if !erased.is_empty() {
+                    let each = erased.iter().map(|(name, what)| match what.is_empty() {
+                        true => name.to_string(),
+                        false => format!("{name}({what})"),
+                    });
+                    let list: Vec<String> = each.collect();
+                    source += &clean(&format!("; erased {}: {}", list.len(), list.join(", ")));
+                }
+                if trust < 1.0 {
+                    said = format!(" trust {}", (trust * 1000.0).round() / 1000.0);
+                }
                 found.evidence.push(format!(
-                    "evidence tie {{ for {claim} holds source \"{source}\"{attrs} }}"
+                    "evidence tie {{ for {claim} holds{said} source \"{source}\"{attrs} }}"
                 ));
             }
             Some(why) => {
@@ -546,6 +662,7 @@ impl Reader<Path> for Rust {
                 }
                 let last = |n: &str| n.rsplit("::").next().unwrap_or(n).to_string();
                 let mut why = None;
+                let mut erased: Erased = Vec::new();
                 // `record R<T> { … }` is read as an enum of one variant.
                 let alone = e.variants.len() == 1 && e.variants[0] == e.name;
                 let record = (model.records.iter())
@@ -569,14 +686,8 @@ impl Reader<Path> for Rust {
                             }
                         }
                         let stated = |f: &&(String, String)| r.fields.iter().any(|m| m.0 == f.0);
-                        if let Some((name, _)) = fields
-                            .iter()
-                            .find(|f| !stated(f))
-                            .filter(|_| why.is_none() && !r.open)
-                        {
-                            why = Some(format!(
-                            "the struct has a field `{name}` the record does not state, and no `..`"
-                        ));
+                        for (name, _) in fields.iter().filter(|f| !stated(f) && !r.open) {
+                            erased.push(("field", name.clone()));
                         }
                     }
                 }
@@ -635,7 +746,13 @@ impl Reader<Path> for Rust {
                         }
                     }
                 }
-                say(&mut found, &format!("{}::tied", e.name), &s.place, why);
+                say(
+                    &mut found,
+                    &format!("{}::tied", e.name),
+                    &s.place,
+                    why,
+                    &erased,
+                );
                 continue;
             }
             let record = model.records.iter().find(|r| r.name == s.implements);
@@ -655,6 +772,7 @@ impl Reader<Path> for Rust {
             let stated: Vec<&(String, mitra_lang::Set)> =
                 r.fields.iter().filter(|f| f.0 != "..").collect();
             let mut why = None;
+            let mut erased: Erased = Vec::new();
             match &s.fields {
                 // Nothing of it is stated: any struct or enum will do.
                 _ if stated.is_empty() && r.open => {}
@@ -679,15 +797,19 @@ impl Reader<Path> for Rust {
                     let bare = |n: &str| n.strip_prefix("r#").unwrap_or(n).to_string();
                     let extra = fields
                         .iter()
-                        .find(|f| !stated.iter().any(|m| bare(&m.0) == bare(&f.0)));
-                    if let Some((name, _)) = extra.filter(|_| why.is_none() && !r.open) {
-                        why = Some(format!(
-                        "the struct has a field `{name}` the record does not state, and no `..`"
-                    ));
+                        .filter(|f| !stated.iter().any(|m| bare(&m.0) == bare(&f.0)));
+                    for (name, _) in extra.filter(|_| !r.open) {
+                        erased.push(("field", name.clone()));
                     }
                 }
             }
-            say(&mut found, &format!("{}::tied", r.name), &s.place, why);
+            say(
+                &mut found,
+                &format!("{}::tied", r.name),
+                &s.place,
+                why,
+                &erased,
+            );
         }
         for c in &code {
             let Some(f) = model
@@ -730,7 +852,7 @@ impl Reader<Path> for Rust {
             // Contract`: the traits that bound it in the code, on its type
             // parameter or as `impl Trait`, are the contracts of the model.
             // Bounds that say nothing of a value are set aside, and said.
-            let mut aside: Vec<String> = Vec::new();
+            let mut erased: Erased = Vec::new();
             let inside = model.generics.iter().find(|g| g.function == f.name);
             for (input, set) in inside.iter().flat_map(|g| &g.params) {
                 let known = inside.and_then(|g| g.known.iter().find(|k| &k.0 == set));
@@ -758,8 +880,8 @@ impl Reader<Path> for Rust {
                 // said with the tie, not a difference.
                 let (code, more): (Vec<String>, Vec<String>) =
                     all.into_iter().partition(|t| contracts.contains(t));
-                if !more.is_empty() {
-                    aside.push(format!("{input} is also {} in the code", more.join(" + ")));
+                for t in &more {
+                    erased.push(("bound", format!("{input}: {t}")));
                 }
                 if let Some(missing) = contracts.iter().find(|m| !code.contains(m)) {
                     let by = match more.is_empty() {
@@ -772,49 +894,53 @@ impl Reader<Path> for Rust {
                 }
             }
             let range = model.named(&f.range.to_string());
-            if why.is_none() && !fits(&range, &c.result) {
+            // The type of an error is the code's: what fails is compared.
+            let same_ok = match (result_of(&range), result_of(&c.result)) {
+                (Some((ok, err)), Some((rust_ok, rust_err))) => {
+                    let named = |e: &Option<String>| e.as_ref().map(|e| as_model(e));
+                    let differs = named(&rust_err) != err.as_ref().map(|e| e.replace(' ', ""));
+                    (fits(&ok, &rust_ok) && differs).then(|| rust_err.unwrap_or_default())
+                }
+                _ => None,
+            };
+            if let Some(err) = &same_ok {
+                erased.push(("error", format!("result: {err}")));
+            }
+            if why.is_none() && same_ok.is_none() && !fits(&range, &c.result) {
                 let r = &c.result;
                 why = Some(format!(
                     "the result is `{r}` in the code, `{range}` in the model"
                 ));
             }
-            // What agreeing does not compare: said with the tie, so that it
-            // can be doubted by name.
-            let narrow = |m: &str| {
-                ["..", "{", "|", "\\", "&", "Any"]
-                    .iter()
-                    .any(|n| m.contains(n))
+            // What was forgotten of each type to read it as the model's.
+            // A type that names a type parameter, or is `impl Trait`, is
+            // open in the code as it is in the model.
+            let word = |c: char| c.is_alphanumeric() || c == '_';
+            let open = |ty: &str| {
+                let named = |p: &(String, Vec<String>)| ty.split(|c| !word(c)).any(|w| w == p.0);
+                c.bounds.iter().any(named) || ty.contains("impl ") || ty.contains("dyn ")
             };
-            // How the code holds or hands over a value, which the model
-            // does not say.
-            let held = |ty: &str| {
-                ["Cow<", "Into<", "AsRef<", "Iterator<", "PathBuf"]
-                    .iter()
-                    .any(|h| ty.contains(h))
-            };
-            let mut taken: Vec<String> = aside;
             let mut numbers = range.contains("Int") || range.contains("Float");
             for ((name, ty), (_, mty)) in c.params.iter().zip(&f.params) {
                 let mty = model.named(&mty.to_string());
                 numbers |= mty.contains("Int") || mty.contains("Float") || mty.contains("..");
-                if let Some(ty) = ty.as_ref().filter(|t| narrow(&mty) || held(t)) {
-                    taken.push(format!("{name} is {mty} in the model and {ty} in the code"));
+                if let Some(ty) = ty {
+                    forgot(name, ty, &mty, open(ty), &mut erased);
                 }
             }
-            if narrow(&range) || held(&c.result) {
-                let r = &c.result;
-                taken.push(format!(
-                    "the result is {range} in the model and {r} in the code"
-                ));
+            if !["", "()"].contains(&c.result.trim()) {
+                forgot("result", &c.result, &range, open(&c.result), &mut erased);
             }
             if numbers {
-                taken.push("the numbers of the model computed as the code computes".to_string());
+                erased.push(("width", String::new()));
             }
-            let place = match (why.is_none(), taken.is_empty()) {
-                (true, false) => format!("{}; not compared: {}", c.place, clean(&taken.join(", "))),
-                _ => c.place.clone(),
-            };
-            say(&mut found, &format!("{}::tied", f.name), &place, why);
+            say(
+                &mut found,
+                &format!("{}::tied", f.name),
+                &c.place,
+                why,
+                &erased,
+            );
             // Calls.
             let uses = model.claims.iter().find_map(|k| match &k.target {
                 Target::Uses { used, only } if k.func == f.name => Some((k, used, *only)),
@@ -863,6 +989,7 @@ impl Reader<Path> for Rust {
                         &format!("{}::uses", f.name),
                         &c.place,
                         Some(why),
+                        &Vec::new(),
                     );
                 }
                 continue;
@@ -905,7 +1032,7 @@ impl Reader<Path> for Rust {
                 }
             }
             if checked {
-                say(&mut found, &claim.name, &c.place, why);
+                say(&mut found, &claim.name, &c.place, why, &Vec::new());
             }
         }
         // What has no tie.

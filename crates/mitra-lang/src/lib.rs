@@ -28,6 +28,7 @@ mod prove;
 pub mod report;
 pub mod results;
 pub mod set;
+pub mod settings;
 pub mod trust;
 pub mod tuples;
 pub mod types;
@@ -47,6 +48,7 @@ pub use parse::Handed;
 pub use plan::plan;
 pub use report::{explain, Files, Places};
 pub use set::{Set, Value};
+pub use settings::Settings;
 pub use tuples::Tuples;
 
 use std::fmt;
