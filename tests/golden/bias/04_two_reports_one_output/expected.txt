@@ -21,6 +21,7 @@ error[M001]: evidence refutes a claim
     likely    the code of `f`, model.mitra:2  none   0.00 to 0.09
     possible  evidence.mitra:5 (b)            0.1    0.10 to 1.00
     unlikely  evidence.mitra:4 (a)            0.9    0.90 to 1.00
+    trusted   the helper `one` as written, model.mitra:1
 
   The lower what is left, the more plausibly the piece is the wrong one.
   A range means the evidence does not settle it.

@@ -525,7 +525,36 @@ pub fn tie(root: &Path, model: &Model, rev: Option<&str>) -> Result<Found, Strin
                 "the result is `{r}` in the code, `{range}` in the model"
             ));
         }
-        say(&mut found, &format!("{}::tied", f.name), &c.place, why);
+        // What agreeing does not compare: said with the tie, so that it
+        // can be doubted by name.
+        let narrow = |m: &str| {
+            ["..", "{", "|", "\\", "&", "Any"]
+                .iter()
+                .any(|n| m.contains(n))
+        };
+        let mut taken: Vec<String> = Vec::new();
+        let mut numbers = range.contains("Int") || range.contains("Float");
+        for ((name, ty), (_, mty)) in c.params.iter().zip(&f.params) {
+            let mty = model.named(&mty.to_string());
+            numbers |= mty.contains("Int") || mty.contains("Float") || mty.contains("..");
+            if let Some(ty) = ty.as_ref().filter(|_| narrow(&mty)) {
+                taken.push(format!("{name} is {mty} in the model and {ty} in the code"));
+            }
+        }
+        if narrow(&range) {
+            let r = &c.result;
+            taken.push(format!(
+                "the result is {range} in the model and {r} in the code"
+            ));
+        }
+        if numbers {
+            taken.push("the numbers of the model computed as the code computes".to_string());
+        }
+        let place = match (why.is_none(), taken.is_empty()) {
+            (true, false) => format!("{}; not compared: {}", c.place, clean(&taken.join(", "))),
+            _ => c.place.clone(),
+        };
+        say(&mut found, &format!("{}::tied", f.name), &place, why);
         // Calls.
         let uses = model.claims.iter().find_map(|k| match &k.target {
             Target::Uses { used, only } if k.func == f.name => Some((k, used, *only)),

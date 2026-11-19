@@ -55,6 +55,11 @@ with the function of the model, and appends what it finds as evidence
 | Result | The same rule. | `f::tied` |
 | Calls | For `uses g, h`: the body calls the `fn` tied to each. For `uses only`: it calls no other tied `fn`. A function with no tie is not checked. | `f::uses` |
 
+Where they agree, the evidence says what was not compared (`; not
+compared: a is 0..=5 in the model and i64 in the code, the numbers of
+the model computed as the code computes`), and the tie is a candidate
+of an error on that function.
+
 A record is tied the same way, `// mitra: implements check::Claim` above its
 `struct`: every field the model states is in the struct with a type that
 fits, and, unless the record ends with `..`, the struct has no other

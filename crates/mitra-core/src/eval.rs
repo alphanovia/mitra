@@ -234,6 +234,13 @@ pub enum Piece {
     /// That the claims of a subject say what the prose of a requirement
     /// says: someone's word, by the name of the requirement.
     Capture(String),
+    /// A helper of the model, as written: a definition a claim reads. It
+    /// has no code to drift from, and may still be the wrong definition.
+    Helper(String),
+    /// That a function of the model and its code agree: the reader's
+    /// word on names and types, and the model's arithmetic and types
+    /// taken to be the code's.
+    Tie(String),
 }
 
 impl Piece {
@@ -2882,9 +2889,49 @@ pub fn evaluate(model: &Model) -> Result<Report, (Input, Error)> {
                 }
             }
         }
+        // The helpers the statement reads, and those they read: each is a
+        // definition of the model that may be the wrong one.
+        if let Target::Property(e) | Target::Matches(e) = &c.target {
+            let helper = |g: &str| {
+                let f = model.declared_function(g)?;
+                (f.body.is_some() && !g.ends_with("::body")).then_some(f)
+            };
+            let mut todo = calls(e);
+            let mut seen: Vec<String> = Vec::new();
+            while let Some(g) = todo.pop() {
+                // The spec of a function of the code: read through.
+                let body = format!("{g}::body");
+                let read = helper(&g).or(model.declared_function(&body));
+                let Some(f) = read.filter(|_| !seen.contains(&g)) else {
+                    continue;
+                };
+                seen.push(g.clone());
+                if f.name == g && !side.contains(&Piece::Helper(g.clone())) {
+                    side.push(Piece::Helper(g));
+                }
+                todo.extend(f.body.as_ref().map(calls).unwrap_or_default());
+            }
+        }
         // A boundary has no code of ours to be wrong: it answers as it
         // does.
         side.retain(|p| !matches!(p, Piece::Code(g) if model.boundaries.contains(g)));
+        // Where a function is tied to its code, the tie is a piece too:
+        // model and code may have drifted apart behind it.
+        if c.target != Target::Tied {
+            let tied = |g: &String| {
+                let about = format!("{g}::tied");
+                let holds = |e: &Evidence| e.about == about && e.judgment == Judgment::Holds(true);
+                model.evidence.iter().any(holds)
+            };
+            let code: Vec<String> = side
+                .iter()
+                .filter_map(|p| match p {
+                    Piece::Code(g) if tied(g) => Some(g.clone()),
+                    _ => None,
+                })
+                .collect();
+            side.extend(code.into_iter().map(Piece::Tie));
+        }
         // The statement of the claim is a piece like the others. For a
         // tie: what the model says of the function, or the code.
         if c.target == Target::Tied {
@@ -3349,6 +3396,17 @@ fn rank(model: &Model, problems: &mut [Problem]) {
         Piece::Claim(c) => Some(model.claim(c).and_then(|c| c.trust).unwrap_or(1.0)),
         // What the model states is trusted like evidence: 1 unless said.
         Piece::Signature(_) => Some(1.0),
+        Piece::Helper(f) => {
+            let said = model.helper_trust.iter().find(|h| &h.0 == f);
+            Some(said.map_or(1.0, |h| h.1))
+        }
+        // The tie is trusted as the word of who read the code.
+        Piece::Tie(f) => {
+            let about = format!("{f}::tied");
+            let said = |e: &&Evidence| e.about == about && e.judgment == Judgment::Holds(true);
+            let all = model.evidence.iter().filter(said);
+            all.map(|e| e.confidence).reduce(f64::max)
+        }
         // The prose is what is judged: no trust is given to it. The word
         // that the claims say it is trusted as its vouch is, if any.
         Piece::Requirement(c) => model.claim(c).and_then(|c| c.trust),

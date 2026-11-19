@@ -596,6 +596,33 @@ impl Writer<'_> {
                 let place = self.places.model(line);
                 (format!("the signature of `{f}`, {place}"), "1".to_string())
             }
+            Piece::Helper(f) => {
+                let line = self.model.function(f).map_or(0, |f| f.line);
+                let place = self.places.model(line);
+                let said = self.model.helper_trust.iter().find(|h| &h.0 == f);
+                let trust = said.map_or(1.0, |h| h.1);
+                (
+                    format!("the helper `{f}` as written, {place}"),
+                    format!("{trust}"),
+                )
+            }
+            Piece::Tie(f) => {
+                let line = self.model.function(f).map_or(0, |f| f.line);
+                let place = self.places.model(line);
+                let about = format!("{f}::tied");
+                let said = self.model.evidence.iter().filter(|e| e.about == about);
+                let trust = said.clone().map(|e| e.confidence).reduce(f64::max);
+                // What the reader of the code did not compare.
+                let open = said
+                    .filter_map(|e| e.source.as_deref()?.split_once("; not compared: "))
+                    .map(|s| format!(" (not compared: {})", s.1))
+                    .next()
+                    .unwrap_or_default();
+                (
+                    format!("that `{f}` and its code agree{open}, {place}"),
+                    trust.map_or("none".to_string(), |t| format!("{t}")),
+                )
+            }
             Piece::Requirement(c) => {
                 let place = self.places.model(self.claim(c).line);
                 let needs = self.model.ensure(c).and_then(|e| e.needs.clone());
@@ -685,6 +712,16 @@ impl Writer<'_> {
                 "    {} less plausible not shown (`--all` shows them)\n",
                 possible - listed.len()
             );
+        }
+        // The model's own definitions and its ties to the code, where
+        // nothing doubts them: named all the same.
+        let quiet = |c: &&Candidate| {
+            let own = matches!(c.piece, Piece::Helper(_) | Piece::Tie(_));
+            own && !listed.iter().any(|l| l.piece == c.piece)
+        };
+        for c in candidates.iter().filter(quiet) {
+            let (piece, _) = self.piece(&c.piece);
+            *out += &format!("    {:<9} {piece}\n", "trusted");
         }
         *out += "\n  The lower what is left, the more plausibly the piece is the wrong one.\n";
         if listed.iter().any(|c| c.belief + 0.005 < c.plausibility) {

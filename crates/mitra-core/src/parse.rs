@@ -2145,6 +2145,12 @@ impl P {
             let used: Vec<String> = used.iter().map(|u| self.resolve(u)).collect();
             uses = Some((only, used, self.trust()?.unwrap_or(1.0)));
         }
+        // `trust 0.9` on a helper: how far its definition is trusted.
+        if self.block.is_none() {
+            if let Some(t) = self.trust()? {
+                self.m.helper_trust.push((q.clone(), t));
+            }
+        }
         self.names.fns.insert(q.clone(), sig.clone());
         if self.block.is_some() {
             self.names.opaque.insert(q.clone());

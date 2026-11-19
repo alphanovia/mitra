@@ -28,6 +28,7 @@ error[M001]: evidence refutes a claim
 
                                                  trust  left
     certain   the code of `flip`, model.mitra:4  none   0.00
+    trusted   the helper `neg` as written, model.mitra:1
 
   The lower what is left, the more plausibly the piece is the wrong one.
 
@@ -48,6 +49,7 @@ error[M001]: evidence refutes a claim
 
                                                      trust  left
     certain   the code of `flip_not`, model.mitra:5  none   0.00
+    trusted   the helper `same` as written, model.mitra:2
 
   The lower what is left, the more plausibly the piece is the wrong one.
 

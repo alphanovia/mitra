@@ -172,7 +172,9 @@ subject report {
         Assumption(name: String),     // an `assume`, taken as true
         Uses(function: String),       // the `uses` clause of a function
         Requirement(name: String),    // the text of an `ensure`
-        Capture(name: String)         // that the claims say what that text says
+        Capture(name: String),        // that the claims say what that text says
+        Helper(name: String),         // a helper of the model, as a definition
+        Tie(function: String)         // that a function and its code agree
     }
 
     // A piece, how much it must be wrong and how much it can be.

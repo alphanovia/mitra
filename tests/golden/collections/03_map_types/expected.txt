@@ -20,6 +20,7 @@ error[M001]: evidence refutes a claim
 
                                                   trust  left
     certain   the code of `alarm`, model.mitra:3  none   0.00
+    trusted   the helper `alarm_spec` as written, model.mitra:4
 
   The lower what is left, the more plausibly the piece is the wrong one.
 

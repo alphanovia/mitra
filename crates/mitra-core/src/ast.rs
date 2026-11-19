@@ -254,6 +254,9 @@ pub struct Model {
     /// it says the same input always gives the same output (`false`:
     /// that it may not, `!deterministic(f)`).
     pub determinism: Vec<(String, String, bool)>,
+    /// The trust written on a helper of the model, `fn h(…) -> T trust
+    /// 0.9 { … }`: 1 where none is.
+    pub helper_trust: Vec<(String, f64)>,
     pub records: Vec<Record>,
     pub enums: Vec<Enum>,
     /// Sets written with an enum, such as `Option(Int)`, by their printed

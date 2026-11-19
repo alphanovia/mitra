@@ -114,8 +114,9 @@ code is right on every input ([correct](kw-claims.md#correct)).
 Mitra adds the claim `f::spec`: the code returns what the body returns.
 
 `fn f(a: T) -> U { e }` alone: a helper of the model. It is computed,
-there is no code behind it, no claim, and it is never a suspect. It is
-written above the bodies that call it. Alone, a `fn` with no body is
+there is no code behind it and no claim. When a claim that reads it
+fails it is a candidate, as a definition: trusted at 1, or as
+`fn f(a: T) -> U trust 0.8 { e }` says. Alone, a `fn` with no body is
 refused: Mitra asks whether it is your code or the world.
 
 ```mitra

@@ -63,7 +63,12 @@ Its candidates are the pieces of which at least one is wrong: evidence,
 the code of the functions involved (and of what they use), and what the
 model states (the claim, the signature, an assumption, a `uses` clause).
 Code has no trust; what the model states is trusted at 1 unless it says
-`trust n`. Evidence outside a signature is kept and reported as M006,
+`trust n`. Two more are named: a helper the failing claim reads (`the
+helper `valid` as written`, a definition that may be the wrong one),
+and, where `mitra tie` said a function and its code agree, that tie
+(`that `f` and its code agree`, with what the reader did not compare),
+trusted as its evidence is. While nothing doubts them they print under
+the candidates as `trusted`. Evidence outside a signature is kept and reported as M006,
 with the evidence and the signature as candidates. A boundary is never a
 candidate. An assumption prints as `` `clock::noon` as assumed ``, a
 `uses` clause as `` `timer::left::uses` as declared ``. For evidence against

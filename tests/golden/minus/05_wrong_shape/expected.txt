@@ -35,6 +35,7 @@ error[M001]: evidence refutes a claim
 
                                                   trust  left
     certain   the code of `minus`, model.mitra:7  none   0.00
+    trusted   the helper `difference` as written, model.mitra:3
 
   The lower what is left, the more plausibly the piece is the wrong one.
 

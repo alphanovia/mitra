@@ -952,3 +952,48 @@ fn uses_is_implied_by_a_body() {
         .to_text();
     assert!(text.contains("s::half::uses: fails"), "{text}");
 }
+
+/// A helper a failing claim reads, and the tie of the function to its
+/// code, are pieces that can be the wrong one: named, and weighed with
+/// the trust given to them.
+#[test]
+fn a_helper_and_a_tie_are_candidates() {
+    let m = |trust: &str| {
+        format!(
+            "fn small(a: Int) -> Bool {trust}{{ a >= 0 && a < 100 }}\n\
+             subject s {{ fn half(a: Int) -> Int;\n\
+             claim halves(a: Int) {{ !small(a) || half(a) * 2 <= a }} }}"
+        )
+    };
+    let run = |m: &str, e: &str| mitra_core::run(m, e).unwrap_or_else(|(_, e)| panic!("{e}"));
+    let e = |trust: &str| {
+        format!(
+            "evidence p {{ for s::half given a = 6 gives 4 }}\n\
+             evidence tie {{ for s::half::tied holds {trust}source \"reader:rust src/lib.rs:3; \
+             not compared: a is Int in the model\" }}"
+        )
+    };
+    // Trusted in full: the code alone is doubted, the two are named.
+    let text = run(&m(""), &e("")).to_text();
+    for want in [
+        "certain   the code of `s::half`",
+        "trusted   the helper `small` as written, model.mitra:1\n",
+        "trusted   that `s::half` and its code agree (not compared: a is Int in the model), model.mitra:2\n",
+    ] {
+        assert!(text.contains(want), "{text}");
+    }
+    // With less trust they share the doubt.
+    let text = run(&m("trust 0.7 "), &e("trust 0.8 ")).to_text();
+    for want in [
+        "likely    the code of `s::half`",
+        "unlikely  the helper `small` as written, model.mitra:1",
+        "0.7    0.70 to 1.00",
+        "0.8    0.80 to 1.00",
+    ] {
+        assert!(text.contains(want), "{text}");
+    }
+    assert!(!text.contains("trusted "), "{text}");
+    // No tie, no such piece.
+    let text = run(&m(""), "evidence p { for s::half given a = 6 gives 4 }").to_text();
+    assert!(!text.contains("its code agree"), "{text}");
+}

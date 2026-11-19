@@ -82,9 +82,9 @@ evidence test { for mass::Mass::conflict given self = Mass(0.0, 0.0, 1.0), o = M
 evidence test { for mass::Mass::conflict given self = Mass(0.0, 0.0, 1.0), o = Mass(0.5, 0.5, 0.5) holds source "test:t_conflict_invalid_second" rev "7f2cf32ac00a" }
 evidence tie { for culprits::Ranking::tied holds source "reader:rust src/culprits.rs:32" rev "7f2cf32ac00a" }
 evidence tie { for mass::Mass::tied holds source "reader:rust src/lib.rs:22" rev "7f2cf32ac00a" }
-evidence tie { for culprits::rank::tied holds source "reader:rust src/culprits.rs:57" rev "7f2cf32ac00a" }
-evidence tie { for mass::Mass::judged::tied holds source "reader:rust src/lib.rs:45" rev "7f2cf32ac00a" }
+evidence tie { for culprits::rank::tied holds source "reader:rust src/culprits.rs:57; not compared: clauses is List<List<0..>> in the model and &[Vec<usize>] in the code, the numbers of the model computed as the code computes" rev "7f2cf32ac00a" }
+evidence tie { for mass::Mass::judged::tied holds source "reader:rust src/lib.rs:45; not compared: the numbers of the model computed as the code computes" rev "7f2cf32ac00a" }
 evidence tie { for mass::Mass::is_valid::tied holds source "reader:rust src/lib.rs:55" rev "7f2cf32ac00a" }
-evidence tie { for mass::Mass::conflict::tied holds source "reader:rust src/lib.rs:63" rev "7f2cf32ac00a" }
+evidence tie { for mass::Mass::conflict::tied holds source "reader:rust src/lib.rs:63; not compared: the numbers of the model computed as the code computes" rev "7f2cf32ac00a" }
 evidence tie { for mass::Mass::dempster::tied holds source "reader:rust src/lib.rs:82" rev "7f2cf32ac00a" }
-evidence tie { for mass::Mass::yager::tied holds source "reader:rust src/lib.rs:101" rev "7f2cf32ac00a" }
+evidence tie { for mass::Mass::yager::tied holds source "reader:rust src/lib.rs:101; not compared: the numbers of the model computed as the code computes" rev "7f2cf32ac00a" }

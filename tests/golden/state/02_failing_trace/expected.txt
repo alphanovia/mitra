@@ -32,6 +32,7 @@ error[M001]: evidence refutes a claim
 
                                                      trust  left
     certain   the code of `withdraw`, model.mitra:5  none   0.00
+    trusted   the helper `withdraw_spec` as written, model.mitra:8
 
   The lower what is left, the more plausibly the piece is the wrong one.
 
