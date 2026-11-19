@@ -128,6 +128,7 @@ direction, not the current language.
 | [docs/vision.md](docs/vision.md) | What Mitra is, how it is layered, principles, non-goals |
 | [docs/design/semantics.md](docs/design/semantics.md) | Design: verdicts without numbers, opinions on evidence, the loop they are judged against, and what the code does differently today |
 | [docs/design/composition.md](docs/design/composition.md) | Earlier proposal, in part built another way: composition as implication, structure claims, tests as subjects |
+| [docs/coverage.md](docs/coverage.md) | How much of Mitra its own model covers: every function, tied or not, written by `scripts/coverage.py --write` |
 | [docs/design/dogfooding.md](docs/design/dogfooding.md) | Mitra on Mitra: three crates with a model aside, tied to the code and judged from their own tests |
 | [docs/design/requirements.md](docs/design/requirements.md) | Proposal: prose requirements as opaque propositions derived from claims, for traceability |
 | [docs/design/elaboration.md](docs/design/elaboration.md) | Proposal: Mitra elaborates partial knowledge into claims, splits, specs and proof obligations |
