@@ -24,7 +24,7 @@ pub enum Logic {
 }
 
 impl Logic {
-    // mitra: implements report::as_str
+    // mitra: implements report::Logic::as_str
     pub fn as_str(self) -> &'static str {
         match self {
             Logic::Holds => "holds",

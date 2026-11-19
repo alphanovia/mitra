@@ -577,3 +577,22 @@ fn plan_owes_one_point_per_represented_set() {
         "{out}"
     );
 }
+
+/// A method of an `impl` of the model is tied to the method of the
+/// code: `self` in any form, `Self` the type of the `impl`.
+#[test]
+fn tie_compares_a_method_with_its_code() {
+    let from = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/tie/methods");
+    let dir = std::env::temp_dir().join(format!("mitra-cli-methods-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    assert_eq!(mitra(&dir, &["init"]).0, Some(0));
+    for f in [".mitra/model.mitra", "src/lib.rs"] {
+        std::fs::copy(from.join(f), dir.join(f)).unwrap();
+    }
+    let (code, out, err) = mitra(&dir, &["tie"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.starts_with("4 agree, 1 differ"), "{out}");
+    let why = "bank::Account::close::tied: the result is `Account` in the code, `Int` in the model";
+    assert!(out.contains(why), "{out}");
+}

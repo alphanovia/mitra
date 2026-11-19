@@ -657,3 +657,58 @@ fn a_record_belongs_to_its_subject() {
         "{got:?}"
     );
 }
+
+/// `impl R { … }` is Rust's: `self` is an `R`, `Self` the record, a
+/// function is `R::name`, called as a method or by its path.
+#[test]
+fn an_impl_is_read_as_rust_writes_it() {
+    let m = "subject geo { record Point { x: 0..=2, y: 0..=2 }\n\
+             impl Point { fn new(x: 0..=2, y: 0..=2) -> Self;\n\
+             fn flip(&self) -> Self { Point(self.y, self.x) }\n\
+             fn sum(&mut self) -> Int;\n\
+             claim flat(self) { self.x == self.y }\n\
+             claim back(self) { self.flip().flip() == Self::flip(Point::flip(self)) } }\n\
+             claim sums(p: Point) { p.sum() == Point::sum(p.flip()) } }\n\
+             subject other { claim far(p: geo::Point) { p.sum() == geo::Point::new(p.x, p.y).sum() } }";
+    let run = |e: &str| mitra_core::run(m, e).unwrap_or_else(|(_, e)| panic!("{e}"));
+    let text = run(
+        "evidence a { for Point::new given x = 0, y = 1 gives Point(0, 1) }\n\
+                    evidence b { for geo::Point::sum given self = Point(1, 2) gives 3 }\n\
+                    evidence c { for geo::Point::sum given self = Point(2, 1) gives 3 }",
+    )
+    .to_text();
+    assert!(
+        text.contains("geo::Point::new::correct: unverified"),
+        "{text}"
+    );
+    assert!(
+        text.contains("geo::Point::back: holds assuming [geo::Point::flip::spec]"),
+        "{text}"
+    );
+    assert!(
+        text.contains("geo::Point::flat: fails\n  fails on        `self = geo::Point(0, 1)`"),
+        "{text}"
+    );
+    assert!(text.contains("geo::sums: unverified"), "{text}");
+    let refused = |model: &str, want: &str| {
+        let e = mitra_core::run(model, "").map(|_| ()).unwrap_err().1;
+        assert!(e.to_string().contains(want), "{e}");
+    };
+    refused(
+        "record A { x: Int } claim c(a: A) { a.size() == 1 }",
+        "no method `size`",
+    );
+    refused(
+        "subject s { record A { x: Int } record B { x: Int }\n\
+         impl A { fn size(self) -> Int; } impl B { fn size(self) -> Int; }\n\
+         claim c(a: A) { a.size() == A(1).size() } }",
+        "a method of several records",
+    );
+    refused(
+        "subject s { record A { x: Int } record B { x: Int }\n\
+         impl A { fn size(self) -> Int; }\n\
+         claim c(b: B) { b.size() == 1 } }",
+        "`s::B` has no method `size`",
+    );
+    refused("impl A<T> { }", "`impl R { … }` is the only form");
+}

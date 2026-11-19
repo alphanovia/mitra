@@ -194,6 +194,35 @@ fn fits(model: &str, rust: &str) -> bool {
     plain == rust || (named && head(&plain) == rust)
 }
 
+/// The type an `impl` line is for: `impl<T> Trait for Name<T> {` is `Name`.
+fn implemented(line: &str) -> Option<String> {
+    let rest = line.strip_prefix("impl")?;
+    let rest = match rest.strip_prefix('<') {
+        Some(r) => &r[balanced(r, '<', '>')?.len() + 1..],
+        None => rest,
+    };
+    let rest = rest.strip_prefix(' ')?;
+    let ty = rest.split(" for ").last()?.trim();
+    let end = ty.find(|c: char| !(c.is_alphanumeric() || c == '_' || c == ':'));
+    let name = ty[..end.unwrap_or(ty.len())].rsplit("::").next()?;
+    Some(name.to_string()).filter(|n| !n.is_empty())
+}
+
+/// `text` with the whole word `from` written `to`.
+fn words(text: &str, from: &str, to: &str) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    let part = |c: char| c.is_alphanumeric() || c == '_';
+    while let Some(i) = rest.find(from) {
+        let before = rest[..i].chars().next_back().is_some_and(part);
+        let after = rest[i + from.len()..].chars().next().is_some_and(part);
+        out += &rest[..i];
+        out += if before || after { from } else { to };
+        rest = &rest[i + from.len()..];
+    }
+    out + rest
+}
+
 /// The ties of one Rust file.
 fn read(
     path: &str,
@@ -239,9 +268,16 @@ fn read(
             Some(b) => balanced(b, '{', '}').unwrap_or(b),
             None => "",
         };
+        // `Self` is the type of the `impl` the function is in.
+        let of = lines[..i].iter().rev().find_map(|l| implemented(l));
+        let own = |ty: &str| match &of {
+            Some(of) => words(ty, "Self", of),
+            None => ty.to_string(),
+        };
+        let result = own(result);
         let params = pieces(inside).into_iter().map(|p| {
             let (name, ty) = match p.split_once(':') {
-                Some((n, t)) => (n.trim().to_string(), Some(t.trim().to_string())),
+                Some((n, t)) => (n.trim().to_string(), Some(own(t.trim()))),
                 None => ("self".to_string(), None),
             };
             let name = name.strip_prefix("mut ").unwrap_or(&name).trim();
@@ -252,7 +288,7 @@ fn read(
             place,
             name: name.to_string(),
             params: params.collect(),
-            result: result.to_string(),
+            result,
             body: body.to_string(),
         });
     }

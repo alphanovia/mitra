@@ -64,11 +64,25 @@ def crate(name):
         code += n
         rows += [(path.relative_to(src).as_posix(), *f) for f in found]
     store = ROOT / "crates" / name / ".mitra"
-    model = 0
+    model, words = 0, {"subject": 0, "ensure": 0, "require": 0}
     for path in sorted(store.glob("*.mitra")):
         if path.name != "evidence.mitra":
-            model += sum(counted(l) for l in path.read_text().split("\n"))
-    return rows, code, model
+            lines = path.read_text().split("\n")
+            model += sum(counted(l) for l in lines)
+            for w in words:
+                words[w] += sum(l.split()[:1] == [w] for l in lines)
+    return rows, code, model, words
+
+
+def plural(n, word):
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+
+def sized(name, code, model, words):
+    """The model beside the code, in one line."""
+    s, e, r = (words[w] for w in ("subject", "ensure", "require"))
+    return (f"{name}: {model} lines of model over {code} lines of code, in "
+            f"{plural(s, 'subject')} with {plural(e, 'ensure')} and {plural(r, 'require')}.")
 
 
 def report(listing):
@@ -78,9 +92,10 @@ def report(listing):
     out += ["", "| Crate | Functions | Tied | Share | Lines in functions | In tied ones | Share | Code lines | Model lines | Model / code |"]
     out += ["|---|---|---|---|---|---|---|---|---|---|"]
     total = [0] * 6
-    details = []
+    details, sizes = [], []
     for name in CRATES:
-        rows, code, model = crate(name)
+        rows, code, model, words = crate(name)
+        sizes.append("- " + sized(name, code, model, words))
         tied = [r for r in rows if r[2]]
         lines, tied_lines = sum(r[4] for r in rows), sum(r[4] for r in tied)
         nums = [len(rows), len(tied), lines, tied_lines, code, model]
@@ -90,6 +105,7 @@ def report(listing):
         for f, fn, tie, line, size in sorted(rows, key=lambda r: (r[2] is None, r[0], r[3])):
             details.append(f"| {f} | `{fn}` | {line} | {size} | {tie or ''} |")
     out.append(row("all", total))
+    out += [""] + sizes
     return "\n".join(out + (details if listing else [])) + "\n"
 
 

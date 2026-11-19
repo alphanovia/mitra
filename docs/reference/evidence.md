@@ -59,7 +59,8 @@ A record is tied the same way, `// mitra: implements check::Claim` above its
 `struct`: every field the model states is in the struct with a type that
 fits, and, unless the record ends with `..`, the struct has no other
 field. `record Claim;` only asks that a `struct` or an `enum` is there.
-The evidence is on `check::Claim::tied`. `examples/tie/records`.
+A method of an `impl` the same way, `implements bank::Account::open`
+above it (`examples/tie/methods`). The evidence is on `check::Claim::tied`. `examples/tie/records`.
 
 `f::tied` is a claim that exists once evidence names it: without a
 reader, a reviewer brings the same evidence

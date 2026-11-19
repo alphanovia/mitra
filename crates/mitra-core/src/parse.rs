@@ -338,6 +338,10 @@ struct P {
     records: Vec<Record>,
     /// The types and variants of the blocks, by their full name.
     scoped: BTreeSet<String>,
+    /// The functions of an `impl` that take `self`, by their full name.
+    methods: BTreeSet<String>,
+    /// The inputs of the function or claim being read, with their types.
+    typed: Vec<(String, Set)>,
     enums: Vec<Enum>,
     /// The sets the type parameters stand for, where the parser is.
     generics: Vec<(String, Set)>,
@@ -1255,12 +1259,68 @@ impl P {
                          for a position inside a position write `(t.0).1`",
                     );
                 }
-                a = Expr::Field(Box::new(a), self.peek().to_string());
+                let field = self.peek().to_string();
                 self.pos += 1;
+                // `c.full_name(x)` is `Claim::full_name(c, x)`.
+                if !position && self.eat("(") {
+                    let f = self.method(&a, &field)?;
+                    let mut args = vec![a];
+                    args.extend(self.exprs(")")?);
+                    a = Expr::Call(f, args);
+                    continue;
+                }
+                a = Expr::Field(Box::new(a), field);
             } else {
                 return Ok(a);
             }
         }
+    }
+    /// The method `name` called on `on`: that of the record `on` is said
+    /// to be, where it is an input with a type; otherwise the only
+    /// method of that name.
+    fn method(&mut self, on: &Expr, name: &str) -> R<String> {
+        let of = match on {
+            Expr::Var(v) => self.typed.iter().rev().find(|t| &t.0 == v),
+            _ => None,
+        };
+        let record = of.and_then(|(_, set)| {
+            let plain = |r: &&Record| r.of.is_none() && &r.set() == set;
+            self.records.iter().find(plain).map(|r| r.name.clone())
+        });
+        let tail = format!("::{name}");
+        let named: Vec<&String> = self.methods.iter().filter(|m| m.ends_with(&tail)).collect();
+        let full = match (record, &named[..]) {
+            (Some(r), _) if self.methods.contains(&format!("{r}::{name}")) => {
+                format!("{r}::{name}")
+            }
+            (Some(r), _) => {
+                self.pos -= 2;
+                return self.err(format!(
+                    "`{r}` has no method `{name}`: a method is a `fn {name}(self, …)` in `impl`"
+                ));
+            }
+            (None, [one]) => (*one).clone(),
+            (None, []) => {
+                self.pos -= 2;
+                return self.err(format!(
+                    "no method `{name}`: a method is a `fn {name}(self, …)` in an `impl`"
+                ));
+            }
+            (None, _) => {
+                let each: Vec<String> = named.iter().map(|n| format!("`{n}`")).collect();
+                self.pos -= 2;
+                return self.err(format!(
+                    "`{name}` is a method of several records: write one of {} as a function",
+                    each.join(", ")
+                ));
+            }
+        };
+        let full = self.resolve(&full);
+        self.impure |= self.known.opaque.contains(&full);
+        if self.own.is_none() && self.known.specified.contains_key(&full) {
+            self.called.push(format!("{full}::spec"));
+        }
+        Ok(full)
     }
     fn exprs(&mut self, close: &str) -> R<Vec<Expr>> {
         let mut out = Vec::new();
@@ -2023,6 +2083,7 @@ impl P {
                 false => q.clone(),
             };
             self.locals = sig.params.iter().map(|p| p.0.clone()).collect();
+            self.typed = sig.params.clone();
             // In a subject, the body is the spec of the code: it calls
             // itself as a spec.
             self.own = Some((name.clone(), body_name.clone()));
@@ -2094,6 +2155,7 @@ impl P {
                 false => (None, None),
             };
             self.locals.push(x.clone());
+            self.typed.extend(set.clone().map(|s| (x.clone(), s)));
             into.push(((x, set, line), deep));
             if !self.eat(",") {
                 break;
@@ -2196,6 +2258,7 @@ impl P {
         // claim c { given a: T  when cond  then body }
         let mut inputs = Vec::new();
         self.locals.clear();
+        self.typed.clear();
         if self.eat("(") {
             self.inputs(")", &mut inputs)?;
             self.expect(")")?;
@@ -3417,7 +3480,114 @@ fn scope_types(
     toks
 }
 
+/// `impl R { … }` as Rust writes it, read as what it stands for: a `fn`
+/// or a `claim` named `R::name`, `self` (also `&self`, `&mut self`) an
+/// input `self: R`, and `Self` the record. Also gives the methods, those
+/// that take `self`, by their full name.
+fn impls(toks: Vec<Tok>) -> Result<(Vec<Tok>, BTreeSet<String>), Error> {
+    let (mut out, mut methods) = (Vec::new(), BTreeSet::new());
+    let (mut depth, mut scope): (usize, Option<String>) = (0, None);
+    // Inside an `impl`: its record, and the depth of its braces.
+    let mut of: Option<(String, usize)> = None;
+    let mut i = 0;
+    let name = |t: Option<&Tok>| t.filter(|t| t.kind == Kind::Name).map(|t| t.text.clone());
+    while i < toks.len() {
+        let t = &toks[i];
+        let word = t.kind == Kind::Name;
+        let punct = t.kind == Kind::Punct;
+        match (t.text.as_str(), &of) {
+            ("subject" | "boundary", None) if word && depth == 0 => {
+                scope = name(toks.get(i + 1)).filter(|n| n != "fn");
+            }
+            ("impl", None) if word && depth <= 1 => {
+                let Some(r) = name(toks.get(i + 1)) else {
+                    return Err(Error::new(t.line, "expected a record after `impl`"));
+                };
+                if toks.get(i + 2).is_none_or(|b| b.text != "{") {
+                    let msg = "`impl R { … }` is the only form: no type parameters, no trait";
+                    return Err(Error::new(t.line, msg));
+                }
+                of = Some((r, depth));
+                depth += 1;
+                i += 3;
+                continue;
+            }
+            ("impl", Some(_)) if word => {
+                return Err(Error::new(t.line, "an `impl` inside another"));
+            }
+            ("{", _) if punct => depth += 1,
+            ("}", _) if punct => {
+                depth = depth.saturating_sub(1);
+                if of.as_ref().is_some_and(|o| o.1 == depth) {
+                    of = None;
+                    i += 1;
+                    continue;
+                }
+                if depth == 0 {
+                    scope = None;
+                }
+            }
+            ("Self", Some((r, _))) if word => {
+                out.push(Tok {
+                    text: r.clone(),
+                    ..t.clone()
+                });
+                i += 1;
+                continue;
+            }
+            ("fn" | "claim" | "assume", Some((r, at))) if word && depth == at + 1 => {
+                let Some(n) = name(toks.get(i + 1)) else {
+                    out.push(t.clone());
+                    i += 1;
+                    continue;
+                };
+                let full = format!("{r}::{n}");
+                out.push(t.clone());
+                out.push(Tok {
+                    text: full.clone(),
+                    ..toks[i + 1].clone()
+                });
+                i += 2;
+                // `(self`, `(&self`, `(&mut self`: an input `self: R`.
+                let mut j = i + 1;
+                if toks.get(i).is_some_and(|o| o.text == "(") {
+                    j += usize::from(toks.get(j).is_some_and(|a| a.text == "&"));
+                    j += usize::from(toks.get(j).is_some_and(|m| m.text == "mut"));
+                    let typed = toks.get(j + 1).is_some_and(|c| c.text == ":");
+                    if toks.get(j).is_some_and(|s| s.text == "self") && !typed {
+                        let at = toks[j].clone();
+                        out.push(toks[i].clone());
+                        out.push(at.clone());
+                        out.push(Tok {
+                            kind: Kind::Punct,
+                            text: ":".into(),
+                            line: at.line,
+                        });
+                        out.push(Tok {
+                            text: r.clone(),
+                            ..at
+                        });
+                        i = j + 1;
+                        if t.text == "fn" {
+                            methods.insert(match &scope {
+                                Some(s) => format!("{s}::{full}"),
+                                None => full,
+                            });
+                        }
+                    }
+                }
+                continue;
+            }
+            _ => {}
+        }
+        out.push(t.clone());
+        i += 1;
+    }
+    Ok((out, methods))
+}
+
 fn read(toks: Vec<Tok>) -> Result<P, Error> {
+    let (toks, methods) = impls(toks)?;
     let (scoped, top) = types_of(&toks);
     let toks = scope_types(toks, &scoped, &top, false);
     let all = declared(&toks);
@@ -3430,6 +3600,7 @@ fn read(toks: Vec<Tok>) -> Result<P, Error> {
             first: pass == 0,
             known,
             scoped: scoped.clone(),
+            methods: methods.clone(),
             ..P::default()
         };
         p.items()?;

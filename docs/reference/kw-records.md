@@ -71,6 +71,43 @@ geo::on_the_diagonal: fails
   fails on        `p = geo::Point(0, 1)`
 ```
 
+## impl
+
+`impl R { … }`, as Rust writes it, in the subject or boundary of what it
+holds. A `fn` or a `claim` there is named `R::name`. `self` (also
+`&self`, `&mut self`) is an input of type `R`, and `Self` is `R`. A
+function taking `self` is a method, called `p.flip()` or
+`Point::flip(p)`; one without is called `Point::new(0, 1)`. A claim on
+`self` alone is a claim on the record, as above. Tied by
+`// mitra: implements geo::Point::flip` above the method of the code.
+
+```mitra
+subject geo {
+    record Point { x: 0..=9, y: 0..=9 }
+    impl Point {
+        fn new(x: 0..=9, y: 0..=9) -> Self;
+        fn flip(&self) -> Self { Point(self.y, self.x) }
+        claim flips_back(self) { self.flip().flip() == self }
+        claim on_the_diagonal(self) { self.x == self.y }
+    }
+    fn mirror(p: Point) -> Point;
+    claim mirror_flips(p: Point) { mirror(p) == p.flip() }
+}
+```
+```evidence
+evidence seen { for Point::new given x = 0, y = 1 gives Point(0, 1) }
+```
+```text
+geo::Point::flips_back: holds assuming [geo::Point::flip::spec]
+```
+```text
+geo::Point::on_the_diagonal: fails
+  fails on        `self = geo::Point(0, 1)`
+```
+
+`p.name(…)` is the method of the record `p` is declared as; on any
+other expression, the only method of that name.
+
 ## enum
 
 A value that is one of several variants, each with or without fields.

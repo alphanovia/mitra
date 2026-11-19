@@ -475,7 +475,7 @@ impl Model {
     }
 
     /// Check names, references and that patterns stay inside domains.
-    // mitra: implements types::check
+    // mitra: implements types::Model::check
     pub fn check(mut self) -> Result<Model, (Input, Error)> {
         let m = |line, msg: String| (Input::Model, Error::new(line, msg));
         let mut names: Vec<(&String, usize)> =

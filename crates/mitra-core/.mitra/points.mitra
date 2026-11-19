@@ -4,13 +4,13 @@
 
 // src/eval.rs
 
-claim t_holds() { report::as_str(Holds) == "holds" }
+claim t_holds() { Holds.as_str() == "holds" }
 
-claim t_assuming() { report::as_str(Assuming) == "holds assuming" }
+claim t_assuming() { Assuming.as_str() == "holds assuming" }
 
-claim t_unverified() { report::as_str(Unverified) == "unverified" }
+claim t_unverified() { Unverified.as_str() == "unverified" }
 
-claim t_fails() { report::as_str(Fails) == "fails" }
+claim t_fails() { Fails.as_str() == "fails" }
 
 claim t_plus() { eval::binary("+", 2, 3) == Some(5) }
 

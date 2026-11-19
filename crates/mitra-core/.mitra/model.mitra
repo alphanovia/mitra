@@ -94,9 +94,11 @@ subject types {
     ensure ends = "A function with a body always gives a value: it calls only bodies written above it, and itself only on a piece of its input.";
     // Which text a fault is in.
     record Input;
-    fn check(m: Model) -> Result<Model, (Input, Error)>;
+    impl Model {
+        fn check(self) -> Result<Self, (Input, Error)>;
+    }
     fn read(model: String, ledger: String) -> Result<Model, (Input, Error)>
-        uses reader::model, check;
+        uses reader::model, Model::check;
     fn load(model: String, ledger: String) -> Result<Model, (Input, Error)> uses read;
 
     claim good_is_read() { load("subject fn f() -> Bool;", "") is Ok }
@@ -173,12 +175,14 @@ subject report {
     // A piece, how much it must be wrong and how much it can be.
     record Candidate { piece: Piece, belief: f64, plausibility: f64 }
     ensure words = "A verdict and a candidate are printed with the word the reference gives them.";
-    fn as_str(l: Logic) -> String {
-        match l {
-            Holds => "holds",
-            Assuming => "holds assuming",
-            Unverified => "unverified",
-            Fails => "fails",
+    impl Logic {
+        fn as_str(self) -> String {
+            match self {
+                Holds => "holds",
+                Assuming => "holds assuming",
+                Unverified => "unverified",
+                Fails => "fails",
+            }
         }
     }
 
