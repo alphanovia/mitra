@@ -9,6 +9,8 @@ use mitra_core::model::*;
 
 /// The weight of a base rate that these are recorded at.
 const W: f64 = 0.2;
+/// What to expect of the completeness of a tie when nothing says.
+const C: f64 = 0.6;
 
 fn piece(name: &str) -> Piece {
     Piece::named(name)
@@ -29,6 +31,7 @@ fn world(bias: f64, passes: bool, reviews: &[(bool, f64)]) -> Model {
     let mut model = Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("t", "c", verdict(passes), "machine:cargo")],
         related: vec![],
         base: vec![(piece("t"), bias)],
@@ -121,6 +124,7 @@ fn two_claims_that_disagree_are_ranked() {
     let model = Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![
             says("t_wraps", "wraps", yes(), "machine:cargo"),
             says("t_stops", "stops", yes(), "machine:cargo"),

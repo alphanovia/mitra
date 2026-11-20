@@ -1,35 +1,8 @@
-// The core of Mitra, started again from the inside. Start here.
+// The side of trust. A place, a piece and the opinion of it; the three
+// kinds of piece: statement, evidence, tie; and the model, which puts
+// them together and says what is believed of each.
 //
-// The model is aside from the code: the code of this file is
-// src/model.rs and src/model/, one file per subject.
-//
-// This file reads nothing. From the inside:
-//
-//   place      a location in the system
-//   piece      something said, right or wrong, and the opinion of it
-//
-// then the three kinds of piece:
-//
-//   evidence   says an opinion about another piece
-//   statement  an interpretation of the system; what it says is not
-//              read here
-//   tie        a believed link between a statement and a place
-//
-// and what holds them together:
-//
-//   model      all the pieces: what is believed of each from the whole
-//
-// Beside this file:
-//
-//   value.mitra   what is computed, its type, its expression. Reads nothing.
-//   claim.mitra   the seam: a statement whose content is an expression.
-//                 Computing it makes evidence. Reads both.
-//
-// Left out on purpose: the kinds of statement (claim, assume, ensure),
-// whether a statement is owed or given, which inputs evidence
-// covers, acts and the reading of a voice (a voice is its name here),
-// where the weight and the policy are set, and a build that judges
-// every piece at once.
+// Start here. Code: src/model.rs and src/model/, one file per subject.
 
 // A location in the system.
 subject place {
@@ -42,15 +15,6 @@ subject place {
     }
 
     fn within(a: Place, b: Place) -> Bool;
-
-    // within_is_the_path
-    claim within_itself(a: Place) { within(a, a) }
-    claim inside_is_within() {
-        within(Place(["src/lib.rs", "next"]), Place(["src/lib.rs"])) && !within(Place(["src/lib.rs"]), Place(["src/lib.rs", "next"]))
-    }
-    claim beside_is_not_within() {
-        !within(Place(["src/lib.rs", "next"]), Place(["src/lib.rs", "back"]))
-    }
 }
 
 // Something said, and what is believed of it.
@@ -93,40 +57,29 @@ subject piece {
     fn reaches(o: Opinion, policy: Float64, w: Float64) -> Bool { o.r > 0.0 && projected(o, w) >= policy }
     // The evidence against is at least as strong as the evidence for.
     fn against(o: Opinion) -> Bool { o.s > 0.0 && o.s >= o.r }
+}
 
-    // opinion_is_counts
-    claim no_evidence_is_the_base_rate() { projected(nothing(0.5), 0.2) == 0.5 && uncertainty(nothing(0.5), 0.2) == 1.0 }
-    claim one_yes_on_one_half_nearly_settles_it() { projected(Opinion(1.0, 0.0, 0.5), 0.2) > 0.9 && projected(Opinion(0.0, 1.0, 0.5), 0.2) < 0.1 }
+// An interpretation of the system.
+subject statement {
+    require believed = piece::everything_is_a_piece;
 
-    // A small weight lets the first observation nearly settle a piece;
-    // a large one asks for more.
-    claim the_weight_is_how_fast_it_settles() {
-        projected(Opinion(1.0, 0.0, 0.5), 0.2) > projected(Opinion(1.0, 0.0, 0.5), 2.0)
-    }
-
-    // opinion_is_shown
-    claim the_three_shares_make_one(o: Opinion) {
-        o.r < 0.0 || o.s < 0.0 || belief(o, 0.2) + disbelief(o, 0.2) + uncertainty(o, 0.2) > 0.9999
-    }
-    claim no_evidence_is_all_uncertain() { belief(nothing(0.5), 0.2) == 0.0 && disbelief(nothing(0.5), 0.2) == 0.0 }
-    claim sure_is_nowhere_else() { interval(nothing(1.0), 0.2) == (1.0, 1.0) && interval(nothing(0.0), 0.2) == (0.0, 0.0) }
-
-    // trusted_is_the_policy
-    claim policy_zero_still_needs_belief() {
-        !reaches(nothing(0.0), 0.0, 0.2) && reaches(Opinion(0.5, 0.0, 0.0), 0.0, 0.2)
-    }
-    claim as_much_against_as_for_is_against() {
-        against(Opinion(1.0, 1.0, 0.0)) && !against(Opinion(2.0, 1.0, 0.0)) && !against(nothing(0.0))
+    ensure statement_is_an_interpretation = "A statement is an interpretation of the system: a piece with a content, which is what it says the system is or does. The content is not read here, whatever it is.";
+    record Statement<C> {
+        piece: piece::Piece,
+        content: C,
     }
 }
 
 // How an opinion moves.
 subject evidence {
     require believed = piece::everything_is_a_piece;
+    require said = statement::statement_is_an_interpretation;
 
     ensure evidence_is_a_piece = "A piece of evidence is a piece: it says an opinion about another piece, and is itself believed as any other piece.";
     ensure said_as_far_as_believed = "What a piece of evidence says counts as far as that evidence is itself believed: its counts are scaled by what the evidence reads as. Evidence believed at 0 moves nothing, and a yes never becomes a no.";
     ensure count_is_firmness = "The count a piece of evidence says is how firmly it says it. A test at one point says one yes or one no. A review may say many: that is how an author states what is known from experience, and what is so reviewed stands against a failure.";
+    ensure reliability_is_implied = "Each voice implies one statement, its reliability: this voice can be relied on. It is a piece like any other, known by the voice's name, and it stands behind all the voice says.";
+    ensure word_as_far_as_its_voice = "What a voice says counts whole if the voice is reliable and not at all if it is not: with a voice reliable at t, the belief and the disbelief of its word are t times what was said. A belief never exceeds the trust in who says it.";
     ensure same_voice_counts_once = "Pieces of evidence about one piece add their counts when their voices are independent; one voice counts once, by its strongest yes and its strongest no.";
     ensure disagreement_is_measured = "Two pieces of evidence that say opposite things about one piece are in conflict as far as each is believed; fused, neither is dropped.";
 
@@ -141,6 +94,20 @@ subject evidence {
         about: piece::Piece,
         value: piece::Opinion,
         by: Voice,
+    }
+
+    // What the reliability of a voice says.
+    record Reliable {
+        voice: Voice,
+    }
+    // The reliability of a voice.
+    fn reliable(by: Voice) -> statement::Statement<Reliable>;
+    // What a word is worth when its voice is reliable with chance `t`.
+    fn held(t: Float64, said: piece::Opinion, w: Float64) -> piece::Opinion {
+        Opinion(
+            w * (t * said.r / (said.r + said.s + w)) / (1.0 - t * (said.r + said.s) / (said.r + said.s + w)),
+            w * (t * said.s / (said.r + said.s + w)) / (1.0 - t * (said.r + said.s) / (said.r + said.s + w)),
+            said.a)
     }
 
     // How independent two voices are, from 0 (one voice) to 1 (two kinds).
@@ -163,6 +130,8 @@ subject evidence {
     // How far two opinions on one piece contradict each other.
     fn conflict(x: piece::Opinion, y: piece::Opinion) -> Float64 { x.r * y.s + x.s * y.r }
 
+    // Kept here: `evidence` is a word of the language, so another
+    // subject cannot call `evidence::moved(..)`.
     // said_as_far_as_believed: a review "correct", believed at 0.5, is
     // half a yes on a test at bias 0.5: the test reads 0.86.
     claim review_lifts_a_test() {
@@ -187,6 +156,18 @@ subject evidence {
         moved(piece::nothing(0.5), Opinion(10.0, 0.0, 0.5), 0.2).r == 5.0
     }
 
+    // reliability_is_implied
+    claim reliability_names_its_voice(by: Voice) { reliable(by).content.voice == by }
+
+    // word_as_far_as_its_voice: a hundred yes from a voice at 0.3 read
+    // under 0.66 on a piece at one half; scaled counts would read 0.99.
+    claim a_word_never_exceeds_the_trust_in_its_voice() {
+        piece::projected(held(0.3, Opinion(100.0, 0.0, 0.5), 0.2), 0.2) < 0.66
+    }
+    claim an_unreliable_voice_says_nothing() {
+        held(0.0, Opinion(100.0, 0.0, 0.5), 0.2) == Opinion(0.0, 0.0, 0.5)
+    }
+
     // same_voice_counts_once
     claim one_voice_twice_is_once() {
         fuse(Opinion(0.5, 0.0, 0.0), Opinion(0.5, 0.0, 0.0), 0.0) == Opinion(0.5, 0.0, 0.0)
@@ -199,17 +180,6 @@ subject evidence {
     claim two_sure_reviews_that_disagree() {
         fuse(Opinion(1.0, 0.0, 0.5), Opinion(0.0, 1.0, 0.5), 1.0) == Opinion(1.0, 1.0, 0.5)
             && conflict(Opinion(1.0, 0.0, 0.5), Opinion(0.0, 1.0, 0.5)) == 1.0
-    }
-}
-
-// An interpretation of the system.
-subject statement {
-    require believed = piece::everything_is_a_piece;
-
-    ensure statement_is_an_interpretation = "A statement is an interpretation of the system: a piece with a content, which is what it says the system is or does. The content is not read here, whatever it is.";
-    record Statement<C> {
-        piece: piece::Piece,
-        content: C,
     }
 }
 
@@ -241,24 +211,6 @@ subject tie {
     // The statements tied at a place or within it.
     fn concerned(ties: List<Tie>, place: place::Place) -> List<piece::Piece>
         uses place::within;
-
-    // completeness_is_implied
-    claim completeness_names_its_tie(t: Tie) { complete(t).content.tie == t.piece }
-    claim two_ties_two_completenesses(a: piece::Piece, b: piece::Piece, x: piece::Piece) {
-        a == b || complete(Tie(a, x, Place(["ball"]))).piece != complete(Tie(b, x, Place(["ball"]))).piece
-    }
-
-    // found_through_ties
-    claim no_tie_is_nowhere(x: piece::Piece, place: place::Place) {
-        places([], x) == [] && concerned([], place) == []
-    }
-    claim tied_is_found(t: piece::Piece, x: piece::Piece) {
-        places([Tie(t, x, Place(["src/lib.rs", "next"]))], x) == [Place(["src/lib.rs", "next"])]
-    }
-    claim a_file_concerns_what_is_in_it(t: piece::Piece, x: piece::Piece) {
-        concerned([Tie(t, x, Place(["src/lib.rs", "next"]))], Place(["src/lib.rs"])) == [x]
-            && concerned([Tie(t, x, Place(["src/lib.rs", "next"]))], Place(["src/main.rs"])) == []
-    }
 }
 
 // All the pieces, put together.
@@ -270,6 +222,8 @@ subject model {
     require clash = evidence::disagreement_is_measured;
     require firm = evidence::count_is_firmness;
     require complete = tie::completeness_is_implied;
+    require reliable = evidence::reliability_is_implied;
+    require word = evidence::word_as_far_as_its_voice;
 
     ensure only_from_the_model = "The opinion of a piece comes from the evidence about it and from the pieces it is related to, and from nothing else: with neither it is its base rate. The base rate of a piece that is not a whole is never moved; a whole has the base rate of its parts together.";
     ensure relation_is_said = "A relation between pieces is itself said: a statement whose content is the relation. What is computed on a relation counts as far as that statement is believed; a relation believed at 1 is plain structure, and one believed at 0 relates nothing.";
@@ -277,7 +231,10 @@ subject model {
     ensure yes_flows_down = "What says yes about a whole says yes about each of its parts as much: evidence about a pair is evidence about both.";
     ensure no_is_shared = "What says no about a whole says no about no part alone. The parts, the evidence that says no and a doubted relation are the suspects: a failure is seeing that they are not all right. Each suspect gets the count of no that brings it to what Bayes gives for it, from what each was expected to be before; its count of yes is not touched. An equal start gives equal shares; what was expected less takes more.";
     ensure completeness_is_a_part = "The completeness of a tie is a part of every whole the tie is a part of, though no relation names it: a yes about the whole flows down to it, and it is a suspect of every failure of the whole. A failure where the statement and the tie are otherwise believed says that something is missing there.";
-    ensure no_reaches_what_vouched = "A failure also judges what vouched for its parts. A piece that evidence stands on, when that evidence said yes about suspects of the failure, gets the count of no that brings it to what Bayes gives: the failure is more likely if the piece is wrong, since the suspects then stand without its word. It is judged once per failure on all it vouched for; its count of yes is not touched.";
+    ensure completeness_has_a_default = "The completeness of a tie with no base rate written has the one the model gives for all: whoever models tries for a good model and takes shortcuts, so it is better than a guess and not strong. It is a setting, given with the model.";
+    ensure voices_are_judged = "A voice whose reliability has a base rate can be doubted. It is reliable or not, and if not its word is nothing. It is judged by every whole it spoke for, passes and failures together: with p the chance that the parts of a whole are all right before anything is seen of it, the observations are as likely as p times (every failing one is wrong) plus (1 - p) times (every passing one is wrong), read with the word of the voice taken whole and without it. Repeated failures of one whole are one fact. The parts are read again with the voices as judged, and so on until nothing moves.";
+    ensure sources_are_shared = "Voices are independent unless a relation says the reliability of each is all of a common source. Voices on one source are weighed together: what contradicts one of them makes the source less believed, and so the word of the others.";
+    ensure unjudged_is_not_doubted = "A voice whose reliability has no base rate is not judged: its word counts whole. That is an assumption of the model, to be shown with it.";
     ensure conflict_is_said = "Pieces that cannot all be right are reported, the least believed first, and none of them is chosen silently: the parts of a whole with the evidence that says no about it, and the evidence for and against one piece.";
 
     // How pieces stand to each other, named after what is computed.
@@ -302,13 +259,15 @@ subject model {
     // pieces, each said by a statement, and the base rate of each piece
     // that has one. A piece with none has 0: it is expected wrong, with
     // the weight. "Nothing assumed" is one half. Then the ties, each
-    // implying its completeness, and the weight of a base rate, given.
+    // implying its completeness, and two settings, given: the weight of
+    // a base rate, and what to expect of a completeness nothing speaks of.
     record Model {
         evidence: List<evidence::Evidence>,
         related: List<statement::Statement<Related>>,
         base: List<(piece::Piece, Float64)>,
         ties: List<tie::Tie>,
         weight: Float64,
+        completeness: Float64,
     }
 
     // The parts of a whole: the pieces its relation names after the
@@ -317,56 +276,128 @@ subject model {
         uses tie::complete;
 
     // What to expect of a piece with no evidence.
-    fn base(model: Model, x: piece::Piece) -> Float64;
-    // What is believed of a piece, from the whole model.
+    fn base(model: Model, x: piece::Piece) -> Float64
+        uses tie::complete;
+    // How far the word of each doubted voice holds, and how far each
+    // source is believed, with the piece of each.
+    fn judged(model: Model) -> List<(piece::Piece, Float64)>
+        uses parts, piece::projected;
+    // The model once its voices are judged: their word counted as far as
+    // it holds, and no voice left to doubt.
+    fn settled(model: Model, judged: List<(piece::Piece, Float64)>) -> Model;
+    // What is believed of a piece, from the whole model: the voices are
+    // judged first.
     fn opinion(model: Model, x: piece::Piece) -> piece::Opinion
-        uses evidence::moved, evidence::fuse, evidence::apart, all;
+        uses judged, settled, piece::projected;
     fn trusted(model: Model, x: piece::Piece, policy: Float64) -> Bool
         uses opinion, piece::reaches;
     // The pieces that cannot all be right and are each believed, the
     // least believed first.
     fn conflicts(model: Model) -> List<List<piece::Piece>>
-        uses opinion, evidence::moved, evidence::conflict;
+        uses judged, settled, evidence::moved, evidence::conflict, piece::projected;
 
     // Both of two pieces. How often each is right is a Beta; the two
     // taken as independent, the answer is the Beta with the mean and the
     // variance of their product. Its base rate is the product of the two.
     fn all(x: piece::Opinion, y: piece::Opinion, w: Float64) -> piece::Opinion;
+}
+
+// What the promises above say, on small cases.
+subject tests {
+    // place
+
+    // within_is_the_path
+    claim within_itself(a: Place) { place::within(a, a) }
+    claim inside_is_within() {
+        place::within(Place(["src/lib.rs", "next"]), Place(["src/lib.rs"])) && !place::within(Place(["src/lib.rs"]), Place(["src/lib.rs", "next"]))
+    }
+    claim beside_is_not_within() {
+        !place::within(Place(["src/lib.rs", "next"]), Place(["src/lib.rs", "back"]))
+    }
+
+    // piece
+
+    // opinion_is_counts
+    claim no_evidence_is_the_base_rate() { piece::projected(piece::nothing(0.5), 0.2) == 0.5 && piece::uncertainty(piece::nothing(0.5), 0.2) == 1.0 }
+    claim one_yes_on_one_half_nearly_settles_it() { piece::projected(Opinion(1.0, 0.0, 0.5), 0.2) > 0.9 && piece::projected(Opinion(0.0, 1.0, 0.5), 0.2) < 0.1 }
+
+    // A small weight lets the first observation nearly settle a piece;
+    // a large one asks for more.
+    claim the_weight_is_how_fast_it_settles() {
+        piece::projected(Opinion(1.0, 0.0, 0.5), 0.2) > piece::projected(Opinion(1.0, 0.0, 0.5), 2.0)
+    }
+
+    // opinion_is_shown
+    claim the_three_shares_make_one(o: Opinion) {
+        o.r < 0.0 || o.s < 0.0 || piece::belief(o, 0.2) + piece::disbelief(o, 0.2) + piece::uncertainty(o, 0.2) > 0.9999
+    }
+    claim no_evidence_is_all_uncertain() { piece::belief(piece::nothing(0.5), 0.2) == 0.0 && piece::disbelief(piece::nothing(0.5), 0.2) == 0.0 }
+    claim sure_is_nowhere_else() { piece::interval(piece::nothing(1.0), 0.2) == (1.0, 1.0) && piece::interval(piece::nothing(0.0), 0.2) == (0.0, 0.0) }
+
+    // trusted_is_the_policy
+    claim policy_zero_still_needs_belief() {
+        !piece::reaches(piece::nothing(0.0), 0.0, 0.2) && piece::reaches(Opinion(0.5, 0.0, 0.0), 0.0, 0.2)
+    }
+    claim as_much_against_as_for_is_against() {
+        piece::against(Opinion(1.0, 1.0, 0.0)) && !piece::against(Opinion(2.0, 1.0, 0.0)) && !piece::against(piece::nothing(0.0))
+    }
+
+    // tie
+
+    // completeness_is_implied
+    claim completeness_names_its_tie(t: Tie) { tie::complete(t).content.tie == t.piece }
+    claim two_ties_two_completenesses(a: piece::Piece, b: piece::Piece, x: piece::Piece) {
+        a == b || tie::complete(Tie(a, x, Place(["ball"]))).piece != tie::complete(Tie(b, x, Place(["ball"]))).piece
+    }
+
+    // found_through_ties
+    claim no_tie_is_nowhere(x: piece::Piece, place: place::Place) {
+        tie::places([], x) == [] && tie::concerned([], place) == []
+    }
+    claim tied_is_found(t: piece::Piece, x: piece::Piece) {
+        tie::places([Tie(t, x, Place(["src/lib.rs", "next"]))], x) == [Place(["src/lib.rs", "next"])]
+    }
+    claim a_file_concerns_what_is_in_it(t: piece::Piece, x: piece::Piece) {
+        tie::concerned([Tie(t, x, Place(["src/lib.rs", "next"]))], Place(["src/lib.rs"])) == [x]
+            && tie::concerned([Tie(t, x, Place(["src/lib.rs", "next"]))], Place(["src/main.rs"])) == []
+    }
+
+    // model
 
     // only_from_the_model
     claim base_rate_survives() {
-        opinion(Model([Evidence(Piece("t"), Piece("y"), piece::yes(), Voice("a")), Evidence(Piece("r"), Piece("t"), piece::no(), Voice("b"))], [], [(Piece("t"), 0.5), (Piece("r"), 0.25), (Piece("y"), 0.75)], [], 0.2), Piece("y")).a == 0.75
+        model::opinion(Model([Evidence(Piece("t"), Piece("y"), piece::yes(), Voice("a")), Evidence(Piece("r"), Piece("t"), piece::no(), Voice("b"))], [], [(Piece("t"), 0.5), (Piece("r"), 0.25), (Piece("y"), 0.75)], [], 0.2, 0.6), Piece("y")).a == 0.75
     }
     claim an_empty_model_believes_nothing(x: piece::Piece) {
-        opinion(Model([], [], [], [], 0.2), x) == piece::nothing(0.0)
+        model::opinion(Model([], [], [], [], 0.2, 0.6), x) == piece::nothing(0.0)
     }
 
     // The calculus, on small models. `t` is a test of `c`, `r` a review
     // of `t`, and each piece is another.
     claim evidence_moves_its_piece(c: piece::Piece, t: piece::Piece, by: evidence::Voice) {
-        c == t || opinion(Model([Evidence(t, c, piece::yes(), by)], [], [(t, 0.5)], [], 0.2), c) == Opinion(0.5, 0.0, 0.0)
+        c == t || model::opinion(Model([Evidence(t, c, piece::yes(), by)], [], [(t, 0.5)], [], 0.2, 0.6), c) == Opinion(0.5, 0.0, 0.0)
     }
     claim a_review_reaches_the_claim(c: piece::Piece, t: piece::Piece, r: piece::Piece, a: evidence::Voice, b: evidence::Voice) {
         c == t || c == r || t == r
-            || opinion(Model([Evidence(t, c, piece::yes(), a), Evidence(r, t, piece::yes(), b)], [], [(t, 0.5), (r, 0.5)], [], 0.2), c).r > 0.85
+            || model::opinion(Model([Evidence(t, c, piece::yes(), a), Evidence(r, t, piece::yes(), b)], [], [(t, 0.5), (r, 0.5)], [], 0.2, 0.6), c).r > 0.85
     }
     // One sure "wrong" on the test: it reads under 0.1, and says that much.
     claim a_test_judged_wrong_says_less(c: piece::Piece, t: piece::Piece, r: piece::Piece, a: evidence::Voice, b: evidence::Voice) {
         c == t || c == r || t == r
-            || opinion(Model([Evidence(t, c, piece::yes(), a), Evidence(r, t, piece::no(), b)], [], [(t, 0.5), (r, 1.0)], [], 0.2), c).r < 0.1
+            || model::opinion(Model([Evidence(t, c, piece::yes(), a), Evidence(r, t, piece::no(), b)], [], [(t, 0.5), (r, 1.0)], [], 0.2, 0.6), c).r < 0.1
     }
 
     // whole_is_all_its_parts
     claim two_halves_are_a_quarter() {
-        piece::projected(all(piece::nothing(0.5), piece::nothing(0.5), 0.2), 0.2) > 0.2499 && piece::projected(all(piece::nothing(0.5), piece::nothing(0.5), 0.2), 0.2) < 0.2501
+        piece::projected(model::all(piece::nothing(0.5), piece::nothing(0.5), 0.2), 0.2) > 0.2499 && piece::projected(model::all(piece::nothing(0.5), piece::nothing(0.5), 0.2), 0.2) < 0.2501
     }
     claim one_sure_part_changes_nothing() {
-        all(piece::nothing(1.0), Opinion(0.5, 0.0, 0.5), 0.2) == Opinion(0.5, 0.0, 0.5)
+        model::all(piece::nothing(1.0), Opinion(0.5, 0.0, 0.5), 0.2) == Opinion(0.5, 0.0, 0.5)
     }
 
     // On a small model: `x` is all of `y` alone, tested by `t`.
     claim a_whole_of_one_part_is_that_part() {
-        opinion(Model([Evidence(Piece("t"), Piece("y"), piece::yes(), Voice("me"))], [Statement(Piece("all: x"), Related(All, [Piece("x"), Piece("y")]))], [(Piece("t"), 0.5), (Piece("all: x"), 1.0)], [], 0.2), Piece("x")).r == 0.5
+        model::opinion(Model([Evidence(Piece("t"), Piece("y"), piece::yes(), Voice("me"))], [Statement(Piece("all: x"), Related(All, [Piece("x"), Piece("y")]))], [(Piece("t"), 0.5), (Piece("all: x"), 1.0)], [], 0.2, 0.6), Piece("x")).r == 0.5
     }
 
     // The throwing toy. One object; the statement `falls` ("thrown up, it
@@ -377,29 +408,29 @@ subject model {
 
     // yes_flows_down
     claim a_throw_that_falls_believes_both() {
-        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2), Piece("falls")) == Opinion(0.5, 0.0, 0.5)
-            && opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2), Piece("applies")) == Opinion(0.5, 0.0, 0.5)
+        model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2, 0.6), Piece("falls")) == Opinion(0.5, 0.0, 0.5)
+            && model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2, 0.6), Piece("applies")) == Opinion(0.5, 0.0, 0.5)
     }
 
     // no_is_shared. The base rates are the only place to say "I trust my
     // senses more than my model or my tie".
     claim an_equal_start_gives_equal_shares() {
-        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2), Piece("applies")).s == opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2), Piece("throw")).s
-            && opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2), Piece("applies")).r == 0.0
+        model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2, 0.6), Piece("applies")).s == model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2, 0.6), Piece("throw")).s
+            && model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2, 0.6), Piece("applies")).r == 0.0
     }
     claim trusted_senses_blame_the_tie_and_the_statement_more() {
-        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0)], [], 0.2), Piece("applies")).s > opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0)], [], 0.2), Piece("throw")).s
+        model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0)], [], 0.2, 0.6), Piece("applies")).s > model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0)], [], 0.2, 0.6), Piece("throw")).s
     }
     // A ball and a balloon under one statement: the ball falls, the
     // balloon does not. `falls` is believed through the ball, so the
     // balloon's tie takes more of the no.
     claim the_balloon_blames_its_tie() {
-        opinion(Model([Evidence(Piece("throw ball"), Piece("ball lands"), piece::yes(), Voice("me")), Evidence(Piece("throw balloon"), Piece("balloon lands"), piece::no(), Voice("me"))], [Statement(Piece("all: ball lands"), Related(All, [Piece("ball lands"), Piece("ball applies"), Piece("falls")])), Statement(Piece("all: balloon lands"), Related(All, [Piece("balloon lands"), Piece("balloon applies"), Piece("falls")]))], [(Piece("ball applies"), 0.5), (Piece("balloon applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw ball"), 0.5), (Piece("throw balloon"), 0.5), (Piece("all: ball lands"), 1.0), (Piece("all: balloon lands"), 1.0)], [], 0.2), Piece("balloon applies")).s > opinion(Model([Evidence(Piece("throw ball"), Piece("ball lands"), piece::yes(), Voice("me")), Evidence(Piece("throw balloon"), Piece("balloon lands"), piece::no(), Voice("me"))], [Statement(Piece("all: ball lands"), Related(All, [Piece("ball lands"), Piece("ball applies"), Piece("falls")])), Statement(Piece("all: balloon lands"), Related(All, [Piece("balloon lands"), Piece("balloon applies"), Piece("falls")]))], [(Piece("ball applies"), 0.5), (Piece("balloon applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw ball"), 0.5), (Piece("throw balloon"), 0.5), (Piece("all: ball lands"), 1.0), (Piece("all: balloon lands"), 1.0)], [], 0.2), Piece("falls")).s
+        model::opinion(Model([Evidence(Piece("throw ball"), Piece("ball lands"), piece::yes(), Voice("me")), Evidence(Piece("throw balloon"), Piece("balloon lands"), piece::no(), Voice("me"))], [Statement(Piece("all: ball lands"), Related(All, [Piece("ball lands"), Piece("ball applies"), Piece("falls")])), Statement(Piece("all: balloon lands"), Related(All, [Piece("balloon lands"), Piece("balloon applies"), Piece("falls")]))], [(Piece("ball applies"), 0.5), (Piece("balloon applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw ball"), 0.5), (Piece("throw balloon"), 0.5), (Piece("all: ball lands"), 1.0), (Piece("all: balloon lands"), 1.0)], [], 0.2, 0.6), Piece("balloon applies")).s > model::opinion(Model([Evidence(Piece("throw ball"), Piece("ball lands"), piece::yes(), Voice("me")), Evidence(Piece("throw balloon"), Piece("balloon lands"), piece::no(), Voice("me"))], [Statement(Piece("all: ball lands"), Related(All, [Piece("ball lands"), Piece("ball applies"), Piece("falls")])), Statement(Piece("all: balloon lands"), Related(All, [Piece("balloon lands"), Piece("balloon applies"), Piece("falls")]))], [(Piece("ball applies"), 0.5), (Piece("balloon applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw ball"), 0.5), (Piece("throw balloon"), 0.5), (Piece("all: ball lands"), 1.0), (Piece("all: balloon lands"), 1.0)], [], 0.2, 0.6), Piece("falls")).s
     }
     // One object, two statements: it falls and makes no noise. The tie is
     // believed through the fall, so `noise` takes more of the no.
     claim silence_blames_the_noise() {
-        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me")), Evidence(Piece("listen"), Piece("bangs"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])), Statement(Piece("all: bangs"), Related(All, [Piece("bangs"), Piece("applies"), Piece("noise")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("noise"), 0.5), (Piece("throw"), 0.5), (Piece("listen"), 0.5), (Piece("all: lands"), 1.0), (Piece("all: bangs"), 1.0)], [], 0.2), Piece("noise")).s > opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me")), Evidence(Piece("listen"), Piece("bangs"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])), Statement(Piece("all: bangs"), Related(All, [Piece("bangs"), Piece("applies"), Piece("noise")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("noise"), 0.5), (Piece("throw"), 0.5), (Piece("listen"), 0.5), (Piece("all: lands"), 1.0), (Piece("all: bangs"), 1.0)], [], 0.2), Piece("applies")).s
+        model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me")), Evidence(Piece("listen"), Piece("bangs"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])), Statement(Piece("all: bangs"), Related(All, [Piece("bangs"), Piece("applies"), Piece("noise")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("noise"), 0.5), (Piece("throw"), 0.5), (Piece("listen"), 0.5), (Piece("all: lands"), 1.0), (Piece("all: bangs"), 1.0)], [], 0.2, 0.6), Piece("noise")).s > model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me")), Evidence(Piece("listen"), Piece("bangs"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])), Statement(Piece("all: bangs"), Related(All, [Piece("bangs"), Piece("applies"), Piece("noise")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("noise"), 0.5), (Piece("throw"), 0.5), (Piece("listen"), 0.5), (Piece("all: lands"), 1.0), (Piece("all: bangs"), 1.0)], [], 0.2, 0.6), Piece("applies")).s
     }
 
     // relation_is_said. A latent statement, `gravity`: no tie, nothing to
@@ -407,40 +438,58 @@ subject model {
     // falls" is all of [gravity, mass]. The relation is itself said: one
     // believed at 1 is structure, and one nobody believes relates nothing.
     claim a_latent_statement_is_believed_as_far_as_its_relation() {
-        opinion(Model([Evidence(Piece("throw"), Piece("it falls"), piece::yes(), Voice("me"))], [Statement(Piece("because"), Related(All, [Piece("it falls"), Piece("gravity"), Piece("mass")]))], [(Piece("gravity"), 0.5), (Piece("mass"), 0.5), (Piece("throw"), 1.0), (Piece("because"), 1.0)], [], 0.2), Piece("gravity")) == Opinion(1.0, 0.0, 0.5)
-            && opinion(Model([Evidence(Piece("throw"), Piece("it falls"), piece::yes(), Voice("me"))], [Statement(Piece("because"), Related(All, [Piece("it falls"), Piece("gravity"), Piece("mass")]))], [(Piece("gravity"), 0.5), (Piece("mass"), 0.5), (Piece("throw"), 1.0), (Piece("because"), 0.5)], [], 0.2), Piece("gravity")) == Opinion(0.5, 0.0, 0.5)
+        model::opinion(Model([Evidence(Piece("throw"), Piece("it falls"), piece::yes(), Voice("me"))], [Statement(Piece("because"), Related(All, [Piece("it falls"), Piece("gravity"), Piece("mass")]))], [(Piece("gravity"), 0.5), (Piece("mass"), 0.5), (Piece("throw"), 1.0), (Piece("because"), 1.0)], [], 0.2, 0.6), Piece("gravity")) == Opinion(1.0, 0.0, 0.5)
+            && model::opinion(Model([Evidence(Piece("throw"), Piece("it falls"), piece::yes(), Voice("me"))], [Statement(Piece("because"), Related(All, [Piece("it falls"), Piece("gravity"), Piece("mass")]))], [(Piece("gravity"), 0.5), (Piece("mass"), 0.5), (Piece("throw"), 1.0), (Piece("because"), 0.5)], [], 0.2, 0.6), Piece("gravity")) == Opinion(0.5, 0.0, 0.5)
     }
     claim a_relation_nobody_believes_relates_nothing() {
-        opinion(Model([Evidence(Piece("throw"), Piece("it falls"), piece::yes(), Voice("me"))], [Statement(Piece("because"), Related(All, [Piece("it falls"), Piece("gravity"), Piece("mass")]))], [(Piece("gravity"), 0.5), (Piece("mass"), 0.5), (Piece("throw"), 1.0)], [], 0.2), Piece("gravity")) == piece::nothing(0.5)
+        model::opinion(Model([Evidence(Piece("throw"), Piece("it falls"), piece::yes(), Voice("me"))], [Statement(Piece("because"), Related(All, [Piece("it falls"), Piece("gravity"), Piece("mass")]))], [(Piece("gravity"), 0.5), (Piece("mass"), 0.5), (Piece("throw"), 1.0)], [], 0.2, 0.6), Piece("gravity")) == piece::nothing(0.5)
     }
 
     // completeness_is_a_part. The toy with its tie written: `applies`
     // ties `falls` to the ball.
     claim a_tie_adds_its_completeness_to_the_whole() {
-        parts(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("complete: applies"), 0.5), (Piece("all: lands"), 1.0)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])) == [Piece("applies"), Piece("falls"), Piece("complete: applies")]
+        model::parts(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("complete: applies"), 0.5), (Piece("all: lands"), 1.0)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2, 0.6), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])) == [Piece("applies"), Piece("falls"), Piece("complete: applies")]
     }
     claim completeness_takes_its_share_of_a_no() {
-        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("complete: applies"), 0.5), (Piece("all: lands"), 1.0)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2), Piece("complete: applies")).s == opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("complete: applies"), 0.5), (Piece("all: lands"), 1.0)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2), Piece("applies")).s
+        model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("complete: applies"), 0.5), (Piece("all: lands"), 1.0)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2, 0.6), Piece("complete: applies")).s == model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("complete: applies"), 0.5), (Piece("all: lands"), 1.0)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2, 0.6), Piece("applies")).s
     }
     claim completeness_is_believed_by_a_yes() {
-        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("complete: applies"), 0.5), (Piece("all: lands"), 1.0)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2), Piece("complete: applies")) == Opinion(0.5, 0.0, 0.5)
+        model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("complete: applies"), 0.5), (Piece("all: lands"), 1.0)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2, 0.6), Piece("complete: applies")) == Opinion(0.5, 0.0, 0.5)
     }
 
-    // no_reaches_what_vouched, and count_is_firmness: a review of ten
-    // yes on `falls`. The throw fails: the review is doubted, and
-    // `falls` still stands better than the tie.
-    claim a_failure_doubts_the_review_of_a_part() {
-        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me")), Evidence(Piece("review"), Piece("falls"), Opinion(10.0, 0.0, 0.5), Voice("author"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("complete: applies"), 0.5), (Piece("all: lands"), 1.0), (Piece("review"), 0.9)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2), Piece("review")).s > 0.0
+    // completeness_has_a_default
+    claim an_unwritten_completeness_has_the_setting() {
+        model::base(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2, 0.6), Piece("complete: applies")) == 0.6
+            && model::base(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2, 0.6), Piece("applies")) == 0.5
+            && model::base(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2, 0.6), Piece("unknown")) == 0.0
     }
+
+    // count_is_firmness: a review of a hundred yes on `falls`. The throw
+    // fails, and what is reviewed stands better than the tie.
     claim what_is_reviewed_stands() {
-        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me")), Evidence(Piece("review"), Piece("falls"), Opinion(10.0, 0.0, 0.5), Voice("author"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("complete: applies"), 0.5), (Piece("all: lands"), 1.0), (Piece("review"), 0.9)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2), Piece("falls")).s < opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me")), Evidence(Piece("review"), Piece("falls"), Opinion(10.0, 0.0, 0.5), Voice("author"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("complete: applies"), 0.5), (Piece("all: lands"), 1.0), (Piece("review"), 0.9)], [Tie(Piece("applies"), Piece("falls"), Place(["ball"]))], 0.2), Piece("applies")).s
+        model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me")), Evidence(Piece("review"), Piece("falls"), Opinion(100.0, 0.0, 0.5), Voice("author"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0), (Piece("review"), 1.0)], [], 0.2, 0.6), Piece("falls")).s < model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me")), Evidence(Piece("review"), Piece("falls"), Opinion(100.0, 0.0, 0.5), Voice("author"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0), (Piece("review"), 1.0)], [], 0.2, 0.6), Piece("applies")).s
+    }
+
+    // unjudged_is_not_doubted
+    claim a_voice_with_no_base_rate_is_not_judged() {
+        model::judged(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me")), Evidence(Piece("review"), Piece("falls"), Opinion(100.0, 0.0, 0.5), Voice("author"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0), (Piece("review"), 1.0)], [], 0.2, 0.6)) == []
+    }
+
+    // voices_are_judged: the same review, by a voice that can be
+    // doubted. The throw fails: the voice is believed less than before,
+    // and `falls` less than when the voice was not doubted.
+    claim a_failure_doubts_the_voice_that_vouched() {
+        piece::projected(model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me")), Evidence(Piece("review"), Piece("falls"), Opinion(100.0, 0.0, 0.5), Voice("author"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0), (Piece("review"), 1.0), (Piece("reliable: author"), 0.9)], [], 0.2, 0.6), Piece("reliable: author")), 0.2) < 0.9
+    }
+    claim a_doubted_voice_holds_its_word_up_less() {
+        piece::projected(model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me")), Evidence(Piece("review"), Piece("falls"), Opinion(100.0, 0.0, 0.5), Voice("author"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0), (Piece("review"), 1.0), (Piece("reliable: author"), 0.9)], [], 0.2, 0.6), Piece("falls")), 0.2) < piece::projected(model::opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me")), Evidence(Piece("review"), Piece("falls"), Opinion(100.0, 0.0, 0.5), Voice("author"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0), (Piece("review"), 1.0)], [], 0.2, 0.6), Piece("falls")), 0.2)
     }
 
     // conflict_is_said
     claim a_throw_that_does_not_fall_names_its_suspects() {
-        conflicts(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2)) == [[Piece("applies"), Piece("falls"), Piece("throw")]]
+        model::conflicts(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)], [], 0.2, 0.6)) == [[Piece("applies"), Piece("falls"), Piece("throw")]]
     }
     claim nothing_said_is_no_conflict() {
-        conflicts(Model([], [], [], [], 0.2)) == []
+        model::conflicts(Model([], [], [], [], 0.2, 0.6)) == []
     }
 }

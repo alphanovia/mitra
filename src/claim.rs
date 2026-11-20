@@ -8,23 +8,17 @@ use crate::model::{no, yes, Evidence, Piece, Statement, Voice};
 use crate::standard::truth;
 use crate::value::{check, eval, Applies, Expression, Quantity, Value};
 
-/// A content that is computed: an expression that gives a truth.
-// mitra: implements claims::Formal
+/// What a claim says: an expression that gives a truth. A claim is a
+/// statement with this content.
+// mitra: implements claims::Claim
 #[derive(Clone, Debug, PartialEq)]
-pub struct Formal {
+pub struct Claim {
     pub expression: Expression,
-}
-
-/// A content that is read by people: nothing computes it.
-// mitra: implements claims::Prose
-#[derive(Clone, Debug, PartialEq)]
-pub struct Prose {
-    pub text: String,
 }
 
 /// The expression gives a truth.
 // mitra: implements claims::reads
-pub fn reads(s: &Statement<Formal>) -> bool {
+pub fn reads(s: &Statement<Claim>) -> bool {
     check(&s.content.expression) == Some(truth())
 }
 
@@ -34,7 +28,7 @@ pub fn reads(s: &Statement<Formal>) -> bool {
 /// the same observation twice is one piece.
 // mitra: implements claims::observe
 pub fn observe(
-    s: &Statement<Formal>,
+    s: &Statement<Claim>,
     inputs: &[(String, Value)],
     by: &Voice,
     with: &impl Applies,

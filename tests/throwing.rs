@@ -10,6 +10,8 @@ use mitra_core::model::*;
 
 /// The weight of a base rate that these are recorded at.
 const W: f64 = 0.2;
+/// What to expect of the completeness of a tie when nothing says.
+const C: f64 = 0.6;
 
 fn p(name: &str) -> Piece {
     Piece::named(name)
@@ -48,6 +50,7 @@ fn single(a: f64, f: f64, s: f64, fell: bool) -> Model {
     sure(Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("throw", "lands", fell, "me")],
         related: vec![rests(&["lands", "applies", "falls"])],
         base: vec![(p("applies"), a), (p("falls"), f), (p("throw"), s)],
@@ -152,7 +155,7 @@ fn repeated_throws() {
         let mut m = sure(Model {
             related: vec![rests(&["lands", "applies", "falls"])],
             base: base(&[("applies", 0.5), ("falls", 0.5)]),
-            ..Model::empty(W)
+            ..Model::empty(W, C)
         });
         for k in 0..n {
             let by = match one_voice {
@@ -192,6 +195,7 @@ fn ball_and_balloon() {
         let m = sure(Model {
             ties: vec![],
             weight: W,
+            completeness: C,
             evidence: vec![
                 says("throw ball", "ball lands", true, "me"),
                 says("throw balloon", "balloon lands", false, "me"),
@@ -229,6 +233,7 @@ fn falls_and_noise() {
         let m = sure(Model {
             ties: vec![],
             weight: W,
+            completeness: C,
             evidence: vec![
                 says("throw", "lands", true, "me"),
                 says("listen", "bangs", false, "me"),
@@ -266,7 +271,7 @@ fn gravity_and_two_masses() {
                 rests(&["falls balloon", "gravity", "mass balloon"]),
             ],
             base: base(&[("gravity", g), ("mass ball", 0.5), ("mass balloon", 0.5)]),
-            ..Model::empty(W)
+            ..Model::empty(W, C)
         });
         for (object, fell) in [("ball", ball), ("balloon", balloon)] {
             if let Some(fell) = fell {
@@ -309,7 +314,7 @@ fn a_hundred_objects_and_a_feather() {
     let world = |objects: &[(&str, usize, usize)]| {
         let mut m = Model {
             base: base(&[("gravity", 0.5)]),
-            ..Model::empty(W)
+            ..Model::empty(W, C)
         };
         for (name, pass, fail) in objects {
             let (mass, whole) = (format!("mass {name}"), format!("same speed {name}"));
@@ -357,7 +362,7 @@ fn a_hundred_objects_and_a_feather() {
 fn a_weighed_feather_blames_its_completeness() {
     let mut m = Model {
         base: base(&[("gravity", 0.5)]),
-        ..Model::empty(W)
+        ..Model::empty(W, C)
     };
     let names: Vec<String> = (0..10).map(|k| format!("o{k}")).collect();
     for (name, falls) in names
@@ -390,9 +395,7 @@ fn a_weighed_feather_blames_its_completeness() {
     m.base.push((p("scale"), 0.9));
     let m = sure(m);
     assert!(at(&m, "gravity") > 0.99 && at(&m, "complete o0") > 0.98);
-    // The scale vouched for a part of what failed: it is doubted too.
-    assert!(close(at(&m, "scale"), 0.683));
-    assert!(close(at(&m, "mass feather"), 0.623));
+    assert!(close(at(&m, "mass feather"), 0.678));
     assert!(close(at(&m, "complete feather"), 0.034));
 }
 

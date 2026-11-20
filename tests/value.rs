@@ -59,7 +59,7 @@ fn some() -> Vec<Expression> {
     ]
 }
 
-// mitra: evidence for value::same_value
+// mitra: evidence for tests::same_value
 #[test]
 fn same_value() {
     for e in some() {
@@ -67,7 +67,7 @@ fn same_value() {
     }
 }
 
-// mitra: evidence for value::given_is_itself
+// mitra: evidence for tests::given_is_itself
 #[test]
 fn given_is_itself() {
     for v in [value(i64::MIN, "A"), value(0, "B"), value(42, "A")] {
@@ -75,7 +75,7 @@ fn given_is_itself() {
     }
 }
 
-// mitra: evidence for value::input_is_what_was_given
+// mitra: evidence for tests::input_is_what_was_given
 #[test]
 fn input_is_what_was_given() {
     let x = Input("x".to_string(), of("A"));
@@ -84,7 +84,7 @@ fn input_is_what_was_given() {
     assert_eq!(eval(&x, &[], &Nothing), None);
 }
 
-// mitra: evidence for value::checked_gives_its_type
+// mitra: evidence for tests::checked_gives_its_type
 #[test]
 fn checked_gives_its_type() {
     let mut checked = 0;
@@ -103,7 +103,7 @@ fn checked_gives_its_type() {
     }
 }
 
-// mitra: evidence for value::an_operation_takes_its_types
+// mitra: evidence for tests::an_operation_takes_its_types
 #[test]
 fn an_operation_takes_its_types() {
     let f = operation("f", &["A"], "B");
@@ -115,14 +115,14 @@ fn an_operation_takes_its_types() {
     assert_eq!(check(&Apply(f, vec![])), None);
 }
 
-// mitra: evidence for value::an_input_of_another_type_is_no_value
+// mitra: evidence for tests::an_input_of_another_type_is_no_value
 #[test]
 fn an_input_of_another_type_is_no_value() {
     let x = Input("x".to_string(), of("A"));
     assert_eq!(eval(&x, &given("x", value(3, "B")), &Nothing), None);
 }
 
-// mitra: evidence for value::a_name_means_nothing_here
+// mitra: evidence for tests::a_name_means_nothing_here
 #[test]
 fn a_name_means_nothing_here() {
     // `+` on a type `A` checks, and has a value only if someone applies it.

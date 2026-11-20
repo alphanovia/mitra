@@ -5,6 +5,8 @@ use mitra_core::model::*;
 
 /// The weight of a base rate that these are recorded at.
 const W: f64 = 0.2;
+/// What to expect of the completeness of a tie when nothing says.
+const C: f64 = 0.6;
 
 fn op(r: f64, s: f64, a: f64) -> Opinion {
     Opinion { r, s, a }
@@ -47,12 +49,13 @@ fn base_of(rates: &[(&str, f64)]) -> Vec<(Piece, f64)> {
 
 // The claims of the model, one test each.
 
-// mitra: evidence for model::base_rate_survives
+// mitra: evidence for tests::base_rate_survives
 #[test]
 fn base_rate_survives() {
     let model = sure(Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("t", "y", yes(), "a"), says("r", "t", no(), "b")],
         related: vec![rests(&["x", "y", "z"])],
         base: base_of(&[("t", 0.5), ("r", 0.25), ("x", 0.125), ("y", 0.75)]),
@@ -64,7 +67,7 @@ fn base_rate_survives() {
     }
 }
 
-// mitra: evidence for piece::no_evidence_is_the_base_rate
+// mitra: evidence for tests::no_evidence_is_the_base_rate
 #[test]
 fn no_evidence_is_the_base_rate() {
     assert_eq!(projected(nothing(0.5), W), 0.5);
@@ -126,19 +129,19 @@ fn two_sure_reviews_that_disagree() {
     assert_eq!(conflict(for_it, against_it), 1.0);
 }
 
-// mitra: evidence for model::two_halves_are_a_quarter
+// mitra: evidence for tests::two_halves_are_a_quarter
 #[test]
 fn two_halves_are_a_quarter() {
     assert!(near(projected(all(nothing(0.5), nothing(0.5), W), W), 0.25));
 }
 
-// mitra: evidence for model::one_sure_part_changes_nothing
+// mitra: evidence for tests::one_sure_part_changes_nothing
 #[test]
 fn one_sure_part_changes_nothing() {
     assert_eq!(all(nothing(1.0), op(0.5, 0.0, 0.5), W), op(0.5, 0.0, 0.5));
 }
 
-// mitra: evidence for piece::policy_zero_still_needs_belief
+// mitra: evidence for tests::policy_zero_still_needs_belief
 #[test]
 fn policy_zero_still_needs_belief() {
     assert!(!reaches(nothing(0.0), 0.0, W));
@@ -151,23 +154,26 @@ fn sure_is_sure() {
     assert_eq!((projected(yes(), W), projected(no(), W)), (1.0, 0.0));
 }
 
-// mitra: evidence for piece::as_much_against_as_for_is_against
+// mitra: evidence for tests::as_much_against_as_for_is_against
 #[test]
 fn as_much_against_as_for_is_against() {
     assert!(against(op(1.0, 1.0, 0.0)));
     assert!(!against(op(2.0, 1.0, 0.0)) && !against(nothing(0.0)));
 }
 
-// mitra: evidence for model::an_empty_model_believes_nothing
+// mitra: evidence for tests::an_empty_model_believes_nothing
 #[test]
 fn an_empty_model_believes_nothing() {
-    assert_eq!(opinion(&Model::empty(W), &Piece::named("x")), nothing(0.0));
+    assert_eq!(
+        opinion(&Model::empty(W, C), &Piece::named("x")),
+        nothing(0.0)
+    );
 }
 
-// mitra: evidence for model::nothing_said_is_no_conflict
+// mitra: evidence for tests::nothing_said_is_no_conflict
 #[test]
 fn nothing_said_is_no_conflict() {
-    assert!(conflicts(&Model::empty(W)).is_empty());
+    assert!(conflicts(&Model::empty(W, C)).is_empty());
 }
 
 // mitra: evidence for evidence::one_failing_test_is_against
@@ -177,12 +183,13 @@ fn one_failing_test_is_against() {
     assert!(!against(moved(nothing(0.0), no(), W)));
 }
 
-// mitra: evidence for model::evidence_moves_its_piece
+// mitra: evidence for tests::evidence_moves_its_piece
 #[test]
 fn evidence_moves_its_piece() {
     let model = Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("t", "c", yes(), "a")],
         related: vec![],
         base: base_of(&[("t", 0.5)]),
@@ -190,12 +197,13 @@ fn evidence_moves_its_piece() {
     assert_eq!(opinion(&model, &Piece::named("c")), op(0.5, 0.0, 0.0));
 }
 
-// mitra: evidence for model::a_review_reaches_the_claim
+// mitra: evidence for tests::a_review_reaches_the_claim
 #[test]
 fn a_review_reaches_the_claim() {
     let model = Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("t", "c", yes(), "a"), says("r", "t", yes(), "b")],
         related: vec![],
         base: base_of(&[("t", 0.5), ("r", 0.5)]),
@@ -204,12 +212,13 @@ fn a_review_reaches_the_claim() {
     assert_eq!(opinion(&model, &Piece::named("c")).r, 0.6 / 0.7);
 }
 
-// mitra: evidence for model::a_test_judged_wrong_says_less
+// mitra: evidence for tests::a_test_judged_wrong_says_less
 #[test]
 fn a_test_judged_wrong_says_less() {
     let model = Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("t", "c", yes(), "a"), says("r", "t", no(), "b")],
         related: vec![],
         base: base_of(&[("t", 0.5), ("r", 1.0)]),
@@ -218,12 +227,13 @@ fn a_test_judged_wrong_says_less() {
     assert_eq!(opinion(&model, &Piece::named("c")), op(0.1 / 1.2, 0.0, 0.0));
 }
 
-// mitra: evidence for model::a_whole_of_one_part_is_that_part
+// mitra: evidence for tests::a_whole_of_one_part_is_that_part
 #[test]
 fn resting_on_one_piece_is_that_piece() {
     let model = sure(Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("t", "y", yes(), "a")],
         related: vec![rests(&["x", "y"])],
         base: base_of(&[("t", 0.5)]),
@@ -231,7 +241,7 @@ fn resting_on_one_piece_is_that_piece() {
     assert_eq!(opinion(&model, &Piece::named("x")).r, 0.5);
 }
 
-// mitra: evidence for place::within_itself
+// mitra: evidence for tests::within_itself
 #[test]
 fn within_itself() {
     for a in [
@@ -243,7 +253,7 @@ fn within_itself() {
     }
 }
 
-// mitra: evidence for place::inside_is_within
+// mitra: evidence for tests::inside_is_within
 #[test]
 fn inside_is_within() {
     let (file, next) = (
@@ -253,7 +263,7 @@ fn inside_is_within() {
     assert!(within(&next, &file) && !within(&file, &next));
 }
 
-// mitra: evidence for place::beside_is_not_within
+// mitra: evidence for tests::beside_is_not_within
 #[test]
 fn beside_is_not_within() {
     assert!(!within(
@@ -270,21 +280,21 @@ fn tie(place: &[&str]) -> Vec<Tie> {
     }]
 }
 
-// mitra: evidence for tie::no_tie_is_nowhere
+// mitra: evidence for tests::no_tie_is_nowhere
 #[test]
 fn no_tie_is_nowhere() {
     assert!(places(&[], &Piece::named("x")).is_empty());
     assert!(concerned(&[], &Place::at(&["src/lib.rs"])).is_empty());
 }
 
-// mitra: evidence for tie::tied_is_found
+// mitra: evidence for tests::tied_is_found
 #[test]
 fn tied_is_found() {
     let next = ["src/lib.rs", "next"];
     assert_eq!(places(&tie(&next), &Piece::named("x")), [Place::at(&next)]);
 }
 
-// mitra: evidence for tie::a_file_concerns_what_is_in_it
+// mitra: evidence for tests::a_file_concerns_what_is_in_it
 #[test]
 fn a_file_concerns_what_is_in_it() {
     let ties = tie(&["src/lib.rs", "next"]);
@@ -301,6 +311,7 @@ fn a_tie_is_believed_like_any_piece() {
     let model = Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("check", "t", no(), "machine:reader")],
         related: vec![],
         base: base_of(&[("t", 0.5), ("check", 1.0)]),
@@ -349,7 +360,7 @@ fn counts_are_never_negative() {
 fn with_nothing_known_a_piece_is_at_its_base_rate() {
     let model = Model {
         base: base_of(&[("t", 0.6)]),
-        ..Model::empty(W)
+        ..Model::empty(W, C)
     };
     assert_eq!(opinion(&model, &Piece::named("t")), nothing(0.6));
     assert_eq!(opinion(&model, &Piece::named("unheard"),), nothing(0.0));
@@ -361,7 +372,7 @@ fn with_nothing_known_a_piece_is_at_its_base_rate() {
 #[test]
 fn three_voices_hold_a_claim_and_one_voice_never() {
     let world = |n: usize, one_voice: bool| {
-        let mut model = Model::empty(W);
+        let mut model = Model::empty(W, C);
         for k in 0..n {
             let t = format!("t{k}");
             let by = match one_voice {
@@ -385,6 +396,7 @@ fn a_piece_reached_by_two_paths_counts_once() {
     let model = sure(Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("t", "w", yes(), "a")],
         related: vec![
             rests(&["x", "y", "z"]),
@@ -401,6 +413,7 @@ fn a_piece_rests_on_all_its_parts() {
     let model = sure(Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("t1", "y", yes(), "a"), says("t2", "z", yes(), "b")],
         related: vec![rests(&["x", "y", "z"])],
         base: base_of(&[("t1", 0.5), ("t2", 0.5)]),
@@ -417,6 +430,7 @@ fn a_whole_of_one_part_shares_its_evidence() {
     let model = sure(Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("t1", "y", yes(), "a"), says("t0", "x", yes(), "b")],
         related: vec![rests(&["x", "y"])],
         base: base_of(&[("t1", 0.5), ("t0", 0.75)]),
@@ -432,6 +446,7 @@ fn a_no_about_a_whole_lowers_it() {
     let model = sure(Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("t", "x", no(), "a")],
         related: vec![rests(&["x", "y", "z"])],
         base: base_of(&[("t", 1.0), ("y", 0.5), ("z", 0.5)]),
@@ -444,10 +459,10 @@ fn a_no_about_a_whole_lowers_it() {
     assert!(p_of(&model, "x") < 0.25);
 }
 
-// mitra: evidence for model::a_throw_that_falls_believes_both
-// mitra: evidence for model::a_throw_that_does_not_fall_names_its_suspects
-// mitra: evidence for model::an_equal_start_gives_equal_shares
-// mitra: evidence for model::trusted_senses_blame_the_tie_and_the_statement_more
+// mitra: evidence for tests::a_throw_that_falls_believes_both
+// mitra: evidence for tests::a_throw_that_does_not_fall_names_its_suspects
+// mitra: evidence for tests::an_equal_start_gives_equal_shares
+// mitra: evidence for tests::trusted_senses_blame_the_tie_and_the_statement_more
 #[test]
 fn a_throw_at_one_half() {
     let throw = |senses: f64, fell: bool| {
@@ -455,6 +470,7 @@ fn a_throw_at_one_half() {
         sure(Model {
             ties: vec![],
             weight: W,
+            completeness: C,
             evidence: vec![says("throw", "lands", value, "me")],
             related: vec![rests(&["lands", "applies", "falls"])],
             base: base_of(&[("applies", 0.5), ("falls", 0.5), ("throw", senses)]),
@@ -477,8 +493,8 @@ fn a_throw_at_one_half() {
     assert_eq!(conflicts(&throw(0.5, false)), [suspects]);
 }
 
-// mitra: evidence for model::a_latent_statement_is_believed_as_far_as_its_relation
-// mitra: evidence for model::a_relation_nobody_believes_relates_nothing
+// mitra: evidence for tests::a_latent_statement_is_believed_as_far_as_its_relation
+// mitra: evidence for tests::a_relation_nobody_believes_relates_nothing
 #[test]
 fn a_latent_statement_is_believed_as_far_as_its_relation() {
     // `gravity` has no tie; `because` says "it falls" is all of
@@ -487,6 +503,7 @@ fn a_latent_statement_is_believed_as_far_as_its_relation() {
         let mut model = Model {
             ties: vec![],
             weight: W,
+            completeness: C,
             evidence: vec![says("throw", "it falls", yes(), "me")],
             related: vec![Statement {
                 piece: Piece::named("because"),
@@ -512,6 +529,7 @@ fn a_doubted_relation_is_a_suspect() {
     let mut model = Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("throw", "lands", no(), "me")],
         related: vec![Statement {
             piece: Piece::named("pair"),
@@ -535,13 +553,14 @@ fn a_doubted_relation_is_a_suspect() {
     assert_eq!(conflicts(&model), suspects(&["applies", "falls", "throw"]));
 }
 
-// mitra: evidence for model::the_balloon_blames_its_tie
-// mitra: evidence for model::silence_blames_the_noise
+// mitra: evidence for tests::the_balloon_blames_its_tie
+// mitra: evidence for tests::silence_blames_the_noise
 #[test]
 fn what_is_shared_takes_the_blame_off() {
     let balloon = sure(Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![
             says("throw ball", "ball lands", yes(), "me"),
             says("throw balloon", "balloon lands", no(), "me"),
@@ -564,6 +583,7 @@ fn what_is_shared_takes_the_blame_off() {
     let noise = sure(Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![
             says("throw", "lands", yes(), "me"),
             says("listen", "bangs", no(), "me"),
@@ -589,6 +609,7 @@ fn pieces_that_lead_back_to_themselves_end() {
     let model = sure(Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("e", "f", yes(), "a"), says("f", "e", yes(), "b")],
         related: vec![rests(&["x", "y"]), rests(&["y", "x"])],
         base: vec![],
@@ -602,6 +623,7 @@ fn the_same_known_gives_the_same_opinion() {
     let model = Model {
         ties: vec![],
         weight: W,
+        completeness: C,
         evidence: vec![says("t", "c", yes(), "a"), says("r", "t", yes(), "b")],
         related: vec![],
         base: base_of(&[("t", 0.5), ("r", 0.8)]),
@@ -648,7 +670,7 @@ fn the_weight_is_given_by_the_model() {
         let model = Model {
             evidence: vec![says("t", "c", yes(), "a")],
             base: base_of(&[("t", 1.0), ("c", 0.5)]),
-            ..Model::empty(weight)
+            ..Model::empty(weight, C)
         };
         projected(opinion(&model, &Piece::named("c")), weight)
     };
@@ -675,6 +697,7 @@ fn tied(throw: Opinion) -> Model {
             },
         }],
         weight: W,
+        completeness: C,
     })
 }
 
@@ -701,22 +724,212 @@ fn a_tie_implies_its_completeness() {
     assert_eq!(conflicts(&bare)[0].len(), 3);
 }
 
-#[test]
-fn a_failure_discredits_what_vouched_for_its_parts() {
-    let mut model = tied(no());
-    model
-        .evidence
-        .push(says("review", "falls", op(10.0, 0.0, 0.5), "author"));
-    model
-        .evidence
-        .push(says("other", "elsewhere", op(10.0, 0.0, 0.5), "author"));
+/// A stone that always passes and a feather that never does, each
+/// "same speed" being all of [gravity, its mass]; so many measurements
+/// each, believed at 0.9. A voice reviews with so many yes.
+fn dropped(times: usize, reviews: &[(&str, &str, f64)]) -> Model {
+    let mut model = Model::empty(W, C);
+    model.base = base_of(&[("gravity", 0.5), ("mass stone", 0.5), ("mass feather", 0.5)]);
+    for (name, falls) in [("stone", yes()), ("feather", no())] {
+        let speed = format!("same speed {name}");
+        model
+            .related
+            .push(rests(&[&speed, "gravity", &format!("mass {name}")]));
+        for k in 0..times {
+            let drop = format!("drop {name} {k}");
+            model.evidence.push(says(&drop, &speed, falls, &drop));
+            model.base.push((Piece::named(&drop), 0.9));
+        }
+    }
+    for (voice, about, count) in reviews {
+        let review = format!("review by {voice}: {about}");
+        model
+            .evidence
+            .push(says(&review, about, op(*count, 0.0, 0.5), voice));
+        model.base.push((Piece::named(&review), 1.0));
+    }
+    sure(model)
+}
+fn doubt(mut model: Model, voice: &str, prior: f64) -> Model {
     model
         .base
-        .extend(base_of(&[("review", 0.9), ("other", 0.9)]));
-    let o = |x: &str| opinion(&model, &Piece::named(x));
-    assert!(o("review").s > 0.0 && p_of(&model, "review") < 0.9);
-    // Its yes is not touched, and what it did not vouch for is not doubted.
-    assert!(o("other").s == 0.0 && near(p_of(&model, "other"), 0.9));
-    // What was reviewed stands: the tie and its completeness take the no.
-    assert!(o("falls").s < o("applies").s);
+        .push((reliable(&Voice::named(voice)).piece, prior));
+    model
+}
+
+// mitra: evidence for tests::a_voice_with_no_base_rate_is_not_judged
+#[test]
+fn a_voice_never_doubted_is_not_judged() {
+    let model = dropped(3, &[("sure", "mass feather", 100.0)]);
+    assert!(judged(&model).is_empty());
+    assert_eq!(settled(&model, &[]), model);
+}
+
+// mitra: evidence for evidence::a_word_never_exceeds_the_trust_in_its_voice
+#[test]
+fn a_word_never_exceeds_the_trust_in_its_voice() {
+    assert!(near(
+        projected(held(0.3, op(100.0, 0.0, 0.5), W), W),
+        0.3 * (100.1 / 100.2) + 0.7 * 0.5
+    ));
+    let whole = held(1.0, op(3.0, 1.0, 0.5), W);
+    assert!(near(whole.r, 3.0) && near(whole.s, 1.0));
+    let nothing_said = held(0.0, op(3.0, 1.0, 0.5), W);
+    assert!(nothing_said.r == 0.0 && nothing_said.s == 0.0);
+}
+
+#[test]
+fn a_voice_is_judged_by_what_it_vouched_for() {
+    let said = [
+        ("loud", "mass feather", 100.0),
+        ("loud", "mass stone", 100.0),
+        ("quiet", "mass stone", 1.0),
+    ];
+    let model = doubt(doubt(dropped(5, &said), "loud", 0.9), "quiet", 0.9);
+    let p = |x: &str| p_of(&model, x);
+    // The feather contradicts the loud voice, the stone confirms the quiet one.
+    assert!(p("reliable: loud") < 0.5 && p("reliable: quiet") > 0.9);
+    // Once it is doubted its word stops holding the feather's mass up:
+    // the mass takes the blame, and the measurements are believed.
+    assert!(p("mass feather") < 0.5 && p("drop feather 0") > 0.5);
+    // Never doubted, the same voice keeps the mass up and the
+    // measurements take the blame.
+    let trusting = dropped(5, &said);
+    assert!(p_of(&trusting, "mass feather") > 0.9 && p_of(&trusting, "drop feather 0") < 0.5);
+}
+
+#[test]
+fn repeated_failures_of_one_whole_are_one_fact() {
+    // A voice that said "probably" is not destroyed by repetition.
+    let at = |times: usize| {
+        let model = doubt(
+            dropped(times, &[("careful", "mass feather", 0.5)]),
+            "careful",
+            0.9,
+        );
+        p_of(&model, "reliable: careful")
+    };
+    assert!(at(30) > 0.5 && (at(3) - at(30)).abs() < 0.05);
+}
+
+#[test]
+fn voices_on_one_source_fall_together() {
+    // B only spoke of a rock nobody dropped. A is contradicted.
+    let said = [("A", "mass feather", 100.0), ("B", "mass rock", 100.0)];
+    let build = |shared: bool| {
+        let mut model = doubt(doubt(dropped(5, &said), "A", 0.9), "B", 0.9);
+        model.base.push((Piece::named("mass rock"), 0.5));
+        if shared {
+            for voice in ["A", "B"] {
+                let rests_on = rests(&[&format!("reliable: {voice}"), "one lab"]);
+                model.base.push((rests_on.piece.clone(), 1.0));
+                model.related.push(rests_on);
+            }
+            model.base.push((Piece::named("one lab"), 0.9));
+        }
+        model
+    };
+    let (apart, together) = (build(false), build(true));
+    assert!(near(p_of(&apart, "reliable: B"), 0.9));
+    assert!(p_of(&together, "one lab") < 0.9);
+    assert!(
+        p_of(&together, "reliable: B") < 0.81
+            && p_of(&together, "mass rock") < p_of(&apart, "mass rock")
+    );
+}
+
+// mitra: evidence for evidence::reliability_names_its_voice
+#[test]
+fn reliability_names_its_voice() {
+    let by = Voice::named("agent:a");
+    assert_eq!(reliable(&by).content.voice, by);
+    assert_eq!(reliable(&by).piece, Piece::named("reliable: agent:a"));
+}
+
+/// The throwing toy, the throw believed at 0.9 and failing, with a
+/// review of a hundred yes on `falls` by `author`.
+fn reviewed_throw(doubted: bool, ties: Vec<Tie>) -> Model {
+    let mut model = sure(Model {
+        evidence: vec![
+            says("throw", "lands", no(), "me"),
+            says("review", "falls", op(100.0, 0.0, 0.5), "author"),
+        ],
+        related: vec![rests(&["lands", "applies", "falls"])],
+        base: base_of(&[
+            ("applies", 0.5),
+            ("falls", 0.5),
+            ("throw", 0.9),
+            ("review", 1.0),
+        ]),
+        ties,
+        weight: W,
+        completeness: C,
+    });
+    if doubted {
+        model = doubt(model, "author", 0.9);
+    }
+    model
+}
+
+// mitra: evidence for tests::an_unwritten_completeness_has_the_setting
+#[test]
+fn an_unwritten_completeness_has_the_setting() {
+    let tie = Tie {
+        piece: Piece::named("applies"),
+        statement: Piece::named("falls"),
+        place: Place {
+            path: vec!["ball".to_string()],
+        },
+    };
+    let model = reviewed_throw(false, vec![tie]);
+    let of = |x: &str| base(&model, &Piece::named(x));
+    assert_eq!(
+        (of("complete: applies"), of("applies"), of("unknown")),
+        (C, 0.5, 0.0)
+    );
+    // Written, it is what was written.
+    let mut written = model.clone();
+    written.base.push((Piece::named("complete: applies"), 0.9));
+    assert_eq!(base(&written, &Piece::named("complete: applies")), 0.9);
+}
+
+// mitra: evidence for tests::what_is_reviewed_stands
+// mitra: evidence for tests::a_failure_doubts_the_voice_that_vouched
+// mitra: evidence for tests::a_doubted_voice_holds_its_word_up_less
+#[test]
+fn a_failure_doubts_the_voice_that_vouched() {
+    let (trusting, doubting) = (reviewed_throw(false, vec![]), reviewed_throw(true, vec![]));
+    let s = |m: &Model, x: &str| opinion(m, &Piece::named(x)).s;
+    assert!(s(&trusting, "falls") < s(&trusting, "applies"));
+    assert!(p_of(&doubting, "reliable: author") < 0.9);
+    assert!(p_of(&doubting, "falls") < p_of(&trusting, "falls"));
+}
+
+/// The setting moves the completeness itself and little else: after a
+/// failing throw it reads 0.55 at 0.6 and 0.65 at 0.7, and the
+/// statement reads 0.43 and 0.42.
+#[test]
+fn completeness_at_six_and_at_seven_tenths() {
+    let at = |completeness: f64, x: &str| {
+        let model = Model {
+            completeness,
+            ..reviewed_throw(false, vec![])
+        };
+        let tie = Tie {
+            piece: Piece::named("applies"),
+            statement: Piece::named("falls"),
+            place: Place {
+                path: vec!["ball".to_string()],
+            },
+        };
+        let mut model = Model {
+            ties: vec![tie],
+            ..model
+        };
+        model.evidence.truncate(1);
+        p_of(&model, x)
+    };
+    let close = |x: f64, y: f64| (x - y).abs() < 0.006;
+    assert!(close(at(0.6, "complete: applies"), 0.55) && close(at(0.7, "complete: applies"), 0.65));
+    assert!(close(at(0.6, "falls"), 0.43) && close(at(0.7, "falls"), 0.42));
 }

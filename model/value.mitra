@@ -1,22 +1,8 @@
-// The innermost part of Mitra, on the side of computing (src/value.rs).
+// The side of computing. A value is a quantity with a type; operations
+// are declared on types; an expression is nested operations that can
+// be evaluated. This file declares no type and no operation of its own.
 //
-// Reads: nothing. It does not know what a piece, an opinion or
-// evidence is: nothing here is right or wrong, believed or signed.
-//
-//   value        a quantity with a type
-//   type         what a value can be, known by its name
-//   operation    declared on types: it takes values of some types and
-//                gives one of a type, to transform or to convert
-//   expression   nested operations that can be evaluated
-//
-// Nothing is built in. This file declares no type and no operation,
-// and does not read a quantity: what applies an operation is given.
-// The standard ones (a truth, a whole number, `+`, `==`, `if`,
-// records) are in standard.mitra, beside the core.
-//
-// Left out on purpose: functions and calls, sets and ranges, lists,
-// enums and `match`, generics and contracts, floats, and the numbers
-// of the machine (docs/design/numbers.md).
+// Code: src/value.rs.
 
 import std::core::{Option};
 
@@ -73,37 +59,42 @@ subject value {
     // it does not take, or one that `by` gives nothing for.
     fn eval(e: Expression, inputs: List<(String, Value)>, by: impl Applies<Operation, Value, Quantity>) -> Option<Value>
         uses Applies::apply;
+}
+
+// What the promises above say, on small cases.
+subject tests {
+    // value
 
     // one_value, alone
-    claim same_value = deterministic(eval);
+    claim same_value = deterministic(value::eval);
     claim given_is_itself(v: Value, by: impl Applies<Operation, Value, Quantity>) {
-        eval(Given(v), [], by) == Some(v)
+        value::eval(Given(v), [], by) == Some(v)
     }
     claim input_is_what_was_given(v: Value, by: impl Applies<Operation, Value, Quantity>) {
-        eval(Input("x", v.of), [("x", v)], by) == Some(v) && eval(Input("x", v.of), [], by) == None
+        value::eval(Input("x", v.of), [("x", v)], by) == Some(v) && value::eval(Input("x", v.of), [], by) == None
     }
 
     // typed
     claim checked_gives_its_type(e: Expression, by: impl Applies<Operation, Value, Quantity>) {
-        match check(e) {
+        match value::check(e) {
             None => true,
-            Some(t) => match eval(e, [], by) {
+            Some(t) => match value::eval(e, [], by) {
                 None => true,
-                Some(v) => type_of(v) == t,
+                Some(v) => value::type_of(v) == t,
             },
         }
     }
     claim an_operation_takes_its_types(v: Value) {
-        check(Apply(Operation("f", [Type("A")], Type("B")), [Given(Value(v.quantity, Type("A")))])) == Some(Type("B"))
-            && check(Apply(Operation("f", [Type("A")], Type("B")), [Given(Value(v.quantity, Type("B")))])) == None
+        value::check(Apply(Operation("f", [Type("A")], Type("B")), [Given(Value(v.quantity, Type("A")))])) == Some(Type("B"))
+            && value::check(Apply(Operation("f", [Type("A")], Type("B")), [Given(Value(v.quantity, Type("B")))])) == None
     }
     claim an_input_of_another_type_is_no_value(v: Value, by: impl Applies<Operation, Value, Quantity>) {
-        v.of == Type("A") || eval(Input("x", Type("A")), [("x", v)], by) == None
+        v.of == Type("A") || value::eval(Input("x", Type("A")), [("x", v)], by) == None
     }
 
     // nothing_built_in: `+` is a name like any other. It checks on
     // whatever types its declaration says.
     claim a_name_means_nothing_here(v: Value) {
-        check(Apply(Operation("+", [v.of], v.of), [Given(v)])) == Some(v.of)
+        value::check(Apply(Operation("+", [v.of], v.of), [Given(v)])) == Some(v.of)
     }
 }

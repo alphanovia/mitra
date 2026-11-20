@@ -11,6 +11,11 @@ a failure that doubts what vouched for its parts. That last rule is
 now always on, so the review tables read a little differently when
 run today, and the columns "without the rule" are history.
 
+Since increment 108 that rule is gone again: the core judges each
+voice instead (the last section, "Voices, iterated", now in
+`model::judged`), and `examples/voice.rs` prints the same tables from
+the core.
+
 ## Completeness
 
 For each tie, one more piece, `complete`: "the statements on this tie

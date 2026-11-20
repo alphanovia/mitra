@@ -39,7 +39,7 @@ hand.
 ## To test
 
 ```sh
-cargo test                # 89 tests
+cargo test                # 97 tests
 mitra conform             # with main's binary, from this folder
 ```
 
@@ -49,9 +49,9 @@ mitra conform             # with main's binary, from this folder
   the calculus (case 7 needs settings, case 6 a report).
 - `tests/wall.rs`: the walls, and no disk.
 
-`mitra conform` says 70 ties agree and 5 differ, with one warning.
+`mitra conform` says 77 ties agree and 4 differ, with one warning.
 The five look like faults of `main`'s reader of Rust and are left as
-they are: `Vec<Related>` and `Statement<Formal>` compared wrongly with
+they are: `Vec<Related>` and `Statement<Claim>` compared wrongly with
 the model's (three), a `uses` asked on `moved` whose body already
 calls `piece::projected`, and `all` not seen under `opinion`. The
 warning is true: `tie` requires `statement` and names a statement only

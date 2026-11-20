@@ -1,16 +1,7 @@
-// The standard types and operations (src/standard.rs). Beside the
-// core, not in it.
+// The standard types and operations, beside the core: a truth, a whole
+// number, records, and the table that applies them. Reads value.mitra.
 //
-// Reads: value.mitra. Nothing in value.mitra or model.mitra reads
-// this file.
-//
-// A truth and a whole number, with `!`, `&&`, `<`, `+`, `-`, `*`,
-// `==` and `if`, and records: each is an operation declared as
-// value.mitra asks, and the table applies it. A model declares its own
-// the same way.
-//
-// Left out on purpose: floats, the numbers of the machine and their
-// overflow (docs/design/numbers.md), lists, enums.
+// Code: src/standard.rs.
 
 import std::core::{Option};
 
@@ -53,56 +44,61 @@ subject standard {
         shapes: List<Shape>,
     }
     impl Applies<value::Operation, value::Value, value::Quantity> for Table { }
+}
+
+// What the promises above say, on small cases.
+subject tests {
+    // standard
 
     // applied_as_written
     claim yes_and_no_are_truths() {
-        value::type_of(yes()) == truth() && value::type_of(no()) == truth() && yes() != no()
+        value::type_of(standard::yes()) == standard::truth() && value::type_of(standard::no()) == standard::truth() && standard::yes() != standard::no()
     }
     claim a_number_is_itself(n: Int) {
-        value::eval(Given(number(n)), [], Table([])) == Some(number(n)) && value::type_of(number(n)) == whole()
+        value::eval(Given(standard::number(n)), [], Table([])) == Some(standard::number(n)) && value::type_of(standard::number(n)) == standard::whole()
     }
     claim two_and_two() {
-        value::eval(Apply(add(), [Given(number(2)), Given(number(2))]), [], Table([])) == Some(number(4))
+        value::eval(Apply(standard::add(), [Given(standard::number(2)), Given(standard::number(2))]), [], Table([])) == Some(standard::number(4))
     }
     claim one_is_less_than_two() {
-        value::eval(Apply(less(), [Given(number(1)), Given(number(2))]), [], Table([])) == Some(yes())
+        value::eval(Apply(standard::less(), [Given(standard::number(1)), Given(standard::number(2))]), [], Table([])) == Some(standard::yes())
     }
     claim equal_is_on_one_type() {
-        value::eval(Apply(equal(whole()), [Given(number(1)), Given(number(1))]), [], Table([])) == Some(yes())
-            && value::check(Apply(equal(whole()), [Given(yes()), Given(number(1))])) == None
+        value::eval(Apply(standard::equal(standard::whole()), [Given(standard::number(1)), Given(standard::number(1))]), [], Table([])) == Some(standard::yes())
+            && value::check(Apply(standard::equal(standard::whole()), [Given(standard::yes()), Given(standard::number(1))])) == None
     }
     claim truth_is_not_a_number() {
-        value::check(Apply(add(), [Given(yes()), Given(number(1))])) == None
+        value::check(Apply(standard::add(), [Given(standard::yes()), Given(standard::number(1))])) == None
     }
     claim an_operation_it_does_not_know_has_no_value() {
-        value::eval(Apply(Operation("double", [whole()], whole()), [Given(number(2))]), [], Table([])) == None
+        value::eval(Apply(Operation("double", [standard::whole()], standard::whole()), [Given(standard::number(2))]), [], Table([])) == None
     }
 
     // too_large_is_no_value
     claim a_number_too_large_is_no_value() {
-        value::eval(Apply(mul(), [Given(number(9223372036854775807)), Given(number(2))]), [], Table([])) == None
+        value::eval(Apply(standard::mul(), [Given(standard::number(9223372036854775807)), Given(standard::number(2))]), [], Table([])) == None
     }
 
     // if_is_an_operation
     claim if_chooses() {
-        value::eval(Apply(choose(whole()), [Given(yes()), Given(number(1)), Given(number(2))]), [], Table([])) == Some(number(1))
-            && value::eval(Apply(choose(whole()), [Given(no()), Given(number(1)), Given(number(2))]), [], Table([])) == Some(number(2))
+        value::eval(Apply(standard::choose(standard::whole()), [Given(standard::yes()), Given(standard::number(1)), Given(standard::number(2))]), [], Table([])) == Some(standard::number(1))
+            && value::eval(Apply(standard::choose(standard::whole()), [Given(standard::no()), Given(standard::number(1)), Given(standard::number(2))]), [], Table([])) == Some(standard::number(2))
     }
     claim if_computes_both_branches() {
-        value::eval(Apply(choose(whole()), [Given(yes()), Given(number(1)), Apply(mul(), [Given(number(9223372036854775807)), Given(number(2))])]), [], Table([])) == None
+        value::eval(Apply(standard::choose(standard::whole()), [Given(standard::yes()), Given(standard::number(1)), Apply(standard::mul(), [Given(standard::number(9223372036854775807)), Given(standard::number(2))])]), [], Table([])) == None
     }
 
     // a_record_is_its_operations
     claim a_field_reads_what_was_made() {
-        match field(Shape("Point", [whole(), truth()]), 1) {
+        match standard::field(Shape("Point", [standard::whole(), standard::truth()]), 1) {
             None => false,
-            Some(second) => value::eval(Apply(second, [Apply(make(Shape("Point", [whole(), truth()])), [Given(number(1)), Given(yes())])]), [], Table([Shape("Point", [whole(), truth()])])) == Some(yes()),
+            Some(second) => value::eval(Apply(second, [Apply(standard::make(Shape("Point", [standard::whole(), standard::truth()])), [Given(standard::number(1)), Given(standard::yes())])]), [], Table([Shape("Point", [standard::whole(), standard::truth()])])) == Some(standard::yes()),
         }
     }
     claim no_field_past_the_last() {
-        field(Shape("Point", [whole(), truth()]), 2) == None
+        standard::field(Shape("Point", [standard::whole(), standard::truth()]), 2) == None
     }
     claim a_record_the_table_was_not_given_is_not_made() {
-        value::eval(Apply(make(Shape("Point", [whole()])), [Given(number(1))]), [], Table([])) == None
+        value::eval(Apply(standard::make(Shape("Point", [standard::whole()])), [Given(standard::number(1))]), [], Table([])) == None
     }
 }

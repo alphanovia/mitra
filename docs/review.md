@@ -575,3 +575,55 @@ what applies operations. 89 tests (74). 37 promises (30), 72 claims
 666. The model cannot yet declare an operation with a body: a model's
      own operation is a Rust `Applies`. That is where the `operator`
      keyword would come in.
+
+## Increment 108: voices in the core, the format of the model files (2026-11-20)
+
+**Asked.** "vouching seems like a workaround. Which one is closer to
+textbook bayesian network modeling?", then yes to moving the voice
+pass into the core. On the format: a short header per file, a subject
+of tests at the end, "What is Prose? ... Why not having a record
+Claim?". On completeness: "better than random guess by default but
+not very strong. 0.6 maybe or 0.7".
+
+**Done.** The vouching rule is removed. `model::judged`, `settled`,
+`evidence::reliable`, `evidence::held`; `Model.completeness`;
+`Claim` for `Formal`, `Prose` removed; headers; `subject tests`.
+97 tests (89). 41 promises, 78 claims. `mitra conform`: 77 ties
+agree, 4 differ (the known ones).
+
+**Decided alone.**
+
+667. A voice is judged only if its reliability has a base rate in the
+     model. With none it is not doubted and its word counts whole
+     (`unjudged_is_not_doubted`). The other reading, "no base rate is
+     0, so the voice says nothing", would silence every model that
+     does not name its voices.
+668. `opinion` judges the voices first. `judged(model)` gives how far
+     each word holds; `settled(model, judged)` is the model with the
+     words discounted and no voice left to doubt.
+669. Until nothing moves: rounds repeat until no voice moves by more
+     than one billionth, at most 200. It is expectation and
+     maximisation in turn, in the manner of Dawid and Skene; it is not
+     their model, which has a confusion table per annotator and labels
+     that are independent items. Here a voice is one number and the
+     items are the parts of wholes.
+670. A source is declared with the relation the core already has: the
+     reliability of a voice is all of [the source]. No new field.
+671. `Model.completeness` is the base rate of a completeness nothing
+     writes; a written one wins. Tests name 0.6. At 0.7 the toys read
+     the same but for the completeness itself (0.55 and 0.65 after a
+     failing throw).
+672. `Prose` was a content nothing used: removed with its promise.
+     `Formal` is renamed `Claim`: a claim is a `Statement<Claim>`.
+     The subject keeps the name `claims`, since `claim` is a word of
+     the language.
+673. `subject tests` at the end of each file holds the claims, each
+     function called by its subject's name. Main accepts several
+     subjects of that name and still reports one warning. The claims
+     of `evidence` stay in their subject: `evidence` is a word of the
+     language, and `evidence::moved(..)` in an expression is refused
+     ("expected an expression"; the raw form `r#evidence::` is not
+     known either).
+674. Not checked: whether main still counts a moved claim as serving
+     its promise. The build raises no new warning, and the claims are
+     now named `tests::<claim>` in the ties of the Rust tests.

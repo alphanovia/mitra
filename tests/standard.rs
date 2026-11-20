@@ -20,14 +20,14 @@ fn value_of(e: &Expression) -> Option<Value> {
     eval(e, &[], &plain())
 }
 
-// mitra: evidence for standard::yes_and_no_are_truths
+// mitra: evidence for tests::yes_and_no_are_truths
 #[test]
 fn yes_and_no_are_truths() {
     assert_eq!((type_of(&yes()), type_of(&no())), (truth(), truth()));
     assert_ne!(yes(), no());
 }
 
-// mitra: evidence for standard::a_number_is_itself
+// mitra: evidence for tests::a_number_is_itself
 #[test]
 fn a_number_is_itself() {
     for x in [i64::MIN, -1, 0, 42, i64::MAX] {
@@ -36,7 +36,7 @@ fn a_number_is_itself() {
     }
 }
 
-// mitra: evidence for standard::two_and_two
+// mitra: evidence for tests::two_and_two
 #[test]
 fn two_and_two() {
     assert_eq!(value_of(&Apply(add(), vec![n(2), n(2)])), Some(number(4)));
@@ -44,7 +44,7 @@ fn two_and_two() {
     assert_eq!(value_of(&Apply(mul(), vec![n(6), n(7)])), Some(number(42)));
 }
 
-// mitra: evidence for standard::one_is_less_than_two
+// mitra: evidence for tests::one_is_less_than_two
 #[test]
 fn one_is_less_than_two() {
     assert_eq!(value_of(&Apply(less(), vec![n(1), n(2)])), Some(yes()));
@@ -53,7 +53,7 @@ fn one_is_less_than_two() {
     assert_eq!(value_of(&both), Some(yes()));
 }
 
-// mitra: evidence for standard::equal_is_on_one_type
+// mitra: evidence for tests::equal_is_on_one_type
 #[test]
 fn equal_is_on_one_type() {
     assert_eq!(
@@ -68,13 +68,13 @@ fn equal_is_on_one_type() {
     assert_eq!((check(&mixed), value_of(&mixed)), (None, None));
 }
 
-// mitra: evidence for standard::truth_is_not_a_number
+// mitra: evidence for tests::truth_is_not_a_number
 #[test]
 fn truth_is_not_a_number() {
     assert_eq!(check(&Apply(add(), vec![Given(yes()), n(1)])), None);
 }
 
-// mitra: evidence for standard::an_operation_it_does_not_know_has_no_value
+// mitra: evidence for tests::an_operation_it_does_not_know_has_no_value
 #[test]
 fn an_operation_it_does_not_know_has_no_value() {
     let double = Operation {
@@ -96,7 +96,7 @@ fn an_operation_it_does_not_know_has_no_value() {
     );
 }
 
-// mitra: evidence for standard::a_number_too_large_is_no_value
+// mitra: evidence for tests::a_number_too_large_is_no_value
 #[test]
 fn a_number_too_large_is_no_value() {
     assert_eq!(value_of(&Apply(mul(), vec![n(i64::MAX), n(2)])), None);
@@ -104,7 +104,7 @@ fn a_number_too_large_is_no_value() {
     assert_eq!(value_of(&Apply(sub(), vec![n(i64::MIN), n(1)])), None);
 }
 
-// mitra: evidence for standard::if_chooses
+// mitra: evidence for tests::if_chooses
 #[test]
 fn if_chooses() {
     let pick = |test: Value| Apply(choose(&whole()), vec![Given(test), n(1), n(2)]);
@@ -114,7 +114,7 @@ fn if_chooses() {
     assert_eq!(check(&mixed), None);
 }
 
-// mitra: evidence for standard::if_computes_both_branches
+// mitra: evidence for tests::if_computes_both_branches
 #[test]
 fn if_computes_both_branches() {
     let too_large = Apply(mul(), vec![n(i64::MAX), n(2)]);
@@ -122,7 +122,7 @@ fn if_computes_both_branches() {
     assert_eq!((check(&pick), value_of(&pick)), (Some(whole()), None));
 }
 
-// mitra: evidence for standard::a_field_reads_what_was_made
+// mitra: evidence for tests::a_field_reads_what_was_made
 #[test]
 fn a_field_reads_what_was_made() {
     let table = Table {
@@ -139,13 +139,13 @@ fn a_field_reads_what_was_made() {
     assert_eq!(eval(&same, &[], &table), Some(yes()));
 }
 
-// mitra: evidence for standard::no_field_past_the_last
+// mitra: evidence for tests::no_field_past_the_last
 #[test]
 fn no_field_past_the_last() {
     assert_eq!(field(&point(), 2), None);
 }
 
-// mitra: evidence for standard::a_record_the_table_was_not_given_is_not_made
+// mitra: evidence for tests::a_record_the_table_was_not_given_is_not_made
 #[test]
 fn a_record_the_table_was_not_given_is_not_made() {
     let made = Apply(make(&point()), vec![n(1), Given(yes())]);

@@ -1,21 +1,8 @@
-// The seam between the two sides (src/claim.rs).
+// The seam between the two sides. A claim is a statement that says an
+// expression; computing it makes evidence. The only file that reads
+// both model.mitra and value.mitra.
 //
-// Reads: model.mitra, value.mitra, and standard.mitra for what a truth
-// is. None of them reads this file, and the two sides never read each
-// other.
-//
-// Here the content of a statement is filled in. A formal content is an
-// expression that gives a truth; computing it at given inputs makes a
-// piece of evidence about the statement. A prose content is a text,
-// and nothing computes it. That is the only way across: a value never
-// depends on a piece, and an opinion is only moved by evidence.
-//
-// Left out on purpose: the kinds of statement (claim, assume, ensure)
-// and whether one is owed or given, a capture (prose that rests on formal
-// statements), functions and the code they stand for, tests (an
-// observation of the code, not of the model), a statement over many
-// inputs and which of them a piece of evidence covers, who vouches for
-// Mitra's own voice.
+// Code: src/claim.rs.
 
 import std::core::{Option};
 
@@ -27,51 +14,52 @@ subject claims {
     require truth = standard::applied_as_written;
     require applied = Applies::applied_alone;
 
-    ensure formal_is_a_truth = "A formal statement says an expression that gives a truth, the standard one; an expression that gives anything else states nothing.";
-    ensure observed_is_evidence = "Computing a formal statement at given inputs gives evidence about that statement's piece and no other: yes where it is true, no where it is false, and no evidence where it has no value.";
-    ensure prose_is_not_computed = "A prose statement is never computed: only evidence someone brings moves it.";
+    ensure claim_is_a_truth = "A claim is a statement that says an expression. The expression gives a truth, the standard one; one that gives anything else states nothing.";
+    ensure observed_is_evidence = "Computing a claim at given inputs gives evidence about that statement's piece and no other: yes where it is true, no where it is false, and no evidence where it has no value.";
     ensure one_way = "Evidence is made from a value; no value is made from evidence or from an opinion.";
 
-    // What a statement can say.
-    record Formal {
+    // What a claim says. A claim is a statement with this content.
+    record Claim {
         expression: value::Expression,
-    }
-    record Prose {
-        text: String,
     }
 
     // The expression gives a truth.
-    fn reads(s: statement::Statement<Formal>) -> Bool
+    fn reads(s: statement::Statement<Claim>) -> Bool
         uses value::check, standard::truth;
 
     // What computing the statement at these inputs says of it. `with`
     // applies its operations.
-    fn observe(s: statement::Statement<Formal>, inputs: List<(String, value::Value)>, by: evidence::Voice, with: impl Applies<value::Operation, value::Value, value::Quantity>) -> Option<evidence::Evidence>
+    fn observe(s: statement::Statement<Claim>, inputs: List<(String, value::Value)>, by: evidence::Voice, with: impl Applies<value::Operation, value::Value, value::Quantity>) -> Option<evidence::Evidence>
         uses only value::eval, standard::truth, piece::yes, piece::no;
+}
 
-    // formal_is_a_truth
+// What the promises above say, on small cases.
+subject tests {
+    // claims
+
+    // claim_is_a_truth
     claim a_number_is_not_a_statement(p: piece::Piece) {
-        !reads(Statement(p, Formal(Given(standard::number(1))))) && reads(Statement(p, Formal(Given(standard::yes()))))
+        !claims::reads(Statement(p, Claim(Given(standard::number(1))))) && claims::reads(Statement(p, Claim(Given(standard::yes()))))
     }
 
     // observed_is_evidence
     claim true_says_yes(p: piece::Piece) {
-        match observe(Statement(p, Formal(Given(standard::yes()))), [], Voice("machine:mitra"), Table([])) {
+        match claims::observe(Statement(p, Claim(Given(standard::yes()))), [], Voice("machine:mitra"), Table([])) {
             None => false,
             Some(e) => e.value == piece::yes() && e.by == Voice("machine:mitra"),
         }
     }
     claim false_says_no(p: piece::Piece) {
-        match observe(Statement(p, Formal(Given(standard::no()))), [], Voice("machine:mitra"), Table([])) {
+        match claims::observe(Statement(p, Claim(Given(standard::no()))), [], Voice("machine:mitra"), Table([])) {
             None => false,
             Some(e) => e.value == piece::no(),
         }
     }
     claim no_value_says_nothing(p: piece::Piece) {
-        observe(Statement(p, Formal(Input("x", standard::truth()))), [], Voice("machine:mitra"), Table([])) == None
+        claims::observe(Statement(p, Claim(Input("x", standard::truth()))), [], Voice("machine:mitra"), Table([])) == None
     }
-    claim about_its_own_piece(s: statement::Statement<Formal>) {
-        match observe(s, [], Voice("machine:mitra"), Table([])) {
+    claim about_its_own_piece(s: statement::Statement<Claim>) {
+        match claims::observe(s, [], Voice("machine:mitra"), Table([])) {
             None => true,
             Some(e) => e.about == s.piece,
         }

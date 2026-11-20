@@ -13,7 +13,7 @@ pub mod place;
 pub mod statement;
 pub mod tie;
 
-pub use evidence::{apart, conflict, fuse, moved, Evidence, Voice};
+pub use evidence::{apart, conflict, fuse, held, moved, reliable, Evidence, Reliable, Voice};
 pub use piece::{
     against, belief, disbelief, interval, no, nothing, piece_id, projected, reaches, uncertainty,
     yes, Opinion, Piece,
@@ -43,9 +43,11 @@ pub struct Related {
 }
 
 /// All that is said of a system: the evidence, the relations between
-/// pieces, the base rate of each piece that has one, the ties, and the
-/// weight of a base rate. A piece with no base rate has 0: nothing is
-/// assumed. The weight is given: the core holds no value for it.
+/// pieces, the base rate of each piece that has one, the ties, and two
+/// settings: the weight of a base rate, and what to expect of the
+/// completeness of a tie when nothing says. A piece with no base rate
+/// has 0: nothing is assumed. The settings are given: the core holds
+/// no value for them.
 ///
 /// A relation is itself said: a statement whose content is the
 /// relation. What is computed on it counts as far as that statement is
@@ -61,17 +63,19 @@ pub struct Model {
     pub base: Vec<(Piece, f64)>,
     pub ties: Vec<Tie>,
     pub weight: f64,
+    pub completeness: f64,
 }
 
 impl Model {
-    /// Nothing said yet, under a weight.
-    pub fn empty(weight: f64) -> Model {
+    /// Nothing said yet, under the two settings.
+    pub fn empty(weight: f64, completeness: f64) -> Model {
         Model {
             evidence: Vec::new(),
             related: Vec::new(),
             base: Vec::new(),
             ties: Vec::new(),
             weight,
+            completeness,
         }
     }
 }
@@ -140,11 +144,18 @@ pub fn all(x: Opinion, y: Opinion, w: f64) -> Opinion {
     }
 }
 
-/// What to expect of a piece with no evidence: its base rate, or 0.
+/// What to expect of a piece with no evidence: its base rate. With
+/// none written, the completeness of a tie has the model's setting,
+/// and any other piece 0.
 // mitra: implements model::base
 pub fn base(model: &Model, x: &Piece) -> f64 {
-    let own = model.base.iter().find(|(p, _)| p == x);
-    own.map_or(0.0, |(_, a)| *a)
+    if let Some((_, a)) = model.base.iter().find(|(p, _)| p == x) {
+        return *a;
+    }
+    match model.ties.iter().any(|t| &complete(t).piece == x) {
+        true => model.completeness,
+        false => 0.0,
+    }
 }
 
 /// The pieces being worked out, to stop at one that leads back to
@@ -185,11 +196,213 @@ fn prior(model: &Model, x: &Piece, walk: &mut Walk) -> Opinion {
     o
 }
 
-/// What is believed of `x`, from the whole model.
+/// What is believed of `x`, from the whole model: the voices are
+/// judged first, their word counts as far as it holds, and the rest is
+/// read from that.
 // mitra: implements model::opinion
 pub fn opinion(model: &Model, x: &Piece) -> Opinion {
+    let voices = judged(model);
+    match voices.iter().find(|(piece, _)| piece == x) {
+        None => read(&settled(model, &voices), x),
+        Some((_, holds)) => {
+            // What was said of it, and the count that brings it to
+            // what it was judged at.
+            let o = read(model, x);
+            let (n, w) = (o.r + o.s, model.weight);
+            let yes = (holds * (n + w) - o.r - o.a * w) / (1.0 - holds);
+            let no = (o.r + o.a * w) / holds - n - w;
+            match (*holds >= projected(o, w), *holds < 1.0, *holds > 0.0) {
+                (true, true, _) => Opinion { r: o.r + yes, ..o },
+                (false, _, true) => Opinion { s: o.s + no, ..o },
+                _ => o,
+            }
+        }
+    }
+}
+
+/// What is believed of `x` in a model whose voices are not judged.
+fn read(model: &Model, x: &Piece) -> Opinion {
     let mut walk = Walk::default();
     believed(model, x, &mut walk)
+}
+
+/// The voices that can be doubted: those whose reliability has a base
+/// rate. With each, the sources it rests on: the parts of its
+/// reliability, when a relation says it is a whole.
+fn doubted(model: &Model) -> Vec<(Voice, Piece, Vec<Piece>)> {
+    let mut found: Vec<(Voice, Piece, Vec<Piece>)> = Vec::new();
+    for e in &model.evidence {
+        let piece = reliable(&e.by).piece;
+        let known = model.base.iter().any(|(p, _)| p == &piece);
+        if !known || found.iter().any(|(voice, _, _)| voice == &e.by) {
+            continue;
+        }
+        let mut sources = Vec::new();
+        for said in &model.related {
+            let r = &said.content;
+            if r.how == Relation::All && r.pieces.first() == Some(&piece) {
+                sources.extend(parts(model, r));
+            }
+        }
+        found.push((e.by.clone(), piece, sources));
+    }
+    found
+}
+
+/// How far the word of each doubted voice holds, and how far each
+/// source is believed, with the piece of each.
+///
+/// A voice is reliable or not: if not, its word is nothing. Each is
+/// judged by every whole of the model. With `p` the chance that the
+/// parts of a whole are all right before anything is seen of it,
+///
+/// ```text
+/// L = p · (every failing observation is wrong) + (1 - p) · (every passing one is wrong)
+/// ```
+///
+/// is read once with the word of the voice taken whole and once
+/// without it; the ratio of the two, over all the wholes, moves the
+/// odds of the voice. Voices on one source are weighed together. The
+/// parts are then read again with the voices as judged, and so on
+/// until nothing moves: expectation and maximisation, in turn.
+// mitra: implements model::judged
+pub fn judged(model: &Model) -> Vec<(Piece, f64)> {
+    let voices = doubted(model);
+    if voices.is_empty() {
+        return Vec::new();
+    }
+    let w = model.weight;
+    let prior = |x: &Piece| projected(read(model, x), w);
+    let own: Vec<f64> = voices.iter().map(|(_, piece, _)| prior(piece)).collect();
+    let mut sources: Vec<(Piece, f64)> = Vec::new();
+    for (_, _, on) in &voices {
+        for source in on {
+            if !sources.iter().any(|(piece, _)| piece == source) {
+                sources.push((source.clone(), prior(source)));
+            }
+        }
+    }
+    let mut trusted_source: Vec<f64> = sources.iter().map(|(_, p)| *p).collect();
+    let through = |k: usize, at: &[f64]| -> f64 {
+        let on = &voices[k].2;
+        let found = |s: &Piece| sources.iter().position(|(piece, _)| piece == s);
+        on.iter().filter_map(found).map(|i| at[i]).product()
+    };
+    let mut holds: Vec<f64> = Vec::new();
+    for (k, mine) in own.iter().enumerate() {
+        holds.push(mine * through(k, &trusted_source));
+    }
+    // Each whole that was observed: the model before anything is seen
+    // of it and before any no, and how likely its observations are
+    // all wrong.
+    let mut wholes = Vec::new();
+    for said in &model.related {
+        let whole = &said.content.pieces[0];
+        let seen: Vec<&Evidence> = model
+            .evidence
+            .iter()
+            .filter(|e| &e.about == whole)
+            .collect();
+        let is_a_voice = voices.iter().any(|(_, piece, _)| piece == whole);
+        if seen.is_empty() || is_a_voice || said.content.how != Relation::All {
+            continue;
+        }
+        let mut calm = model.clone();
+        calm.evidence
+            .retain(|e| &e.about != whole && e.value.s == 0.0);
+        let (mut passes_wrong, mut failures_wrong) = (1.0, 1.0);
+        for e in seen {
+            let right = projected(read(&calm, &e.piece), w);
+            match e.value.s > 0.0 {
+                true => failures_wrong *= 1.0 - right,
+                false => passes_wrong *= 1.0 - right,
+            }
+        }
+        wholes.push((&said.content, calm, passes_wrong, failures_wrong));
+    }
+    for _ in 0..200 {
+        let mut ratio = vec![1.0; voices.len()];
+        for (k, said) in ratio.iter_mut().enumerate() {
+            for (relation, calm, passes_wrong, failures_wrong) in &wholes {
+                let likely = |mine: f64| {
+                    let mut at = holds.clone();
+                    at[k] = mine;
+                    let world = heard_at(calm, &voices, &at);
+                    let mut all_right = 1.0;
+                    for part in parts(&world, relation) {
+                        all_right *= projected(read(&world, &part), w);
+                    }
+                    all_right * failures_wrong + (1.0 - all_right) * passes_wrong
+                };
+                let (with, without) = (likely(1.0), likely(0.0));
+                if with > 0.0 && without > 0.0 {
+                    *said *= with / without;
+                }
+            }
+        }
+        // A voice with ratio L, reliable with chance a, is as likely
+        // as a·L + 1 - a against 1.
+        let weighed = |k: usize| own[k] * ratio[k] + 1.0 - own[k];
+        for (i, (source, before)) in sources.iter().enumerate() {
+            let mut for_it = *before;
+            for (k, (_, _, on)) in voices.iter().enumerate() {
+                if on.contains(source) {
+                    for_it *= weighed(k);
+                }
+            }
+            trusted_source[i] = for_it / (for_it + 1.0 - before);
+        }
+        let mut moved_by: f64 = 0.0;
+        for k in 0..voices.len() {
+            let now = own[k] * ratio[k] / weighed(k) * through(k, &trusted_source);
+            moved_by = moved_by.max((now - holds[k]).abs());
+            holds[k] = now;
+        }
+        if moved_by < 1e-9 {
+            break;
+        }
+    }
+    let mut out: Vec<(Piece, f64)> = Vec::new();
+    for (k, (_, piece, _)) in voices.iter().enumerate() {
+        out.push((piece.clone(), holds[k]));
+    }
+    for (i, (source, _)) in sources.iter().enumerate() {
+        out.push((source.clone(), trusted_source[i]));
+    }
+    out
+}
+
+/// The model with the word of each voice counted as far as it holds.
+fn heard_at(model: &Model, voices: &[(Voice, Piece, Vec<Piece>)], at: &[f64]) -> Model {
+    let mut out = model.clone();
+    out.evidence.clear();
+    for e in &model.evidence {
+        match voices.iter().position(|(voice, _, _)| voice == &e.by) {
+            None => out.evidence.push(e.clone()),
+            Some(k) if at[k] > 0.0 => out.evidence.push(Evidence {
+                value: held(at[k], e.value, model.weight),
+                ..e.clone()
+            }),
+            Some(_) => {}
+        }
+    }
+    out
+}
+
+/// The model once its voices are judged: their word counted as far as
+/// it holds, and no voice left to doubt. What is believed of a piece
+/// is read from it.
+// mitra: implements model::settled
+pub fn settled(model: &Model, judged: &[(Piece, f64)]) -> Model {
+    let voices = doubted(model);
+    let at: Vec<f64> = voices
+        .iter()
+        .map(|(_, piece, _)| judged.iter().find(|(p, _)| p == piece).map_or(1.0, |j| j.1))
+        .collect();
+    let mut out = heard_at(model, &voices, &at);
+    out.base
+        .retain(|(piece, _)| !voices.iter().any(|(_, p, _)| p == piece));
+    out
 }
 
 /// `x` is believed enough for the policy.
@@ -265,10 +478,6 @@ fn heard(model: &Model, x: &Piece, walk: &mut Walk) -> Vec<(Opinion, Voice)> {
     if !walk.before {
         for (relation, e) in failures(model, walk) {
             let no = blamed(model, relation, e, x, walk) * e.value.s;
-            if no > 0.0 {
-                said.push((disbelieving(no), e.by.clone()));
-            }
-            let no = vouched(model, relation, e, x, walk) * e.value.s;
             if no > 0.0 {
                 said.push((disbelieving(no), e.by.clone()));
             }
@@ -368,58 +577,6 @@ fn blamed(
     alpha / after - alpha / mean
 }
 
-/// The count of no that one failure
-/// puts on `x`, a piece that evidence stands on, when that evidence
-/// said yes about parts of what failed. The failure is more likely if
-/// `x` is wrong, since those parts are then only what they are without
-/// its word:
-///
-/// ```text
-/// mean after = mean · L(right) / (mean · L(right) + (1 - mean) · L(wrong))
-/// L = 1 - the chance that all the suspects are right
-/// ```
-///
-/// with each part read with all of the count `x` stands behind for
-/// L(right), and with none of it for L(wrong). One piece behind many
-/// reviews is one voice's reliability: it is judged once, on all it
-/// vouched for.
-fn vouched(
-    model: &Model,
-    relation: &Statement<Related>,
-    e: &Evidence,
-    x: &Piece,
-    walk: &mut Walk,
-) -> f64 {
-    let said = |about: &Piece| -> f64 {
-        let mine = model.evidence.iter().filter(|v| &v.piece == x);
-        mine.filter(|v| &v.about == about).map(|v| v.value.r).sum()
-    };
-    let group = suspects(model, relation, e, walk);
-    if !group.iter().any(|suspect| said(suspect) > 0.0) {
-        return 0.0;
-    }
-    let (alpha, beta_) = beta(prior(model, x, walk), model.weight);
-    if alpha == 0.0 || beta_ == 0.0 {
-        return 0.0; // not believed at all, or beyond doubt
-    }
-    let mean = alpha / (alpha + beta_);
-    let (mut right, mut wrong) = (1.0, 1.0);
-    for suspect in &group {
-        let part = prior(model, suspect, walk);
-        let yes = said(suspect);
-        let without = f64::max(0.0, part.r - mean * yes);
-        let read = |r: f64| moments(beta(Opinion { r, ..part }, model.weight)).0;
-        right *= read(without + yes);
-        wrong *= read(without);
-    }
-    let (right, wrong) = (1.0 - right, 1.0 - wrong);
-    let after = mean * right / (mean * right + (1.0 - mean) * wrong);
-    match after > 0.0 && after < mean {
-        true => alpha / after - alpha / mean,
-        false => 0.0,
-    }
-}
-
 /// Several opinions on one piece. One voice counts once; different
 /// voices add up.
 fn fused(said: Vec<(Opinion, Voice)>) -> Option<Opinion> {
@@ -507,6 +664,7 @@ fn together(model: &Model, on: &BTreeSet<Piece>, walk: &mut Walk) -> Opinion {
 /// that are each believed.
 // mitra: implements model::conflicts
 pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
+    let model = &settled(model, &judged(model));
     let mut out = Vec::new();
     let mut walk = Walk::default();
     for (relation, e) in failures(model, &mut walk) {
@@ -522,8 +680,8 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
         .filter(|said| said.content.how == Relation::Exclude)
     {
         let r = &said.content;
-        if projected(opinion(model, &said.piece), model.weight) > 0.0
-            && r.pieces.iter().all(|p| opinion(model, p).r > 0.0)
+        if projected(read(model, &said.piece), model.weight) > 0.0
+            && r.pieces.iter().all(|p| read(model, p).r > 0.0)
         {
             out.push(ordered(model, r.pieces.clone()));
         }
@@ -538,7 +696,7 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
             .iter()
             .filter(|o| o.about == e.about)
             .collect();
-        let said = |o: &&Evidence| moved(opinion(model, &o.piece), o.value, model.weight);
+        let said = |o: &&Evidence| moved(read(model, &o.piece), o.value, model.weight);
         let clash = about
             .iter()
             .any(|x| about.iter().any(|y| conflict(said(x), said(y)) > 0.0));
@@ -553,7 +711,7 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
 }
 
 fn ordered(model: &Model, mut pieces: Vec<Piece>) -> Vec<Piece> {
-    let p = |x: &Piece| projected(opinion(model, x), model.weight);
+    let p = |x: &Piece| projected(read(model, x), model.weight);
     pieces.sort_by(|x, y| p(x).total_cmp(&p(y)));
     pieces
 }

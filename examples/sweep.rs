@@ -11,6 +11,8 @@ use mitra_core::model::*;
 
 /// The weight of a base rate that these are recorded at.
 const W: f64 = 0.2;
+/// What to expect of the completeness of a tie when nothing says.
+const C: f64 = 0.6;
 
 fn p(name: &str) -> Piece {
     Piece::named(name)
@@ -20,7 +22,7 @@ fn p(name: &str) -> Piece {
 type Object = (String, usize, usize);
 
 fn world(objects: &[Object], one_voice_per_object: bool) -> Model {
-    let mut m = Model::empty(W);
+    let mut m = Model::empty(W, C);
     m.base.push((p("gravity"), 0.5));
     for (name, pass, fail) in objects {
         let (mass, whole) = (format!("mass {name}"), format!("same speed {name}"));

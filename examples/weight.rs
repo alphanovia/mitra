@@ -12,6 +12,9 @@ use mitra_core::model::*;
 mod common;
 use common::{interval, ln_beta};
 
+/// What to expect of the completeness of a tie when nothing says.
+const C: f64 = 0.6;
+
 fn p(name: &str) -> Piece {
     Piece::named(name)
 }
@@ -54,7 +57,7 @@ fn both(m: &Model, x: &str) -> String {
 fn one_throw(senses: f64, fell: bool) -> Model {
     let mut m = Model {
         base: vec![(p("applies"), 0.5), (p("falls"), 0.5)],
-        ..Model::empty(0.2)
+        ..Model::empty(0.2, C)
     };
     whole(&mut m, &["lands", "applies", "falls"]);
     says(&mut m, "throw", "lands", fell, senses);
@@ -63,7 +66,7 @@ fn one_throw(senses: f64, fell: bool) -> Model {
 
 /// Objects: (name, measurements that pass, that fail).
 fn sweep(objects: &[(String, usize, usize)]) -> Model {
-    let mut m = Model::empty(0.2);
+    let mut m = Model::empty(0.2, C);
     m.base.push((p("gravity"), 0.5));
     for (name, pass, fail) in objects {
         let (mass, speed) = (format!("mass {name}"), format!("same speed {name}"));

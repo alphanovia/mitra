@@ -8,6 +8,8 @@ use mitra_core::value::Value;
 
 /// The weight of a base rate that these are recorded at.
 const W: f64 = 0.2;
+/// What to expect of the completeness of a tie when nothing says.
+const C: f64 = 0.6;
 
 const MITRA: &str = "machine:mitra";
 fn mitra() -> Voice {
@@ -27,35 +29,35 @@ fn one() -> mitra_core::value::Expression {
     Given(number(1))
 }
 
-fn claim(name: &str, expression: mitra_core::value::Expression) -> Statement<Formal> {
+fn claim(name: &str, expression: mitra_core::value::Expression) -> Statement<Claim> {
     Statement {
         piece: Piece::named(name),
-        content: Formal { expression },
+        content: Claim { expression },
     }
 }
 
-// mitra: evidence for claims::a_number_is_not_a_statement
+// mitra: evidence for tests::a_number_is_not_a_statement
 #[test]
 fn a_number_is_not_a_statement() {
     assert!(!reads(&claim("c", one())));
     assert!(reads(&claim("c", truly())));
 }
 
-// mitra: evidence for claims::true_says_yes
+// mitra: evidence for tests::true_says_yes
 #[test]
 fn true_says_yes() {
     let e = observe(&claim("c", truly()), &[], &mitra(), &table()).unwrap();
     assert_eq!((e.value, e.by), (yes(), mitra()));
 }
 
-// mitra: evidence for claims::false_says_no
+// mitra: evidence for tests::false_says_no
 #[test]
 fn false_says_no() {
     let seen = observe(&claim("c", falsely()), &[], &mitra(), &table()).unwrap();
     assert_eq!(seen.value, no());
 }
 
-// mitra: evidence for claims::no_value_says_nothing
+// mitra: evidence for tests::no_value_says_nothing
 #[test]
 fn no_value_says_nothing() {
     assert_eq!(
@@ -70,7 +72,7 @@ fn no_value_says_nothing() {
     assert_eq!(observe(&claim("c", one()), &[], &mitra(), &table()), None);
 }
 
-// mitra: evidence for claims::about_its_own_piece
+// mitra: evidence for tests::about_its_own_piece
 #[test]
 fn about_its_own_piece() {
     for statement in [truly(), falsely()] {
@@ -101,7 +103,7 @@ fn a_statement_computed_moves_the_opinion_of_its_claim() {
     // How far what Mitra computes is believed is a base rate like any other.
     let mut model = Model {
         base: vec![(seen.piece.clone(), 1.0)],
-        ..Model::empty(W)
+        ..Model::empty(W, C)
     };
     assert!(!trusted(&model, &small.piece, 0.0));
     model.evidence.push(seen);

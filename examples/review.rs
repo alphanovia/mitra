@@ -13,6 +13,8 @@ use common::interval;
 
 /// The weight of a base rate that these are recorded at.
 const W: f64 = 0.2;
+/// What to expect of the completeness of a tie when nothing says.
+const C: f64 = 0.6;
 
 fn p(name: &str) -> Piece {
     Piece::named(name)
@@ -58,7 +60,7 @@ fn cell(m: &Model, x: &str) -> String {
 fn one_throw(statement: f64, tie: f64, fell: bool) -> Model {
     let mut m = Model {
         base: vec![(p("applies"), 0.5), (p("falls"), 0.5)],
-        ..Model::empty(W)
+        ..Model::empty(W, C)
     };
     whole(&mut m, &["lands", "applies", "falls"]);
     if statement > 0.0 {
@@ -76,7 +78,7 @@ fn one_throw(statement: f64, tie: f64, fell: bool) -> Model {
 /// measurements each. `gravity` and the mass of the first failing
 /// object may be reviewed.
 fn sweep(pass: usize, fail: usize, k: usize, gravity: f64, mass: f64) -> Model {
-    let mut m = Model::empty(W);
+    let mut m = Model::empty(W, C);
     m.base.push((p("gravity"), 0.5));
     if gravity > 0.0 {
         says(&mut m, "centuries", "gravity", gravity, 0.0, 0.99);
@@ -107,7 +109,7 @@ fn sweep(pass: usize, fail: usize, k: usize, gravity: f64, mass: f64) -> Model {
 /// (piece, yes) by one reviewer believed at `trust`; each review is a
 /// piece of its own.
 fn reviewed(objects: &[(&str, usize, usize)], reviews: &[(&str, f64)], trust: f64) -> Model {
-    let mut m = Model::empty(W);
+    let mut m = Model::empty(W, C);
     m.base.push((p("gravity"), 0.5));
     for (name, pass, fail) in objects {
         let (mass, done, speed) = (

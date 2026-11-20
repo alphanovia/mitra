@@ -60,7 +60,7 @@ fn each_subject_reads_only_what_it_requires() {
     let allowed: [(&str, &[&str]); 5] = [
         ("place", &[]),
         ("piece", &[]),
-        ("evidence", &["piece"]),
+        ("evidence", &["piece", "statement"]),
         ("statement", &["piece"]),
         ("tie", &["piece", "place", "statement"]),
     ];
