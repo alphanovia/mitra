@@ -88,6 +88,12 @@ pub fn next(model: &Model, report: &Report) -> String {
     verdicts.sort_by_key(|v| v.logic != Logic::Fails || !suspects(subject(v)).is_empty());
     for v in verdicts {
         let c = model.claim(&v.claim).expect("verdicts name claims");
+        // Every input has its evidence, believed less than the policy
+        // asks: what is owed is a review of the tests.
+        if let Some(text) = v.below() {
+            out += &format!("{}: {text}\n", c.name);
+            continue;
+        }
         // That a function is deterministic: no single test says it.
         if let Some((_, f, same)) = model.determinism.iter().find(|d| d.0 == c.name) {
             if v.logic == Logic::Unverified && *same {

@@ -1,0 +1,5 @@
+// One claim at one point, and one test tied to it.
+subject clock {
+    fn next(h: 0..=23) -> 0..=23;
+    claim wraps() { next(23) == 0 }
+}

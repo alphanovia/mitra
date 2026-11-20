@@ -1,0 +1,4 @@
+evidence test { for clock::next given h = 23 gives 0 act test by "machine:cargo" source "test:at_midnight" }
+evidence test { for clock::next given h = 22 gives 23 act test by "machine:cargo" source "test:before_midnight" }
+evidence review { for clock::next holds act review of "test:at_midnight" trust 1 by "agent:anthropic/fable-5.2/golden" }
+evidence review { for clock::midnight::captured holds act review by "agent:anthropic/fable-5.2/golden" }

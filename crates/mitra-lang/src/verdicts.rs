@@ -6,6 +6,7 @@
 
 mod causes;
 mod classes;
+mod confidence;
 pub mod culprits;
 mod evidence;
 mod problems;
@@ -110,6 +111,23 @@ pub struct Verdict {
     pub domain: Tuples,
     /// For a claim with `from`.
     pub implication: Option<Implication>,
+    /// How far the evidence behind the verdict is believed, when the
+    /// settings give tests a bias.
+    pub confidence: Option<Confidence>,
+}
+
+/// How far a verdict is believed: the product of what it stands on.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Confidence {
+    pub value: f64,
+    /// The tests behind it: source, how far each is believed, who
+    /// reviewed it (`None`: nobody, it is believed at the bias), and
+    /// what the test is on.
+    pub tests: Vec<(String, f64, Option<String>, String)>,
+    /// The claims it follows from, each with its confidence.
+    pub from: Vec<(String, f64)>,
+    /// What the policy asks of a claim to hold.
+    pub asked: Option<f64>,
 }
 
 /// What a `uniform` claim adds to another claim on the same subject: an
@@ -408,6 +426,8 @@ pub(crate) struct Judge<'a> {
     pub(crate) logic_of: HashMap<&'a str, Logic>,
     pub(crate) assuming_of: HashMap<&'a str, Vec<String>>,
     pub(crate) verdicts: Vec<Verdict>,
+    /// Per claim that carries one, its confidence.
+    pub(crate) confidence_of: HashMap<&'a str, f64>,
     /// Per claim, the evidence lines of failures that refute it through a
     /// class, and the `uniform` claims relied on.
     pub(crate) through: Vec<(Vec<usize>, Vec<usize>)>,
@@ -464,6 +484,28 @@ impl Report {
 }
 
 impl Verdict {
+    /// For a claim that is unverified only because the policy asks more
+    /// than its evidence is believed: what it has, what is asked, and
+    /// the reviews that would lift it.
+    pub fn below(&self) -> Option<String> {
+        let k = self.confidence.as_ref()?;
+        let asked = k.asked.filter(|_| self.logic == Logic::Unverified)?;
+        let n = |x: f64| ((x * 100.0).round() / 100.0).to_string();
+        let mut out = format!("believed at {}, and the policy asks {}", n(k.value), n(asked));
+        for (source, said, _, on) in k.tests.iter().filter(|t| t.1 < asked) {
+            out += &format!(
+                "\n  owed: a review of {source}, believed at {}: \
+                 evidence <name> {{ for {} holds act review of \"{source}\" trust <how sure> by \"<who>\" }}",
+                n(*said),
+                on
+            );
+        }
+        for (claim, said) in k.from.iter().filter(|f| f.1 < asked) {
+            out += &format!("\n  follows from `{claim}`, believed at {}", n(*said));
+        }
+        Some(out)
+    }
+
     /// An assumption on a boundary that rests on nothing but itself: the
     /// model says so on purpose.
     pub fn own_word(&self) -> bool {

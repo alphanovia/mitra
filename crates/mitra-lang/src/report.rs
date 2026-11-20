@@ -241,6 +241,9 @@ impl Writer<'_> {
                 *out += &format!(" [{}]", v.assuming.join(", "));
             }
             *out += "\n";
+            if let Some(k) = &v.confidence {
+                *out += &confidence(k, v.logic);
+            }
             if matches!(v.logic, Logic::Holds | Logic::Assuming) {
                 *out += &crate::ledger::voices::by_line(self.model, &v.claim);
             }
@@ -470,7 +473,7 @@ impl Writer<'_> {
             let c = self.claim(&v.claim);
             let name = &v.claim;
             match v.logic {
-                Logic::Unverified if self.model.ensure(name).is_some() => {
+                Logic::Unverified if self.model.ensure(name).is_some() && v.below().is_none() => {
                     *out += &format!("\nwarning[M101]: {}\n", headline("M101"));
                     *out += &self.at_claim(name);
                     *out += "\n  No claim in its subject says it, or a claim it rests on is not settled.\n  \
@@ -500,6 +503,11 @@ impl Writer<'_> {
                              help: settle the evidence on it\n"
                         )
                     };
+                }
+                Logic::Unverified if v.below().is_some() => {
+                    *out += &format!("\nwarning[M101]: {}\n", headline("M101"));
+                    *out += &self.at_claim(name);
+                    *out += &format!("\n  `{name}` is {}\n", v.below().unwrap_or_default());
                 }
                 Logic::Unverified => {
                     *out += &format!("\nwarning[M101]: {}\n", headline("M101"));
@@ -700,4 +708,29 @@ mod tests {
     fn t_word_unlikely() {
         assert_eq!(word(&candidate(0.0, 0.25)), "unlikely");
     }
+}
+
+/// The lines under a verdict that say how far it is believed, and on
+/// which tests and claims.
+fn confidence(k: &crate::verdicts::Confidence, logic: Logic) -> String {
+    let n = |x: f64| ((x * 100.0).round() / 100.0).to_string();
+    let mut out = format!("  confidence      {}", n(k.value));
+    match (k.asked, logic) {
+        (Some(a), Logic::Unverified) => out += &format!(", and the policy asks {}", n(a)),
+        (Some(a), Logic::Holds | Logic::Assuming) => out += &format!(", the policy asks {}", n(a)),
+        _ => {}
+    }
+    out += "\n";
+    for (source, said, who, _) in &k.tests {
+        let word = if logic == Logic::Fails { "fails" } else { "passes" };
+        out += &match who {
+            Some(w) => format!("  on              {source} {word}, reviewed at {} by {w}\n", n(*said)),
+            None => format!("  on              {source} {word}, not reviewed: bias {}\n", n(*said)),
+        };
+    }
+    if !k.from.is_empty() {
+        let each: Vec<String> = k.from.iter().map(|f| format!("`{}` {}", f.0, n(f.1))).collect();
+        out += &format!("  from            {}\n", each.join(", "));
+    }
+    out
 }

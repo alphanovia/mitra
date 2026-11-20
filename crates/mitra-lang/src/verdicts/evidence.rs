@@ -23,6 +23,9 @@ pub(crate) struct Direct {
     pub(crate) tainted: Vec<Vec<Value>>,
     /// Each pass or failure: its inputs, its side and its evidence line.
     pub(crate) sources: Vec<(Tuples, bool, usize)>,
+    /// Each way the evidence says the claim passes or fails on some
+    /// inputs: the evidence lines that say it together.
+    pub(crate) arguments: Vec<(Tuples, bool, Vec<usize>)>,
     /// For a property: each failing input with the lines of every output
     /// it was computed from. They are wrong together or not at all.
     pub(crate) joint: Vec<(Vec<Value>, Vec<usize>)>,
@@ -124,6 +127,7 @@ impl<'a> Judge<'a> {
             assuming_of: HashMap::new(),
             verdicts: Vec::new(),
             through: Vec::new(),
+            confidence_of: HashMap::new(),
         }
     }
 
@@ -209,6 +213,7 @@ impl<'a> Judge<'a> {
             // Each pass or failure with its inputs and evidence line, to find
             // those that can't both be true.
             let mut sources: Vec<(Tuples, bool, usize)> = Vec::new();
+            let mut arguments: Vec<(Tuples, bool, Vec<usize>)> = Vec::new();
             for e in model.evidence.iter() {
                 let ok = match &e.judgment {
                     Judgment::Holds(ok) if e.about == c.name => *ok,
@@ -228,6 +233,7 @@ impl<'a> Judge<'a> {
                 blind |= !ok && inputs.is_empty() && !set.is_empty();
                 points.extend(inputs.into_iter().map(|x| (x, ok, e.line)));
                 sources.push((set.clone(), ok, e.line));
+                arguments.push((set.clone(), ok, vec![e.line]));
                 let side = if ok { &mut right } else { &mut wrong };
                 *side = side.union(&set);
             }
@@ -330,6 +336,7 @@ impl<'a> Judge<'a> {
                         }
                         // Every line that records the output is a source.
                         sources.push((point.clone(), ok, line));
+                        arguments.push((point.clone(), ok, lines.clone()));
                         for l in lines.iter().skip(1) {
                             sources.push((point.clone(), ok, *l));
                         }
@@ -377,6 +384,7 @@ impl<'a> Judge<'a> {
                 points,
                 blind,
                 sources,
+                arguments,
             });
         }
         Ok(())

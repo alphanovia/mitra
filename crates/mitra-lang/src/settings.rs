@@ -22,6 +22,13 @@ pub struct Settings {
     /// What a piece must rest on to be within policy, by kind of piece
     /// (`claim`, `ensure`). Nothing asked by default.
     pub policy: BTreeMap<String, String>,
+    /// How far a piece of evidence of a kind is believed before anyone
+    /// reviewed it, where the file says: `test`. With none, no verdict
+    /// carries a confidence.
+    pub bias: BTreeMap<String, f64>,
+    /// The confidence a claim needs to hold, `[policy] holds`. With
+    /// none, no verdict changes.
+    pub holds: Option<f64>,
 }
 
 /// The kinds of voice, each with how often its word is taken to be
@@ -43,6 +50,8 @@ impl Default for Settings {
             erasure: BTreeMap::new(),
             doubt: BTreeMap::new(),
             policy: BTreeMap::new(),
+            bias: BTreeMap::new(),
+            holds: None,
         }
     }
 }
@@ -64,9 +73,9 @@ impl Settings {
             }
             if let Some(name) = line.strip_prefix('[').and_then(|l| l.strip_suffix(']')) {
                 table = name.trim().to_string();
-                if !["sample", "erasure", "doubt", "policy"].contains(&table.as_str()) {
+                if !["sample", "erasure", "doubt", "policy", "bias"].contains(&table.as_str()) {
                     return Err(at(format!(
-                        "no settings `[{table}]` (`[sample]`, `[erasure]`, `[doubt]`, `[policy]`)"
+                        "no settings `[{table}]` (`[sample]`, `[erasure]`, `[doubt]`, `[policy]`, `[bias]`)"
                     )));
                 }
                 continue;
@@ -103,6 +112,10 @@ impl Settings {
                 ("doubt", k) if DOUBT.iter().any(|d| d.0 == k) => {
                     s.doubt.insert(key.to_string(), share()?);
                 }
+                ("bias", "test") => {
+                    s.bias.insert(key.to_string(), share()?);
+                }
+                ("policy", "holds") => s.holds = Some(share()?),
                 ("policy", "claim" | "ensure") => {
                     let text = value.strip_prefix('"').and_then(|v| v.strip_suffix('"'));
                     let Some(text) = text else {
@@ -164,6 +177,15 @@ impl Settings {
         for kind in ["claim", "ensure"] {
             let asked = self.policy.get(kind).map_or("any", |p| p.as_str());
             out += &format!("{kind} = \"{asked}\"\n");
+        }
+        if let Some(h) = self.holds {
+            out += &format!("holds = {h}\n");
+        }
+        if !self.bias.is_empty() {
+            out += "\n[bias]\n";
+            for (kind, b) in &self.bias {
+                out += &format!("{kind} = {b}\n");
+            }
         }
         out
     }

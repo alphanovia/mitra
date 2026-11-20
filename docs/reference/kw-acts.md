@@ -93,7 +93,8 @@ own, with its own error rate.
 
 `of "test:t_fee"`: a review of the evidence of that source, not of the
 claim. It judges nothing; the evidence it names carries a second
-voice.
+voice. Its `trust` is how sure the reviewer is that the test is
+correct, which a [bias](settings.md#a-bias-and-a-threshold) uses.
 
 ```mitra
 subject shipping {

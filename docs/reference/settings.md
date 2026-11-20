@@ -17,7 +17,7 @@ width = 0.02
 field = 0.05
 ```
 
-The part of TOML that is read: the four tables, `key = value`,
+The part of TOML that is read: the five tables, `key = value`,
 numbers, `true`, `false`, a text in quotes, comments. A table or a key that is not a setting is
 refused with its line, and so is an erasure the reader does not have.
 
@@ -107,3 +107,42 @@ A piece that holds and lacks what is asked still reads `holds`, with
 - One file per store; nothing is inherited from a folder above.
 - A sample is not yet weighed against a failing point as a suspect:
   the failure wins.
+
+## A bias and a threshold
+
+```toml
+[bias]
+test = 0.5      # how far a passing test nobody reviewed is believed
+
+[policy]
+holds = 0.9     # the confidence a claim needs to hold
+```
+
+A test owes two things: that it passes, which the machine that ran it
+says, and that it is correct, which a review of it says
+([of](kw-acts.md#of)). With `[bias] test`, every verdict that stands
+on tests carries a confidence:
+
+- a test nobody reviewed is believed at the bias;
+- a reviewed test is believed as far as its reviewer said, the `trust`
+  of the review, 1 when not said; a review that says `fails` of the
+  test leaves it at 0;
+- the tests one way of reaching a verdict needs are multiplied; where
+  two ways cover the same inputs the better one counts; a test that
+  pins several inputs counts once;
+- a claim that follows from others, and a promise, multiply the
+  confidences of what they follow from.
+
+With `[policy] holds`, a claim whose confidence is under it reads
+`unverified`, and `mitra next` lists the reviews it is owed. A failing
+test fails its claim whatever the threshold.
+
+```text
+clock::wraps: unverified
+  confidence      0.5, and the policy asks 0.9
+  on              test:midnight_wraps passes, not reviewed: bias 0.5
+```
+
+Only tests are weighed: a review of a claim, a sample, a tie count as
+they did. With no `[bias]` nothing here applies. The cases, each with
+its report: `examples/trust/`.

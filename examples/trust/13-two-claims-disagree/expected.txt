@@ -1,0 +1,46 @@
+clock::next::correct: unverified
+  passes on       `clock::next(23)`
+  no evidence on  h in 0..=22
+clock::next::deterministic: fails
+  confidence      0.5
+  on              test:midnight_stops fails, not reviewed: bias 0.5
+  fails on        `clock::next` giving one output per input
+clock::wraps: holds
+  confidence      1, the policy asks 0.9
+  on              test:midnight_wraps passes, reviewed at 1 by agent:anthropic/fable-5.2/golden
+  by              review (agent:anthropic/fable-5.2/golden), test (unknown); doubt 0.15
+clock::stops: unverified
+  confidence      0.5, and the policy asks 0.9
+  on              test:midnight_stops passes, not reviewed: bias 0.5
+
+error[M001]: evidence refutes a claim
+  --> model.mitra:4  fn next(h: 0..=23) -> 0..=23;
+
+  `clock::next::deterministic` fails on `clock::next` giving one output per input.
+  The evidence that says so:
+
+    vouches   evidence.mitra:2  evidence test { for clock::stops holds act test by "machine:cargo" source "test:midnight_stops" }
+
+  The code, the claim or the evidence is wrong. Below, the trust given to each
+  piece, and what is left of it once they are weighed against each other:
+
+                                                        trust  left
+    certain   the code of `clock::next`, model.mitra:4  none   0.00
+
+  The lower what is left, the more plausibly the piece is the wrong one.
+
+  help: correct the claim or the definitions it compares
+
+warning[M101]: a claim is not verified
+  --> model.mitra:4  fn next(h: 0..=23) -> 0..=23;
+
+  No evidence on h in 0..=22.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:6  claim stops() { next(23) == 23 }
+
+  `clock::stops` is believed at 0.5, and the policy asks 0.9
+  owed: a review of test:midnight_stops, believed at 0.5: evidence <name> { for clock::stops holds act review of "test:midnight_stops" trust <how sure> by "<who>" }
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M001`.

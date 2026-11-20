@@ -1,0 +1,20 @@
+clock::next::correct: unverified
+  passes on       `clock::next(23)`
+  no evidence on  h in 0..=22
+clock::next::deterministic: unverified
+  no evidence on  `clock::next` giving one output per input
+clock::wraps: holds
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  fn next(h: 0..=23) -> 0..=23;
+
+  No evidence on h in 0..=22.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model.mitra:3  fn next(h: 0..=23) -> 0..=23;
+
+  No evidence on `clock::next` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

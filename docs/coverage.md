@@ -5,13 +5,13 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 
 | Crate | Functions | Tied | Share | Lines in functions | In tied ones | Share | Code lines | Model lines | Model / code |
 |---|---|---|---|---|---|---|---|---|---|
-| mitra-lang | 464 | 58 | 12% | 14709 | 1767 | 12% | 15745 | 1049 | 7% |
+| mitra-lang | 467 | 58 | 12% | 14850 | 1780 | 12% | 15898 | 1049 | 7% |
 | mitra-store | 27 | 13 | 48% | 415 | 206 | 50% | 424 | 102 | 24% |
 | mitra-rust | 26 | 8 | 31% | 1024 | 576 | 56% | 1082 | 42 | 4% |
 | mitra-cli | 23 | 2 | 9% | 701 | 60 | 9% | 740 | 57 | 8% |
-| all | 540 | 81 | 15% | 16849 | 2609 | 15% | 17991 | 1250 | 7% |
+| all | 543 | 81 | 15% | 16990 | 2622 | 15% | 18144 | 1250 | 7% |
 
-- mitra-lang: 1049 lines of model over 15745 lines of code, in 22 subjects with 85 ensures and 9 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
+- mitra-lang: 1049 lines of model over 15898 lines of code, in 22 subjects with 85 ensures and 9 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
 - mitra-store: 102 lines of model over 424 lines of code, in 4 subjects with 22 ensures and 8 requires; apart from it, 0 lines of point claims and 0 tests pinned in the code.
 - mitra-rust: 42 lines of model over 1082 lines of code, in 2 subjects with 3 ensures and 3 requires; apart from it, 28 lines of point claims and 0 tests pinned in the code.
 - mitra-cli: 57 lines of model over 740 lines of code, in 1 subject with 11 ensures and 18 requires; apart from it, 0 lines of point claims and 4 tests pinned in the code.
@@ -67,15 +67,15 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | report/plan.rs | `plan` | 17 | 276 | advice::plan |
 | report/print.rs | `negative` | 117 | 7 | print::negative |
 | report/print.rs | `level` | 131 | 9 | print::level |
-| settings.rs | `read` | 56 | 68 | settings::Settings::read |
-| settings.rs | `sample` | 129 | 3 | settings::Settings::sample |
-| settings.rs | `doubt` | 135 | 4 | settings::Settings::doubt |
-| settings.rs | `strength` | 143 | 3 | settings::Settings::strength |
-| settings.rs | `written` | 150 | 20 | settings::Settings::written |
+| settings.rs | `read` | 65 | 72 | settings::Settings::read |
+| settings.rs | `sample` | 142 | 3 | settings::Settings::sample |
+| settings.rs | `doubt` | 148 | 4 | settings::Settings::doubt |
+| settings.rs | `strength` | 156 | 3 | settings::Settings::strength |
+| settings.rs | `written` | 163 | 29 | settings::Settings::written |
 | types/check.rs | `check` | 110 | 417 | types::Model::check |
 | types/set/show.rs | `quote` | 163 | 13 | print::quote |
-| verdicts.rs | `as_str` | 45 | 8 | report::Logic::as_str |
-| verdicts.rs | `evaluate` | 417 | 24 | verdicts::evaluate |
+| verdicts.rs | `as_str` | 46 | 8 | report::Logic::as_str |
+| verdicts.rs | `evaluate` | 437 | 24 | verdicts::evaluate |
 | verdicts/culprits.rs | `rank` | 59 | 22 | culprits::rank |
 | verdicts/prove.rs | `derive` | 478 | 45 | verdicts::derive |
 | build.rs | `hidden` | 103 | 5 |  |
@@ -257,23 +257,23 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | report.rs | `role` | 147 | 16 |  |
 | report.rs | `inputs` | 165 | 41 |  |
 | report.rs | `missed` | 210 | 21 |  |
-| report.rs | `verdicts` | 234 | 176 |  |
-| report.rs | `lints` | 416 | 13 |  |
-| report.rs | `warnings` | 430 | 216 |  |
-| report.rs | `to_text` | 552 | 3 |  |
-| report.rs | `to_text_with` | 557 | 7 |  |
-| report.rs | `model_text_at` | 568 | 20 |  |
-| report.rs | `problem_texts` | 590 | 16 |  |
-| report.rs | `model_warnings` | 608 | 3 |  |
-| report.rs | `to_text_at` | 615 | 47 |  |
+| report.rs | `verdicts` | 234 | 179 |  |
+| report.rs | `lints` | 419 | 13 |  |
+| report.rs | `warnings` | 433 | 221 |  |
+| report.rs | `to_text` | 560 | 3 |  |
+| report.rs | `to_text_with` | 565 | 7 |  |
+| report.rs | `model_text_at` | 576 | 20 |  |
+| report.rs | `problem_texts` | 598 | 16 |  |
+| report.rs | `model_warnings` | 616 | 3 |  |
+| report.rs | `to_text_at` | 623 | 47 |  |
 | report/codes.rs | `explain` | 175 | 4 |  |
 | report/errors.rs | `quoted` | 7 | 13 |  |
 | report/errors.rs | `piece` | 22 | 109 |  |
 | report/errors.rs | `ranking` | 135 | 87 |  |
 | report/errors.rs | `error` | 228 | 229 |  |
-| report/next.rs | `next` | 16 | 386 |  |
-| report/next.rs | `ask` | 392 | 17 |  |
-| report/next.rs | `vouch` | 411 | 4 |  |
+| report/next.rs | `next` | 16 | 390 |  |
+| report/next.rs | `ask` | 398 | 17 |  |
+| report/next.rs | `vouch` | 417 | 4 |  |
 | report/plan.rs | `owed` | 79 | 158 |  |
 | report/plan.rs | `point` | 243 | 6 |  |
 | report/plan.rs | `subject_call` | 250 | 3 |  |
@@ -288,7 +288,7 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | report/print.rs | `expr` | 141 | 3 |  |
 | report/print.rs | `contract` | 146 | 112 |  |
 | report/print.rs | `at` | 262 | 101 |  |
-| settings.rs | `default` | 39 | 9 |  |
+| settings.rs | `default` | 46 | 11 |  |
 | types.rs | `check` | 20 | 29 |  |
 | types.rs | `inside` | 52 | 11 |  |
 | types.rs | `contract` | 65 | 5 |  |
@@ -421,14 +421,15 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | types/tuples.rs | `show` | 156 | 41 |  |
 | types/tuples.rs | `show_box` | 202 | 4 |  |
 | types/tuples.rs | `box_minus` | 209 | 17 |  |
-| verdicts.rs | `as_str` | 70 | 7 |  |
-| verdicts.rs | `text` | 208 | 14 |  |
-| verdicts.rs | `declared_claim` | 266 | 7 |  |
-| verdicts.rs | `code` | 340 | 11 |  |
-| verdicts.rs | `default` | 363 | 6 |  |
-| verdicts.rs | `model_err` | 388 | 3 |  |
-| verdicts.rs | `warnings` | 450 | 13 |  |
-| verdicts.rs | `own_word` | 469 | 3 |  |
+| verdicts.rs | `as_str` | 71 | 7 |  |
+| verdicts.rs | `text` | 226 | 14 |  |
+| verdicts.rs | `declared_claim` | 284 | 7 |  |
+| verdicts.rs | `code` | 358 | 11 |  |
+| verdicts.rs | `default` | 381 | 6 |  |
+| verdicts.rs | `model_err` | 406 | 3 |  |
+| verdicts.rs | `warnings` | 470 | 13 |  |
+| verdicts.rs | `below` | 490 | 22 |  |
+| verdicts.rs | `own_word` | 511 | 3 |  |
 | verdicts/causes.rs | `failing` | 7 | 14 |  |
 | verdicts/causes.rs | `suspects` | 23 | 17 |  |
 | verdicts/causes.rs | `roots` | 43 | 46 |  |
@@ -444,14 +445,16 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | verdicts/classes.rs | `broken` | 369 | 3 |  |
 | verdicts/classes.rs | `usable` | 375 | 3 |  |
 | verdicts/classes.rs | `vouched` | 379 | 3 |  |
+| verdicts/confidence.rs | `believed` | 14 | 15 |  |
+| verdicts/confidence.rs | `weigh` | 32 | 70 |  |
 | verdicts/culprits.rs | `weigh` | 88 | 51 |  |
-| verdicts/evidence.rs | `listed` | 36 | 6 |  |
-| verdicts/evidence.rs | `shown` | 44 | 13 |  |
-| verdicts/evidence.rs | `clash` | 59 | 23 |  |
-| verdicts/evidence.rs | `new` | 86 | 43 |  |
-| verdicts/evidence.rs | `split` | 132 | 43 |  |
-| verdicts/evidence.rs | `direct` | 181 | 180 |  |
-| verdicts/evidence.rs | `judged` | 386 | 27 |  |
+| verdicts/evidence.rs | `listed` | 39 | 6 |  |
+| verdicts/evidence.rs | `shown` | 47 | 13 |  |
+| verdicts/evidence.rs | `clash` | 62 | 23 |  |
+| verdicts/evidence.rs | `new` | 89 | 44 |  |
+| verdicts/evidence.rs | `split` | 136 | 43 |  |
+| verdicts/evidence.rs | `direct` | 185 | 184 |  |
+| verdicts/evidence.rs | `judged` | 394 | 27 |  |
 | verdicts/problems.rs | `uses_of` | 9 | 23 |  |
 | verdicts/problems.rs | `is_subject` | 33 | 3 |  |
 | verdicts/problems.rs | `quoted` | 37 | 3 |  |
@@ -482,8 +485,8 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | verdicts/verdict.rs | `represented` | 15 | 23 |  |
 | verdicts/verdict.rs | `stands` | 40 | 24 |  |
 | verdicts/verdict.rs | `drawn` | 67 | 9 |  |
-| verdicts/verdict.rs | `verdicts` | 78 | 11 |  |
-| verdicts/verdict.rs | `verdict` | 90 | 328 |  |
+| verdicts/verdict.rs | `verdicts` | 78 | 12 |  |
+| verdicts/verdict.rs | `verdict` | 91 | 329 |  |
 
 ## mitra-store
 

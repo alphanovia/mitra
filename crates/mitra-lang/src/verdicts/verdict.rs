@@ -78,7 +78,8 @@ impl<'a> Judge<'a> {
     pub(super) fn verdicts(&mut self) -> Result<(), Fail> {
         let model = self.model;
         for (i, c) in model.claims.iter().enumerate() {
-            let (v, through) = self.verdict(i, c)?;
+            let (mut v, through) = self.verdict(i, c)?;
+            self.weigh(i, c, &mut v);
             self.logic_of.insert(&c.name, v.logic);
             self.assuming_of.insert(&c.name, v.assuming.clone());
             self.verdicts.push(v);
@@ -442,6 +443,7 @@ impl<'a> Judge<'a> {
             unsorted,
             domain: domain.clone(),
             implication,
+            confidence: None,
         };
         Ok((verdict, through))
     }
