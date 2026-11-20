@@ -5,7 +5,7 @@
 // is a candidate, with how much it must be wrong and how much it can be.
 
 import std::claims::{uniform};
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
 
 subject report {
     require ranked = culprits::ranks;

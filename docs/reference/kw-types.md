@@ -100,7 +100,8 @@ swaps: holds
 
 ## List, Set, Map
 
-`List<T>` (`Vec<T>` is the same), `Set<T>`, `Map<K, V>`.
+`List<T>`, `Set<T>`, `Map<K, V>`. `Vec<T>` is `List<T>` after `import
+std::rust::{Vec};`, and is refused without it.
 
 ```mitra
 subject fn count(words: List<String>) -> Map<String, 1..>;
@@ -117,11 +118,11 @@ counted: holds
 
 ## Option, Result
 
-Enums of `std::rust`, to import: `Option<T> { None, Some(value: T) }`,
+Enums of `std::core`, to import: `Option<T> { None, Some(value: T) }`,
 `Result<T, E> { Ok(value: T), Err(error: E) }`.
 
 ```mitra
-import std::rust::{Option};
+import std::core::{Option};
 subject fn find(xs: List<Int>, x: Int) -> Option<0..>;
 claim finds() { find([7, 8], 8) == Some(1) }
 ```

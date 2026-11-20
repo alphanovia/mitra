@@ -5,7 +5,7 @@
 // code and the test reports say (mitra-rust, the one there is), mitra-lang for the verdicts, and prints.
 // The code is in src/main.rs.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
 
 // What the command line leans on in the three crates under it: their
 // promises, taken here as bought.

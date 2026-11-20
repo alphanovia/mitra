@@ -27,6 +27,7 @@ To try one: copy the model into `model.mitra`, the evidence into
 | `ensure` | what a subject promises, in plain words | [kw-requirements.md](kw-requirements.md#ensure) |
 | `require` | a named need: a promise made elsewhere, or one nobody makes yet | [kw-requirements.md](kw-requirements.md#require) |
 | `import` | declarations of another file or of `std` | [kw-declarations.md](kw-declarations.md#import) |
+| `type` | another name for `List`, `Set` or `Map` | [kw-declarations.md](kw-declarations.md#import) |
 | `//` | a comment | [kw-declarations.md](kw-declarations.md#comments) |
 | `claim` | what must be true for every input | [kw-claims.md](kw-claims.md#claim) |
 | `when` | only where a condition holds | [kw-claims.md](kw-claims.md#when) |
@@ -56,8 +57,8 @@ To try one: copy the model into `model.mitra`, the evidence into
 | `{"a", "b"}` | sets of values | [kw-types.md](kw-types.md#sets-of-values) |
 | `A \\| B`, `A & B`, `A \\ B` | union, both, minus | [kw-types.md](kw-types.md#union-both-minus) |
 | `(A, B)` | tuples | [kw-types.md](kw-types.md#tuples) |
-| `List`, `Vec`, `Set`, `Map` | collections | [kw-types.md](kw-types.md#list-set-map) |
-| `Option`, `Result` | enums of `std::rust` | [kw-types.md](kw-types.md#option-result) |
+| `List`, `Set`, `Map` | collections | [kw-types.md](kw-types.md#list-set-map) |
+| `Option`, `Result` | enums of `std::core` | [kw-types.md](kw-types.md#option-result) |
 | `<T>` | type parameters | [kw-types.md](kw-types.md#type-parameters) |
 | `T: Contract`, `where` | a type parameter known by the contracts it fills | [kw-generics.md](kw-generics.md#bounds) |
 | `impl<T> R<T>` | the functions of a record with parameters | [kw-generics.md](kw-generics.md#impl-with-parameters) |

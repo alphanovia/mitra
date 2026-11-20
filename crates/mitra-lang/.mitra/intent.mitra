@@ -11,7 +11,8 @@
 // block requires, and its capture: a reviewer's word that those claims
 // say what the prose says.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject intent {
     ensure always_named = "A promise and a need each have a name: a report says which one is not kept.";

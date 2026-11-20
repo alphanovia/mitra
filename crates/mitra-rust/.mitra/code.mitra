@@ -3,7 +3,8 @@
 // A boundary: the files are the project's, and which revision they are
 // is the word of whoever runs the command.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 boundary code {
     ensure reads_what_is_there = "Reading a Rust file gives its whole text, and listing `src/` and `tests/` gives every Rust file under them.";

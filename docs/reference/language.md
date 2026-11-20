@@ -50,7 +50,7 @@ For one entry per keyword, each with a model that runs, see
 ## Model
 
 ```rust
-import std::rust::{Result};
+import std::core::{Result};
 enum NetError { Timeout, Refused }
 record Config { retries: 0..=5, verbose: bool }
 
@@ -89,7 +89,7 @@ subject loader {
 | `claim c(f, T) { given a: T then f(a) == a }` | A claim with parameters: names without a type, and a contract as body. It is not a claim by itself. |
 | `claim d = c(g, 0..=9) trust 0.9;` | That claim with `f` and `T` replaced: a function, a set, a value or an inline function `\|a, b\| b > 0`. Written above its use. |
 | `import geometry::{Point, origin};` | The named declarations of `geometry.mitra`, beside this file, as if written here (`a::b::x` reads `a/b.mitra`). One file is one module. Nothing else of the file comes, except what it imports itself. |
-| `import std::claims::{commutative};` | The same from the modules shipped with Mitra; `mitra explain std::claims` prints one. `std::claims`: `commutative`, `associative`, `idempotent`, `neutral`, `inverse`, `monotone`, `within`, `represented`, `uniform`. `std::rust`: `Option<T> { None, Some(value: T) }`, `Result<T, E> { Ok(value: T), Err(error: E) }`. |
+| `import std::claims::{commutative};` | The same from the modules shipped with Mitra; `mitra explain std::claims` prints one. `std::claims`: `commutative`, `associative`, `idempotent`, `neutral`, `inverse`, `monotone`, `within`, `represented`, `uniform`. `std::core`: `Option<T> { None, Some(value: T) }`, `Result<T, E> { Ok(value: T), Err(error: E) }`. `std::rust`: `Vec<T>`, Rust's name for `List<T>`. |
 | `claim c = represented(f, { (a, b) \| b != 0 });` | One tested input of the set stands for all of it; nothing is said outside. With `import std::claims::{represented};`. A set per input also works: `represented(abs, 0..=9)`, `represented(div, (0..=9, 1..=9))`. Several on one function. |
 | `assume c() { e }` | A claim taken as true without evidence (evidence with source `assumed`): `holds assuming [itself]` until the boundary is observed. Evidence against it is an error. |
 | `ensure name = "text";` | In a subject: what it promises, in plain words. Mitra never reads the text. `s::name` rests on every claim of the subject, on `s::name::captured` (a reviewer's word that the claims say what the text says) and on what the subject requires. In a boundary it rests the same way on the `assume` lines of the block; with none, it is assumed. `trust n` before the `;`. [More](kw-requirements.md). |
@@ -121,7 +121,7 @@ observed the claim is not judged.
 A type is a set of values. `bool`, `i8`…`i64`, `u8`…`u32`,
 `u64`/`usize` (`0..`), `f64`, `String`, and Mitra's `Bool`, `Int` (every
 integer), `Float64`, `Any` (everything). Ranges `0..=9`, `1..`. Sets of values
-`{"a", "b"}`. Tuples `(A, B)`, unit `()`. `Vec<T>`/`List<T>`, `Set<T>`,
+`{"a", "b"}`. Tuples `(A, B)`, unit `()`. `List<T>`, `Set<T>`,
 `Map<K, V>`, `Option<T>` and `Result<T, E>` once declared as enums.
 Function types `fn(A) -> B`. `A | B`, `A & B`, `A \ B`.
 

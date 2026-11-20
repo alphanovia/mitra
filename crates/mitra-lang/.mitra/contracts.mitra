@@ -12,7 +12,7 @@
 // is given the functions, the promises and the claims of the contract,
 // and is a group of its own, so each can be the wrong one.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
 
 subject contracts {
     ensure owed_by_each = "What a contract states is given to each type that fills it: its functions, its promises and its claims.";

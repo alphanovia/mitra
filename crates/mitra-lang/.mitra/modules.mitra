@@ -4,7 +4,8 @@
 // they import. mitra-lang reads no disk: finding the files and reading
 // them is mitra-store's work. So this crate has no boundary.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject modules {
     ensure handed_only = "mitra-lang reads nothing but what it is handed: an import of a module that was not handed is an error at its line, never a file it goes to read.";
@@ -49,7 +50,7 @@ subject modules {
         Modules::alone("subject fn f() -> Bool;").text() == "subject fn f() -> Bool;"
     }
     claim imports_are_listed() {
-        imports("import a::b::x;\nimport std::rust::{Option};\nimport c::{y, z};") == ["a::b", "c"]
+        imports("import a::b::x;\nimport std::core::{Option};\nimport c::{y, z};") == ["a::b", "c"]
     }
     claim an_import_is_listed_once() {
         imports("import a::x;\nimport a::y;") == ["a"]

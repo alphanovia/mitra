@@ -13,7 +13,7 @@
 // The types of mitra-lang (`Modules`) are brought from its model, where
 // they are tied.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
 
 // The files of one model as named texts: mitra-lang's.
 import mitra_lang::modules::{Modules};

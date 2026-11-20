@@ -1,7 +1,7 @@
 // The comments of a Rust file that tie its code to the model
 // (src/source.rs).
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
 
 subject source {
     ensure finds_ties = "A tie comment in Rust code is found, with the name of the function or test written below it.";

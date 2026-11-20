@@ -233,31 +233,31 @@ reader::Rust::tied: holds
   below policy    lacks cold
 
 warning[M101]: a claim is not verified
-  --> .mitra/reader.mitra:29  fn libtest(text: String) -> Vec<results::Outcome>;
+  --> .mitra/reader.mitra:30  fn libtest(text: String) -> Vec<results::Outcome>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   No evidence on (self, text) in (reader::Rust, String).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   No evidence on self in reader::Rust.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/reader.mitra:37  fn tests(&self, root: Path) -> Result<Vec<results::Tied>, String>
+  --> .mitra/reader.mitra:38  fn tests(&self, root: Path) -> Result<Vec<results::Tied>, String>
 
   No evidence on (self, root) in (reader::Rust, code::Path).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> .mitra/reader.mitra:41  fn tie(&self, root: Path, model: model::Model, rev: Option<String>) -> Result<frontend::Found, String>
+  --> .mitra/reader.mitra:42  fn tie(&self, root: Path, model: model::Model, rev: Option<String>) -> Result<frontend::Found, String>
 
   No evidence on (self, root, model, rev) in (reader::Rust, code::Path, model::Model, Option<String>).
   help: `mitra next` lists the evidence that would settle it
@@ -287,109 +287,109 @@ warning[M102]: a claim holds only under assumptions
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   Nobody vouched that the claims `reader::Rust::every_result_is_read` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for reader::Rust::every_result_is_read::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   `reader::Rust::every_result_is_read` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::every_result_is_read::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   Nobody vouched that the claims `reader::Rust::compares_shape` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for reader::Rust::compares_shape::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   `reader::Rust::compares_shape` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::compares_shape::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   Nobody vouched that the claims `reader::Rust::compares_calls` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for reader::Rust::compares_calls::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   `reader::Rust::compares_calls` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::compares_calls::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   Nobody vouched that the claims `reader::Rust::says_what_it_erased` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for reader::Rust::says_what_it_erased::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   `reader::Rust::says_what_it_erased` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::says_what_it_erased::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   Nobody vouched that the claims `reader::Rust::reads_only` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for reader::Rust::reads_only::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   `reader::Rust::reads_only` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::reads_only::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   Nobody vouched that the claims `reader::Rust::plain_to_the_core` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for reader::Rust::plain_to_the_core::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:31  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
+  --> .mitra/reader.mitra:32  impl Reader<Path> for Rust { require code_read = code::reads_what_is_there; require right_revision = code::is_the_revision_named; require comments_found = source::finds_ties; fn tests(&self, root: Pat …
 
   `reader::Rust::plain_to_the_core` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::plain_to_the_core::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:15  import mitra_lang::Reader;
+  --> .mitra/reader.mitra:16  import mitra_lang::Reader;
 
   `Reader::every_result_is_read` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::every_result_is_read::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:15  import mitra_lang::Reader;
+  --> .mitra/reader.mitra:16  import mitra_lang::Reader;
 
   `Reader::compares_shape` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::compares_shape::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:15  import mitra_lang::Reader;
+  --> .mitra/reader.mitra:16  import mitra_lang::Reader;
 
   `Reader::compares_calls` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::compares_calls::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:15  import mitra_lang::Reader;
+  --> .mitra/reader.mitra:16  import mitra_lang::Reader;
 
   `Reader::says_what_it_erased` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::says_what_it_erased::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:15  import mitra_lang::Reader;
+  --> .mitra/reader.mitra:16  import mitra_lang::Reader;
 
   `Reader::reads_only` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::reads_only::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/reader.mitra:15  import mitra_lang::Reader;
+  --> .mitra/reader.mitra:16  import mitra_lang::Reader;
 
   `Reader::plain_to_the_core` holds if `reader::Rust::results::correct`, `reader::Rust::tests::correct`, `reader::Rust::tie::correct`, `reader::Rust::erasures::correct`, `source::mitra_line::correct`, `source::fn_below::correct`, `source::finds_ties::captured`, `reader::Rust::plain_to_the_core::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed

@@ -282,7 +282,7 @@ fn an_impl_has_type_parameters() {
     assert_eq!(m.named(&sum.params[0].1.to_string()), "s::Line<Int>");
 }
 
-const STORE: &str = "import std::rust::{Option};
+const STORE: &str = "import std::core::{Option};
     contract Store<K, V> {
         fn get(&self, key: K) -> Option<V>;
         fn put(&self, key: K, value: V) -> Self;
@@ -417,7 +417,7 @@ fn parameter_is_opaque() {
 
 #[test]
 fn the_report_says_where_a_generic_was_seen() {
-    let model = "import std::rust::{Option};
+    let model = "import std::core::{Option};
         subject s {
             fn first<T>(xs: List<T>) -> Option<T>;
             record Pair<A, B> { first: A, second: B }

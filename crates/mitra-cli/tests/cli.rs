@@ -610,7 +610,7 @@ fn tie_compares_bounds_and_type_parameters() {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("src")).unwrap();
     assert_eq!(mitra(&dir, &["init"]).0, Some(0));
-    let model = "import std::rust::{Option};\n\
+    let model = "import std::core::{Option};\n\
                  contract Link { fn send(&self, bytes: List<Int>) -> Bool; }\n\
                  subject sync {\n\
                  fn push<L: Link>(l: L, data: List<Int>) -> Bool uses Link::send;\n\

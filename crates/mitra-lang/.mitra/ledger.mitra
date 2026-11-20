@@ -20,7 +20,8 @@
 // otherwise today (`seen`, see fingerprint.mitra), is set aside: kept,
 // shown in every report, counting for nothing.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject ledger {
     ensure says_who_and_when = "Each piece of evidence keeps who or what observed it, the revision of the code it was observed on, and the trust its author puts in it.";

@@ -7,7 +7,8 @@
 //   unverified       not covered, and nothing against it
 //   fails            something shows it false
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject verdicts {
     require checked = types::fits;

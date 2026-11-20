@@ -1,7 +1,7 @@
 // What a model must satisfy before anything is judged (src/ast.rs,
 // src/lib.rs, src/types.rs).
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
 
 subject types {
     require read_first = reader::reads;

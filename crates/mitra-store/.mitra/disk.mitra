@@ -4,7 +4,8 @@
 // of the world that mitra-store leans on; each `assume` says it
 // formally.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 boundary disk {
     ensure reads_what_was_written = "Reading a file gives the whole text last written to it.";

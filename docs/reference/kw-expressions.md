@@ -68,7 +68,7 @@ weights: holds
 `x is Variant`: true when `x` is that variant.
 
 ```mitra
-import std::rust::{Result};
+import std::core::{Result};
 subject fn parse(s: {"1", "x"}) -> Result<Int, String>;
 claim rejects_letters() { parse("x") is Err }
 ```

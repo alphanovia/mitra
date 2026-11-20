@@ -4,7 +4,8 @@
 //   .mitra/*.mitra          the rest of the model, one file per subject
 //   .mitra/evidence.mitra   the ledger
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject store {
     require listed = disk::lists_what_is_there;

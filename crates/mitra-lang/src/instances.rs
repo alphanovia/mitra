@@ -120,7 +120,7 @@ fn unify(m: &Model, names: &[String], ty: &str, v: &Value, into: &mut Bound) {
         args.unwrap_or_default(),
     );
     match (head, v) {
-        ("List" | "Vec" | "Set", Value::List(vs)) if args.len() == 1 => {
+        ("List" | "Set", Value::List(vs)) if args.len() == 1 => {
             for v in vs {
                 unify(m, names, &args[0], v, into);
             }

@@ -3,7 +3,7 @@
 // They are stated with the operators themselves: each side of a claim
 // is computed by this code, and the tests give the outputs.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
 
 subject eval {
     ensure computes = "An operator computes what the language reference says, and gives no value where it does not apply.";

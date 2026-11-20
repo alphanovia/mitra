@@ -3,7 +3,8 @@
 // What an entry means is mitra-lang's (its ledger.mitra). Here: how the
 // file is kept.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 // What main does today.
 subject ledger {

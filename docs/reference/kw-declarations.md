@@ -176,16 +176,17 @@ shop::total::correct: unverified
 
 `import std::claims::{commutative};` brings the named declarations of a
 module shipped with Mitra: `std::claims` (see
-[kw-claims.md](kw-library.md#stdclaims)) and `std::rust` (`Option<T> {
+[kw-claims.md](kw-library.md#stdclaims)) `std::core` (`Option<T> {
 None, Some(value: T) }`, `Result<T, E> { Ok(value: T), Err(error: E)
-}`). `mitra explain std::rust` prints a module.
+}`) and `std::rust` (`type Vec<T> = List<T>;`: `type` gives `List`,
+`Set` or `Map` another name). `mitra explain std::core` prints one.
 
 `import geometry::{Point};` brings them from `geometry.mitra`, beside the
 model (`a::b::{x}` reads `a/b.mitra`). Only the names listed come, once.
 From another store, `import store::block::{..}`: [stores.md](stores.md).
 
 ```mitra
-import std::rust::{Option};
+import std::core::{Option};
 fn first(xs: List<Int>) -> Option<Int> { if len(xs) == 0 { None } else { Some(xs[0]) } }
 claim firsts() { first([3, 4]) == Some(3) && first([]) == None }
 ```

@@ -10,7 +10,8 @@
 // functions are those of the contract, written again where they use
 // the disk.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 import mitra_lang::Reader;
 // A model, a test result and a test tied to a claim: mitra-lang's,

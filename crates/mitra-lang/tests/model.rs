@@ -498,7 +498,7 @@ fn one_text_is_read_as_it_is() {
 // mitra: evidence for modules::imports_are_listed
 #[test]
 fn imports_are_listed() {
-    let text = "import a::b::x;\nimport std::rust::{Option};\nimport c::{y, z};";
+    let text = "import a::b::x;\nimport std::core::{Option};\nimport c::{y, z};";
     assert_eq!(mitra_lang::parse::imports(text), ["a::b", "c"]);
 }
 
@@ -811,4 +811,23 @@ fn an_observation_is_compared() {
         said.changed
     );
     assert!(said.text.contains("error[M001]"), "{}", said.text);
+}
+
+#[test]
+fn a_type_is_another_name_for_a_collection() {
+    let read = |src: &str| mitra_lang::load(src, "").map(|m| m.functions[0].params.clone());
+    let list = read("subject fn f(a: List<Int>) -> Int;").unwrap();
+    // Rust's name, from the module of Rust's names.
+    assert_eq!(
+        read("import std::rust::{Vec};\nsubject fn f(a: Vec<Int>) -> Int;").unwrap(),
+        list
+    );
+    assert_eq!(
+        read("type Seq<T> = List<T>;\nsubject fn f(a: Seq<Int>) -> Int;").unwrap(),
+        list
+    );
+    let said = |src: &str| read(src).unwrap_err().1.to_string();
+    assert!(said("subject fn f(a: Vec<Int>) -> Int;").contains("import std::rust::{Vec};"));
+    assert!(said("type Seq<T> = Int;").contains("another name for `List`, `Set` or `Map`"));
+    assert!(said("type Seq<T> = List<U>;").contains("other parameters"));
 }

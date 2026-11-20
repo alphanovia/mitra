@@ -4,7 +4,8 @@
 // voices are, how likely it is that all of them are wrong, and what a
 // policy asks that is missing. None of it changes a verdict.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject voices {
     ensure voice_is_who_wrote = "The voice behind a test is who wrote it, not the machine that ran it: a test nobody signed is the word of an unknown voice.";

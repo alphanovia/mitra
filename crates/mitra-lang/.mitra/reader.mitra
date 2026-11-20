@@ -1,6 +1,6 @@
 // From text to a model (src/parse.rs).
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
 
 subject reader {
     ensure reads = "A model written as the language reference says is read.";

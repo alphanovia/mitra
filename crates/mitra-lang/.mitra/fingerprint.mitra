@@ -5,7 +5,7 @@
 // what it meant when somebody looked at it. Evidence said by a person
 // keeps it (`seen "…"`); the build file will list it for every piece.
 
-import std::rust::{Option};
+import std::core::{Option};
 import std::claims::{uniform};
 
 subject fingerprint {

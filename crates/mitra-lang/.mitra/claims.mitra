@@ -10,7 +10,8 @@
 //   f::deterministic                   implied: one input, one output
 //   f::tied                            the code is where a tie comment says
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject claims {
     ensure names_its_function = "A claim has a name of its own and names the function it is about, so a report can point at it.";

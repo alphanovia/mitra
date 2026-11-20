@@ -38,7 +38,8 @@
 // mitra-lang has no boundary: it reads no file, no clock and no network
 // (modules.mitra says so). The disk is in mitra-store's model.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject model {
     ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";

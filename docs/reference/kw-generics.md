@@ -85,7 +85,7 @@ with them; as many types as the contract has parameters.
 bound, `S: Store<Int, String>`, only the name of the contract is read.
 
 ```mitra
-import std::rust::{Option};
+import std::core::{Option};
 contract Store<K, V> {
     fn get(&self, key: K) -> Option<V>;
     ensure kept = "What was put is what is got.";

@@ -12,7 +12,8 @@
 // assumed, and shown in the store of each reader.
 // The code is in src/frontend.rs: the trait `Reader` and `Found`.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject frontend {
     // What comparing the code with the model found: evidence lines, and

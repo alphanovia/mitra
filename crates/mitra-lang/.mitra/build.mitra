@@ -6,7 +6,8 @@
 // with its kind, its fingerprint and what it rests on, and the interface
 // the code must meet. Writing the files is mitra-store's work.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject build {
     require by_meaning = fingerprint::meaning_not_bytes;

@@ -10,8 +10,9 @@ use std::rc::Rc;
 
 /// The modules shipped with the tool: plain Mitra, `mitra explain std::claims`
 /// prints one.
-const STD: [(&str, &str); 2] = [
+const STD: [(&str, &str); 3] = [
     ("std::claims", include_str!("../std/claims.mitra")),
+    ("std::core", include_str!("../std/core.mitra")),
     ("std::rust", include_str!("../std/rust.mitra")),
 ];
 
@@ -138,6 +139,76 @@ fn from_store(toks: &[Tok], block: &str, names: &[String]) -> Result<Vec<Tok>, S
     }
 }
 
+/// The tokens of a text, with each name a `type` gave to a collection
+/// replaced by the collection's: `Vec` by `List` after `import
+/// std::rust::{Vec};`.
+fn lex(src: &str) -> Result<Vec<Tok>, Error> {
+    let mut toks = lex_raw(src)?;
+    let mut renames = types_named(&toks);
+    for (i, t) in toks.iter().enumerate() {
+        if t.kind != Kind::Name
+            || t.text != "import"
+            || toks.get(i + 1).is_none_or(|n| n.text != "std")
+        {
+            continue;
+        }
+        let Some(part) = toks.get(i + 3).filter(|n| n.kind == Kind::Name) else {
+            continue;
+        };
+        let Some(module) = library(&format!("std::{}", part.text)) else {
+            continue;
+        };
+        let end = toks[i..]
+            .iter()
+            .position(|n| n.text == ";")
+            .map_or(toks.len(), |e| i + e);
+        for (name, named) in types_named(&lex_raw(module)?) {
+            if toks[i + 4..end].iter().any(|n| n.text == name) {
+                renames.insert(name, named);
+            }
+        }
+    }
+    if renames.is_empty() {
+        return Ok(toks);
+    }
+    // Not where the name is declared or imported.
+    let mut inside = false;
+    for i in 0..toks.len() {
+        if toks[i].kind == Kind::Name && (toks[i].text == "import" || toks[i].text == "type") {
+            inside = true;
+        } else if toks[i].text == ";" {
+            inside = false;
+        } else if !inside && toks[i].kind == Kind::Name {
+            if let Some(named) = renames.get(&toks[i].text) {
+                toks[i].text = named.clone();
+            }
+        }
+    }
+    Ok(toks)
+}
+
+/// `type Vec<T> = List<T>;` at the top of a text: `Vec` names `List`.
+fn types_named(toks: &[Tok]) -> BTreeMap<String, String> {
+    let (mut out, mut depth) = (BTreeMap::new(), 0);
+    for (i, t) in toks.iter().enumerate() {
+        if t.kind == Kind::Punct {
+            depth += (t.text == "{") as i32 - (t.text == "}") as i32;
+        }
+        if depth != 0 || t.kind != Kind::Name || t.text != "type" {
+            continue;
+        }
+        let equals = toks[i..]
+            .iter()
+            .position(|n| n.text == "=" || n.text == ";");
+        if let (Some(name), Some(e)) = (toks.get(i + 1), equals) {
+            if let Some(named) = toks.get(i + e + 1).filter(|n| n.kind == Kind::Name) {
+                out.insert(name.text.clone(), named.text.clone());
+            }
+        }
+    }
+    out
+}
+
 /// Each `import` at the top of a text: its path and the names it brings.
 fn imports_of(toks: &[Tok]) -> Vec<(Vec<String>, Vec<String>)> {
     let (mut out, mut depth) = (Vec::new(), 0);
@@ -230,9 +301,9 @@ pub struct Entry {
 }
 
 /// The declarations at the top of a file that start an item.
-pub const ITEMS: [&str; 12] = [
+pub const ITEMS: [&str; 13] = [
     "subject", "boundary", "record", "enum", "fn", "claim", "assume", "test", "import", "ensure",
-    "require", "contract",
+    "require", "contract", "type",
 ];
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -257,7 +328,7 @@ const PUNCT: [&str; 34] = [
     "[", "]", ",", ";", ":", "=", "<", ">", "+", "-", "*", "/", "!", "|", "&", "\\", ".", "@",
 ];
 
-fn lex(src: &str) -> Result<Vec<Tok>, Error> {
+fn lex_raw(src: &str) -> Result<Vec<Tok>, Error> {
     let mut toks = Vec::new();
     let mut line = 1;
     let mut rest = src;
@@ -1029,6 +1100,9 @@ impl P {
             }
             return Ok(set);
         }
+        if self.peek() == "Vec" && self.kind() == Some(Kind::Name) {
+            return self.err("`Vec` is Rust's name for `List`: `import std::rust::{Vec};`");
+        }
         // Rust's names for the same types.
         let rust = match self.peek() {
             "bool" => "Bool",
@@ -1041,7 +1115,6 @@ impl P {
             "u32" => "UInt32",
             "f64" => "Float64",
             "str" => "String",
-            "Vec" => "List",
             "HashSet" | "BTreeSet" => "Set",
             "HashMap" | "BTreeMap" => "Map",
             _ => "",
@@ -2151,11 +2224,45 @@ impl P {
         Ok(())
     }
 
+    /// `<A, B>` after a name, or nothing.
+    fn names_between(&mut self) -> R<Vec<String>> {
+        let mut params = Vec::new();
+        if self.eat("<") {
+            while !self.eat(">") {
+                params.push(self.name()?);
+                if !self.eat(",") {
+                    self.expect(">")?;
+                    break;
+                }
+            }
+        }
+        Ok(params)
+    }
+
     fn items(&mut self) -> R<()> {
         while self.pos < self.toks.len() && !self.is("}") {
             let line = self.at.unwrap_or(self.line());
             let kw = self.name()?;
             match kw.as_str() {
+                // type Vec<T> = List<T>;  another name for a collection, replaced
+                // where the text was read (`lex`): checked here.
+                "type" if self.scope.is_none() && self.block.is_none() => {
+                    let name = self.name()?;
+                    let params = self.names_between()?;
+                    self.expect("=")?;
+                    let named = self.name()?;
+                    if !["List", "Set", "Map"].contains(&named.as_str()) {
+                        return self.err(format!(
+                            "`type {name}` names `{named}`: a `type` is another name for `List`, `Set` or `Map`"
+                        ));
+                    }
+                    if self.names_between()? != params {
+                        return self.err(format!(
+                            "`type {name}` gives `{named}` other parameters than its own"
+                        ));
+                    }
+                    self.eat(";");
+                }
                 "import" if self.scope.is_none() => {
                     // import a::b::name;  import a::b::{x, y};
                     let mut path = vec![self.name()?];
@@ -5888,7 +5995,9 @@ mod tests {
 
     #[test]
     fn rust_names_are_the_same_types() {
-        let (m, _) = model("subject fn f(a: Vec<i32>, b: usize) -> bool;").unwrap();
+        let (m, _) =
+            model("import std::rust::{Vec};\nsubject fn f(a: Vec<i32>, b: usize) -> bool;")
+                .unwrap();
         let (n, _) = model("subject fn f(a: List<Int32>, b: 0..) -> Bool;").unwrap();
         assert_eq!(m.functions[0].params, n.functions[0].params);
         assert_eq!(m.functions[0].range, n.functions[0].range);

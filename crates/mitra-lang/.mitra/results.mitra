@@ -8,7 +8,8 @@
 //   // mitra: evidence for f given a = 6 gives 3    pinned
 //   // mitra: evidence for c given a in S sampled 100
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject results {
     require judged_as_written = ledger::unstated_covers_nothing;

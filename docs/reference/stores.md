@@ -7,6 +7,7 @@ another one declares, without restating it.
 ## Bringing from another store
 
 ```
+import std::rust::{Vec};
 import mitra_lang::results::{Outcome, a_failure_is_kept};
 
 subject report {

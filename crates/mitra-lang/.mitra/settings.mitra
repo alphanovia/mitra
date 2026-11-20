@@ -7,7 +7,8 @@
 // Neither changes a verdict: both are the trust of a piece, which ranks
 // it among the suspects of a contradiction.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject settings {
     ensure defaults_without_a_file = "With no file, or a file that states nothing, the settings are the defaults: a tolerance of 0.001, a sample that covers nothing, and the costs of the reader's own profile.";

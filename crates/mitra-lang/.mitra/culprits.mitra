@@ -2,7 +2,8 @@
 // calculus Mitra runs. How the numbers are computed is not stated here,
 // only what must be true of them.
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
+import std::rust::{Vec};
 
 subject culprits {
     ensure ranks = "From how much each piece is trusted and which pieces can't all be right, each piece gets how much it must be wrong and how much it can be.";

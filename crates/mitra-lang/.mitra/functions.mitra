@@ -7,7 +7,7 @@
 //   fn h(a: Int) -> Int { a }             helper: a definition of the model
 //   boundary fn now() -> Int;             world: the environment
 
-import std::rust::{Option, Result};
+import std::core::{Option, Result};
 
 subject functions {
     ensure code_is_only_observed = "A function of a subject is real code: Mitra never runs it and knows of it only what evidence says. Unless the model says otherwise, it is claimed correct and deterministic.";

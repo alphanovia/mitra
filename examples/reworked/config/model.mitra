@@ -1,6 +1,6 @@
 // A program that loads its configuration from the network.
 enum NetError { Timeout, Refused }
-import std::rust::{Result};
+import std::core::{Result};
 record Config { retries: 0..=5, verbose: bool }
 
 // The environment: nothing is claimed on it, only assumed.

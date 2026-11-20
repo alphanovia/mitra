@@ -3,6 +3,7 @@
 use mitra_lang::{Handed, Module, Modules};
 
 const THERE: &str = r#"
+import std::rust::{Vec};
 subject results {
     ensure kept = "A failure is kept.";
     record Outcome { name: String, passed: Bool }
