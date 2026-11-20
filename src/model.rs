@@ -42,11 +42,15 @@ pub struct Related {
 /// All that is said of a system: the evidence, the relations between
 /// pieces, and the base rate of each piece that has one. A piece with
 /// none has 0: nothing is assumed.
+///
+/// A relation is itself said: a statement whose content is the
+/// relation. What is computed on it counts as far as that statement is
+/// believed; one believed at 1 is plain structure.
 // mitra: implements model::Model
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Model {
     pub evidence: Vec<Evidence>,
-    pub related: Vec<Related>,
+    pub related: Vec<Statement<Related>>,
     pub base: Vec<(Piece, f64)>,
 }
 
@@ -83,11 +87,10 @@ struct Walk {
 // mitra: implements model::opinion
 pub fn opinion(model: &Model, x: &Piece) -> Opinion {
     let mut walk = Walk::default();
-    let on = support(model, x, &mut walk);
     // Evidence moves b, d and u; the base rate stays that of the piece.
     Opinion {
         a: base(model, x),
-        ..together(model, &on, &mut walk)
+        ..believed(model, x, &mut walk)
     }
 }
 
@@ -95,6 +98,23 @@ pub fn opinion(model: &Model, x: &Piece) -> Opinion {
 // mitra: implements model::trusted
 pub fn trusted(model: &Model, x: &Piece, policy: f64) -> bool {
     reaches(opinion(model, x), policy)
+}
+
+/// What `x` stands on, taken together, as far as the relations that
+/// lead there are believed.
+fn believed(model: &Model, x: &Piece, walk: &mut Walk) -> Opinion {
+    let (on, trust) = support(model, x, walk);
+    moved(nothing(trust), together(model, &on, walk))
+}
+
+/// The relations of one kind, each with how far its statement is
+/// believed.
+fn related<'a>(model: &'a Model, how: Relation, walk: &mut Walk) -> Vec<(&'a Related, f64)> {
+    let mut found = Vec::new();
+    for said in model.related.iter().filter(|said| said.content.how == how) {
+        found.push((&said.content, projected(direct(model, &said.piece, walk))));
+    }
+    found
 }
 
 fn believing(b: f64) -> Opinion {
@@ -125,28 +145,29 @@ fn disbelieving(d: f64) -> Opinion {
 fn heard(model: &Model, x: &Piece, walk: &mut Walk, blame: bool) -> Vec<(Opinion, Voice)> {
     let mut said = Vec::new();
     for e in model.evidence.iter().filter(|e| &e.about == x) {
-        let on = support(model, &e.piece, walk);
-        let says = moved(together(model, &on, walk), e.value);
+        let says = moved(believed(model, &e.piece, walk), e.value);
         said.push((if blame { says } else { believing(says.b) }, e.by.clone()));
     }
-    let wholes = model.related.iter().filter(|r| r.how == Relation::All);
-    for r in wholes.filter(|r| r.pieces.len() > 1 && r.pieces[1..].contains(x)) {
+    for (r, trust) in related(model, Relation::All, walk) {
+        if r.pieces.len() < 2 || !r.pieces[1..].contains(x) {
+            continue;
+        }
         let whole = &r.pieces[0];
         if walk.wholes.contains(whole) {
             continue;
         }
         walk.wholes.push(whole.clone());
         for (says, by) in heard(model, whole, walk, blame) {
-            if says.b > 0.0 {
-                said.push((believing(says.b), by.clone()));
+            if trust * says.b > 0.0 {
+                said.push((believing(trust * says.b), by.clone()));
             }
             if blame && says.d > 0.0 {
                 let mut others = 1.0;
                 for part in r.pieces[1..].iter().filter(|part| *part != x) {
                     others *= fused(heard(model, part, walk, false)).map_or(0.0, |o| o.b);
                 }
-                if says.d * others > 0.0 {
-                    said.push((disbelieving(says.d * others), by));
+                if trust * says.d * others > 0.0 {
+                    said.push((disbelieving(trust * says.d * others), by));
                 }
             }
         }
@@ -191,20 +212,27 @@ fn direct(model: &Model, x: &Piece, walk: &mut Walk) -> Opinion {
 
 /// The pieces `x` stands on, each taken on what is said of it: itself,
 /// or its parts, whichever is more certain. A set, so a piece reached by
-/// two paths is there once.
-fn support(model: &Model, x: &Piece, walk: &mut Walk) -> BTreeSet<Piece> {
-    let mut best = BTreeSet::from([x.clone()]);
+/// two paths is there once. With it, how far the relations that lead to
+/// those pieces are believed.
+fn support(model: &Model, x: &Piece, walk: &mut Walk) -> (BTreeSet<Piece>, f64) {
+    let mut best = (BTreeSet::from([x.clone()]), 1.0);
     if walk.resting.contains(x) {
         return best;
     }
     walk.resting.push(x.clone());
-    let wholes = model.related.iter().filter(|r| r.how == Relation::All);
-    for r in wholes.filter(|r| r.pieces.first() == Some(x)) {
-        let mut on = BTreeSet::new();
-        for part in &r.pieces[1..] {
-            on.extend(support(model, part, walk));
+    for (r, trust) in related(model, Relation::All, walk) {
+        if r.pieces.first() != Some(x) {
+            continue;
         }
-        if together(model, &on, walk).u < together(model, &best, walk).u {
+        let mut on = (BTreeSet::new(), trust);
+        for part in &r.pieces[1..] {
+            let (pieces, through) = support(model, part, walk);
+            on.0.extend(pieces);
+            on.1 *= through;
+        }
+        let new = moved(nothing(on.1), together(model, &on.0, walk));
+        let old = moved(nothing(best.1), together(model, &best.0, walk));
+        if new.u < old.u {
             best = on;
         }
     }
@@ -232,19 +260,36 @@ fn together(model: &Model, on: &BTreeSet<Piece>, walk: &mut Walk) -> Opinion {
 // mitra: implements model::conflicts
 pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
     let mut out = Vec::new();
-    for r in model.related.iter().filter(|r| r.how == Relation::All) {
-        let whole = r.pieces.first();
+    for said in model
+        .related
+        .iter()
+        .filter(|said| said.content.how == Relation::All)
+    {
+        let (whole, parts) = (
+            said.content.pieces.first(),
+            said.content.pieces.iter().skip(1),
+        );
         for e in model.evidence.iter().filter(|e| Some(&e.about) == whole) {
             if moved(opinion(model, &e.piece), e.value).d > 0.0 {
-                let mut suspects = r.pieces[1..].to_vec();
+                let mut suspects: Vec<Piece> = parts.clone().cloned().collect();
                 suspects.push(e.piece.clone());
+                // The relation is a suspect when it can be doubted.
+                if projected(opinion(model, &said.piece)) < 1.0 {
+                    suspects.push(said.piece.clone());
+                }
                 out.push(ordered(model, suspects));
             }
         }
     }
-    let excluded = model.related.iter().filter(|r| r.how == Relation::Exclude);
-    for r in excluded {
-        if r.pieces.iter().all(|p| opinion(model, p).b > 0.0) {
+    for said in model
+        .related
+        .iter()
+        .filter(|said| said.content.how == Relation::Exclude)
+    {
+        let r = &said.content;
+        if projected(opinion(model, &said.piece)) > 0.0
+            && r.pieces.iter().all(|p| opinion(model, p).b > 0.0)
+        {
             out.push(ordered(model, r.pieces.clone()));
         }
     }

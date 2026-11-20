@@ -117,14 +117,18 @@ fn two_claims_that_disagree_are_ranked() {
             says("t_stops", "stops", yes(), "machine:cargo"),
             says("r", "t_wraps", yes(), "agent:a"),
         ],
-        related: vec![Related {
-            how: Relation::Exclude,
-            pieces: vec![piece("wraps"), piece("stops")],
+        related: vec![Statement {
+            piece: piece("one of the two"),
+            content: Related {
+                how: Relation::Exclude,
+                pieces: vec![piece("wraps"), piece("stops")],
+            },
         }],
         base: vec![
             (piece("t_wraps"), 0.5),
             (piece("t_stops"), 0.5),
             (piece("r"), 1.0),
+            (piece("one of the two"), 1.0),
         ],
     };
     assert_eq!(conflicts(&model), [vec![piece("stops"), piece("wraps")]]);

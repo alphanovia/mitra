@@ -9,7 +9,7 @@ evidence tie { for statement::Statement::tied holds act tie by "machine:mitra-ru
 evidence tie { for tie::Tie::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model/tie.rs:8" }
 evidence tie { for model::Relation::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:25" }
 evidence tie { for model::Related::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:35" }
-evidence tie { for model::Model::tied fails act tie by "machine:mitra-rust" source "reader:rust src/model.rs:45: field `related` is `Vec<Related>` in the code, `List<model::Related(model::Relation, List<piece::Piece>)>` in the model" }
+evidence tie { for model::Model::tied fails act tie by "machine:mitra-rust" source "reader:rust src/model.rs:49: field `related` is `Vec<Statement<Related>>` in the code, `List<statement::Statement<model::Related(model::Relation, List<piece::Piece>)>>` in the model" }
 evidence tie { for value::Type::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:7" }
 evidence tie { for value::Value::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:16" }
 evidence tie { for value::Expression::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:25" }
@@ -33,14 +33,14 @@ evidence tie { for place::within::tied holds act tie by "machine:mitra-rust" sou
 evidence tie { for tie::places::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model/tie.rs:17; erased 2: reference(ties), reference(statement)" }
 evidence tie { for tie::concerned::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model/tie.rs:24; erased 2: reference(ties), reference(place)" }
 evidence tie { for tie::concerned::uses holds act tie by "machine:mitra-rust" source "reader:rust src/model/tie.rs:24" }
-evidence tie { for model::all::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:54" }
-evidence tie { for model::base::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:67; erased 3: reference(model), reference(x), width" }
-evidence tie { for model::opinion::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:83; erased 3: reference(model), reference(x), width" }
-evidence tie { for model::opinion::uses fails act tie by "machine:mitra-rust" source "reader:rust src/model.rs:83: `opinion` does not call `all`" }
-evidence tie { for model::trusted::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:95; erased 3: reference(model), reference(x), width" }
-evidence tie { for model::trusted::uses holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:95" }
-evidence tie { for model::conflicts::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:232; erased 2: reference(model), width" }
-evidence tie { for model::conflicts::uses holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:232" }
+evidence tie { for model::all::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:58" }
+evidence tie { for model::base::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:71; erased 3: reference(model), reference(x), width" }
+evidence tie { for model::opinion::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:87; erased 3: reference(model), reference(x), width" }
+evidence tie { for model::opinion::uses fails act tie by "machine:mitra-rust" source "reader:rust src/model.rs:87: `opinion` does not call `all`" }
+evidence tie { for model::trusted::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:98; erased 3: reference(model), reference(x), width" }
+evidence tie { for model::trusted::uses holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:98" }
+evidence tie { for model::conflicts::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:260; erased 2: reference(model), width" }
+evidence tie { for model::conflicts::uses holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:260" }
 evidence tie { for value::type_of::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:43; erased 1: reference(v)" }
 evidence tie { for value::check::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:56; erased 2: reference(e), reference(inputs)" }
 evidence tie { for value::eval::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:98; erased 2: reference(e), reference(inputs)" }

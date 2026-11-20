@@ -225,17 +225,23 @@ subject tie {
 // All the pieces, put together.
 subject model {
     require policy = piece::trusted_is_the_policy;
+    require said = statement::statement_is_an_interpretation;
     require moved = evidence::said_as_far_as_believed;
     require voices = evidence::same_voice_counts_once;
     require clash = evidence::disagreement_is_measured;
 
     ensure only_from_the_model = "The opinion of a piece comes from the evidence about it and from the pieces it is related to, and from nothing else: with neither it is its base rate, and its base rate is never moved.";
+    ensure relation_is_said = "A relation between pieces is itself said: a statement whose content is the relation. What is computed on a relation counts as far as that statement is believed; a relation believed at 1 is plain structure, and one believed at 0 relates nothing.";
     ensure whole_is_all_its_parts = "A piece that is all of others together is believed as all of them, each counted once however many paths lead to it, or on what is said of it directly, whichever is more certain.";
     ensure yes_flows_down = "What believes a whole believes each of its parts as much: evidence about a pair is evidence about both.";
     ensure no_is_shared = "What disbelieves a whole disbelieves no part alone: a part is disbelieved only as far as the other parts are believed on other evidence. With nothing else known, the parts are told apart by their base rates only.";
     ensure conflict_is_said = "Pieces that cannot all be right are reported, the least believed first, and none of them is chosen silently: the parts of a whole with the evidence that says no about it, and the evidence for and against one piece.";
 
-    // How pieces stand to each other. One relation can hold many pieces.
+    // How pieces stand to each other, named after what is computed.
+    // One relation can hold many pieces. The other relation of the core
+    // is `about`, from a piece of evidence to the piece it speaks of:
+    // it is the field of `Evidence`, and its computation is to discount
+    // and to fuse.
     enum Relation {
         // The first is all of the others together. Named after what is
         // computed on it: belief goes up as a product, a yes about the
@@ -250,11 +256,11 @@ subject model {
     }
 
     // All that is said of a system: the evidence, the relations between
-    // pieces, and the base rate of each piece that has one. A piece with
-    // none has 0: nothing is assumed.
+    // pieces, each said by a statement, and the base rate of each piece
+    // that has one. A piece with none has 0: nothing is assumed.
     record Model {
         evidence: List<evidence::Evidence>,
-        related: List<Related>,
+        related: List<statement::Statement<Related>>,
         base: List<(piece::Piece, Float64)>,
     }
 
@@ -306,9 +312,8 @@ subject model {
     }
 
     // On a small model: `x` is all of `y` alone, tested by `t`.
-    claim resting_on_one_piece_is_that_piece(x: piece::Piece, y: piece::Piece, t: piece::Piece, by: evidence::Voice) {
-        x == y || x == t || y == t
-            || opinion(Model([Evidence(t, y, piece::yes(), by)], [Related(All, [x, y])], [(t, 0.5)]), x).b == 0.5
+    claim a_whole_of_one_part_is_that_part() {
+        opinion(Model([Evidence(Piece("t"), Piece("y"), piece::yes(), Voice("me"))], [Statement(Piece("all: x"), Related(All, [Piece("x"), Piece("y")]))], [(Piece("t"), 0.5), (Piece("all: x"), 1.0)]), Piece("x")).b == 0.5
     }
 
     // The throwing toy. One object; the statement `falls` ("thrown up, it
@@ -319,14 +324,14 @@ subject model {
 
     // yes_flows_down
     claim a_throw_that_falls_believes_both() {
-        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))], [Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])], [(Piece("throw"), 0.5)]), Piece("falls")) == Opinion(0.5, 0.0, 0.5, 0.0)
-            && opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))], [Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])], [(Piece("throw"), 0.5)]), Piece("applies")) == Opinion(0.5, 0.0, 0.5, 0.0)
+        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("throw"), 0.5), (Piece("all: lands"), 1.0)]), Piece("falls")) == Opinion(0.5, 0.0, 0.5, 0.0)
+            && opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("throw"), 0.5), (Piece("all: lands"), 1.0)]), Piece("applies")) == Opinion(0.5, 0.0, 0.5, 0.0)
     }
 
     // no_is_shared
     claim a_throw_that_does_not_fall_blames_neither_alone() {
-        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])], [(Piece("throw"), 0.5)]), Piece("falls")) == piece::nothing(0.0)
-            && opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])], [(Piece("throw"), 0.5)]), Piece("lands")) == Opinion(0.0, 0.5, 0.5, 0.0)
+        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("throw"), 0.5), (Piece("all: lands"), 1.0)]), Piece("falls")) == piece::nothing(0.0)
+            && opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("throw"), 0.5), (Piece("all: lands"), 1.0)]), Piece("lands")) == Opinion(0.0, 0.5, 0.5, 0.0)
     }
     // A ball and a balloon under one statement: the ball falls, the
     // balloon does not. `falls` is believed through the ball, so the
@@ -334,21 +339,40 @@ subject model {
     claim the_balloon_blames_its_tie() {
         opinion(Model(
             [Evidence(Piece("throw ball"), Piece("ball lands"), piece::yes(), Voice("me")), Evidence(Piece("throw balloon"), Piece("balloon lands"), piece::no(), Voice("me"))],
-            [Related(All, [Piece("ball lands"), Piece("ball applies"), Piece("falls")]), Related(All, [Piece("balloon lands"), Piece("balloon applies"), Piece("falls")])],
-            [(Piece("throw ball"), 0.5), (Piece("throw balloon"), 0.5)]), Piece("balloon applies")) == Opinion(0.0, 0.25, 0.75, 0.0)
+            [Statement(Piece("all: ball lands"), Related(All, [Piece("ball lands"), Piece("ball applies"), Piece("falls")])), Statement(Piece("all: balloon lands"), Related(All, [Piece("balloon lands"), Piece("balloon applies"), Piece("falls")]))],
+            [(Piece("throw ball"), 0.5), (Piece("throw balloon"), 0.5), (Piece("all: ball lands"), 1.0), (Piece("all: balloon lands"), 1.0)]), Piece("balloon applies")) == Opinion(0.0, 0.25, 0.75, 0.0)
     }
     // One object, two statements: it falls and makes no noise. The tie is
     // believed through the fall, so `noise` takes the blame.
     claim silence_blames_the_noise() {
         opinion(Model(
             [Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me")), Evidence(Piece("listen"), Piece("bangs"), piece::no(), Voice("me"))],
-            [Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]), Related(All, [Piece("bangs"), Piece("applies"), Piece("noise")])],
-            [(Piece("throw"), 0.5), (Piece("listen"), 0.5)]), Piece("noise")) == Opinion(0.0, 0.25, 0.75, 0.0)
+            [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])), Statement(Piece("all: bangs"), Related(All, [Piece("bangs"), Piece("applies"), Piece("noise")]))],
+            [(Piece("throw"), 0.5), (Piece("listen"), 0.5), (Piece("all: lands"), 1.0), (Piece("all: bangs"), 1.0)]), Piece("noise")) == Opinion(0.0, 0.25, 0.75, 0.0)
+    }
+
+    // relation_is_said. A latent statement, `gravity` ("things are pulled
+    // down"): no tie, nothing to throw at. It is linked to `falls` by a
+    // relation that is itself said, `because`: "it falls because of
+    // gravity, and only because of it". I see the object fall for sure.
+    // Gravity is believed as far as `because` is: at 1 like `falls`, at
+    // 0.5 half as much, at 0 not at all.
+    claim a_latent_statement_is_believed_as_far_as_its_relation() {
+        opinion(Model(
+            [Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))],
+            [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])), Statement(Piece("because"), Related(All, [Piece("falls"), Piece("gravity")]))],
+            [(Piece("throw"), 1.0), (Piece("all: lands"), 1.0), (Piece("because"), 0.5)]), Piece("gravity")) == Opinion(0.5, 0.0, 0.5, 0.0)
+    }
+    claim a_relation_nobody_believes_relates_nothing() {
+        opinion(Model(
+            [Evidence(Piece("throw"), Piece("lands"), piece::yes(), Voice("me"))],
+            [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])), Statement(Piece("because"), Related(All, [Piece("falls"), Piece("gravity")]))],
+            [(Piece("throw"), 1.0), (Piece("all: lands"), 1.0)]), Piece("gravity")) == piece::nothing(0.0)
     }
 
     // conflict_is_said
     claim a_throw_that_does_not_fall_names_its_suspects() {
-        conflicts(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])], [(Piece("throw"), 0.5)])) == [[Piece("applies"), Piece("falls"), Piece("throw")]]
+        conflicts(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("throw"), 0.5), (Piece("all: lands"), 1.0)])) == [[Piece("applies"), Piece("falls"), Piece("throw")]]
     }
     claim nothing_said_is_no_conflict() {
         conflicts(Model([], [], [])) == []

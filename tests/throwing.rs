@@ -20,21 +20,33 @@ fn says(name: &str, about: &str, yes_: bool, by: &str) -> Evidence {
         by: Voice::named(by),
     }
 }
-fn rests(pieces: &[&str]) -> Related {
-    Related {
-        how: Relation::All,
-        pieces: pieces.iter().map(|x| p(x)).collect(),
+fn rests(pieces: &[&str]) -> Statement<Related> {
+    Statement {
+        piece: Piece::named(&format!("all: {}", pieces[0])),
+        content: Related {
+            how: Relation::All,
+            pieces: pieces.iter().map(|p| Piece::named(p)).collect(),
+        },
     }
+}
+/// The relations of these models are plain structure: believed at 1.
+fn sure(mut model: Model) -> Model {
+    for said in &model.related {
+        if !model.base.iter().any(|(p, _)| p == &said.piece) {
+            model.base.push((said.piece.clone(), 1.0));
+        }
+    }
+    model
 }
 
 /// One throw: base rates of the tie and the statement, trust in my
 /// senses, and what I saw.
 fn single(a: f64, f: f64, s: f64, fell: bool) -> Model {
-    Model {
+    sure(Model {
         evidence: vec![says("throw", "lands", fell, "me")],
         related: vec![rests(&["lands", "applies", "falls"])],
         base: vec![(p("applies"), a), (p("falls"), f), (p("throw"), s)],
-    }
+    })
 }
 
 fn base(rates: &[(&str, f64)]) -> Vec<(Piece, f64)> {
@@ -103,10 +115,10 @@ fn one_throw() {
 #[test]
 fn repeated_throws() {
     let lands = |n: usize, one_voice: bool| {
-        let mut m = Model {
+        let mut m = sure(Model {
             related: vec![rests(&["lands", "applies", "falls"])],
             ..Model::default()
-        };
+        });
         for k in 0..n {
             let by = if one_voice {
                 "me".to_string()
@@ -141,7 +153,7 @@ fn ball_and_balloon() {
         (0.5, 0.9, ["balloon applies", "throw balloon", "falls"]),
     ];
     for (a, s, suspects) in rows {
-        let m = Model {
+        let m = sure(Model {
             evidence: vec![
                 says("throw ball", "ball lands", true, "me"),
                 says("throw balloon", "balloon lands", false, "me"),
@@ -157,7 +169,7 @@ fn ball_and_balloon() {
                 ("throw ball", s),
                 ("throw balloon", s),
             ]),
-        };
+        });
         assert!(near(opinion(&m, &p("ball lands")), s, 0.0));
         assert!(near(opinion(&m, &p("balloon lands")), 0.0, s));
         assert!(near(opinion(&m, &p("falls")), s, 0.0));
@@ -178,7 +190,7 @@ fn falls_and_noise() {
         (0.5, 0.9, ["noise", "listen", "applies"]),
     ];
     for (a, s, suspects) in rows {
-        let m = Model {
+        let m = sure(Model {
             evidence: vec![
                 says("throw", "lands", true, "me"),
                 says("listen", "bangs", false, "me"),
@@ -194,7 +206,7 @@ fn falls_and_noise() {
                 ("throw", s),
                 ("listen", s),
             ]),
-        };
+        });
         assert!(near(opinion(&m, &p("lands")), s, 0.0));
         assert!(near(opinion(&m, &p("bangs")), 0.0, s));
         assert!(near(opinion(&m, &p("applies")), s, 0.0));

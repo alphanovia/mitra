@@ -218,3 +218,31 @@ tables; all four scenarios now read as expected.
 591. Not done: the same evidence reaching a part through two wholes
      is counted twice; flowing down more than one level is coded and
      not tested.
+
+## Increment 98: a relation is said (2026-11-20)
+
+**Asked.** "relation is structure, and we found the structure
+conjunction, and discounting, or about ? Give me a name for both
+relation types. Then a statement which a piece on content, can be
+constructed as a belief about a relation taken as content". The names
+are `All` and `about`. `Model.related` is now a list of
+`Statement<Related>`: every relation has a piece, and what is computed
+on it is discounted by the opinion of that piece. Scenario 5 of
+`docs/throwing.md` is the toy: a latent `gravity` linked by `because`.
+
+**Decisions taken alone.**
+
+592. One list: every relation of a model is a statement. Structure is
+     the case believed at 1, and it is written: a relation whose piece
+     has no base rate relates nothing.
+593. The discount is by `P` of the relation's statement, on the three
+     directions of `All`: up, a yes down, a no down.
+594. A relation believed under 1 is added to the suspects of a
+     conflict it takes part in.
+595. `about` stays a field of `Evidence` and is not a variant of
+     `Relation`: an evidence already is a piece that says its relation.
+596. The latent link is written with `All` ("because, and only
+     because"). No new kind of relation.
+597. Known cost: the belief of each relation is worked out again at
+     every step of the walk. Fine for toys, to cache before real
+     models.

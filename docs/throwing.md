@@ -85,6 +85,33 @@ Two pairs share `applies`. It falls, and makes no noise. The mirror:
 `applies` (s, 0) through the fall, `noise` (0, s·s), and `noise` is
 the first suspect.
 
+## 5. A relation that is itself said
+
+A relation of a model is a statement whose content is the relation:
+`Statement(Piece("because"), Related(All, [falls, gravity]))`. What is
+computed on it counts as far as that statement is believed. Believed
+at 1 it is plain structure, which is what scenarios 1 to 4 use.
+
+The toy: `gravity` ("things are pulled down") is a latent statement,
+with no tie and nothing to throw at. `because` says that `falls` is
+all of [`gravity`]: it falls because of gravity, and only because of
+it. I see the object fall, for sure.
+
+| `because` believed at | `falls` | `gravity` |
+|---|---|---|
+| 1 | (1, 0) | (1, 0) |
+| 0.5 | (1, 0) | (0.5, 0) |
+| 0 | (1, 0) | unmoved |
+| not said how far | (1, 0) | unmoved: nothing is assumed |
+
+And a relation that can be doubted is a suspect: a failed throw with
+the pair itself believed at 0.5 lists the pair first, then the tie and
+the statement, then the throw.
+
+Evidence was already this for `about`: an `Evidence` is a piece that
+says something about another piece, and it counts as far as it is
+believed. So both relations of the core are now said by pieces.
+
 ## What still reads odd
 
 1. **The pair is not the product of its parts after a yes.** One
@@ -107,8 +134,10 @@ the first suspect.
 
 ## Open on relations
 
-- A statement with no tie (a latent part of the system) needs a
-  relation between statements. Not designed.
+- A statement with no tie (a latent part of the system) is linked by
+  a relation between statements. Scenario 5 does it with `All`, read as
+  "because, and only because". Whether "because" deserves a relation
+  of its own, with its own computation, is not settled.
 - `Exclude` is still in the record and the toy never uses it. The one
   case I see for it, two statements that contradict on paper, could be
   computed by the seam instead.
