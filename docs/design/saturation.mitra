@@ -1,0 +1,44 @@
+// PROPOSAL, no code yet. One change to the opinion and two to its
+// operations, so that a counterexample refutes a claim about every
+// input. Pieces, evidence, statements, ties, relations, voices and
+// settings stay as they are in model.mitra.
+
+subject saturation {
+    require counts = piece::opinion_is_counts;
+    require shared = model::no_is_shared;
+    require all = model::whole_is_all_its_parts;
+    require discounted = claims::uniform_discounts;
+
+    ensure two_kinds_of_piece = "A piece is read in one of two ways. A rate is right more or less often: the reliability of a voice. A universal is true or false, and speaks of every case: a claim, the correct of a function. Which one a piece is follows from its kind, and nobody marks it.";
+    ensure an_opinion_keeps_what_refutes = "An opinion is counts of yes and no and a base rate, as today, and one more number: how far the piece is refuted, from 0 to 1. A rate is never refuted: its number stays 0 and a no adds to its count of no.";
+    ensure a_yes_adds = "A yes about a universal adds to its count of yes, as today. A passing test counts for the claim as far as uniform is believed.";
+    ensure a_no_saturates = "A no about a universal adds no count. It refutes: it raises how far the piece is refuted, by the share of the no that falls on that piece. A no needs no uniform: one input where the claim is false is enough.";
+    ensure refuted_is_not_diluted = "What is read of a universal is its reading from its counts of yes, times what is left unrefuted. So no number of passing tests afterwards brings a refuted claim back, and a claim refuted for sure reads 0.";
+    ensure refutations_combine = "Two refutations that share no suspect leave unrefuted the product of what each leaves. Two that share their suspects, such as two failing measurements through one tie, count as the stronger one.";
+    // OPEN: which share. Both are in the note that came with this file.
+    ensure the_share_is_the_blame = "The share of a no that falls on a universal is computed with its co-suspects: the tie, its completeness and the report. The more they are believed, the more the claim is refuted.";
+
+    // Would be `piece::Opinion` with one more field. Named apart here
+    // only so that this file builds beside model.mitra.
+    record Saturating {
+        r: Float64,
+        s: Float64,
+        a: Float64,
+        refuted: Float64,
+    }
+
+    // The opinion once a no falls on it with this share.
+    fn refute(o: Saturating, share: Float64) -> Saturating;
+    // What is read of a universal: from its yes, times what is left.
+    fn reading(o: Saturating, w: Float64) -> Float64;
+
+    claim a_sure_no_reads_zero(o: Saturating, w: Float64) {
+        reading(refute(o, 1.0), w) == 0.0
+    }
+    claim no_share_changes_nothing(o: Saturating) {
+        refute(o, 0.0) == o
+    }
+    claim a_yes_does_not_undo(o: Saturating, share: Float64, w: Float64) {
+        reading(refute(Saturating(o.r + 1.0, o.s, o.a, o.refuted), share), w) <= reading(Saturating(o.r + 1.0, o.s, o.a, o.refuted), w)
+    }
+}
