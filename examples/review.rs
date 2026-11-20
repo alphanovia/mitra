@@ -213,6 +213,125 @@ fn reviewers() {
     }
 }
 
+/// All of one voice's reviews stand on one piece, its reliability,
+/// believed at `trust` before anything is heard.
+fn voice(m: &mut Model, name: &str, trust: f64, reviews: &[(&str, f64)]) {
+    let reliable = p(&format!("reliable: {name}"));
+    m.base.push((reliable.clone(), trust));
+    for (about, count) in reviews {
+        m.evidence.push(Evidence {
+            piece: reliable.clone(),
+            about: p(about),
+            value: Opinion {
+                r: *count,
+                s: 0.0,
+                a: 0.5,
+            },
+            by: Voice::named(name),
+        });
+    }
+}
+
+fn two_voices() {
+    println!("\n### 6. Two independent voices\n");
+    println!("The cautious reviewer and the overconfident one review the same four objects. Each voice has one piece, its reliability, behind all its reviews, and both start believed at 0.9. The cautious one says 1000 yes on gravity, 1 on each mass, and on completeness 20 for the stone, 5 for the ball, half a yes for the leaf and the feather. The overconfident one says 100 yes on everything.\n");
+    let mut good = vec![("gravity", 1000.0)];
+    good.extend(MASSES.map(|x| (x, 1.0)));
+    good.extend([
+        ("complete stone", 20.0),
+        ("complete ball", 5.0),
+        ("complete leaf", 0.5),
+        ("complete feather", 0.5),
+    ]);
+    let mut bad = vec![("gravity", 100.0)];
+    bad.extend(MASSES.map(|x| (x, 100.0)));
+    bad.extend(DONE.map(|x| (x, 100.0)));
+    let build = |objects: &[(&str, usize, usize)], who: &str| {
+        let mut m = reviewed(objects, &[], 0.0);
+        if who != "overconfident" {
+            voice(&mut m, "cautious", 0.9, &good);
+        }
+        if who != "cautious" {
+            voice(&mut m, "overconfident", 0.9, &bad);
+        }
+        m
+    };
+    let rows = [
+        "reliable: cautious",
+        "reliable: overconfident",
+        "complete feather",
+        "mass feather",
+        "complete stone",
+        "drop feather 0",
+        "gravity",
+    ];
+    let at = |m: &Model, x: &str| {
+        if !m.base.iter().any(|(piece, _)| piece == &p(x)) {
+            return "".to_string();
+        }
+        let o = with_vouching(|| opinion(m, &p(x)));
+        let (from, to) = interval(o, weight());
+        format!("{:.2} [{from:.2}, {to:.2}]", projected(o))
+    };
+    println!("The stone, the ball and the leaf pass every time, the feather never. With the trial rule.\n");
+    println!("| measurements per object | cautious voice | overconfident voice | `complete feather` | `mass feather` | `complete stone` | one of the feather's measurements | `gravity` |");
+    println!("|---|---|---|---|---|---|---|---|");
+    for k in [1, 3, 10, 30, 100] {
+        let objects = [
+            ("stone", k, 0),
+            ("ball", k, 0),
+            ("leaf", k, 0),
+            ("feather", 0, k),
+        ];
+        let m = build(&objects, "both");
+        println!("| {k} | {} |", rows.map(|x| at(&m, x)).join(" | "));
+    }
+    println!("\nThe same at 10 measurements, by who reviews, and without the rule.\n");
+    println!("| who reviews | cautious voice | overconfident voice | `complete feather` | `mass feather` | `complete stone` | one of the feather's measurements | `gravity` |");
+    println!("|---|---|---|---|---|---|---|---|");
+    let objects = [
+        ("stone", 10, 0),
+        ("ball", 10, 0),
+        ("leaf", 10, 0),
+        ("feather", 0, 10),
+    ];
+    for who in ["cautious", "overconfident", "both"] {
+        let m = build(&objects, who);
+        println!("| {who} | {} |", rows.map(|x| at(&m, x)).join(" | "));
+    }
+    let m = build(&objects, "both");
+    let off = rows.map(|x| format!("{:.2}", projected(opinion(&m, &p(x)))));
+    println!("| both, without the rule | {} |", off.join(" | "));
+    println!("\nNoisy objects, 10 measurements each, both voices, with the rule.\n");
+    let objects = [
+        ("stone", 9, 1),
+        ("ball", 10, 0),
+        ("leaf", 6, 4),
+        ("feather", 0, 10),
+    ];
+    let m = build(&objects, "both");
+    println!("| object | passes | its mass | its completeness | one failing measurement |");
+    println!("|---|---|---|---|---|");
+    for (name, pass, fail) in objects {
+        let failing = match fail {
+            0 => "none".to_string(),
+            _ => at(&m, &format!("drop {name} {}", pass + fail - 1)),
+        };
+        println!(
+            "| {name} | {pass} of {} | {} | {} | {failing} |",
+            pass + fail,
+            at(&m, &format!("mass {name}")),
+            at(&m, &format!("complete {name}"))
+        );
+    }
+    println!(
+        "\ncautious voice {}, overconfident voice {}, `gravity` {}",
+        at(&m, "reliable: cautious"),
+        at(&m, "reliable: overconfident"),
+        at(&m, "gravity")
+    );
+}
+
 fn main() {
     println!(
         "Each cell: (yes, no), what it reads at, and [where it is right nine times out of ten].\n"
@@ -280,4 +399,5 @@ fn main() {
         println!("| {count} | {} |", cells.join(" | "));
     }
     reviewers();
+    two_voices();
 }

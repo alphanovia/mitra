@@ -433,3 +433,28 @@ change: 69 tests as before.
      gives a large yes (100 yes at 0.17 is 17 yes), and the
      measurements stay blamed since failures are shared from the
      opinions before any no.
+
+## Increment 104: two independent voices (2026-11-20)
+
+**Asked.** "let's try to independent voice on the review then, one
+cautious uncertain good reviewer, and one bad overconfident reviewer.
+How is independence modelled in bayesian network?"
+
+**Done.** `examples/review.rs` section 6; the trial rule `vouched`
+now judges a piece once on all the evidence standing on it;
+`docs/trials.md`, "Two independent voices". No test, no model change.
+
+**Decided alone.**
+
+640. A voice is one piece, `reliable: <voice>`, and each of its
+     reviews is evidence whose `piece` is that one. No new relation:
+     the review and the reliability are not told apart, so a voice is
+     right or wrong as a whole.
+641. `vouched` takes the piece, not one evidence: L(wrong) removes all
+     its counts from all the suspects at once. For a piece behind one
+     review nothing changes (section 5 reads the same).
+642. Both voices start at 0.9: the model is not told which is good.
+643. Found, not fixed: the rule only takes credit away, so a cautious
+     voice alone is discredited by the feather (0.34) whatever else
+     it got right; and the parts do not follow the voice's discredit,
+     since failures are shared once, from the opinions before any no.

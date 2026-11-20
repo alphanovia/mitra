@@ -408,8 +408,8 @@ The trial rule: evidence that said yes about a part of what failed is judged by 
 ### The trial rule
 
 Off unless asked (`model::with_vouching`), not in the model. When a
-whole fails, each piece of evidence `v` that said yes about one of its
-parts is judged by the failure:
+whole fails, each piece that evidence stands on, when that evidence
+said yes about parts of what failed, is judged by the failure:
 
 ```text
 mean after = mean · L(right) / (mean · L(right) + (1 - mean) · L(wrong))
@@ -417,9 +417,11 @@ L          = 1 - the chance that all the suspects are right
 no added   = α / after - α / mean
 ```
 
-`mean` is the belief in `v` before any failure. L(right) reads the
-part with all of `v`'s count, L(wrong) with none of it. A failure is
-more likely when `v` is wrong, since the part then stands on less.
+`mean` is the belief in that piece before any failure. L(right) reads
+each part with all of the count the piece stands behind, L(wrong) with
+none of it. A failure is more likely when the piece is wrong, since
+the parts then stand on less. A piece behind one review is judged on
+that review; a piece behind many is judged once on all of them.
 
 Read plainly.
 
@@ -444,3 +446,93 @@ Read plainly.
 So the rule answers "a bad reviewer is never doubted", and shows two
 things it does not answer: an overconfident count survives its own
 discredit, and a reviewer is not one thing across reviews.
+
+## Two independent voices
+
+Asked: "let's try to independent voice on the review then, one
+cautious uncertain good reviewer, and one bad overconfident reviewer.
+How is independence modelled in bayesian network?"
+
+In a Bayesian network independence is the absence of a shared parent.
+Each review is a child of two things: the truth of what it reviews,
+and the reliability of who wrote it. Two reviews by one voice share
+the reliability parent, so they are tied: what discredits one
+discredits the other. Two voices have each their own reliability, so
+given the truth their words are independent, and their counts add.
+Two voices that learnt from the same source would need a parent in
+common; that is not modelled here.
+
+In this trial a voice is one piece, `reliable: <voice>`, and every
+review by that voice is evidence standing on that one piece. Nothing
+else changes: the walk already adds different voices and discounts
+evidence by the piece it stands on, and the trial rule judges that
+piece once per failure on all it vouched for.
+
+### 6. Two independent voices
+
+The cautious reviewer and the overconfident one review the same four objects. Each voice has one piece, its reliability, behind all its reviews, and both start believed at 0.9. The cautious one says 1000 yes on gravity, 1 on each mass, and on completeness 20 for the stone, 5 for the ball, half a yes for the leaf and the feather. The overconfident one says 100 yes on everything.
+
+The stone, the ball and the leaf pass every time, the feather never. With the trial rule.
+
+| measurements per object | cautious voice | overconfident voice | `complete feather` | `mass feather` | `complete stone` | one of the feather's measurements | `gravity` |
+|---|---|---|---|---|---|---|---|
+| 1 | 0.90 [0.02, 1.00] | 0.75 [0.00, 1.00] | 1.00 [0.99, 1.00] | 1.00 [0.99, 1.00] | 1.00 [0.99, 1.00] | 0.17 [0.00, 0.80] | 1.00 [1.00, 1.00] |
+| 3 | 0.90 [0.02, 1.00] | 0.56 [0.00, 1.00] | 1.00 [0.99, 1.00] | 1.00 [0.99, 1.00] | 1.00 [0.99, 1.00] | 0.17 [0.00, 0.80] | 1.00 [1.00, 1.00] |
+| 10 | 0.89 [0.01, 1.00] | 0.30 [0.00, 0.99] | 0.99 [0.97, 1.00] | 0.99 [0.97, 1.00] | 1.00 [0.99, 1.00] | 0.17 [0.00, 0.80] | 1.00 [1.00, 1.00] |
+| 30 | 0.89 [0.01, 1.00] | 0.13 [0.00, 0.65] | 0.97 [0.88, 1.00] | 0.97 [0.89, 1.00] | 1.00 [0.99, 1.00] | 0.17 [0.00, 0.80] | 1.00 [1.00, 1.00] |
+| 100 | 0.88 [0.01, 1.00] | 0.04 [0.00, 0.23] | 0.82 [0.52, 0.99] | 0.83 [0.55, 0.99] | 1.00 [0.99, 1.00] | 0.17 [0.00, 0.80] | 1.00 [1.00, 1.00] |
+
+The same at 10 measurements, by who reviews, and without the rule.
+
+| who reviews | cautious voice | overconfident voice | `complete feather` | `mass feather` | `complete stone` | one of the feather's measurements | `gravity` |
+|---|---|---|---|---|---|---|---|
+| cautious | 0.34 [0.00, 1.00] |  | 0.11 [0.00, 0.49] | 0.24 [0.00, 0.77] | 0.99 [0.96, 1.00] | 0.71 [0.00, 1.00] | 1.00 [1.00, 1.00] |
+| overconfident |  | 0.12 [0.00, 0.62] | 0.98 [0.92, 1.00] | 0.98 [0.92, 1.00] | 1.00 [0.97, 1.00] | 0.17 [0.00, 0.82] | 1.00 [0.98, 1.00] |
+| both | 0.89 [0.01, 1.00] | 0.30 [0.00, 0.99] | 0.99 [0.97, 1.00] | 0.99 [0.97, 1.00] | 1.00 [0.99, 1.00] | 0.17 [0.00, 0.80] | 1.00 [1.00, 1.00] |
+| both, without the rule | 0.90 | 0.90 | 1.00 | 1.00 | 1.00 | 0.17 | 1.00 |
+
+Noisy objects, 10 measurements each, both voices, with the rule.
+
+| object | passes | its mass | its completeness | one failing measurement |
+|---|---|---|---|---|
+| stone | 9 of 10 | 1.00 [0.98, 1.00] | 1.00 [0.99, 1.00] | 0.16 [0.00, 0.79] |
+| ball | 10 of 10 | 1.00 [0.98, 1.00] | 1.00 [0.99, 1.00] | none |
+| leaf | 6 of 10 | 1.00 [0.98, 1.00] | 1.00 [0.98, 1.00] | 0.17 [0.00, 0.80] |
+| feather | 0 of 10 | 0.99 [0.97, 1.00] | 0.99 [0.97, 1.00] | 0.17 [0.00, 0.80] |
+
+cautious voice 0.89 [0.01, 1.00], overconfident voice 0.29 [0.00, 0.98], `gravity` 1.00 [1.00, 1.00]
+
+Read plainly.
+
+- The overconfident voice is found: 0.75 after one failure of the
+  feather, 0.30 after ten, 0.04 after a hundred. It falls slower than
+  its lone review did (0.63, 0.17), because the cautious voice also
+  spoke for the feather's parts, so they stand on something without
+  it.
+- Its word on the stone drops with it, since it is the same piece:
+  at ten failures its 100 yes on the stone count as 30. `complete
+  stone` still reads 1.00, held by the cautious voice's 20 yes and the
+  stone's own passes.
+- The cautious voice is hardly touched when both speak (0.90 to 0.88):
+  its half a yes on the feather changes little of what the parts
+  stand on.
+- Alone, the cautious voice is discredited to 0.34 by the feather: a
+  half yes is still a yes that failed, and the voice starts on a weak
+  belief (the base rate 0.9 weighs W = 0.2). Its 1000 yes on gravity
+  and 20 on the stone, confirmed by thirty passes, earn it nothing:
+  the rule only takes credit away.
+- The blame on the feather does not follow the discredit. With both
+  voices `complete feather` reads 0.99 at ten failures and 0.82 at a
+  hundred, and each of its measurements is blamed (0.17), where the
+  cautious voice alone puts the blame on completeness (0.11) and
+  believes the measurements (0.71). Two causes, both seen before:
+  failures are shared from the opinions before any no, where the
+  overconfident voice is still believed at 0.9; and 100 yes believed
+  at 0.30 are still 30 yes.
+- On the noisy objects the overconfident voice drowns the cautious
+  one: every part reads 1.00 and every failing measurement is blamed.
+
+So the voice as one piece does what was hoped for the voice, and the
+parts do not benefit yet. What would let them: share the failures a
+second time, from the opinions after the voices are judged; and let a
+pass speak for the voice that vouched for it. Neither is tried.
