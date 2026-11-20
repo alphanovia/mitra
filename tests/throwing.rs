@@ -73,12 +73,12 @@ fn names(pieces: &[&str]) -> Vec<Vec<Piece>> {
 fn one_throw_that_falls() {
     // (tie, statement, senses) -> the yes on each, what the tie reads as, the pair
     let rows = [
-        (0.5, 0.5, 0.5, 0.5, 0.6, 0.360),
-        (0.5, 0.5, 0.9, 0.9, 0.655, 0.429),
-        (0.5, 0.5, 1.0, 1.0, 0.667, 0.444),
-        (0.9, 0.9, 0.5, 0.5, 0.92, 0.846),
+        (0.5, 0.5, 0.5, 0.5, 0.857, 0.735),
+        (0.5, 0.5, 0.9, 0.9, 0.909, 0.826),
+        (0.5, 0.5, 1.0, 1.0, 0.917, 0.840),
+        (0.9, 0.9, 0.5, 0.5, 0.971, 0.944),
         (1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
-        (0.0, 0.0, 1.0, 1.0, 0.333, 0.111),
+        (0.0, 0.0, 1.0, 1.0, 0.833, 0.694),
         (0.5, 0.5, 0.0, 0.0, 0.5, 0.25), // senses not trusted
     ];
     for (a, f, s, yes_, tie, pair) in rows {
@@ -102,17 +102,17 @@ fn one_throw_that_does_not_fall() {
     let all: &[&str] = &["applies", "falls", "throw"];
     let rows: [Row; 9] = [
         // An equal start gives equal shares.
-        (0.5, 0.5, 0.5, [0.1; 3], all),
+        (0.5, 0.5, 0.5, [0.027; 3], all),
         (1.0, 1.0, 1.0, [1.0 / 3.0; 3], all),
         // Senses trusted more: the tie and the statement take more.
-        (0.5, 0.5, 0.9, [0.214, 0.214, 0.022], all),
-        (0.5, 0.5, 1.0, [0.25, 0.25, 0.0], all),
+        (0.5, 0.5, 0.9, [0.064, 0.064, 0.006], all),
+        (0.5, 0.5, 1.0, [0.077, 0.077, 0.0], all),
         // Senses trusted less: the throw takes more.
         (
             0.9,
             0.9,
             0.5,
-            [0.052, 0.052, 0.587],
+            [0.013, 0.013, 0.262],
             &["throw", "applies", "falls"],
         ),
         (1.0, 1.0, 0.0, [0.0; 3], &[]), // a throw nobody believes accuses nothing
@@ -121,7 +121,7 @@ fn one_throw_that_does_not_fall() {
             0.9,
             0.5,
             0.6,
-            [0.028, 0.281, 0.179],
+            [0.007, 0.089, 0.052],
             &["falls", "throw", "applies"],
         ),
         // Expected wrong already: nothing more to say.
@@ -164,7 +164,7 @@ fn repeated_throws() {
     for n in [1, 2, 4] {
         assert!(close(tie(n, true).r, 0.6));
     }
-    for (n, at) in [(1, 0.615), (2, 0.688), (6, 0.821), (10, 0.875), (40, 0.962)] {
+    for (n, at) in [(1, 0.875), (2, 0.929), (6, 0.974), (10, 0.984), (40, 0.996)] {
         let o = tie(n, false);
         assert!(close(o.r, 0.6 * n as f64) && close(projected(o), at), "{n}");
     }
@@ -175,7 +175,12 @@ fn repeated_throws() {
 /// so the balloon's tie takes more of the no.
 #[test]
 fn ball_and_balloon() {
-    for (s, tie, statement, throw) in [(0.9, 0.324, 0.173, 0.031), (1.0, 0.4, 0.2, 0.0)] {
+    let third = ["throw balloon", "falls"];
+    let rows = [
+        (0.9, 0.273, 0.037, 0.014, third),
+        (1.0, 0.478, 0.043, 0.0, ["falls", "throw balloon"]),
+    ];
+    for (s, tie, statement, throw, then) in rows {
         let m = sure(Model {
             evidence: vec![
                 says("throw ball", "ball lands", true, "me"),
@@ -198,8 +203,7 @@ fn ball_and_balloon() {
         assert!(close(opinion(&m, &p("falls")).r, s));
         assert!(close(opinion(&m, &p("falls")).s, statement));
         assert!(close(opinion(&m, &p("throw balloon")).s, throw));
-        let suspects = ["balloon applies", "falls", "throw balloon"];
-        assert_eq!(conflicts(&m), names(&suspects));
+        assert_eq!(conflicts(&m), names(&["balloon applies", then[0], then[1]]));
     }
 }
 
@@ -207,7 +211,11 @@ fn ball_and_balloon() {
 /// noise: the mirror of scenario 3.
 #[test]
 fn falls_and_noise() {
-    for (s, noise, tie, listen) in [(0.9, 0.324, 0.173, 0.031), (1.0, 0.4, 0.2, 0.0)] {
+    let rows = [
+        (0.9, 0.273, 0.037, 0.014, ["listen", "applies"]),
+        (1.0, 0.478, 0.043, 0.0, ["applies", "listen"]),
+    ];
+    for (s, noise, tie, listen, then) in rows {
         let m = sure(Model {
             evidence: vec![
                 says("throw", "lands", true, "me"),
@@ -229,7 +237,7 @@ fn falls_and_noise() {
         assert!(close(opinion(&m, &p("noise")).s, noise));
         assert!(close(opinion(&m, &p("applies")).s, tie));
         assert!(close(opinion(&m, &p("listen")).s, listen));
-        assert_eq!(conflicts(&m), names(&["noise", "applies", "listen"]));
+        assert_eq!(conflicts(&m), names(&["noise", then[0], then[1]]));
     }
 }
 
@@ -261,19 +269,19 @@ fn gravity_and_two_masses() {
     };
     // One object: gravity and its mass move alike, as in scenario 1.
     let m = world(0.5, Some(true), None);
-    assert!(reads(&m, "gravity", 0.9, 0.0, 0.655) && reads(&m, "mass ball", 0.9, 0.0, 0.655));
+    assert!(reads(&m, "gravity", 0.9, 0.0, 0.909) && reads(&m, "mass ball", 0.9, 0.0, 0.909));
     let m = world(0.5, Some(false), None);
-    assert!(reads(&m, "gravity", 0.0, 0.214, 0.452) && reads(&m, "mass ball", 0.0, 0.214, 0.452));
+    assert!(reads(&m, "gravity", 0.0, 0.064, 0.379) && reads(&m, "mass ball", 0.0, 0.064, 0.379));
     // Both fall: gravity is seen twice, each mass once.
     let m = world(0.5, Some(true), Some(true));
-    assert!(reads(&m, "gravity", 1.8, 0.0, 0.737) && reads(&m, "mass balloon", 0.9, 0.0, 0.655));
+    assert!(reads(&m, "gravity", 1.8, 0.0, 0.95) && reads(&m, "mass balloon", 0.9, 0.0, 0.909));
     // The ball falls, the balloon does not: the balloon's mass takes
     // more of the no than gravity, which the ball speaks for.
     let m = world(0.5, Some(true), Some(false));
-    assert!(reads(&m, "gravity", 0.9, 0.173, 0.618));
-    assert!(reads(&m, "mass ball", 0.9, 0.0, 0.655));
-    assert!(reads(&m, "mass balloon", 0.0, 0.324, 0.430));
-    let suspects = ["mass balloon", "gravity", "throw balloon"];
+    assert!(reads(&m, "gravity", 0.9, 0.037, 0.879));
+    assert!(reads(&m, "mass ball", 0.9, 0.0, 0.909));
+    assert!(reads(&m, "mass balloon", 0.0, 0.273, 0.212));
+    let suspects = ["mass balloon", "throw balloon", "gravity"];
     assert_eq!(conflicts(&m), names(&suspects));
     // Neither falls: gravity is doubted twice, each mass once.
     let m = world(0.5, Some(false), Some(false));
@@ -310,10 +318,9 @@ fn a_hundred_objects_and_a_feather() {
     let mut objects: Vec<(&str, usize, usize)> = names.iter().map(|n| (n.as_str(), 1, 0)).collect();
     objects.push(("feather", 0, 1));
     let m = world(&objects);
-    assert!(reads(&m, "gravity", 90.0, 0.009, 0.989));
-    assert!(reads(&m, "mass o0", 0.9, 0.0, 0.655));
-    assert!(reads(&m, "mass feather", 0.0, 0.730, 0.366));
-    assert!(reads(&m, "drop feather 0", 0.0, 0.061, 0.873));
+    let at = |x: &str| projected(opinion(&m, &p(x)));
+    assert!(at("gravity") > 0.99 && close(at("mass o0"), 0.909));
+    assert!(at("mass feather") < 0.17 && at("drop feather 0") > 0.8);
     // An object that passes 19 of 20: the one measurement is the odd
     // one. A feather that fails 20 of 20: the object is.
     let m = world(&[("stone", 19, 1), ("feather", 0, 20)]);
@@ -321,10 +328,10 @@ fn a_hundred_objects_and_a_feather() {
         opinion(&m, &p("mass stone")),
         opinion(&m, &p("drop stone 19")),
     );
-    assert!(drop.s > mass.s && projected(mass) > 0.9 && projected(drop) < 0.8);
+    assert!(drop.s > mass.s && projected(mass) > 0.9 && projected(drop) < 0.3);
     let (mass, drop) = (
         opinion(&m, &p("mass feather")),
         opinion(&m, &p("drop feather 0")),
     );
-    assert!(projected(mass) < 0.1 && projected(drop) > 0.85);
+    assert!(projected(mass) < 0.1 && projected(drop) > 0.8);
 }

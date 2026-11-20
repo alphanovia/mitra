@@ -21,11 +21,12 @@ pub fn piece_id(x: &Piece) -> &str {
 }
 
 /// The weight of what is expected before any evidence, in counts. A
-/// setting of the whole system, not of one opinion: with 2, a piece
-/// with base rate one half starts as "one yes, one no".
+/// setting of the whole system, not of one opinion. Small, so that the
+/// first observation nearly settles a piece: one sure yes on one half
+/// reads 0.92.
 // mitra: implements piece::weight
 pub fn weight() -> f64 {
-    2.0
+    0.2
 }
 
 /// What is believed of a piece, as counts: `r` of yes, `s` of no. `a`

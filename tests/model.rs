@@ -70,7 +70,7 @@ fn no_evidence_is_the_base_rate() {
 fn review_lifts_a_test() {
     assert_eq!(
         projected(fuse(nothing(0.5), moved(nothing(0.5), yes()), 1.0)),
-        0.6
+        0.6 / 0.7
     );
 }
 
@@ -95,7 +95,7 @@ fn not_knowing_is_no_review() {
 fn wrong_is_disbelief() {
     assert_eq!(
         projected(fuse(nothing(0.5), moved(nothing(1.0), no()), 1.0)),
-        1.0 / 3.0
+        0.1 / 1.2
     );
 }
 
@@ -191,8 +191,8 @@ fn a_review_reaches_the_claim() {
         related: vec![],
         base: base_of(&[("t", 0.5), ("r", 0.5)]),
     };
-    // The test reads 0.5, then 0.6 with half a yes from its review.
-    assert_eq!(opinion(&model, &Piece::named("c")).r, 0.6);
+    // The test reads 0.5, then 0.86 with half a yes from its review.
+    assert_eq!(opinion(&model, &Piece::named("c")).r, 0.6 / 0.7);
 }
 
 // mitra: evidence for model::a_test_judged_wrong_says_less
@@ -203,8 +203,8 @@ fn a_test_judged_wrong_says_less() {
         related: vec![],
         base: base_of(&[("t", 0.5), ("r", 1.0)]),
     };
-    // One sure no on the test: it reads 1/3, no longer 0.5.
-    assert_eq!(opinion(&model, &Piece::named("c")), op(1.0 / 3.0, 0.0, 0.0));
+    // One sure no on the test: it reads 0.08, no longer 0.5.
+    assert_eq!(opinion(&model, &Piece::named("c")), op(0.1 / 1.2, 0.0, 0.0));
 }
 
 // mitra: evidence for model::a_whole_of_one_part_is_that_part
@@ -342,9 +342,9 @@ fn with_nothing_known_a_piece_is_at_its_base_rate() {
 
 /// The experiment: how many passing tests nobody reviewed hold a claim
 /// at 0.9, each believed at 0.6, the claim expected at 0. Each is 0.6
-/// of a yes against a weight of 2: thirty of them.
+/// of a yes against a weight of 0.2: three of them.
 #[test]
-fn thirty_voices_hold_a_claim_and_one_voice_never() {
+fn three_voices_hold_a_claim_and_one_voice_never() {
     let world = |n: usize, one_voice: bool| {
         let mut model = Model::default();
         for k in 0..n {
@@ -359,9 +359,9 @@ fn thirty_voices_hold_a_claim_and_one_voice_never() {
         model
     };
     let p = |n, one| projected(opinion(&world(n, one), &Piece::named("c")));
-    assert!(near(p(1, false), 0.6 / 2.6) && near(p(2, false), 1.2 / 3.2));
-    assert!(p(29, false) < 0.9 && p(30, false) >= 0.9 - 1e-9);
-    assert!(near(p(10, true), 0.6 / 2.6));
+    assert!(near(p(1, false), 0.6 / 0.8) && near(p(2, false), 1.2 / 1.4));
+    assert!(p(2, false) < 0.9 && p(3, false) >= 0.9 - 1e-9);
+    assert!(near(p(10, true), 0.6 / 0.8));
 }
 
 #[test]
@@ -386,8 +386,9 @@ fn a_piece_rests_on_all_its_parts() {
         related: vec![rests(&["x", "y", "z"])],
         base: base_of(&[("t1", 0.5), ("t2", 0.5)]),
     });
-    // Each part reads 0.5 / 2.5.
-    assert!(near(p_of(&model, "x"), 0.2 * 0.2));
+    // Each part has half a yes on a base rate of 0.
+    let part = 0.5 / (0.5 + weight());
+    assert!(near(p_of(&model, "x"), part * part));
 }
 
 /// `x` is all of `y` alone, so what is said of one is said of the
@@ -412,8 +413,11 @@ fn a_no_about_a_whole_lowers_it() {
         related: vec![rests(&["x", "y", "z"])],
         base: base_of(&[("t", 1.0), ("y", 0.5), ("z", 0.5)]),
     });
-    assert!(near(opinion(&model, &Piece::named("y")).s, 0.25));
-    assert!(near(opinion(&model, &Piece::named("z")).s, 0.25));
+    let (y, z) = (
+        opinion(&model, &Piece::named("y")),
+        opinion(&model, &Piece::named("z")),
+    );
+    assert!(y == z && (y.s - 0.0769).abs() < 1e-3 && y.r == 0.0);
     assert!(p_of(&model, "x") < 0.25);
 }
 
@@ -439,11 +443,11 @@ fn a_throw_at_one_half() {
     let no_on = |senses: f64, x: &str| opinion(&throw(senses, false), &Piece::named(x)).s;
     assert_eq!(no_on(0.5, "applies"), no_on(0.5, "throw"));
     assert_eq!(no_on(0.5, "applies"), no_on(0.5, "falls"));
-    assert!(near(no_on(0.5, "applies"), 0.1));
+    assert!((no_on(0.5, "applies") - 0.02703).abs() < 1e-4);
     // Senses trusted more: more on the tie and the statement.
     assert!(no_on(0.9, "applies") > no_on(0.9, "throw"));
-    assert!(near(no_on(0.9, "applies"), 3.0 / 14.0));
-    assert!((no_on(0.9, "throw") - 0.021739).abs() < 1e-6);
+    assert!((no_on(0.9, "applies") - 0.06383).abs() < 1e-4);
+    assert!((no_on(0.9, "throw") - 0.005525).abs() < 1e-4);
     let suspects = ["applies", "falls", "throw"].map(Piece::named).to_vec();
     assert_eq!(conflicts(&throw(0.5, false)), [suspects]);
 }
@@ -524,11 +528,8 @@ fn what_is_shared_takes_the_blame_off() {
         ]),
     });
     // The statement is believed through the ball: it takes less.
-    assert!(near(
-        opinion(&balloon, &Piece::named("balloon applies")).s,
-        0.125
-    ));
-    assert!(opinion(&balloon, &Piece::named("falls")).s < 0.125);
+    assert!(opinion(&balloon, &Piece::named("balloon applies")).s > 0.05);
+    assert!(opinion(&balloon, &Piece::named("falls")).s < 0.02);
     let noise = sure(Model {
         evidence: vec![
             says("throw", "lands", yes(), "me"),
@@ -546,8 +547,8 @@ fn what_is_shared_takes_the_blame_off() {
             ("listen", 0.5),
         ]),
     });
-    assert!(near(opinion(&noise, &Piece::named("noise")).s, 0.125));
-    assert!(opinion(&noise, &Piece::named("applies")).s < 0.125);
+    assert!(opinion(&noise, &Piece::named("noise")).s > 0.05);
+    assert!(opinion(&noise, &Piece::named("applies")).s < 0.02);
 }
 
 #[test]

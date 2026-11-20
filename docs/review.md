@@ -314,3 +314,11 @@ can decide of a rate of success of the measurement"). Notes:
      0.9 (see the note).
 616. In the sweep each measurement has its own voice, and a success
      rate is a fixed number of passes, not a draw.
+
+**Then (12:41).** "I want the first observation to collapse the model
+into certainty very fast." The weight is 0.2, as the coordinator
+proposed: one sure yes on one half reads 0.92. Tables and goldens are
+recorded again, with a column at 2 where it helps.
+
+617. The W 2 columns are the numbers of the commit before; the weight
+     is one function and is not swept by the code.

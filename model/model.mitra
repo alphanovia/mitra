@@ -73,7 +73,8 @@ subject piece {
     fn piece_id(x: Piece) -> String;
 
     // The weight of what is expected before any evidence, in counts.
-    fn weight() -> Float64 { 2.0 }
+    // Small, so that the first observation nearly settles a piece.
+    fn weight() -> Float64 { 0.2 }
 
     fn nothing(a: Float64) -> Opinion { Opinion(0.0, 0.0, a) }
     // One yes, one no.
@@ -91,8 +92,7 @@ subject piece {
 
     // opinion_is_counts
     claim no_evidence_is_the_base_rate() { projected(nothing(0.5)) == 0.5 && uncertainty(nothing(0.5)) == 1.0 }
-    claim one_yes_on_one_half_is_two_thirds() { projected(Opinion(1.0, 0.0, 0.5)) == 2.0 / 3.0 }
-    claim eight_yes_on_one_half_reach_nine_tenths() { projected(Opinion(8.0, 0.0, 0.5)) == 0.9 }
+    claim one_yes_on_one_half_nearly_settles_it() { projected(Opinion(1.0, 0.0, 0.5)) > 0.9 && projected(Opinion(0.0, 1.0, 0.5)) < 0.1 }
 
     // trusted_is_the_policy
     claim policy_zero_still_needs_belief() {
@@ -146,9 +146,9 @@ subject evidence {
     fn conflict(x: piece::Opinion, y: piece::Opinion) -> Float64 { x.r * y.s + x.s * y.r }
 
     // said_as_far_as_believed: a review "correct", believed at 0.5, is
-    // half a yes on a test at bias 0.5: the test reads 0.6.
+    // half a yes on a test at bias 0.5: the test reads 0.86.
     claim review_lifts_a_test() {
-        piece::projected(fuse(piece::nothing(0.5), moved(piece::nothing(0.5), piece::yes()), 1.0)) == 0.6
+        piece::projected(fuse(piece::nothing(0.5), moved(piece::nothing(0.5), piece::yes()), 1.0)) > 0.85
     }
     claim believed_at_zero_moves_nothing() {
         moved(piece::nothing(0.0), piece::yes()) == Opinion(0.0, 0.0, 1.0) && moved(piece::nothing(0.0), piece::no()) == Opinion(0.0, 0.0, 0.0)
@@ -156,9 +156,9 @@ subject evidence {
     claim not_knowing_is_no_review() {
         piece::projected(fuse(piece::nothing(0.5), moved(piece::nothing(0.0), piece::yes()), 1.0)) == 0.5
     }
-    // One sure "wrong" is one no against a weight of two: 1/3, not 0.
+    // One sure "wrong" is one no against the weight: under 0.1, not 0.
     claim wrong_is_disbelief() {
-        piece::projected(fuse(piece::nothing(0.5), moved(piece::nothing(1.0), piece::no()), 1.0)) == 1.0 / 3.0
+        piece::projected(fuse(piece::nothing(0.5), moved(piece::nothing(1.0), piece::no()), 1.0)) < 0.1
     }
     claim one_failing_test_is_against() {
         piece::against(moved(piece::nothing(0.5), piece::no())) && !piece::against(moved(piece::nothing(0.0), piece::no()))
@@ -260,7 +260,7 @@ subject model {
     // All that is said of a system: the evidence, the relations between
     // pieces, each said by a statement, and the base rate of each piece
     // that has one. A piece with none has 0: it is expected wrong, with
-    // the weight of two counts. "Nothing assumed" is one half.
+    // the weight. "Nothing assumed" is one half.
     record Model {
         evidence: List<evidence::Evidence>,
         related: List<statement::Statement<Related>>,
@@ -300,12 +300,12 @@ subject model {
     }
     claim a_review_reaches_the_claim(c: piece::Piece, t: piece::Piece, r: piece::Piece, a: evidence::Voice, b: evidence::Voice) {
         c == t || c == r || t == r
-            || opinion(Model([Evidence(t, c, piece::yes(), a), Evidence(r, t, piece::yes(), b)], [], [(t, 0.5), (r, 0.5)]), c).r == 0.6
+            || opinion(Model([Evidence(t, c, piece::yes(), a), Evidence(r, t, piece::yes(), b)], [], [(t, 0.5), (r, 0.5)]), c).r > 0.85
     }
-    // One sure "wrong" on the test: it reads 1/3, and says that much.
+    // One sure "wrong" on the test: it reads under 0.1, and says that much.
     claim a_test_judged_wrong_says_less(c: piece::Piece, t: piece::Piece, r: piece::Piece, a: evidence::Voice, b: evidence::Voice) {
         c == t || c == r || t == r
-            || opinion(Model([Evidence(t, c, piece::yes(), a), Evidence(r, t, piece::no(), b)], [], [(t, 0.5), (r, 1.0)]), c) == Opinion(1.0 / 3.0, 0.0, 0.0)
+            || opinion(Model([Evidence(t, c, piece::yes(), a), Evidence(r, t, piece::no(), b)], [], [(t, 0.5), (r, 1.0)]), c).r < 0.1
     }
 
     // whole_is_all_its_parts
