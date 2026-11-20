@@ -33,8 +33,8 @@ read nothing, and each kind of piece reads only what it requires.
 
 Not here yet, on purpose: a reader of `.mitra` text, a ledger on disk,
 settings, voices read as agent, person or machine, verdict words and
-reports, a build that judges every piece at once, functions and the
-code they stand for, tests of that code, a statement over many inputs.
+reports, a build that judges every piece at once, a reader of the
+code and of its test reports.
 The models are read by `main`'s `mitra`, the code is tied to them by
 hand.
 
