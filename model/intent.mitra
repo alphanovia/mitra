@@ -1,0 +1,60 @@
+// PROPOSAL, no code yet. Intent: what a block promises, what it
+// needs, and what is taken on its word. A block is a group, like a
+// function: it adds no kind of piece, only statements and relations
+// between them. Reads model.mitra, claim.mitra and function.mitra.
+
+subject intent {
+    require said = statement::statement_is_an_interpretation;
+    require asserted = model::relation_is_said;
+    require all = model::whole_is_all_its_parts;
+    require shared = model::no_is_shared;
+    require grouped = functions::function_is_a_group;
+
+    ensure block_is_a_group = "A block is a name and what is written in it: promises, needs, claims and functions. A subject is what we built: evidence is owed on its claims and its functions are tied to our code. A boundary is what we bought: its claims are assumptions, taken at their base rate, and no evidence is owed on them. Nothing else differs between the two.";
+    ensure a_promise_is_its_claims = "An ensure is a statement whose content is a text that is never read. It is all of the claims of its block, the correct of each of its functions that has a body, and the needs of its block. That relation is itself said, by the model's author: how far it is believed is how far the claims are taken to say what the text says. A reviewer's evidence about the relation is what main calls captured.";
+    ensure a_need_is_a_promise_elsewhere = "A require is a statement with a name of its own. It is all of one thing: the promise it names in another block. That relation is said too: how far it is believed is how far that promise is taken to be what is needed here. A require that names a text and no promise stands on nothing but its base rate.";
+    ensure an_assumption_owes_nothing = "An assume is a claim in a boundary. It is believed at its base rate, written or from the settings, and it is never reported as owed. Evidence about it counts like any other.";
+    ensure uses_is_about_the_code = "Uses says which functions the code of a function calls. It is one statement of the function's tie, checked by whoever reads the code, and it relates nothing in the model: a test of a function already runs what it calls. It is compared with require: a function that uses a block which promises, with no require beside it, is reported, and so is a require nothing leans on.";
+    ensure a_no_on_a_promise_is_shared = "Evidence may speak of a promise directly, from someone who knows nothing of the model. A no about it is shared between its claims, its needs, the evidence, and the relation that the claims say the text.";
+
+    enum Kind { Subject, Boundary }
+    // The content of an ensure.
+    record Promise { text: String }
+    // `require name = other::promise;`. `of` is None for a text
+    // nobody promises yet.
+    record Need {
+        piece: piece::Piece,
+        of: Option<piece::Piece>,
+    }
+    record Block {
+        name: String,
+        kind: Kind,
+        ensures: List<statement::Statement<Promise>>,
+        requires: List<Need>,
+        claims: List<statement::Statement<claims::Claim>>,
+        functions: List<functions::Function>,
+    }
+
+    // What an ensure of the block is all of.
+    fn rests(b: Block) -> List<piece::Piece>
+        uses functions::correctness;
+    // The model with the block in it: one relation per ensure and one
+    // per require that names a promise, each a statement that can be
+    // believed more or less.
+    fn stated(model: model::Model, b: Block) -> model::Model
+        uses rests;
+    // The claims and functions of the block with nothing said of
+    // them. Always empty for a boundary.
+    fn owed(model: model::Model, b: Block) -> List<piece::Piece>
+        uses model::opinion;
+    // The uses of the block's functions that reach a promising block
+    // with no require naming it, and the requires nothing leans on.
+    fn unmatched(b: Block, others: List<Block>) -> List<String>;
+
+    claim a_boundary_owes_nothing(m: model::Model, b: Block) {
+        b.kind == Subject || owed(m, b) == []
+    }
+    claim a_block_with_no_ensure_relates_nothing(m: model::Model, b: Block) {
+        b.ensures != [] || b.requires != [] || stated(m, b).related == m.related
+    }
+}
