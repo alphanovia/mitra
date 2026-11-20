@@ -170,3 +170,20 @@ move down things if we find that they are actually part of the core."
 `Owner`, `stance`, the promise `owed_or_given` and their three claims
 are gone, in the model, the seam, the code and the tests. A statement
 is a piece and a content. Decisions 575, 579 and 580 no longer apply.
+
+## Increment 96: the throwing toy (2026-11-20)
+
+**Asked.** "let's use this toy exemple, and figure out how we describe
+and compute opinions in different scenarios, with the extreme opinions
+as a test of logic, and with middle as a test of what uncertainty does
+to it". `docs/throwing.md` has the four scenarios; `tests/throwing.rs`
+pins what the core gives today. No change to the calculus or to the
+relation record. Seven of ten rows of the single throw read wrong:
+nothing flows from a whole to its parts, a "no" is dropped when the
+parts have a base rate, and no conflict is derived.
+
+**Decisions taken alone.** 582. The pair a throw tests is a fourth
+piece, `lands`, resting on the tie and the statement. 583. The wrong
+rows are pinned as tests and not written as claims of the model: a
+claim is a promise. 584. Two rules are proposed in the note, not
+coded.
