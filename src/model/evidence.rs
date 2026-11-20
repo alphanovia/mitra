@@ -39,35 +39,26 @@ pub fn apart(a: &Voice, b: &Voice) -> f64 {
     }
 }
 
-/// What evidence says, as far as it is believed.
+/// What evidence says, as far as it is believed: its counts, scaled.
+/// A yes stays a yes and a no stays a no, however little is believed.
 // mitra: implements evidence::moved
 pub fn moved(believed: Opinion, said: Opinion) -> Opinion {
     let p = projected(believed);
     Opinion {
-        b: p * said.b,
-        d: p * said.d,
-        u: 1.0 - p * (said.b + said.d),
+        r: p * said.r,
+        s: p * said.s,
         a: said.a,
     }
 }
 
-/// Two opinions on one piece, at independence `i`. At 1 they add up, at
-/// 0 they are averaged. Both certain: their average.
+/// Two opinions on one piece, at independence `i`. At 1 the counts add
+/// up. At 0 it is one voice, counted once: its strongest yes and its
+/// strongest no.
 // mitra: implements evidence::fuse
 pub fn fuse(x: Opinion, y: Opinion, i: f64) -> Opinion {
-    if x.u == 0.0 && y.u == 0.0 {
-        return Opinion {
-            b: (x.b + y.b) / 2.0,
-            d: (x.d + y.d) / 2.0,
-            u: 0.0,
-            a: x.a,
-        };
-    }
-    let k = x.u + y.u - i * x.u * y.u;
     Opinion {
-        b: (x.b * y.u + y.b * x.u) / k,
-        d: (x.d * y.u + y.d * x.u) / k,
-        u: (2.0 - i) * x.u * y.u / k,
+        r: f64::max(x.r, y.r) + i * f64::min(x.r, y.r),
+        s: f64::max(x.s, y.s) + i * f64::min(x.s, y.s),
         a: x.a,
     }
 }
@@ -75,5 +66,5 @@ pub fn fuse(x: Opinion, y: Opinion, i: f64) -> Opinion {
 /// How far two opinions on one piece contradict each other.
 // mitra: implements evidence::conflict
 pub fn conflict(x: Opinion, y: Opinion) -> f64 {
-    x.b * y.d + x.d * y.b
+    x.r * y.s + x.s * y.r
 }

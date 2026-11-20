@@ -20,62 +20,72 @@ pub fn piece_id(x: &Piece) -> &str {
     &x.name
 }
 
-/// What is believed of a piece. `b + d + u == 1`; `a` is the base rate:
-/// what to expect with no evidence.
+/// The weight of what is expected before any evidence, in counts. A
+/// setting of the whole system, not of one opinion: with 2, a piece
+/// with base rate one half starts as "one yes, one no".
+// mitra: implements piece::weight
+pub fn weight() -> f64 {
+    2.0
+}
+
+/// What is believed of a piece, as counts: `r` of yes, `s` of no. `a`
+/// is the base rate: what to expect with no evidence.
 // mitra: implements piece::Opinion
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Opinion {
-    pub b: f64,
-    pub d: f64,
-    pub u: f64,
+    pub r: f64,
+    pub s: f64,
     pub a: f64,
 }
 
 /// No evidence: the base rate alone.
 // mitra: implements piece::nothing
 pub fn nothing(a: f64) -> Opinion {
-    Opinion {
-        b: 0.0,
-        d: 0.0,
-        u: 1.0,
-        a,
-    }
+    Opinion { r: 0.0, s: 0.0, a }
 }
 
+/// One yes.
 // mitra: implements piece::yes
 pub fn yes() -> Opinion {
     Opinion {
-        b: 1.0,
-        d: 0.0,
-        u: 0.0,
+        r: 1.0,
+        s: 0.0,
         a: 1.0,
     }
 }
 
+/// One no.
 // mitra: implements piece::no
 pub fn no() -> Opinion {
     Opinion {
-        b: 0.0,
-        d: 1.0,
-        u: 0.0,
+        r: 0.0,
+        s: 1.0,
         a: 0.0,
     }
 }
 
-/// The number an opinion reads as.
+/// The number an opinion reads as: the share of yes, the base rate
+/// counted `weight()` times.
 // mitra: implements piece::projected
 pub fn projected(o: Opinion) -> f64 {
-    o.b + o.a * o.u
+    (o.r + o.a * weight()) / (o.r + o.s + weight())
 }
 
-/// Believed enough for the policy, and never with no belief at all.
+/// How much of an opinion is not evidence: 1 with none, towards 0 as
+/// the counts grow.
+// mitra: implements piece::uncertainty
+pub fn uncertainty(o: Opinion) -> f64 {
+    weight() / (o.r + o.s + weight())
+}
+
+/// Believed enough for the policy, and never with no yes at all.
 // mitra: implements piece::reaches
 pub fn reaches(o: Opinion, policy: f64) -> bool {
-    o.b > 0.0 && projected(o) >= policy
+    o.r > 0.0 && projected(o) >= policy
 }
 
 /// The evidence against is at least as strong as the evidence for.
 // mitra: implements piece::against
 pub fn against(o: Opinion) -> bool {
-    o.d > 0.0 && o.d >= o.b
+    o.s > 0.0 && o.s >= o.r
 }

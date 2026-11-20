@@ -74,14 +74,16 @@ fn a_statement_computed_moves_the_opinion_of_its_claim() {
         base: vec![(seen.piece.clone(), 1.0)],
         ..Model::default()
     };
-    assert!(!trusted(&model, &small.piece, 0.9));
+    assert!(!trusted(&model, &small.piece, 0.0));
     model.evidence.push(seen);
-    assert!(trusted(&model, &small.piece, 0.9));
+    // One computation is one yes.
+    assert_eq!(opinion(&model, &small.piece).r, 1.0);
+    assert!(trusted(&model, &small.piece, 0.0));
 
     let against = observe(&small, &at(5), &mitra()).unwrap();
     assert_ne!(against.piece, model.evidence[0].piece);
     model.base.push((against.piece.clone(), 1.0));
     model.evidence.push(against);
     let o = opinion(&model, &small.piece);
-    assert!(!trusted(&model, &small.piece, 0.9) && o.d > 0.0);
+    assert!(o.s == 1.0 && o.s >= o.r);
 }

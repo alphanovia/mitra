@@ -21,7 +21,7 @@ import std::core::{Option};
 subject claims {
     require said = statement::statement_is_an_interpretation;
     require believed = evidence::evidence_is_a_piece;
-    require yes_and_no = piece::opinion_is_four_numbers;
+    require yes_and_no = piece::opinion_is_counts;
     require computed = value::one_value;
 
     ensure formal_is_a_truth = "A formal statement says an expression that gives a truth; an expression that gives anything else states nothing.";

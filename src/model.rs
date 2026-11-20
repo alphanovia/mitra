@@ -14,7 +14,9 @@ pub mod statement;
 pub mod tie;
 
 pub use evidence::{apart, conflict, fuse, moved, Evidence, Voice};
-pub use piece::{against, no, nothing, piece_id, projected, reaches, yes, Opinion, Piece};
+pub use piece::{
+    against, no, nothing, piece_id, projected, reaches, uncertainty, weight, yes, Opinion, Piece,
+};
 pub use place::{within, Place};
 pub use statement::Statement;
 pub use tie::{concerned, places, Tie};
@@ -54,16 +56,53 @@ pub struct Model {
     pub base: Vec<(Piece, f64)>,
 }
 
-/// Both of two pieces: believed as the product.
+/// An opinion as the two parameters of a Beta: yes and no, each with
+/// its part of the weight of the base rate.
+fn beta(o: Opinion) -> (f64, f64) {
+    (o.r + o.a * weight(), o.s + (1.0 - o.a) * weight())
+}
+
+/// The mean of a Beta and the mean of its square.
+fn moments((alpha, beta): (f64, f64)) -> (f64, f64) {
+    let n = alpha + beta;
+    (alpha / n, alpha * (alpha + 1.0) / (n * (n + 1.0)))
+}
+
+/// Both of two pieces. Each is how often it is right, a Beta; the two
+/// taken as independent, how often both are right is their product,
+/// and the answer is the Beta with the mean and the variance of that
+/// product. Its base rate is the product of the two.
 // mitra: implements model::all
 pub fn all(x: Opinion, y: Opinion) -> Opinion {
-    let b = x.b * y.b;
-    let d = x.d + y.d - x.d * y.d;
+    let a = x.a * y.a;
+    let (bx, by) = (beta(x), beta(y));
+    if bx.0 == 0.0 || by.0 == 0.0 {
+        // One is surely wrong: so is the whole.
+        return Opinion {
+            r: 0.0,
+            s: f64::max(x.s, y.s),
+            a,
+        };
+    }
+    if bx.1 == 0.0 {
+        // One is surely right: the whole is the other.
+        return Opinion { a, ..y };
+    }
+    if by.1 == 0.0 {
+        return Opinion { a, ..x };
+    }
+    let ((m1, q1), (m2, q2)) = (moments(bx), moments(by));
+    let mean = m1 * m2;
+    let variance = q1 * q2 - mean * mean;
+    // The counts of the Beta that fits, and never fewer than the base
+    // rate alone would give.
+    let mut n = mean * (1.0 - mean) / variance - 1.0;
+    n = f64::max(n, weight() * a / mean);
+    n = f64::max(n, weight() * (1.0 - a) / (1.0 - mean));
     Opinion {
-        b,
-        d,
-        u: 1.0 - b - d,
-        a: x.a * y.a,
+        r: f64::max(0.0, mean * n - a * weight()),
+        s: f64::max(0.0, (1.0 - mean) * n - (1.0 - a) * weight()),
+        a,
     }
 }
 
@@ -89,11 +128,7 @@ struct Walk {
 // mitra: implements model::opinion
 pub fn opinion(model: &Model, x: &Piece) -> Opinion {
     let mut walk = Walk::default();
-    // Evidence moves b, d and u; the base rate stays that of the piece.
-    Opinion {
-        a: base(model, x),
-        ..believed(model, x, &mut walk)
-    }
+    believed(model, x, &mut walk)
 }
 
 /// `x` is believed enough for the policy.
@@ -119,21 +154,11 @@ fn related<'a>(model: &'a Model, how: Relation, walk: &mut Walk) -> Vec<(&'a Rel
     found
 }
 
-fn believing(b: f64) -> Opinion {
-    Opinion {
-        b,
-        d: 0.0,
-        u: 1.0 - b,
-        a: 0.0,
-    }
+fn believing(r: f64) -> Opinion {
+    Opinion { r, s: 0.0, a: 0.0 }
 }
-fn disbelieving(d: f64) -> Opinion {
-    Opinion {
-        b: 0.0,
-        d,
-        u: 1.0 - d,
-        a: 0.0,
-    }
+fn disbelieving(s: f64) -> Opinion {
+    Opinion { r: 0.0, s, a: 0.0 }
 }
 
 /// Everything said of `x`, each with its voice: by the evidence about
@@ -142,7 +167,7 @@ fn disbelieving(d: f64) -> Opinion {
 ///
 /// - A yes flows down: what believes a whole believes each part as far
 ///   as the relation is believed.
-/// - A no is shared: see `share`.
+/// - A no is shared: see `blamed`.
 fn heard(model: &Model, x: &Piece, walk: &mut Walk) -> Vec<(Opinion, Voice)> {
     let mut said = Vec::new();
     for e in model.evidence.iter().filter(|e| &e.about == x) {
@@ -161,17 +186,17 @@ fn heard(model: &Model, x: &Piece, walk: &mut Walk) -> Vec<(Opinion, Voice)> {
         }
         walk.wholes.push(whole.clone());
         for (says, by) in heard(model, whole, walk) {
-            if trust * says.b > 0.0 {
-                said.push((believing(trust * says.b), by));
+            if trust * says.r > 0.0 {
+                said.push((believing(trust * says.r), by));
             }
         }
         walk.wholes.pop();
     }
     if !walk.before {
         for (relation, e) in failures(model) {
-            let d = share(model, relation, e, x) * e.value.d;
-            if d > 0.0 {
-                said.push((disbelieving(d), e.by.clone()));
+            let no = blamed(model, relation, e, x) * e.value.s;
+            if no > 0.0 {
+                said.push((disbelieving(no), e.by.clone()));
             }
         }
     }
@@ -189,7 +214,7 @@ fn failures(model: &Model) -> Vec<(&Statement<Related>, &Evidence)> {
     for relation in wholes {
         let whole = relation.content.pieces.first();
         let about = model.evidence.iter().filter(|e| Some(&e.about) == whole);
-        for e in about.filter(|e| e.value.d > 0.0) {
+        for e in about.filter(|e| e.value.s > 0.0) {
             found.push((relation, e));
         }
     }
@@ -212,16 +237,20 @@ fn suspects(model: &Model, relation: &Statement<Related>, e: &Evidence) -> Vec<P
     group
 }
 
-/// The share of a failure that falls on `x`: how likely it is that `x`
-/// alone is wrong, given that the suspects are not all right, each
-/// taken at what it read as before the failure.
+/// The count of no that one failure puts on `x`. A failure is seeing
+/// that the suspects are not all right. Each suspect is how often it
+/// is right, a Beta, from what was said of it before the failure; with
+/// `q` the chance that all the others are right, Bayes gives what to
+/// expect of `x` afterwards:
 ///
 /// ```text
-/// share(x) = (1 - p(x)) · product of p(others) / (1 - product of p(all))
+/// mean after = (mean - q · mean of the square) / (1 - q · mean)
 /// ```
 ///
-/// When every suspect read as 1, the shares are equal.
-fn share(model: &Model, relation: &Statement<Related>, e: &Evidence, x: &Piece) -> f64 {
+/// and `x` gets the count of no that brings it to that mean. Its count
+/// of yes is not touched. When every suspect was sure, the no is
+/// shared equally.
+fn blamed(model: &Model, relation: &Statement<Related>, e: &Evidence, x: &Piece) -> f64 {
     let group = suspects(model, relation, e);
     let Some(at) = group.iter().position(|suspect| suspect == x) else {
         return 0.0;
@@ -239,38 +268,46 @@ fn share(model: &Model, relation: &Statement<Related>, e: &Evidence, x: &Piece) 
     };
     let mut read = Vec::new();
     for suspect in &group {
-        read.push(projected(direct(model, suspect, &mut before)));
-    }
-    let all: f64 = read.iter().product();
-    if all >= 1.0 {
-        return 1.0 / group.len() as f64;
+        read.push(beta(direct(model, suspect, &mut before)));
     }
     let mut others = 1.0;
-    for (k, p) in read.iter().enumerate() {
+    for (k, suspect) in read.iter().enumerate() {
         if k != at {
-            others *= p;
+            others *= moments(*suspect).0;
         }
     }
-    (1.0 - read[at]) * others / (1.0 - all)
+    let (alpha, beta) = read[at];
+    let (mean, square) = moments(read[at]);
+    if alpha == 0.0 {
+        return 0.0; // surely wrong already
+    }
+    if beta == 0.0 {
+        // Surely right: the others take it, unless they are sure too.
+        return match others >= 1.0 {
+            true => 1.0 / group.len() as f64,
+            false => 0.0,
+        };
+    }
+    let after = (mean - others * square) / (1.0 - others * mean);
+    alpha / after - alpha / mean
 }
 
-/// Several opinions on one piece, each as independent as its voice is
-/// from the nearest one already heard.
+/// Several opinions on one piece. One voice counts once; different
+/// voices add up.
 fn fused(said: Vec<(Opinion, Voice)>) -> Option<Opinion> {
-    let mut so_far: Option<Opinion> = None;
-    let mut voices: Vec<Voice> = Vec::new();
+    let mut voices: Vec<(Voice, Opinion)> = Vec::new();
     for (says, by) in said {
-        let mut i = 1.0;
-        for voice in &voices {
-            i = f64::min(i, apart(voice, &by));
+        match voices
+            .iter_mut()
+            .find(|(voice, _)| apart(voice, &by) == 0.0)
+        {
+            Some((_, o)) => *o = fuse(*o, says, 0.0),
+            None => voices.push((by, says)),
         }
-        so_far = Some(match so_far {
-            None => says,
-            Some(o) => fuse(o, says, i),
-        });
-        voices.push(by);
     }
-    so_far
+    let mut each = voices.into_iter().map(|(_, o)| o);
+    let first = each.next()?;
+    Some(each.fold(first, |o, says| fuse(o, says, 1.0)))
 }
 
 /// What is said of `x` itself, fused.
@@ -288,9 +325,10 @@ fn direct(model: &Model, x: &Piece, walk: &mut Walk) -> Opinion {
     }
 }
 
-/// The pieces `x` stands on, each taken on what is said of it: itself,
-/// or its parts, whichever is more certain. A set, so a piece reached by
-/// two paths is there once. With it, how far the relations that lead to
+/// The pieces `x` stands on: its parts when a relation says it is a
+/// whole, and then their parts in turn, or itself when what is said of
+/// it directly leaves less uncertain. A set, so a piece reached by two
+/// paths is there once. With it, how far the relations that lead to
 /// those pieces are believed.
 fn support(model: &Model, x: &Piece, walk: &mut Walk) -> (BTreeSet<Piece>, f64) {
     let mut best = (BTreeSet::from([x.clone()]), 1.0);
@@ -299,7 +337,7 @@ fn support(model: &Model, x: &Piece, walk: &mut Walk) -> (BTreeSet<Piece>, f64) 
     }
     walk.resting.push(x.clone());
     for (r, trust) in related(model, Relation::All, walk) {
-        if r.pieces.first() != Some(x) {
+        if r.pieces.first() != Some(x) || r.pieces.len() < 2 || trust <= 0.0 {
             continue;
         }
         let mut on = (BTreeSet::new(), trust);
@@ -310,7 +348,7 @@ fn support(model: &Model, x: &Piece, walk: &mut Walk) -> (BTreeSet<Piece>, f64) 
         }
         let new = moved(nothing(on.1), together(model, &on.0, walk));
         let old = moved(nothing(best.1), together(model, &best.0, walk));
-        if new.u < old.u {
+        if uncertainty(new) <= uncertainty(old) {
             best = on;
         }
     }
@@ -356,7 +394,7 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
     {
         let r = &said.content;
         if projected(opinion(model, &said.piece)) > 0.0
-            && r.pieces.iter().all(|p| opinion(model, p).b > 0.0)
+            && r.pieces.iter().all(|p| opinion(model, p).r > 0.0)
         {
             out.push(ordered(model, r.pieces.clone()));
         }

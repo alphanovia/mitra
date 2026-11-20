@@ -52,14 +52,14 @@ fn single(a: f64, f: f64, s: f64, fell: bool) -> Model {
 fn base(rates: &[(&str, f64)]) -> Vec<(Piece, f64)> {
     rates.iter().map(|(x, a)| (p(x), *a)).collect()
 }
-fn near(o: Opinion, b: f64, d: f64) -> bool {
-    (o.b - b).abs() < 1e-9 && (o.d - d).abs() < 1e-9
-}
-
 fn close(x: f64, y: f64) -> bool {
-    (x - y).abs() < 1e-4
+    (x - y).abs() < 1e-3
 }
-
+/// The counts of yes and of no, and what the opinion reads as.
+fn reads(m: &Model, x: &str, r: f64, s: f64, at: f64) -> bool {
+    let o = opinion(m, &p(x));
+    close(o.r, r) && close(o.s, s) && close(projected(o), at)
+}
 fn names(pieces: &[&str]) -> Vec<Vec<Piece>> {
     match pieces.is_empty() {
         true => vec![],
@@ -67,138 +67,115 @@ fn names(pieces: &[&str]) -> Vec<Vec<Piece>> {
     }
 }
 
-/// Scenario 1, one throw that falls. The tie and the statement move
-/// alike: one throw cannot tell them apart.
+/// Scenario 1, one throw that falls: one yes, as far as I trust my
+/// senses, on the tie and on the statement alike.
 #[test]
 fn one_throw_that_falls() {
-    // (tie, statement, senses) -> belief in the pair and in each part
+    // (tie, statement, senses) -> the yes on each, what the tie reads as, the pair
     let rows = [
-        (0.0, 0.0, 1.0, 1.0),
-        (1.0, 1.0, 1.0, 1.0),
-        (0.0, 0.0, 0.0, 0.0), // senses not trusted
-        (0.5, 0.5, 0.9, 0.9),
-        (0.0, 0.0, 0.6, 0.6),
+        (0.5, 0.5, 0.5, 0.5, 0.6, 0.360),
+        (0.5, 0.5, 0.9, 0.9, 0.655, 0.429),
+        (0.5, 0.5, 1.0, 1.0, 0.667, 0.444),
+        (0.9, 0.9, 0.5, 0.5, 0.92, 0.846),
+        (1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
+        (0.0, 0.0, 1.0, 1.0, 0.333, 0.111),
+        (0.5, 0.5, 0.0, 0.0, 0.5, 0.25), // senses not trusted
     ];
-    for (a, f, s, b) in rows {
+    for (a, f, s, yes_, tie, pair) in rows {
         let m = single(a, f, s, true);
-        for x in ["lands", "applies", "falls"] {
-            assert!(near(opinion(&m, &p(x)), b, 0.0), "{a} {f} {s} {x}");
-        }
+        let row = format!("{a} {f} {s}");
+        assert!(reads(&m, "applies", yes_, 0.0, tie), "{row}");
+        assert!(reads(&m, "falls", yes_, 0.0, tie), "{row}");
+        // The pair reads as its two parts together.
+        assert!(close(projected(opinion(&m, &p("lands"))), pair), "{row}");
         assert_eq!(conflicts(&m), names(&[]));
     }
 }
 
 /// Scenario 1, one throw that does not fall. The no is shared between
-/// the tie, the statement and the throw: more to what was less
-/// expected to be right, by `share`.
+/// the tie, the statement and the throw: more to what was expected
+/// less, and nothing flips to a yes.
 #[test]
 fn one_throw_that_does_not_fall() {
-    // (tie, statement, senses) -> disbelief in each of the three, the suspects
+    // (tie, statement, senses) -> the no on each of the three, the suspects
     type Row = (f64, f64, f64, [f64; 3], &'static [&'static str]);
     let all: &[&str] = &["applies", "falls", "throw"];
     let rows: [Row; 9] = [
         // An equal start gives equal shares.
-        (0.5, 0.5, 0.5, [1.0 / 7.0; 3], all),
+        (0.5, 0.5, 0.5, [0.1; 3], all),
         (1.0, 1.0, 1.0, [1.0 / 3.0; 3], all),
         // Senses trusted more: the tie and the statement take more.
-        (0.5, 0.5, 0.9, [9.0 / 31.0, 9.0 / 31.0, 1.0 / 31.0], all),
-        (0.5, 0.5, 1.0, [1.0 / 3.0, 1.0 / 3.0, 0.0], all),
+        (0.5, 0.5, 0.9, [0.214, 0.214, 0.022], all),
+        (0.5, 0.5, 1.0, [0.25, 0.25, 0.0], all),
         // Senses trusted less: the throw takes more.
         (
             0.9,
             0.9,
             0.5,
-            [0.045 / 0.595, 0.045 / 0.595, 0.405 / 0.595],
+            [0.052, 0.052, 0.587],
             &["throw", "applies", "falls"],
         ),
-        (1.0, 1.0, 0.0, [0.0, 0.0, 1.0], &[]), // a throw nobody believes accuses nothing
+        (1.0, 1.0, 0.0, [0.0; 3], &[]), // a throw nobody believes accuses nothing
         // Three different starts: the order of the suspects follows.
         (
             0.9,
             0.5,
             0.6,
-            [0.03 / 0.73, 0.27 / 0.73, 0.18 / 0.73],
+            [0.028, 0.281, 0.179],
             &["falls", "throw", "applies"],
         ),
-        // Two suspects expected wrong: no one of them alone is to blame.
+        // Expected wrong already: nothing more to say.
         (0.0, 0.0, 1.0, [0.0; 3], all),
         (0.0, 0.0, 0.6, [0.0; 3], all),
     ];
-    for (a, f, s, d, suspects) in rows {
+    for (a, f, s, no_, suspects) in rows {
         let m = single(a, f, s, false);
         let row = format!("{a} {f} {s}");
-        for (x, d) in ["applies", "falls", "throw"].iter().zip(d) {
-            assert!(near(opinion(&m, &p(x)), 0.0, d), "{row} {x}");
+        for (x, no_) in ["applies", "falls", "throw"].iter().zip(no_) {
+            let o = opinion(&m, &p(x));
+            assert!(close(o.s, no_) && o.r == 0.0, "{row} {x} {o:?}");
         }
-        // The pair is disbelieved as far as the throw is still believed.
-        let throw = projected(opinion(&m, &p("throw")));
-        assert!(near(opinion(&m, &p("lands")), 0.0, throw), "{row}");
         assert_eq!(conflicts(&m), names(suspects), "{row}");
     }
 }
 
-/// Scenario 2, the same throw again: one voice counts once, six voices
-/// reach 0.9, for the pair and for each part.
+/// Scenario 2, the same throw again, senses at 0.6: one voice counts
+/// once; different voices add their counts.
 #[test]
 fn repeated_throws() {
-    let lands = |n: usize, one_voice: bool| {
+    let tie = |n: usize, one_voice: bool| {
         let mut m = sure(Model {
             related: vec![rests(&["lands", "applies", "falls"])],
+            base: base(&[("applies", 0.5), ("falls", 0.5)]),
             ..Model::default()
         });
         for k in 0..n {
-            let by = if one_voice {
-                "me".to_string()
-            } else {
-                format!("friend {k}")
+            let by = match one_voice {
+                true => "me".to_string(),
+                false => format!("friend {k}"),
             };
             m.evidence
                 .push(says(&format!("throw {k}"), "lands", true, &by));
             m.base.push((p(&format!("throw {k}")), 0.6));
         }
-        let pair = opinion(&m, &p("lands"));
-        assert!(near(opinion(&m, &p("applies")), pair.b, 0.0));
-        assert!(near(opinion(&m, &p("falls")), pair.b, 0.0));
-        pair.b
+        assert_eq!(opinion(&m, &p("applies")), opinion(&m, &p("falls")));
+        opinion(&m, &p("applies"))
     };
     for n in [1, 2, 4] {
-        assert!((lands(n, true) - 0.6).abs() < 1e-9);
+        assert!(close(tie(n, true).r, 0.6));
     }
-    for (n, b) in [(2, 0.75), (4, 6.0 / 7.0), (6, 0.9)] {
-        assert!((lands(n, false) - b).abs() < 1e-9);
+    for (n, at) in [(1, 0.615), (2, 0.688), (6, 0.821), (10, 0.875), (40, 0.962)] {
+        let o = tie(n, false);
+        assert!(close(o.r, 0.6 * n as f64) && close(projected(o), at), "{n}");
     }
 }
 
 /// Scenario 3, a ball and a balloon under one statement. The ball
 /// falls, the balloon does not: `falls` is believed through the ball,
-/// so the balloon's tie takes the blame.
+/// so the balloon's tie takes more of the no.
 #[test]
 fn ball_and_balloon() {
-    // (base rate, senses) -> suspects, disbelief in the balloon's tie and throw
-    let rows: [(f64, f64, [&str; 3], f64, f64); 3] = [
-        (
-            0.0,
-            1.0,
-            ["balloon applies", "falls", "throw balloon"],
-            1.0,
-            0.0,
-        ),
-        (
-            0.0,
-            0.9,
-            ["balloon applies", "falls", "throw balloon"],
-            0.81,
-            0.0,
-        ),
-        (
-            0.5,
-            0.9,
-            ["balloon applies", "throw balloon", "falls"],
-            0.7467,
-            0.0830,
-        ),
-    ];
-    for (a, s, suspects, tie, throw) in rows {
+    for (s, tie, statement, throw) in [(0.9, 0.324, 0.173, 0.031), (1.0, 0.4, 0.2, 0.0)] {
         let m = sure(Model {
             evidence: vec![
                 says("throw ball", "ball lands", true, "me"),
@@ -209,35 +186,28 @@ fn ball_and_balloon() {
                 rests(&["balloon lands", "balloon applies", "falls"]),
             ],
             base: base(&[
-                ("ball applies", a),
-                ("balloon applies", a),
-                ("falls", a),
+                ("ball applies", 0.5),
+                ("balloon applies", 0.5),
+                ("falls", 0.5),
                 ("throw ball", s),
                 ("throw balloon", s),
             ]),
         });
-        assert!(near(opinion(&m, &p("ball lands")), s, 0.0));
-        assert!(close(opinion(&m, &p("balloon applies")).d, tie));
-        assert!(close(opinion(&m, &p("throw balloon")).d, throw));
-        // The statement stays believed through the ball.
-        assert!(projected(opinion(&m, &p("falls"))) >= s);
-        assert!(opinion(&m, &p("falls")).d < 0.01);
-        assert!(near(opinion(&m, &p("ball applies")), s, 0.0));
+        assert!(close(opinion(&m, &p("ball applies")).r, s));
+        assert!(close(opinion(&m, &p("balloon applies")).s, tie));
+        assert!(close(opinion(&m, &p("falls")).r, s));
+        assert!(close(opinion(&m, &p("falls")).s, statement));
+        assert!(close(opinion(&m, &p("throw balloon")).s, throw));
+        let suspects = ["balloon applies", "falls", "throw balloon"];
         assert_eq!(conflicts(&m), names(&suspects));
     }
 }
 
 /// Scenario 4, one object and two statements. It falls, and makes no
-/// noise: the tie is believed through the fall, so `noise` takes the
-/// blame.
+/// noise: the mirror of scenario 3.
 #[test]
 fn falls_and_noise() {
-    let rows: [(f64, f64, [&str; 3], f64, f64); 3] = [
-        (0.0, 1.0, ["noise", "applies", "listen"], 1.0, 0.0),
-        (0.0, 0.9, ["noise", "applies", "listen"], 0.81, 0.0),
-        (0.5, 0.9, ["noise", "listen", "applies"], 0.7467, 0.0830),
-    ];
-    for (a, s, suspects, noise, listen) in rows {
+    for (s, noise, tie, listen) in [(0.9, 0.324, 0.173, 0.031), (1.0, 0.4, 0.2, 0.0)] {
         let m = sure(Model {
             evidence: vec![
                 says("throw", "lands", true, "me"),
@@ -248,20 +218,64 @@ fn falls_and_noise() {
                 rests(&["bangs", "applies", "noise"]),
             ],
             base: base(&[
-                ("applies", a),
-                ("falls", a),
-                ("noise", a),
+                ("applies", 0.5),
+                ("falls", 0.5),
+                ("noise", 0.5),
                 ("throw", s),
                 ("listen", s),
             ]),
         });
-        assert!(near(opinion(&m, &p("lands")), s, 0.0));
-        assert!(close(opinion(&m, &p("noise")).d, noise));
-        assert!(close(opinion(&m, &p("listen")).d, listen));
-        // The tie stays believed through the fall.
-        assert!(projected(opinion(&m, &p("applies"))) >= s);
-        assert!(opinion(&m, &p("applies")).d < 0.01);
-        assert!(near(opinion(&m, &p("falls")), s, 0.0));
-        assert_eq!(conflicts(&m), names(&suspects));
+        assert!(close(opinion(&m, &p("falls")).r, s));
+        assert!(close(opinion(&m, &p("noise")).s, noise));
+        assert!(close(opinion(&m, &p("applies")).s, tie));
+        assert!(close(opinion(&m, &p("listen")).s, listen));
+        assert_eq!(conflicts(&m), names(&["noise", "applies", "listen"]));
     }
+}
+
+/// Scenario 5, a latent statement. `gravity` has no tie and nothing to
+/// throw at; `mass ball` and `mass balloon` are tied to their objects;
+/// "the ball falls" is all of [gravity, mass ball], and a throw is
+/// evidence about that. Two objects tell gravity from a mass.
+#[test]
+fn gravity_and_two_masses() {
+    let world = |g: f64, ball: Option<bool>, balloon: Option<bool>| {
+        let mut m = sure(Model {
+            related: vec![
+                rests(&["falls ball", "gravity", "mass ball"]),
+                rests(&["falls balloon", "gravity", "mass balloon"]),
+            ],
+            base: base(&[("gravity", g), ("mass ball", 0.5), ("mass balloon", 0.5)]),
+            ..Model::default()
+        });
+        for (object, fell) in [("ball", ball), ("balloon", balloon)] {
+            if let Some(fell) = fell {
+                let throw = format!("throw {object}");
+                // Two throws are two acts: each has its own voice.
+                m.evidence
+                    .push(says(&throw, &format!("falls {object}"), fell, &throw));
+                m.base.push((p(&throw), 0.9));
+            }
+        }
+        m
+    };
+    // One object: gravity and its mass move alike, as in scenario 1.
+    let m = world(0.5, Some(true), None);
+    assert!(reads(&m, "gravity", 0.9, 0.0, 0.655) && reads(&m, "mass ball", 0.9, 0.0, 0.655));
+    let m = world(0.5, Some(false), None);
+    assert!(reads(&m, "gravity", 0.0, 0.214, 0.452) && reads(&m, "mass ball", 0.0, 0.214, 0.452));
+    // Both fall: gravity is seen twice, each mass once.
+    let m = world(0.5, Some(true), Some(true));
+    assert!(reads(&m, "gravity", 1.8, 0.0, 0.737) && reads(&m, "mass balloon", 0.9, 0.0, 0.655));
+    // The ball falls, the balloon does not: the balloon's mass takes
+    // more of the no than gravity, which the ball speaks for.
+    let m = world(0.5, Some(true), Some(false));
+    assert!(reads(&m, "gravity", 0.9, 0.173, 0.618));
+    assert!(reads(&m, "mass ball", 0.9, 0.0, 0.655));
+    assert!(reads(&m, "mass balloon", 0.0, 0.324, 0.430));
+    let suspects = ["mass balloon", "gravity", "throw balloon"];
+    assert_eq!(conflicts(&m), names(&suspects));
+    // Neither falls: gravity is doubted twice, each mass once.
+    let m = world(0.5, Some(false), Some(false));
+    assert!(opinion(&m, &p("gravity")).s > opinion(&m, &p("mass ball")).s);
 }

@@ -1,7 +1,9 @@
 //! The trust goldens of main (`examples/trust/` there), as one table
 //! over the calculus: one claim, one test, at most two reviews. The
-//! expected words and numbers are those of docs/design/trust-calculus.md
-//! on main. Cases 6 and 7 wait for the layers they need.
+//! cases are main's; the words and numbers are what counts give, with
+//! a claim expected at 0 and a weight of 2. One test is one yes, so no
+//! claim holds at 0.9 here: see docs/throwing.md. The count of no is
+//! the number of a `fails`. Cases 6 and 7 wait for the layers they need.
 
 use mitra_core::model::*;
 
@@ -42,7 +44,7 @@ fn word(model: &Model, x: &Piece, policy: f64) -> (&'static str, f64) {
     let o = opinion(model, x);
     match (trusted(model, x, policy), against(o)) {
         (true, _) => ("holds", projected(o)),
-        (false, true) => ("fails", o.d),
+        (false, true) => ("fails", o.s),
         (false, false) => ("unverified", projected(o)),
     }
 }
@@ -60,11 +62,11 @@ fn one_claim_one_test() {
         f64,
     );
     let cases: &[Case] = &[
-        (1, 0.5, 0.9, true, &[], "unverified", 0.5),
-        (2, 0.5, 0.9, true, &[(true, 1.0)], "holds", 1.0),
-        (3, 0.5, 0.9, true, &[(true, 0.8)], "holds", 0.9),
+        (1, 0.5, 0.9, true, &[], "unverified", 0.2),
+        (2, 0.5, 0.9, true, &[(true, 1.0)], "unverified", 0.25),
+        (3, 0.5, 0.9, true, &[(true, 0.8)], "unverified", 0.243243),
         (4, 0.5, 0.9, false, &[], "fails", 0.5),
-        (5, 0.5, 0.4, true, &[], "holds", 0.5),
+        (5, 0.5, 0.4, true, &[], "unverified", 0.2),
         (
             8,
             0.5,
@@ -72,27 +74,27 @@ fn one_claim_one_test() {
             true,
             &[(true, 1.0), (false, 1.0)],
             "unverified",
-            0.5,
+            0.2,
         ),
-        (9, 0.5, 0.9, false, &[(true, 1.0)], "fails", 1.0),
-        (10, 0.5, 0.9, true, &[(false, 1.0)], "unverified", 0.0),
-        (11, 0.5, 0.9, true, &[(true, 0.5)], "unverified", 0.75),
-        (12, 0.5, 0.9, true, &[(true, 0.3)], "unverified", 0.65),
+        (9, 0.5, 0.9, false, &[(true, 1.0)], "fails", 0.666667),
+        (10, 0.5, 0.9, true, &[(false, 1.0)], "unverified", 0.142857),
+        (11, 0.5, 0.9, true, &[(true, 0.5)], "unverified", 0.230769),
+        (12, 0.5, 0.9, true, &[(true, 0.3)], "unverified", 0.220339),
         (14, 0.0, 0.9, true, &[], "unverified", 0.0),
-        (15, 1.0, 0.9, true, &[], "holds", 1.0),
-        (16, 0.5, 0.0, true, &[], "holds", 0.5),
+        (15, 1.0, 0.9, true, &[], "unverified", 0.333333),
+        (16, 0.5, 0.0, true, &[], "holds", 0.2),
         (17, 0.0, 0.0, true, &[], "unverified", 0.0),
-        (18, 0.5, 1.0, true, &[(true, 0.99)], "unverified", 0.995),
-        (19, 0.5, 1.0, true, &[(true, 1.0)], "holds", 1.0),
-        (20, 0.5, 0.9, true, &[(true, 0.0)], "unverified", 0.5),
+        (18, 0.5, 1.0, true, &[(true, 0.99)], "unverified", 0.249686),
+        (19, 0.5, 1.0, true, &[(true, 1.0)], "unverified", 0.25),
+        (20, 0.5, 0.9, true, &[(true, 0.0)], "unverified", 0.2),
         (21, 0.0, 0.9, false, &[], "unverified", 0.0),
-        (22, 0.5, 0.9, false, &[(false, 1.0)], "unverified", 0.0),
+        (22, 0.5, 0.9, false, &[(false, 1.0)], "fails", 0.333333),
     ];
     for (case, bias, policy, passes, reviews, expected, number) in cases {
         let (said, n) = word(&world(*bias, *passes, reviews), &piece("c"), *policy);
         assert_eq!(said, *expected, "case {case}");
         assert!(
-            (n - number).abs() < 1e-9,
+            (n - number).abs() < 1e-6,
             "case {case}: {n}, expected {number}"
         );
     }
@@ -132,5 +134,5 @@ fn two_claims_that_disagree_are_ranked() {
         ],
     };
     assert_eq!(conflicts(&model), [vec![piece("stops"), piece("wraps")]]);
-    assert_eq!(word(&model, &piece("wraps"), 0.9), ("holds", 1.0));
+    assert_eq!(word(&model, &piece("wraps"), 0.9), ("unverified", 0.25));
 }
