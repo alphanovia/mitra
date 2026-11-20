@@ -117,7 +117,7 @@ subject washer {
     require drive = motor::follows;
 
     fn control(code: UInt10) -> UInt8 {
-        if code.value() > 767 { UInt8::of(0) } else if code.value() >= 563 { UInt8::of(255) } else { UInt8::of(64) }
+        if code > 767 { 0 } else if code >= 563 { 255 } else { 64 }
     }
     claim thresholds() { degrees(UInt10::of(563)) >= 55 && degrees(UInt10::of(562)) < 55 }
     claim stops_when_too_hot(water: Real) when 76 <= water && water <= 100 { motor::turn(control(sensor::read(water))) == 0 }
@@ -132,7 +132,9 @@ What changes:
   No test can cover it: the evidence is a sample on a rig, or the
   derivation main does not make today.
 - **The two crossings are visible.** `degrees` and `value` go from
-  bits to the world, `UInt8::of` goes back. Nothing else does.
+  bits to the world, `UInt8::of` goes back. Inside `control`, `>` and
+  the literals are the machine's: `767` is read as a `UInt10` because
+  `code` is one, and `>` is the operator of that type.
 - **For this controller the machine types add nothing.** It only
   compares and picks a constant, so no operation can go wrong, and
   `0..=1023` said as much.
@@ -146,15 +148,21 @@ counts into degrees on a 16 bit register:
 // today: the body is exact arithmetic, so the model agrees with itself and the bug is invisible
 fn celsius(code: 0..=1023) -> 0..=100 { code * 100 / 1023 }
 
-// proposed: the body says what the register does
-fn celsius(code: UInt10) -> UInt16 { code.widen().wrapping_mul(UInt16::of(100)).div(UInt16::of(1023)) }
+// proposed: the same line, and `*` is the register's
+fn celsius(code: UInt10) -> UInt16 { code.widen() * 100 / 1023 }
 claim reads_degrees(code: UInt10) { celsius(code).value() == code.value() * 100 / 1023 }
 ```
 
-`656 * 100` is 65,600, one turn past 16 bits. The claim contradicts
-the body from 656 counts up, that is from 64 degrees: Mitra would say
-so from the model alone, with no test, as it does today when a claim
-contradicts a spec (M007).
+In the body both sides of `*` are `UInt16`, so `*` is the operator of
+`UInt16`. In the claim both sides are numbers of the world, so `*` is
+exact. The type decides, and the two never meet in one operation.
+
+`656 * 100` is 65,600, one turn past 16 bits. With `*` wrapping, the
+claim contradicts the body from 656 counts up, that is from 64
+degrees. With `*` failing on overflow, the body has no value there and
+the claim fails the same. Either way Mitra would say so from the model
+alone, with no test, as it does today when a claim contradicts a spec
+(M007).
 
 ## The pieces proposed
 
@@ -181,15 +189,38 @@ boundary machine {
 }
 ```
 
-What a language adds is in its own library: `std::rust` would say that
-`u16 * u16` is `checked_mul` and a panic on `None` in a debug build.
+**The operators.** Decided (2026-11-20): "Operator keyword is fine.
+Contract are abstract, operator are machine operation semantic, how
+fpu and co are used." An `operator` line says which named operation a
+sign is on a machine type. The lines below it are a sketch, not
+decided.
+
+```text
+// in std::rust: what Rust's signs do
+operator * on UInt16 = overflow_mul;
+operator > on UInt10 = greater;
+```
+```toml
+# model/settings.toml
+[machine]
+overflow = "fails"      # Rust in a debug build; "wraps" in a release build
+```
+
+- `overflow_mul` is `checked_mul` or `wrapping_mul` by the setting.
+- `mitra build` writes each operator as resolved, in `model.lock`:
+  `operator UInt16::* = wrapping_mul`.
+- The fingerprint of a piece follows the resolved meaning: change the
+  setting and the reviews of every piece using `*` go stale.
+- No `operator` line on a number of the world: there `+` is `+`.
+- An operation between a machine value and a world number is refused:
+  `code + 1` with `code: UInt10` reads `1` as a `UInt10`, and
+  `code.value() + 1` is the world's.
 
 ## What to react to
 
-1. **No operator on a machine value**, only named operations
-   (`wrapping_mul`). Explicit, and heavy: `celsius` reads worse than
-   the C it models. A comparison cannot go wrong, so `code > 767`
-   could be allowed where arithmetic is not.
+1. **The sketch around `operator`**: the setting `[machine] overflow`,
+   the resolved operators in the build, fingerprints that follow
+   them, and a literal read as the type beside it.
 2. **The machine is a boundary.** A claim through `wrapping_mul` then
    reads `holds assuming [machine::wraps]` until someone vouches for
    the library once.
