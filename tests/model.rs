@@ -386,9 +386,9 @@ fn a_no_about_a_whole_is_kept() {
     let model = sure(Model {
         evidence: vec![says("t", "x", no(), "a")],
         related: vec![rests(&["x", "y", "z"])],
-        base: base_of(&[("t", 0.5), ("y", 1.0), ("z", 1.0)]),
+        base: base_of(&[("t", 1.0), ("y", 0.5), ("z", 0.5)]),
     });
-    assert_eq!(opinion(&model, &Piece::named("x")), op(0.0, 0.5, 0.5, 0.0));
+    assert_eq!(opinion(&model, &Piece::named("x")), op(0.0, 1.0, 0.0, 0.0));
 }
 
 // mitra: evidence for model::a_throw_that_falls_believes_both
@@ -418,6 +418,26 @@ fn a_throw_at_one_half() {
     );
     let suspects = ["applies", "falls", "throw"].map(Piece::named).to_vec();
     assert_eq!(conflicts(&throw(false)), [suspects]);
+}
+
+// mitra: evidence for model::an_equal_start_gives_equal_shares
+// mitra: evidence for model::trusted_senses_blame_the_tie_and_the_statement_more
+#[test]
+fn a_no_is_shared_by_what_was_expected() {
+    let d = |senses: f64, x: &str| {
+        let model = sure(Model {
+            evidence: vec![says("throw", "lands", no(), "me")],
+            related: vec![rests(&["lands", "applies", "falls"])],
+            base: base_of(&[("applies", 0.5), ("falls", 0.5), ("throw", senses)]),
+        });
+        opinion(&model, &Piece::named(x)).d
+    };
+    assert_eq!(d(0.5, "applies"), d(0.5, "throw"));
+    assert_eq!(d(0.5, "applies"), d(0.5, "falls"));
+    assert!(near(d(0.5, "applies"), 1.0 / 7.0));
+    assert!(d(0.9, "applies") > d(0.9, "throw"));
+    assert!(near(d(0.9, "applies"), 9.0 / 31.0));
+    assert!(near(d(0.9, "throw"), 1.0 / 31.0));
 }
 
 // mitra: evidence for model::a_latent_statement_is_believed_as_far_as_its_relation

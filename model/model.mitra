@@ -234,7 +234,7 @@ subject model {
     ensure relation_is_said = "A relation between pieces is itself said: a statement whose content is the relation. What is computed on a relation counts as far as that statement is believed; a relation believed at 1 is plain structure, and one believed at 0 relates nothing.";
     ensure whole_is_all_its_parts = "A piece that is all of others together is believed as all of them, each counted once however many paths lead to it, or on what is said of it directly, whichever is more certain.";
     ensure yes_flows_down = "What believes a whole believes each of its parts as much: evidence about a pair is evidence about both.";
-    ensure no_is_shared = "What disbelieves a whole disbelieves no part alone: a part is disbelieved only as far as the other parts are believed on other evidence. With nothing else known, the parts are told apart by their base rates only.";
+    ensure no_is_shared = "What disbelieves a whole disbelieves no part alone. The parts, the evidence that says no and a doubted relation are the suspects, and the no is shared between them as disbelief: each takes the chance that it alone is wrong, given that they are not all right, from what each was expected to be before. An equal start gives equal shares; what was expected less takes more.";
     ensure conflict_is_said = "Pieces that cannot all be right are reported, the least believed first, and none of them is chosen silently: the parts of a whole with the evidence that says no about it, and the evidence for and against one piece.";
 
     // How pieces stand to each other, named after what is computed.
@@ -333,9 +333,20 @@ subject model {
         opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("throw"), 0.5), (Piece("all: lands"), 1.0)]), Piece("falls")) == piece::nothing(0.0)
             && opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("throw"), 0.5), (Piece("all: lands"), 1.0)]), Piece("lands")) == Opinion(0.0, 0.5, 0.5, 0.0)
     }
+    // Everything starts unknown: the base rates are the only place to
+    // say "I trust my senses more than my model or my tie". Each suspect
+    // takes (1 - p) * product of the others' p / (1 - product of all p).
+    claim an_equal_start_gives_equal_shares() {
+        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)]), Piece("applies")).d
+            == opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5), (Piece("all: lands"), 1.0)]), Piece("throw")).d
+    }
+    claim trusted_senses_blame_the_tie_and_the_statement_more() {
+        opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0)]), Piece("applies")).d
+            > opinion(Model([Evidence(Piece("throw"), Piece("lands"), piece::no(), Voice("me"))], [Statement(Piece("all: lands"), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")]))], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9), (Piece("all: lands"), 1.0)]), Piece("throw")).d
+    }
     // A ball and a balloon under one statement: the ball falls, the
     // balloon does not. `falls` is believed through the ball, so the
-    // balloon's tie takes the blame: 0.5 * 0.5.
+    // balloon's tie takes the blame: 0.5 * 0.5, its share.
     claim the_balloon_blames_its_tie() {
         opinion(Model(
             [Evidence(Piece("throw ball"), Piece("ball lands"), piece::yes(), Voice("me")), Evidence(Piece("throw balloon"), Piece("balloon lands"), piece::no(), Voice("me"))],

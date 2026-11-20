@@ -246,3 +246,32 @@ on it is discounted by the opinion of that piece. Scenario 5 of
 597. Known cost: the belief of each relation is worked out again at
      every step of the walk. Fine for toys, to cache before real
      models.
+
+## Increment 99: a no is shared (2026-11-20)
+
+**Asked.** "if you trust your sense more, the logic would be to
+distrust the model and tie more than your sense when ranking the
+culprit of the gap"; "You don't have to stick to subjective logic
+operators"; "we already proven we need the bias if we start the
+evaluation at uncertain, so that we can express things like I trust my
+sense more than my model or ties". A failed throw now puts disbelief
+on the tie, the statement and the throw, shared by what each was
+expected to be. Tables in `docs/throwing.md`.
+
+**Decisions taken alone.**
+
+598. The operator: `share(x) = (1 - p(x)) · product of p(others) /
+     (1 - product of p(all))`, the chance that `x` alone is wrong given
+     that not all are right. Not from subjective logic.
+599. `p` is `P = b + a·u` read before any no is shared, so the base
+     rates set the shares when nothing else is known.
+600. All expected at 1: equal shares.
+601. The evidence that says no is a suspect and takes its share: it is
+     believed less afterwards, and the whole is disbelieved as far as
+     it is still believed.
+602. A relation believed at 1 takes no share; one believed under 1 is
+     a suspect like the others.
+603. The shares are not made to add up to 1: with two suspects
+     expected wrong, nobody is blamed (oddity 2 of the note).
+604. `share` is private code, stated by the promise `no_is_shared` and
+     two claims; it is not a function of the model yet.

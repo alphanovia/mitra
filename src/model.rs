@@ -76,11 +76,13 @@ pub fn base(model: &Model, x: &Piece) -> f64 {
 
 /// The pieces being worked out, to stop at one that leads back to
 /// itself: it is then taken with no evidence, or as a part of nothing.
+/// With `before`, what was believed before any no was shared.
 #[derive(Default)]
 struct Walk {
     judged: Vec<Piece>,
     resting: Vec<Piece>,
     wholes: Vec<Piece>,
+    before: bool,
 }
 
 /// What is believed of `x`, from the whole model.
@@ -135,18 +137,19 @@ fn disbelieving(d: f64) -> Opinion {
 }
 
 /// Everything said of `x`, each with its voice: by the evidence about
-/// it, and by the evidence about each whole it is a part of.
+/// it, by the evidence about each whole it is a part of, and by each
+/// failure it is one of the suspects of.
 ///
-/// - A yes flows down: what believes a whole believes each part as much.
-/// - A no is shared: what disbelieves a whole disbelieves a part as far
-///   as the other parts are believed on other evidence.
-///
-/// Without `blame`, only what speaks for `x`.
-fn heard(model: &Model, x: &Piece, walk: &mut Walk, blame: bool) -> Vec<(Opinion, Voice)> {
+/// - A yes flows down: what believes a whole believes each part as far
+///   as the relation is believed.
+/// - A no is shared: see `share`.
+fn heard(model: &Model, x: &Piece, walk: &mut Walk) -> Vec<(Opinion, Voice)> {
     let mut said = Vec::new();
     for e in model.evidence.iter().filter(|e| &e.about == x) {
-        let says = moved(believed(model, &e.piece, walk), e.value);
-        said.push((if blame { says } else { believing(says.b) }, e.by.clone()));
+        said.push((
+            moved(believed(model, &e.piece, walk), e.value),
+            e.by.clone(),
+        ));
     }
     for (r, trust) in related(model, Relation::All, walk) {
         if r.pieces.len() < 2 || !r.pieces[1..].contains(x) {
@@ -157,23 +160,98 @@ fn heard(model: &Model, x: &Piece, walk: &mut Walk, blame: bool) -> Vec<(Opinion
             continue;
         }
         walk.wholes.push(whole.clone());
-        for (says, by) in heard(model, whole, walk, blame) {
+        for (says, by) in heard(model, whole, walk) {
             if trust * says.b > 0.0 {
-                said.push((believing(trust * says.b), by.clone()));
-            }
-            if blame && says.d > 0.0 {
-                let mut others = 1.0;
-                for part in r.pieces[1..].iter().filter(|part| *part != x) {
-                    others *= fused(heard(model, part, walk, false)).map_or(0.0, |o| o.b);
-                }
-                if trust * says.d * others > 0.0 {
-                    said.push((disbelieving(trust * says.d * others), by));
-                }
+                said.push((believing(trust * says.b), by));
             }
         }
         walk.wholes.pop();
     }
+    if !walk.before {
+        for (relation, e) in failures(model) {
+            let d = share(model, relation, e, x) * e.value.d;
+            if d > 0.0 {
+                said.push((disbelieving(d), e.by.clone()));
+            }
+        }
+    }
     said
+}
+
+/// Each failure of a model: evidence that says no about a whole, with
+/// the relation that makes it a whole.
+fn failures(model: &Model) -> Vec<(&Statement<Related>, &Evidence)> {
+    let mut found = Vec::new();
+    let wholes = model
+        .related
+        .iter()
+        .filter(|said| said.content.how == Relation::All);
+    for relation in wholes {
+        let whole = relation.content.pieces.first();
+        let about = model.evidence.iter().filter(|e| Some(&e.about) == whole);
+        for e in about.filter(|e| e.value.d > 0.0) {
+            found.push((relation, e));
+        }
+    }
+    found
+}
+
+/// The suspects of a failure: the parts of the whole, the evidence that
+/// says no, and the relation when it can be doubted. They cannot all be
+/// right. A relation believed at 1 is structure, and not a suspect.
+fn suspects(model: &Model, relation: &Statement<Related>, e: &Evidence) -> Vec<Piece> {
+    let mut group: Vec<Piece> = relation.content.pieces.iter().skip(1).cloned().collect();
+    group.push(e.piece.clone());
+    let mut before = Walk {
+        before: true,
+        ..Walk::default()
+    };
+    if projected(direct(model, &relation.piece, &mut before)) < 1.0 {
+        group.push(relation.piece.clone());
+    }
+    group
+}
+
+/// The share of a failure that falls on `x`: how likely it is that `x`
+/// alone is wrong, given that the suspects are not all right, each
+/// taken at what it read as before the failure.
+///
+/// ```text
+/// share(x) = (1 - p(x)) · product of p(others) / (1 - product of p(all))
+/// ```
+///
+/// When every suspect read as 1, the shares are equal.
+fn share(model: &Model, relation: &Statement<Related>, e: &Evidence, x: &Piece) -> f64 {
+    let group = suspects(model, relation, e);
+    let Some(at) = group.iter().position(|suspect| suspect == x) else {
+        return 0.0;
+    };
+    let mut before = Walk {
+        before: true,
+        wholes: relation
+            .content
+            .pieces
+            .first()
+            .cloned()
+            .into_iter()
+            .collect(),
+        ..Walk::default()
+    };
+    let mut read = Vec::new();
+    for suspect in &group {
+        read.push(projected(direct(model, suspect, &mut before)));
+    }
+    let all: f64 = read.iter().product();
+    if all >= 1.0 {
+        return 1.0 / group.len() as f64;
+    }
+    let mut others = 1.0;
+    for (k, p) in read.iter().enumerate() {
+        if k != at {
+            others *= p;
+        }
+    }
+    (1.0 - read[at]) * others / (1.0 - all)
 }
 
 /// Several opinions on one piece, each as independent as its voice is
@@ -202,7 +280,7 @@ fn direct(model: &Model, x: &Piece, walk: &mut Walk) -> Opinion {
         return nothing(a);
     }
     walk.judged.push(x.clone());
-    let said = heard(model, x, walk, true);
+    let said = heard(model, x, walk);
     walk.judged.pop();
     Opinion {
         a,
@@ -260,25 +338,15 @@ fn together(model: &Model, on: &BTreeSet<Piece>, walk: &mut Walk) -> Opinion {
 // mitra: implements model::conflicts
 pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
     let mut out = Vec::new();
-    for said in model
-        .related
-        .iter()
-        .filter(|said| said.content.how == Relation::All)
-    {
-        let (whole, parts) = (
-            said.content.pieces.first(),
-            said.content.pieces.iter().skip(1),
-        );
-        for e in model.evidence.iter().filter(|e| Some(&e.about) == whole) {
-            if moved(opinion(model, &e.piece), e.value).d > 0.0 {
-                let mut suspects: Vec<Piece> = parts.clone().cloned().collect();
-                suspects.push(e.piece.clone());
-                // The relation is a suspect when it can be doubted.
-                if projected(opinion(model, &said.piece)) < 1.0 {
-                    suspects.push(said.piece.clone());
-                }
-                out.push(ordered(model, suspects));
-            }
+    for (relation, e) in failures(model) {
+        // Evidence that was not believed before it failed accuses nothing.
+        let mut before = Walk {
+            before: true,
+            ..Walk::default()
+        };
+        if projected(direct(model, &e.piece, &mut before)) > 0.0 {
+            let group = suspects(model, relation, e);
+            out.push(ordered(model, group));
         }
     }
     for said in model
