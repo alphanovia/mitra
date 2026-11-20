@@ -3,8 +3,8 @@
 //! observation changes (`diagnose`).
 
 use crate::ast::Model;
-use crate::eval::{Display, Logic, Report};
 use crate::report::Places;
+use crate::verdicts::{Display, Logic, Report};
 
 /// What is still owed, split by who can settle it.
 #[derive(Debug, Clone, PartialEq, Default)]

@@ -38,15 +38,12 @@ pub mod settings;
 pub mod trust;
 pub mod tuples;
 pub mod types;
+pub mod verdicts;
 pub mod voices;
 
 pub use ast::{
     Arm, Aside, Block, Bounded, Claim, Decl, Enum, Evidence, Expr, Function, Judgment, Model,
     Pattern, Position, Record, Side, Target, Why,
-};
-pub use eval::{
-    evaluate, Assumed, Candidate, Conflict, Contradiction, Display, Flag, Implication, Kind, Logic,
-    Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
 };
 pub use frontend::{Found, Reader};
 pub use modules::{Module, Modules};
@@ -57,6 +54,10 @@ pub use report::{explain, Files, Places};
 pub use set::{Set, Value};
 pub use settings::Settings;
 pub use tuples::Tuples;
+pub use verdicts::{
+    evaluate, Assumed, Candidate, Conflict, Contradiction, Display, Flag, Implication, Kind, Logic,
+    Piece, Problem, Report, Root, Suspect, Unranked, Verdict,
+};
 
 use std::fmt;
 

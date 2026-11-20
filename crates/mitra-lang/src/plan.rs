@@ -3,8 +3,8 @@
 //! with no evidence at all it is the list of tests to write.
 
 use crate::ast::{calls, walk, Claim, Expr, Model, Target};
-use crate::eval::{Assumed, Logic, Report, Verdict};
 use crate::print::call;
+use crate::verdicts::{Assumed, Logic, Report, Verdict};
 use crate::Value;
 
 /// Up to this many owed points are listed one by one.
@@ -133,7 +133,7 @@ fn owed(model: &Model, report: &Report, c: &Claim, v: &Verdict) -> String {
             .verdicts
             .iter()
             .any(|w| w.claim == r.name && w.logic == Logic::Fails);
-        let Some(set) = crate::eval::represented(model, r).filter(|_| !denied) else {
+        let Some(set) = crate::verdicts::represented(model, r).filter(|_| !denied) else {
             continue;
         };
         let inside = set.intersect(&v.domain);
@@ -260,7 +260,7 @@ fn calls_no_subject(model: &Model, e: &Expr) -> bool {
 /// A class as a set of inputs: `{ (a, b) | b == 0 }`.
 fn class_set(model: &Model, a: &Assumed, class: &Value) -> String {
     let Some(spec) = a.spec.as_ref().filter(|_| a.calls.is_empty()) else {
-        let text = crate::eval::class_text(std::slice::from_ref(class), &a.spec, &a.calls);
+        let text = crate::verdicts::class_text(std::slice::from_ref(class), &a.spec, &a.calls);
         return match text.is_empty() {
             true => "its inputs".to_string(),
             false => format!("the inputs with {text}"),

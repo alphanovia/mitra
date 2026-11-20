@@ -3,8 +3,8 @@
 //! is missed and the evidence that would settle it.
 
 use crate::ast::{Model, Target};
-use crate::eval::{Assumed, Logic, Report};
 use crate::print::call;
+use crate::verdicts::{Assumed, Logic, Report};
 use crate::Value;
 
 /// Up to this many missing inputs are listed one by one.
@@ -31,14 +31,14 @@ pub fn next(model: &Model, report: &Report) -> String {
     }
     // One verdict per claim; among failing claims, first those on a
     // subject that uses nothing failing: the likely root causes.
-    let mut verdicts: Vec<&crate::eval::Verdict> = Vec::new();
+    let mut verdicts: Vec<&crate::verdicts::Verdict> = Vec::new();
     for v in &report.verdicts {
         if !verdicts.iter().any(|w| w.claim == v.claim) {
             verdicts.push(v);
         }
     }
-    let subject = |v: &crate::eval::Verdict| &model.claim(&v.claim).expect("checked").func;
-    let suspects = |f: &String| -> Vec<&crate::eval::Suspect> {
+    let subject = |v: &crate::verdicts::Verdict| &model.claim(&v.claim).expect("checked").func;
+    let suspects = |f: &String| -> Vec<&crate::verdicts::Suspect> {
         report.suspects.iter().filter(|s| &s.subject == f).collect()
     };
     let look = |f: &String| -> String {
@@ -55,8 +55,8 @@ pub fn next(model: &Model, report: &Report) -> String {
             .collect()
     };
     // What can't all be true comes first.
-    let mut conflicts: Vec<&crate::eval::Conflict> = report.conflicts.iter().collect();
-    let of = |k: &crate::eval::Conflict| &model.claim(&k.claim).expect("checked").func;
+    let mut conflicts: Vec<&crate::verdicts::Conflict> = report.conflicts.iter().collect();
+    let of = |k: &crate::verdicts::Conflict| &model.claim(&k.claim).expect("checked").func;
     conflicts.sort_by_key(|k| !suspects(of(k)).is_empty());
     for k in conflicts {
         let subject = of(k);
@@ -68,7 +68,7 @@ pub fn next(model: &Model, report: &Report) -> String {
                  find what differs between the two inputs and split a class,\n  \
                  or check the two results: one of them may be wrong\n",
                 k.claim,
-                crate::eval::class_text(std::slice::from_ref(&k.class), &k.spec, &k.calls),
+                crate::verdicts::class_text(std::slice::from_ref(&k.class), &k.spec, &k.calls),
             ),
             Some(spec) => format!(
                 "{}: fails: `{pass}` passes and `{fail}` fails, both in class {} of `{spec}`\n  \
@@ -149,7 +149,7 @@ pub fn next(model: &Model, report: &Report) -> String {
             out += &format!(
                 "{}: fails on {}\n",
                 c.name,
-                crate::eval::brief(&v.refuted, &v.domain)
+                crate::verdicts::brief(&v.refuted, &v.domain)
             );
             out += &look(&c.func);
         }
@@ -305,7 +305,8 @@ pub fn next(model: &Model, report: &Report) -> String {
             }
             for class in &a.untested {
                 let tainted = a.tainted.contains(class);
-                let text = crate::eval::class_text(std::slice::from_ref(class), &a.spec, &a.calls);
+                let text =
+                    crate::verdicts::class_text(std::slice::from_ref(class), &a.spec, &a.calls);
                 out += &match (&a.spec, tainted) {
                     _ if !a.calls.is_empty() && tainted => format!(
                         "  {text} have an input with both a pass and a failure: not relied on\n"

@@ -1,5 +1,5 @@
 as_str: two verdicts read the same
-crates/mitra-lang/src/eval.rs
+crates/mitra-lang/src/verdicts.rs
 --
             Logic::Assuming => "holds assuming",
 --
@@ -109,12 +109,14 @@ crates/mitra-lang/src/set.rs
 --
             '\t' => out += "\\t",
 --
+
 ==
 quote: a backslash is kept
 crates/mitra-lang/src/set.rs
 --
             '\\' => out += "\\\\",
 --
+
 ==
 rank: skip the check of the clauses
 crates/mitra-lang/src/trust/culprits.rs

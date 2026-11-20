@@ -1,4 +1,4 @@
-// What a report says when something does not add up (src/eval.rs,
+// What a report says when something does not add up (src/verdicts.rs,
 // src/report.rs).
 //
 // Everything is a suspect: when pieces can't all be right, each of them

@@ -7,8 +7,7 @@ use std::path::{Path, PathBuf};
 const CEILING: usize = 1000;
 
 /// The files not yet cut. The list only shrinks.
-const NOT_YET: [&str; 8] = [
-    "mitra-lang/src/eval.rs",
+const NOT_YET: [&str; 7] = [
     "mitra-lang/src/ast.rs",
     "mitra-lang/src/report.rs",
     "mitra-lang/src/set.rs",

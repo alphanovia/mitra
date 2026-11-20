@@ -4,12 +4,12 @@
 //! plain words and, where there is one, the next thing to do.
 
 use crate::ast::{Claim, Judgment, Model};
-use crate::eval::{
+use crate::print::{call, print_claim, print_evidence};
+use crate::tuples::Tuples;
+use crate::verdicts::{
     brief, Candidate, Display, Implication, Kind, Logic, Piece, Problem, Report, Unranked, Verdict,
     QUOTED, WIDE,
 };
-use crate::print::{call, print_claim, print_evidence};
-use crate::tuples::Tuples;
 use crate::Why;
 
 /// Where a line of the model or of the evidence is, as `file:line`.
@@ -383,7 +383,7 @@ impl Writer<'_> {
         let listed = v
             .missed
             .size_bound()
-            .is_some_and(|n| n <= crate::eval::POINTS);
+            .is_some_and(|n| n <= crate::verdicts::POINTS);
         // Classes without a passing input, when the set can't be listed; a
         // failing class is not missed.
         let assumed = v
@@ -394,7 +394,7 @@ impl Writer<'_> {
             let mut open = a.untested.clone();
             open.retain(|k| !(a.vouched && a.failing.contains(k)));
             if !open.is_empty() {
-                return Some(crate::eval::class_text(&open, &a.spec, &a.calls));
+                return Some(crate::verdicts::class_text(&open, &a.spec, &a.calls));
             }
         }
         Some(self.inputs(func, &v.missed, &v.domain))
@@ -543,7 +543,7 @@ impl Writer<'_> {
                     .collect();
                 *out += &format!(
                     "  assumed on      {}, by {}{}\n",
-                    crate::eval::class_text(&a.classes, &a.spec, &a.calls),
+                    crate::verdicts::class_text(&a.classes, &a.spec, &a.calls),
                     by.join(", "),
                     match (&a.unvouched[..], a.with.is_empty()) {
                         ([], _) => String::new(),
@@ -994,7 +994,7 @@ impl Writer<'_> {
                             true => String::new(),
                             false => format!(
                                 " for\n  {}",
-                                crate::eval::class_text(std::slice::from_ref(class), spec, calls)
+                                crate::verdicts::class_text(std::slice::from_ref(class), spec, calls)
                             ),
                         }
                     ),
@@ -1285,7 +1285,7 @@ impl Report {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::eval::Piece;
+    use crate::verdicts::Piece;
 
     fn candidate(belief: f64, plausibility: f64) -> Candidate {
         Candidate {

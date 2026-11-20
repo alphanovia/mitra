@@ -81,3 +81,14 @@ yet cut that only shrinks.
 3. A tool corrected the layout (step 2). `scripts/coverage.py` stops
    at the first `#[cfg(test)]` of a file, so a `mod tests;` at the top
    hid the whole reader. Test modules are declared last.
+4. Model corrected the code (step 3). The model had two subjects where
+   the code had one file: `eval` (the value of an expression) and
+   `verdicts`, with `require computed = eval::computes` between them.
+   The code now has the same two: `eval.rs` knows nothing of verdicts
+   but one word (`Implication`), and `verdicts/` calls it.
+5. Code corrected the model (step 3). `evaluate` was one function of
+   1,500 lines whose steps shared some twenty closures. Cut into
+   steps, what they share had to be written down: `Judge` in
+   `verdicts.rs`, thirteen fields, each filled by one step and read by
+   the next. The model says nothing of these steps: `verdicts` is one
+   subject with seven ensures. Step 5 of this plan adds them.
