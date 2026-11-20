@@ -20,7 +20,13 @@ subject place {
 // Something said, and what is believed of it.
 subject piece {
     ensure everything_is_a_piece = "Whatever can be right or wrong is a piece, known by its name, and has one opinion; there is no second way to be believed.";
+    // After Jøsang, 2016, "Subjective Logic: A Formalism for Reasoning Under Uncertainty":
+    // an opinion as Beta counts with a base rate and a prior weight W.
+    // Departs: W is a setting given with the model, where the book fixes 2.
     ensure opinion_is_counts = "An opinion is a count of yes and a count of no, with a base rate: what to expect with no evidence. It reads as the share of yes, the base rate counted `w` times, so with no evidence it reads as its base rate. The weight `w` is one setting for the whole system, given with the model: nothing here holds a value for it.";
+    // After Jøsang, 2016, "Subjective Logic: A Formalism for Reasoning Under Uncertainty":
+    // belief, disbelief and uncertainty read from the counts. The
+    // interval is the plain Beta one, and is not from the book.
     ensure opinion_is_shown = "An opinion shows as three shares of one: belief, disbelief, and uncertainty, which is what is not evidence. With them, the interval where the piece is right nine times out of ten: how often it is right is a Beta of its counts, the base rate counted with the weight.";
     ensure trusted_is_the_policy = "An opinion is trusted when the number it reads as reaches what the policy asks, and never with no yes at all.";
 
@@ -79,7 +85,14 @@ subject evidence {
     ensure said_as_far_as_believed = "What a piece of evidence says counts as far as that evidence is itself believed: its counts are scaled by what the evidence reads as. Evidence believed at 0 moves nothing, and a yes never becomes a no.";
     ensure count_is_firmness = "The count a piece of evidence says is how firmly it says it. A test at one point says one yes or one no. A review may say many: that is how an author states what is known from experience, and what is so reviewed stands against a failure.";
     ensure reliability_is_implied = "Each voice implies one statement, its reliability: this voice can be relied on. It is a piece like any other, known by the voice's name, and it stands behind all the voice says.";
+    // After Jøsang, 2016, "Subjective Logic: A Formalism for Reasoning Under Uncertainty":
+    // trust discounting, the belief and the disbelief of a word times the
+    // trust in its source. Departs: the result is kept as counts.
     ensure word_as_far_as_its_voice = "What a voice says counts whole if the voice is reliable and not at all if it is not: with a voice reliable at t, the belief and the disbelief of its word are t times what was said. A belief never exceeds the trust in who says it.";
+    // After Jøsang, 2016, "Subjective Logic: A Formalism for Reasoning Under Uncertainty":
+    // cumulative fusion, counts of independent sources add. Departs: one
+    // voice counted once by its strongest word, and the measure of
+    // independence between two voices, are ours.
     ensure same_voice_counts_once = "Pieces of evidence about one piece add their counts when their voices are independent; one voice counts once, by its strongest yes and its strongest no.";
     ensure disagreement_is_measured = "Two pieces of evidence that say opposite things about one piece are in conflict as far as each is believed; fused, neither is dropped.";
 
@@ -232,12 +245,34 @@ subject model {
 
     ensure only_from_the_model = "The opinion of a piece comes from the evidence about it and from the pieces it is related to, and from nothing else: with neither it is its base rate. The base rate of a piece that is not a whole is never moved; a whole has the base rate of its parts together.";
     ensure relation_is_said = "A relation between pieces is itself said: a statement whose content is the relation. What is computed on a relation counts as far as that statement is believed; a relation believed at 1 is plain structure, and one believed at 0 relates nothing.";
+    // After Jøsang and McAnally, 2004, "Multiplication and Comultiplication
+    // of Beliefs": the product of two independent opinions as one opinion.
+    // Departs: the Beta is fitted to the mean and the variance of the
+    // product, where the paper fits the mean; several parts are taken
+    // two at a time.
     ensure whole_is_all_its_parts = "A piece that is all of others together reads as all of them, each counted once however many paths lead to it: how often each part is right is taken as independent of the others, and the whole reads as the product. It reads on what is said of it directly only when that leaves less uncertain.";
     ensure yes_flows_down = "What says yes about a whole says yes about each of its parts as much: evidence about a pair is evidence about both.";
+    // After Pearl, 1988, "Probabilistic Reasoning in Intelligent Systems:
+    // Networks of Plausible Inference": Bayes' rule on a conjunction seen
+    // false, each cause blamed by what was expected of it. Departs: only
+    // the mean of each suspect is kept, as a count of no added to it; how
+    // the suspects depend on each other after the failure is dropped.
     ensure no_is_shared = "What says no about a whole says no about no part alone. The parts, and the parts of each part that is itself a whole, down to what stands on nothing, each once however many paths lead to it; the evidence that says no; and each doubted relation on the way: these are the suspects: a failure is seeing that they are not all right. Each suspect gets the count of no that brings it to what Bayes gives for it, from what each was expected to be before; its count of yes is not touched. An equal start gives equal shares; what was expected less takes more.";
     ensure completeness_is_a_part = "The completeness of a tie is a part of every whole the tie is a part of, though no relation names it: a yes about the whole flows down to it, and it is a suspect of every failure of the whole. A failure where the statement and the tie are otherwise believed says that something is missing there.";
     ensure completeness_has_a_default = "The completeness of a tie with no base rate written has the one the model gives for all: whoever models tries for a good model and takes shortcuts, so it is better than a guess and not strong. It is a setting, given with the model.";
+    // After Dawid and Skene, 1979, "Maximum Likelihood Estimation of
+    // Observer Error-Rates Using the EM Algorithm": observers judged by
+    // how they agree with what the others make likely, estimated in
+    // rounds. Departs: one number per voice (reliable or not) where they
+    // estimate an error rate per answer; what is true is read from the
+    // parts of each whole, not estimated as a class; the rounds repeat a
+    // reading until nothing moves, and are not their EM.
     ensure voices_are_judged = "A voice whose reliability has a base rate can be doubted. It is reliable or not, and if not its word is nothing. It is judged by every whole it spoke for, passes and failures together: with p the chance that the parts of a whole are all right before anything is seen of it, the observations are as likely as p times (every failing one is wrong) plus (1 - p) times (every passing one is wrong), read with the word of the voice taken whole and without it. Repeated failures of one whole are one fact. The parts are read again with the voices as judged, and so on until nothing moves.";
+    // After Ivanovska, Jøsang, Kaplan and Sambo, 2015, "Subjective
+    // Networks: Perspectives and Challenges": opinions on the nodes of a
+    // Bayesian network, a common parent making its children dependent.
+    // Departs: no inference of theirs is used; voices on one source are
+    // weighed by a closed form of ours.
     ensure sources_are_shared = "Voices are independent unless a relation says the reliability of each is all of a common source. Voices on one source are weighed together: what contradicts one of them makes the source less believed, and so the word of the others.";
     ensure unjudged_is_not_doubted = "A voice whose reliability has no base rate is not judged: its word counts whole. That is an assumption of the model, to be shown with it.";
     ensure conflict_is_said = "Pieces that cannot all be right are reported, the least believed first, and none of them is chosen silently: the parts of a whole with the evidence that says no about it, and the evidence for and against one piece.";

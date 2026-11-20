@@ -698,3 +698,30 @@ written by main's binary, which is frozen.
      same rule, so it lands beside what the test is about only if the
      test is declared there; where a test's piece lives is for the
      ledger layer to say.
+
+## Increment 112: references in the model (2026-11-20)
+
+**Asked.** "things like estimated Dawid-Skene style should go in the
+model as a comment. If we have reference showing this how we should do
+it, we should say it."
+
+**Done.** Eight promises of `model/model.mitra` carry a comment naming
+the method they follow (author, year, title) and where we depart:
+`opinion_is_counts`, `opinion_is_shown`, `word_as_far_as_its_voice`,
+`same_voice_counts_once` (Jøsang 2016), `whole_is_all_its_parts`
+(Jøsang and McAnally 2004), `no_is_shared` (Pearl 1988),
+`voices_are_judged` (Dawid and Skene 1979), `sources_are_shared`
+(Ivanovska, Jøsang, Kaplan and Sambo 2015). Comments only.
+
+**Decided alone.**
+
+686. Titles, authors and years were checked by search; the content of
+     each is stated from memory, not from a reading of the text today.
+687. Left out, not confirmed by the search: Kaplan and Ivanovska, 2018,
+     "Efficient belief propagation in second-order Bayesian networks
+     for singly-connected graphs", the closest source for fitting a
+     Beta to the mean and the variance of a product.
+688. No reference for `said_as_far_as_believed` (counts scaled by the
+     belief in the evidence), the share of a no through nested wholes,
+     completeness, or the closed form for a shared source: ours.
+
