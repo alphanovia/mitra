@@ -93,6 +93,8 @@ fn behind<'m>(
     }
 }
 
+const CAPTURED: &str = "::captured";
+
 /// What a promise rests on: its claims, what it requires, its capture.
 fn parts(model: &Model, name: &str) -> Vec<String> {
     let Some(e) = model.ensure(name) else {
@@ -163,9 +165,19 @@ pub fn support(model: &Model, name: &str) -> Support {
     // it do not vouch for each other.
     let under = parts(model, name);
     if !under.is_empty() {
-        let each = under.iter().map(|p| support(model, p));
-        let worst = each.filter(|s| !s.words.is_empty()).map(|s| s.doubt);
-        doubt = worst.fold(0.0, f64::max);
+        // A capture, and what an opaque function does, hold on a word
+        // only: with none, nothing is known of them. Another part with
+        // no word may hold by computation, and is left out.
+        let worded = [CAPTURED, "::correct", "::deterministic"];
+        let worst = under.iter().filter_map(|p| {
+            let s = support(model, p);
+            match s.words.is_empty() {
+                false => Some(s.doubt),
+                true => worded.iter().any(|w| p.ends_with(w)).then_some(1.0),
+            }
+        });
+        // Nothing said of any part: nothing to believe it on.
+        doubt = worst.reduce(f64::max).unwrap_or(1.0);
     }
     let mut s = Support {
         words,
@@ -291,6 +303,7 @@ pub fn summary(model: &Model, report: &Report) -> String {
         .collect();
     let held: Vec<&&crate::Verdict> = promises.iter().filter(holds).collect();
     let (mut proof, mut human, mut apart, mut agent, mut unknown, mut below) = (0, 0, 0, 0, 0, 0);
+    let mut machine = 0;
     let mut lifts: Vec<(f64, f64, String)> = Vec::new();
     let person = Word {
         act: "review".to_string(),
@@ -308,6 +321,8 @@ pub fn summary(model: &Model, report: &Report) -> String {
             apart += 1;
         } else if has(&|w| w.voice.starts_with("agent:")) {
             agent += 1;
+        } else if has(&|w| w.voice.starts_with("machine:")) {
+            machine += 1;
         } else {
             unknown += 1;
         }
@@ -321,7 +336,7 @@ pub fn summary(model: &Model, report: &Report) -> String {
     }
     let mut out = format!(
         "{} of {} promises hold: {proof} with a proof, {human} with a person's review, \
-         {apart} with a cold agent's word, {agent} on agent work alone, {unknown} on words nobody signed\n",
+         {apart} with a cold agent's word, {agent} on agent work alone, {machine} on a machine's word, {unknown} on words nobody signed\n",
         held.len(),
         promises.len()
     );

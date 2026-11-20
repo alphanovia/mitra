@@ -1,0 +1,104 @@
+# The words of cold agents on this store (increment 77): `scripts/cold.sh` records them.
+# review <promise> <voice>: a cold review of the promise against the code.
+# tie <test> <promise> <voice>: a cold review that the test is evidence for the promise.
+review files::read::correct agent:anthropic/fable-5.2/cold-r-store
+review files::read::correct agent:anthropic/opus/cold-r-store
+review files::read::deterministic agent:anthropic/fable-5.2/cold-r-store
+review files::read::deterministic agent:anthropic/opus/cold-r-store
+review files::file::correct agent:anthropic/fable-5.2/cold-r-store
+review files::file::correct agent:anthropic/opus/cold-r-store
+review files::file::deterministic agent:anthropic/fable-5.2/cold-r-store
+review files::file::deterministic agent:anthropic/opus/cold-r-store
+review store::Store::of::correct agent:anthropic/fable-5.2/cold-r-store
+review store::Store::of::correct agent:anthropic/opus/cold-r-store
+review store::Store::of::deterministic agent:anthropic/fable-5.2/cold-r-store
+review store::Store::of::deterministic agent:anthropic/opus/cold-r-store
+review store::Store::model_path::correct agent:anthropic/fable-5.2/cold-r-store
+review store::Store::model_path::correct agent:anthropic/opus/cold-r-store
+review store::Store::model_path::deterministic agent:anthropic/fable-5.2/cold-r-store
+review store::Store::model_path::deterministic agent:anthropic/opus/cold-r-store
+review store::Store::evidence_path::correct agent:anthropic/fable-5.2/cold-r-store
+review store::Store::evidence_path::correct agent:anthropic/opus/cold-r-store
+review store::Store::evidence_path::deterministic agent:anthropic/fable-5.2/cold-r-store
+review store::Store::evidence_path::deterministic agent:anthropic/opus/cold-r-store
+review store::Store::source::correct agent:anthropic/fable-5.2/cold-r-store
+review store::Store::source::correct agent:anthropic/opus/cold-r-store
+review store::Store::settings::correct agent:anthropic/fable-5.2/cold-r-store
+review store::Store::settings::correct agent:anthropic/opus/cold-r-store
+review store::Store::settings::deterministic agent:anthropic/fable-5.2/cold-r-store
+review store::Store::settings::deterministic agent:anthropic/opus/cold-r-store
+review store::Store::write_build::deterministic agent:anthropic/fable-5.2/cold-r-store
+review store::Store::write_build::deterministic agent:anthropic/opus/cold-r-store
+review ledger::Store::add::deterministic agent:anthropic/fable-5.2/cold-r-store
+review ledger::Store::add::deterministic agent:anthropic/opus/cold-r-store
+review ledger::Store::append::correct agent:anthropic/fable-5.2/cold-r-store
+review ledger::Store::append::correct agent:anthropic/opus/cold-r-store
+review ledger::Store::append::deterministic agent:anthropic/fable-5.2/cold-r-store
+review ledger::Store::append::deterministic agent:anthropic/opus/cold-r-store
+review keeping::Store::replace::deterministic agent:anthropic/fable-5.2/cold-r-store
+review keeping::Store::replace::deterministic agent:anthropic/opus/cold-r-store
+review keeping::Store::remove::deterministic agent:anthropic/fable-5.2/cold-r-store
+review keeping::Store::remove::deterministic agent:anthropic/opus/cold-r-store
+tie cold_read_gives_the_whole_text files::read::correct agent:anthropic/opus/cold-t
+tie cold_read_of_no_file_says_why_with_its_path files::read::correct agent:anthropic/opus/cold-t
+tie cold_file_is_handed_under_its_path_unchanged files::handed_unchanged agent:anthropic/opus/cold-t
+tie cold_file_that_is_not_there_is_an_error_with_its_path files::file::correct agent:anthropic/opus/cold-t
+tie cold_import_is_answered_by_the_file_beside files::imports_beside agent:anthropic/opus/cold-t
+tie cold_import_of_an_import_is_read_beside_the_first_file files::imports_beside agent:anthropic/opus/cold-t
+tie cold_missing_import_does_not_stop_the_reading files::missing_is_said_at_the_import agent:anthropic/opus/cold-t
+tie cold_import_with_no_file_is_answered_by_the_store_beside files::stores_beside agent:anthropic/opus/cold-t
+tie cold_file_beside_the_model_answers_before_another_store files::stores_beside agent:anthropic/opus/cold-t
+tie cold_of_takes_only_a_model_mitra_in_a_dot_mitra_folder store::Store::of::correct agent:anthropic/opus/cold-t
+tie cold_model_path_is_the_file_the_store_was_named_by store::Store::model_path::correct agent:anthropic/opus/cold-t
+tie cold_evidence_path_is_evidence_mitra_in_the_same_folder store::Store::evidence_path::correct agent:anthropic/opus/cold-t
+tie cold_source_is_every_mitra_file_with_the_model_first store::whole_folder agent:anthropic/opus/cold-t
+tie cold_source_of_a_folder_that_is_not_there_is_an_error store::Store::source::correct agent:anthropic/opus/cold-t
+tie cold_no_settings_file_is_the_defaults store::settings_beside_the_model agent:anthropic/opus/cold-t
+tie cold_settings_are_read_from_the_file_and_handed_with_the_model store::Store::settings::correct agent:anthropic/opus/cold-t
+tie cold_settings_that_do_not_read_are_an_error_with_their_path store::settings_beside_the_model agent:anthropic/opus/cold-t
+tie cold_build_files_are_written_by_name_under_build store::build_is_written_again agent:anthropic/opus/cold-t
+tie cold_build_is_never_read_as_model store::build_is_written_again agent:anthropic/opus/cold-t
+tie cold_init_where_there_is_a_store_changes_nothing store::never_overwrites agent:anthropic/opus/cold-t
+tie cold_init_where_there_is_none_makes_a_store_once store::never_overwrites agent:anthropic/opus/cold-t
+tie cold_find_uses_the_nearest_store_at_or_above store::nearest agent:anthropic/opus/cold-t
+tie cold_append_adds_at_the_end_and_reads_back ledger::reads_back agent:anthropic/opus/cold-t
+tie cold_add_gives_how_many_pieces_were_added ledger::Store::add::correct agent:anthropic/opus/cold-t
+tie cold_add_writes_who_and_which_revision_into_each_entry ledger::keeps_who_and_when agent:anthropic/opus/cold-t
+tie cold_refused_evidence_writes_nothing ledger::sound_or_untouched agent:anthropic/opus/cold-t
+tie cold_append_to_a_store_that_does_not_read_writes_nothing ledger::Store::append::correct agent:anthropic/opus/cold-t
+tie cold_replace_takes_out_the_entries_of_the_prefix_and_writes_the_new keeping::Store::replace::correct agent:anthropic/opus/cold-t
+tie cold_replace_with_nothing_new_says_everything_it_took_out keeping::machine_is_a_snapshot agent:anthropic/opus/cold-t
+tie cold_a_run_of_a_machine_never_takes_out_what_a_person_said keeping::human_is_never_dropped_silently agent:anthropic/opus/cold-t
+tie cold_refused_replace_and_remove_leave_the_ledger_as_it_was keeping::sound_or_untouched agent:anthropic/opus/cold-t
+tie cold_remove_by_source_and_by_piece_gives_back_what_left_as_written keeping::Store::remove::correct agent:anthropic/opus/cold-t
+tie cold_remove_orphaned_and_stale_take_only_those keeping::removal_is_explicit agent:anthropic/opus/cold-t
+tie cold_every_entry_that_leaves_is_given_back keeping::nothing_leaves_unshown agent:anthropic/opus/cold-t
+tie cold_of_model_in_mitra_folder_is_a_store store::a_model_file_names_its_store agent:anthropic/fable-5.2/cold-t
+tie cold_of_other_files_are_no_store store::another_file_is_no_store agent:anthropic/fable-5.2/cold-t
+tie cold_paths_of_a_store_are_in_its_folder store::Store::model_path::correct agent:anthropic/fable-5.2/cold-t
+tie cold_source_is_every_mitra_file_model_first_ledger_aside store::whole_folder agent:anthropic/fable-5.2/cold-t
+tie cold_model_files_are_handed_under_their_path_unchanged files::handed_unchanged agent:anthropic/fable-5.2/cold-t
+tie cold_read_gives_the_text_or_why_with_the_path files::read::correct agent:anthropic/fable-5.2/cold-t
+tie cold_imports_are_read_beside_the_first_file_and_in_turn files::imports_beside agent:anthropic/fable-5.2/cold-t
+tie cold_missing_import_does_not_stop_reading files::missing_is_said_at_the_import agent:anthropic/fable-5.2/cold-t
+tie cold_missing_import_is_said_at_its_line files::missing_is_said_at_the_import agent:anthropic/fable-5.2/cold-t
+tie cold_other_store_beside_is_handed_whole_ledger_aside files::stores_beside agent:anthropic/fable-5.2/cold-t
+tie cold_no_settings_file_is_the_defaults store::settings_beside_the_model agent:anthropic/fable-5.2/cold-t
+tie cold_settings_are_read_and_handed_with_the_model store::Store::settings::correct agent:anthropic/fable-5.2/cold-t
+tie cold_settings_that_do_not_read_are_an_error_with_the_path store::settings_beside_the_model agent:anthropic/fable-5.2/cold-t
+tie cold_write_build_writes_each_file_under_build store::Store::write_build::correct agent:anthropic/fable-5.2/cold-t
+tie cold_a_build_is_never_read_back_as_model store::build_is_written_again agent:anthropic/fable-5.2/cold-t
+tie cold_init_creates_once_and_never_overwrites store::never_overwrites agent:anthropic/fable-5.2/cold-t
+tie cold_find_uses_the_nearest_store_at_or_above store::nearest agent:anthropic/fable-5.2/cold-t
+tie cold_add_counts_and_stamps_who_and_when ledger::keeps_who_and_when agent:anthropic/fable-5.2/cold-t
+tie cold_add_without_who_or_when_stamps_neither ledger::Store::add::correct agent:anthropic/fable-5.2/cold-t
+tie cold_add_error_writes_nothing ledger::sound_or_untouched agent:anthropic/fable-5.2/cold-t
+tie cold_append_adds_after_and_keeps_what_was_there ledger::Store::append::correct agent:anthropic/fable-5.2/cold-t
+tie cold_appended_evidence_reads_back_exactly ledger::reads_back agent:anthropic/fable-5.2/cold-t
+tie cold_append_on_a_store_that_does_not_read_writes_nothing ledger::sound_or_untouched agent:anthropic/fable-5.2/cold-t
+tie cold_replace_takes_out_what_the_machine_wrote_and_says_so keeping::machine_is_a_snapshot agent:anthropic/fable-5.2/cold-t
+tie cold_replace_leaves_what_a_person_and_other_machines_said keeping::human_is_never_dropped_silently agent:anthropic/fable-5.2/cold-t
+tie cold_replace_error_leaves_the_ledger_as_it_was keeping::sound_or_untouched agent:anthropic/fable-5.2/cold-t
+tie cold_remove_by_source_gives_back_what_left_as_written keeping::nothing_leaves_unshown agent:anthropic/fable-5.2/cold-t
+tie cold_remove_by_piece_takes_only_that_piece keeping::Store::remove::correct agent:anthropic/fable-5.2/cold-t
+tie cold_orphaned_person_word_stays_until_removed keeping::removal_is_explicit agent:anthropic/fable-5.2/cold-t

@@ -5,13 +5,13 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 
 | Crate | Functions | Tied | Share | Lines in functions | In tied ones | Share | Code lines | Model lines | Model / code |
 |---|---|---|---|---|---|---|---|---|---|
-| mitra-lang | 427 | 58 | 14% | 14445 | 3091 | 21% | 15316 | 1048 | 7% |
+| mitra-lang | 427 | 58 | 14% | 14454 | 3100 | 21% | 15326 | 1048 | 7% |
 | mitra-store | 22 | 12 | 55% | 333 | 169 | 51% | 365 | 99 | 27% |
 | mitra-rust | 26 | 8 | 31% | 1024 | 576 | 56% | 1076 | 42 | 4% |
 | mitra-cli | 23 | 2 | 9% | 691 | 60 | 9% | 730 | 56 | 8% |
-| all | 498 | 80 | 16% | 16493 | 3896 | 24% | 17487 | 1245 | 7% |
+| all | 498 | 80 | 16% | 16502 | 3905 | 24% | 17497 | 1245 | 7% |
 
-- mitra-lang: 1048 lines of model over 15316 lines of code, in 22 subjects with 85 ensures and 8 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
+- mitra-lang: 1048 lines of model over 15326 lines of code, in 22 subjects with 85 ensures and 8 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
 - mitra-store: 99 lines of model over 365 lines of code, in 4 subjects with 21 ensures and 8 requires; apart from it, 0 lines of point claims and 0 tests pinned in the code.
 - mitra-rust: 42 lines of model over 1076 lines of code, in 2 subjects with 3 ensures and 3 requires; apart from it, 28 lines of point claims and 0 tests pinned in the code.
 - mitra-cli: 56 lines of model over 730 lines of code, in 1 subject with 10 ensures and 18 requires; apart from it, 0 lines of point claims and 4 tests pinned in the code.
@@ -73,11 +73,11 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | settings.rs | `written` | 150 | 20 | settings::Settings::written |
 | trust/culprits.rs | `rank` | 59 | 22 | culprits::rank |
 | voices.rs | `word` | 37 | 15 | voices::word |
-| voices.rs | `error_rate` | 107 | 11 | voices::error_rate |
-| voices.rs | `support` | 121 | 59 | voices::support |
-| voices.rs | `missing` | 190 | 26 | voices::missing |
-| voices.rs | `policy_reads` | 219 | 19 | voices::policy_reads |
-| voices.rs | `summary` | 280 | 64 | voices::summary |
+| voices.rs | `error_rate` | 109 | 11 | voices::error_rate |
+| voices.rs | `support` | 123 | 65 | voices::support |
+| voices.rs | `missing` | 202 | 26 | voices::missing |
+| voices.rs | `policy_reads` | 231 | 19 | voices::policy_reads |
+| voices.rs | `summary` | 292 | 67 | voices::summary |
 | ast.rs | `set` | 93 | 6 |  |
 | ast.rs | `is_spec` | 119 | 3 |  |
 | ast.rs | `domain` | 123 | 3 |  |
@@ -444,9 +444,9 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | types.rs | `call` | 105 | 8 |  |
 | types.rs | `of` | 115 | 233 |  |
 | voices.rs | `behind` | 56 | 36 |  |
-| voices.rs | `parts` | 97 | 7 |  |
-| voices.rs | `rounded` | 239 | 4 |  |
-| voices.rs | `by_line` | 246 | 30 |  |
+| voices.rs | `parts` | 99 | 7 |  |
+| voices.rs | `rounded` | 251 | 4 |  |
+| voices.rs | `by_line` | 258 | 30 |  |
 
 ## mitra-store
 

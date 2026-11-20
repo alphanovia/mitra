@@ -1,0 +1,54 @@
+results::signed::correct | fails | It splits at the first `written "` anywhere in the text, so a pin whose string value contains it, e.g. `given s = "written " gives 1`, returns pinned `given s = "` and voice ` written " gives 1`, misreading both what is pinned and who wrote it.
+results::signed::deterministic | holds | Pure string slicing of its argument with no other state.
+results::from_tests::correct | fails | A pinned clause is rebuilt from split_whitespace words, so a failing test pinned `given s = "a  b" gives 1` (two spaces) yields `for f given s = "a b" fails`, a denial on a different input than pinned (and a `gives` word inside a string value, `given s = "x gives y" gives 1`, cuts the clause mid-string).
+results::from_tests::deterministic | holds | Output depends only on the model, tied list, outcomes and rev, iterated in order with no hidden state.
+results::short::correct | fails | short("t - should panic  - should panic") is "t - should panic" while short of that is "t", so the claim short_once that speaks of short is violated (trim_end_matches runs before the inner trim).
+results::short::deterministic | holds | Pure string function.
+results::short_once | fails | path = "t - should panic  - should panic" (two spaces before the second suffix): short(path) = "t - should panic", short(short(path)) = "t".
+results::attr::correct | fails | It matches the attribute name inside another attribute's value: attr("<testcase classname=\"a name='b'\" name=\"c\"", "name") returns Some("b") instead of Some("c").
+results::attr::deterministic | holds | Pure string scan of its arguments.
+results::strip::correct | fails | The close is searched from the start of the open, so an overlapping close is found inside the open: strip("<a>X</a>", "<a", "a>") gives "X</a>" instead of removing up to the later "a>" (and strip("abc", "", "") never terminates).
+results::strip::deterministic | holds | Pure string function (same input, same output whenever it returns).
+results::junit::correct | fails | Not every test case is read with its name: a tag is cut at the first '>', so `<testcase name="a>b"/>` is dropped, and `<testcase classname="x name='y'" name="t"/>` is read as test "y" via attr.
+results::junit::deterministic | holds | Pure function of the XML text using only strip, attr and short.
+settings::Settings::read::correct | holds | Unknown tables and keys (outside the erasure map), non-numbers and numbers outside 0..=1 are refused with `line N`, absent/comment-only text gives Default, and policies go through voices::policy_reads as the model allows.
+settings::Settings::read::deterministic | holds | Pure parse of the text into BTreeMaps, plus the pure policy_reads.
+settings::Settings::sample::correct | fails | The ensure promises never 1, but read accepts tolerance = 1 and then sample(1) = 1.0; with the default 0.001, sample(1_000_000) also rounds to 1.0 because 0.999^1e6 underflows to 0.
+settings::Settings::sample::deterministic | holds | Pure arithmetic on tolerance and n.
+settings::Settings::strength::correct | fails | The ensure promises less trust for each erasure that costs, but strength([1e-17]) == 1.0 because 1 - 1e-17 rounds to 1, and out-of-range costs such as [1.5] give a negative trust (-0.5).
+settings::Settings::strength::deterministic | holds | Pure product over the slice in order.
+settings::Settings::written::correct | fails | Only erasure names in the profile are written, so read("[erasure]\nfoo = 0.5") then written(&[("width", 0.02)]) loses foo = 0.5 and does not read back to the same settings.
+settings::Settings::written::deterministic | holds | Formats self and the profile in fixed order (BTreeMap lookups, DOUBT array).
+settings::Settings::doubt::correct | holds | Returns the file's rate for the kind if stated, else the built-in rate of that kind, else 1.0 for an unknown kind.
+settings::Settings::doubt::deterministic | holds | Pure lookup in a constant table and the settings map.
+voices::parts::correct | holds | voice_parts splits `kind:path` into kind and `/`-separated path, accepting only agent/human/machine with no empty segment (so machine:cargo is Some and claude is None).
+voices::parts::deterministic | holds | Pure string function.
+voices::apart::correct | holds | Unparsable voices give 5, different kinds 4, equal 0, different people or machines 4, and agents 3/2/1 by shared vendor/model prefix, which satisfies voices_apart and the ordering prose.
+voices::apart::deterministic | holds | Pure function of the two strings.
+voices::word::correct | holds | The voice is `written`, else `by` unless a machine ran a test/sample/exhaustive/measure, else "unknown", so a machine that ran a test is never its author.
+voices::word::deterministic | holds | Pure function of the evidence fields.
+voices::error_rate::correct | holds | Maps a word to proof/human/machine/cold/agent/unknown by act and voice kind and returns settings.doubt of that kind.
+voices::error_rate::deterministic | holds | Pure function of the settings and the word.
+voices::support::correct | fails | A promise's doubt is the max over only those parts that have words, folded from 0.0, so an ensure with a part with no evidence (own doubt 1.0) beside a human-reviewed one gets 0.05, and an ensure with no evidence at all gets doubt 0.0, against the promise being doubted as its most doubted part.
+voices::support::deterministic | holds | Depends only on the model; collects into BTreeSets and iterates the model in order.
+voices::missing::correct | holds | Each comma-separated requirement is checked against the support (any, cold, human, voices n, apart level below unknown, doubt bound, act present) and the unmet ones are returned verbatim, which satisfies the four claims on it.
+voices::missing::deterministic | holds | Pure function of its arguments.
+voices::policy_reads::correct | holds | Accepts exactly any/cold/human with no argument, voices with an integer, apart session..kind, doubt in 0..=1, and a known act, and refuses anything else (so "cold, doubt 0.1" is Ok and "sometimes" is Err).
+voices::policy_reads::deterministic | holds | Pure function of the text.
+voices::summary::correct | fails | It does not count each promise by the best kind of word behind it: a held promise whose only word is from a machine voice (e.g. a tie or review `by "machine:ci"`, rate 0.1) falls through to "on words nobody signed", below cold-agent and agent words.
+voices::summary::deterministic | holds | Depends only on the model and the report; the sort is stable and NaN compares as equal.
+results::a_pass_is_not_overstated::captured | fails | The four listed claims are single examples (one pin, one claim each), so they do not imply that every pass becomes exactly what its pin says.
+results::a_failure_is_kept::captured | fails | Three fixed examples do not carry the universal promise that any failing test denies what it pins, or the whole claim when it pins nothing.
+results::reads_junit::captured | fails | The only claim under it is short_once; nothing says every testcase is read with its name and pass state or that skipped ones are left out (junit has no claim).
+settings::defaults_without_a_file::captured | fails | absent_is_default checks only read("") for tolerance and counts; neither a file that states nothing nor the profile's costs (an empty erasure map) is stated.
+settings::only_what_is_known::captured | fails | file_is_read and unknown_setting_is_refused are three examples; they say nothing of the refusal naming its line nor of every unknown key or out-of-range number.
+settings::sample_trust_from_count::captured | fails | sample_grows_less checks n = 0, 1000, 2000 at the default tolerance only; the formula 1 - (1 - t)^n and "never 1" for every n are not stated.
+settings::tie_trust_from_erasures::captured | fails | strength_is_a_product checks three fixed lists; neither the product for every list, decrease with each costly erasure, nor order independence is stated.
+settings::in_force_is_written::captured | fails | written_is_read_back only checks that the written text reads as Ok, not that it reads back to the same settings nor that every profile cost appears.
+voices::voice_is_who_wrote::captured | fails | machine_is_not_the_author is about parts only; nothing states that word gives the writer, not the running machine, or "unknown" when unsigned.
+voices::distance_is_ordered::captured | fails | voices_apart is one chain of six examples; it does not cover every pair, two people or two machines being their name, or an unknown voice against another unknown.
+voices::review_of_evidence_adds_a_voice::captured | fails | The claim calls missing on a hand-built Support; nothing says support adds a review `of` a source as a second word or that it judges nothing of the claim.
+voices::point_is_not_the_whole::captured | fails | The claim checks only that missing on an empty Support lacks review; nothing relates evidence on single inputs to which claims it supports.
+voices::doubt_from_kinds::captured | fails | The claim only compares a given doubt to a policy bound in missing; neither the product per own kind of voice nor a promise taking its most doubted part is stated.
+voices::policy_is_aside::captured | fails | policy_reads examples do not state that a held piece below policy still reads holds, with what it lacks under it.
+voices::summary_counts_promises::captured | fails | The claim is about missing("human", …); nothing states what summary counts or which promises it lists as most lifted by a person's review.

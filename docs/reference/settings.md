@@ -94,6 +94,9 @@ claim = "cold"
 ensure = "doubt 0.1"
 ```
 
+Mitra's own stores ask `claim = "cold"`, `ensure = "cold, doubt 0.05"`,
+with rates measured on cold agents (`crates/*/.mitra/settings.toml`).
+
 A piece that holds and lacks what is asked still reads `holds`, with
 `below policy    lacks cold` under it, and `mitra assess` counts them.
 

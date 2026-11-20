@@ -1,17 +1,26 @@
 commands::conform::uses: holds
   by              tie (machine:mitra-rust); doubt 0.1
-commands::conform::correct: unverified
-  no evidence on  (s, built, rev, reader) in (store::Store, build::Built, Option<String>, Any)
+  below policy    lacks cold
+commands::conform::correct: holds
+  by              review (agent:anthropic/fable-5.2/cold-r-cli cold, agent:anthropic/opus/cold-r-cli cold); voices a model apart; doubt 0.01
 commands::conform::deterministic: unverified
   no evidence on  `commands::conform` giving one output per input
 commands::check_rev::correct: unverified
   no evidence on  rev in String
-commands::check_rev::deterministic: unverified
-  no evidence on  `commands::check_rev` giving one output per input
+commands::check_rev::deterministic: holds
+  by              review (agent:anthropic/fable-5.2/cold-r-cli cold, agent:anthropic/opus/cold-r-cli cold); voices a model apart; doubt 0.01
 commands::plain_rev_is_taken: holds
+  by              test (unknown); doubt 0.5
+  below policy    lacks cold
 commands::empty_rev_is_refused: holds
+  by              test (unknown); doubt 0.5
+  below policy    lacks cold
 commands::option_as_rev_is_refused: holds
+  by              test (unknown); doubt 0.5
+  below policy    lacks cold
 commands::quoted_rev_is_refused: holds
+  by              test (unknown); doubt 0.5
+  below policy    lacks cold
 store::whole_folder: holds assuming [itself]
   says            "The model of a store is every `.mitra` file of its folder, the ledger aside, with `model.mitra` handed first."
 ledger::sound_or_untouched: holds assuming [itself]
@@ -86,50 +95,66 @@ commands::plain_words: holds assuming [Reader::plain_to_the_core]
   needs           `Reader::plain_to_the_core`
 commands::commands_only::captured: unverified
   nobody vouched that the claims say what the text says
-commands::commands_only: holds assuming [commands::conform::correct, commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::commands_only::captured]
+commands::commands_only: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::commands_only::captured]
+  by              review (agent:anthropic/fable-5.2/cold-r-cli cold, agent:anthropic/opus/cold-r-cli cold), test (unknown); voices a model apart; doubt 1
+  below policy    lacks doubt 0.05
   says            "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang."
   rests on        `commands::conform::correct`, `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
   requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`, `commands::results_read`, `commands::shape_compared`, `commands::calls_compared`, `commands::erased_is_said`, `commands::code_untouched`, `commands::plain_words`
 commands::levels_in_order::captured: unverified
   nobody vouched that the claims say what the text says
-commands::levels_in_order: holds assuming [commands::conform::correct, commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::levels_in_order::captured]
+commands::levels_in_order: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::levels_in_order::captured]
+  by              review (agent:anthropic/fable-5.2/cold-r-cli cold, agent:anthropic/opus/cold-r-cli cold), test (unknown); voices a model apart; doubt 1
+  below policy    lacks doubt 0.05
   says            "`build`, `conform`, `assess` and `diagnose` are four levels: the model alone, then with the code, then with the ledger, then with an observation. Each runs the levels before it and stops at the first that fails."
   rests on        `commands::conform::correct`, `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
   requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`, `commands::results_read`, `commands::shape_compared`, `commands::calls_compared`, `commands::erased_is_said`, `commands::code_untouched`, `commands::plain_words`
 commands::build_says_nothing_owed::captured: unverified
   nobody vouched that the claims say what the text says
-commands::build_says_nothing_owed: holds assuming [commands::conform::correct, commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::build_says_nothing_owed::captured]
+commands::build_says_nothing_owed: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::build_says_nothing_owed::captured]
+  by              review (agent:anthropic/fable-5.2/cold-r-cli cold, agent:anthropic/opus/cold-r-cli cold), test (unknown); voices a model apart; doubt 1
+  below policy    lacks doubt 0.05
   says            "`build` says whether the model reads and whether anything in it contradicts anything else, and writes the build files. It says nothing of the evidence owed."
   rests on        `commands::conform::correct`, `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
   requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`, `commands::results_read`, `commands::shape_compared`, `commands::calls_compared`, `commands::erased_is_said`, `commands::code_untouched`, `commands::plain_words`
 commands::diagnose_writes_nothing::captured: unverified
   nobody vouched that the claims say what the text says
-commands::diagnose_writes_nothing: holds assuming [commands::conform::correct, commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::diagnose_writes_nothing::captured]
+commands::diagnose_writes_nothing: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::diagnose_writes_nothing::captured]
+  by              review (agent:anthropic/fable-5.2/cold-r-cli cold, agent:anthropic/opus/cold-r-cli cold), test (unknown); voices a model apart; doubt 1
+  below policy    lacks doubt 0.05
   says            "`diagnose` judges an observation without writing it to the ledger, and says how to file it."
   rests on        `commands::conform::correct`, `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
   requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`, `commands::results_read`, `commands::shape_compared`, `commands::calls_compared`, `commands::erased_is_said`, `commands::code_untouched`, `commands::plain_words`
 commands::exit_says_it::captured: unverified
   nobody vouched that the claims say what the text says
-commands::exit_says_it: holds assuming [commands::conform::correct, commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::exit_says_it::captured]
+commands::exit_says_it: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::exit_says_it::captured]
+  by              review (agent:anthropic/fable-5.2/cold-r-cli cold, agent:anthropic/opus/cold-r-cli cold), test (unknown); voices a model apart; doubt 1
+  below policy    lacks doubt 0.05
   says            "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run."
   rests on        `commands::conform::correct`, `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
   requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`, `commands::results_read`, `commands::shape_compared`, `commands::calls_compared`, `commands::erased_is_said`, `commands::code_untouched`, `commands::plain_words`
 commands::rev_is_safe_to_write::captured: unverified
   nobody vouched that the claims say what the text says
-commands::rev_is_safe_to_write: holds assuming [commands::conform::correct, commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::rev_is_safe_to_write::captured]
+commands::rev_is_safe_to_write: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::rev_is_safe_to_write::captured]
+  by              review (agent:anthropic/fable-5.2/cold-r-cli cold, agent:anthropic/opus/cold-r-cli cold), test (unknown); voices a model apart; doubt 1
+  below policy    lacks doubt 0.05
   says            "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger."
   rests on        `commands::conform::correct`, `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
   requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`, `commands::results_read`, `commands::shape_compared`, `commands::calls_compared`, `commands::erased_is_said`, `commands::code_untouched`, `commands::plain_words`
 commands::any_reader_the_same::captured: unverified
   nobody vouched that the claims say what the text says
-commands::any_reader_the_same: holds assuming [commands::conform::correct, commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::any_reader_the_same::captured]
+commands::any_reader_the_same: holds assuming [commands::check_rev::correct, caller::names_the_right_revision, caller::report_is_of_that_code, caller::says_who, store::whole_folder, ledger::sound_or_untouched, verdicts::one_each, verdicts::never_runs, results::a_pass_is_not_overstated, results::a_failure_is_kept, build::every_piece_is_listed, levels::observation_is_compared, keeping::machine_is_a_snapshot, Reader::every_result_is_read, Reader::compares_shape, Reader::compares_calls, Reader::says_what_it_erased, Reader::reads_only, Reader::plain_to_the_core, commands::any_reader_the_same::captured]
+  by              review (agent:anthropic/fable-5.2/cold-r-cli cold, agent:anthropic/opus/cold-r-cli cold), test (unknown); voices a model apart; doubt 1
+  below policy    lacks doubt 0.05
   says            "What the command line does with a reader of code is what the contract `Reader` states, for any language: it writes the evidence the reader brings and counts what it found."
   rests on        `commands::conform::correct`, `commands::check_rev::correct`, `commands::plain_rev_is_taken`, `commands::empty_rev_is_refused`, `commands::option_as_rev_is_refused`, `commands::quoted_rev_is_refused`
   requires        `commands::revision`, `commands::report`, `commands::who`, `commands::whole_model`, `commands::ledger_sound`, `commands::one_verdict`, `commands::same_report`, `commands::pass_not_overstated`, `commands::failure_kept`, `commands::compiled`, `commands::compared`, `commands::snapshot`, `commands::results_read`, `commands::shape_compared`, `commands::calls_compared`, `commands::erased_is_said`, `commands::code_untouched`, `commands::plain_words`
 commands::check_rev::tied: holds
   by              tie (machine:mitra-rust); doubt 0.1
+  below policy    lacks cold
 commands::conform::tied: holds
   by              tie (machine:mitra-rust); doubt 0.1
+  below policy    lacks cold
 
 warning[M105]: a requirement that nothing leans on
   --> .mitra/model.mitra:32  require revision = caller::names_the_right_revision;
@@ -194,12 +219,6 @@ warning[M105]: a requirement that nothing leans on
 warning[M101]: a claim is not verified
   --> .mitra/model.mitra:62  fn conform(s: Store, built: Built, rev: Option<String>, reader: impl Reader) -> Result<usize, String>
 
-  No evidence on (s, built, rev, reader) in (store::Store, build::Built, Option<String>, Any).
-  help: `mitra next` lists the evidence that would settle it
-
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:62  fn conform(s: Store, built: Built, rev: Option<String>, reader: impl Reader) -> Result<usize, String>
-
   No evidence on `commands::conform` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
@@ -207,12 +226,6 @@ warning[M101]: a claim is not verified
   --> .mitra/model.mitra:66  fn check_rev(rev: String) -> Result<(), String>;
 
   No evidence on rev in String.
-  help: `mitra next` lists the evidence that would settle it
-
-warning[M101]: a claim is not verified
-  --> .mitra/model.mitra:66  fn check_rev(rev: String) -> Result<(), String>;
-
-  No evidence on `commands::check_rev` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M103]: an assumption is not vouched for
@@ -224,7 +237,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:51  ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
 
-  `commands::commands_only` holds if `commands::conform::correct`, `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::commands_only::captured` hold, and no evidence supports them.
+  `commands::commands_only` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::commands_only::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -236,7 +249,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:52  ensure levels_in_order = "`build`, `conform`, `assess` and `diagnose` are four levels: the model alone, then with the code, then with the ledger, then with an observation. Each runs the levels before  …
 
-  `commands::levels_in_order` holds if `commands::conform::correct`, `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::levels_in_order::captured` hold, and no evidence supports them.
+  `commands::levels_in_order` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::levels_in_order::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -248,7 +261,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:53  ensure build_says_nothing_owed = "`build` says whether the model reads and whether anything in it contradicts anything else, and writes the build files. It says nothing of the evidence owed.";
 
-  `commands::build_says_nothing_owed` holds if `commands::conform::correct`, `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::build_says_nothing_owed::captured` hold, and no evidence supports them.
+  `commands::build_says_nothing_owed` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::build_says_nothing_owed::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -260,7 +273,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:54  ensure diagnose_writes_nothing = "`diagnose` judges an observation without writing it to the ledger, and says how to file it.";
 
-  `commands::diagnose_writes_nothing` holds if `commands::conform::correct`, `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::diagnose_writes_nothing::captured` hold, and no evidence supports them.
+  `commands::diagnose_writes_nothing` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::diagnose_writes_nothing::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -272,7 +285,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:55  ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";
 
-  `commands::exit_says_it` holds if `commands::conform::correct`, `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::exit_says_it::captured` hold, and no evidence supports them.
+  `commands::exit_says_it` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::exit_says_it::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -284,7 +297,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:56  ensure rev_is_safe_to_write = "A revision is refused when it is empty, looks like an option, or holds quotes or line breaks: it is written into the ledger.";
 
-  `commands::rev_is_safe_to_write` holds if `commands::conform::correct`, `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::rev_is_safe_to_write::captured` hold, and no evidence supports them.
+  `commands::rev_is_safe_to_write` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::rev_is_safe_to_write::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -296,7 +309,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:58  ensure any_reader_the_same = "What the command line does with a reader of code is what the contract `Reader` states, for any language: it writes the evidence the reader brings and counts what it found …
 
-  `commands::any_reader_the_same` holds if `commands::conform::correct`, `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::any_reader_the_same::captured` hold, and no evidence supports them.
+  `commands::any_reader_the_same` holds if `commands::check_rev::correct`, `caller::names_the_right_revision`, `caller::report_is_of_that_code`, `caller::says_who`, `store::whole_folder`, `ledger::sound_or_untouched`, `verdicts::one_each`, `verdicts::never_runs`, `results::a_pass_is_not_overstated`, `results::a_failure_is_kept`, `build::every_piece_is_listed`, `levels::observation_is_compared`, `keeping::machine_is_a_snapshot`, `Reader::every_result_is_read`, `Reader::compares_shape`, `Reader::compares_calls`, `Reader::says_what_it_erased`, `Reader::reads_only`, `Reader::plain_to_the_core`, `commands::any_reader_the_same::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.

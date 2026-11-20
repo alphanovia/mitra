@@ -189,7 +189,19 @@ fn summary_says_what_a_person_would_lift() {
     let m = load(M, &e).unwrap();
     let text = summary(&m, &evaluate(&m).unwrap());
     let want = "1 of 1 promises hold: 0 with a proof, 0 with a person's review, 1 with a cold agent's word, \
-                0 on agent work alone, 0 on words nobody signed\n  \
+                0 on agent work alone, 0 on a machine's word, 0 on words nobody signed\n  \
                 a person's review would lift the most:\n    shipping::never_free: doubt 0.15 to 0.0075\n";
     assert_eq!(text, want);
+}
+
+// mitra: evidence for voices::promise_is_doubted_as_its_weakest_part
+#[test]
+fn a_capture_nobody_vouched_is_full_doubt() {
+    // The claim is reviewed; nobody said the claims say what the text says.
+    let e = format!(
+        "{TEST}evidence r {{ for shipping::positive holds act review by \"agent:anthropic/fable-5.2/s-2\" cold }}"
+    );
+    let m = load(M, &e).unwrap();
+    let s = support(&m, "shipping::never_free");
+    assert!((s.doubt - 1.0).abs() < 1e-9, "{}", s.doubt);
 }

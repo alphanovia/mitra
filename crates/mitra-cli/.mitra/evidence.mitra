@@ -6,3 +6,7 @@ evidence test { for commands::quoted_rev_is_refused holds act test by "machine:c
 evidence tie { for commands::conform::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/main.rs:108; erased 5: reference(s), reference(built), reference(rev), reference(reader), range(result: Result<0.., String> for Result<usize, String>)" rev "beefff44caa7" }
 evidence tie { for commands::conform::uses holds act tie by "machine:mitra-rust" source "reader:rust src/main.rs:108" rev "beefff44caa7" }
 evidence tie { for commands::check_rev::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/main.rs:376; erased 2: reference(rev), range(result: Result<{()}, String> for Result<(), String>)" rev "beefff44caa7" }
+evidence cold { for commands::conform::correct holds act review by "agent:anthropic/fable-5.2/cold-r-cli" cold source "review:cold" rev "beefff44caa7" seen "eb79fc0ef0f1" }
+evidence cold { for commands::conform::correct holds act review by "agent:anthropic/opus/cold-r-cli" cold source "review:cold" rev "beefff44caa7" seen "eb79fc0ef0f1" }
+evidence cold { for commands::check_rev::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-cli" cold source "review:cold" rev "beefff44caa7" seen "9961e4b198a5" }
+evidence cold { for commands::check_rev::deterministic holds act review by "agent:anthropic/opus/cold-r-cli" cold source "review:cold" rev "beefff44caa7" seen "9961e4b198a5" }

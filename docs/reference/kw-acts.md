@@ -75,7 +75,9 @@ named:
   The product of the error rate of each kind of voice
   ([settings.md](settings.md#doubt)), one factor per voice that is its
   own: a model of a vendor, cold or not; a person; a machine; a proof;
-  the unknown. A promise is doubted as its most doubted part.
+  the unknown. A promise is doubted as its most doubted part; its
+  capture, or an opaque function under it, with no word behind it is
+  doubt 1.
 
 A word on single inputs of a function speaks for `f::correct` and for
 claims on single calls (`one`). It does not speak for a claim on every

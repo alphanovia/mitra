@@ -1,0 +1,12 @@
+# Calibrated on 2026-11-20 from the cold agent experiment
+# (docs/review/2026-11-18.md, increment 77).
+
+[doubt]
+agent = 0.5     # cold reviewers refused 19 of 41 functions the authoring agent had modelled and coded
+cold = 0.1      # 0 of 40 seeded breaks vouched; 11 of 125 `holds` contested by the other model
+human = 0.05    # not measured: the default
+unknown = 0.5   # not measured: the default
+
+[policy]
+claim = "cold"
+ensure = "cold, doubt 0.05"

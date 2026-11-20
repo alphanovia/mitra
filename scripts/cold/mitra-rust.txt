@@ -1,0 +1,74 @@
+# The words of cold agents on this store (increment 77): `scripts/cold.sh` records them.
+# review <promise> <voice>: a cold review of the promise against the code.
+# tie <test> <promise> <voice>: a cold review that the test is evidence for the promise.
+review reader::libtest::deterministic agent:anthropic/fable-5.2/cold-r-rust
+review reader::libtest::deterministic agent:anthropic/opus/cold-r-rust
+review reader::Rust::erasures::deterministic agent:anthropic/fable-5.2/cold-r-rust
+review reader::Rust::erasures::deterministic agent:anthropic/opus/cold-r-rust
+review reader::Rust::results::deterministic agent:anthropic/fable-5.2/cold-r-rust
+review reader::Rust::results::deterministic agent:anthropic/opus/cold-r-rust
+review reader::Rust::tests::deterministic agent:anthropic/fable-5.2/cold-r-rust
+review reader::Rust::tests::deterministic agent:anthropic/opus/cold-r-rust
+review reader::Rust::tie::deterministic agent:anthropic/fable-5.2/cold-r-rust
+review reader::Rust::tie::deterministic agent:anthropic/opus/cold-r-rust
+review source::mitra_line::deterministic agent:anthropic/fable-5.2/cold-r-rust
+review source::mitra_line::deterministic agent:anthropic/opus/cold-r-rust
+review source::fn_below::deterministic agent:anthropic/fable-5.2/cold-r-rust
+review source::fn_below::deterministic agent:anthropic/opus/cold-r-rust
+review source::is_tie::correct agent:anthropic/fable-5.2/cold-r-rust
+review source::is_tie::correct agent:anthropic/opus/cold-r-rust
+review source::is_tie::deterministic agent:anthropic/fable-5.2/cold-r-rust
+review source::is_tie::deterministic agent:anthropic/opus/cold-r-rust
+tie cold_libtest_empty_report_has_no_results reader::libtest agent:anthropic/opus/cold-t
+tie cold_libtest_deep_path_gives_last_segment reader::libtest::correct agent:anthropic/opus/cold-t
+tie cold_libtest_keeps_order_and_skips_ignored_between reader::libtest::correct agent:anthropic/opus/cold-t
+tie cold_libtest_same_name_twice_is_two_results reader::libtest::correct agent:anthropic/opus/cold-t
+tie cold_libtest_second_call_gives_the_same reader::libtest::correct agent:anthropic/opus/cold-t
+tie cold_results_of_the_reader_are_libtest reader::libtest::correct agent:anthropic/opus/cold-t
+tie cold_line_indented_doc_comment source::mitra_line::correct agent:anthropic/opus/cold-t
+tie cold_line_not_a_comment_is_none source::mitra_line::correct agent:anthropic/opus/cold-t
+tie cold_line_nothing_after_mitra_is_empty_text source::mitra_line::correct agent:anthropic/opus/cold-t
+tie cold_below_whole_name_is_given source::fn_below::correct agent:anthropic/opus/cold-t
+tie cold_below_first_fn_of_two source::fn_below::correct agent:anthropic/opus/cold-t
+tie cold_below_a_word_that_starts_with_fn_is_no_fn source::fn_below::correct agent:anthropic/opus/cold-t
+tie cold_is_tie_only_for_the_two_forms source::is_tie::correct agent:anthropic/opus/cold-t
+tie cold_tests_gives_claim_test_and_place source::finds_ties agent:anthropic/opus/cold-t
+tie cold_tests_reads_every_rust_file_under_src_and_tests_only code::reads_what_is_there agent:anthropic/opus/cold-t
+tie cold_tests_two_ties_in_one_file_each_with_its_own_fn reader::Rust::tests::correct agent:anthropic/opus/cold-t
+tie cold_tests_keeps_what_the_comment_pins reader::Rust::tests::correct agent:anthropic/opus/cold-t
+tie cold_tests_leaves_out_implements_ties reader::Rust::tests::correct agent:anthropic/opus/cold-t
+tie cold_tests_of_a_project_without_ties_is_empty reader::Rust::tests::correct agent:anthropic/opus/cold-t
+tie cold_tests_second_call_same_and_files_untouched reader::Rust::tests::correct agent:anthropic/opus/cold-t
+tie cold_tests_tie_without_a_fn_below_is_not_a_tied_test source::finds_ties agent:anthropic/opus/cold-t
+tie cold_tie_agrees_when_code_has_the_models_shape reader::Rust::tie::correct agent:anthropic/opus/cold-t
+tie cold_tie_differs_when_inputs_are_not_the_models reader::Rust::tie::correct agent:anthropic/opus/cold-t
+tie cold_tie_differs_when_the_result_is_not_the_models reader::Rust::tie::correct agent:anthropic/opus/cold-t
+tie cold_tie_records_the_revision_the_caller_names_and_no_other code::is_the_revision_named agent:anthropic/opus/cold-t
+tie cold_tie_second_call_same_and_files_untouched reader::Rust::tie::correct agent:anthropic/opus/cold-t
+tie cold_libtest_empty_report_has_no_results reader::libtest agent:anthropic/fable-5.2/cold-t
+tie cold_libtest_keeps_order_and_skips_noise reader::libtest::correct agent:anthropic/fable-5.2/cold-t
+tie cold_libtest_name_is_last_segment_of_deep_path reader::libtest::correct agent:anthropic/fable-5.2/cold-t
+tie cold_libtest_summary_line_ok_is_no_test reader::libtest::correct agent:anthropic/fable-5.2/cold-t
+tie cold_libtest_crlf_lines reader::libtest::correct agent:anthropic/fable-5.2/cold-t
+tie cold_libtest_failed_with_time reader::libtest::correct agent:anthropic/fable-5.2/cold-t
+tie cold_results_reads_every_test_same_as_libtest reader::Rust::every_result_is_read agent:anthropic/fable-5.2/cold-t
+tie cold_mitra_line_tab_indented_and_no_space source::mitra_line::correct agent:anthropic/fable-5.2/cold-t
+tie cold_mitra_line_empty_after_colon source::mitra_line::correct agent:anthropic/fable-5.2/cold-t
+tie cold_mitra_line_not_a_comment_or_wrong_word source::mitra_line::correct agent:anthropic/fable-5.2/cold-t
+tie cold_fn_below_several_attributes_and_indent source::fn_below::correct agent:anthropic/fable-5.2/cold-t
+tie cold_fn_below_word_starting_with_fn_is_no_fn source::fn_below::correct agent:anthropic/fable-5.2/cold-t
+tie cold_fn_below_name_ends_at_generics_or_paren source::fn_below::correct agent:anthropic/fable-5.2/cold-t
+tie cold_is_tie_only_the_two_forms source::is_tie::correct agent:anthropic/fable-5.2/cold-t
+tie cold_tests_finds_ties_in_src_and_tests_with_place_and_pin reader::Rust::tests::correct agent:anthropic/fable-5.2/cold-t
+tie cold_tests_reads_nested_folders code::reads_what_is_there agent:anthropic/fable-5.2/cold-t
+tie cold_tests_only_rust_files_under_src_and_tests reader::Rust::tests::correct agent:anthropic/fable-5.2/cold-t
+tie cold_tests_implements_is_not_a_tied_test reader::Rust::tests::correct agent:anthropic/fable-5.2/cold-t
+tie cold_tests_tie_inside_string_or_block_comment_is_none source::finds_ties agent:anthropic/fable-5.2/cold-t
+tie cold_tests_and_tie_leave_files_untouched_and_repeat reader::Rust::reads_only agent:anthropic/fable-5.2/cold-t
+tie cold_tie_agreeing_function_holds_with_rev reader::Rust::tie::correct agent:anthropic/fable-5.2/cold-t
+tie cold_tie_wrong_inputs_fail_without_rev reader::Rust::compares_shape agent:anthropic/fable-5.2/cold-t
+tie cold_tie_wrong_result_type_fails reader::Rust::compares_shape agent:anthropic/fable-5.2/cold-t
+tie cold_tie_record_missing_field_fails reader::Rust::compares_shape agent:anthropic/fable-5.2/cold-t
+tie cold_tie_missing_used_call_fails reader::Rust::compares_calls agent:anthropic/fable-5.2/cold-t
+tie cold_tie_unstated_call_outside_subject_fails reader::Rust::compares_calls agent:anthropic/fable-5.2/cold-t
+tie cold_tie_lists_untied_functions reader::Rust::tie::correct agent:anthropic/fable-5.2/cold-t
