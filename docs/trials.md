@@ -364,12 +364,16 @@ Gravity reviewed (1000 yes), 3 objects pass, the feather fails, 10 measurements 
 
 Completeness can be reviewed like any piece.
 
-- **The good reviewer reads right.** Sure of gravity, unsure of each
-  mass, silent on completeness: the feather's failures go to its
-  completeness (0.21 after one measurement, 0.10 after three, 0.03
-  after ten), the mass sinks slowly behind it (0.89, 0.84, 0.70), and
-  gravity does not move. "The model is right, something is missing
-  for the feather."
+- **The good reviewer reads mostly right.** Sure of gravity, unsure
+  of the rest for not having looked at the surface of the objects: 1
+  yes on each mass, half a yes on each completeness. Gravity does not
+  move. The feather's completeness goes first (0.65 after one
+  measurement, 0.44 after three, 0.21 after ten) and its mass follows
+  behind (0.82, 0.69, 0.43). The order is right: completeness is the
+  first suspect. But the mass is not cleared: an unsure reviewer
+  cannot protect it, and after thirty failures both are low. Only
+  something that speaks of the mass alone, like the scale, keeps it
+  standing.
 - **The bad reviewer is never overturned, and that reads wrong.**
   With 100 yes on gravity, on the feather's mass and on its
   completeness, each failed fall has nothing left to blame but its
@@ -389,18 +393,18 @@ Completeness can be reviewed like any piece.
 
 Three objects pass, the feather fails. Each tie has its completeness: "same speed" is all of [gravity, mass, complete].
 
-- **Good**: 1000 yes on gravity, 1 yes on each mass (unsure), nothing on completeness. Believed at 0.99.
+- **Good**: 1000 yes on gravity; unsure of the rest, having not looked at the surface of the objects: 1 yes on each mass, half a yes on each completeness. Believed at 0.99.
 - **Bad**: 100 yes on gravity, on every mass and on every completeness, the feather's too. Believed at 0.9.
 
 **Good reviewer.**
 
 | measurements per object | `gravity` | `mass feather` | `complete feather` | one of the feather's measurements | the review of `complete feather` |
 |---|---|---|---|---|---|
-| 1 | (992.7, 0.00) 1.00 [1.00, 1.00] | (1.0, 0.04) 0.89 [0.36, 1.00] | (0.0, 0.28) 0.21 [0.00, 0.98] | (0.0, 0.01) 0.84 [0.00, 1.00] | none |
-| 3 | (998.1, 0.00) 1.00 [1.00, 1.00] | (1.0, 0.11) 0.84 [0.26, 1.00] | (0.0, 0.84) 0.10 [0.00, 0.63] | (0.0, 0.01) 0.84 [0.00, 1.00] | none |
-| 10 | (1017.0, 0.00) 1.00 [1.00, 1.00] | (1.0, 0.36) 0.70 [0.13, 1.00] | (0.0, 2.81) 0.03 [0.00, 0.21] | (0.0, 0.01) 0.84 [0.00, 1.00] | none |
-| 30 | (1071.0, 0.00) 1.00 [1.00, 1.00] | (1.0, 1.08) 0.48 [0.05, 0.93] | (0.0, 8.43) 0.01 [0.00, 0.07] | (0.0, 0.01) 0.84 [0.00, 1.00] | none |
-| 100 | (1260.0, 0.01) 1.00 [1.00, 1.00] | (1.0, 3.60) 0.23 [0.02, 0.57] | (0.0, 28.11) 0.00 [0.00, 0.02] | (0.0, 0.01) 0.84 [0.00, 1.00] | none |
+| 1 | (992.7, 0.00) 1.00 [1.00, 1.00] | (1.0, 0.13) 0.82 [0.23, 1.00] | (0.5, 0.22) 0.65 [0.03, 1.00] | (0.0, 0.06) 0.70 [0.00, 1.00] | (0.0, 0.00) 0.99 [1.00, 1.00] |
+| 3 | (998.1, 0.00) 1.00 [1.00, 1.00] | (1.0, 0.40) 0.69 [0.12, 1.00] | (0.5, 0.65) 0.44 [0.01, 0.97] | (0.0, 0.06) 0.70 [0.00, 1.00] | (0.0, 0.00) 0.99 [1.00, 1.00] |
+| 10 | (1017.0, 0.00) 1.00 [1.00, 1.00] | (1.0, 1.33) 0.43 [0.05, 0.89] | (0.5, 2.17) 0.21 [0.00, 0.64] | (0.0, 0.06) 0.70 [0.00, 1.00] | (0.0, 0.00) 0.99 [1.00, 1.00] |
+| 30 | (1071.0, 0.01) 1.00 [1.00, 1.00] | (1.0, 3.99) 0.21 [0.02, 0.54] | (0.5, 6.50) 0.08 [0.00, 0.28] | (0.0, 0.06) 0.70 [0.00, 1.00] | (0.0, 0.00) 0.99 [1.00, 1.00] |
+| 100 | (1260.0, 0.02) 1.00 [1.00, 1.00] | (1.0, 13.29) 0.08 [0.01, 0.21] | (0.5, 21.68) 0.03 [0.00, 0.09] | (0.0, 0.06) 0.70 [0.00, 1.00] | (0.0, 0.00) 0.99 [1.00, 1.00] |
 
 Suspects listed at 3 measurements: Some(["complete feather", "mass feather", "drop feather 0", "gravity"])
 

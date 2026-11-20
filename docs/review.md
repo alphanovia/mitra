@@ -393,7 +393,8 @@ try a bad reviewer, saying feather is complete, and overconfident on
 everything." Section "A good reviewer and a bad one" of
 `docs/trials.md`.
 
-633. The good reviewer: 1000 yes on gravity, 1 yes on each mass,
+633. The good reviewer: 1000 yes on gravity, 1 yes on each mass and
+     half a yes on each completeness (user 13:05: unsure of both),
      believed at 0.99. The bad one: 100 yes on everything, believed
      at 0.9. Each review is a piece of its own.
 634. Found, not fixed: the evidence that says yes about a part is not

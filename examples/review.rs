@@ -139,7 +139,7 @@ fn reviewed(k: usize, reviews: &[(&str, f64)], trust: f64) -> Model {
 fn reviewers() {
     println!("\n### 4. A good reviewer and a bad one\n");
     println!("Three objects pass, the feather fails. Each tie has its completeness: \"same speed\" is all of [gravity, mass, complete].\n");
-    println!("- **Good**: 1000 yes on gravity, 1 yes on each mass (unsure), nothing on completeness. Believed at 0.99.");
+    println!("- **Good**: 1000 yes on gravity; unsure of the rest, having not looked at the surface of the objects: 1 yes on each mass, half a yes on each completeness. Believed at 0.99.");
     println!("- **Bad**: 100 yes on gravity, on every mass and on every completeness, the feather's too. Believed at 0.9.\n");
     let masses = ["mass o0", "mass o1", "mass o2", "mass feather"];
     let done = [
@@ -150,6 +150,7 @@ fn reviewers() {
     ];
     let mut good = vec![("gravity", 1000.0)];
     good.extend(masses.map(|x| (x, 1.0)));
+    good.extend(done.map(|x| (x, 0.5)));
     let mut bad = vec![("gravity", 100.0)];
     bad.extend(masses.map(|x| (x, 100.0)));
     bad.extend(done.map(|x| (x, 100.0)));
