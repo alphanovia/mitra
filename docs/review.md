@@ -664,10 +664,10 @@ changing the computation?"
 **Asked.** Scenarios 1, 3, 5 and 6 of the list, and whether the
 readings the tie rewrite changed are better or worse.
 
-**Done.** `examples/structure.rs`, `tests/structure.rs` (7 tests),
+**Done.** `examples/structure.rs`, `tests/structure.rs` (6 tests),
 `docs/trials.md`, "The shape of the graph". One change to the core:
 `suspects` in `src/model.rs`, and the wording of `no_is_shared`.
-108 tests (101).
+107 tests (101).
 
 **Decided alone.**
 
