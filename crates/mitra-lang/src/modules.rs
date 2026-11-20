@@ -2,6 +2,8 @@
 //! import, each a named text. Nothing in this crate reads a disk; finding
 //! and reading the files is the work of `mitra-store`.
 
+pub(crate) mod read;
+
 use crate::parse::Handed;
 use crate::Error;
 

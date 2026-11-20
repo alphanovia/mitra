@@ -1,12 +1,12 @@
 // Evidence: `mitra add`, `mitra ingest` and `mitra tie` write here, `mitra remove` takes out.
-evidence test { for commands::plain_rev_is_taken holds act test by "machine:cargo" source "test:plain_rev_is_taken" rev "fe443d9f2c1f" }
-evidence test { for commands::empty_rev_is_refused holds act test by "machine:cargo" source "test:empty_rev_is_refused" rev "fe443d9f2c1f" }
-evidence test { for commands::option_as_rev_is_refused holds act test by "machine:cargo" source "test:option_as_rev_is_refused" rev "fe443d9f2c1f" }
-evidence test { for commands::quoted_rev_is_refused holds act test by "machine:cargo" source "test:quoted_rev_is_refused" rev "fe443d9f2c1f" }
-evidence tie { for commands::conform::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/main.rs:117; erased 5: reference(s), reference(built), reference(rev), reference(reader), range(result: Result<0.., String> for Result<usize, String>)" rev "fe443d9f2c1f" }
-evidence tie { for commands::conform::uses holds act tie by "machine:mitra-rust" source "reader:rust src/main.rs:117" rev "fe443d9f2c1f" }
-evidence tie { for commands::check_rev::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/main.rs:385; erased 2: reference(rev), range(result: Result<{()}, String> for Result<(), String>)" rev "fe443d9f2c1f" }
-evidence cold { for commands::conform::correct holds act review by "agent:anthropic/fable-5.2/cold-r-cli" cold source "review:cold" rev "fe443d9f2c1f" seen "eb79fc0ef0f1" }
-evidence cold { for commands::conform::correct holds act review by "agent:anthropic/opus/cold-r-cli" cold source "review:cold" rev "fe443d9f2c1f" seen "eb79fc0ef0f1" }
-evidence cold { for commands::check_rev::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-cli" cold source "review:cold" rev "fe443d9f2c1f" seen "9961e4b198a5" }
-evidence cold { for commands::check_rev::deterministic holds act review by "agent:anthropic/opus/cold-r-cli" cold source "review:cold" rev "fe443d9f2c1f" seen "9961e4b198a5" }
+evidence test { for commands::plain_rev_is_taken holds act test by "machine:cargo" source "test:plain_rev_is_taken" rev "7c69d1bb56e1" }
+evidence test { for commands::empty_rev_is_refused holds act test by "machine:cargo" source "test:empty_rev_is_refused" rev "7c69d1bb56e1" }
+evidence test { for commands::option_as_rev_is_refused holds act test by "machine:cargo" source "test:option_as_rev_is_refused" rev "7c69d1bb56e1" }
+evidence test { for commands::quoted_rev_is_refused holds act test by "machine:cargo" source "test:quoted_rev_is_refused" rev "7c69d1bb56e1" }
+evidence tie { for commands::conform::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/main.rs:117; erased 5: reference(s), reference(built), reference(rev), reference(reader), range(result: Result<0.., String> for Result<usize, String>)" rev "7c69d1bb56e1" }
+evidence tie { for commands::conform::uses holds act tie by "machine:mitra-rust" source "reader:rust src/main.rs:117" rev "7c69d1bb56e1" }
+evidence tie { for commands::check_rev::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/main.rs:385; erased 2: reference(rev), range(result: Result<{()}, String> for Result<(), String>)" rev "7c69d1bb56e1" }
+evidence cold { for commands::conform::correct holds act review by "agent:anthropic/fable-5.2/cold-r-cli" cold source "review:cold" rev "7c69d1bb56e1" seen "eb79fc0ef0f1" }
+evidence cold { for commands::conform::correct holds act review by "agent:anthropic/opus/cold-r-cli" cold source "review:cold" rev "7c69d1bb56e1" seen "eb79fc0ef0f1" }
+evidence cold { for commands::check_rev::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-cli" cold source "review:cold" rev "7c69d1bb56e1" seen "9961e4b198a5" }
+evidence cold { for commands::check_rev::deterministic holds act review by "agent:anthropic/opus/cold-r-cli" cold source "review:cold" rev "7c69d1bb56e1" seen "9961e4b198a5" }

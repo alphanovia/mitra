@@ -5,13 +5,13 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 
 | Crate | Functions | Tied | Share | Lines in functions | In tied ones | Share | Code lines | Model lines | Model / code |
 |---|---|---|---|---|---|---|---|---|---|
-| mitra-lang | 430 | 58 | 13% | 14549 | 3100 | 21% | 15422 | 1060 | 7% |
+| mitra-lang | 430 | 58 | 13% | 14563 | 3100 | 21% | 15498 | 1060 | 7% |
 | mitra-store | 27 | 13 | 48% | 415 | 206 | 50% | 424 | 105 | 25% |
 | mitra-rust | 26 | 8 | 31% | 1024 | 576 | 56% | 1076 | 44 | 4% |
 | mitra-cli | 23 | 2 | 9% | 700 | 60 | 9% | 739 | 57 | 8% |
-| all | 506 | 81 | 16% | 16688 | 3942 | 24% | 17661 | 1266 | 7% |
+| all | 506 | 81 | 16% | 16702 | 3942 | 24% | 17737 | 1266 | 7% |
 
-- mitra-lang: 1060 lines of model over 15422 lines of code, in 22 subjects with 85 ensures and 8 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
+- mitra-lang: 1060 lines of model over 15498 lines of code, in 22 subjects with 85 ensures and 8 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
 - mitra-store: 105 lines of model over 424 lines of code, in 4 subjects with 22 ensures and 8 requires; apart from it, 0 lines of point claims and 0 tests pinned in the code.
 - mitra-rust: 44 lines of model over 1076 lines of code, in 2 subjects with 3 ensures and 3 requires; apart from it, 28 lines of point claims and 0 tests pinned in the code.
 - mitra-cli: 57 lines of model over 739 lines of code, in 1 subject with 11 ensures and 18 requires; apart from it, 0 lines of point claims and 4 tests pinned in the code.
@@ -42,22 +42,22 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | frontend.rs | `tests` | 34 | 1 | Reader::tests |
 | frontend.rs | `tie` | 38 | 1 | Reader::tie |
 | frontend.rs | `erasures` | 43 | 1 | Reader::erasures |
+| ledger/read.rs | `entries` | 343 | 49 | ledger::entries |
 | levels.rs | `left` | 24 | 27 | levels::left |
-| lib.rs | `load` | 93 | 3 | types::load |
-| lib.rs | `load_modules` | 100 | 7 | types::load_modules |
-| lib.rs | `run` | 456 | 3 | verdicts::run |
-| modules.rs | `alone` | 32 | 4 | modules::Modules::alone |
-| modules.rs | `new` | 40 | 20 | modules::Modules::new |
-| modules.rs | `text` | 69 | 3 | modules::Modules::text |
-| modules.rs | `place` | 75 | 6 | modules::Modules::place |
-| modules.rs | `locate` | 85 | 6 | modules::Modules::locate |
-| parse.rs | `imports` | 258 | 26 | modules::imports |
-| parse.rs | `model` | 4357 | 3 | reader::model |
-| parse.rs | `entries` | 5576 | 49 | ledger::entries |
+| lib.rs | `load` | 99 | 3 | types::load |
+| lib.rs | `load_modules` | 106 | 7 | types::load_modules |
+| lib.rs | `run` | 462 | 3 | verdicts::run |
+| modules.rs | `alone` | 34 | 4 | modules::Modules::alone |
+| modules.rs | `new` | 42 | 20 | modules::Modules::new |
+| modules.rs | `text` | 71 | 3 | modules::Modules::text |
+| modules.rs | `place` | 77 | 6 | modules::Modules::place |
+| modules.rs | `locate` | 87 | 6 | modules::Modules::locate |
+| modules/read.rs | `imports` | 183 | 26 | modules::imports |
 | plan.rs | `plan` | 17 | 272 | advice::plan |
 | print.rs | `negative` | 117 | 7 | print::negative |
 | print.rs | `level` | 131 | 9 | print::level |
 | prove.rs | `derive` | 478 | 45 | verdicts::derive |
+| reader.rs | `model` | 692 | 3 | reader::model |
 | report.rs | `word` | 219 | 11 | report::word |
 | results.rs | `from_tests` | 62 | 95 | results::from_tests |
 | results.rs | `signed` | 169 | 16 | results::signed |
@@ -109,6 +109,20 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | ast.rs | `single` | 1327 | 5 |  |
 | build.rs | `hidden` | 101 | 5 |  |
 | build.rs | `lines` | 109 | 11 |  |
+| claims/read.rs | `claim` | 7 | 237 |  |
+| claims/read.rs | `equivalence` | 267 | 124 |  |
+| claims/read.rs | `represented` | 400 | 87 |  |
+| claims/read.rs | `instance` | 492 | 92 |  |
+| contracts/impls.rs | `impls` | 11 | 190 |  |
+| contracts/impls.rs | `closing` | 210 | 16 |  |
+| contracts/impls.rs | `impl_types` | 230 | 90 |  |
+| contracts/impls.rs | `given_types` | 326 | 18 |  |
+| contracts/read.rs | `type_params` | 8 | 22 |  |
+| contracts/read.rs | `bounded_by` | 32 | 23 |  |
+| contracts/read.rs | `unbounded` | 58 | 8 |  |
+| contracts/read.rs | `type_tokens` | 68 | 15 |  |
+| contracts/read.rs | `contracts` | 109 | 348 |  |
+| contracts/read.rs | `bring_contracts` | 471 | 118 |  |
 | eval.rs | `as_str` | 54 | 7 |  |
 | eval.rs | `text` | 192 | 14 |  |
 | eval.rs | `declared_claim` | 250 | 7 |  |
@@ -142,142 +156,68 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | eval.rs | `warnings` | 3565 | 13 |  |
 | eval.rs | `own_word` | 3584 | 3 |  |
 | fingerprint.rs | `said` | 22 | 60 |  |
+| functions/expr.rs | `args` | 8 | 60 |  |
+| functions/expr.rs | `expr` | 73 | 7 |  |
+| functions/expr.rs | `or` | 81 | 7 |  |
+| functions/expr.rs | `and` | 89 | 7 |  |
+| functions/expr.rs | `compare` | 97 | 25 |  |
+| functions/expr.rs | `sum` | 124 | 11 |  |
+| functions/expr.rs | `product` | 137 | 11 |  |
+| functions/expr.rs | `unary` | 149 | 42 |  |
+| functions/expr.rs | `method` | 198 | 86 |  |
+| functions/expr.rs | `exprs` | 290 | 11 |  |
+| functions/expr.rs | `block` | 303 | 6 |  |
+| functions/expr.rs | `sequence` | 311 | 16 |  |
+| functions/expr.rs | `bars` | 330 | 11 |  |
+| functions/expr.rs | `primary` | 342 | 275 |  |
+| functions/read.rs | `trust` | 8 | 10 |  |
+| functions/read.rs | `state` | 20 | 27 |  |
+| functions/read.rs | `define` | 49 | 20 |  |
+| functions/read.rs | `declare` | 71 | 17 |  |
+| functions/read.rs | `function` | 89 | 213 |  |
+| functions/read.rs | `sig` | 320 | 11 |  |
+| functions/read.rs | `inputs` | 335 | 27 |  |
 | instances.rs | `pieces` | 12 | 19 |  |
 | instances.rs | `within` | 34 | 15 |  |
 | instances.rs | `type_of` | 51 | 23 |  |
 | instances.rs | `given` | 77 | 19 |  |
 | instances.rs | `unify` | 99 | 62 |  |
 | instances.rs | `seen` | 167 | 42 |  |
+| intent/read.rs | `requirements` | 9 | 144 |  |
+| intent/read.rs | `reliance` | 167 | 166 |  |
+| ledger/read.rs | `evidence` | 25 | 281 |  |
+| ledger/read.rs | `evidence` | 321 | 12 |  |
+| ledger/read.rs | `evidence_alone` | 335 | 3 |  |
+| ledger/read.rs | `blocks` | 396 | 84 |  |
+| ledger/read.rs | `free` | 489 | 60 |  |
+| ledger/read.rs | `unwritten` | 551 | 6 |  |
+| ledger/read.rs | `records_in` | 558 | 32 |  |
+| ledger/read.rs | `written` | 593 | 20 |  |
+| ledger/read.rs | `stamp` | 616 | 59 |  |
+| ledger/read.rs | `tied` | 679 | 4 |  |
 | levels.rs | `diagnosis` | 64 | 44 |  |
-| lib.rs | `new` | 66 | 6 |  |
-| lib.rs | `fmt` | 75 | 3 |  |
-| lib.rs | `read` | 108 | 77 |  |
-| lib.rs | `points` | 195 | 84 |  |
-| lib.rs | `determinism` | 285 | 24 |  |
-| lib.rs | `invariants` | 313 | 40 |  |
-| lib.rs | `tie` | 355 | 16 |  |
-| lib.rs | `tie_uses` | 374 | 23 |  |
-| lib.rs | `tie_records` | 400 | 45 |  |
-| lib.rs | `read_evidence` | 449 | 4 |  |
-| modules.rs | `files` | 63 | 3 |  |
-| modules.rs | `first` | 92 | 3 |  |
-| modules.rs | `in_order` | 100 | 50 |  |
+| lib.rs | `new` | 72 | 6 |  |
+| lib.rs | `fmt` | 81 | 3 |  |
+| lib.rs | `read` | 114 | 77 |  |
+| lib.rs | `points` | 201 | 84 |  |
+| lib.rs | `determinism` | 291 | 24 |  |
+| lib.rs | `invariants` | 319 | 40 |  |
+| lib.rs | `tie` | 361 | 16 |  |
+| lib.rs | `tie_uses` | 380 | 23 |  |
+| lib.rs | `tie_records` | 406 | 45 |  |
+| lib.rs | `read_evidence` | 455 | 4 |  |
+| modules.rs | `files` | 65 | 3 |  |
+| modules.rs | `first` | 94 | 3 |  |
+| modules.rs | `in_order` | 102 | 50 |  |
+| modules/read.rs | `library` | 32 | 3 |  |
+| modules/read.rs | `module` | 37 | 15 |  |
+| modules/read.rs | `from_store` | 57 | 74 |  |
+| modules/read.rs | `imports_of` | 138 | 31 |  |
+| modules/read.rs | `of_store` | 173 | 6 |  |
+| modules/read.rs | `import` | 213 | 109 |  |
 | next.rs | `next` | 16 | 385 |  |
 | next.rs | `ask` | 391 | 17 |  |
 | next.rs | `vouch` | 410 | 4 |  |
-| parse.rs | `library` | 37 | 3 |  |
-| parse.rs | `module` | 42 | 15 |  |
-| parse.rs | `from_store` | 62 | 74 |  |
-| parse.rs | `lex` | 145 | 43 |  |
-| parse.rs | `types_named` | 191 | 20 |  |
-| parse.rs | `imports_of` | 213 | 31 |  |
-| parse.rs | `of_store` | 248 | 6 |  |
-| parse.rs | `lex_raw` | 331 | 67 |  |
-| parse.rs | `earlier` | 403 | 31 |  |
-| parse.rs | `unquote` | 528 | 15 |  |
-| parse.rs | `join` | 545 | 4 |  |
-| parse.rs | `tidy` | 552 | 18 |  |
-| parse.rs | `bin` | 682 | 3 |  |
-| parse.rs | `line` | 687 | 4 |  |
-| parse.rs | `err` | 691 | 3 |  |
-| parse.rs | `peek` | 694 | 3 |  |
-| parse.rs | `peek_at` | 697 | 3 |  |
-| parse.rs | `kind` | 700 | 3 |  |
-| parse.rs | `kind_at` | 703 | 3 |  |
-| parse.rs | `is` | 706 | 3 |  |
-| parse.rs | `eat` | 709 | 5 |  |
-| parse.rs | `expect` | 714 | 12 |  |
-| parse.rs | `name` | 726 | 9 |  |
-| parse.rs | `path` | 736 | 7 |  |
-| parse.rs | `qualified` | 743 | 6 |  |
-| parse.rs | `resolve` | 750 | 19 |  |
-| parse.rs | `find` | 772 | 18 |  |
-| parse.rs | `old` | 791 | 9 |  |
-| parse.rs | `next_old` | 800 | 5 |  |
-| parse.rs | `at_end` | 805 | 3 |  |
-| parse.rs | `is_name` | 808 | 3 |  |
-| parse.rs | `ident` | 812 | 9 |  |
-| parse.rs | `word` | 823 | 6 |  |
-| parse.rs | `local` | 831 | 6 |  |
-| parse.rs | `is_keyword` | 837 | 3 |  |
-| parse.rs | `eat_keyword` | 840 | 5 |  |
-| parse.rs | `number` | 849 | 12 |  |
-| parse.rs | `signed` | 862 | 16 |  |
-| parse.rs | `numeral` | 879 | 12 |  |
-| parse.rs | `values` | 892 | 8 |  |
-| parse.rs | `value` | 902 | 10 |  |
-| parse.rs | `value_inner` | 913 | 86 |  |
-| parse.rs | `bound` | 1004 | 20 |  |
-| parse.rs | `set` | 1028 | 7 |  |
-| parse.rs | `set_inter` | 1036 | 12 |  |
-| parse.rs | `sets_in_parentheses` | 1049 | 13 |  |
-| parse.rs | `set_atom` | 1062 | 222 |  |
-| parse.rs | `variants` | 1307 | 70 |  |
-| parse.rs | `both` | 1379 | 12 |  |
-| parse.rs | `set_both` | 1392 | 4 |  |
-| parse.rs | `binders` | 1397 | 33 |  |
-| parse.rs | `args` | 1435 | 60 |  |
-| parse.rs | `expr` | 1502 | 7 |  |
-| parse.rs | `or` | 1509 | 7 |  |
-| parse.rs | `and` | 1516 | 7 |  |
-| parse.rs | `compare` | 1523 | 25 |  |
-| parse.rs | `sum` | 1549 | 11 |  |
-| parse.rs | `product` | 1561 | 11 |  |
-| parse.rs | `unary` | 1572 | 42 |  |
-| parse.rs | `method` | 1620 | 86 |  |
-| parse.rs | `exprs` | 1711 | 11 |  |
-| parse.rs | `block` | 1723 | 6 |  |
-| parse.rs | `sequence` | 1730 | 16 |  |
-| parse.rs | `bars` | 1748 | 11 |  |
-| parse.rs | `primary` | 1759 | 275 |  |
-| parse.rs | `trust` | 2049 | 10 |  |
-| parse.rs | `state` | 2063 | 20 |  |
-| parse.rs | `define` | 2084 | 13 |  |
-| parse.rs | `declare` | 2098 | 17 |  |
-| parse.rs | `type_params` | 2116 | 22 |  |
-| parse.rs | `bounded_by` | 2139 | 23 |  |
-| parse.rs | `unbounded` | 2164 | 8 |  |
-| parse.rs | `type_tokens` | 2173 | 15 |  |
-| parse.rs | `enumeration` | 2190 | 35 |  |
-| parse.rs | `names_between` | 2228 | 13 |  |
-| parse.rs | `items` | 2242 | 284 |  |
-| parse.rs | `function` | 2543 | 213 |  |
-| parse.rs | `sig` | 2774 | 11 |  |
-| parse.rs | `inputs` | 2788 | 27 |  |
-| parse.rs | `claim` | 2818 | 237 |  |
-| parse.rs | `equivalence` | 3078 | 124 |  |
-| parse.rs | `represented` | 3211 | 87 |  |
-| parse.rs | `import` | 3302 | 109 |  |
-| parse.rs | `instance` | 3423 | 92 |  |
-| parse.rs | `evidence` | 3521 | 281 |  |
-| parse.rs | `finish` | 3815 | 176 |  |
-| parse.rs | `requirements` | 4007 | 144 |  |
-| parse.rs | `reliance` | 4167 | 166 |  |
-| parse.rs | `model_with` | 4362 | 5 |  |
-| parse.rs | `declared` | 4370 | 30 |  |
-| parse.rs | `types_of` | 4405 | 55 |  |
-| parse.rs | `merge_types` | 4463 | 27 |  |
-| parse.rs | `scope_types` | 4494 | 56 |  |
-| parse.rs | `angle` | 4554 | 17 |  |
-| parse.rs | `param_names` | 4574 | 18 |  |
-| parse.rs | `type_args` | 4594 | 18 |  |
-| parse.rs | `with_params` | 4615 | 24 |  |
-| parse.rs | `impls` | 4645 | 190 |  |
-| parse.rs | `closing` | 4861 | 16 |  |
-| parse.rs | `impl_types` | 4881 | 90 |  |
-| parse.rs | `given_types` | 4977 | 18 |  |
-| parse.rs | `contracts` | 5003 | 348 |  |
-| parse.rs | `bring_contracts` | 5365 | 118 |  |
-| parse.rs | `read` | 5490 | 60 |  |
-| parse.rs | `evidence` | 5554 | 12 |  |
-| parse.rs | `evidence_alone` | 5568 | 3 |  |
-| parse.rs | `blocks` | 5629 | 84 |  |
-| parse.rs | `free` | 5722 | 60 |  |
-| parse.rs | `unwritten` | 5784 | 6 |  |
-| parse.rs | `records_in` | 5791 | 32 |  |
-| parse.rs | `written` | 5826 | 20 |  |
-| parse.rs | `stamp` | 5849 | 59 |  |
-| parse.rs | `tied` | 5912 | 4 |  |
 | plan.rs | `owed` | 79 | 158 |  |
 | plan.rs | `point` | 243 | 6 |  |
 | plan.rs | `subject_call` | 250 | 3 |  |
@@ -308,6 +248,43 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | prove.rs | `statement` | 342 | 29 |  |
 | prove.rs | `follows` | 373 | 65 |  |
 | prove.rs | `reach` | 443 | 31 |  |
+| reader.rs | `bin` | 188 | 3 |  |
+| reader.rs | `line` | 193 | 4 |  |
+| reader.rs | `err` | 198 | 3 |  |
+| reader.rs | `peek` | 202 | 3 |  |
+| reader.rs | `peek_at` | 206 | 3 |  |
+| reader.rs | `kind` | 210 | 3 |  |
+| reader.rs | `kind_at` | 214 | 3 |  |
+| reader.rs | `is` | 218 | 3 |  |
+| reader.rs | `eat` | 222 | 5 |  |
+| reader.rs | `expect` | 228 | 12 |  |
+| reader.rs | `name` | 241 | 9 |  |
+| reader.rs | `path` | 252 | 7 |  |
+| reader.rs | `qualified` | 260 | 6 |  |
+| reader.rs | `resolve` | 268 | 19 |  |
+| reader.rs | `find` | 291 | 18 |  |
+| reader.rs | `old` | 310 | 9 |  |
+| reader.rs | `next_old` | 320 | 5 |  |
+| reader.rs | `at_end` | 326 | 3 |  |
+| reader.rs | `is_name` | 330 | 3 |  |
+| reader.rs | `ident` | 335 | 9 |  |
+| reader.rs | `word` | 347 | 6 |  |
+| reader.rs | `local` | 356 | 6 |  |
+| reader.rs | `is_keyword` | 363 | 3 |  |
+| reader.rs | `eat_keyword` | 367 | 5 |  |
+| reader.rs | `names_between` | 374 | 13 |  |
+| reader.rs | `items` | 388 | 284 |  |
+| reader.rs | `model_with` | 697 | 5 |  |
+| reader.rs | `declared` | 705 | 30 |  |
+| reader.rs | `read` | 736 | 60 |  |
+| reader/finish.rs | `finish` | 7 | 176 |  |
+| reader/tokens.rs | `lex` | 9 | 43 |  |
+| reader/tokens.rs | `types_named` | 55 | 20 |  |
+| reader/tokens.rs | `lex_raw` | 104 | 67 |  |
+| reader/tokens.rs | `earlier` | 176 | 31 |  |
+| reader/tokens.rs | `unquote` | 253 | 15 |  |
+| reader/tokens.rs | `join` | 270 | 4 |  |
+| reader/tokens.rs | `tidy` | 277 | 18 |  |
 | report.rs | `model` | 17 | 1 |  |
 | report.rs | `evidence` | 18 | 1 |  |
 | report.rs | `model` | 28 | 3 |  |
@@ -436,16 +413,39 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | tuples.rs | `show` | 156 | 37 |  |
 | tuples.rs | `show_box` | 198 | 4 |  |
 | tuples.rs | `box_minus` | 205 | 17 |  |
-| types.rs | `check` | 14 | 29 |  |
-| types.rs | `inside` | 46 | 11 |  |
-| types.rs | `contract` | 59 | 5 |  |
-| types.rs | `plain` | 66 | 4 |  |
-| types.rs | `show` | 71 | 7 |  |
-| types.rs | `unknown` | 79 | 4 |  |
-| types.rs | `numbers` | 87 | 3 |  |
-| types.rs | `needs` | 92 | 11 |  |
-| types.rs | `call` | 105 | 8 |  |
-| types.rs | `of` | 115 | 233 |  |
+| types.rs | `check` | 17 | 29 |  |
+| types.rs | `inside` | 49 | 11 |  |
+| types.rs | `contract` | 62 | 5 |  |
+| types.rs | `plain` | 69 | 4 |  |
+| types.rs | `show` | 74 | 7 |  |
+| types.rs | `unknown` | 82 | 4 |  |
+| types.rs | `numbers` | 90 | 3 |  |
+| types.rs | `needs` | 95 | 11 |  |
+| types.rs | `call` | 108 | 8 |  |
+| types.rs | `of` | 118 | 233 |  |
+| types/read.rs | `number` | 8 | 12 |  |
+| types/read.rs | `signed` | 22 | 16 |  |
+| types/read.rs | `numeral` | 40 | 12 |  |
+| types/read.rs | `values` | 54 | 8 |  |
+| types/read.rs | `value` | 65 | 10 |  |
+| types/read.rs | `value_inner` | 77 | 86 |  |
+| types/read.rs | `bound` | 169 | 20 |  |
+| types/read.rs | `set` | 191 | 7 |  |
+| types/read.rs | `set_inter` | 200 | 12 |  |
+| types/read.rs | `sets_in_parentheses` | 214 | 13 |  |
+| types/read.rs | `set_atom` | 228 | 222 |  |
+| types/read.rs | `variants` | 473 | 70 |  |
+| types/read.rs | `both` | 546 | 12 |  |
+| types/read.rs | `set_both` | 560 | 4 |  |
+| types/read.rs | `binders` | 566 | 33 |  |
+| types/read.rs | `enumeration` | 605 | 35 |  |
+| types/scope.rs | `types_of` | 10 | 55 |  |
+| types/scope.rs | `merge_types` | 68 | 27 |  |
+| types/scope.rs | `scope_types` | 99 | 56 |  |
+| types/scope.rs | `angle` | 159 | 17 |  |
+| types/scope.rs | `param_names` | 179 | 18 |  |
+| types/scope.rs | `type_args` | 199 | 18 |  |
+| types/scope.rs | `with_params` | 220 | 24 |  |
 | voices.rs | `behind` | 56 | 36 |  |
 | voices.rs | `parts` | 99 | 7 |  |
 | voices.rs | `rounded` | 251 | 4 |  |

@@ -4,6 +4,9 @@
 //! call with an input the function never accepts. Where nothing is known
 //! the type is `Any`, and nothing is refused.
 
+pub(crate) mod read;
+pub(crate) mod scope;
+
 use crate::ast::{Expr, Function, Model, Target};
 use crate::set::{Set, Value};
 use crate::Error;

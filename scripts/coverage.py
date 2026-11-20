@@ -60,6 +60,8 @@ def crate(name):
     src = ROOT / "crates" / name / "src"
     rows, code = [], 0
     for path in sorted(src.rglob("*.rs")):
+        if path.name == "tests.rs":  # a module of tests, cut out of its file
+            continue
         found, n = functions(path)
         code += n
         rows += [(path.relative_to(src).as_posix(), *f) for f in found]

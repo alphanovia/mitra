@@ -1,4 +1,4 @@
-// From text to a model (src/parse.rs).
+// From text to a model (src/reader.rs and the `read.rs` of each concept).
 
 import std::core::{Option, Result};
 

@@ -14,10 +14,15 @@
 
 pub mod ast;
 pub mod build;
+mod claims;
+mod contracts;
 pub mod eval;
 pub mod fingerprint;
 pub mod frontend;
+mod functions;
 mod instances;
+mod intent;
+mod ledger;
 pub mod levels;
 pub mod modules;
 pub mod next;
@@ -25,6 +30,7 @@ pub mod parse;
 pub mod plan;
 pub mod print;
 mod prove;
+mod reader;
 pub mod report;
 pub mod results;
 pub mod set;

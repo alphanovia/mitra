@@ -47,7 +47,17 @@ fn the_grammar_has_every_keyword() {
         assert!(listed, "`{word}` is not in the grammar");
     }
     // The clauses above are the reader's: each is matched in its source.
-    let reader = include_str!("../src/parse.rs");
+    let reader = concat!(
+        include_str!("../src/reader.rs"),
+        include_str!("../src/reader/tokens.rs"),
+        include_str!("../src/types/read.rs"),
+        include_str!("../src/functions/read.rs"),
+        include_str!("../src/functions/expr.rs"),
+        include_str!("../src/claims/read.rs"),
+        include_str!("../src/contracts/read.rs"),
+        include_str!("../src/contracts/impls.rs"),
+        include_str!("../src/ledger/read.rs"),
+    );
     for word in CLAUSES {
         assert!(
             reader.contains(&format!("\"{word}\"")),

@@ -1,4 +1,4 @@
-// Contracts: a role several pieces can fill (src/parse.rs, `contracts`).
+// Contracts: a role several pieces can fill (src/contracts/).
 //
 //   contract Link {
 //       fn send(&self, bytes: List<Int>) -> Bool;      a signature

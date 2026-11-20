@@ -157,7 +157,7 @@ fit (a wider type) is read.
 The syntax of before the rework (`opaque`, `def … :=`, `claim c : forall
 …`, `evidence … at 1`, `-- comments`) is refused, with what to write
 instead. Nothing in the tool reads or writes it any more: one reader
-(`crates/mitra-lang/src/parse.rs`) builds the model from the language,
+(`crates/mitra-lang/src/reader.rs`) builds the model from the language,
 and the engine's tests (`tests/golden`) are written in it.
 
 A `// mitra:` comment is one of these two ties. A model written in
