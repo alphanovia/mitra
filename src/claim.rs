@@ -4,7 +4,7 @@
 //! The only way across: a value never depends on a piece, and an
 //! opinion is only moved by evidence.
 
-use crate::piece::{no, yes, Evidence, Piece};
+use crate::piece::{no, yes, Evidence, Piece, Voice};
 use crate::value::{check, eval, Expression, Type, Value};
 
 // mitra: implements claims::Claim
@@ -25,16 +25,16 @@ pub fn reads(c: &Claim, inputs: &[(String, Type)]) -> bool {
 /// value. The evidence is named after the claim, the inputs and the
 /// voice, so the same observation twice is one piece.
 // mitra: implements claims::observe
-pub fn observe(c: &Claim, inputs: &[(String, Value)], by: &str) -> Option<Evidence> {
+pub fn observe(c: &Claim, inputs: &[(String, Value)], by: &Voice) -> Option<Evidence> {
     let value = match eval(&c.statement, inputs)? {
         Value::Truth(true) => yes(),
         Value::Truth(false) => no(),
         _ => return None,
     };
     Some(Evidence {
-        piece: Piece(format!("{} at {:?} by {}", c.piece.0, inputs, by)),
+        piece: Piece(format!("{} at {:?} by {}", c.piece.0, inputs, by.name)),
         about: c.piece.clone(),
         value,
-        by: by.to_string(),
+        by: by.clone(),
     })
 }

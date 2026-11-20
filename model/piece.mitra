@@ -13,7 +13,7 @@
 //
 // Left out on purpose: what a piece says (claim.mitra), the kinds of
 // piece (ensure, assume, capture, tie), which inputs evidence covers,
-// acts and the reading of a voice (`apart` is opaque here), settings.
+// acts and the reading of a voice (a voice is its name here), settings.
 
 subject piece {
     ensure everything_is_a_piece = "Whatever can be right or wrong is a piece and has one opinion; there is no second way to be believed.";
@@ -36,12 +36,17 @@ subject piece {
         a: Float64,
     }
 
+    // Who says it.
+    record Voice {
+        name: String,
+    }
+
     // A piece that says `value` about `about`. `by` is its voice.
     record Evidence {
         piece: Piece,
         about: Piece,
         value: Opinion,
-        by: String,
+        by: Voice,
     }
 
     // How pieces stand to each other.
@@ -56,9 +61,11 @@ subject piece {
         pieces: List<Piece>,
     }
 
-    // Everything known: evidence, relations, and the base rate of each
+    // A model: all that is said of a system, put together. Its pieces
+    // are known by the evidence about them, the relations between them
+    // (one relation can hold many pieces) and the base rate of each
     // piece that has one. A piece with none has 0: nothing is assumed.
-    record Known {
+    record Model {
         evidence: List<Evidence>,
         related: List<Related>,
         base: List<(Piece, Float64)>,
@@ -66,16 +73,18 @@ subject piece {
 
     // The three elementary operations.
     fn piece_id(x: Piece) -> String;
-    fn opinion(known: Known, x: Piece) -> Opinion
-        uses moved, fuse, all, apart;
-    fn trusted(known: Known, x: Piece, policy: Float64) -> Bool
+    fn opinion(model: Model, x: Piece) -> Opinion
+        uses moved, fuse, all, apart, base;
+    fn trusted(model: Model, x: Piece, policy: Float64) -> Bool
         uses opinion, reaches;
 
     // How independent two voices are, from 0 (one voice) to 1 (two kinds).
-    fn apart(a: String, b: String) -> Float64;
+    fn apart(a: Voice, b: Voice) -> Float64;
+    // What to expect of a piece with no evidence.
+    fn base(model: Model, x: Piece) -> Float64;
     // The pieces that cannot all be right and are each believed, the
     // least believed first.
-    fn conflicts(known: Known) -> List<List<Piece>>
+    fn conflicts(model: Model) -> List<List<Piece>>
         uses opinion, moved, conflict;
 
     // The opinions themselves: plain arithmetic.
@@ -115,7 +124,11 @@ subject piece {
     fn against(o: Opinion) -> Bool { o.d > 0.0 && o.d >= o.b }
     fn conflict(x: Opinion, y: Opinion) -> Float64 { x.b * y.d + x.d * y.b }
 
-    // moved_only_by_evidence: a test nobody reviewed is at its bias.
+    // moved_only_by_evidence: evidence moves b, d and u, never the base rate.
+    claim base_rate_survives(model: Model, x: Piece) {
+        opinion(model, x).a == base(model, x)
+    }
+    // A test nobody reviewed is at its bias.
     claim no_evidence_is_the_base_rate() { projected(nothing(0.5)) == 0.5 }
 
     // said_as_far_as_believed: a review "correct, sure at 0.75" of a test

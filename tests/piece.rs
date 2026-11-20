@@ -1,4 +1,4 @@
-//! The claims of `model/piece.mitra`, and the walk over what is known.
+//! The claims of `model/piece.mitra`, and the walk over a model.
 
 use mitra_core::piece::*;
 
@@ -13,7 +13,7 @@ fn says(name: &str, about: &str, value: Opinion, by: &str) -> Evidence {
         piece: Piece::named(name),
         about: Piece::named(about),
         value,
-        by: by.to_string(),
+        by: Voice::named(by),
     }
 }
 fn rests(pieces: &[&str]) -> Related {
@@ -22,11 +22,25 @@ fn rests(pieces: &[&str]) -> Related {
         pieces: pieces.iter().map(|p| Piece::named(p)).collect(),
     }
 }
-fn base(rates: &[(&str, f64)]) -> Vec<(Piece, f64)> {
+fn base_of(rates: &[(&str, f64)]) -> Vec<(Piece, f64)> {
     rates.iter().map(|(p, a)| (Piece::named(p), *a)).collect()
 }
 
 // The claims of the model, one test each.
+
+// mitra: evidence for piece::base_rate_survives
+#[test]
+fn base_rate_survives() {
+    let model = Model {
+        evidence: vec![says("t", "y", yes(), "a"), says("r", "t", no(), "b")],
+        related: vec![rests(&["x", "y", "z"])],
+        base: base_of(&[("t", 0.5), ("r", 0.25), ("x", 0.125), ("y", 0.75)]),
+    };
+    for name in ["x", "y", "z", "t", "r", "unheard"] {
+        let x = Piece::named(name);
+        assert_eq!(opinion(&model, &x).a, base(&model, &x), "{name}");
+    }
+}
 
 // mitra: evidence for piece::no_evidence_is_the_base_rate
 #[test]
@@ -136,12 +150,12 @@ fn an_opinion_always_sums_to_one() {
 
 #[test]
 fn with_nothing_known_a_piece_is_at_its_base_rate() {
-    let known = Known {
-        base: base(&[("t", 0.6)]),
-        ..Known::default()
+    let model = Model {
+        base: base_of(&[("t", 0.6)]),
+        ..Model::default()
     };
-    assert_eq!(opinion(&known, &Piece::named("t")), nothing(0.6));
-    assert_eq!(opinion(&known, &Piece::named("unheard"),), nothing(0.0));
+    assert_eq!(opinion(&model, &Piece::named("t")), nothing(0.6));
+    assert_eq!(opinion(&model, &Piece::named("unheard"),), nothing(0.0));
 }
 
 /// The experiment: how many passing tests nobody reviewed hold a claim
@@ -149,7 +163,7 @@ fn with_nothing_known_a_piece_is_at_its_base_rate() {
 #[test]
 fn six_voices_hold_a_claim_and_one_voice_never() {
     let world = |n: usize, one_voice: bool| {
-        let mut known = Known::default();
+        let mut model = Model::default();
         for k in 0..n {
             let (t, by) = (
                 format!("t{k}"),
@@ -159,10 +173,10 @@ fn six_voices_hold_a_claim_and_one_voice_never() {
                     format!("v{k}")
                 },
             );
-            known.evidence.push(says(&t, "c", yes(), &by));
-            known.base.push((Piece(t), 0.6));
+            model.evidence.push(says(&t, "c", yes(), &by));
+            model.base.push((Piece(t), 0.6));
         }
-        known
+        model
     };
     let p = |n, one| projected(opinion(&world(n, one), &Piece::named("c")));
     assert!(near(p(1, false), 0.6) && near(p(2, false), 0.75));
@@ -173,59 +187,59 @@ fn six_voices_hold_a_claim_and_one_voice_never() {
 #[test]
 fn a_piece_reached_by_two_paths_counts_once() {
     // x rests on y and z, which both rest on w, believed at 0.5.
-    let known = Known {
+    let model = Model {
         evidence: vec![says("t", "w", yes(), "a")],
         related: vec![
             rests(&["x", "y", "z"]),
             rests(&["y", "w"]),
             rests(&["z", "w"]),
         ],
-        base: base(&[("t", 0.5)]),
+        base: base_of(&[("t", 0.5)]),
     };
-    assert_eq!(opinion(&known, &Piece::named("x")).b, 0.5);
+    assert_eq!(opinion(&model, &Piece::named("x")).b, 0.5);
 }
 
 #[test]
 fn a_piece_rests_on_all_its_parts() {
-    let known = Known {
+    let model = Model {
         evidence: vec![says("t1", "y", yes(), "a"), says("t2", "z", yes(), "b")],
         related: vec![rests(&["x", "y", "z"])],
-        base: base(&[("t1", 0.5), ("t2", 0.5)]),
+        base: base_of(&[("t1", 0.5), ("t2", 0.5)]),
     };
-    assert_eq!(opinion(&known, &Piece::named("x")).b, 0.25);
+    assert_eq!(opinion(&model, &Piece::named("x")).b, 0.25);
 }
 
 #[test]
 fn its_own_evidence_counts_when_it_is_better() {
-    let known = Known {
+    let model = Model {
         evidence: vec![says("t1", "y", yes(), "a"), says("t0", "x", yes(), "b")],
         related: vec![rests(&["x", "y"])],
-        base: base(&[("t1", 0.5), ("t0", 0.75)]),
+        base: base_of(&[("t1", 0.5), ("t0", 0.75)]),
     };
-    assert_eq!(opinion(&known, &Piece::named("x")).b, 0.75);
+    assert_eq!(opinion(&model, &Piece::named("x")).b, 0.75);
 }
 
 #[test]
 fn pieces_that_lead_back_to_themselves_end() {
-    let known = Known {
+    let model = Model {
         evidence: vec![says("e", "f", yes(), "a"), says("f", "e", yes(), "b")],
         related: vec![rests(&["x", "y"]), rests(&["y", "x"])],
         base: vec![],
     };
-    assert_eq!(opinion(&known, &Piece::named("x")).b, 0.0);
-    assert_eq!(opinion(&known, &Piece::named("e")).b, 0.0);
+    assert_eq!(opinion(&model, &Piece::named("x")).b, 0.0);
+    assert_eq!(opinion(&model, &Piece::named("e")).b, 0.0);
 }
 
 #[test]
 fn the_same_known_gives_the_same_opinion() {
-    let known = Known {
+    let model = Model {
         evidence: vec![says("t", "c", yes(), "a"), says("r", "t", yes(), "b")],
         related: vec![],
-        base: base(&[("t", 0.5), ("r", 0.8)]),
+        base: base_of(&[("t", 0.5), ("r", 0.8)]),
     };
     assert_eq!(
-        opinion(&known, &Piece::named("c")),
-        opinion(&known, &Piece::named("c"))
+        opinion(&model, &Piece::named("c")),
+        opinion(&model, &Piece::named("c"))
     );
     assert_eq!(piece_id(&Piece::named("c")), "c");
 }

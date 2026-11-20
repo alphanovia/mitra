@@ -29,7 +29,7 @@ code is tied to them by hand.
 ## To test
 
 ```sh
-cargo test                # 38 tests
+cargo test                # 39 tests
 mitra conform             # with main's binary, from this folder
 ```
 

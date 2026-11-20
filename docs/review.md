@@ -57,3 +57,40 @@ Then `tests/goldens.rs` against the table of the calculus note.
 
 **How to test.** `cargo test`. With `main`'s binary, `mitra conform`
 in this folder.
+
+## Increment 92: `Model` and `Voice` (2026-11-20)
+
+**Asked.** "You didn't call that model, you called that 'Known'. Why
+not model ?" "I saw an apart function taking string on each side,
+when they really are about voice of an evidence. Why the erasure ?"
+
+- `Known` is now `Model`. My reason for `Known` was that on `main` a
+  model is the text that was written and the ledger is beside it. By
+  your definition a model is all knowledge put together, evidence
+  included, so `Model` is the right word and `Known` hid it.
+- `record Voice { name: String }`; `Evidence.by`, `apart` and
+  `observe` take a `Voice`. There was no reason for the `String`: the
+  reading of a voice was left out and its type went with it.
+- New claim `base_rate_survives`: `opinion(model, x).a == base(model,
+  x)`, with `base` a function of the model. It was false for a piece
+  believed through what it rests on (the product of the parts' rates
+  came out); fixed in `opinion`.
+
+**Decisions taken alone.** 569. A voice is its name and nothing else
+yet. 570. `base` is public and tied, since a claim names it.
+
+**Proposed, not confirmed and not in the code: the base rate by kind
+of piece.** Sceptical about the system, trusting about evidence.
+
+| Kind of piece | Base rate |
+|---|---|
+| a claim, an ensure, a capture | 0 |
+| a test nobody reviewed | 0.6 |
+| a review | the certainty its author states |
+| a tie | near 1 |
+| an assume | 0.5 |
+| a bug report | 0.9 |
+| what Mitra computes itself | 1, for now |
+
+Kinds of piece and settings are a later layer; today a model carries
+its base rates as given.

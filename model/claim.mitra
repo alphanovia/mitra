@@ -33,7 +33,7 @@ subject claims {
         uses value::check;
 
     // What computing the statement at these inputs says of the claim.
-    fn observe(c: Claim, inputs: List<(String, value::Value)>, by: String) -> Option<piece::Evidence>
+    fn observe(c: Claim, inputs: List<(String, value::Value)>, by: piece::Voice) -> Option<piece::Evidence>
         uses only value::eval, piece::yes, piece::no;
 
     // claim_is_a_piece
@@ -43,22 +43,22 @@ subject claims {
 
     // observed_is_evidence
     claim true_says_yes(p: piece::Piece) {
-        match observe(Claim(p, Yes), [], "machine:mitra") {
+        match observe(Claim(p, Yes), [], Voice("machine:mitra")) {
             None => false,
-            Some(e) => e.value == piece::yes() && e.by == "machine:mitra",
+            Some(e) => e.value == piece::yes() && e.by == Voice("machine:mitra"),
         }
     }
     claim false_says_no(p: piece::Piece) {
-        match observe(Claim(p, No), [], "machine:mitra") {
+        match observe(Claim(p, No), [], Voice("machine:mitra")) {
             None => false,
             Some(e) => e.value == piece::no(),
         }
     }
     claim no_value_says_nothing(p: piece::Piece) {
-        observe(Claim(p, Input("x")), [], "machine:mitra") == None
+        observe(Claim(p, Input("x")), [], Voice("machine:mitra")) == None
     }
     claim about_its_own_piece(c: Claim) {
-        match observe(c, [], "machine:mitra") {
+        match observe(c, [], Voice("machine:mitra")) {
             None => true,
             Some(e) => e.about == c.piece,
         }

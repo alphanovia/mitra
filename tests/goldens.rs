@@ -13,34 +13,34 @@ fn says(name: &str, about: &str, value: Opinion, by: &str) -> Evidence {
         piece: piece(name),
         about: piece(about),
         value,
-        by: by.to_string(),
+        by: Voice::named(by),
     }
 }
 
 /// One claim `c`, one test `t` that passes or fails, and reviews of the
 /// test: (it is correct, how sure).
-fn world(bias: f64, passes: bool, reviews: &[(bool, f64)]) -> Known {
+fn world(bias: f64, passes: bool, reviews: &[(bool, f64)]) -> Model {
     let verdict = |yes_: bool| if yes_ { yes() } else { no() };
-    let mut known = Known {
+    let mut model = Model {
         evidence: vec![says("t", "c", verdict(passes), "machine:cargo")],
         related: vec![],
         base: vec![(piece("t"), bias)],
     };
     for (k, (correct, sure)) in reviews.iter().enumerate() {
         let r = format!("r{k}");
-        known
+        model
             .evidence
             .push(says(&r, "t", verdict(*correct), &format!("agent:{k}")));
-        known.base.push((piece(&r), *sure));
+        model.base.push((piece(&r), *sure));
     }
-    known
+    model
 }
 
 /// The word and the number of a claim: outside the core, written here
 /// only to compare with the goldens.
-fn word(known: &Known, x: &Piece, policy: f64) -> (&'static str, f64) {
-    let o = opinion(known, x);
-    match (trusted(known, x, policy), against(o)) {
+fn word(model: &Model, x: &Piece, policy: f64) -> (&'static str, f64) {
+    let o = opinion(model, x);
+    match (trusted(model, x, policy), against(o)) {
         (true, _) => ("holds", projected(o)),
         (false, true) => ("fails", o.d),
         (false, false) => ("unverified", projected(o)),
@@ -102,8 +102,8 @@ fn one_claim_one_test() {
 /// the conflict names both.
 #[test]
 fn two_reviews_that_disagree_are_a_conflict() {
-    let known = world(0.5, true, &[(true, 1.0), (false, 1.0)]);
-    assert_eq!(conflicts(&known), [vec![piece("r0"), piece("r1")]]);
+    let model = world(0.5, true, &[(true, 1.0), (false, 1.0)]);
+    assert_eq!(conflicts(&model), [vec![piece("r0"), piece("r1")]]);
     assert!(conflicts(&world(0.5, true, &[(true, 1.0), (true, 0.5)])).is_empty());
 }
 
@@ -111,7 +111,7 @@ fn two_reviews_that_disagree_are_a_conflict() {
 /// test, one reviewed. The one on the unreviewed test comes first.
 #[test]
 fn two_claims_that_disagree_are_ranked() {
-    let known = Known {
+    let model = Model {
         evidence: vec![
             says("t_wraps", "wraps", yes(), "machine:cargo"),
             says("t_stops", "stops", yes(), "machine:cargo"),
@@ -127,6 +127,6 @@ fn two_claims_that_disagree_are_ranked() {
             (piece("r"), 1.0),
         ],
     };
-    assert_eq!(conflicts(&known), [vec![piece("stops"), piece("wraps")]]);
-    assert_eq!(word(&known, &piece("wraps"), 0.9), ("holds", 1.0));
+    assert_eq!(conflicts(&model), [vec![piece("stops"), piece("wraps")]]);
+    assert_eq!(word(&model, &piece("wraps"), 0.9), ("holds", 1.0));
 }

@@ -1,11 +1,14 @@
 //! The claims of `model/claim.mitra`, and one walk across the seam.
 
 use mitra_core::claim::*;
-use mitra_core::piece::{no, opinion, trusted, yes, Known, Piece};
+use mitra_core::piece::{no, opinion, trusted, yes, Model, Piece, Voice};
 use mitra_core::value::Expression::*;
 use mitra_core::value::{Type, Value};
 
 const MITRA: &str = "machine:mitra";
+fn mitra() -> Voice {
+    Voice::named(MITRA)
+}
 
 fn claim(name: &str, statement: mitra_core::value::Expression) -> Claim {
     Claim {
@@ -24,24 +27,24 @@ fn a_number_is_not_a_statement() {
 // mitra: evidence for claims::true_says_yes
 #[test]
 fn true_says_yes() {
-    let e = observe(&claim("c", Yes), &[], MITRA).unwrap();
-    assert_eq!((e.value, e.by.as_str()), (yes(), MITRA));
+    let e = observe(&claim("c", Yes), &[], &mitra()).unwrap();
+    assert_eq!((e.value, e.by), (yes(), mitra()));
 }
 
 // mitra: evidence for claims::false_says_no
 #[test]
 fn false_says_no() {
-    assert_eq!(observe(&claim("c", No), &[], MITRA).unwrap().value, no());
+    assert_eq!(observe(&claim("c", No), &[], &mitra()).unwrap().value, no());
 }
 
 // mitra: evidence for claims::no_value_says_nothing
 #[test]
 fn no_value_says_nothing() {
     assert_eq!(
-        observe(&claim("c", Input("x".to_string())), &[], MITRA),
+        observe(&claim("c", Input("x".to_string())), &[], &mitra()),
         None
     );
-    assert_eq!(observe(&claim("c", Literal(1)), &[], MITRA), None);
+    assert_eq!(observe(&claim("c", Literal(1)), &[], &mitra()), None);
 }
 
 // mitra: evidence for claims::about_its_own_piece
@@ -49,7 +52,7 @@ fn no_value_says_nothing() {
 fn about_its_own_piece() {
     for statement in [Yes, No] {
         let c = claim("c", statement);
-        assert_eq!(observe(&c, &[], MITRA).unwrap().about, c.piece);
+        assert_eq!(observe(&c, &[], &mitra()).unwrap().about, c.piece);
     }
 }
 
@@ -65,20 +68,20 @@ fn a_statement_computed_moves_the_opinion_of_its_claim() {
     assert!(reads(&small, &[("x".to_string(), Type::OfNumber)]));
     let at = |n| vec![("x".to_string(), Value::Number(n))];
 
-    let seen = observe(&small, &at(1), MITRA).unwrap();
+    let seen = observe(&small, &at(1), &mitra()).unwrap();
     // How far what Mitra computes is believed is a base rate like any other.
-    let mut known = Known {
+    let mut model = Model {
         base: vec![(seen.piece.clone(), 1.0)],
-        ..Known::default()
+        ..Model::default()
     };
-    assert!(!trusted(&known, &small.piece, 0.9));
-    known.evidence.push(seen);
-    assert!(trusted(&known, &small.piece, 0.9));
+    assert!(!trusted(&model, &small.piece, 0.9));
+    model.evidence.push(seen);
+    assert!(trusted(&model, &small.piece, 0.9));
 
-    let against = observe(&small, &at(5), MITRA).unwrap();
-    assert_ne!(against.piece, known.evidence[0].piece);
-    known.base.push((against.piece.clone(), 1.0));
-    known.evidence.push(against);
-    let o = opinion(&known, &small.piece);
-    assert!(!trusted(&known, &small.piece, 0.9) && o.d > 0.0);
+    let against = observe(&small, &at(5), &mitra()).unwrap();
+    assert_ne!(against.piece, model.evidence[0].piece);
+    model.base.push((against.piece.clone(), 1.0));
+    model.evidence.push(against);
+    let o = opinion(&model, &small.piece);
+    assert!(!trusted(&model, &small.piece, 0.9) && o.d > 0.0);
 }
