@@ -19,11 +19,13 @@ the yardstick.
 | | `statement` | an interpretation of the system; its content is not read | `src/model/statement.rs` |
 | | `tie` | a believed link between a statement and a place | `src/model/tie.rs` |
 | | `model` | all the pieces put together | `src/model.rs` |
-| `model/value.mitra` | `value` | what is computed, its type, its expression | `src/value.rs` |
+| `model/value.mitra` | `value` | a quantity with a type, operations declared on types, expressions of them; nothing built in | `src/value.rs` |
+| `model/standard.mitra` | `standard` | the standard types and operations (a truth, a whole number, records) and the table that applies them | `src/standard.rs` |
 | `model/claim.mitra` | `claims` | the seam: a statement whose content is an expression; computing it makes evidence | `src/claim.rs` |
 
 `model.mitra` and `value.mitra` read nothing and never read each
-other; only the seam reads both. Inside the model a place and a piece
+other; `standard.mitra` reads `value.mitra`; only the seam reads both
+sides. Inside the model a place and a piece
 read nothing, and each kind of piece reads only what it requires.
 `tests/wall.rs` reads the sources and says so.
 
@@ -37,17 +39,17 @@ hand.
 ## To test
 
 ```sh
-cargo test                # 74 tests
+cargo test                # 89 tests
 mitra conform             # with main's binary, from this folder
 ```
 
-- `tests/model.rs`, `value.rs`, `claim.rs`: each claim of the models as
+- `tests/model.rs`, `value.rs`, `standard.rs`, `claim.rs`: each claim of the models as
   one test, tied by name, then the promises on small worlds.
 - `tests/goldens.rs`: 20 of `main`'s 22 trust goldens as a table over
   the calculus (case 7 needs settings, case 6 a report).
 - `tests/wall.rs`: the walls, and no disk.
 
-`mitra conform` says 43 ties agree and 5 differ, with one warning.
+`mitra conform` says 70 ties agree and 5 differ, with one warning.
 The five look like faults of `main`'s reader of Rust and are left as
 they are: `Vec<Related>` and `Statement<Formal>` compared wrongly with
 the model's (three), a `uses` asked on `moved` whose body already

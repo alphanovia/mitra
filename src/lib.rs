@@ -4,8 +4,11 @@
 //!
 //! - [`model`]: places, pieces, and the three kinds of piece (evidence,
 //!   statements, ties), put together. It knows nothing of values.
-//! - [`value`]: what is computed, its type, and the expression that
-//!   computes it. It knows nothing of pieces.
+//! - [`value`]: a quantity with a type, the operations declared on
+//!   types, and expressions of them. It knows nothing of pieces, and
+//!   has no type and no operation of its own.
+//! - [`standard`]: the standard types and operations, and what applies
+//!   them. It reads `value` only.
 //! - [`claim`]: a statement whose content is an expression. Computing
 //!   it makes evidence. It reads both.
 //!
@@ -14,4 +17,5 @@
 
 pub mod claim;
 pub mod model;
+pub mod standard;
 pub mod value;

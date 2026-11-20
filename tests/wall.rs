@@ -35,6 +35,23 @@ fn a_piece_knows_no_value_and_a_value_no_piece() {
     }
 }
 
+/// Nothing is built in: the core of values never reads a quantity and
+/// knows no standard operation. The standard table reads values only.
+#[test]
+fn the_core_of_values_reads_no_quantity() {
+    let value = code(&sources("value"));
+    for word in ["Quantity::", "standard", "Truth(", "Whole(", "Many("] {
+        let seen = value.matches(word).count();
+        // Each carrier is named once, where it is declared.
+        let declared = usize::from(word.ends_with('(') && word != "Quantity::");
+        assert!(seen <= declared, "src/value names `{word}`");
+    }
+    let standard = code(&sources("standard"));
+    for word in ["model::", "claim::", "Opinion", "Evidence", "Statement"] {
+        assert!(!standard.contains(word), "src/standard names `{word}`");
+    }
+}
+
 /// Inside the model: a place and a piece read nothing, and each kind of
 /// piece reads only what its subject requires.
 #[test]
@@ -65,7 +82,7 @@ fn each_subject_reads_only_what_it_requires() {
 
 #[test]
 fn the_core_reads_no_disk_and_runs_nothing() {
-    for of in ["model", "value", "claim"] {
+    for of in ["model", "value", "standard", "claim"] {
         let text = code(&sources(of));
         for word in ["std::fs", "std::net", "std::process", "std::env"] {
             assert!(!text.contains(word), "src/{of} names `{word}`");
@@ -75,7 +92,7 @@ fn the_core_reads_no_disk_and_runs_nothing() {
 
 #[test]
 fn each_model_file_has_its_code() {
-    for of in ["model", "value", "claim"] {
+    for of in ["model", "value", "standard", "claim"] {
         assert!(fs::metadata(format!("model/{of}.mitra")).is_ok());
         assert!(fs::metadata(format!("src/{of}.rs")).is_ok());
     }

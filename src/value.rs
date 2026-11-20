@@ -1,133 +1,125 @@
-//! Values, types, expressions (`model/value.mitra`).
+//! Values, types, operations, expressions (`model/value.mitra`).
+//!
+//! A value is a quantity with a type. Operations are declared on
+//! types, to transform or to convert. An expression is nested
+//! operations that can be evaluated. Nothing is built in: this file
+//! declares no type and no operation, and never reads a quantity.
 //!
 //! Nothing here is right or wrong, believed or signed: a value comes
 //! from its expression and its inputs alone.
 
-/// What a value can be.
+/// What a value can be. Known by its name only.
 // mitra: implements value::Type
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Type {
-    OfTruth,
-    OfNumber,
-    OfShape(String, Vec<Type>),
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Type {
+    pub name: String,
 }
 
-/// What is computed.
-// mitra: implements value::Value
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Value {
+/// How much, or which: what a value carries. Not read here: only what
+/// applies an operation knows what is inside.
+// mitra: implements value::Quantity
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Quantity {
     Truth(bool),
-    Number(i64),
-    Made(String, Vec<Value>),
+    Whole(i64),
+    Many(Vec<Quantity>),
 }
 
-/// What computes a value from named inputs.
+/// A quantity with a type.
+// mitra: implements value::Value
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Value {
+    pub quantity: Quantity,
+    pub of: Type,
+}
+
+/// What is declared on types: it takes values of these types and gives
+/// one of that type. Same types in and out, it transforms; another
+/// type out, it converts.
+// mitra: implements value::Operation
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Operation {
+    pub name: String,
+    pub takes: Vec<Type>,
+    pub gives: Type,
+}
+
+/// Nested operations that can be evaluated.
 // mitra: implements value::Expression
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expression {
-    /// What is written as it is: `true`, `false`, `42`.
-    Yes,
-    No,
-    Literal(i64),
-    /// A record made of what the others give.
-    Make(String, Vec<Expression>),
-    /// A named input.
-    Input(String),
-    /// A field of a record, by its place.
-    Field(Box<Expression>, usize),
-    /// `!`, `&&`, `==`, `<`, `+`, `-`, `*` on what the others give.
-    Op(String, Vec<Expression>),
-    If(Box<Expression>, Box<Expression>, Box<Expression>),
+    /// A value as it is.
+    Given(Value),
+    /// A named input of a type.
+    Input(String, Type),
+    /// An operation on what the others give.
+    Apply(Operation, Vec<Expression>),
+}
+
+/// What applies operations: the contract `Applies` of the model. The
+/// core has none of its own.
+pub trait Applies {
+    /// The quantity an operation gives on these values, or none: an
+    /// operation it does not know, or a result that does not exist.
+    fn apply(&self, op: &Operation, args: &[Value]) -> Option<Quantity>;
 }
 
 // mitra: implements value::type_of
 pub fn type_of(v: &Value) -> Type {
-    match v {
-        Value::Truth(_) => Type::OfTruth,
-        Value::Number(_) => Type::OfNumber,
-        Value::Made(name, fields) => {
-            Type::OfShape(name.clone(), fields.iter().map(type_of).collect())
-        }
-    }
+    v.of.clone()
 }
 
-/// The type an expression gives when its inputs have these types.
-/// `None` when it does not check.
+/// The type an expression gives. `None` when it does not check: an
+/// operation applied to what it does not take.
 // mitra: implements value::check
-pub fn check(e: &Expression, inputs: &[(String, Type)]) -> Option<Type> {
-    use Type::*;
+pub fn check(e: &Expression) -> Option<Type> {
     Some(match e {
-        Expression::Yes | Expression::No => OfTruth,
-        Expression::Literal(_) => OfNumber,
-        Expression::Make(name, fields) => {
-            let types: Option<Vec<Type>> = fields.iter().map(|f| check(f, inputs)).collect();
-            OfShape(name.clone(), types?)
-        }
-        Expression::Input(name) => inputs.iter().find(|(n, _)| n == name)?.1.clone(),
-        Expression::Field(record, place) => match check(record, inputs)? {
-            OfShape(_, fields) => fields.get(*place)?.clone(),
-            _ => return None,
-        },
-        Expression::Op(op, args) => {
-            let types: Option<Vec<Type>> = args.iter().map(|a| check(a, inputs)).collect();
-            match (op.as_str(), types?.as_slice()) {
-                ("!", [OfTruth]) | ("&&", [OfTruth, OfTruth]) => OfTruth,
-                ("==", [x, y]) if x == y => OfTruth,
-                ("<", [OfNumber, OfNumber]) => OfTruth,
-                ("+" | "-" | "*", [OfNumber, OfNumber]) => OfNumber,
-                _ => return None,
+        Expression::Given(v) => v.of.clone(),
+        Expression::Input(_, of) => of.clone(),
+        Expression::Apply(op, args) => {
+            if op.takes.len() != args.len() {
+                return None;
             }
-        }
-        Expression::If(test, yes, no) => {
-            let (t, y, n) = (
-                check(test, inputs)?,
-                check(yes, inputs)?,
-                check(no, inputs)?,
-            );
-            match t == OfTruth && y == n {
-                true => y,
-                false => return None,
+            for (arg, takes) in args.iter().zip(&op.takes) {
+                if &check(arg)? != takes {
+                    return None;
+                }
             }
+            op.gives.clone()
         }
     })
 }
 
-/// The value of an expression at these inputs. `None` when it has none:
-/// an input not given, a field that is not there, a number too large,
-/// an operator on what it does not take.
+/// The value of an expression at these inputs. `None` when it has
+/// none: an input not given or of another type, an operation on what
+/// it does not take, or one that `by` gives nothing for.
 // mitra: implements value::eval
-pub fn eval(e: &Expression, inputs: &[(String, Value)]) -> Option<Value> {
-    use Value::*;
+pub fn eval(e: &Expression, inputs: &[(String, Value)], by: &impl Applies) -> Option<Value> {
     Some(match e {
-        Expression::Yes => Truth(true),
-        Expression::No => Truth(false),
-        Expression::Literal(n) => Number(*n),
-        Expression::Make(name, fields) => {
-            let values: Option<Vec<Value>> = fields.iter().map(|f| eval(f, inputs)).collect();
-            Made(name.clone(), values?)
-        }
-        Expression::Input(name) => inputs.iter().find(|(n, _)| n == name)?.1.clone(),
-        Expression::Field(record, place) => match eval(record, inputs)? {
-            Made(_, fields) => fields.get(*place)?.clone(),
-            _ => return None,
-        },
-        Expression::Op(op, args) => {
-            let values: Option<Vec<Value>> = args.iter().map(|a| eval(a, inputs)).collect();
-            match (op.as_str(), values?.as_slice()) {
-                ("!", [Truth(x)]) => Truth(!x),
-                ("&&", [Truth(x), Truth(y)]) => Truth(*x && *y),
-                ("==", [x, y]) if type_of(x) == type_of(y) => Truth(x == y),
-                ("<", [Number(x), Number(y)]) => Truth(x < y),
-                ("+", [Number(x), Number(y)]) => Number(x.checked_add(*y)?),
-                ("-", [Number(x), Number(y)]) => Number(x.checked_sub(*y)?),
-                ("*", [Number(x), Number(y)]) => Number(x.checked_mul(*y)?),
-                _ => return None,
+        Expression::Given(v) => v.clone(),
+        Expression::Input(name, of) => {
+            let v = &inputs.iter().find(|(n, _)| n == name)?.1;
+            match &v.of == of {
+                true => v.clone(),
+                false => return None,
             }
         }
-        Expression::If(test, yes, no) => match eval(test, inputs)? {
-            Truth(true) => eval(yes, inputs)?,
-            Truth(false) => eval(no, inputs)?,
-            _ => return None,
-        },
+        Expression::Apply(op, args) => {
+            if op.takes.len() != args.len() {
+                return None;
+            }
+            let mut values = Vec::with_capacity(args.len());
+            for (arg, takes) in args.iter().zip(&op.takes) {
+                let v = eval(arg, inputs, by)?;
+                if &v.of != takes {
+                    return None;
+                }
+                values.push(v);
+            }
+            Value {
+                quantity: by.apply(op, &values)?,
+                of: op.gives.clone(),
+            }
+        }
     })
 }

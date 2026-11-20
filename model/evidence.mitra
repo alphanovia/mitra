@@ -1,5 +1,5 @@
-evidence tie { for claims::Formal::tied holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:11" }
-evidence tie { for claims::Prose::tied holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:18" }
+evidence tie { for claims::Formal::tied holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:12" }
+evidence tie { for claims::Prose::tied holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:19" }
 evidence tie { for evidence::Voice::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model/evidence.rs:7" }
 evidence tie { for evidence::Evidence::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model/evidence.rs:22" }
 evidence tie { for piece::Piece::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model/piece.rs:4" }
@@ -11,13 +11,17 @@ evidence tie { for tie::Complete::tied holds act tie by "machine:mitra-rust" sou
 evidence tie { for model::Relation::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:28" }
 evidence tie { for model::Related::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:38" }
 evidence tie { for model::Model::tied fails act tie by "machine:mitra-rust" source "reader:rust src/model.rs:56: field `related` is `Vec<Statement<Related>>` in the code, `List<statement::Statement<model::Related(model::Relation, List<piece::Piece>)>>` in the model" }
-evidence tie { for value::Type::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:7" }
-evidence tie { for value::Value::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:16" }
-evidence tie { for value::Expression::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:25" }
-evidence tie { for claims::reads::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:25: input `s` is `&Statement<Formal>` in the code, `statement::Statement<claims::Formal(value::Expression)>` in the model" }
-evidence tie { for claims::reads::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:25" }
-evidence tie { for claims::observe::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:34: input `s` is `&Statement<Formal>` in the code, `statement::Statement<claims::Formal(value::Expression)>` in the model" }
-evidence tie { for claims::observe::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:34" }
+evidence tie { for standard::Shape::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:89" }
+evidence tie { for standard::Table::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:114" }
+evidence tie { for value::Type::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:12" }
+evidence tie { for value::Quantity::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:20" }
+evidence tie { for value::Value::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:29" }
+evidence tie { for value::Operation::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:39" }
+evidence tie { for value::Expression::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:48" }
+evidence tie { for claims::reads::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:26: input `s` is `&Statement<Formal>` in the code, `statement::Statement<claims::Formal(value::Expression)>` in the model" }
+evidence tie { for claims::reads::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:26" }
+evidence tie { for claims::observe::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:35: input `s` is `&Statement<Formal>` in the code, `statement::Statement<claims::Formal(value::Expression)>` in the model" }
+evidence tie { for claims::observe::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:35" }
 evidence tie { for evidence::apart::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model/evidence.rs:34; erased 3: reference(a), reference(b), width" }
 evidence tie { for evidence::moved::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model/evidence.rs:44; erased 1: width" }
 evidence tie { for evidence::moved::uses fails act tie by "machine:mitra-rust" source "reader:rust src/model/evidence.rs:44: `moved` calls `projected`, which is `piece::projected`, and the model states no `uses`" }
@@ -49,6 +53,23 @@ evidence tie { for model::trusted::tied holds trust 0.98 act tie by "machine:mit
 evidence tie { for model::trusted::uses holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:196" }
 evidence tie { for model::conflicts::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:508; erased 2: reference(model), width" }
 evidence tie { for model::conflicts::uses holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:508" }
-evidence tie { for value::type_of::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:43; erased 1: reference(v)" }
-evidence tie { for value::check::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:56; erased 2: reference(e), reference(inputs)" }
-evidence tie { for value::eval::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:98; erased 2: reference(e), reference(inputs)" }
+evidence tie { for standard::truth::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:21" }
+evidence tie { for standard::whole::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:26" }
+evidence tie { for standard::yes::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:31" }
+evidence tie { for standard::no::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:38" }
+evidence tie { for standard::number::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:45; erased 1: width" }
+evidence tie { for standard::not::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:53" }
+evidence tie { for standard::and::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:57" }
+evidence tie { for standard::less::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:61" }
+evidence tie { for standard::add::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:65" }
+evidence tie { for standard::sub::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:69" }
+evidence tie { for standard::mul::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:73" }
+evidence tie { for standard::equal::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:78; erased 1: reference(of)" }
+evidence tie { for standard::choose::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:83; erased 1: reference(of)" }
+evidence tie { for standard::make::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:97; erased 1: reference(shape)" }
+evidence tie { for standard::field::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:102; erased 3: reference(shape), range(place: 0.. for usize), width" }
+evidence tie { for standard::Table::apply::tied holds act tie by "machine:mitra-rust" source "reader:rust src/standard.rs:128; erased 2: reference(op), reference(args)" }
+evidence tie { for value::type_of::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:67; erased 1: reference(v)" }
+evidence tie { for value::check::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:74; erased 1: reference(e)" }
+evidence tie { for value::eval::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:96; erased 3: reference(e), reference(inputs), reference(by)" }
+evidence tie { for value::eval::uses holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:96" }

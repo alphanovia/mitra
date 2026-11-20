@@ -1,37 +1,61 @@
-//! The claims of `model/value.mitra`.
+//! The claims of `model/value.mitra`. The core has no operation of its
+//! own, so these bring theirs: a type `A`, a type `B`, and one thing
+//! that applies `swap` and nothing else.
 
 use mitra_core::value::Expression::*;
-use mitra_core::value::Type::*;
-use mitra_core::value::Value::*;
 use mitra_core::value::*;
 
-fn op(op: &str, args: &[Expression]) -> Expression {
-    Op(op.to_string(), args.to_vec())
+fn of(name: &str) -> Type {
+    Type {
+        name: name.to_string(),
+    }
+}
+fn value(n: i64, name: &str) -> Value {
+    Value {
+        quantity: Quantity::Whole(n),
+        of: of(name),
+    }
+}
+fn operation(name: &str, takes: &[&str], gives: &str) -> Operation {
+    Operation {
+        name: name.to_string(),
+        takes: takes.iter().map(|t| of(t)).collect(),
+        gives: of(gives),
+    }
 }
 fn given(name: &str, v: Value) -> Vec<(String, Value)> {
     vec![(name.to_string(), v)]
 }
-/// A few expressions of every form, some that check and some that do not.
+
+/// Applies `swap`, from `A` to `B`, and knows no other operation.
+struct OnlySwap;
+impl Applies for OnlySwap {
+    fn apply(&self, op: &Operation, args: &[Value]) -> Option<Quantity> {
+        match op == &operation("swap", &["A"], "B") {
+            true => Some(args[0].quantity.clone()),
+            false => None,
+        }
+    }
+}
+/// Applies nothing.
+struct Nothing;
+impl Applies for Nothing {
+    fn apply(&self, _: &Operation, _: &[Value]) -> Option<Quantity> {
+        None
+    }
+}
+
+/// A few expressions, some that check and some that do not.
 fn some() -> Vec<Expression> {
-    let point = Make("Point".to_string(), vec![Literal(1), Yes]);
+    let swap = operation("swap", &["A"], "B");
     vec![
-        Yes,
-        Literal(7),
-        point.clone(),
-        Field(Box::new(point.clone()), 1),
-        Field(Box::new(point.clone()), 2),
-        Field(Box::new(Yes), 0),
-        op("!", &[No]),
-        op("&&", &[Yes, No]),
-        op("==", &[point.clone(), point]),
-        op("==", &[Yes, Literal(1)]),
-        op("<", &[Literal(1), Literal(2)]),
-        op("+", &[Literal(1), Literal(2)]),
-        op("+", &[Yes, Literal(1)]),
-        op("*", &[Literal(i64::MAX), Literal(2)]),
-        If(Box::new(Yes), Box::new(Literal(1)), Box::new(Literal(2))),
-        If(Box::new(Yes), Box::new(Literal(1)), Box::new(No)),
-        Input("x".to_string()),
+        Given(value(7, "A")),
+        Input("x".to_string(), of("A")),
+        Apply(swap.clone(), vec![Given(value(1, "A"))]),
+        Apply(swap.clone(), vec![Given(value(1, "B"))]),
+        Apply(swap.clone(), vec![]),
+        Apply(swap.clone(), vec![Apply(swap, vec![Given(value(1, "A"))])]),
+        Apply(operation("other", &["A"], "A"), vec![Given(value(1, "A"))]),
     ]
 }
 
@@ -39,34 +63,25 @@ fn some() -> Vec<Expression> {
 #[test]
 fn same_value() {
     for e in some() {
-        assert_eq!(eval(&e, &[]), eval(&e, &[]));
+        assert_eq!(eval(&e, &[], &OnlySwap), eval(&e, &[], &OnlySwap));
     }
 }
 
-// mitra: evidence for value::literal_is_itself
+// mitra: evidence for value::given_is_itself
 #[test]
-fn literal_is_itself() {
-    for n in [i64::MIN, -1, 0, 42, i64::MAX] {
-        assert_eq!(eval(&Literal(n), &[]), Some(Number(n)));
+fn given_is_itself() {
+    for v in [value(i64::MIN, "A"), value(0, "B"), value(42, "A")] {
+        assert_eq!(eval(&Given(v.clone()), &[], &Nothing), Some(v));
     }
-    assert_eq!(eval(&Yes, &[]), Some(Truth(true)));
-    assert_eq!(eval(&No, &[]), Some(Truth(false)));
 }
 
 // mitra: evidence for value::input_is_what_was_given
 #[test]
 fn input_is_what_was_given() {
-    for v in [
-        Truth(true),
-        Number(3),
-        Made("P".to_string(), vec![Number(1)]),
-    ] {
-        assert_eq!(
-            eval(&Input("x".to_string()), &given("x", v.clone())),
-            Some(v)
-        );
-    }
-    assert_eq!(eval(&Input("x".to_string()), &[]), None);
+    let x = Input("x".to_string(), of("A"));
+    let v = value(3, "A");
+    assert_eq!(eval(&x, &given("x", v.clone()), &Nothing), Some(v));
+    assert_eq!(eval(&x, &[], &Nothing), None);
 }
 
 // mitra: evidence for value::checked_gives_its_type
@@ -74,27 +89,45 @@ fn input_is_what_was_given() {
 fn checked_gives_its_type() {
     let mut checked = 0;
     for e in some() {
-        if let (Some(t), Some(v)) = (check(&e, &[]), eval(&e, &[])) {
+        if let (Some(t), Some(v)) = (check(&e), eval(&e, &[], &OnlySwap)) {
             assert_eq!(type_of(&v), t, "{e:?}");
             checked += 1;
         }
     }
-    assert!(checked >= 9);
+    assert!(checked >= 2);
+    // What does not check has no value either, whoever applies it.
+    for e in some() {
+        if check(&e).is_none() {
+            assert_eq!(eval(&e, &[], &OnlySwap), None, "{e:?}");
+        }
+    }
 }
 
-// mitra: evidence for value::truth_is_not_a_number
+// mitra: evidence for value::an_operation_takes_its_types
 #[test]
-fn truth_is_not_a_number() {
-    assert_eq!(type_of(&Truth(true)), OfTruth);
-    assert_eq!(type_of(&Number(0)), OfNumber);
-    assert_eq!(check(&op("+", &[Yes, Literal(1)]), &[]), None);
-}
-
-#[test]
-fn a_number_too_large_is_no_value() {
-    assert_eq!(eval(&op("*", &[Literal(i64::MAX), Literal(2)]), &[]), None);
+fn an_operation_takes_its_types() {
+    let f = operation("f", &["A"], "B");
     assert_eq!(
-        eval(&op("+", &[Literal(40), Literal(2)]), &[]),
-        Some(Number(42))
+        check(&Apply(f.clone(), vec![Given(value(1, "A"))])),
+        Some(of("B"))
     );
+    assert_eq!(check(&Apply(f.clone(), vec![Given(value(1, "B"))])), None);
+    assert_eq!(check(&Apply(f, vec![])), None);
+}
+
+// mitra: evidence for value::an_input_of_another_type_is_no_value
+#[test]
+fn an_input_of_another_type_is_no_value() {
+    let x = Input("x".to_string(), of("A"));
+    assert_eq!(eval(&x, &given("x", value(3, "B")), &Nothing), None);
+}
+
+// mitra: evidence for value::a_name_means_nothing_here
+#[test]
+fn a_name_means_nothing_here() {
+    // `+` on a type `A` checks, and has a value only if someone applies it.
+    let plus = Apply(operation("+", &["A"], "A"), vec![Given(value(1, "A"))]);
+    assert_eq!(check(&plus), Some(of("A")));
+    assert_eq!(eval(&plus, &[], &Nothing), None);
+    assert_eq!(eval(&plus, &[], &OnlySwap), None);
 }

@@ -1,7 +1,8 @@
 // The seam between the two sides (src/claim.rs).
 //
-// Reads: model.mitra and value.mitra. Neither reads this file, and
-// neither reads the other.
+// Reads: model.mitra, value.mitra, and standard.mitra for what a truth
+// is. None of them reads this file, and the two sides never read each
+// other.
 //
 // Here the content of a statement is filled in. A formal content is an
 // expression that gives a truth; computing it at given inputs makes a
@@ -23,8 +24,10 @@ subject claims {
     require believed = evidence::evidence_is_a_piece;
     require yes_and_no = piece::opinion_is_counts;
     require computed = value::one_value;
+    require truth = standard::applied_as_written;
+    require applied = Applies::applied_alone;
 
-    ensure formal_is_a_truth = "A formal statement says an expression that gives a truth; an expression that gives anything else states nothing.";
+    ensure formal_is_a_truth = "A formal statement says an expression that gives a truth, the standard one; an expression that gives anything else states nothing.";
     ensure observed_is_evidence = "Computing a formal statement at given inputs gives evidence about that statement's piece and no other: yes where it is true, no where it is false, and no evidence where it has no value.";
     ensure prose_is_not_computed = "A prose statement is never computed: only evidence someone brings moves it.";
     ensure one_way = "Evidence is made from a value; no value is made from evidence or from an opinion.";
@@ -37,37 +40,38 @@ subject claims {
         text: String,
     }
 
-    // The expression gives a truth when its inputs have these types.
-    fn reads(s: statement::Statement<Formal>, inputs: List<(String, value::Type)>) -> Bool
-        uses value::check;
+    // The expression gives a truth.
+    fn reads(s: statement::Statement<Formal>) -> Bool
+        uses value::check, standard::truth;
 
-    // What computing the statement at these inputs says of it.
-    fn observe(s: statement::Statement<Formal>, inputs: List<(String, value::Value)>, by: evidence::Voice) -> Option<evidence::Evidence>
-        uses only value::eval, piece::yes, piece::no;
+    // What computing the statement at these inputs says of it. `with`
+    // applies its operations.
+    fn observe(s: statement::Statement<Formal>, inputs: List<(String, value::Value)>, by: evidence::Voice, with: impl Applies<value::Operation, value::Value, value::Quantity>) -> Option<evidence::Evidence>
+        uses only value::eval, standard::truth, piece::yes, piece::no;
 
     // formal_is_a_truth
     claim a_number_is_not_a_statement(p: piece::Piece) {
-        !reads(Statement(p, Formal(Literal(1))), []) && reads(Statement(p, Formal(Yes)), [])
+        !reads(Statement(p, Formal(Given(standard::number(1))))) && reads(Statement(p, Formal(Given(standard::yes()))))
     }
 
     // observed_is_evidence
     claim true_says_yes(p: piece::Piece) {
-        match observe(Statement(p, Formal(Yes)), [], Voice("machine:mitra")) {
+        match observe(Statement(p, Formal(Given(standard::yes()))), [], Voice("machine:mitra"), Table([])) {
             None => false,
             Some(e) => e.value == piece::yes() && e.by == Voice("machine:mitra"),
         }
     }
     claim false_says_no(p: piece::Piece) {
-        match observe(Statement(p, Formal(No)), [], Voice("machine:mitra")) {
+        match observe(Statement(p, Formal(Given(standard::no()))), [], Voice("machine:mitra"), Table([])) {
             None => false,
             Some(e) => e.value == piece::no(),
         }
     }
     claim no_value_says_nothing(p: piece::Piece) {
-        observe(Statement(p, Formal(Input("x"))), [], Voice("machine:mitra")) == None
+        observe(Statement(p, Formal(Input("x", standard::truth()))), [], Voice("machine:mitra"), Table([])) == None
     }
     claim about_its_own_piece(s: statement::Statement<Formal>) {
-        match observe(s, [], Voice("machine:mitra")) {
+        match observe(s, [], Voice("machine:mitra"), Table([])) {
             None => true,
             Some(e) => e.about == s.piece,
         }

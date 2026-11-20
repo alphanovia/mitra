@@ -528,3 +528,50 @@ iterated". The core is not touched: 74 tests as before.
 657. Found: the vouching rule kept in the core (648) and this pass do
      the same job in two ways. If voices are kept, 648 is the one to
      drop or to redo on this pattern.
+
+## Increment 107: value as quantities, types and operations (2026-11-20)
+
+**Asked.** "A value is a quantity with a type. Each type are assigned
+operations to transform or convert quantities. An expression is a
+nested chain of operation or expression that can be evaluated?";
+then "let's do the small core and the standard table".
+
+**Done.** `model/value.mitra` and `src/value.rs` rewritten;
+`model/standard.mitra` and `src/standard.rs` new; the seam passes
+what applies operations. 89 tests (74). 37 promises (30), 72 claims
+(57). `mitra conform`: 70 ties agree, the same 5 differ.
+
+**Decided alone.**
+
+658. The core: `Type { name }`, `Quantity` (opaque), `Value { quantity,
+     of }`, `Operation { name, takes, gives }`, `Expression = Given |
+     Input(name, of) | Apply(op, args)`, `check(e)`, `eval(e, inputs,
+     by)`. An input carries its type, so `check` needs no list of
+     inputs.
+659. What applies operations is a contract, `Applies`, given to
+     `eval`. It is declared before the types it speaks of, so it names
+     them as parameters: `Applies<Operation, Value, Quantity>`. Main's
+     reader cannot tie a Rust trait, so the trait carries no tie.
+660. `Quantity` is opaque in the model. In Rust it is a carrier of
+     three shapes (a truth, a whole number, several quantities) that
+     `src/value.rs` never reads; `tests/wall.rs` checks it. A generic
+     carrier would be purer and spreads a type parameter to the seam.
+661. `eval` checks the type of each value an operation is applied to,
+     and gives the result the type the operation says: `typed` holds
+     even on what was not checked.
+662. `==` and `if` are one operation per type (`equal(of)`,
+     `choose(of)`). `if` computes both branches: a branch with no
+     value leaves the `if` with none. Before, the branch not taken
+     was not computed.
+663. A record is a `Shape`: its name is its type, `make(shape)` and
+     `field(shape, place)` are its operations, and a table applies
+     them only for the shapes it was given.
+664. The seam reads `standard` for what a truth is.
+665. Not built: resolving each operation once. Each `Apply` is matched
+     by name and types when evaluated. Measured
+     (`examples/bench.rs`): a million evaluations of a five-operation
+     expression take 0.57 s, 0.33 s before. A type is a name held as
+     text, copied per value; that is most of the difference.
+666. The model cannot yet declare an operation with a body: a model's
+     own operation is a Rust `Applies`. That is where the `operator`
+     keyword would come in.

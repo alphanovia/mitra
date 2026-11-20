@@ -5,7 +5,8 @@
 //! opinion is only moved by evidence.
 
 use crate::model::{no, yes, Evidence, Piece, Statement, Voice};
-use crate::value::{check, eval, Expression, Type, Value};
+use crate::standard::truth;
+use crate::value::{check, eval, Applies, Expression, Quantity, Value};
 
 /// A content that is computed: an expression that gives a truth.
 // mitra: implements claims::Formal
@@ -21,10 +22,10 @@ pub struct Prose {
     pub text: String,
 }
 
-/// The expression gives a truth when its inputs have these types.
+/// The expression gives a truth.
 // mitra: implements claims::reads
-pub fn reads(s: &Statement<Formal>, inputs: &[(String, Type)]) -> bool {
-    check(&s.content.expression, inputs) == Some(Type::OfTruth)
+pub fn reads(s: &Statement<Formal>) -> bool {
+    check(&s.content.expression) == Some(truth())
 }
 
 /// What computing the statement at these inputs says of it: yes where
@@ -32,10 +33,16 @@ pub fn reads(s: &Statement<Formal>, inputs: &[(String, Type)]) -> bool {
 /// evidence is named after the statement, the inputs and the voice, so
 /// the same observation twice is one piece.
 // mitra: implements claims::observe
-pub fn observe(s: &Statement<Formal>, inputs: &[(String, Value)], by: &Voice) -> Option<Evidence> {
-    let value = match eval(&s.content.expression, inputs)? {
-        Value::Truth(true) => yes(),
-        Value::Truth(false) => no(),
+pub fn observe(
+    s: &Statement<Formal>,
+    inputs: &[(String, Value)],
+    by: &Voice,
+    with: &impl Applies,
+) -> Option<Evidence> {
+    let seen = eval(&s.content.expression, inputs, with)?;
+    let value = match (seen.of == truth(), seen.quantity) {
+        (true, Quantity::Truth(true)) => yes(),
+        (true, Quantity::Truth(false)) => no(),
         _ => return None,
     };
     Some(Evidence {
