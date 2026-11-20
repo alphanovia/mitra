@@ -135,7 +135,14 @@ on tests carries a confidence:
 
 With `[policy] holds`, a claim whose confidence is under it reads
 `unverified`, and `mitra next` lists the reviews it is owed. A failing
-test fails its claim whatever the threshold.
+test fails its claim whatever the threshold. What is believed at 0
+says nothing, whatever the threshold: a claim neither holds nor fails
+on it.
+
+At the extremes: a bias of 1 is Mitra with no bias, a passing test
+holds its claim; a bias of 0 is a test that says nothing until
+someone reviews it; a policy of 0 lets anything believed above 0
+hold; a policy of 1 only what is believed at 1.
 
 ```text
 clock::wraps: unverified

@@ -1,369 +1,369 @@
 // Evidence: `mitra add`, `mitra ingest` and `mitra tie` write here, `mitra remove` takes out.
-evidence test { for fingerprint::hash given text = "" gives "cbf29ce48422" act test by "machine:cargo" source "test:t_hash_empty" rev "e8b55fe90aa9" }
-evidence test { for fingerprint::hash given text = "" holds act test by "machine:cargo" source "test:t_hash_empty" rev "e8b55fe90aa9" }
-evidence test { for fingerprint::hash given text = "a" gives "af63dc4c8601" act test by "machine:cargo" source "test:t_hash_a" rev "e8b55fe90aa9" }
-evidence test { for fingerprint::hash given text = "a" holds act test by "machine:cargo" source "test:t_hash_a" rev "e8b55fe90aa9" }
-evidence test { for fingerprint::t_of_the_piece holds act test by "machine:cargo" source "test:t_of_the_piece" rev "e8b55fe90aa9" }
-evidence test { for fingerprint::t_of_what_is_under_it holds act test by "machine:cargo" source "test:t_of_what_is_under_it" rev "e8b55fe90aa9" }
-evidence test { for fingerprint::t_of_nothing holds act test by "machine:cargo" source "test:t_of_nothing" rev "e8b55fe90aa9" }
-evidence test { for t_holds holds act test by "machine:cargo" source "test:t_holds" rev "e8b55fe90aa9" }
-evidence test { for t_assuming holds act test by "machine:cargo" source "test:t_assuming" rev "e8b55fe90aa9" }
-evidence test { for t_unverified holds act test by "machine:cargo" source "test:t_unverified" rev "e8b55fe90aa9" }
-evidence test { for t_fails holds act test by "machine:cargo" source "test:t_fails" rev "e8b55fe90aa9" }
-evidence test { for t_plus holds act test by "machine:cargo" source "test:t_plus" rev "e8b55fe90aa9" }
-evidence test { for t_plus_swapped holds act test by "machine:cargo" source "test:t_plus_swapped" rev "e8b55fe90aa9" }
-evidence test { for t_plus_overflow holds act test by "machine:cargo" source "test:t_plus_overflow" rev "e8b55fe90aa9" }
-evidence test { for t_plus_overflow_swapped holds act test by "machine:cargo" source "test:t_plus_overflow_swapped" rev "e8b55fe90aa9" }
-evidence test { for t_plus_mixed holds act test by "machine:cargo" source "test:t_plus_mixed" rev "e8b55fe90aa9" }
-evidence test { for t_plus_mixed_swapped holds act test by "machine:cargo" source "test:t_plus_mixed_swapped" rev "e8b55fe90aa9" }
-evidence test { for t_plus_floats holds act test by "machine:cargo" source "test:t_plus_floats" rev "e8b55fe90aa9" }
-evidence test { for t_plus_floats_swapped holds act test by "machine:cargo" source "test:t_plus_floats_swapped" rev "e8b55fe90aa9" }
-evidence test { for t_minus holds act test by "machine:cargo" source "test:t_minus" rev "e8b55fe90aa9" }
-evidence test { for t_plus_negated holds act test by "machine:cargo" source "test:t_plus_negated" rev "e8b55fe90aa9" }
-evidence test { for t_times holds act test by "machine:cargo" source "test:t_times" rev "e8b55fe90aa9" }
-evidence test { for t_times_swapped holds act test by "machine:cargo" source "test:t_times_swapped" rev "e8b55fe90aa9" }
-evidence test { for t_divide holds act test by "machine:cargo" source "test:t_divide" rev "e8b55fe90aa9" }
-evidence test { for t_divide_towards_zero holds act test by "machine:cargo" source "test:t_divide_towards_zero" rev "e8b55fe90aa9" }
-evidence test { for t_divide_by_zero holds act test by "machine:cargo" source "test:t_divide_by_zero" rev "e8b55fe90aa9" }
-evidence test { for t_divide_floats holds act test by "machine:cargo" source "test:t_divide_floats" rev "e8b55fe90aa9" }
-evidence test { for t_equal holds act test by "machine:cargo" source "test:t_equal" rev "e8b55fe90aa9" }
-evidence test { for t_different holds act test by "machine:cargo" source "test:t_different" rev "e8b55fe90aa9" }
-evidence test { for t_equal_mixed holds act test by "machine:cargo" source "test:t_equal_mixed" rev "e8b55fe90aa9" }
-evidence test { for t_different_mixed holds act test by "machine:cargo" source "test:t_different_mixed" rev "e8b55fe90aa9" }
-evidence test { for t_less holds act test by "machine:cargo" source "test:t_less" rev "e8b55fe90aa9" }
-evidence test { for t_and holds act test by "machine:cargo" source "test:t_and" rev "e8b55fe90aa9" }
-evidence test { for t_or holds act test by "machine:cargo" source "test:t_or" rev "e8b55fe90aa9" }
-evidence test { for t_unknown_operator holds act test by "machine:cargo" source "test:t_unknown_operator" rev "e8b55fe90aa9" }
-evidence test { for t_not_true holds act test by "machine:cargo" source "test:t_not_true" rev "e8b55fe90aa9" }
-evidence test { for t_not_false holds act test by "machine:cargo" source "test:t_not_false" rev "e8b55fe90aa9" }
-evidence test { for t_negate holds act test by "machine:cargo" source "test:t_negate" rev "e8b55fe90aa9" }
-evidence test { for t_negate_back holds act test by "machine:cargo" source "test:t_negate_back" rev "e8b55fe90aa9" }
-evidence test { for t_negate_float holds act test by "machine:cargo" source "test:t_negate_float" rev "e8b55fe90aa9" }
-evidence test { for t_negate_string holds act test by "machine:cargo" source "test:t_negate_string" rev "e8b55fe90aa9" }
-evidence test { for t_in_set holds act test by "machine:cargo" source "test:t_in_set" rev "e8b55fe90aa9" }
-evidence test { for t_in_list holds act test by "machine:cargo" source "test:t_in_list" rev "e8b55fe90aa9" }
-evidence test { for t_in_map holds act test by "machine:cargo" source "test:t_in_map" rev "e8b55fe90aa9" }
-evidence test { for t_in_number holds act test by "machine:cargo" source "test:t_in_number" rev "e8b55fe90aa9" }
-evidence test { for t_union holds act test by "machine:cargo" source "test:t_union" rev "e8b55fe90aa9" }
-evidence test { for t_union_swapped holds act test by "machine:cargo" source "test:t_union_swapped" rev "e8b55fe90aa9" }
-evidence test { for t_intersection holds act test by "machine:cargo" source "test:t_intersection" rev "e8b55fe90aa9" }
-evidence test { for t_apart holds act test by "machine:cargo" source "test:t_apart" rev "e8b55fe90aa9" }
-evidence test { for t_difference holds act test by "machine:cargo" source "test:t_difference" rev "e8b55fe90aa9" }
-evidence test { for t_map_update holds act test by "machine:cargo" source "test:t_map_update" rev "e8b55fe90aa9" }
-evidence test { for t_map_remove holds act test by "machine:cargo" source "test:t_map_remove" rev "e8b55fe90aa9" }
-evidence test { for t_set_with_map holds act test by "machine:cargo" source "test:t_set_with_map" rev "e8b55fe90aa9" }
-evidence test { for t_keys holds act test by "machine:cargo" source "test:t_keys" rev "e8b55fe90aa9" }
-evidence test { for t_keys_of_a_set holds act test by "machine:cargo" source "test:t_keys_of_a_set" rev "e8b55fe90aa9" }
-evidence test { for eval::twice_negated given v in -100..=100 sampled 201 by "machine:cargo" source "test:twice_negated" rev "e8b55fe90aa9" }
-evidence test { for eval::plus_commutes given x in -12..=12, y in -12..=12 sampled 625 by "machine:cargo" source "test:plus_commutes" rev "e8b55fe90aa9" }
-evidence test { for eval::times_commutes given x in -12..=12, y in -12..=12 sampled 625 by "machine:cargo" source "test:times_commutes" rev "e8b55fe90aa9" }
-evidence test { for eval::minus_is_plus_negated given x in -12..=12, y in -12..=12 sampled 625 by "machine:cargo" source "test:minus_is_plus_negated" rev "e8b55fe90aa9" }
-evidence test { for eval::different_is_not_equal given x in -5..=5 | {true, "a"}, y in -5..=5 | {true, "a"} sampled 169 by "machine:cargo" source "test:different_is_not_equal" rev "e8b55fe90aa9" }
-evidence test { for eval::union_commutes given x in {{}, {1}, {1, 2}, {2, 3}}, y in {{}, {1}, {1, 2}, {2, 3}} sampled 16 by "machine:cargo" source "test:union_commutes" rev "e8b55fe90aa9" }
-evidence test { for eval::difference_apart given x in {{}, {1}, {1, 2}, {2, 3}}, y in {{}, {1}, {1, 2}, {2, 3}} sampled 16 by "machine:cargo" source "test:difference_apart" rev "e8b55fe90aa9" }
-evidence test { for eval::divides_back given x in -12..=12, y in -12..=12 \ {0} sampled 600 by "machine:cargo" source "test:divides_back" rev "e8b55fe90aa9" }
-evidence test { for t_short_path holds act test by "machine:cargo" source "test:t_short_path" rev "e8b55fe90aa9" }
-evidence test { for t_short_plain holds act test by "machine:cargo" source "test:t_short_plain" rev "e8b55fe90aa9" }
-evidence test { for t_short_should_panic holds act test by "machine:cargo" source "test:t_short_should_panic" rev "e8b55fe90aa9" }
-evidence test { for t_short_panics_once holds act test by "machine:cargo" source "test:t_short_panics_once" rev "e8b55fe90aa9" }
-evidence test { for t_attr_double holds act test by "machine:cargo" source "test:t_attr_double" rev "e8b55fe90aa9" }
-evidence test { for t_attr_single holds act test by "machine:cargo" source "test:t_attr_single" rev "e8b55fe90aa9" }
-evidence test { for t_attr_missing holds act test by "machine:cargo" source "test:t_attr_missing" rev "e8b55fe90aa9" }
-evidence test { for t_attr_inside_another holds act test by "machine:cargo" source "test:t_attr_inside_another" rev "e8b55fe90aa9" }
-evidence test { for t_attr_entities holds act test by "machine:cargo" source "test:t_attr_entities" rev "e8b55fe90aa9" }
-evidence test { for t_strip_one holds act test by "machine:cargo" source "test:t_strip_one" rev "e8b55fe90aa9" }
-evidence test { for t_strip_unclosed holds act test by "machine:cargo" source "test:t_strip_unclosed" rev "e8b55fe90aa9" }
-evidence test { for t_strip_nothing holds act test by "machine:cargo" source "test:t_strip_nothing" rev "e8b55fe90aa9" }
-evidence test { for t_junit_passed holds act test by "machine:cargo" source "test:t_junit_passed" rev "e8b55fe90aa9" }
-evidence test { for t_junit_failure holds act test by "machine:cargo" source "test:t_junit_failure" rev "e8b55fe90aa9" }
-evidence test { for t_junit_error holds act test by "machine:cargo" source "test:t_junit_error" rev "e8b55fe90aa9" }
-evidence test { for t_junit_skipped holds act test by "machine:cargo" source "test:t_junit_skipped" rev "e8b55fe90aa9" }
-evidence test { for t_junit_failure_in_a_log holds act test by "machine:cargo" source "test:t_junit_failure_in_a_log" rev "e8b55fe90aa9" }
-evidence test { for t_junit_path holds act test by "machine:cargo" source "test:t_junit_path" rev "e8b55fe90aa9" }
-evidence test { for results::short_once given path in {"", "t", "a::t", "a::b::t", "a::t - should panic", " a::t "} sampled 6 by "machine:cargo" source "test:short_once" rev "e8b55fe90aa9" }
-evidence test { for ledger::t_entries_one holds act test by "machine:cargo" source "test:t_entries_one" rev "e8b55fe90aa9" }
-evidence test { for ledger::t_entries_label_is_the_source holds act test by "machine:cargo" source "test:t_entries_label_is_the_source" rev "e8b55fe90aa9" }
-evidence test { for ledger::t_entries_none holds act test by "machine:cargo" source "test:t_entries_none" rev "e8b55fe90aa9" }
-evidence test { for reader::reads_a_subject holds act test by "machine:cargo" source "test:reads_a_subject" rev "e8b55fe90aa9" }
-evidence test { for reader::refuses_a_bare_fn holds act test by "machine:cargo" source "test:refuses_a_bare_fn" rev "e8b55fe90aa9" }
-evidence test { for reader::fault_is_placed sampled 13 by "machine:cargo" source "test:fault_is_placed" rev "e8b55fe90aa9" }
-evidence test { for t_level_or holds act test by "machine:cargo" source "test:t_level_or" rev "e8b55fe90aa9" }
-evidence test { for t_level_and holds act test by "machine:cargo" source "test:t_level_and" rev "e8b55fe90aa9" }
-evidence test { for t_level_compare holds act test by "machine:cargo" source "test:t_level_compare" rev "e8b55fe90aa9" }
-evidence test { for t_level_sum holds act test by "machine:cargo" source "test:t_level_sum" rev "e8b55fe90aa9" }
-evidence test { for t_level_union holds act test by "machine:cargo" source "test:t_level_union" rev "e8b55fe90aa9" }
-evidence test { for t_level_intersection holds act test by "machine:cargo" source "test:t_level_intersection" rev "e8b55fe90aa9" }
-evidence test { for t_level_in holds act test by "machine:cargo" source "test:t_level_in" rev "e8b55fe90aa9" }
-evidence test { for t_level_product holds act test by "machine:cargo" source "test:t_level_product" rev "e8b55fe90aa9" }
-evidence test { for t_negative_int holds act test by "machine:cargo" source "test:t_negative_int" rev "e8b55fe90aa9" }
-evidence test { for t_negative_zero holds act test by "machine:cargo" source "test:t_negative_zero" rev "e8b55fe90aa9" }
-evidence test { for t_negative_float holds act test by "machine:cargo" source "test:t_negative_float" rev "e8b55fe90aa9" }
-evidence test { for t_negative_string holds act test by "machine:cargo" source "test:t_negative_string" rev "e8b55fe90aa9" }
-evidence test { for print::negative_ints given v in -100..=100 sampled 201 by "machine:cargo" source "test:negative_ints" rev "e8b55fe90aa9" }
-evidence test { for t_word_certain holds act test by "machine:cargo" source "test:t_word_certain" rev "e8b55fe90aa9" }
-evidence test { for t_word_likely holds act test by "machine:cargo" source "test:t_word_likely" rev "e8b55fe90aa9" }
-evidence test { for t_word_possible holds act test by "machine:cargo" source "test:t_word_possible" rev "e8b55fe90aa9" }
-evidence test { for t_word_unlikely holds act test by "machine:cargo" source "test:t_word_unlikely" rev "e8b55fe90aa9" }
-evidence test { for settings::absent_is_default holds act test by "machine:cargo" source "test:absent_is_default" rev "e8b55fe90aa9" }
-evidence test { for settings::file_is_read holds act test by "machine:cargo" source "test:file_is_read" rev "e8b55fe90aa9" }
-evidence test { for settings::unknown_setting_is_refused holds act test by "machine:cargo" source "test:unknown_setting_is_refused" rev "e8b55fe90aa9" }
-evidence test { for settings::sample_grows_less holds act test by "machine:cargo" source "test:sample_grows_less" rev "e8b55fe90aa9" }
-evidence test { for settings::strength_is_a_product holds act test by "machine:cargo" source "test:strength_is_a_product" rev "e8b55fe90aa9" }
-evidence test { for settings::written_is_read_back holds act test by "machine:cargo" source "test:written_is_read_back" rev "e8b55fe90aa9" }
-evidence test { for t_quote_plain holds act test by "machine:cargo" source "test:t_quote_plain" rev "e8b55fe90aa9" }
-evidence test { for t_quote_empty holds act test by "machine:cargo" source "test:t_quote_empty" rev "e8b55fe90aa9" }
-evidence test { for t_quote_escapes holds act test by "machine:cargo" source "test:t_quote_escapes" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [None, Some(0.8)], clauses = [[0, 1]] holds act test by "machine:cargo" source "test:code_against_one_failure" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [Some(0.9), Some(0.99), Some(0.8)], clauses = [[0, 1, 2]] holds act test by "machine:cargo" source "test:three_pieces_in_conflict" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [Some(0.3), Some(1.0), None, Some(0.0)], clauses = [] holds act test by "machine:cargo" source "test:no_clause_no_belief" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [Some(0.0), Some(0.6), Some(0.7)], clauses = [[0, 1, 2]] holds act test by "machine:cargo" source "test:distrust_shows" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [None, Some(1.0)], clauses = [[0, 1]] gives Ok(Ranking([1.0, 0.0], [1.0, 0.0], 0.0, 0)) act test by "machine:cargo" source "test:full_trust" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [None, Some(1.0)], clauses = [[0, 1]] holds act test by "machine:cargo" source "test:full_trust" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [Some(1.0), Some(0.1), Some(1.0), Some(1.0)], clauses = [[0, 1, 3], [0, 2, 3]] holds act test by "machine:cargo" source "test:a_tie_beside_a_distrusted_piece" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [None, Some(0.5), Some(0.5)], clauses = [[0, 1]] holds act test by "machine:cargo" source "test:outside_every_clause" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [None, Some(0.8), Some(0.8)], clauses = [[0, 1], [0, 2]] holds act test by "machine:cargo" source "test:two_failures_agree" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [Some(1.5)], clauses = [] gives Err(Invalid) act test by "machine:cargo" source "test:rejects_bias_above_one" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [Some(1.5)], clauses = [] holds act test by "machine:cargo" source "test:rejects_bias_above_one" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [Some(0.5)], clauses = [[3]] gives Err(Invalid) act test by "machine:cargo" source "test:rejects_unknown_piece" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank given biases = [Some(0.5)], clauses = [[3]] holds act test by "machine:cargo" source "test:rejects_unknown_piece" rev "e8b55fe90aa9" }
-evidence test { for culprits::rank_shape given biases in {[], [None], [Some(0.5)], [None, Some(0.8)], [Some(1.0), Some(1.0)], [Some(0.0), Some(0.6), Some(0.7)]}, clauses in {[], [[0]], [[0, 1]], [[0, 1], [1, 2]]} sampled 24 by "machine:cargo" source "test:rank_shape" rev "e8b55fe90aa9" }
-evidence test { for culprits::no_clause_no_belief given biases in {[], [None], [Some(0.5)], [None, Some(0.8)], [Some(1.0), Some(1.0)], [Some(0.0), Some(0.6), Some(0.7)]}, clauses in {[]} sampled 6 by "machine:cargo" source "test:no_clause_no_belief_on_any" rev "e8b55fe90aa9" }
-evidence test { for contracts::implementer_is_given_the_contract holds act test by "machine:cargo" source "test:implementer_is_given_the_contract" rev "e8b55fe90aa9" }
-evidence test { for contracts::unfilled_is_assumed holds act test by "machine:cargo" source "test:unfilled_is_assumed" rev "e8b55fe90aa9" }
-evidence test { for contracts::contract_is_neither_built_nor_bought holds act test by "machine:cargo" source "test:contract_is_neither_built_nor_bought" rev "e8b55fe90aa9" }
-evidence test { for contracts::bound_is_kept_by_input holds act test by "machine:cargo" source "test:bound_is_kept_by_input" rev "e8b55fe90aa9" }
-evidence test { for contracts::parameter_is_opaque holds act test by "machine:cargo" source "test:parameter_is_opaque" rev "e8b55fe90aa9" }
-evidence test { for types::good_is_read holds act test by "machine:cargo" source "test:good_is_read" rev "e8b55fe90aa9" }
-evidence test { for types::unknown_is_refused holds act test by "machine:cargo" source "test:unknown_is_refused" rev "e8b55fe90aa9" }
-evidence test { for types::twice_is_refused holds act test by "machine:cargo" source "test:twice_is_refused" rev "e8b55fe90aa9" }
-evidence test { for types::arity_is_refused holds act test by "machine:cargo" source "test:arity_is_refused" rev "e8b55fe90aa9" }
-evidence test { for types::endless_is_refused holds act test by "machine:cargo" source "test:endless_is_refused" rev "e8b55fe90aa9" }
-evidence test { for verdicts::untested_is_unverified holds act test by "machine:cargo" source "test:untested_is_unverified" rev "e8b55fe90aa9" }
-evidence test { for verdicts::tested_holds holds act test by "machine:cargo" source "test:tested_holds" rev "e8b55fe90aa9" }
-evidence test { for verdicts::refuted_fails holds act test by "machine:cargo" source "test:refuted_fails" rev "e8b55fe90aa9" }
-evidence test { for verdicts::trust_changes_no_verdict holds act test by "machine:cargo" source "test:trust_changes_no_verdict" rev "e8b55fe90aa9" }
-evidence test { for verdicts::conflict_counts_for_neither holds act test by "machine:cargo" source "test:conflict_counts_for_neither" rev "e8b55fe90aa9" }
-evidence test { for verdicts::follows_from_a_vouched_claim holds act test by "machine:cargo" source "test:follows_from_a_vouched_claim" rev "e8b55fe90aa9" }
-evidence test { for verdicts::one_verdict_each sampled 50 by "machine:cargo" source "test:one_verdict_each" rev "e8b55fe90aa9" }
-evidence test { for model::nothing_written_nothing_held holds act test by "machine:cargo" source "test:nothing_written_nothing_held" rev "e8b55fe90aa9" }
-evidence test { for model::world_is_listed holds act test by "machine:cargo" source "test:world_is_listed" rev "e8b55fe90aa9" }
-evidence test { for model::blocks_are_listed holds act test by "machine:cargo" source "test:blocks_are_listed" rev "e8b55fe90aa9" }
-evidence test { for model::a_block_written_twice_is_one holds act test by "machine:cargo" source "test:a_block_written_twice_is_one" rev "e8b55fe90aa9" }
-evidence test { for functions::code_is_claimed_correct holds act test by "machine:cargo" source "test:code_is_claimed_correct" rev "e8b55fe90aa9" }
-evidence test { for functions::spec_replaces_correct holds act test by "machine:cargo" source "test:spec_replaces_correct" rev "e8b55fe90aa9" }
-evidence test { for functions::helper_claims_nothing holds act test by "machine:cargo" source "test:helper_claims_nothing" rev "e8b55fe90aa9" }
-evidence test { for functions::world_claims_nothing holds act test by "machine:cargo" source "test:world_claims_nothing" rev "e8b55fe90aa9" }
-evidence test { for claims::written_claim_is_named holds act test by "machine:cargo" source "test:written_claim_is_named" rev "e8b55fe90aa9" }
-evidence test { for claims::assume_is_named_and_assumed holds act test by "machine:cargo" source "test:assume_is_named_and_assumed" rev "e8b55fe90aa9" }
-evidence test { for claims::uses_is_named holds act test by "machine:cargo" source "test:uses_is_named" rev "e8b55fe90aa9" }
-evidence test { for claims::uses_is_read_from_a_body holds act test by "machine:cargo" source "test:uses_is_read_from_a_body" rev "e8b55fe90aa9" }
-evidence test { for claims::tie_is_named_once_evidence_names_it holds act test by "machine:cargo" source "test:tie_is_named_once_evidence_names_it" rev "e8b55fe90aa9" }
-evidence test { for claims::trust_is_kept holds act test by "machine:cargo" source "test:trust_is_kept" rev "e8b55fe90aa9" }
-evidence test { for intent::promise_lists_its_claims holds act test by "machine:cargo" source "test:promise_lists_its_claims" rev "e8b55fe90aa9" }
-evidence test { for intent::capture_is_unverified_until_vouched holds act test by "machine:cargo" source "test:capture_is_unverified_until_vouched" rev "e8b55fe90aa9" }
-evidence test { for intent::need_names_its_promise holds act test by "machine:cargo" source "test:need_names_its_promise" rev "e8b55fe90aa9" }
-evidence test { for intent::world_promise_is_assumed holds act test by "machine:cargo" source "test:world_promise_is_assumed" rev "e8b55fe90aa9" }
-evidence test { for ledger::source_rev_and_trust_are_kept holds act test by "machine:cargo" source "test:source_rev_and_trust_are_kept" rev "e8b55fe90aa9" }
-evidence test { for ledger::pinned_keeps_the_output holds act test by "machine:cargo" source "test:pinned_keeps_the_output" rev "e8b55fe90aa9" }
-evidence test { for ledger::pinned_output_refutes_a_claim holds act test by "machine:cargo" source "test:pinned_output_refutes_a_claim" rev "e8b55fe90aa9" }
-evidence test { for ledger::vouched_holds holds act test by "machine:cargo" source "test:vouched_holds" rev "e8b55fe90aa9" }
-evidence test { for ledger::passes_stays_unverified holds act test by "machine:cargo" source "test:passes_stays_unverified" rev "e8b55fe90aa9" }
-evidence test { for ledger::sample_stays_unverified holds act test by "machine:cargo" source "test:sample_stays_unverified" rev "e8b55fe90aa9" }
-evidence test { for ledger::part_sample_stays_unverified holds act test by "machine:cargo" source "test:part_sample_stays_unverified" rev "e8b55fe90aa9" }
-evidence test { for ledger::failing_sample_fails holds act test by "machine:cargo" source "test:failing_sample_fails" rev "e8b55fe90aa9" }
-evidence test { for modules::unknown_module_is_refused holds act test by "machine:cargo" source "test:unknown_module_is_refused" rev "e8b55fe90aa9" }
-evidence test { for modules::line_is_placed holds act test by "machine:cargo" source "test:line_is_placed" rev "e8b55fe90aa9" }
-evidence test { for verdicts::same_report sampled 8 by "machine:cargo" source "test:same_report" rev "e8b55fe90aa9" }
-evidence test { for modules::one_text_is_read_as_it_is holds act test by "machine:cargo" source "test:one_text_is_read_as_it_is" rev "e8b55fe90aa9" }
-evidence test { for modules::imports_are_listed holds act test by "machine:cargo" source "test:imports_are_listed" rev "e8b55fe90aa9" }
-evidence test { for modules::an_import_is_listed_once holds act test by "machine:cargo" source "test:an_import_is_listed_once" rev "e8b55fe90aa9" }
-evidence test { for modules::fault_is_located holds act test by "machine:cargo" source "test:fault_is_located" rev "e8b55fe90aa9" }
-evidence test { for results::unpinned_pass_only_passes holds act test by "machine:cargo" source "test:unpinned_pass_only_passes" rev "e8b55fe90aa9" }
-evidence test { for results::pass_on_a_point_holds holds act test by "machine:cargo" source "test:pass_on_a_point_holds" rev "e8b55fe90aa9" }
-evidence test { for results::pinned_pass_is_written_as_it_stands holds act test by "machine:cargo" source "test:pinned_pass_is_written_as_it_stands" rev "e8b55fe90aa9" }
-evidence test { for results::sample_keeps_its_count holds act test by "machine:cargo" source "test:sample_keeps_its_count" rev "e8b55fe90aa9" }
-evidence test { for results::pinned_failure_denies_the_pin holds act test by "machine:cargo" source "test:pinned_failure_denies_the_pin" rev "e8b55fe90aa9" }
-evidence test { for results::unpinned_failure_fails_the_claim holds act test by "machine:cargo" source "test:unpinned_failure_fails_the_claim" rev "e8b55fe90aa9" }
-evidence test { for results::failing_sample_says_fails holds act test by "machine:cargo" source "test:failing_sample_says_fails" rev "e8b55fe90aa9" }
-evidence test { for ledger::orphan_is_set_aside holds act test by "machine:cargo" source "test:orphan_is_set_aside" rev "e8b55fe90aa9" }
-evidence test { for ledger::stale_is_set_aside holds act test by "machine:cargo" source "test:stale_is_set_aside" rev "e8b55fe90aa9" }
-evidence test { for ledger::seen_as_it_is_judges holds act test by "machine:cargo" source "test:seen_as_it_is_judges" rev "e8b55fe90aa9" }
-evidence test { for fingerprint::writing_does_not_count holds act test by "machine:cargo" source "test:writing_does_not_count" rev "e8b55fe90aa9" }
-evidence test { for fingerprint::another_claim_counts holds act test by "machine:cargo" source "test:another_claim_counts" rev "e8b55fe90aa9" }
-evidence test { for fingerprint::a_new_claim_changes_the_capture holds act test by "machine:cargo" source "test:a_new_claim_changes_the_capture" rev "e8b55fe90aa9" }
-evidence test { for build::implied_pieces_are_listed holds act test by "machine:cargo" source "test:implied_pieces_are_listed" rev "e8b55fe90aa9" }
-evidence test { for build::a_promise_lists_what_it_rests_on holds act test by "machine:cargo" source "test:a_promise_lists_what_it_rests_on" rev "e8b55fe90aa9" }
-evidence test { for build::writing_does_not_change_the_build holds act test by "machine:cargo" source "test:writing_does_not_change_the_build" rev "e8b55fe90aa9" }
-evidence test { for build::another_type_changes_the_build holds act test by "machine:cargo" source "test:another_type_changes_the_build" rev "e8b55fe90aa9" }
-evidence test { for build::the_world_is_not_in_the_interface holds act test by "machine:cargo" source "test:the_world_is_not_in_the_interface" rev "e8b55fe90aa9" }
-evidence test { for levels::a_capture_is_a_person_s holds act test by "machine:cargo" source "test:a_capture_is_a_person_s" rev "e8b55fe90aa9" }
-evidence test { for modules::bought_not_built holds act test by "machine:cargo" source "test:a_block_of_another_store_is_a_boundary" rev "e8b55fe90aa9" }
-evidence test { for modules::a_contract_is_brought holds act test by "machine:cargo" source "test:a_contract_of_another_store_is_brought" rev "e8b55fe90aa9" }
-evidence test { for voices::voices_apart holds act test by "machine:cargo" source "test:voices_apart" rev "e8b55fe90aa9" }
-evidence test { for ledger::an_act_is_checked_against_its_claim holds act test by "machine:cargo" source "test:an_act_is_checked_against_its_claim" rev "e8b55fe90aa9" }
-evidence test { for voices::machine_is_not_the_author holds act test by "machine:cargo" source "test:machine_is_not_the_author" rev "e8b55fe90aa9" }
-evidence test { for voices::review_of_a_test_is_a_second_voice holds act test by "machine:cargo" source "test:review_of_a_test_is_a_second_voice" rev "e8b55fe90aa9" }
-evidence test { for voices::point_does_not_speak_for_every_input holds act test by "machine:cargo" source "test:point_does_not_speak_for_every_input" rev "e8b55fe90aa9" }
-evidence test { for voices::policy_never_changes_a_verdict holds act test by "machine:cargo" source "test:policy_never_changes_a_verdict" rev "e8b55fe90aa9" }
-evidence test { for voices::promise_is_doubted_as_its_weakest_part holds act test by "machine:cargo" source "test:promise_is_doubted_as_its_weakest_part" rev "e8b55fe90aa9" }
-evidence test { for voices::summary_says_what_a_person_would_lift holds act test by "machine:cargo" source "test:summary_says_what_a_person_would_lift" rev "e8b55fe90aa9" }
-evidence test { for voices::promise_is_doubted_as_its_weakest_part holds act test by "machine:cargo" source "test:a_capture_nobody_vouched_is_full_doubt" rev "e8b55fe90aa9" }
-evidence tie { for levels::Left::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build/levels.rs:11" rev "e8b55fe90aa9" }
-evidence tie { for levels::Diagnosis::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build/levels.rs:54" rev "e8b55fe90aa9" }
-evidence tie { for build::Item::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build.rs:12" rev "e8b55fe90aa9" }
-evidence tie { for build::Built::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build.rs:27" rev "e8b55fe90aa9" }
-evidence tie { for frontend::Found::tied holds act tie by "machine:mitra-rust" source "reader:rust src/frontend.rs:12" rev "e8b55fe90aa9" }
-evidence tie { for ledger::Entry::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/read.rs:11" rev "e8b55fe90aa9" }
-evidence tie { for results::Outcome::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:14" rev "e8b55fe90aa9" }
-evidence tie { for results::Tied::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:26" rev "e8b55fe90aa9" }
-evidence tie { for results::Ingested::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:40" rev "e8b55fe90aa9" }
-evidence tie { for voices::Word::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:11" rev "e8b55fe90aa9" }
-evidence tie { for voices::Support::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:21" rev "e8b55fe90aa9" }
-evidence tie { for reader::Error::tied holds act tie by "machine:mitra-rust" source "reader:rust src/lib.rs:56" rev "e8b55fe90aa9" }
-evidence tie { for types::Input::tied holds act tie by "machine:mitra-rust" source "reader:rust src/lib.rs:81" rev "e8b55fe90aa9" }
-evidence tie { for functions::Expr::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:9" rev "e8b55fe90aa9" }
-evidence tie { for functions::Function::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:103" rev "e8b55fe90aa9" }
-evidence tie { for claims::Target::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:142" rev "e8b55fe90aa9" }
-evidence tie { for claims::Claim::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:186" rev "e8b55fe90aa9" }
-evidence tie { for ledger::Judgment::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:208" rev "e8b55fe90aa9" }
-evidence tie { for ledger::Evidence::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:237" rev "e8b55fe90aa9" }
-evidence tie { for ledger::Why::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:356" rev "e8b55fe90aa9" }
-evidence tie { for ledger::Aside::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:367" rev "e8b55fe90aa9" }
-evidence tie { for model::Model::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:384" rev "e8b55fe90aa9" }
-evidence tie { for model::Bounded::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:457" rev "e8b55fe90aa9" }
-evidence tie { for model::Side::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:472" rev "e8b55fe90aa9" }
-evidence tie { for model::Block::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:483" rev "e8b55fe90aa9" }
-evidence tie { for intent::Ensure::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:521" rev "e8b55fe90aa9" }
-evidence tie { for modules::Handed::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules/read.rs:18" rev "e8b55fe90aa9" }
-evidence tie { for modules::Module::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:12" rev "e8b55fe90aa9" }
-evidence tie { for modules::Modules::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:21" rev "e8b55fe90aa9" }
-evidence tie { for reader::Names::tied holds act tie by "machine:mitra-rust" source "reader:rust src/reader.rs:39" rev "e8b55fe90aa9" }
-evidence tie { for settings::Settings::tied holds trust 0.815 act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:9; erased 4: field(doubt), field(policy), field(bias), field(holds)" rev "e8b55fe90aa9" }
-evidence tie { for culprits::Ranking::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts/culprits.rs:32" rev "e8b55fe90aa9" }
-evidence tie { for culprits::NoRanking::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts/culprits.rs:46" rev "e8b55fe90aa9" }
-evidence tie { for verdicts::Logic::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:31" rev "e8b55fe90aa9" }
-evidence tie { for verdicts::Verdict::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:82" rev "e8b55fe90aa9" }
-evidence tie { for report::Piece::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:252" rev "e8b55fe90aa9" }
-evidence tie { for report::Candidate::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:296" rev "e8b55fe90aa9" }
-evidence tie { for verdicts::Problem::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:313" rev "e8b55fe90aa9" }
-evidence tie { for verdicts::Report::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:390" rev "e8b55fe90aa9" }
-evidence tie { for fingerprint::hash::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build/fingerprint.rs:11; erased 1: reference(text)" rev "e8b55fe90aa9" }
-evidence tie { for fingerprint::all::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/build/fingerprint.rs:90; erased 3: reference(m), any(m: &Model), width" rev "e8b55fe90aa9" }
-evidence tie { for fingerprint::of::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build/fingerprint.rs:97; erased 3: reference(prints), reference(name), reference(result)" rev "e8b55fe90aa9" }
-evidence tie { for levels::left::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/build/levels.rs:23; erased 5: reference(model), any(model: &Model), reference(report), any(report: &Report), width" rev "e8b55fe90aa9" }
-evidence tie { for levels::left::uses holds act tie by "machine:mitra-rust" source "reader:rust src/build/levels.rs:23" rev "e8b55fe90aa9" }
-evidence tie { for build::build::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/build.rs:38; erased 3: reference(m), any(m: &Model), width" rev "e8b55fe90aa9" }
-evidence tie { for build::build::uses holds act tie by "machine:mitra-rust" source "reader:rust src/build.rs:38" rev "e8b55fe90aa9" }
-evidence tie { for build::Built::lock::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build.rs:124" rev "e8b55fe90aa9" }
-evidence tie { for build::Built::count::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/build.rs:130; erased 2: reference(kind), range(result: 0.. for usize)" rev "e8b55fe90aa9" }
-evidence tie { for build::interface::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/build.rs:139; erased 3: reference(m), any(m: &Model), width" rev "e8b55fe90aa9" }
-evidence tie { for eval::unary::tied holds trust 0.903 act tie by "machine:mitra-rust" source "reader:rust src/eval.rs:744; erased 4: reference(op), reference(v), any(v: &Value), any(result: Option<Value>)" rev "e8b55fe90aa9" }
-evidence tie { for eval::binary::tied holds trust 0.857 act tie by "machine:mitra-rust" source "reader:rust src/eval.rs:759; erased 6: reference(op), reference(x), any(x: &Value), reference(y), any(y: &Value), any(result: Option<Value>)" rev "e8b55fe90aa9" }
-evidence tie { for Reader::results::tied holds act tie by "machine:mitra-rust" source "reader:rust src/frontend.rs:29; erased 1: reference(text)" rev "e8b55fe90aa9" }
-evidence tie { for Reader::tests::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/frontend.rs:33; erased 2: reference(root), any(root: &Place)" rev "e8b55fe90aa9" }
-evidence tie { for Reader::tie::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/frontend.rs:37; erased 6: reference(root), any(root: &Place), reference(model), any(model: &Model), reference(rev), width" rev "e8b55fe90aa9" }
-evidence tie { for Reader::erasures::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/frontend.rs:42; erased 2: reference(result), width" rev "e8b55fe90aa9" }
-evidence tie { for ledger::entries::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/ledger/read.rs:342; erased 2: reference(src), range(result: List<ledger::Entry(String, Option<String>, Option<String>, Option<String>, 0.., 0..)> for Vec<Entry>)" rev "e8b55fe90aa9" }
-evidence tie { for results::from_tests::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:61; erased 6: reference(model), any(model: &Model), reference(tied), reference(outcomes), reference(rev), width" rev "e8b55fe90aa9" }
-evidence tie { for results::signed::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:168; erased 1: reference(pinned)" rev "e8b55fe90aa9" }
-evidence tie { for results::short::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:187; erased 1: reference(path)" rev "e8b55fe90aa9" }
-evidence tie { for results::attr::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:195; erased 2: reference(tag), reference(attr)" rev "e8b55fe90aa9" }
-evidence tie { for results::strip::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:228; erased 3: reference(text), reference(open), reference(close)" rev "e8b55fe90aa9" }
-evidence tie { for results::junit::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:241; erased 1: reference(xml)" rev "e8b55fe90aa9" }
-evidence tie { for results::junit::uses holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:241" rev "e8b55fe90aa9" }
-evidence tie { for voices::word::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:36; erased 3: reference(e), any(e: &Evidence), width" rev "e8b55fe90aa9" }
-evidence tie { for voices::error_rate::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:108; erased 3: reference(settings), reference(w), width" rev "e8b55fe90aa9" }
-evidence tie { for voices::support::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:122; erased 4: reference(model), any(model: &Model), reference(name), width" rev "e8b55fe90aa9" }
-evidence tie { for voices::missing::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:201; erased 4: reference(asked), reference(s), range(voices: 0.. for usize), width" rev "e8b55fe90aa9" }
-evidence tie { for voices::policy_reads::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:230; erased 2: reference(asked), range(result: Result<{()}, String> for Result<(), String>)" rev "e8b55fe90aa9" }
-evidence tie { for voices::summary::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:291; erased 5: reference(model), any(model: &Model), reference(report), any(report: &Report), width" rev "e8b55fe90aa9" }
-evidence tie { for voices::parts::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:281; erased 2: reference(voice), reference(result)" rev "e8b55fe90aa9" }
-evidence tie { for voices::apart::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:292; erased 3: reference(a), reference(b), range(result: 0..=5 for usize)" rev "e8b55fe90aa9" }
-evidence tie { for ledger::Evidence::act::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:318; erased 2: reference(result), width" rev "e8b55fe90aa9" }
-evidence tie { for ledger::Evidence::voice::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:335; erased 2: reference(result), width" rev "e8b55fe90aa9" }
-evidence tie { for ledger::Evidence::by_machine::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:343; erased 1: width" rev "e8b55fe90aa9" }
-evidence tie { for model::Model::block_of::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:501; erased 4: reference(piece), reference(result), any(result: Option<&Block>), width" rev "e8b55fe90aa9" }
-evidence tie { for modules::imports::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules/read.rs:182; erased 1: reference(src)" rev "e8b55fe90aa9" }
-evidence tie { for modules::Modules::alone::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:33; erased 1: reference(text)" rev "e8b55fe90aa9" }
-evidence tie { for modules::Modules::new::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:41" rev "e8b55fe90aa9" }
-evidence tie { for modules::Modules::text::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:70; erased 1: reference(result)" rev "e8b55fe90aa9" }
-evidence tie { for modules::Modules::place::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:76; erased 2: range(line: 0.. for usize), width" rev "e8b55fe90aa9" }
-evidence tie { for modules::Modules::locate::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:86; erased 1: reference(err)" rev "e8b55fe90aa9" }
-evidence tie { for types::load::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/pipeline.rs:11; erased 5: error(result: (Input, Error)), reference(model), reference(evidence), any(result: Result<Model, (Input, Error)>), width" rev "e8b55fe90aa9" }
-evidence tie { for types::load::uses holds act tie by "machine:mitra-rust" source "reader:rust src/pipeline.rs:11" rev "e8b55fe90aa9" }
-evidence tie { for types::load_modules::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/pipeline.rs:18; erased 5: error(result: (Input, Error)), reference(model), reference(evidence), any(result: Result<Model, (Input, Error)>), width" rev "e8b55fe90aa9" }
-evidence tie { for verdicts::run::tied holds trust 0.903 act tie by "machine:mitra-rust" source "reader:rust src/pipeline.rs:374; erased 4: error(result: (Input, Error)), reference(model), reference(evidence), any(result: Result<Report, (Input, Error)>)" rev "e8b55fe90aa9" }
-evidence tie { for verdicts::run::uses holds act tie by "machine:mitra-rust" source "reader:rust src/pipeline.rs:374" rev "e8b55fe90aa9" }
-evidence tie { for reader::model::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/reader.rs:696; erased 4: error(result: Error), reference(src), any(result: Result<(Model, Names), Error>), width" rev "e8b55fe90aa9" }
-evidence tie { for advice::plan::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/report/plan.rs:16; erased 5: reference(model), any(model: &Model), reference(report), any(report: &Report), width" rev "e8b55fe90aa9" }
-evidence tie { for print::negative::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/report/print.rs:116; erased 2: reference(v), any(v: &Value)" rev "e8b55fe90aa9" }
-evidence tie { for print::level::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/report/print.rs:130; erased 2: reference(op), width" rev "e8b55fe90aa9" }
-evidence tie { for report::word::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/report.rs:49; erased 3: reference(c), reference(result), width" rev "e8b55fe90aa9" }
-evidence tie { for settings::Settings::read::tied holds act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:64; erased 1: reference(text)" rev "e8b55fe90aa9" }
-evidence tie { for settings::Settings::read::uses holds act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:64" rev "e8b55fe90aa9" }
-evidence tie { for settings::Settings::sample::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:141; erased 2: range(n: 0.. for u64), width" rev "e8b55fe90aa9" }
-evidence tie { for settings::Settings::doubt::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:147; erased 2: reference(kind), width" rev "e8b55fe90aa9" }
-evidence tie { for settings::Settings::strength::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:155; erased 2: reference(costs), width" rev "e8b55fe90aa9" }
-evidence tie { for settings::Settings::written::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:162; erased 2: reference(profile), width" rev "e8b55fe90aa9" }
-evidence tie { for types::Model::check::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/types/check.rs:109; erased 3: error(result: (Input, Error)), any(result: Result<Model, (Input, Error)>), width" rev "e8b55fe90aa9" }
-evidence tie { for print::quote::tied holds act tie by "machine:mitra-rust" source "reader:rust src/types/set/show.rs:162; erased 1: reference(s)" rev "e8b55fe90aa9" }
-evidence tie { for culprits::rank::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/verdicts/culprits.rs:58; erased 5: error(result: NoRanking), reference(biases), reference(clauses), range(clauses: List<List<0..>> for &[Vec<usize>]), width" rev "e8b55fe90aa9" }
-evidence tie { for verdicts::derive::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/verdicts/prove.rs:477; erased 3: reference(model), any(model: &mut Model), width" rev "e8b55fe90aa9" }
-evidence tie { for report::Logic::as_str::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:45; erased 1: reference(result)" rev "e8b55fe90aa9" }
-evidence tie { for verdicts::evaluate::tied holds trust 0.84 act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:436; erased 5: error(result: (Input, Error)), reference(model), any(model: &Model), any(result: Result<Report, (Input, Error)>), width" rev "e8b55fe90aa9" }
-evidence review { for print::level_uniform holds act review by "agent:anthropic/fable-5.2/01VcLQ3Z" source "review:claude" rev "e8b55fe90aa9" seen "77ea1f59efb7" }
-evidence review { for report::word_uniform holds act review by "agent:anthropic/fable-5.2/01VcLQ3Z" source "review:claude" rev "e8b55fe90aa9" seen "d8fa34330d6d" }
-evidence cold { for results::signed::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "ce20f0807ddd" }
-evidence cold { for results::signed::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "ce20f0807ddd" }
-evidence cold { for results::from_tests::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "59993f3a49b2" }
-evidence cold { for results::from_tests::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "59993f3a49b2" }
-evidence cold { for results::short::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "0d05a71a3173" }
-evidence cold { for results::short::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "0d05a71a3173" }
-evidence cold { for results::attr::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "a27f3c7ef1ac" }
-evidence cold { for results::attr::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "a27f3c7ef1ac" }
-evidence cold { for results::strip::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "4907ee7448f1" }
-evidence cold { for results::strip::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "4907ee7448f1" }
-evidence cold { for results::junit::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "5ff0bd52bf14" }
-evidence cold { for results::junit::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "5ff0bd52bf14" }
-evidence cold { for settings::Settings::read::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "c6fa864d3d7e" }
-evidence cold { for settings::Settings::read::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "c6fa864d3d7e" }
-evidence cold { for settings::Settings::read::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "a7690e7226db" }
-evidence cold { for settings::Settings::read::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "a7690e7226db" }
-evidence cold { for settings::Settings::sample::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "8f9ab81f1552" }
-evidence cold { for settings::Settings::sample::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "8f9ab81f1552" }
-evidence cold { for settings::Settings::strength::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "4fabec1a5a31" }
-evidence cold { for settings::Settings::strength::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "4fabec1a5a31" }
-evidence cold { for settings::Settings::written::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "a2912da4f2a8" }
-evidence cold { for settings::Settings::written::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "a2912da4f2a8" }
-evidence cold { for settings::Settings::doubt::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "2e7ec0c042e2" }
-evidence cold { for settings::Settings::doubt::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "2e7ec0c042e2" }
-evidence cold { for settings::Settings::doubt::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "83b4dcf9c3c1" }
-evidence cold { for settings::Settings::doubt::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "83b4dcf9c3c1" }
-evidence cold { for voices::parts::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "213126c79a71" }
-evidence cold { for voices::parts::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "213126c79a71" }
-evidence cold { for voices::parts::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "dcd5a91ee03d" }
-evidence cold { for voices::parts::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "dcd5a91ee03d" }
-evidence cold { for voices::apart::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "1dcb45d3e283" }
-evidence cold { for voices::apart::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "1dcb45d3e283" }
-evidence cold { for voices::apart::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "21cccb8f28e3" }
-evidence cold { for voices::apart::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "21cccb8f28e3" }
-evidence cold { for voices::word::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "4d73a6390eea" }
-evidence cold { for voices::word::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "4d73a6390eea" }
-evidence cold { for voices::word::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "8ac9567711e0" }
-evidence cold { for voices::word::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "8ac9567711e0" }
-evidence cold { for voices::error_rate::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "8eba33a3428e" }
-evidence cold { for voices::error_rate::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "8eba33a3428e" }
-evidence cold { for voices::error_rate::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "54091d761404" }
-evidence cold { for voices::error_rate::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "54091d761404" }
-evidence cold { for voices::support::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "771171686b94" }
-evidence cold { for voices::support::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "771171686b94" }
-evidence cold { for voices::missing::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "06fa87500ff8" }
-evidence cold { for voices::missing::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "06fa87500ff8" }
-evidence cold { for voices::missing::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "9fcd526a7aa6" }
-evidence cold { for voices::missing::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "9fcd526a7aa6" }
-evidence cold { for voices::policy_reads::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "8c5471f233cf" }
-evidence cold { for voices::policy_reads::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "8c5471f233cf" }
-evidence cold { for voices::policy_reads::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "36fdd40beaef" }
-evidence cold { for voices::policy_reads::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "36fdd40beaef" }
-evidence cold { for voices::summary::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "d1d4e12519b4" }
-evidence cold { for voices::summary::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "e8b55fe90aa9" seen "d1d4e12519b4" }
+evidence test { for fingerprint::hash given text = "" gives "cbf29ce48422" act test by "machine:cargo" source "test:t_hash_empty" rev "20a1023f5741" }
+evidence test { for fingerprint::hash given text = "" holds act test by "machine:cargo" source "test:t_hash_empty" rev "20a1023f5741" }
+evidence test { for fingerprint::hash given text = "a" gives "af63dc4c8601" act test by "machine:cargo" source "test:t_hash_a" rev "20a1023f5741" }
+evidence test { for fingerprint::hash given text = "a" holds act test by "machine:cargo" source "test:t_hash_a" rev "20a1023f5741" }
+evidence test { for fingerprint::t_of_the_piece holds act test by "machine:cargo" source "test:t_of_the_piece" rev "20a1023f5741" }
+evidence test { for fingerprint::t_of_what_is_under_it holds act test by "machine:cargo" source "test:t_of_what_is_under_it" rev "20a1023f5741" }
+evidence test { for fingerprint::t_of_nothing holds act test by "machine:cargo" source "test:t_of_nothing" rev "20a1023f5741" }
+evidence test { for t_holds holds act test by "machine:cargo" source "test:t_holds" rev "20a1023f5741" }
+evidence test { for t_assuming holds act test by "machine:cargo" source "test:t_assuming" rev "20a1023f5741" }
+evidence test { for t_unverified holds act test by "machine:cargo" source "test:t_unverified" rev "20a1023f5741" }
+evidence test { for t_fails holds act test by "machine:cargo" source "test:t_fails" rev "20a1023f5741" }
+evidence test { for t_plus holds act test by "machine:cargo" source "test:t_plus" rev "20a1023f5741" }
+evidence test { for t_plus_swapped holds act test by "machine:cargo" source "test:t_plus_swapped" rev "20a1023f5741" }
+evidence test { for t_plus_overflow holds act test by "machine:cargo" source "test:t_plus_overflow" rev "20a1023f5741" }
+evidence test { for t_plus_overflow_swapped holds act test by "machine:cargo" source "test:t_plus_overflow_swapped" rev "20a1023f5741" }
+evidence test { for t_plus_mixed holds act test by "machine:cargo" source "test:t_plus_mixed" rev "20a1023f5741" }
+evidence test { for t_plus_mixed_swapped holds act test by "machine:cargo" source "test:t_plus_mixed_swapped" rev "20a1023f5741" }
+evidence test { for t_plus_floats holds act test by "machine:cargo" source "test:t_plus_floats" rev "20a1023f5741" }
+evidence test { for t_plus_floats_swapped holds act test by "machine:cargo" source "test:t_plus_floats_swapped" rev "20a1023f5741" }
+evidence test { for t_minus holds act test by "machine:cargo" source "test:t_minus" rev "20a1023f5741" }
+evidence test { for t_plus_negated holds act test by "machine:cargo" source "test:t_plus_negated" rev "20a1023f5741" }
+evidence test { for t_times holds act test by "machine:cargo" source "test:t_times" rev "20a1023f5741" }
+evidence test { for t_times_swapped holds act test by "machine:cargo" source "test:t_times_swapped" rev "20a1023f5741" }
+evidence test { for t_divide holds act test by "machine:cargo" source "test:t_divide" rev "20a1023f5741" }
+evidence test { for t_divide_towards_zero holds act test by "machine:cargo" source "test:t_divide_towards_zero" rev "20a1023f5741" }
+evidence test { for t_divide_by_zero holds act test by "machine:cargo" source "test:t_divide_by_zero" rev "20a1023f5741" }
+evidence test { for t_divide_floats holds act test by "machine:cargo" source "test:t_divide_floats" rev "20a1023f5741" }
+evidence test { for t_equal holds act test by "machine:cargo" source "test:t_equal" rev "20a1023f5741" }
+evidence test { for t_different holds act test by "machine:cargo" source "test:t_different" rev "20a1023f5741" }
+evidence test { for t_equal_mixed holds act test by "machine:cargo" source "test:t_equal_mixed" rev "20a1023f5741" }
+evidence test { for t_different_mixed holds act test by "machine:cargo" source "test:t_different_mixed" rev "20a1023f5741" }
+evidence test { for t_less holds act test by "machine:cargo" source "test:t_less" rev "20a1023f5741" }
+evidence test { for t_and holds act test by "machine:cargo" source "test:t_and" rev "20a1023f5741" }
+evidence test { for t_or holds act test by "machine:cargo" source "test:t_or" rev "20a1023f5741" }
+evidence test { for t_unknown_operator holds act test by "machine:cargo" source "test:t_unknown_operator" rev "20a1023f5741" }
+evidence test { for t_not_true holds act test by "machine:cargo" source "test:t_not_true" rev "20a1023f5741" }
+evidence test { for t_not_false holds act test by "machine:cargo" source "test:t_not_false" rev "20a1023f5741" }
+evidence test { for t_negate holds act test by "machine:cargo" source "test:t_negate" rev "20a1023f5741" }
+evidence test { for t_negate_back holds act test by "machine:cargo" source "test:t_negate_back" rev "20a1023f5741" }
+evidence test { for t_negate_float holds act test by "machine:cargo" source "test:t_negate_float" rev "20a1023f5741" }
+evidence test { for t_negate_string holds act test by "machine:cargo" source "test:t_negate_string" rev "20a1023f5741" }
+evidence test { for t_in_set holds act test by "machine:cargo" source "test:t_in_set" rev "20a1023f5741" }
+evidence test { for t_in_list holds act test by "machine:cargo" source "test:t_in_list" rev "20a1023f5741" }
+evidence test { for t_in_map holds act test by "machine:cargo" source "test:t_in_map" rev "20a1023f5741" }
+evidence test { for t_in_number holds act test by "machine:cargo" source "test:t_in_number" rev "20a1023f5741" }
+evidence test { for t_union holds act test by "machine:cargo" source "test:t_union" rev "20a1023f5741" }
+evidence test { for t_union_swapped holds act test by "machine:cargo" source "test:t_union_swapped" rev "20a1023f5741" }
+evidence test { for t_intersection holds act test by "machine:cargo" source "test:t_intersection" rev "20a1023f5741" }
+evidence test { for t_apart holds act test by "machine:cargo" source "test:t_apart" rev "20a1023f5741" }
+evidence test { for t_difference holds act test by "machine:cargo" source "test:t_difference" rev "20a1023f5741" }
+evidence test { for t_map_update holds act test by "machine:cargo" source "test:t_map_update" rev "20a1023f5741" }
+evidence test { for t_map_remove holds act test by "machine:cargo" source "test:t_map_remove" rev "20a1023f5741" }
+evidence test { for t_set_with_map holds act test by "machine:cargo" source "test:t_set_with_map" rev "20a1023f5741" }
+evidence test { for t_keys holds act test by "machine:cargo" source "test:t_keys" rev "20a1023f5741" }
+evidence test { for t_keys_of_a_set holds act test by "machine:cargo" source "test:t_keys_of_a_set" rev "20a1023f5741" }
+evidence test { for eval::twice_negated given v in -100..=100 sampled 201 by "machine:cargo" source "test:twice_negated" rev "20a1023f5741" }
+evidence test { for eval::plus_commutes given x in -12..=12, y in -12..=12 sampled 625 by "machine:cargo" source "test:plus_commutes" rev "20a1023f5741" }
+evidence test { for eval::times_commutes given x in -12..=12, y in -12..=12 sampled 625 by "machine:cargo" source "test:times_commutes" rev "20a1023f5741" }
+evidence test { for eval::minus_is_plus_negated given x in -12..=12, y in -12..=12 sampled 625 by "machine:cargo" source "test:minus_is_plus_negated" rev "20a1023f5741" }
+evidence test { for eval::different_is_not_equal given x in -5..=5 | {true, "a"}, y in -5..=5 | {true, "a"} sampled 169 by "machine:cargo" source "test:different_is_not_equal" rev "20a1023f5741" }
+evidence test { for eval::union_commutes given x in {{}, {1}, {1, 2}, {2, 3}}, y in {{}, {1}, {1, 2}, {2, 3}} sampled 16 by "machine:cargo" source "test:union_commutes" rev "20a1023f5741" }
+evidence test { for eval::difference_apart given x in {{}, {1}, {1, 2}, {2, 3}}, y in {{}, {1}, {1, 2}, {2, 3}} sampled 16 by "machine:cargo" source "test:difference_apart" rev "20a1023f5741" }
+evidence test { for eval::divides_back given x in -12..=12, y in -12..=12 \ {0} sampled 600 by "machine:cargo" source "test:divides_back" rev "20a1023f5741" }
+evidence test { for t_short_path holds act test by "machine:cargo" source "test:t_short_path" rev "20a1023f5741" }
+evidence test { for t_short_plain holds act test by "machine:cargo" source "test:t_short_plain" rev "20a1023f5741" }
+evidence test { for t_short_should_panic holds act test by "machine:cargo" source "test:t_short_should_panic" rev "20a1023f5741" }
+evidence test { for t_short_panics_once holds act test by "machine:cargo" source "test:t_short_panics_once" rev "20a1023f5741" }
+evidence test { for t_attr_double holds act test by "machine:cargo" source "test:t_attr_double" rev "20a1023f5741" }
+evidence test { for t_attr_single holds act test by "machine:cargo" source "test:t_attr_single" rev "20a1023f5741" }
+evidence test { for t_attr_missing holds act test by "machine:cargo" source "test:t_attr_missing" rev "20a1023f5741" }
+evidence test { for t_attr_inside_another holds act test by "machine:cargo" source "test:t_attr_inside_another" rev "20a1023f5741" }
+evidence test { for t_attr_entities holds act test by "machine:cargo" source "test:t_attr_entities" rev "20a1023f5741" }
+evidence test { for t_strip_one holds act test by "machine:cargo" source "test:t_strip_one" rev "20a1023f5741" }
+evidence test { for t_strip_unclosed holds act test by "machine:cargo" source "test:t_strip_unclosed" rev "20a1023f5741" }
+evidence test { for t_strip_nothing holds act test by "machine:cargo" source "test:t_strip_nothing" rev "20a1023f5741" }
+evidence test { for t_junit_passed holds act test by "machine:cargo" source "test:t_junit_passed" rev "20a1023f5741" }
+evidence test { for t_junit_failure holds act test by "machine:cargo" source "test:t_junit_failure" rev "20a1023f5741" }
+evidence test { for t_junit_error holds act test by "machine:cargo" source "test:t_junit_error" rev "20a1023f5741" }
+evidence test { for t_junit_skipped holds act test by "machine:cargo" source "test:t_junit_skipped" rev "20a1023f5741" }
+evidence test { for t_junit_failure_in_a_log holds act test by "machine:cargo" source "test:t_junit_failure_in_a_log" rev "20a1023f5741" }
+evidence test { for t_junit_path holds act test by "machine:cargo" source "test:t_junit_path" rev "20a1023f5741" }
+evidence test { for results::short_once given path in {"", "t", "a::t", "a::b::t", "a::t - should panic", " a::t "} sampled 6 by "machine:cargo" source "test:short_once" rev "20a1023f5741" }
+evidence test { for ledger::t_entries_one holds act test by "machine:cargo" source "test:t_entries_one" rev "20a1023f5741" }
+evidence test { for ledger::t_entries_label_is_the_source holds act test by "machine:cargo" source "test:t_entries_label_is_the_source" rev "20a1023f5741" }
+evidence test { for ledger::t_entries_none holds act test by "machine:cargo" source "test:t_entries_none" rev "20a1023f5741" }
+evidence test { for reader::reads_a_subject holds act test by "machine:cargo" source "test:reads_a_subject" rev "20a1023f5741" }
+evidence test { for reader::refuses_a_bare_fn holds act test by "machine:cargo" source "test:refuses_a_bare_fn" rev "20a1023f5741" }
+evidence test { for reader::fault_is_placed sampled 13 by "machine:cargo" source "test:fault_is_placed" rev "20a1023f5741" }
+evidence test { for t_level_or holds act test by "machine:cargo" source "test:t_level_or" rev "20a1023f5741" }
+evidence test { for t_level_and holds act test by "machine:cargo" source "test:t_level_and" rev "20a1023f5741" }
+evidence test { for t_level_compare holds act test by "machine:cargo" source "test:t_level_compare" rev "20a1023f5741" }
+evidence test { for t_level_sum holds act test by "machine:cargo" source "test:t_level_sum" rev "20a1023f5741" }
+evidence test { for t_level_union holds act test by "machine:cargo" source "test:t_level_union" rev "20a1023f5741" }
+evidence test { for t_level_intersection holds act test by "machine:cargo" source "test:t_level_intersection" rev "20a1023f5741" }
+evidence test { for t_level_in holds act test by "machine:cargo" source "test:t_level_in" rev "20a1023f5741" }
+evidence test { for t_level_product holds act test by "machine:cargo" source "test:t_level_product" rev "20a1023f5741" }
+evidence test { for t_negative_int holds act test by "machine:cargo" source "test:t_negative_int" rev "20a1023f5741" }
+evidence test { for t_negative_zero holds act test by "machine:cargo" source "test:t_negative_zero" rev "20a1023f5741" }
+evidence test { for t_negative_float holds act test by "machine:cargo" source "test:t_negative_float" rev "20a1023f5741" }
+evidence test { for t_negative_string holds act test by "machine:cargo" source "test:t_negative_string" rev "20a1023f5741" }
+evidence test { for print::negative_ints given v in -100..=100 sampled 201 by "machine:cargo" source "test:negative_ints" rev "20a1023f5741" }
+evidence test { for t_word_certain holds act test by "machine:cargo" source "test:t_word_certain" rev "20a1023f5741" }
+evidence test { for t_word_likely holds act test by "machine:cargo" source "test:t_word_likely" rev "20a1023f5741" }
+evidence test { for t_word_possible holds act test by "machine:cargo" source "test:t_word_possible" rev "20a1023f5741" }
+evidence test { for t_word_unlikely holds act test by "machine:cargo" source "test:t_word_unlikely" rev "20a1023f5741" }
+evidence test { for settings::absent_is_default holds act test by "machine:cargo" source "test:absent_is_default" rev "20a1023f5741" }
+evidence test { for settings::file_is_read holds act test by "machine:cargo" source "test:file_is_read" rev "20a1023f5741" }
+evidence test { for settings::unknown_setting_is_refused holds act test by "machine:cargo" source "test:unknown_setting_is_refused" rev "20a1023f5741" }
+evidence test { for settings::sample_grows_less holds act test by "machine:cargo" source "test:sample_grows_less" rev "20a1023f5741" }
+evidence test { for settings::strength_is_a_product holds act test by "machine:cargo" source "test:strength_is_a_product" rev "20a1023f5741" }
+evidence test { for settings::written_is_read_back holds act test by "machine:cargo" source "test:written_is_read_back" rev "20a1023f5741" }
+evidence test { for t_quote_plain holds act test by "machine:cargo" source "test:t_quote_plain" rev "20a1023f5741" }
+evidence test { for t_quote_empty holds act test by "machine:cargo" source "test:t_quote_empty" rev "20a1023f5741" }
+evidence test { for t_quote_escapes holds act test by "machine:cargo" source "test:t_quote_escapes" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [None, Some(0.8)], clauses = [[0, 1]] holds act test by "machine:cargo" source "test:code_against_one_failure" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [Some(0.9), Some(0.99), Some(0.8)], clauses = [[0, 1, 2]] holds act test by "machine:cargo" source "test:three_pieces_in_conflict" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [Some(0.3), Some(1.0), None, Some(0.0)], clauses = [] holds act test by "machine:cargo" source "test:no_clause_no_belief" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [Some(0.0), Some(0.6), Some(0.7)], clauses = [[0, 1, 2]] holds act test by "machine:cargo" source "test:distrust_shows" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [None, Some(1.0)], clauses = [[0, 1]] gives Ok(Ranking([1.0, 0.0], [1.0, 0.0], 0.0, 0)) act test by "machine:cargo" source "test:full_trust" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [None, Some(1.0)], clauses = [[0, 1]] holds act test by "machine:cargo" source "test:full_trust" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [Some(1.0), Some(0.1), Some(1.0), Some(1.0)], clauses = [[0, 1, 3], [0, 2, 3]] holds act test by "machine:cargo" source "test:a_tie_beside_a_distrusted_piece" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [None, Some(0.5), Some(0.5)], clauses = [[0, 1]] holds act test by "machine:cargo" source "test:outside_every_clause" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [None, Some(0.8), Some(0.8)], clauses = [[0, 1], [0, 2]] holds act test by "machine:cargo" source "test:two_failures_agree" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [Some(1.5)], clauses = [] gives Err(Invalid) act test by "machine:cargo" source "test:rejects_bias_above_one" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [Some(1.5)], clauses = [] holds act test by "machine:cargo" source "test:rejects_bias_above_one" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [Some(0.5)], clauses = [[3]] gives Err(Invalid) act test by "machine:cargo" source "test:rejects_unknown_piece" rev "20a1023f5741" }
+evidence test { for culprits::rank given biases = [Some(0.5)], clauses = [[3]] holds act test by "machine:cargo" source "test:rejects_unknown_piece" rev "20a1023f5741" }
+evidence test { for culprits::rank_shape given biases in {[], [None], [Some(0.5)], [None, Some(0.8)], [Some(1.0), Some(1.0)], [Some(0.0), Some(0.6), Some(0.7)]}, clauses in {[], [[0]], [[0, 1]], [[0, 1], [1, 2]]} sampled 24 by "machine:cargo" source "test:rank_shape" rev "20a1023f5741" }
+evidence test { for culprits::no_clause_no_belief given biases in {[], [None], [Some(0.5)], [None, Some(0.8)], [Some(1.0), Some(1.0)], [Some(0.0), Some(0.6), Some(0.7)]}, clauses in {[]} sampled 6 by "machine:cargo" source "test:no_clause_no_belief_on_any" rev "20a1023f5741" }
+evidence test { for contracts::implementer_is_given_the_contract holds act test by "machine:cargo" source "test:implementer_is_given_the_contract" rev "20a1023f5741" }
+evidence test { for contracts::unfilled_is_assumed holds act test by "machine:cargo" source "test:unfilled_is_assumed" rev "20a1023f5741" }
+evidence test { for contracts::contract_is_neither_built_nor_bought holds act test by "machine:cargo" source "test:contract_is_neither_built_nor_bought" rev "20a1023f5741" }
+evidence test { for contracts::bound_is_kept_by_input holds act test by "machine:cargo" source "test:bound_is_kept_by_input" rev "20a1023f5741" }
+evidence test { for contracts::parameter_is_opaque holds act test by "machine:cargo" source "test:parameter_is_opaque" rev "20a1023f5741" }
+evidence test { for types::good_is_read holds act test by "machine:cargo" source "test:good_is_read" rev "20a1023f5741" }
+evidence test { for types::unknown_is_refused holds act test by "machine:cargo" source "test:unknown_is_refused" rev "20a1023f5741" }
+evidence test { for types::twice_is_refused holds act test by "machine:cargo" source "test:twice_is_refused" rev "20a1023f5741" }
+evidence test { for types::arity_is_refused holds act test by "machine:cargo" source "test:arity_is_refused" rev "20a1023f5741" }
+evidence test { for types::endless_is_refused holds act test by "machine:cargo" source "test:endless_is_refused" rev "20a1023f5741" }
+evidence test { for verdicts::untested_is_unverified holds act test by "machine:cargo" source "test:untested_is_unverified" rev "20a1023f5741" }
+evidence test { for verdicts::tested_holds holds act test by "machine:cargo" source "test:tested_holds" rev "20a1023f5741" }
+evidence test { for verdicts::refuted_fails holds act test by "machine:cargo" source "test:refuted_fails" rev "20a1023f5741" }
+evidence test { for verdicts::trust_changes_no_verdict holds act test by "machine:cargo" source "test:trust_changes_no_verdict" rev "20a1023f5741" }
+evidence test { for verdicts::conflict_counts_for_neither holds act test by "machine:cargo" source "test:conflict_counts_for_neither" rev "20a1023f5741" }
+evidence test { for verdicts::follows_from_a_vouched_claim holds act test by "machine:cargo" source "test:follows_from_a_vouched_claim" rev "20a1023f5741" }
+evidence test { for verdicts::one_verdict_each sampled 50 by "machine:cargo" source "test:one_verdict_each" rev "20a1023f5741" }
+evidence test { for model::nothing_written_nothing_held holds act test by "machine:cargo" source "test:nothing_written_nothing_held" rev "20a1023f5741" }
+evidence test { for model::world_is_listed holds act test by "machine:cargo" source "test:world_is_listed" rev "20a1023f5741" }
+evidence test { for model::blocks_are_listed holds act test by "machine:cargo" source "test:blocks_are_listed" rev "20a1023f5741" }
+evidence test { for model::a_block_written_twice_is_one holds act test by "machine:cargo" source "test:a_block_written_twice_is_one" rev "20a1023f5741" }
+evidence test { for functions::code_is_claimed_correct holds act test by "machine:cargo" source "test:code_is_claimed_correct" rev "20a1023f5741" }
+evidence test { for functions::spec_replaces_correct holds act test by "machine:cargo" source "test:spec_replaces_correct" rev "20a1023f5741" }
+evidence test { for functions::helper_claims_nothing holds act test by "machine:cargo" source "test:helper_claims_nothing" rev "20a1023f5741" }
+evidence test { for functions::world_claims_nothing holds act test by "machine:cargo" source "test:world_claims_nothing" rev "20a1023f5741" }
+evidence test { for claims::written_claim_is_named holds act test by "machine:cargo" source "test:written_claim_is_named" rev "20a1023f5741" }
+evidence test { for claims::assume_is_named_and_assumed holds act test by "machine:cargo" source "test:assume_is_named_and_assumed" rev "20a1023f5741" }
+evidence test { for claims::uses_is_named holds act test by "machine:cargo" source "test:uses_is_named" rev "20a1023f5741" }
+evidence test { for claims::uses_is_read_from_a_body holds act test by "machine:cargo" source "test:uses_is_read_from_a_body" rev "20a1023f5741" }
+evidence test { for claims::tie_is_named_once_evidence_names_it holds act test by "machine:cargo" source "test:tie_is_named_once_evidence_names_it" rev "20a1023f5741" }
+evidence test { for claims::trust_is_kept holds act test by "machine:cargo" source "test:trust_is_kept" rev "20a1023f5741" }
+evidence test { for intent::promise_lists_its_claims holds act test by "machine:cargo" source "test:promise_lists_its_claims" rev "20a1023f5741" }
+evidence test { for intent::capture_is_unverified_until_vouched holds act test by "machine:cargo" source "test:capture_is_unverified_until_vouched" rev "20a1023f5741" }
+evidence test { for intent::need_names_its_promise holds act test by "machine:cargo" source "test:need_names_its_promise" rev "20a1023f5741" }
+evidence test { for intent::world_promise_is_assumed holds act test by "machine:cargo" source "test:world_promise_is_assumed" rev "20a1023f5741" }
+evidence test { for ledger::source_rev_and_trust_are_kept holds act test by "machine:cargo" source "test:source_rev_and_trust_are_kept" rev "20a1023f5741" }
+evidence test { for ledger::pinned_keeps_the_output holds act test by "machine:cargo" source "test:pinned_keeps_the_output" rev "20a1023f5741" }
+evidence test { for ledger::pinned_output_refutes_a_claim holds act test by "machine:cargo" source "test:pinned_output_refutes_a_claim" rev "20a1023f5741" }
+evidence test { for ledger::vouched_holds holds act test by "machine:cargo" source "test:vouched_holds" rev "20a1023f5741" }
+evidence test { for ledger::passes_stays_unverified holds act test by "machine:cargo" source "test:passes_stays_unverified" rev "20a1023f5741" }
+evidence test { for ledger::sample_stays_unverified holds act test by "machine:cargo" source "test:sample_stays_unverified" rev "20a1023f5741" }
+evidence test { for ledger::part_sample_stays_unverified holds act test by "machine:cargo" source "test:part_sample_stays_unverified" rev "20a1023f5741" }
+evidence test { for ledger::failing_sample_fails holds act test by "machine:cargo" source "test:failing_sample_fails" rev "20a1023f5741" }
+evidence test { for modules::unknown_module_is_refused holds act test by "machine:cargo" source "test:unknown_module_is_refused" rev "20a1023f5741" }
+evidence test { for modules::line_is_placed holds act test by "machine:cargo" source "test:line_is_placed" rev "20a1023f5741" }
+evidence test { for verdicts::same_report sampled 8 by "machine:cargo" source "test:same_report" rev "20a1023f5741" }
+evidence test { for modules::one_text_is_read_as_it_is holds act test by "machine:cargo" source "test:one_text_is_read_as_it_is" rev "20a1023f5741" }
+evidence test { for modules::imports_are_listed holds act test by "machine:cargo" source "test:imports_are_listed" rev "20a1023f5741" }
+evidence test { for modules::an_import_is_listed_once holds act test by "machine:cargo" source "test:an_import_is_listed_once" rev "20a1023f5741" }
+evidence test { for modules::fault_is_located holds act test by "machine:cargo" source "test:fault_is_located" rev "20a1023f5741" }
+evidence test { for results::unpinned_pass_only_passes holds act test by "machine:cargo" source "test:unpinned_pass_only_passes" rev "20a1023f5741" }
+evidence test { for results::pass_on_a_point_holds holds act test by "machine:cargo" source "test:pass_on_a_point_holds" rev "20a1023f5741" }
+evidence test { for results::pinned_pass_is_written_as_it_stands holds act test by "machine:cargo" source "test:pinned_pass_is_written_as_it_stands" rev "20a1023f5741" }
+evidence test { for results::sample_keeps_its_count holds act test by "machine:cargo" source "test:sample_keeps_its_count" rev "20a1023f5741" }
+evidence test { for results::pinned_failure_denies_the_pin holds act test by "machine:cargo" source "test:pinned_failure_denies_the_pin" rev "20a1023f5741" }
+evidence test { for results::unpinned_failure_fails_the_claim holds act test by "machine:cargo" source "test:unpinned_failure_fails_the_claim" rev "20a1023f5741" }
+evidence test { for results::failing_sample_says_fails holds act test by "machine:cargo" source "test:failing_sample_says_fails" rev "20a1023f5741" }
+evidence test { for ledger::orphan_is_set_aside holds act test by "machine:cargo" source "test:orphan_is_set_aside" rev "20a1023f5741" }
+evidence test { for ledger::stale_is_set_aside holds act test by "machine:cargo" source "test:stale_is_set_aside" rev "20a1023f5741" }
+evidence test { for ledger::seen_as_it_is_judges holds act test by "machine:cargo" source "test:seen_as_it_is_judges" rev "20a1023f5741" }
+evidence test { for fingerprint::writing_does_not_count holds act test by "machine:cargo" source "test:writing_does_not_count" rev "20a1023f5741" }
+evidence test { for fingerprint::another_claim_counts holds act test by "machine:cargo" source "test:another_claim_counts" rev "20a1023f5741" }
+evidence test { for fingerprint::a_new_claim_changes_the_capture holds act test by "machine:cargo" source "test:a_new_claim_changes_the_capture" rev "20a1023f5741" }
+evidence test { for build::implied_pieces_are_listed holds act test by "machine:cargo" source "test:implied_pieces_are_listed" rev "20a1023f5741" }
+evidence test { for build::a_promise_lists_what_it_rests_on holds act test by "machine:cargo" source "test:a_promise_lists_what_it_rests_on" rev "20a1023f5741" }
+evidence test { for build::writing_does_not_change_the_build holds act test by "machine:cargo" source "test:writing_does_not_change_the_build" rev "20a1023f5741" }
+evidence test { for build::another_type_changes_the_build holds act test by "machine:cargo" source "test:another_type_changes_the_build" rev "20a1023f5741" }
+evidence test { for build::the_world_is_not_in_the_interface holds act test by "machine:cargo" source "test:the_world_is_not_in_the_interface" rev "20a1023f5741" }
+evidence test { for levels::a_capture_is_a_person_s holds act test by "machine:cargo" source "test:a_capture_is_a_person_s" rev "20a1023f5741" }
+evidence test { for modules::bought_not_built holds act test by "machine:cargo" source "test:a_block_of_another_store_is_a_boundary" rev "20a1023f5741" }
+evidence test { for modules::a_contract_is_brought holds act test by "machine:cargo" source "test:a_contract_of_another_store_is_brought" rev "20a1023f5741" }
+evidence test { for voices::voices_apart holds act test by "machine:cargo" source "test:voices_apart" rev "20a1023f5741" }
+evidence test { for ledger::an_act_is_checked_against_its_claim holds act test by "machine:cargo" source "test:an_act_is_checked_against_its_claim" rev "20a1023f5741" }
+evidence test { for voices::machine_is_not_the_author holds act test by "machine:cargo" source "test:machine_is_not_the_author" rev "20a1023f5741" }
+evidence test { for voices::review_of_a_test_is_a_second_voice holds act test by "machine:cargo" source "test:review_of_a_test_is_a_second_voice" rev "20a1023f5741" }
+evidence test { for voices::point_does_not_speak_for_every_input holds act test by "machine:cargo" source "test:point_does_not_speak_for_every_input" rev "20a1023f5741" }
+evidence test { for voices::policy_never_changes_a_verdict holds act test by "machine:cargo" source "test:policy_never_changes_a_verdict" rev "20a1023f5741" }
+evidence test { for voices::promise_is_doubted_as_its_weakest_part holds act test by "machine:cargo" source "test:promise_is_doubted_as_its_weakest_part" rev "20a1023f5741" }
+evidence test { for voices::summary_says_what_a_person_would_lift holds act test by "machine:cargo" source "test:summary_says_what_a_person_would_lift" rev "20a1023f5741" }
+evidence test { for voices::promise_is_doubted_as_its_weakest_part holds act test by "machine:cargo" source "test:a_capture_nobody_vouched_is_full_doubt" rev "20a1023f5741" }
+evidence tie { for levels::Left::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build/levels.rs:11" rev "20a1023f5741" }
+evidence tie { for levels::Diagnosis::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build/levels.rs:54" rev "20a1023f5741" }
+evidence tie { for build::Item::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build.rs:12" rev "20a1023f5741" }
+evidence tie { for build::Built::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build.rs:27" rev "20a1023f5741" }
+evidence tie { for frontend::Found::tied holds act tie by "machine:mitra-rust" source "reader:rust src/frontend.rs:12" rev "20a1023f5741" }
+evidence tie { for ledger::Entry::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/read.rs:11" rev "20a1023f5741" }
+evidence tie { for results::Outcome::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:14" rev "20a1023f5741" }
+evidence tie { for results::Tied::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:26" rev "20a1023f5741" }
+evidence tie { for results::Ingested::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:40" rev "20a1023f5741" }
+evidence tie { for voices::Word::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:11" rev "20a1023f5741" }
+evidence tie { for voices::Support::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:21" rev "20a1023f5741" }
+evidence tie { for reader::Error::tied holds act tie by "machine:mitra-rust" source "reader:rust src/lib.rs:56" rev "20a1023f5741" }
+evidence tie { for types::Input::tied holds act tie by "machine:mitra-rust" source "reader:rust src/lib.rs:81" rev "20a1023f5741" }
+evidence tie { for functions::Expr::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:9" rev "20a1023f5741" }
+evidence tie { for functions::Function::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:103" rev "20a1023f5741" }
+evidence tie { for claims::Target::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:142" rev "20a1023f5741" }
+evidence tie { for claims::Claim::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:186" rev "20a1023f5741" }
+evidence tie { for ledger::Judgment::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:208" rev "20a1023f5741" }
+evidence tie { for ledger::Evidence::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:237" rev "20a1023f5741" }
+evidence tie { for ledger::Why::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:356" rev "20a1023f5741" }
+evidence tie { for ledger::Aside::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:367" rev "20a1023f5741" }
+evidence tie { for model::Model::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:384" rev "20a1023f5741" }
+evidence tie { for model::Bounded::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:457" rev "20a1023f5741" }
+evidence tie { for model::Side::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:472" rev "20a1023f5741" }
+evidence tie { for model::Block::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:483" rev "20a1023f5741" }
+evidence tie { for intent::Ensure::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:521" rev "20a1023f5741" }
+evidence tie { for modules::Handed::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules/read.rs:18" rev "20a1023f5741" }
+evidence tie { for modules::Module::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:12" rev "20a1023f5741" }
+evidence tie { for modules::Modules::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:21" rev "20a1023f5741" }
+evidence tie { for reader::Names::tied holds act tie by "machine:mitra-rust" source "reader:rust src/reader.rs:39" rev "20a1023f5741" }
+evidence tie { for settings::Settings::tied holds trust 0.815 act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:9; erased 4: field(doubt), field(policy), field(bias), field(holds)" rev "20a1023f5741" }
+evidence tie { for culprits::Ranking::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts/culprits.rs:32" rev "20a1023f5741" }
+evidence tie { for culprits::NoRanking::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts/culprits.rs:46" rev "20a1023f5741" }
+evidence tie { for verdicts::Logic::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:31" rev "20a1023f5741" }
+evidence tie { for verdicts::Verdict::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:82" rev "20a1023f5741" }
+evidence tie { for report::Piece::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:254" rev "20a1023f5741" }
+evidence tie { for report::Candidate::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:298" rev "20a1023f5741" }
+evidence tie { for verdicts::Problem::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:315" rev "20a1023f5741" }
+evidence tie { for verdicts::Report::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:392" rev "20a1023f5741" }
+evidence tie { for fingerprint::hash::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build/fingerprint.rs:11; erased 1: reference(text)" rev "20a1023f5741" }
+evidence tie { for fingerprint::all::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/build/fingerprint.rs:90; erased 3: reference(m), any(m: &Model), width" rev "20a1023f5741" }
+evidence tie { for fingerprint::of::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build/fingerprint.rs:97; erased 3: reference(prints), reference(name), reference(result)" rev "20a1023f5741" }
+evidence tie { for levels::left::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/build/levels.rs:23; erased 5: reference(model), any(model: &Model), reference(report), any(report: &Report), width" rev "20a1023f5741" }
+evidence tie { for levels::left::uses holds act tie by "machine:mitra-rust" source "reader:rust src/build/levels.rs:23" rev "20a1023f5741" }
+evidence tie { for build::build::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/build.rs:38; erased 3: reference(m), any(m: &Model), width" rev "20a1023f5741" }
+evidence tie { for build::build::uses holds act tie by "machine:mitra-rust" source "reader:rust src/build.rs:38" rev "20a1023f5741" }
+evidence tie { for build::Built::lock::tied holds act tie by "machine:mitra-rust" source "reader:rust src/build.rs:124" rev "20a1023f5741" }
+evidence tie { for build::Built::count::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/build.rs:130; erased 2: reference(kind), range(result: 0.. for usize)" rev "20a1023f5741" }
+evidence tie { for build::interface::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/build.rs:139; erased 3: reference(m), any(m: &Model), width" rev "20a1023f5741" }
+evidence tie { for eval::unary::tied holds trust 0.903 act tie by "machine:mitra-rust" source "reader:rust src/eval.rs:744; erased 4: reference(op), reference(v), any(v: &Value), any(result: Option<Value>)" rev "20a1023f5741" }
+evidence tie { for eval::binary::tied holds trust 0.857 act tie by "machine:mitra-rust" source "reader:rust src/eval.rs:759; erased 6: reference(op), reference(x), any(x: &Value), reference(y), any(y: &Value), any(result: Option<Value>)" rev "20a1023f5741" }
+evidence tie { for Reader::results::tied holds act tie by "machine:mitra-rust" source "reader:rust src/frontend.rs:29; erased 1: reference(text)" rev "20a1023f5741" }
+evidence tie { for Reader::tests::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/frontend.rs:33; erased 2: reference(root), any(root: &Place)" rev "20a1023f5741" }
+evidence tie { for Reader::tie::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/frontend.rs:37; erased 6: reference(root), any(root: &Place), reference(model), any(model: &Model), reference(rev), width" rev "20a1023f5741" }
+evidence tie { for Reader::erasures::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/frontend.rs:42; erased 2: reference(result), width" rev "20a1023f5741" }
+evidence tie { for ledger::entries::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/ledger/read.rs:342; erased 2: reference(src), range(result: List<ledger::Entry(String, Option<String>, Option<String>, Option<String>, 0.., 0..)> for Vec<Entry>)" rev "20a1023f5741" }
+evidence tie { for results::from_tests::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:61; erased 6: reference(model), any(model: &Model), reference(tied), reference(outcomes), reference(rev), width" rev "20a1023f5741" }
+evidence tie { for results::signed::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:168; erased 1: reference(pinned)" rev "20a1023f5741" }
+evidence tie { for results::short::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:187; erased 1: reference(path)" rev "20a1023f5741" }
+evidence tie { for results::attr::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:195; erased 2: reference(tag), reference(attr)" rev "20a1023f5741" }
+evidence tie { for results::strip::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:228; erased 3: reference(text), reference(open), reference(close)" rev "20a1023f5741" }
+evidence tie { for results::junit::tied holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:241; erased 1: reference(xml)" rev "20a1023f5741" }
+evidence tie { for results::junit::uses holds act tie by "machine:mitra-rust" source "reader:rust src/ledger/results.rs:241" rev "20a1023f5741" }
+evidence tie { for voices::word::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:36; erased 3: reference(e), any(e: &Evidence), width" rev "20a1023f5741" }
+evidence tie { for voices::error_rate::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:108; erased 3: reference(settings), reference(w), width" rev "20a1023f5741" }
+evidence tie { for voices::support::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:122; erased 4: reference(model), any(model: &Model), reference(name), width" rev "20a1023f5741" }
+evidence tie { for voices::missing::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:201; erased 4: reference(asked), reference(s), range(voices: 0.. for usize), width" rev "20a1023f5741" }
+evidence tie { for voices::policy_reads::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:230; erased 2: reference(asked), range(result: Result<{()}, String> for Result<(), String>)" rev "20a1023f5741" }
+evidence tie { for voices::summary::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/ledger/voices.rs:291; erased 5: reference(model), any(model: &Model), reference(report), any(report: &Report), width" rev "20a1023f5741" }
+evidence tie { for voices::parts::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model.rs:281; erased 2: reference(voice), reference(result)" rev "20a1023f5741" }
+evidence tie { for voices::apart::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:292; erased 3: reference(a), reference(b), range(result: 0..=5 for usize)" rev "20a1023f5741" }
+evidence tie { for ledger::Evidence::act::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:318; erased 2: reference(result), width" rev "20a1023f5741" }
+evidence tie { for ledger::Evidence::voice::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:335; erased 2: reference(result), width" rev "20a1023f5741" }
+evidence tie { for ledger::Evidence::by_machine::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:343; erased 1: width" rev "20a1023f5741" }
+evidence tie { for model::Model::block_of::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/model.rs:501; erased 4: reference(piece), reference(result), any(result: Option<&Block>), width" rev "20a1023f5741" }
+evidence tie { for modules::imports::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules/read.rs:182; erased 1: reference(src)" rev "20a1023f5741" }
+evidence tie { for modules::Modules::alone::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:33; erased 1: reference(text)" rev "20a1023f5741" }
+evidence tie { for modules::Modules::new::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:41" rev "20a1023f5741" }
+evidence tie { for modules::Modules::text::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:70; erased 1: reference(result)" rev "20a1023f5741" }
+evidence tie { for modules::Modules::place::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:76; erased 2: range(line: 0.. for usize), width" rev "20a1023f5741" }
+evidence tie { for modules::Modules::locate::tied holds act tie by "machine:mitra-rust" source "reader:rust src/modules.rs:86; erased 1: reference(err)" rev "20a1023f5741" }
+evidence tie { for types::load::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/pipeline.rs:11; erased 5: error(result: (Input, Error)), reference(model), reference(evidence), any(result: Result<Model, (Input, Error)>), width" rev "20a1023f5741" }
+evidence tie { for types::load::uses holds act tie by "machine:mitra-rust" source "reader:rust src/pipeline.rs:11" rev "20a1023f5741" }
+evidence tie { for types::load_modules::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/pipeline.rs:18; erased 5: error(result: (Input, Error)), reference(model), reference(evidence), any(result: Result<Model, (Input, Error)>), width" rev "20a1023f5741" }
+evidence tie { for verdicts::run::tied holds trust 0.903 act tie by "machine:mitra-rust" source "reader:rust src/pipeline.rs:374; erased 4: error(result: (Input, Error)), reference(model), reference(evidence), any(result: Result<Report, (Input, Error)>)" rev "20a1023f5741" }
+evidence tie { for verdicts::run::uses holds act tie by "machine:mitra-rust" source "reader:rust src/pipeline.rs:374" rev "20a1023f5741" }
+evidence tie { for reader::model::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/reader.rs:696; erased 4: error(result: Error), reference(src), any(result: Result<(Model, Names), Error>), width" rev "20a1023f5741" }
+evidence tie { for advice::plan::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/report/plan.rs:16; erased 5: reference(model), any(model: &Model), reference(report), any(report: &Report), width" rev "20a1023f5741" }
+evidence tie { for print::negative::tied holds trust 0.95 act tie by "machine:mitra-rust" source "reader:rust src/report/print.rs:116; erased 2: reference(v), any(v: &Value)" rev "20a1023f5741" }
+evidence tie { for print::level::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/report/print.rs:130; erased 2: reference(op), width" rev "20a1023f5741" }
+evidence tie { for report::word::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/report.rs:49; erased 3: reference(c), reference(result), width" rev "20a1023f5741" }
+evidence tie { for settings::Settings::read::tied holds act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:64; erased 1: reference(text)" rev "20a1023f5741" }
+evidence tie { for settings::Settings::read::uses holds act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:64" rev "20a1023f5741" }
+evidence tie { for settings::Settings::sample::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:141; erased 2: range(n: 0.. for u64), width" rev "20a1023f5741" }
+evidence tie { for settings::Settings::doubt::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:147; erased 2: reference(kind), width" rev "20a1023f5741" }
+evidence tie { for settings::Settings::strength::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:155; erased 2: reference(costs), width" rev "20a1023f5741" }
+evidence tie { for settings::Settings::written::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/settings.rs:162; erased 2: reference(profile), width" rev "20a1023f5741" }
+evidence tie { for types::Model::check::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/types/check.rs:109; erased 3: error(result: (Input, Error)), any(result: Result<Model, (Input, Error)>), width" rev "20a1023f5741" }
+evidence tie { for print::quote::tied holds act tie by "machine:mitra-rust" source "reader:rust src/types/set/show.rs:162; erased 1: reference(s)" rev "20a1023f5741" }
+evidence tie { for culprits::rank::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/verdicts/culprits.rs:58; erased 5: error(result: NoRanking), reference(biases), reference(clauses), range(clauses: List<List<0..>> for &[Vec<usize>]), width" rev "20a1023f5741" }
+evidence tie { for verdicts::derive::tied holds trust 0.931 act tie by "machine:mitra-rust" source "reader:rust src/verdicts/prove.rs:477; erased 3: reference(model), any(model: &mut Model), width" rev "20a1023f5741" }
+evidence tie { for report::Logic::as_str::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:45; erased 1: reference(result)" rev "20a1023f5741" }
+evidence tie { for verdicts::evaluate::tied holds trust 0.84 act tie by "machine:mitra-rust" source "reader:rust src/verdicts.rs:438; erased 5: error(result: (Input, Error)), reference(model), any(model: &Model), any(result: Result<Report, (Input, Error)>), width" rev "20a1023f5741" }
+evidence review { for print::level_uniform holds act review by "agent:anthropic/fable-5.2/01VcLQ3Z" source "review:claude" rev "20a1023f5741" seen "77ea1f59efb7" }
+evidence review { for report::word_uniform holds act review by "agent:anthropic/fable-5.2/01VcLQ3Z" source "review:claude" rev "20a1023f5741" seen "d8fa34330d6d" }
+evidence cold { for results::signed::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "ce20f0807ddd" }
+evidence cold { for results::signed::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "ce20f0807ddd" }
+evidence cold { for results::from_tests::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "59993f3a49b2" }
+evidence cold { for results::from_tests::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "59993f3a49b2" }
+evidence cold { for results::short::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "0d05a71a3173" }
+evidence cold { for results::short::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "0d05a71a3173" }
+evidence cold { for results::attr::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "a27f3c7ef1ac" }
+evidence cold { for results::attr::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "a27f3c7ef1ac" }
+evidence cold { for results::strip::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "4907ee7448f1" }
+evidence cold { for results::strip::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "4907ee7448f1" }
+evidence cold { for results::junit::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "5ff0bd52bf14" }
+evidence cold { for results::junit::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "5ff0bd52bf14" }
+evidence cold { for settings::Settings::read::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "c6fa864d3d7e" }
+evidence cold { for settings::Settings::read::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "c6fa864d3d7e" }
+evidence cold { for settings::Settings::read::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "a7690e7226db" }
+evidence cold { for settings::Settings::read::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "a7690e7226db" }
+evidence cold { for settings::Settings::sample::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "8f9ab81f1552" }
+evidence cold { for settings::Settings::sample::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "8f9ab81f1552" }
+evidence cold { for settings::Settings::strength::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "4fabec1a5a31" }
+evidence cold { for settings::Settings::strength::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "4fabec1a5a31" }
+evidence cold { for settings::Settings::written::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "a2912da4f2a8" }
+evidence cold { for settings::Settings::written::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "a2912da4f2a8" }
+evidence cold { for settings::Settings::doubt::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "2e7ec0c042e2" }
+evidence cold { for settings::Settings::doubt::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "2e7ec0c042e2" }
+evidence cold { for settings::Settings::doubt::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "83b4dcf9c3c1" }
+evidence cold { for settings::Settings::doubt::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "83b4dcf9c3c1" }
+evidence cold { for voices::parts::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "213126c79a71" }
+evidence cold { for voices::parts::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "213126c79a71" }
+evidence cold { for voices::parts::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "dcd5a91ee03d" }
+evidence cold { for voices::parts::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "dcd5a91ee03d" }
+evidence cold { for voices::apart::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "1dcb45d3e283" }
+evidence cold { for voices::apart::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "1dcb45d3e283" }
+evidence cold { for voices::apart::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "21cccb8f28e3" }
+evidence cold { for voices::apart::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "21cccb8f28e3" }
+evidence cold { for voices::word::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "4d73a6390eea" }
+evidence cold { for voices::word::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "4d73a6390eea" }
+evidence cold { for voices::word::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "8ac9567711e0" }
+evidence cold { for voices::word::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "8ac9567711e0" }
+evidence cold { for voices::error_rate::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "8eba33a3428e" }
+evidence cold { for voices::error_rate::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "8eba33a3428e" }
+evidence cold { for voices::error_rate::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "54091d761404" }
+evidence cold { for voices::error_rate::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "54091d761404" }
+evidence cold { for voices::support::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "771171686b94" }
+evidence cold { for voices::support::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "771171686b94" }
+evidence cold { for voices::missing::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "06fa87500ff8" }
+evidence cold { for voices::missing::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "06fa87500ff8" }
+evidence cold { for voices::missing::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "9fcd526a7aa6" }
+evidence cold { for voices::missing::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "9fcd526a7aa6" }
+evidence cold { for voices::policy_reads::correct holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "8c5471f233cf" }
+evidence cold { for voices::policy_reads::correct holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "8c5471f233cf" }
+evidence cold { for voices::policy_reads::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "36fdd40beaef" }
+evidence cold { for voices::policy_reads::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "36fdd40beaef" }
+evidence cold { for voices::summary::deterministic holds act review by "agent:anthropic/fable-5.2/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "d1d4e12519b4" }
+evidence cold { for voices::summary::deterministic holds act review by "agent:anthropic/opus/cold-r-lang" cold source "review:cold" rev "20a1023f5741" seen "d1d4e12519b4" }

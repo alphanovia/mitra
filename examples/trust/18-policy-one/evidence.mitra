@@ -1,0 +1,2 @@
+evidence test { for clock::wraps holds act test by "machine:cargo" source "test:midnight_wraps" }
+evidence review { for clock::wraps holds act review of "test:midnight_wraps" trust 0.99 by "agent:anthropic/fable-5.2/golden" }

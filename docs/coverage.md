@@ -5,13 +5,13 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 
 | Crate | Functions | Tied | Share | Lines in functions | In tied ones | Share | Code lines | Model lines | Model / code |
 |---|---|---|---|---|---|---|---|---|---|
-| mitra-lang | 467 | 58 | 12% | 14850 | 1780 | 12% | 15898 | 1049 | 7% |
+| mitra-lang | 467 | 58 | 12% | 14857 | 1780 | 12% | 15906 | 1050 | 7% |
 | mitra-store | 27 | 13 | 48% | 415 | 206 | 50% | 424 | 102 | 24% |
 | mitra-rust | 26 | 8 | 31% | 1024 | 576 | 56% | 1082 | 42 | 4% |
 | mitra-cli | 23 | 2 | 9% | 701 | 60 | 9% | 740 | 57 | 8% |
-| all | 543 | 81 | 15% | 16990 | 2622 | 15% | 18144 | 1250 | 7% |
+| all | 543 | 81 | 15% | 16997 | 2622 | 15% | 18152 | 1251 | 7% |
 
-- mitra-lang: 1049 lines of model over 15898 lines of code, in 22 subjects with 85 ensures and 9 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
+- mitra-lang: 1050 lines of model over 15906 lines of code, in 22 subjects with 86 ensures and 9 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
 - mitra-store: 102 lines of model over 424 lines of code, in 4 subjects with 22 ensures and 8 requires; apart from it, 0 lines of point claims and 0 tests pinned in the code.
 - mitra-rust: 42 lines of model over 1082 lines of code, in 2 subjects with 3 ensures and 3 requires; apart from it, 28 lines of point claims and 0 tests pinned in the code.
 - mitra-cli: 57 lines of model over 740 lines of code, in 1 subject with 11 ensures and 18 requires; apart from it, 0 lines of point claims and 4 tests pinned in the code.
@@ -75,7 +75,7 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | types/check.rs | `check` | 110 | 417 | types::Model::check |
 | types/set/show.rs | `quote` | 163 | 13 | print::quote |
 | verdicts.rs | `as_str` | 46 | 8 | report::Logic::as_str |
-| verdicts.rs | `evaluate` | 437 | 24 | verdicts::evaluate |
+| verdicts.rs | `evaluate` | 439 | 24 | verdicts::evaluate |
 | verdicts/culprits.rs | `rank` | 59 | 22 | culprits::rank |
 | verdicts/prove.rs | `derive` | 478 | 45 | verdicts::derive |
 | build.rs | `hidden` | 103 | 5 |  |
@@ -422,14 +422,14 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | types/tuples.rs | `show_box` | 202 | 4 |  |
 | types/tuples.rs | `box_minus` | 209 | 17 |  |
 | verdicts.rs | `as_str` | 71 | 7 |  |
-| verdicts.rs | `text` | 226 | 14 |  |
-| verdicts.rs | `declared_claim` | 284 | 7 |  |
-| verdicts.rs | `code` | 358 | 11 |  |
-| verdicts.rs | `default` | 381 | 6 |  |
-| verdicts.rs | `model_err` | 406 | 3 |  |
-| verdicts.rs | `warnings` | 470 | 13 |  |
-| verdicts.rs | `below` | 490 | 22 |  |
-| verdicts.rs | `own_word` | 511 | 3 |  |
+| verdicts.rs | `text` | 228 | 14 |  |
+| verdicts.rs | `declared_claim` | 286 | 7 |  |
+| verdicts.rs | `code` | 360 | 11 |  |
+| verdicts.rs | `default` | 383 | 6 |  |
+| verdicts.rs | `model_err` | 408 | 3 |  |
+| verdicts.rs | `warnings` | 472 | 13 |  |
+| verdicts.rs | `below` | 492 | 28 |  |
+| verdicts.rs | `own_word` | 519 | 3 |  |
 | verdicts/causes.rs | `failing` | 7 | 14 |  |
 | verdicts/causes.rs | `suspects` | 23 | 17 |  |
 | verdicts/causes.rs | `roots` | 43 | 46 |  |
@@ -446,7 +446,7 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | verdicts/classes.rs | `usable` | 375 | 3 |  |
 | verdicts/classes.rs | `vouched` | 379 | 3 |  |
 | verdicts/confidence.rs | `believed` | 14 | 15 |  |
-| verdicts/confidence.rs | `weigh` | 32 | 70 |  |
+| verdicts/confidence.rs | `weigh` | 32 | 71 |  |
 | verdicts/culprits.rs | `weigh` | 88 | 51 |  |
 | verdicts/evidence.rs | `listed` | 39 | 6 |  |
 | verdicts/evidence.rs | `shown` | 47 | 13 |  |

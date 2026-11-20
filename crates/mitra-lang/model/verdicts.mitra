@@ -17,7 +17,8 @@ subject verdicts {
     ensure one_each = "Every claim gets one verdict: holds, holds assuming, unverified or fails.";
     ensure holds_is_covered = "A claim holds only when every input it names is covered, by evidence on it or by claims that hold; what it only assumes is named.";
     ensure fails_is_shown = "A claim fails only where evidence or the model itself shows it, or because something it rests on fails.";
-    ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
+    ensure trust_apart = "With no bias in the settings, the trust given to a piece never changes a verdict; it only orders the candidates of an error.";
+    ensure believed = "With a bias for tests, a verdict that stands on tests is believed as the product of how far each test is believed, the bias or what its review says, and of what the verdict follows from; a claim holds only when that reaches what the policy asks; what is believed at 0 neither holds nor fails anything.";
     ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
     ensure follows = "A claim said to follow from other claims is true whenever they are.";
     ensure never_runs = "No code is run: the same model and evidence always give the same report.";

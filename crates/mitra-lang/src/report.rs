@@ -716,13 +716,14 @@ fn confidence(k: &crate::verdicts::Confidence, logic: Logic) -> String {
     let n = |x: f64| ((x * 100.0).round() / 100.0).to_string();
     let mut out = format!("  confidence      {}", n(k.value));
     match (k.asked, logic) {
+        (_, Logic::Unverified) if k.value == 0.0 => out += ": what is believed at 0 says nothing",
         (Some(a), Logic::Unverified) => out += &format!(", and the policy asks {}", n(a)),
         (Some(a), Logic::Holds | Logic::Assuming) => out += &format!(", the policy asks {}", n(a)),
         _ => {}
     }
     out += "\n";
     for (source, said, who, _) in &k.tests {
-        let word = if logic == Logic::Fails { "fails" } else { "passes" };
+        let word = if k.passes { "passes" } else { "fails" };
         out += &match who {
             Some(w) => format!("  on              {source} {word}, reviewed at {} by {w}\n", n(*said)),
             None => format!("  on              {source} {word}, not reviewed: bias {}\n", n(*said)),

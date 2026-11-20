@@ -1301,7 +1301,15 @@ verdicts::trust_apart::captured: unverified
 verdicts::trust_apart: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, verdicts::same_report, verdicts::one_verdict_each, types::Model::check::correct, types::load_modules::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::binary::correct, eval::twice_negated, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::trust_apart::captured]
   by              sample (unknown), test (unknown); doubt 1
   below policy    lacks cold, doubt 0.05
-  says            "The trust given to a piece never changes a verdict; it only orders the candidates of an error."
+  says            "With no bias in the settings, the trust given to a piece never changes a verdict; it only orders the candidates of an error."
+  rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::same_report`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
+  requires        `verdicts::checked`, `verdicts::computed`
+verdicts::believed::captured: unverified
+  nobody vouched that the claims say what the text says
+verdicts::believed: holds assuming [verdicts::evaluate::correct, verdicts::derive::correct, verdicts::run::correct, verdicts::same_report, verdicts::one_verdict_each, types::Model::check::correct, types::load_modules::correct, types::load::correct, reader::model::correct, reader::fault_is_placed, reader::reads::captured, types::fits::captured, eval::unary::correct, eval::binary::correct, eval::twice_negated, eval::plus_commutes, eval::times_commutes, eval::minus_is_plus_negated, eval::different_is_not_equal, eval::union_commutes, eval::difference_apart, eval::divides_back, eval::computes::captured, verdicts::believed::captured]
+  by              sample (unknown), test (unknown); doubt 1
+  below policy    lacks cold, doubt 0.05
+  says            "With a bias for tests, a verdict that stands on tests is believed as the product of how far each test is believed, the bias or what its review says, and of what the verdict follows from; a claim holds only when that reaches what the policy asks; what is believed at 0 neither holds nor fails anything."
   rests on        `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::same_report`, `verdicts::one_verdict_each`, `verdicts::untested_is_unverified`, `verdicts::tested_holds`, `verdicts::refuted_fails`, `verdicts::trust_changes_no_verdict`, `verdicts::conflict_counts_for_neither`, `verdicts::follows_from_a_vouched_claim`
   requires        `verdicts::checked`, `verdicts::computed`
 verdicts::conflict_kept::captured: unverified
@@ -2192,43 +2200,43 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/verdicts.mitra:50  fn evaluate(model: model::Model) -> Result<Report, (types::Input, reader::Error)>;
+  --> model/verdicts.mitra:51  fn evaluate(model: model::Model) -> Result<Report, (types::Input, reader::Error)>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/verdicts.mitra:50  fn evaluate(model: model::Model) -> Result<Report, (types::Input, reader::Error)>;
+  --> model/verdicts.mitra:51  fn evaluate(model: model::Model) -> Result<Report, (types::Input, reader::Error)>;
 
   No evidence on `verdicts::evaluate` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/verdicts.mitra:53  fn derive(model: model::Model);
+  --> model/verdicts.mitra:54  fn derive(model: model::Model);
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/verdicts.mitra:53  fn derive(model: model::Model);
+  --> model/verdicts.mitra:54  fn derive(model: model::Model);
 
   No evidence on `verdicts::derive` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/verdicts.mitra:55  fn run(model: String, evidence: String) -> Result<Report, (types::Input, reader::Error)>
+  --> model/verdicts.mitra:56  fn run(model: String, evidence: String) -> Result<Report, (types::Input, reader::Error)>
 
   No evidence on (model, evidence) in (String, String).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/verdicts.mitra:59  claim same_report = deterministic(run);
+  --> model/verdicts.mitra:60  claim same_report = deterministic(run);
 
   No evidence on `verdicts::run` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/verdicts.mitra:62  claim one_verdict_each(m: model::Model) { match evaluate(m) { Err(e) => true, Ok(r) => len(r.verdicts) == len(m.claims), } }
+  --> model/verdicts.mitra:63  claim one_verdict_each(m: model::Model) { match evaluate(m) { Err(e) => true, Ok(r) => len(r.verdicts) == len(m.claims), } }
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
@@ -3050,49 +3058,61 @@ warning[M102]: a claim holds only under assumptions
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> model/verdicts.mitra:20  ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
+  --> model/verdicts.mitra:20  ensure trust_apart = "With no bias in the settings, the trust given to a piece never changes a verdict; it only orders the candidates of an error.";
 
   Nobody vouched that the claims `verdicts::trust_apart` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for verdicts::trust_apart::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> model/verdicts.mitra:20  ensure trust_apart = "The trust given to a piece never changes a verdict; it only orders the candidates of an error.";
+  --> model/verdicts.mitra:20  ensure trust_apart = "With no bias in the settings, the trust given to a piece never changes a verdict; it only orders the candidates of an error.";
 
   `verdicts::trust_apart` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::same_report`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::load_modules::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::binary::correct`, `eval::twice_negated`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::trust_apart::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> model/verdicts.mitra:21  ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
+  --> model/verdicts.mitra:21  ensure believed = "With a bias for tests, a verdict that stands on tests is believed as the product of how far each test is believed, the bias or what its review says, and of what the verdict follows  …
+
+  Nobody vouched that the claims `verdicts::believed` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for verdicts::believed::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> model/verdicts.mitra:21  ensure believed = "With a bias for tests, a verdict that stands on tests is believed as the product of how far each test is believed, the bias or what its review says, and of what the verdict follows  …
+
+  `verdicts::believed` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::same_report`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::load_modules::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::binary::correct`, `eval::twice_negated`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::believed::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> model/verdicts.mitra:22  ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
 
   Nobody vouched that the claims `verdicts::conflict_kept` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for verdicts::conflict_kept::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> model/verdicts.mitra:21  ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
+  --> model/verdicts.mitra:22  ensure conflict_kept = "Evidence that can't all be true is reported as an error and counts for neither side until it is settled.";
 
   `verdicts::conflict_kept` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::same_report`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::load_modules::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::binary::correct`, `eval::twice_negated`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::conflict_kept::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> model/verdicts.mitra:22  ensure follows = "A claim said to follow from other claims is true whenever they are.";
+  --> model/verdicts.mitra:23  ensure follows = "A claim said to follow from other claims is true whenever they are.";
 
   Nobody vouched that the claims `verdicts::follows` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for verdicts::follows::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> model/verdicts.mitra:22  ensure follows = "A claim said to follow from other claims is true whenever they are.";
+  --> model/verdicts.mitra:23  ensure follows = "A claim said to follow from other claims is true whenever they are.";
 
   `verdicts::follows` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::same_report`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::load_modules::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::binary::correct`, `eval::twice_negated`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::follows::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> model/verdicts.mitra:23  ensure never_runs = "No code is run: the same model and evidence always give the same report.";
+  --> model/verdicts.mitra:24  ensure never_runs = "No code is run: the same model and evidence always give the same report.";
 
   Nobody vouched that the claims `verdicts::never_runs` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for verdicts::never_runs::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> model/verdicts.mitra:23  ensure never_runs = "No code is run: the same model and evidence always give the same report.";
+  --> model/verdicts.mitra:24  ensure never_runs = "No code is run: the same model and evidence always give the same report.";
 
   `verdicts::never_runs` holds if `verdicts::evaluate::correct`, `verdicts::derive::correct`, `verdicts::run::correct`, `verdicts::same_report`, `verdicts::one_verdict_each`, `types::Model::check::correct`, `types::load_modules::correct`, `types::load::correct`, `reader::model::correct`, `reader::fault_is_placed`, `reader::reads::captured`, `types::fits::captured`, `eval::unary::correct`, `eval::binary::correct`, `eval::twice_negated`, `eval::plus_commutes`, `eval::times_commutes`, `eval::minus_is_plus_negated`, `eval::different_is_not_equal`, `eval::union_commutes`, `eval::difference_apart`, `eval::divides_back`, `eval::computes::captured`, `verdicts::never_runs::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed

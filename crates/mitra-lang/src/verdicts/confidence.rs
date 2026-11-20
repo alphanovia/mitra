@@ -94,7 +94,9 @@ impl<'a> Judge<'a> {
         }
         let value = tests.iter().map(|t| t.1).chain(from.iter().map(|f| f.1)).product();
         let asked = model.settings.holds;
-        if holds && asked.is_some_and(|a| value < a) {
+        // Evidence believed at 0 is no evidence, whatever the policy
+        // asks: a claim neither holds nor fails on it.
+        if value == 0.0 || (holds && asked.is_some_and(|a| value < a)) {
             v.logic = Logic::Unverified;
             v.assuming.clear();
         }
@@ -104,6 +106,7 @@ impl<'a> Judge<'a> {
             tests,
             from,
             asked,
+            passes: holds,
         });
     }
 }

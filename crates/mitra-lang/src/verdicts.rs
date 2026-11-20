@@ -128,6 +128,8 @@ pub struct Confidence {
     pub from: Vec<(String, f64)>,
     /// What the policy asks of a claim to hold.
     pub asked: Option<f64>,
+    /// Whether the tests behind it pass, or fail.
+    pub passes: bool,
 }
 
 /// What a `uniform` claim adds to another claim on the same subject: an
@@ -488,19 +490,25 @@ impl Verdict {
     /// than its evidence is believed: what it has, what is asked, and
     /// the reviews that would lift it.
     pub fn below(&self) -> Option<String> {
-        let k = self.confidence.as_ref()?;
-        let asked = k.asked.filter(|_| self.logic == Logic::Unverified)?;
+        let k = self.confidence.as_ref().filter(|_| self.logic == Logic::Unverified)?;
         let n = |x: f64| ((x * 100.0).round() / 100.0).to_string();
-        let mut out = format!("believed at {}, and the policy asks {}", n(k.value), n(asked));
-        for (source, said, _, on) in k.tests.iter().filter(|t| t.1 < asked) {
-            out += &format!(
-                "\n  owed: a review of {source}, believed at {}: \
-                 evidence <name> {{ for {} holds act review of \"{source}\" trust <how sure> by \"<who>\" }}",
-                n(*said),
-                on
-            );
+        let asked = k.asked.unwrap_or(0.0);
+        let mut out = match k.value == 0.0 {
+            true => "believed at 0: its evidence says nothing".to_string(),
+            false => format!("believed at {}, and the policy asks {}", n(k.value), n(asked)),
+        };
+        let low = |said: f64| said == 0.0 || said < asked;
+        for (source, said, who, on) in k.tests.iter().filter(|t| low(t.1)) {
+            out += &match who {
+                None => format!(
+                    "\n  owed: a review of {source}, believed at {}: \
+                     evidence <name> {{ for {on} holds act review of \"{source}\" trust <how sure> by \"<who>\" }}",
+                    n(*said)
+                ),
+                Some(w) => format!("\n  {source} was reviewed at {} by {w}", n(*said)),
+            };
         }
-        for (claim, said) in k.from.iter().filter(|f| f.1 < asked) {
+        for (claim, said) in k.from.iter().filter(|f| low(f.1)) {
             out += &format!("\n  follows from `{claim}`, believed at {}", n(*said));
         }
         Some(out)

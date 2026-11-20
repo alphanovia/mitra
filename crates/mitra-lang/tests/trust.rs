@@ -48,7 +48,7 @@ fn every_case_gives_its_expected_report() {
         assert_eq!(said, expected, "{case}");
         seen += 1;
     }
-    assert_eq!(seen, 13);
+    assert_eq!(seen, 22);
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn a_failing_test_reviewed_as_correct_is_a_failure_believed_at_1() {
 #[test]
 fn a_passing_test_reviewed_as_wrong_counts_for_nothing() {
     let v = verdict(&report("10-passing-reviewed-wrong").0, "clock::wraps");
-    assert!(v.starts_with("clock::wraps: unverified\n  confidence      0,"), "{v}");
+    assert!(v.starts_with("clock::wraps: unverified\n  confidence      0:"), "{v}");
     assert!(v.contains("who says it is wrong"), "{v}");
 }
 
@@ -151,4 +151,38 @@ fn two_claims_that_disagree_are_not_ranked_yet() {
     assert!(text.contains("certain   the code of `clock::next`"), "{text}");
     assert!(verdict(&text, "clock::wraps").starts_with("clock::wraps: holds"), "{text}");
     assert!(verdict(&text, "clock::stops").starts_with("clock::stops: unverified"), "{text}");
+}
+
+/// The extremes. A bias of 1 is Mitra without a bias: a passing test
+/// holds its claim. A bias of 0 is a test that says nothing until it is
+/// reviewed. A policy of 0 lets anything believed above 0 hold, and a
+/// policy of 1 only what is believed at 1.
+#[test]
+fn the_rules_hold_at_the_extremes() {
+    for (case, lines) in [
+        ("14-bias-zero", "unverified\n  confidence      0:"),
+        ("15-bias-one", "holds\n  confidence      1,"),
+        ("16-policy-zero", "holds\n  confidence      0.5,"),
+        ("17-policy-zero-bias-zero", "unverified\n  confidence      0:"),
+        ("18-policy-one", "unverified\n  confidence      0.99,"),
+        ("19-policy-one-reviewed-at-one", "holds\n  confidence      1,"),
+        ("20-reviewed-at-zero", "unverified\n  confidence      0:"),
+    ] {
+        let v = verdict(&report(case).0, "clock::wraps");
+        assert!(v.starts_with(&format!("clock::wraps: {lines}")), "{case}: {v}");
+    }
+}
+
+/// What is believed at 0 says nothing, a failure included: a failing
+/// test at a bias of 0, or one its reviewer says is wrong, fails
+/// nothing and raises no error.
+#[test]
+fn a_failure_believed_at_0_fails_nothing() {
+    for case in ["21-failing-bias-zero", "22-failing-reviewed-wrong"] {
+        let text = report(case).0;
+        let v = verdict(&text, "clock::wraps");
+        assert!(v.starts_with("clock::wraps: unverified\n  confidence      0:"), "{case}: {v}");
+        assert!(v.contains("test:midnight_wraps fails"), "{case}: {v}");
+        assert!(!text.contains("error["), "{case}: {text}");
+    }
 }

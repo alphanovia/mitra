@@ -23,6 +23,6 @@ warning[M101]: a claim is not verified
   --> model.mitra:4  claim wraps() { next(23) == 0 }
 
   `clock::wraps` is believed at 0.8, and the policy asks 0.9
-  owed: a review of test:midnight_wraps, believed at 0.8: evidence <name> { for clock::wraps holds act review of "test:midnight_wraps" trust <how sure> by "<who>" }
+  test:midnight_wraps was reviewed at 0.8 by agent:anthropic/fable-5.2/golden
 
 `mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.
