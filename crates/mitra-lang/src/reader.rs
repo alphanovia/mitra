@@ -9,16 +9,16 @@ pub(crate) mod tokens;
 
 /// What every file of the reader sees.
 pub(crate) mod prelude {
-    pub(crate) use crate::ast::*;
     pub(crate) use crate::contracts::impls::*;
     pub(crate) use crate::contracts::read::*;
     pub(crate) use crate::intent::read::*;
     pub(crate) use crate::ledger::read::*;
+    pub(crate) use crate::model::*;
     pub(crate) use crate::modules::read::*;
     pub(crate) use crate::reader::tokens::*;
     pub(crate) use crate::reader::*;
-    pub(crate) use crate::set::{Set, Value, MAP, SET};
     pub(crate) use crate::types::scope::*;
+    pub(crate) use crate::types::set::{Set, Value, MAP, SET};
     pub(crate) use crate::Error;
     pub(crate) use std::collections::{BTreeMap, BTreeSet};
     pub(crate) use std::rc::Rc;

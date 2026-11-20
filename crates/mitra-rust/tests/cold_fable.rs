@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use mitra_lang::results::{Outcome, Tied};
+use mitra_lang::ledger::results::{Outcome, Tied};
 use mitra_lang::Reader;
 use mitra_rust::report::libtest;
 use mitra_rust::source::{fn_below, is_tie, mitra_line};

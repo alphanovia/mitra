@@ -62,7 +62,7 @@ crates/mitra-lang/src/eval.rs
         ("*", Float(a), Float(b)) => Float(a + b),
 ==
 level: `/` binds like `+`
-crates/mitra-lang/src/print.rs
+crates/mitra-lang/src/report/print.rs
 --
         "*" | "/" | "&" => 5,
 --
@@ -70,21 +70,21 @@ crates/mitra-lang/src/print.rs
         "/" => 4,
 ==
 level: `&&` binds like `||`
-crates/mitra-lang/src/print.rs
+crates/mitra-lang/src/report/print.rs
 --
         "&&" => 2,
 --
         "&&" => 1,
 ==
 negative: zero counts
-crates/mitra-lang/src/print.rs
+crates/mitra-lang/src/report/print.rs
 --
         Value::Int(i) => *i < 0,
 --
         Value::Int(i) => *i <= 0,
 ==
 negative: floats never
-crates/mitra-lang/src/print.rs
+crates/mitra-lang/src/report/print.rs
 --
         Value::Float(x) => x.is_sign_negative(),
 --
@@ -105,49 +105,49 @@ crates/mitra-lang/src/report.rs
     if c.belief >= 0.9 {
 ==
 quote: a tab is kept
-crates/mitra-lang/src/set.rs
+crates/mitra-lang/src/types/set/show.rs
 --
             '\t' => out += "\\t",
 --
 
 ==
 quote: a backslash is kept
-crates/mitra-lang/src/set.rs
+crates/mitra-lang/src/types/set/show.rs
 --
             '\\' => out += "\\\\",
 --
 
 ==
 rank: skip the check of the clauses
-crates/mitra-lang/src/trust/culprits.rs
+crates/mitra-lang/src/verdicts/culprits.rs
 --
     if !biases.iter().all(valid) || clauses.iter().flatten().any(|i| *i >= n) {
 --
     if !biases.iter().all(valid) {
 ==
 rank: conflict is the possible mass
-crates/mitra-lang/src/trust/culprits.rs
+crates/mitra-lang/src/verdicts/culprits.rs
 --
         conflict: if doubted > 0 { 1.0 } else { 1.0 - possible },
 --
         conflict: if doubted > 0 { 1.0 } else { possible },
 ==
 rank: belief not normalised
-crates/mitra-lang/src/trust/culprits.rs
+crates/mitra-lang/src/verdicts/culprits.rs
 --
     for v in belief.iter_mut().chain(plausibility.iter_mut()) {
 --
     for v in plausibility.iter_mut() {
 ==
 rank: one plausibility too many
-crates/mitra-lang/src/trust/culprits.rs
+crates/mitra-lang/src/verdicts/culprits.rs
 --
     let mut tally = vec![(0.0, vec![0.0; n], vec![0.0; n]); levels];
 --
     let mut tally = vec![(0.0, vec![0.0; n], vec![0.0; n + 1]); levels];
 ==
 rank: no limit on open pieces
-crates/mitra-lang/src/trust/culprits.rs
+crates/mitra-lang/src/verdicts/culprits.rs
 --
     if open.len() > MAX_OPEN {
         return Err(NoRanking::TooMany);
@@ -157,28 +157,28 @@ crates/mitra-lang/src/trust/culprits.rs
     let sure
 ==
 short: keep the path
-crates/mitra-lang/src/results.rs
+crates/mitra-lang/src/ledger/results.rs
 --
     path.rsplit("::").next().unwrap_or(path).trim().to_string()
 --
     path.trim().to_string()
 ==
 short: keep ` - should panic`
-crates/mitra-lang/src/results.rs
+crates/mitra-lang/src/ledger/results.rs
 --
     let path = path.trim().trim_end_matches(" - should panic");
 --
     let path = path.trim();
 ==
 attr: no entity decoded
-crates/mitra-lang/src/results.rs
+crates/mitra-lang/src/ledger/results.rs
 --
                 .replace("&lt;", "<")
 --
                 .replace("&lt;", "&lt;")
 ==
 attr: `&amp;` decoded first
-crates/mitra-lang/src/results.rs
+crates/mitra-lang/src/ledger/results.rs
 --
             value[..end]
                 .replace("&lt;", "<")
@@ -188,7 +188,7 @@ crates/mitra-lang/src/results.rs
                 .replace("&lt;", "<")
 ==
 attr: any text before the name
-crates/mitra-lang/src/results.rs
+crates/mitra-lang/src/ledger/results.rs
 --
         if !before.is_some_and(char::is_whitespace) {
             continue;
@@ -197,28 +197,28 @@ crates/mitra-lang/src/results.rs
         let _ = before;
 ==
 strip: an unclosed part is kept
-crates/mitra-lang/src/results.rs
+crates/mitra-lang/src/ledger/results.rs
 --
             .map_or("", |j| &rest[i + j + close.len()..]);
 --
             .map_or(&rest[i + open.len()..], |j| &rest[i + j + close.len()..]);
 ==
 junit: an error passes
-crates/mitra-lang/src/results.rs
+crates/mitra-lang/src/ledger/results.rs
 --
 passed: !body.contains("<failure") && !body.contains("<error"),
 --
 passed: !body.contains("<failure"),
 ==
 junit: skipped tests pass
-crates/mitra-lang/src/results.rs
+crates/mitra-lang/src/ledger/results.rs
 --
             if !body.contains("<skipped") {
 --
             if true {
 ==
 junit: logs are not dropped
-crates/mitra-lang/src/results.rs
+crates/mitra-lang/src/ledger/results.rs
 --
     let xml = strip(xml, "<![CDATA[", "]]>");
 --

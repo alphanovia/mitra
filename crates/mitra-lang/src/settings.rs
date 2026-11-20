@@ -108,7 +108,7 @@ impl Settings {
                     let Some(text) = text else {
                         return Err(at(format!("`{key}` is a text in quotes, not `{value}`")));
                     };
-                    crate::voices::policy_reads(text).map_err(at)?;
+                    crate::ledger::voices::policy_reads(text).map_err(at)?;
                     s.policy.insert(key.to_string(), text.to_string());
                 }
                 ("", _) => {

@@ -1,4 +1,4 @@
-// The fingerprint of a piece (src/fingerprint.rs).
+// The fingerprint of a piece (src/build/fingerprint.rs).
 //
 // Twelve hex digits per piece of a model: a function, a claim, a record,
 // an enum, a promise, a capture. It says whether the piece means today

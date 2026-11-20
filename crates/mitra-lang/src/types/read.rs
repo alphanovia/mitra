@@ -260,7 +260,11 @@ impl P {
             let all = self.functions.iter().filter(fits).map(named);
             let set = all.fold(Set::empty(), |s, f| s.union(&f));
             let each: Vec<String> = parts.iter().map(|p| p.to_string()).collect();
-            let written = format!("fn({}) -> {}", each.join(", "), crate::set::paren(&result));
+            let written = format!(
+                "fn({}) -> {}",
+                each.join(", "),
+                crate::types::set::paren(&result)
+            );
             if !set.is_empty() {
                 self.aliases.push((set.to_string(), written));
             }

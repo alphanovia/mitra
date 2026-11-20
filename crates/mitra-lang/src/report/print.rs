@@ -1,8 +1,8 @@
 //! Claims, evidence and expressions as the language writes them, for
 //! reports. Expressions get the fewest parentheses that keep their meaning.
 
-use crate::ast::*;
-use crate::set::{Set, Value};
+use crate::model::*;
+use crate::types::set::{Set, Value};
 
 /// One claim, as a model would write it, without the line break.
 pub fn print_claim(m: &Model, c: &Claim) -> String {
@@ -65,20 +65,20 @@ pub fn print_evidence(evidence: &[Evidence], model: Option<&Model>) -> String {
         }
         for (word, said) in [("by", &e.by), ("written", &e.written), ("of", &e.of)] {
             if let Some(s) = said {
-                more += &format!(" {word} {}", crate::set::quote(s));
+                more += &format!(" {word} {}", crate::types::set::quote(s));
             }
         }
         if e.cold {
             more += " cold";
         }
         if let Some(s) = &e.source {
-            more += &format!(" source {}", crate::set::quote(s));
+            more += &format!(" source {}", crate::types::set::quote(s));
         }
         if let Some(r) = &e.rev {
-            more += &format!(" rev {}", crate::set::quote(r));
+            more += &format!(" rev {}", crate::types::set::quote(r));
         }
         if let Some(s) = &e.seen {
-            more += &format!(" seen {}", crate::set::quote(s));
+            more += &format!(" seen {}", crate::types::set::quote(s));
         }
         out += &format!("evidence e {{ for {}{given} {says}{more} }}\n", e.about);
     }
@@ -277,17 +277,19 @@ fn at(e: &Expr, min: u8) -> String {
             (format!("({})", args.join(", ")), ATOM)
         }
         // A set `{a, b}` or a map `{k: v}`.
-        Expr::Record(name, args) if name == crate::set::SET || name == crate::set::MAP => {
+        Expr::Record(name, args)
+            if name == crate::types::set::SET || name == crate::types::set::MAP =>
+        {
             let items = match &args[..] {
                 [Expr::List(items)] => &items[..],
                 _ => &[],
             };
-            let each = |e: &Expr| match (e, name == crate::set::MAP) {
+            let each = |e: &Expr| match (e, name == crate::types::set::MAP) {
                 (Expr::Tuple(kv), true) => format!("{}: {}", expr(&kv[0]), expr(&kv[1])),
                 _ => expr(e),
             };
             let items: Vec<String> = items.iter().map(each).collect();
-            match items.is_empty() && name == crate::set::MAP {
+            match items.is_empty() && name == crate::types::set::MAP {
                 true => ("{:}".to_string(), ATOM),
                 false => (format!("{{{}}}", items.join(", ")), ATOM),
             }

@@ -1,8 +1,8 @@
 //! Evidence with an act and a voice: what an act can say of a claim, on
 //! whose word a verdict rests, and what a policy asks.
 
-use mitra_lang::ast::apart;
-use mitra_lang::voices::{missing, summary, support};
+use mitra_lang::ledger::voices::{missing, summary, support};
+use mitra_lang::model::apart;
 use mitra_lang::{evaluate, load, Logic};
 
 const M: &str = "subject shipping {\n\

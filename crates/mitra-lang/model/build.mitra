@@ -1,5 +1,5 @@
 // A model, compiled (src/build.rs), and what the levels say beyond the
-// report (src/levels.rs).
+// report (src/build/levels.rs).
 //
 // `mitra build` is the first of four levels: the model alone. What it
 // writes is this module's: every piece of the model, written or implied,

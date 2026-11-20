@@ -238,7 +238,7 @@ impl P {
                 match fit[..] {
                     [one] => one.clone(),
                     [] => {
-                        let text = crate::print::expr(on);
+                        let text = crate::report::print::expr(on);
                         let shown = k.to_string();
                         let kind = match self.aliases.iter().find(|a| a.0 == shown) {
                             Some(a) => a.1.clone(),

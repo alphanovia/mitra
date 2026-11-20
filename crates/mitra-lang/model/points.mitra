@@ -100,7 +100,7 @@ claim t_keys() { eval::unary("keys", {"a": 1, "b": 2}) == Some({"a", "b"}) }
 
 claim t_keys_of_a_set() { eval::unary("keys", {1}) == None }
 
-// src/print.rs
+// src/report/print.rs
 
 claim t_level_or() { print::level("||") == 1 }
 
@@ -136,7 +136,7 @@ claim t_word_possible() { report::word(Candidate(Code("f"), 0.0, 0.5)) == "possi
 
 claim t_word_unlikely() { report::word(Candidate(Code("f"), 0.0, 0.25)) == "unlikely" }
 
-// src/set.rs
+// src/types/set.rs
 
 claim t_quote_plain() { print::quote("a b") == "\"a b\"" }
 
@@ -144,7 +144,7 @@ claim t_quote_empty() { print::quote("") == "\"\"" }
 
 claim t_quote_escapes() { print::quote("a\"b\\c\nd\te") == "\"a\\\"b\\\\c\\nd\\te\"" }
 
-// src/results.rs
+// src/ledger/results.rs
 
 claim t_short_path() { results::short("tests::t_small") == "t_small" }
 

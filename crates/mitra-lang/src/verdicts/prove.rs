@@ -9,8 +9,8 @@
 //! it does, and may miss a consequence that needs arithmetic on unknown
 //! values, or more steps than it tries.
 
-use crate::ast::*;
-use crate::set::{Set, Value};
+use crate::model::*;
+use crate::types::set::{Set, Value};
 use std::collections::HashMap;
 
 type Id = usize;

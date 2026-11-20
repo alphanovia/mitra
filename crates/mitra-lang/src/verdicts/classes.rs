@@ -120,7 +120,11 @@ pub(crate) fn sorted(model: &Model, i: usize) -> Sorted {
         .function(&c.func)
         .map(|f| &f.params[..])
         .unwrap_or(&[]);
-    let own = format!("{}{}", c.func, crate::print::pattern(&c.pattern, params).1);
+    let own = format!(
+        "{}{}",
+        c.func,
+        crate::report::print::pattern(&c.pattern, params).1
+    );
     let (mut claims, mut parts, mut calls) = (Vec::new(), Vec::new(), Vec::new());
     for (g, args) in &found {
         if args.is_some_and(|a| !a.iter().all(|a| computable(a, &bound, model))) {
@@ -137,7 +141,7 @@ pub(crate) fn sorted(model: &Model, i: usize) -> Sorted {
         }
         if spec.is_some() && found.len() > 1 {
             calls.push(match args {
-                Some(args) => crate::print::expr(&Expr::Call(g.to_string(), args.to_vec())),
+                Some(args) => crate::report::print::expr(&Expr::Call(g.to_string(), args.to_vec())),
                 None if *g == &c.func => own.clone(),
                 None => own.replacen(c.func.as_str(), g, 1),
             });

@@ -1,7 +1,8 @@
 # Layout: one axis for the model and the code
 
-A proposal and its log. The reference is not touched: no behaviour
-changes.
+A proposal, done on 2026-11-20, and its log. The reference is not
+touched: no behaviour changes. The judgement is in
+`docs/review/2026-11-18.md`, increment 81.
 
 ## The problem
 
@@ -24,23 +25,26 @@ Two things do not cut by concept, and are concepts of their own:
   promises in one algorithm. It is the concept `verdicts`, cut into
   its steps.
 - **The pipeline.** Read, check, judge, report is a thin driver
-  (`lib.rs`), and a subject of the model whose promises require each
-  other in that order.
+  (`pipeline.rs`). In the model it is not a subject: each phase is a
+  subject that requires the one before (`types` requires
+  `reader::reads`, `verdicts` requires `types::fits`, `report` requires
+  `verdicts::one_each`), and `model.mitra` lists them in that order.
 
 ## The map (mitra-lang)
 
 | Folder | Model file | Holds |
 |---|---|---|
 | `reader/` | reader | tokens, the cursor, the items of a file, the driver of a read |
-| `types/` | types, operators | sets of values, tuples, the syntax of a type |
+| `types/` | types | sets of values, tuples, the syntax of a type, the checks of a model |
+| `eval.rs`, `eval/` | eval | the value of an expression |
 | `functions/` | functions | expressions, functions, their reading and computing |
 | `claims/` | claims | claims and their shapes |
 | `intent/` | intent | ensures, requires, what a promise rests on |
 | `contracts/` | contracts | contracts, impls, type parameters |
 | `modules/` | modules | imports, other stores |
 | `ledger/` | ledger, results, voices | evidence, acts, voices, test results |
-| `model/` | model | the model as a whole and its checks |
-| `verdicts/` | verdicts, culprits | judging, step by step; suspects |
+| `model.rs` | model | the model as a whole |
+| `verdicts/` | verdicts, culprits | judging, step by step; ranking |
 | `report/` | report, print, advice | what is printed |
 | `build/` | build, fingerprint | the build file, fingerprints, levels |
 | `settings.rs`, `frontend.rs` | settings, frontend | as now |
@@ -52,8 +56,8 @@ same way.
 
 1,000 lines for every file of code, tests and model. At 40 characters
 a line that is about 11,000 tokens: one read, whole. A test enforces
-it (`crates/mitra-cli/tests/layout.rs`), with a list of the files not
-yet cut that only shrinks.
+it (`crates/mitra-cli/tests/layout.rs`). The ledger (`evidence.mitra`)
+is outside it.
 
 ## Steps, each leaving main green
 
@@ -90,5 +94,19 @@ yet cut that only shrinks.
    1,500 lines whose steps shared some twenty closures. Cut into
    steps, what they share had to be written down: `Judge` in
    `verdicts.rs`, thirteen fields, each filled by one step and read by
-   the next. The model says nothing of these steps: `verdicts` is one
-   subject with seven ensures. Step 5 of this plan adds them.
+   the next. The model says nothing of these steps: see 8.
+6. Model corrected the code (step 4). `Model::check` is
+   `types::Model::check` in the model: a promise of `types`, "what a
+   model must satisfy before anything is judged". The code had it in
+   the file of the tree. It is now `types/check.rs`.
+7. Code corrected the model (step 5). Moving `load`, `load_modules`
+   and `run` out of `lib.rs` into `pipeline.rs` showed the order the
+   model only implied. Two of its edges were written (`types` on
+   `reader`, `verdicts` on `types`), one was missing: `report` did not
+   require `verdicts`. Added. The model file `operators.mitra` held
+   the subject `eval`: renamed `eval.mitra`.
+8. Neither corrected the other (step 5). The five steps of `evaluate`
+   are not in the model. They are how a verdict is computed, and the
+   seven promises of `verdicts` cut across them (`conflict_kept` is
+   kept by steps 1, 2 and 4). I left the model by intent, and each
+   step file says in its first lines what it does.

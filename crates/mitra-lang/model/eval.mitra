@@ -1,4 +1,4 @@
-// The operators of the language (src/eval.rs).
+// The operators of the language (src/eval.rs): the value of an expression.
 //
 // They are stated with the operators themselves: each side of a claim
 // is computed by this code, and the tests give the outputs.

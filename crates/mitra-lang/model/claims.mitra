@@ -1,4 +1,4 @@
-// A claim (src/ast.rs, `Claim` and `Target`).
+// A claim (`Claim` and `Target` in src/model.rs, read by src/claims/).
 //
 // A claim says something that must be true of the code on every input
 // it names. What it says is its target:

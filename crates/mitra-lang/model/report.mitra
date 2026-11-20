@@ -8,6 +8,7 @@ import std::claims::{uniform};
 import std::core::{Option, Result};
 
 subject report {
+    require judged = verdicts::one_each;
     require ranked = culprits::ranks;
 
     ensure words = "A verdict and a candidate are printed with the word the reference gives them.";

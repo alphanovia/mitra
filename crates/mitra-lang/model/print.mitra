@@ -1,4 +1,4 @@
-// Printing values back (src/print.rs, src/set.rs).
+// Printing values back (src/report/print.rs, src/types/set/show.rs).
 
 import std::claims::{uniform};
 

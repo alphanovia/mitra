@@ -79,7 +79,7 @@ impl P {
         // No value of a record with unstated parts can be written.
         let built = |e: &Expr| -> Option<String> {
             let mut found = None;
-            crate::ast::walk(e, &mut |x| {
+            crate::model::walk(e, &mut |x| {
                 if let Expr::Record(n, _) = x {
                     if m.records.iter().any(|r| &r.name == n && r.open) {
                         found = Some(n.clone());

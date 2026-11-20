@@ -6,17 +6,6 @@ use std::path::{Path, PathBuf};
 /// Lines. At 40 characters a line, about 11,000 tokens.
 const CEILING: usize = 1000;
 
-/// The files not yet cut. The list only shrinks.
-const NOT_YET: [&str; 7] = [
-    "mitra-lang/src/ast.rs",
-    "mitra-lang/src/report.rs",
-    "mitra-lang/src/set.rs",
-    "mitra-lang/tests/surface.rs",
-    "mitra-rust/src/tie.rs",
-    "mitra-store/tests/cold_fable.rs",
-    "mitra-cli/tests/cli.rs",
-];
-
 fn files(dir: &Path, out: &mut Vec<PathBuf>) {
     for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
         let p = e.path();
@@ -46,14 +35,9 @@ fn every_file_can_be_read_whole() {
             continue;
         }
         let lines = std::fs::read_to_string(f).unwrap().lines().count();
-        let waived = NOT_YET.contains(&name.as_str());
-        if lines > CEILING && !waived {
+        if lines > CEILING {
             long.push(format!("{name}: {lines} lines"));
         }
-        assert!(
-            !waived || lines > CEILING,
-            "{name} is cut: take it off the list"
-        );
     }
     assert!(long.is_empty(), "over {CEILING} lines: {long:?}");
 }

@@ -2,8 +2,10 @@
 //! kind, its fingerprint and what it rests on. The text form is the
 //! build file a store keeps; nothing here touches a disk.
 
-use crate::ast::*;
-use crate::fingerprint;
+pub mod fingerprint;
+pub mod levels;
+
+use crate::model::*;
 
 /// One piece of a compiled model.
 #[derive(Debug, Clone, PartialEq)]
@@ -201,7 +203,7 @@ pub fn interface(m: &Model) -> String {
                     .map(|p| format!("{}: {}", p.0, bound(&p.0).unwrap_or(p.1.to_string())))
                     .collect();
                 let body = match &f.body {
-                    Some(b) => format!(" {{ {} }}", crate::print::expr(b)),
+                    Some(b) => format!(" {{ {} }}", crate::report::print::expr(b)),
                     None => ";".to_string(),
                 };
                 match &f.written {

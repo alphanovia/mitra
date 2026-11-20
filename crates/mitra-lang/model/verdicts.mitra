@@ -1,4 +1,5 @@
-// From a model and its evidence to verdicts (src/verdicts.rs and the steps in src/verdicts/, src/prove.rs).
+// From a model and its evidence to verdicts (src/verdicts.rs, one
+// file of src/verdicts/ per step).
 //
 // A verdict is one word per claim:
 //

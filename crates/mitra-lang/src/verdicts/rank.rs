@@ -98,7 +98,7 @@ pub(super) fn rank(model: &Model, problems: &mut [Problem]) {
             }
         }
         let biases: Vec<Option<f64>> = pieces.iter().map(bias).collect();
-        match crate::trust::culprits::rank(&biases, &clauses) {
+        match crate::verdicts::culprits::rank(&biases, &clauses) {
             Ok(r) => {
                 let candidate = |(i, piece): (usize, Piece)| Candidate {
                     piece,

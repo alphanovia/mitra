@@ -198,7 +198,7 @@ impl P {
             g.map(str::to_string)
         };
         let mut reach = |from: Option<usize>, e: &Expr| {
-            for g in crate::ast::calls(e) {
+            for g in crate::model::calls(e) {
                 let to = home(&code(&g).unwrap_or(g));
                 if let (Some(from), Some(to)) = (from, to.filter(|to| Some(*to) != from)) {
                     leans.push((from, to));

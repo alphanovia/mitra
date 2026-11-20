@@ -1,5 +1,5 @@
 // Intent: what a subject promises and what it needs, in plain words
-// (src/ast.rs, `Ensure`).
+// (`Ensure` in src/model.rs, read by src/intent/).
 //
 //   subject s {
 //       ensure safe = "Never negative.";    a promise of s

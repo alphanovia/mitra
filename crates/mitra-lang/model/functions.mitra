@@ -1,4 +1,4 @@
-// A function of a model (src/ast.rs, `Function`).
+// A function of a model (`Function` in src/model.rs, read by src/functions/).
 //
 // Where it is written and whether it has a body say what it is:
 //

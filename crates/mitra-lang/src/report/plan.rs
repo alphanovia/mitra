@@ -2,8 +2,8 @@
 //! from the claims and the evidence already there, with or without code:
 //! with no evidence at all it is the list of tests to write.
 
-use crate::ast::{calls, walk, Claim, Expr, Model, Target};
-use crate::print::call;
+use crate::model::{calls, walk, Claim, Expr, Model, Target};
+use crate::report::print::call;
 use crate::verdicts::{Assumed, Logic, Report, Verdict};
 use crate::Value;
 
@@ -274,7 +274,11 @@ fn class_set(model: &Model, a: &Assumed, class: &Value) -> String {
         1 => names[0].to_string(),
         _ => format!("({})", names.join(", ")),
     };
-    let body = f.body.as_ref().map(crate::print::expr).unwrap_or_default();
+    let body = f
+        .body
+        .as_ref()
+        .map(crate::report::print::expr)
+        .unwrap_or_default();
     let cond = match class {
         Value::Bool(true) => body,
         Value::Bool(false) => format!("!({body})"),

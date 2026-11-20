@@ -153,7 +153,7 @@ impl Eval<'_> {
     /// input. No value when neither does.
     pub(crate) fn measure(&self, e: &Expr, env: &Env, line: usize) -> Result<Vec<Value>, Error> {
         let closed = close(e, env, &mut Vec::new());
-        let key = crate::print::expr(&closed);
+        let key = crate::report::print::expr(&closed);
         let mut values: Vec<Value> = Vec::new();
         for ev in self.model.evidence.iter().filter(|ev| ev.about == key) {
             if let Judgment::Measured(_, v) = &ev.judgment {
@@ -416,7 +416,7 @@ impl Eval<'_> {
             // Each place the claim reads `correct(f(…))` on names alone:
             // the inputs of the claim where that call is this one.
             let mut places: Vec<Vec<(usize, Value)>> = Vec::new();
-            crate::ast::walk(body, &mut |e| {
+            crate::model::walk(body, &mut |e| {
                 let Expr::Correct(g, args) = e else { return };
                 if g != f || args.len() != x.len() {
                     return;

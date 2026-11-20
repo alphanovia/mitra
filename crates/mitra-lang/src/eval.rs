@@ -5,9 +5,9 @@ mod counting;
 
 pub(crate) use counting::{computable, subject_calls};
 
-use crate::ast::*;
-use crate::set::{Value, MAP, SET};
-use crate::tuples::Tuples;
+use crate::model::*;
+use crate::types::set::{Value, MAP, SET};
+use crate::types::tuples::Tuples;
 use crate::Error;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashMap};
@@ -173,7 +173,7 @@ pub(crate) fn relations(model: &Model) -> Vec<Relation> {
             continue;
         };
         let mut reads = false;
-        crate::ast::walk(e, &mut |e| reads |= matches!(e, Expr::Correct(..)));
+        crate::model::walk(e, &mut |e| reads |= matches!(e, Expr::Correct(..)));
         let about = |e: &&Evidence| e.about == c.name && e.pattern.iter().all(|p| p.set.is_none());
         let says = |ok: bool| {
             let mut on = model.evidence.iter().filter(about);
@@ -544,7 +544,7 @@ impl Eval<'_> {
                 line,
                 format!(
                     "`{}` is outside the domain of `{f}`",
-                    crate::print::call(f, args)
+                    crate::report::print::call(f, args)
                 ),
             ));
         }
@@ -579,7 +579,7 @@ impl Eval<'_> {
                     func.line,
                     format!(
                         "`{}` = {v} is outside its result type",
-                        crate::print::call(&func.name, args)
+                        crate::report::print::call(&func.name, args)
                     ),
                 ));
             }

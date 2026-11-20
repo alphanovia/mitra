@@ -2,8 +2,8 @@
 //! parameters stood for in each piece of evidence on it. Evidence at an
 //! instance is a point; this only says which instances have points.
 
-use crate::ast::{Function, Model};
-use crate::set::Value;
+use crate::model::{Function, Model};
+use crate::types::set::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
 type Bound = BTreeMap<String, BTreeSet<String>>;

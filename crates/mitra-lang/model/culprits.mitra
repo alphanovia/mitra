@@ -1,4 +1,4 @@
-// Ranking the pieces of a conflict (src/trust/culprits.rs): the trust
+// Ranking the pieces of a conflict (src/verdicts/culprits.rs): the trust
 // calculus Mitra runs. How the numbers are computed is not stated here,
 // only what must be true of them.
 

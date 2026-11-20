@@ -106,8 +106,8 @@ impl P {
                 }
                 "act" => {
                     let name = self.name()?;
-                    if !crate::ast::ACTS.contains(&name.as_str()) {
-                        let all = crate::ast::ACTS.join(", ");
+                    if !crate::model::ACTS.contains(&name.as_str()) {
+                        let all = crate::model::ACTS.join(", ");
                         return Err(Error::new(at, format!("no act `{name}` ({all})")));
                     }
                     // `act sample 1000` is `sampled 1000`.
@@ -131,7 +131,7 @@ impl P {
                         return self.err(format!("`{clause}` needs a string"));
                     };
                     let voice = ["by", "written"].contains(&clause.as_str());
-                    if voice && crate::ast::voice_parts(&s).is_none() {
+                    if voice && crate::model::voice_parts(&s).is_none() {
                         return Err(Error::new(
                             at,
                             format!(
@@ -193,7 +193,7 @@ impl P {
                 let measures = self.names.claims.get(&target).map(|c| c.1.clone());
                 match measures.as_deref() {
                     Some([one]) => {
-                        about = crate::print::expr(one);
+                        about = crate::report::print::expr(one);
                         pattern.clear();
                         Judgment::Measured(one.clone(), rate)
                     }

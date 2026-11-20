@@ -3,9 +3,9 @@
 //! `libtest` reads the text `cargo test` prints, lines `test <path> ...
 //! ok`. A test's name is the last segment of its path (`tests::t_small`
 //! is `t_small`). Ignored tests are left out. JUnit XML is not Rust's: it
-//! is read by `mitra_lang::results::junit`.
+//! is read by `mitra_lang::ledger::results::junit`.
 
-pub use mitra_lang::results::{short, Outcome};
+pub use mitra_lang::ledger::results::{short, Outcome};
 
 // mitra: implements reader::libtest
 pub fn libtest(text: &str) -> Vec<Outcome> {

@@ -7,7 +7,7 @@
 //! here ([`junit`]). [`from_tests`] holds the rules that turn the two into
 //! evidence blocks.
 
-use crate::ast::{Claim, Model};
+use crate::model::{Claim, Model};
 
 /// One test of a report, and whether it passed.
 #[derive(Debug, Clone, PartialEq)]

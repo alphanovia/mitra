@@ -2,8 +2,8 @@
 //! that hold only under an assumption, and for each unverified claim what
 //! is missed and the evidence that would settle it.
 
-use crate::ast::{Model, Target};
-use crate::print::call;
+use crate::model::{Model, Target};
+use crate::report::print::call;
 use crate::verdicts::{Assumed, Logic, Report};
 use crate::Value;
 
@@ -344,7 +344,7 @@ pub fn next(model: &Model, report: &Report) -> String {
                 let names: Vec<&String> = c.pattern.iter().filter_map(|p| p.var.as_ref()).collect();
                 let mut lines: Vec<String> = Vec::new();
                 for input in missing.values().unwrap_or_default() {
-                    crate::ast::walk(e, &mut |e| {
+                    crate::model::walk(e, &mut |e| {
                         let crate::Expr::Call(g, args) = e else { return };
                         if !model.declared_function(g).is_some_and(|g| !g.is_spec()) {
                             return;

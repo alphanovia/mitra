@@ -2,7 +2,7 @@
 //! person and what can be handed over (`assess`), and what an
 //! observation changes (`diagnose`).
 
-use crate::ast::Model;
+use crate::model::Model;
 use crate::report::Places;
 use crate::verdicts::{Display, Logic, Report};
 
@@ -37,7 +37,7 @@ pub fn left(model: &Model, report: &Report) -> Left {
         }
     }
     for a in &model.aside {
-        if !crate::ast::machine(a.source.as_deref()) {
+        if !crate::model::machine(a.source.as_deref()) {
             let who = a.source.as_deref().unwrap_or("someone");
             let said = format!(
                 "{}: what {who} said of it was set aside, say it again or remove it",

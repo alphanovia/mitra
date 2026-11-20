@@ -194,9 +194,9 @@ fn assess(
         return Ok(errors);
     }
     print!("{}", report.to_text_at(display, &places));
-    let left = mitra_lang::levels::left(&model, &report);
+    let left = mitra_lang::build::levels::left(&model, &report);
     println!("\nassess: {errors} errors, {warnings} warnings");
-    print!("  {}", mitra_lang::voices::summary(&model, &report));
+    print!("  {}", mitra_lang::ledger::voices::summary(&model, &report));
     for (title, names) in [
         ("for a person to review or decide", &left.person),
         ("to hand over (tests to write, code to tie)", &left.delegate),
@@ -232,7 +232,7 @@ fn diagnose(s: &store::Store, seen: &str, display: &mitra_lang::Display) -> Resu
         },
         lines: ledger.lines().count(),
     };
-    let said = mitra_lang::levels::diagnosis(&before, &after, display, &places);
+    let said = mitra_lang::build::levels::diagnosis(&before, &after, display, &places);
     print!("{}", said.text);
     if said.contradicts {
         println!("  to file it: mitra add '{}' --source <who>", seen.trim());
@@ -593,7 +593,7 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             if let Some(w) = written.and_then(|w| mitra_lang::parse::written(&w.0, c.line)) {
                 println!("  written   {w}");
             }
-            let read = mitra_lang::print::contract(&model, c);
+            let read = mitra_lang::report::print::contract(&model, c);
             println!("  read as   {}", model.named(&read));
             let about = model.evidence.iter().filter(|e| e.about == c.name).count();
             println!("  evidence  {about} piece(s) on the claim itself");
@@ -669,11 +669,11 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                 let text = read(path)?;
                 let text = text.trim_start_matches('\u{feff}');
                 outcomes.extend(match format.as_deref() {
-                    Some("junit") => mitra_lang::results::junit(text),
+                    Some("junit") => mitra_lang::ledger::results::junit(text),
                     Some("libtest") => reader().results(text),
                     None if text.trim_start().starts_with('<') => {
                         junit = true;
-                        mitra_lang::results::junit(text)
+                        mitra_lang::ledger::results::junit(text)
                     }
                     None => reader().results(text),
                     Some(f) => return Err(format!("unknown format `{f}` (libtest, junit)")),
@@ -686,7 +686,8 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
             let model = s.model()?;
             // Tests tied to a claim by a comment: `// mitra: evidence for c`.
             let tied = reader().tests(&s.root())?;
-            let said = mitra_lang::results::from_tests(&model, &tied, &outcomes, rev.as_deref())?;
+            let said =
+                mitra_lang::ledger::results::from_tests(&model, &tied, &outcomes, rev.as_deref())?;
             // What ran the tests is the machine; who wrote each is what
             // its comment says, or nobody known.
             let runner = match format.as_deref() {

@@ -4,11 +4,14 @@
 //! call with an input the function never accepts. Where nothing is known
 //! the type is `Any`, and nothing is refused.
 
+mod check;
 pub(crate) mod read;
 pub(crate) mod scope;
+pub mod set;
+pub mod tuples;
 
-use crate::ast::{Expr, Function, Model, Target};
-use crate::set::{Set, Value};
+use crate::model::{Expr, Function, Model, Target};
+use crate::types::set::{Set, Value};
 use crate::Error;
 
 type Env = Vec<(String, Set)>;
@@ -62,7 +65,7 @@ fn inside(m: &Model, name: &str, params: &[(String, Set)]) -> Env {
 fn contract<'a>(m: &'a Model, f: &Function) -> Option<&'a str> {
     let block = m.block_of(&f.name)?;
     let own = f.params.first().is_some_and(|p| p.0 == "self");
-    (block.side == crate::ast::Side::Contract && own).then_some(block.name.as_str())
+    (block.side == crate::model::Side::Contract && own).then_some(block.name.as_str())
 }
 
 /// The name of a function as the model writes it.
@@ -94,7 +97,7 @@ fn numbers() -> Set {
 /// `e` must be able to be a `want`: else it is refused, said as `role`.
 fn needs(m: &Model, e: &Expr, got: &Set, want: &Set, role: &str) -> Result<(), String> {
     if got.intersect(want).is_empty() {
-        let text = crate::print::expr(e);
+        let text = crate::report::print::expr(e);
         return Err(format!(
             "{role} takes {}, and `{text}` is {}",
             show(m, want),
@@ -131,7 +134,7 @@ pub fn of(m: &Model, e: &Expr, env: &mut Env) -> Result<Set, String> {
                 let known = m.generics.iter().flat_map(|g| &g.known);
                 if let Some((_, by)) = known.clone().find(|k| k.0 == got) {
                     if !by.iter().any(|b| b == c) {
-                        let text = crate::print::expr(&args[0]);
+                        let text = crate::report::print::expr(&args[0]);
                         return Err(format!(
                             "`{text}` is {}, which is not bound by `{c}`: `{}` is not known of it",
                             show(m, &got),
@@ -201,7 +204,7 @@ pub fn of(m: &Model, e: &Expr, env: &mut Env) -> Result<Set, String> {
                         let role = format!("`{op}`");
                         needs(m, a, &x, &numbers(), &role)?;
                         needs(m, b, &y, &numbers(), &role)?;
-                        let (l, r) = (crate::print::expr(a), crate::print::expr(b));
+                        let (l, r) = (crate::report::print::expr(a), crate::report::print::expr(b));
                         return Err(format!(
                             "`{op}` takes two integers or two floats, and `{l}` is {}, `{r}` is {}",
                             show(m, &x),
@@ -256,8 +259,8 @@ pub fn of(m: &Model, e: &Expr, env: &mut Env) -> Result<Set, String> {
                 return Ok(any);
             }
             // The records it can be, and those of them with the field.
-            let can = |r: &&crate::ast::Record| !got.intersect(&r.set()).is_empty();
-            let records: Vec<&crate::ast::Record> = m.records.iter().filter(can).collect();
+            let can = |r: &&crate::model::Record| !got.intersect(&r.set()).is_empty();
+            let records: Vec<&crate::model::Record> = m.records.iter().filter(can).collect();
             let mut out = Set::empty();
             for r in &records {
                 if let Some(i) = r.fields.iter().position(|f| &f.0 == name) {
@@ -271,9 +274,9 @@ pub fn of(m: &Model, e: &Expr, env: &mut Env) -> Result<Set, String> {
                     out = any.clone();
                 }
             }
-            let has = |r: &&crate::ast::Record| r.fields.iter().any(|f| &f.0 == name) || r.open;
+            let has = |r: &&crate::model::Record| r.fields.iter().any(|f| &f.0 == name) || r.open;
             if !records.iter().any(|r| has(&r)) {
-                let text = crate::print::expr(a);
+                let text = crate::report::print::expr(a);
                 return Err(format!(
                     "`{text}` is {}, which has no `.{name}`",
                     show(m, &got)
@@ -309,7 +312,7 @@ pub fn of(m: &Model, e: &Expr, env: &mut Env) -> Result<Set, String> {
                     let record = m.records.iter().find(|r| &r.name == variant);
                     if let Some(r) = record.filter(|_| !unknown(&got)) {
                         if got.intersect(&r.set()).is_empty() {
-                            let text = crate::print::expr(a);
+                            let text = crate::report::print::expr(a);
                             return Err(format!(
                                 "`{text}` is {}, never a `{variant}`",
                                 show(m, &got)

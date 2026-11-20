@@ -1,5 +1,5 @@
-// On whose word a verdict rests (src/voices.rs, and `apart` in
-// src/ast.rs). Evidence says what was done (its act) and by whom (its
+// On whose word a verdict rests (src/ledger/voices.rs, and `apart`
+// in src/model.rs). Evidence says what was done (its act) and by whom (its
 // voice). From them: the words behind a claim, how far apart their
 // voices are, how likely it is that all of them are wrong, and what a
 // policy asks that is missing. None of it changes a verdict.

@@ -526,8 +526,8 @@ fn said(
     pinned: &str,
     passed: bool,
     rev: Option<&str>,
-) -> mitra_lang::results::Ingested {
-    use mitra_lang::results::{from_tests, Outcome, Tied};
+) -> mitra_lang::ledger::results::Ingested {
+    use mitra_lang::ledger::results::{from_tests, Outcome, Tied};
     let m = load(model, "").unwrap_or_else(|(_, e)| panic!("{e}"));
     let claim = if model.contains("claim c") { "c" } else { "f" };
     let tied = Tied {
@@ -637,7 +637,7 @@ fn stale_is_set_aside() {
     let e = "evidence r { for f holds seen \"000000000000\" }";
     let m = load("subject fn f() -> Bool;", e).unwrap();
     assert!(m.evidence.is_empty());
-    let now = mitra_lang::fingerprint::all(&m)["f"].clone();
+    let now = mitra_lang::build::fingerprint::all(&m)["f"].clone();
     let why = mitra_lang::Why::Stale {
         seen: "000000000000".into(),
         now: now.clone(),
@@ -673,8 +673,8 @@ fn writing_does_not_count() {
     let other = "// why\nsubject s {\n  claim c(a: Int) {   f(a) >= 0 }\n  fn f(a: Int) -> Int;\n}";
     let (m, n) = (load(ONE, "").unwrap(), load(other, "").unwrap());
     assert_eq!(
-        mitra_lang::fingerprint::all(&m),
-        mitra_lang::fingerprint::all(&n)
+        mitra_lang::build::fingerprint::all(&m),
+        mitra_lang::build::fingerprint::all(&n)
     );
 }
 
@@ -682,8 +682,8 @@ fn writing_does_not_count() {
 #[test]
 fn another_claim_counts() {
     let other = ONE.replace(">=", ">");
-    let m = mitra_lang::fingerprint::all(&load(ONE, "").unwrap());
-    let n = mitra_lang::fingerprint::all(&load(&other, "").unwrap());
+    let m = mitra_lang::build::fingerprint::all(&load(ONE, "").unwrap());
+    let n = mitra_lang::build::fingerprint::all(&load(&other, "").unwrap());
     assert_ne!(m["s::c"], n["s::c"]);
     assert_eq!(m["s::f"], n["s::f"]);
 }
@@ -693,12 +693,12 @@ fn another_claim_counts() {
 fn a_new_claim_changes_the_capture() {
     let one = "subject s { ensure e = \"x\"; fn f(a: Int) -> Int; }";
     let two = "subject s { ensure e = \"x\"; fn f(a: Int) -> Int; claim c(a: Int) { f(a) > 0 } }";
-    let m = mitra_lang::fingerprint::all(&load(one, "").unwrap());
-    let n = mitra_lang::fingerprint::all(&load(two, "").unwrap());
+    let m = mitra_lang::build::fingerprint::all(&load(one, "").unwrap());
+    let n = mitra_lang::build::fingerprint::all(&load(two, "").unwrap());
     assert_ne!(m["s::e::captured"], n["s::e::captured"]);
     assert_eq!(m["s::e"], n["s::e"]);
     // Another prose is another promise, and another capture.
-    let p = mitra_lang::fingerprint::all(&load(&one.replace("\"x\"", "\"y\""), "").unwrap());
+    let p = mitra_lang::build::fingerprint::all(&load(&one.replace("\"x\"", "\"y\""), "").unwrap());
     assert_ne!(m["s::e"], p["s::e"]);
     assert_ne!(m["s::e::captured"], p["s::e::captured"]);
 }
@@ -780,7 +780,7 @@ fn the_world_is_not_in_the_interface() {
 fn a_capture_is_a_person_s() {
     let text = "subject s { ensure e = \"x\"; fn f(a: 0..=1) -> Int; }";
     let (m, r) = (load(text, "").unwrap(), run(text, "").unwrap());
-    let left = mitra_lang::levels::left(&m, &r);
+    let left = mitra_lang::build::levels::left(&m, &r);
     assert_eq!(left.person.len(), 2, "{left:?}");
     assert!(
         left.person[1].starts_with("s::e::captured: a reviewer's word"),
@@ -799,11 +799,11 @@ fn an_observation_is_compared() {
         evidence: "e",
     };
     let display = mitra_lang::Display::default();
-    let same = mitra_lang::levels::diagnosis(&before, &before, &display, &files);
+    let same = mitra_lang::build::levels::diagnosis(&before, &before, &display, &files);
     assert!(!same.contradicts && same.changed.is_empty());
     assert!(same.text.contains("no verdict changes"), "{}", same.text);
     let after = run(model, "evidence t { for s::f given a = 1 gives 3 }").unwrap();
-    let said = mitra_lang::levels::diagnosis(&before, &after, &display, &files);
+    let said = mitra_lang::build::levels::diagnosis(&before, &after, &display, &files);
     assert!(said.contradicts);
     assert!(
         said.changed.contains(&"s::c: holds -> fails".to_string()),

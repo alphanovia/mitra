@@ -272,7 +272,7 @@ impl P {
             // the world, and nothing else, is implied.
             if in_subject && uses.is_none() {
                 let mut used: Vec<String> = Vec::new();
-                for g in crate::ast::calls(&body) {
+                for g in crate::model::calls(&body) {
                     let code = self.known.opaque.contains(&g) || self.names.opaque.contains(&g);
                     if code && g != q && !used.contains(&g) {
                         used.push(g);

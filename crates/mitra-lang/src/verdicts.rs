@@ -6,8 +6,10 @@
 
 mod causes;
 mod classes;
+pub mod culprits;
 mod evidence;
 mod problems;
+pub(crate) mod prove;
 mod rank;
 mod verdict;
 
@@ -16,10 +18,10 @@ pub(crate) use classes::POINTS;
 pub(crate) use rank::{brief, QUOTED, WIDE};
 pub(crate) use verdict::represented;
 
-use crate::ast::*;
 use crate::eval::Eval;
-use crate::set::Value;
-use crate::tuples::Tuples;
+use crate::model::*;
+use crate::types::set::Value;
+use crate::types::tuples::Tuples;
 use crate::{Error, Input};
 use std::collections::HashMap;
 

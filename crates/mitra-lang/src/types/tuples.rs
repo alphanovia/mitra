@@ -4,7 +4,7 @@
 //! A set of tuples is a union of boxes; a box is one set per parameter (a
 //! cartesian product). With one parameter this is just a [`Set`].
 
-use crate::set::{Set, Value};
+use crate::types::set::{Set, Value};
 use std::collections::BTreeSet;
 
 /// The most tuples Mitra enumerates; beyond it a set counts as unbounded.
@@ -163,7 +163,11 @@ impl Tuples {
             return match gone {
                 Some(vs) if inside && set.count().is_none() => {
                     let vs: Vec<String> = vs.iter().map(|v| v.to_string()).collect();
-                    format!("{} \\ {{{}}}", crate::set::paren(&all), vs.join(", "))
+                    format!(
+                        "{} \\ {{{}}}",
+                        crate::types::set::paren(&all),
+                        vs.join(", ")
+                    )
                 }
                 _ => set.to_string(),
             };

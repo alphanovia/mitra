@@ -4,7 +4,7 @@
 //! keeps the fingerprint of its piece as it was (`seen "…"`), and
 //! counts for nothing once the piece says something else.
 
-use crate::ast::*;
+use crate::model::*;
 use std::collections::BTreeMap;
 
 /// Twelve hex digits of the FNV-1a hash of a text.
@@ -43,7 +43,11 @@ pub fn said(m: &Model) -> BTreeMap<String, String> {
             .iter()
             .map(|p| format!("{}: {}", p.0, p.1))
             .collect();
-        let body = f.body.as_ref().map(crate::print::expr).unwrap_or_default();
+        let body = f
+            .body
+            .as_ref()
+            .map(crate::report::print::expr)
+            .unwrap_or_default();
         let written = f.written.clone().unwrap_or_default();
         let text = format!(
             "fn ({}) -> {} {written} {{ {body} }}",
@@ -60,7 +64,7 @@ pub fn said(m: &Model) -> BTreeMap<String, String> {
         let text = format!(
             "claim on {} {{ {} }} from [{from}]",
             c.func,
-            crate::print::contract(m, c)
+            crate::report::print::contract(m, c)
         );
         out.insert(c.name.clone(), text);
     }

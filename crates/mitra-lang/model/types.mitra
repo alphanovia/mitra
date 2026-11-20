@@ -1,5 +1,5 @@
-// What a model must satisfy before anything is judged (src/ast.rs,
-// src/lib.rs, src/types.rs).
+// What a model must satisfy before anything is judged (src/types.rs and
+// src/types/check.rs; `load` is the pipeline, src/pipeline.rs).
 
 import std::core::{Option, Result};
 

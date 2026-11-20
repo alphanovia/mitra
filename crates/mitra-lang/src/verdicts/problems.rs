@@ -356,7 +356,8 @@ impl Judge<'_> {
             let written = model.written.as_ref();
             let text = written.and_then(|w| crate::parse::written(&w.1, e.line));
             let text = text.unwrap_or_else(|| {
-                let old = crate::print::print_evidence(std::slice::from_ref(e), Some(model));
+                let old =
+                    crate::report::print::print_evidence(std::slice::from_ref(e), Some(model));
                 old.trim_end().to_string()
             });
             problems.push(Problem {

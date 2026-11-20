@@ -195,10 +195,10 @@ impl Store {
             return Ok(text);
         }
         let read = mitra_lang::load_modules(&model, "").map_err(|(_, e)| model.locate(&e))?;
-        let prints = mitra_lang::fingerprint::all(&read);
+        let prints = mitra_lang::build::fingerprint::all(&read);
         let seen = |e: &mitra_lang::Evidence| match e.by_machine() || e.seen.is_some() {
             true => None,
-            false => mitra_lang::fingerprint::of(&prints, &e.about).cloned(),
+            false => mitra_lang::build::fingerprint::of(&prints, &e.about).cloned(),
         };
         let seen: Vec<Option<String>> = new.iter().map(seen).collect();
         mitra_lang::parse::stamp(&text, None, None, &seen)

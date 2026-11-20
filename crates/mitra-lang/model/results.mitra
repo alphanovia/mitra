@@ -1,4 +1,4 @@
-// Test results as evidence (src/results.rs).
+// Test results as evidence (src/ledger/results.rs).
 //
 // A reader of a language of code finds the tests tied to claims and
 // reads its own report format. Here: what a result is, the JUnit format

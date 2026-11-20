@@ -1,5 +1,5 @@
-// Evidence, and the ledger that holds it (src/ast.rs, `Evidence` and
-// `Judgment`).
+// Evidence, and the ledger that holds it (`Evidence` and `Judgment` in
+// src/model.rs, read by src/ledger/).
 //
 // One piece of evidence is one thing somebody observed or judged, about
 // a function or a claim:

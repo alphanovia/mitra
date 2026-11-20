@@ -2,7 +2,7 @@
 //! that did them, how far apart those are, and how likely it is that
 //! all of them are wrong. Nothing here changes a verdict.
 
-use crate::ast::{apart, voice_parts, APART};
+use crate::model::{apart, voice_parts, APART};
 use crate::{Evidence, Judgment, Logic, Model, Report, Settings};
 use std::collections::BTreeSet;
 
@@ -236,7 +236,7 @@ pub fn policy_reads(asked: &str) -> Result<(), String> {
             "voices" => arg.parse::<usize>().is_ok(),
             "apart" => APART[1..5].contains(&arg),
             "doubt" => arg.parse::<f64>().is_ok_and(|d| (0.0..=1.0).contains(&d)),
-            act => crate::ast::ACTS.contains(&act) && arg.is_empty(),
+            act => crate::model::ACTS.contains(&act) && arg.is_empty(),
         };
         if !ok {
             return Err(format!(

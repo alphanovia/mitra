@@ -48,7 +48,7 @@ pub(super) fn shown(model: &Model, line: usize) -> String {
     }
     let e = model.evidence.iter().find(|e| e.line == line);
     e.map(|e| {
-        crate::print::print_evidence(std::slice::from_ref(e), Some(model))
+        crate::report::print::print_evidence(std::slice::from_ref(e), Some(model))
             .trim_end()
             .to_string()
     })

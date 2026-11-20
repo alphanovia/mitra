@@ -5,6 +5,10 @@
 // it needs (`require`), then the records, functions and claims that
 // serve those promises, and nothing else.
 //
+// A file is named like its subject, and the code of a subject is the
+// file or folder of the same name under src/ (the right column gives it
+// where it differs).
+//
 // What a model is made of, in reading order:
 //   functions.mitra   a function: code, spec, helper, world
 //   claims.mitra      a claim, an assumption, `uses`, the implied claims
@@ -14,19 +18,24 @@
 //   ledger.mitra      evidence: pinned, passes, sampled, vouched
 //   model.mitra       the model that holds them (this file)
 //
-// What Mitra does with one:
+// What Mitra does with one, as a pipeline. Each phase requires the one
+// before it (`require` in its subject); src/pipeline.rs calls them in turn:
 //   modules.mitra     what it is handed: named texts, never a disk
-//   reader.mitra      from text to a model
-//   types.mitra       what a model must satisfy before anything is judged
-//   verdicts.mitra    from a model and its evidence to verdicts
-//   report.mitra      the pieces that can be wrong, and the words printed
-//   culprits.mitra    how the pieces of a conflict are ranked
+//   reader.mitra      1. from text to a model
+//   types.mitra       2. what a model must satisfy before anything is judged
+//   eval.mitra           the value of an expression, with its operators
+//   verdicts.mitra    3. from a model and its evidence to verdicts
+//   culprits.mitra       how the pieces of a conflict are ranked   src/verdicts/culprits.rs
+//   report.mitra      4. the pieces that can be wrong, and the words printed
+//   print.mitra          printing values back                      src/report/print.rs
+//   advice.mitra      5. the evidence still owed                   src/report/plan.rs
+//   build.mitra       the build file, and the four levels over the pipeline
+//   fingerprint.mitra    whether a piece means what it meant       src/build/fingerprint.rs
+//
+// Around the ledger:
+//   results.mitra     test results as evidence, and the JUnit format   src/ledger/results.rs
+//   voices.mitra      on whose word a verdict rests                    src/ledger/voices.rs
 //   settings.mitra    the numbers the trust of a tie and of a sample come from
-//   voices.mitra      on whose word a verdict rests: acts, voices, doubt, policy
-//   advice.mitra      the evidence still owed
-//   results.mitra     test results as evidence, and the JUnit format
-//   operators.mitra   the operators of the language
-//   print.mitra       printing values back
 //   points.mitra      the single calls the unit tests pin
 //
 // A comment `// mitra: implements model::Model` above a `struct` or a

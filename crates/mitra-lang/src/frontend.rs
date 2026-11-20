@@ -4,7 +4,7 @@
 //! what it finds in the core's own words. This is only the interface:
 //! nothing here opens a file.
 
-use crate::results::{Outcome, Tied};
+use crate::ledger::results::{Outcome, Tied};
 use crate::Model;
 
 /// What comparing the code with the model found: evidence lines, and
