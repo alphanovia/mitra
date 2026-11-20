@@ -9,13 +9,15 @@ use mitra_core::model::*;
 
 const W: f64 = 0.2;
 const C: f64 = 0.6;
-/// The settings these are recorded at: a tie nobody gave a base rate
+/// The settings these are recorded at: a piece nobody gave a base rate
 /// is expected wrong, and a voice nobody gave one is not judged.
 const S: Settings = Settings {
     weight: W,
-    completeness: C,
+    statement: 0.0,
+    evidence: 0.0,
     tie: 0.0,
-    reliability: None,
+    completeness: C,
+    reliability: 1.0,
 };
 
 fn p(name: &str) -> Piece {

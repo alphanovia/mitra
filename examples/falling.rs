@@ -15,9 +15,11 @@ use mitra_core::value::Value;
 /// The settings these are recorded at.
 const S: Settings = Settings {
     weight: 0.2,
-    completeness: 0.6,
+    statement: 0.5,
+    evidence: 0.9,
     tie: 0.5,
-    reliability: None,
+    completeness: 0.6,
+    reliability: 1.0,
 };
 
 fn r(n: i64, d: i64) -> Value {
@@ -54,7 +56,6 @@ fn tie_of(object: &str) -> Tie {
 /// in hundredths. Each measurement is believed at 0.9 before anything.
 fn after(measurements: &[(&str, i64, i64)]) -> Model {
     let mut m = Model::empty(S);
-    m.base.push((Piece::named("speed"), 0.5));
     for (object, h, v) in measurements {
         let tie = tie_of(object);
         if !m.ties.contains(&tie) {
@@ -63,7 +64,6 @@ fn after(measurements: &[(&str, i64, i64)]) -> Model {
         let inputs = [("h".to_string(), r(*h, 100)), ("v".to_string(), r(*v, 100))];
         let by = Voice::named(&format!("machine:timer {object} {h}"));
         if let Some(e) = measured(&speed(), &tie, &inputs, &by, &Table::default()) {
-            m.base.push((e.piece.clone(), 0.9));
             m.evidence.push(e);
         }
     }

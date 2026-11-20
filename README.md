@@ -51,7 +51,7 @@ Until then `model/evidence.mitra` is the single ledger that `main`'s
 ## To test
 
 ```sh
-cargo test                # 125 tests
+cargo test                # 126 tests
 mitra conform             # with main's binary, from this folder
 ```
 

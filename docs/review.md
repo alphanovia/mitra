@@ -780,3 +780,36 @@ whether the type is the domain.
      place is about the whole of the tie.
 697. `model.mitra` imports `std::core::Option` for the settings.
 
+## Increment 114: a default for every kind of piece; Exclude kept (2026-11-20)
+
+**Asked.** "give a default bias to everything in the settings";
+"relation still list all exclude, I thought we had all and about".
+
+**Done.** `Settings { weight, statement, evidence, tie, completeness,
+reliability }`, all numbers. `base` reads the setting of the kind of a
+piece nobody gave a base rate; a statement is any piece that is none
+of the other kinds. Reliability is no longer optional: a voice at 1 is
+not judged. 126 tests.
+
+**Not done.** `Exclude` is used: by golden case 13 (two claims that
+cannot both be right) and by the part of `conflicts` that reports it.
+The same can be written with `All` and a sure no about the pair, and
+then the no is shared instead of only reported: `wraps` reads 0.70
+where the golden says 0.82, `stops` 0.48 where it reads 0.71, and the
+conflict names `stops`, `wraps` and the statement that says "not
+both". Removing `Exclude` therefore changes one golden: left for the
+user to say.
+
+**Decided alone.**
+
+698. The existing tests name statement 0, evidence 0, tie 0,
+     completeness 0.6, reliability 1: the readings before. The fall
+     names statement 0.5, evidence 0.9, tie 0.5, completeness 0.6,
+     reliability 1, and writes no base rate piece by piece; its
+     readings did not move.
+699. A hand-written relation is a statement, so with no base rate it
+     has the statement setting, not 1. Only the relation a tie implies
+     is structure by itself.
+700. A voice at exactly 1 with no source is not judged; this replaces
+     "a voice with no base rate is not judged".
+

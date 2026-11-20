@@ -66,20 +66,25 @@ pub struct Model {
 }
 
 /// What a model is read under, apart from what it says: the weight of
-/// a base rate, in counts, and what to expect of a piece nobody gave a
-/// base rate. The core holds no value for any of them.
+/// a base rate, in counts, and the base rate of each kind of piece
+/// when nobody wrote one. The core holds no value for any of them.
 // mitra: implements model::Settings
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Settings {
     /// The weight of a base rate, in counts.
     pub weight: f64,
-    /// The base rate of the completeness of a tie.
-    pub completeness: f64,
+    /// The base rate of a statement: any piece that is none of the
+    /// kinds below.
+    pub statement: f64,
+    /// The base rate of a piece of evidence.
+    pub evidence: f64,
     /// The base rate of a tie.
     pub tie: f64,
-    /// The base rate of the reliability of a voice. With none, a voice
-    /// nobody gave a base rate is not judged: its word counts whole.
-    pub reliability: Option<f64>,
+    /// The base rate of the completeness of a tie.
+    pub completeness: f64,
+    /// The base rate of the reliability of a voice. A voice sure to be
+    /// reliable, at 1, is not judged: its word counts whole.
+    pub reliability: f64,
 }
 
 impl Model {
@@ -188,26 +193,31 @@ pub fn all(x: Opinion, y: Opinion, w: f64) -> Opinion {
 }
 
 /// What to expect of a piece with no evidence: its base rate. With
-/// none written, the completeness of a tie has the model's setting,
-/// the relation a tie implies is structure, and any other piece has 0.
+/// none written, it is the setting for its kind: the completeness of a
+/// tie, a tie, the reliability of a voice, a piece of evidence, and a
+/// statement for any other. The relation a tie implies is structure,
+/// at 1.
 // mitra: implements model::base
 pub fn base(model: &Model, x: &Piece) -> f64 {
     if let Some((_, a)) = model.base.iter().find(|(p, _)| p == x) {
         return *a;
     }
+    let set = &model.settings;
     if model.ties.iter().any(|t| &complete(t).piece == x) {
-        return model.settings.completeness;
+        return set.completeness;
     }
     if model.ties.iter().any(|t| &implied(t).piece == x) {
         return 1.0;
     }
     if model.ties.iter().any(|t| &t.piece == x) {
-        return model.settings.tie;
+        return set.tie;
     }
-    let a_voice = |e: &Evidence| &reliable(&e.by).piece == x;
-    match model.settings.reliability {
-        Some(a) if model.evidence.iter().any(a_voice) => a,
-        _ => 0.0,
+    if model.evidence.iter().any(|e| &reliable(&e.by).piece == x) {
+        return set.reliability;
+    }
+    match model.evidence.iter().any(|e| &e.piece == x) {
+        true => set.evidence,
+        false => set.statement,
     }
 }
 
@@ -281,14 +291,15 @@ fn read(model: &Model, x: &Piece) -> Opinion {
 }
 
 /// The voices that can be doubted: those whose reliability has a base
-/// rate. With each, the sources it rests on: the parts of its
+/// rate written, or set under 1. With each, the sources it rests on: the parts of its
 /// reliability, when a relation says it is a whole.
 fn doubted(model: &Model) -> Vec<(Voice, Piece, Vec<Piece>)> {
     let mut found: Vec<(Voice, Piece, Vec<Piece>)> = Vec::new();
     for e in &model.evidence {
         let piece = reliable(&e.by).piece;
-        let known =
-            model.settings.reliability.is_some() || model.base.iter().any(|(p, _)| p == &piece);
+        // Written, or set under 1: a voice sure to be reliable is not
+        // judged.
+        let known = model.base.iter().any(|(p, _)| p == &piece) || model.settings.reliability < 1.0;
         if !known || found.iter().any(|(voice, _, _)| voice == &e.by) {
             continue;
         }
@@ -459,7 +470,7 @@ pub fn settled(model: &Model, judged: &[(Piece, f64)]) -> Model {
     let mut out = heard_at(model, &voices, &at);
     out.base
         .retain(|(piece, _)| !voices.iter().any(|(_, p, _)| p == piece));
-    out.settings.reliability = None;
+    out.settings.reliability = 1.0;
     out
 }
 

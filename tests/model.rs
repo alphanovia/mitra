@@ -7,13 +7,15 @@ use mitra_core::model::*;
 const W: f64 = 0.2;
 /// What to expect of the completeness of a tie when nothing says.
 const C: f64 = 0.6;
-/// The settings these are recorded at: a tie nobody gave a base rate
+/// The settings these are recorded at: a piece nobody gave a base rate
 /// is expected wrong, and a voice nobody gave one is not judged.
 const S: Settings = Settings {
     weight: W,
-    completeness: C,
+    statement: 0.0,
+    evidence: 0.0,
     tie: 0.0,
-    reliability: None,
+    completeness: C,
+    reliability: 1.0,
 };
 
 fn op(r: f64, s: f64, a: f64) -> Opinion {
@@ -1040,7 +1042,7 @@ fn a_tie_of_several_statements() {
     assert_eq!(conflicts(&model)[0].len(), 5);
 }
 
-/// The settings a model is read under, apart from what it says.
+/// A tie nobody gave a base rate has the setting; what is written wins.
 // mitra: evidence for tests::an_unwritten_tie_has_the_setting
 #[test]
 fn an_unwritten_tie_has_the_setting() {
@@ -1059,8 +1061,8 @@ fn an_unwritten_tie_has_the_setting() {
     assert_eq!(base(&written, &Piece::named("applies")), 0.9);
 }
 
-/// With a default for the reliability of a voice, every voice is
-/// judged; with none, only those somebody gave a base rate.
+/// With the reliability of a voice set under 1, every voice is
+/// judged; at 1, only those somebody gave a base rate.
 // mitra: evidence for tests::a_default_reliability_judges_every_voice
 #[test]
 fn a_default_reliability_judges_every_voice() {
@@ -1069,7 +1071,7 @@ fn a_default_reliability_judges_every_voice() {
     assert!(judged(&plain).is_empty());
     let all = Model {
         settings: Settings {
-            reliability: Some(0.9),
+            reliability: 0.9,
             ..S
         },
         ..plain.clone()
@@ -1083,4 +1085,34 @@ fn a_default_reliability_judges_every_voice() {
     for x in ["falls", "applies", "reliable: author", "reliable: me"] {
         assert!(near(p_of(&all, x), p_of(&by_hand, x)), "{x}");
     }
+}
+
+/// Each kind of piece nobody gave a base rate has the setting for its
+/// kind; what is written wins.
+// mitra: evidence for tests::every_kind_has_its_setting
+#[test]
+fn every_kind_has_its_setting() {
+    let model = Model {
+        evidence: vec![says("throw", "whole: applies", yes(), "me")],
+        ties: vec![ties("applies", &["falls"], "ball")],
+        base: base_of(&[("written", 0.25)]),
+        settings: Settings {
+            weight: W,
+            statement: 0.5,
+            evidence: 0.9,
+            tie: 0.7,
+            completeness: 0.6,
+            reliability: 0.8,
+        },
+        ..Model::empty(S)
+    };
+    let of = |x: &str| base(&model, &Piece::named(x));
+    assert_eq!(of("falls"), 0.5);
+    assert_eq!(of("throw"), 0.9);
+    assert_eq!(of("applies"), 0.7);
+    assert_eq!(of("complete: applies"), 0.6);
+    assert_eq!(of("reliable: me"), 0.8);
+    assert_eq!(of("written"), 0.25);
+    // The relation a tie implies is structure.
+    assert_eq!(of("all: whole: applies"), 1.0);
 }

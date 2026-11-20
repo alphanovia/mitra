@@ -8,12 +8,16 @@ use mitra_core::standard::{mul, ratio, real, within, Table};
 use mitra_core::value::Expression::{self, Apply, Given, Input};
 use mitra_core::value::Value;
 
-/// The settings these are recorded at: ties start at one half.
+/// The settings these are recorded at: a statement and a tie start at
+/// one half, a measurement at 0.9, and no voice is doubted. Nothing is
+/// written piece by piece.
 const S: Settings = Settings {
     weight: 0.2,
-    completeness: 0.6,
+    statement: 0.5,
+    evidence: 0.9,
     tie: 0.5,
-    reliability: None,
+    completeness: 0.6,
+    reliability: 1.0,
 };
 
 fn r(n: i64, d: i64) -> Value {
@@ -52,7 +56,6 @@ fn at(h: i64, v: i64) -> [(String, Value); 2] {
 /// anything and each by its own voice.
 fn after(measurements: &[(&str, i64, i64)]) -> Model {
     let mut m = Model::empty(S);
-    m.base.push((Piece::named("speed"), 0.5));
     for (object, h, v) in measurements {
         let tie = tie_of(object);
         if !m.ties.contains(&tie) {
@@ -60,7 +63,6 @@ fn after(measurements: &[(&str, i64, i64)]) -> Model {
         }
         let by = Voice::named(&format!("machine:timer {object} {h}"));
         let e = measured(&speed(), &tie, &at(*h, *v), &by, &Table::default()).unwrap();
-        m.base.push((e.piece.clone(), 0.9));
         m.evidence.push(e);
     }
     m

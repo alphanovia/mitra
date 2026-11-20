@@ -844,8 +844,9 @@ height h, the speed v satisfies v² = 2·g·h within 2 m²/s², with g at
 9.81 m/s². It is an expression on reals of the standard table. A stone
 and a feather are each tied to it. A measurement is a height and a
 speed; `claims::measured` computes the claim on it and gives evidence
-about the whole of the object's tie. Ties start at one half (the
-setting), `speed` at one half, each measurement is believed at 0.9.
+about the whole of the object's tie. Nothing is written piece by
+piece: the settings say a statement and a tie start at one half, a
+measurement at 0.9, a completeness at 0.6, and no voice is doubted.
 
 | measured | says |
 |---|---|
