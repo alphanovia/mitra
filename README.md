@@ -22,6 +22,7 @@ the yardstick.
 | `model/value.mitra` | `value` | a quantity with a type, operations declared on types, expressions of them; no type, no operation and no kind of quantity built in | `src/value.rs` |
 | `model/standard.mitra` | `standard` | the standard types and operations read exactly (a truth, whole numbers, a real, records) and the table that applies them | `src/standard.rs` |
 | `model/bounds.mitra` | `bounds` | the same operations read on the bounds a value lies in, with a flag for what may have no value | `src/bounds.rs` |
+| `model/function.mitra` | `functions` | a function: an operation the code implements, its tie and its statements; helpers; a test as a measurement | `src/function.rs` |
 | `model/claim.mitra` | `claims` | the seam: a statement whose content is an expression; computing it makes evidence | `src/claim.rs` |
 
 `model.mitra` and `value.mitra` read nothing and never read each
@@ -52,7 +53,7 @@ Until then `model/evidence.mitra` is the single ledger that `main`'s
 ## To test
 
 ```sh
-cargo test                # 141 tests
+cargo test                # 150 tests
 mitra conform             # with main's binary, from this folder
 ```
 
@@ -63,7 +64,7 @@ mitra conform             # with main's binary, from this folder
 - `tests/structure.rs`: how the shape of the graph changes what is read.
 - `tests/wall.rs`: the walls, and no disk.
 
-`mitra conform` says 106 ties agree and 13 differ, with one warning.
+`mitra conform` says 122 ties agree and 19 differ, with one warning.
 The five look like faults of `main`'s reader of Rust and are left as
 they are: `Vec<Related>` and `Statement<Claim>` compared wrongly with
 the model's (three), a `uses` asked on `moved` whose body already

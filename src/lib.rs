@@ -14,11 +14,15 @@
 //! - [`claim`]: a statement whose content is an expression. Computing
 //!   it makes evidence. It reads both.
 //!
+//! - [`function`]: an operation the code implements, its tie and the
+//!   statements about it; helpers; a test as a measurement.
+//!
 //! Each module is the code of the model file of the same name in
 //! `model/`.
 
 pub mod bounds;
 pub mod claim;
+pub mod function;
 pub mod model;
 pub mod standard;
 pub mod value;

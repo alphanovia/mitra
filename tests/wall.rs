@@ -84,7 +84,7 @@ fn each_subject_reads_only_what_it_requires() {
 
 #[test]
 fn the_core_reads_no_disk_and_runs_nothing() {
-    for of in ["model", "value", "standard", "bounds", "claim"] {
+    for of in ["model", "value", "standard", "bounds", "claim", "function"] {
         let text = code(&sources(of));
         for word in ["std::fs", "std::net", "std::process", "std::env"] {
             assert!(!text.contains(word), "src/{of} names `{word}`");
@@ -94,7 +94,7 @@ fn the_core_reads_no_disk_and_runs_nothing() {
 
 #[test]
 fn each_model_file_has_its_code() {
-    for of in ["model", "value", "standard", "bounds", "claim"] {
+    for of in ["model", "value", "standard", "bounds", "claim", "function"] {
         assert!(fs::metadata(format!("model/{of}.mitra")).is_ok());
         assert!(fs::metadata(format!("src/{of}.rs")).is_ok());
     }

@@ -891,3 +891,42 @@ and up to 21 m it is neither true everywhere nor false everywhere.
 
 Not shown: a statement for the air.
 
+## A function and its test
+
+`cargo run --example double`, tests in `tests/function.rs`. The
+function `double(n)` has the body `n * 2` and a tie to its code. A
+statement and a tie start at one half, a test is believed at 0.9, a
+completeness starts at 0.6. `uniform` is reviewed by one voice, one
+yes, believed at 0.9.
+
+| | `double::correct` | its belief | `double::seen` | `double::uniform` | the tie | its completeness |
+|---|---|---|---|---|---|---|
+| no `uniform`, a test at 3 | 0.50 | 0.00 | 0.91 | 0.50 | 0.91 | 0.93 |
+| `uniform` not reviewed, a test at 3 | 0.35 | 0.34 | 0.91 | 0.50 | 0.91 | 0.93 |
+| `uniform` reviewed, a test at 3 | 0.63 | 0.63 | 0.91 | 0.91 | 0.91 | 0.93 |
+| then a run at 7 gives 15 | 0.46 | 0.46 | 0.85 | 0.85 | 0.85 | 0.88 |
+| tests at 1, 2, 3 and 4, `uniform` reviewed | 0.82 | 0.82 | 0.97 | 0.91 | 0.97 | 0.98 |
+| then a run at 7 gives 15 | 0.67 | 0.66 | 0.96 | 0.79 | 0.96 | 0.97 |
+
+cannot all be right, least believed first: the run at 7, double::uniform, double::tie, double::seen, double::deterministic, complete: double::tie
+cannot all be right, least believed first: the run at 7, double::uniform, double::tie, double::seen, double::deterministic, complete: double::tie
+
+`double::correct` after the run at 7: 0.73 yes, 0.66 no, base rate 0.04
+
+Without `uniform`, a passing test says yes to what was seen and
+nothing leads from there to `double::correct`: it keeps its base rate
+with no belief at all. With `uniform`, `double::correct` is all of
+what was seen and `uniform`, so it reads as their product: five
+pieces at about 0.91 after one test give 0.63, and 0.82 after four.
+
+A run at 7 that gives 15 says no about `double::correct`. After one
+passing test the no is shared equally between `uniform`, what was
+seen and the tie (0.85 each). After four, what was seen stands (0.96)
+and `uniform` takes the blame (0.79).
+
+One reading is too kind: after the run at 7, `double::correct` still
+reads 0.46, and 0.67 with four tests. A whole reads as the product of
+its parts, each lowered a little, and that product forgets that the
+parts were seen not to be all right together. The same was true of
+the throwing toy. It is the calculus of the model, not the functions.
+

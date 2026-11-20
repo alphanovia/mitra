@@ -884,3 +884,46 @@ domains; a subset stays a `given` condition.
      type applied to a record with fields, nor a generic enum. They
      were written side by side with the code.
 
+## Increment 117: functions (2026-11-20)
+
+**Asked.** "I think function is settled for now": a function is a
+group (operation, tie, statements); the body is the spec; `uniform`
+is opt-in; untied is owed work; a bare `fn` with a body is a helper;
+a test is a measurement. One golden: `double`.
+
+**Done.** `model/function.mitra`, `src/function.rs`,
+`tests/function.rs`, `examples/double.rs`. `Function`, `Helper`,
+`Run`; `correctness`, `seen`, `determinism`, `uniformity`,
+`in_scope`, `tie`, `untied`, `ground`, `placed`, `tested`; `Known`
+applies runs, helpers, then the table. 150 tests.
+
+**Decided alone.**
+
+712. A new implied statement, `f::seen`: where the code was run, it
+     gave what the model says. The tie lists it, and a passing test
+     says yes to the whole of the tie. `f::correct` is not in the tie:
+     with `uniform` it is all of [what was seen, `f::uniform`]; without,
+     nothing leads to it. This is how "a point test supports the
+     general claim only through `uniform`" is built.
+713. A failing run is aimed at `f::correct` itself, not at the tie's
+     whole: one wrong input refutes a claim on all inputs whatever is
+     assumed. Through the relation the no still reaches what was seen,
+     the tie, its completeness and `uniform`. Asked was "a test is a
+     measurement on the function's tie whole": true of a pass.
+714. Main's language keeps `correct`, `uniform` and `deterministic`
+     as words, so the functions are `correctness`, `uniformity`,
+     `determinism`. The pieces are named `f::correct`, `f::uniform`,
+     `f::deterministic`.
+715. `f::deterministic` is an implied piece listed by the tie and
+     nothing computes on it yet: a passing test believes it like the
+     rest of the tie's whole.
+716. `tested` reads a run against the body only. A run against another
+     claim of the function is not built.
+717. No parser: `claim f::name(..)` and `claim f::uniform;` are a
+     statement in `Function.claims` and the field `uniform`.
+718. `uniform` is over the whole type. Gaudel's subdomains are not
+     built.
+719. `mitra conform`: 122 ties agree, 19 differ, the same reader
+     limits as before plus `Known`, which borrows its lists in the
+     code and calls `value::eval` from a contract's function.
+
