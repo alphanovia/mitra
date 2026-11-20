@@ -83,19 +83,40 @@ fn no_value_says_nothing() {
     assert_eq!(observe(&claim("c", one()), &[], &mitra(), &table()), None);
 }
 
-// mitra: evidence for claims::about_its_own_piece
+// mitra: evidence for claims::an_observation_is_about_an_instance
 #[test]
-fn about_its_own_piece() {
+fn an_observation_is_about_an_instance() {
     for statement in [truly(), falsely()] {
         let c = claim("c", statement);
-        assert_eq!(observe(&c, &[], &mitra(), &table()).unwrap().about, c.piece);
+        let none: [(String, Value); 0] = [];
+        let about = observe(&c, &none, &mitra(), &table()).unwrap().about;
+        assert_eq!(about, instance(&c, &none));
+        assert_ne!(about, c.piece);
     }
 }
 
-/// Across the seam, end to end: a value is computed, it becomes
-/// evidence, the evidence moves the opinion of the claim.
+/// Without `uniform`, recording an observation relates nothing to the
+/// claim itself.
+// mitra: evidence for claims::without_uniform_nothing_leads_to_the_claim
 #[test]
-fn a_statement_computed_moves_the_opinion_of_its_claim() {
+fn without_uniform_nothing_leads_to_the_claim() {
+    let c = claim("c", truly());
+    let seen = observe(&c, &[], &mitra(), &table()).unwrap();
+    let m = recorded(&Model::empty(S), &c, seen.clone(), None, None).unwrap();
+    assert!(m.related.is_empty());
+    assert_eq!(opinion(&m, &c.piece).r, 0.0);
+    let uniform = Piece::named("c::uniform");
+    let with = recorded(&Model::empty(S), &c, seen.clone(), None, Some(&uniform)).unwrap();
+    assert_eq!(
+        with.related[0].content.pieces,
+        [c.piece.clone(), seen.about.clone(), uniform]
+    );
+}
+
+/// Across the seam, end to end: a value is computed, it becomes
+/// evidence, the evidence moves the opinion of the claim at that input.
+#[test]
+fn a_statement_computed_moves_the_opinion_of_its_instance() {
     // claim small(x) { x < 3 }
     let small = claim(
         "small",
@@ -116,17 +137,20 @@ fn a_statement_computed_moves_the_opinion_of_its_claim() {
         base: vec![(seen.piece.clone(), 1.0)],
         ..Model::empty(S)
     };
-    assert!(!trusted(&model, &small.piece, 0.0));
+    let at_one = instance(&small, &at(1));
+    assert!(!trusted(&model, &at_one, 0.0));
     model.evidence.push(seen);
-    // One computation is one yes.
-    assert_eq!(opinion(&model, &small.piece).r, 1.0);
-    assert!(trusted(&model, &small.piece, 0.0));
+    // One computation is one yes, about the claim at 1 and not the
+    // claim itself.
+    assert_eq!(opinion(&model, &at_one).r, 1.0);
+    assert!(trusted(&model, &at_one, 0.0));
+    assert_eq!(opinion(&model, &small.piece).r, 0.0);
 
     let against = observe(&small, &at(5), &mitra(), &table()).unwrap();
     assert_ne!(against.piece, model.evidence[0].piece);
     model.base.push((against.piece.clone(), 1.0));
     model.evidence.push(against);
-    let o = opinion(&model, &small.piece);
+    let o = opinion(&model, &instance(&small, &at(5)));
     assert!(o.s == 1.0 && o.s >= o.r);
 }
 
@@ -144,5 +168,5 @@ fn an_unknown_reading_says_nothing() {
     );
     let sure = bounded(&claim("c", truly()), &[], 10.0, &mitra(), &Ranges).unwrap();
     assert_eq!((sure.value.r, sure.value.s), (10.0, 0.0));
-    assert_eq!(sure.about, Piece::named("c"));
+    assert_eq!(sure.about, Piece::named("c @ "));
 }

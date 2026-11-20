@@ -50,11 +50,11 @@ fn after(f: &Function, runs: &[(i64, i64)], reviewed: bool) -> Model {
         helpers: &[],
         runs: &[],
     };
-    let mut m = placed(&Model::empty(S), f);
+    let mut m = Model::empty(S);
     for (n, gave) in runs {
         let by = Voice::named(&format!("machine:cargo test at {n}"));
-        m.evidence
-            .push(tested(f, &run(f, *n, *gave), &by, &known).unwrap());
+        let test = tested(f, &run(f, *n, *gave), &by, &known).unwrap();
+        m = noted(&m, f, test).unwrap();
     }
     if let (true, Some(hypothesis)) = (reviewed, uniformity(f)) {
         m.evidence.push(Evidence {
@@ -98,16 +98,17 @@ fn main() {
             ),
         ),
     ];
-    println!("| | `double::correct` | its belief | `double::seen` | `double::uniform` | the tie | its completeness |");
-    println!("|---|---|---|---|---|---|---|");
+    println!("| | `double::correct` | its belief | at 3 | at 7 | `double::uniform` | the tie | its completeness |");
+    println!("|---|---|---|---|---|---|---|---|");
     for (name, m) in &rows {
         let o = |x: &str| opinion(m, &Piece::named(x));
         let p = |x: &str| projected(o(x), S.weight);
         println!(
-            "| {name} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} |",
+            "| {name} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} |",
             p("double::correct"),
             belief(o("double::correct"), S.weight),
-            p("double::seen"),
+            p("double::correct @ n = Whole(3)"),
+            p("double::correct @ n = Whole(7)"),
             p("double::uniform"),
             p("double::tie"),
             p("complete: double::tie"),
@@ -116,9 +117,10 @@ fn main() {
     println!();
     for at in [3, 5] {
         for group in conflicts(&rows[at].1) {
-            let short = |p: &Piece| match p.name.contains(" at [") {
-                true => "the run at 7".to_string(),
-                false => p.name.clone(),
+            let short = |p: &Piece| match p.name.as_str() {
+                "double::correct @ n = Whole(7)" => "`double::correct` at 7".to_string(),
+                name if name.contains(" by ") => "the run at 7".to_string(),
+                name => name.to_string(),
             };
             let names: Vec<String> = group.iter().map(short).collect();
             println!(

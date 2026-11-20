@@ -927,3 +927,47 @@ applies runs, helpers, then the table. 150 tests.
      limits as before plus `Known`, which borrows its lists in the
      code and calls `value::eval` from a contract's function.
 
+## Increment 118: instances of a claim (2026-11-20)
+
+**Asked.** Replace `measured` and `seen` with one rule. A claim at an
+input is a piece derived from the claim, `c@x`. A test or measurement
+is evidence about `c@x`, through the tie. The general claim is all of
+[`c@x` for the inputs observed, `uniform`]. Rerun the double golden
+and the fall. Ask before inventing any new implied piece or helper
+concept.
+
+**Done.** `claims::instance`, `claims::recorded`; `observe` and
+`bounded` are about the instance. Removed `claims::measured`,
+`claims::aimed`, `functions::seen`, `functions::ground`,
+`functions::placed`; added `functions::noted`. 152 tests. Readings in
+`docs/trials.md`.
+
+**Found.** A refuted `double::correct` reads 0.20 and 0.12 (was 0.46
+and 0.67). Three things are worse: more passing observations read
+lower (0.83 for one, 0.62 for four); `uniform` is never a suspect; in
+the fall the stone no longer holds `speed` up against the feather
+(0.13, was 0.96).
+
+**Decided alone.**
+
+720. "Through the tie" is built as one whole per observed instance:
+     all of [the tie, `c@x`, the tie's completeness], named
+     "`c@x` at `tie`". The evidence is about that whole. It is a
+     derived piece that was not in the ask; nothing simpler puts the
+     instance in what a test speaks of. To confirm.
+721. The tie's own whole (the tie and the statements it lists) is no
+     longer what an observation is about. A function's tie now lists
+     `f::correct` in place of `f::seen`.
+722. `uniform` is given to `recorded` by who records, as a piece. A
+     claim that is not a function's has no implied one: the fall
+     names `speed::uniform` in its test.
+723. An instance is named "`claim` @ `input` = `value`, ..", with the
+     value printed as the code holds it (`n = Whole(3)`). Not pretty,
+     and a matter of the report layer.
+724. A failing test is aimed like a passing one, at the instance
+     through the tie. Decision 713 (a failure aimed at `f::correct`)
+     is withdrawn.
+725. `more_tests_read_lower` in `tests/function.rs` is a test that records the
+     unwanted reading, with no claim in the model.
+726. `mitra conform`: 115 ties agree, 21 differ, the same reader
+     limits.

@@ -843,10 +843,14 @@ toy that uses both sides. One statement, `speed`: after falling a
 height h, the speed v satisfies v² = 2·g·h within 2 m²/s², with g at
 9.81 m/s². It is an expression on reals of the standard table. A stone
 and a feather are each tied to it. A measurement is a height and a
-speed; `claims::measured` computes the claim on it and gives evidence
-about the whole of the object's tie. Nothing is written piece by
-piece: the settings say a statement and a tie start at one half, a
-measurement at 0.9, a completeness at 0.6, and no voice is doubted.
+speed; `claims::observe` computes the claim on it and gives evidence
+about the claim at that height and speed, and `claims::recorded` puts
+it in the model through the object's tie: the evidence is about the
+tie, that instance and the tie's completeness together. `speed`
+itself is all of its observed instances and `speed::uniform`, which
+one review says yes to. The settings say a statement and a tie start
+at one half, a measurement at 0.9, a completeness at 0.6, and no voice
+is doubted.
 
 | measured | says |
 |---|---|
@@ -856,29 +860,41 @@ measurement at 0.9, a completeness at 0.6, and no voice is doubted.
 | feather: 5 m, 2 m/s | no |
 | feather: 10 m, 2.1 m/s | no |
 
-| after | `speed` | stone's tie | its completeness | feather's tie | its completeness |
-|---|---|---|---|---|---|
-| the stone alone | 0.97 | 0.97 | 0.97 | - | - |
-| the feather alone | 0.38 | - | - | 0.38 | 0.50 |
-| both | 0.96 | 0.97 | 0.97 | 0.27 | 0.40 |
+| after | `speed` | at the stone's 5 m | at the feather's 5 m | stone's tie | its completeness | feather's tie | its completeness |
+|---|---|---|---|---|---|---|---|
+| one fall of the stone | 0.83 | 0.91 | - | 0.91 | 0.93 | - | - |
+| the stone alone | 0.68 | 0.91 | - | 0.97 | 0.97 | - | - |
+| the feather alone | 0.17 | - | 0.43 | - | - | 0.38 | 0.50 |
+| both | 0.13 | 0.91 | 0.43 | 0.97 | 0.97 | 0.38 | 0.50 |
 
-The stone's three measurements believe the statement, its tie and its
-completeness. The feather's two then leave the statement where the
-stone put it and go to the feather's tie (0.27) and its completeness
-(0.40): either this is not an object the statement is about, or
-something is missing there, which is the air. The feather alone has
-nothing to hold the statement up, so the statement and the tie share
-the no equally (0.38).
+Each of the stone's measurements believes its own instance, and all
+three believe the stone's tie and its completeness. Each of the
+feather's is shared between its instance (0.43), the feather's tie
+(0.38) and its completeness (0.50).
+
+Two readings are not wanted, and both come from the same place:
+`speed` is a product over its instances.
+
+- More measurements read lower. One fall of the stone reads 0.83,
+  three read 0.68: each instance is believed at 0.91 and the product
+  of three is less than one of them.
+- The stone no longer holds the claim up against the feather. Before
+  this rule the feather after the stone left `speed` at 0.96 and went
+  to the feather's tie (0.27) and its completeness (0.40). Now each
+  instance stands alone, so the claim at the feather's height has no
+  support from the stone and takes its share of the no, and `speed`
+  reads 0.13.
 
 ### The same claim read by bounds
 
 `claims::bounded` reads the claim with each input known to lie in a
 range, on the ranges table of `bounds`. The stone's height and speed
 are each known to a hundredth; the claim is true everywhere in those
-margins, so one reading stands for every point of them. Here a whole
-range is worth ten observations: that number is given by who asks.
+margins, so one reading stands for every point of them: its instance
+is the claim over those ranges. Here a whole range is worth ten
+observations: that number is given by who asks.
 
-| the stone, 5 m at 9.9 m/s | `speed` | from | to |
+| the stone, 5 m at 9.9 m/s | `speed` there | from | to |
 |---|---|---|---|
 | read at the point | 0.91 | 0.40 | 1.00 |
 | read over its margins | 0.99 | 0.94 | 1.00 |
@@ -897,36 +913,39 @@ Not shown: a statement for the air.
 function `double(n)` has the body `n * 2` and a tie to its code. A
 statement and a tie start at one half, a test is believed at 0.9, a
 completeness starts at 0.6. `uniform` is reviewed by one voice, one
-yes, believed at 0.9.
+yes, believed at 0.9. A test at 3 is evidence about `double::correct`
+at 3, recorded through the tie.
 
-| | `double::correct` | its belief | `double::seen` | `double::uniform` | the tie | its completeness |
-|---|---|---|---|---|---|---|
-| no `uniform`, a test at 3 | 0.50 | 0.00 | 0.91 | 0.50 | 0.91 | 0.93 |
-| `uniform` not reviewed, a test at 3 | 0.35 | 0.34 | 0.91 | 0.50 | 0.91 | 0.93 |
-| `uniform` reviewed, a test at 3 | 0.63 | 0.63 | 0.91 | 0.91 | 0.91 | 0.93 |
-| then a run at 7 gives 15 | 0.46 | 0.46 | 0.85 | 0.85 | 0.85 | 0.88 |
-| tests at 1, 2, 3 and 4, `uniform` reviewed | 0.82 | 0.82 | 0.97 | 0.91 | 0.97 | 0.98 |
-| then a run at 7 gives 15 | 0.67 | 0.66 | 0.96 | 0.79 | 0.96 | 0.97 |
+| | `double::correct` | its belief | at 3 | at 7 | `double::uniform` | the tie | its completeness |
+|---|---|---|---|---|---|---|---|
+| no `uniform`, a test at 3 | 0.50 | 0.00 | 0.91 | 0.50 | 0.50 | 0.91 | 0.93 |
+| `uniform` not reviewed, a test at 3 | 0.45 | 0.29 | 0.91 | 0.50 | 0.50 | 0.91 | 0.93 |
+| `uniform` reviewed, a test at 3 | 0.83 | 0.78 | 0.91 | 0.50 | 0.91 | 0.91 | 0.93 |
+| then a run at 7 gives 15 | 0.20 | 0.16 | 0.91 | 0.25 | 0.91 | 0.88 | 0.91 |
+| tests at 1, 2, 3 and 4, `uniform` reviewed | 0.62 | 0.62 | 0.91 | 0.50 | 0.91 | 0.97 | 0.98 |
+| then a run at 7 gives 15 | 0.12 | 0.11 | 0.91 | 0.19 | 0.91 | 0.97 | 0.98 |
 
-cannot all be right, least believed first: the run at 7, double::uniform, double::tie, double::seen, double::deterministic, complete: double::tie
-cannot all be right, least believed first: the run at 7, double::uniform, double::tie, double::seen, double::deterministic, complete: double::tie
+cannot all be right, least believed first: `double::correct` at 7, the run at 7, double::tie, complete: double::tie
 
-`double::correct` after the run at 7: 0.73 yes, 0.66 no, base rate 0.04
+`double::correct` after the run at 7: 0.09 yes, 0.28 no, base rate 0.12
 
-Without `uniform`, a passing test says yes to what was seen and
+Without `uniform`, a passing test believes `double::correct` at 3 and
 nothing leads from there to `double::correct`: it keeps its base rate
 with no belief at all. With `uniform`, `double::correct` is all of
-what was seen and `uniform`, so it reads as their product: five
-pieces at about 0.91 after one test give 0.63, and 0.82 after four.
+its tested instances and `uniform`.
 
-A run at 7 that gives 15 says no about `double::correct`. After one
-passing test the no is shared equally between `uniform`, what was
-seen and the tie (0.85 each). After four, what was seen stands (0.96)
-and `uniform` takes the blame (0.79).
+A run at 7 that gives 15 says no about the tie, `double::correct` at
+7 and the tie's completeness together. The instance is new, so most
+of the no lands on it (0.25, and 0.19 once four tests hold the tie
+up), and `double::correct` reads 0.20, then 0.12. Before this rule it
+read 0.46 and 0.67 after the same runs.
 
-One reading is too kind: after the run at 7, `double::correct` still
-reads 0.46, and 0.67 with four tests. A whole reads as the product of
-its parts, each lowered a little, and that product forgets that the
-parts were seen not to be all right together. The same was true of
-the throwing toy. It is the calculus of the model, not the functions.
+What this rule costs:
 
+- Four passing tests read lower than one: 0.62 against 0.83. Each
+  test adds an instance at 0.91 to the product.
+- `uniform` is never blamed. The failing test speaks of the instance
+  at 7 and of the tie, not of `uniform`, which stays at 0.91.
+- The tie no longer lists what was seen. It lists `double::correct`
+  and `double::deterministic`, and a test does not speak of the tie's
+  own whole.

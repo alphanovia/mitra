@@ -4,10 +4,11 @@
 //! One statement, `speed`: after falling a height `h`, the speed `v`
 //! satisfies v² = 2·g·h within a tolerance. A stone and a feather are
 //! each tied to it. A measurement is a height and a speed; computing
-//! the claim on it says yes or no about the whole of the object's tie.
+//! the claim on it says yes or no about the claim at that height and
+//! speed, through the object's tie.
 
 use mitra_core::bounds::{between, Ranges};
-use mitra_core::claim::{aimed, bounded, measured, Claim};
+use mitra_core::claim::{bounded, instance, observe, recorded, Claim};
 use mitra_core::model::*;
 use mitra_core::standard::{mul, ratio, real, within, Exact, Table};
 
@@ -57,21 +58,27 @@ fn tie_of(object: &str) -> Tie {
 }
 
 /// The model after these measurements: (object, height, speed), each
-/// in hundredths. Each measurement is believed at 0.9 before anything.
+/// in hundredths. Each measurement is believed at 0.9 before anything,
+/// and a review says the measured falls stand for all falls.
 fn after(measurements: &[(&str, i64, i64)]) -> Model {
+    let uniform = Piece::named("speed::uniform");
     let mut m = Model::empty(S);
     for (object, h, v) in measurements {
-        let tie = tie_of(object);
-        if !m.ties.contains(&tie) {
-            m.ties.push(tie.clone());
-        }
-        let inputs = [("h".to_string(), r(*h, 100)), ("v".to_string(), r(*v, 100))];
         let by = Voice::named(&format!("machine:timer {object} {h}"));
-        if let Some(e) = measured(&speed(), &tie, &inputs, &by, &Table::default()) {
-            m.evidence.push(e);
+        if let Some(e) = observe(&speed(), &at(*h, *v), &by, &Table::default()) {
+            m = recorded(&m, &speed(), e, Some(&tie_of(object)), Some(&uniform)).unwrap();
         }
     }
+    m.evidence.push(Evidence {
+        piece: Piece::named("review of uniform"),
+        about: uniform,
+        value: yes(),
+        by: Voice::named("agent:reviewer"),
+    });
     m
+}
+fn at(h: i64, v: i64) -> [(String, mitra_core::value::Value<Exact>); 2] {
+    [("h".to_string(), r(h, 100)), ("v".to_string(), r(v, 100))]
 }
 
 fn main() {
@@ -85,8 +92,13 @@ fn main() {
     println!("| measured | says |");
     println!("|---|---|");
     for (object, h, v) in &both {
-        let m = after(&[(object, *h, *v)]);
-        let said = match m.evidence.first() {
+        let seen = observe(
+            &speed(),
+            &at(*h, *v),
+            &Voice::named("me"),
+            &Table::default(),
+        );
+        let said = match seen {
             Some(e) if e.value == yes() => "yes",
             Some(_) => "no",
             None => "nothing",
@@ -103,18 +115,25 @@ fn main() {
         true => "-".to_string(),
         false => format!("{:.2}", projected(opinion(m, &Piece::named(x)), S.weight)),
     };
+    let seen = |m: &Model, x: &Piece| match m.related.iter().any(|r| r.content.pieces.contains(x)) {
+        true => format!("{:.2}", projected(opinion(m, x), S.weight)),
+        false => "-".to_string(),
+    };
     println!(
-        "\n| after | `speed` | stone's tie | its completeness | feather's tie | its completeness |"
+        "\n| after | `speed` | at the stone's 5 m | at the feather's 5 m | stone's tie | its completeness | feather's tie | its completeness |"
     );
-    println!("|---|---|---|---|---|---|");
+    println!("|---|---|---|---|---|---|---|---|");
     for (name, m) in [
+        ("one fall of the stone", after(&stone[..1])),
         ("the stone alone", after(&stone)),
         ("the feather alone", after(&feather)),
         ("both", after(&both)),
     ] {
         println!(
-            "| {name} | {} | {} | {} | {} | {} |",
+            "| {name} | {} | {} | {} | {} | {} | {} | {} |",
             read(&m, "speed"),
+            seen(&m, &instance(&speed(), &at(500, 990))),
+            seen(&m, &instance(&speed(), &at(500, 200))),
             read(&m, "stone applies"),
             read(&m, "complete: stone applies"),
             read(&m, "feather applies"),
@@ -128,29 +147,22 @@ fn main() {
     let margin = |x: i64| between(&real(), (x * 10 - 10, 1000), (x * 10 + 10, 1000)).unwrap();
     let tie = tie_of("stone");
     let by = Voice::named("machine:timer");
-    let with = |e: Evidence| Model {
-        ties: vec![tie.clone()],
-        evidence: vec![e],
-        ..Model::empty(S)
-    };
-    let inputs = [
-        ("h".to_string(), r(500, 100)),
-        ("v".to_string(), r(990, 100)),
-    ];
-    let point = with(measured(&speed(), &tie, &inputs, &by, &Table::default()).unwrap());
+    let with = |e: Evidence| recorded(&Model::empty(S), &speed(), e, Some(&tie), None).unwrap();
+    let inputs = at(500, 990);
+    let point = with(observe(&speed(), &inputs, &by, &Table::default()).unwrap());
     let ranges = [
         ("h".to_string(), margin(500)),
         ("v".to_string(), margin(990)),
     ];
     let ranged = bounded(&speed(), &ranges, 10.0, &by, &Ranges).unwrap();
-    let range = with(aimed(ranged, &tie).unwrap());
-    println!("\n| the stone, 5 m at 9.9 m/s | `speed` | from | to |");
+    let range = with(ranged);
+    println!("\n| the stone, 5 m at 9.9 m/s | `speed` there | from | to |");
     println!("|---|---|---|---|");
-    for (name, m) in [
-        ("read at the point", point),
-        ("read over its margins", range),
+    for (name, m, x) in [
+        ("read at the point", point, instance(&speed(), &inputs)),
+        ("read over its margins", range, instance(&speed(), &ranges)),
     ] {
-        let o = opinion(&m, &Piece::named("speed"));
+        let o = opinion(&m, &x);
         let (low, high) = interval(o, S.weight);
         println!(
             "| {name} | {:.2} | {low:.2} | {high:.2} |",

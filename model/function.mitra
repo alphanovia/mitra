@@ -10,28 +10,22 @@ import std::core::{Option};
 subject functions {
     require stated = claims::claim_is_a_truth;
     require observed = claims::observed_is_evidence;
-    require whole = tie::a_tie_has_a_whole;
-    require complete = tie::completeness_is_implied;
-    require all = model::whole_is_all_its_parts;
-    require shared = model::no_is_shared;
+    require through = claims::recorded_through_the_tie;
+    require general = claims::general_is_all_observed;
+    require tied = tie::a_tie_has_a_whole;
     require applied = Applies::applied_alone;
     require equal = standard::applied_as_written;
     require yes_and_no = piece::opinion_is_counts;
 
-    ensure function_is_a_group = "A function is not a new kind of piece. It is a group: an operation, with its name and signature, that the system's code implements; the tie to that code; and the statements about it. Two statements are implied by every function: what was seen of it, and that it is deterministic. The tie lists them with the function's other statements, and implies its completeness like any tie.";
+    ensure function_is_a_group = "A function is not a new kind of piece. It is a group: an operation, with its name and signature, that the system's code implements; the tie to that code; and the statements about it. One statement is implied by every function: that it is deterministic. The tie lists it, correct when there is a body, and the function's other statements, and implies its completeness like any tie.";
     ensure body_is_the_spec = "The body of a function is what it should give, as an expression of its inputs. It implies one statement, correct: on every input, the code gives what the body gives. A function with no body has no such statement.";
-    // After Gaudel, 1995, "Testing Can Be Formal, Too": the uniformity
-    // hypothesis, that a program right on one input of a domain is
-    // right on all of it, is what lets a finite test stand for a claim
-    // on every input. Departs: the hypothesis is a piece, believed more
-    // or less and blamed when a run contradicts it, where the paper
-    // assumes it; and the domain is the whole type, not a subdomain
-    // chosen from the specification.
-    ensure uniform_is_asked_for = "A test at one input says nothing of the others by itself. A function may ask for one more statement, uniform: the code is right on every input if it is right on one. Then correct is all of what was seen and uniform together, and is believed only as far as both. Without it nothing leads from a test to correct.";
+    // The uniformity hypothesis of Gaudel, 1995: see
+    // claims::general_is_all_observed.
+    ensure uniform_is_asked_for = "A test at one input says nothing of the others by itself. A function may ask for one more statement, uniform: the inputs tested stand for all inputs. Then correct is all of its tested instances and uniform together. Without it nothing leads from a test to correct.";
     ensure claims_are_scoped = "Another statement about a function is named after it, and reads the function's inputs, with their types, and nothing else.";
-    ensure untied_is_owed = "A function with no place for its code has no tie. It is reported as untied: owed work, not an error. What is seen of it can still be believed by evidence.";
+    ensure untied_is_owed = "A function with no place for its code has no tie. It is reported as untied: owed work, not an error. A test of it is still evidence about correct at that input.";
     ensure a_helper_is_a_definition = "A helper is an operation with a body and nothing else: it is applied by computing its body, it has no tie, and nothing is believed of it.";
-    ensure a_test_is_a_measurement = "A test is one run of the code, read against the body. Where the run gave what the body gives, it says yes about what was seen: the whole of the function's tie, or the seen statement alone when there is no tie. Where it did not, it says no about correct itself: one input where the code is wrong refutes it whatever else is assumed, and the no is shared between what was seen, the tie, its completeness and uniform.";
+    ensure a_test_is_a_measurement = "A test is one run of the code, read against the body: an observation of correct at the inputs of the run, yes where the run gave what the body gives and no where it did not. It is recorded through the function's tie, so a no is shared between correct at that input, the tie and its completeness.";
 
     record Function {
         operation: value::Operation,
@@ -58,8 +52,6 @@ subject functions {
     // `f::correct`. `None` for a function with no body.
     fn correctness(f: Function) -> Option<statement::Statement<claims::Claim>>
         uses called, standard::equal;
-    // `f::seen`: where the code was run, it gave what the model says.
-    fn seen(f: Function) -> piece::Piece;
     // `f::deterministic`: the same inputs always give the same output.
     fn determinism(f: Function) -> piece::Piece;
     // `f::uniform`. `None` when the model does not ask for it.
@@ -68,18 +60,9 @@ subject functions {
     fn in_scope(f: Function, s: statement::Statement<claims::Claim>) -> Bool;
     // The tie of a function to its code. `None` with no place.
     fn tie(f: Function) -> Option<tie::Tie>
-        uses seen, determinism;
+        uses correctness, determinism;
     // The functions with no tie.
     fn untied(functions: List<Function>) -> List<String>;
-    // What a passing test says yes to.
-    fn ground(f: Function) -> piece::Piece
-        uses tie, seen, tie::whole;
-    // The model with the function in it: its tie, and with `uniform`
-    // the relation that `f::correct` is all of what was seen and
-    // `f::uniform`.
-    fn placed(model: model::Model, f: Function) -> model::Model
-        uses tie, correctness, uniformity, ground;
-
     // What applies operations once helpers are defined and the code
     // was run: a run gives what it gave, a helper what its body gives,
     // and the table the rest.
@@ -90,9 +73,15 @@ subject functions {
     }
     impl Applies<value::Operation, Value<standard::Exact>, standard::Exact> for Known { }
 
-    // What one run of the code says, read against the body.
+    // What one run of the code says, read against the body: evidence
+    // about `f::correct` at the inputs of the run.
     fn tested(f: Function, run: Run, by: evidence::Voice, with: Known) -> Option<evidence::Evidence>
-        uses correctness, ground, claims::observe, piece::yes;
+        uses correctness, claims::observe;
+    // The model with a test of the function in it: recorded through
+    // the function's tie when it has one, and with `f::uniform` when
+    // the function asks for it.
+    fn noted(model: model::Model, f: Function, test: evidence::Evidence) -> Option<model::Model>
+        uses correctness, tie, uniformity, claims::recorded;
 
     claim a_body_implies_correct(f: Function) {
         (correctness(f) == None) == (f.body == None)
@@ -111,25 +100,19 @@ subject functions {
     }
     claim an_untied_function_is_named(f: Function) {
         match f.at {
-            None => untied([f]) == [f.operation.name] && ground(f) == seen(f),
+            None => untied([f]) == [f.operation.name],
             Some(p) => untied([f]) == [],
         }
     }
     claim a_helper_is_its_body(h: Helper, table: standard::Table) {
         value::eval(Apply(h.operation, []), [], Known(table, [h], [])) == value::eval(h.body, [], Known(table, [h], [])) || h.inputs != []
     }
-    claim a_pass_is_about_what_was_seen(f: Function, run: Run, by: evidence::Voice, with: Known) {
-        match tested(f, run, by, with) {
-            None => true,
-            Some(e) => e.value != piece::yes() || e.about == ground(f),
-        }
-    }
-    claim a_failure_is_about_correct(f: Function, run: Run, by: evidence::Voice, with: Known) {
+    claim a_test_is_about_an_instance(f: Function, run: Run, by: evidence::Voice, with: Known) {
         match tested(f, run, by, with) {
             None => true,
             Some(e) => match correctness(f) {
                 None => false,
-                Some(general) => e.value == piece::yes() || e.about == general.piece,
+                Some(general) => e.about != general.piece,
             },
         }
     }
@@ -142,14 +125,17 @@ subject tests {
     // functions
 
     // uniform_is_asked_for
-    claim correct_only_through_uniform(f: functions::Function, m: model::Model) {
-        f.uniform || functions::placed(m, f).related == m.related
+    claim correct_only_through_uniform(f: functions::Function, m: model::Model, test: evidence::Evidence) {
+        match functions::noted(m, f, test) {
+            None => true,
+            Some(after) => f.uniform || f.at != None || after.related == m.related,
+        }
     }
     // a_test_is_a_measurement
-    claim a_bug_blames_uniform(f: functions::Function, m: model::Model) {
-        match functions::uniformity(f) {
-            None => true,
-            Some(hypothesis) => f.body == None || functions::placed(m, f).related != [] ,
+    claim a_bug_refutes_correct(f: functions::Function, m: model::Model, test: evidence::Evidence) {
+        match functions::noted(m, f, test) {
+            None => f.body == None || f.at != None,
+            Some(after) => after.evidence != m.evidence,
         }
     }
 }

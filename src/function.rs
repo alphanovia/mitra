@@ -5,10 +5,8 @@
 //! definition: it joins the operations that can be applied, and
 //! nothing is believed of it.
 
-use crate::claim::{observe, Claim};
-use crate::model::{
-    whole, yes, Evidence, Model, Piece, Place, Related, Relation, Statement, Tie, Voice,
-};
+use crate::claim::{observe, recorded, Claim};
+use crate::model::{Evidence, Model, Piece, Place, Statement, Tie, Voice};
 use crate::standard::{equal, Exact, Table};
 use crate::value::{eval, Applies, Expression, Operation, Value};
 
@@ -17,8 +15,8 @@ use crate::value::{eval, Applies, Expression, Operation, Value};
 ///
 /// - `body`: what it should give, as an expression of its inputs: the
 ///   spec. It implies the statement `f::correct`.
-/// - `uniform`: the model takes one input as standing for all: the
-///   statement `f::uniform`, asked for and not implied.
+/// - `uniform`: the model takes the inputs observed as standing for
+///   all: the statement `f::uniform`, asked for and not implied.
 /// - `claims`: other statements about it, named `f::…`, that speak of
 ///   its inputs and of nothing else.
 /// - `at`: where its code is. With none it is untied: owed work.
@@ -77,12 +75,6 @@ pub fn correctness(f: &Function) -> Option<Statement<Claim>> {
     })
 }
 
-/// `f::seen`: where the code was run, it gave what the model says.
-/// This is what a passing test says yes to.
-// mitra: implements functions::seen
-pub fn seen(f: &Function) -> Piece {
-    named(f, "seen")
-}
 /// `f::deterministic`: the same inputs always give the same output.
 // mitra: implements functions::determinism
 pub fn determinism(f: &Function) -> Piece {
@@ -113,12 +105,13 @@ pub fn in_scope(f: &Function, s: &Statement<Claim>) -> bool {
     s.piece.name.starts_with(&prefix) && signature_only(&s.content.expression, f)
 }
 
-/// The tie of a function to its code: it lists `f::seen`,
-/// `f::deterministic` and the function's other statements. None for a
-/// function with no place.
+/// The tie of a function to its code: it lists `f::correct` when
+/// there is a body, `f::deterministic`, and the function's other
+/// statements. None for a function with no place.
 // mitra: implements functions::tie
 pub fn tie(f: &Function) -> Option<Tie> {
-    let mut statements = vec![seen(f), determinism(f)];
+    let mut statements: Vec<Piece> = correctness(f).into_iter().map(|s| s.piece).collect();
+    statements.push(determinism(f));
     statements.extend(f.claims.iter().map(|s| s.piece.clone()));
     Some(Tie {
         piece: named(f, "tie"),
@@ -133,44 +126,6 @@ pub fn tie(f: &Function) -> Option<Tie> {
 pub fn untied(functions: &[Function]) -> Vec<String> {
     let none = functions.iter().filter(|f| f.at.is_none());
     none.map(|f| f.operation.name.clone()).collect()
-}
-
-/// What a passing test of the function says yes to: the whole of its
-/// tie, or `f::seen` alone when it has no tie.
-// mitra: implements functions::ground
-pub fn ground(f: &Function) -> Piece {
-    match tie(f) {
-        Some(t) => whole(&t),
-        None => seen(f),
-    }
-}
-
-/// The model with the function in it: its tie, and when it has a body
-/// and asks for `uniform`, the relation that `f::correct` is all of
-/// what was seen and `f::uniform`. Without `uniform`, nothing leads
-/// from what was seen to `f::correct`.
-// mitra: implements functions::placed
-pub fn placed(model: &Model, f: &Function) -> Model {
-    let mut out = model.clone();
-    if let Some(t) = tie(f) {
-        if !out.ties.contains(&t) {
-            out.ties.push(t);
-        }
-    }
-    if let (Some(general), Some(hypothesis)) = (correctness(f), uniformity(f)) {
-        let relation = Piece::named(&format!("all: {}", general.piece.name));
-        if !out.related.iter().any(|said| said.piece == relation) {
-            out.related.push(Statement {
-                piece: relation.clone(),
-                content: Related {
-                    how: Relation::All,
-                    pieces: vec![general.piece, ground(f), hypothesis],
-                },
-            });
-            out.base.push((relation, 1.0));
-        }
-    }
-    out
 }
 
 /// What applies operations once helpers are defined and the code was
@@ -204,12 +159,11 @@ impl Applies<Exact> for Known<'_> {
     }
 }
 
-/// What one run of the code says, read against the body. Where the
-/// run gave what the body gives, it is a yes about what was seen: the
-/// whole of the function's tie. Where it did not, it is a no about
-/// `f::correct` itself: one input where the code is wrong refutes it
-/// whatever else is assumed. Nothing for a function with no body, a
-/// run of another operation, or a body with no value there.
+/// What one run of the code says, read against the body: evidence
+/// about `f::correct` at the inputs of the run, yes where the run gave
+/// what the body gives and no where it did not. Nothing for a function
+/// with no body, a run of another operation, or a body with no value
+/// there.
 // mitra: implements functions::tested
 pub fn tested(f: &Function, run: &Run, by: &Voice, with: &Known) -> Option<Evidence> {
     if run.operation != f.operation || run.args.len() != f.inputs.len() {
@@ -227,12 +181,19 @@ pub fn tested(f: &Function, run: &Run, by: &Voice, with: &Known) -> Option<Evide
         helpers: with.helpers,
         runs: &runs,
     };
-    let e = observe(&correctness(f)?, &inputs, by, &known)?;
-    Some(match e.value == yes() {
-        true => Evidence {
-            about: ground(f),
-            ..e
-        },
-        false => e,
-    })
+    observe(&correctness(f)?, &inputs, by, &known)
+}
+
+/// The model with a test of the function in it: an observation of
+/// `f::correct`, through the function's tie when it has one, and with
+/// `f::uniform` when the function asks for it.
+// mitra: implements functions::noted
+pub fn noted(model: &Model, f: &Function, test: Evidence) -> Option<Model> {
+    recorded(
+        model,
+        &correctness(f)?,
+        test,
+        tie(f).as_ref(),
+        uniformity(f).as_ref(),
+    )
 }

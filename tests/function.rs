@@ -60,9 +60,9 @@ fn test_of(f: &Function, at: i64, gave: i64) -> Option<Evidence> {
 }
 /// The model after these runs, with `uniform` reviewed or not.
 fn after(f: &Function, runs: &[(i64, i64)], reviewed: bool) -> Model {
-    let mut m = placed(&Model::empty(S), f);
+    let mut m = Model::empty(S);
     for (at, gave) in runs {
-        m.evidence.push(test_of(f, *at, *gave).unwrap());
+        m = noted(&m, f, test_of(f, *at, *gave).unwrap()).unwrap();
     }
     if let (true, Some(hypothesis)) = (reviewed, uniformity(f)) {
         m.evidence.push(Evidence {
@@ -123,7 +123,7 @@ fn the_tie_lists_the_statements() {
         .collect();
     assert_eq!(
         names,
-        ["double::seen", "double::deterministic", "double::grows"]
+        ["double::correct", "double::deterministic", "double::grows"]
     );
 }
 
@@ -159,15 +159,6 @@ fn untied_is_owed() {
     };
     assert_eq!(untied(&[double(true), free.clone()]), ["double"]);
     assert_eq!(tie(&free), None);
-    // Still supportable: a passing test says yes to `double::seen`.
-    let e = test_of(&free, 3, 6).unwrap();
-    assert_eq!(e.about, Piece::named("double::seen"));
-    let m = Model {
-        evidence: vec![e],
-        ..placed(&Model::empty(S), &free)
-    };
-    assert!(m.ties.is_empty());
-    assert!(read(&m, "double::seen") > 0.9);
 }
 
 /// A helper is a definition: `fn twice(n) { n + n }` is applied by its
@@ -200,21 +191,16 @@ fn a_helper_is_its_body() {
     assert_eq!(pass.value, yes());
 }
 
-// mitra: evidence for functions::a_pass_is_about_what_was_seen
-// mitra: evidence for functions::a_failure_is_about_correct
+// mitra: evidence for functions::a_test_is_about_an_instance
 #[test]
-fn a_test_is_a_measurement() {
+fn a_test_is_about_an_instance() {
     let f = double(true);
+    let at_three = Piece::named("double::correct @ n = Whole(3)");
     let pass = test_of(&f, 3, 6).unwrap();
-    assert_eq!(
-        (pass.value, pass.about),
-        (yes(), Piece::named("whole: double::tie"))
-    );
+    assert_eq!((pass.value, pass.about.clone()), (yes(), at_three.clone()));
     let fail = test_of(&f, 7, 15).unwrap();
-    assert_eq!(
-        (fail.value, fail.about),
-        (no(), Piece::named("double::correct"))
-    );
+    assert_eq!(fail.value, no());
+    assert_eq!(fail.about, Piece::named("double::correct @ n = Whole(7)"));
     // A run of something else says nothing.
     let other = Run {
         operation: int_to_int("triple"),
@@ -230,53 +216,96 @@ fn a_test_is_a_measurement() {
         tested(&f, &other, &Voice::named("machine:cargo"), &known),
         None
     );
+    // Noted through the tie: the test is about the tie, the instance
+    // and the tie's completeness together.
+    let m = noted(&Model::empty(S), &f, pass).unwrap();
+    assert_eq!(m.ties, [tie(&f).unwrap()]);
+    let through = &m.related[1].content;
+    assert_eq!(m.evidence[0].about, through.pieces[0]);
+    assert_eq!(
+        parts(&m, through),
+        [
+            Piece::named("double::tie"),
+            at_three,
+            Piece::named("complete: double::tie")
+        ]
+    );
 }
 
 /// The golden. One test at 3 passes. Without `uniform`, nothing leads
-/// from it to `double::correct`: no belief at all. With `uniform`
-/// reviewed, `double::correct` is believed as all of what was seen and
-/// `uniform` together.
+/// from that instance to `double::correct`: no belief at all. With
+/// `uniform` reviewed, `double::correct` is believed as all of its
+/// observed instances and `uniform` together.
 // mitra: evidence for tests::correct_only_through_uniform
 #[test]
 fn correct_only_through_uniform() {
+    let at_three = "double::correct @ n = Whole(3)";
     let without = after(&double(false), &[(3, 6)], false);
     let o = opinion(&without, &Piece::named("double::correct"));
     assert_eq!((o.r, o.s), (0.0, 0.0));
-    assert!(near(read(&without, "double::seen"), 0.91));
+    assert!(near(read(&without, at_three), 0.91));
 
     let unreviewed = after(&double(true), &[(3, 6)], false);
-    assert!(near(read(&unreviewed, "double::correct"), 0.35));
+    assert!(near(read(&unreviewed, "double::correct"), 0.45));
 
     let with = after(&double(true), &[(3, 6)], true);
-    assert!(near(read(&with, "double::correct"), 0.63));
+    assert!(near(read(&with, "double::correct"), 0.83));
     assert!(near(read(&with, "double::uniform"), 0.91));
     assert!(read(&with, "double::correct") < read(&with, "double::uniform"));
 
-    // Four tests: more is seen, and the claim reads closer to `uniform`.
-    let four = after(&double(true), &[(1, 2), (2, 4), (3, 6), (4, 8)], true);
-    assert!(near(read(&four, "double::correct"), 0.82));
+    // A function with no tie is still tested: the test is about the
+    // instance alone, and nothing is read of a tie.
+    let free = Function {
+        at: None,
+        ..double(true)
+    };
+    let untied = after(&free, &[(3, 6)], true);
+    assert!(untied.ties.is_empty());
+    assert!(near(read(&untied, "double::correct"), 0.83));
 }
 
-/// The golden, then a run at 7 gives 15. After one passing test the no
-/// is shared equally between `uniform`, what was seen and the tie.
-/// After four, what was seen stands and `uniform` takes the blame.
-// mitra: evidence for tests::a_bug_blames_uniform
+/// FINDING, recorded and not wanted: each passing test adds an
+/// instance to the product, so four passing tests read lower than one.
 #[test]
-fn a_bug_blames_uniform() {
-    let one = after(&double(true), &[(3, 6), (7, 15)], true);
-    assert!(near(read(&one, "double::uniform"), 0.85));
-    assert!(near(read(&one, "double::seen"), 0.85));
-    let suspects = &conflicts(&one)[0];
-    assert_eq!(suspects[1], Piece::named("double::uniform"));
+fn more_tests_read_lower() {
+    let one = after(&double(true), &[(3, 6)], true);
+    let four = after(&double(true), &[(1, 2), (2, 4), (3, 6), (4, 8)], true);
+    assert!(near(read(&one, "double::correct"), 0.83));
+    assert!(near(read(&four, "double::correct"), 0.62));
+}
 
+/// The golden, then a run at 7 gives 15. The no lands on the instance
+/// at 7, and `double::correct`, which is all of its instances, reads
+/// low. `uniform` is not a suspect: the test never spoke of it.
+// mitra: evidence for tests::a_bug_refutes_correct
+#[test]
+fn a_bug_refutes_correct() {
+    let at_seven = Piece::named("double::correct @ n = Whole(7)");
+    let one = after(&double(true), &[(3, 6), (7, 15)], true);
+    assert!(near(read(&one, "double::correct"), 0.20));
+    assert!(near(read(&one, &at_seven.name), 0.25));
+    assert!(near(read(&one, "double::uniform"), 0.91));
+    assert!(near(read(&one, "double::tie"), 0.88));
+    let suspects = &conflicts(&one)[0];
+    assert_eq!(suspects[0], at_seven);
+    assert!(!suspects.contains(&Piece::named("double::uniform")));
+
+    // After four passing tests the tie stands, and more of the no is
+    // on the instance.
     let four = after(
         &double(true),
         &[(1, 2), (2, 4), (3, 6), (4, 8), (7, 15)],
         true,
     );
-    assert!(near(read(&four, "double::uniform"), 0.79));
-    assert!(near(read(&four, "double::seen"), 0.96));
-    assert!(near(read(&four, "double::tie"), 0.96));
-    let before = after(&double(true), &[(1, 2), (2, 4), (3, 6), (4, 8)], true);
-    assert!(read(&four, "double::correct") < read(&before, "double::correct"));
+    assert!(near(read(&four, "double::correct"), 0.12));
+    assert!(near(read(&four, &at_seven.name), 0.19));
+    assert!(near(read(&four, "double::tie"), 0.97));
+
+    // With no tie, the whole no is on the instance.
+    let free = Function {
+        at: None,
+        ..double(true)
+    };
+    let untied = after(&free, &[(3, 6), (7, 15)], true);
+    assert!(near(read(&untied, "double::correct"), 0.08));
 }

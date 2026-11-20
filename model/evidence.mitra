@@ -1,11 +1,11 @@
 evidence tie { for bounds::Span::tied holds act tie by "machine:mitra-rust" source "reader:rust src/bounds.rs:17" }
 evidence tie { for bounds::Bounds::tied holds act tie by "machine:mitra-rust" source "reader:rust src/bounds.rs:27" }
 evidence tie { for bounds::Ranges::tied holds act tie by "machine:mitra-rust" source "reader:rust src/bounds.rs:175" }
-evidence tie { for claims::Claim::tied holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:14" }
-evidence tie { for functions::Function::tied fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:25: field `claims` is `Vec<Statement<Claim>>` in the code, `List<statement::Statement<claims::Claim(value::Expression<standard::Exact>)>>` in the model" }
-evidence tie { for functions::Helper::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:38" }
-evidence tie { for functions::Run::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:47" }
-evidence tie { for functions::Known::tied fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:179: field `helpers` is `&'a [Helper]` in the code, `List<functions::Helper(value::Operation, List<String>, value::Expression<standard::Exact>)>` in the model" }
+evidence tie { for claims::Claim::tied holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:15" }
+evidence tie { for functions::Function::tied fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:23: field `claims` is `Vec<Statement<Claim>>` in the code, `List<statement::Statement<claims::Claim(value::Expression<standard::Exact>)>>` in the model" }
+evidence tie { for functions::Helper::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:36" }
+evidence tie { for functions::Run::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:45" }
+evidence tie { for functions::Known::tied fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:134: field `helpers` is `&'a [Helper]` in the code, `List<functions::Helper(value::Operation, List<String>, value::Expression<standard::Exact>)>` in the model" }
 evidence tie { for evidence::Voice::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model/evidence.rs:8" }
 evidence tie { for evidence::Evidence::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model/evidence.rs:23" }
 evidence tie { for evidence::Reliable::tied holds act tie by "machine:mitra-rust" source "reader:rust src/model/evidence.rs:74" }
@@ -37,34 +37,29 @@ evidence tie { for bounds::surely::uses holds act tie by "machine:mitra-rust" so
 evidence tie { for bounds::Ranges::apply::tied fails act tie by "machine:mitra-rust" source "reader:rust src/bounds.rs:208: input `args` is `&[Option<Value<Bounds>>]` in the code, `List<Option<Value<bounds::Bounds(bounds::Span, Bool)>>>` in the model" }
 evidence tie { for bounds::any_int8::tied fails act tie by "machine:mitra-rust" source "reader:rust src/bounds.rs:338: the result is `Value<Bounds>` in the code, `Value<bounds::Bounds(bounds::Span, Bool)>` in the model" }
 evidence tie { for bounds::any_int8::uses holds act tie by "machine:mitra-rust" source "reader:rust src/bounds.rs:338" }
-evidence tie { for claims::reads::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:21: input `s` is `&Statement<Claim>` in the code, `statement::Statement<claims::Claim(value::Expression<standard::Exact>)>` in the model" }
-evidence tie { for claims::reads::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:21" }
-evidence tie { for claims::observe::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:30: input `s` is `&Statement<Claim>` in the code, `statement::Statement<claims::Claim(value::Expression<standard::Exact>)>` in the model" }
-evidence tie { for claims::observe::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:30" }
-evidence tie { for claims::bounded::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:59: input `s` is `&Statement<Claim>` in the code, `statement::Statement<claims::Claim(value::Expression<standard::Exact>)>` in the model" }
-evidence tie { for claims::bounded::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:59" }
-evidence tie { for claims::aimed::tied holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:85; erased 1: reference(at)" }
-evidence tie { for claims::aimed::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:85" }
-evidence tie { for claims::measured::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:102: input `s` is `&Statement<Claim>` in the code, `statement::Statement<claims::Claim(value::Expression<standard::Exact>)>` in the model" }
-evidence tie { for claims::measured::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:102" }
-evidence tie { for functions::called::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:60; erased 1: reference(f)" }
-evidence tie { for functions::correctness::tied fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:69: the result is `Option<Statement<Claim>>` in the code, `Option<statement::Statement<claims::Claim(value::Expression<standard::Exact>)>>` in the model" }
-evidence tie { for functions::correctness::uses holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:69" }
-evidence tie { for functions::seen::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:82; erased 1: reference(f)" }
-evidence tie { for functions::determinism::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:87; erased 1: reference(f)" }
-evidence tie { for functions::uniformity::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:93; erased 1: reference(f)" }
-evidence tie { for functions::in_scope::tied fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:100: input `s` is `&Statement<Claim>` in the code, `statement::Statement<claims::Claim(value::Expression<standard::Exact>)>` in the model" }
-evidence tie { for functions::tie::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:119; erased 1: reference(f)" }
-evidence tie { for functions::tie::uses holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:119" }
-evidence tie { for functions::untied::tied fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:132: input `functions` is `&[Function]` in the code, `List<functions::Function(value::Operation, List<String>, Option<value::Expression<standard::Exact>>, Bool, List<statement::Statement<claims::Claim(value::Expression<standard::Exact>)>>, Option<place::Place>)>` in the model" }
-evidence tie { for functions::ground::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:140; erased 1: reference(f)" }
-evidence tie { for functions::ground::uses holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:140" }
-evidence tie { for functions::placed::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/function.rs:152; erased 3: reference(model), reference(f), width" }
-evidence tie { for functions::placed::uses holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:152" }
-evidence tie { for functions::Known::apply::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:188; erased 2: reference(op), reference(args)" }
-evidence tie { for functions::Known::apply::uses fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:188: `apply` calls `eval`, which is `value::eval`, and the model states no `uses`" }
-evidence tie { for functions::tested::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:213; erased 4: reference(f), reference(run), reference(by), reference(with)" }
-evidence tie { for functions::tested::uses holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:213" }
+evidence tie { for claims::reads::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:22: input `s` is `&Statement<Claim>` in the code, `statement::Statement<claims::Claim(value::Expression<standard::Exact>)>` in the model" }
+evidence tie { for claims::reads::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:22" }
+evidence tie { for claims::instance::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:30: input `s` is `&Statement<Claim>` in the code, `statement::Statement<claims::Claim(value::Expression<standard::Exact>)>` in the model" }
+evidence tie { for claims::observe::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:44: input `s` is `&Statement<Claim>` in the code, `statement::Statement<claims::Claim(value::Expression<standard::Exact>)>` in the model" }
+evidence tie { for claims::observe::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:44" }
+evidence tie { for claims::bounded::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:74: input `s` is `&Statement<Claim>` in the code, `statement::Statement<claims::Claim(value::Expression<standard::Exact>)>` in the model" }
+evidence tie { for claims::bounded::uses holds act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:74" }
+evidence tie { for claims::recorded::tied fails act tie by "machine:mitra-rust" source "reader:rust src/claim.rs:109: input `s` is `&Statement<Claim>` in the code, `statement::Statement<claims::Claim(value::Expression<standard::Exact>)>` in the model" }
+evidence tie { for functions::called::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:58; erased 1: reference(f)" }
+evidence tie { for functions::correctness::tied fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:67: the result is `Option<Statement<Claim>>` in the code, `Option<statement::Statement<claims::Claim(value::Expression<standard::Exact>)>>` in the model" }
+evidence tie { for functions::correctness::uses holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:67" }
+evidence tie { for functions::determinism::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:79; erased 1: reference(f)" }
+evidence tie { for functions::uniformity::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:85; erased 1: reference(f)" }
+evidence tie { for functions::in_scope::tied fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:92: input `s` is `&Statement<Claim>` in the code, `statement::Statement<claims::Claim(value::Expression<standard::Exact>)>` in the model" }
+evidence tie { for functions::tie::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:111; erased 1: reference(f)" }
+evidence tie { for functions::tie::uses holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:111" }
+evidence tie { for functions::untied::tied fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:125: input `functions` is `&[Function]` in the code, `List<functions::Function(value::Operation, List<String>, Option<value::Expression<standard::Exact>>, Bool, List<statement::Statement<claims::Claim(value::Expression<standard::Exact>)>>, Option<place::Place>)>` in the model" }
+evidence tie { for functions::Known::apply::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:143; erased 2: reference(op), reference(args)" }
+evidence tie { for functions::Known::apply::uses fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:143: `apply` calls `eval`, which is `value::eval`, and the model states no `uses`" }
+evidence tie { for functions::tested::tied holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:167; erased 4: reference(f), reference(run), reference(by), reference(with)" }
+evidence tie { for functions::tested::uses holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:167" }
+evidence tie { for functions::noted::tied fails act tie by "machine:mitra-rust" source "reader:rust src/function.rs:190: the result is `Option<Model>` in the code, `Option<model::Model(List<evidence::Evidence>, List<statement::Statement<model::Related(model::Relation, List<piece::Piece>)>>, List<(piece::Piece, Float64)>, List<tie::Tie>, model::Settings)>` in the model" }
+evidence tie { for functions::noted::uses holds act tie by "machine:mitra-rust" source "reader:rust src/function.rs:190" }
 evidence tie { for evidence::apart::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model/evidence.rs:35; erased 3: reference(a), reference(b), width" }
 evidence tie { for evidence::moved::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/model/evidence.rs:45; erased 1: width" }
 evidence tie { for evidence::moved::uses fails act tie by "machine:mitra-rust" source "reader:rust src/model/evidence.rs:45: `moved` calls `projected`, which is `piece::projected`, and the model states no `uses`" }
