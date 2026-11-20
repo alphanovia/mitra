@@ -386,3 +386,17 @@ So how about we put review evidence in the mix". No `w` per piece.
      "I weighed it" with 1, 10 or 100 yes. These numbers are mine.
 632. The Beta maths of the trials (interval, ln of gamma) is shared in
      `examples/common/`, still outside the core.
+
+**Then (13:04).** "you can review completeness too... a test where the
+reviewer is very good on the model, and unsure on the masses. Then we
+try a bad reviewer, saying feather is complete, and overconfident on
+everything." Section "A good reviewer and a bad one" of
+`docs/trials.md`.
+
+633. The good reviewer: 1000 yes on gravity, 1 yes on each mass,
+     believed at 0.99. The bad one: 100 yes on everything, believed
+     at 0.9. Each review is a piece of its own.
+634. Found, not fixed: the evidence that says yes about a part is not
+     a suspect of a failure, so a review is never doubted by what
+     fails. To change it is a change of the failure rule, for the
+     user to decide.

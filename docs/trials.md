@@ -359,3 +359,59 @@ Gravity reviewed (1000 yes), 3 objects pass, the feather fails, 10 measurements 
 | 1 yes | (1017.9, 0.00) 1.00 [1.00, 1.00] | (0.9, 3.00) 0.24 [0.02, 0.62] | (0.0, 0.14) 0.53 [0.00, 1.00] | (0.9, 0.00) 0.91 [0.40, 1.00] |
 | 10 yes | (1017.9, 0.01) 1.00 [1.00, 1.00] | (9.0, 0.81) 0.91 [0.73, 1.00] | (0.0, 0.60) 0.22 [0.00, 0.93] | (0.9, 0.00) 0.91 [0.40, 1.00] |
 | 100 yes | (1017.9, 0.01) 1.00 [1.00, 1.00] | (90.0, 0.10) 1.00 [0.99, 1.00] | (0.0, 0.93) 0.16 [0.00, 0.77] | (0.9, 0.00) 0.91 [0.40, 1.00] |
+
+## A good reviewer and a bad one
+
+Completeness can be reviewed like any piece.
+
+- **The good reviewer reads right.** Sure of gravity, unsure of each
+  mass, silent on completeness: the feather's failures go to its
+  completeness (0.21 after one measurement, 0.10 after three, 0.03
+  after ten), the mass sinks slowly behind it (0.89, 0.84, 0.70), and
+  gravity does not move. "The model is right, something is missing
+  for the feather."
+- **The bad reviewer is never overturned, and that reads wrong.**
+  With 100 yes on gravity, on the feather's mass and on its
+  completeness, each failed fall has nothing left to blame but its
+  own measurement: each reads 0.17, and after 100 failed measurements
+  the feather's completeness still reads 0.99. At this rate it would
+  take about nine thousand failures to bring it to one half.
+- **The bad reviewer's voice is never doubted**: its review of the
+  feather's completeness reads 0.90 from the first measurement to the
+  hundredth. A failure names the parts and the measurement as
+  suspects; the evidence that said yes about a part is not one of
+  them. So a no never travels back to a review. This is the gap: a
+  review is a piece that can be wrong, and nothing can say so except
+  a review of the review.
+- The intervals do not warn either: the feather's completeness is
+  "right nine times out of ten between 0.97 and 1.00" after a hundred
+  failures.
+
+Three objects pass, the feather fails. Each tie has its completeness: "same speed" is all of [gravity, mass, complete].
+
+- **Good**: 1000 yes on gravity, 1 yes on each mass (unsure), nothing on completeness. Believed at 0.99.
+- **Bad**: 100 yes on gravity, on every mass and on every completeness, the feather's too. Believed at 0.9.
+
+**Good reviewer.**
+
+| measurements per object | `gravity` | `mass feather` | `complete feather` | one of the feather's measurements | the review of `complete feather` |
+|---|---|---|---|---|---|
+| 1 | (992.7, 0.00) 1.00 [1.00, 1.00] | (1.0, 0.04) 0.89 [0.36, 1.00] | (0.0, 0.28) 0.21 [0.00, 0.98] | (0.0, 0.01) 0.84 [0.00, 1.00] | none |
+| 3 | (998.1, 0.00) 1.00 [1.00, 1.00] | (1.0, 0.11) 0.84 [0.26, 1.00] | (0.0, 0.84) 0.10 [0.00, 0.63] | (0.0, 0.01) 0.84 [0.00, 1.00] | none |
+| 10 | (1017.0, 0.00) 1.00 [1.00, 1.00] | (1.0, 0.36) 0.70 [0.13, 1.00] | (0.0, 2.81) 0.03 [0.00, 0.21] | (0.0, 0.01) 0.84 [0.00, 1.00] | none |
+| 30 | (1071.0, 0.00) 1.00 [1.00, 1.00] | (1.0, 1.08) 0.48 [0.05, 0.93] | (0.0, 8.43) 0.01 [0.00, 0.07] | (0.0, 0.01) 0.84 [0.00, 1.00] | none |
+| 100 | (1260.0, 0.01) 1.00 [1.00, 1.00] | (1.0, 3.60) 0.23 [0.02, 0.57] | (0.0, 28.11) 0.00 [0.00, 0.02] | (0.0, 0.01) 0.84 [0.00, 1.00] | none |
+
+Suspects listed at 3 measurements: Some(["complete feather", "mass feather", "drop feather 0", "gravity"])
+
+**Bad reviewer.**
+
+| measurements per object | `gravity` | `mass feather` | `complete feather` | one of the feather's measurements | the review of `complete feather` |
+|---|---|---|---|---|---|
+| 1 | (92.7, 0.01) 1.00 [0.99, 1.00] | (90.0, 0.01) 1.00 [0.99, 1.00] | (90.0, 0.01) 1.00 [0.99, 1.00] | (0.0, 0.83) 0.17 [0.00, 0.82] | (0.0, 0.00) 0.90 [0.02, 1.00] |
+| 3 | (98.1, 0.03) 1.00 [0.99, 1.00] | (90.0, 0.03) 1.00 [0.99, 1.00] | (90.0, 0.03) 1.00 [0.99, 1.00] | (0.0, 0.84) 0.17 [0.00, 0.82] | (0.0, 0.00) 0.90 [0.02, 1.00] |
+| 10 | (117.0, 0.07) 1.00 [0.99, 1.00] | (90.0, 0.10) 1.00 [0.99, 1.00] | (90.0, 0.10) 1.00 [0.99, 1.00] | (0.0, 0.84) 0.17 [0.00, 0.82] | (0.0, 0.00) 0.90 [0.02, 1.00] |
+| 30 | (171.0, 0.15) 1.00 [0.99, 1.00] | (90.0, 0.29) 1.00 [0.98, 1.00] | (90.0, 0.29) 1.00 [0.98, 1.00] | (0.0, 0.86) 0.17 [0.00, 0.81] | (0.0, 0.00) 0.90 [0.02, 1.00] |
+| 100 | (360.0, 0.24) 1.00 [1.00, 1.00] | (90.0, 0.96) 0.99 [0.97, 1.00] | (90.0, 0.96) 0.99 [0.97, 1.00] | (0.0, 0.87) 0.17 [0.00, 0.80] | (0.0, 0.00) 0.90 [0.02, 1.00] |
+
+Suspects listed at 3 measurements: Some(["drop feather 0", "mass feather", "complete feather", "gravity"])
