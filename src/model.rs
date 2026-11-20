@@ -16,7 +16,7 @@ pub mod tie;
 pub use evidence::{apart, conflict, fuse, moved, Evidence, Voice};
 pub use piece::{against, no, nothing, piece_id, projected, reaches, yes, Opinion, Piece};
 pub use place::{within, Place};
-pub use statement::{stance, Owner, Statement};
+pub use statement::Statement;
 pub use tie::{concerned, places, Tie};
 
 use std::collections::BTreeSet;

@@ -25,20 +25,10 @@
 //   claim.mitra   the seam: a statement whose content is an expression.
 //                 Computing it makes evidence. Reads both.
 //
-// Left out on purpose: the kinds of statement by name (claim, assume,
-// ensure: claim.mitra says how they come out), which inputs evidence
+// Left out on purpose: the kinds of statement (claim, assume, ensure),
+// whether a statement is owed or given, which inputs evidence
 // covers, acts and the reading of a voice (a voice is its name here),
 // settings, and a build that judges every piece at once.
-
-// Who a statement is owed by, or given by. Written above the subjects and
-// not in `statement`: today the reader refuses a generic record of a
-// subject that names an enum of that subject. A fault of main.
-enum Owner {
-    // Ours to show: it starts with nothing assumed.
-    Owed,
-    // Taken from someone: it starts at their word.
-    Given
-}
 
 // A location in the system.
 subject place {
@@ -190,29 +180,9 @@ subject statement {
     require believed = piece::everything_is_a_piece;
 
     ensure statement_is_an_interpretation = "A statement is an interpretation of the system: a piece with a content, which is what it says the system is or does. The content is not read here, whatever it is.";
-    ensure owed_or_given = "A statement is owed or given. An owed one starts with nothing assumed; a given one starts at the word of whoever gave it. Evidence moves both alike.";
-
     record Statement<C> {
         piece: piece::Piece,
         content: C,
-        owner: Owner,
-    }
-
-    // Where the opinion of a statement starts: its base rate. `word` is
-    // how far whoever gave it is believed.
-    fn stance<C>(s: Statement<C>, word: Float64) -> Float64 {
-        match s.owner {
-            Owed => 0.0,
-            Given => word,
-        }
-    }
-
-    // owed_or_given
-    claim owed_assumes_nothing(x: piece::Piece) {
-        stance(Statement(x, "the door is closed", Owed), 0.5) == 0.0
-    }
-    claim given_starts_at_the_word(x: piece::Piece) {
-        stance(Statement(x, "the door is closed", Given), 0.5) == 0.5
     }
 }
 

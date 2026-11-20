@@ -9,13 +9,8 @@
 // and nothing computes it. That is the only way across: a value never
 // depends on a piece, and an opinion is only moved by evidence.
 //
-// The statements Mitra has names for come out of two choices:
-//
-//              owed        given
-//   formal     claim       assume
-//   prose      ensure      what a bought thing promises
-//
-// Left out on purpose: a capture (prose that rests on formal
+// Left out on purpose: the kinds of statement (claim, assume, ensure)
+// and whether one is owed or given, a capture (prose that rests on formal
 // statements), functions and the code they stand for, tests (an
 // observation of the code, not of the model), a statement over many
 // inputs and which of them a piece of evidence covers, who vouches for
@@ -30,7 +25,7 @@ subject claims {
     require computed = value::one_value;
 
     ensure formal_is_a_truth = "A formal statement says an expression that gives a truth; an expression that gives anything else states nothing.";
-    ensure observed_is_evidence = "Computing a formal statement at given inputs gives evidence about that statement's piece and no other: yes where it is true, no where it is false, and no evidence where it has no value. It is the same for an owed statement and a given one.";
+    ensure observed_is_evidence = "Computing a formal statement at given inputs gives evidence about that statement's piece and no other: yes where it is true, no where it is false, and no evidence where it has no value.";
     ensure prose_is_not_computed = "A prose statement is never computed: only evidence someone brings moves it.";
     ensure one_way = "Evidence is made from a value; no value is made from evidence or from an opinion.";
 
@@ -52,35 +47,29 @@ subject claims {
 
     // formal_is_a_truth
     claim a_number_is_not_a_statement(p: piece::Piece) {
-        !reads(Statement(p, Formal(Literal(1)), Owed), []) && reads(Statement(p, Formal(Yes), Owed), [])
+        !reads(Statement(p, Formal(Literal(1))), []) && reads(Statement(p, Formal(Yes)), [])
     }
 
     // observed_is_evidence
     claim true_says_yes(p: piece::Piece) {
-        match observe(Statement(p, Formal(Yes), Owed), [], Voice("machine:mitra")) {
+        match observe(Statement(p, Formal(Yes)), [], Voice("machine:mitra")) {
             None => false,
             Some(e) => e.value == piece::yes() && e.by == Voice("machine:mitra"),
         }
     }
     claim false_says_no(p: piece::Piece) {
-        match observe(Statement(p, Formal(No), Owed), [], Voice("machine:mitra")) {
+        match observe(Statement(p, Formal(No)), [], Voice("machine:mitra")) {
             None => false,
             Some(e) => e.value == piece::no(),
         }
     }
     claim no_value_says_nothing(p: piece::Piece) {
-        observe(Statement(p, Formal(Input("x")), Owed), [], Voice("machine:mitra")) == None
+        observe(Statement(p, Formal(Input("x"))), [], Voice("machine:mitra")) == None
     }
     claim about_its_own_piece(s: statement::Statement<Formal>) {
         match observe(s, [], Voice("machine:mitra")) {
             None => true,
             Some(e) => e.about == s.piece,
-        }
-    }
-    claim given_is_observed_as_owed(p: piece::Piece) {
-        match observe(Statement(p, Formal(No), Given), [], Voice("machine:mitra")) {
-            None => false,
-            Some(e) => e.value == piece::no(),
         }
     }
 }

@@ -161,3 +161,12 @@ statement: `Formal { expression }` or `Prose { text }`.
      a comment. `observe` treats owed and given alike.
 581. Four claims in `model` build small models of evidence and
      relations and state the opinion that comes out.
+
+## Increment 95: no owner on a statement (2026-11-20)
+
+**Asked.** "let's remove owner from statement, let's try to have the
+smallest model that make sense and is passing our tests. Later we can
+move down things if we find that they are actually part of the core."
+`Owner`, `stance`, the promise `owed_or_given` and their three claims
+are gone, in the model, the seam, the code and the tests. A statement
+is a piece and a content. Decisions 575, 579 and 580 no longer apply.

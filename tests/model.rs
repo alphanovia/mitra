@@ -232,26 +232,6 @@ fn beside_is_not_within() {
     ));
 }
 
-fn door(owner: Owner) -> Statement<&'static str> {
-    Statement {
-        piece: Piece::named("x"),
-        content: "the door is closed",
-        owner,
-    }
-}
-
-// mitra: evidence for statement::owed_assumes_nothing
-#[test]
-fn owed_assumes_nothing() {
-    assert_eq!(stance(&door(Owner::Owed), 0.5), 0.0);
-}
-
-// mitra: evidence for statement::given_starts_at_the_word
-#[test]
-fn given_starts_at_the_word() {
-    assert_eq!(stance(&door(Owner::Given), 0.5), 0.5);
-}
-
 fn tie(place: &[&str]) -> Vec<Tie> {
     vec![Tie {
         piece: Piece::named("t"),
