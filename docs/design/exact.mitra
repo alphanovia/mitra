@@ -1,0 +1,43 @@
+// PROPOSAL, no code yet. The calculus read as plain probability: each
+// piece is true or false, nobody knows which, and the only facts are
+// what was reported. Would replace how model.mitra computes an
+// opinion; pieces, evidence, statements, ties and relations stay.
+// Reads model.mitra and claim.mitra.
+
+subject exact {
+    require pieces = piece::everything_is_a_piece;
+    require said = evidence::evidence_is_a_piece;
+    require related = model::relation_is_said;
+    require apart = model::settings_are_apart;
+    require instances = claims::instance_is_a_piece;
+
+    ensure a_piece_is_true_or_false = "Every piece is true or false, and which is not known: a statement, a tie, its completeness, a claim at an input, that a report is sound, that a relation holds. Before any report, a piece is taken to be true as often as the setting for its kind says, or the base rate written for it, each apart from the others.";
+    ensure a_report_is_the_only_fact = "The only thing known for sure is that a voice said yes or no about a piece: a test passed at 3, a reviewer said yes. Nothing else is fixed, and no piece is trusted ahead of another.";
+    // The likelihood of a report. Luck and noise are two new settings.
+    ensure a_report_follows_what_is_so = "A report is sound when its own piece is true and its voice is reliable. A sound report says yes for sure when what it speaks of is so. When it is not so, a sound report still says yes as often as the luck setting: a test may pass on code that is not the code tied. A report that is not sound says yes as often as the noise setting, whatever is so.";
+    ensure a_whole_is_all_its_parts = "A whole is true exactly when all of its parts are. When the relation that says so is itself false, the whole is a piece like any other. A report about a whole is how one report speaks of several pieces at once: a test speaks of the tie, the claim at that input and the tie's completeness.";
+    // After Gaudel, 1995, "Testing Can Be Formal, Too". Here uniform is
+    // the paper's hypothesis as written: the inputs behave alike.
+    ensure a_claim_holds_at_every_input = "When a claim is true, it is true at every input. When it is false and uniform is true, it is false at every input: the inputs behave alike. When it is false and there is no uniform, or uniform is false, it is true at each input as often as the base rate of a statement, each input apart. So one sound failure refutes the claim, and passing tests support it more as uniform is believed.";
+    ensure a_reading_is_exact = "What is read of a piece is how probable it is given every report: each way of setting all pieces true or false is weighed by how often it happens before any report, times how often it would give exactly the reports made, and the reading is the share of that weight where the piece is true. It is computed by going through every way; nothing is approximated, and the order of the reports does not matter.";
+    ensure blame_is_read_too = "After a no, nothing is shared by a rule. Each suspect is read like any piece: the one whose being false explains the reports best falls most, and a report may itself be the suspect.";
+    ensure counts_are_for_rates = "Counts of yes and no are kept only for what is a rate: how often a voice is right. They are not kept for a claim, which is true or false.";
+
+    // One way things may be: each piece true or false.
+    record World { is: List<(piece::Piece, Bool)> }
+
+    // How often this world happens before any report.
+    fn before(model: model::Model, w: World) -> Float64
+        uses model::base;
+    // How often this world would give exactly the reports made.
+    fn gives(model: model::Model, w: World, luck: Float64, noise: Float64) -> Float64;
+    // Every world of the model's pieces.
+    fn worlds(model: model::Model) -> List<World>;
+    // How probable the piece is, given every report.
+    fn reading(model: model::Model, x: piece::Piece, luck: Float64, noise: Float64) -> Float64
+        uses worlds, before, gives;
+
+    claim nothing_reported_reads_the_base(m: model::Model, x: piece::Piece, luck: Float64, noise: Float64) {
+        m.evidence != [] || m.related != [] || m.ties != [] || reading(m, x, luck, noise) == model::base(m, x)
+    }
+}
