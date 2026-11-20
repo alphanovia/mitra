@@ -322,3 +322,40 @@ recorded again, with a column at 2 where it helps.
 
 617. The W 2 columns are the numbers of the commit before; the weight
      is one function and is not swept by the code.
+
+## Increment 101: two trials, completeness and a growing weight (2026-11-20)
+
+**Asked.** "On a given tie, we have a piece of system, and the
+statements we attached to it. So we have an opinion on each statement,
+and on the completeness of the relations." "let's try this on our two
+foundation exemples"; "try the W being scaled with the amount of
+evidence in the model too". Note: `docs/complete.md`. Nothing is added
+to the model: both are examples over the core as it is.
+
+**Decisions taken alone.**
+
+618. Completeness is written by hand in each trial model, one piece
+     per tie; the core does not imply it. To imply it, a model must
+     hold its ties, which is a change for you to see first.
+619. In the one-throw trial the pair is all of [falls, complete]: the
+     tie piece `applies` is left out, since the two say nearly the
+     same.
+620. The scale is tried both ways: evidence about the mass itself, and
+     a prediction on the tie.
+621. `with_weight` lets a trial work under another weight. It is in
+     the code and not in the model, for trials only; a real setting
+     would be a field of the model.
+622. The schedule is 0.2 + 0.2 · ln(1 + evidence): it reaches the
+     earlier weight of 2 at ten thousand pieces of evidence.
+623. The fitted prior per kind is not tried: a piece has no kind.
+
+**Then (12:50).** "in the build we would need something like an
+influence optimisation pass to find the right W ?" Two passes tried in
+`examples/weight.rs`, read in `docs/complete.md`.
+
+624. Both passes search a grid of ten weights from 0.02 to 20.
+625. The likelihood is the Beta-binomial one on the counts each piece
+     has under that weight, over the pieces with a base rate strictly
+     between 0 and 1.
+626. The influence of a piece of evidence is how far the reading of
+     the parts of its whole moves with and without it; epsilon is 0.01.

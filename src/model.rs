@@ -15,7 +15,8 @@ pub mod tie;
 
 pub use evidence::{apart, conflict, fuse, moved, Evidence, Voice};
 pub use piece::{
-    against, no, nothing, piece_id, projected, reaches, uncertainty, weight, yes, Opinion, Piece,
+    against, no, nothing, piece_id, projected, reaches, uncertainty, weight, with_weight, yes,
+    Opinion, Piece,
 };
 pub use place::{within, Place};
 pub use statement::Statement;

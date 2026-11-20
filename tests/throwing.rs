@@ -335,3 +335,49 @@ fn a_hundred_objects_and_a_feather() {
     );
     assert!(projected(mass) < 0.1 && projected(drop) > 0.8);
 }
+
+/// A trial, not yet in the core (`docs/complete.md`): one more piece
+/// per tie, `complete`, "the statements on this tie are all that
+/// matter for it". Ten objects fall at the same speed, a feather does
+/// not, and a scale says yes about the feather's mass: the no goes to
+/// the feather's completeness, and gravity and the mass stand.
+#[test]
+fn a_weighed_feather_blames_its_completeness() {
+    let mut m = Model {
+        base: base(&[("gravity", 0.5)]),
+        ..Model::default()
+    };
+    let names: Vec<String> = (0..10).map(|k| format!("o{k}")).collect();
+    for (name, falls) in names
+        .iter()
+        .map(|n| (n.as_str(), true))
+        .chain([("feather", false)])
+    {
+        let (mass, done, speed) = (
+            format!("mass {name}"),
+            format!("complete {name}"),
+            format!("same speed {name}"),
+        );
+        m.related.push(rests(&[&speed, "gravity", &mass, &done]));
+        m.base.extend(base(&[(&mass, 0.5), (&done, 0.5)]));
+        for k in 0..10 {
+            let drop = format!("drop {name} {k}");
+            m.evidence.push(says(&drop, &speed, falls, &drop));
+            m.base.push((p(&drop), 0.9));
+        }
+    }
+    let at = |m: &Model, x: &str| projected(opinion(m, &p(x)));
+    // No scale: nothing tells the mass from completeness.
+    let bare = sure(m.clone());
+    assert!(close(
+        at(&bare, "mass feather"),
+        at(&bare, "complete feather")
+    ));
+    m.evidence
+        .push(says("scale", "mass feather", true, "scale"));
+    m.base.push((p("scale"), 0.9));
+    let m = sure(m);
+    assert!(at(&m, "gravity") > 0.99 && at(&m, "complete o0") > 0.98);
+    assert!(close(at(&m, "mass feather"), 0.678));
+    assert!(close(at(&m, "complete feather"), 0.034));
+}
