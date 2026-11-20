@@ -35,7 +35,7 @@ mitra conform             # with main's binary, from this folder
 
 - `tests/piece.rs`, `value.rs`, `claim.rs`: each claim of the model as
   one test, tied by name, then the promises on small worlds.
-- `tests/goldens.rs`: 21 of `main`'s 22 trust goldens as a table over
+- `tests/goldens.rs`: 20 of `main`'s 22 trust goldens as a table over
   the calculus (case 7 needs settings, case 6 a report).
 - `tests/wall.rs`: the wall, and no disk.
 
