@@ -362,60 +362,85 @@ Gravity reviewed (1000 yes), 3 objects pass, the feather fails, 10 measurements 
 
 ## A good reviewer and a bad one
 
-Completeness can be reviewed like any piece.
+Asked: a reviewer good on the model and unsure about masses and
+completeness, "confident on stone and less so on a leaf"; then a bad
+reviewer, overconfident on everything, who says the feather is
+complete. Run with `cargo run --release --example review`.
 
-- **The good reviewer reads mostly right.** Sure of gravity, unsure
-  of the rest for not having looked at the surface of the objects: 1
-  yes on each mass, half a yes on each completeness. Gravity does not
-  move. The feather's completeness goes first (0.65 after one
-  measurement, 0.44 after three, 0.21 after ten) and its mass follows
-  behind (0.82, 0.69, 0.43). The order is right: completeness is the
-  first suspect. But the mass is not cleared: an unsure reviewer
-  cannot protect it, and after thirty failures both are low. Only
-  something that speaks of the mass alone, like the scale, keeps it
-  standing.
-- **The bad reviewer is never overturned, and that reads wrong.**
-  With 100 yes on gravity, on the feather's mass and on its
-  completeness, each failed fall has nothing left to blame but its
-  own measurement: each reads 0.17, and after 100 failed measurements
-  the feather's completeness still reads 0.99. At this rate it would
-  take about nine thousand failures to bring it to one half.
-- **The bad reviewer's voice is never doubted**: its review of the
-  feather's completeness reads 0.90 from the first measurement to the
-  hundredth. A failure names the parts and the measurement as
-  suspects; the evidence that said yes about a part is not one of
-  them. So a no never travels back to a review. This is the gap: a
-  review is a piece that can be wrong, and nothing can say so except
-  a review of the review.
-- The intervals do not warn either: the feather's completeness is
-  "right nine times out of ten between 0.97 and 1.00" after a hundred
-  failures.
+### 4. A good reviewer
 
-Three objects pass, the feather fails. Each tie has its completeness: "same speed" is all of [gravity, mass, complete].
+A stone, a ball, a leaf and a feather, 10 measurements each. Each tie has its completeness: "same speed" is all of [gravity, mass, complete].
 
-- **Good**: 1000 yes on gravity; unsure of the rest, having not looked at the surface of the objects: 1 yes on each mass, half a yes on each completeness. Believed at 0.99.
-- **Bad**: 100 yes on gravity, on every mass and on every completeness, the feather's too. Believed at 0.9.
+The reviewer is believed at 0.99. 1000 yes on gravity, 1 yes on each mass. On completeness, by object, not having looked at the air: 20 yes for the stone, 5 for the ball, half a yes for the leaf and for the feather.
 
-**Good reviewer.**
+| object | passes | its mass | its completeness | one failing measurement |
+|---|---|---|---|---|
+| stone | 9 of 10 | (9.1, 0.08) 0.98 [0.90, 1.00] | (27.9, 0.03) 1.00 [0.97, 1.00] | (0.0, 0.53) 0.25 [0.00, 0.95] |
+| ball | 10 of 10 | (10.0, 0.00) 0.99 [0.94, 1.00] | (14.0, 0.00) 0.99 [0.96, 1.00] | none |
+| leaf | 6 of 10 | (6.4, 0.37) 0.93 [0.74, 1.00] | (5.9, 0.40) 0.92 [0.72, 1.00] | (0.0, 0.34) 0.33 [0.00, 1.00] |
+| feather | 0 of 10 | (1.0, 1.33) 0.43 [0.05, 0.89] | (0.5, 2.17) 0.21 [0.00, 0.64] | (0.0, 0.06) 0.70 [0.00, 1.00] |
 
-| measurements per object | `gravity` | `mass feather` | `complete feather` | one of the feather's measurements | the review of `complete feather` |
-|---|---|---|---|---|---|
-| 1 | (992.7, 0.00) 1.00 [1.00, 1.00] | (1.0, 0.13) 0.82 [0.23, 1.00] | (0.5, 0.22) 0.65 [0.03, 1.00] | (0.0, 0.06) 0.70 [0.00, 1.00] | (0.0, 0.00) 0.99 [1.00, 1.00] |
-| 3 | (998.1, 0.00) 1.00 [1.00, 1.00] | (1.0, 0.40) 0.69 [0.12, 1.00] | (0.5, 0.65) 0.44 [0.01, 0.97] | (0.0, 0.06) 0.70 [0.00, 1.00] | (0.0, 0.00) 0.99 [1.00, 1.00] |
-| 10 | (1017.0, 0.00) 1.00 [1.00, 1.00] | (1.0, 1.33) 0.43 [0.05, 0.89] | (0.5, 2.17) 0.21 [0.00, 0.64] | (0.0, 0.06) 0.70 [0.00, 1.00] | (0.0, 0.00) 0.99 [1.00, 1.00] |
-| 30 | (1071.0, 0.01) 1.00 [1.00, 1.00] | (1.0, 3.99) 0.21 [0.02, 0.54] | (0.5, 6.50) 0.08 [0.00, 0.28] | (0.0, 0.06) 0.70 [0.00, 1.00] | (0.0, 0.00) 0.99 [1.00, 1.00] |
-| 100 | (1260.0, 0.02) 1.00 [1.00, 1.00] | (1.0, 13.29) 0.08 [0.01, 0.21] | (0.5, 21.68) 0.03 [0.00, 0.09] | (0.0, 0.06) 0.70 [0.00, 1.00] | (0.0, 0.00) 0.99 [1.00, 1.00] |
+`gravity`: (1012.5, 0.01) 1.00 [1.00, 1.00]
 
-Suspects listed at 3 measurements: Some(["complete feather", "mass feather", "drop feather 0", "gravity"])
+Read plainly. The stone's single failure goes to the measurement
+(0.25), not to the stone: 20 yes on its completeness and nine passes
+outweigh it. The leaf's four failures are shared: its mass and its
+completeness lose a little, each failing measurement is doubted. The
+feather's ten failures land on its completeness first (0.21), then on
+its mass (0.43), and its measurements are believed (0.70). Gravity is
+untouched. The count on a completeness review is what decides where a
+failure goes.
 
-**Bad reviewer.**
+### 5. A bad reviewer, and a no that travels back
 
-| measurements per object | `gravity` | `mass feather` | `complete feather` | one of the feather's measurements | the review of `complete feather` |
-|---|---|---|---|---|---|
-| 1 | (92.7, 0.01) 1.00 [0.99, 1.00] | (90.0, 0.01) 1.00 [0.99, 1.00] | (90.0, 0.01) 1.00 [0.99, 1.00] | (0.0, 0.83) 0.17 [0.00, 0.82] | (0.0, 0.00) 0.90 [0.02, 1.00] |
-| 3 | (98.1, 0.03) 1.00 [0.99, 1.00] | (90.0, 0.03) 1.00 [0.99, 1.00] | (90.0, 0.03) 1.00 [0.99, 1.00] | (0.0, 0.84) 0.17 [0.00, 0.82] | (0.0, 0.00) 0.90 [0.02, 1.00] |
-| 10 | (117.0, 0.07) 1.00 [0.99, 1.00] | (90.0, 0.10) 1.00 [0.99, 1.00] | (90.0, 0.10) 1.00 [0.99, 1.00] | (0.0, 0.84) 0.17 [0.00, 0.82] | (0.0, 0.00) 0.90 [0.02, 1.00] |
-| 30 | (171.0, 0.15) 1.00 [0.99, 1.00] | (90.0, 0.29) 1.00 [0.98, 1.00] | (90.0, 0.29) 1.00 [0.98, 1.00] | (0.0, 0.86) 0.17 [0.00, 0.81] | (0.0, 0.00) 0.90 [0.02, 1.00] |
-| 100 | (360.0, 0.24) 1.00 [1.00, 1.00] | (90.0, 0.96) 0.99 [0.97, 1.00] | (90.0, 0.96) 0.99 [0.97, 1.00] | (0.0, 0.87) 0.17 [0.00, 0.80] | (0.0, 0.00) 0.90 [0.02, 1.00] |
+The bad reviewer is believed at 0.9 and says 100 yes on gravity, on every mass and on every completeness, the feather's too. The stone, the ball and the leaf pass every time, the feather never.
 
-Suspects listed at 3 measurements: Some(["drop feather 0", "mass feather", "complete feather", "gravity"])
+The trial rule: evidence that said yes about a part of what failed is judged by the failure. Each cell is without the rule, then with it.
+
+| measurements per object | review of the feather's completeness | review of the stone's completeness | review of gravity | `complete feather` | `mass feather` | one of the feather's measurements | `gravity` |
+|---|---|---|---|---|---|---|---|
+| 1 | 0.90 / 0.63 [0.00, 1.00] | 0.90 / 0.90 [0.02, 1.00] | 0.90 / 0.87 [0.01, 1.00] | 1.00 / 1.00 [0.99, 1.00] | 1.00 / 1.00 [0.99, 1.00] | 0.17 / 0.17 [0.00, 0.82] | 1.00 / 1.00 [0.99, 1.00] |
+| 3 | 0.90 / 0.39 [0.00, 1.00] | 0.90 / 0.90 [0.02, 1.00] | 0.90 / 0.87 [0.01, 1.00] | 1.00 / 1.00 [0.98, 1.00] | 1.00 / 1.00 [0.98, 1.00] | 0.17 / 0.17 [0.00, 0.82] | 1.00 / 1.00 [0.99, 1.00] |
+| 10 | 0.90 / 0.17 [0.00, 0.80] | 0.90 / 0.90 [0.02, 1.00] | 0.90 / 0.88 [0.01, 1.00] | 1.00 / 0.99 [0.94, 1.00] | 1.00 / 0.99 [0.94, 1.00] | 0.17 / 0.17 [0.00, 0.82] | 1.00 / 1.00 [0.99, 1.00] |
+| 30 | 0.90 / 0.06 [0.00, 0.34] | 0.90 / 0.90 [0.02, 1.00] | 0.90 / 0.88 [0.01, 1.00] | 1.00 / 0.94 [0.77, 1.00] | 1.00 / 0.94 [0.77, 1.00] | 0.17 / 0.17 [0.00, 0.81] | 1.00 / 1.00 [0.99, 1.00] |
+| 100 | 0.90 / 0.02 [0.00, 0.11] | 0.90 / 0.90 [0.02, 1.00] | 0.90 / 0.89 [0.01, 1.00] | 0.99 / 0.66 [0.23, 0.97] | 0.99 / 0.66 [0.23, 0.97] | 0.17 / 0.17 [0.00, 0.80] | 1.00 / 1.00 [1.00, 1.00] |
+
+### The trial rule
+
+Off unless asked (`model::with_vouching`), not in the model. When a
+whole fails, each piece of evidence `v` that said yes about one of its
+parts is judged by the failure:
+
+```text
+mean after = mean · L(right) / (mean · L(right) + (1 - mean) · L(wrong))
+L          = 1 - the chance that all the suspects are right
+no added   = α / after - α / mean
+```
+
+`mean` is the belief in `v` before any failure. L(right) reads the
+part with all of `v`'s count, L(wrong) with none of it. A failure is
+more likely when `v` is wrong, since the part then stands on less.
+
+Read plainly.
+
+- The review that vouched for the feather's completeness loses credit
+  fast: 0.63 after one failure, 0.39 after three, 0.17 after ten.
+- Only that review is doubted. The same reviewer's review of the
+  stone's completeness stays at 0.90, and the review of gravity barely
+  moves, because the passes of the other objects speak for gravity.
+  Each review is a piece of its own: there is no shared credit for the
+  reviewer's voice.
+- The reviews of the feather's mass fall the same way as the one of its
+  completeness: nothing tells the two parts apart.
+- The part itself falls slowly: `complete feather` still reads 0.99
+  after ten failures and 0.66 after a hundred. A review of 100 yes
+  believed at 0.17 still gives 17 yes, against a no that grows by a
+  fraction per failure. Discounting scales the count; it does not
+  cancel it.
+- The measurements are still blamed (0.17): every failure is shared
+  from the opinions before any no, so the doubt on the review does not
+  come back to clear the measurement.
+
+So the rule answers "a bad reviewer is never doubted", and shows two
+things it does not answer: an overconfident count survives its own
+discredit, and a reviewer is not one thing across reviews.

@@ -401,3 +401,35 @@ everything." Section "A good reviewer and a bad one" of
      a suspect of a failure, so a review is never doubted by what
      fails. To change it is a change of the failure rule, for the
      user to decide.
+
+## Increment 103: a no that travels back to a review (2026-11-20)
+
+**Asked.** "the review could be confident on stone and less so on a
+leaf"; and the smallest rule that lets a no reach the evidence that
+vouched for a part, shown on the bad reviewer, stopped for the user's
+read.
+
+**Done.** `examples/review.rs` sections 4 and 5; a trial rule
+`vouched` in `src/model.rs`, off unless `model::with_vouching` asks;
+`docs/trials.md`, "A good reviewer and a bad one". No test, no model
+change: 69 tests as before.
+
+**Decided alone.**
+
+635. Completeness reviews by the good reviewer: 20 yes for the stone,
+     5 for the ball, half a yes for the leaf and the feather. The
+     stone fails 1 in 10, the leaf 4 in 10, the feather always.
+636. The rule: evidence that said yes about a part of what failed gets
+     a no, by Bayes on "the failure is more likely if this evidence is
+     wrong", the part read with all of its count against none of it.
+     Its yes count is untouched, as in `blamed`.
+637. The rule takes the evidence as the only one of its voice about
+     that part, and judges each review alone: no credit shared across
+     one reviewer's reviews.
+638. The rule is a thread-local switch in the code and is not in
+     `model/model.mitra`: the model does not hold it until the user
+     keeps it.
+639. Found, not fixed: a discredited review of a large count still
+     gives a large yes (100 yes at 0.17 is 17 yes), and the
+     measurements stay blamed since failures are shared from the
+     opinions before any no.

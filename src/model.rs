@@ -235,6 +235,16 @@ fn heard(model: &Model, x: &Piece, walk: &mut Walk) -> Vec<(Opinion, Voice)> {
             if no > 0.0 {
                 said.push((disbelieving(no), e.by.clone()));
             }
+            if VOUCHING.with(|cell| cell.get()) {
+                let parts = &relation.content.pieces[1..];
+                let mine = model.evidence.iter().filter(|v| &v.piece == x);
+                for v in mine.filter(|v| v.value.r > 0.0 && parts.contains(&v.about)) {
+                    let no = vouched(model, relation, e, v, walk) * e.value.s;
+                    if no > 0.0 {
+                        said.push((disbelieving(no), e.by.clone()));
+                    }
+                }
+            }
         }
     }
     said
@@ -333,6 +343,66 @@ fn blamed(
     }
     let after = (mean - others * square) / (1.0 - others * mean);
     alpha / after - alpha / mean
+}
+
+thread_local! {
+    static VOUCHING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Work something out with the trial rule `vouched` on. For trials
+/// only (`examples/review.rs`): the model does not hold this rule.
+pub fn with_vouching<T>(work: impl FnOnce() -> T) -> T {
+    let before = VOUCHING.with(|cell| cell.replace(true));
+    let out = work();
+    VOUCHING.with(|cell| cell.set(before));
+    out
+}
+
+/// A trial rule, off unless asked: the count of no that one failure
+/// puts on `v`, evidence that said yes about one of the parts. The
+/// failure is more likely if `v` is wrong, since the part is then only
+/// what it is without `v`:
+///
+/// ```text
+/// mean after = mean · L(right) / (mean · L(right) + (1 - mean) · L(wrong))
+/// L = 1 - the chance that all the suspects are right
+/// ```
+///
+/// with the part read with all of `v`'s count for L(right), and with
+/// none of it for L(wrong). `v` is taken as the only one of its voice
+/// about that part.
+fn vouched(
+    model: &Model,
+    relation: &Statement<Related>,
+    e: &Evidence,
+    v: &Evidence,
+    walk: &mut Walk,
+) -> f64 {
+    let group = suspects(model, relation, e, walk);
+    let Some(at) = group.iter().position(|suspect| suspect == &v.about) else {
+        return 0.0;
+    };
+    let mut others = 1.0;
+    for (k, suspect) in group.iter().enumerate() {
+        if k != at {
+            others *= moments(beta(prior(model, suspect, walk))).0;
+        }
+    }
+    let (alpha, beta_) = beta(prior(model, &v.piece, walk));
+    if alpha == 0.0 || beta_ == 0.0 {
+        return 0.0; // not believed at all, or beyond doubt
+    }
+    let mean = alpha / (alpha + beta_);
+    let part = prior(model, &v.about, walk);
+    let without = f64::max(0.0, part.r - mean * v.value.r);
+    let read = |r: f64| moments(beta(Opinion { r, ..part })).0;
+    let right = 1.0 - others * read(without + v.value.r);
+    let wrong = 1.0 - others * read(without);
+    let after = mean * right / (mean * right + (1.0 - mean) * wrong);
+    match after > 0.0 && after < mean {
+        true => alpha / after - alpha / mean,
+        false => 0.0,
+    }
 }
 
 /// Several opinions on one piece. One voice counts once; different

@@ -98,14 +98,15 @@ fn sweep(pass: usize, fail: usize, k: usize, gravity: f64, mass: f64) -> Model {
     m
 }
 
-/// Three objects pass and a feather fails, `k` measurements each, with
-/// a completeness piece per tie: "same speed" is all of
-/// [gravity, mass, complete]. `reviews` are (piece, yes) by one
-/// reviewer believed at `trust`; each review is a piece of its own.
-fn reviewed(k: usize, reviews: &[(&str, f64)], trust: f64) -> Model {
+/// A stone, a ball, a leaf and a feather, with a completeness piece
+/// per tie: "same speed" is all of [gravity, mass, complete]. Each has
+/// so many measurements that pass and that fail. `reviews` are
+/// (piece, yes) by one reviewer believed at `trust`; each review is a
+/// piece of its own.
+fn reviewed(objects: &[(&str, usize, usize)], reviews: &[(&str, f64)], trust: f64) -> Model {
     let mut m = Model::default();
     m.base.push((p("gravity"), 0.5));
-    for name in ["o0", "o1", "o2", "feather"] {
+    for (name, pass, fail) in objects {
         let (mass, done, speed) = (
             format!("mass {name}"),
             format!("complete {name}"),
@@ -114,12 +115,8 @@ fn reviewed(k: usize, reviews: &[(&str, f64)], trust: f64) -> Model {
         m.base.push((p(&mass), 0.5));
         m.base.push((p(&done), 0.5));
         whole(&mut m, &[&speed, "gravity", &mass, &done]);
-        for j in 0..k {
-            let (yes_, no_) = if name == "feather" {
-                (0.0, 1.0)
-            } else {
-                (1.0, 0.0)
-            };
+        for j in 0..pass + fail {
+            let (yes_, no_) = if j < *pass { (1.0, 0.0) } else { (0.0, 1.0) };
             says(&mut m, &format!("drop {name} {j}"), &speed, yes_, no_, 0.9);
         }
     }
@@ -136,52 +133,83 @@ fn reviewed(k: usize, reviews: &[(&str, f64)], trust: f64) -> Model {
     m
 }
 
+const MASSES: [&str; 4] = ["mass stone", "mass ball", "mass leaf", "mass feather"];
+const DONE: [&str; 4] = [
+    "complete stone",
+    "complete ball",
+    "complete leaf",
+    "complete feather",
+];
+
 fn reviewers() {
-    println!("\n### 4. A good reviewer and a bad one\n");
-    println!("Three objects pass, the feather fails. Each tie has its completeness: \"same speed\" is all of [gravity, mass, complete].\n");
-    println!("- **Good**: 1000 yes on gravity; unsure of the rest, having not looked at the surface of the objects: 1 yes on each mass, half a yes on each completeness. Believed at 0.99.");
-    println!("- **Bad**: 100 yes on gravity, on every mass and on every completeness, the feather's too. Believed at 0.9.\n");
-    let masses = ["mass o0", "mass o1", "mass o2", "mass feather"];
-    let done = [
-        "complete o0",
-        "complete o1",
-        "complete o2",
-        "complete feather",
-    ];
+    println!("\n### 4. A good reviewer\n");
+    println!("A stone, a ball, a leaf and a feather, 10 measurements each. Each tie has its completeness: \"same speed\" is all of [gravity, mass, complete].\n");
+    println!("The reviewer is believed at 0.99. 1000 yes on gravity, 1 yes on each mass. On completeness, by object, not having looked at the air: 20 yes for the stone, 5 for the ball, half a yes for the leaf and for the feather.\n");
     let mut good = vec![("gravity", 1000.0)];
-    good.extend(masses.map(|x| (x, 1.0)));
-    good.extend(done.map(|x| (x, 0.5)));
-    let mut bad = vec![("gravity", 100.0)];
-    bad.extend(masses.map(|x| (x, 100.0)));
-    bad.extend(done.map(|x| (x, 100.0)));
-    for (title, reviews, trust) in [("Good", &good, 0.99), ("Bad", &bad, 0.9)] {
-        println!("**{title} reviewer.**\n");
-        println!("| measurements per object | `gravity` | `mass feather` | `complete feather` | one of the feather's measurements | the review of `complete feather` |");
-        println!("|---|---|---|---|---|---|");
-        for k in [1, 3, 10, 30, 100] {
-            let m = reviewed(k, reviews, trust);
-            let review = match reviews.iter().any(|(x, _)| *x == "complete feather") {
-                true => cell(&m, "review: complete feather"),
-                false => "none".to_string(),
-            };
-            let cells = [
-                "gravity",
-                "mass feather",
-                "complete feather",
-                "drop feather 0",
-            ]
-            .map(|x| cell(&m, x));
-            println!("| {k} | {} | {review} |", cells.join(" | "));
-        }
-        let m = reviewed(3, reviews, trust);
-        let listed: Vec<Vec<String>> = conflicts(&m)
-            .iter()
-            .map(|g| g.iter().map(|x| x.name.clone()).collect())
-            .collect();
+    good.extend(MASSES.map(|x| (x, 1.0)));
+    good.extend([
+        ("complete stone", 20.0),
+        ("complete ball", 5.0),
+        ("complete leaf", 0.5),
+        ("complete feather", 0.5),
+    ]);
+    // The stone fails once in ten, the leaf four times, the feather always.
+    let objects = [
+        ("stone", 9, 1),
+        ("ball", 10, 0),
+        ("leaf", 6, 4),
+        ("feather", 0, 10),
+    ];
+    let m = reviewed(&objects, &good, 0.99);
+    println!("| object | passes | its mass | its completeness | one failing measurement |");
+    println!("|---|---|---|---|---|");
+    for (name, pass, fail) in objects {
+        let failing = match fail {
+            0 => "none".to_string(),
+            _ => cell(&m, &format!("drop {name} {}", pass + fail - 1)),
+        };
         println!(
-            "\nSuspects listed at 3 measurements: {:?}\n",
-            listed.first()
+            "| {name} | {pass} of {} | {} | {} | {failing} |",
+            pass + fail,
+            cell(&m, &format!("mass {name}")),
+            cell(&m, &format!("complete {name}"))
         );
+    }
+    println!("\n`gravity`: {}\n", cell(&m, "gravity"));
+
+    println!("### 5. A bad reviewer, and a no that travels back\n");
+    println!("The bad reviewer is believed at 0.9 and says 100 yes on gravity, on every mass and on every completeness, the feather's too. The stone, the ball and the leaf pass every time, the feather never.\n");
+    println!("The trial rule: evidence that said yes about a part of what failed is judged by the failure. Each cell is without the rule, then with it.\n");
+    let mut bad = vec![("gravity", 100.0)];
+    bad.extend(MASSES.map(|x| (x, 100.0)));
+    bad.extend(DONE.map(|x| (x, 100.0)));
+    println!("| measurements per object | review of the feather's completeness | review of the stone's completeness | review of gravity | `complete feather` | `mass feather` | one of the feather's measurements | `gravity` |");
+    println!("|---|---|---|---|---|---|---|---|");
+    for k in [1, 3, 10, 30, 100] {
+        let objects = [
+            ("stone", k, 0),
+            ("ball", k, 0),
+            ("leaf", k, 0),
+            ("feather", 0, k),
+        ];
+        let m = reviewed(&objects, &bad, 0.9);
+        let both = |x: &str| {
+            let at = |o: Opinion| projected(o);
+            let (off, on) = (opinion(&m, &p(x)), with_vouching(|| opinion(&m, &p(x))));
+            let (from, to) = interval(on, weight());
+            format!("{:.2} / {:.2} [{from:.2}, {to:.2}]", at(off), at(on))
+        };
+        let cells = [
+            "review: complete feather",
+            "review: complete stone",
+            "review: gravity",
+            "complete feather",
+            "mass feather",
+            "drop feather 0",
+            "gravity",
+        ]
+        .map(both);
+        println!("| {k} | {} |", cells.join(" | "));
     }
 }
 
