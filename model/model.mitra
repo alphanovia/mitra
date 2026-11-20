@@ -1,0 +1,16 @@
+// The core of Mitra, started again from the inside. Start here.
+//
+// The model is aside from the code: one file per subject, and the code
+// of a subject is the file of the same name under src/.
+//
+// From the inside out:
+//
+//   piece.mitra   something said, what is believed of it, the evidence
+//                 that moves that belief. Reads nothing.
+//   value.mitra   what is computed, its type, the expression that
+//                 computes it. Reads nothing.
+//   claim.mitra   the seam: a piece with a statement. Computing the
+//                 statement makes evidence. Reads both.
+//
+// The two sides never read each other, and a value never depends on a
+// piece (tests/wall.rs).

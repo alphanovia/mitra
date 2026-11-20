@@ -1,0 +1,231 @@
+//! The claims of `model/piece.mitra`, and the walk over what is known.
+
+use mitra_core::piece::*;
+
+fn op(b: f64, d: f64, u: f64, a: f64) -> Opinion {
+    Opinion { b, d, u, a }
+}
+fn near(x: f64, y: f64) -> bool {
+    (x - y).abs() < 1e-9
+}
+fn says(name: &str, about: &str, value: Opinion, by: &str) -> Evidence {
+    Evidence {
+        piece: Piece::named(name),
+        about: Piece::named(about),
+        value,
+        by: by.to_string(),
+    }
+}
+fn rests(pieces: &[&str]) -> Related {
+    Related {
+        how: Relation::RestsOn,
+        pieces: pieces.iter().map(|p| Piece::named(p)).collect(),
+    }
+}
+fn base(rates: &[(&str, f64)]) -> Vec<(Piece, f64)> {
+    rates.iter().map(|(p, a)| (Piece::named(p), *a)).collect()
+}
+
+// The claims of the model, one test each.
+
+// mitra: evidence for piece::no_evidence_is_the_base_rate
+#[test]
+fn no_evidence_is_the_base_rate() {
+    assert_eq!(projected(nothing(0.5)), 0.5);
+}
+
+// mitra: evidence for piece::review_lifts_a_test
+#[test]
+fn review_lifts_a_test() {
+    assert_eq!(
+        projected(fuse(nothing(0.5), moved(nothing(0.75), yes()), 1.0)),
+        0.875
+    );
+}
+
+// mitra: evidence for piece::believed_at_zero_moves_nothing
+#[test]
+fn believed_at_zero_moves_nothing() {
+    assert_eq!(moved(nothing(0.0), yes()), op(0.0, 0.0, 1.0, 1.0));
+    assert_eq!(moved(nothing(0.0), no()), op(0.0, 0.0, 1.0, 0.0));
+}
+
+// mitra: evidence for piece::not_knowing_is_no_review
+#[test]
+fn not_knowing_is_no_review() {
+    assert_eq!(
+        projected(fuse(nothing(0.5), moved(nothing(0.0), yes()), 1.0)),
+        0.5
+    );
+}
+
+// mitra: evidence for piece::wrong_is_disbelief
+#[test]
+fn wrong_is_disbelief() {
+    assert_eq!(
+        projected(fuse(nothing(0.5), moved(nothing(1.0), no()), 1.0)),
+        0.0
+    );
+}
+
+// mitra: evidence for piece::one_voice_twice_is_once
+#[test]
+fn one_voice_twice_is_once() {
+    let half = op(0.5, 0.0, 0.5, 0.0);
+    assert_eq!(fuse(half, half, 0.0), half);
+}
+
+// mitra: evidence for piece::two_voices_add_up
+#[test]
+fn two_voices_add_up() {
+    let half = op(0.5, 0.0, 0.5, 0.0);
+    assert!(fuse(half, half, 1.0).b > 0.5);
+}
+
+// mitra: evidence for piece::two_sure_reviews_that_disagree
+#[test]
+fn two_sure_reviews_that_disagree() {
+    let (for_it, against_it) = (op(1.0, 0.0, 0.0, 0.5), op(0.0, 1.0, 0.0, 0.5));
+    assert_eq!(fuse(for_it, against_it, 1.0), op(0.5, 0.5, 0.0, 0.5));
+    assert_eq!(conflict(for_it, against_it), 1.0);
+}
+
+// mitra: evidence for piece::two_halves_are_a_quarter
+#[test]
+fn two_halves_are_a_quarter() {
+    let half = op(0.5, 0.0, 0.5, 0.0);
+    assert_eq!(all(half, half).b, 0.25);
+}
+
+// mitra: evidence for piece::one_sure_part_changes_nothing
+#[test]
+fn one_sure_part_changes_nothing() {
+    assert_eq!(all(op(1.0, 0.0, 0.0, 0.0), op(0.5, 0.0, 0.5, 0.0)).b, 0.5);
+}
+
+// mitra: evidence for piece::policy_zero_still_needs_belief
+#[test]
+fn policy_zero_still_needs_belief() {
+    assert!(!reaches(nothing(0.0), 0.0));
+    assert!(reaches(op(0.5, 0.0, 0.5, 0.0), 0.0));
+}
+
+// mitra: evidence for piece::one_failing_test_is_against
+#[test]
+fn one_failing_test_is_against() {
+    assert!(against(moved(nothing(0.5), no())));
+    assert!(!against(moved(nothing(0.0), no())));
+}
+
+// The walk: what the promises say of `opinion`, on small worlds.
+
+#[test]
+fn an_opinion_always_sums_to_one() {
+    let grid = [0.0, 0.25, 0.5, 1.0];
+    for b in grid {
+        for u in grid.iter().filter(|u| b + **u <= 1.0) {
+            let x = op(b, 1.0 - b - u, *u, 0.5);
+            for i in grid {
+                for o in [fuse(x, op(0.5, 0.25, 0.25, 0.5), i), all(x, x), moved(x, x)] {
+                    assert!(near(o.b + o.d + o.u, 1.0), "{o:?}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn with_nothing_known_a_piece_is_at_its_base_rate() {
+    let known = Known {
+        base: base(&[("t", 0.6)]),
+        ..Known::default()
+    };
+    assert_eq!(opinion(&known, &Piece::named("t")), nothing(0.6));
+    assert_eq!(opinion(&known, &Piece::named("unheard"),), nothing(0.0));
+}
+
+/// The experiment: how many passing tests nobody reviewed hold a claim
+/// at 0.9, each believed at 0.6.
+#[test]
+fn six_voices_hold_a_claim_and_one_voice_never() {
+    let world = |n: usize, one_voice: bool| {
+        let mut known = Known::default();
+        for k in 0..n {
+            let (t, by) = (
+                format!("t{k}"),
+                if one_voice {
+                    "a".to_string()
+                } else {
+                    format!("v{k}")
+                },
+            );
+            known.evidence.push(says(&t, "c", yes(), &by));
+            known.base.push((Piece(t), 0.6));
+        }
+        known
+    };
+    let p = |n, one| projected(opinion(&world(n, one), &Piece::named("c")));
+    assert!(near(p(1, false), 0.6) && near(p(2, false), 0.75));
+    assert!(p(5, false) < 0.9 && p(6, false) >= 0.9 - 1e-9);
+    assert!(near(p(10, true), 0.6));
+}
+
+#[test]
+fn a_piece_reached_by_two_paths_counts_once() {
+    // x rests on y and z, which both rest on w, believed at 0.5.
+    let known = Known {
+        evidence: vec![says("t", "w", yes(), "a")],
+        related: vec![
+            rests(&["x", "y", "z"]),
+            rests(&["y", "w"]),
+            rests(&["z", "w"]),
+        ],
+        base: base(&[("t", 0.5)]),
+    };
+    assert_eq!(opinion(&known, &Piece::named("x")).b, 0.5);
+}
+
+#[test]
+fn a_piece_rests_on_all_its_parts() {
+    let known = Known {
+        evidence: vec![says("t1", "y", yes(), "a"), says("t2", "z", yes(), "b")],
+        related: vec![rests(&["x", "y", "z"])],
+        base: base(&[("t1", 0.5), ("t2", 0.5)]),
+    };
+    assert_eq!(opinion(&known, &Piece::named("x")).b, 0.25);
+}
+
+#[test]
+fn its_own_evidence_counts_when_it_is_better() {
+    let known = Known {
+        evidence: vec![says("t1", "y", yes(), "a"), says("t0", "x", yes(), "b")],
+        related: vec![rests(&["x", "y"])],
+        base: base(&[("t1", 0.5), ("t0", 0.75)]),
+    };
+    assert_eq!(opinion(&known, &Piece::named("x")).b, 0.75);
+}
+
+#[test]
+fn pieces_that_lead_back_to_themselves_end() {
+    let known = Known {
+        evidence: vec![says("e", "f", yes(), "a"), says("f", "e", yes(), "b")],
+        related: vec![rests(&["x", "y"]), rests(&["y", "x"])],
+        base: vec![],
+    };
+    assert_eq!(opinion(&known, &Piece::named("x")).b, 0.0);
+    assert_eq!(opinion(&known, &Piece::named("e")).b, 0.0);
+}
+
+#[test]
+fn the_same_known_gives_the_same_opinion() {
+    let known = Known {
+        evidence: vec![says("t", "c", yes(), "a"), says("r", "t", yes(), "b")],
+        related: vec![],
+        base: base(&[("t", 0.5), ("r", 0.8)]),
+    };
+    assert_eq!(
+        opinion(&known, &Piece::named("c")),
+        opinion(&known, &Piece::named("c"))
+    );
+    assert_eq!(piece_id(&Piece::named("c")), "c");
+}
