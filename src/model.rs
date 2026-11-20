@@ -21,7 +21,7 @@ pub use place::{within, Place};
 pub use statement::Statement;
 pub use tie::{concerned, places, Tie};
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// How pieces stand to each other. One relation can hold many pieces.
 // mitra: implements model::Relation
@@ -122,6 +122,33 @@ struct Walk {
     resting: Vec<Piece>,
     wholes: Vec<Piece>,
     before: bool,
+    memo: Memo,
+}
+
+/// What one walk has already worked out, not to work it out again: how
+/// far each relation is believed (before any no, and after), what each
+/// piece read as before any no, and the failures of the model.
+#[derive(Default)]
+struct Memo {
+    trust: BTreeMap<(Piece, bool), f64>,
+    prior: BTreeMap<Piece, Opinion>,
+    failures: Option<Vec<(usize, usize)>>,
+}
+
+/// What is said of `x` itself before any no is shared.
+fn prior(model: &Model, x: &Piece, walk: &mut Walk) -> Opinion {
+    if let Some(o) = walk.memo.prior.get(x) {
+        return *o;
+    }
+    let mut before = Walk {
+        before: true,
+        memo: std::mem::take(&mut walk.memo),
+        ..Walk::default()
+    };
+    let o = direct(model, x, &mut before);
+    walk.memo = before.memo;
+    walk.memo.prior.insert(x.clone(), o);
+    o
 }
 
 /// What is believed of `x`, from the whole model.
@@ -149,7 +176,16 @@ fn believed(model: &Model, x: &Piece, walk: &mut Walk) -> Opinion {
 fn related<'a>(model: &'a Model, how: Relation, walk: &mut Walk) -> Vec<(&'a Related, f64)> {
     let mut found = Vec::new();
     for said in model.related.iter().filter(|said| said.content.how == how) {
-        found.push((&said.content, projected(direct(model, &said.piece, walk))));
+        let key = (said.piece.clone(), walk.before);
+        let trust = match walk.memo.trust.get(&key) {
+            Some(trust) => *trust,
+            None => {
+                let trust = projected(direct(model, &said.piece, walk));
+                walk.memo.trust.insert(key, trust);
+                trust
+            }
+        };
+        found.push((&said.content, trust));
     }
     found
 }
@@ -193,8 +229,8 @@ fn heard(model: &Model, x: &Piece, walk: &mut Walk) -> Vec<(Opinion, Voice)> {
         walk.wholes.pop();
     }
     if !walk.before {
-        for (relation, e) in failures(model) {
-            let no = blamed(model, relation, e, x) * e.value.s;
+        for (relation, e) in failures(model, walk) {
+            let no = blamed(model, relation, e, x, walk) * e.value.s;
             if no > 0.0 {
                 said.push((disbelieving(no), e.by.clone()));
             }
@@ -205,33 +241,40 @@ fn heard(model: &Model, x: &Piece, walk: &mut Walk) -> Vec<(Opinion, Voice)> {
 
 /// Each failure of a model: evidence that says no about a whole, with
 /// the relation that makes it a whole.
-fn failures(model: &Model) -> Vec<(&Statement<Related>, &Evidence)> {
-    let mut found = Vec::new();
-    let wholes = model
-        .related
-        .iter()
-        .filter(|said| said.content.how == Relation::All);
-    for relation in wholes {
-        let whole = relation.content.pieces.first();
-        let about = model.evidence.iter().filter(|e| Some(&e.about) == whole);
-        for e in about.filter(|e| e.value.s > 0.0) {
-            found.push((relation, e));
+fn failures<'a>(model: &'a Model, walk: &mut Walk) -> Vec<(&'a Statement<Related>, &'a Evidence)> {
+    if walk.memo.failures.is_none() {
+        let mut found = Vec::new();
+        for (r, relation) in model.related.iter().enumerate() {
+            if relation.content.how != Relation::All {
+                continue;
+            }
+            let whole = relation.content.pieces.first();
+            for (k, e) in model.evidence.iter().enumerate() {
+                if Some(&e.about) == whole && e.value.s > 0.0 {
+                    found.push((r, k));
+                }
+            }
         }
+        walk.memo.failures = Some(found);
     }
+    let found = walk.memo.failures.iter().flatten();
     found
+        .map(|(r, k)| (&model.related[*r], &model.evidence[*k]))
+        .collect()
 }
 
 /// The suspects of a failure: the parts of the whole, the evidence that
 /// says no, and the relation when it can be doubted. They cannot all be
 /// right. A relation believed at 1 is structure, and not a suspect.
-fn suspects(model: &Model, relation: &Statement<Related>, e: &Evidence) -> Vec<Piece> {
+fn suspects(
+    model: &Model,
+    relation: &Statement<Related>,
+    e: &Evidence,
+    walk: &mut Walk,
+) -> Vec<Piece> {
     let mut group: Vec<Piece> = relation.content.pieces.iter().skip(1).cloned().collect();
     group.push(e.piece.clone());
-    let mut before = Walk {
-        before: true,
-        ..Walk::default()
-    };
-    if projected(direct(model, &relation.piece, &mut before)) < 1.0 {
+    if projected(prior(model, &relation.piece, walk)) < 1.0 {
         group.push(relation.piece.clone());
     }
     group
@@ -239,8 +282,8 @@ fn suspects(model: &Model, relation: &Statement<Related>, e: &Evidence) -> Vec<P
 
 /// The count of no that one failure puts on `x`. A failure is seeing
 /// that the suspects are not all right. Each suspect is how often it
-/// is right, a Beta, from what was said of it before the failure; with
-/// `q` the chance that all the others are right, Bayes gives what to
+/// is right, a Beta, from what was said of it before any no; with `q`
+/// the chance that all the others are right, Bayes gives what to
 /// expect of `x` afterwards:
 ///
 /// ```text
@@ -250,25 +293,24 @@ fn suspects(model: &Model, relation: &Statement<Related>, e: &Evidence) -> Vec<P
 /// and `x` gets the count of no that brings it to that mean. Its count
 /// of yes is not touched. When every suspect was sure, the no is
 /// shared equally.
-fn blamed(model: &Model, relation: &Statement<Related>, e: &Evidence, x: &Piece) -> f64 {
-    let group = suspects(model, relation, e);
+fn blamed(
+    model: &Model,
+    relation: &Statement<Related>,
+    e: &Evidence,
+    x: &Piece,
+    walk: &mut Walk,
+) -> f64 {
+    let parts = &relation.content.pieces;
+    if x != &e.piece && x != &relation.piece && !parts.iter().skip(1).any(|part| part == x) {
+        return 0.0;
+    }
+    let group = suspects(model, relation, e, walk);
     let Some(at) = group.iter().position(|suspect| suspect == x) else {
         return 0.0;
     };
-    let mut before = Walk {
-        before: true,
-        wholes: relation
-            .content
-            .pieces
-            .first()
-            .cloned()
-            .into_iter()
-            .collect(),
-        ..Walk::default()
-    };
     let mut read = Vec::new();
     for suspect in &group {
-        read.push(beta(direct(model, suspect, &mut before)));
+        read.push(beta(prior(model, suspect, walk)));
     }
     let mut others = 1.0;
     for (k, suspect) in read.iter().enumerate() {
@@ -376,14 +418,11 @@ fn together(model: &Model, on: &BTreeSet<Piece>, walk: &mut Walk) -> Opinion {
 // mitra: implements model::conflicts
 pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
     let mut out = Vec::new();
-    for (relation, e) in failures(model) {
+    let mut walk = Walk::default();
+    for (relation, e) in failures(model, &mut walk) {
         // Evidence that was not believed before it failed accuses nothing.
-        let mut before = Walk {
-            before: true,
-            ..Walk::default()
-        };
-        if projected(direct(model, &e.piece, &mut before)) > 0.0 {
-            let group = suspects(model, relation, e);
+        if projected(prior(model, &e.piece, &mut walk)) > 0.0 {
+            let group = suspects(model, relation, e, &mut walk);
             out.push(ordered(model, group));
         }
     }

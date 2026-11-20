@@ -279,3 +279,52 @@ fn gravity_and_two_masses() {
     let m = world(0.5, Some(false), Some(false));
     assert!(opinion(&m, &p("gravity")).s > opinion(&m, &p("mass ball")).s);
 }
+
+/// Scenario 6, the sweep (`examples/sweep.rs`, `docs/sweep.md`): many
+/// objects fall at the same speed and a feather does not. Each
+/// measurement has a voice of its own.
+#[test]
+fn a_hundred_objects_and_a_feather() {
+    // (object, measurements that pass, that fail)
+    let world = |objects: &[(&str, usize, usize)]| {
+        let mut m = Model {
+            base: base(&[("gravity", 0.5)]),
+            ..Model::default()
+        };
+        for (name, pass, fail) in objects {
+            let (mass, whole) = (format!("mass {name}"), format!("same speed {name}"));
+            m.related.push(rests(&[&whole, "gravity", &mass]));
+            m.base.push((p(&mass), 0.5));
+            for k in 0..pass + fail {
+                let drop = format!("drop {name} {k}");
+                m.evidence.push(says(&drop, &whole, k < *pass, &drop));
+                m.base.push((p(&drop), 0.9));
+            }
+        }
+        sure(m)
+    };
+    // A hundred objects pass once, the feather fails once: gravity
+    // stands, the feather's own piece takes the no, its measurement
+    // stays believed.
+    let names: Vec<String> = (0..100).map(|k| format!("o{k}")).collect();
+    let mut objects: Vec<(&str, usize, usize)> = names.iter().map(|n| (n.as_str(), 1, 0)).collect();
+    objects.push(("feather", 0, 1));
+    let m = world(&objects);
+    assert!(reads(&m, "gravity", 90.0, 0.009, 0.989));
+    assert!(reads(&m, "mass o0", 0.9, 0.0, 0.655));
+    assert!(reads(&m, "mass feather", 0.0, 0.730, 0.366));
+    assert!(reads(&m, "drop feather 0", 0.0, 0.061, 0.873));
+    // An object that passes 19 of 20: the one measurement is the odd
+    // one. A feather that fails 20 of 20: the object is.
+    let m = world(&[("stone", 19, 1), ("feather", 0, 20)]);
+    let (mass, drop) = (
+        opinion(&m, &p("mass stone")),
+        opinion(&m, &p("drop stone 19")),
+    );
+    assert!(drop.s > mass.s && projected(mass) > 0.9 && projected(drop) < 0.8);
+    let (mass, drop) = (
+        opinion(&m, &p("mass feather")),
+        opinion(&m, &p("drop feather 0")),
+    );
+    assert!(projected(mass) < 0.1 && projected(drop) > 0.85);
+}

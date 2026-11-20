@@ -275,3 +275,42 @@ expected to be. Tables in `docs/throwing.md`.
      expected wrong, nobody is blamed (oddity 2 of the note).
 604. `share` is private code, stated by the promise `no_is_shared` and
      two claims; it is not a function of the model yet.
+
+## Increment 100: an opinion is counts (2026-11-20)
+
+**Asked.** "let's try beta for opinion (r, s, a), with W a global
+setting"; "let's try the beta representation, with bayesian network
+operators"; then the latent toy reshaped ("gravity is latent, mass of
+an object is the model tied to the object") and swept ("from one
+object to a 100, with 100 measurement each", "for each object, you
+can decide of a rate of success of the measurement"). Notes:
+`docs/throwing.md`, `docs/sweep.md`.
+
+**Decisions taken alone.**
+
+605. `W` is `piece::weight()`, a function that returns 2. It becomes a
+     setting when a layer holds settings.
+606. `yes()` is one count of yes, `no()` one count of no.
+607. One voice counts once by its strongest yes and its strongest no
+     (`fuse` at 0); the average would halve a yes heard beside a small
+     no from the same voice.
+608. `all` matches mean and variance of the product, never with fewer
+     counts than the base rate alone; one part surely right gives the
+     other, one surely wrong gives no yes.
+609. A whole has the base rate of its parts together; a base rate
+     written for a whole is not read when it reads from its parts.
+610. A whole reads from its parts unless what is said of it directly
+     has more counts.
+611. A shared no moves only the count of no of each suspect, to the
+     Bayesian mean; the variance is not matched there.
+612. Each failure is shared from what each suspect read as before any
+     no, the yes about the same whole included.
+613. `all` has no body in the model: its claims are tested, not
+     computed by Mitra.
+614. One walk remembers what it worked out (relations, what was read
+     before, the failures). A hundred objects with a hundred
+     measurements take about a second.
+615. The goldens are recorded again at what counts give; none holds at
+     0.9 (see the note).
+616. In the sweep each measurement has its own voice, and a success
+     rate is a fixed number of passes, not a draw.

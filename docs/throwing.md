@@ -1,8 +1,22 @@
 # The throwing toy
 
-The smallest model we could think of, used to settle one relation and
-its computation. Every row below is what the core computes, pinned in
-`tests/throwing.rs`; the toy is also claims of `model.mitra`.
+The smallest model we could think of, used to settle the relations
+and their computation. Every row below is what the core computes,
+pinned in `tests/throwing.rs`; the toy is also claims of
+`model.mitra`. The sweep over many objects is in [sweep.md](sweep.md).
+
+## An opinion is counts
+
+`(r, s, a)`: `r` counts of yes, `s` counts of no, `a` the base rate.
+One setting for the whole system, the weight `W = 2`.
+
+```text
+reads at = (r + a·W) / (r + s + W)
+```
+
+With no evidence it reads at its base rate. One yes on one half reads
+2/3; eight read 0.9. This is a Beta: how often the piece is right,
+with `r + a·W` on the yes side and `s + (1 - a)·W` on the no side.
 
 ## The toy
 
@@ -18,171 +32,170 @@ its computation. Every row below is what the core computes, pinned in
 **`about`**: evidence to the piece it speaks of. It is the field
 `Evidence.about`, not a declared relation.
 
-- *discount*: what the evidence says counts as far as the evidence is
-  believed. `moved(opinion(e), e.value)`.
-- *fuse*: several pieces of evidence about one piece add up as far as
-  their voices are independent.
+- *discount*: the counts of what the evidence says, times what the
+  evidence reads at. A fall seen at 0.6 is 0.6 of a yes, and never
+  any no.
+- *fuse*: different voices add their counts. One voice counts once:
+  its strongest yes and its strongest no.
 
-**`All`**: a whole to its parts, here the pair to its tie and its
-statement. Declared: `Related(All, [lands, applies, falls])`.
+**`All`**: a whole to its parts. Declared:
+`Related(All, [lands, applies, falls])`, itself said by a statement,
+and counted as far as that statement is believed.
 
-| Direction | Operation | Formula |
-|---|---|---|
-| up | conjunction | `b = b1·b2`, `d = d1 + d2 - d1·d2` |
-| down, a yes | what believes the whole believes each part as much | part gets `(b, 0)` from each evidence about the whole, with its voice |
-| down, a no | shared between the suspects as disbelief | each suspect gets `(0, d · share)`, see below |
-| the whole itself | what is said of it directly, or its parts together | whichever is more certain (less `u`) |
+| Direction | What is computed |
+|---|---|
+| up | each part is a Beta, taken as independent; the whole is the Beta with the mean and the variance of their product |
+| down, a yes | the same count of yes on each part. This is exact: seeing all right once is one yes for each |
+| down, a no | a failure is seeing that the suspects are not all right. Each suspect gets the count of no that brings it to its Bayesian mean |
+| the whole itself | its parts together, or what is said of it directly when that leaves less uncertain |
 
-The **conflict is computed, not declared**: evidence saying no about
-a whole means its parts and that evidence cannot all be right. They
-are the suspects, listed the least believed first (by `P = b + a·u`).
-A relation believed under 1 is a suspect too.
-
-**How a no is shared.** Each suspect takes the chance that it alone
-is wrong, given that they are not all right, with `p` what each was
-expected to be (`P`) before the failure:
+The suspects of a failure are the parts, the evidence that says no,
+and the relation when it is doubted. With `q` the chance that all the
+other suspects are right, from before any no:
 
 ```text
-share(x) = (1 - p(x)) · product of p(others) / (1 - product of p(all))
+mean after = (mean - q · mean of the square) / (1 - q · mean)
+no added   = (r + a·W) · (1 / mean after - 1 / mean)
 ```
 
-When all were expected at 1 the shares are equal. This is not an
-operator of subjective logic. The base rates are what it reads when
-nothing else is known: they are where "I trust my senses more than my
-model or my tie" is said. The evidence takes its share too, so a
-failed throw is itself believed less afterwards, and the pair is
-disbelieved as far as the throw is still believed.
+The mean is Bayes for one observation. Putting all of the move into
+the count of no, and none into the yes, is my choice: it keeps
+"a no never becomes a yes" for the shared no too.
 
 ## 1. One throw
 
 `a`, `f`: base rates of the tie and the statement. `s`: trust in my
-senses. An opinion is written (b, d).
+senses.
 
 It falls:
 
-| a | f | s | `lands` | `applies` and `falls` |
-|---|---|---|---|---|
-| 0 | 0 | 1 | (1, 0) | (1, 0) |
-| 1 | 1 | 1 | (1, 0) | (1, 0) |
-| 0 | 0 | 0 | (0, 0) | unmoved |
-| 0.5 | 0.5 | 0.9 | (0.9, 0) | (0.9, 0), P 0.95 |
-| 0 | 0 | 0.6 | (0.6, 0) | (0.6, 0) |
+| a | f | s | tie and statement | read at | the pair reads at |
+|---|---|---|---|---|---|
+| 0.5 | 0.5 | 0.5 | (0.5, 0) | 0.60 | 0.36 |
+| 0.5 | 0.5 | 0.9 | (0.9, 0) | 0.66 | 0.43 |
+| 0.5 | 0.5 | 1 | (1, 0) | 0.67 | 0.44 |
+| 0.9 | 0.9 | 0.5 | (0.5, 0) | 0.92 | 0.85 |
+| 1 | 1 | 1 | (1, 0) | 1 | 1 |
+| 0 | 0 | 1 | (1, 0) | 0.33 | 0.11 |
+| 0.5 | 0.5 | 0 | (0, 0) | 0.50 | 0.25 |
 
-It does not fall. Disbelief put on each suspect, and where each reads
-afterwards (P):
+It does not fall. The count of no on each, and what each reads at:
 
-| a | f | s | d `applies` | d `falls` | d `throw` | P after: tie, statement, throw | Suspects, least believed first |
+| a | f | s | no on tie | no on statement | no on throw | read at: tie, statement, throw | Suspects, least believed first |
 |---|---|---|---|---|---|---|---|
-| 0.5 | 0.5 | 0.5 | 0.143 | 0.143 | 0.143 | 0.43, 0.43, 0.43 | no order |
-| 1 | 1 | 1 | 0.333 | 0.333 | 0.333 | 0.67, 0.67, 0.67 | no order |
-| 0.5 | 0.5 | 0.9 | 0.290 | 0.290 | 0.032 | 0.35, 0.35, 0.87 | `applies`, `falls`, `throw` |
-| 0.5 | 0.5 | 1 | 0.333 | 0.333 | 0 | 0.33, 0.33, 1 | `applies`, `falls`, `throw` |
-| 0.9 | 0.9 | 0.5 | 0.076 | 0.076 | 0.681 | 0.83, 0.83, 0.16 | `throw`, `applies`, `falls` |
-| 1 | 1 | 0 | 0 | 0 | 1 | 1, 1, 0 | none: senses not trusted |
-| 0.9 | 0.5 | 0.6 | 0.041 | 0.370 | 0.247 | 0.86, 0.32, 0.45 | `falls`, `throw`, `applies` |
-| 0 | 0 | 1 | 0 | 0 | 0 | 0, 0, 1 | `applies`, `falls`, `throw` |
-| 0 | 0 | 0.6 | 0 | 0 | 0 | 0, 0, 0.6 | `applies`, `falls`, `throw` |
+| 0.5 | 0.5 | 0.5 | 0.10 | 0.10 | 0.10 | 0.48, 0.48, 0.48 | no order |
+| 1 | 1 | 1 | 0.33 | 0.33 | 0.33 | 0.86, 0.86, 0.86 | no order |
+| 0.5 | 0.5 | 0.9 | 0.21 | 0.21 | 0.02 | 0.45, 0.45, 0.89 | tie, statement, throw |
+| 0.5 | 0.5 | 1 | 0.25 | 0.25 | 0 | 0.44, 0.44, 1 | tie, statement, throw |
+| 0.9 | 0.9 | 0.5 | 0.05 | 0.05 | 0.59 | 0.88, 0.88, 0.39 | throw, tie, statement |
+| 0.9 | 0.5 | 0.6 | 0.03 | 0.28 | 0.18 | 0.89, 0.44, 0.55 | statement, throw, tie |
+| 1 | 1 | 0 | 0 | 0 | 0 | 1, 1, 0 | none: senses not trusted |
+| 0 | 0 | 1 | 0 | 0 | 0 | 0, 0, 1 | tie, statement, throw |
 
-An equal start gives equal shares. Senses trusted more leave the tie
-and the statement more disbelieved than the throw; senses trusted less
-turn it round. The tie and the statement move alike when they start
-alike: one throw cannot tell them apart, only their base rates can.
+An equal start gives equal shares. Senses trusted more put the no on
+the tie and the statement; senses trusted less, on the throw. One
+miss moves little: from 0.5 to 0.45.
 
 ## 2. The same throw again
 
-Senses at 0.6, bases 0. Belief in the pair, and in each part:
+Senses at 0.6, the tie and the statement at one half. What the tie
+(and the statement) read at:
 
 | Throws | By me alone | By different people |
 |---|---|---|
-| 1 | 0.6 | 0.6 |
-| 2 | 0.6 | 0.75 |
-| 4 | 0.6 | 0.86 |
-| 6 | 0.6 | 0.9 |
+| 1 | (0.6, 0) 0.62 | (0.6, 0) 0.62 |
+| 2 | (0.6, 0) 0.62 | (1.2, 0) 0.69 |
+| 6 | (0.6, 0) 0.62 | (3.6, 0) 0.82 |
+| 10 | (0.6, 0) 0.62 | (6, 0) 0.88 |
+| 40 | (0.6, 0) 0.62 | (24, 0) 0.96 |
 
 ## 3. A ball and a balloon, one statement
 
-Two pairs share `falls`. The ball falls, the balloon does not.
+Two pairs share `falls`. The ball falls, the balloon does not. All
+at one half.
 
-| a | s | `falls` | `ball applies` | `balloon applies` | `throw balloon` | Suspects |
-|---|---|---|---|---|---|---|
-| 0 | 1 | (1, 0) | (1, 0) | (0, 1) | unmoved | the balloon's tie first |
-| 0 | 0.9 | (0.9, 0) | (0.9, 0) | (0, 0.81) | unmoved | the balloon's tie first |
-| 0.5 | 0.9 | (0.815, 0.004), P 0.91 | (0.9, 0) | (0, 0.747) | (0, 0.083) | the balloon's tie, the throw, then `falls` |
+| s | `falls` | `ball applies` | `balloon applies` | `throw balloon` | Suspects |
+|---|---|---|---|---|---|
+| 0.9 | (0.9, 0.17) 0.62 | (0.9, 0) 0.66 | (0, 0.32) 0.43 | (0, 0.03) 0.89 | the balloon's tie, `falls`, the throw |
+| 1 | (1, 0.2) 0.63 | (1, 0) 0.67 | (0, 0.4) 0.42 | unmoved | the balloon's tie, `falls`, the throw |
 
-`falls` was expected at 0.95 after the ball, so it takes almost none
-of the balloon's no (a share of 0.04); the balloon's tie takes 0.75.
+The balloon's tie takes about twice what `falls` takes, because the
+ball speaks for `falls`. With one ball the statement is still doubted
+a fair bit: it takes many balls to clear it (see the sweep).
 
 ## 4. One object, two statements
 
 Two pairs share `applies`. It falls, and makes no noise. The mirror,
-with the same numbers: `applies` stays believed through the fall,
-`noise` takes the no, and `noise` is the first suspect.
+with the same numbers: `noise` takes the most, and is the first
+suspect.
 
-## 5. A relation that is itself said
+## 5. A latent statement: gravity and mass
 
-A relation of a model is a statement whose content is the relation:
-`Statement(Piece("because"), Related(All, [falls, gravity]))`. What is
-computed on it counts as far as that statement is believed. Believed
-at 1 it is plain structure, which is what scenarios 1 to 4 use.
+`gravity` is latent: no tie, nothing to throw at. `mass ball` is the
+statement tied to the ball. "The ball falls" is all of
+[`gravity`, `mass ball`], and a throw is evidence about that. Senses
+at 0.9, all at one half, **each throw with a voice of its own**.
 
-The toy: `gravity` ("things are pulled down") is a latent statement,
-with no tie and nothing to throw at. `because` says that `falls` is
-all of [`gravity`]: it falls because of gravity, and only because of
-it. I see the object fall, for sure.
+| Seen | `gravity` | `mass ball` | `mass balloon` |
+|---|---|---|---|
+| the ball falls | (0.9, 0) 0.66 | (0.9, 0) 0.66 | |
+| the ball does not | (0, 0.21) 0.45 | (0, 0.21) 0.45 | |
+| both fall | (1.8, 0) 0.74 | (0.9, 0) 0.66 | (0.9, 0) 0.66 |
+| the ball falls, the balloon does not | (0.9, 0.17) 0.62 | (0.9, 0) 0.66 | (0, 0.32) 0.43 |
+| neither falls | more no than either mass | | |
 
-| `because` believed at | `falls` | `gravity` |
-|---|---|---|
-| 1 | (1, 0) | (1, 0) |
-| 0.5 | (1, 0) | (0.5, 0) |
-| 0 | (1, 0) | unmoved |
-| not said how far | (1, 0) | unmoved: nothing is assumed |
+With one object, gravity and its mass cannot be told apart. With two,
+gravity is seen twice and each mass once, and a balloon that does not
+fall is put on its own mass first.
 
-And a relation that can be doubted is a suspect: a failed throw with
-the pair itself believed at 0.5 lists the pair first, then the tie and
-the statement, then the throw.
+A relation is itself said. The same toy with the relation believed at
+0.5 gives gravity half the yes; with no base rate for the relation,
+it relates nothing and gravity stays where it was.
 
-Evidence was already this for `about`: an `Evidence` is a piece that
-says something about another piece, and it counts as far as it is
-believed. So both relations of the core are now said by pieces.
+## On main's goldens
 
-## What still reads odd
+One claim, one test, at most two reviews, the claim expected at 0.
+One test is one yes against a weight of two, so **no claim holds at
+policy 0.9**: a passing test reviewed at 1 reads 0.25, unreviewed 0.2.
+Five cases that held are now unverified (2, 3, 5, 15, 19), and a
+failing test reviewed as wrong (22) still fails its claim by a third
+of a no. `tests/goldens.rs` records all of them. Thirty unreviewed
+tests by thirty voices hold a claim at 0.9; from a base rate of one
+half it takes eight sure ones.
 
-1. **The pair is not the product of its parts after a yes.** One
-   throw at 0.9 gives the pair 0.9 and each part 0.9; multiplied back
-   they would give 0.81, the one throw counted twice. The pair keeps
-   0.9 because what is said of it directly is more certain. The rule
-   "whichever is more certain" is mine.
-2. **Two suspects expected wrong take no blame.** With the tie and
-   the statement both at base rate 0, a failed throw puts disbelief on
-   neither: the chance that one of them *alone* is wrong is 0, since
-   the other is expected wrong too. They stay at P 0 with d 0. The
-   shares add up to 1 only when at most one suspect is expected wrong.
-3. **A throw trusted at 1 is still doubted when all were at 1.** With
-   everything expected at 1 and a failure, each takes a third, the
-   throw included. Nothing else can be said, but a "1" did move.
-4. **A pair with no evidence reads at its own base rate**, 0, even
-   when both parts are expected at 1.
-5. **Repeating a throw myself adds nothing.** Voice and act are one
-   thing today.
-6. **A shared no costs a little belief on a believed piece.** In
-   scenario 3 at 0.5, `falls` goes from b 0.9 to 0.815: its small
-   share of the no comes from my own voice, and one voice counts once,
-   so it is averaged with my yes instead of added.
-7. **What each was expected to be is read before any no.** With two
-   failures in one model, each is shared as if the other had not
-   happened.
+## What reads odd
 
-No longer odd: "a no alone disbelieves nothing" and "blame uses
-belief, not expectation" are both gone with the sharing rule.
+1. **One observation is small against W = 2.** See the goldens. The
+   policy, the weight, or what one test counts for has to move.
+2. **A base rate of 0 is strong**: "expected wrong, with the weight of
+   two observations". A piece at 0 takes no blame (it is wrong
+   already) and one sure yes brings it to 1/3 only. "Nothing assumed"
+   is one half, and a piece with no base rate still gets 0.
+3. **One sure "wrong" does not silence a test.** A test reviewed as
+   wrong at 1 reads 1/3 and still gives its claim a third of a yes.
+4. **One voice counts once, by its strongest yes and its strongest
+   no.** Two different throws by me are one. Voice and act are one
+   thing today; the gravity toy gives each throw its own voice.
+5. **Each failure is shared from what was expected before any no.**
+   Two failures are each shared as if the other had not happened, and
+   their counts add.
+6. **The counts of a whole are not counts of anything.** They are the
+   Beta that fits a product: a pair after one yes at 0.5 shows
+   (0.67, 0.59). Only what it reads at means something.
+7. **A whole switches between its parts and what is said of it.**
+   After a miss, `lands` reads 0.20 from its parts in one row and 0
+   from the direct no in another, depending on which has more counts.
+8. **A sure throw is doubted when all were sure.** Everything at 1 and
+   a miss: each takes a third of a no.
+
+Gone with counts: "the pair is not the product of its parts" (it is
+now), "a pair with no evidence reads at 0 when its parts are expected
+at 1", and "blame uses belief, not expectation".
 
 ## Open on relations
 
-- A statement with no tie (a latent part of the system) is linked by
-  a relation between statements. Scenario 5 does it with `All`, read as
-  "because, and only because". Whether "because" deserves a relation
-  of its own, with its own computation, is not settled.
-- `Exclude` is still in the record and the toy never uses it. The one
-  case I see for it, two statements that contradict on paper, could be
-  computed by the seam instead.
+- `Exclude` is still in the record and the toys never use it.
 - A tie without a statement cannot be forbidden by the records as they
   are: a tie names a statement by its piece.
+- The latent toy needs no new relation: `All` is enough. It may later
+  read as a contract in the syntax.
