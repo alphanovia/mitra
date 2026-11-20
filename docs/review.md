@@ -681,3 +681,20 @@ readings the tie rewrite changed are better or worse.
 684. In the reviewer toy the tie's base rate is what moved the
      readings. Whether a tie should have a default, as completeness
      has, is left to the user.
+
+## Increment 111: one ledger file per model file (2026-11-20)
+
+**Asked.** "mixing the ledgers is harder to read no, could we do
+model.ledger.mitra, and group the ledger together when building?"
+
+**Done.** Written down in `README.md`, "The ledger, when it comes".
+No code: `core` has no ledger layer, and `model/evidence.mitra` is
+written by main's binary, which is frozen.
+
+**Decided alone.**
+
+685. The file of a piece of evidence is the file of the piece it is
+     about. Evidence about evidence (a review of a test) follows the
+     same rule, so it lands beside what the test is about only if the
+     test is declared there; where a test's piece lives is for the
+     ledger layer to say.

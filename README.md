@@ -36,6 +36,18 @@ code they stand for, tests of that code, a statement over many inputs.
 The models are read by `main`'s `mitra`, the code is tied to them by
 hand.
 
+## The ledger, when it comes
+
+Decided, not built: `core` reads no ledger yet. One ledger file per
+model file, beside it: `model.ledger.mitra` for `model.mitra`,
+`value.ledger.mitra` for `value.mitra`, and so on. A piece of evidence
+goes in the ledger of the file that holds the piece it is about. The
+build groups them into one ledger, and the commands that write
+evidence (`add`, `ingest`, `tie`) write to the right file.
+
+Until then `model/evidence.mitra` is the single ledger that `main`'s
+`mitra conform` writes when it is run here.
+
 ## To test
 
 ```sh
