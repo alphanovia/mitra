@@ -359,3 +359,13 @@ influence optimisation pass to find the right W ?" Two passes tried in
      between 0 and 1.
 626. The influence of a piece of evidence is how far the reading of
      the parts of its whole moves with and without it; epsilon is 0.01.
+
+**Then (12:52).** "on a W fitting, can we compute a sort of bound with
+that technique ?" Yes: section "Bounds" of `docs/complete.md`.
+
+627. The interval of a piece is from the 5th to the 95th hundredth of
+     its Beta, worked out in the example, not in the core.
+628. The weights allowed are those within 2 of the best log-likelihood,
+     over 40 weights from 0.01 to 50.
+629. `w` is not added to `Opinion`: it changes the record and every
+     claim on it, and is left for the user's word.

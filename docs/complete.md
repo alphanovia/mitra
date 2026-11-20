@@ -221,3 +221,51 @@ pull the weight in opposite directions.**
 | | `mass odd` | 0.91 | 0.76 | 0.99 | 0.63 |
 | | `drop odd 9` | 0.28 | 0.68 | 0.04 | 0.87 |
 | | `mass feather` | 0.02 | 0.07 | 0.01 | 0.21 |
+
+## Bounds
+
+Two bounds come with counts, and both say when a reading can be
+relied on.
+
+- **Per piece: where it is right nine times out of ten.** One throw
+  that falls reads 0.91, and the interval is 0.40 to 1.00: the reading
+  collapsed, what is known did not. After ten measurements a mass
+  reads 0.99, from 0.94 to 1.00. The interval is what a small weight
+  hides, and it costs nothing more than the counts.
+- **For the fit: the weights the counts allow.** With one measurement
+  per piece every weight from 0.01 to 50 is allowed: the counts say
+  nothing about the weight, and words flip inside the range (a mass
+  holds at one end and is unverified at the other). With ten
+  measurements per piece the range closes to 0.01 to 0.5, and no word
+  flips in it. The fit bounds the weight from above once pieces have
+  been measured several times, and 0.2 is inside every range found.
+- A word that flips inside the range is a word that depends on the
+  weight and not on the evidence. That is a thing a build could say.
+
+**Not done: `w` in the opinion.** (r, s, a, w) with a global default
+works with every operator as it is: each piece reads with its own
+weight, and the failure rule already takes each suspect as its own
+Beta. It changes the record of the core and every claim written on
+it, and it asks where a piece gets its weight: the list of base rates
+would hold (piece, a, w). I have left it for your word.
+
+For each piece: what it reads at under 0.2 with the interval where it is right nine times out of ten; then the weights the counts allow (within 2 of the best log-likelihood, over 40 weights from 0.01 to 50), what the piece reads at both ends, and its word at policy 0.9.
+
+| case | piece | at 0.2, nine times out of ten | weights allowed | reads at both ends | word at both ends |
+|---|---|---|---|---|---|
+| **one throw, it falls** | `applies` | 0.91, from 0.40 to 1.00 | 0.01 to 50.00, best 50.00 | 0.99 and 0.51 | holds and unverified **flips** |
+| **one throw, it does not** | `applies` | 0.38, from 0.00 to 1.00 | 0.01 to 50.00, best 50.00 | 0.36 and 0.50 | fails and fails |
+| **10 objects pass once, one fails** | `gravity` | 0.99, from 0.93 to 1.00 | 0.01 to 7.00, best 0.07 | 1.00 and 0.77 | holds and unverified **flips** |
+|  | `mass o0` | 0.91, from 0.40 to 1.00 | 0.01 to 7.00, best 0.07 | 0.99 and 0.56 | holds and unverified **flips** |
+|  | `mass f0` | 0.17, from 0.00 to 0.92 | 0.01 to 7.00, best 0.07 | 0.10 and 0.47 | fails and fails |
+| **3 objects pass 10 times, one fails** | `gravity` | 1.00, from 0.97 to 1.00 | 0.01 to 0.51, best 0.01 | 1.00 and 0.99 | holds and holds |
+|  | `mass o0` | 0.99, from 0.94 to 1.00 | 0.01 to 0.51, best 0.01 | 1.00 and 0.97 | holds and holds |
+|  | `mass f0` | 0.02, from 0.00 to 0.14 | 0.01 to 0.51, best 0.01 | 0.01 and 0.04 | fails and fails |
+| **2 of 10 objects pass, 5 times each** | `gravity` | 0.96, from 0.82 to 1.00 | 0.01 to 50.00, best 0.51 | 1.00 and 0.49 | holds and fails **flips** |
+|  | `mass o0` | 0.98, from 0.87 to 1.00 | 0.01 to 50.00, best 0.51 | 1.00 and 0.54 | holds and unverified **flips** |
+|  | `mass f0` | 0.05, from 0.00 to 0.29 | 0.01 to 50.00, best 0.51 | 0.02 and 0.48 | fails and fails |
+| **noisy: 9 of 10, 6 of 10, 0 of 10** | `mass o0` | 0.98, from 0.88 to 1.00 | 0.01 to 1.22, best 0.01 | 1.00 and 0.90 | holds and holds |
+|  | `drop o0 9` | 0.25, from 0.00 to 0.96 | 0.01 to 1.22, best 0.01 | 0.02 and 0.69 | fails and fails |
+|  | `mass odd` | 0.91, from 0.68 to 1.00 | 0.01 to 1.22, best 0.01 | 0.99 and 0.74 | holds and unverified **flips** |
+|  | `drop odd 9` | 0.28, from 0.00 to 0.98 | 0.01 to 1.22, best 0.01 | 0.02 and 0.72 | fails and fails |
+|  | `mass feather` | 0.02, from 0.00 to 0.14 | 0.01 to 1.22, best 0.01 | 0.01 and 0.08 | fails and fails |

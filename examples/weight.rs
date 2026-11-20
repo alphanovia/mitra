@@ -236,6 +236,167 @@ fn passes() {
     }
 }
 
+/// The regularised incomplete beta function: the chance that a
+/// Beta(a, b) is under `x` (continued fraction, Lentz).
+fn beta_under(x: f64, a: f64, b: f64) -> f64 {
+    if x <= 0.0 {
+        return 0.0;
+    }
+    if x >= 1.0 {
+        return 1.0;
+    }
+    if x > (a + 1.0) / (a + b + 2.0) {
+        return 1.0 - beta_under(1.0 - x, b, a);
+    }
+    let front = (a * x.ln() + b * (1.0 - x).ln() - ln_beta(a, b)).exp() / a;
+    let tiny = 1e-300;
+    let (mut c, mut d) = (1.0, 1.0 - (a + b) * x / (a + 1.0));
+    d = 1.0 / if d.abs() < tiny { tiny } else { d };
+    let mut h = d;
+    for m in 1..400 {
+        let m = m as f64;
+        for step in [
+            m * (b - m) * x / ((a + 2.0 * m - 1.0) * (a + 2.0 * m)),
+            -(a + m) * (a + b + m) * x / ((a + 2.0 * m) * (a + 2.0 * m + 1.0)),
+        ] {
+            d = 1.0 + step * d;
+            d = 1.0 / if d.abs() < tiny { tiny } else { d };
+            c = 1.0 + step / c;
+            c = if c.abs() < tiny { tiny } else { c };
+            h *= d * c;
+        }
+    }
+    front * h
+}
+
+/// Where a Beta(a, b) is under `x` with chance `q`.
+fn beta_at(q: f64, a: f64, b: f64) -> f64 {
+    let (mut low, mut high) = (0.0, 1.0);
+    for _ in 0..60 {
+        let mid = (low + high) / 2.0;
+        match beta_under(mid, a, b) < q {
+            true => low = mid,
+            false => high = mid,
+        }
+    }
+    (low + high) / 2.0
+}
+
+/// How often the piece is right, nine times out of ten: from the 5th
+/// to the 95th hundredth of its Beta.
+fn interval(o: Opinion, w: f64) -> (f64, f64) {
+    let (a, b) = (o.r + o.a * w, o.s + (1.0 - o.a) * w);
+    if a <= 0.0 {
+        return (0.0, 0.0);
+    }
+    if b <= 0.0 {
+        return (1.0, 1.0);
+    }
+    (beta_at(0.05, a, b), beta_at(0.95, a, b))
+}
+
+fn log_likelihood(m: &Model, w: f64) -> f64 {
+    with_weight(w, || {
+        let mut sum = 0.0;
+        for x in doubted(m) {
+            let o = opinion(m, &x);
+            let (yes_, no_) = (o.a * w, (1.0 - o.a) * w);
+            sum += ln_beta(o.r + yes_, o.s + no_) - ln_beta(yes_, no_);
+        }
+        sum
+    })
+}
+
+/// The word of a piece at policy 0.9.
+fn word(o: Opinion) -> &'static str {
+    match (reaches(o, 0.9), against(o)) {
+        (true, _) => "holds",
+        (false, true) => "fails",
+        (false, false) => "unverified",
+    }
+}
+
+fn bounds() {
+    println!("\n### 6. Bounds\n");
+    println!("For each piece: what it reads at under 0.2 with the interval where it is right nine times out of ten; then the weights the counts allow (within 2 of the best log-likelihood, over 40 weights from 0.01 to 50), what the piece reads at both ends, and its word at policy 0.9.\n");
+    let mut noisy: Vec<_> = (0..3).map(|i| (format!("o{i}"), 9, 1)).collect();
+    noisy.push(("odd".to_string(), 6, 4));
+    noisy.push(("feather".to_string(), 0, 10));
+    let cases: Vec<(&str, Model, Vec<&str>)> = vec![
+        ("one throw, it falls", one_throw(0.9, true), vec!["applies"]),
+        (
+            "one throw, it does not",
+            one_throw(0.9, false),
+            vec!["applies"],
+        ),
+        (
+            "10 objects pass once, one fails",
+            sweep(&objects(10, 1, 1)),
+            vec!["gravity", "mass o0", "mass f0"],
+        ),
+        (
+            "3 objects pass 10 times, one fails",
+            sweep(&objects(3, 1, 10)),
+            vec!["gravity", "mass o0", "mass f0"],
+        ),
+        (
+            "2 of 10 objects pass, 5 times each",
+            sweep(&objects(2, 8, 5)),
+            vec!["gravity", "mass o0", "mass f0"],
+        ),
+        (
+            "noisy: 9 of 10, 6 of 10, 0 of 10",
+            sweep(&noisy),
+            vec![
+                "mass o0",
+                "drop o0 9",
+                "mass odd",
+                "drop odd 9",
+                "mass feather",
+            ],
+        ),
+    ];
+    println!("| case | piece | at 0.2, nine times out of ten | weights allowed | reads at both ends | word at both ends |");
+    println!("|---|---|---|---|---|---|");
+    let weights: Vec<f64> = (0..40)
+        .map(|k| 0.01 * (5000.0_f64).powf(k as f64 / 39.0))
+        .collect();
+    for (title, m, pieces) in cases {
+        let scores: Vec<f64> = weights.iter().map(|w| log_likelihood(&m, *w)).collect();
+        let best = scores.iter().cloned().fold(f64::MIN, f64::max);
+        let allowed: Vec<f64> = weights
+            .iter()
+            .zip(&scores)
+            .filter(|(_, l)| **l >= best - 2.0)
+            .map(|(w, _)| *w)
+            .collect();
+        let (low, high) = (allowed[0], allowed[allowed.len() - 1]);
+        let at_best = weights[scores.iter().position(|l| *l == best).unwrap()];
+        let mut first = format!("**{title}**");
+        for x in pieces {
+            let o = opinion(&m, &p(x));
+            let (from, to) = interval(o, 0.2);
+            let end = |w: f64| {
+                with_weight(w, || {
+                    let o = opinion(&m, &p(x));
+                    (projected(o), word(o))
+                })
+            };
+            let (a, b) = (end(low), end(high));
+            let flips = if a.1 != b.1 { " **flips**" } else { "" };
+            println!(
+                "| {first} | `{x}` | {:.2}, from {from:.2} to {to:.2} | {low:.2} to {high:.2}, best {at_best:.2} | {:.2} and {:.2} | {} and {}{flips} |",
+                projected(o),
+                a.0,
+                b.0,
+                a.1,
+                b.1
+            );
+            first = String::new();
+        }
+    }
+}
+
 fn main() {
     println!("Each cell: fixed weight 0.2 / scaled weight.\n");
     println!("### 1. One throw (one piece of evidence: W = 0.34)\n");
@@ -311,4 +472,5 @@ fn main() {
         );
     }
     passes();
+    bounds();
 }
