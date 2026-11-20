@@ -50,6 +50,7 @@ subject commands {
 
     ensure commands_only = "The command line reads arguments and prints. It reads a model and writes a ledger only through mitra-store, and judges only through mitra-lang.";
     ensure levels_in_order = "`build`, `conform`, `assess` and `diagnose` are four levels: the model alone, then with the code, then with the ledger, then with an observation. Each runs the levels before it and stops at the first that fails.";
+    ensure build_refuses_a_round = "`build` refuses stores that import each other, with the path from one back to itself.";
     ensure build_says_nothing_owed = "`build` says whether the model reads and whether anything in it contradicts anything else, and writes the build files. It says nothing of the evidence owed.";
     ensure diagnose_writes_nothing = "`diagnose` judges an observation without writing it to the ledger, and says how to file it.";
     ensure exit_says_it = "A command exits with 0 when nothing is wrong, 1 when the report has an error, 2 when it could not run.";

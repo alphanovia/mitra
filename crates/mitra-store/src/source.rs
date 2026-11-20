@@ -63,30 +63,99 @@ pub fn files(paths: &[PathBuf]) -> Result<Modules, String> {
     Ok(Modules::new(read_files, handed))
 }
 
-/// The whole model of the store beside this one, `mitra_lang` being the
-/// folder `mitra_lang` or `mitra-lang` next to the folder of this store:
-/// every file of its `.mitra` but the ledger, one after the other.
-fn other_store(dir: &Path, name: &str) -> Option<String> {
+/// The folder of the store beside this one, `mitra_lang` being the
+/// folder `mitra_lang` or `mitra-lang` next to the folder of this store.
+fn store_beside(dir: &Path, name: &str) -> Option<PathBuf> {
     let here = dir.canonicalize().ok()?;
     if here.file_name()? != crate::store::DIR {
         return None;
     }
     let beside = here.parent()?.parent()?;
-    let found = [name.to_string(), name.replace('_', "-")]
+    [name.to_string(), name.replace('_', "-")]
         .iter()
         .map(|n| beside.join(n).join(crate::store::DIR))
-        .find(|d| d.join("model.mitra").is_file())?;
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&found)
+        .find(|d| d.join("model.mitra").is_file())
+}
+
+/// The model files of a store's folder: every `.mitra` but the ledger.
+fn model_files(found: &Path) -> Option<Vec<PathBuf>> {
+    let mut files: Vec<PathBuf> = std::fs::read_dir(found)
         .ok()?
         .filter_map(|e| Some(e.ok()?.path()))
         .filter(|p| p.extension().is_some_and(|x| x == "mitra"))
         .filter(|p| p.file_name().is_some_and(|n| n != "evidence.mitra"))
         .collect();
     files.sort();
+    Some(files)
+}
+
+/// The whole model of the store beside this one: its files, one after
+/// the other.
+fn other_store(dir: &Path, name: &str) -> Option<String> {
     let mut text = String::new();
-    for f in files {
+    for f in model_files(&store_beside(dir, name)?)? {
         text += &std::fs::read_to_string(f).ok()?;
         text.push('\n');
     }
     Some(text)
+}
+
+/// The stores a store imports from: the imports of its files that no
+/// file beside it answers, and a store beside it does.
+fn leans_on(dir: &Path) -> Vec<(String, PathBuf)> {
+    let mut out: Vec<(String, PathBuf)> = Vec::new();
+    for f in model_files(dir).unwrap_or_default() {
+        let text = std::fs::read_to_string(f).unwrap_or_default();
+        for name in mitra_lang::parse::imports(&text) {
+            let mut file = dir.to_path_buf();
+            file.extend(name.split("::"));
+            file.set_extension("mitra");
+            let first = name.split("::").next().unwrap_or_default();
+            if file.is_file() || out.iter().any(|o| o.0 == first) {
+                continue;
+            }
+            if let Some(d) = store_beside(dir, first) {
+                out.push((first.to_string(), d));
+            }
+        }
+    }
+    out
+}
+
+/// Stores that import each other, as the path from one back to itself:
+/// what each takes from the other is assumed there, so a promise would
+/// rest on itself.
+// mitra: implements files::round
+pub fn round(dir: &str) -> Option<Vec<String>> {
+    fn walk(
+        at: &Path,
+        path: &mut Vec<(String, PathBuf)>,
+        clear: &mut Vec<PathBuf>,
+    ) -> Option<Vec<String>> {
+        for (name, d) in leans_on(at) {
+            if let Some(i) = path.iter().position(|p| p.1 == d) {
+                let mut names: Vec<String> = path[i..].iter().map(|p| p.0.clone()).collect();
+                names.push(path[i].0.clone());
+                return Some(names);
+            }
+            if clear.contains(&d) {
+                continue;
+            }
+            path.push((name, d.clone()));
+            let found = walk(&d, path, clear);
+            path.pop();
+            if found.is_some() {
+                return found;
+            }
+            clear.push(d);
+        }
+        None
+    }
+    let here = Path::new(dir).canonicalize().ok()?;
+    let own = here
+        .parent()?
+        .file_name()?
+        .to_string_lossy()
+        .replace('-', "_");
+    walk(&here.clone(), &mut vec![(own, here)], &mut Vec::new())
 }

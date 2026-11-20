@@ -88,3 +88,10 @@ Mitra's own model uses it, and its code has the same seam: mitra-lang
 states `Reader` (the trait `mitra_lang::Reader`), mitra-rust fills it
 for Rust (`mitra_rust::Rust`), mitra-cli requires its promises and
 calls a reader only through the trait.
+
+## No round
+
+Stores may not import each other, directly or through others: what a
+store takes from another is assumed there, so a promise would rest on
+itself. `mitra build` refuses, with the path: `build: stores import
+each other: a imports b imports a`.

@@ -30,7 +30,8 @@ build: ok, model 2e0e8f214c1c: functions 1, claims 2, promises 1, requires 0, bl
   written: .mitra/build/model.lock, interface.mitra, owed.txt, settings.toml
 ```
 
-It reads the model with no evidence. It prints the errors that need no
+It refuses stores that import each other
+([stores.md](stores.md#no-round)). It reads the model with no evidence. It prints the errors that need no
 evidence (a claim that contradicts the specs of what it calls), the
 warnings `M105` and `M106` on `require` and `uses`, and each promise of
 a subject that no claim says. It prints nothing on the evidence owed.

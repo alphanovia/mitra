@@ -1174,3 +1174,28 @@ fn settings_set_the_trust_of_a_tie_and_of_a_sample() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn build_refuses_stores_that_import_each_other() {
+    let root = std::env::temp_dir().join(format!("mitra-cli-round-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    for (here, there, block) in [("a", "b", "right"), ("b", "a", "left")] {
+        let dir = root.join(here);
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(mitra(&dir, &["init"]).0, Some(0));
+        let own = if here == "a" { "left" } else { "right" };
+        let model = format!(
+            "import {there}::{block}::{{p}};\nsubject {own} {{ ensure p = \"p\"; require other = {block}::p; }}\n"
+        );
+        std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    }
+    for level in ["build", "conform", "assess"] {
+        let (code, _, err) = mitra(&root.join("a"), &[level]);
+        assert_eq!(code, Some(2), "{level}");
+        assert!(
+            err.contains("stores import each other: a imports b imports a"),
+            "{err}"
+        );
+    }
+    let _ = std::fs::remove_dir_all(root);
+}

@@ -298,3 +298,46 @@ fn a_build_is_written_again() {
     assert!(s.model().is_ok());
     let _ = fs::remove_dir_all(root);
 }
+
+// mitra: evidence for files::a_round_is_found
+#[test]
+fn stores_that_import_each_other_are_found() {
+    let root = std::env::temp_dir().join(format!("mitra-round-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let write = |store: &str, text: &str| {
+        let dir = root.join(store).join(".mitra");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("model.mitra"), text).unwrap();
+        dir
+    };
+    let a = write(
+        "a",
+        "import b::right::{sound};\nsubject left { ensure safe = \"s\"; }\n",
+    );
+    let b = write(
+        "b",
+        "import c_c::far::{kept};\nsubject right { ensure sound = \"s\"; }\n",
+    );
+    let c = write("c-c", "subject far { ensure kept = \"k\"; }\n");
+    // A chain is no round.
+    assert_eq!(mitra_store::source::round(&a.display().to_string()), None);
+    // Through another store, back to the first.
+    std::fs::write(
+        c.join("model.mitra"),
+        "import a::left::{safe};\nsubject far { }\n",
+    )
+    .unwrap();
+    let path = |names: &[&str]| Some(names.iter().map(|n| n.to_string()).collect::<Vec<_>>());
+    assert_eq!(
+        mitra_store::source::round(&a.display().to_string()),
+        path(&["a", "b", "c_c", "a"])
+    );
+    // Met from a store outside it: the round alone is named.
+    std::fs::write(a.join("model.mitra"), "import b::right::{sound};\n").unwrap();
+    std::fs::write(c.join("model.mitra"), "import b::right::{sound};\n").unwrap();
+    assert_eq!(
+        mitra_store::source::round(&a.display().to_string()),
+        path(&["b", "c_c", "b"])
+    );
+    let _ = (b, std::fs::remove_dir_all(&root));
+}

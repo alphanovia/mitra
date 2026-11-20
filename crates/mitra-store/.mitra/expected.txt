@@ -3,6 +3,11 @@ files::read::correct: holds
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold); voices a model apart; doubt 0.01
 files::read::deterministic: holds
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/opus/cold-r-store cold); voices a model apart; doubt 0.01
+files::round::uses: holds
+files::round::correct: unverified
+  no evidence on  dir in String
+files::round::deterministic: unverified
+  no evidence on  `files::round` giving one output per input
 files::file::uses: holds
 files::file::correct: holds
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, unknown); voices a model apart; doubt 0.005
@@ -75,35 +80,43 @@ files::disk_reads: holds assuming [disk::read_is_stable, disk::reads_what_was_wr
   needs           `disk::reads_what_was_written`
 files::handed_unchanged::captured: unverified
   nobody vouched that the claims say what the text says
-files::handed_unchanged: holds assuming [disk::read_is_stable, disk::reads_what_was_written::captured, files::handed_unchanged::captured]
+files::handed_unchanged: holds assuming [files::round::correct, disk::read_is_stable, disk::reads_what_was_written::captured, files::handed_unchanged::captured]
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold, unknown); voices a model apart; doubt 1
   below policy    lacks doubt 0.05
   says            "A model file is handed to mitra-lang under its path, with its text unchanged."
-  rests on        `files::read::correct`, `files::file::correct`
+  rests on        `files::read::correct`, `files::round::correct`, `files::file::correct`
   requires        `files::disk_reads`
 files::imports_beside::captured: unverified
   nobody vouched that the claims say what the text says
-files::imports_beside: holds assuming [disk::read_is_stable, disk::reads_what_was_written::captured, files::imports_beside::captured]
+files::imports_beside: holds assuming [files::round::correct, disk::read_is_stable, disk::reads_what_was_written::captured, files::imports_beside::captured]
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold, unknown); voices a model apart; doubt 1
   below policy    lacks doubt 0.05
   says            "`import a::b::x;` is answered by the file `a/b.mitra` beside the first model file, and by what that file imports in turn."
-  rests on        `files::read::correct`, `files::file::correct`
+  rests on        `files::read::correct`, `files::round::correct`, `files::file::correct`
   requires        `files::disk_reads`
 files::stores_beside::captured: unverified
   nobody vouched that the claims say what the text says
-files::stores_beside: holds assuming [disk::read_is_stable, disk::reads_what_was_written::captured, files::stores_beside::captured]
+files::stores_beside: holds assuming [files::round::correct, disk::read_is_stable, disk::reads_what_was_written::captured, files::stores_beside::captured]
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold, unknown); voices a model apart; doubt 1
   below policy    lacks doubt 0.05
   says            "`import other::block::{..}` with no such file beside the model is answered by the whole model of the store `other` beside this one, its ledger aside."
-  rests on        `files::read::correct`, `files::file::correct`
+  rests on        `files::read::correct`, `files::round::correct`, `files::file::correct`
+  requires        `files::disk_reads`
+files::a_round_is_found::captured: unverified
+  nobody vouched that the claims say what the text says
+files::a_round_is_found: holds assuming [files::round::correct, disk::read_is_stable, disk::reads_what_was_written::captured, files::a_round_is_found::captured]
+  by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold, unknown); voices a model apart; doubt 1
+  below policy    lacks doubt 0.05
+  says            "Stores that import each other, directly or through others, are found, with the path from one back to itself: what a store takes from another is assumed there, so a promise would rest on itself."
+  rests on        `files::read::correct`, `files::round::correct`, `files::file::correct`
   requires        `files::disk_reads`
 files::missing_is_said_at_the_import::captured: unverified
   nobody vouched that the claims say what the text says
-files::missing_is_said_at_the_import: holds assuming [disk::read_is_stable, disk::reads_what_was_written::captured, files::missing_is_said_at_the_import::captured]
+files::missing_is_said_at_the_import: holds assuming [files::round::correct, disk::read_is_stable, disk::reads_what_was_written::captured, files::missing_is_said_at_the_import::captured]
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold, unknown); voices a model apart; doubt 1
   below policy    lacks doubt 0.05
   says            "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import."
-  rests on        `files::read::correct`, `files::file::correct`
+  rests on        `files::read::correct`, `files::round::correct`, `files::file::correct`
   requires        `files::disk_reads`
 disk::lists_what_is_there::captured: unverified
   nobody vouched that the claims say what the text says
@@ -122,13 +135,13 @@ disk::ledger_is_left_alone: holds assuming [disk::read_is_stable, disk::ledger_i
   rests on        `disk::read_is_stable`
 store::listed: holds assuming [disk::read_is_stable, disk::lists_what_is_there::captured]
   needs           `disk::lists_what_is_there`
-store::handed: holds assuming [disk::read_is_stable, disk::reads_what_was_written::captured, files::handed_unchanged::captured]
+store::handed: holds assuming [files::round::correct, disk::read_is_stable, disk::reads_what_was_written::captured, files::handed_unchanged::captured]
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold, unknown); voices a model apart; doubt 1
   below policy    lacks doubt 0.05
   needs           `files::handed_unchanged`
 store::whole_folder::captured: unverified
   nobody vouched that the claims say what the text says
-store::whole_folder: holds assuming [store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::whole_folder::captured]
+store::whole_folder: holds assuming [store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::round::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::whole_folder::captured]
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold, unknown); voices a model apart; doubt 1
   below policy    lacks doubt 0.05
   says            "The model of a store is every `.mitra` file of its folder, the ledger aside, with `model.mitra` handed first."
@@ -136,7 +149,7 @@ store::whole_folder: holds assuming [store::Store::write_build::correct, disk::r
   requires        `store::listed`, `store::handed`
 store::nearest::captured: unverified
   nobody vouched that the claims say what the text says
-store::nearest: holds assuming [store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::nearest::captured]
+store::nearest: holds assuming [store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::round::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::nearest::captured]
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold, unknown); voices a model apart; doubt 1
   below policy    lacks doubt 0.05
   says            "A command run in a folder uses the nearest `.mitra/` at or above it."
@@ -144,7 +157,7 @@ store::nearest: holds assuming [store::Store::write_build::correct, disk::read_i
   requires        `store::listed`, `store::handed`
 store::build_is_written_again::captured: unverified
   nobody vouched that the claims say what the text says
-store::build_is_written_again: holds assuming [store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::build_is_written_again::captured]
+store::build_is_written_again: holds assuming [store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::round::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::build_is_written_again::captured]
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold, unknown); voices a model apart; doubt 1
   below policy    lacks doubt 0.05
   says            "The files of a build are written under `.mitra/build/` in place of the last ones: a build is never edited, and never read back to judge."
@@ -152,7 +165,7 @@ store::build_is_written_again: holds assuming [store::Store::write_build::correc
   requires        `store::listed`, `store::handed`
 store::settings_beside_the_model::captured: unverified
   nobody vouched that the claims say what the text says
-store::settings_beside_the_model: holds assuming [store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::settings_beside_the_model::captured]
+store::settings_beside_the_model: holds assuming [store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::round::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::settings_beside_the_model::captured]
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold, unknown); voices a model apart; doubt 1
   below policy    lacks doubt 0.05
   says            "The settings of a store are read from `settings.toml` in its folder and handed with the model. No file is the defaults; a file that does not read is an error, with its path."
@@ -160,7 +173,7 @@ store::settings_beside_the_model: holds assuming [store::Store::write_build::cor
   requires        `store::listed`, `store::handed`
 store::never_overwrites::captured: unverified
   nobody vouched that the claims say what the text says
-store::never_overwrites: holds assuming [store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::never_overwrites::captured]
+store::never_overwrites: holds assuming [store::Store::write_build::correct, disk::read_is_stable, disk::lists_what_is_there::captured, files::round::correct, disk::reads_what_was_written::captured, files::handed_unchanged::captured, store::never_overwrites::captured]
   by              review (agent:anthropic/fable-5.2/cold-r-store cold, agent:anthropic/fable-5.2/cold-t cold, agent:anthropic/opus/cold-r-store cold, agent:anthropic/opus/cold-t cold), test (agent:anthropic/fable-5.2/cold-w-store cold, agent:anthropic/opus/cold-w-store cold, unknown); voices a model apart; doubt 1
   below policy    lacks doubt 0.05
   says            "A store is created only where there is none."
@@ -248,6 +261,9 @@ files::file::tied: holds
 files::read::tied: holds
   by              tie (machine:mitra-rust); doubt 0.1
   below policy    lacks cold
+files::round::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
+  below policy    lacks cold
 keeping::Store::remove::tied: holds
   by              tie (machine:mitra-rust); doubt 0.1
   below policy    lacks cold
@@ -301,6 +317,18 @@ warning[M105]: a requirement that nothing leans on
   help: say which function `uses` it, or remove the `require`
 
 warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:37  fn round(dir: String) -> Option<Vec<String>>
+
+  No evidence on dir in String.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> .mitra/model.mitra:37  fn round(dir: String) -> Option<Vec<String>>
+
+  No evidence on `files::round` giving one output per input.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
   --> .mitra/store.mitra:29  fn source(&self) -> Result<Modules, String>
 
   No evidence on `store::Store::source` giving one output per input.
@@ -351,7 +379,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:25  ensure handed_unchanged = "A model file is handed to mitra-lang under its path, with its text unchanged.";
 
-  `files::handed_unchanged` holds if `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured` hold, and no evidence supports them.
+  `files::handed_unchanged` holds if `files::round::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -363,7 +391,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:26  ensure imports_beside = "`import a::b::x;` is answered by the file `a/b.mitra` beside the first model file, and by what that file imports in turn.";
 
-  `files::imports_beside` holds if `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::imports_beside::captured` hold, and no evidence supports them.
+  `files::imports_beside` holds if `files::round::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::imports_beside::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -375,19 +403,31 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/model.mitra:27  ensure stores_beside = "`import other::block::{..}` with no such file beside the model is answered by the whole model of the store `other` beside this one, its ledger aside.";
 
-  `files::stores_beside` holds if `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::stores_beside::captured` hold, and no evidence supports them.
+  `files::stores_beside` holds if `files::round::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::stores_beside::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
-  --> .mitra/model.mitra:28  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
+  --> .mitra/model.mitra:28  ensure a_round_is_found = "Stores that import each other, directly or through others, are found, with the path from one back to itself: what a store takes from another is assumed there, so a promise w …
+
+  Nobody vouched that the claims `files::a_round_is_found` rests on say what its text says.
+  help: review them against the text, then record: evidence <name> { for files::a_round_is_found::captured holds source "review:<who>" }
+
+warning[M102]: a claim holds only under assumptions
+  --> .mitra/model.mitra:28  ensure a_round_is_found = "Stores that import each other, directly or through others, are found, with the path from one back to itself: what a store takes from another is assumed there, so a promise w …
+
+  `files::a_round_is_found` holds if `files::round::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::a_round_is_found::captured` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M103]: an assumption is not vouched for
+  --> .mitra/model.mitra:29  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
 
   Nobody vouched that the claims `files::missing_is_said_at_the_import` rests on say what its text says.
   help: review them against the text, then record: evidence <name> { for files::missing_is_said_at_the_import::captured holds source "review:<who>" }
 
 warning[M102]: a claim holds only under assumptions
-  --> .mitra/model.mitra:28  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
+  --> .mitra/model.mitra:29  ensure missing_is_said_at_the_import = "A file that can't be read for an import does not stop the reading: why is handed over, and said at the line of the import.";
 
-  `files::missing_is_said_at_the_import` holds if `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::missing_is_said_at_the_import::captured` hold, and no evidence supports them.
+  `files::missing_is_said_at_the_import` holds if `files::round::correct`, `disk::read_is_stable`, `disk::reads_what_was_written::captured`, `files::missing_is_said_at_the_import::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -435,7 +475,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/store.mitra:14  ensure whole_folder = "The model of a store is every `.mitra` file of its folder, the ledger aside, with `model.mitra` handed first.";
 
-  `store::whole_folder` holds if `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::whole_folder::captured` hold, and no evidence supports them.
+  `store::whole_folder` holds if `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::round::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::whole_folder::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -447,7 +487,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/store.mitra:15  ensure nearest = "A command run in a folder uses the nearest `.mitra/` at or above it.";
 
-  `store::nearest` holds if `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::nearest::captured` hold, and no evidence supports them.
+  `store::nearest` holds if `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::round::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::nearest::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -459,7 +499,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/store.mitra:16  ensure build_is_written_again = "The files of a build are written under `.mitra/build/` in place of the last ones: a build is never edited, and never read back to judge.";
 
-  `store::build_is_written_again` holds if `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::build_is_written_again::captured` hold, and no evidence supports them.
+  `store::build_is_written_again` holds if `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::round::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::build_is_written_again::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -471,7 +511,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/store.mitra:17  ensure settings_beside_the_model = "The settings of a store are read from `settings.toml` in its folder and handed with the model. No file is the defaults; a file that does not read is an error, with  …
 
-  `store::settings_beside_the_model` holds if `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::settings_beside_the_model::captured` hold, and no evidence supports them.
+  `store::settings_beside_the_model` holds if `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::round::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::settings_beside_the_model::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for
@@ -483,7 +523,7 @@ warning[M103]: an assumption is not vouched for
 warning[M102]: a claim holds only under assumptions
   --> .mitra/store.mitra:18  ensure never_overwrites = "A store is created only where there is none.";
 
-  `store::never_overwrites` holds if `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::never_overwrites::captured` hold, and no evidence supports them.
+  `store::never_overwrites` holds if `store::Store::write_build::correct`, `disk::read_is_stable`, `disk::lists_what_is_there::captured`, `files::round::correct`, `disk::reads_what_was_written::captured`, `files::handed_unchanged::captured`, `store::never_overwrites::captured` hold, and no evidence supports them.
   help: review them, then record it as evidence, or test until it is not needed
 
 warning[M103]: an assumption is not vouched for

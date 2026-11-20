@@ -35,6 +35,15 @@ struct Built {
 /// The model alone: it reads, nothing in it contradicts anything else,
 /// and it is compiled under `.mitra/build/`. Nothing on what is owed.
 fn build(s: &store::Store, display: &mitra_lang::Display) -> Result<Built, String> {
+    let folder = Path::new(&s.model_path())
+        .parent()
+        .map(|d| d.display().to_string());
+    if let Some(path) = source::round(&folder.unwrap_or_default()) {
+        return Err(format!(
+            "build: stores import each other: {}. What a store takes from another is assumed there, so a promise would rest on itself",
+            path.join(" imports ")
+        ));
+    }
     let source = s.source()?;
     let (model, report) = evaluate(&source, "", None)?;
     let places = Places {
