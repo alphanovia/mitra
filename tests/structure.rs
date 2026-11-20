@@ -5,6 +5,14 @@ use mitra_core::model::*;
 
 const W: f64 = 0.2;
 const C: f64 = 0.6;
+/// The settings these are recorded at: a tie nobody gave a base rate
+/// is expected wrong, and a voice nobody gave one is not judged.
+const S: Settings = Settings {
+    weight: W,
+    completeness: C,
+    tie: 0.0,
+    reliability: None,
+};
 
 fn p(name: &str) -> Piece {
     Piece::named(name)
@@ -16,7 +24,7 @@ fn close(x: f64, y: f64) -> bool {
     (x - y).abs() < 0.006
 }
 fn start(pieces: &[&str]) -> Model {
-    let mut m = Model::empty(W, C);
+    let mut m = Model::empty(S);
     m.base = pieces.iter().map(|x| (p(x), 0.5)).collect();
     m
 }

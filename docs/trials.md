@@ -835,3 +835,40 @@ What stays open: a scale does not send the blame to the completeness
 alone while the tie can still be doubted; the two are told apart only
 by what is said of the tie. And a tie has no default base rate as the
 completeness has: in these toys it is written.
+
+## The speed of a fall
+
+`cargo run --example falling`, tests in `tests/falling.rs`. The first
+toy that uses both sides. One statement, `speed`: after falling a
+height h, the speed v satisfies v² = 2·g·h within 2 m²/s², with g at
+9.81 m/s². It is an expression on reals of the standard table. A stone
+and a feather are each tied to it. A measurement is a height and a
+speed; `claims::measured` computes the claim on it and gives evidence
+about the whole of the object's tie. Ties start at one half (the
+setting), `speed` at one half, each measurement is believed at 0.9.
+
+| measured | says |
+|---|---|
+| stone: 5 m, 9.9 m/s | yes |
+| stone: 10 m, 14 m/s | yes |
+| stone: 20 m, 19.8 m/s | yes |
+| feather: 5 m, 2 m/s | no |
+| feather: 10 m, 2.1 m/s | no |
+
+| after | `speed` | stone's tie | its completeness | feather's tie | its completeness |
+|---|---|---|---|---|---|
+| the stone alone | 0.97 | 0.97 | 0.97 | - | - |
+| the feather alone | 0.38 | - | - | 0.38 | 0.50 |
+| both | 0.96 | 0.97 | 0.97 | 0.27 | 0.40 |
+
+The stone's three measurements believe the statement, its tie and its
+completeness. The feather's two then leave the statement where the
+stone put it and go to the feather's tie (0.27) and its completeness
+(0.40): either this is not an object the statement is about, or
+something is missing there, which is the air. The feather alone has
+nothing to hold the statement up, so the statement and the tie share
+the no equally (0.38).
+
+Not shown: a statement for the air, and what a domain of the claim
+would say (heights above 0); domains are waiting for a decision.
+

@@ -11,6 +11,14 @@ use mitra_core::model::*;
 const W: f64 = 0.2;
 /// What to expect of the completeness of a tie when nothing says.
 const C: f64 = 0.6;
+/// The settings these are recorded at: a tie nobody gave a base rate
+/// is expected wrong, and a voice nobody gave one is not judged.
+const S: Settings = Settings {
+    weight: W,
+    completeness: C,
+    tie: 0.0,
+    reliability: None,
+};
 
 fn piece(name: &str) -> Piece {
     Piece::named(name)
@@ -30,8 +38,7 @@ fn world(bias: f64, passes: bool, reviews: &[(bool, f64)]) -> Model {
     let verdict = |yes_: bool| if yes_ { yes() } else { no() };
     let mut model = Model {
         ties: vec![],
-        weight: W,
-        completeness: C,
+        settings: S,
         evidence: vec![says("t", "c", verdict(passes), "machine:cargo")],
         related: vec![],
         base: vec![(piece("t"), bias)],
@@ -123,8 +130,7 @@ fn two_reviews_that_disagree_are_a_conflict() {
 fn two_claims_that_disagree_are_ranked() {
     let model = Model {
         ties: vec![],
-        weight: W,
-        completeness: C,
+        settings: S,
         evidence: vec![
             says("t_wraps", "wraps", yes(), "machine:cargo"),
             says("t_stops", "stops", yes(), "machine:cargo"),

@@ -61,7 +61,9 @@ pub enum Expression {
 pub trait Applies {
     /// The quantity an operation gives on these values, or none: an
     /// operation it does not know, or a result that does not exist.
-    fn apply(&self, op: &Operation, args: &[Value]) -> Option<Quantity>;
+    /// An argument that has no value is given as `None`: what the
+    /// operation gives then is its own to say.
+    fn apply(&self, op: &Operation, args: &[Option<Value>]) -> Option<Quantity>;
 }
 
 // mitra: implements value::type_of
@@ -92,7 +94,9 @@ pub fn check(e: &Expression) -> Option<Type> {
 
 /// The value of an expression at these inputs. `None` when it has
 /// none: an input not given or of another type, an operation on what
-/// it does not take, or one that `by` gives nothing for.
+/// it does not take, or one that `by` gives nothing for. An argument
+/// with no value is passed on as none: `by` says what the operation
+/// gives then.
 // mitra: implements value::eval
 pub fn eval(e: &Expression, inputs: &[(String, Value)], by: &impl Applies) -> Option<Value> {
     Some(match e {
@@ -110,8 +114,8 @@ pub fn eval(e: &Expression, inputs: &[(String, Value)], by: &impl Applies) -> Op
             }
             let mut values = Vec::with_capacity(args.len());
             for (arg, takes) in args.iter().zip(&op.takes) {
-                let v = eval(arg, inputs, by)?;
-                if &v.of != takes {
+                let v = eval(arg, inputs, by);
+                if v.as_ref().is_some_and(|v| &v.of != takes) {
                     return None;
                 }
                 values.push(v);

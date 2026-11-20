@@ -43,11 +43,10 @@ pub struct Related {
 }
 
 /// All that is said of a system: the evidence, the relations between
-/// pieces, the base rate of each piece that has one, the ties, and two
-/// settings: the weight of a base rate, and what to expect of the
-/// completeness of a tie when nothing says. A piece with no base rate
-/// has 0: nothing is assumed. The settings are given: the core holds
-/// no value for them.
+/// pieces, the base rate of each piece that has one, the ties, and the
+/// settings it is read under. A piece with no base rate, written or
+/// set, has 0. The settings are given: the core holds no value for
+/// them.
 ///
 /// A relation is itself said: a statement whose content is the
 /// relation. What is computed on it counts as far as that statement is
@@ -63,20 +62,35 @@ pub struct Model {
     pub related: Vec<Statement<Related>>,
     pub base: Vec<(Piece, f64)>,
     pub ties: Vec<Tie>,
+    pub settings: Settings,
+}
+
+/// What a model is read under, apart from what it says: the weight of
+/// a base rate, in counts, and what to expect of a piece nobody gave a
+/// base rate. The core holds no value for any of them.
+// mitra: implements model::Settings
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Settings {
+    /// The weight of a base rate, in counts.
     pub weight: f64,
+    /// The base rate of the completeness of a tie.
     pub completeness: f64,
+    /// The base rate of a tie.
+    pub tie: f64,
+    /// The base rate of the reliability of a voice. With none, a voice
+    /// nobody gave a base rate is not judged: its word counts whole.
+    pub reliability: Option<f64>,
 }
 
 impl Model {
     /// Nothing said yet, under the two settings.
-    pub fn empty(weight: f64, completeness: f64) -> Model {
+    pub fn empty(settings: Settings) -> Model {
         Model {
             evidence: Vec::new(),
             related: Vec::new(),
             base: Vec::new(),
             ties: Vec::new(),
-            weight,
-            completeness,
+            settings,
         }
     }
 }
@@ -182,11 +196,18 @@ pub fn base(model: &Model, x: &Piece) -> f64 {
         return *a;
     }
     if model.ties.iter().any(|t| &complete(t).piece == x) {
-        return model.completeness;
+        return model.settings.completeness;
     }
-    match model.ties.iter().any(|t| &implied(t).piece == x) {
-        true => 1.0,
-        false => 0.0,
+    if model.ties.iter().any(|t| &implied(t).piece == x) {
+        return 1.0;
+    }
+    if model.ties.iter().any(|t| &t.piece == x) {
+        return model.settings.tie;
+    }
+    let a_voice = |e: &Evidence| &reliable(&e.by).piece == x;
+    match model.settings.reliability {
+        Some(a) if model.evidence.iter().any(a_voice) => a,
+        _ => 0.0,
     }
 }
 
@@ -241,7 +262,7 @@ pub fn opinion(model: &Model, x: &Piece) -> Opinion {
             // What was said of it, and the count that brings it to
             // what it was judged at.
             let o = read(model, x);
-            let (n, w) = (o.r + o.s, model.weight);
+            let (n, w) = (o.r + o.s, model.settings.weight);
             let yes = (holds * (n + w) - o.r - o.a * w) / (1.0 - holds);
             let no = (o.r + o.a * w) / holds - n - w;
             match (*holds >= projected(o, w), *holds < 1.0, *holds > 0.0) {
@@ -266,7 +287,8 @@ fn doubted(model: &Model) -> Vec<(Voice, Piece, Vec<Piece>)> {
     let mut found: Vec<(Voice, Piece, Vec<Piece>)> = Vec::new();
     for e in &model.evidence {
         let piece = reliable(&e.by).piece;
-        let known = model.base.iter().any(|(p, _)| p == &piece);
+        let known =
+            model.settings.reliability.is_some() || model.base.iter().any(|(p, _)| p == &piece);
         if !known || found.iter().any(|(voice, _, _)| voice == &e.by) {
             continue;
         }
@@ -305,7 +327,7 @@ pub fn judged(model: &Model) -> Vec<(Piece, f64)> {
     if voices.is_empty() {
         return Vec::new();
     }
-    let w = model.weight;
+    let w = model.settings.weight;
     let prior = |x: &Piece| projected(read(model, x), w);
     let own: Vec<f64> = voices.iter().map(|(_, piece, _)| prior(piece)).collect();
     let mut sources: Vec<(Piece, f64)> = Vec::new();
@@ -414,7 +436,7 @@ fn heard_at(model: &Model, voices: &[(Voice, Piece, Vec<Piece>)], at: &[f64]) ->
         match voices.iter().position(|(voice, _, _)| voice == &e.by) {
             None => out.evidence.push(e.clone()),
             Some(k) if at[k] > 0.0 => out.evidence.push(Evidence {
-                value: held(at[k], e.value, model.weight),
+                value: held(at[k], e.value, model.settings.weight),
                 ..e.clone()
             }),
             Some(_) => {}
@@ -437,20 +459,25 @@ pub fn settled(model: &Model, judged: &[(Piece, f64)]) -> Model {
     let mut out = heard_at(model, &voices, &at);
     out.base
         .retain(|(piece, _)| !voices.iter().any(|(_, p, _)| p == piece));
+    out.settings.reliability = None;
     out
 }
 
 /// `x` is believed enough for the policy.
 // mitra: implements model::trusted
 pub fn trusted(model: &Model, x: &Piece, policy: f64) -> bool {
-    reaches(opinion(model, x), policy, model.weight)
+    reaches(opinion(model, x), policy, model.settings.weight)
 }
 
 /// What `x` stands on, taken together, as far as the relations that
 /// lead there are believed.
 fn believed(model: &Model, x: &Piece, walk: &mut Walk) -> Opinion {
     let (on, trust) = support(model, x, walk);
-    moved(nothing(trust), together(model, &on, walk), model.weight)
+    moved(
+        nothing(trust),
+        together(model, &on, walk),
+        model.settings.weight,
+    )
 }
 
 /// The relations of one kind, each with how far its statement is
@@ -462,7 +489,7 @@ fn related<'a>(model: &'a Model, how: Relation, walk: &mut Walk) -> Vec<(&'a Rel
         let trust = match walk.memo.trust.get(&key) {
             Some(trust) => *trust,
             None => {
-                let trust = projected(direct(model, &said.piece, walk), model.weight);
+                let trust = projected(direct(model, &said.piece, walk), model.settings.weight);
                 walk.memo.trust.insert(key, trust);
                 trust
             }
@@ -490,7 +517,11 @@ fn heard(model: &Model, x: &Piece, walk: &mut Walk) -> Vec<(Opinion, Voice)> {
     let mut said = Vec::new();
     for e in model.evidence.iter().filter(|e| &e.about == x) {
         said.push((
-            moved(believed(model, &e.piece, walk), e.value, model.weight),
+            moved(
+                believed(model, &e.piece, walk),
+                e.value,
+                model.settings.weight,
+            ),
             e.by.clone(),
         ));
     }
@@ -562,7 +593,7 @@ fn suspects(
     let mut seen = vec![relation.content.pieces[0].clone()];
     let mut open = vec![relation];
     while let Some(said) = open.pop() {
-        if projected(prior(model, &said.piece, walk), model.weight) < 1.0 {
+        if projected(prior(model, &said.piece, walk), model.settings.weight) < 1.0 {
             doubted.push(said.piece.clone());
         }
         for part in parts(model, &said.content) {
@@ -610,7 +641,7 @@ fn blamed(
     };
     let mut read = Vec::new();
     for suspect in &group {
-        read.push(beta(prior(model, suspect, walk), model.weight));
+        read.push(beta(prior(model, suspect, walk), model.settings.weight));
     }
     let mut others = 1.0;
     for (k, suspect) in read.iter().enumerate() {
@@ -688,13 +719,17 @@ fn support(model: &Model, x: &Piece, walk: &mut Walk) -> (BTreeSet<Piece>, f64) 
             on.0.extend(pieces);
             on.1 *= through;
         }
-        let new = moved(nothing(on.1), together(model, &on.0, walk), model.weight);
+        let new = moved(
+            nothing(on.1),
+            together(model, &on.0, walk),
+            model.settings.weight,
+        );
         let old = moved(
             nothing(best.1),
             together(model, &best.0, walk),
-            model.weight,
+            model.settings.weight,
         );
-        if uncertainty(new, model.weight) <= uncertainty(old, model.weight) {
+        if uncertainty(new, model.settings.weight) <= uncertainty(old, model.settings.weight) {
             best = on;
         }
     }
@@ -709,7 +744,7 @@ fn together(model: &Model, on: &BTreeSet<Piece>, walk: &mut Walk) -> Opinion {
         let own = direct(model, part, walk);
         whole = Some(match whole {
             None => own,
-            Some(o) => all(o, own, model.weight),
+            Some(o) => all(o, own, model.settings.weight),
         });
     }
     whole.unwrap_or(nothing(0.0))
@@ -726,7 +761,7 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
     let mut walk = Walk::default();
     for (relation, e) in failures(model, &mut walk) {
         // Evidence that was not believed before it failed accuses nothing.
-        if projected(prior(model, &e.piece, &mut walk), model.weight) > 0.0 {
+        if projected(prior(model, &e.piece, &mut walk), model.settings.weight) > 0.0 {
             let group = suspects(model, relation, e, &mut walk);
             out.push(ordered(model, group));
         }
@@ -737,7 +772,7 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
         .filter(|said| said.content.how == Relation::Exclude)
     {
         let r = &said.content;
-        if projected(read(model, &said.piece), model.weight) > 0.0
+        if projected(read(model, &said.piece), model.settings.weight) > 0.0
             && r.pieces.iter().all(|p| read(model, p).r > 0.0)
         {
             out.push(ordered(model, r.pieces.clone()));
@@ -753,7 +788,7 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
             .iter()
             .filter(|o| o.about == e.about)
             .collect();
-        let said = |o: &&Evidence| moved(read(model, &o.piece), o.value, model.weight);
+        let said = |o: &&Evidence| moved(read(model, &o.piece), o.value, model.settings.weight);
         let clash = about
             .iter()
             .any(|x| about.iter().any(|y| conflict(said(x), said(y)) > 0.0));
@@ -768,7 +803,7 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
 }
 
 fn ordered(model: &Model, mut pieces: Vec<Piece>) -> Vec<Piece> {
-    let p = |x: &Piece| projected(read(model, x), model.weight);
+    let p = |x: &Piece| projected(read(model, x), model.settings.weight);
     pieces.sort_by(|x, y| p(x).total_cmp(&p(y)));
     pieces
 }

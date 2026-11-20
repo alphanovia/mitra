@@ -13,9 +13,11 @@ subject claims {
     require computed = value::one_value;
     require truth = standard::applied_as_written;
     require applied = Applies::applied_alone;
+    require whole = tie::a_tie_has_a_whole;
 
     ensure claim_is_a_truth = "A claim is a statement that says an expression. The expression gives a truth, the standard one; one that gives anything else states nothing.";
     ensure observed_is_evidence = "Computing a claim at given inputs gives evidence about that statement's piece and no other: yes where it is true, no where it is false, and no evidence where it has no value.";
+    ensure measured_is_about_the_whole = "Computing a claim on what was measured at the place of a tie is evidence about the whole of that tie: the statement, the tie and its completeness together, not the statement alone. A tie that does not list the statement is not measured.";
     ensure one_way = "Evidence is made from a value; no value is made from evidence or from an opinion.";
 
     // What a claim says. A claim is a statement with this content.
@@ -31,18 +33,16 @@ subject claims {
     // applies its operations.
     fn observe(s: statement::Statement<Claim>, inputs: List<(String, value::Value)>, by: evidence::Voice, with: impl Applies<value::Operation, value::Value, value::Quantity>) -> Option<evidence::Evidence>
         uses only value::eval, standard::truth, piece::yes, piece::no;
-}
 
-// What the promises above say, on small cases.
-subject tests {
-    // claims
+    // What computing the statement on what was measured at the place
+    // of a tie says: the same, about the whole of that tie.
+    fn measured(s: statement::Statement<Claim>, at: tie::Tie, inputs: List<(String, value::Value)>, by: evidence::Voice, with: impl Applies<value::Operation, value::Value, value::Quantity>) -> Option<evidence::Evidence>
+        uses observe, tie::whole;
 
-    // claim_is_a_truth
+    // What always holds.
     claim a_number_is_not_a_statement(p: piece::Piece) {
         !claims::reads(Statement(p, Claim(Given(standard::number(1))))) && claims::reads(Statement(p, Claim(Given(standard::yes()))))
     }
-
-    // observed_is_evidence
     claim true_says_yes(p: piece::Piece) {
         match claims::observe(Statement(p, Claim(Given(standard::yes()))), [], Voice("machine:mitra"), Table([])) {
             None => false,
@@ -62,6 +62,15 @@ subject tests {
         match claims::observe(s, [], Voice("machine:mitra"), Table([])) {
             None => true,
             Some(e) => e.about == s.piece,
+        }
+    }
+    claim a_tie_that_does_not_list_it_is_not_measured(s: statement::Statement<Claim>, t: piece::Piece, by: evidence::Voice) {
+        measured(s, Tie(t, [], Place(["ball"])), [], by, Table([])) == None
+    }
+    claim measured_is_about_the_whole_of_the_tie(p: piece::Piece, t: piece::Piece, by: evidence::Voice) {
+        match measured(Statement(p, Claim(Given(standard::yes()))), Tie(t, [p], Place(["ball"])), [], by, Table([])) {
+            None => false,
+            Some(e) => e.about == tie::whole(Tie(t, [p], Place(["ball"]))) && e.value == piece::yes(),
         }
     }
 }

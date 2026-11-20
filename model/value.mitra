@@ -10,12 +10,14 @@ import std::core::{Option};
 // is declared before the types it speaks of, so they are named here:
 // an operation `O` on values `V` gives a quantity `Q`.
 contract Applies<O, V, Q> {
-    fn apply(&self, op: O, args: List<V>) -> Option<Q>;
-    ensure applied_alone = "What an operation gives comes from the operation and the values it is applied to, and from nothing else: the same ones always give the same quantity, or none.";
+    fn apply(&self, op: O, args: List<Option<V>>) -> Option<Q>;
+    ensure applied_alone = "Applying an operation is deterministic: what it gives comes from the operation and what it is applied to, and from nothing else. The same operation on the same values always gives the same quantity, or always none.";
+    ensure missing_is_told = "An operation is applied to the value of each of its arguments, or to none where that argument has no value: what to give then is the operation's to say.";
 }
 
 subject value {
     require applied = Applies::applied_alone;
+    require missing = Applies::missing_is_told;
 
     ensure one_value = "An expression has at most one value at given inputs: the same expression and inputs always give the same value, or none.";
     ensure typed = "Every value has one type. An operation is applied only to values of the types it takes, and what it gives has the type it says: an expression that checks gives only values of the type it checks as.";
@@ -56,16 +58,13 @@ subject value {
     fn check(e: Expression) -> Option<Type>;
     // The value of an expression at these inputs. `None` when it has
     // none: an input not given or of another type, an operation on what
-    // it does not take, or one that `by` gives nothing for.
+    // it does not take, or one that `by` gives nothing for. An
+    // argument with no value is passed on as none: `by` says what the
+    // operation gives then.
     fn eval(e: Expression, inputs: List<(String, Value)>, by: impl Applies<Operation, Value, Quantity>) -> Option<Value>
         uses Applies::apply;
-}
 
-// What the promises above say, on small cases.
-subject tests {
-    // value
-
-    // one_value, alone
+    // What always holds.
     claim same_value = deterministic(value::eval);
     claim given_is_itself(v: Value, by: impl Applies<Operation, Value, Quantity>) {
         value::eval(Given(v), [], by) == Some(v)
@@ -73,8 +72,6 @@ subject tests {
     claim input_is_what_was_given(v: Value, by: impl Applies<Operation, Value, Quantity>) {
         value::eval(Input("x", v.of), [("x", v)], by) == Some(v) && value::eval(Input("x", v.of), [], by) == None
     }
-
-    // typed
     claim checked_gives_its_type(e: Expression, by: impl Applies<Operation, Value, Quantity>) {
         match value::check(e) {
             None => true,
@@ -91,9 +88,6 @@ subject tests {
     claim an_input_of_another_type_is_no_value(v: Value, by: impl Applies<Operation, Value, Quantity>) {
         v.of == Type("A") || value::eval(Input("x", Type("A")), [("x", v)], by) == None
     }
-
-    // nothing_built_in: `+` is a name like any other. It checks on
-    // whatever types its declaration says.
     claim a_name_means_nothing_here(v: Value) {
         value::check(Apply(Operation("+", [v.of], v.of), [Given(v)])) == Some(v.of)
     }

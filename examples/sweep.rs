@@ -13,6 +13,14 @@ use mitra_core::model::*;
 const W: f64 = 0.2;
 /// What to expect of the completeness of a tie when nothing says.
 const C: f64 = 0.6;
+/// The settings these are recorded at: a tie nobody gave a base rate
+/// is expected wrong, and a voice nobody gave one is not judged.
+const S: Settings = Settings {
+    weight: W,
+    completeness: C,
+    tie: 0.0,
+    reliability: None,
+};
 
 fn p(name: &str) -> Piece {
     Piece::named(name)
@@ -22,7 +30,7 @@ fn p(name: &str) -> Piece {
 type Object = (String, usize, usize);
 
 fn world(objects: &[Object], one_voice_per_object: bool) -> Model {
-    let mut m = Model::empty(W, C);
+    let mut m = Model::empty(S);
     m.base.push((p("gravity"), 0.5));
     for (name, pass, fail) in objects {
         let (mass, whole) = (format!("mass {name}"), format!("same speed {name}"));

@@ -1,5 +1,5 @@
 //! The standard operations (`model/standard.mitra`): a truth, a whole
-//! number, and records, with what applies them. Beside the core, not
+//! number, a real, and records, with what applies them. Beside the core, not
 //! in it: `value` knows none of this.
 
 use crate::value::Quantity::{Many, Truth, Whole};
@@ -49,6 +49,52 @@ pub fn number(n: i64) -> Value {
         of: whole(),
     }
 }
+/// A number of the world: a ratio of two whole numbers, exact.
+// mitra: implements standard::real
+pub fn real() -> Type {
+    named("Real")
+}
+/// The real `n / d`, in lowest terms. None when `d` is 0.
+// mitra: implements standard::ratio
+pub fn ratio(n: i64, d: i64) -> Option<Value> {
+    Some(Value {
+        quantity: lowest(n as i128, d as i128)?,
+        of: real(),
+    })
+}
+
+/// A ratio in lowest terms, its lower part above 0. None when the
+/// lower part is 0 or a part does not fit 64 bits.
+fn lowest(n: i128, d: i128) -> Option<Quantity> {
+    if d == 0 {
+        return None;
+    }
+    let (mut a, mut b) = (n.unsigned_abs(), d.unsigned_abs());
+    while b != 0 {
+        (a, b) = (b, a % b);
+    }
+    let by = a.max(1) as i128 * d.signum();
+    let n = i64::try_from(n / by).ok()?;
+    let d = i64::try_from(d / by).ok()?;
+    Some(Many(vec![Whole(n), Whole(d)]))
+}
+/// The two parts of a real.
+fn parts(q: &Quantity) -> Option<(i128, i128)> {
+    match q {
+        Many(both) => match both.as_slice() {
+            [Whole(n), Whole(d)] if *d > 0 => Some((*n as i128, *d as i128)),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+/// A number as a ratio: a whole number over 1, or the parts of a real.
+fn as_ratio(q: &Quantity) -> Option<(i128, i128)> {
+    match q {
+        Whole(n) => Some((*n as i128, 1)),
+        _ => parts(q),
+    }
+}
 
 // mitra: implements standard::not
 pub fn not() -> Operation {
@@ -58,21 +104,45 @@ pub fn not() -> Operation {
 pub fn and() -> Operation {
     operation("&&", &[truth(), truth()], truth())
 }
-// mitra: implements standard::less
-pub fn less() -> Operation {
-    operation("<", &[whole(), whole()], truth())
+// mitra: implements standard::or
+pub fn or() -> Operation {
+    operation("||", &[truth(), truth()], truth())
 }
+/// `<` on two numbers of one type: whole or real.
+// mitra: implements standard::less
+pub fn less(of: &Type) -> Operation {
+    operation("<", &[of.clone(), of.clone()], truth())
+}
+// mitra: implements standard::at_most
+pub fn at_most(of: &Type) -> Operation {
+    operation("<=", &[of.clone(), of.clone()], truth())
+}
+// mitra: implements standard::more
+pub fn more(of: &Type) -> Operation {
+    operation(">", &[of.clone(), of.clone()], truth())
+}
+// mitra: implements standard::at_least
+pub fn at_least(of: &Type) -> Operation {
+    operation(">=", &[of.clone(), of.clone()], truth())
+}
+/// `+` on two numbers of one type: whole or real.
 // mitra: implements standard::add
-pub fn add() -> Operation {
-    operation("+", &[whole(), whole()], whole())
+pub fn add(of: &Type) -> Operation {
+    operation("+", &[of.clone(), of.clone()], of.clone())
 }
 // mitra: implements standard::sub
-pub fn sub() -> Operation {
-    operation("-", &[whole(), whole()], whole())
+pub fn sub(of: &Type) -> Operation {
+    operation("-", &[of.clone(), of.clone()], of.clone())
 }
 // mitra: implements standard::mul
-pub fn mul() -> Operation {
-    operation("*", &[whole(), whole()], whole())
+pub fn mul(of: &Type) -> Operation {
+    operation("*", &[of.clone(), of.clone()], of.clone())
+}
+/// Two numbers of one type are no further apart than a third: the
+/// distance between the first two is at most the tolerance.
+// mitra: implements standard::within
+pub fn within(of: &Type) -> Operation {
+    operation("within", &[of.clone(), of.clone(), of.clone()], truth())
 }
 /// `==` on two values of one type, whatever the type.
 // mitra: implements standard::equal
@@ -126,36 +196,76 @@ fn is(op: &Operation, takes: &[&str], gives: &str) -> bool {
 
 impl Applies for Table {
     // mitra: implements standard::Table::apply
-    fn apply(&self, op: &Operation, args: &[Value]) -> Option<Quantity> {
+    fn apply(&self, op: &Operation, args: &[Option<Value>]) -> Option<Quantity> {
         const T: &str = "Truth";
+        // `if` gives the branch its test takes, even when the other
+        // has no value.
+        if let ("if", [Some(test), yes, no]) = (op.name.as_str(), args) {
+            let taken = match test.quantity {
+                Truth(true) => yes.as_ref()?,
+                Truth(false) => no.as_ref()?,
+                _ => return None,
+            };
+            return match is(op, &[T, &taken.of.name, &taken.of.name], &taken.of.name) {
+                true => Some(taken.quantity.clone()),
+                false => None,
+            };
+        }
+        // Every other operation needs all its values.
+        let present: Option<Vec<Value>> = args.iter().cloned().collect();
+        let present = present?;
+        let args = present.as_slice();
         const I: &str = "Int";
+        const R: &str = "Real";
         match (op.name.as_str(), args) {
             ("!", [x]) if is(op, &[T], T) => match &x.quantity {
                 Truth(x) => Some(Truth(!x)),
                 _ => None,
             },
-            ("&&" | "<" | "+" | "-" | "*", [x, y]) => match (&x.quantity, &y.quantity) {
-                (Truth(x), Truth(y)) if op.name == "&&" && is(op, &[T, T], T) => {
-                    Some(Truth(*x && *y))
-                }
-                (Whole(x), Whole(y)) if op.name == "<" && is(op, &[I, I], T) => Some(Truth(x < y)),
-                (Whole(x), Whole(y)) if is(op, &[I, I], I) => Some(Whole(match op.name.as_str() {
+            ("&&" | "||", [x, y]) if is(op, &[T, T], T) => match (&x.quantity, &y.quantity) {
+                (Truth(x), Truth(y)) if op.name == "&&" => Some(Truth(*x && *y)),
+                (Truth(x), Truth(y)) => Some(Truth(*x || *y)),
+                _ => None,
+            },
+            ("<" | "<=" | ">" | ">=", [x, y]) if is(op, &[I, I], T) || is(op, &[R, R], T) => {
+                let ((xn, xd), (yn, yd)) = (as_ratio(&x.quantity)?, as_ratio(&y.quantity)?);
+                let (left, right) = (xn * yd, yn * xd);
+                Some(Truth(match op.name.as_str() {
+                    "<" => left < right,
+                    "<=" => left <= right,
+                    ">" => left > right,
+                    _ => left >= right,
+                }))
+            }
+            ("+" | "-" | "*", [x, y]) if is(op, &[I, I], I) => match (&x.quantity, &y.quantity) {
+                (Whole(x), Whole(y)) => Some(Whole(match op.name.as_str() {
                     "+" => x.checked_add(*y)?,
                     "-" => x.checked_sub(*y)?,
-                    "*" => x.checked_mul(*y)?,
-                    _ => return None,
+                    _ => x.checked_mul(*y)?,
                 })),
                 _ => None,
             },
+            ("+" | "-" | "*", [x, y]) if is(op, &[R, R], R) => {
+                let ((xn, xd), (yn, yd)) = (parts(&x.quantity)?, parts(&y.quantity)?);
+                match op.name.as_str() {
+                    "+" => lowest(xn * yd + yn * xd, xd * yd),
+                    "-" => lowest(xn * yd - yn * xd, xd * yd),
+                    _ => lowest(xn * yn, xd * yd),
+                }
+            }
+            ("within", [x, y, by]) if is(op, &[I, I, I], T) || is(op, &[R, R, R], T) => {
+                let ((xn, xd), (yn, yd)) = (as_ratio(&x.quantity)?, as_ratio(&y.quantity)?);
+                let (tn, td) = as_ratio(&by.quantity)?;
+                // The distance, as a number of the type: none when it
+                // does not fit.
+                let (n, d) = match lowest(xn * yd - yn * xd, xd * yd)? {
+                    Many(both) => parts(&Many(both))?,
+                    _ => return None,
+                };
+                Some(Truth(n.abs() * td <= tn * d))
+            }
             ("==", [x, y]) if is(op, &[&x.of.name, &x.of.name], T) => {
                 Some(Truth(x.quantity == y.quantity))
-            }
-            ("if", [test, yes, no]) if is(op, &[T, &yes.of.name, &yes.of.name], &yes.of.name) => {
-                match test.quantity {
-                    Truth(true) => Some(yes.quantity.clone()),
-                    Truth(false) => Some(no.quantity.clone()),
-                    _ => None,
-                }
             }
             _ => self.record(op, args),
         }

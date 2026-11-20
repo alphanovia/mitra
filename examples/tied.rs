@@ -9,6 +9,14 @@ use mitra_core::model::*;
 
 const W: f64 = 0.2;
 const C: f64 = 0.6;
+/// The settings these are recorded at: a tie nobody gave a base rate
+/// is expected wrong, and a voice nobody gave one is not judged.
+const S: Settings = Settings {
+    weight: W,
+    completeness: C,
+    tie: 0.0,
+    reliability: None,
+};
 
 fn p(name: &str) -> Piece {
     Piece::named(name)
@@ -42,7 +50,7 @@ enum Shape {
 /// the object lists gravity and its mass. So many measurements pass
 /// and fail, each believed at 0.9.
 fn objects(list: &[(&str, usize, usize)], shape: Shape) -> Model {
-    let mut m = Model::empty(W, C);
+    let mut m = Model::empty(S);
     m.base.push((p("gravity"), 0.5));
     for (name, pass, fail) in list {
         let mass = format!("mass {name}");
@@ -115,7 +123,7 @@ fn main() {
     println!("|---|---|---|---|---|---|");
     for (title, tied) in [("by hand", false), ("with a tie", true)] {
         for (saw, value) in [("fall", yes()), ("no fall", no())] {
-            let mut m = Model::empty(W, C);
+            let mut m = Model::empty(S);
             m.base = vec![(p("applies"), 0.5), (p("falls"), 0.5)];
             let about = match tied {
                 true => {

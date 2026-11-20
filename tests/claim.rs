@@ -1,8 +1,8 @@
 //! The claims of `model/claim.mitra`, and one walk across the seam.
 
 use mitra_core::claim::*;
-use mitra_core::model::{no, opinion, trusted, yes, Model, Piece, Statement, Voice};
-use mitra_core::standard::{less, number, truth, Table};
+use mitra_core::model::{no, opinion, trusted, yes, Model, Piece, Settings, Statement, Voice};
+use mitra_core::standard::{less, number, truth, whole, Table};
 use mitra_core::value::Expression::*;
 use mitra_core::value::Value;
 
@@ -10,6 +10,14 @@ use mitra_core::value::Value;
 const W: f64 = 0.2;
 /// What to expect of the completeness of a tie when nothing says.
 const C: f64 = 0.6;
+/// The settings these are recorded at: a tie nobody gave a base rate
+/// is expected wrong, and a voice nobody gave one is not judged.
+const S: Settings = Settings {
+    weight: W,
+    completeness: C,
+    tie: 0.0,
+    reliability: None,
+};
 
 const MITRA: &str = "machine:mitra";
 fn mitra() -> Voice {
@@ -36,28 +44,28 @@ fn claim(name: &str, expression: mitra_core::value::Expression) -> Statement<Cla
     }
 }
 
-// mitra: evidence for tests::a_number_is_not_a_statement
+// mitra: evidence for claims::a_number_is_not_a_statement
 #[test]
 fn a_number_is_not_a_statement() {
     assert!(!reads(&claim("c", one())));
     assert!(reads(&claim("c", truly())));
 }
 
-// mitra: evidence for tests::true_says_yes
+// mitra: evidence for claims::true_says_yes
 #[test]
 fn true_says_yes() {
     let e = observe(&claim("c", truly()), &[], &mitra(), &table()).unwrap();
     assert_eq!((e.value, e.by), (yes(), mitra()));
 }
 
-// mitra: evidence for tests::false_says_no
+// mitra: evidence for claims::false_says_no
 #[test]
 fn false_says_no() {
     let seen = observe(&claim("c", falsely()), &[], &mitra(), &table()).unwrap();
     assert_eq!(seen.value, no());
 }
 
-// mitra: evidence for tests::no_value_says_nothing
+// mitra: evidence for claims::no_value_says_nothing
 #[test]
 fn no_value_says_nothing() {
     assert_eq!(
@@ -72,7 +80,7 @@ fn no_value_says_nothing() {
     assert_eq!(observe(&claim("c", one()), &[], &mitra(), &table()), None);
 }
 
-// mitra: evidence for tests::about_its_own_piece
+// mitra: evidence for claims::about_its_own_piece
 #[test]
 fn about_its_own_piece() {
     for statement in [truly(), falsely()] {
@@ -89,7 +97,7 @@ fn a_statement_computed_moves_the_opinion_of_its_claim() {
     let small = claim(
         "small",
         Apply(
-            less(),
+            less(&whole()),
             vec![
                 Input("x".to_string(), mitra_core::standard::whole()),
                 Given(number(3)),
@@ -103,7 +111,7 @@ fn a_statement_computed_moves_the_opinion_of_its_claim() {
     // How far what Mitra computes is believed is a base rate like any other.
     let mut model = Model {
         base: vec![(seen.piece.clone(), 1.0)],
-        ..Model::empty(W, C)
+        ..Model::empty(S)
     };
     assert!(!trusted(&model, &small.piece, 0.0));
     model.evidence.push(seen);

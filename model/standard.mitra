@@ -1,5 +1,5 @@
 // The standard types and operations, beside the core: a truth, a whole
-// number, records, and the table that applies them. Reads value.mitra.
+// number, a real, records, and the table that applies them. Reads value.mitra.
 //
 // Code: src/standard.rs.
 
@@ -11,7 +11,9 @@ subject standard {
 
     ensure applied_as_written = "The table gives each standard operation the value its name reads as, and gives none for an operation it does not know.";
     ensure too_large_is_no_value = "A whole number is 64 bits, signed. An operation whose result does not fit has no value.";
-    ensure if_is_an_operation = "`if` is an operation like the others: both of its branches are computed first. When either has no value, neither has the `if`.";
+    ensure a_real_is_exact = "A real is a number of the world: a ratio of two whole numbers, kept in lowest terms, so two reals are equal when they are the same number. Its operations are exact: nothing is rounded. A result whose parts do not fit a whole number has no value, and there is no real over zero.";
+    ensure same_name_on_each_number = "The orders, the arithmetic and `within` are declared on one type at a time, the whole numbers or the reals: the same name on each, and no operation takes one of each.";
+    ensure if_is_an_operation = "`if` is an operation like the others, applied by the table. It gives the value of the branch its test takes, even when the other branch has none. Every other standard operation has no value when one of the values it is applied to is missing.";
     ensure a_record_is_its_operations = "A record is a type known by its name, one operation that makes it from its fields, and one per field that reads it back.";
 
     fn truth() -> value::Type { Type("Truth") }
@@ -21,12 +23,24 @@ subject standard {
     fn no() -> value::Value;
     fn number(n: Int) -> value::Value;
 
+    // A number of the world.
+    fn real() -> value::Type { Type("Real") }
+    // The real `n / d`. `None` when `d` is 0.
+    fn ratio(n: Int, d: Int) -> Option<value::Value>;
+
     fn not() -> value::Operation { Operation("!", [truth()], truth()) }
     fn and() -> value::Operation { Operation("&&", [truth(), truth()], truth()) }
-    fn less() -> value::Operation { Operation("<", [whole(), whole()], truth()) }
-    fn add() -> value::Operation { Operation("+", [whole(), whole()], whole()) }
-    fn sub() -> value::Operation { Operation("-", [whole(), whole()], whole()) }
-    fn mul() -> value::Operation { Operation("*", [whole(), whole()], whole()) }
+    fn or() -> value::Operation { Operation("||", [truth(), truth()], truth()) }
+    // On two numbers of one type: whole or real.
+    fn less(of: value::Type) -> value::Operation { Operation("<", [of, of], truth()) }
+    fn at_most(of: value::Type) -> value::Operation { Operation("<=", [of, of], truth()) }
+    fn more(of: value::Type) -> value::Operation { Operation(">", [of, of], truth()) }
+    fn at_least(of: value::Type) -> value::Operation { Operation(">=", [of, of], truth()) }
+    fn add(of: value::Type) -> value::Operation { Operation("+", [of, of], of) }
+    fn sub(of: value::Type) -> value::Operation { Operation("-", [of, of], of) }
+    fn mul(of: value::Type) -> value::Operation { Operation("*", [of, of], of) }
+    // The first two are no further apart than the third.
+    fn within(of: value::Type) -> value::Operation { Operation("within", [of, of, of], truth()) }
     // On two values of one type, whatever the type.
     fn equal(of: value::Type) -> value::Operation { Operation("==", [of, of], truth()) }
     fn choose(of: value::Type) -> value::Operation { Operation("if", [truth(), of, of], of) }
@@ -44,6 +58,24 @@ subject standard {
         shapes: List<Shape>,
     }
     impl Applies<value::Operation, value::Value, value::Quantity> for Table { }
+
+    // What always holds.
+    claim yes_and_no_are_truths() {
+        value::type_of(standard::yes()) == standard::truth() && value::type_of(standard::no()) == standard::truth() && standard::yes() != standard::no()
+    }
+    claim a_number_is_itself(n: Int) {
+        value::eval(Given(standard::number(n)), [], Table([])) == Some(standard::number(n)) && value::type_of(standard::number(n)) == standard::whole()
+    }
+    claim truth_is_not_a_number() {
+        value::check(Apply(standard::add(standard::whole()), [Given(standard::yes()), Given(standard::number(1))])) == None
+    }
+    claim no_real_over_zero(n: Int) { ratio(n, 0) == None }
+    claim a_real_is_one_ratio() {
+        ratio(2, 4) == ratio(1, 2) && ratio(1, -2) == ratio(-1, 2) && ratio(0, 5) == ratio(0, 1)
+    }
+    claim a_real_is_not_a_whole_number(n: Int) {
+        value::check(Apply(add(real()), [Given(number(n)), Given(number(n))])) == None
+    }
 }
 
 // What the promises above say, on small cases.
@@ -51,24 +83,15 @@ subject tests {
     // standard
 
     // applied_as_written
-    claim yes_and_no_are_truths() {
-        value::type_of(standard::yes()) == standard::truth() && value::type_of(standard::no()) == standard::truth() && standard::yes() != standard::no()
-    }
-    claim a_number_is_itself(n: Int) {
-        value::eval(Given(standard::number(n)), [], Table([])) == Some(standard::number(n)) && value::type_of(standard::number(n)) == standard::whole()
-    }
     claim two_and_two() {
-        value::eval(Apply(standard::add(), [Given(standard::number(2)), Given(standard::number(2))]), [], Table([])) == Some(standard::number(4))
+        value::eval(Apply(standard::add(standard::whole()), [Given(standard::number(2)), Given(standard::number(2))]), [], Table([])) == Some(standard::number(4))
     }
     claim one_is_less_than_two() {
-        value::eval(Apply(standard::less(), [Given(standard::number(1)), Given(standard::number(2))]), [], Table([])) == Some(standard::yes())
+        value::eval(Apply(standard::less(standard::whole()), [Given(standard::number(1)), Given(standard::number(2))]), [], Table([])) == Some(standard::yes())
     }
     claim equal_is_on_one_type() {
         value::eval(Apply(standard::equal(standard::whole()), [Given(standard::number(1)), Given(standard::number(1))]), [], Table([])) == Some(standard::yes())
             && value::check(Apply(standard::equal(standard::whole()), [Given(standard::yes()), Given(standard::number(1))])) == None
-    }
-    claim truth_is_not_a_number() {
-        value::check(Apply(standard::add(), [Given(standard::yes()), Given(standard::number(1))])) == None
     }
     claim an_operation_it_does_not_know_has_no_value() {
         value::eval(Apply(Operation("double", [standard::whole()], standard::whole()), [Given(standard::number(2))]), [], Table([])) == None
@@ -76,7 +99,7 @@ subject tests {
 
     // too_large_is_no_value
     claim a_number_too_large_is_no_value() {
-        value::eval(Apply(standard::mul(), [Given(standard::number(9223372036854775807)), Given(standard::number(2))]), [], Table([])) == None
+        value::eval(Apply(standard::mul(standard::whole()), [Given(standard::number(9223372036854775807)), Given(standard::number(2))]), [], Table([])) == None
     }
 
     // if_is_an_operation
@@ -84,8 +107,12 @@ subject tests {
         value::eval(Apply(standard::choose(standard::whole()), [Given(standard::yes()), Given(standard::number(1)), Given(standard::number(2))]), [], Table([])) == Some(standard::number(1))
             && value::eval(Apply(standard::choose(standard::whole()), [Given(standard::no()), Given(standard::number(1)), Given(standard::number(2))]), [], Table([])) == Some(standard::number(2))
     }
-    claim if_computes_both_branches() {
-        value::eval(Apply(standard::choose(standard::whole()), [Given(standard::yes()), Given(standard::number(1)), Apply(standard::mul(), [Given(standard::number(9223372036854775807)), Given(standard::number(2))])]), [], Table([])) == None
+    claim if_gives_the_branch_it_takes() {
+        value::eval(Apply(standard::choose(standard::whole()), [Given(standard::yes()), Given(standard::number(1)), Apply(standard::mul(standard::whole()), [Given(standard::number(9223372036854775807)), Given(standard::number(2))])]), [], Table([])) == Some(standard::number(1))
+            && value::eval(Apply(standard::choose(standard::whole()), [Given(standard::no()), Given(standard::number(1)), Apply(standard::mul(standard::whole()), [Given(standard::number(9223372036854775807)), Given(standard::number(2))])]), [], Table([])) == None
+    }
+    claim a_missing_value_is_no_sum() {
+        value::eval(Apply(standard::add(standard::whole()), [Given(standard::number(1)), Input("x", standard::whole())]), [], Table([])) == None
     }
 
     // a_record_is_its_operations
@@ -100,5 +127,49 @@ subject tests {
     }
     claim a_record_the_table_was_not_given_is_not_made() {
         value::eval(Apply(standard::make(Shape("Point", [standard::whole()])), [Given(standard::number(1))]), [], Table([])) == None
+    }
+
+    // applied_as_written, on the truths and the orders
+    claim one_or_the_other() {
+        value::eval(Apply(standard::or(), [Given(standard::no()), Given(standard::yes())]), [], Table([])) == Some(standard::yes())
+            && value::eval(Apply(standard::or(), [Given(standard::no()), Given(standard::no())]), [], Table([])) == Some(standard::no())
+    }
+    claim the_four_orders() {
+        value::eval(Apply(standard::at_most(standard::whole()), [Given(standard::number(1)), Given(standard::number(1))]), [], Table([])) == Some(standard::yes())
+            && value::eval(Apply(standard::more(standard::whole()), [Given(standard::number(1)), Given(standard::number(1))]), [], Table([])) == Some(standard::no())
+            && value::eval(Apply(standard::at_least(standard::whole()), [Given(standard::number(1)), Given(standard::number(2))]), [], Table([])) == Some(standard::no())
+    }
+
+    // a_real_is_exact
+    claim a_third_and_a_sixth_are_a_half() {
+        match standard::ratio(1, 3) {
+            None => false,
+            Some(third) => match standard::ratio(1, 6) {
+                None => false,
+                Some(sixth) => value::eval(Apply(standard::add(standard::real()), [Given(third), Given(sixth)]), [], Table([])) == standard::ratio(1, 2),
+            },
+        }
+    }
+    claim a_third_is_less_than_a_half() {
+        match standard::ratio(1, 3) {
+            None => false,
+            Some(third) => match standard::ratio(1, 2) {
+                None => false,
+                Some(half) => value::eval(Apply(standard::less(standard::real()), [Given(third), Given(half)]), [], Table([])) == Some(standard::yes()),
+            },
+        }
+    }
+    claim within_is_a_distance() {
+        value::eval(Apply(standard::within(standard::whole()), [Given(standard::number(7)), Given(standard::number(10)), Given(standard::number(2))]), [], Table([])) == Some(standard::no())
+            && value::eval(Apply(standard::within(standard::whole()), [Given(standard::number(10)), Given(standard::number(8)), Given(standard::number(2))]), [], Table([])) == Some(standard::yes())
+    }
+    claim a_real_too_large_is_no_value() {
+        match standard::ratio(9223372036854775807, 1) {
+            None => false,
+            Some(big) => match standard::ratio(2, 1) {
+                None => false,
+                Some(two) => value::eval(Apply(standard::mul(standard::real()), [Given(big), Given(two)]), [], Table([])) == None,
+            },
+        }
     }
 }

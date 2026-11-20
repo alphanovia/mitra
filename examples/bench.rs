@@ -13,9 +13,12 @@ fn main() {
         and(),
         vec![
             Apply(
-                less(),
+                less(&whole()),
                 vec![
-                    Apply(mul(), vec![Apply(add(), vec![x(), n(1)]), n(2)]),
+                    Apply(
+                        mul(&whole()),
+                        vec![Apply(add(&whole()), vec![x(), n(1)]), n(2)],
+                    ),
                     n(100),
                 ],
             ),

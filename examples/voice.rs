@@ -13,6 +13,14 @@ use common::interval;
 const W: f64 = 0.2;
 /// What to expect of the completeness of a tie when nothing says.
 const C: f64 = 0.6;
+/// The settings these are recorded at: a tie nobody gave a base rate
+/// is expected wrong, and a voice nobody gave one is not judged.
+const S: Settings = Settings {
+    weight: W,
+    completeness: C,
+    tie: 0.0,
+    reliability: None,
+};
 
 fn p(name: &str) -> Piece {
     Piece::named(name)
@@ -21,7 +29,7 @@ fn p(name: &str) -> Piece {
 /// Objects under gravity, each with its mass and its completeness, so
 /// many measurements that pass and that fail, each believed at 0.9.
 fn objects(list: &[(&str, usize, usize)]) -> Model {
-    let mut m = Model::empty(W, C);
+    let mut m = Model::empty(S);
     m.base.push((p("gravity"), 0.5));
     for (name, pass, fail) in list {
         let (mass, done, speed) = (

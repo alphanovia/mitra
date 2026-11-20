@@ -725,3 +725,58 @@ the method they follow (author, year, title) and where we depart:
      belief in the evidence), the share of a no through nested wholes,
      completeness, or the closed form for a shared source: ours.
 
+## Increment 113: settings, standard, claims in their subjects, the fall (2026-11-20)
+
+**Asked.** A settings record in the model; the promise that an
+operation is deterministic; general claims back in their subject;
+`||`, `<=`, `>=`, `>`; `if` to give the branch it takes; an example
+that evaluates a claim with the standard table and the model
+together, the speed of a fall. Domains: held, the user is deciding
+whether the type is the domain.
+
+**Done.**
+
+- `Settings { weight, completeness, tie, reliability }` held by
+  `Model`. `base` reads the tie setting for a tie nobody gave a base
+  rate, and the reliability setting for a voice; with a reliability
+  setting every voice is judged.
+- `Applies::applied_alone` now says "deterministic" in words; `value`
+  already required it. New `Applies::missing_is_told`: an argument with
+  no value is passed to the operation as none.
+- `if` stays an operation of the standard table and gives the branch
+  its test takes, even when the other has no value. Every other
+  standard operation has no value when one is missing. No control flow
+  in `value`: `eval` computes every argument and passes them on.
+- Standard: `or`, `at_most`, `more`, `at_least`, `within`; the orders
+  and the arithmetic take the type they are on, whole or real.
+- A real: an exact ratio of two whole numbers, in lowest terms.
+- `claims::measured`: a claim computed on what was measured at a tie
+  is evidence about the whole of that tie.
+- 24 claims moved from `subject tests` into their subject; 125 tests.
+
+**Decided alone.**
+
+689. The tests name `tie: 0.0` and `reliability: None`, which is what
+     the core did before the settings: no reading moved. The fall
+     names `tie: 0.5`.
+690. No setting for a statement or for a piece of evidence nobody gave
+     a base rate: they stay at 0.
+691. A claim goes in its subject when it says a rule: it has an input
+     it holds for, or it says what cannot be (`truth_is_not_a_number`).
+     It stays in `subject tests` when it is one worked case with
+     numbers chosen to show a reading. Evidence's claims all stay in
+     `subject evidence`, as main's language asks.
+692. To let `if` give the taken branch without control flow in
+     `value`, the contract changed: `apply` takes `List<Option<V>>`.
+     The other way was a core form.
+693. `less()`, `add()`, `sub()`, `mul()` became `less(of)` and so on,
+     like `equal(of)`: one name declared on each number type.
+694. The real is named `Real` after docs/design/numbers.md, and is a
+     ratio: a square root has no value. That is why the claim is on
+     v², not on v. No division yet.
+695. `within(x, y, by)` is an absolute distance. No relative one.
+696. `claims::measured` is new and not asked: `observe` gives evidence
+     about the statement alone, and under ties an observation at a
+     place is about the whole of the tie.
+697. `model.mitra` imports `std::core::Option` for the settings.
+
