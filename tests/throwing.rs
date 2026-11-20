@@ -336,7 +336,7 @@ fn a_hundred_objects_and_a_feather() {
     assert!(projected(mass) < 0.1 && projected(drop) > 0.8);
 }
 
-/// A trial, not yet in the core (`docs/complete.md`): one more piece
+/// A trial, not yet in the core (`docs/trials.md`): one more piece
 /// per tie, `complete`, "the statements on this tie are all that
 /// matter for it". Ten objects fall at the same speed, a feather does
 /// not, and a scale says yes about the feather's mass: the no goes to
@@ -380,4 +380,36 @@ fn a_weighed_feather_blames_its_completeness() {
     assert!(at(&m, "gravity") > 0.99 && at(&m, "complete o0") > 0.98);
     assert!(close(at(&m, "mass feather"), 0.678));
     assert!(close(at(&m, "complete feather"), 0.034));
+}
+
+/// Reviews in the mix (`docs/trials.md`): a review is evidence that
+/// carries a count. What is reviewed stands, and the no of a throw
+/// goes to what is not.
+#[test]
+fn a_reviewed_statement_stands_and_the_tie_takes_the_no() {
+    let world = |statement: f64, tie: f64, fell: bool| {
+        let mut m = single(0.5, 0.5, 0.9, fell);
+        for (x, count) in [("falls", statement), ("applies", tie)] {
+            if count > 0.0 {
+                let review = format!("review of {x}");
+                m.evidence.push(Evidence {
+                    value: Opinion { r: count, ..yes() },
+                    ..says(&review, x, true, &review)
+                });
+                m.base.push((p(&review), 0.9));
+            }
+        }
+        m
+    };
+    let at = |m: &Model, x: &str| projected(opinion(m, &p(x)));
+    // Not reviewed: the first throw nearly settles both.
+    let m = world(0.0, 0.0, true);
+    assert!(close(at(&m, "falls"), 0.909) && close(at(&m, "applies"), 0.909));
+    // The statement reviewed, and it does not fall: the tie takes it.
+    let m = world(10.0, 0.0, false);
+    assert!(at(&m, "falls") > 0.98 && at(&m, "applies") < 0.2);
+    // Both reviewed: the throw itself is doubted.
+    let m = world(10.0, 10.0, false);
+    assert!(at(&m, "falls") > 0.97 && at(&m, "applies") > 0.97);
+    assert!(at(&m, "throw") < 0.3);
 }

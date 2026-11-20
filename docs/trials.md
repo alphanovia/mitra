@@ -1,8 +1,9 @@
-# Trials: completeness, and how to choose the weight
+# Trials: completeness, the weight, and reviews
 
 Both on the two foundation examples, the one-throw toy and the
 gravity sweep, at weight 0.2. Printed by
-`cargo run --release --example complete` and `--example weight`.
+`cargo run --release --example complete`, `--example weight` and
+`--example review`.
 Nothing here is in the core yet: the pieces are written by hand in
 each model.
 
@@ -269,3 +270,92 @@ For each piece: what it reads at under 0.2 with the interval where it is right n
 |  | `mass odd` | 0.91, from 0.68 to 1.00 | 0.01 to 1.22, best 0.01 | 0.99 and 0.74 | holds and unverified **flips** |
 |  | `drop odd 9` | 0.28, from 0.00 to 0.98 | 0.01 to 1.22, best 0.01 | 0.02 and 0.72 | fails and fails |
 |  | `mass feather` | 0.02, from 0.00 to 0.14 | 0.01 to 1.22, best 0.01 | 0.01 and 0.08 | fails and fails |
+
+## Reviews in the mix
+
+No weight per piece. What an author knows from experience is said as
+evidence: a review of a statement or of a tie, signed by a voice,
+that carries a count. "Centuries of knowledge about gravity" is a
+review of 1000 yes; "I checked the environment" is a review of the
+tie. It counts as far as its reviewer is believed. Nothing changes in
+the core for this: evidence already says counts.
+
+**Reads right.**
+
+- **An unreviewed piece still collapses on its first evidence**: 0.91
+  after one throw, and a new object measured once reads 0.91 beside a
+  gravity that holds a thousand yes.
+- **A reviewed piece stands, and the no goes to what was not
+  reviewed.** One throw that does not fall, the statement reviewed:
+  the statement stays at 0.99 and the tie goes to 0.17. Both reviewed:
+  both stay at 0.98 and the throw itself is doubted, 0.29.
+- **Gravity reviewed stands against failures**: 1.00 with one, three
+  or ten objects failing every time, where unreviewed it fell to 0.12,
+  0.05 and 0.02. The failing objects' own pieces take the no.
+- **The interval follows.** One throw: 0.91, right nine times out of
+  ten between 0.40 and 1.00. Reviewed with 10 yes: 0.99, between 0.94
+  and 1.00. A review is what closes the interval.
+- **The feather weighed.** With its mass reviewed (10 yes) and gravity
+  reviewed, the mass stands at 0.91 and its measurements are doubted,
+  0.22 each: nothing else is left to blame. With a completeness piece
+  on the tie, that piece would take it (see above).
+
+**Reads odd.**
+
+1. **A firm review cannot be overturned from inside.** Gravity with a
+   thousand yes takes 0.01 of a no from a hundred failed measurements
+   on ten objects. As long as some unreviewed piece can take the
+   blame, it does. That is what was asked of "centuries", and it is
+   also how a wrong firm review would survive.
+2. **The count is the author's number.** 10 or 100 changes what gets
+   blamed (section 3: with 1 yes the mass falls to 0.24, with 10 it
+   stands). It is the old bias under a better name: it is signed,
+   it is evidence, and it can itself be reviewed, but nothing
+   calibrates it.
+3. **A piece with a base rate and no evidence has a wide interval.**
+   The throw is trusted at 0.9 and its interval is 0.02 to 1.00: with
+   a small weight, a base rate alone is "probably right, I have never
+   checked". Senses reviewed would close it.
+4. **A review and its reviewer.** The review counts as far as the
+   reviewer is believed, and that is again a base rate (0.9, 0.99).
+   The chain has to stop on a number somebody states.
+
+Each cell: (yes, no), what it reads at, and [where it is right nine times out of ten].
+
+### 1. One throw
+
+A review is believed at 0.9, the throw too.
+
+| review of the statement | review of the tie | I saw | `falls` | `applies` | `throw` |
+|---|---|---|---|---|---|
+| none | none | fall | (0.9, 0.00) 0.91 [0.40, 1.00] | (0.9, 0.00) 0.91 [0.40, 1.00] | (0.0, 0.00) 0.90 [0.02, 1.00] |
+| none | none | no fall | (0.0, 0.06) 0.38 [0.00, 1.00] | (0.0, 0.06) 0.38 [0.00, 1.00] | (0.0, 0.01) 0.88 [0.01, 1.00] |
+| 10 yes | none | fall | (9.9, 0.00) 0.99 [0.94, 1.00] | (0.9, 0.00) 0.91 [0.40, 1.00] | (0.0, 0.00) 0.90 [0.02, 1.00] |
+| 10 yes | none | no fall | (9.0, 0.01) 0.99 [0.93, 1.00] | (0.0, 0.40) 0.17 [0.00, 0.92] | (0.0, 0.02) 0.83 [0.00, 1.00] |
+| 10 yes | 10 yes | fall | (9.9, 0.00) 0.99 [0.94, 1.00] | (9.9, 0.00) 0.99 [0.94, 1.00] | (0.0, 0.00) 0.90 [0.02, 1.00] |
+| 10 yes | 10 yes | no fall | (9.0, 0.07) 0.98 [0.90, 1.00] | (9.0, 0.07) 0.98 [0.90, 1.00] | (0.0, 0.43) 0.29 [0.00, 0.98] |
+| 100 yes | none | fall | (90.9, 0.00) 1.00 [0.99, 1.00] | (0.9, 0.00) 0.91 [0.40, 1.00] | (0.0, 0.00) 0.90 [0.02, 1.00] |
+| 100 yes | none | no fall | (90.0, 0.00) 1.00 [0.99, 1.00] | (0.0, 0.43) 0.16 [0.00, 0.91] | (0.0, 0.02) 0.83 [0.00, 1.00] |
+
+### 2. Gravity reviewed or not, against failures
+
+10 measurements per object. "Centuries" is a review of 1000 yes about gravity, believed at 0.99.
+
+| objects that pass | that fail | gravity not reviewed | gravity reviewed | mass of one that fails, gravity not reviewed | gravity reviewed |
+|---|---|---|---|---|---|
+| 0 | 1 | (0.0, 0.64) 0.12 [0.00, 0.76] | (990.0, 0.00) 1.00 [1.00, 1.00] | (0.0, 0.64) 0.12 [0.00, 0.76] | (0.0, 4.28) 0.02 [0.00, 0.14] |
+| 0 | 3 | (0.0, 1.91) 0.05 [0.00, 0.30] | (990.0, 0.00) 1.00 [1.00, 1.00] | (0.0, 0.64) 0.12 [0.00, 0.76] | (0.0, 4.28) 0.02 [0.00, 0.14] |
+| 0 | 10 | (0.0, 6.38) 0.02 [0.00, 0.09] | (990.0, 0.01) 1.00 [1.00, 1.00] | (0.0, 0.64) 0.12 [0.00, 0.76] | (0.0, 4.28) 0.02 [0.00, 0.14] |
+| 2 | 8 | (18.0, 0.34) 0.98 [0.91, 1.00] | (1008.0, 0.01) 1.00 [1.00, 1.00] | (0.0, 4.15) 0.02 [0.00, 0.14] | (0.0, 4.28) 0.02 [0.00, 0.14] |
+| 9 | 1 | (81.0, 0.01) 1.00 [0.99, 1.00] | (1071.0, 0.00) 1.00 [1.00, 1.00] | (0.0, 4.26) 0.02 [0.00, 0.14] | (0.0, 4.28) 0.02 [0.00, 0.14] |
+
+### 3. The feather's own statement reviewed too
+
+Gravity reviewed (1000 yes), 3 objects pass, the feather fails, 10 measurements each. "I weighed it" is a review about the feather's mass, believed at 0.9.
+
+| review of the feather's mass | `gravity` | `mass f0` | one of its measurements | mass of a new object measured once |
+|---|---|---|---|---|
+| none | (1017.9, 0.00) 1.00 [1.00, 1.00] | (0.0, 4.28) 0.02 [0.00, 0.14] | (0.0, 0.02) 0.83 [0.00, 1.00] | (0.9, 0.00) 0.91 [0.40, 1.00] |
+| 1 yes | (1017.9, 0.00) 1.00 [1.00, 1.00] | (0.9, 3.00) 0.24 [0.02, 0.62] | (0.0, 0.14) 0.53 [0.00, 1.00] | (0.9, 0.00) 0.91 [0.40, 1.00] |
+| 10 yes | (1017.9, 0.01) 1.00 [1.00, 1.00] | (9.0, 0.81) 0.91 [0.73, 1.00] | (0.0, 0.60) 0.22 [0.00, 0.93] | (0.9, 0.00) 0.91 [0.40, 1.00] |
+| 100 yes | (1017.9, 0.01) 1.00 [1.00, 1.00] | (90.0, 0.10) 1.00 [0.99, 1.00] | (0.0, 0.93) 0.16 [0.00, 0.77] | (0.9, 0.00) 0.91 [0.40, 1.00] |

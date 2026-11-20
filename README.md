@@ -37,7 +37,7 @@ hand.
 ## To test
 
 ```sh
-cargo test                # 68 tests
+cargo test                # 69 tests
 mitra conform             # with main's binary, from this folder
 ```
 

@@ -329,7 +329,7 @@ recorded again, with a column at 2 where it helps.
 statements we attached to it. So we have an opinion on each statement,
 and on the completeness of the relations." "let's try this on our two
 foundation exemples"; "try the W being scaled with the amount of
-evidence in the model too". Note: `docs/complete.md`. Nothing is added
+evidence in the model too". Note: `docs/trials.md`. Nothing is added
 to the model: both are examples over the core as it is.
 
 **Decisions taken alone.**
@@ -351,7 +351,7 @@ to the model: both are examples over the core as it is.
 
 **Then (12:50).** "in the build we would need something like an
 influence optimisation pass to find the right W ?" Two passes tried in
-`examples/weight.rs`, read in `docs/complete.md`.
+`examples/weight.rs`, read in `docs/trials.md`.
 
 624. Both passes search a grid of ten weights from 0.02 to 20.
 625. The likelihood is the Beta-binomial one on the counts each piece
@@ -361,7 +361,7 @@ influence optimisation pass to find the right W ?" Two passes tried in
      the parts of its whole moves with and without it; epsilon is 0.01.
 
 **Then (12:52).** "on a W fitting, can we compute a sort of bound with
-that technique ?" Yes: section "Bounds" of `docs/complete.md`.
+that technique ?" Yes: section "Bounds" of `docs/trials.md`.
 
 627. The interval of a piece is from the 5th to the 95th hundredth of
      its Beta, worked out in the example, not in the core.
@@ -369,3 +369,20 @@ that technique ?" Yes: section "Bounds" of `docs/complete.md`.
      over 40 weights from 0.01 to 50.
 629. `w` is not added to `Opinion`: it changes the record and every
      claim on it, and is left for the user's word.
+
+## Increment 102: reviews in the mix (2026-11-20)
+
+**Asked.** "I'm not convinced by w per piece either... the author of
+the model would need a know to say I trust this or statement per
+experience, or I'm unsure. Which is what review evidence is for no ?
+So how about we put review evidence in the mix". No `w` per piece.
+`examples/review.rs`, read in `docs/trials.md` (was complete.md).
+
+**Decisions taken alone.**
+
+630. A review is plain evidence whose value carries a count of yes;
+     nothing is added to the core.
+631. Reviewers are believed at 0.9, "centuries" at 0.99 with 1000 yes,
+     "I weighed it" with 1, 10 or 100 yes. These numbers are mine.
+632. The Beta maths of the trials (interval, ln of gamma) is shared in
+     `examples/common/`, still outside the core.
