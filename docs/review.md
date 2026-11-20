@@ -497,3 +497,34 @@ evidence,tie}.rs`; 74 tests (69 before). 30 promises (26), 57 claims
 650. `docs/trials.md` keeps its tables as recorded, with a note.
 651. Still a trial, not in the core: a voice as one piece behind its
      reviews (it needs nothing more from the core than 648).
+
+## Increment 106: voices, iterated (2026-11-20)
+
+**Asked.** "Ok, iterate on voice", with the design relayed from the
+chat: reliability implied per voice; independent by default; a shared
+source as a declared parent; credit from passes; a discredited voice
+stops holding up the parts.
+
+**Done.** `examples/voice.rs` and `docs/trials.md`, "Voices,
+iterated". The core is not touched: 74 tests as before.
+
+**Decided alone.**
+
+652. The trial is a pass outside the core, over the public functions
+     only: judge the voices, discount their word, call `opinion`. No
+     switch in the core this time.
+653. The word of a voice is discounted as a mix of the word and of
+     nothing (the trust discount of subjective logic, in counts), not
+     by scaling counts. Without this a discredited voice keeps holding
+     up the parts. `moved` in the core still scales.
+654. A voice is judged per whole, passes and failures in one
+     likelihood, not per failure: repeated failures of one whole have
+     one cause.
+655. A source is weighed by its voices together; the word of a voice
+     holds at (voice) times (source). One source per voice here.
+656. The reliability of a voice is a number in the trial, not yet a
+     `Statement` in the model, and its prior is given by hand (0.9).
+     A voice with none is not doubted as a voice.
+657. Found: the vouching rule kept in the core (648) and this pass do
+     the same job in two ways. If voices are kept, 648 is the one to
+     drop or to redo on this pattern.

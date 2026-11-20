@@ -540,3 +540,125 @@ So the voice as one piece does what was hoped for the voice, and the
 parts do not benefit yet. What would let them: share the failures a
 second time, from the opinions after the voices are judged; and let a
 pass speak for the voice that vouched for it. Neither is tried.
+
+## Voices, iterated
+
+Asked: "Ok, iterate on voice". The design from the chat: a
+reliability per voice, the parent of all that voice says; voices
+independent unless a shared source is declared; a voice gains credit
+when what it vouched for passes; and a discredited voice stops
+holding up the parts.
+
+This trial is a pass outside the core (`examples/voice.rs`,
+`cargo run --release --example voice`): it judges the voices,
+discounts their word, and hands the model to the core's `opinion`.
+The core is not changed.
+
+Three things differ from the trial before.
+
+**The word of a voice is a mix, not a scaled count.** A voice is
+reliable or not. If it is, its word counts whole; if not, it is
+nothing. So 100 yes from a voice believed at 0.3 read as 0.65 on a
+piece at one half, where scaled counts gave 30 yes and 0.997. A belief
+never exceeds the trust in who says it: 100 yes from a voice at 0.9
+read 0.95. This is the trust discount of subjective logic, written in
+counts. The count scaling agreed for `about` is untouched: it still
+applies to how far one piece of evidence is believed on its own.
+
+**A voice is judged per whole, passes and failures together.** With
+`p` the chance that the parts of a whole are all right before anything
+is seen of it:
+
+```text
+L = p · (every failing measurement is wrong) + (1 - p) · (every passing one is wrong)
+```
+
+read once with the voice's word taken whole, once without it. The
+ratio of the two, over all the wholes, moves the odds of the voice.
+Ten failures of one whole are one fact with one cause, not ten: a
+voice that said "probably" is not destroyed by repetition, and a voice
+that said "surely" is. Passes give credit the same way, as far as the
+voice's word was needed to expect them.
+
+**A source is a shared parent.** The word of a voice holds when the
+voice is reliable and its source is. Voices on one source are judged
+together: with `L` the ratio of a voice and `a` its chance, the source
+is weighed by the product of `a · L + 1 - a` over its voices.
+Independence is the absence of such a parent, and is the default.
+
+### 1. A cautious voice and an overconfident one
+
+Both start at 0.9. The cautious one says 1000 yes on gravity, 1 on each mass, and on completeness 20 for the stone, 5 for the ball, half a yes for the leaf and the feather. The overconfident one says 100 yes on everything. The stone, the ball and the leaf pass every time, the feather never.
+
+| measurements per object | cautious voice | overconfident voice | `complete feather` | `mass feather` | `complete stone` | one of the feather's measurements | `gravity` |
+|---|---|---|---|---|---|---|---|
+| 1 | 0.90 | 0.84 | 0.85 [0.34, 1.00] | 0.87 [0.42, 1.00] | 0.97 [0.84, 1.00] | 0.60 [0.00, 1.00] | 0.97 [0.85, 1.00] |
+| 3 | 0.98 | 0.20 | 0.46 [0.01, 0.97] | 0.67 [0.10, 1.00] | 0.99 [0.93, 1.00] | 0.71 [0.00, 1.00] | 0.99 [0.95, 1.00] |
+| 10 | 0.98 | 0.15 | 0.22 [0.00, 0.66] | 0.41 [0.04, 0.87] | 0.99 [0.96, 1.00] | 0.70 [0.00, 1.00] | 1.00 [0.98, 1.00] |
+| 30 | 0.98 | 0.14 | 0.09 [0.00, 0.29] | 0.20 [0.01, 0.52] | 1.00 [0.98, 1.00] | 0.70 [0.00, 1.00] | 1.00 [0.99, 1.00] |
+| 100 | 0.98 | 0.13 | 0.03 [0.00, 0.10] | 0.07 [0.00, 0.20] | 1.00 [0.99, 1.00] | 0.70 [0.00, 1.00] | 1.00 [1.00, 1.00] |
+
+### 2. By who reviews, 10 measurements per object
+
+| who reviews | cautious voice | overconfident voice | `complete feather` | `mass feather` | `complete stone` | one of the feather's measurements | `gravity` |
+|---|---|---|---|---|---|---|---|
+| cautious | 0.99 |  | 0.21 [0.00, 0.64] | 0.42 [0.04, 0.88] | 0.99 [0.97, 1.00] | 0.71 [0.00, 1.00] | 1.00 [0.98, 1.00] |
+| cautious, silent on the leaf's and the feather's completeness | 0.99 |  | 0.03 [0.00, 0.21] | 0.70 [0.12, 1.00] | 1.00 [0.97, 1.00] | 0.84 [0.00, 1.00] | 1.00 [0.99, 1.00] |
+| overconfident |  | 0.68 | 0.24 [0.00, 0.74] | 0.24 [0.00, 0.74] | 0.99 [0.94, 1.00] | 0.76 [0.00, 1.00] | 0.99 [0.97, 1.00] |
+| both | 0.98 | 0.15 | 0.22 [0.00, 0.66] | 0.41 [0.04, 0.87] | 0.99 [0.96, 1.00] | 0.70 [0.00, 1.00] | 1.00 [0.98, 1.00] |
+
+### 3. Noisy objects, both voices, 10 measurements each
+
+| object | passes | its mass | its completeness | one failing measurement |
+|---|---|---|---|---|
+| stone | 9 of 10 | 0.98 [0.90, 1.00] | 0.99 [0.94, 1.00] | 0.28 [0.00, 0.98] |
+| ball | 10 of 10 | 0.99 [0.94, 1.00] | 0.99 [0.95, 1.00] | none |
+| leaf | 6 of 10 | 0.93 [0.74, 1.00] | 0.93 [0.72, 1.00] | 0.35 [0.00, 1.00] |
+| feather | 0 of 10 | 0.41 [0.04, 0.87] | 0.22 [0.00, 0.66] | 0.70 [0.00, 1.00] |
+
+cautious voice 0.98, overconfident voice 0.15, `gravity` 0.99 [0.96, 1.00]
+
+### 4. Two agents, independent or sharing a source
+
+Agent A says 100 yes on gravity and on the mass and the completeness of the ball and of the feather. Agent B says 100 yes on the mass and the completeness of the stone, and of nothing else. The ball passes 10 times, the feather fails 10 times, the stone is never measured. Each agent starts at 0.9, and so does the source when they share one: a word then starts at 0.81.
+
+| declared | A's word holds at | B's word holds at | the source | `complete stone` | `complete feather` | one of the feather's measurements |
+|---|---|---|---|---|---|---|
+| independent | 0.22 | 0.90 |  | 0.95 [0.67, 1.00] | 0.14 [0.00, 0.74] | 0.86 [0.00, 1.00] |
+| one source | 0.12 | 0.48 | 0.53 | 0.74 [0.00, 1.00] | 0.13 [0.00, 0.75] | 0.87 [0.00, 1.00] |
+
+Read plainly.
+
+- The overconfident voice is found from three failures on (0.20,
+  then 0.15), and the cautious one gains from the passes it vouched
+  for (0.90 to 0.98). After one measurement per object neither has
+  moved much.
+- The blame moves to where it belongs: the feather's completeness
+  reads 0.22 after ten failures and 0.03 after a hundred, its mass
+  0.41 then 0.07, and its measurements are believed (0.70). With both
+  voices the model reads nearly as with the cautious one alone.
+- The overconfident voice's word on the stone drops with it. The
+  stone still reads 0.99, held by the cautious voice and its passes.
+- A voice that keeps silent where it does not know does best: the
+  cautious voice silent on the feather's completeness puts all the
+  blame there (0.03) and leaves the mass at 0.70.
+- The overconfident voice alone keeps 0.68: three objects confirm its
+  word and one contradicts it, and nothing else explains the passes.
+  It does not fall further with more failures, because one cause
+  explains them all. With all evidence from one bad voice, nothing
+  better can be expected.
+- Two agents: declared independent, the failure of the feather costs
+  A its word (0.22) and leaves B's word on the stone whole (0.90).
+  On one source, the source is doubted (0.53), and B's word on the
+  stone, which nothing tested, falls from 0.81 to 0.48: `complete
+  stone` reads 0.74 instead of 0.95.
+
+What is rough.
+
+- Voices are judged in three rounds, each reading the others as
+  judged so far. It settles here; nothing says it always does.
+- A voice is judged before any no is shared, so a no on another whole
+  does not inform it.
+- The core still shares a no per failure, so a part falls with the
+  number of failures (0.22, 0.09, 0.03) while the voice does not.
+- Voice priors of 0.9 and a source prior of 0.9 are picked by hand.
