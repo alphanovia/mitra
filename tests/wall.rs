@@ -45,7 +45,7 @@ fn each_subject_reads_only_what_it_requires() {
         ("piece", &[]),
         ("evidence", &["piece"]),
         ("statement", &["piece"]),
-        ("tie", &["piece", "place"]),
+        ("tie", &["piece", "place", "statement"]),
     ];
     for (of, may) in allowed {
         let text = reads(of);

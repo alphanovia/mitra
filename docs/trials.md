@@ -4,8 +4,12 @@ Both on the two foundation examples, the one-throw toy and the
 gravity sweep, at weight 0.2. Printed by
 `cargo run --release --example complete`, `--example weight` and
 `--example review`.
-Nothing here is in the core yet: the pieces are written by hand in
-each model.
+The tables are as recorded when each trial ran. Since increment 105
+the core holds what was kept: the weight given by the model,
+completeness implied per tie, a review as evidence with a count, and
+a failure that doubts what vouched for its parts. That last rule is
+now always on, so the review tables read a little differently when
+run today, and the columns "without the rule" are history.
 
 ## Completeness
 

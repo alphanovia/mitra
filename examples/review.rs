@@ -11,6 +11,9 @@ use mitra_core::model::*;
 mod common;
 use common::interval;
 
+/// The weight of a base rate that these are recorded at.
+const W: f64 = 0.2;
+
 fn p(name: &str) -> Piece {
     Piece::named(name)
 }
@@ -42,12 +45,12 @@ fn says(m: &mut Model, name: &str, about: &str, yes_: f64, no_: f64, trust: f64)
 /// Counts, reading, and where it is right nine times out of ten.
 fn cell(m: &Model, x: &str) -> String {
     let o = opinion(m, &p(x));
-    let (from, to) = interval(o, weight());
+    let (from, to) = interval(o, W);
     format!(
         "({:.1}, {:.2}) {:.2} [{from:.2}, {to:.2}]",
         o.r,
         o.s,
-        projected(o)
+        projected(o, W)
     )
 }
 
@@ -55,7 +58,7 @@ fn cell(m: &Model, x: &str) -> String {
 fn one_throw(statement: f64, tie: f64, fell: bool) -> Model {
     let mut m = Model {
         base: vec![(p("applies"), 0.5), (p("falls"), 0.5)],
-        ..Model::default()
+        ..Model::empty(W)
     };
     whole(&mut m, &["lands", "applies", "falls"]);
     if statement > 0.0 {
@@ -73,7 +76,7 @@ fn one_throw(statement: f64, tie: f64, fell: bool) -> Model {
 /// measurements each. `gravity` and the mass of the first failing
 /// object may be reviewed.
 fn sweep(pass: usize, fail: usize, k: usize, gravity: f64, mass: f64) -> Model {
-    let mut m = Model::default();
+    let mut m = Model::empty(W);
     m.base.push((p("gravity"), 0.5));
     if gravity > 0.0 {
         says(&mut m, "centuries", "gravity", gravity, 0.0, 0.99);
@@ -104,7 +107,7 @@ fn sweep(pass: usize, fail: usize, k: usize, gravity: f64, mass: f64) -> Model {
 /// (piece, yes) by one reviewer believed at `trust`; each review is a
 /// piece of its own.
 fn reviewed(objects: &[(&str, usize, usize)], reviews: &[(&str, f64)], trust: f64) -> Model {
-    let mut m = Model::default();
+    let mut m = Model::empty(W);
     m.base.push((p("gravity"), 0.5));
     for (name, pass, fail) in objects {
         let (mass, done, speed) = (
@@ -194,9 +197,9 @@ fn reviewers() {
         ];
         let m = reviewed(&objects, &bad, 0.9);
         let both = |x: &str| {
-            let at = |o: Opinion| projected(o);
-            let (off, on) = (opinion(&m, &p(x)), with_vouching(|| opinion(&m, &p(x))));
-            let (from, to) = interval(on, weight());
+            let at = |o: Opinion| projected(o, W);
+            let (off, on) = (opinion(&m, &p(x)), opinion(&m, &p(x)));
+            let (from, to) = interval(on, W);
             format!("{:.2} / {:.2} [{from:.2}, {to:.2}]", at(off), at(on))
         };
         let cells = [
@@ -269,9 +272,9 @@ fn two_voices() {
         if !m.base.iter().any(|(piece, _)| piece == &p(x)) {
             return "".to_string();
         }
-        let o = with_vouching(|| opinion(m, &p(x)));
-        let (from, to) = interval(o, weight());
-        format!("{:.2} [{from:.2}, {to:.2}]", projected(o))
+        let o = opinion(m, &p(x));
+        let (from, to) = interval(o, W);
+        format!("{:.2} [{from:.2}, {to:.2}]", projected(o, W))
     };
     println!("The stone, the ball and the leaf pass every time, the feather never. With the trial rule.\n");
     println!("| measurements per object | cautious voice | overconfident voice | `complete feather` | `mass feather` | `complete stone` | one of the feather's measurements | `gravity` |");
@@ -300,7 +303,7 @@ fn two_voices() {
         println!("| {who} | {} |", rows.map(|x| at(&m, x)).join(" | "));
     }
     let m = build(&objects, "both");
-    let off = rows.map(|x| format!("{:.2}", projected(opinion(&m, &p(x)))));
+    let off = rows.map(|x| format!("{:.2}", projected(opinion(&m, &p(x)), W)));
     println!("| both, without the rule | {} |", off.join(" | "));
     println!("\nNoisy objects, 10 measurements each, both voices, with the rule.\n");
     let objects = [

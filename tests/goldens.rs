@@ -7,6 +7,9 @@
 
 use mitra_core::model::*;
 
+/// The weight of a base rate that these are recorded at.
+const W: f64 = 0.2;
+
 fn piece(name: &str) -> Piece {
     Piece::named(name)
 }
@@ -24,6 +27,8 @@ fn says(name: &str, about: &str, value: Opinion, by: &str) -> Evidence {
 fn world(bias: f64, passes: bool, reviews: &[(bool, f64)]) -> Model {
     let verdict = |yes_: bool| if yes_ { yes() } else { no() };
     let mut model = Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("t", "c", verdict(passes), "machine:cargo")],
         related: vec![],
         base: vec![(piece("t"), bias)],
@@ -43,9 +48,9 @@ fn world(bias: f64, passes: bool, reviews: &[(bool, f64)]) -> Model {
 fn word(model: &Model, x: &Piece, policy: f64) -> (&'static str, f64) {
     let o = opinion(model, x);
     match (trusted(model, x, policy), against(o)) {
-        (true, _) => ("holds", projected(o)),
+        (true, _) => ("holds", projected(o, W)),
         (false, true) => ("fails", o.s),
-        (false, false) => ("unverified", projected(o)),
+        (false, false) => ("unverified", projected(o, W)),
     }
 }
 
@@ -114,6 +119,8 @@ fn two_reviews_that_disagree_are_a_conflict() {
 #[test]
 fn two_claims_that_disagree_are_ranked() {
     let model = Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![
             says("t_wraps", "wraps", yes(), "machine:cargo"),
             says("t_stops", "stops", yes(), "machine:cargo"),

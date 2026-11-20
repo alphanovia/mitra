@@ -42,8 +42,8 @@ pub fn apart(a: &Voice, b: &Voice) -> f64 {
 /// What evidence says, as far as it is believed: its counts, scaled.
 /// A yes stays a yes and a no stays a no, however little is believed.
 // mitra: implements evidence::moved
-pub fn moved(believed: Opinion, said: Opinion) -> Opinion {
-    let p = projected(believed);
+pub fn moved(believed: Opinion, said: Opinion, w: f64) -> Opinion {
+    let p = projected(believed, w);
     Opinion {
         r: p * said.r,
         s: p * said.s,

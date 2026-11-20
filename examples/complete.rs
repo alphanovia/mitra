@@ -8,6 +8,9 @@
 
 use mitra_core::model::*;
 
+/// The weight of a base rate that these are recorded at.
+const W: f64 = 0.2;
+
 fn p(name: &str) -> Piece {
     Piece::named(name)
 }
@@ -33,14 +36,14 @@ fn says(m: &mut Model, name: &str, about: &str, yes_: bool, trust: f64) {
 }
 fn cell(m: &Model, x: &str) -> String {
     let o = opinion(m, &p(x));
-    format!("({:.2}, {:.2}) {:.2}", o.r, o.s, projected(o))
+    format!("({:.2}, {:.2}) {:.2}", o.r, o.s, projected(o, W))
 }
 
 /// One object, one statement, one throw.
 fn one_throw(complete: f64, senses: f64, fell: bool) -> Model {
     let mut m = Model {
         base: vec![(p("falls"), 0.5), (p("complete"), complete)],
-        ..Model::default()
+        ..Model::empty(W)
     };
     whole(&mut m, &["lands", "falls", "complete"]);
     says(&mut m, "throw", "lands", fell, senses);
@@ -60,7 +63,7 @@ enum Scale {
 /// `pass` objects that fall at the same speed `k` times each, `fail`
 /// that never do; the last failing one is the feather.
 fn sweep(pass: usize, fail: usize, k: usize, complete: f64, scale: Scale) -> Model {
-    let mut m = Model::default();
+    let mut m = Model::empty(W);
     m.base.push((p("gravity"), 0.5));
     for i in 0..pass + fail {
         let name = match i {

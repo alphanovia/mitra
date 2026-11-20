@@ -5,6 +5,9 @@ use mitra_core::model::{no, opinion, trusted, yes, Model, Piece, Statement, Voic
 use mitra_core::value::Expression::*;
 use mitra_core::value::{Type, Value};
 
+/// The weight of a base rate that these are recorded at.
+const W: f64 = 0.2;
+
 const MITRA: &str = "machine:mitra";
 fn mitra() -> Voice {
     Voice::named(MITRA)
@@ -72,7 +75,7 @@ fn a_statement_computed_moves_the_opinion_of_its_claim() {
     // How far what Mitra computes is believed is a base rate like any other.
     let mut model = Model {
         base: vec![(seen.piece.clone(), 1.0)],
-        ..Model::default()
+        ..Model::empty(W)
     };
     assert!(!trusted(&model, &small.piece, 0.0));
     model.evidence.push(seen);

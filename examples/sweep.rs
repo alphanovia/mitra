@@ -9,6 +9,9 @@
 
 use mitra_core::model::*;
 
+/// The weight of a base rate that these are recorded at.
+const W: f64 = 0.2;
+
 fn p(name: &str) -> Piece {
     Piece::named(name)
 }
@@ -17,7 +20,7 @@ fn p(name: &str) -> Piece {
 type Object = (String, usize, usize);
 
 fn world(objects: &[Object], one_voice_per_object: bool) -> Model {
-    let mut m = Model::default();
+    let mut m = Model::empty(W);
     m.base.push((p("gravity"), 0.5));
     for (name, pass, fail) in objects {
         let (mass, whole) = (format!("mass {name}"), format!("same speed {name}"));
@@ -50,11 +53,11 @@ fn world(objects: &[Object], one_voice_per_object: bool) -> Model {
 }
 
 fn at(m: &Model, x: &str) -> f64 {
-    projected(opinion(m, &p(x)))
+    projected(opinion(m, &p(x)), W)
 }
 fn counts(m: &Model, x: &str) -> String {
     let o = opinion(m, &p(x));
-    format!("({:.1}, {:.2}) {:.2}", o.r, o.s, projected(o))
+    format!("({:.1}, {:.2}) {:.2}", o.r, o.s, projected(o, W))
 }
 
 /// `n` objects that pass every one of `k` measurements, and a feather

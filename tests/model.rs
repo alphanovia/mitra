@@ -3,6 +3,9 @@
 
 use mitra_core::model::*;
 
+/// The weight of a base rate that these are recorded at.
+const W: f64 = 0.2;
+
 fn op(r: f64, s: f64, a: f64) -> Opinion {
     Opinion { r, s, a }
 }
@@ -10,7 +13,7 @@ fn near(x: f64, y: f64) -> bool {
     (x - y).abs() < 1e-9
 }
 fn p_of(model: &Model, name: &str) -> f64 {
-    projected(opinion(model, &Piece::named(name)))
+    projected(opinion(model, &Piece::named(name)), W)
 }
 fn says(name: &str, about: &str, value: Opinion, by: &str) -> Evidence {
     Evidence {
@@ -48,6 +51,8 @@ fn base_of(rates: &[(&str, f64)]) -> Vec<(Piece, f64)> {
 #[test]
 fn base_rate_survives() {
     let model = sure(Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("t", "y", yes(), "a"), says("r", "t", no(), "b")],
         related: vec![rests(&["x", "y", "z"])],
         base: base_of(&[("t", 0.5), ("r", 0.25), ("x", 0.125), ("y", 0.75)]),
@@ -62,14 +67,14 @@ fn base_rate_survives() {
 // mitra: evidence for piece::no_evidence_is_the_base_rate
 #[test]
 fn no_evidence_is_the_base_rate() {
-    assert_eq!(projected(nothing(0.5)), 0.5);
+    assert_eq!(projected(nothing(0.5), W), 0.5);
 }
 
 // mitra: evidence for evidence::review_lifts_a_test
 #[test]
 fn review_lifts_a_test() {
     assert_eq!(
-        projected(fuse(nothing(0.5), moved(nothing(0.5), yes()), 1.0)),
+        projected(fuse(nothing(0.5), moved(nothing(0.5), yes(), W), 1.0), W),
         0.6 / 0.7
     );
 }
@@ -77,15 +82,15 @@ fn review_lifts_a_test() {
 // mitra: evidence for evidence::believed_at_zero_moves_nothing
 #[test]
 fn believed_at_zero_moves_nothing() {
-    assert_eq!(moved(nothing(0.0), yes()), op(0.0, 0.0, 1.0));
-    assert_eq!(moved(nothing(0.0), no()), op(0.0, 0.0, 0.0));
+    assert_eq!(moved(nothing(0.0), yes(), W), op(0.0, 0.0, 1.0));
+    assert_eq!(moved(nothing(0.0), no(), W), op(0.0, 0.0, 0.0));
 }
 
 // mitra: evidence for evidence::not_knowing_is_no_review
 #[test]
 fn not_knowing_is_no_review() {
     assert_eq!(
-        projected(fuse(nothing(0.5), moved(nothing(0.0), yes()), 1.0)),
+        projected(fuse(nothing(0.5), moved(nothing(0.0), yes(), W), 1.0), W),
         0.5
     );
 }
@@ -94,7 +99,7 @@ fn not_knowing_is_no_review() {
 #[test]
 fn wrong_is_disbelief() {
     assert_eq!(
-        projected(fuse(nothing(0.5), moved(nothing(1.0), no()), 1.0)),
+        projected(fuse(nothing(0.5), moved(nothing(1.0), no(), W), 1.0), W),
         0.1 / 1.2
     );
 }
@@ -124,26 +129,26 @@ fn two_sure_reviews_that_disagree() {
 // mitra: evidence for model::two_halves_are_a_quarter
 #[test]
 fn two_halves_are_a_quarter() {
-    assert!(near(projected(all(nothing(0.5), nothing(0.5))), 0.25));
+    assert!(near(projected(all(nothing(0.5), nothing(0.5), W), W), 0.25));
 }
 
 // mitra: evidence for model::one_sure_part_changes_nothing
 #[test]
 fn one_sure_part_changes_nothing() {
-    assert_eq!(all(nothing(1.0), op(0.5, 0.0, 0.5)), op(0.5, 0.0, 0.5));
+    assert_eq!(all(nothing(1.0), op(0.5, 0.0, 0.5), W), op(0.5, 0.0, 0.5));
 }
 
 // mitra: evidence for piece::policy_zero_still_needs_belief
 #[test]
 fn policy_zero_still_needs_belief() {
-    assert!(!reaches(nothing(0.0), 0.0));
-    assert!(reaches(op(0.5, 0.0, 0.0), 0.0));
+    assert!(!reaches(nothing(0.0), 0.0, W));
+    assert!(reaches(op(0.5, 0.0, 0.0), 0.0, W));
 }
 
 // mitra: evidence for piece::sure_is_sure
 #[test]
 fn sure_is_sure() {
-    assert_eq!((projected(yes()), projected(no())), (1.0, 0.0));
+    assert_eq!((projected(yes(), W), projected(no(), W)), (1.0, 0.0));
 }
 
 // mitra: evidence for piece::as_much_against_as_for_is_against
@@ -156,26 +161,28 @@ fn as_much_against_as_for_is_against() {
 // mitra: evidence for model::an_empty_model_believes_nothing
 #[test]
 fn an_empty_model_believes_nothing() {
-    assert_eq!(opinion(&Model::default(), &Piece::named("x")), nothing(0.0));
+    assert_eq!(opinion(&Model::empty(W), &Piece::named("x")), nothing(0.0));
 }
 
 // mitra: evidence for model::nothing_said_is_no_conflict
 #[test]
 fn nothing_said_is_no_conflict() {
-    assert!(conflicts(&Model::default()).is_empty());
+    assert!(conflicts(&Model::empty(W)).is_empty());
 }
 
 // mitra: evidence for evidence::one_failing_test_is_against
 #[test]
 fn one_failing_test_is_against() {
-    assert!(against(moved(nothing(0.5), no())));
-    assert!(!against(moved(nothing(0.0), no())));
+    assert!(against(moved(nothing(0.5), no(), W)));
+    assert!(!against(moved(nothing(0.0), no(), W)));
 }
 
 // mitra: evidence for model::evidence_moves_its_piece
 #[test]
 fn evidence_moves_its_piece() {
     let model = Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("t", "c", yes(), "a")],
         related: vec![],
         base: base_of(&[("t", 0.5)]),
@@ -187,6 +194,8 @@ fn evidence_moves_its_piece() {
 #[test]
 fn a_review_reaches_the_claim() {
     let model = Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("t", "c", yes(), "a"), says("r", "t", yes(), "b")],
         related: vec![],
         base: base_of(&[("t", 0.5), ("r", 0.5)]),
@@ -199,6 +208,8 @@ fn a_review_reaches_the_claim() {
 #[test]
 fn a_test_judged_wrong_says_less() {
     let model = Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("t", "c", yes(), "a"), says("r", "t", no(), "b")],
         related: vec![],
         base: base_of(&[("t", 0.5), ("r", 1.0)]),
@@ -211,6 +222,8 @@ fn a_test_judged_wrong_says_less() {
 #[test]
 fn resting_on_one_piece_is_that_piece() {
     let model = sure(Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("t", "y", yes(), "a")],
         related: vec![rests(&["x", "y"])],
         base: base_of(&[("t", 0.5)]),
@@ -286,6 +299,8 @@ fn a_file_concerns_what_is_in_it() {
 #[test]
 fn a_tie_is_believed_like_any_piece() {
     let model = Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("check", "t", no(), "machine:reader")],
         related: vec![],
         base: base_of(&[("t", 0.5), ("check", 1.0)]),
@@ -313,17 +328,17 @@ fn counts_are_never_negative() {
                     for o in [
                         fuse(x, y, 0.0),
                         fuse(x, y, 1.0),
-                        all(x, y),
-                        all(y, x),
-                        moved(x, y),
+                        all(x, y, W),
+                        all(y, x, W),
+                        moved(x, y, W),
                     ] {
                         assert!(o.r >= 0.0 && o.s >= 0.0, "{x:?} {y:?} {o:?}");
-                        let p = projected(o);
+                        let p = projected(o, W);
                         assert!((0.0..=1.0).contains(&p), "{x:?} {y:?} {o:?}");
                     }
                     // Both of two pieces reads as the product of the two.
-                    let both = projected(all(x, y));
-                    assert!(near(both, projected(x) * projected(y)), "{x:?} {y:?}");
+                    let both = projected(all(x, y, W), W);
+                    assert!(near(both, projected(x, W) * projected(y, W)), "{x:?} {y:?}");
                 }
             }
         }
@@ -334,7 +349,7 @@ fn counts_are_never_negative() {
 fn with_nothing_known_a_piece_is_at_its_base_rate() {
     let model = Model {
         base: base_of(&[("t", 0.6)]),
-        ..Model::default()
+        ..Model::empty(W)
     };
     assert_eq!(opinion(&model, &Piece::named("t")), nothing(0.6));
     assert_eq!(opinion(&model, &Piece::named("unheard"),), nothing(0.0));
@@ -346,7 +361,7 @@ fn with_nothing_known_a_piece_is_at_its_base_rate() {
 #[test]
 fn three_voices_hold_a_claim_and_one_voice_never() {
     let world = |n: usize, one_voice: bool| {
-        let mut model = Model::default();
+        let mut model = Model::empty(W);
         for k in 0..n {
             let t = format!("t{k}");
             let by = match one_voice {
@@ -358,7 +373,7 @@ fn three_voices_hold_a_claim_and_one_voice_never() {
         }
         model
     };
-    let p = |n, one| projected(opinion(&world(n, one), &Piece::named("c")));
+    let p = |n, one| projected(opinion(&world(n, one), &Piece::named("c")), W);
     assert!(near(p(1, false), 0.6 / 0.8) && near(p(2, false), 1.2 / 1.4));
     assert!(p(2, false) < 0.9 && p(3, false) >= 0.9 - 1e-9);
     assert!(near(p(10, true), 0.6 / 0.8));
@@ -368,6 +383,8 @@ fn three_voices_hold_a_claim_and_one_voice_never() {
 fn a_piece_reached_by_two_paths_counts_once() {
     // x rests on y and z, which both rest on w, believed at 0.5.
     let model = sure(Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("t", "w", yes(), "a")],
         related: vec![
             rests(&["x", "y", "z"]),
@@ -382,12 +399,14 @@ fn a_piece_reached_by_two_paths_counts_once() {
 #[test]
 fn a_piece_rests_on_all_its_parts() {
     let model = sure(Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("t1", "y", yes(), "a"), says("t2", "z", yes(), "b")],
         related: vec![rests(&["x", "y", "z"])],
         base: base_of(&[("t1", 0.5), ("t2", 0.5)]),
     });
     // Each part has half a yes on a base rate of 0.
-    let part = 0.5 / (0.5 + weight());
+    let part = 0.5 / (0.5 + W);
     assert!(near(p_of(&model, "x"), part * part));
 }
 
@@ -396,6 +415,8 @@ fn a_piece_rests_on_all_its_parts() {
 #[test]
 fn a_whole_of_one_part_shares_its_evidence() {
     let model = sure(Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("t1", "y", yes(), "a"), says("t0", "x", yes(), "b")],
         related: vec![rests(&["x", "y"])],
         base: base_of(&[("t1", 0.5), ("t0", 0.75)]),
@@ -409,6 +430,8 @@ fn a_whole_of_one_part_shares_its_evidence() {
 #[test]
 fn a_no_about_a_whole_lowers_it() {
     let model = sure(Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("t", "x", no(), "a")],
         related: vec![rests(&["x", "y", "z"])],
         base: base_of(&[("t", 1.0), ("y", 0.5), ("z", 0.5)]),
@@ -430,6 +453,8 @@ fn a_throw_at_one_half() {
     let throw = |senses: f64, fell: bool| {
         let value = if fell { yes() } else { no() };
         sure(Model {
+            ties: vec![],
+            weight: W,
             evidence: vec![says("throw", "lands", value, "me")],
             related: vec![rests(&["lands", "applies", "falls"])],
             base: base_of(&[("applies", 0.5), ("falls", 0.5), ("throw", senses)]),
@@ -460,6 +485,8 @@ fn a_latent_statement_is_believed_as_far_as_its_relation() {
     // [gravity, mass]. I see it fall, for sure.
     let because = |belief: Option<f64>| {
         let mut model = Model {
+            ties: vec![],
+            weight: W,
             evidence: vec![says("throw", "it falls", yes(), "me")],
             related: vec![Statement {
                 piece: Piece::named("because"),
@@ -483,6 +510,8 @@ fn a_latent_statement_is_believed_as_far_as_its_relation() {
 #[test]
 fn a_doubted_relation_is_a_suspect() {
     let mut model = Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("throw", "lands", no(), "me")],
         related: vec![Statement {
             piece: Piece::named("pair"),
@@ -511,6 +540,8 @@ fn a_doubted_relation_is_a_suspect() {
 #[test]
 fn what_is_shared_takes_the_blame_off() {
     let balloon = sure(Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![
             says("throw ball", "ball lands", yes(), "me"),
             says("throw balloon", "balloon lands", no(), "me"),
@@ -531,6 +562,8 @@ fn what_is_shared_takes_the_blame_off() {
     assert!(opinion(&balloon, &Piece::named("balloon applies")).s > 0.05);
     assert!(opinion(&balloon, &Piece::named("falls")).s < 0.02);
     let noise = sure(Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![
             says("throw", "lands", yes(), "me"),
             says("listen", "bangs", no(), "me"),
@@ -554,6 +587,8 @@ fn what_is_shared_takes_the_blame_off() {
 #[test]
 fn pieces_that_lead_back_to_themselves_end() {
     let model = sure(Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("e", "f", yes(), "a"), says("f", "e", yes(), "b")],
         related: vec![rests(&["x", "y"]), rests(&["y", "x"])],
         base: vec![],
@@ -565,6 +600,8 @@ fn pieces_that_lead_back_to_themselves_end() {
 #[test]
 fn the_same_known_gives_the_same_opinion() {
     let model = Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("t", "c", yes(), "a"), says("r", "t", yes(), "b")],
         related: vec![],
         base: base_of(&[("t", 0.5), ("r", 0.8)]),
@@ -574,4 +611,112 @@ fn the_same_known_gives_the_same_opinion() {
         opinion(&model, &Piece::named("c"))
     );
     assert_eq!(piece_id(&Piece::named("c")), "c");
+}
+
+// What was tried and kept (`docs/trials.md`).
+
+#[test]
+fn belief_disbelief_and_uncertainty_are_shares_of_one() {
+    let o = op(3.0, 1.0, 0.5);
+    let (b, d, u) = (belief(o, W), disbelief(o, W), uncertainty(o, W));
+    assert!(near(b + d + u, 1.0));
+    assert!(near(projected(o, W), b + o.a * u));
+    assert!(belief(nothing(0.5), W) == 0.0 && disbelief(nothing(0.5), W) == 0.0);
+}
+
+#[test]
+fn the_interval_narrows_with_the_counts() {
+    let wide = interval(nothing(0.5), W);
+    assert!(wide.0 < 0.01 && wide.1 > 0.99);
+    let (few, many) = (
+        interval(op(9.0, 1.0, 0.5), W),
+        interval(op(90.0, 10.0, 0.5), W),
+    );
+    assert!(few.0 < many.0 && many.1 < few.1);
+    for o in [op(9.0, 1.0, 0.5), op(90.0, 10.0, 0.5), op(1.0, 3.0, 0.5)] {
+        let (from, to) = interval(o, W);
+        assert!(from < projected(o, W) && projected(o, W) < to);
+    }
+    // Sure either way: nowhere else to be.
+    assert_eq!(interval(nothing(1.0), W), (1.0, 1.0));
+    assert_eq!(interval(nothing(0.0), W), (0.0, 0.0));
+}
+
+#[test]
+fn the_weight_is_given_by_the_model() {
+    let at = |weight: f64| {
+        let model = Model {
+            evidence: vec![says("t", "c", yes(), "a")],
+            base: base_of(&[("t", 1.0), ("c", 0.5)]),
+            ..Model::empty(weight)
+        };
+        projected(opinion(&model, &Piece::named("c")), weight)
+    };
+    assert!(near(at(0.2), 1.1 / 1.2) && near(at(2.0), 2.0 / 3.0));
+}
+
+/// The throwing toy with its tie written: `applies` ties `falls` to the
+/// ball.
+fn tied(throw: Opinion) -> Model {
+    sure(Model {
+        evidence: vec![says("throw", "lands", throw, "me")],
+        related: vec![rests(&["lands", "applies", "falls"])],
+        base: base_of(&[
+            ("applies", 0.5),
+            ("falls", 0.5),
+            ("throw", 0.5),
+            ("complete: applies", 0.5),
+        ]),
+        ties: vec![Tie {
+            piece: Piece::named("applies"),
+            statement: Piece::named("falls"),
+            place: Place {
+                path: vec!["ball".to_string()],
+            },
+        }],
+        weight: W,
+    })
+}
+
+#[test]
+fn a_tie_implies_its_completeness() {
+    let model = tied(no());
+    let tie = &model.ties[0];
+    let done = complete(tie);
+    assert_eq!(done.piece, Piece::named("complete: applies"));
+    assert_eq!(done.content.tie, tie.piece);
+    // A part of the whole its tie is a part of, though no relation names it.
+    assert_eq!(parts(&model, &model.related[0].content).len(), 3);
+    assert_eq!(conflicts(&model)[0].len(), 4);
+    let s = |x: &str| opinion(&model, &Piece::named(x)).s;
+    assert!(s("complete: applies") > 0.0 && near(s("complete: applies"), s("applies")));
+    // A yes flows down to it as to any part.
+    let fell = tied(yes());
+    assert!(near(opinion(&fell, &done.piece).r, 0.5));
+    // With no tie written, nothing is implied.
+    let bare = Model {
+        ties: vec![],
+        ..model.clone()
+    };
+    assert_eq!(conflicts(&bare)[0].len(), 3);
+}
+
+#[test]
+fn a_failure_discredits_what_vouched_for_its_parts() {
+    let mut model = tied(no());
+    model
+        .evidence
+        .push(says("review", "falls", op(10.0, 0.0, 0.5), "author"));
+    model
+        .evidence
+        .push(says("other", "elsewhere", op(10.0, 0.0, 0.5), "author"));
+    model
+        .base
+        .extend(base_of(&[("review", 0.9), ("other", 0.9)]));
+    let o = |x: &str| opinion(&model, &Piece::named(x));
+    assert!(o("review").s > 0.0 && p_of(&model, "review") < 0.9);
+    // Its yes is not touched, and what it did not vouch for is not doubted.
+    assert!(o("other").s == 0.0 && near(p_of(&model, "other"), 0.9));
+    // What was reviewed stands: the tie and its completeness take the no.
+    assert!(o("falls").s < o("applies").s);
 }

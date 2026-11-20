@@ -35,19 +35,26 @@ fn says(m: &mut Model, name: &str, about: &str, yes_: bool, trust: f64) {
         by: Voice::named(name),
     });
 }
+/// The same model under another weight.
+fn under(m: &Model, w: f64) -> Model {
+    Model {
+        weight: w,
+        ..m.clone()
+    }
+}
 fn scaled(m: &Model) -> f64 {
     0.2 + 0.2 * (1.0 + m.evidence.len() as f64).ln()
 }
 /// What `x` reads at under the fixed weight, and under the scaled one.
 fn both(m: &Model, x: &str) -> String {
-    let at = |w: f64| with_weight(w, || projected(opinion(m, &p(x))));
+    let at = |w: f64| projected(opinion(&under(m, w), &p(x)), w);
     format!("{:.2} / {:.2}", at(0.2), at(scaled(m)))
 }
 
 fn one_throw(senses: f64, fell: bool) -> Model {
     let mut m = Model {
         base: vec![(p("applies"), 0.5), (p("falls"), 0.5)],
-        ..Model::default()
+        ..Model::empty(0.2)
     };
     whole(&mut m, &["lands", "applies", "falls"]);
     says(&mut m, "throw", "lands", fell, senses);
@@ -56,7 +63,7 @@ fn one_throw(senses: f64, fell: bool) -> Model {
 
 /// Objects: (name, measurements that pass, that fail).
 fn sweep(objects: &[(String, usize, usize)]) -> Model {
-    let mut m = Model::default();
+    let mut m = Model::empty(0.2);
     m.base.push((p("gravity"), 0.5));
     for (name, pass, fail) in objects {
         let (mass, speed) = (format!("mass {name}"), format!("same speed {name}"));
@@ -86,17 +93,7 @@ const GRID: [f64; 10] = [0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0];
 /// most likely. Each piece is a Beta that starts at (a·W, (1-a)·W) and
 /// has seen its counts of yes and no.
 fn most_likely(m: &Model) -> f64 {
-    let likelihood = |w: f64| {
-        with_weight(w, || {
-            let mut sum = 0.0;
-            for x in doubted(m) {
-                let o = opinion(m, &x);
-                let (yes_, no_) = (o.a * w, (1.0 - o.a) * w);
-                sum += ln_beta(o.r + yes_, o.s + no_) - ln_beta(yes_, no_);
-            }
-            sum
-        })
-    };
+    let likelihood = |w: f64| log_likelihood(m, w);
     let mut best = (GRID[0], f64::MIN);
     for w in GRID {
         let l = likelihood(w);
@@ -110,25 +107,24 @@ fn most_likely(m: &Model) -> f64 {
 /// How far the least heard piece of evidence moves what it speaks of:
 /// the reading of the parts of its whole, with it and without it.
 fn least_influence(m: &Model, w: f64) -> f64 {
-    with_weight(w, || {
-        let mut least = f64::MAX;
-        for k in 0..m.evidence.len() {
-            let mut without = m.clone();
-            let e = without.evidence.remove(k);
-            let whole = m.related.iter().find(|r| r.content.pieces[0] == e.about);
-            let spoken: Vec<Piece> = match whole {
-                Some(r) => r.content.pieces[1..].to_vec(),
-                None => vec![e.about.clone()],
-            };
-            let mut moved_by: f64 = 0.0;
-            for x in &spoken {
-                let (with, bare) = (projected(opinion(m, x)), projected(opinion(&without, x)));
-                moved_by = moved_by.max((with - bare).abs());
-            }
-            least = least.min(moved_by);
+    let m = &under(m, w);
+    let mut least = f64::MAX;
+    for k in 0..m.evidence.len() {
+        let mut without = m.clone();
+        let e = without.evidence.remove(k);
+        let whole = m.related.iter().find(|r| r.content.pieces[0] == e.about);
+        let spoken: Vec<Piece> = match whole {
+            Some(r) => r.content.pieces[1..].to_vec(),
+            None => vec![e.about.clone()],
+        };
+        let mut moved_by: f64 = 0.0;
+        for x in &spoken {
+            let at = |m: &Model| projected(opinion(m, x), w);
+            moved_by = moved_by.max((at(m) - at(&without)).abs());
         }
-        least
-    })
+        least = least.min(moved_by);
+    }
+    least
 }
 
 const EPSILON: f64 = 0.01;
@@ -198,7 +194,7 @@ fn passes() {
         let note = if reached { "" } else { ", not reached" };
         println!("| **{title}** | the weight | 0.2 | {grown:.2} | {likely} | {heard} (least move {least:.3}{note}) |");
         for x in pieces {
-            let at = |w: f64| with_weight(w, || projected(opinion(&m, &p(x))));
+            let at = |w: f64| projected(opinion(&under(&m, w), &p(x)), w);
             println!(
                 "| | `{x}` | {:.2} | {:.2} | {:.2} | {:.2} |",
                 at(0.2),
@@ -211,20 +207,19 @@ fn passes() {
 }
 
 fn log_likelihood(m: &Model, w: f64) -> f64 {
-    with_weight(w, || {
-        let mut sum = 0.0;
-        for x in doubted(m) {
-            let o = opinion(m, &x);
-            let (yes_, no_) = (o.a * w, (1.0 - o.a) * w);
-            sum += ln_beta(o.r + yes_, o.s + no_) - ln_beta(yes_, no_);
-        }
-        sum
-    })
+    let m = &under(m, w);
+    let mut sum = 0.0;
+    for x in doubted(m) {
+        let o = opinion(m, &x);
+        let (yes_, no_) = (o.a * w, (1.0 - o.a) * w);
+        sum += ln_beta(o.r + yes_, o.s + no_) - ln_beta(yes_, no_);
+    }
+    sum
 }
 
 /// The word of a piece at policy 0.9.
-fn word(o: Opinion) -> &'static str {
-    match (reaches(o, 0.9), against(o)) {
+fn word(o: Opinion, w: f64) -> &'static str {
+    match (reaches(o, 0.9, w), against(o)) {
         (true, _) => "holds",
         (false, true) => "fails",
         (false, false) => "unverified",
@@ -292,16 +287,14 @@ fn bounds() {
             let o = opinion(&m, &p(x));
             let (from, to) = interval(o, 0.2);
             let end = |w: f64| {
-                with_weight(w, || {
-                    let o = opinion(&m, &p(x));
-                    (projected(o), word(o))
-                })
+                let o = opinion(&under(&m, w), &p(x));
+                (projected(o, w), word(o, w))
             };
             let (a, b) = (end(low), end(high));
             let flips = if a.1 != b.1 { " **flips**" } else { "" };
             println!(
                 "| {first} | `{x}` | {:.2}, from {from:.2} to {to:.2} | {low:.2} to {high:.2}, best {at_best:.2} | {:.2} and {:.2} | {} and {}{flips} |",
-                projected(o),
+                projected(o, 0.2),
                 a.0,
                 b.0,
                 a.1,

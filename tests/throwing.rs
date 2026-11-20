@@ -8,6 +8,9 @@
 
 use mitra_core::model::*;
 
+/// The weight of a base rate that these are recorded at.
+const W: f64 = 0.2;
+
 fn p(name: &str) -> Piece {
     Piece::named(name)
 }
@@ -43,6 +46,8 @@ fn sure(mut model: Model) -> Model {
 /// senses, and what I saw.
 fn single(a: f64, f: f64, s: f64, fell: bool) -> Model {
     sure(Model {
+        ties: vec![],
+        weight: W,
         evidence: vec![says("throw", "lands", fell, "me")],
         related: vec![rests(&["lands", "applies", "falls"])],
         base: vec![(p("applies"), a), (p("falls"), f), (p("throw"), s)],
@@ -58,7 +63,7 @@ fn close(x: f64, y: f64) -> bool {
 /// The counts of yes and of no, and what the opinion reads as.
 fn reads(m: &Model, x: &str, r: f64, s: f64, at: f64) -> bool {
     let o = opinion(m, &p(x));
-    close(o.r, r) && close(o.s, s) && close(projected(o), at)
+    close(o.r, r) && close(o.s, s) && close(projected(o, W), at)
 }
 fn names(pieces: &[&str]) -> Vec<Vec<Piece>> {
     match pieces.is_empty() {
@@ -87,7 +92,7 @@ fn one_throw_that_falls() {
         assert!(reads(&m, "applies", yes_, 0.0, tie), "{row}");
         assert!(reads(&m, "falls", yes_, 0.0, tie), "{row}");
         // The pair reads as its two parts together.
-        assert!(close(projected(opinion(&m, &p("lands"))), pair), "{row}");
+        assert!(close(projected(opinion(&m, &p("lands")), W), pair), "{row}");
         assert_eq!(conflicts(&m), names(&[]));
     }
 }
@@ -147,7 +152,7 @@ fn repeated_throws() {
         let mut m = sure(Model {
             related: vec![rests(&["lands", "applies", "falls"])],
             base: base(&[("applies", 0.5), ("falls", 0.5)]),
-            ..Model::default()
+            ..Model::empty(W)
         });
         for k in 0..n {
             let by = match one_voice {
@@ -166,7 +171,10 @@ fn repeated_throws() {
     }
     for (n, at) in [(1, 0.875), (2, 0.929), (6, 0.974), (10, 0.984), (40, 0.996)] {
         let o = tie(n, false);
-        assert!(close(o.r, 0.6 * n as f64) && close(projected(o), at), "{n}");
+        assert!(
+            close(o.r, 0.6 * n as f64) && close(projected(o, W), at),
+            "{n}"
+        );
     }
 }
 
@@ -182,6 +190,8 @@ fn ball_and_balloon() {
     ];
     for (s, tie, statement, throw, then) in rows {
         let m = sure(Model {
+            ties: vec![],
+            weight: W,
             evidence: vec![
                 says("throw ball", "ball lands", true, "me"),
                 says("throw balloon", "balloon lands", false, "me"),
@@ -217,6 +227,8 @@ fn falls_and_noise() {
     ];
     for (s, noise, tie, listen, then) in rows {
         let m = sure(Model {
+            ties: vec![],
+            weight: W,
             evidence: vec![
                 says("throw", "lands", true, "me"),
                 says("listen", "bangs", false, "me"),
@@ -254,7 +266,7 @@ fn gravity_and_two_masses() {
                 rests(&["falls balloon", "gravity", "mass balloon"]),
             ],
             base: base(&[("gravity", g), ("mass ball", 0.5), ("mass balloon", 0.5)]),
-            ..Model::default()
+            ..Model::empty(W)
         });
         for (object, fell) in [("ball", ball), ("balloon", balloon)] {
             if let Some(fell) = fell {
@@ -297,7 +309,7 @@ fn a_hundred_objects_and_a_feather() {
     let world = |objects: &[(&str, usize, usize)]| {
         let mut m = Model {
             base: base(&[("gravity", 0.5)]),
-            ..Model::default()
+            ..Model::empty(W)
         };
         for (name, pass, fail) in objects {
             let (mass, whole) = (format!("mass {name}"), format!("same speed {name}"));
@@ -318,7 +330,7 @@ fn a_hundred_objects_and_a_feather() {
     let mut objects: Vec<(&str, usize, usize)> = names.iter().map(|n| (n.as_str(), 1, 0)).collect();
     objects.push(("feather", 0, 1));
     let m = world(&objects);
-    let at = |x: &str| projected(opinion(&m, &p(x)));
+    let at = |x: &str| projected(opinion(&m, &p(x)), W);
     assert!(at("gravity") > 0.99 && close(at("mass o0"), 0.909));
     assert!(at("mass feather") < 0.17 && at("drop feather 0") > 0.8);
     // An object that passes 19 of 20: the one measurement is the odd
@@ -328,12 +340,12 @@ fn a_hundred_objects_and_a_feather() {
         opinion(&m, &p("mass stone")),
         opinion(&m, &p("drop stone 19")),
     );
-    assert!(drop.s > mass.s && projected(mass) > 0.9 && projected(drop) < 0.3);
+    assert!(drop.s > mass.s && projected(mass, W) > 0.9 && projected(drop, W) < 0.3);
     let (mass, drop) = (
         opinion(&m, &p("mass feather")),
         opinion(&m, &p("drop feather 0")),
     );
-    assert!(projected(mass) < 0.1 && projected(drop) > 0.8);
+    assert!(projected(mass, W) < 0.1 && projected(drop, W) > 0.8);
 }
 
 /// A trial, not yet in the core (`docs/trials.md`): one more piece
@@ -345,7 +357,7 @@ fn a_hundred_objects_and_a_feather() {
 fn a_weighed_feather_blames_its_completeness() {
     let mut m = Model {
         base: base(&[("gravity", 0.5)]),
-        ..Model::default()
+        ..Model::empty(W)
     };
     let names: Vec<String> = (0..10).map(|k| format!("o{k}")).collect();
     for (name, falls) in names
@@ -366,7 +378,7 @@ fn a_weighed_feather_blames_its_completeness() {
             m.base.push((p(&drop), 0.9));
         }
     }
-    let at = |m: &Model, x: &str| projected(opinion(m, &p(x)));
+    let at = |m: &Model, x: &str| projected(opinion(m, &p(x)), W);
     // No scale: nothing tells the mass from completeness.
     let bare = sure(m.clone());
     assert!(close(
@@ -378,7 +390,9 @@ fn a_weighed_feather_blames_its_completeness() {
     m.base.push((p("scale"), 0.9));
     let m = sure(m);
     assert!(at(&m, "gravity") > 0.99 && at(&m, "complete o0") > 0.98);
-    assert!(close(at(&m, "mass feather"), 0.678));
+    // The scale vouched for a part of what failed: it is doubted too.
+    assert!(close(at(&m, "scale"), 0.683));
+    assert!(close(at(&m, "mass feather"), 0.623));
     assert!(close(at(&m, "complete feather"), 0.034));
 }
 
@@ -401,7 +415,7 @@ fn a_reviewed_statement_stands_and_the_tie_takes_the_no() {
         }
         m
     };
-    let at = |m: &Model, x: &str| projected(opinion(m, &p(x)));
+    let at = |m: &Model, x: &str| projected(opinion(m, &p(x)), W);
     // Not reviewed: the first throw nearly settles both.
     let m = world(0.0, 0.0, true);
     assert!(close(at(&m, "falls"), 0.909) && close(at(&m, "applies"), 0.909));

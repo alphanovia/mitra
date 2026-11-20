@@ -15,12 +15,12 @@ pub mod tie;
 
 pub use evidence::{apart, conflict, fuse, moved, Evidence, Voice};
 pub use piece::{
-    against, no, nothing, piece_id, projected, reaches, uncertainty, weight, with_weight, yes,
-    Opinion, Piece,
+    against, belief, disbelief, interval, no, nothing, piece_id, projected, reaches, uncertainty,
+    yes, Opinion, Piece,
 };
 pub use place::{within, Place};
 pub use statement::Statement;
-pub use tie::{concerned, places, Tie};
+pub use tie::{complete, concerned, places, Complete, Tie};
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -43,24 +43,57 @@ pub struct Related {
 }
 
 /// All that is said of a system: the evidence, the relations between
-/// pieces, and the base rate of each piece that has one. A piece with
-/// none has 0: nothing is assumed.
+/// pieces, the base rate of each piece that has one, the ties, and the
+/// weight of a base rate. A piece with no base rate has 0: nothing is
+/// assumed. The weight is given: the core holds no value for it.
 ///
 /// A relation is itself said: a statement whose content is the
 /// relation. What is computed on it counts as far as that statement is
 /// believed; one believed at 1 is plain structure.
+///
+/// Each tie implies its completeness, a part of every whole the tie is
+/// a part of.
 // mitra: implements model::Model
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Model {
     pub evidence: Vec<Evidence>,
     pub related: Vec<Statement<Related>>,
     pub base: Vec<(Piece, f64)>,
+    pub ties: Vec<Tie>,
+    pub weight: f64,
+}
+
+impl Model {
+    /// Nothing said yet, under a weight.
+    pub fn empty(weight: f64) -> Model {
+        Model {
+            evidence: Vec::new(),
+            related: Vec::new(),
+            base: Vec::new(),
+            ties: Vec::new(),
+            weight,
+        }
+    }
+}
+
+/// The parts of a whole: the pieces the relation names after the
+/// first, and the completeness of each tie among them.
+// mitra: implements model::parts
+pub fn parts(model: &Model, r: &Related) -> Vec<Piece> {
+    let mut found: Vec<Piece> = r.pieces.iter().skip(1).cloned().collect();
+    for t in &model.ties {
+        let implied = complete(t).piece;
+        if r.pieces[1..].contains(&t.piece) && !found.contains(&implied) {
+            found.push(implied);
+        }
+    }
+    found
 }
 
 /// An opinion as the two parameters of a Beta: yes and no, each with
 /// its part of the weight of the base rate.
-fn beta(o: Opinion) -> (f64, f64) {
-    (o.r + o.a * weight(), o.s + (1.0 - o.a) * weight())
+fn beta(o: Opinion, w: f64) -> (f64, f64) {
+    (o.r + o.a * w, o.s + (1.0 - o.a) * w)
 }
 
 /// The mean of a Beta and the mean of its square.
@@ -74,9 +107,9 @@ fn moments((alpha, beta): (f64, f64)) -> (f64, f64) {
 /// and the answer is the Beta with the mean and the variance of that
 /// product. Its base rate is the product of the two.
 // mitra: implements model::all
-pub fn all(x: Opinion, y: Opinion) -> Opinion {
+pub fn all(x: Opinion, y: Opinion, w: f64) -> Opinion {
     let a = x.a * y.a;
-    let (bx, by) = (beta(x), beta(y));
+    let (bx, by) = (beta(x, w), beta(y, w));
     if bx.0 == 0.0 || by.0 == 0.0 {
         // One is surely wrong: so is the whole.
         return Opinion {
@@ -98,11 +131,11 @@ pub fn all(x: Opinion, y: Opinion) -> Opinion {
     // The counts of the Beta that fits, and never fewer than the base
     // rate alone would give.
     let mut n = mean * (1.0 - mean) / variance - 1.0;
-    n = f64::max(n, weight() * a / mean);
-    n = f64::max(n, weight() * (1.0 - a) / (1.0 - mean));
+    n = f64::max(n, w * a / mean);
+    n = f64::max(n, w * (1.0 - a) / (1.0 - mean));
     Opinion {
-        r: f64::max(0.0, mean * n - a * weight()),
-        s: f64::max(0.0, (1.0 - mean) * n - (1.0 - a) * weight()),
+        r: f64::max(0.0, mean * n - a * w),
+        s: f64::max(0.0, (1.0 - mean) * n - (1.0 - a) * w),
         a,
     }
 }
@@ -162,14 +195,14 @@ pub fn opinion(model: &Model, x: &Piece) -> Opinion {
 /// `x` is believed enough for the policy.
 // mitra: implements model::trusted
 pub fn trusted(model: &Model, x: &Piece, policy: f64) -> bool {
-    reaches(opinion(model, x), policy)
+    reaches(opinion(model, x), policy, model.weight)
 }
 
 /// What `x` stands on, taken together, as far as the relations that
 /// lead there are believed.
 fn believed(model: &Model, x: &Piece, walk: &mut Walk) -> Opinion {
     let (on, trust) = support(model, x, walk);
-    moved(nothing(trust), together(model, &on, walk))
+    moved(nothing(trust), together(model, &on, walk), model.weight)
 }
 
 /// The relations of one kind, each with how far its statement is
@@ -181,7 +214,7 @@ fn related<'a>(model: &'a Model, how: Relation, walk: &mut Walk) -> Vec<(&'a Rel
         let trust = match walk.memo.trust.get(&key) {
             Some(trust) => *trust,
             None => {
-                let trust = projected(direct(model, &said.piece, walk));
+                let trust = projected(direct(model, &said.piece, walk), model.weight);
                 walk.memo.trust.insert(key, trust);
                 trust
             }
@@ -209,12 +242,12 @@ fn heard(model: &Model, x: &Piece, walk: &mut Walk) -> Vec<(Opinion, Voice)> {
     let mut said = Vec::new();
     for e in model.evidence.iter().filter(|e| &e.about == x) {
         said.push((
-            moved(believed(model, &e.piece, walk), e.value),
+            moved(believed(model, &e.piece, walk), e.value, model.weight),
             e.by.clone(),
         ));
     }
     for (r, trust) in related(model, Relation::All, walk) {
-        if r.pieces.len() < 2 || !r.pieces[1..].contains(x) {
+        if r.pieces.len() < 2 || !parts(model, r).contains(x) {
             continue;
         }
         let whole = &r.pieces[0];
@@ -235,11 +268,9 @@ fn heard(model: &Model, x: &Piece, walk: &mut Walk) -> Vec<(Opinion, Voice)> {
             if no > 0.0 {
                 said.push((disbelieving(no), e.by.clone()));
             }
-            if VOUCHING.with(|cell| cell.get()) {
-                let no = vouched(model, relation, e, x, walk) * e.value.s;
-                if no > 0.0 {
-                    said.push((disbelieving(no), e.by.clone()));
-                }
+            let no = vouched(model, relation, e, x, walk) * e.value.s;
+            if no > 0.0 {
+                said.push((disbelieving(no), e.by.clone()));
             }
         }
     }
@@ -279,9 +310,9 @@ fn suspects(
     e: &Evidence,
     walk: &mut Walk,
 ) -> Vec<Piece> {
-    let mut group: Vec<Piece> = relation.content.pieces.iter().skip(1).cloned().collect();
+    let mut group = parts(model, &relation.content);
     group.push(e.piece.clone());
-    if projected(prior(model, &relation.piece, walk)) < 1.0 {
+    if projected(prior(model, &relation.piece, walk), model.weight) < 1.0 {
         group.push(relation.piece.clone());
     }
     group
@@ -307,17 +338,13 @@ fn blamed(
     x: &Piece,
     walk: &mut Walk,
 ) -> f64 {
-    let parts = &relation.content.pieces;
-    if x != &e.piece && x != &relation.piece && !parts.iter().skip(1).any(|part| part == x) {
-        return 0.0;
-    }
     let group = suspects(model, relation, e, walk);
     let Some(at) = group.iter().position(|suspect| suspect == x) else {
         return 0.0;
     };
     let mut read = Vec::new();
     for suspect in &group {
-        read.push(beta(prior(model, suspect, walk)));
+        read.push(beta(prior(model, suspect, walk), model.weight));
     }
     let mut others = 1.0;
     for (k, suspect) in read.iter().enumerate() {
@@ -341,20 +368,7 @@ fn blamed(
     alpha / after - alpha / mean
 }
 
-thread_local! {
-    static VOUCHING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
-
-/// Work something out with the trial rule `vouched` on. For trials
-/// only (`examples/review.rs`): the model does not hold this rule.
-pub fn with_vouching<T>(work: impl FnOnce() -> T) -> T {
-    let before = VOUCHING.with(|cell| cell.replace(true));
-    let out = work();
-    VOUCHING.with(|cell| cell.set(before));
-    out
-}
-
-/// A trial rule, off unless asked: the count of no that one failure
+/// The count of no that one failure
 /// puts on `x`, a piece that evidence stands on, when that evidence
 /// said yes about parts of what failed. The failure is more likely if
 /// `x` is wrong, since those parts are then only what they are without
@@ -384,7 +398,7 @@ fn vouched(
     if !group.iter().any(|suspect| said(suspect) > 0.0) {
         return 0.0;
     }
-    let (alpha, beta_) = beta(prior(model, x, walk));
+    let (alpha, beta_) = beta(prior(model, x, walk), model.weight);
     if alpha == 0.0 || beta_ == 0.0 {
         return 0.0; // not believed at all, or beyond doubt
     }
@@ -394,7 +408,7 @@ fn vouched(
         let part = prior(model, suspect, walk);
         let yes = said(suspect);
         let without = f64::max(0.0, part.r - mean * yes);
-        let read = |r: f64| moments(beta(Opinion { r, ..part })).0;
+        let read = |r: f64| moments(beta(Opinion { r, ..part }, model.weight)).0;
         right *= read(without + yes);
         wrong *= read(without);
     }
@@ -455,14 +469,18 @@ fn support(model: &Model, x: &Piece, walk: &mut Walk) -> (BTreeSet<Piece>, f64) 
             continue;
         }
         let mut on = (BTreeSet::new(), trust);
-        for part in &r.pieces[1..] {
+        for part in &parts(model, r) {
             let (pieces, through) = support(model, part, walk);
             on.0.extend(pieces);
             on.1 *= through;
         }
-        let new = moved(nothing(on.1), together(model, &on.0, walk));
-        let old = moved(nothing(best.1), together(model, &best.0, walk));
-        if uncertainty(new) <= uncertainty(old) {
+        let new = moved(nothing(on.1), together(model, &on.0, walk), model.weight);
+        let old = moved(
+            nothing(best.1),
+            together(model, &best.0, walk),
+            model.weight,
+        );
+        if uncertainty(new, model.weight) <= uncertainty(old, model.weight) {
             best = on;
         }
     }
@@ -477,7 +495,7 @@ fn together(model: &Model, on: &BTreeSet<Piece>, walk: &mut Walk) -> Opinion {
         let own = direct(model, part, walk);
         whole = Some(match whole {
             None => own,
-            Some(o) => all(o, own),
+            Some(o) => all(o, own, model.weight),
         });
     }
     whole.unwrap_or(nothing(0.0))
@@ -493,7 +511,7 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
     let mut walk = Walk::default();
     for (relation, e) in failures(model, &mut walk) {
         // Evidence that was not believed before it failed accuses nothing.
-        if projected(prior(model, &e.piece, &mut walk)) > 0.0 {
+        if projected(prior(model, &e.piece, &mut walk), model.weight) > 0.0 {
             let group = suspects(model, relation, e, &mut walk);
             out.push(ordered(model, group));
         }
@@ -504,7 +522,7 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
         .filter(|said| said.content.how == Relation::Exclude)
     {
         let r = &said.content;
-        if projected(opinion(model, &said.piece)) > 0.0
+        if projected(opinion(model, &said.piece), model.weight) > 0.0
             && r.pieces.iter().all(|p| opinion(model, p).r > 0.0)
         {
             out.push(ordered(model, r.pieces.clone()));
@@ -520,7 +538,7 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
             .iter()
             .filter(|o| o.about == e.about)
             .collect();
-        let said = |o: &&Evidence| moved(opinion(model, &o.piece), o.value);
+        let said = |o: &&Evidence| moved(opinion(model, &o.piece), o.value, model.weight);
         let clash = about
             .iter()
             .any(|x| about.iter().any(|y| conflict(said(x), said(y)) > 0.0));
@@ -535,7 +553,7 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
 }
 
 fn ordered(model: &Model, mut pieces: Vec<Piece>) -> Vec<Piece> {
-    let p = |x: &Piece| projected(opinion(model, x));
+    let p = |x: &Piece| projected(opinion(model, x), model.weight);
     pieces.sort_by(|x, y| p(x).total_cmp(&p(y)));
     pieces
 }

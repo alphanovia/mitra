@@ -458,3 +458,42 @@ now judges a piece once on all the evidence standing on it;
      voice alone is discredited by the feather (0.34) whatever else
      it got right; and the parts do not follow the voice's discredit,
      since failures are shared once, from the opinions before any no.
+
+## Increment 105: what was kept goes into the core (2026-11-20)
+
+**Asked.** "I think we should agree on beta représentation, the
+completeness, and all the things we got good result so far"; then
+"W = 0.2 is not that perfect right? Let's keep W a given setting to
+the code model".
+
+**Done.** `model/model.mitra`, `src/model.rs`, `src/model/{piece,
+evidence,tie}.rs`; 74 tests (69 before). 30 promises (26), 57 claims
+(46). `mitra conform` as before: 49 ties agree, the same 5 differ.
+
+**Decided alone.**
+
+644. The weight is a field of `Model`, and a parameter `w` of what
+     reads an opinion (`projected`, `uncertainty`, `reaches`, `moved`,
+     `all`). `fn weight()` and the trial switch `with_weight` are
+     gone. `Model` has no default: `Model::empty(weight)` in Rust.
+     Tests and examples name 0.2 themselves.
+645. Shown: `belief`, `disbelief`, `uncertainty` as three functions,
+     not a record; `interval(o, w)` is bodiless in the model, and its
+     numerics (gamma, incomplete Beta, bisection; 80 lines) are in
+     `src/model/piece.rs`.
+646. Completeness: `Model.ties`; `tie::complete(t)` is a
+     `Statement<Complete>` named `complete: <tie's name>`; it is a part
+     of every whole whose relation names the tie's piece
+     (`model::parts`). Its base rate is written like any other: with
+     none it is 0, expected wrong, and so is the whole.
+647. Not implied: the whole of a tie and its statement. The relation
+     that makes `lands` all of [applies, falls] is still written.
+648. The rule of increment 103 is always on (`no_reaches_what_vouched`)
+     and its switch is gone. One recorded test moved: the scale that
+     weighed the feather is doubted (0.90 to 0.68) and the feather's
+     mass reads 0.62, was 0.68. No golden moved.
+649. A review as evidence with a count needed no code: the promise
+     `evidence::count_is_firmness` and two claims.
+650. `docs/trials.md` keeps its tables as recorded, with a note.
+651. Still a trial, not in the core: a voice as one piece behind its
+     reviews (it needs nothing more from the core than 648).

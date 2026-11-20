@@ -3,6 +3,7 @@
 
 use super::piece::Piece;
 use super::place::{within, Place};
+use super::statement::Statement;
 
 /// Says that a statement, named by its piece, is about a place.
 // mitra: implements tie::Tie
@@ -30,4 +31,24 @@ pub fn concerned(ties: &[Tie], place: &Place) -> Vec<Piece> {
         }
     }
     found
+}
+
+/// What a tie leaves unsaid: the statements tied there are all that
+/// matters there.
+// mitra: implements tie::Complete
+#[derive(Clone, Debug, PartialEq)]
+pub struct Complete {
+    pub tie: Piece,
+}
+
+/// The completeness of a tie: a statement, implied once per tie, known
+/// by the tie's name.
+// mitra: implements tie::complete
+pub fn complete(t: &Tie) -> Statement<Complete> {
+    Statement {
+        piece: Piece::named(&format!("complete: {}", t.piece.name)),
+        content: Complete {
+            tie: t.piece.clone(),
+        },
+    }
 }
