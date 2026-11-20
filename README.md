@@ -41,11 +41,12 @@ mitra conform             # with main's binary, from this folder
   the calculus (case 7 needs settings, case 6 a report).
 - `tests/wall.rs`: the wall, and no disk.
 
-`mitra conform` says 36 ties agree and 2 differ. Both differences
-look like faults of `main`'s reader of Rust and are left as they are:
-it compares `Vec<Related>` with the model's `List<Related>` wrongly,
-and it asks for a `uses` on `moved`, whose body in the model already
-calls `piece::projected`.
+`mitra conform` says 35 ties agree and 3 differ. The three look like
+faults of `main`'s reader of Rust and are left as they are: it
+compares `Vec<Related>` with the model's `List<Related>` wrongly, it
+asks for a `uses` on `moved`, whose body in the model already calls
+`piece::projected`, and it does not see `all` called from `opinion`
+through a helper.
 
 See [docs/review.md](docs/review.md) for what was decided alone and
 what is open.
