@@ -48,7 +48,6 @@
 // (modules.mitra says so). The disk is in mitra-store's model.
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject model {
     ensure holds_everything = "A model is everything Mitra judges: the functions, the claims on them, the promises in prose, and the evidence brought; nothing outside it counts.";
@@ -73,18 +72,18 @@ subject model {
     record Bounded {
         function: String,
         input: String,
-        contracts: Vec<String>,
+        contracts: List<String>,
     }
 
     record Model {
-        functions: Vec<functions::Function>,
-        claims: Vec<claims::Claim>,
-        ensures: Vec<intent::Ensure>,
-        evidence: Vec<ledger::Evidence>,
+        functions: List<functions::Function>,
+        claims: List<claims::Claim>,
+        ensures: List<intent::Ensure>,
+        evidence: List<ledger::Evidence>,
         // The functions written in a boundary, by name.
-        boundaries: Vec<String>,
-        blocks: Vec<Block>,
-        bounds: Vec<Bounded>,
+        boundaries: List<String>,
+        blocks: List<Block>,
+        bounds: List<Bounded>,
         ..
     }
 

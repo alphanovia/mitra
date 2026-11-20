@@ -7,7 +7,6 @@
 // the code must meet. Writing the files is mitra-store's work.
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject build {
     require by_meaning = fingerprint::meaning_not_bytes;
@@ -25,11 +24,11 @@ subject build {
         name: String,
         print: String,
         // The pieces it rests on.
-        on: Vec<String>,
+        on: List<String>,
     }
 
     record Built {
-        items: Vec<Item>,
+        items: List<Item>,
         // The fingerprint of the whole.
         model: String,
     }
@@ -98,8 +97,8 @@ subject levels {
     ensure observation_is_compared = "An observation is judged by the report with it against the report without it: it contradicts when a claim comes to fail or a new error appears, and each verdict that changes is listed.";
 
     record Left {
-        person: Vec<String>,
-        delegate: Vec<String>,
+        person: List<String>,
+        delegate: List<String>,
     }
 
     fn left(model: model::Model, report: verdicts::Report) -> Left
@@ -108,7 +107,7 @@ subject levels {
     record Diagnosis {
         contradicts: Bool,
         // `claim: before -> after`.
-        changed: Vec<String>,
+        changed: List<String>,
         text: String,
     }
 

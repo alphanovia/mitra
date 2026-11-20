@@ -11,7 +11,6 @@
 //   f::tied                            the code is where a tie comment says
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject claims {
     ensure names_its_function = "A claim has a name of its own and names the function it is about, so a report can point at it.";
@@ -27,7 +26,7 @@ subject claims {
         Matches(spec: functions::Expr),       // equal to this expression on every input
         Property(body: functions::Expr),      // true on every input
         Uniform(by: Option<String>),          // one judged input stands for its class
-        Uses(used: Vec<String>, only: Bool),  // calls these, and with `only` no other
+        Uses(used: List<String>, only: Bool),  // calls these, and with `only` no other
         Tied,                                 // the code is where the tie says
         Represented(set: String)              // one tested input stands for a set
     }

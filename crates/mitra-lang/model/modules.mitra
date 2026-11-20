@@ -5,7 +5,6 @@
 // them is mitra-store's work. So this crate has no boundary.
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject modules {
     ensure handed_only = "mitra-lang reads nothing but what it is handed: an import of a module that was not handed is an error at its line, never a file it goes to read.";
@@ -29,7 +28,7 @@ subject modules {
     impl Modules {
         // A model in one text, called `model`, importing nothing but `std`.
         fn alone(text: String) -> Self;
-        fn new(files: Vec<Module>, handed: Handed) -> Self;
+        fn new(files: List<Module>, handed: Handed) -> Self;
         // The whole model, as it is read.
         fn text(&self) -> String;
         // A line of the whole model, as `file:line`.
@@ -39,7 +38,7 @@ subject modules {
     }
 
     // The modules a text imports, `std` aside: what must be handed with it.
-    fn imports(src: String) -> Vec<String>;
+    fn imports(src: String) -> List<String>;
 
     // handed_only
     claim unknown_module_is_refused() {

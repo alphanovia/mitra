@@ -5,7 +5,6 @@
 // formally.
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 boundary disk {
     ensure reads_what_was_written = "Reading a file gives the whole text last written to it.";
@@ -14,7 +13,7 @@ boundary disk {
     ensure ledger_is_left_alone = "Between two commands nobody rewrites the ledger file. It is a plain text file: nothing stops a person, an editor or a merge from changing it, so this is an assumption and no more.";
 
     fn read_to_string(path: String) -> Result<String, String>;
-    fn read_dir(path: String) -> Result<Vec<String>, String>;
+    fn read_dir(path: String) -> Result<List<String>, String>;
     fn append(path: String, text: String) -> Result<(), String>;
     fn write(path: String, text: String) -> Result<(), String>;
     fn current_dir() -> Result<String, String>;

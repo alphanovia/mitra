@@ -3,7 +3,6 @@
 // only what must be true of them.
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject culprits {
     ensure ranks = "From how much each piece is trusted and which pieces can't all be right, each piece gets how much it must be wrong and how much it can be.";
@@ -11,8 +10,8 @@ subject culprits {
     // For each piece, how much it must be wrong (belief) and how much it
     // can be (plausibility).
     record Ranking {
-        belief: Vec<Float64>,
-        plausibility: Vec<Float64>,
+        belief: List<Float64>,
+        plausibility: List<Float64>,
         // How much of the trust given contradicts itself.
         conflict: Float64,
         // How many pieces trusted fully had to be doubted.
@@ -26,7 +25,7 @@ subject culprits {
 
     // `biases[i]` is the trust in piece `i`; each clause lists pieces
     // that can't all be right.
-    fn rank(biases: Vec<Option<Float64>>, clauses: Vec<Vec<Nat>>) -> Result<Ranking, NoRanking>;
+    fn rank(biases: List<Option<Float64>>, clauses: List<List<Nat>>) -> Result<Ranking, NoRanking>;
 
     // One opinion per piece, each within 0 and 1.
     claim rank_shape(biases, clauses) {

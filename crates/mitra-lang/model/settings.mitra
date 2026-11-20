@@ -8,7 +8,6 @@
 // it among the suspects of a contradiction.
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject settings {
     ensure defaults_without_a_file = "With no file, or a file that states nothing, the settings are the defaults: a tolerance of 0.001, a sample that covers nothing, and the costs of the reader's own profile.";
@@ -30,8 +29,8 @@ subject settings {
         fn read(text: String) -> Result<Self, String>
             uses voices::policy_reads;
         fn sample(&self, n: Nat) -> Float64;
-        fn strength(costs: Vec<Float64>) -> Float64;
-        fn written(&self, profile: Vec<(String, Float64)>) -> String;
+        fn strength(costs: List<Float64>) -> Float64;
+        fn written(&self, profile: List<(String, Float64)>) -> String;
         // How often a word of this kind of voice is wrong.
         fn doubt(&self, kind: String) -> Float64;
     }

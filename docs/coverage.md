@@ -5,15 +5,15 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 
 | Crate | Functions | Tied | Share | Lines in functions | In tied ones | Share | Code lines | Model lines | Model / code |
 |---|---|---|---|---|---|---|---|---|---|
-| mitra-lang | 464 | 58 | 12% | 14709 | 1767 | 12% | 15745 | 1061 | 7% |
-| mitra-store | 27 | 13 | 48% | 415 | 206 | 50% | 424 | 105 | 25% |
-| mitra-rust | 26 | 8 | 31% | 1024 | 576 | 56% | 1082 | 44 | 4% |
+| mitra-lang | 464 | 58 | 12% | 14709 | 1767 | 12% | 15745 | 1049 | 7% |
+| mitra-store | 27 | 13 | 48% | 415 | 206 | 50% | 424 | 102 | 24% |
+| mitra-rust | 26 | 8 | 31% | 1024 | 576 | 56% | 1082 | 42 | 4% |
 | mitra-cli | 23 | 2 | 9% | 701 | 60 | 9% | 740 | 57 | 8% |
-| all | 540 | 81 | 15% | 16849 | 2609 | 15% | 17991 | 1267 | 7% |
+| all | 540 | 81 | 15% | 16849 | 2609 | 15% | 17991 | 1250 | 7% |
 
-- mitra-lang: 1061 lines of model over 15745 lines of code, in 22 subjects with 85 ensures and 9 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
-- mitra-store: 105 lines of model over 424 lines of code, in 4 subjects with 22 ensures and 8 requires; apart from it, 0 lines of point claims and 0 tests pinned in the code.
-- mitra-rust: 44 lines of model over 1082 lines of code, in 2 subjects with 3 ensures and 3 requires; apart from it, 28 lines of point claims and 0 tests pinned in the code.
+- mitra-lang: 1049 lines of model over 15745 lines of code, in 22 subjects with 85 ensures and 9 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
+- mitra-store: 102 lines of model over 424 lines of code, in 4 subjects with 22 ensures and 8 requires; apart from it, 0 lines of point claims and 0 tests pinned in the code.
+- mitra-rust: 42 lines of model over 1082 lines of code, in 2 subjects with 3 ensures and 3 requires; apart from it, 28 lines of point claims and 0 tests pinned in the code.
 - mitra-cli: 57 lines of model over 740 lines of code, in 1 subject with 11 ensures and 18 requires; apart from it, 0 lines of point claims and 4 tests pinned in the code.
 
 ## mitra-lang

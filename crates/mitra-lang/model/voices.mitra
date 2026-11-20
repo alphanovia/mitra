@@ -5,7 +5,6 @@
 // policy asks that is missing. None of it changes a verdict.
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject voices {
     ensure voice_is_who_wrote = "The voice behind a test is who wrote it, not the machine that ran it: a test nobody signed is the word of an unknown voice.";
@@ -24,20 +23,20 @@ subject voices {
     }
 
     record Support {
-        words: Vec<Word>,
+        words: List<Word>,
         apart: Option<String>,
         doubt: Float64,
-        below: Vec<String>,
+        below: List<String>,
     }
 
     // A voice as its kind and its path.
-    fn parts(voice: String) -> Option<(String, Vec<String>)>;
+    fn parts(voice: String) -> Option<(String, List<String>)>;
     // How far apart two voices are, from 0 (the same) to 5 (unknown).
     fn apart(a: String, b: String) -> 0..=5;
     fn word(e: ledger::Evidence) -> Word;
     fn error_rate(settings: settings::Settings, w: Word) -> Float64;
     fn support(model: model::Model, name: String) -> Support;
-    fn missing(asked: String, s: Support, voices: Nat) -> Vec<String>;
+    fn missing(asked: String, s: Support, voices: Nat) -> List<String>;
     fn policy_reads(asked: String) -> Result<(), String>;
     fn summary(model: model::Model, report: verdicts::Report) -> String;
 

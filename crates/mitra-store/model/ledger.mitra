@@ -4,7 +4,6 @@
 // file is kept.
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 // What main does today.
 subject ledger {
@@ -49,10 +48,10 @@ subject keeping {
     record Replaced {
         // How many entries of that machine left, and their revisions.
         before: Nat,
-        revs: Vec<String>,
+        revs: List<String>,
         written: Nat,
         // Those with nothing written in their place, as written.
-        gone: Vec<String>,
+        gone: List<String>,
     }
 
     // The entries `mitra remove` takes out.
@@ -69,7 +68,7 @@ subject keeping {
         fn replace(&self, prefix: String, new: String) -> Result<Replaced, String>
             uses disk::read_to_string, disk::write;
         // The entries picked leave; they are given back as written.
-        fn remove(&self, which: Which) -> Result<Vec<String>, String>
+        fn remove(&self, which: Which) -> Result<List<String>, String>
             uses disk::read_to_string, disk::write;
     }
 }

@@ -34,7 +34,7 @@ subject files {
 
     // Stores that import each other, as the path from one back to
     // itself; nothing when there is none.
-    fn round(dir: String) -> Option<Vec<String>>
+    fn round(dir: String) -> Option<List<String>>
         uses disk::read_dir, disk::read_to_string;
 
     // One model file, with what it imports.

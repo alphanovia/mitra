@@ -13,18 +13,17 @@
 // The code is in src/frontend.rs: the trait `Reader` and `Found`.
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject frontend {
     // What comparing the code with the model found: evidence lines, and
     // what is printed of them.
     record Found {
-        evidence: Vec<String>,
-        notes: Vec<String>,
+        evidence: List<String>,
+        notes: List<String>,
         agree: Nat,
         differ: Nat,
         // The functions, records and enums no code is tied to.
-        untied: Vec<String>,
+        untied: List<String>,
         // The lines of the code that are code.
         code_lines: Nat,
     }
@@ -32,10 +31,10 @@ subject frontend {
 
 contract Reader<Place> {
     // A report of the language's test runner, as plain results.
-    fn results(&self, text: String) -> Vec<results::Outcome>;
+    fn results(&self, text: String) -> List<results::Outcome>;
 
     // Every test of the code tied to a claim.
-    fn tests(&self, root: Place) -> Result<Vec<results::Tied>, String>;
+    fn tests(&self, root: Place) -> Result<List<results::Tied>, String>;
 
     // The code tied to the model, compared with it.
     fn tie(&self, root: Place, model: model::Model, rev: Option<String>) -> Result<frontend::Found, String>;
@@ -45,7 +44,7 @@ contract Reader<Place> {
     ensure compares_calls = "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it.";
     // What this reader may forget of the code to reach the model, each
     // erasure by its name with what it costs the tie.
-    fn erasures(&self) -> Vec<(String, Float64)>;
+    fn erasures(&self) -> List<(String, Float64)>;
 
     ensure says_what_it_erased = "A tie agrees when what the reader may forget of the code leads to the model, and each erasure it took is named in the evidence it brings, which is trusted for what the erasures leave. Where no erasure applies, the difference is brought as it stands.";
     ensure reads_only = "The code is read as text: it is never built, run or changed.";

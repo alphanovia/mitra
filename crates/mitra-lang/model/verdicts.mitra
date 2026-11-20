@@ -9,7 +9,6 @@
 //   fails            something shows it false
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject verdicts {
     require checked = types::fits;
@@ -43,8 +42,8 @@ subject verdicts {
     record Problem;
 
     record Report {
-        verdicts: Vec<Verdict>,
-        problems: Vec<Problem>,
+        verdicts: List<Verdict>,
+        problems: List<Problem>,
         ..
     }
 

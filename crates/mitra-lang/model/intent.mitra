@@ -12,7 +12,6 @@
 // say what the prose says.
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject intent {
     ensure always_named = "A promise and a need each have a name: a report says which one is not kept.";
@@ -29,9 +28,9 @@ subject intent {
         // For a `require`: the promise it names.
         needs: Option<String>,
         // The claims of its block, which it rests on.
-        claims: Vec<String>,
+        claims: List<String>,
         // The needs of its block, which it rests on too.
-        requires: Vec<String>,
+        requires: List<String>,
         line: Nat,
         ..
     }

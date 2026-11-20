@@ -5,7 +5,6 @@
 //   model/evidence.mitra   the ledger
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject store {
     require listed = disk::lists_what_is_there;
@@ -34,7 +33,7 @@ subject store {
         fn settings(&self) -> Result<settings::Settings, String>
             uses disk::read_to_string;
 
-        fn write_build(&self, files: Vec<(String, String)>) -> Result<String, String>
+        fn write_build(&self, files: List<(String, String)>) -> Result<String, String>
             uses disk::write;
     }
 

@@ -21,7 +21,6 @@
 // shown in every report, counting for nothing.
 
 import std::core::{Option, Result};
-import std::rust::{Vec};
 
 subject ledger {
     ensure says_who_and_when = "Each piece of evidence keeps who or what observed it, the revision of the code it was observed on, and the trust its author puts in it.";
@@ -94,7 +93,7 @@ subject ledger {
         last: Nat,
     }
 
-    fn entries(src: String) -> Vec<Entry>;
+    fn entries(src: String) -> List<Entry>;
 
     // orphaned_judges_nothing
     claim orphan_is_set_aside() {
