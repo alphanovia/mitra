@@ -1,5 +1,6 @@
-// The standard types and operations, beside the core: a truth, a whole
-// number, a real, records, and the table that applies them. Reads value.mitra.
+// The standard types and operations, beside the core, read exactly: a
+// truth, whole numbers, a real, records, and the table that applies
+// them. Reads value.mitra.
 //
 // Code: src/standard.rs.
 
@@ -13,41 +14,56 @@ subject standard {
     ensure too_large_is_no_value = "A whole number is 64 bits, signed. An operation whose result does not fit has no value.";
     ensure a_real_is_exact = "A real is a number of the world: a ratio of two whole numbers, kept in lowest terms, so two reals are equal when they are the same number. Its operations are exact: nothing is rounded. A result whose parts do not fit a whole number has no value, and there is no real over zero.";
     ensure same_name_on_each_number = "The orders, the arithmetic and `within` are declared on one type at a time, the whole numbers or the reals: the same name on each, and no operation takes one of each.";
+    ensure overflow_is_a_choice_of_operation = "What happens when a sum does not fit its type is said by the operation chosen, never by a setting. On two Int8: `widening_add` gives an Int16 and always has a value; `wrapping_add` gives an Int8 and wraps around; `checked_add` gives an Int8, and no value when the sum does not fit.";
     ensure if_is_an_operation = "`if` is an operation like the others, applied by the table. It gives the value of the branch its test takes, even when the other branch has none. Every other standard operation has no value when one of the values it is applied to is missing.";
     ensure a_record_is_its_operations = "A record is a type known by its name, one operation that makes it from its fields, and one per field that reads it back.";
 
-    fn truth() -> value::Type { Type("Truth") }
-    fn whole() -> value::Type { Type("Int") }
+    // An exact quantity: one truth, one whole number, or several of
+    // them, as a real and a record are.
+    record Exact;
 
-    fn yes() -> value::Value;
-    fn no() -> value::Value;
-    fn number(n: Int) -> value::Value;
+    fn truth() -> Type { Type("Truth") }
+    fn whole() -> Type { Type("Int") }
+
+    fn yes() -> Value<Exact>;
+    fn no() -> Value<Exact>;
+    fn number(n: Int) -> Value<Exact>;
 
     // A number of the world.
-    fn real() -> value::Type { Type("Real") }
+    fn real() -> Type { Type("Real") }
     // The real `n / d`. `None` when `d` is 0.
-    fn ratio(n: Int, d: Int) -> Option<value::Value>;
+    fn ratio(n: Int, d: Int) -> Option<Value<Exact>>;
 
     fn not() -> value::Operation { Operation("!", [truth()], truth()) }
     fn and() -> value::Operation { Operation("&&", [truth(), truth()], truth()) }
     fn or() -> value::Operation { Operation("||", [truth(), truth()], truth()) }
     // On two numbers of one type: whole or real.
-    fn less(of: value::Type) -> value::Operation { Operation("<", [of, of], truth()) }
-    fn at_most(of: value::Type) -> value::Operation { Operation("<=", [of, of], truth()) }
-    fn more(of: value::Type) -> value::Operation { Operation(">", [of, of], truth()) }
-    fn at_least(of: value::Type) -> value::Operation { Operation(">=", [of, of], truth()) }
-    fn add(of: value::Type) -> value::Operation { Operation("+", [of, of], of) }
-    fn sub(of: value::Type) -> value::Operation { Operation("-", [of, of], of) }
-    fn mul(of: value::Type) -> value::Operation { Operation("*", [of, of], of) }
+    fn less(of: Type) -> value::Operation { Operation("<", [of, of], truth()) }
+    fn at_most(of: Type) -> value::Operation { Operation("<=", [of, of], truth()) }
+    fn more(of: Type) -> value::Operation { Operation(">", [of, of], truth()) }
+    fn at_least(of: Type) -> value::Operation { Operation(">=", [of, of], truth()) }
+    fn add(of: Type) -> value::Operation { Operation("+", [of, of], of) }
+    fn sub(of: Type) -> value::Operation { Operation("-", [of, of], of) }
+    fn mul(of: Type) -> value::Operation { Operation("*", [of, of], of) }
     // The first two are no further apart than the third.
-    fn within(of: value::Type) -> value::Operation { Operation("within", [of, of, of], truth()) }
+    fn within(of: Type) -> value::Operation { Operation("within", [of, of, of], truth()) }
+    // A whole number of 8 bits, signed, and one of 16.
+    fn int8() -> Type { Type("Int8") }
+    fn int16() -> Type { Type("Int16") }
+    // The Int8 `n`. `None` outside -128 to 127.
+    fn small(n: Int) -> Option<Value<Exact>>;
+    // Three additions of two Int8, named as Rust names them.
+    fn widening_add() -> value::Operation { Operation("widening_add", [int8(), int8()], int16()) }
+    fn wrapping_add() -> value::Operation { Operation("wrapping_add", [int8(), int8()], int8()) }
+    fn checked_add() -> value::Operation { Operation("checked_add", [int8(), int8()], int8()) }
+
     // On two values of one type, whatever the type.
-    fn equal(of: value::Type) -> value::Operation { Operation("==", [of, of], truth()) }
-    fn choose(of: value::Type) -> value::Operation { Operation("if", [truth(), of, of], of) }
+    fn equal(of: Type) -> value::Operation { Operation("==", [of, of], truth()) }
+    fn choose(of: Type) -> value::Operation { Operation("if", [truth(), of, of], of) }
 
     record Shape {
         name: String,
-        fields: List<value::Type>,
+        fields: List<Type>,
     }
     fn make(shape: Shape) -> value::Operation { Operation(shape.name, shape.fields, Type(shape.name)) }
     // What reads a field, by its place. `None` past the last.
@@ -57,7 +73,7 @@ subject standard {
     record Table {
         shapes: List<Shape>,
     }
-    impl Applies<value::Operation, value::Value, value::Quantity> for Table { }
+    impl Applies<value::Operation, Value<Exact>, Exact> for Table { }
 
     // What always holds.
     claim yes_and_no_are_truths() {
@@ -172,4 +188,34 @@ subject tests {
             },
         }
     }
+
+    // overflow_is_a_choice_of_operation: 100 + 100 on Int8, three ways.
+    claim widened_it_is_two_hundred() {
+        match standard::small(100) {
+            None => false,
+            Some(x) => match standard::small(100) {
+                None => false,
+                Some(y) => value::eval(Apply(standard::widening_add(), [Given(x), Given(y)]), [], Table([])) == Some(Value(standard::number(200).quantity, standard::int16())),
+            },
+        }
+    }
+    claim wrapped_it_is_less_than_nothing() {
+        match standard::small(100) {
+            None => false,
+            Some(x) => match standard::small(100) {
+                None => false,
+                Some(y) => value::eval(Apply(standard::wrapping_add(), [Given(x), Given(y)]), [], Table([])) == standard::small(-56),
+            },
+        }
+    }
+    claim checked_it_has_no_value() {
+        match standard::small(100) {
+            None => false,
+            Some(x) => match standard::small(100) {
+                None => false,
+                Some(y) => value::eval(Apply(standard::checked_add(), [Given(x), Given(y)]), [], Table([])) == None,
+            },
+        }
+    }
+    claim no_int8_past_127() { standard::small(128) == None }
 }

@@ -1,0 +1,129 @@
+// A second reading of the standard operations: each quantity is the
+// bounds a value lies in, with a flag for an operation that may have
+// no value somewhere in them. Reads value.mitra and standard.mitra.
+//
+// Code: src/bounds.rs.
+
+import std::core::{Option};
+
+subject bounds {
+    require reading = value::quantity_is_a_reading;
+    require exact = standard::applied_as_written;
+    require overflow = standard::overflow_is_a_choice_of_operation;
+
+    // After Cousot and Cousot, 1977, "Abstract Interpretation: A Unified
+    // Lattice Model for Static Analysis of Programs by Construction or
+    // Approximation of Fixpoints": the same expression computed on a
+    // simpler kind of quantity that covers every exact one. Departs:
+    // the simpler kind is an interval only, and an expression has no
+    // loop, so nothing is iterated to a fixpoint.
+    ensure bounds_hold_the_exact = "Whatever the standard table gives for an operation on exact values, the ranges table gives bounds that hold it, when the exact values lie in the bounds it was given. The bounds may be wider than what can happen, never narrower.";
+    ensure a_fault_is_said = "Where the standard table has no value for some exact values in the bounds, the ranges table says the result may fault. Whatever is computed from it may fault too. When no value is possible at all, the result is empty.";
+    ensure unknown_is_not_wrong = "The ranges table lacks some operations: equality, and records. An expression that applies one has no value read by bounds. That says the reading is unknown, and nothing about the expression.";
+    ensure a_point_is_itself = "An exact truth or number is the bounds that hold it alone, so an expression written with exact values is read by bounds as it is.";
+    ensure sure_is_everywhere = "A truth read by bounds is sure when it is true everywhere in the bounds, or false everywhere, and nothing in them may fault. Otherwise nothing is said.";
+
+    // What a value may be: nothing at all, some of the two truths, or a
+    // number from `low` to `high`, both included. A number is a ratio
+    // of two whole numbers.
+    enum Span {
+        Empty,
+        Truths(yes: Bool, no: Bool),
+        Numbers(low: (Int, Int), high: (Int, Int))
+    }
+    // The bounds a value lies in. `may_fault`: somewhere in the bounds
+    // of what it was computed from, an operation has no value.
+    record Bounds {
+        within: Span,
+        may_fault: Bool,
+    }
+
+    // A number of this type known to lie from `low` to `high`. `None`
+    // when the two are not in order, or not whole for a whole type.
+    fn between(of: Type, low: (Int, Int), high: (Int, Int)) -> Option<Value<Bounds>>
+        uses standard::real;
+    // Every whole number of 8 bits.
+    fn any_int8() -> Value<Bounds>
+        uses standard::int8;
+    // An exact value as bounds: the one point it is. `None` for a record.
+    fn point(v: Value<standard::Exact>) -> Option<Value<Bounds>>
+        uses standard::real;
+    // The same expression, to be read by bounds: each value given in it
+    // becomes the point it is.
+    fn lifted(e: value::Expression<standard::Exact>) -> Option<value::Expression<Bounds>>
+        uses point;
+    // True everywhere, false everywhere, or none.
+    fn surely(v: Value<Bounds>) -> Option<Bool>
+        uses standard::truth;
+
+    // What applies the standard operations on bounds.
+    record Ranges;
+    impl Applies<value::Operation, Value<Bounds>, Bounds> for Ranges { }
+
+    claim a_whole_number_is_its_own_bounds(n: Int) {
+        point(standard::number(n)) == between(standard::whole(), (n, 1), (n, 1))
+    }
+    claim a_sure_truth_is_sure() {
+        match point(standard::yes()) {
+            None => false,
+            Some(v) => surely(v) == Some(true),
+        }
+    }
+    claim a_truth_that_may_fault_is_not_sure() {
+        surely(Value(Bounds(Truths(true, false), true), standard::truth())) == None
+            && surely(Value(Bounds(Truths(true, true), false), standard::truth())) == None
+    }
+}
+
+// What the promises above say, on small cases.
+subject tests {
+    // bounds
+
+    // a_point_is_itself
+    claim bounds_are_in_order() {
+        bounds::between(standard::whole(), (2, 1), (1, 1)) == None && bounds::between(standard::whole(), (1, 2), (1, 1)) == None
+    }
+
+    // bounds_hold_the_exact: x under 4 and y from 4 up, x is surely less.
+    claim an_order_is_sure_or_not(with: bounds::Ranges) {
+        match bounds::between(standard::whole(), (0, 1), (3, 1)) {
+            None => false,
+            Some(x) => match bounds::between(standard::whole(), (4, 1), (9, 1)) {
+                None => false,
+                Some(y) => match value::eval(Apply(standard::less(standard::whole()), [Given(x), Given(y)]), [], with) {
+                    None => false,
+                    Some(v) => bounds::surely(v) == Some(true),
+                },
+            },
+        }
+    }
+
+    // a_fault_is_said: over all of Int8, the checked addition may
+    // fault and the two others cannot.
+    claim int8_three_ways(with: bounds::Ranges) {
+        match value::eval(Apply(standard::checked_add(), [Given(bounds::any_int8()), Given(bounds::any_int8())]), [], with) {
+            None => false,
+            Some(v) => v.quantity.may_fault,
+        }
+    }
+    claim bounds_say_which_addition_faults(with: bounds::Ranges) {
+        match value::eval(Apply(standard::wrapping_add(), [Given(bounds::any_int8()), Given(bounds::any_int8())]), [], with) {
+            None => false,
+            Some(wrapped) => match value::eval(Apply(standard::widening_add(), [Given(bounds::any_int8()), Given(bounds::any_int8())]), [], with) {
+                None => false,
+                Some(wide) => !wrapped.quantity.may_fault && !wide.quantity.may_fault && wide.quantity.within == Numbers((-256, 1), (254, 1)),
+            },
+        }
+    }
+
+    // if_is_an_operation, read by bounds: an unsure test joins the two
+    // branches.
+    claim if_reads_the_branches_it_may_take(with: bounds::Ranges) {
+        value::eval(Apply(standard::choose(standard::whole()), [Given(Value(Bounds(Truths(true, true), false), standard::truth())), Given(Value(Bounds(Numbers((1, 1), (1, 1)), false), standard::whole())), Given(Value(Bounds(Numbers((7, 1), (7, 1)), false), standard::whole()))]), [], with) == bounds::between(standard::whole(), (1, 1), (7, 1))
+    }
+
+    // unknown_is_not_wrong
+    claim a_lacking_operation_is_unknown(with: bounds::Ranges) {
+        value::eval(Apply(standard::equal(standard::whole()), [Given(Value(Bounds(Numbers((1, 1), (1, 1)), false), standard::whole())), Given(Value(Bounds(Numbers((1, 1), (1, 1)), false), standard::whole()))]), [], with) == None
+    }
+}

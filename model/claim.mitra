@@ -14,15 +14,18 @@ subject claims {
     require truth = standard::applied_as_written;
     require applied = Applies::applied_alone;
     require whole = tie::a_tie_has_a_whole;
+    require sure = bounds::sure_is_everywhere;
+    require held = bounds::bounds_hold_the_exact;
 
     ensure claim_is_a_truth = "A claim is a statement that says an expression. The expression gives a truth, the standard one; one that gives anything else states nothing.";
     ensure observed_is_evidence = "Computing a claim at given inputs gives evidence about that statement's piece and no other: yes where it is true, no where it is false, and no evidence where it has no value.";
     ensure measured_is_about_the_whole = "Computing a claim on what was measured at the place of a tie is evidence about the whole of that tie: the statement, the tie and its completeness together, not the statement alone. A tie that does not list the statement is not measured.";
+    ensure a_range_is_many_points = "Reading a claim by bounds, with each input known to lie in a range, is evidence about that statement's piece: yes where the claim is true everywhere in the ranges, no where it is false everywhere, and no evidence where it may be either, may fault, or the reading is unknown. It says as many yes or no as it is given: how many observations a whole range is worth is said by who asks, and nothing here holds a value for it.";
     ensure one_way = "Evidence is made from a value; no value is made from evidence or from an opinion.";
 
     // What a claim says. A claim is a statement with this content.
     record Claim {
-        expression: value::Expression,
+        expression: value::Expression<standard::Exact>,
     }
 
     // The expression gives a truth.
@@ -31,13 +34,23 @@ subject claims {
 
     // What computing the statement at these inputs says of it. `with`
     // applies its operations.
-    fn observe(s: statement::Statement<Claim>, inputs: List<(String, value::Value)>, by: evidence::Voice, with: impl Applies<value::Operation, value::Value, value::Quantity>) -> Option<evidence::Evidence>
+    fn observe(s: statement::Statement<Claim>, inputs: List<(String, Value<standard::Exact>)>, by: evidence::Voice, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>) -> Option<evidence::Evidence>
         uses only value::eval, standard::truth, piece::yes, piece::no;
+
+    // What reading the statement by bounds says of it: `count` yes or
+    // `count` no, or nothing.
+    fn bounded(s: statement::Statement<Claim>, ranges: List<(String, Value<bounds::Bounds>)>, count: Float64, by: evidence::Voice, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>) -> Option<evidence::Evidence>
+        uses value::eval, bounds::lifted, bounds::surely, piece::yes, piece::no;
+
+    // Evidence about a statement, aimed at the whole of a tie that
+    // lists it. `None` when the tie does not list the statement.
+    fn aimed(e: evidence::Evidence, at: tie::Tie) -> Option<evidence::Evidence>
+        uses tie::whole;
 
     // What computing the statement on what was measured at the place
     // of a tie says: the same, about the whole of that tie.
-    fn measured(s: statement::Statement<Claim>, at: tie::Tie, inputs: List<(String, value::Value)>, by: evidence::Voice, with: impl Applies<value::Operation, value::Value, value::Quantity>) -> Option<evidence::Evidence>
-        uses observe, tie::whole;
+    fn measured(s: statement::Statement<Claim>, at: tie::Tie, inputs: List<(String, Value<standard::Exact>)>, by: evidence::Voice, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>) -> Option<evidence::Evidence>
+        uses observe, aimed;
 
     // What always holds.
     claim a_number_is_not_a_statement(p: piece::Piece) {
@@ -72,5 +85,14 @@ subject claims {
             None => false,
             Some(e) => e.about == tie::whole(Tie(t, [p], Place(["ball"]))) && e.value == piece::yes(),
         }
+    }
+    claim a_sure_claim_says_its_count(p: piece::Piece, by: evidence::Voice, with: bounds::Ranges) {
+        match bounded(Statement(p, Claim(Given(standard::yes()))), [], 10.0, by, with) {
+            None => false,
+            Some(e) => e.about == p && e.value.r == 10.0 && e.value.s == 0.0,
+        }
+    }
+    claim an_unknown_reading_says_nothing(p: piece::Piece, by: evidence::Voice, with: bounds::Ranges) {
+        bounded(Statement(p, Claim(Apply(standard::equal(standard::whole()), [Given(standard::number(1)), Given(standard::number(1))]))), [], 10.0, by, with) == None
     }
 }

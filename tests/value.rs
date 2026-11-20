@@ -1,9 +1,13 @@
-//! The claims of `model/value.mitra`. The core has no operation of its
-//! own, so these bring theirs: a type `A`, a type `B`, and one thing
-//! that applies `swap` and nothing else.
+//! The claims of `model/value.mitra`. The core has no operation and no
+//! kind of quantity of its own, so these bring theirs: a quantity that
+//! is a plain number, a type `A`, a type `B`, and one thing that
+//! applies `swap` and nothing else.
 
 use mitra_core::value::Expression::*;
-use mitra_core::value::*;
+use mitra_core::value::{check, eval, type_of, Applies, Operation, Type};
+
+type Value = mitra_core::value::Value<i64>;
+type Expression = mitra_core::value::Expression<i64>;
 
 fn of(name: &str) -> Type {
     Type {
@@ -12,7 +16,7 @@ fn of(name: &str) -> Type {
 }
 fn value(n: i64, name: &str) -> Value {
     Value {
-        quantity: Quantity::Whole(n),
+        quantity: n,
         of: of(name),
     }
 }
@@ -29,18 +33,18 @@ fn given(name: &str, v: Value) -> Vec<(String, Value)> {
 
 /// Applies `swap`, from `A` to `B`, and knows no other operation.
 struct OnlySwap;
-impl Applies for OnlySwap {
-    fn apply(&self, op: &Operation, args: &[Option<Value>]) -> Option<Quantity> {
+impl Applies<i64> for OnlySwap {
+    fn apply(&self, op: &Operation, args: &[Option<Value>]) -> Option<i64> {
         match op == &operation("swap", &["A"], "B") {
-            true => Some(args[0].as_ref()?.quantity.clone()),
+            true => Some(args[0].as_ref()?.quantity),
             false => None,
         }
     }
 }
 /// Applies nothing.
 struct Nothing;
-impl Applies for Nothing {
-    fn apply(&self, _: &Operation, _: &[Option<Value>]) -> Option<Quantity> {
+impl Applies<i64> for Nothing {
+    fn apply(&self, _: &Operation, _: &[Option<Value>]) -> Option<i64> {
         None
     }
 }
@@ -112,7 +116,7 @@ fn an_operation_takes_its_types() {
         Some(of("B"))
     );
     assert_eq!(check(&Apply(f.clone(), vec![Given(value(1, "B"))])), None);
-    assert_eq!(check(&Apply(f, vec![])), None);
+    assert_eq!(check::<i64>(&Apply(f, vec![])), None);
 }
 
 // mitra: evidence for value::an_input_of_another_type_is_no_value

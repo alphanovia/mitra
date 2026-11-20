@@ -2,8 +2,18 @@
 //! number, a real, and records, with what applies them. Beside the core, not
 //! in it: `value` knows none of this.
 
-use crate::value::Quantity::{Many, Truth, Whole};
-use crate::value::{Applies, Operation, Quantity, Type, Value};
+use crate::value::{Applies, Operation, Type, Value};
+use Exact::{Many, Truth, Whole};
+
+/// An exact quantity: one truth, one whole number, or several of
+/// them, as a real and a record are.
+// mitra: implements standard::Exact
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Exact {
+    Truth(bool),
+    Whole(i64),
+    Many(Vec<Exact>),
+}
 
 fn named(name: &str) -> Type {
     Type {
@@ -29,21 +39,21 @@ pub fn whole() -> Type {
 }
 
 // mitra: implements standard::yes
-pub fn yes() -> Value {
+pub fn yes() -> Value<Exact> {
     Value {
         quantity: Truth(true),
         of: truth(),
     }
 }
 // mitra: implements standard::no
-pub fn no() -> Value {
+pub fn no() -> Value<Exact> {
     Value {
         quantity: Truth(false),
         of: truth(),
     }
 }
 // mitra: implements standard::number
-pub fn number(n: i64) -> Value {
+pub fn number(n: i64) -> Value<Exact> {
     Value {
         quantity: Whole(n),
         of: whole(),
@@ -56,7 +66,7 @@ pub fn real() -> Type {
 }
 /// The real `n / d`, in lowest terms. None when `d` is 0.
 // mitra: implements standard::ratio
-pub fn ratio(n: i64, d: i64) -> Option<Value> {
+pub fn ratio(n: i64, d: i64) -> Option<Value<Exact>> {
     Some(Value {
         quantity: lowest(n as i128, d as i128)?,
         of: real(),
@@ -65,7 +75,7 @@ pub fn ratio(n: i64, d: i64) -> Option<Value> {
 
 /// A ratio in lowest terms, its lower part above 0. None when the
 /// lower part is 0 or a part does not fit 64 bits.
-fn lowest(n: i128, d: i128) -> Option<Quantity> {
+fn lowest(n: i128, d: i128) -> Option<Exact> {
     if d == 0 {
         return None;
     }
@@ -79,7 +89,7 @@ fn lowest(n: i128, d: i128) -> Option<Quantity> {
     Some(Many(vec![Whole(n), Whole(d)]))
 }
 /// The two parts of a real.
-fn parts(q: &Quantity) -> Option<(i128, i128)> {
+fn parts(q: &Exact) -> Option<(i128, i128)> {
     match q {
         Many(both) => match both.as_slice() {
             [Whole(n), Whole(d)] if *d > 0 => Some((*n as i128, *d as i128)),
@@ -89,7 +99,7 @@ fn parts(q: &Quantity) -> Option<(i128, i128)> {
     }
 }
 /// A number as a ratio: a whole number over 1, or the parts of a real.
-fn as_ratio(q: &Quantity) -> Option<(i128, i128)> {
+fn as_ratio(q: &Exact) -> Option<(i128, i128)> {
     match q {
         Whole(n) => Some((*n as i128, 1)),
         _ => parts(q),
@@ -155,6 +165,40 @@ pub fn choose(of: &Type) -> Operation {
     operation("if", &[truth(), of.clone(), of.clone()], of.clone())
 }
 
+/// A whole number of 8 bits, signed, and one of 16.
+// mitra: implements standard::int8
+pub fn int8() -> Type {
+    named("Int8")
+}
+// mitra: implements standard::int16
+pub fn int16() -> Type {
+    named("Int16")
+}
+/// The Int8 `n`. None outside -128 to 127.
+// mitra: implements standard::small
+pub fn small(n: i64) -> Option<Value<Exact>> {
+    Some(Value {
+        quantity: Whole(i8::try_from(n).ok()? as i64),
+        of: int8(),
+    })
+}
+/// Three additions of two Int8, named as Rust names them. The first
+/// gives an Int16 and always has a value. The second gives an Int8 and
+/// wraps around. The third gives an Int8, and no value when the sum
+/// does not fit.
+// mitra: implements standard::widening_add
+pub fn widening_add() -> Operation {
+    operation("widening_add", &[int8(), int8()], int16())
+}
+// mitra: implements standard::wrapping_add
+pub fn wrapping_add() -> Operation {
+    operation("wrapping_add", &[int8(), int8()], int8())
+}
+// mitra: implements standard::checked_add
+pub fn checked_add() -> Operation {
+    operation("checked_add", &[int8(), int8()], int8())
+}
+
 /// A record: a type of its name, made of fields of these types.
 // mitra: implements standard::Shape
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -188,15 +232,15 @@ pub struct Table {
 }
 
 /// The operation is this one: its name is already matched.
-fn is(op: &Operation, takes: &[&str], gives: &str) -> bool {
+pub(crate) fn is(op: &Operation, takes: &[&str], gives: &str) -> bool {
     op.gives.name == gives
         && op.takes.len() == takes.len()
         && op.takes.iter().zip(takes).all(|(t, name)| t.name == *name)
 }
 
-impl Applies for Table {
+impl Applies<Exact> for Table {
     // mitra: implements standard::Table::apply
-    fn apply(&self, op: &Operation, args: &[Option<Value>]) -> Option<Quantity> {
+    fn apply(&self, op: &Operation, args: &[Option<Value<Exact>>]) -> Option<Exact> {
         const T: &str = "Truth";
         // `if` gives the branch its test takes, even when the other
         // has no value.
@@ -212,7 +256,7 @@ impl Applies for Table {
             };
         }
         // Every other operation needs all its values.
-        let present: Option<Vec<Value>> = args.iter().cloned().collect();
+        let present: Option<Vec<Value<Exact>>> = args.iter().cloned().collect();
         let present = present?;
         let args = present.as_slice();
         const I: &str = "Int";
@@ -253,6 +297,20 @@ impl Applies for Table {
                     _ => lowest(xn * yn, xd * yd),
                 }
             }
+            ("widening_add" | "wrapping_add" | "checked_add", [x, y])
+                if is(op, &["Int8", "Int8"], "Int16") || is(op, &["Int8", "Int8"], "Int8") =>
+            {
+                let (x, y) = match (&x.quantity, &y.quantity) {
+                    (Whole(x), Whole(y)) => (i8::try_from(*x).ok()?, i8::try_from(*y).ok()?),
+                    _ => return None,
+                };
+                match (op.name.as_str(), op.gives.name.as_str()) {
+                    ("widening_add", "Int16") => Some(Whole(x as i64 + y as i64)),
+                    ("wrapping_add", "Int8") => Some(Whole(x.wrapping_add(y) as i64)),
+                    ("checked_add", "Int8") => Some(Whole(x.checked_add(y)? as i64)),
+                    _ => None,
+                }
+            }
             ("within", [x, y, by]) if is(op, &[I, I, I], T) || is(op, &[R, R, R], T) => {
                 let ((xn, xd), (yn, yd)) = (as_ratio(&x.quantity)?, as_ratio(&y.quantity)?);
                 let (tn, td) = as_ratio(&by.quantity)?;
@@ -274,7 +332,7 @@ impl Applies for Table {
 
 impl Table {
     /// The operations of the records the table was given.
-    fn record(&self, op: &Operation, args: &[Value]) -> Option<Quantity> {
+    fn record(&self, op: &Operation, args: &[Value<Exact>]) -> Option<Exact> {
         for shape in &self.shapes {
             if op == &make(shape) {
                 return Some(Many(args.iter().map(|v| v.quantity.clone()).collect()));

@@ -3,33 +3,26 @@
 //! A value is a quantity with a type. Operations are declared on
 //! types, to transform or to convert. An expression is nested
 //! operations that can be evaluated. Nothing is built in: this file
-//! declares no type and no operation, and never reads a quantity.
+//! declares no type, no operation and no kind of quantity, and never
+//! reads one.
 //!
 //! Nothing here is right or wrong, believed or signed: a value comes
 //! from its expression and its inputs alone.
 
 /// What a value can be. Known by its name only.
-// mitra: implements value::Type
+// mitra: implements Type
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Type {
     pub name: String,
 }
 
-/// How much, or which: what a value carries. Not read here: only what
-/// applies an operation knows what is inside.
-// mitra: implements value::Quantity
+/// A quantity with a type. What a quantity is, `Q`, is not said here:
+/// one exact amount, the bounds it lies in, or another reading. Only
+/// what applies an operation knows what is inside.
+// mitra: implements Value
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Quantity {
-    Truth(bool),
-    Whole(i64),
-    Many(Vec<Quantity>),
-}
-
-/// A quantity with a type.
-// mitra: implements value::Value
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Value {
-    pub quantity: Quantity,
+pub struct Value<Q> {
+    pub quantity: Q,
     pub of: Type,
 }
 
@@ -47,34 +40,35 @@ pub struct Operation {
 /// Nested operations that can be evaluated.
 // mitra: implements value::Expression
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Expression {
+pub enum Expression<Q> {
     /// A value as it is.
-    Given(Value),
+    Given(Value<Q>),
     /// A named input of a type.
     Input(String, Type),
     /// An operation on what the others give.
-    Apply(Operation, Vec<Expression>),
+    Apply(Operation, Vec<Expression<Q>>),
 }
 
-/// What applies operations: the contract `Applies` of the model. The
-/// core has none of its own.
-pub trait Applies {
+/// What applies operations on one kind of quantity: the contract
+/// `Applies` of the model. Each is one reading of the same
+/// expressions. The core has none of its own.
+pub trait Applies<Q> {
     /// The quantity an operation gives on these values, or none: an
     /// operation it does not know, or a result that does not exist.
     /// An argument that has no value is given as `None`: what the
     /// operation gives then is its own to say.
-    fn apply(&self, op: &Operation, args: &[Option<Value>]) -> Option<Quantity>;
+    fn apply(&self, op: &Operation, args: &[Option<Value<Q>>]) -> Option<Q>;
 }
 
 // mitra: implements value::type_of
-pub fn type_of(v: &Value) -> Type {
+pub fn type_of<Q>(v: &Value<Q>) -> Type {
     v.of.clone()
 }
 
 /// The type an expression gives. `None` when it does not check: an
 /// operation applied to what it does not take.
 // mitra: implements value::check
-pub fn check(e: &Expression) -> Option<Type> {
+pub fn check<Q>(e: &Expression<Q>) -> Option<Type> {
     Some(match e {
         Expression::Given(v) => v.of.clone(),
         Expression::Input(_, of) => of.clone(),
@@ -98,7 +92,11 @@ pub fn check(e: &Expression) -> Option<Type> {
 /// with no value is passed on as none: `by` says what the operation
 /// gives then.
 // mitra: implements value::eval
-pub fn eval(e: &Expression, inputs: &[(String, Value)], by: &impl Applies) -> Option<Value> {
+pub fn eval<Q: Clone>(
+    e: &Expression<Q>,
+    inputs: &[(String, Value<Q>)],
+    by: &impl Applies<Q>,
+) -> Option<Value<Q>> {
     Some(match e {
         Expression::Given(v) => v.clone(),
         Expression::Input(name, of) => {

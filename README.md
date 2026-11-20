@@ -19,12 +19,13 @@ the yardstick.
 | | `statement` | an interpretation of the system; its content is not read | `src/model/statement.rs` |
 | | `tie` | a believed link between a statement and a place | `src/model/tie.rs` |
 | | `model` | all the pieces put together | `src/model.rs` |
-| `model/value.mitra` | `value` | a quantity with a type, operations declared on types, expressions of them; nothing built in | `src/value.rs` |
-| `model/standard.mitra` | `standard` | the standard types and operations (a truth, a whole number, records) and the table that applies them | `src/standard.rs` |
+| `model/value.mitra` | `value` | a quantity with a type, operations declared on types, expressions of them; no type, no operation and no kind of quantity built in | `src/value.rs` |
+| `model/standard.mitra` | `standard` | the standard types and operations read exactly (a truth, whole numbers, a real, records) and the table that applies them | `src/standard.rs` |
+| `model/bounds.mitra` | `bounds` | the same operations read on the bounds a value lies in, with a flag for what may have no value | `src/bounds.rs` |
 | `model/claim.mitra` | `claims` | the seam: a statement whose content is an expression; computing it makes evidence | `src/claim.rs` |
 
 `model.mitra` and `value.mitra` read nothing and never read each
-other; `standard.mitra` reads `value.mitra`; only the seam reads both
+other; `standard.mitra` reads `value.mitra`, `bounds.mitra` reads both; only the seam reads both
 sides. Inside the model a place and a piece
 read nothing, and each kind of piece reads only what it requires.
 `tests/wall.rs` reads the sources and says so.
@@ -51,7 +52,7 @@ Until then `model/evidence.mitra` is the single ledger that `main`'s
 ## To test
 
 ```sh
-cargo test                # 127 tests
+cargo test                # 141 tests
 mitra conform             # with main's binary, from this folder
 ```
 
@@ -62,7 +63,7 @@ mitra conform             # with main's binary, from this folder
 - `tests/structure.rs`: how the shape of the graph changes what is read.
 - `tests/wall.rs`: the walls, and no disk.
 
-`mitra conform` says 90 ties agree and 5 differ, with one warning.
+`mitra conform` says 106 ties agree and 13 differ, with one warning.
 The five look like faults of `main`'s reader of Rust and are left as
 they are: `Vec<Related>` and `Statement<Claim>` compared wrongly with
 the model's (three), a `uses` asked on `moved` whose body already

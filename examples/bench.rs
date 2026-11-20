@@ -2,8 +2,8 @@
 //! `cargo run --release --example bench`
 
 use mitra_core::standard::*;
+use mitra_core::value::eval;
 use mitra_core::value::Expression::*;
-use mitra_core::value::*;
 
 fn main() {
     let x = || Input("x".to_string(), whole());

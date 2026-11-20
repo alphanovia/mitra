@@ -870,6 +870,24 @@ something is missing there, which is the air. The feather alone has
 nothing to hold the statement up, so the statement and the tie share
 the no equally (0.38).
 
-Not shown: a statement for the air, and what a domain of the claim
-would say (heights above 0); domains are waiting for a decision.
+### The same claim read by bounds
+
+`claims::bounded` reads the claim with each input known to lie in a
+range, on the ranges table of `bounds`. The stone's height and speed
+are each known to a hundredth; the claim is true everywhere in those
+margins, so one reading stands for every point of them. Here a whole
+range is worth ten observations: that number is given by who asks.
+
+| the stone, 5 m at 9.9 m/s | `speed` | from | to |
+|---|---|---|---|
+| read at the point | 0.91 | 0.40 | 1.00 |
+| read over its margins | 0.99 | 0.94 | 1.00 |
+
+A feather read the same way is false everywhere in its margins. With
+margins of a metre the claim may be either, and the reading says
+nothing. A claim over a whole domain is read at once: "from 0 to 20 m
+the square of the speed stays under 400" is true for every height,
+and up to 21 m it is neither true everywhere nor false everywhere.
+
+Not shown: a statement for the air.
 

@@ -2,11 +2,15 @@
 //! what was measured, read in the model. The same toy as
 //! `examples/falling.rs`.
 
-use mitra_core::claim::{measured, observe, reads, Claim};
+use mitra_core::bounds::{between, Bounds, Ranges};
+use mitra_core::claim::{aimed, bounded, measured, observe, reads, Claim};
 use mitra_core::model::*;
-use mitra_core::standard::{mul, ratio, real, within, Table};
-use mitra_core::value::Expression::{self, Apply, Given, Input};
-use mitra_core::value::Value;
+use mitra_core::standard::{less, mul, ratio, real, within, Exact, Table};
+
+type Value = mitra_core::value::Value<Exact>;
+use mitra_core::value::Expression::{Apply, Given, Input};
+
+type Expression = mitra_core::value::Expression<Exact>;
 
 /// The settings these are recorded at: a statement and a tie start at
 /// one half, a measurement at 0.9, and no voice is doubted. Nothing is
@@ -159,4 +163,80 @@ fn the_feather_alone_doubts_the_speed() {
     let m = after(&FEATHER);
     assert!(read(&m, "speed") < 0.4, "{}", read(&m, "speed"));
     assert!((read(&m, "speed") - read(&m, "feather applies")).abs() < 1e-9);
+}
+
+/// A height and a speed, each known within a margin, in thousandths.
+fn about(h: (i64, i64), v: (i64, i64)) -> [(String, mitra_core::value::Value<Bounds>); 2] {
+    let range = |(low, high): (i64, i64)| between(&real(), (low, 1000), (high, 1000)).unwrap();
+    [("h".to_string(), range(h)), ("v".to_string(), range(v))]
+}
+/// What a reading over a whole range is worth here, in observations.
+const RANGE: f64 = 10.0;
+
+/// The stone at 5 m and 9.9 m/s, each known to a hundredth: the claim
+/// is true wherever the real height and speed are in those margins. A
+/// feather is false everywhere in its own. Margins of a metre say
+/// nothing.
+// mitra: evidence for claims::a_sure_claim_says_its_count
+#[test]
+fn a_measurement_with_its_margin_is_read_by_bounds() {
+    let me = Voice::named("me");
+    let read = |h, v| bounded(&speed(), &about(h, v), RANGE, &me, &Ranges).map(|e| e.value);
+    let sure = read((4990, 5010), (9890, 9910)).unwrap();
+    assert_eq!((sure.r, sure.s), (RANGE, 0.0));
+    let never = read((4990, 5010), (1990, 2010)).unwrap();
+    assert_eq!((never.r, never.s), (0.0, RANGE));
+    assert_eq!(read((4000, 6000), (9890, 9910)), None);
+}
+
+/// One reading over the margins says more than the point in their
+/// middle: it stands for every point of them.
+#[test]
+fn a_range_says_more_than_a_point() {
+    let me = Voice::named("machine:timer");
+    let tie = tie_of("stone");
+    let with = |e: Evidence| Model {
+        ties: vec![tie.clone()],
+        evidence: vec![e],
+        ..Model::empty(S)
+    };
+    let point = with(measured(&speed(), &tie, &at(500, 990), &me, &Table::default()).unwrap());
+    let ranged = bounded(
+        &speed(),
+        &about((4990, 5010), (9890, 9910)),
+        RANGE,
+        &me,
+        &Ranges,
+    );
+    let range = with(aimed(ranged.unwrap(), &tie).unwrap());
+    assert!(read(&range, "speed") > read(&point, "speed"));
+    let unsure = |m: &Model| uncertainty(opinion(m, &Piece::named("speed")), S.weight);
+    assert!(unsure(&range) < unsure(&point) / 5.0);
+}
+
+/// A claim over a whole domain: from 0 to 20 m, the square of the
+/// speed stays under 400. Read by bounds it is true for every height
+/// at once; computed at 5 m it is true at 5 m.
+#[test]
+fn a_claim_is_read_over_its_whole_domain() {
+    let fallen = times(times(Given(r(2, 1)), Given(r(981, 100))), input("h"));
+    let slow = Statement {
+        piece: Piece::named("slow enough"),
+        content: Claim {
+            expression: Apply(less(&real()), vec![fallen, Given(r(400, 1))]),
+        },
+    };
+    let me = Voice::named("machine:mitra");
+    let heights = |low, high| {
+        [(
+            "h".to_string(),
+            between(&real(), (low, 1), (high, 1)).unwrap(),
+        )]
+    };
+    let all = bounded(&slow, &heights(0, 20), RANGE, &me, &Ranges).unwrap();
+    assert_eq!((all.value.r, all.value.s), (RANGE, 0.0));
+    // Up to 21 m it is not true everywhere, nor false everywhere.
+    assert_eq!(bounded(&slow, &heights(0, 21), RANGE, &me, &Ranges), None);
+    let one = observe(&slow, &[("h".to_string(), r(5, 1))], &me, &Table::default()).unwrap();
+    assert_eq!(one.value, yes());
 }

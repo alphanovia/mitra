@@ -39,17 +39,19 @@ fn a_piece_knows_no_value_and_a_value_no_piece() {
 /// knows no standard operation. The standard table reads values only.
 #[test]
 fn the_core_of_values_reads_no_quantity() {
+    // No kind of quantity is named in the core of values, and no
+    // reading of them.
     let value = code(&sources("value"));
-    for word in ["Quantity::", "standard", "Truth(", "Whole(", "Many("] {
-        let seen = value.matches(word).count();
-        // Each carrier is named once, where it is declared.
-        let declared = usize::from(word.ends_with('(') && word != "Quantity::");
-        assert!(seen <= declared, "src/value names `{word}`");
+    for word in ["Exact", "Bounds", "standard", "bounds", "Truth(", "Whole("] {
+        assert!(!value.contains(word), "src/value names `{word}`");
     }
     let standard = code(&sources("standard"));
+    let bounds = code(&sources("bounds"));
     for word in ["model::", "claim::", "Opinion", "Evidence", "Statement"] {
         assert!(!standard.contains(word), "src/standard names `{word}`");
+        assert!(!bounds.contains(word), "src/bounds names `{word}`");
     }
+    assert!(!standard.contains("bounds"), "src/standard reads bounds");
 }
 
 /// Inside the model: a place and a piece read nothing, and each kind of
@@ -82,7 +84,7 @@ fn each_subject_reads_only_what_it_requires() {
 
 #[test]
 fn the_core_reads_no_disk_and_runs_nothing() {
-    for of in ["model", "value", "standard", "claim"] {
+    for of in ["model", "value", "standard", "bounds", "claim"] {
         let text = code(&sources(of));
         for word in ["std::fs", "std::net", "std::process", "std::env"] {
             assert!(!text.contains(word), "src/{of} names `{word}`");
@@ -92,7 +94,7 @@ fn the_core_reads_no_disk_and_runs_nothing() {
 
 #[test]
 fn each_model_file_has_its_code() {
-    for of in ["model", "value", "standard", "claim"] {
+    for of in ["model", "value", "standard", "bounds", "claim"] {
         assert!(fs::metadata(format!("model/{of}.mitra")).is_ok());
         assert!(fs::metadata(format!("src/{of}.rs")).is_ok());
     }

@@ -834,3 +834,53 @@ other reading moved. 127 tests.
 702. An `About` relation written by hand in `Model.related` is not
      read, and the promise `two_relations` says so.
 
+## Increment 116: generic values, and a reading by bounds (2026-11-20)
+
+**Asked.** "ok, let's do the generic Value<Q> then". Types are the
+domains; a subset stays a `given` condition.
+
+**Done.**
+
+- `Value<Q>`, `Expression<Q>`, `Applies<Q>`: the core of values names
+  no kind of quantity. `tests/value.rs` runs it on a plain number.
+- `standard`: the exact reading, quantity `Exact`. An Int8 with three
+  additions: `widening_add` (gives an Int16), `wrapping_add`,
+  `checked_add` (no value when the sum does not fit).
+- `bounds` (new file and subject): quantity `Bounds { within,
+  may_fault }`, the table `Ranges`, `point`, `between`, `lifted`,
+  `surely`. Rules for the truths, the orders, the arithmetic,
+  `within`, `if` and the three Int8 additions. A sweep test checks
+  every exact result lies in its bounds on about 2,000 points.
+- `claims::bounded`: a claim read by bounds is evidence, `count` yes
+  or no; `claims::aimed` aims evidence at the whole of a tie.
+- 141 tests. Evaluation is slower again (0.90 s per million, was
+  0.57): not looked at, performance waits.
+
+**Decided alone.**
+
+703. `Type` and `Value<Q>` are declared at the top of `value.mitra`,
+     outside `subject value`. Main's reader refuses a generic record
+     or enum of a subject whose field is another generic of a subject
+     applied to its parameter (`enum Expression<Q> { Given(v:
+     Value<Q>) }`). At the top level it reads. Main is frozen.
+704. Main's language gives a claim no type parameter: the claims of
+     `value` are written at `Any`.
+705. `Ranges` is an opaque record in the model, so a claim takes it as
+     an input (`with: bounds::Ranges`): main cannot write a value of a
+     record with no field.
+706. How many observations a whole range is worth is an argument of
+     `bounded`, like the count of a review. Nothing says what it
+     should be: the fall names 10. This is the open point of "a
+     domain-wide reading is stronger than a point".
+707. When a bound does not fit 64 bits the reading is unknown (none),
+     not a fault.
+708. The ranges table lacks `==` and records on purpose: the smallest
+     case of "unknown".
+709. The Int8 additions take Rust's names. `checked_add` gives no
+     value where Rust gives `None`.
+710. Bounds are kept per value. Two inputs that depend on each other
+     are read as if they did not, which only makes bounds wider.
+711. 13 ties differ for main's reader: it does not compare a generic
+     type applied to a record with fields, nor a generic enum. They
+     were written side by side with the code.
+

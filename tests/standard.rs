@@ -2,7 +2,10 @@
 
 use mitra_core::standard::*;
 use mitra_core::value::Expression::*;
-use mitra_core::value::*;
+use mitra_core::value::{check, eval, type_of, Operation};
+
+type Expression = mitra_core::value::Expression<Exact>;
+type Value = mitra_core::value::Value<Exact>;
 
 fn n(x: i64) -> Expression {
     Given(number(x))

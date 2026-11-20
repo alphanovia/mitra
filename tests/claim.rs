@@ -2,9 +2,10 @@
 
 use mitra_core::claim::*;
 use mitra_core::model::{no, opinion, trusted, yes, Model, Piece, Settings, Statement, Voice};
-use mitra_core::standard::{less, number, truth, whole, Table};
+use mitra_core::standard::{less, number, truth, whole, Exact, Table};
+
+type Value = mitra_core::value::Value<Exact>;
 use mitra_core::value::Expression::*;
-use mitra_core::value::Value;
 
 /// The weight of a base rate that these are recorded at.
 const W: f64 = 0.2;
@@ -29,17 +30,17 @@ fn mitra() -> Voice {
 fn table() -> Table {
     Table::default()
 }
-fn truly() -> mitra_core::value::Expression {
+fn truly() -> mitra_core::value::Expression<Exact> {
     Given(mitra_core::standard::yes())
 }
-fn falsely() -> mitra_core::value::Expression {
+fn falsely() -> mitra_core::value::Expression<Exact> {
     Given(mitra_core::standard::no())
 }
-fn one() -> mitra_core::value::Expression {
+fn one() -> mitra_core::value::Expression<Exact> {
     Given(number(1))
 }
 
-fn claim(name: &str, expression: mitra_core::value::Expression) -> Statement<Claim> {
+fn claim(name: &str, expression: mitra_core::value::Expression<Exact>) -> Statement<Claim> {
     Statement {
         piece: Piece::named(name),
         content: Claim { expression },
@@ -127,4 +128,21 @@ fn a_statement_computed_moves_the_opinion_of_its_claim() {
     model.evidence.push(against);
     let o = opinion(&model, &small.piece);
     assert!(o.s == 1.0 && o.s >= o.r);
+}
+
+/// A claim whose reading by bounds is unknown says nothing: the ranges
+/// table has no equality.
+// mitra: evidence for claims::an_unknown_reading_says_nothing
+#[test]
+fn an_unknown_reading_says_nothing() {
+    use mitra_core::bounds::Ranges;
+    use mitra_core::standard::equal;
+    let same = Apply(equal(&whole()), vec![one(), one()]);
+    assert_eq!(
+        bounded(&claim("c", same), &[], 10.0, &mitra(), &Ranges),
+        None
+    );
+    let sure = bounded(&claim("c", truly()), &[], 10.0, &mitra(), &Ranges).unwrap();
+    assert_eq!((sure.value.r, sure.value.s), (10.0, 0.0));
+    assert_eq!(sure.about, Piece::named("c"));
 }
