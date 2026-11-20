@@ -51,7 +51,7 @@ Until then `model/evidence.mitra` is the single ledger that `main`'s
 ## To test
 
 ```sh
-cargo test                # 126 tests
+cargo test                # 127 tests
 mitra conform             # with main's binary, from this folder
 ```
 
@@ -62,7 +62,7 @@ mitra conform             # with main's binary, from this folder
 - `tests/structure.rs`: how the shape of the graph changes what is read.
 - `tests/wall.rs`: the walls, and no disk.
 
-`mitra conform` says 89 ties agree and 5 differ, with one warning.
+`mitra conform` says 90 ties agree and 5 differ, with one warning.
 The five look like faults of `main`'s reader of Rust and are left as
 they are: `Vec<Related>` and `Statement<Claim>` compared wrongly with
 the model's (three), a `uses` asked on `moved` whose body already

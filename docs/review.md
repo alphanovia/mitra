@@ -813,3 +813,24 @@ user to say.
 700. A voice at exactly 1 with no source is not judged; this replaces
      "a voice with no base rate is not judged".
 
+## Increment 115: the two relations are All and About (2026-11-20)
+
+**Asked.** "yes, remove Exclude, but again, I'm not reading About in
+the Relation enum".
+
+**Done.** `Exclude` is gone, with the part of `conflicts` that
+reported it. `Relation` is `All` and `About`. Golden case 13 is
+written with `All` and a sure "not both": `wraps` reads 0.70 (was
+0.82), and the conflict names `stops`, `wraps` and "not both". No
+other reading moved. 127 tests.
+
+**Decided alone.**
+
+701. `Evidence.about` stays the source. Each piece of evidence
+     implies its `About` relation, given by `model::about(e)`, as each
+     tie implies an `All`. The other way was to drop the field and
+     write every `About` in `Model.related`: every model and test
+     would be rewritten for the same readings.
+702. An `About` relation written by hand in `Model.related` is not
+     read, and the promise `two_relations` says so.
+

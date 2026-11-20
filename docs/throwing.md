@@ -215,7 +215,6 @@ at 1", and "blame uses belief, not expectation".
 
 ## Open on relations
 
-- `Exclude` is still in the record and the toys never use it.
 - A tie without a statement cannot be forbidden by the records as they
   are: a tie names a statement by its piece.
 - The latent toy needs no new relation: `All` is enough. It may later

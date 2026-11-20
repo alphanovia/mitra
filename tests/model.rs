@@ -1116,3 +1116,34 @@ fn every_kind_has_its_setting() {
     // The relation a tie implies is structure.
     assert_eq!(of("all: whole: applies"), 1.0);
 }
+
+/// Each piece of evidence implies the relation `about`, from itself to
+/// the piece it speaks of. One written by hand is not read.
+// mitra: evidence for model::evidence_implies_about
+// mitra: evidence for tests::a_written_about_is_not_read
+#[test]
+fn evidence_implies_about() {
+    let e = says("t", "c", yes(), "a");
+    let implied = about(&e);
+    assert_eq!(implied.how, Relation::About);
+    assert_eq!(implied.pieces, [Piece::named("t"), Piece::named("c")]);
+    let plain = Model {
+        evidence: vec![e],
+        base: base_of(&[("t", 0.5), ("u", 1.0), ("by hand", 1.0)]),
+        ..Model::empty(S)
+    };
+    let by_hand = Model {
+        related: vec![Statement {
+            piece: Piece::named("by hand"),
+            content: Related {
+                how: Relation::About,
+                pieces: vec![Piece::named("u"), Piece::named("c")],
+            },
+        }],
+        ..plain.clone()
+    };
+    assert_eq!(
+        opinion(&plain, &Piece::named("c")),
+        opinion(&by_hand, &Piece::named("c"))
+    );
+}

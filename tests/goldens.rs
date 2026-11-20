@@ -127,7 +127,9 @@ fn two_reviews_that_disagree_are_a_conflict() {
 }
 
 /// Case 13: two claims that cannot both be right, each with a passing
-/// test, one reviewed. The one on the unreviewed test comes first.
+/// test, one reviewed. "Both" is all of the two, and a sure statement
+/// says no about it. The no is shared: the claim on the unreviewed
+/// test takes more of it and comes first.
 #[test]
 fn two_claims_that_disagree_are_ranked() {
     let model = Model {
@@ -137,24 +139,30 @@ fn two_claims_that_disagree_are_ranked() {
             says("t_wraps", "wraps", yes(), "machine:cargo"),
             says("t_stops", "stops", yes(), "machine:cargo"),
             says("r", "t_wraps", yes(), "agent:a"),
+            says("not both", "wraps and stops", no(), "author"),
         ],
         related: vec![Statement {
-            piece: piece("one of the two"),
+            piece: piece("both"),
             content: Related {
-                how: Relation::Exclude,
-                pieces: vec![piece("wraps"), piece("stops")],
+                how: Relation::All,
+                pieces: vec![piece("wraps and stops"), piece("wraps"), piece("stops")],
             },
         }],
         base: vec![
             (piece("t_wraps"), 0.5),
             (piece("t_stops"), 0.5),
             (piece("r"), 1.0),
-            (piece("one of the two"), 1.0),
+            (piece("both"), 1.0),
+            (piece("not both"), 1.0),
         ],
     };
-    assert_eq!(conflicts(&model), [vec![piece("stops"), piece("wraps")]]);
+    assert_eq!(
+        conflicts(&model),
+        [vec![piece("stops"), piece("wraps"), piece("not both")]]
+    );
+    assert!(word(&model, &piece("stops"), 0.9).1 < word(&model, &piece("wraps"), 0.9).1);
     assert_eq!(
         word(&model, &piece("wraps"), 0.9),
-        ("unverified", 0.8208955223880597)
+        ("unverified", 0.7009497524149686)
     );
 }

@@ -24,15 +24,17 @@ pub use tie::{complete, concerned, places, whole, Complete, Tie};
 
 use std::collections::{BTreeMap, BTreeSet};
 
-/// How pieces stand to each other. One relation can hold many pieces.
+/// How pieces stand to each other, named after what is computed.
 // mitra: implements model::Relation
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Relation {
     /// The first is all of the others together: believed as their
     /// product; a yes about it flows down to each, a no is shared.
     All,
-    /// They cannot all be right.
-    Exclude,
+    /// The first is evidence about the second: what it says counts as
+    /// far as it is believed, and is fused with what else is said of
+    /// that piece. Implied by each piece of evidence, see [`about`].
+    About,
 }
 
 // mitra: implements model::Related
@@ -97,6 +99,16 @@ impl Model {
             ties: Vec::new(),
             settings,
         }
+    }
+}
+
+/// The relation a piece of evidence implies: it is about the piece it
+/// speaks of. It is read from the evidence itself.
+// mitra: implements model::about
+pub fn about(e: &Evidence) -> Related {
+    Related {
+        how: Relation::About,
+        pieces: vec![e.piece.clone(), e.about.clone()],
     }
 }
 
@@ -763,8 +775,7 @@ fn together(model: &Model, on: &BTreeSet<Piece>, walk: &mut Walk) -> Opinion {
 
 /// The pieces that cannot all be right, the least believed first:
 /// the parts of a whole and the evidence that says no about it, the
-/// evidence for and against one piece, and the pieces of an `Exclude`
-/// that are each believed.
+/// and the evidence for and against one piece.
 // mitra: implements model::conflicts
 pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
     let model = &settled(model, &judged(model));
@@ -775,18 +786,6 @@ pub fn conflicts(model: &Model) -> Vec<Vec<Piece>> {
         if projected(prior(model, &e.piece, &mut walk), model.settings.weight) > 0.0 {
             let group = suspects(model, relation, e, &mut walk);
             out.push(ordered(model, group));
-        }
-    }
-    for said in model
-        .related
-        .iter()
-        .filter(|said| said.content.how == Relation::Exclude)
-    {
-        let r = &said.content;
-        if projected(read(model, &said.piece), model.settings.weight) > 0.0
-            && r.pieces.iter().all(|p| read(model, p).r > 0.0)
-        {
-            out.push(ordered(model, r.pieces.clone()));
         }
     }
     let mut seen = BTreeSet::new();

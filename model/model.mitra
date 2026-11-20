@@ -268,6 +268,7 @@ subject model {
     require word = evidence::word_as_far_as_its_voice;
 
     ensure only_from_the_model = "The opinion of a piece comes from the evidence about it and from the pieces it is related to, and from nothing else: with neither it is its base rate. The base rate of a piece that is not a whole is never moved; a whole has the base rate of its parts together.";
+    ensure two_relations = "Pieces stand to each other in two ways and no other. About: a piece of evidence and the piece it speaks of; each piece of evidence implies it, and one written by hand is not read. All: a whole and its parts; each tie implies one, and others are written.";
     ensure relation_is_said = "A relation between pieces is itself said: a statement whose content is the relation. What is computed on a relation counts as far as that statement is believed; a relation believed at 1 is plain structure, and one believed at 0 relates nothing.";
     // After Jøsang and McAnally, 2004, "Multiplication and Comultiplication
     // of Beliefs": the product of two independent opinions as one opinion.
@@ -303,17 +304,15 @@ subject model {
     ensure conflict_is_said = "Pieces that cannot all be right are reported, the least believed first, and none of them is chosen silently: the parts of a whole with the evidence that says no about it, and the evidence for and against one piece.";
 
     // How pieces stand to each other, named after what is computed.
-    // One relation can hold many pieces. The other relation of the core
-    // is `about`, from a piece of evidence to the piece it speaks of:
-    // it is the field of `Evidence`, and its computation is to discount
-    // and to fuse.
     enum Relation {
-        // The first is all of the others together. Named after what is
-        // computed on it: belief goes up as a product, a yes about the
-        // whole flows down to each part, a no is shared between them.
+        // The first is all of the others together: belief goes up as a
+        // product, a yes about the whole flows down to each part, a no
+        // is shared between them. Implied by each tie, or written.
         All,
-        // They cannot all be right.
-        Exclude
+        // The first is evidence about the second: what it says counts
+        // as far as it is believed, and is fused with what else is said
+        // of that piece. Implied by each piece of evidence.
+        About
     }
     record Related {
         how: Relation,
@@ -346,6 +345,8 @@ subject model {
         settings: Settings,
     }
 
+    // The relation a piece of evidence implies.
+    fn about(e: evidence::Evidence) -> Related { Related(About, [e.piece, e.about]) }
     // The model with the relation of each tie written out: its whole is
     // all of the tie and its statements. That relation is structure.
     fn written(model: Model) -> Model;
@@ -398,6 +399,9 @@ subject model {
     }
     claim nothing_said_is_no_conflict() {
         model::conflicts(Model([], [], [], [], Settings(0.2, 0.0, 0.0, 0.0, 0.6, 1.0))) == []
+    }
+    claim evidence_implies_about(e: evidence::Evidence) {
+        about(e).how == About && about(e).pieces == [e.piece, e.about]
     }
 }
 
@@ -573,5 +577,10 @@ subject tests {
             && model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::yes(), Voice("me"))], [], [(Piece("written"), 0.25)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.5, 0.9, 0.7, 0.6, 0.8)), Piece("complete: applies")) == 0.6
             && model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::yes(), Voice("me"))], [], [(Piece("written"), 0.25)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.5, 0.9, 0.7, 0.6, 0.8)), Piece("reliable: me")) == 0.8
             && model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::yes(), Voice("me"))], [], [(Piece("written"), 0.25)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.5, 0.9, 0.7, 0.6, 0.8)), Piece("written")) == 0.25
+    }
+
+    // two_relations
+    claim a_written_about_is_not_read() {
+        model::opinion(Model([Evidence(Piece("t"), Piece("c"), piece::yes(), Voice("a"))], [], [(Piece("t"), 0.5), (Piece("u"), 1.0), (Piece("by hand"), 1.0)], [], Settings(0.2, 0.0, 0.0, 0.0, 0.6, 1.0)), Piece("c")) == model::opinion(Model([Evidence(Piece("t"), Piece("c"), piece::yes(), Voice("a"))], [Statement(Piece("by hand"), Related(About, [Piece("u"), Piece("c")]))], [(Piece("t"), 0.5), (Piece("u"), 1.0), (Piece("by hand"), 1.0)], [], Settings(0.2, 0.0, 0.0, 0.0, 0.6, 1.0)), Piece("c"))
     }
 }
