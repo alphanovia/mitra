@@ -94,3 +94,34 @@ of piece.** Sceptical about the system, trusting about evidence.
 
 Kinds of piece and settings are a later layer; today a model carries
 its base rates as given.
+
+## Increment 93: three subjects in `piece.mitra` (2026-11-20)
+
+**Asked.** "you need to split the subjects in it, because model and
+evidence have there own rational for existing, so they shouldn't be
+attached to the same ensure as piece." One file, three subjects, each
+with its own promises, and a `require` where one needs another:
+
+- `piece`: `everything_is_a_piece`, `opinion_is_four_numbers`,
+  `trusted_is_the_policy`. Holds `Piece`, `Opinion`, and what reads
+  one opinion alone (`projected`, `reaches`, `against`).
+- `evidence` (requires `piece`): `evidence_is_a_piece`,
+  `said_as_far_as_believed`, `same_voice_counts_once`,
+  `disagreement_is_measured`. Holds `Voice`, `Evidence`, `apart`,
+  `moved`, `fuse`, `conflict`.
+- `model` (requires three promises of `evidence`):
+  `only_from_the_model`, `rests_is_all`, `conflict_is_said`. Holds
+  `Relation`, `Related`, `Model`, `base`, `opinion`, `trusted`,
+  `conflicts`, `all`.
+
+The code follows: `src/piece.rs`, `src/piece/evidence.rs`,
+`src/piece/model.rs`. The seam now requires
+`evidence::evidence_is_a_piece`, since what it makes is evidence.
+
+**Decisions taken alone.** 571. Each function sits with the promise
+it serves: `moved` and `fuse` with evidence, `all` with the model,
+`reaches` with the piece. 572. Two promises are new,
+`opinion_is_four_numbers` and `disagreement_is_measured`, since the
+split left `Opinion` and `conflict` with no promise of their own.
+573. Four small claims are new, one per promise that had none in its
+subject.

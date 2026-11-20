@@ -1,14 +1,15 @@
-//! Pieces, opinions, evidence (`model/piece.mitra`).
+//! The side of trust (`model/piece.mitra`), three subjects from the
+//! inside:
 //!
-//! A piece is one thing said about a system, which can be right or
-//! wrong. An opinion is what is believed of a piece. Evidence is a
-//! piece that says an opinion about another piece.
+//! - here, `piece`: something said, right or wrong, and the opinion of it;
+//! - [`evidence`]: a piece that says an opinion about another piece;
+//! - [`model`]: all the pieces put together.
 
-mod calculus;
-mod model;
+pub mod evidence;
+pub mod model;
 
-pub use calculus::{against, all, conflict, fuse, moved, no, nothing, projected, reaches, yes};
-pub use model::{base, conflicts, opinion, trusted};
+pub use evidence::{apart, conflict, fuse, moved, Evidence, Voice};
+pub use model::{all, base, conflicts, opinion, trusted, Model, Related, Relation};
 
 /// Something said, right or wrong. Known by its name only.
 // mitra: implements piece::Piece
@@ -37,67 +38,51 @@ pub struct Opinion {
     pub a: f64,
 }
 
-/// Who says it.
-// mitra: implements piece::Voice
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Voice {
-    pub name: String,
-}
-
-impl Voice {
-    pub fn named(name: &str) -> Voice {
-        Voice {
-            name: name.to_string(),
-        }
+/// No evidence: the base rate alone.
+// mitra: implements piece::nothing
+pub fn nothing(a: f64) -> Opinion {
+    Opinion {
+        b: 0.0,
+        d: 0.0,
+        u: 1.0,
+        a,
     }
 }
 
-/// A piece that says `value` about the piece `about`. `by` is its voice.
-// mitra: implements piece::Evidence
-#[derive(Clone, Debug, PartialEq)]
-pub struct Evidence {
-    pub piece: Piece,
-    pub about: Piece,
-    pub value: Opinion,
-    pub by: Voice,
-}
-
-/// How pieces stand to each other.
-// mitra: implements piece::Relation
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Relation {
-    /// The first holds when all the others do.
-    RestsOn,
-    /// They cannot all be right.
-    Exclude,
-}
-
-// mitra: implements piece::Related
-#[derive(Clone, Debug, PartialEq)]
-pub struct Related {
-    pub how: Relation,
-    pub pieces: Vec<Piece>,
-}
-
-/// A model: all that is said of a system, put together. Its pieces
-/// are known by the evidence about them, the relations between them
-/// (one relation can hold many pieces) and the base rate of each piece
-/// that has one. A piece with none has 0: nothing is assumed.
-// mitra: implements piece::Model
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Model {
-    pub evidence: Vec<Evidence>,
-    pub related: Vec<Related>,
-    pub base: Vec<(Piece, f64)>,
-}
-
-/// How independent two voices are, from 0 (one voice) to 1.
-///
-/// Only the two ends for now: a voice is its name, not read further.
-// mitra: implements piece::apart
-pub fn apart(a: &Voice, b: &Voice) -> f64 {
-    match a == b {
-        true => 0.0,
-        false => 1.0,
+// mitra: implements piece::yes
+pub fn yes() -> Opinion {
+    Opinion {
+        b: 1.0,
+        d: 0.0,
+        u: 0.0,
+        a: 1.0,
     }
+}
+
+// mitra: implements piece::no
+pub fn no() -> Opinion {
+    Opinion {
+        b: 0.0,
+        d: 1.0,
+        u: 0.0,
+        a: 0.0,
+    }
+}
+
+/// The number an opinion reads as.
+// mitra: implements piece::projected
+pub fn projected(o: Opinion) -> f64 {
+    o.b + o.a * o.u
+}
+
+/// Believed enough for the policy, and never with no belief at all.
+// mitra: implements piece::reaches
+pub fn reaches(o: Opinion, policy: f64) -> bool {
+    o.b > 0.0 && projected(o) >= policy
+}
+
+/// The evidence against is at least as strong as the evidence for.
+// mitra: implements piece::against
+pub fn against(o: Opinion) -> bool {
+    o.d > 0.0 && o.d >= o.b
 }

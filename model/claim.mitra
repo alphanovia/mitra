@@ -16,7 +16,7 @@
 import std::core::{Option};
 
 subject claims {
-    require believed = piece::moved_only_by_evidence;
+    require believed = evidence::evidence_is_a_piece;
     require computed = value::one_value;
 
     ensure claim_is_a_piece = "A claim is a piece whose statement is an expression that gives a truth; anything else is not a claim.";
@@ -33,7 +33,7 @@ subject claims {
         uses value::check;
 
     // What computing the statement at these inputs says of the claim.
-    fn observe(c: Claim, inputs: List<(String, value::Value)>, by: piece::Voice) -> Option<piece::Evidence>
+    fn observe(c: Claim, inputs: List<(String, value::Value)>, by: evidence::Voice) -> Option<evidence::Evidence>
         uses only value::eval, piece::yes, piece::no;
 
     // claim_is_a_piece

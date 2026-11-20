@@ -11,11 +11,13 @@ the yardstick.
 
 ## Layer 1: the two sides and the seam
 
-| Model | Code | What it is | Reads |
+| Model | Subjects | Code | Reads |
 |---|---|---|---|
-| `model/piece.mitra` | `src/piece.rs`, `src/piece/` | something said, what is believed of it, the evidence that moves that belief | nothing |
-| `model/value.mitra` | `src/value.rs` | what is computed, its type, the expression that computes it | nothing |
-| `model/claim.mitra` | `src/claim.rs` | a piece with a statement; computing the statement makes evidence | both |
+| `model/piece.mitra` | `piece`: something said and the opinion of it | `src/piece.rs` | nothing |
+| | `evidence`: a piece that says an opinion about another piece | `src/piece/evidence.rs` | `piece` |
+| | `model`: all the pieces put together | `src/piece/model.rs` | `evidence` |
+| `model/value.mitra` | `value`: what is computed, its type, its expression | `src/value.rs` | nothing |
+| `model/claim.mitra` | `claims`: a piece with a statement; computing it makes evidence | `src/claim.rs` | both sides |
 
 The two sides never read each other, and a value never depends on a
 piece: `tests/wall.rs` reads the sources and says so.
@@ -29,7 +31,7 @@ code is tied to them by hand.
 ## To test
 
 ```sh
-cargo test                # 39 tests
+cargo test                # 43 tests
 mitra conform             # with main's binary, from this folder
 ```
 
@@ -39,10 +41,11 @@ mitra conform             # with main's binary, from this folder
   the calculus (case 7 needs settings, case 6 a report).
 - `tests/wall.rs`: the wall, and no disk.
 
-`mitra conform` says 35 ties agree and 2 differ. Both differences
+`mitra conform` says 36 ties agree and 2 differ. Both differences
 look like faults of `main`'s reader of Rust and are left as they are:
-it does not see `apart` called from `opinion` through two helpers, and
-it compares `Vec<Related>` with the model's `List<Related>` wrongly.
+it compares `Vec<Related>` with the model's `List<Related>` wrongly,
+and it asks for a `uses` on `moved`, whose body in the model already
+calls `piece::projected`.
 
 See [docs/review.md](docs/review.md) for what was decided alone and
 what is open.

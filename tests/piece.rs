@@ -28,7 +28,7 @@ fn base_of(rates: &[(&str, f64)]) -> Vec<(Piece, f64)> {
 
 // The claims of the model, one test each.
 
-// mitra: evidence for piece::base_rate_survives
+// mitra: evidence for model::base_rate_survives
 #[test]
 fn base_rate_survives() {
     let model = Model {
@@ -48,7 +48,7 @@ fn no_evidence_is_the_base_rate() {
     assert_eq!(projected(nothing(0.5)), 0.5);
 }
 
-// mitra: evidence for piece::review_lifts_a_test
+// mitra: evidence for evidence::review_lifts_a_test
 #[test]
 fn review_lifts_a_test() {
     assert_eq!(
@@ -57,14 +57,14 @@ fn review_lifts_a_test() {
     );
 }
 
-// mitra: evidence for piece::believed_at_zero_moves_nothing
+// mitra: evidence for evidence::believed_at_zero_moves_nothing
 #[test]
 fn believed_at_zero_moves_nothing() {
     assert_eq!(moved(nothing(0.0), yes()), op(0.0, 0.0, 1.0, 1.0));
     assert_eq!(moved(nothing(0.0), no()), op(0.0, 0.0, 1.0, 0.0));
 }
 
-// mitra: evidence for piece::not_knowing_is_no_review
+// mitra: evidence for evidence::not_knowing_is_no_review
 #[test]
 fn not_knowing_is_no_review() {
     assert_eq!(
@@ -73,7 +73,7 @@ fn not_knowing_is_no_review() {
     );
 }
 
-// mitra: evidence for piece::wrong_is_disbelief
+// mitra: evidence for evidence::wrong_is_disbelief
 #[test]
 fn wrong_is_disbelief() {
     assert_eq!(
@@ -82,21 +82,21 @@ fn wrong_is_disbelief() {
     );
 }
 
-// mitra: evidence for piece::one_voice_twice_is_once
+// mitra: evidence for evidence::one_voice_twice_is_once
 #[test]
 fn one_voice_twice_is_once() {
     let half = op(0.5, 0.0, 0.5, 0.0);
     assert_eq!(fuse(half, half, 0.0), half);
 }
 
-// mitra: evidence for piece::two_voices_add_up
+// mitra: evidence for evidence::two_voices_add_up
 #[test]
 fn two_voices_add_up() {
     let half = op(0.5, 0.0, 0.5, 0.0);
     assert!(fuse(half, half, 1.0).b > 0.5);
 }
 
-// mitra: evidence for piece::two_sure_reviews_that_disagree
+// mitra: evidence for evidence::two_sure_reviews_that_disagree
 #[test]
 fn two_sure_reviews_that_disagree() {
     let (for_it, against_it) = (op(1.0, 0.0, 0.0, 0.5), op(0.0, 1.0, 0.0, 0.5));
@@ -104,14 +104,14 @@ fn two_sure_reviews_that_disagree() {
     assert_eq!(conflict(for_it, against_it), 1.0);
 }
 
-// mitra: evidence for piece::two_halves_are_a_quarter
+// mitra: evidence for model::two_halves_are_a_quarter
 #[test]
 fn two_halves_are_a_quarter() {
     let half = op(0.5, 0.0, 0.5, 0.0);
     assert_eq!(all(half, half).b, 0.25);
 }
 
-// mitra: evidence for piece::one_sure_part_changes_nothing
+// mitra: evidence for model::one_sure_part_changes_nothing
 #[test]
 fn one_sure_part_changes_nothing() {
     assert_eq!(all(op(1.0, 0.0, 0.0, 0.0), op(0.5, 0.0, 0.5, 0.0)).b, 0.5);
@@ -124,7 +124,32 @@ fn policy_zero_still_needs_belief() {
     assert!(reaches(op(0.5, 0.0, 0.5, 0.0), 0.0));
 }
 
-// mitra: evidence for piece::one_failing_test_is_against
+// mitra: evidence for piece::sure_is_sure
+#[test]
+fn sure_is_sure() {
+    assert_eq!((projected(yes()), projected(no())), (1.0, 0.0));
+}
+
+// mitra: evidence for piece::as_much_against_as_for_is_against
+#[test]
+fn as_much_against_as_for_is_against() {
+    assert!(against(op(0.5, 0.5, 0.0, 0.0)));
+    assert!(!against(op(0.5, 0.25, 0.25, 0.0)) && !against(nothing(0.0)));
+}
+
+// mitra: evidence for model::an_empty_model_believes_nothing
+#[test]
+fn an_empty_model_believes_nothing() {
+    assert_eq!(opinion(&Model::default(), &Piece::named("x")), nothing(0.0));
+}
+
+// mitra: evidence for model::nothing_said_is_no_conflict
+#[test]
+fn nothing_said_is_no_conflict() {
+    assert!(conflicts(&Model::default()).is_empty());
+}
+
+// mitra: evidence for evidence::one_failing_test_is_against
 #[test]
 fn one_failing_test_is_against() {
     assert!(against(moved(nothing(0.5), no())));
