@@ -107,10 +107,15 @@ fn without_uniform_nothing_leads_to_the_claim() {
     assert_eq!(opinion(&m, &c.piece).r, 0.0);
     let uniform = Piece::named("c::uniform");
     let with = recorded(&Model::empty(S), &c, seen.clone(), None, Some(&uniform)).unwrap();
+    // With it, the same observation is also evidence about the claim,
+    // believed as far as the observation and `uniform` both are.
+    let stands = &with.evidence[0];
+    assert_eq!((&stands.about, stands.value), (&c.piece, seen.value));
     assert_eq!(
         with.related[0].content.pieces,
-        [c.piece.clone(), seen.about.clone(), uniform]
+        [stands.piece.clone(), seen.piece.clone(), uniform]
     );
+    assert_eq!(with.evidence[1], seen);
 }
 
 /// Across the seam, end to end: a value is computed, it becomes

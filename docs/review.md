@@ -971,3 +971,37 @@ the fall the stone no longer holds `speed` up against the feather
      unwanted reading, with no claim in the model.
 726. `mitra conform`: 115 ties agree, 21 differ, the same reader
      limits.
+
+## Increment 119: uniform as a discount (2026-11-20)
+
+**Asked.** "Ok try it": evidence about `c@x` counts as evidence
+about `c`, discounted by belief in `uniform`, as reliability does for
+a voice. Rerun double and the fall.
+
+**Done.** `claims::recorded`: with `uniform`, each observation is
+also evidence about the claim. The relation "the claim is all of its
+instances and `uniform`" is gone. Promise `uniform_discounts` in
+`model/claim.mitra`. 152 tests.
+
+**Found.** More passing tests read higher (0.90, 0.97), and the fall
+reads as it did before the instance rule (0.96 with the feather's tie
+at 0.27). A counterexample does not refute: 0.80 and 0.94.
+
+**Decided alone.**
+
+727. The discount is built with what the model has: the evidence
+     about the claim is a piece that is all of [the observation,
+     `uniform`], so it is believed as far as both. One derived piece
+     per observation, named "`observation` for `claim`". To confirm.
+728. "Counts as evidence about `c`" is read as the observation's own
+     yes or no, not the opinion of the instance: a static piece of
+     evidence cannot carry an opinion that moves.
+729. The evidence about the claim goes through the tie like the
+     instance does: all of [the tie, the claim, its completeness]. So
+     a no is shared with the tie. Reaching the claim directly was
+     measured and not kept: 0.51 and 0.80 after the run at 7, and
+     `speed` at 0.60 after the feather.
+730. A no is discounted by `uniform` like a yes, as asked. One could
+     argue a counterexample needs no hypothesis to count against the
+     claim. Not built.
+

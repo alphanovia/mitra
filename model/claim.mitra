@@ -30,7 +30,9 @@ subject claims {
     // claim on every input. Departs: the hypothesis is a piece,
     // believed more or less, where the paper assumes it; and it is
     // given by who records, with nothing here saying what it covers.
-    ensure general_is_all_observed = "Nothing leads from a claim at one input to the claim itself, unless who records gives one more piece, uniform: the inputs observed stand for all inputs. Then the claim is all of its observed instances and uniform together: one instance refuted refutes it, and it is believed only as far as every one of them.";
+    // The discount is that of a voice's reliability: Jøsang, 2016,
+    // "Subjective Logic", trust discounting.
+    ensure uniform_discounts = "Nothing leads from a claim at one input to the claim itself, unless who records gives one more piece, uniform: the inputs observed stand for all inputs. Then each observation is also evidence about the claim itself, a yes as a yes and a no as a no, counted as far as the observation and uniform are both believed: uniform is to an observation what reliability is to a voice. It reaches the claim through the tie like the instance does.";
     ensure one_way = "Evidence is made from a value; no value is made from evidence or from an opinion.";
 
     // What a claim says. A claim is a statement with this content.
@@ -57,9 +59,9 @@ subject claims {
 
     // The model with an observation of the claim in it. `e` is
     // evidence about an instance of `s`. With a tie, it is recorded
-    // through it; with `uniform`, the claim is all of its observed
-    // instances and that piece. `None` when the tie does not list the
-    // claim.
+    // through it; with `uniform`, it is also evidence about the claim
+    // itself, discounted by that piece. `None` when the tie does not
+    // list the claim.
     fn recorded(model: model::Model, s: statement::Statement<Claim>, e: evidence::Evidence, at: Option<tie::Tie>, uniform: Option<piece::Piece>) -> Option<model::Model>;
 
     // What always holds.

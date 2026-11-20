@@ -846,11 +846,12 @@ and a feather are each tied to it. A measurement is a height and a
 speed; `claims::observe` computes the claim on it and gives evidence
 about the claim at that height and speed, and `claims::recorded` puts
 it in the model through the object's tie: the evidence is about the
-tie, that instance and the tie's completeness together. `speed`
-itself is all of its observed instances and `speed::uniform`, which
-one review says yes to. The settings say a statement and a tie start
-at one half, a measurement at 0.9, a completeness at 0.6, and no voice
-is doubted.
+tie, that instance and the tie's completeness together. With
+`speed::uniform`, which one review says yes to, the same measurement
+is also evidence about `speed` itself through the tie, counted as far
+as `uniform` is believed. The settings say a statement and a tie
+start at one half, a measurement at 0.9, a completeness at 0.6, and
+no voice is doubted.
 
 | measured | says |
 |---|---|
@@ -862,28 +863,18 @@ is doubted.
 
 | after | `speed` | at the stone's 5 m | at the feather's 5 m | stone's tie | its completeness | feather's tie | its completeness |
 |---|---|---|---|---|---|---|---|
-| one fall of the stone | 0.83 | 0.91 | - | 0.91 | 0.93 | - | - |
-| the stone alone | 0.68 | 0.91 | - | 0.97 | 0.97 | - | - |
-| the feather alone | 0.17 | - | 0.43 | - | - | 0.38 | 0.50 |
-| both | 0.13 | 0.91 | 0.43 | 0.97 | 0.97 | 0.38 | 0.50 |
+| one fall of the stone | 0.90 | 0.91 | - | 0.91 | 0.93 | - | - |
+| the stone alone | 0.96 | 0.91 | - | 0.97 | 0.97 | - | - |
+| the feather alone | 0.38 | - | 0.43 | - | - | 0.38 | 0.50 |
+| both | 0.96 | 0.91 | 0.43 | 0.97 | 0.97 | 0.27 | 0.40 |
 
-Each of the stone's measurements believes its own instance, and all
-three believe the stone's tie and its completeness. Each of the
-feather's is shared between its instance (0.43), the feather's tie
-(0.38) and its completeness (0.50).
-
-Two readings are not wanted, and both come from the same place:
-`speed` is a product over its instances.
-
-- More measurements read lower. One fall of the stone reads 0.83,
-  three read 0.68: each instance is believed at 0.91 and the product
-  of three is less than one of them.
-- The stone no longer holds the claim up against the feather. Before
-  this rule the feather after the stone left `speed` at 0.96 and went
-  to the feather's tie (0.27) and its completeness (0.40). Now each
-  instance stands alone, so the claim at the feather's height has no
-  support from the stone and takes its share of the no, and `speed`
-  reads 0.13.
+The stone's measurements believe the claim, more with three than
+with one, and its tie and completeness. The feather's then leave the
+claim where the stone put it and go to the feather's tie (0.27), its
+completeness (0.40) and the claim at the feather's own height (0.43):
+either this is not an object the claim is about, or something is
+missing there, which is the air. The feather alone has nothing to
+hold the claim up, so the claim and the tie share the no (0.38).
 
 ### The same claim read by bounds
 
@@ -914,38 +905,40 @@ function `double(n)` has the body `n * 2` and a tie to its code. A
 statement and a tie start at one half, a test is believed at 0.9, a
 completeness starts at 0.6. `uniform` is reviewed by one voice, one
 yes, believed at 0.9. A test at 3 is evidence about `double::correct`
-at 3, recorded through the tie.
+at 3, recorded through the tie; with `uniform` it is also evidence
+about `double::correct`, counted as far as `uniform` is believed.
 
 | | `double::correct` | its belief | at 3 | at 7 | `double::uniform` | the tie | its completeness |
 |---|---|---|---|---|---|---|---|
 | no `uniform`, a test at 3 | 0.50 | 0.00 | 0.91 | 0.50 | 0.50 | 0.91 | 0.93 |
-| `uniform` not reviewed, a test at 3 | 0.45 | 0.29 | 0.91 | 0.50 | 0.50 | 0.91 | 0.93 |
-| `uniform` reviewed, a test at 3 | 0.83 | 0.78 | 0.91 | 0.50 | 0.91 | 0.91 | 0.93 |
-| then a run at 7 gives 15 | 0.20 | 0.16 | 0.91 | 0.25 | 0.91 | 0.88 | 0.91 |
-| tests at 1, 2, 3 and 4, `uniform` reviewed | 0.62 | 0.62 | 0.91 | 0.50 | 0.91 | 0.97 | 0.98 |
-| then a run at 7 gives 15 | 0.12 | 0.11 | 0.91 | 0.19 | 0.91 | 0.97 | 0.98 |
+| `uniform` not reviewed, a test at 3 | 0.85 | 0.69 | 0.91 | 0.50 | 0.50 | 0.91 | 0.93 |
+| `uniform` reviewed, a test at 3 | 0.90 | 0.80 | 0.91 | 0.50 | 0.91 | 0.91 | 0.93 |
+| then a run at 7 gives 15 | 0.80 | 0.71 | 0.91 | 0.25 | 0.91 | 0.82 | 0.85 |
+| tests at 1, 2, 3 and 4, `uniform` reviewed | 0.97 | 0.94 | 0.91 | 0.50 | 0.91 | 0.97 | 0.98 |
+| then a run at 7 gives 15 | 0.94 | 0.91 | 0.91 | 0.19 | 0.91 | 0.95 | 0.96 |
 
-cannot all be right, least believed first: `double::correct` at 7, the run at 7, double::tie, complete: double::tie
+cannot all be right, least believed first: the run at 7 counted for `double::correct`, double::correct, double::tie, complete: double::tie
+cannot all be right, least believed first: `double::correct` at 7, double::tie, the run at 7, complete: double::tie
+cannot all be right, least believed first: the run at 7 counted for `double::correct`, the run at 3 counted for `double::correct`
 
-`double::correct` after the run at 7: 0.09 yes, 0.28 no, base rate 0.12
+`double::correct` after the run at 7: 0.82 yes, 0.13 no, base rate 0.50
 
 Without `uniform`, a passing test believes `double::correct` at 3 and
 nothing leads from there to `double::correct`: it keeps its base rate
-with no belief at all. With `uniform`, `double::correct` is all of
-its tested instances and `uniform`.
+with no belief at all. With `uniform`, more passing tests believe it
+more: 0.90 after one, 0.97 after four.
 
-A run at 7 that gives 15 says no about the tie, `double::correct` at
-7 and the tie's completeness together. The instance is new, so most
-of the no lands on it (0.25, and 0.19 once four tests hold the tie
-up), and `double::correct` reads 0.20, then 0.12. Before this rule it
-read 0.46 and 0.67 after the same runs.
+Three readings to judge:
 
-What this rule costs:
-
-- Four passing tests read lower than one: 0.62 against 0.83. Each
-  test adds an instance at 0.91 to the product.
-- `uniform` is never blamed. The failing test speaks of the instance
-  at 7 and of the tie, not of `uniform`, which stays at 0.91.
-- The tie no longer lists what was seen. It lists `double::correct`
-  and `double::deterministic`, and a test does not speak of the tie's
-  own whole.
+- A counterexample does not refute. After the run at 7,
+  `double::correct` reads 0.80, and 0.94 with four passing tests. The
+  no is one count, shared with the tie and its completeness, against
+  the yes of the passing tests: the claim is counted like a
+  frequency, not like "on every input". The three forms tried so far
+  read, after one pass and one failure, then four passes and one
+  failure: 0.46 and 0.67 (what was seen), 0.20 and 0.12 (all of the
+  instances), 0.80 and 0.94 (this one).
+- `uniform` barely matters at this weight. Not reviewed, it halves
+  the count of a test, and with a weight of 0.2 the claim still reads
+  0.85 against 0.90 reviewed.
+- `uniform` is not blamed by a failing run: it stays at 0.91.

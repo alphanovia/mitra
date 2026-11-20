@@ -152,15 +152,11 @@ fn a_measurement_is_about_an_instance() {
     );
 }
 
-/// Three measurements of the stone: each instance, the tie and its
-/// completeness are believed.
-///
-/// FINDING, recorded and not wanted: the claim itself is all of three
-/// instances and `uniform`, a product, so it reads 0.68 with `uniform`
-/// reviewed where one measurement reads 0.83, and 0.38 with `uniform`
-/// not reviewed.
+/// Three measurements of the stone: each instance, the tie, its
+/// completeness and the claim are believed, and three measurements
+/// believe the claim more than one.
 #[test]
-fn the_stone_believes_each_instance() {
+fn the_stone_believes_the_speed() {
     let m = after(&STONE);
     for x in ["stone applies", "complete: stone applies"] {
         assert!(read(&m, x) > 0.95, "{x}: {}", read(&m, x));
@@ -169,27 +165,23 @@ fn the_stone_believes_each_instance() {
         let here = instance(&speed(), &at(h, v));
         assert!(near(read(&m, &here.name), 0.91));
     }
-    assert!(near(read(&m, "speed"), 0.38));
-    assert!(near(read(&after_with(&STONE, true), "speed"), 0.68));
-    assert!(near(read(&after_with(&STONE[..1], true), "speed"), 0.83));
+    assert!(near(read(&m, "speed"), 0.94));
+    assert!(near(read(&after_with(&STONE, true), "speed"), 0.96));
+    assert!(near(read(&after_with(&STONE[..1], true), "speed"), 0.90));
 }
 
-/// The feather after the stone. Each no is shared between the claim at
-/// that height and speed, the feather's tie and its completeness. The
-/// stone's tie stands.
-///
-/// FINDING: the claim reads 0.13 with `uniform` reviewed. The stone's
-/// instances no longer hold up the claim at the feather's, so the
-/// feather refutes the claim more than it doubts its own tie.
+/// The feather after the stone: the claim stands through the stone,
+/// and the no goes to the feather's tie, to its completeness and to
+/// the claim at the feather's height and speed.
 #[test]
-fn the_feather_refutes_the_speed() {
+fn the_feather_is_blamed_on_its_tie_and_its_completeness() {
     let mut all = STONE.to_vec();
     all.extend(FEATHER);
     let m = after_with(&all, true);
-    assert!(near(read(&m, "speed"), 0.13));
+    assert!(near(read(&m, "speed"), 0.96));
     assert!(read(&m, "stone applies") > 0.95);
-    assert!(near(read(&m, "feather applies"), 0.38));
-    assert!(near(read(&m, "complete: feather applies"), 0.50));
+    assert!(near(read(&m, "feather applies"), 0.27));
+    assert!(near(read(&m, "complete: feather applies"), 0.40));
     let here = instance(&speed(), &at(500, 200));
     assert!(near(read(&m, &here.name), 0.43));
     assert!(near(read(&m, "speed::uniform"), 0.91));
@@ -197,14 +189,14 @@ fn the_feather_refutes_the_speed() {
     assert!(suspects
         .iter()
         .any(|group| group.contains(&Piece::named("feather applies"))));
-    assert!(!suspects.iter().any(|group| group.contains(&uniform())));
 }
 
-/// The feather alone: the claim reads lower still.
+/// The feather alone: nothing holds the claim up, and it takes its
+/// share with the tie.
 #[test]
-fn the_feather_alone_refutes_the_speed() {
+fn the_feather_alone_doubts_the_speed() {
     let m = after_with(&FEATHER, true);
-    assert!(near(read(&m, "speed"), 0.17));
+    assert!(near(read(&m, "speed"), 0.38));
     assert!(near(read(&m, "feather applies"), 0.38));
 }
 

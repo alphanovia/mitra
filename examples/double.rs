@@ -115,12 +115,23 @@ fn main() {
         );
     }
     println!();
-    for at in [3, 5] {
+    for at in [3] {
         for group in conflicts(&rows[at].1) {
-            let short = |p: &Piece| match p.name.as_str() {
-                "double::correct @ n = Whole(7)" => "`double::correct` at 7".to_string(),
-                name if name.contains(" by ") => "the run at 7".to_string(),
-                name => name.to_string(),
+            let short = |p: &Piece| {
+                let run = p.name.split(" test at ").nth(1).map(|rest| {
+                    let n = rest.split(' ').next().unwrap_or("");
+                    match p.name.contains(" for ") {
+                        true => format!("the run at {n} counted for `double::correct`"),
+                        false => format!("the run at {n}"),
+                    }
+                });
+                match (run, p.name.as_str()) {
+                    (Some(run), _) => run,
+                    (None, "double::correct @ n = Whole(7)") => {
+                        "`double::correct` at 7".to_string()
+                    }
+                    (None, name) => name.to_string(),
+                }
             };
             let names: Vec<String> = group.iter().map(short).collect();
             println!(

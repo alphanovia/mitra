@@ -103,9 +103,10 @@ pub fn bounded(
 ///   completeness, all together. So a no is shared between them.
 ///   Nothing for a tie that does not list the claim.
 /// - With no tie, the evidence is about the instance alone.
-/// - With `uniform`, the claim is all of its observed instances and
-///   that piece. Without it nothing leads from an instance to the
-///   claim.
+/// - With `uniform`, the observation is also evidence about the claim
+///   itself, through the tie in the same way. That evidence is
+///   believed as far as the observation and `uniform` both are.
+///   Without it nothing leads from an instance to the claim.
 // mitra: implements claims::recorded
 pub fn recorded(
     model: &Model,
@@ -129,40 +130,40 @@ pub fn recorded(
         out.base.push((name, 1.0));
     };
     let the_instance = e.about.clone();
-    if let Some(hypothesis) = uniform {
-        let name = format!("all: {}", s.piece.name);
-        match out.related.iter_mut().find(|said| said.piece.name == name) {
-            Some(said) if said.content.pieces.contains(&the_instance) => {}
-            Some(said) => {
-                let last = said.content.pieces.len() - 1;
-                said.content.pieces.insert(last, the_instance.clone());
-            }
-            None => structure(
-                &mut out,
-                &s.piece,
-                vec![the_instance.clone(), hypothesis.clone()],
-            ),
-        }
-    }
-    match at {
-        None => out.evidence.push(e),
+    let through = |out: &mut Model, x: &Piece| match at {
+        None => x.clone(),
         Some(t) => {
-            if !t.statements.contains(&s.piece) {
-                return None;
-            }
-            if !out.ties.contains(t) {
-                out.ties.push(t.clone());
-            }
-            let whole = Piece::named(&format!("{} at {}", the_instance.name, t.piece.name));
+            let whole = Piece::named(&format!("{} at {}", x.name, t.piece.name));
             if !out
                 .related
                 .iter()
                 .any(|said| said.content.pieces[0] == whole)
             {
-                structure(&mut out, &whole, vec![t.piece.clone(), the_instance]);
+                structure(out, &whole, vec![t.piece.clone(), x.clone()]);
             }
-            out.evidence.push(Evidence { about: whole, ..e });
+            whole
+        }
+    };
+    if let Some(t) = at {
+        if !t.statements.contains(&s.piece) {
+            return None;
+        }
+        if !out.ties.contains(t) {
+            out.ties.push(t.clone());
         }
     }
+    if let Some(hypothesis) = uniform {
+        let stands = Piece::named(&format!("{} for {}", e.piece.name, s.piece.name));
+        structure(&mut out, &stands, vec![e.piece.clone(), hypothesis.clone()]);
+        let about = through(&mut out, &s.piece);
+        out.evidence.push(Evidence {
+            piece: stands,
+            about,
+            value: e.value,
+            by: e.by.clone(),
+        });
+    }
+    let about = through(&mut out, &the_instance);
+    out.evidence.push(Evidence { about, ..e });
     Some(out)
 }

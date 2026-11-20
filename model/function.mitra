@@ -11,7 +11,7 @@ subject functions {
     require stated = claims::claim_is_a_truth;
     require observed = claims::observed_is_evidence;
     require through = claims::recorded_through_the_tie;
-    require general = claims::general_is_all_observed;
+    require general = claims::uniform_discounts;
     require tied = tie::a_tie_has_a_whole;
     require applied = Applies::applied_alone;
     require equal = standard::applied_as_written;
@@ -21,11 +21,11 @@ subject functions {
     ensure body_is_the_spec = "The body of a function is what it should give, as an expression of its inputs. It implies one statement, correct: on every input, the code gives what the body gives. A function with no body has no such statement.";
     // The uniformity hypothesis of Gaudel, 1995: see
     // claims::general_is_all_observed.
-    ensure uniform_is_asked_for = "A test at one input says nothing of the others by itself. A function may ask for one more statement, uniform: the inputs tested stand for all inputs. Then correct is all of its tested instances and uniform together. Without it nothing leads from a test to correct.";
+    ensure uniform_is_asked_for = "A test at one input says nothing of the others by itself. A function may ask for one more statement, uniform: the inputs tested stand for all inputs. Then each test is also evidence about correct itself, counted as far as uniform is believed. Without it nothing leads from a test to correct.";
     ensure claims_are_scoped = "Another statement about a function is named after it, and reads the function's inputs, with their types, and nothing else.";
     ensure untied_is_owed = "A function with no place for its code has no tie. It is reported as untied: owed work, not an error. A test of it is still evidence about correct at that input.";
     ensure a_helper_is_a_definition = "A helper is an operation with a body and nothing else: it is applied by computing its body, it has no tie, and nothing is believed of it.";
-    ensure a_test_is_a_measurement = "A test is one run of the code, read against the body: an observation of correct at the inputs of the run, yes where the run gave what the body gives and no where it did not. It is recorded through the function's tie, so a no is shared between correct at that input, the tie and its completeness.";
+    ensure a_test_is_a_measurement = "A test is one run of the code, read against the body: an observation of correct at the inputs of the run, yes where the run gave what the body gives and no where it did not. It is recorded through the function's tie, so a no is shared between correct at that input, the tie and its completeness; with uniform it is also a no about correct, shared the same way.";
 
     record Function {
         operation: value::Operation,
@@ -131,8 +131,14 @@ subject tests {
             Some(after) => f.uniform || f.at != None || after.related == m.related,
         }
     }
+    claim more_tests_read_higher(f: functions::Function, m: model::Model, test: evidence::Evidence) {
+        match functions::noted(m, f, test) {
+            None => true,
+            Some(after) => !f.uniform || after.evidence != m.evidence,
+        }
+    }
     // a_test_is_a_measurement
-    claim a_bug_refutes_correct(f: functions::Function, m: model::Model, test: evidence::Evidence) {
+    claim a_bug_lowers_correct(f: functions::Function, m: model::Model, test: evidence::Evidence) {
         match functions::noted(m, f, test) {
             None => f.body == None || f.at != None,
             Some(after) => after.evidence != m.evidence,

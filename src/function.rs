@@ -15,7 +15,7 @@ use crate::value::{eval, Applies, Expression, Operation, Value};
 ///
 /// - `body`: what it should give, as an expression of its inputs: the
 ///   spec. It implies the statement `f::correct`.
-/// - `uniform`: the model takes the inputs observed as standing for
+/// - `uniform`: the model takes the inputs tested as standing for
 ///   all: the statement `f::uniform`, asked for and not implied.
 /// - `claims`: other statements about it, named `f::…`, that speak of
 ///   its inputs and of nothing else.
