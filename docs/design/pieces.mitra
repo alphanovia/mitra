@@ -1,0 +1,158 @@
+// The innermost part of Mitra. A draft to read: no code is tied to it
+// and it is not in a store yet.
+//
+// Two levels. Values are what a model computes with: numbers, records,
+// what a function returns. Pieces are what a model is made of: a piece
+// is one thing said about the system, which can be right or wrong. A
+// claim, an ensure, a capture, an assume, a tie and a piece of evidence
+// are pieces. Nobody writes `Piece` in a model: a declaration is one,
+// named by its path. Here it is opaque.
+//
+// Three things, and nothing else:
+//
+//   piece      something said, right or wrong
+//   opinion    what is believed of a piece: (b, d, u, a)
+//   evidence   a piece that says an opinion about another piece
+
+subject pieces {
+    ensure everything_is_a_piece = "Whatever can be right or wrong is a piece and has one opinion; there is no second way to be believed.";
+    ensure evidence_is_a_piece = "A piece of evidence is a piece: it is believed as any other, from the evidence about it, and where there is none at the base rate of its kind or the certainty its author stated.";
+    ensure moved_only_by_evidence = "The opinion of a piece comes from the evidence about it and from the pieces it is related to, and from nothing else: with neither it is no belief, no disbelief, and the base rate of its kind.";
+    ensure said_as_far_as_believed = "What a piece of evidence says counts as far as that evidence is itself believed: evidence believed at 0 moves nothing, on either side.";
+    ensure same_voice_counts_once = "Two pieces of evidence that say the same about one piece add up as far as their voices are independent, and count once when they are one voice.";
+    ensure rests_is_all = "A piece that rests on others is believed no more than all of them together, each counted once however many paths lead to it.";
+    ensure conflict_is_said = "Pieces that cannot all be right and are each believed are reported, the least believed first; none of them is chosen silently.";
+    ensure trusted_is_the_policy = "A piece is trusted when what is believed of it reaches what the policy asks, and never with no belief at all.";
+
+    // Opaque: known by its name only.
+    record Piece;
+
+    // b + d + u == 1. `a` is the base rate: what to expect with no evidence.
+    record Opinion {
+        b: Float64,
+        d: Float64,
+        u: Float64,
+        a: Float64,
+    }
+
+    // Says `value` about `about`. `by` is its voice.
+    record Evidence {
+        about: Piece,
+        value: Opinion,
+        by: String,
+    }
+
+    // How pieces stand to each other.
+    enum Relation {
+        // The first holds when all the others do.
+        RestsOn,
+        // They cannot all be right.
+        Exclude
+    }
+    record Related {
+        how: Relation,
+        pieces: List<Piece>,
+    }
+
+    // Everything known: the pieces of a model and of its ledger.
+    record Known {
+        evidence: List<Evidence>,
+        related: List<Related>,
+        ..
+    }
+
+    // The three elementary operations.
+    fn piece_id(x: Piece) -> String;
+    fn opinion(known: Known, x: Piece) -> Opinion
+        uses moved, fuse, all, apart;
+    fn trusted(known: Known, x: Piece, policy: Float64) -> Bool
+        uses opinion, reaches;
+
+    // A piece of evidence, as the piece it is.
+    fn as_piece(e: Evidence) -> Piece;
+    // How independent two voices are, from 0 (one voice) to 1 (two kinds).
+    fn apart(a: String, b: String) -> Float64;
+
+    // The opinions themselves: plain arithmetic.
+
+    fn nothing(a: Float64) -> Opinion { Opinion(0.0, 0.0, 1.0, a) }
+    fn yes() -> Opinion { Opinion(1.0, 0.0, 0.0, 1.0) }
+    fn no() -> Opinion { Opinion(0.0, 1.0, 0.0, 0.0) }
+
+    // The number shown.
+    fn projected(o: Opinion) -> Float64 { o.b + o.a * o.u }
+
+    // What evidence says, as far as it is believed.
+    fn moved(believed: Opinion, said: Opinion) -> Opinion {
+        Opinion(projected(believed) * said.b, projected(believed) * said.d, 1.0 - projected(believed) * (said.b + said.d), said.a)
+    }
+
+    // Two opinions on one piece, at independence i. At 1 they add up, at 0
+    // they are averaged. Both certain: their average.
+    fn fuse(x: Opinion, y: Opinion, i: Float64) -> Opinion {
+        if x.u == 0.0 && y.u == 0.0 {
+            Opinion((x.b + y.b) / 2.0, (x.d + y.d) / 2.0, 0.0, x.a)
+        } else {
+            Opinion(
+                (x.b * y.u + y.b * x.u) / (x.u + y.u - i * x.u * y.u),
+                (x.d * y.u + y.d * x.u) / (x.u + y.u - i * x.u * y.u),
+                (2.0 - i) * x.u * y.u / (x.u + y.u - i * x.u * y.u),
+                x.a)
+        }
+    }
+
+    // Both of two pieces: believed as the product.
+    fn all(x: Opinion, y: Opinion) -> Opinion {
+        Opinion(x.b * y.b, x.d + y.d - x.d * y.d, 1.0 - x.b * y.b - (x.d + y.d - x.d * y.d), x.a * y.a)
+    }
+
+    fn reaches(o: Opinion, policy: Float64) -> Bool { o.b > 0.0 && projected(o) >= policy }
+    fn against(o: Opinion) -> Bool { o.d > 0.0 && o.d >= o.b }
+    fn conflict(x: Opinion, y: Opinion) -> Float64 { x.b * y.d + x.d * y.b }
+
+    // moved_only_by_evidence: a test nobody reviewed is at its bias.
+    claim no_evidence_is_the_base_rate() { projected(nothing(0.5)) == 0.5 }
+
+    // said_as_far_as_believed: a review "correct, sure at 0.75" of a test
+    // at bias 0.5 makes it 0.875, and the test then gives its claim that much.
+    claim review_lifts_a_test() {
+        projected(fuse(nothing(0.5), moved(nothing(0.75), yes()), 1.0)) == 0.875
+    }
+    claim believed_at_zero_moves_nothing() {
+        moved(nothing(0.0), yes()) == Opinion(0.0, 0.0, 1.0, 1.0) && moved(nothing(0.0), no()) == Opinion(0.0, 0.0, 1.0, 0.0)
+    }
+    claim not_knowing_is_no_review() {
+        projected(fuse(nothing(0.5), moved(nothing(0.0), yes()), 1.0)) == 0.5
+    }
+    claim wrong_is_disbelief() {
+        projected(fuse(nothing(0.5), moved(nothing(1.0), no()), 1.0)) == 0.0
+    }
+
+    // same_voice_counts_once
+    claim one_voice_twice_is_once() {
+        fuse(Opinion(0.5, 0.0, 0.5, 0.0), Opinion(0.5, 0.0, 0.5, 0.0), 0.0) == Opinion(0.5, 0.0, 0.5, 0.0)
+    }
+    claim two_voices_add_up() {
+        fuse(Opinion(0.5, 0.0, 0.5, 0.0), Opinion(0.5, 0.0, 0.5, 0.0), 1.0).b > 0.5
+    }
+    claim two_sure_reviews_that_disagree() {
+        fuse(Opinion(1.0, 0.0, 0.0, 0.5), Opinion(0.0, 1.0, 0.0, 0.5), 1.0) == Opinion(0.5, 0.5, 0.0, 0.5)
+            && conflict(Opinion(1.0, 0.0, 0.0, 0.5), Opinion(0.0, 1.0, 0.0, 0.5)) == 1.0
+    }
+
+    // rests_is_all
+    claim two_halves_are_a_quarter() {
+        all(Opinion(0.5, 0.0, 0.5, 0.0), Opinion(0.5, 0.0, 0.5, 0.0)).b == 0.25
+    }
+    claim one_sure_part_changes_nothing() {
+        all(Opinion(1.0, 0.0, 0.0, 0.0), Opinion(0.5, 0.0, 0.5, 0.0)).b == 0.5
+    }
+
+    // trusted_is_the_policy
+    claim policy_zero_still_needs_belief() {
+        !reaches(nothing(0.0), 0.0) && reaches(Opinion(0.5, 0.0, 0.5, 0.0), 0.0)
+    }
+    claim one_failing_test_is_against() {
+        against(moved(nothing(0.5), no())) && !against(moved(nothing(0.0), no()))
+    }
+}
