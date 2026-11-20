@@ -52,7 +52,7 @@ a level apart; independence as a number; a review by the test's own
 author.
 
 **What to review.** The three model files, `ensure` lines first. Then
-`src/piece/known.rs` (121 lines): `direct`, `support`, `together`.
+`src/piece/model.rs` (121 lines): `direct`, `support`, `together`.
 Then `tests/goldens.rs` against the table of the calculus note.
 
 **How to test.** `cargo test`. With `main`'s binary, `mitra conform`

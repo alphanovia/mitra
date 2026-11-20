@@ -39,7 +39,7 @@ mitra conform             # with main's binary, from this folder
   the calculus (case 7 needs settings, case 6 a report).
 - `tests/wall.rs`: the wall, and no disk.
 
-`mitra conform` says 33 ties agree and 2 differ. Both differences
+`mitra conform` says 35 ties agree and 2 differ. Both differences
 look like faults of `main`'s reader of Rust and are left as they are:
 it does not see `apart` called from `opinion` through two helpers, and
 it compares `Vec<Related>` with the model's `List<Related>` wrongly.

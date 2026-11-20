@@ -5,10 +5,10 @@
 //! piece that says an opinion about another piece.
 
 mod calculus;
-mod known;
+mod model;
 
 pub use calculus::{against, all, conflict, fuse, moved, no, nothing, projected, reaches, yes};
-pub use known::{base, conflicts, opinion, trusted};
+pub use model::{base, conflicts, opinion, trusted};
 
 /// Something said, right or wrong. Known by its name only.
 // mitra: implements piece::Piece
