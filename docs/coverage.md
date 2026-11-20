@@ -6,13 +6,13 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | Crate | Functions | Tied | Share | Lines in functions | In tied ones | Share | Code lines | Model lines | Model / code |
 |---|---|---|---|---|---|---|---|---|---|
 | mitra-lang | 430 | 58 | 13% | 14549 | 3100 | 21% | 15422 | 1060 | 7% |
-| mitra-store | 27 | 13 | 48% | 414 | 202 | 49% | 422 | 105 | 25% |
+| mitra-store | 27 | 13 | 48% | 415 | 206 | 50% | 424 | 105 | 25% |
 | mitra-rust | 26 | 8 | 31% | 1024 | 576 | 56% | 1076 | 44 | 4% |
 | mitra-cli | 23 | 2 | 9% | 700 | 60 | 9% | 739 | 57 | 8% |
-| all | 506 | 81 | 16% | 16687 | 3938 | 24% | 17659 | 1266 | 7% |
+| all | 506 | 81 | 16% | 16688 | 3942 | 24% | 17661 | 1266 | 7% |
 
 - mitra-lang: 1060 lines of model over 15422 lines of code, in 22 subjects with 85 ensures and 8 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
-- mitra-store: 105 lines of model over 422 lines of code, in 4 subjects with 22 ensures and 8 requires; apart from it, 0 lines of point claims and 0 tests pinned in the code.
+- mitra-store: 105 lines of model over 424 lines of code, in 4 subjects with 22 ensures and 8 requires; apart from it, 0 lines of point claims and 0 tests pinned in the code.
 - mitra-rust: 44 lines of model over 1076 lines of code, in 2 subjects with 3 ensures and 3 requires; apart from it, 28 lines of point claims and 0 tests pinned in the code.
 - mitra-cli: 57 lines of model over 739 lines of code, in 1 subject with 11 ensures and 18 requires; apart from it, 0 lines of point claims and 4 tests pinned in the code.
 
@@ -458,30 +458,30 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | source.rs | `read` | 10 | 3 | files::read |
 | source.rs | `file` | 16 | 3 | files::file |
 | source.rs | `round` | 129 | 33 | files::round |
-| store.rs | `of` | 86 | 6 | store::Store::of |
-| store.rs | `model_path` | 115 | 3 | store::Store::model_path |
-| store.rs | `source` | 123 | 14 | store::Store::source |
-| store.rs | `settings` | 141 | 9 | store::Store::settings |
-| store.rs | `evidence_path` | 152 | 3 | store::Store::evidence_path |
-| store.rs | `add` | 159 | 16 | ledger::Store::add |
-| store.rs | `write_build` | 243 | 9 | store::Store::write_build |
-| store.rs | `replace` | 258 | 41 | keeping::Store::replace |
-| store.rs | `remove` | 305 | 27 | keeping::Store::remove |
-| store.rs | `append` | 348 | 35 | ledger::Store::append |
+| store.rs | `of` | 87 | 6 | store::Store::of |
+| store.rs | `model_path` | 116 | 3 | store::Store::model_path |
+| store.rs | `source` | 124 | 14 | store::Store::source |
+| store.rs | `settings` | 142 | 9 | store::Store::settings |
+| store.rs | `evidence_path` | 153 | 3 | store::Store::evidence_path |
+| store.rs | `add` | 160 | 16 | ledger::Store::add |
+| store.rs | `write_build` | 245 | 13 | store::Store::write_build |
+| store.rs | `replace` | 264 | 41 | keeping::Store::replace |
+| store.rs | `remove` | 311 | 27 | keeping::Store::remove |
+| store.rs | `append` | 354 | 35 | ledger::Store::append |
 | source.rs | `files` | 22 | 42 |  |
 | source.rs | `store_beside` | 68 | 11 |  |
 | source.rs | `model_files` | 81 | 10 |  |
 | source.rs | `other_store` | 94 | 8 |  |
 | source.rs | `leans_on` | 105 | 19 |  |
 | source.rs | `walk` | 130 | 24 |  |
-| store.rs | `said` | 48 | 8 |  |
-| store.rs | `find` | 70 | 12 |  |
-| store.rs | `init` | 94 | 14 |  |
-| store.rs | `root` | 110 | 3 |  |
-| store.rs | `stamped` | 180 | 25 |  |
-| store.rs | `without` | 207 | 15 |  |
-| store.rs | `rewrite` | 226 | 13 |  |
-| store.rs | `model` | 334 | 8 |  |
+| store.rs | `said` | 51 | 8 |  |
+| store.rs | `find` | 74 | 9 |  |
+| store.rs | `init` | 95 | 14 |  |
+| store.rs | `root` | 111 | 3 |  |
+| store.rs | `stamped` | 181 | 25 |  |
+| store.rs | `without` | 208 | 15 |  |
+| store.rs | `rewrite` | 227 | 13 |  |
+| store.rs | `model` | 340 | 8 |  |
 
 ## mitra-rust
 

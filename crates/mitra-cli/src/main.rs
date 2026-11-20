@@ -12,7 +12,7 @@
 //! mitra remove --orphaned | --stale [<piece>] | --source <who> | <piece>
 //! ```
 //!
-//! Without paths, commands use the project store: the nearest `.mitra/`
+//! Without paths, commands use the project store: the nearest `model/`
 //! folder at or above the current one, holding `model.mitra` and the
 //! ledger `evidence.mitra`. The store's model also holds the `mitra:`
 //! comments of the Rust files under `src/` and `tests/` next to it.

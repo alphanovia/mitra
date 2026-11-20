@@ -128,7 +128,7 @@ fn store(name: &str, model: &str) -> std::path::PathBuf {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("sub")).unwrap();
     assert_eq!(mitra(&dir, &["init"]).0, Some(0));
-    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("model/model.mitra"), model).unwrap();
     dir
 }
 
@@ -149,12 +149,12 @@ fn store_init_add_check_eval() {
         "{err}"
     );
     // Rejected evidence leaves the store unchanged.
-    let before = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let before = std::fs::read_to_string(dir.join("model/evidence.mitra")).unwrap();
     let (code, _, err) = mitra(&sub, &["add", "evidence r { for flop holds }"]);
     assert_eq!(code, Some(2));
     assert!(err.contains("`flop`"), "{err}");
     assert_eq!(
-        std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap(),
+        std::fs::read_to_string(dir.join("model/evidence.mitra")).unwrap(),
         before
     );
     assert!(
@@ -223,7 +223,7 @@ fn ingest_turns_test_results_into_evidence() {
          FAILED, and tied to no claim, so no verdict shows it: t_all\n\
          tied to no claim: t_other\n"
     );
-    let evidence = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let evidence = std::fs::read_to_string(dir.join("model/evidence.mitra")).unwrap();
     assert!(
         evidence.ends_with(
             "evidence test { for s::flip_on_true holds act test by \"machine:cargo\" source \"test:t_true\" rev \"3f2a\" }\n\
@@ -234,7 +234,7 @@ fn ingest_turns_test_results_into_evidence() {
     let (_, out, _) = mitra(&dir, &["eval"]);
     assert!(out.contains("\ns::flip_correct: fails\n"), "{out}");
     assert!(
-        out.contains(".mitra/evidence.mitra:3  evidence test { for t::on_false fails"),
+        out.contains("model/evidence.mitra:3  evidence test { for t::on_false fails"),
         "{out}"
     );
     // A comment that names no claim stops the ingest.
@@ -251,7 +251,7 @@ fn ingest_turns_test_results_into_evidence() {
 #[test]
 fn a_broken_store_is_blamed_not_the_new_evidence() {
     let dir = store("broken", FLIP);
-    let ev = dir.join(".mitra/evidence.mitra");
+    let ev = dir.join("model/evidence.mitra");
     let broken = std::fs::read_to_string(&ev).unwrap() + "evidence x { for flip nope }\n";
     std::fs::write(&ev, &broken).unwrap();
     let (code, _, err) = mitra(
@@ -279,7 +279,7 @@ fn mitra_stores_evaluate() {
             .join(name);
         let (code, out, err) = mitra(&dir, &["eval"]);
         assert_eq!(code, Some(0), "{name}: {err}");
-        let expected = std::fs::read_to_string(dir.join(".mitra/expected.txt")).unwrap();
+        let expected = std::fs::read_to_string(dir.join("model/expected.txt")).unwrap();
         assert_eq!(out, expected, "{name}");
     }
 }
@@ -292,8 +292,8 @@ fn mitra_store_evaluates_by_path() {
     }
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let files = [
-        "crates/mitra-lang/.mitra/model.mitra",
-        "crates/mitra-lang/.mitra/evidence.mitra",
+        "crates/mitra-lang/model/model.mitra",
+        "crates/mitra-lang/model/evidence.mitra",
     ];
     let (code, out, err) = mitra(&root, &["eval", files[0], files[1]]);
     assert_eq!(code, Some(0), "{err}");
@@ -325,7 +325,7 @@ fn rev_leaves_out_stale_evidence() {
              s::flip_on_true: unverified\n  no evidence on  `s::flip(true)`\n"
         ) && out.contains(
             "warning[M101]: a claim is not verified\n  \
-             --> .mitra/model.mitra:3  claim flip_correct(a: bool) { correct(flip(a)) }\n\
+             --> model/model.mitra:3  claim flip_correct(a: bool) { correct(flip(a)) }\n\
              \n  \
              No evidence on `s::flip(true)`.\n  \
              help: `mitra next` lists the evidence that would settle it\n"
@@ -437,7 +437,7 @@ fn tie_compares_the_code_with_the_model() {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("src")).unwrap();
     assert_eq!(mitra(&dir, &["init"]).0, Some(0));
-    for f in [".mitra/model.mitra", "src/lib.rs"] {
+    for f in ["model/model.mitra", "src/lib.rs"] {
         std::fs::copy(from.join(f), dir.join(f)).unwrap();
     }
     let (code, out, err) = mitra(&dir, &["tie", "--rev", "abc"]);
@@ -484,7 +484,7 @@ fn tie_compares_a_record_with_its_struct() {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("src")).unwrap();
     assert_eq!(mitra(&dir, &["init"]).0, Some(0));
-    for f in [".mitra/model.mitra", "src/lib.rs"] {
+    for f in ["model/model.mitra", "src/lib.rs"] {
         std::fs::copy(from.join(f), dir.join(f)).unwrap();
     }
     let (code, out, err) = mitra(&dir, &["tie"]);
@@ -495,7 +495,7 @@ fn tie_compares_a_record_with_its_struct() {
         "{out}"
     );
     // A field the record does not state is forgotten, and said.
-    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let ledger = std::fs::read_to_string(dir.join("model/evidence.mitra")).unwrap();
     assert!(ledger.contains("erased 1: field(b)"), "{ledger}");
     let (code, out, _) = mitra(&dir, &["eval"]);
     assert_eq!(code, Some(1));
@@ -532,7 +532,7 @@ fn tie_compares_an_enum_with_its_enum() {
                 pub enum Side { Left, Right, Up }\n\
                 // mitra: implements shapes::Unit\n\
                 pub enum Unit { Mm(i64), Inch(String) }\n";
-    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("model/model.mitra"), model).unwrap();
     std::fs::write(dir.join("src/lib.rs"), code).unwrap();
     let (code, out, err) = mitra(&dir, &["tie"]);
     assert_eq!(code, Some(0), "{err}");
@@ -585,13 +585,13 @@ fn tie_compares_an_implementer_with_its_impl() {
                 }\n\
                 // mitra: implements shapes::total\n\
                 pub fn total(s: impl Shape) -> i64 { s.area() }\n";
-    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("model/model.mitra"), model).unwrap();
     std::fs::write(dir.join("src/lib.rs"), code).unwrap();
     let (code, out, err) = mitra(&dir, &["tie"]);
     assert_eq!(code, Some(0), "{err}");
     assert!(out.starts_with("5 agree, 1 differ"), "{out}");
     // A function of the contract is called by its name: `uses Shape::area`.
-    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let ledger = std::fs::read_to_string(dir.join("model/evidence.mitra")).unwrap();
     assert!(ledger.contains("for shapes::total::uses holds"), "{ledger}");
     assert!(out.contains("shapes::Dot::area"), "{out}");
     // What the contract gives an implementer and no code is tied to.
@@ -641,7 +641,7 @@ fn tie_compares_bounds_and_type_parameters() {
                 // mitra: implements sync::Stack::swap\n\
                 pub fn swap<U>(&self, u: U) -> Stack<U> { Stack { items: vec![] } }\n\
                 }\n";
-    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("model/model.mitra"), model).unwrap();
     std::fs::write(dir.join("src/lib.rs"), code).unwrap();
     let (code, out, err) = mitra(&dir, &["tie"]);
     assert_eq!(code, Some(0), "{err}");
@@ -655,7 +655,7 @@ fn tie_compares_bounds_and_type_parameters() {
     // A contract is nobody's code.
     assert!(!out.contains("no code is tied to"), "{out}");
     // A bound of the code alone is a detail of the code: said, no drift.
-    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let ledger = std::fs::read_to_string(dir.join("model/evidence.mitra")).unwrap();
     assert!(
         ledger.contains("for sync::push::tied holds")
             && ledger.contains("bound(l: Clone)")
@@ -766,7 +766,7 @@ fn tie_compares_a_method_with_its_code() {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("src")).unwrap();
     assert_eq!(mitra(&dir, &["init"]).0, Some(0));
-    for f in [".mitra/model.mitra", "src/lib.rs"] {
+    for f in ["model/model.mitra", "src/lib.rs"] {
         std::fs::copy(from.join(f), dir.join(f)).unwrap();
     }
     let (code, out, err) = mitra(&dir, &["tie"]);
@@ -803,7 +803,7 @@ fn ingest_pins_what_a_test_checks() {
         out.contains("tests/t.rs:1: t_sweep on `s::flip_correct`"),
         "{out}"
     );
-    let evidence = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let evidence = std::fs::read_to_string(dir.join("model/evidence.mitra")).unwrap();
     for want in [
         "for s::flip_correct passes act test by \"machine:cargo\" source \"test:t_sweep\"",
         "for s::flip_correct sampled 9 by \"machine:cargo\" source \"test:t_drawn\"",
@@ -892,7 +892,7 @@ fn the_ledger_is_kept_not_only_grown() {
         ),
         "{out}"
     );
-    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let ledger = std::fs::read_to_string(dir.join("model/evidence.mitra")).unwrap();
     assert!(
         !ledger.contains("\"r1\"") && ledger.contains("review:ana"),
         "{ledger}"
@@ -902,7 +902,7 @@ fn the_ledger_is_kept_not_only_grown() {
         "claim flip_correct(a: bool) { correct(flip(a)) }",
         "claim flip_correct(a: bool) { flip(flip(a)) == a }",
     );
-    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("model/model.mitra"), model).unwrap();
     let (_, out, _) = mitra(&dir, &["eval"]);
     assert!(out.contains("s::flip_correct: unverified"), "{out}");
     assert!(
@@ -944,6 +944,13 @@ fn the_four_levels() {
         "{out}"
     );
     assert!(!out.contains("M101") && !out.contains(" owed:"), "{out}");
+    // The build is hidden beside the plain folder, and out of git.
+    let ignore = std::fs::read_to_string(dir.join(".mitra/.gitignore")).unwrap();
+    assert_eq!(ignore, "*\n");
+    assert!(!dir.join("model/build").exists());
+    // A folder named `model` with no model in it is not a store.
+    std::fs::create_dir_all(dir.join("sub/model")).unwrap();
+    assert_eq!(mitra(&dir.join("sub"), &["check"]).0, Some(0));
     let lock = std::fs::read_to_string(dir.join(".mitra/build/model.lock")).unwrap();
     assert!(lock.starts_with("mitra build 1\nmodel "), "{lock}");
     assert!(lock.contains("\nimplied calc::add::correct "), "{lock}");
@@ -1002,7 +1009,7 @@ fn the_four_levels() {
                 to hand over (tests to write, code to tie) (1):\n    calc::add::correct:";
     assert!(out.contains(tail), "{out}");
     // diagnose: an observation that agrees, then one that does not.
-    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let ledger = std::fs::read_to_string(dir.join("model/evidence.mitra")).unwrap();
     let agrees = "evidence seen { for calc::add given a = 5, b = 5 gives 10 }";
     let (code, out, _) = mitra(&dir, &["diagnose", agrees]);
     assert_eq!(code, Some(0), "{out}");
@@ -1027,7 +1034,7 @@ fn the_four_levels() {
         "{out}"
     );
     // Neither observation was written: only the ties, read again.
-    let after = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let after = std::fs::read_to_string(dir.join("model/evidence.mitra")).unwrap();
     assert!(
         !after.contains("gives") && ledger.lines().count() == after.lines().count(),
         "{after}"
@@ -1081,7 +1088,7 @@ fn tie_takes_boilerplate_as_no_drift() {
                 pub fn e(xs: impl Iterator<Item = i64>, label: impl Into<String>) -> &'static str { \"\" }\n\
                 // mitra: implements s::g\n\
                 pub fn g(x: i64) -> Option<i64> { None }\n";
-    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("model/model.mitra"), model).unwrap();
     std::fs::write(dir.join("src/lib.rs"), code).unwrap();
     let (code, out, err) = mitra(&dir, &["tie"]);
     assert_eq!(code, Some(0), "{err}");
@@ -1090,7 +1097,7 @@ fn tie_takes_boilerplate_as_no_drift() {
         out.contains("s::g::tied: the result is `Option<i64>` in the code"),
         "{out}"
     );
-    let ledger = std::fs::read_to_string(dir.join(".mitra/evidence.mitra")).unwrap();
+    let ledger = std::fs::read_to_string(dir.join("model/evidence.mitra")).unwrap();
     assert!(
         ledger.contains("for s::a::tied holds trust 0.98")
             && ledger
@@ -1100,7 +1107,7 @@ fn tie_takes_boilerplate_as_no_drift() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The settings of a store: read from `.mitra/settings.toml`, written
+/// The settings of a store: read from `model/settings.toml`, written
 /// in force by `build`, and what the trust of a tie and the weight of a
 /// sample come from.
 #[test]
@@ -1113,9 +1120,9 @@ fn settings_set_the_trust_of_a_tie_and_of_a_sample() {
                  fn abs(x: -5..=5) -> 0..=5;\n\
                  claim never_negative(x) { abs(x) >= 0 }\n}\n";
     let code = "// mitra: implements s::abs\npub fn abs(x: &i64) -> i64 { x.abs() }\n";
-    std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+    std::fs::write(dir.join("model/model.mitra"), model).unwrap();
     std::fs::write(dir.join("src/lib.rs"), code).unwrap();
-    let ledger = dir.join(".mitra/evidence.mitra");
+    let ledger = dir.join("model/evidence.mitra");
     let sample = "evidence t { for s::never_negative sampled 1000 source \"review:me\" }\n";
     std::fs::write(&ledger, sample).unwrap();
     // The defaults.
@@ -1137,7 +1144,7 @@ fn settings_set_the_trust_of_a_tie_and_of_a_sample() {
         "{written}"
     );
     // A file: another tolerance, a sample that counts, a cost.
-    let settings = dir.join(".mitra/settings.toml");
+    let settings = dir.join("model/settings.toml");
     let text = "[sample]\ntolerance = 0.01\ncounts = true\n\n[erasure]\nrange = 0\nwidth = 0.5\n";
     std::fs::write(&settings, text).unwrap();
     let (_, out, _) = mitra(&dir, &["eval"]);
@@ -1187,7 +1194,7 @@ fn build_refuses_stores_that_import_each_other() {
         let model = format!(
             "import {there}::{block}::{{p}};\nsubject {own} {{ ensure p = \"p\"; require other = {block}::p; }}\n"
         );
-        std::fs::write(dir.join(".mitra/model.mitra"), model).unwrap();
+        std::fs::write(dir.join("model/model.mitra"), model).unwrap();
     }
     for level in ["build", "conform", "assess"] {
         let (code, _, err) = mitra(&root.join("a"), &[level]);

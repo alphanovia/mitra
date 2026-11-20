@@ -1,11 +1,12 @@
-//! The project store: a `.mitra/` folder with `model.mitra` and the
-//! ledger `evidence.mitra`. Every other `.mitra` file of the folder is
-//! model too.
+//! The project store: a plain `model/` folder with `model.mitra`, the
+//! ledger `evidence.mitra` and `settings.toml`. Every other `.mitra`
+//! file of the folder is model too. Only what a build writes is hidden,
+//! in `.mitra/build/` beside it.
 //!
 //! The ledger is not append-only. What a machine observed is written
 //! again by each run of that machine; what a person said stays until
 //! `mitra remove` takes it out, and what left is always given back to be
-//! shown. `.mitra/.gitattributes` asks git for the `union` merge driver
+//! shown. `model/.gitattributes` asks git for the `union` merge driver
 //! on the evidence file, so two branches that both add evidence merge.
 
 use std::path::{Path, PathBuf};
@@ -13,7 +14,9 @@ use std::path::{Path, PathBuf};
 use crate::source;
 use mitra_lang::Modules;
 
-pub const DIR: &str = ".mitra";
+pub const DIR: &str = "model";
+/// What Mitra writes for itself, made again by each build.
+const HIDDEN: &str = ".mitra";
 
 /// What a run of a machine put in place of its earlier evidence.
 #[derive(Debug, Clone, PartialEq)]
@@ -66,22 +69,20 @@ const EVIDENCE_STUB: &str =
 const GITATTRIBUTES: &str = "evidence.mitra merge=union\n";
 
 impl Store {
-    /// The nearest `.mitra/` at or above the current folder.
+    /// The nearest `model/` holding a `model.mitra`, at or above the
+    /// current folder: a folder named `model` with none is not a store.
     pub fn find() -> Result<Store, String> {
         let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
         let dir = cwd
             .ancestors()
             .map(|d| d.join(DIR))
-            .find(|d| d.exists())
-            .ok_or_else(|| format!("no {DIR}/ folder here or above: run `mitra init`"))?;
-        if !dir.is_dir() {
-            return Err(format!("{} is not a folder", dir.display()));
-        }
+            .find(|d| d.join("model.mitra").is_file())
+            .ok_or_else(|| format!("no {DIR}/model.mitra here or above: run `mitra init`"))?;
         Ok(Store { dir })
     }
 
     /// The store that `model` is the model file of, if it is one: a
-    /// `model.mitra` inside a `.mitra/` folder.
+    /// `model.mitra` inside a `model/` folder.
     // mitra: implements store::Store::of
     pub fn of(model: &str) -> Option<Store> {
         let path = Path::new(model);
@@ -90,7 +91,7 @@ impl Store {
         store.then(|| Store { dir: dir.into() })
     }
 
-    /// Create `.mitra/` in `root`. Never overwrites an existing store.
+    /// Create `model/` in `root`. Never overwrites an existing store.
     pub fn init(root: &Path) -> Result<PathBuf, String> {
         let dir = root.join(DIR);
         if dir.exists() {
@@ -237,13 +238,18 @@ impl Store {
             .map_err(|err| format!("{e}: {err}"))
     }
 
-    /// Write the files of a build under `.mitra/build/`, each by its name,
-    /// in place of what was there. Gives the folder.
+    /// Write the files of a build under `.mitra/build/` beside the store,
+    /// each by its name, in place of what was there. Gives the folder.
+    /// `.mitra/.gitignore` keeps it out of git.
     // mitra: implements store::Store::write_build
     pub fn write_build(&self, files: &[(String, String)]) -> Result<String, String> {
-        let dir = self.dir.join("build");
+        let hidden = self.root().join(HIDDEN);
+        let dir = hidden.join("build");
         let said = |e: std::io::Error| format!("{}: {e}", dir.display());
         std::fs::create_dir_all(&dir).map_err(said)?;
+        if !hidden.join(".gitignore").exists() {
+            std::fs::write(hidden.join(".gitignore"), "*\n").map_err(said)?;
+        }
         for (name, text) in files {
             std::fs::write(dir.join(name), text).map_err(said)?;
         }

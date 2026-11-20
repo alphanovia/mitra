@@ -24,4 +24,4 @@ rustc-ice-*.txt
 #.idea/
 
 # What `mitra build` writes: made again by each build
-**/.mitra/build/
+**/.mitra/

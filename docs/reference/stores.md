@@ -1,7 +1,7 @@
 # Several stores
 
 A project may hold several stores, one per crate or package, each with
-its own `.mitra/` folder, model and ledger. A store may lean on what
+its own `model/` folder, model and ledger. A store may lean on what
 another one declares, without restating it.
 
 ## Bringing from another store
@@ -21,7 +21,7 @@ subject report {
 the model:
 
 - `store` is a folder beside the folder of this store which holds a
-  `.mitra/model.mitra`. `mitra_lang` finds `mitra_lang/` or `mitra-lang/`.
+  `model/model.mitra`. `mitra_lang` finds `mitra_lang/` or `mitra-lang/`.
 - `block` is a `subject` or a `boundary` of that store, in any of its
   files.
 - each name is a `record`, an `enum` or an `ensure` of that block.

@@ -1,4 +1,4 @@
-//! Tests written from the model in `.mitra/`, without knowledge of the code.
+//! Tests written from the model in `model/`, without knowledge of the code.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};

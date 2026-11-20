@@ -1,4 +1,4 @@
-//! Tests written from the model in `.mitra/` alone.
+//! Tests written from the model in `model/` alone.
 
 use std::fs;
 use std::path::{Path, PathBuf};

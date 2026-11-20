@@ -63,7 +63,7 @@ def crate(name):
         found, n = functions(path)
         code += n
         rows += [(path.relative_to(src).as_posix(), *f) for f in found]
-    store = ROOT / "crates" / name / ".mitra"
+    store = ROOT / "crates" / name / "model"
     # The points the tests pin are counted apart: lines of `points.mitra`,
     # and tests whose tie comment pins an input.
     model, words = 0, {"subject": 0, "ensure": 0, "require": 0, "points": 0, "pinned": 0}

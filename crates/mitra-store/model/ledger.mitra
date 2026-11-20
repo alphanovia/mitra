@@ -1,4 +1,4 @@
-// The ledger file of a store, `.mitra/evidence.mitra` (src/store.rs).
+// The ledger file of a store, `model/evidence.mitra` (src/store.rs).
 //
 // What an entry means is mitra-lang's (its ledger.mitra). Here: how the
 // file is kept.

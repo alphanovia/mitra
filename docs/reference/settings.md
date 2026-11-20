@@ -2,7 +2,7 @@
 
 Part of the reference. Design: [erasure.md](../design/erasure.md).
 
-`.mitra/settings.toml`, beside the model. It holds the numbers the
+`model/settings.toml`, beside the model. It holds the numbers the
 trust of a tie and of a sample are computed from. With no file, the
 defaults. `mitra build` writes the settings in force, defaults
 included, to `.mitra/build/settings.toml`.
@@ -95,7 +95,7 @@ ensure = "doubt 0.1"
 ```
 
 Mitra's own stores ask `claim = "cold"`, `ensure = "cold, doubt 0.05"`,
-with rates measured on cold agents (`crates/*/.mitra/settings.toml`).
+with rates measured on cold agents (`crates/*/model/settings.toml`).
 
 A piece that holds and lacks what is asked still reads `holds`, with
 `below policy    lacks cold` under it, and `mitra assess` counts them.

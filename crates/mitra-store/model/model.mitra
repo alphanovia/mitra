@@ -6,7 +6,7 @@
 //
 //   disk.mitra     the boundary: what the file system is taken to do
 //   model.mitra    reading model files and what they import (this file)
-//   store.mitra    the `.mitra/` folder of a project
+//   store.mitra    the `model/` folder of a project
 //   ledger.mitra   the ledger file: what is true of it today, and what
 //                  was agreed in outline and is not built
 //

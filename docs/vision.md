@@ -148,7 +148,7 @@ approach.
 2. **Parsing.** Text to AST. The text syntax is one projection of the model,
    not the model itself. One is read: [the language](reference/language.md).
 3. **Incremental use and storage.** Add evidence to a stored model and
-   re-evaluate. A first store exists (`.mitra/`); re-evaluating only what
+   re-evaluate. A first store exists (`model/`); re-evaluating only what
    changed does not.
 
 They are built and tested in that order.

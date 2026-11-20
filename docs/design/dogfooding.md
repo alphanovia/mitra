@@ -13,7 +13,7 @@ judges it from its own test runs. If the verdicts help while the
 crate is built and maintained, that is the first sign Mitra is useful.
 
 **What exists.** The model is aside from the code, in each crate's
-`.mitra/` folder, one file per subject, starting at `model.mitra`, in the
+`model/` folder, one file per subject, starting at `model.mitra`, in the
 [language](../reference/language.md), with the same types as the Rust
 code: a struct is a record, `Option` and `Result` are enums, a `Vec` is
 a list. The code keeps one comment per modelled function or struct,
@@ -74,7 +74,7 @@ subject set {
 
 with `// mitra: implements set::union` above the Rust function, and
 evidence from the Rust tests and, later, Verus. The first slice exists
-in `crates/mitra-lang/.mitra/operators.mitra`.
+in `crates/mitra-lang/model/operators.mitra`.
 
 Self-hosting the parser is not tried: specs are total, and recursion is
 structural only. What applies now is **bootstrapping

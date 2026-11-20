@@ -253,7 +253,7 @@ pub fn stray(shown: &str, text: &str) -> Result<(), String> {
     match text.lines().enumerate().find_map(other) {
         Some(n) => Err(format!(
             "{shown}: line {n}: a model in `mitra:` comments is no longer read: \
-             write it in `.mitra/model.mitra`; a comment is `// mitra: implements \
+             write it in `model/model.mitra`; a comment is `// mitra: implements \
              <function>` or `// mitra: evidence for <claim>`"
         )),
         None => Ok(()),

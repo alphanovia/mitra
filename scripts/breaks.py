@@ -16,7 +16,7 @@ root = f"crates/{crate}"
 # A copy: the tests of mitra-cli rebuild the binary, with the break in it.
 work = tempfile.mkdtemp()
 mitra = f"{work}/mitra"
-evidence = f"{root}/.mitra/evidence.mitra"
+evidence = f"{root}/model/evidence.mitra"
 
 
 def run(cmd, cwd=None, limit=None):

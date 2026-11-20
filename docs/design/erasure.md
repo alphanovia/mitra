@@ -67,7 +67,7 @@ reads `holds assuming [c::sample]`.
 
 ## Settings
 
-`.mitra/settings.toml`, beside the model, read by mitra-store and
+`model/settings.toml`, beside the model, read by mitra-store and
 handed to the core and to the reader. Absent, the defaults.
 
 ```toml

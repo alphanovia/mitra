@@ -42,7 +42,7 @@ you need to ensure then remove it." Per subject, in this order:
    reads (`..`, or `record R;`).
 
 Mitra's model of itself is written this way, one file per subject
-(`crates/mitra-lang/.mitra/`, starting at `model.mitra`). Since
+(`crates/mitra-lang/model/`, starting at `model.mitra`). Since
 2026-11-19 readability outranks line count there: one declaration per
 line, short comments where they help.
 
@@ -50,7 +50,7 @@ line, short comments where they help.
 
 | Command | Does | Status |
 |---|---|---|
-| `mitra init` | Create the store `.mitra/` | done |
+| `mitra init` | Create the store `model/` | done |
 | `mitra check`, `mitra eval` | Check the model; print verdicts, errors, warnings | done |
 | `mitra plan` | Per claim, the evidence still owed | done |
 | `mitra tie --rev <r>` | Compare the tied Rust code with the model, as evidence | done, reads text |
@@ -75,7 +75,7 @@ a candidate in every error it takes part in.
 
 ## Evidence store
 
-Done: `.mitra/evidence.mitra` is a file of evidence lines, each with its
+Done: `model/evidence.mitra` is a file of evidence lines, each with its
 `source` and `rev`, kept as `docs/reference/ledger.md` says. Git merges it with the `union` driver, so
 merges never conflict. `--rev R` counts only evidence recorded at R.
 

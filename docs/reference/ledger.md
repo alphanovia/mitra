@@ -1,7 +1,7 @@
 # Keeping the ledger
 
 Part of the [language reference](language.md). The ledger is the
-evidence file of a store, `.mitra/evidence.mitra`. It is not
+evidence file of a store, `model/evidence.mitra`. It is not
 append-only: a model changes, and evidence that no longer means
 anything must not pile up. Two rules hold: nothing leaves without being
 shown, and what a person said never leaves by itself.

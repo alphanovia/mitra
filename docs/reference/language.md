@@ -23,8 +23,8 @@ The reference is in eight files, each short enough to read in one go:
 ## A project, start to end
 
 ```sh
-mitra init                         # creates .mitra/ beside src/
-$EDITOR .mitra/model.mitra         # the model, aside from the code
+mitra init                         # creates model/ beside src/
+$EDITOR model/model.mitra         # the model, aside from the code
 mitra eval                         # the model alone: errors, verdicts
 mitra plan                         # the evidence owed: the tests to write
 # write the code and the tests, with the two `// mitra:` comments
@@ -187,8 +187,8 @@ comments is refused.
 - Distributions on what a boundary answers, sequences. Simulations: later.
 - An imported file is read from the
   folder of the model; in a store, put modules in a subfolder
-  (`.mitra/lib/pair.mitra`, `import lib::pair::Pair;`), since every file
-  directly in `.mitra/` is already part of the model.
+  (`model/lib/pair.mitra`, `import lib::pair::Pair;`), since every file
+  directly in `model/` is already part of the model.
 - An error inside an imported file is reported on the `import` line,
   with the module and its line in the message.
 - The reader reads text, not Rust's syntax tree: macros, trait methods

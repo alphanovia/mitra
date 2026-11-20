@@ -1,4 +1,4 @@
-//! Tests written from the model of mitra-store (`.mitra/*.mitra`) alone:
+//! Tests written from the model of mitra-store (`model/*.mitra`) alone:
 //! each one says what a wrong implementation would get wrong.
 
 use mitra_store::store::Which;
@@ -27,7 +27,7 @@ fn path(p: &Path) -> String {
 
 /// A store made by hand in `root`: a model and an empty ledger.
 fn store_in(root: &Path, model: &str) -> Store {
-    let dir = root.join(".mitra");
+    let dir = root.join("model");
     fs::create_dir_all(&dir).unwrap();
     fs::write(dir.join("model.mitra"), model).unwrap();
     fs::write(dir.join("evidence.mitra"), "").unwrap();
@@ -189,7 +189,7 @@ fn cold_missing_import_does_not_stop_the_reading() {
 #[test]
 fn cold_import_with_no_file_is_answered_by_the_store_beside() {
     let root = fresh("beside");
-    let other = root.join("other/.mitra");
+    let other = root.join("other/model");
     fs::create_dir_all(&other).unwrap();
     fs::write(other.join("model.mitra"), "// the index of other\n").unwrap();
     fs::write(
@@ -225,7 +225,7 @@ fn cold_import_with_no_file_is_answered_by_the_store_beside() {
 #[test]
 fn cold_file_beside_the_model_answers_before_another_store() {
     let root = fresh("beside-file");
-    let other = root.join("other/.mitra");
+    let other = root.join("other/model");
     fs::create_dir_all(&other).unwrap();
     fs::write(
         other.join("model.mitra"),
@@ -239,8 +239,8 @@ fn cold_file_beside_the_model_answers_before_another_store() {
     );
     // There is such a file beside the model: the store `other` is not asked.
     let beside = "record R { m: Int }\n";
-    fs::create_dir_all(root.join("this/.mitra/other")).unwrap();
-    fs::write(root.join("this/.mitra/other/block.mitra"), beside).unwrap();
+    fs::create_dir_all(root.join("this/model/other")).unwrap();
+    fs::write(root.join("this/model/other/block.mitra"), beside).unwrap();
     let m = s.source().unwrap();
     assert_eq!(
         m.handed.modules.get("other::block").map(String::as_str),
@@ -256,28 +256,25 @@ fn cold_file_beside_the_model_answers_before_another_store() {
 // mitra: evidence for store::Store::of::correct written "agent:anthropic/fable-5.2/cold-w-store" cold
 #[test]
 fn cold_of_takes_only_a_model_mitra_in_a_dot_mitra_folder() {
-    assert!(Store::of("a/.mitra/model.mitra").is_some());
-    assert!(Store::of(".mitra/model.mitra").is_some());
-    assert!(Store::of("/x/y/.mitra/model.mitra").is_some());
+    assert!(Store::of("a/model/model.mitra").is_some());
+    assert!(Store::of("model/model.mitra").is_some());
+    assert!(Store::of("/x/y/model/model.mitra").is_some());
     assert!(Store::of("a/model.mitra").is_none());
     assert!(Store::of("model.mitra").is_none());
-    assert!(Store::of("a/.mitra/other.mitra").is_none());
-    assert!(Store::of("a/.mitra/evidence.mitra").is_none());
-    assert!(Store::of("a/.mitra").is_none());
-    assert!(Store::of("a/.mitra/sub/model.mitra").is_none());
+    assert!(Store::of("a/model/other.mitra").is_none());
+    assert!(Store::of("a/model/evidence.mitra").is_none());
+    assert!(Store::of("a/model").is_none());
+    assert!(Store::of("a/model/sub/model.mitra").is_none());
     assert!(Store::of("a/mitra/model.mitra").is_none());
-    assert!(Store::of("a/.mitra/xmodel.mitra").is_none());
+    assert!(Store::of("a/model/xmodel.mitra").is_none());
     assert!(Store::of("").is_none());
 }
 
 // mitra: evidence for store::Store::model_path::correct written "agent:anthropic/fable-5.2/cold-w-store" cold
 #[test]
 fn cold_model_path_is_the_file_the_store_was_named_by() {
-    let s = Store::of("a/.mitra/model.mitra").unwrap();
-    assert_eq!(
-        Path::new(&s.model_path()),
-        Path::new("a/.mitra/model.mitra")
-    );
+    let s = Store::of("a/model/model.mitra").unwrap();
+    assert_eq!(Path::new(&s.model_path()), Path::new("a/model/model.mitra"));
     // Asked twice, the same.
     assert_eq!(s.model_path(), s.model_path());
 }
@@ -285,13 +282,13 @@ fn cold_model_path_is_the_file_the_store_was_named_by() {
 // mitra: evidence for store::Store::evidence_path::correct written "agent:anthropic/fable-5.2/cold-w-store" cold
 #[test]
 fn cold_evidence_path_is_evidence_mitra_in_the_same_folder() {
-    let s = Store::of("a/b/.mitra/model.mitra").unwrap();
+    let s = Store::of("a/b/model/model.mitra").unwrap();
     assert_eq!(
         Path::new(&s.evidence_path()),
-        Path::new("a/b/.mitra/evidence.mitra")
+        Path::new("a/b/model/evidence.mitra")
     );
     // Nothing of the store is read to say so: there is no such folder.
-    assert!(!Path::new("a/b/.mitra").exists());
+    assert!(!Path::new("a/b/model").exists());
 }
 
 // mitra: evidence for store::whole_folder written "agent:anthropic/fable-5.2/cold-w-store" cold
@@ -300,7 +297,7 @@ fn cold_source_is_every_mitra_file_with_the_model_first() {
     let root = fresh("whole");
     let model = "subject fn f(a: Int) -> Int;\n";
     let s = store_in(&root, model);
-    let dir = root.join(".mitra");
+    let dir = root.join("model");
     // Names before and after `model` in the alphabet, and names that only
     // end like the model and the ledger.
     let early = "subject aaa { fn a1() -> Int; }\n";
@@ -364,16 +361,16 @@ fn cold_source_is_every_mitra_file_with_the_model_first() {
 #[test]
 fn cold_source_of_a_folder_that_is_not_there_is_an_error() {
     let root = fresh("no-folder");
-    let s = Store::of(&path(&root.join("nowhere/.mitra/model.mitra"))).unwrap();
+    let s = Store::of(&path(&root.join("nowhere/model/model.mitra"))).unwrap();
     assert!(s.source().is_err());
     // A folder with no model.mitra has no model to hand first.
-    fs::create_dir_all(root.join("half/.mitra")).unwrap();
+    fs::create_dir_all(root.join("half/model")).unwrap();
     fs::write(
-        root.join("half/.mitra/more.mitra"),
+        root.join("half/model/more.mitra"),
         "subject fn g() -> Int;\n",
     )
     .unwrap();
-    let s = Store::of(&path(&root.join("half/.mitra/model.mitra"))).unwrap();
+    let s = Store::of(&path(&root.join("half/model/model.mitra"))).unwrap();
     let e = s.source().map(|_| ()).unwrap_err();
     assert!(e.contains("model.mitra"), "{e}");
     let _ = fs::remove_dir_all(root);
@@ -390,7 +387,7 @@ fn cold_no_settings_file_is_the_defaults() {
         mitra_lang::Settings::default()
     );
     // Asking made no file.
-    assert!(!root.join(".mitra/settings.toml").exists());
+    assert!(!root.join("model/settings.toml").exists());
     let _ = fs::remove_dir_all(root);
 }
 
@@ -400,7 +397,7 @@ fn cold_settings_are_read_from_the_file_and_handed_with_the_model() {
     let root = fresh("settings");
     let s = store_in(&root, "subject fn f() -> Int;\n");
     let text = "[sample]\ntolerance = 0.25\ncounts = true\n";
-    fs::write(root.join(".mitra/settings.toml"), text).unwrap();
+    fs::write(root.join("model/settings.toml"), text).unwrap();
     // A settings file elsewhere is not the store's.
     fs::write(root.join("settings.toml"), "[sample]\ntolerance = 0.5\n").unwrap();
     let read = s.settings().unwrap();
@@ -410,7 +407,7 @@ fn cold_settings_are_read_from_the_file_and_handed_with_the_model() {
     assert_eq!(s.source().unwrap().handed.settings, read);
     // Read again when the file says something else.
     fs::write(
-        root.join(".mitra/settings.toml"),
+        root.join("model/settings.toml"),
         "[sample]\ntolerance = 0.125\n",
     )
     .unwrap();
@@ -424,7 +421,7 @@ fn cold_settings_are_read_from_the_file_and_handed_with_the_model() {
 fn cold_settings_that_do_not_read_are_an_error_with_their_path() {
     let root = fresh("settings-bad");
     let s = store_in(&root, "subject fn f() -> Int;\n");
-    let file = root.join(".mitra/settings.toml");
+    let file = root.join("model/settings.toml");
     fs::write(&file, "[sample]\nthis is no setting\n").unwrap();
     let e = s.settings().unwrap_err();
     assert!(e.contains(&path(&file)), "{e}");
@@ -494,7 +491,7 @@ fn cold_init_where_there_is_a_store_changes_nothing() {
         "subject fn mine() -> Int;\n"
     );
     assert_eq!(ledger(&s), "// my ledger\n");
-    let names: Vec<_> = fs::read_dir(root.join(".mitra")).unwrap().collect();
+    let names: Vec<_> = fs::read_dir(root.join("model")).unwrap().collect();
     assert_eq!(names.len(), 2, "nothing was added to the folder");
     let _ = fs::remove_dir_all(root);
 }
@@ -504,7 +501,7 @@ fn cold_init_where_there_is_a_store_changes_nothing() {
 fn cold_init_where_there_is_none_makes_a_store_once() {
     let root = fresh("init");
     let dir = Store::init(&root).unwrap();
-    assert_eq!(dir.canonicalize().unwrap(), root.join(".mitra"));
+    assert_eq!(dir.canonicalize().unwrap(), root.join("model"));
     let s = Store::of(&path(&dir.join("model.mitra"))).unwrap();
     // A store that reads: a model and a ledger.
     assert!(Path::new(&s.model_path()).is_file());
@@ -856,7 +853,7 @@ fn cold_refused_replace_and_remove_leave_the_ledger_as_it_was() {
     assert!(s.remove(&Which::Piece("calc::add".into())).is_err());
     assert_eq!(ledger(&s), before);
     // No file is left beside the ledger by the refused writes.
-    let mut there: Vec<String> = fs::read_dir(root.join(".mitra"))
+    let mut there: Vec<String> = fs::read_dir(root.join("model"))
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
         .collect();

@@ -86,9 +86,9 @@ should make the agent do; the evidence is the agent's runs.
 
 ```text
 trials/
-  rust/          the project, with its .mitra/ store
-  agile/         .mitra/ store, and sources/ with the reports used
-  skill/         the skill, .mitra/ store, and runs/ with transcripts
+  rust/          the project, with its model/ store
+  agile/         model/ store, and sources/ with the reports used
+  skill/         the skill, model/ store, and runs/ with transcripts
   <trial>/FINDINGS.md
 ```
 

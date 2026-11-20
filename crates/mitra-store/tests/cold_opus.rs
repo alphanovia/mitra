@@ -1,4 +1,4 @@
-//! Tests written from the model of mitra-store (`.mitra/*.mitra`) alone.
+//! Tests written from the model of mitra-store (`model/*.mitra`) alone.
 //! Each test works in a fresh folder of its own under the temp dir.
 
 use mitra_store::source;
@@ -31,11 +31,11 @@ fn fresh(name: &str) -> PathBuf {
 
 const CALC: &str = "subject calc {\n    fn add(a: Int, b: Int) -> Int;\n    fn neg(a: Int) -> Int;\n    claim comm(a: Int, b: Int) { add(a, b) == add(b, a) }\n}\n";
 
-/// A store made by hand (not by `init`): `.mitra/model.mitra` and an
+/// A store made by hand (not by `init`): `model/model.mitra` and an
 /// evidence file with the given texts.
 fn store_with(name: &str, model: &str, evidence: &str) -> (PathBuf, Store) {
     let root = fresh(name);
-    let dir = root.join(".mitra");
+    let dir = root.join("model");
     fs::create_dir_all(&dir).unwrap();
     fs::write(dir.join("model.mitra"), model).unwrap();
     fs::write(dir.join("evidence.mitra"), evidence).unwrap();
@@ -58,8 +58,8 @@ fn test_ev(n: &str, a: i64, rev: &str) -> String {
 // mitra: evidence for store::a_model_file_names_its_store written "agent:anthropic/opus/cold-w-store" cold
 #[test]
 fn cold_of_model_in_mitra_folder_is_a_store() {
-    assert!(Store::of("a/.mitra/model.mitra").is_some());
-    assert!(Store::of("/x/y/.mitra/model.mitra").is_some());
+    assert!(Store::of("a/model/model.mitra").is_some());
+    assert!(Store::of("/x/y/model/model.mitra").is_some());
 }
 
 // mitra: evidence for store::another_file_is_no_store written "agent:anthropic/opus/cold-w-store" cold
@@ -67,26 +67,26 @@ fn cold_of_model_in_mitra_folder_is_a_store() {
 fn cold_of_other_files_are_no_store() {
     assert!(Store::of("a/model.mitra").is_none());
     assert!(Store::of("model.mitra").is_none());
-    assert!(Store::of("a/.mitra/more.mitra").is_none());
-    assert!(Store::of("a/.mitra/evidence.mitra").is_none());
+    assert!(Store::of("a/model/more.mitra").is_none());
+    assert!(Store::of("a/model/evidence.mitra").is_none());
     assert!(Store::of("a/mitra/model.mitra").is_none());
-    assert!(Store::of("a/.mitra/model.mitra/x").is_none());
+    assert!(Store::of("a/model/modelmodel/x").is_none());
 }
 
 // mitra: evidence for store::Store::model_path::correct written "agent:anthropic/opus/cold-w-store" cold
 #[test]
 fn cold_paths_of_a_store_are_in_its_folder() {
-    let s = Store::of("/some/where/.mitra/model.mitra").unwrap();
+    let s = Store::of("/some/where/model/model.mitra").unwrap();
     assert_eq!(
         Path::new(&s.model_path()),
-        Path::new("/some/where/.mitra/model.mitra")
+        Path::new("/some/where/model/model.mitra")
     );
     assert_eq!(
         Path::new(&s.evidence_path()),
-        Path::new("/some/where/.mitra/evidence.mitra")
+        Path::new("/some/where/model/evidence.mitra")
     );
     // Nothing of it is read: the folder does not exist and that is fine.
-    assert!(!Path::new("/some/where/.mitra").exists());
+    assert!(!Path::new("/some/where/model").exists());
 }
 
 // ------------------------------------------------------- store::whole_folder
@@ -99,7 +99,7 @@ fn cold_source_is_every_mitra_file_model_first_ledger_aside() {
         "subject m { fn f() -> Int; }\n",
         "evidence e { for m::f holds }\n",
     );
-    let dir = root.join(".mitra");
+    let dir = root.join("model");
     // Names that sort before `model.mitra`, and after.
     fs::write(dir.join("aaa.mitra"), "subject a { fn g() -> Int; }\n").unwrap();
     fs::write(dir.join("zzz.mitra"), "subject z { fn h() -> Int; }\n").unwrap();
@@ -132,7 +132,7 @@ fn cold_model_files_are_handed_under_their_path_unchanged() {
     let model = "// first   \n\nsubject m { fn f() -> Int; }   \n\n\n// no newline at end";
     let more = "subject n {\r\n  fn g() -> Int;\r\n}\r\n";
     let (root, s) = store_with("unchanged", model, "");
-    fs::write(root.join(".mitra/more.mitra"), more).unwrap();
+    fs::write(root.join("model/more.mitra"), more).unwrap();
     let m = s.source().unwrap();
     let by_name = |n: &str| {
         m.files()
@@ -223,8 +223,8 @@ fn cold_missing_import_is_said_at_its_line() {
 #[test]
 fn cold_other_store_beside_is_handed_whole_ledger_aside() {
     let root = fresh("beside");
-    let other = root.join("other/.mitra");
-    let here = root.join("here/.mitra");
+    let other = root.join("other/model");
+    let here = root.join("here/model");
     fs::create_dir_all(&other).unwrap();
     fs::create_dir_all(&here).unwrap();
     fs::write(other.join("model.mitra"), "// OTHER-MODEL\n").unwrap();
@@ -269,7 +269,7 @@ fn cold_no_settings_file_is_the_defaults() {
 fn cold_settings_are_read_and_handed_with_the_model() {
     let (root, s) = store_with("settings-read", CALC, "");
     fs::write(
-        root.join(".mitra/settings.toml"),
+        root.join("model/settings.toml"),
         "[sample]\ntolerance = 0.25\n",
     )
     .unwrap();
@@ -282,7 +282,7 @@ fn cold_settings_are_read_and_handed_with_the_model() {
 #[test]
 fn cold_settings_that_do_not_read_are_an_error_with_the_path() {
     let (root, s) = store_with("settings-bad", CALC, "");
-    let path = root.join(".mitra/settings.toml");
+    let path = root.join("model/settings.toml");
     fs::write(&path, "[nothing_like_this]\nx = 1\n").unwrap();
     let e = s.settings().unwrap_err();
     assert!(e.contains("settings.toml"), "{e}");
@@ -356,11 +356,11 @@ fn cold_init_creates_once_and_never_overwrites() {
         fs::read_to_string(dir.join("evidence.mitra")).unwrap(),
         "LEDGER"
     );
-    // A `.mitra` that is a file is something there too: left alone.
+    // A `model` that is a file is something there too: left alone.
     let other = fresh("init-file");
-    fs::write(other.join(".mitra"), "a file").unwrap();
+    fs::write(other.join("model"), "a file").unwrap();
     assert!(Store::init(&other).is_err());
-    assert_eq!(fs::read_to_string(other.join(".mitra")).unwrap(), "a file");
+    assert_eq!(fs::read_to_string(other.join("model")).unwrap(), "a file");
     let _ = fs::remove_dir_all(root);
     let _ = fs::remove_dir_all(other);
 }

@@ -1,4 +1,4 @@
-//! The points and the sweeps behind the claims of the model in `.mitra/`
+//! The points and the sweeps behind the claims of the model in `model/`
 //! on the language itself: each test is tied to the claim it checks.
 
 use mitra_lang::{evaluate, load, run, Logic};

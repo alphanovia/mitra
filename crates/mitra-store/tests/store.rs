@@ -24,7 +24,7 @@ fn store(name: &str, model: &str) -> (PathBuf, Store) {
 // mitra: evidence for store::a_model_file_names_its_store
 #[test]
 fn a_model_file_names_its_store() {
-    assert!(Store::of("a/.mitra/model.mitra").is_some());
+    assert!(Store::of("a/model/model.mitra").is_some());
 }
 
 // mitra: evidence for store::another_file_is_no_store
@@ -38,7 +38,7 @@ fn another_file_is_no_store() {
 #[test]
 fn the_model_is_the_whole_folder() {
     let (root, s) = store("folder", MODEL);
-    fs::write(root.join(".mitra/more.mitra"), "subject fn g() -> Int;\n").unwrap();
+    fs::write(root.join("model/more.mitra"), "subject fn g() -> Int;\n").unwrap();
     let m = s.source().unwrap();
     let names: Vec<&str> = m.files().iter().map(|f| f.name.as_str()).collect();
     assert_eq!(names.len(), 2);
@@ -97,8 +97,8 @@ fn an_import_is_read_beside_the_model() {
         "{e}"
     );
     // A folder beside the model: its files are read only when imported.
-    fs::create_dir_all(root.join(".mitra/lib")).unwrap();
-    fs::write(root.join(".mitra/lib/util.mitra"), "fn g() -> Int { 1 }\n").unwrap();
+    fs::create_dir_all(root.join("model/lib")).unwrap();
+    fs::write(root.join("model/lib/util.mitra"), "fn g() -> Int { 1 }\n").unwrap();
     assert!(s.model().is_ok(), "{:?}", s.model().err());
     let _ = fs::remove_dir_all(root);
 }
@@ -107,7 +107,7 @@ fn an_import_is_read_beside_the_model() {
 #[test]
 fn another_store_is_read_beside_this_one() {
     let (root, _) = store("beside", "");
-    let (a, b) = (root.join("one_a/.mitra"), root.join("two/.mitra"));
+    let (a, b) = (root.join("one_a/model"), root.join("two/model"));
     fs::create_dir_all(&a).unwrap();
     fs::create_dir_all(&b).unwrap();
     fs::write(a.join("model.mitra"), "// index\n").unwrap();
@@ -305,7 +305,7 @@ fn stores_that_import_each_other_are_found() {
     let root = std::env::temp_dir().join(format!("mitra-round-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     let write = |store: &str, text: &str| {
-        let dir = root.join(store).join(".mitra");
+        let dir = root.join(store).join("model");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("model.mitra"), text).unwrap();
         dir

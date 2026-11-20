@@ -1,5 +1,5 @@
 //! The trust calculus Mitra runs: ranking the pieces of a conflict
-//! ([`culprits`]). Its model is aside, in `.mitra/culprits.mitra`.
+//! ([`culprits`]). Its model is aside, in `model/culprits.mitra`.
 //!
 //! Opinions on one question (`Mass`, Dempster's and Yager's rules) were
 //! written here and never called by the evaluation: they were removed on

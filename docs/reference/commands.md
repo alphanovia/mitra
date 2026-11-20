@@ -24,7 +24,9 @@ from; the ones below are the steps they are made of.
 When Mitra can't read or check its input it prints `file: line N:
 message` and exits with status 2.
 
-- **The store** is the nearest `.mitra/` at or above the current folder:
+- **The store** is the nearest `model/` holding a `model.mitra`, at or
+  above the current folder. It is a plain folder; only what a build
+  writes is hidden, in `.mitra/build/` beside it, out of git. In it:
   `model.mitra`, every other `.mitra` file beside it and
   `evidence.mitra`. The files are one model, one file per subject if you
   like: each may repeat the imports it needs, and a file is read after

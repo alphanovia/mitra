@@ -14,7 +14,7 @@ done
 rev=$(git ls-tree HEAD $code | git hash-object --stdin | cut -c1-12)
 cd "crates/$crate"
 # `claim c = uniform(…)`, named `subject::c` inside `subject { … }`.
-cat .mitra/*.mitra | awk '
+cat model/*.mitra | awk '
     /^(subject|boundary) / { scope = $2 "::" }
     /^}/ { scope = "" }
     match($0, /claim [A-Za-z0-9_]+ = uniform\(/) { split(substr($0, RSTART), w, " "); print scope w[2] }

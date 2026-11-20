@@ -1,8 +1,8 @@
-// The store of a project: its `.mitra/` folder (src/store.rs).
+// The store of a project: its `model/` folder (src/store.rs).
 //
-//   .mitra/model.mitra      the model, handed first
-//   .mitra/*.mitra          the rest of the model, one file per subject
-//   .mitra/evidence.mitra   the ledger
+//   model/model.mitra      the model, handed first
+//   model/*.mitra          the rest of the model, one file per subject
+//   model/evidence.mitra   the ledger
 
 import std::core::{Option, Result};
 import std::rust::{Vec};
@@ -12,8 +12,8 @@ subject store {
     require handed = files::handed_unchanged;
 
     ensure whole_folder = "The model of a store is every `.mitra` file of its folder, the ledger aside, with `model.mitra` handed first.";
-    ensure nearest = "A command run in a folder uses the nearest `.mitra/` at or above it.";
-    ensure build_is_written_again = "The files of a build are written under `.mitra/build/` in place of the last ones: a build is never edited, and never read back to judge.";
+    ensure nearest = "A command run in a folder uses the nearest `model/` that holds a `model.mitra`, at or above it. The folder is plain: it is what people read.";
+    ensure build_is_written_again = "The files of a build are written under `.mitra/build/` beside the store, hidden and kept out of git, in place of the last ones: a build is never edited, and never read back to judge.";
     ensure settings_beside_the_model = "The settings of a store are read from `settings.toml` in its folder and handed with the model. No file is the defaults; a file that does not read is an error, with its path.";
     ensure never_overwrites = "A store is created only where there is none.";
 
@@ -40,7 +40,7 @@ subject store {
 
     // whole_folder
     claim a_model_file_names_its_store() {
-        Store::of("a/.mitra/model.mitra") is Some
+        Store::of("a/model/model.mitra") is Some
     }
     claim another_file_is_no_store() {
         Store::of("a/model.mitra") is None

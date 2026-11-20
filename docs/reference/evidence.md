@@ -36,8 +36,8 @@ Evidence is written in blocks only. `mitra add`, `mitra ingest` and
 
 ## The tie to the code
 
-The model lives aside from the code: `.mitra/model.mitra`, and any other
-`.mitra/*.mitra` file (not `evidence.mitra`): one file per subject reads
+The model lives aside from the code: `model/model.mitra`, and any other
+`model/*.mitra` file (not `evidence.mitra`): one file per subject reads
 well. It is
 checked alone, with no code present. The code points at it:
 
