@@ -1,20 +1,21 @@
-// The innermost part of Mitra. A draft to read: no code is tied to it
-// and it is not in a store yet.
+// piece.mitra: the innermost part of Mitra, on the side of trust.
+// A proposal to read: no code is tied to it and it is in no store.
 //
-// Two levels. Values are what a model computes with: numbers, records,
-// what a function returns. Pieces are what a model is made of: a piece
-// is one thing said about the system, which can be right or wrong. A
-// claim, an ensure, a capture, an assume, a tie and a piece of evidence
-// are pieces. Nobody writes `Piece` in a model: a declaration is one,
-// named by its path. Here it is opaque.
+// Reads: nothing. It does not know what a value, an expression or a
+// claim is: value.mitra is the other side, claim.mitra the seam.
 //
-// Three things, and nothing else:
+// A piece is one thing said about a system, which can be right or
+// wrong. Three things, and nothing else:
 //
-//   piece      something said, right or wrong
+//   piece      something said, right or wrong; known by its name only
 //   opinion    what is believed of a piece: (b, d, u, a)
 //   evidence   a piece that says an opinion about another piece
+//
+// Left out on purpose: what a piece says (claim.mitra), the kinds of
+// piece (ensure, assume, capture, tie), which inputs evidence covers,
+// acts and the reading of a voice (`apart` is opaque here), settings.
 
-subject pieces {
+subject piece {
     ensure everything_is_a_piece = "Whatever can be right or wrong is a piece and has one opinion; there is no second way to be believed.";
     ensure evidence_is_a_piece = "A piece of evidence is a piece: it is believed as any other, from the evidence about it, and where there is none at the base rate of its kind or the certainty its author stated.";
     ensure moved_only_by_evidence = "The opinion of a piece comes from the evidence about it and from the pieces it is related to, and from nothing else: with neither it is no belief, no disbelief, and the base rate of its kind.";

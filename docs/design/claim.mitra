@@ -1,0 +1,61 @@
+// claim.mitra: the seam between the two sides.
+// A proposal to read: no code is tied to it and it is in no store.
+//
+// Reads: piece.mitra and value.mitra. Neither reads this file, and
+// neither reads the other.
+//
+// A claim is a piece with a statement: an expression that gives a
+// truth. Computing the statement at given inputs makes a piece of
+// evidence about the claim. That is the only way across: a value never
+// depends on a piece, and an opinion is only moved by evidence.
+//
+// Left out on purpose: ensure, assume and capture (kinds of claim, to
+// come), functions and the code they stand for, tests (an observation
+// of the code, not of the model), a claim over many inputs and which of
+// them a piece of evidence covers, who vouches for Mitra's own voice.
+
+import std::core::{Option};
+
+subject claims {
+    require believed = piece::moved_only_by_evidence;
+    require computed = value::one_value;
+
+    ensure claim_is_a_piece = "A claim is a piece whose statement is an expression that gives a truth; anything else is not a claim.";
+    ensure observed_is_evidence = "Computing the statement of a claim at given inputs gives evidence about that claim's piece and no other: yes where it is true, no where it is false, and no evidence where it has no value.";
+    ensure one_way = "Evidence is made from a value; no value is made from evidence or from an opinion.";
+
+    record Claim {
+        piece: piece::Piece,
+        statement: value::Expression,
+    }
+
+    // The statement gives a truth when its inputs have these types.
+    fn reads(c: Claim, inputs: List<(String, value::Type)>) -> Bool
+        uses value::check;
+
+    // What computing the statement at these inputs says of the claim.
+    fn observe(c: Claim, inputs: List<(String, value::Value)>, by: String) -> Option<piece::Evidence>
+        uses only value::eval, piece::yes, piece::no;
+
+    // claim_is_a_piece
+    claim a_number_is_not_a_statement(p: piece::Piece) {
+        !reads(Claim(p, Literal(1)), []) && reads(Claim(p, Yes), [])
+    }
+
+    // observed_is_evidence
+    claim true_says_yes(p: piece::Piece) {
+        observe(Claim(p, Yes), [], "machine:mitra") == Some(Evidence(p, piece::yes(), "machine:mitra"))
+    }
+    claim false_says_no(p: piece::Piece) {
+        observe(Claim(p, No), [], "machine:mitra") == Some(Evidence(p, piece::no(), "machine:mitra"))
+    }
+    claim no_value_says_nothing(p: piece::Piece) {
+        observe(Claim(p, Input("x")), [], "machine:mitra") == None
+    }
+    claim about_its_own_piece(c: Claim) {
+        match observe(c, [], "machine:mitra") {
+            None => true,
+            Some(e) => e.about == c.piece,
+        }
+    }
+}

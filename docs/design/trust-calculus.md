@@ -3,7 +3,7 @@
 A note to read before any code. It states the innermost part of
 Mitra and the calculus on it, shown on the 22 goldens of
 `examples/trust/`. The same thing as a model, to read beside it:
-[pieces.mitra](pieces.mitra) (a draft: Mitra reads it and its twelve
+[piece.mitra](piece.mitra) (a draft: Mitra reads it and its twelve
 claims hold by computation; no code is tied to it).
 
 Agreed (2026-11-20): "the atomic thing is a piece, as in a piece of
@@ -210,7 +210,7 @@ not derived from anything.
 ## To build after your read
 
 The module of pieces first, alone: piece, opinion, evidence,
-relation and the functions of `pieces.mitra`, tied to that model.
+relation and the functions of `piece.mitra`, tied to that model.
 Then `confidence.rs` on top of it, the seven goldens recorded again,
 and the experiment as a golden. Where `voices` and a `trust` subject
 go is yours to pick, and nothing moves before.
