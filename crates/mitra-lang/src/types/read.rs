@@ -270,29 +270,16 @@ impl P {
             }
             return Ok(set);
         }
-        if self.peek() == "Vec" && self.kind() == Some(Kind::Name) {
-            return self.err("`Vec` is Rust's name for `List`: `import std::rust::{Vec};`");
+        // A word of Rust is not part of the language: it comes from
+        // `std::rust`, where it names one of the types here.
+        if self.kind() == Some(Kind::Name) {
+            if let Some((word, named)) = RUST.iter().find(|w| w.0 == self.peek()) {
+                return self.err(format!(
+                    "`{word}` is Rust's name for `{named}`: `import std::rust::{{{word}}};`"
+                ));
+            }
         }
-        // Rust's names for the same types.
-        let rust = match self.peek() {
-            "bool" => "Bool",
-            "i8" => "Int8",
-            "i16" => "Int16",
-            "i32" => "Int32",
-            "i64" => "Int64",
-            "u8" => "UInt8",
-            "u16" => "UInt16",
-            "u32" => "UInt32",
-            "f64" => "Float64",
-            "str" => "String",
-            "HashSet" | "BTreeSet" => "Set",
-            "HashMap" | "BTreeMap" => "Map",
-            _ => "",
-        };
-        if !rust.is_empty() && self.kind() == Some(Kind::Name) {
-            self.toks[self.pos].text = rust.to_string();
-        }
-        if self.eat_keyword("u64") || self.eat_keyword("usize") {
+        if self.eat_keyword("Nat") {
             return Ok(Set::range(Some(0), None));
         }
         if self.eat_keyword("List") {
@@ -460,8 +447,8 @@ impl P {
                     Some(s) => s,
                     None => {
                         return self.err(format!(
-                            "unknown type `{t}` (Bool, Int, Int8 to Int64, UInt8 to UInt32, \
-                             Float64, String, Any)"
+                            "unknown type `{t}` (Bool, Int, Nat, Int8 to Int64, UInt8 to \
+                             UInt32, Float64, String, Any)"
                         ))
                     }
                 },
@@ -643,3 +630,24 @@ impl P {
         Ok(())
     }
 }
+
+/// Rust's names for the types of the language, as `std::rust` gives them.
+const RUST: [(&str, &str); 17] = [
+    ("Vec", "List"),
+    ("bool", "Bool"),
+    ("i8", "Int8"),
+    ("i16", "Int16"),
+    ("i32", "Int32"),
+    ("i64", "Int64"),
+    ("u8", "UInt8"),
+    ("u16", "UInt16"),
+    ("u32", "UInt32"),
+    ("u64", "Nat"),
+    ("usize", "Nat"),
+    ("f64", "Float64"),
+    ("str", "String"),
+    ("HashSet", "Set"),
+    ("BTreeSet", "Set"),
+    ("HashMap", "Map"),
+    ("BTreeMap", "Map"),
+];

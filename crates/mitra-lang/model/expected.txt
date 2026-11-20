@@ -1778,13 +1778,13 @@ warning[M106]: a function uses what its subject does not require
   help: write `require <name> = modules::handed_only;` beside `types::load`
 
 warning[M101]: a claim is not verified
-  --> model/culprits.mitra:29  fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
+  --> model/culprits.mitra:29  fn rank(biases: Vec<Option<Float64>>, clauses: Vec<Vec<Nat>>) -> Result<Ranking, NoRanking>;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/culprits.mitra:29  fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
+  --> model/culprits.mitra:29  fn rank(biases: Vec<Option<Float64>>, clauses: Vec<Vec<Nat>>) -> Result<Ranking, NoRanking>;
 
   No evidence on `culprits::rank` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -1874,13 +1874,13 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/ledger.mitra:64  fn by_machine(&self) -> bool;
+  --> model/ledger.mitra:64  fn by_machine(&self) -> Bool;
 
   No evidence on a set too long to print.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/ledger.mitra:64  fn by_machine(&self) -> bool;
+  --> model/ledger.mitra:64  fn by_machine(&self) -> Bool;
 
   No evidence on `ledger::Evidence::by_machine` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -1982,13 +1982,13 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/print.mitra:12  fn negative(v: Any) -> bool;
+  --> model/print.mitra:12  fn negative(v: Any) -> Bool;
 
   No evidence on v in Any \ ({-0.5, "-1"} | -1..=0).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/print.mitra:12  fn negative(v: Any) -> bool;
+  --> model/print.mitra:12  fn negative(v: Any) -> Bool;
 
   No evidence on `print::negative` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -2000,7 +2000,7 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/print.mitra:20  fn level(op: String) -> u8 { if op == "||" { 1 } else if op == "&&" { 2 } else if op in {"+", "-", "|", "\\"} { 4 } else if op in {"*", "/", "&"} { 5 } else { 3 } }
+  --> model/print.mitra:20  fn level(op: String) -> UInt8 { if op == "||" { 1 } else if op == "&&" { 2 } else if op in {"+", "-", "|", "\\"} { 4 } else if op in {"*", "/", "&"} { 5 } else { 3 } }
 
   No evidence on `print::level` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -2060,13 +2060,13 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/modules.mitra:36  fn place(&self, line: usize) -> String;
+  --> model/modules.mitra:36  fn place(&self, line: Nat) -> String;
 
   No evidence on (self, line) in (modules::Modules, 0..).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/modules.mitra:36  fn place(&self, line: usize) -> String;
+  --> model/modules.mitra:36  fn place(&self, line: Nat) -> String;
 
   No evidence on `modules::Modules::place` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -2138,19 +2138,19 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/settings.mitra:32  fn sample(&self, n: u64) -> f64;
+  --> model/settings.mitra:32  fn sample(&self, n: Nat) -> Float64;
 
   No evidence on (self, n) in (settings::Settings, 0..).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/settings.mitra:33  fn strength(costs: Vec<f64>) -> f64;
+  --> model/settings.mitra:33  fn strength(costs: Vec<Float64>) -> Float64;
 
   No evidence on costs in List<Float64>.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/settings.mitra:34  fn written(&self, profile: Vec<(String, f64)>) -> String;
+  --> model/settings.mitra:34  fn written(&self, profile: Vec<(String, Float64)>) -> String;
 
   No evidence on (self, profile) in (settings::Settings, List<(String, Float64)>).
   help: `mitra next` lists the evidence that would settle it
@@ -2270,13 +2270,13 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/build.mitra:45  fn count(&self, kind: String) -> usize;
+  --> model/build.mitra:45  fn count(&self, kind: String) -> Nat;
 
   No evidence on (self, kind) in (build::Built, String).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/build.mitra:45  fn count(&self, kind: String) -> usize;
+  --> model/build.mitra:45  fn count(&self, kind: String) -> Nat;
 
   No evidence on `build::Built::count` giving one output per input.
   help: `mitra next` lists the evidence that would settle it

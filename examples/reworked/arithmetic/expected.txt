@@ -68,13 +68,13 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:8  fn le(a: Int, b: Int) -> bool;
+  --> model.mitra:8  fn le(a: Int, b: Int) -> Bool;
 
   No evidence on (a, b) in (Int, Int).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:8  fn le(a: Int, b: Int) -> bool;
+  --> model.mitra:8  fn le(a: Int, b: Int) -> Bool;
 
   No evidence on `arith::le` giving one output per input.
   help: `mitra next` lists the evidence that would settle it
@@ -110,13 +110,13 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:15  fn between(a: Int, b: Int, c: Int) -> bool { le(a, b) && le(b, c) }
+  --> model.mitra:15  fn between(a: Int, b: Int, c: Int) -> Bool { le(a, b) && le(b, c) }
 
   No evidence on (a, b, c) in (Int, Int, Int).
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:15  fn between(a: Int, b: Int, c: Int) -> bool { le(a, b) && le(b, c) }
+  --> model.mitra:15  fn between(a: Int, b: Int, c: Int) -> Bool { le(a, b) && le(b, c) }
 
   No evidence on `arith::between` giving one output per input.
   help: `mitra next` lists the evidence that would settle it

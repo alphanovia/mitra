@@ -341,7 +341,7 @@ warning[M101]: a claim is not verified
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model/ledger.mitra:22  fn add(&self, text: String, source: Option<String>, rev: Option<String>) -> Result<usize, String>
+  --> model/ledger.mitra:22  fn add(&self, text: String, source: Option<String>, rev: Option<String>) -> Result<Nat, String>
 
   No evidence on (self, text, source, rev) in (store::Store, String, Option<String>, Option<String>).
   help: `mitra next` lists the evidence that would settle it

@@ -1,13 +1,13 @@
 // The model, aside from the code.
 import std::claims::{uniform};
-record Account { balance: u64, open: bool }
+record Account { balance: Nat, open: Bool }
 
 subject bank {
-    fn deposit(a: Account, n: u64) -> Account {
+    fn deposit(a: Account, n: Nat) -> Account {
         if a.open { Account(a.balance + n, true) } else { a }
     }
-    fn withdraw(a: Account, n: u64) -> (Account, bool) uses only check;
-    fn check(a: Account, n: u64) -> bool { a.open && n <= a.balance }
+    fn withdraw(a: Account, n: Nat) -> (Account, Bool) uses only check;
+    fn check(a: Account, n: Nat) -> Bool { a.open && n <= a.balance }
     fn close(a: Account) -> Account;
 
     claim deposit_uniform = uniform(deposit, |a, n| a.open);

@@ -1,7 +1,7 @@
 // A program that loads its configuration from the network.
 enum NetError { Timeout, Refused }
 import std::core::{Result};
-record Config { retries: 0..=5, verbose: bool }
+record Config { retries: 0..=5, verbose: Bool }
 
 // The environment: nothing is claimed on it, only assumed.
 boundary network {

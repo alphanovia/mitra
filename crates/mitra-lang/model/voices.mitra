@@ -20,13 +20,13 @@ subject voices {
     record Word {
         act: String,
         voice: String,
-        cold: bool,
+        cold: Bool,
     }
 
     record Support {
         words: Vec<Word>,
         apart: Option<String>,
-        doubt: f64,
+        doubt: Float64,
         below: Vec<String>,
     }
 
@@ -35,9 +35,9 @@ subject voices {
     // How far apart two voices are, from 0 (the same) to 5 (unknown).
     fn apart(a: String, b: String) -> 0..=5;
     fn word(e: ledger::Evidence) -> Word;
-    fn error_rate(settings: settings::Settings, w: Word) -> f64;
+    fn error_rate(settings: settings::Settings, w: Word) -> Float64;
     fn support(model: model::Model, name: String) -> Support;
-    fn missing(asked: String, s: Support, voices: usize) -> Vec<String>;
+    fn missing(asked: String, s: Support, voices: Nat) -> Vec<String>;
     fn policy_reads(asked: String) -> Result<(), String>;
     fn summary(model: model::Model, report: verdicts::Report) -> String;
 

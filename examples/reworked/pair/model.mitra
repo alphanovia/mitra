@@ -1,7 +1,7 @@
 // A pair of integers, and the code that adds and subtracts them.
 import std::claims::{uniform};
 subject pair {
-    record Pair { first: i32, second: i32 }
+    record Pair { first: Int32, second: Int32 }
 
     // A body is the specification of the code.
     fn add(p1: Pair, p2: Pair) -> Pair {

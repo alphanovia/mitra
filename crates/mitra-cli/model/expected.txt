@@ -225,7 +225,7 @@ warning[M105]: a requirement that nothing leans on
   help: say which function `uses` it, or remove the `require`
 
 warning[M101]: a claim is not verified
-  --> model/model.mitra:63  fn conform(s: Store, built: Built, rev: Option<String>, reader: impl Reader) -> Result<usize, String>
+  --> model/model.mitra:63  fn conform(s: Store, built: Built, rev: Option<String>, reader: impl Reader) -> Result<Nat, String>
 
   No evidence on `commands::conform` giving one output per input.
   help: `mitra next` lists the evidence that would settle it

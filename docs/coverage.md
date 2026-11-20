@@ -5,13 +5,13 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 
 | Crate | Functions | Tied | Share | Lines in functions | In tied ones | Share | Code lines | Model lines | Model / code |
 |---|---|---|---|---|---|---|---|---|---|
-| mitra-lang | 464 | 58 | 12% | 14718 | 1767 | 12% | 15734 | 1061 | 7% |
+| mitra-lang | 464 | 58 | 12% | 14709 | 1767 | 12% | 15745 | 1061 | 7% |
 | mitra-store | 27 | 13 | 48% | 415 | 206 | 50% | 424 | 105 | 25% |
 | mitra-rust | 26 | 8 | 31% | 1024 | 576 | 56% | 1082 | 44 | 4% |
 | mitra-cli | 23 | 2 | 9% | 701 | 60 | 9% | 740 | 57 | 8% |
-| all | 540 | 81 | 15% | 16858 | 2609 | 15% | 17980 | 1267 | 7% |
+| all | 540 | 81 | 15% | 16849 | 2609 | 15% | 17991 | 1267 | 7% |
 
-- mitra-lang: 1061 lines of model over 15734 lines of code, in 22 subjects with 85 ensures and 9 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
+- mitra-lang: 1061 lines of model over 15745 lines of code, in 22 subjects with 85 ensures and 9 requires; apart from it, 97 lines of point claims and 24 tests pinned in the code.
 - mitra-store: 105 lines of model over 424 lines of code, in 4 subjects with 22 ensures and 8 requires; apart from it, 0 lines of point claims and 0 tests pinned in the code.
 - mitra-rust: 44 lines of model over 1082 lines of code, in 2 subjects with 3 ensures and 3 requires; apart from it, 28 lines of point claims and 0 tests pinned in the code.
 - mitra-cli: 57 lines of model over 740 lines of code, in 1 subject with 11 ensures and 18 requires; apart from it, 0 lines of point claims and 4 tests pinned in the code.
@@ -62,7 +62,7 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | pipeline.rs | `load` | 12 | 3 | types::load |
 | pipeline.rs | `load_modules` | 19 | 7 | types::load_modules |
 | pipeline.rs | `run` | 375 | 3 | verdicts::run |
-| reader.rs | `model` | 692 | 3 | reader::model |
+| reader.rs | `model` | 697 | 3 | reader::model |
 | report.rs | `word` | 50 | 11 | report::word |
 | report/plan.rs | `plan` | 17 | 276 | advice::plan |
 | report/print.rs | `negative` | 117 | 7 | print::negative |
@@ -228,18 +228,18 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | reader.rs | `is_keyword` | 363 | 3 |  |
 | reader.rs | `eat_keyword` | 367 | 5 |  |
 | reader.rs | `names_between` | 374 | 13 |  |
-| reader.rs | `items` | 388 | 284 |  |
-| reader.rs | `model_with` | 697 | 5 |  |
-| reader.rs | `declared` | 705 | 30 |  |
-| reader.rs | `read` | 736 | 60 |  |
+| reader.rs | `items` | 388 | 289 |  |
+| reader.rs | `model_with` | 702 | 5 |  |
+| reader.rs | `declared` | 710 | 30 |  |
+| reader.rs | `read` | 741 | 60 |  |
 | reader/finish.rs | `finish` | 7 | 176 |  |
 | reader/tokens.rs | `lex` | 9 | 43 |  |
 | reader/tokens.rs | `types_named` | 55 | 20 |  |
 | reader/tokens.rs | `lex_raw` | 104 | 67 |  |
 | reader/tokens.rs | `earlier` | 176 | 31 |  |
-| reader/tokens.rs | `unquote` | 253 | 15 |  |
-| reader/tokens.rs | `join` | 270 | 4 |  |
-| reader/tokens.rs | `tidy` | 277 | 18 |  |
+| reader/tokens.rs | `unquote` | 254 | 15 |  |
+| reader/tokens.rs | `join` | 271 | 4 |  |
+| reader/tokens.rs | `tidy` | 278 | 18 |  |
 | report.rs | `model` | 25 | 1 |  |
 | report.rs | `evidence` | 26 | 1 |  |
 | report.rs | `model` | 36 | 3 |  |
@@ -313,12 +313,12 @@ Written by `scripts/coverage.py --write`. A function is covered when a
 | types/read.rs | `set` | 191 | 7 |  |
 | types/read.rs | `set_inter` | 200 | 12 |  |
 | types/read.rs | `sets_in_parentheses` | 214 | 13 |  |
-| types/read.rs | `set_atom` | 228 | 226 |  |
-| types/read.rs | `variants` | 477 | 70 |  |
-| types/read.rs | `both` | 550 | 12 |  |
-| types/read.rs | `set_both` | 564 | 4 |  |
-| types/read.rs | `binders` | 570 | 33 |  |
-| types/read.rs | `enumeration` | 609 | 35 |  |
+| types/read.rs | `set_atom` | 228 | 212 |  |
+| types/read.rs | `variants` | 464 | 70 |  |
+| types/read.rs | `both` | 537 | 12 |  |
+| types/read.rs | `set_both` | 551 | 4 |  |
+| types/read.rs | `binders` | 557 | 33 |  |
+| types/read.rs | `enumeration` | 596 | 35 |  |
 | types/scope.rs | `types_of` | 10 | 55 |  |
 | types/scope.rs | `merge_types` | 68 | 27 |  |
 | types/scope.rs | `scope_types` | 99 | 56 |  |

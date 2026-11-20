@@ -1,7 +1,23 @@
 // Rust's own names, for the models of Rust code.
 //
-//     import std::rust::{Vec};
+//     import std::rust::{Vec, bool, usize};
 //
 // Nothing here is part of the language: another language gets its own file.
 
 type Vec<T> = List<T>;
+type HashSet<T> = Set<T>;
+type BTreeSet<T> = Set<T>;
+type HashMap<K, V> = Map<K, V>;
+type BTreeMap<K, V> = Map<K, V>;
+type bool = Bool;
+type i8 = Int8;
+type i16 = Int16;
+type i32 = Int32;
+type i64 = Int64;
+type u8 = UInt8;
+type u16 = UInt16;
+type u32 = UInt32;
+type u64 = Nat;
+type usize = Nat;
+type f64 = Float64;
+type str = String;

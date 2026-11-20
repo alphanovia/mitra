@@ -25,14 +25,14 @@ subject intent {
         name: String,
         prose: String,
         // Written in a boundary: a promise of the world.
-        world: bool,
+        world: Bool,
         // For a `require`: the promise it names.
         needs: Option<String>,
         // The claims of its block, which it rests on.
         claims: Vec<String>,
         // The needs of its block, which it rests on too.
         requires: Vec<String>,
-        line: usize,
+        line: Nat,
         ..
     }
 

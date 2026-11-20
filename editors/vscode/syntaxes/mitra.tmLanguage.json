@@ -96,7 +96,7 @@
       "patterns": [
         {
           "name": "support.type.mitra",
-          "match": "\\b(Bool|Int|Int8|Int16|Int32|Int64|UInt8|UInt16|UInt32|Float64|Real|String|Any|Set|Map|List|Vec|Option|Result|bool|i8|i16|i32|i64|u8|u16|u32|u64|usize|f64)\\b"
+          "match": "\\b(Bool|Int|Nat|Int8|Int16|Int32|Int64|UInt8|UInt16|UInt32|Float64|Real|String|Any|Set|Map|List|Vec|Option|Result|bool|i8|i16|i32|i64|u8|u16|u32|u64|usize|f64)\\b"
         },
         { "name": "entity.name.type.mitra", "match": "\\b[A-Z][A-Za-z0-9_]*\\b" }
       ]

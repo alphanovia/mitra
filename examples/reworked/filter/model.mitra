@@ -5,7 +5,7 @@ import std::core::{Option};
 record Mail { sender: {"boss", "shop", "stranger"}, links: 0..=2 }
 
 subject filter {
-    fn is_spam(m: Mail) -> bool;
+    fn is_spam(m: Mail) -> Bool;
 
     // What the code is specified to do with a verdict.
     fn route(v: Verdict, folder: Option<String>) -> String {

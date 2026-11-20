@@ -178,8 +178,8 @@ shop::total::correct: unverified
 module shipped with Mitra: `std::claims` (see
 [kw-claims.md](kw-library.md#stdclaims)) `std::core` (`Option<T> {
 None, Some(value: T) }`, `Result<T, E> { Ok(value: T), Err(error: E)
-}`) and `std::rust` (`type Vec<T> = List<T>;`: `type` gives `List`,
-`Set` or `Map` another name). `mitra explain std::core` prints one.
+}`) and `std::rust` (`type Vec<T> = List<T>;`, `type usize = Nat;`: `type`
+gives a type of the language another name). `mitra explain std::core` prints one.
 
 `import geometry::{Point};` brings them from `geometry.mitra`, beside the
 model (`a::b::{x}` reads `a/b.mitra`). Only the names listed come, once.

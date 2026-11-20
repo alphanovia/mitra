@@ -6,8 +6,8 @@ const EXAMPLE: &str = concat!(
 );
 
 const FLIP: &str = "subject s {
-    fn flip(a: bool) -> bool;
-    claim flip_correct(a: bool) { correct(flip(a)) }
+    fn flip(a: Bool) -> Bool;
+    claim flip_correct(a: Bool) { correct(flip(a)) }
     claim flip_on_true() { correct(flip(true)) }
 }
 ";
@@ -86,7 +86,7 @@ fn the_earlier_syntax_is_refused() {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
         dir.join("m.mitra"),
-        "record R { a: bool }\nopaque f(a: Bool) -> Bool\n",
+        "record R { a: Bool }\nopaque f(a: Bool) -> Bool\n",
     )
     .unwrap();
     std::fs::write(dir.join("e.mitra"), "").unwrap();
@@ -325,7 +325,7 @@ fn rev_leaves_out_stale_evidence() {
              s::flip_on_true: unverified\n  no evidence on  `s::flip(true)`\n"
         ) && out.contains(
             "warning[M101]: a claim is not verified\n  \
-             --> model/model.mitra:3  claim flip_correct(a: bool) { correct(flip(a)) }\n\
+             --> model/model.mitra:3  claim flip_correct(a: Bool) { correct(flip(a)) }\n\
              \n  \
              No evidence on `s::flip(true)`.\n  \
              help: `mitra next` lists the evidence that would settle it\n"
@@ -368,7 +368,7 @@ fn comments_hold_only_ties() {
 #[test]
 fn a_failed_bool_output_test_gives_the_other_output() {
     let model = "subject s {
-    fn flip(a: bool) -> bool;
+    fn flip(a: Bool) -> Bool;
     fn inc(x: Int) -> Int;
     fn dec(x: Int) -> Int { x - 1 }
     claim t_flip() { flip(true) == true }
@@ -600,8 +600,8 @@ fn the_ledger_is_kept_not_only_grown() {
     );
     // The claim is reworded: the review is stale, shown, and judges nothing.
     let model = FLIP.replace(
-        "claim flip_correct(a: bool) { correct(flip(a)) }",
-        "claim flip_correct(a: bool) { flip(flip(a)) == a }",
+        "claim flip_correct(a: Bool) { correct(flip(a)) }",
+        "claim flip_correct(a: Bool) { flip(flip(a)) == a }",
     );
     std::fs::write(dir.join("model/model.mitra"), model).unwrap();
     let (_, out, _) = mitra(&dir, &["eval"]);

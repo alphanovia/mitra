@@ -21,12 +21,12 @@ subject frontend {
     record Found {
         evidence: Vec<String>,
         notes: Vec<String>,
-        agree: usize,
-        differ: usize,
+        agree: Nat,
+        differ: Nat,
         // The functions, records and enums no code is tied to.
         untied: Vec<String>,
         // The lines of the code that are code.
-        code_lines: usize,
+        code_lines: Nat,
     }
 }
 
@@ -45,7 +45,7 @@ contract Reader<Place> {
     ensure compares_calls = "The calls the code plainly makes are compared with what the model says the function uses, and a call the model does not state is brought as evidence against it.";
     // What this reader may forget of the code to reach the model, each
     // erasure by its name with what it costs the tie.
-    fn erasures(&self) -> Vec<(String, f64)>;
+    fn erasures(&self) -> Vec<(String, Float64)>;
 
     ensure says_what_it_erased = "A tie agrees when what the reader may forget of the code leads to the model, and each erasure it took is named in the evidence it brings, which is trusted for what the erasures leave. Where no erasure applies, the difference is brought as it stands.";
     ensure reads_only = "The code is read as text: it is never built, run or changed.";

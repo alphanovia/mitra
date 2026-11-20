@@ -13,7 +13,7 @@ subject source {
     fn fn_below(code: String) -> Option<String>;
 
     // Whether the text after `mitra:` ties code to the model.
-    fn is_tie(m: String) -> bool;
+    fn is_tie(m: String) -> Bool;
 
     claim implements_is_a_tie() {
         is_tie("implements a::f")

@@ -10,12 +10,14 @@ may be: the narrower it is, the less evidence a claim owes.
 
 ## Bool, Int, Float64, String, Any
 
-`Bool` (`bool`), `Int` (every integer), `Float64` (`f64`), `String`,
-`Any` (everything). Rust's integer types are ranges: `i8`…`i64`,
-`u8`…`u32`, `u64` and `usize` (`0..`). `()` is the type with one value.
+`Bool`, `Int` (every integer), `Nat` (`0..`), `Float64`, `String`,
+`Any` (everything). Integers of a width are ranges: `Int8`…`Int64`,
+`UInt8`…`UInt32`. `()` is the type with one value. No word of a
+programming language is a type here: Rust's come with `import
+std::rust::{bool, usize};` and are refused without it.
 
 ```mitra
-subject fn describe(n: u8, ratio: f64, loud: bool) -> String;
+subject fn describe(n: UInt8, ratio: Float64, loud: Bool) -> String;
 claim described(n: {0, 255}) { describe(n, 0.5, true) != "" }
 ```
 ```evidence
@@ -101,7 +103,8 @@ swaps: holds
 ## List, Set, Map
 
 `List<T>`, `Set<T>`, `Map<K, V>`. `Vec<T>` is `List<T>` after `import
-std::rust::{Vec};`, and is refused without it.
+std::rust::{Vec};`, and is refused without it; `HashMap` and the others
+the same.
 
 ```mitra
 subject fn count(words: List<String>) -> Map<String, 1..>;

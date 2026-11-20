@@ -19,21 +19,21 @@ subject settings {
 
     record Settings {
         // The share of its domain a sampled claim may fail on unseen.
-        tolerance: f64,
+        tolerance: Float64,
         // Whether a passing sample lets a claim hold assuming it.
-        counts: bool,
+        counts: Bool,
         // The costs the file states, by erasure.
-        erasure: Map<String, f64>,
+        erasure: Map<String, Float64>,
     }
 
     impl Settings {
         fn read(text: String) -> Result<Self, String>
             uses voices::policy_reads;
-        fn sample(&self, n: u64) -> f64;
-        fn strength(costs: Vec<f64>) -> f64;
-        fn written(&self, profile: Vec<(String, f64)>) -> String;
+        fn sample(&self, n: Nat) -> Float64;
+        fn strength(costs: Vec<Float64>) -> Float64;
+        fn written(&self, profile: Vec<(String, Float64)>) -> String;
         // How often a word of this kind of voice is wrong.
-        fn doubt(&self, kind: String) -> f64;
+        fn doubt(&self, kind: String) -> Float64;
     }
 
     // defaults_without_a_file

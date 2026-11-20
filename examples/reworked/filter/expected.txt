@@ -20,13 +20,13 @@ filter::spam_goes_to_junk: unverified
 filter::by_sender: holds
 
 warning[M101]: a claim is not verified
-  --> model.mitra:8  fn is_spam(m: Mail) -> bool;
+  --> model.mitra:8  fn is_spam(m: Mail) -> Bool;
 
   No evidence on m in Mail.
   help: `mitra next` lists the evidence that would settle it
 
 warning[M101]: a claim is not verified
-  --> model.mitra:8  fn is_spam(m: Mail) -> bool;
+  --> model.mitra:8  fn is_spam(m: Mail) -> Bool;
 
   No evidence on `filter::is_spam` giving one output per input.
   help: `mitra next` lists the evidence that would settle it

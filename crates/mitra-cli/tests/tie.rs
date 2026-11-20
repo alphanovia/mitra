@@ -119,7 +119,7 @@ fn tie_compares_an_enum_with_its_enum() {
     std::fs::create_dir_all(dir.join("src")).unwrap();
     assert_eq!(mitra(&dir, &["init"]).0, Some(0));
     let model = "subject shapes {\n\
-                 enum Shape { Dot, Circle(radius: f64), Box(w: f64, h: f64) }\n\
+                 enum Shape { Dot, Circle(radius: Float64), Box(w: Float64, h: Float64) }\n\
                  enum Side { Left, Right }\n\
                  enum Unit { Mm(n: Int), Inch(n: Int) }\n}\n";
     let code = "// mitra: implements shapes::Shape\n\

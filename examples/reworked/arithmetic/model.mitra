@@ -5,14 +5,14 @@ import std::claims::{commutative, associative};
 
 subject arith {
     fn add(a: Int, b: Int) -> Int;
-    fn le(a: Int, b: Int) -> bool;
+    fn le(a: Int, b: Int) -> Bool;
 
     claim add_commutes = commutative(add, Int);
     claim add_associates = associative(add, Int);
     claim le_transitive(a: Int, b: Int, c: Int) when le(a, b) && le(b, c) { le(a, c) }
 
     fn sum3(a: Int, b: Int, c: Int) -> Int { add(add(a, b), c) }
-    fn between(a: Int, b: Int, c: Int) -> bool { le(a, b) && le(b, c) }
+    fn between(a: Int, b: Int, c: Int) -> Bool { le(a, b) && le(b, c) }
 
     // Commutativity, through one body.
     claim sum3_swaps(a: Int, b: Int, c: Int) { sum3(a, b, c) == sum3(b, a, c) }

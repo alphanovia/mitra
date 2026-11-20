@@ -14,7 +14,7 @@ subject eval {
     // An operator of two values.
     fn binary(op: String, x: Any, y: Any) -> Option<Any>;
 
-    claim not_is(v: bool) {
+    claim not_is(v: Bool) {
         unary("!", v) == Some(!v)
     }
     claim twice_negated(v: Int) {

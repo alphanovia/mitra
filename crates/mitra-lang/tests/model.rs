@@ -828,6 +828,17 @@ fn a_type_is_another_name_for_a_collection() {
     );
     let said = |src: &str| read(src).unwrap_err().1.to_string();
     assert!(said("subject fn f(a: Vec<Int>) -> Int;").contains("import std::rust::{Vec};"));
-    assert!(said("type Seq<T> = Int;").contains("another name for `List`, `Set` or `Map`"));
+    assert!(said("subject fn f(a: usize) -> Int;").contains("import std::rust::{usize};"));
+    assert!(said("type Seq<T> = Int;").contains("another name for a type of the language"));
+    assert!(said("type Seq = Seq;").contains("another name for a type of the language"));
+    // A plain type too: Rust's `usize` is `Nat`, zero and up.
+    assert_eq!(
+        read("import std::rust::{usize};\nsubject fn f(a: usize) -> Int;").unwrap(),
+        read("subject fn f(a: Nat) -> Int;").unwrap()
+    );
+    assert_eq!(
+        read("type Count = Nat;\nsubject fn f(a: Count) -> Int;").unwrap(),
+        read("subject fn f(a: 0..) -> Int;").unwrap()
+    );
     assert!(said("type Seq<T> = List<U>;").contains("other parameters"));
 }

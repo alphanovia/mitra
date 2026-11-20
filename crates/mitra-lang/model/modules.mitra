@@ -33,7 +33,7 @@ subject modules {
         // The whole model, as it is read.
         fn text(&self) -> String;
         // A line of the whole model, as `file:line`.
-        fn place(&self, line: usize) -> String;
+        fn place(&self, line: Nat) -> String;
         // A fault of the model, at its file and line.
         fn locate(&self, err: reader::Error) -> String;
     }

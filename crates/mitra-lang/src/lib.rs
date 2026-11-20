@@ -5,8 +5,8 @@
 //! most plausibly wrong.
 //!
 //! ```
-//! let model = "subject s { fn flip(a: bool) -> bool;\n\
-//!              claim flip_correct(a: bool) { correct(flip(a)) } }";
+//! let model = "subject s { fn flip(a: Bool) -> Bool;\n\
+//!              claim flip_correct(a: Bool) { correct(flip(a)) } }";
 //! let evidence = "evidence t { for flip holds }";
 //! let report = mitra_lang::run(model, evidence).unwrap();
 //! assert!(report.to_text().contains("s::flip_correct: holds\n"));

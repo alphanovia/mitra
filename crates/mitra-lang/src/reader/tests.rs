@@ -79,9 +79,11 @@ fn errors_point_at_their_line() {
 
 #[test]
 fn rust_names_are_the_same_types() {
-    let (m, _) =
-        model("import std::rust::{Vec};\nsubject fn f(a: Vec<i32>, b: usize) -> bool;").unwrap();
-    let (n, _) = model("subject fn f(a: List<Int32>, b: 0..) -> Bool;").unwrap();
+    let (m, _) = model(
+        "import std::rust::{Vec, i32, usize, bool};\nsubject fn f(a: Vec<i32>, b: usize) -> bool;",
+    )
+    .unwrap();
+    let (n, _) = model("subject fn f(a: List<Int32>, b: Nat) -> Bool;").unwrap();
     assert_eq!(m.functions[0].params, n.functions[0].params);
     assert_eq!(m.functions[0].range, n.functions[0].range);
 }

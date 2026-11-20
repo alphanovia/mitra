@@ -9,7 +9,7 @@ subject print {
     fn quote(s: String) -> String;
 
     // Whether a value prints with a minus sign.
-    fn negative(v: Any) -> bool;
+    fn negative(v: Any) -> Bool;
 
     // `Any` hides the type: a spec can't ask whether `v` is a number.
     claim negative_ints(v: Int) {
@@ -17,7 +17,7 @@ subject print {
     }
 
     // How tightly an operator binds: the printer adds parentheses from it.
-    fn level(op: String) -> u8 {
+    fn level(op: String) -> UInt8 {
         if op == "||" { 1 }
         else if op == "&&" { 2 }
         else if op in {"+", "-", "|", "\\"} { 4 }

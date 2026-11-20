@@ -118,9 +118,10 @@ observed the claim is not judged.
 
 ### Types
 
-A type is a set of values. `bool`, `i8`…`i64`, `u8`…`u32`,
-`u64`/`usize` (`0..`), `f64`, `String`, and Mitra's `Bool`, `Int` (every
-integer), `Float64`, `Any` (everything). Ranges `0..=9`, `1..`. Sets of values
+A type is a set of values. `Bool`, `Int` (every integer), `Nat`
+(`0..`), `Int8`…`Int64`, `UInt8`…`UInt32`, `Float64`, `String`, `Any`
+(everything). Rust's words (`bool`, `usize`, `Vec`…) come from
+`std::rust`. Ranges `0..=9`, `1..`. Sets of values
 `{"a", "b"}`. Tuples `(A, B)`, unit `()`. `List<T>`, `Set<T>`,
 `Map<K, V>`, `Option<T>` and `Result<T, E>` once declared as enums.
 Function types `fn(A) -> B`. `A | B`, `A & B`, `A \ B`.

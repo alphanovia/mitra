@@ -390,16 +390,21 @@ impl P {
             let line = self.at.unwrap_or(self.line());
             let kw = self.name()?;
             match kw.as_str() {
-                // type Vec<T> = List<T>;  another name for a collection, replaced
+                // type Vec<T> = List<T>;  type bool = Bool;  another name for a type, replaced
                 // where the text was read (`lex`): checked here.
                 "type" if self.scope.is_none() && self.block.is_none() => {
                     let name = self.name()?;
                     let params = self.names_between()?;
                     self.expect("=")?;
                     let named = self.name()?;
-                    if !["List", "Set", "Map"].contains(&named.as_str()) {
+                    let plain = [
+                        "Bool", "Int", "Nat", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16",
+                        "UInt32", "Float64", "String",
+                    ];
+                    let collection = ["List", "Set", "Map"].contains(&named.as_str());
+                    if !collection && !(plain.contains(&named.as_str()) && params.is_empty()) {
                         return self.err(format!(
-                            "`type {name}` names `{named}`: a `type` is another name for `List`, `Set` or `Map`"
+                            "`type {name}` names `{named}`: a `type` is another name for a type of the language"
                         ));
                     }
                     if self.names_between()? != params {

@@ -8,7 +8,7 @@ subject reader {
 
     // A fault in a text, with its line.
     record Error {
-        line: usize,
+        line: Nat,
         message: String,
     }
 

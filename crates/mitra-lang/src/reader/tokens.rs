@@ -206,7 +206,7 @@ pub fn earlier(model: &str) -> Option<(usize, &'static str)> {
 }
 
 /// Reserved words: never names.
-pub const KEYWORDS: [&str; 36] = [
+pub const KEYWORDS: [&str; 37] = [
     "Set",
     "Map",
     "keys",
@@ -231,6 +231,7 @@ pub const KEYWORDS: [&str; 36] = [
     "in",
     "Bool",
     "Int",
+    "Nat",
     "Int8",
     "Int16",
     "Int32",

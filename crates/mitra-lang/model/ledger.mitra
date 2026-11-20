@@ -37,12 +37,12 @@ subject ledger {
 
     // What was observed. The field names are the model's.
     enum Judgment {
-        Correct(ok: bool),                                // right or wrong, on a function
+        Correct(ok: Bool),                                // right or wrong, on a function
         Output(value: Any),                               // the output observed
-        Holds(ok: bool),                                  // true or false, on a claim
+        Holds(ok: Bool),                                  // true or false, on a claim
         Passed,                                           // a test passed, inputs not stated
-        Sampled(count: u64, ok: bool, domain: String, over: Any),    // on that many drawn inputs
-        Measured(measure: functions::Expr, value: f64)    // a measure, as measured
+        Sampled(count: Nat, ok: Bool, domain: String, over: Any),    // on that many drawn inputs
+        Measured(measure: functions::Expr, value: Float64)    // a measure, as measured
     }
 
     record Evidence {
@@ -50,18 +50,18 @@ subject ledger {
         about: String,
         judgment: Judgment,
         // The trust of its author, from 0 to 1.
-        confidence: f64,
+        confidence: Float64,
         source: Option<String>,
         rev: Option<String>,
         // The fingerprint of its piece when a person said it.
         seen: Option<String>,
-        line: usize,
+        line: Nat,
         ..
     }
 
     impl Evidence {
         // Whether a machine observed it.
-        fn by_machine(&self) -> bool;
+        fn by_machine(&self) -> Bool;
         // What was done: the act it states, or the one its shape says.
         fn act(&self) -> String;
         // Whose word it is: who wrote what a machine ran, or who did it.
@@ -80,7 +80,7 @@ subject ledger {
         source: Option<String>,
         rev: Option<String>,
         why: Why,
-        line: usize,
+        line: Nat,
     }
 
     // One evidence block of a ledger, read without a model: the piece
@@ -90,8 +90,8 @@ subject ledger {
         source: Option<String>,
         rev: Option<String>,
         seen: Option<String>,
-        first: usize,
-        last: usize,
+        first: Nat,
+        last: Nat,
     }
 
     fn entries(src: String) -> Vec<Entry>;

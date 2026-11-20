@@ -22,7 +22,7 @@ subject functions {
         name: String,
         // `None` for code Mitra never runs.
         body: Option<Expr>,
-        line: usize,
+        line: Nat,
         ..
     }
 

@@ -42,7 +42,7 @@ subject build {
         // one line per piece.
         fn lock(&self) -> String;
         // How many pieces of a kind it holds.
-        fn count(&self, kind: String) -> usize;
+        fn count(&self, kind: String) -> Nat;
     }
 
     fn interface(m: model::Model) -> String;
@@ -106,7 +106,7 @@ subject levels {
         uses advice::plan;
 
     record Diagnosis {
-        contradicts: bool,
+        contradicts: Bool,
         // `claim: before -> after`.
         changed: Vec<String>,
         text: String,

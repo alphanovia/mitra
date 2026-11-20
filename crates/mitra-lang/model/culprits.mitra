@@ -11,12 +11,12 @@ subject culprits {
     // For each piece, how much it must be wrong (belief) and how much it
     // can be (plausibility).
     record Ranking {
-        belief: Vec<f64>,
-        plausibility: Vec<f64>,
+        belief: Vec<Float64>,
+        plausibility: Vec<Float64>,
         // How much of the trust given contradicts itself.
-        conflict: f64,
+        conflict: Float64,
         // How many pieces trusted fully had to be doubted.
-        doubted: usize,
+        doubted: Nat,
     }
 
     enum NoRanking {
@@ -26,7 +26,7 @@ subject culprits {
 
     // `biases[i]` is the trust in piece `i`; each clause lists pieces
     // that can't all be right.
-    fn rank(biases: Vec<Option<f64>>, clauses: Vec<Vec<usize>>) -> Result<Ranking, NoRanking>;
+    fn rank(biases: Vec<Option<Float64>>, clauses: Vec<Vec<Nat>>) -> Result<Ranking, NoRanking>;
 
     // One opinion per piece, each within 0 and 1.
     claim rank_shape(biases, clauses) {

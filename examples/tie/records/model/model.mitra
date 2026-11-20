@@ -1,7 +1,7 @@
 // Records stated as far as the model needs them, tied to the structs.
 subject check {
     record Model;                                      // nothing of it is stated
-    record Claim { name: String, line: usize, .. }     // these fields, and others
+    record Claim { name: String, line: Nat, .. }     // these fields, and others
     record Point { x: Int, y: Int }                    // exactly these fields
     record Wide { a: Int }
 

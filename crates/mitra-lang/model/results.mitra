@@ -21,7 +21,7 @@ subject results {
     // One test of a report, and whether it passed.
     record Outcome {
         name: String,
-        passed: bool,
+        passed: Bool,
     }
 
     // A test tied to a claim by a comment above it.

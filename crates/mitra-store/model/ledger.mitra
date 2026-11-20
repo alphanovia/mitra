@@ -19,7 +19,7 @@ subject ledger {
     impl Store {
         // Evidence blocks, stamped with who says so and on which revision.
         // Gives how many pieces were added.
-        fn add(&self, text: String, source: Option<String>, rev: Option<String>) -> Result<usize, String>
+        fn add(&self, text: String, source: Option<String>, rev: Option<String>) -> Result<Nat, String>
             uses Store::append;
         // Checks the store with the new evidence, then writes it.
         fn append(&self, new: String) -> Result<(), String>
@@ -48,9 +48,9 @@ subject keeping {
     // What a run of a machine put in place of its earlier evidence.
     record Replaced {
         // How many entries of that machine left, and their revisions.
-        before: usize,
+        before: Nat,
         revs: Vec<String>,
-        written: usize,
+        written: Nat,
         // Those with nothing written in their place, as written.
         gone: Vec<String>,
     }

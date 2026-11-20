@@ -27,7 +27,7 @@ subject claims {
         Matches(spec: functions::Expr),       // equal to this expression on every input
         Property(body: functions::Expr),      // true on every input
         Uniform(by: Option<String>),          // one judged input stands for its class
-        Uses(used: Vec<String>, only: bool),  // calls these, and with `only` no other
+        Uses(used: Vec<String>, only: Bool),  // calls these, and with `only` no other
         Tied,                                 // the code is where the tie says
         Represented(set: String)              // one tested input stands for a set
     }
@@ -37,8 +37,8 @@ subject claims {
         // The function it is about.
         func: String,
         target: Target,
-        trust: Option<f64>,
-        line: usize,
+        trust: Option<Float64>,
+        line: Nat,
         ..
     }
 

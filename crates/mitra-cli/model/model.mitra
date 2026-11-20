@@ -60,7 +60,7 @@ subject commands {
 
     // The model and the code: the ties are written to the ledger, and
     // what is not tied is counted. Gives 1 on drift.
-    fn conform(s: Store, built: Built, rev: Option<String>, reader: impl Reader) -> Result<usize, String>
+    fn conform(s: Store, built: Built, rev: Option<String>, reader: impl Reader) -> Result<Nat, String>
         uses Reader::tie, Reader::tests;
 
     // A revision given with `--rev`.
