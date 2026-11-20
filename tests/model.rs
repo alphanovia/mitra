@@ -19,7 +19,7 @@ fn says(name: &str, about: &str, value: Opinion, by: &str) -> Evidence {
 }
 fn rests(pieces: &[&str]) -> Related {
     Related {
-        how: Relation::RestsOn,
+        how: Relation::All,
         pieces: pieces.iter().map(|p| Piece::named(p)).collect(),
     }
 }
@@ -319,7 +319,7 @@ fn six_voices_hold_a_claim_and_one_voice_never() {
                 },
             );
             model.evidence.push(says(&t, "c", yes(), &by));
-            model.base.push((Piece(t), 0.6));
+            model.base.push((Piece { name: t }, 0.6));
         }
         model
     };
@@ -354,14 +354,92 @@ fn a_piece_rests_on_all_its_parts() {
     assert_eq!(opinion(&model, &Piece::named("x")).b, 0.25);
 }
 
+/// `x` is all of `y` alone, so what is said of one is said of the
+/// other: two voices, 0.75 and 0.5, add up to 0.8 for both.
 #[test]
-fn its_own_evidence_counts_when_it_is_better() {
+fn a_whole_of_one_part_shares_its_evidence() {
     let model = Model {
         evidence: vec![says("t1", "y", yes(), "a"), says("t0", "x", yes(), "b")],
         related: vec![rests(&["x", "y"])],
         base: base_of(&[("t1", 0.5), ("t0", 0.75)]),
     };
-    assert_eq!(opinion(&model, &Piece::named("x")).b, 0.75);
+    assert!(near(opinion(&model, &Piece::named("x")).b, 0.8));
+    assert!(near(opinion(&model, &Piece::named("y")).b, 0.8));
+}
+
+/// What is said of a whole directly is never dropped for what its
+/// parts are expected to be.
+#[test]
+fn a_no_about_a_whole_is_kept() {
+    let model = Model {
+        evidence: vec![says("t", "x", no(), "a")],
+        related: vec![rests(&["x", "y", "z"])],
+        base: base_of(&[("t", 0.5), ("y", 1.0), ("z", 1.0)]),
+    };
+    assert_eq!(opinion(&model, &Piece::named("x")), op(0.0, 0.5, 0.5, 0.0));
+}
+
+// mitra: evidence for model::a_throw_that_falls_believes_both
+// mitra: evidence for model::a_throw_that_does_not_fall_blames_neither_alone
+// mitra: evidence for model::a_throw_that_does_not_fall_names_its_suspects
+#[test]
+fn a_throw_at_one_half() {
+    let throw = |fell: bool| Model {
+        evidence: vec![says(
+            "throw",
+            "lands",
+            if fell { yes() } else { no() },
+            "me",
+        )],
+        related: vec![rests(&["lands", "applies", "falls"])],
+        base: base_of(&[("throw", 0.5)]),
+    };
+    let half = op(0.5, 0.0, 0.5, 0.0);
+    assert_eq!(opinion(&throw(true), &Piece::named("falls")), half);
+    assert_eq!(opinion(&throw(true), &Piece::named("applies")), half);
+    assert_eq!(opinion(&throw(false), &Piece::named("falls")), nothing(0.0));
+    assert_eq!(
+        opinion(&throw(false), &Piece::named("lands")),
+        op(0.0, 0.5, 0.5, 0.0)
+    );
+    let suspects = ["applies", "falls", "throw"].map(Piece::named).to_vec();
+    assert_eq!(conflicts(&throw(false)), [suspects]);
+}
+
+// mitra: evidence for model::the_balloon_blames_its_tie
+// mitra: evidence for model::silence_blames_the_noise
+#[test]
+fn what_is_shared_takes_the_blame_off() {
+    let balloon = Model {
+        evidence: vec![
+            says("throw ball", "ball lands", yes(), "me"),
+            says("throw balloon", "balloon lands", no(), "me"),
+        ],
+        related: vec![
+            rests(&["ball lands", "ball applies", "falls"]),
+            rests(&["balloon lands", "balloon applies", "falls"]),
+        ],
+        base: base_of(&[("throw ball", 0.5), ("throw balloon", 0.5)]),
+    };
+    assert_eq!(
+        opinion(&balloon, &Piece::named("balloon applies")),
+        op(0.0, 0.25, 0.75, 0.0)
+    );
+    let noise = Model {
+        evidence: vec![
+            says("throw", "lands", yes(), "me"),
+            says("listen", "bangs", no(), "me"),
+        ],
+        related: vec![
+            rests(&["lands", "applies", "falls"]),
+            rests(&["bangs", "applies", "noise"]),
+        ],
+        base: base_of(&[("throw", 0.5), ("listen", 0.5)]),
+    };
+    assert_eq!(
+        opinion(&noise, &Piece::named("noise")),
+        op(0.0, 0.25, 0.75, 0.0)
+    );
 }
 
 #[test]

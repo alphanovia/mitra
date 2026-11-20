@@ -187,3 +187,34 @@ piece, `lands`, resting on the tie and the statement. 583. The wrong
 rows are pinned as tests and not written as claims of the model: a
 claim is a promise. 584. Two rules are proposed in the note, not
 coded.
+
+## Increment 97: the relation `All`, and the toy reads right (2026-11-20)
+
+**Asked.** "Let's name this relation we have an exemple of, make the
+computation right. I think relation semantic should be about the
+trust operation we compute on them no ?" Two relations in the toy:
+`about` (evidence to its piece: discount, then fuse), which is a field
+and was already there, and the pair, renamed from `RestsOn` to `All`
+after its operation. `docs/throwing.md` has the operators and the
+tables; all four scenarios now read as expected.
+
+**Decisions taken alone.**
+
+585. The name is `All`, not `Pair`: the operation is a conjunction of
+     any number of parts, and the pair is its case of two.
+586. A yes flows down as the same belief, with the voice of the
+     evidence, and is fused with what else is said of the part.
+587. A no gives a part `d` times the product of the belief of the
+     other parts, that belief taken without the whole in question and
+     without any blame. Belief, not projected probability.
+588. A whole reads what is said of it directly or its parts together,
+     whichever has less uncertainty (it was: whichever projects
+     higher, which dropped a no).
+589. A conflict is derived from every evidence that disbelieves a
+     whole, whether or not its parts are believed.
+590. `record Piece { name: String }`: a piece was opaque, and the
+     toy's claims need to name pieces. In the code it was a name
+     already.
+591. Not done: the same evidence reaching a part through two wholes
+     is counted twice; flowing down more than one level is coded and
+     not tested.

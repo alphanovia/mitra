@@ -3,17 +3,21 @@
 /// Something said, right or wrong. Known by its name only.
 // mitra: implements piece::Piece
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Piece(pub String);
+pub struct Piece {
+    pub name: String,
+}
 
 impl Piece {
     pub fn named(name: &str) -> Piece {
-        Piece(name.to_string())
+        Piece {
+            name: name.to_string(),
+        }
     }
 }
 
 // mitra: implements piece::piece_id
 pub fn piece_id(x: &Piece) -> &str {
-    &x.0
+    &x.name
 }
 
 /// What is believed of a piece. `b + d + u == 1`; `a` is the base rate:

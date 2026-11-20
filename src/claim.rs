@@ -39,7 +39,9 @@ pub fn observe(s: &Statement<Formal>, inputs: &[(String, Value)], by: &Voice) ->
         _ => return None,
     };
     Some(Evidence {
-        piece: Piece(format!("{} at {:?} by {}", s.piece.0, inputs, by.name)),
+        piece: Piece {
+            name: format!("{} at {:?} by {}", s.piece.name, inputs, by.name),
+        },
         about: s.piece.clone(),
         value,
         by: by.clone(),

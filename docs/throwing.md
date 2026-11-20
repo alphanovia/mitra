@@ -1,65 +1,66 @@
 # The throwing toy
 
-What the core computes today on the smallest model we could think of,
-row by row, and whether each row reads right. Pinned in
-`tests/throwing.rs`. Nothing in the calculus was changed for it.
+The smallest model we could think of, used to settle one relation and
+its computation. Every row below is what the core computes, pinned in
+`tests/throwing.rs`; the toy is also five claims of `model.mitra`.
 
-## The toy, in today's pieces
+## The toy
 
 | Piece | Kind | Says |
 |---|---|---|
 | `falls` | statement | thrown up, it goes up then falls down |
 | `applies` | tie | this model is a good model of this object |
-| `lands` | a fourth piece | this object, thrown, falls: `falls` and `applies` together |
-| `throw` | evidence about `lands` | I threw it and saw it fall, or not; believed as far as I trust my senses |
+| `lands` | the pair | `applies` and `falls` together: this object, thrown, falls |
+| `throw` | evidence about the pair | I threw it and saw it fall, or not; believed as far as I trust my senses |
 
-One relation: `lands` rests on [`applies`, `falls`]. The fourth piece
-is needed because evidence is about one piece, and a throw tests the
-statement and the tie together.
+## Two relations, named after what is computed on them
+
+**`about`**: evidence to the piece it speaks of. It is the field
+`Evidence.about`, not a declared relation.
+
+- *discount*: what the evidence says counts as far as the evidence is
+  believed. `moved(opinion(e), e.value)`.
+- *fuse*: several pieces of evidence about one piece add up as far as
+  their voices are independent.
+
+**`All`**: a whole to its parts, here the pair to its tie and its
+statement. Declared: `Related(All, [lands, applies, falls])`.
+
+| Direction | Operation | Formula |
+|---|---|---|
+| up | conjunction | `b = b1·b2`, `d = d1 + d2 - d1·d2` |
+| down, a yes | what believes the whole believes each part as much | part gets `(b, 0)` from each evidence about the whole, with its voice |
+| down, a no | shared: a part is disbelieved as far as the others are believed | part gets `(0, d · b of the other parts)`, their belief taken from other evidence |
+| the whole itself | what is said of it directly, or its parts together | whichever is more certain (less `u`) |
+
+The **conflict is computed, not declared**: evidence saying no about
+a whole means its parts and that evidence cannot all be right. They
+are listed, the least believed first (by `P = b + a·u`).
 
 ## 1. One throw
 
 `a`, `f`: base rates of the tie and the statement. `s`: trust in my
-senses. An opinion is written (b, d); the rest is uncertainty.
+senses. An opinion is written (b, d).
 
-| a | f | s | I saw | `lands` today | `applies`, `falls` today | Reads right | Expected |
-|---|---|---|---|---|---|---|---|
-| 0 | 0 | 1 | fall | (1, 0) | unmoved, P 0 | **no** | both (1, 0): the pair is true, so each part is |
-| 0 | 0 | 1 | no fall | (0, 1) | unmoved | **half** | right, plus "one of `applies`, `falls` is wrong" |
-| 1 | 1 | 1 | fall | (1, 0) | unmoved, P 1 | yes | |
-| 1 | 1 | 1 | no fall | (0, 0) | unmoved, P 1 | **no** | `lands` (0, 1), and a conflict between the three, unranked |
-| 1 | 1 | 0 | no fall | (0, 0) | unmoved | yes | senses not trusted: nothing moves |
-| 0 | 0 | 0 | fall | (0, 0) | unmoved | yes | |
-| 0.5 | 0.5 | 0.9 | fall | (0.9, 0) | unmoved, P 0.5 | **no** | both (0.9, 0), P 0.95 |
-| 0.5 | 0.5 | 0.9 | no fall | (0, 0) | unmoved | **no** | `lands` (0, 0.9); suspects: `applies` 0.5, `falls` 0.5, then `throw` 0.9 |
-| 0.9 | 0.5 | 0.6 | no fall | (0, 0) | unmoved | **no** | `lands` (0, 0.6); suspects: `falls` 0.5, `throw` 0.6, `applies` 0.9 |
-| 0 | 0 | 0.6 | fall | (0.6, 0) | unmoved, P 0 | **no** | both (0.6, 0) |
+| a | f | s | I saw | `lands` | `applies` and `falls` | Suspects, least believed first |
+|---|---|---|---|---|---|---|
+| 0 | 0 | 1 | fall | (1, 0) | (1, 0) | |
+| 0 | 0 | 1 | no fall | (0, 1) | unmoved | `applies` 0, `falls` 0, `throw` 1 |
+| 1 | 1 | 1 | fall | (1, 0) | (1, 0) | |
+| 1 | 1 | 1 | no fall | (0, 1) | unmoved | all three at 1: no order |
+| 1 | 1 | 0 | no fall | (0, 0) | unmoved | none: senses not trusted |
+| 0 | 0 | 0 | fall | (0, 0) | unmoved | |
+| 0.5 | 0.5 | 0.9 | fall | (0.9, 0) | (0.9, 0), P 0.95 | |
+| 0.5 | 0.5 | 0.9 | no fall | (0, 0.9) | unmoved | `applies` 0.5, `falls` 0.5, `throw` 0.9 |
+| 0.9 | 0.5 | 0.6 | no fall | (0, 0.6) | unmoved | `falls` 0.5, `throw` 0.6, `applies` 0.9 |
+| 0 | 0 | 0.6 | fall | (0.6, 0) | (0.6, 0) | |
 
-Three faults, all in how a whole and its parts stand:
-
-1. **Nothing flows down.** Belief goes from parts to the whole and
-   never back. A throw that succeeds for sure leaves the statement and
-   the tie unbelieved.
-2. **A "no" is dropped.** When the parts have a base rate above 0, a
-   piece is read from its parts (their product reads higher than
-   disbelief does), and the evidence against it disappears. With
-   base rates at 0 it is kept. A sign error of the rule "its own
-   evidence or what it rests on, whichever is more".
-3. **No conflict is derived.** `conflicts` finds declared exclusions
-   and opposite evidence on one piece. A failed throw is neither.
-
-The non-identifiable pair does behave alike: `applies` and `falls`
-never move differently from one throw. Only their base rates tell
-them apart, which is what we agreed.
-
-One more, smaller: `lands` reads P 0 when both its parts read P 1 and
-nothing was thrown. Its base rate is its own (0) and not that of its
-parts. The claim `base_rate_survives` says so on purpose; for a piece
-that only rests on others it looks wrong.
+All ten read right to me. The tie and the statement always move
+alike: one throw cannot tell them apart, only their base rates can.
 
 ## 2. The same throw again
 
-Senses at 0.6, bases 0. Belief in `lands`:
+Senses at 0.6, bases 0. Belief in the pair, and in each part:
 
 | Throws | By me alone | By different people |
 |---|---|---|
@@ -68,58 +69,48 @@ Senses at 0.6, bases 0. Belief in `lands`:
 | 4 | 0.6 | 0.86 |
 | 6 | 0.6 | 0.9 |
 
-Reads right for the pair. Open, as before: repeating a throw myself
-adds nothing at all, which is the "same voice" end of independence. A
-second throw by me is a second act, though. Voice and act are one
-thing today.
-
 ## 3. A ball and a balloon, one statement
 
-`ball lands` rests on [`ball applies`, `falls`], `balloon lands` on
-[`balloon applies`, `falls`]. The ball falls, the balloon does not.
+Two pairs share `falls`. The ball falls, the balloon does not.
 
-| a | s | Today | Expected |
-|---|---|---|---|
-| 0 | 1 | wholes (1, 0) and (0, 1); no part moves | `falls` (1, 0) through the ball, so `balloon applies` (0, 1): the tie is wrong, for sure |
-| 0 | 0.9 | wholes (0.9, 0) and (0, 0.9); no part moves | `falls` (0.9, 0), `balloon applies` (0, 0.81) |
-| 0.5 | 0.9 | `balloon lands` dropped to (0, 0) | the same as the row above |
+| a | s | `falls` | `ball applies` | `balloon applies` | Suspects |
+|---|---|---|---|---|---|
+| 0 | 1 | (1, 0) | (1, 0) | (0, 1) | the balloon's tie first |
+| 0 | 0.9 | (0.9, 0) | (0.9, 0) | (0, 0.81) | the balloon's tie first |
+| 0.5 | 0.9 | (0.9, 0) | (0.9, 0) | (0, 0.81) | the balloon's tie, the throw, then `falls` |
 
 ## 4. One object, two statements
 
-`lands` rests on [`applies`, `falls`], `bangs` on [`applies`,
-`noise`]. It falls, and makes no noise. Today and expected are the
-mirror of scenario 3: `applies` should be believed through the fall,
-and `noise` should take the blame at 0.81. Today no part moves.
+Two pairs share `applies`. It falls, and makes no noise. The mirror:
+`applies` (s, 0) through the fall, `noise` (0, s·s), and `noise` is
+the first suspect.
 
-So sharing does separate the pair, but only once belief flows down:
-the 0.81 is "how sure I am it did not, times how far the other part
-is believed on other evidence".
+## What still reads odd
 
-## What it says about the relation record
+1. **The pair is not the product of its parts after a yes.** One
+   throw at 0.9 gives the pair 0.9 and each part 0.9; multiplied back
+   they would give 0.81, the one throw counted twice. The pair keeps
+   0.9 because what is said of it directly is more certain. The rule
+   "whichever is more certain" is mine.
+2. **A no alone disbelieves nothing.** With one object and one model,
+   a failed throw leaves the tie and the statement exactly where they
+   were and only names them as suspects. That is the
+   non-identifiability we agreed on, and it means a claim that fails
+   its only test is "suspect", not "disbelieved".
+3. **Blame uses belief, not expectation.** A part with a high base
+   rate and no evidence does not push blame on the other part. Using
+   `P` there would make disbelief out of nothing but base rates.
+4. **A pair with no evidence reads at its own base rate**, 0, even
+   when both parts are expected at 1.
+5. **Repeating a throw myself adds nothing.** Voice and act are one
+   thing today.
 
-- The toy uses **one kind only: rests on, all of**. Nothing declares
-  an exclusion.
-- The conflict {`applies`, `falls`, `throw`} **cannot be derived on
-  `core` today**. It could be, from the same records: evidence saying
-  no about a piece that rests on others means the evidence and those
-  others cannot all be right.
-- Is "cannot all be right" ever declared with no evidence? The one
-  case I see, two statements that contradict on paper, is computed by
-  the seam (their expressions disagree at some input), so it is
-  evidence too. `Exclude` may not need to be a declared relation.
-- "Any of": several supports of one piece are fused evidence, or
-  several `rests on` of which the better counts. No third kind needed
-  for the toy.
+## Open on relations
 
-## Two rules that would make the tables read right
-
-Not coded. For you to accept, change or replace.
-
-- **Yes flows down.** Evidence that believes a piece believes each
-  piece it rests on as much. (Check: the pair recomputed from its
-  parts would then read 0.81 for one throw at 0.9, the throw counted
-  twice. The whole must keep its own evidence.)
-- **No is shared.** Evidence that disbelieves a piece at `d` gives
-  each part `d` times the belief of the other parts from other
-  evidence, and reports the parts and itself as a conflict, least
-  believed first. Its own evidence against a piece is never dropped.
+- A statement with no tie (a latent part of the system) needs a
+  relation between statements. Not designed.
+- `Exclude` is still in the record and the toy never uses it. The one
+  case I see for it, two statements that contradict on paper, could be
+  computed by the seam instead.
+- A tie without a statement cannot be forbidden by the records as they
+  are: a tie names a statement by its piece.
