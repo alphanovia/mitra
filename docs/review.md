@@ -658,3 +658,26 @@ changing the computation?"
      of evidence by a doubted voice has it as a parent, applied when
      the model is read (`settled`).
 680. The older trial examples are not rewritten with ties.
+
+## Increment 110: the shape of the graph (2026-11-20)
+
+**Asked.** Scenarios 1, 3, 5 and 6 of the list, and whether the
+readings the tie rewrite changed are better or worse.
+
+**Done.** `examples/structure.rs`, `tests/structure.rs` (7 tests),
+`docs/trials.md`, "The shape of the graph". One change to the core:
+`suspects` in `src/model.rs`, and the wording of `no_is_shared`.
+108 tests (101).
+
+**Decided alone.**
+
+681. Fixed, found by the diamond: a no about a whole reached only its
+     direct parts, so a part that is itself a whole kept the no and
+     its own parts heard nothing. The suspects are now the parts all
+     the way down, each once. No recorded test moved.
+682. A piece reached by two paths is one suspect with one share, not
+     two.
+683. A doubted relation met on the way down is a suspect too.
+684. In the reviewer toy the tie's base rate is what moved the
+     readings. Whether a tie should have a default, as completeness
+     has, is left to the user.

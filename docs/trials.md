@@ -738,3 +738,100 @@ and `sweep` examples) still write their relations by hand, which the
 core still reads; and the toy with two statements observed apart
 (it falls, it makes no noise), since the whole of a tie is all its
 statements at once.
+
+## The shape of the graph
+
+Asked: "we need to extend our foundation test now to test out graph
+structure more thoroughly", with four scenarios picked, and a check of
+what the tie rewrite changed. `cargo run --release --example
+structure`; pinned in `tests/structure.rs`.
+
+### 1. A statement shared by many ties, against a private one
+
+Ten objects, each with a tie that lists `gravity` and its own mass. 10 measurements each. So many objects never pass.
+
+| objects that fail | `gravity` | mass of one that passes | mass of one that fails | its tie | its completeness | one of its measurements |
+|---|---|---|---|---|---|---|
+| 1 | 1.00 | 0.99 | 0.20 | 0.20 | 0.31 | 0.89 |
+| 5 | 1.00 | 0.99 | 0.20 | 0.20 | 0.31 | 0.89 |
+| 9 | 0.97 | 0.99 | 0.20 | 0.20 | 0.31 | 0.89 |
+| 10 | 0.07 |  | 0.30 | 0.30 | 0.42 | 0.89 |
+
+### 2. Two statements on one tie
+
+A ball: it falls, and it makes a noise. Thrown, it falls; listened to, it is silent. With one tie that lists both, an observation is of both at once, so the silence is a failure of the whole. With one tie per statement, each is observed apart. 10 observations each.
+
+| written | `falls` | `noise` | tie of `falls` | tie of `noise` | completeness of the tie of `noise` |
+|---|---|---|---|---|---|
+| one tie, both observed together and failing | 0.30 | 0.30 | 0.30 | 0.30 | 0.42 |
+| one tie per statement | 0.99 | 0.20 | 0.99 | 0.20 | 0.31 |
+| one tie per statement, and a drum that bangs | 0.99 | 0.99 | 0.99 | 0.09 | 0.17 |
+
+### 3. A diamond: two paths to one statement
+
+A tie lists `orbit` and `tide`. `orbit` is all of [gravity, sun]; `tide` is all of [gravity, moon]. Gravity is reached by two paths. 10 observations of the whole.
+
+| observed | the whole | `gravity` | `sun` | `moon` | `orbit` | `tide` |
+|---|---|---|---|---|---|---|
+| nothing | 0.12 | 0.50 | 0.50 | 0.50 | 0.25 | 0.25 |
+| 10 passes | 0.97 | 0.99 | 0.99 | 0.99 | 0.98 | 0.98 |
+| 10 failures | 0.00 | 0.23 | 0.23 | 0.23 | 0.05 | 0.05 |
+
+With nothing observed the whole reads 0.125: one half three times, gravity once. Counted along both paths it would read one half four times, 0.0625.
+
+### 4. Evidence on an inner node, against only the whole
+
+Three objects pass, the feather fails, 10 measurements each. Then a scale speaks of the feather's mass alone, so many readings, each believed at 0.9.
+
+| scale readings | `gravity` | the feather's mass | its tie | its completeness | one of its measurements |
+|---|---|---|---|---|---|
+| 0 | 1.00 | 0.20 | 0.20 | 0.31 | 0.89 |
+| 1 | 1.00 | 0.79 | 0.11 | 0.19 | 0.87 |
+| 3 | 1.00 | 0.94 | 0.10 | 0.18 | 0.87 |
+| 10 | 1.00 | 0.99 | 0.09 | 0.17 | 0.87 |
+
+### 5. The reviewers again, with ties
+
+A stone, a ball and a leaf pass 10 times, the feather fails 10 times. The cautious voice says 1000 yes on gravity, 1 on each mass, and on completeness 20, 5, a half and a half. The overconfident voice says 100 yes on everything, ties too. Both start at 0.9.
+
+| variant | cautious voice | overconfident voice | the feather's mass | its tie | its completeness | one of its measurements |
+|---|---|---|---|---|---|---|
+| ties start at one half | 0.96 | 0.41 | 0.61 | 0.11 | 0.52 | 0.81 |
+| and a scale weighs the feather, 3 readings | 0.97 | 0.41 | 0.91 | 0.10 | 0.49 | 0.80 |
+| and the cautious voice also says 20 yes on each tie | 0.99 | 0.19 | 0.41 | 0.97 | 0.27 | 0.68 |
+| ties start at 0.95: this is the feather | 0.97 | 0.15 | 0.41 | 0.51 | 0.29 | 0.71 |
+| ties at 0.95 and the scale | 0.98 | 0.19 | 0.84 | 0.46 | 0.24 | 0.66 |
+
+Read plainly.
+
+1. **Shared against private.** A statement listed by many ties stands
+   while one object passes: gravity reads 1.00 with half the objects
+   failing and 0.97 with nine of ten. The blame stays in each failing
+   tie. Only when all ten fail does gravity fall (0.07).
+2. **Two statements on one tie.** One tie cannot tell them apart: all
+   read 0.30. One tie per statement can: `falls` 0.99, `noise` 0.20.
+   And once a drum shows that things do bang, the blame leaves the
+   statement for the ball's own tie (0.09).
+3. **A diamond.** Gravity reached by two paths is counted once: the
+   whole reads 0.125 before anything is seen. This scenario found a
+   fault: a no about the whole did not reach gravity, the sun or the
+   moon at all, while a yes did. The suspects of a failure were only
+   the direct parts. They are now the parts of the parts too, down to
+   what stands on nothing, each once: after ten failures the three
+   read 0.23 each.
+4. **An inner node.** One reading of a scale on the feather's mass
+   lifts it from 0.20 to 0.79 and moves the blame to the tie (0.11)
+   and the completeness (0.19).
+5. **The reviewers.** With ties at one half, a tie says "I do not
+   know this is the right object", so it takes the blame first (0.11)
+   and the overconfident voice is doubted less (0.41), since the tie
+   already explains the failure. That is the tie's base rate at work,
+   not the voices. Sure that this is the feather (ties at 0.95), the
+   voice is caught as before (0.15) and the completeness takes more of
+   the blame (0.29) than the mass (0.41) or the tie (0.51). The same
+   happens if the cautious voice speaks for the ties.
+
+What stays open: a scale does not send the blame to the completeness
+alone while the tie can still be doubted; the two are told apart only
+by what is said of the tie. And a tie has no default base rate as the
+completeness has: in these toys it is written.

@@ -39,7 +39,7 @@ hand.
 ## To test
 
 ```sh
-cargo test                # 101 tests
+cargo test                # 108 tests
 mitra conform             # with main's binary, from this folder
 ```
 
@@ -47,6 +47,7 @@ mitra conform             # with main's binary, from this folder
   one test, tied by name, then the promises on small worlds.
 - `tests/goldens.rs`: 20 of `main`'s 22 trust goldens as a table over
   the calculus (case 7 needs settings, case 6 a report).
+- `tests/structure.rs`: how the shape of the graph changes what is read.
 - `tests/wall.rs`: the walls, and no disk.
 
 `mitra conform` says 80 ties agree and 4 differ, with one warning.

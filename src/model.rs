@@ -545,20 +545,42 @@ fn failures<'a>(model: &'a Model, walk: &mut Walk) -> Vec<(&'a Statement<Related
         .collect()
 }
 
-/// The suspects of a failure: the parts of the whole, the evidence that
-/// says no, and the relation when it can be doubted. They cannot all be
-/// right. A relation believed at 1 is structure, and not a suspect.
+/// The suspects of a failure: the parts of the whole, and the parts of
+/// each part that is itself a whole, down to what stands on nothing;
+/// the evidence that says no; and each relation on the way that can be
+/// doubted. They cannot all be right. A relation believed at 1 is
+/// structure, and not a suspect. A piece reached by two paths is one
+/// suspect.
 fn suspects(
     model: &Model,
     relation: &Statement<Related>,
     e: &Evidence,
     walk: &mut Walk,
 ) -> Vec<Piece> {
-    let mut group = parts(model, &relation.content);
-    group.push(e.piece.clone());
-    if projected(prior(model, &relation.piece, walk), model.weight) < 1.0 {
-        group.push(relation.piece.clone());
+    let mut group: Vec<Piece> = Vec::new();
+    let mut doubted: Vec<Piece> = Vec::new();
+    let mut seen = vec![relation.content.pieces[0].clone()];
+    let mut open = vec![relation];
+    while let Some(said) = open.pop() {
+        if projected(prior(model, &said.piece, walk), model.weight) < 1.0 {
+            doubted.push(said.piece.clone());
+        }
+        for part in parts(model, &said.content) {
+            if seen.contains(&part) {
+                continue;
+            }
+            seen.push(part.clone());
+            let inner = model.related.iter().find(|r| {
+                r.content.how == Relation::All && r.content.pieces.first() == Some(&part)
+            });
+            match inner {
+                Some(r) if r.content.pieces.len() > 1 => open.push(r),
+                _ => group.push(part),
+            }
+        }
     }
+    group.push(e.piece.clone());
+    group.extend(doubted);
     group
 }
 
