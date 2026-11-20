@@ -1,8 +1,24 @@
-//! All the pieces put together: what is believed of each from the
-//! whole, and which cannot all be right.
+//! The side of trust (`model/model.mitra`). It reads nothing of the
+//! other side.
+//!
+//! - [`place`]: a location in the system;
+//! - [`piece`]: something said, right or wrong, and the opinion of it;
+//! - the three kinds of piece: [`evidence`], [`statement`], [`tie`];
+//! - here, `model`: all the pieces put together, what is believed of
+//!   each from the whole, and which cannot all be right.
 
-use super::evidence::{apart, conflict, fuse, moved, Evidence, Voice};
-use super::{nothing, projected, reaches, Opinion, Piece};
+pub mod evidence;
+pub mod piece;
+pub mod place;
+pub mod statement;
+pub mod tie;
+
+pub use evidence::{apart, conflict, fuse, moved, Evidence, Voice};
+pub use piece::{against, no, nothing, piece_id, projected, reaches, yes, Opinion, Piece};
+pub use place::{within, Place};
+pub use statement::{stance, Owner, Statement};
+pub use tie::{concerned, places, Tie};
+
 use std::collections::BTreeSet;
 
 /// How pieces stand to each other. One relation can hold many pieces.

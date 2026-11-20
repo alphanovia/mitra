@@ -1,15 +1,4 @@
-//! The side of trust (`model/piece.mitra`), three subjects from the
-//! inside:
-//!
-//! - here, `piece`: something said, right or wrong, and the opinion of it;
-//! - [`evidence`]: a piece that says an opinion about another piece;
-//! - [`model`]: all the pieces put together.
-
-pub mod evidence;
-pub mod model;
-
-pub use evidence::{apart, conflict, fuse, moved, Evidence, Voice};
-pub use model::{all, base, conflicts, opinion, trusted, Model, Related, Relation};
+//! Something said, right or wrong, and the opinion of it.
 
 /// Something said, right or wrong. Known by its name only.
 // mitra: implements piece::Piece

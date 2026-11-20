@@ -1,6 +1,7 @@
-//! The claims of `model/piece.mitra`, and the walk over a model.
+//! The claims of `model/model.mitra`, subject by subject, and the walk
+//! over a model.
 
-use mitra_core::piece::*;
+use mitra_core::model::*;
 
 fn op(b: f64, d: f64, u: f64, a: f64) -> Opinion {
     Opinion { b, d, u, a }
@@ -154,6 +155,145 @@ fn nothing_said_is_no_conflict() {
 fn one_failing_test_is_against() {
     assert!(against(moved(nothing(0.5), no())));
     assert!(!against(moved(nothing(0.0), no())));
+}
+
+// mitra: evidence for model::evidence_moves_its_piece
+#[test]
+fn evidence_moves_its_piece() {
+    let model = Model {
+        evidence: vec![says("t", "c", yes(), "a")],
+        related: vec![],
+        base: base_of(&[("t", 0.5)]),
+    };
+    assert_eq!(opinion(&model, &Piece::named("c")), op(0.5, 0.0, 0.5, 0.0));
+}
+
+// mitra: evidence for model::a_review_reaches_the_claim
+#[test]
+fn a_review_reaches_the_claim() {
+    let model = Model {
+        evidence: vec![says("t", "c", yes(), "a"), says("r", "t", yes(), "b")],
+        related: vec![],
+        base: base_of(&[("t", 0.5), ("r", 0.75)]),
+    };
+    assert_eq!(opinion(&model, &Piece::named("c")).b, 0.875);
+}
+
+// mitra: evidence for model::a_test_judged_wrong_says_nothing
+#[test]
+fn a_test_judged_wrong_says_nothing() {
+    let model = Model {
+        evidence: vec![says("t", "c", yes(), "a"), says("r", "t", no(), "b")],
+        related: vec![],
+        base: base_of(&[("t", 0.5), ("r", 1.0)]),
+    };
+    assert_eq!(opinion(&model, &Piece::named("c")), nothing(0.0));
+}
+
+// mitra: evidence for model::resting_on_one_piece_is_that_piece
+#[test]
+fn resting_on_one_piece_is_that_piece() {
+    let model = Model {
+        evidence: vec![says("t", "y", yes(), "a")],
+        related: vec![rests(&["x", "y"])],
+        base: base_of(&[("t", 0.5)]),
+    };
+    assert_eq!(opinion(&model, &Piece::named("x")).b, 0.5);
+}
+
+// mitra: evidence for place::within_itself
+#[test]
+fn within_itself() {
+    for a in [
+        Place::at(&[]),
+        Place::at(&["src/lib.rs"]),
+        Place::at(&["src/lib.rs", "next"]),
+    ] {
+        assert!(within(&a, &a));
+    }
+}
+
+// mitra: evidence for place::inside_is_within
+#[test]
+fn inside_is_within() {
+    let (file, next) = (
+        Place::at(&["src/lib.rs"]),
+        Place::at(&["src/lib.rs", "next"]),
+    );
+    assert!(within(&next, &file) && !within(&file, &next));
+}
+
+// mitra: evidence for place::beside_is_not_within
+#[test]
+fn beside_is_not_within() {
+    assert!(!within(
+        &Place::at(&["src/lib.rs", "next"]),
+        &Place::at(&["src/lib.rs", "back"])
+    ));
+}
+
+fn door(owner: Owner) -> Statement<&'static str> {
+    Statement {
+        piece: Piece::named("x"),
+        content: "the door is closed",
+        owner,
+    }
+}
+
+// mitra: evidence for statement::owed_assumes_nothing
+#[test]
+fn owed_assumes_nothing() {
+    assert_eq!(stance(&door(Owner::Owed), 0.5), 0.0);
+}
+
+// mitra: evidence for statement::given_starts_at_the_word
+#[test]
+fn given_starts_at_the_word() {
+    assert_eq!(stance(&door(Owner::Given), 0.5), 0.5);
+}
+
+fn tie(place: &[&str]) -> Vec<Tie> {
+    vec![Tie {
+        piece: Piece::named("t"),
+        statement: Piece::named("x"),
+        place: Place::at(place),
+    }]
+}
+
+// mitra: evidence for tie::no_tie_is_nowhere
+#[test]
+fn no_tie_is_nowhere() {
+    assert!(places(&[], &Piece::named("x")).is_empty());
+    assert!(concerned(&[], &Place::at(&["src/lib.rs"])).is_empty());
+}
+
+// mitra: evidence for tie::tied_is_found
+#[test]
+fn tied_is_found() {
+    let next = ["src/lib.rs", "next"];
+    assert_eq!(places(&tie(&next), &Piece::named("x")), [Place::at(&next)]);
+}
+
+// mitra: evidence for tie::a_file_concerns_what_is_in_it
+#[test]
+fn a_file_concerns_what_is_in_it() {
+    let ties = tie(&["src/lib.rs", "next"]);
+    assert_eq!(
+        concerned(&ties, &Place::at(&["src/lib.rs"])),
+        [Piece::named("x")]
+    );
+    assert!(concerned(&ties, &Place::at(&["src/main.rs"])).is_empty());
+}
+
+/// A tie is a piece: evidence about it moves it like any other.
+#[test]
+fn a_tie_is_believed_like_any_piece() {
+    let model = Model {
+        evidence: vec![says("check", "t", no(), "machine:reader")],
+        related: vec![],
+        base: base_of(&[("t", 0.5), ("check", 1.0)]),
+    };
+    assert!(against(opinion(&model, &tie(&["src/lib.rs"])[0].piece)));
 }
 
 // The walk: what the promises say of `opinion`, on small worlds.

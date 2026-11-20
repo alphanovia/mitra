@@ -125,3 +125,39 @@ it serves: `moved` and `fuse` with evidence, `all` with the model,
 split left `Opinion` and `conflict` with no promise of their own.
 573. Four small claims are new, one per promise that had none in its
 subject.
+
+## Increment 94: `model.mitra` with six subjects (2026-11-20)
+
+**Asked.** "how about we rename piece.mitra, model.mitra, and we put
+location, piece, and model in it ? so that we get evidence, statement
+and tie as the core of the system". "statement is an interpretation of
+the system, tie is a believe link between an interpretation and a
+named part of the system."
+
+`model/model.mitra` (342 lines; the ceiling of `main` is 1,000) holds
+`place`, `piece`, `evidence`, `statement`, `tie`, `model`. It is also
+the entry file of the store: that works. The code follows:
+`src/model.rs` and `src/model/`. The seam fills the content of a
+statement: `Formal { expression }` or `Prose { text }`.
+
+**Decisions taken alone.**
+
+574. `Statement<C>` is generic in its content, not `record Content;`.
+     Opaque inside is what a type parameter means in Mitra, and the
+     seam then writes `Statement<Formal>` with no table in between.
+575. `Owner` is written above the subjects, because of a fault of
+     `main`'s reader (a generic record naming an enum of its subject).
+576. A tie names its statement by its piece, not by holding it: ties
+     of formal and prose statements then sit in one list. Hence the
+     true warning M105 on `tie`'s require of `statement`.
+577. `Place { path: List<String> }` with `within`: the one thing a
+     place can say alone. `concerned` reads ties at a place or within.
+578. `Model` does not hold statements and ties yet: `opinion` needs
+     only evidence, relations and base rates. A build would.
+579. `stance(statement, word)` gives the base rate: 0 when owed, the
+     giver's word when given. Nobody calls it yet.
+580. No `Kind` of statement in the seam: claim, assume, ensure and a
+     bought promise are the four corners of content and owner, said in
+     a comment. `observe` treats owed and given alike.
+581. Four claims in `model` build small models of evidence and
+     relations and state the opinion that comes out.

@@ -3,7 +3,7 @@
 //! expected words and numbers are those of docs/design/trust-calculus.md
 //! on main. Cases 6 and 7 wait for the layers they need.
 
-use mitra_core::piece::*;
+use mitra_core::model::*;
 
 fn piece(name: &str) -> Piece {
     Piece::named(name)

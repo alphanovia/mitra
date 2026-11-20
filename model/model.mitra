@@ -1,16 +1,342 @@
 // The core of Mitra, started again from the inside. Start here.
 //
-// The model is aside from the code: one file per subject, and the code
-// of a subject is the file of the same name under src/.
+// The model is aside from the code: the code of this file is
+// src/model.rs and src/model/, one file per subject.
 //
-// From the inside out:
+// This file reads nothing. From the inside:
 //
-//   piece.mitra   something said, what is believed of it, the evidence
-//                 that moves that belief. Reads nothing.
-//   value.mitra   what is computed, its type, the expression that
-//                 computes it. Reads nothing.
-//   claim.mitra   the seam: a piece with a statement. Computing the
-//                 statement makes evidence. Reads both.
+//   place      a location in the system
+//   piece      something said, right or wrong, and the opinion of it
 //
-// The two sides never read each other, and a value never depends on a
-// piece (tests/wall.rs).
+// then the three kinds of piece:
+//
+//   evidence   says an opinion about another piece
+//   statement  an interpretation of the system; what it says is not
+//              read here
+//   tie        a believed link between a statement and a place
+//
+// and what holds them together:
+//
+//   model      all the pieces: what is believed of each from the whole
+//
+// Beside this file:
+//
+//   value.mitra   what is computed, its type, its expression. Reads nothing.
+//   claim.mitra   the seam: a statement whose content is an expression.
+//                 Computing it makes evidence. Reads both.
+//
+// Left out on purpose: the kinds of statement by name (claim, assume,
+// ensure: claim.mitra says how they come out), which inputs evidence
+// covers, acts and the reading of a voice (a voice is its name here),
+// settings, and a build that judges every piece at once.
+
+// Who a statement is owed by, or given by. Written above the subjects and
+// not in `statement`: today the reader refuses a generic record of a
+// subject that names an enum of that subject. A fault of main.
+enum Owner {
+    // Ours to show: it starts with nothing assumed.
+    Owed,
+    // Taken from someone: it starts at their word.
+    Given
+}
+
+// A location in the system.
+subject place {
+    ensure place_is_a_path = "A place is a location in the system, known by its path and by nothing else: it is not right or wrong, and nothing is believed of it.";
+    ensure within_is_the_path = "A place is within another when its path goes on from the other's; every place is within itself.";
+
+    // From the outside in: a file, then what is in it.
+    record Place {
+        path: List<String>,
+    }
+
+    fn within(a: Place, b: Place) -> Bool;
+
+    // within_is_the_path
+    claim within_itself(a: Place) { within(a, a) }
+    claim inside_is_within() {
+        within(Place(["src/lib.rs", "next"]), Place(["src/lib.rs"])) && !within(Place(["src/lib.rs"]), Place(["src/lib.rs", "next"]))
+    }
+    claim beside_is_not_within() {
+        !within(Place(["src/lib.rs", "next"]), Place(["src/lib.rs", "back"]))
+    }
+}
+
+// Something said, and what is believed of it.
+subject piece {
+    ensure everything_is_a_piece = "Whatever can be right or wrong is a piece, known by its name, and has one opinion; there is no second way to be believed.";
+    ensure opinion_is_four_numbers = "An opinion is belief, disbelief and uncertainty, which sum to one, and a base rate; with no evidence it is all uncertainty and reads as its base rate.";
+    ensure trusted_is_the_policy = "An opinion is trusted when the number it reads as reaches what the policy asks, and never with no belief at all.";
+
+    // Opaque: known by its name only.
+    record Piece;
+
+    // b + d + u == 1. `a` is the base rate: what to expect with no evidence.
+    record Opinion {
+        b: Float64,
+        d: Float64,
+        u: Float64,
+        a: Float64,
+    }
+
+    fn piece_id(x: Piece) -> String;
+
+    fn nothing(a: Float64) -> Opinion { Opinion(0.0, 0.0, 1.0, a) }
+    fn yes() -> Opinion { Opinion(1.0, 0.0, 0.0, 1.0) }
+    fn no() -> Opinion { Opinion(0.0, 1.0, 0.0, 0.0) }
+
+    // The number an opinion reads as.
+    fn projected(o: Opinion) -> Float64 { o.b + o.a * o.u }
+
+    fn reaches(o: Opinion, policy: Float64) -> Bool { o.b > 0.0 && projected(o) >= policy }
+    // The evidence against is at least as strong as the evidence for.
+    fn against(o: Opinion) -> Bool { o.d > 0.0 && o.d >= o.b }
+
+    // opinion_is_four_numbers
+    claim no_evidence_is_the_base_rate() { projected(nothing(0.5)) == 0.5 }
+    claim sure_is_sure() { projected(yes()) == 1.0 && projected(no()) == 0.0 }
+
+    // trusted_is_the_policy
+    claim policy_zero_still_needs_belief() {
+        !reaches(nothing(0.0), 0.0) && reaches(Opinion(0.5, 0.0, 0.5, 0.0), 0.0)
+    }
+    claim as_much_against_as_for_is_against() {
+        against(Opinion(0.5, 0.5, 0.0, 0.0)) && !against(Opinion(0.5, 0.25, 0.25, 0.0)) && !against(nothing(0.0))
+    }
+}
+
+// How an opinion moves.
+subject evidence {
+    require believed = piece::everything_is_a_piece;
+
+    ensure evidence_is_a_piece = "A piece of evidence is a piece: it says an opinion about another piece, and is itself believed as any other piece.";
+    ensure said_as_far_as_believed = "What a piece of evidence says counts as far as that evidence is itself believed: evidence believed at 0 moves nothing, on either side.";
+    ensure same_voice_counts_once = "Two pieces of evidence that say the same about one piece add up as far as their voices are independent, and count once when they are one voice.";
+    ensure disagreement_is_measured = "Two pieces of evidence that say opposite things about one piece are in conflict as far as each is believed; fused, neither is dropped.";
+
+    // Who says it.
+    record Voice {
+        name: String,
+    }
+
+    // A piece that says `value` about `about`. `by` is its voice.
+    record Evidence {
+        piece: piece::Piece,
+        about: piece::Piece,
+        value: piece::Opinion,
+        by: Voice,
+    }
+
+    // How independent two voices are, from 0 (one voice) to 1 (two kinds).
+    fn apart(a: Voice, b: Voice) -> Float64;
+
+    // What evidence says, as far as it is believed.
+    fn moved(believed: piece::Opinion, said: piece::Opinion) -> piece::Opinion {
+        Opinion(piece::projected(believed) * said.b, piece::projected(believed) * said.d, 1.0 - piece::projected(believed) * (said.b + said.d), said.a)
+    }
+
+    // Two opinions on one piece, at independence i. At 1 they add up, at 0
+    // they are averaged. Both certain: their average.
+    fn fuse(x: piece::Opinion, y: piece::Opinion, i: Float64) -> piece::Opinion {
+        if x.u == 0.0 && y.u == 0.0 {
+            Opinion((x.b + y.b) / 2.0, (x.d + y.d) / 2.0, 0.0, x.a)
+        } else {
+            Opinion(
+                (x.b * y.u + y.b * x.u) / (x.u + y.u - i * x.u * y.u),
+                (x.d * y.u + y.d * x.u) / (x.u + y.u - i * x.u * y.u),
+                (2.0 - i) * x.u * y.u / (x.u + y.u - i * x.u * y.u),
+                x.a)
+        }
+    }
+
+    // How far two opinions on one piece contradict each other.
+    fn conflict(x: piece::Opinion, y: piece::Opinion) -> Float64 { x.b * y.d + x.d * y.b }
+
+    // said_as_far_as_believed: a review "correct, sure at 0.75" of a test
+    // at bias 0.5 makes it 0.875, and the test then gives its claim that much.
+    claim review_lifts_a_test() {
+        piece::projected(fuse(piece::nothing(0.5), moved(piece::nothing(0.75), piece::yes()), 1.0)) == 0.875
+    }
+    claim believed_at_zero_moves_nothing() {
+        moved(piece::nothing(0.0), piece::yes()) == Opinion(0.0, 0.0, 1.0, 1.0) && moved(piece::nothing(0.0), piece::no()) == Opinion(0.0, 0.0, 1.0, 0.0)
+    }
+    claim not_knowing_is_no_review() {
+        piece::projected(fuse(piece::nothing(0.5), moved(piece::nothing(0.0), piece::yes()), 1.0)) == 0.5
+    }
+    claim wrong_is_disbelief() {
+        piece::projected(fuse(piece::nothing(0.5), moved(piece::nothing(1.0), piece::no()), 1.0)) == 0.0
+    }
+    claim one_failing_test_is_against() {
+        piece::against(moved(piece::nothing(0.5), piece::no())) && !piece::against(moved(piece::nothing(0.0), piece::no()))
+    }
+
+    // same_voice_counts_once
+    claim one_voice_twice_is_once() {
+        fuse(Opinion(0.5, 0.0, 0.5, 0.0), Opinion(0.5, 0.0, 0.5, 0.0), 0.0) == Opinion(0.5, 0.0, 0.5, 0.0)
+    }
+    claim two_voices_add_up() {
+        fuse(Opinion(0.5, 0.0, 0.5, 0.0), Opinion(0.5, 0.0, 0.5, 0.0), 1.0).b > 0.5
+    }
+
+    // disagreement_is_measured
+    claim two_sure_reviews_that_disagree() {
+        fuse(Opinion(1.0, 0.0, 0.0, 0.5), Opinion(0.0, 1.0, 0.0, 0.5), 1.0) == Opinion(0.5, 0.5, 0.0, 0.5)
+            && conflict(Opinion(1.0, 0.0, 0.0, 0.5), Opinion(0.0, 1.0, 0.0, 0.5)) == 1.0
+    }
+}
+
+// An interpretation of the system.
+subject statement {
+    require believed = piece::everything_is_a_piece;
+
+    ensure statement_is_an_interpretation = "A statement is an interpretation of the system: a piece with a content, which is what it says the system is or does. The content is not read here, whatever it is.";
+    ensure owed_or_given = "A statement is owed or given. An owed one starts with nothing assumed; a given one starts at the word of whoever gave it. Evidence moves both alike.";
+
+    record Statement<C> {
+        piece: piece::Piece,
+        content: C,
+        owner: Owner,
+    }
+
+    // Where the opinion of a statement starts: its base rate. `word` is
+    // how far whoever gave it is believed.
+    fn stance<C>(s: Statement<C>, word: Float64) -> Float64 {
+        match s.owner {
+            Owed => 0.0,
+            Given => word,
+        }
+    }
+
+    // owed_or_given
+    claim owed_assumes_nothing(x: piece::Piece) {
+        stance(Statement(x, "the door is closed", Owed), 0.5) == 0.0
+    }
+    claim given_starts_at_the_word(x: piece::Piece) {
+        stance(Statement(x, "the door is closed", Given), 0.5) == 0.5
+    }
+}
+
+// A believed link between an interpretation and a named part of the system.
+subject tie {
+    require interpreted = statement::statement_is_an_interpretation;
+    require located = place::within_is_the_path;
+
+    ensure tie_is_a_believed_link = "A tie is a believed link between an interpretation and a named part of the system: a piece that says a statement is about a place, and that can be wrong like any other piece.";
+    ensure found_through_ties = "Where a statement is found, and which statements a place concerns, is read from the ties and from nothing else: a statement with no tie is nowhere, and a place concerns what is tied at it or within it.";
+
+    // `statement` is the piece of the statement it ties.
+    record Tie {
+        piece: piece::Piece,
+        statement: piece::Piece,
+        place: place::Place,
+    }
+
+    // The places a statement is tied to.
+    fn places(ties: List<Tie>, statement: piece::Piece) -> List<place::Place>;
+    // The statements tied at a place or within it.
+    fn concerned(ties: List<Tie>, place: place::Place) -> List<piece::Piece>
+        uses place::within;
+
+    // found_through_ties
+    claim no_tie_is_nowhere(x: piece::Piece, place: place::Place) {
+        places([], x) == [] && concerned([], place) == []
+    }
+    claim tied_is_found(t: piece::Piece, x: piece::Piece) {
+        places([Tie(t, x, Place(["src/lib.rs", "next"]))], x) == [Place(["src/lib.rs", "next"])]
+    }
+    claim a_file_concerns_what_is_in_it(t: piece::Piece, x: piece::Piece) {
+        concerned([Tie(t, x, Place(["src/lib.rs", "next"]))], Place(["src/lib.rs"])) == [x]
+            && concerned([Tie(t, x, Place(["src/lib.rs", "next"]))], Place(["src/main.rs"])) == []
+    }
+}
+
+// All the pieces, put together.
+subject model {
+    require policy = piece::trusted_is_the_policy;
+    require moved = evidence::said_as_far_as_believed;
+    require voices = evidence::same_voice_counts_once;
+    require clash = evidence::disagreement_is_measured;
+
+    ensure only_from_the_model = "The opinion of a piece comes from the evidence about it and from the pieces it is related to, and from nothing else: with neither it is its base rate, and its base rate is never moved.";
+    ensure rests_is_all = "A piece that rests on others is believed no more than all of them together, each counted once however many paths lead to it.";
+    ensure conflict_is_said = "Pieces that cannot all be right and are each believed are reported, the least believed first; none of them is chosen silently.";
+
+    // How pieces stand to each other. One relation can hold many pieces.
+    enum Relation {
+        // The first holds when all the others do.
+        RestsOn,
+        // They cannot all be right.
+        Exclude
+    }
+    record Related {
+        how: Relation,
+        pieces: List<piece::Piece>,
+    }
+
+    // All that is said of a system: the evidence, the relations between
+    // pieces, and the base rate of each piece that has one. A piece with
+    // none has 0: nothing is assumed.
+    record Model {
+        evidence: List<evidence::Evidence>,
+        related: List<Related>,
+        base: List<(piece::Piece, Float64)>,
+    }
+
+    // What to expect of a piece with no evidence.
+    fn base(model: Model, x: piece::Piece) -> Float64;
+    // What is believed of a piece, from the whole model.
+    fn opinion(model: Model, x: piece::Piece) -> piece::Opinion
+        uses evidence::moved, evidence::fuse, evidence::apart, all, base;
+    fn trusted(model: Model, x: piece::Piece, policy: Float64) -> Bool
+        uses opinion, piece::reaches;
+    // The pieces that cannot all be right and are each believed, the
+    // least believed first.
+    fn conflicts(model: Model) -> List<List<piece::Piece>>
+        uses opinion, evidence::moved, evidence::conflict;
+
+    // Both of two pieces: believed as the product.
+    fn all(x: piece::Opinion, y: piece::Opinion) -> piece::Opinion {
+        Opinion(x.b * y.b, x.d + y.d - x.d * y.d, 1.0 - x.b * y.b - (x.d + y.d - x.d * y.d), x.a * y.a)
+    }
+
+    // only_from_the_model
+    claim base_rate_survives(model: Model, x: piece::Piece) {
+        opinion(model, x).a == base(model, x)
+    }
+    claim an_empty_model_believes_nothing(x: piece::Piece) {
+        opinion(Model([], [], []), x) == piece::nothing(0.0)
+    }
+
+    // The calculus, on small models. `t` is a test of `c`, `r` a review
+    // of `t`, and each piece is another.
+    claim evidence_moves_its_piece(c: piece::Piece, t: piece::Piece, by: evidence::Voice) {
+        c == t || opinion(Model([Evidence(t, c, piece::yes(), by)], [], [(t, 0.5)]), c) == Opinion(0.5, 0.0, 0.5, 0.0)
+    }
+    claim a_review_reaches_the_claim(c: piece::Piece, t: piece::Piece, r: piece::Piece, a: evidence::Voice, b: evidence::Voice) {
+        c == t || c == r || t == r
+            || opinion(Model([Evidence(t, c, piece::yes(), a), Evidence(r, t, piece::yes(), b)], [], [(t, 0.5), (r, 0.75)]), c).b == 0.875
+    }
+    claim a_test_judged_wrong_says_nothing(c: piece::Piece, t: piece::Piece, r: piece::Piece, a: evidence::Voice, b: evidence::Voice) {
+        c == t || c == r || t == r
+            || opinion(Model([Evidence(t, c, piece::yes(), a), Evidence(r, t, piece::no(), b)], [], [(t, 0.5), (r, 1.0)]), c) == piece::nothing(0.0)
+    }
+
+    // rests_is_all
+    claim two_halves_are_a_quarter() {
+        all(Opinion(0.5, 0.0, 0.5, 0.0), Opinion(0.5, 0.0, 0.5, 0.0)).b == 0.25
+    }
+    claim one_sure_part_changes_nothing() {
+        all(Opinion(1.0, 0.0, 0.0, 0.0), Opinion(0.5, 0.0, 0.5, 0.0)).b == 0.5
+    }
+
+    // rests_is_all, on a small model: `x` rests on `y`, tested by `t`.
+    claim resting_on_one_piece_is_that_piece(x: piece::Piece, y: piece::Piece, t: piece::Piece, by: evidence::Voice) {
+        x == y || x == t || y == t
+            || opinion(Model([Evidence(t, y, piece::yes(), by)], [Related(RestsOn, [x, y])], [(t, 0.5)]), x).b == 0.5
+    }
+
+    // conflict_is_said
+    claim nothing_said_is_no_conflict() {
+        conflicts(Model([], [], [])) == []
+    }
+}

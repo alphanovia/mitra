@@ -1,7 +1,7 @@
 //! The claims of `model/claim.mitra`, and one walk across the seam.
 
 use mitra_core::claim::*;
-use mitra_core::piece::{no, opinion, trusted, yes, Model, Piece, Voice};
+use mitra_core::model::{no, opinion, trusted, yes, Model, Owner, Piece, Statement, Voice};
 use mitra_core::value::Expression::*;
 use mitra_core::value::{Type, Value};
 
@@ -10,10 +10,11 @@ fn mitra() -> Voice {
     Voice::named(MITRA)
 }
 
-fn claim(name: &str, statement: mitra_core::value::Expression) -> Claim {
-    Claim {
+fn claim(name: &str, expression: mitra_core::value::Expression) -> Statement<Formal> {
+    Statement {
         piece: Piece::named(name),
-        statement,
+        content: Formal { expression },
+        owner: Owner::Owed,
     }
 }
 
@@ -54,6 +55,16 @@ fn about_its_own_piece() {
         let c = claim("c", statement);
         assert_eq!(observe(&c, &[], &mitra()).unwrap().about, c.piece);
     }
+}
+
+// mitra: evidence for claims::given_is_observed_as_owed
+#[test]
+fn given_is_observed_as_owed() {
+    let assumed = Statement {
+        owner: Owner::Given,
+        ..claim("c", No)
+    };
+    assert_eq!(observe(&assumed, &[], &mitra()).unwrap().value, no());
 }
 
 /// Across the seam, end to end: a value is computed, it becomes

@@ -1,7 +1,7 @@
 //! How an opinion moves: a piece of evidence says an opinion about
 //! another piece, and counts as far as it is itself believed.
 
-use super::{projected, Opinion, Piece};
+use super::piece::{projected, Opinion, Piece};
 
 /// Who says it.
 // mitra: implements evidence::Voice
