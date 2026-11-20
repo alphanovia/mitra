@@ -5,19 +5,20 @@ use super::piece::Piece;
 use super::place::{within, Place};
 use super::statement::Statement;
 
-/// Says that a statement, named by its piece, is about a place.
+/// Says that statements, each named by its piece, are about a place:
+/// one object, and what the model says of it.
 // mitra: implements tie::Tie
 #[derive(Clone, Debug, PartialEq)]
 pub struct Tie {
     pub piece: Piece,
-    pub statement: Piece,
+    pub statements: Vec<Piece>,
     pub place: Place,
 }
 
 /// The places a statement is tied to.
 // mitra: implements tie::places
 pub fn places(ties: &[Tie], statement: &Piece) -> Vec<Place> {
-    let of_it = ties.iter().filter(|t| &t.statement == statement);
+    let of_it = ties.iter().filter(|t| t.statements.contains(statement));
     of_it.map(|t| t.place.clone()).collect()
 }
 
@@ -26,8 +27,10 @@ pub fn places(ties: &[Tie], statement: &Piece) -> Vec<Place> {
 pub fn concerned(ties: &[Tie], place: &Place) -> Vec<Piece> {
     let mut found = Vec::new();
     for t in ties {
-        if within(&t.place, place) && !found.contains(&t.statement) {
-            found.push(t.statement.clone());
+        for statement in &t.statements {
+            if within(&t.place, place) && !found.contains(statement) {
+                found.push(statement.clone());
+            }
         }
     }
     found
@@ -51,4 +54,12 @@ pub fn complete(t: &Tie) -> Statement<Complete> {
             tie: t.piece.clone(),
         },
     }
+}
+
+/// What an observation at the place is about: the tie, its statements
+/// and its completeness, all together. Implied once per tie, known by
+/// the tie's name.
+// mitra: implements tie::whole
+pub fn whole(t: &Tie) -> Piece {
+    Piece::named(&format!("whole: {}", t.piece.name))
 }

@@ -667,3 +667,74 @@ What is rough.
 - The core still shares a no per failure, so a part falls with the
   number of failures (0.22, 0.09, 0.03) while the voice does not.
 - Voice priors of 0.9 and a source prior of 0.9 are picked by hand.
+
+## The toys written with ties
+
+Asked: "how about we expect the author to make a tie link to one or
+several statement, and we put completeness by default?"
+
+A tie now links a place to one or several statements. It implies its
+completeness (0.6 unless written) and its whole, which is all of
+[the tie, its statements, its completeness] and is what an observation
+at the place is about. Nobody writes `lands` any more. A shared
+statement such as gravity is listed by the tie of each object.
+`cargo run --release --example tied` reads each toy both ways.
+
+### 1. One throw
+
+The throw is believed at 0.9; `falls` and `applies` start at one half. By hand, `lands` is all of [applies, falls]. Tied, the tie `applies` lists `falls`, and its completeness starts at 0.6.
+
+| written | I saw | `falls` | `applies` | completeness | `throw` |
+|---|---|---|---|---|---|
+| by hand | fall | 0.91 | 0.91 |  | 0.90 |
+| by hand | no fall | 0.38 | 0.38 |  | 0.88 |
+| with a tie | fall | 0.91 | 0.91 | 0.93 | 0.90 |
+| with a tie | no fall | 0.43 | 0.43 | 0.55 | 0.89 |
+
+### 2. Gravity, objects that pass and a feather that never does
+
+10 measurements per object. By hand, "same speed" is all of [gravity, its mass]. Tied, each object has a tie that lists gravity and its mass; the tie starts at one half and its completeness at 0.6.
+
+| written | objects that pass | `gravity` | mass of one that passes | the feather's mass | the feather's tie | the feather's completeness | one of the feather's measurements |
+|---|---|---|---|---|---|---|---|
+| by hand | 1 | 0.98 | 0.99 | 0.02 |  |  | 0.83 |
+| by hand | 3 | 1.00 | 0.99 | 0.02 |  |  | 0.83 |
+| by hand | 9 | 1.00 | 0.99 | 0.02 |  |  | 0.83 |
+| by hand | 30 | 1.00 | 0.99 | 0.02 |  |  | 0.83 |
+| with ties | 1 | 0.99 | 0.99 | 0.20 | 0.20 | 0.31 | 0.89 |
+| with ties | 3 | 1.00 | 0.99 | 0.20 | 0.20 | 0.31 | 0.89 |
+| with ties | 9 | 1.00 | 0.99 | 0.20 | 0.20 | 0.31 | 0.89 |
+| with ties | 30 | 1.00 | 0.99 | 0.20 | 0.20 | 0.31 | 0.89 |
+
+### 3. The cautious and the overconfident reviewer
+
+A stone, a ball and a leaf pass 10 times, the feather fails 10 times. Both voices start at 0.9. By hand, each object has a completeness piece at one half. Tied, the completeness is implied at 0.6 and the tie starts at one half. The overconfident voice says 100 yes on everything, ties too.
+
+| written | cautious voice | overconfident voice | `gravity` | the feather's mass | the feather's tie | the feather's completeness | the stone's completeness | one of the feather's measurements |
+|---|---|---|---|---|---|---|---|---|
+| by hand | 0.98 | 0.15 | 1.00 | 0.41 |  | 0.22 | 0.99 | 0.70 |
+| with ties | 0.96 | 0.41 | 1.00 | 0.61 | 0.11 | 0.52 | 0.99 | 0.81 |
+
+Read plainly.
+
+- One throw. A fall reads the same. A miss blames the statement and
+  the tie a little less (0.43, was 0.38), because the completeness
+  takes a share of the no.
+- Gravity. Nothing changes for gravity or for what passes. The
+  feather's ten failures are now shared by three suspects of its own
+  instead of one: its mass reads 0.20 (was 0.02), its tie 0.20, its
+  completeness 0.31. Its measurements are believed a little more
+  (0.89, was 0.83). Nothing tells the three apart: only evidence
+  about one of them alone would, a scale for the mass.
+- Reviewers. The blame lands on the feather's tie (0.11): the
+  cautious voice spoke for the mass and, a little, for the
+  completeness, and nobody but the overconfident voice spoke for the
+  tie. The overconfident voice is doubted less (0.41, was 0.15),
+  because the tie at one half already explains much of the failure
+  without it. The cautious voice and the stone are unchanged.
+
+Not rewritten: the older trials above (`complete`, `weight`, `review`
+and `sweep` examples) still write their relations by hand, which the
+core still reads; and the toy with two statements observed apart
+(it falls, it makes no noise), since the whole of a tie is all its
+statements at once.

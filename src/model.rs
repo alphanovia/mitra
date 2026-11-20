@@ -20,7 +20,7 @@ pub use piece::{
 };
 pub use place::{within, Place};
 pub use statement::Statement;
-pub use tie::{complete, concerned, places, Complete, Tie};
+pub use tie::{complete, concerned, places, whole, Complete, Tie};
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -54,7 +54,8 @@ pub struct Related {
 /// believed; one believed at 1 is plain structure.
 ///
 /// Each tie implies its completeness, a part of every whole the tie is
-/// a part of.
+/// a part of, and its whole: the tie and its statements together,
+/// which is what an observation at the place is about.
 // mitra: implements model::Model
 #[derive(Clone, Debug, PartialEq)]
 pub struct Model {
@@ -78,6 +79,34 @@ impl Model {
             completeness,
         }
     }
+}
+
+/// The relation a tie implies: its whole is all of the tie and its
+/// statements. It is structure, believed at 1.
+fn implied(t: &Tie) -> Statement<Related> {
+    let about = whole(t);
+    let mut pieces = vec![about.clone(), t.piece.clone()];
+    pieces.extend(t.statements.iter().cloned());
+    Statement {
+        piece: Piece::named(&format!("all: {}", about.name)),
+        content: Related {
+            how: Relation::All,
+            pieces,
+        },
+    }
+}
+
+/// The model with the relation of each tie written out.
+// mitra: implements model::written
+pub fn written(model: &Model) -> Model {
+    let mut out = model.clone();
+    for t in &model.ties {
+        let relation = implied(t);
+        if !out.related.iter().any(|said| said.piece == relation.piece) {
+            out.related.push(relation);
+        }
+    }
+    out
 }
 
 /// The parts of a whole: the pieces the relation names after the
@@ -146,14 +175,17 @@ pub fn all(x: Opinion, y: Opinion, w: f64) -> Opinion {
 
 /// What to expect of a piece with no evidence: its base rate. With
 /// none written, the completeness of a tie has the model's setting,
-/// and any other piece 0.
+/// the relation a tie implies is structure, and any other piece has 0.
 // mitra: implements model::base
 pub fn base(model: &Model, x: &Piece) -> f64 {
     if let Some((_, a)) = model.base.iter().find(|(p, _)| p == x) {
         return *a;
     }
-    match model.ties.iter().any(|t| &complete(t).piece == x) {
-        true => model.completeness,
+    if model.ties.iter().any(|t| &complete(t).piece == x) {
+        return model.completeness;
+    }
+    match model.ties.iter().any(|t| &implied(t).piece == x) {
+        true => 1.0,
         false => 0.0,
     }
 }
@@ -201,6 +233,7 @@ fn prior(model: &Model, x: &Piece, walk: &mut Walk) -> Opinion {
 /// read from that.
 // mitra: implements model::opinion
 pub fn opinion(model: &Model, x: &Piece) -> Opinion {
+    let model = &written(model);
     let voices = judged(model);
     match voices.iter().find(|(piece, _)| piece == x) {
         None => read(&settled(model, &voices), x),
@@ -267,6 +300,7 @@ fn doubted(model: &Model) -> Vec<(Voice, Piece, Vec<Piece>)> {
 /// until nothing moves: expectation and maximisation, in turn.
 // mitra: implements model::judged
 pub fn judged(model: &Model) -> Vec<(Piece, f64)> {
+    let model = &written(model);
     let voices = doubted(model);
     if voices.is_empty() {
         return Vec::new();
@@ -394,6 +428,7 @@ fn heard_at(model: &Model, voices: &[(Voice, Piece, Vec<Piece>)], at: &[f64]) ->
 /// is read from it.
 // mitra: implements model::settled
 pub fn settled(model: &Model, judged: &[(Piece, f64)]) -> Model {
+    let model = &written(model);
     let voices = doubted(model);
     let at: Vec<f64> = voices
         .iter()

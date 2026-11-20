@@ -627,3 +627,34 @@ agree, 4 differ (the known ones).
 674. Not checked: whether main still counts a moved claim as serving
      its promise. The build raises no new warning, and the claims are
      now named `tests::<claim>` in the ties of the Rust tests.
+
+## Increment 109: a tie lists its statements and implies its whole (2026-11-20)
+
+**Asked.** "how about we expect the author to make a tie link to one
+or several statement, and we put completeness by default? what about
+voice, what under reliable() means? ... is the graph structure
+changing the computation?"
+
+**Done.** `Tie { piece, statements, place }`, `tie::whole`,
+`model::written`; the toy claims of `model.mitra` use ties;
+`examples/tied.rs`; `docs/trials.md`, "The toys written with ties".
+101 tests (97). 42 promises. `mitra conform`: 80 ties agree, 4 differ.
+
+**Decided alone.**
+
+675. The whole of a tie is a piece named `whole: <tie's name>`
+     (`tie::whole`). Evidence at the place is about it.
+676. The relation a tie implies is structure: believed at 1, with no
+     base rate to write. The doubt is carried by the tie, which is a
+     part.
+677. A relation written by hand is still read, beside the implied
+     ones. The toy "it falls and makes no noise" keeps one: its two
+     statements are observed apart, and the whole of a tie is all its
+     statements together.
+678. A tie has a base rate like any piece, 0 with none written. In the
+     gravity toy it starts at one half, which adds a suspect the toy
+     did not have.
+679. The reliability of a voice is not a written relation. Every piece
+     of evidence by a doubted voice has it as a parent, applied when
+     the model is read (`settled`).
+680. The older trial examples are not rewritten with ties.

@@ -275,7 +275,7 @@ fn beside_is_not_within() {
 fn tie(place: &[&str]) -> Vec<Tie> {
     vec![Tie {
         piece: Piece::named("t"),
-        statement: Piece::named("x"),
+        statements: vec![Piece::named("x")],
         place: Place::at(place),
     }]
 }
@@ -459,10 +459,6 @@ fn a_no_about_a_whole_lowers_it() {
     assert!(p_of(&model, "x") < 0.25);
 }
 
-// mitra: evidence for tests::a_throw_that_falls_believes_both
-// mitra: evidence for tests::a_throw_that_does_not_fall_names_its_suspects
-// mitra: evidence for tests::an_equal_start_gives_equal_shares
-// mitra: evidence for tests::trusted_senses_blame_the_tie_and_the_statement_more
 #[test]
 fn a_throw_at_one_half() {
     let throw = |senses: f64, fell: bool| {
@@ -553,7 +549,6 @@ fn a_doubted_relation_is_a_suspect() {
     assert_eq!(conflicts(&model), suspects(&["applies", "falls", "throw"]));
 }
 
-// mitra: evidence for tests::the_balloon_blames_its_tie
 // mitra: evidence for tests::silence_blames_the_noise
 #[test]
 fn what_is_shared_takes_the_blame_off() {
@@ -691,7 +686,7 @@ fn tied(throw: Opinion) -> Model {
         ]),
         ties: vec![Tie {
             piece: Piece::named("applies"),
-            statement: Piece::named("falls"),
+            statements: vec![Piece::named("falls")],
             place: Place {
                 path: vec!["ball".to_string()],
             },
@@ -876,7 +871,7 @@ fn reviewed_throw(doubted: bool, ties: Vec<Tie>) -> Model {
 fn an_unwritten_completeness_has_the_setting() {
     let tie = Tie {
         piece: Piece::named("applies"),
-        statement: Piece::named("falls"),
+        statements: vec![Piece::named("falls")],
         place: Place {
             path: vec!["ball".to_string()],
         },
@@ -917,7 +912,7 @@ fn completeness_at_six_and_at_seven_tenths() {
         };
         let tie = Tie {
             piece: Piece::named("applies"),
-            statement: Piece::named("falls"),
+            statements: vec![Piece::named("falls")],
             place: Place {
                 path: vec!["ball".to_string()],
             },
@@ -932,4 +927,129 @@ fn completeness_at_six_and_at_seven_tenths() {
     let close = |x: f64, y: f64| (x - y).abs() < 0.006;
     assert!(close(at(0.6, "complete: applies"), 0.55) && close(at(0.7, "complete: applies"), 0.65));
     assert!(close(at(0.6, "falls"), 0.43) && close(at(0.7, "falls"), 0.42));
+}
+
+// A tie with its statements: the whole is implied.
+
+fn ties(name: &str, statements: &[&str], place: &str) -> Tie {
+    Tie {
+        piece: Piece::named(name),
+        statements: statements.iter().map(|x| Piece::named(x)).collect(),
+        place: Place {
+            path: vec![place.to_string()],
+        },
+    }
+}
+/// The throwing toy as an author writes it: the tie `applies` links
+/// the ball to `falls`. A throw is about the whole of the tie.
+fn thrown(throw: Opinion, senses: f64) -> Model {
+    Model {
+        evidence: vec![says("throw", "whole: applies", throw, "me")],
+        base: base_of(&[("applies", 0.5), ("falls", 0.5), ("throw", senses)]),
+        ties: vec![ties("applies", &["falls"], "ball")],
+        ..Model::empty(W, C)
+    }
+}
+
+#[test]
+fn a_tie_implies_its_whole() {
+    let model = thrown(yes(), 0.5);
+    assert_eq!(whole(&model.ties[0]), Piece::named("whole: applies"));
+    let out = written(&model);
+    assert_eq!(out.related.len(), 1);
+    assert_eq!(written(&out), out);
+    let names: Vec<String> = parts(&out, &out.related[0].content)
+        .iter()
+        .map(|x| x.name.clone())
+        .collect();
+    assert_eq!(names, ["applies", "falls", "complete: applies"]);
+    // The relation is structure, and the completeness has the setting.
+    assert_eq!(base(&model, &out.related[0].piece), 1.0);
+    assert_eq!(base(&model, &Piece::named("complete: applies")), C);
+}
+
+// mitra: evidence for tests::a_throw_that_falls_believes_both
+// mitra: evidence for tests::an_equal_start_gives_equal_shares
+// mitra: evidence for tests::trusted_senses_blame_the_tie_and_the_statement_more
+// mitra: evidence for tests::a_throw_that_does_not_fall_names_its_suspects
+#[test]
+fn a_throw_at_a_tie() {
+    let fell = thrown(yes(), 0.5);
+    for x in ["applies", "falls"] {
+        assert_eq!(opinion(&fell, &Piece::named(x)), op(0.5, 0.0, 0.5));
+    }
+    assert_eq!(
+        opinion(&fell, &Piece::named("complete: applies")),
+        op(0.5, 0.0, C)
+    );
+    let missed = thrown(no(), 0.5);
+    let s = |x: &str| opinion(&missed, &Piece::named(x)).s;
+    assert!(near(s("applies"), s("falls")) && near(s("applies"), s("throw")));
+    // Expected more, the completeness takes less of the no.
+    assert!(s("complete: applies") < s("applies") && s("complete: applies") > 0.0);
+    eprintln!(
+        "GOLD {:?} {:?}",
+        conflicts(&missed),
+        ["applies", "falls", "complete: applies", "throw"]
+            .map(|x| (p_of(&missed, x), p_of(&fell, x)))
+    );
+    let trusting = thrown(no(), 0.9);
+    let s = |x: &str| opinion(&trusting, &Piece::named(x)).s;
+    assert!(s("applies") > s("throw"));
+}
+
+// mitra: evidence for tests::the_balloon_blames_its_tie
+#[test]
+fn a_statement_under_two_ties() {
+    // The ball falls, the balloon does not: `falls` is believed through
+    // the ball, so the balloon's tie takes more of the no.
+    let model = Model {
+        evidence: vec![
+            says("throw ball", "whole: ball applies", yes(), "me"),
+            says("throw balloon", "whole: balloon applies", no(), "me"),
+        ],
+        base: base_of(&[
+            ("ball applies", 0.5),
+            ("balloon applies", 0.5),
+            ("falls", 0.5),
+            ("throw ball", 0.5),
+            ("throw balloon", 0.5),
+        ]),
+        ties: vec![
+            ties("ball applies", &["falls"], "ball"),
+            ties("balloon applies", &["falls"], "balloon"),
+        ],
+        ..Model::empty(W, C)
+    };
+    let s = |x: &str| opinion(&model, &Piece::named(x)).s;
+    assert!(s("balloon applies") > s("falls"));
+    assert_eq!(places(&model.ties, &Piece::named("falls")).len(), 2);
+}
+
+#[test]
+fn a_tie_of_several_statements() {
+    // Gravity is listed by the tie of each object, beside its mass.
+    let model = Model {
+        evidence: vec![
+            says("drop stone", "whole: stone", yes(), "a"),
+            says("drop feather", "whole: feather", no(), "b"),
+        ],
+        base: base_of(&[
+            ("stone", 0.5),
+            ("feather", 0.5),
+            ("gravity", 0.5),
+            ("mass stone", 0.5),
+            ("mass feather", 0.5),
+            ("drop stone", 0.9),
+            ("drop feather", 0.9),
+        ]),
+        ties: vec![
+            ties("stone", &["gravity", "mass stone"], "stone"),
+            ties("feather", &["gravity", "mass feather"], "feather"),
+        ],
+        ..Model::empty(W, C)
+    };
+    let p = |x: &str| p_of(&model, x);
+    assert!(p("gravity") > 0.85 && p("mass feather") < 0.5 && p("mass stone") > 0.85);
+    assert_eq!(conflicts(&model)[0].len(), 5);
 }
