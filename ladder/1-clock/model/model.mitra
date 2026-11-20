@@ -1,0 +1,20 @@
+// Rung 1 of the ladder (ladder/README.md): a finite domain, and one
+// claim over every number that only a sample or a review can reach.
+subject clock {
+    ensure stays = "The clock shows an hour from 0 to 23, and the hour after 23 is 0.";
+    ensure undoes = "Going forward then back, or back then forward, gives the same hour.";
+    ensure jumps = "Moving n hours at once gives what n single steps give.";
+
+    fn next(h: 0..=23) -> 0..=23;
+    fn back(h: 0..=23) -> 0..=23;
+    fn after(h: 0..=23, n: Nat) -> 0..=23 uses only next;
+
+    claim steps(h: 0..=22) { next(h) == h + 1 }
+    claim midnight() { next(23) == 0 }
+    claim round_trip(h: 0..=23) { back(next(h)) == h && next(back(h)) == h }
+    claim stays_put(h: 0..=23) { after(h, 0) == h }
+    claim one_more(h: 0..=23, n: Nat) { after(h, n + 1) == next(after(h, n)) }
+}
+
+// The hours a test draws from: the claim `one_more` is over every number.
+fn day(n: Nat) -> Bool { n < 1000 }

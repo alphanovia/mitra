@@ -1,0 +1,42 @@
+withdraw: refuses the last coin of the limit | tests fail | fails: bank::Account::new::correct, bank::Account::deposit::correct, bank::Account::withdraw::correct, bank::withdraw_takes, bank::refuses_past_limit, bank::bounded, bank::exact, bank::frozen | code named certain: none | errors: M001
+  seen: evidence bug { for bank::Account::withdraw given self = Account(20, 50, false), n = 70 gives None }
+    diagnose: the observation contradicts what the model and its ledger say
+    bank::Account::withdraw::deterministic: holds -> unverified
+    likely model/evidence.mitra:13 (review:ladder) 1 0.50
+    likely the observation (bug) 1 0.50
+withdraw: no limit at all | tests fail | fails: bank::Account::new::correct, bank::Account::deposit::correct, bank::Account::withdraw::correct, bank::withdraw_takes, bank::refuses_past_limit, bank::bounded, bank::exact, bank::frozen | code named certain: none | errors: M001
+  seen: evidence bug { for bank::Account::withdraw given self = Account(-50, 50, false), n = 1 gives Some(Account(-51, 50, false)) }
+    diagnose: the observation contradicts what the model and its ledger say
+    bank::Account::withdraw::deterministic: holds -> unverified
+    likely model/evidence.mitra:13 (review:ladder) 1 0.50
+    likely the observation (bug) 1 0.50
+deposit: a closed account takes money | tests fail | fails: bank::closed_is_frozen, bank::bounded, bank::exact, bank::frozen | code named certain: none | errors: M001
+  seen: evidence bug { for bank::Account::deposit given self = Account(0, 50, true), n = 20 gives Account(20, 50, true) }
+    diagnose: the observation contradicts what the model and its ledger say
+    bank::closed_is_frozen: holds -> unverified
+    likely model/evidence.mitra:7 (review:ladder) 1 0.50
+    likely the observation (bug) 1 0.50
+deposit: loses the limit | tests fail | fails: bank::Account::new::correct, bank::Account::deposit::correct, bank::Account::withdraw::correct, bank::deposit_adds, bank::bounded, bank::exact, bank::frozen | code named certain: none | errors: M001
+  seen: evidence bug { for bank::Account::deposit given self = Account(0, 50, false), n = 20 gives Account(20, 0, false) }
+    diagnose: the observation contradicts what the model and its ledger say
+    bank::Account::deposit::deterministic: holds -> unverified
+    likely model/evidence.mitra:12 (review:ladder) 1 0.50
+    likely the observation (bug) 1 0.50
+close: empties the account | tests fail | fails: bank::closes, bank::bounded, bank::exact, bank::frozen | code named certain: bank::Account::close | errors: M001
+  seen: evidence bug { for bank::Account::close given self = Account(20, 50, false) gives Account(0, 50, true) }
+    diagnose: the observation contradicts what the model and its ledger say
+    bank::closes: holds -> unverified
+    likely model/evidence.mitra:6 (review:ladder) 1 0.50
+    likely the observation (bug) 1 0.50
+withdraw: the limit is not checked on large amounts | tests pass | fails: none | code named certain: none
+  seen: evidence bug { for bank::Account::withdraw given self = Account(0, 50, false), n = 100000 gives Some(Account(-100000, 50, false)) }
+    diagnose: the observation contradicts what the model and its ledger say
+    bank::refuses_past_limit: holds -> unverified
+    likely model/evidence.mitra:5 (review:ladder) 1 0.50
+    likely the observation (bug) 1 0.50
+new: a gift with a large limit | tests pass | fails: none | code named certain: none
+  seen: evidence bug { for bank::Account::new given limit = 5000 gives Account(5, 5000, false) }
+    diagnose: the observation contradicts what the model and its ledger say
+    bank::starts_empty: holds -> unverified
+    likely model/evidence.mitra:2 (review:ladder) 1 0.50
+    likely the observation (bug) 1 0.50

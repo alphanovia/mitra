@@ -1,0 +1,27 @@
+next: wraps one hour late | tests fail | fails: clock::next::correct, clock::midnight, clock::round_trip, clock::one_more, clock::stays, clock::undoes, clock::jumps | code named certain: none | errors: M001 | look first at: clock::next
+  seen: evidence bug { for clock::next given h = 23 gives 24 }
+    diagnose: the observation contradicts what the model and its ledger say
+    clock::next::deterministic: holds -> unverified
+    likely the observation (bug) 1 0.50
+    likely the signature of `clock::next`, model/model.mitra:8 1 0.50
+    likely model/evidence.mitra:5 (review:ladder) 1 0.50
+    likely model/evidence.mitra:9 (test:midnight_wraps) 1 0.50
+next: skips noon | tests fail | fails: clock::steps, clock::round_trip, clock::one_more, clock::stays, clock::undoes, clock::jumps | code named certain: none | errors: M001 | look first at: clock::next
+  seen: evidence bug { for clock::next given h = 11 gives 13 }
+    diagnose: the observation contradicts what the model and its ledger say
+    clock::steps: holds -> unverified
+    likely model/evidence.mitra:8 (test:every_hour_steps) 1 0.50
+    likely the observation (bug) 1 0.50
+back: stuck at midnight | tests fail | fails: clock::round_trip, clock::stays, clock::undoes, clock::jumps | code named certain: none | errors: M001
+  seen: evidence bug { for clock::back given h = 0 gives 0 }
+    diagnose: the observation contradicts what the model and its ledger say
+    clock::round_trip: holds -> unverified
+    certain model/evidence.mitra:10 (test:every_hour_comes_back) 1 0.00
+    certain model/evidence.mitra:10 (test:every_hour_comes_back) 1 0.00
+after: a clock of 12 hours | tests fail | fails: clock::one_more, clock::stays, clock::undoes, clock::jumps | code named certain: none | errors: M001 | look first at: clock::next
+  seen: evidence bug { for clock::after given h = 0, n = 13 gives 1 }
+    diagnose: the observation contradicts nothing: it agrees with the model, or it is outside what the model promises
+after: wrong past what the tests draw | tests pass | fails: none | code named certain: none
+  seen: evidence bug { for clock::after given h = 0, n = 6000 gives 1 }
+    diagnose: the observation contradicts nothing: it agrees with the model, or it is outside what the model promises
+after: right, by stepping back too | tests pass | fails: none | code named certain: none | errors: M003

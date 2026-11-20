@@ -1,0 +1,103 @@
+build: ok, model 2e770ff33480: functions 3, claims 5, promises 3, requires 0, blocks 1, warnings 0
+  written: .mitra/build/model.lock, interface.mitra, owed.txt, settings.toml
+conform: ok: 4 ties agree, 0 differ, 0 pieces untied; 5 tests tied, 5 pin an input
+  14 lines of model over 13 lines of code, in 1 blocks with 3 promises and 0 requires
+clock::next::correct: unverified
+  passes on       `clock::next(23)`
+  no evidence on  h in 0..=22
+clock::next::deterministic: holds
+  by              review (agent:anthropic/fable-5.2/ladder); doubt 0.3
+clock::back::correct: unverified
+  no evidence on  h in 0..=23
+clock::back::deterministic: holds
+  by              review (agent:anthropic/fable-5.2/ladder); doubt 0.3
+clock::after::uses: holds
+  by              tie (machine:mitra-rust); doubt 0.1
+clock::after::correct: unverified
+  no evidence on  (h, n) in (0..=23, 0..)
+clock::after::deterministic: holds
+  by              review (agent:anthropic/fable-5.2/ladder); doubt 0.3
+clock::steps: holds
+  by              exhaustive (agent:anthropic/fable-5.2/ladder), test (agent:anthropic/fable-5.2/ladder); doubt 0.3
+clock::midnight: holds
+  by              test (agent:anthropic/fable-5.2/ladder); doubt 0.3
+clock::round_trip: holds
+  by              exhaustive (agent:anthropic/fable-5.2/ladder); doubt 0.3
+clock::stays_put: holds
+  by              exhaustive (agent:anthropic/fable-5.2/ladder); doubt 0.3
+clock::one_more: holds
+  by              review (agent:anthropic/fable-5.2/ladder), sample (agent:anthropic/fable-5.2/ladder); doubt 0.3
+clock::stays::captured: holds
+  by              review (agent:anthropic/fable-5.2/ladder); doubt 0.3
+clock::stays: holds assuming [clock::next::correct, clock::back::correct, clock::after::correct]
+  by              exhaustive (agent:anthropic/fable-5.2/ladder), review (agent:anthropic/fable-5.2/ladder), sample (agent:anthropic/fable-5.2/ladder), test (agent:anthropic/fable-5.2/ladder); doubt 1
+  says            "The clock shows an hour from 0 to 23, and the hour after 23 is 0."
+  rests on        `clock::next::correct`, `clock::back::correct`, `clock::after::correct`, `clock::steps`, `clock::midnight`, `clock::round_trip`, `clock::stays_put`, `clock::one_more`
+clock::undoes::captured: holds
+  by              review (agent:anthropic/fable-5.2/ladder); doubt 0.3
+clock::undoes: holds assuming [clock::next::correct, clock::back::correct, clock::after::correct]
+  by              exhaustive (agent:anthropic/fable-5.2/ladder), review (agent:anthropic/fable-5.2/ladder), sample (agent:anthropic/fable-5.2/ladder), test (agent:anthropic/fable-5.2/ladder); doubt 1
+  says            "Going forward then back, or back then forward, gives the same hour."
+  rests on        `clock::next::correct`, `clock::back::correct`, `clock::after::correct`, `clock::steps`, `clock::midnight`, `clock::round_trip`, `clock::stays_put`, `clock::one_more`
+clock::jumps::captured: holds
+  by              review (agent:anthropic/fable-5.2/ladder); doubt 0.3
+clock::jumps: holds assuming [clock::next::correct, clock::back::correct, clock::after::correct]
+  by              exhaustive (agent:anthropic/fable-5.2/ladder), review (agent:anthropic/fable-5.2/ladder), sample (agent:anthropic/fable-5.2/ladder), test (agent:anthropic/fable-5.2/ladder); doubt 1
+  says            "Moving n hours at once gives what n single steps give."
+  rests on        `clock::next::correct`, `clock::back::correct`, `clock::after::correct`, `clock::steps`, `clock::midnight`, `clock::round_trip`, `clock::stays_put`, `clock::one_more`
+clock::after::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
+clock::back::tied: holds
+  by              tie (machine:mitra-rust); doubt 0.1
+clock::next::tied: holds
+  by              test (agent:anthropic/fable-5.2/ladder), tie (machine:mitra-rust); voices a kind apart; doubt 0.03
+
+warning[M101]: a claim is not verified
+  --> model/model.mitra:8  fn next(h: 0..=23) -> 0..=23;
+
+  No evidence on h in 0..=22.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model/model.mitra:9  fn back(h: 0..=23) -> 0..=23;
+
+  No evidence on h in 0..=23.
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M101]: a claim is not verified
+  --> model/model.mitra:10  fn after(h: 0..=23, n: Nat) -> 0..=23 uses only next;
+
+  No evidence on (h, n) in (0..=23, 0..).
+  help: `mitra next` lists the evidence that would settle it
+
+warning[M102]: a claim holds only under assumptions
+  --> model/model.mitra:4  ensure stays = "The clock shows an hour from 0 to 23, and the hour after 23 is 0.";
+
+  `clock::stays` holds if `clock::next::correct`, `clock::back::correct`, `clock::after::correct` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M102]: a claim holds only under assumptions
+  --> model/model.mitra:5  ensure undoes = "Going forward then back, or back then forward, gives the same hour.";
+
+  `clock::undoes` holds if `clock::next::correct`, `clock::back::correct`, `clock::after::correct` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+warning[M102]: a claim holds only under assumptions
+  --> model/model.mitra:6  ensure jumps = "Moving n hours at once gives what n single steps give.";
+
+  `clock::jumps` holds if `clock::next::correct`, `clock::back::correct`, `clock::after::correct` hold, and no evidence supports them.
+  help: review them, then record it as evidence, or test until it is not needed
+
+`mitra explain <code>` describes a kind of error or warning, such as `mitra explain M101`.
+
+assess: 0 errors, 6 warnings
+  3 of 3 promises hold: 0 with a proof, 0 with a person's review, 0 with a cold agent's word, 3 on agent work alone, 0 on a machine's word, 0 on words nobody signed
+  a person's review would lift the most:
+    clock::stays: doubt 1 to 0.05
+    clock::undoes: doubt 1 to 0.05
+    clock::jumps: doubt 1 to 0.05
+  for a person to review or decide (0):
+  to hand over (tests to write, code to tie) (3):
+    clock::next::correct: every point of 0..=22 (23), or a claim one point can stand for
+    clock::back::correct: every point of 0..=23 (24), or a claim one point can stand for
+    clock::after::correct: (0..=23, 0..) is infinite: a claim one point can stand for, or a proof

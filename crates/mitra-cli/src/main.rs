@@ -696,7 +696,8 @@ fn run_command(args: Vec<String>) -> Result<usize, String> {
                 _ => "cargo",
             };
             let signed = |l: &String| {
-                let act = if l.contains(" sampled ") {
+                // A comment that says its act (`act exhaustive`) keeps it.
+                let act = if l.contains(" sampled ") || l.contains(" act ") {
                     ""
                 } else {
                     " act test"

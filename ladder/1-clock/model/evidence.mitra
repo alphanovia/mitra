@@ -1,0 +1,16 @@
+evidence review { for clock::one_more holds act review by "agent:anthropic/fable-5.2/ladder" source "review:ladder" rev "d3286236a98c" seen "16052be8a185" }
+evidence review { for clock::stays::captured holds act review by "agent:anthropic/fable-5.2/ladder" source "review:ladder" rev "d3286236a98c" seen "1754e56e54b8" }
+evidence review { for clock::undoes::captured holds act review by "agent:anthropic/fable-5.2/ladder" source "review:ladder" rev "d3286236a98c" seen "2e0538b15e48" }
+evidence review { for clock::jumps::captured holds act review by "agent:anthropic/fable-5.2/ladder" source "review:ladder" rev "d3286236a98c" seen "7ffb90dfec89" }
+evidence review { for clock::next::deterministic holds act review by "agent:anthropic/fable-5.2/ladder" source "review:ladder" rev "d3286236a98c" seen "16c4ba181043" }
+evidence review { for clock::back::deterministic holds act review by "agent:anthropic/fable-5.2/ladder" source "review:ladder" rev "d3286236a98c" seen "50bd278d459e" }
+evidence review { for clock::after::deterministic holds act review by "agent:anthropic/fable-5.2/ladder" source "review:ladder" rev "d3286236a98c" seen "1bd2d2202af5" }
+evidence tie { for clock::next::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/lib.rs:3; erased 3: range(h: 0..=23 for u8), range(result: 0..=23 for u8), width" rev "d3286236a98c" }
+evidence tie { for clock::back::tied holds trust 0.884 act tie by "machine:mitra-rust" source "reader:rust src/lib.rs:8; erased 3: range(h: 0..=23 for u8), range(result: 0..=23 for u8), width" rev "d3286236a98c" }
+evidence tie { for clock::after::tied holds trust 0.84 act tie by "machine:mitra-rust" source "reader:rust src/lib.rs:13; erased 4: range(h: 0..=23 for u8), range(n: 0.. for u64), range(result: 0..=23 for u8), width" rev "d3286236a98c" }
+evidence tie { for clock::after::uses holds act tie by "machine:mitra-rust" source "reader:rust src/lib.rs:13" rev "d3286236a98c" }
+evidence test { for clock::steps given h in 0..=22 act exhaustive holds written "agent:anthropic/fable-5.2/ladder" by "machine:cargo" source "test:every_hour_steps" rev "d3286236a98c" }
+evidence test { for clock::midnight holds written "agent:anthropic/fable-5.2/ladder" act test by "machine:cargo" source "test:midnight_wraps" rev "d3286236a98c" }
+evidence test { for clock::round_trip given h in 0..=23 act exhaustive holds written "agent:anthropic/fable-5.2/ladder" by "machine:cargo" source "test:every_hour_comes_back" rev "d3286236a98c" }
+evidence test { for clock::stays_put given h in 0..=23 act exhaustive holds written "agent:anthropic/fable-5.2/ladder" by "machine:cargo" source "test:no_hours_is_no_move" rev "d3286236a98c" }
+evidence test { for clock::one_more given n in day sampled 3000 written "agent:anthropic/fable-5.2/ladder" by "machine:cargo" source "test:one_more_hour_is_one_more_step" rev "d3286236a98c" }

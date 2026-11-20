@@ -142,6 +142,7 @@ direction, not the current language.
 | [docs/design/state.md](docs/design/state.md) | Proposal: state as a value, traces, invariants |
 | [docs/design/workflow.md](docs/design/workflow.md) | The loop: model, plan, code, tie, ingest, eval; and what is proposed (bugs, diagnosis, usage) |
 | [docs/use-cases.md](docs/use-cases.md) | Where Mitra is headed: checking a model, gating a merge, gating an agent |
+| [ladder/README.md](ladder/README.md) | The ladder: small models with code, ledger, expected report and seeded breaks, kept passing |
 | [docs/validation.md](docs/validation.md) | How Mitra will be validated: a ladder of toy `add` CLIs scored against ground truth |
 | [docs/trials.md](docs/trials.md) | Field trials, done by hand: a Rust project, an agile organisation judged from news, an agent judged against a skill |
 | [docs/prior-art.md](docs/prior-art.md) | Related work and how Mitra differs |

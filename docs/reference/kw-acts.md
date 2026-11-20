@@ -118,7 +118,9 @@ shipping::one: holds
 
 - `mitra tie` writes `act tie by "machine:mitra-rust"`.
 - `mitra ingest` writes `act test by "machine:cargo"` (or
-  `machine:junit`). Who wrote a test is said in its comment, after what
+  `machine:junit`), or the act the comment states: a test that loops
+  over a whole set says `// mitra: evidence for steps given h in
+  0..=22 act exhaustive`. Who wrote a test is said in its comment, after what
   it pins: `// mitra: evidence for fee given zone = 0, weight = 3 gives
   12 written "agent:anthropic/opus-5.5/s-8f2a" cold`.
 - `mitra add` takes the block as written.

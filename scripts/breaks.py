@@ -4,15 +4,25 @@ the crate's tests, record them as evidence, vouch again blindly for every
 `uniform` and `uses` claim, and print what `cargo test` and Mitra say.
 
 Usage: scripts/breaks.py <crate> [-v]   (from the repository root)
+       scripts/breaks.py <folder> [-v]  a rung of the ladder: ladder/1-clock
 Needs a clean working tree: `git checkout` undoes a run that was killed.
 The breaks of a crate are in scripts/breaks/<crate>.txt: blocks separated
 by a line `==`, each `name`, `file`, `--`, old text, `--`, new text.
+In a folder the breaks are in <folder>/breaks.txt, the code is tied
+again after each (`mitra tie`), and a block may end with one more `--`
+and an observation: what someone who met the bug would report. It is
+given to `mitra diagnose` with the ledger as committed, and what the
+diagnosis names is printed under the break.
 Nothing is left changed: files and evidence are restored after each."""
 import os, re, shutil, signal, subprocess, sys, tempfile
 
-crate = sys.argv[1]
+crate = sys.argv[1].rstrip("/")
 verbose = "-v" in sys.argv
-root = f"crates/{crate}"
+rung = os.path.isdir(crate)
+root = crate if rung else f"crates/{crate}"
+listed = f"{root}/breaks.txt" if rung else f"scripts/breaks/{crate}.txt"
+if rung:
+    crate = re.search(r'^name = "(.*)"', open(f"{root}/Cargo.toml").read(), re.M).group(1)
 # A copy: the tests of mitra-cli rebuild the binary, with the break in it.
 work = tempfile.mkdtemp()
 mitra = f"{work}/mitra"
@@ -61,6 +71,8 @@ def judge(name):
         return f"{name}: does not build"
     open(f"{work}/report.txt", "w").write(report)
     run([mitra, "ingest", f"{work}/report.txt", "--rev", "break"], cwd=root)
+    if rung:
+        run([mitra, "tie", "--rev", "break"], cwd=root)
     vouches = "\n".join(f"evidence review {{ for {a} holds }}" for a in assumptions())
     if vouches:
         run([mitra, "add", vouches, "--source", "review:blind", "--rev", "break"], cwd=root)
@@ -75,6 +87,9 @@ def judge(name):
     tests = "fail" if code else "pass"
     line = f"{name} | tests {tests} | fails: {', '.join(failing) or 'none'}"
     line += f" | code named certain: {', '.join(certain) or 'none'}"
+    errors = sorted(set(re.findall(r"^error\[(M\d+)\]", out, re.M)))
+    if errors:
+        line += f" | errors: {', '.join(errors)}"
     if first:
         line += f" | look first at: {', '.join(first)}"
     if causes:
@@ -85,10 +100,20 @@ def judge(name):
 run(["cargo", "build", "-q", "-p", "mitra-cli"])
 shutil.copy("target/debug/mitra", mitra)
 kept = open(evidence).read()
-blocks = open(f"scripts/breaks/{crate}.txt").read().split("\n==\n")
+blocks = open(listed).read().split("\n==\n")
+
+
+def diagnose(seen):
+    # The ledger as committed: the bug is met by someone, not by a test.
+    _, out = run([mitra, "diagnose", seen], cwd=root)
+    if verbose:
+        print(out)
+    keep = re.findall(r"^(diagnose: .*|  \S+: \S.* -> .*|    (?:certain|likely|possible|unlikely) .*)$", out, re.M)
+    return "\n".join("    " + " ".join(k.split()) for k in keep)
+
 try:
     for b in blocks:
-        head, old, new = (b.strip("\n") + "\n").split("\n--\n")
+        head, old, new, *seen = (b.strip("\n") + "\n").split("\n--\n")
         new = new.rstrip("\n")
         name, path = head.split("\n")
         source = open(path).read()
@@ -99,6 +124,9 @@ try:
             print(judge(name), flush=True)
         finally:
             open(path, "w").write(source)
+            open(evidence, "w").write(kept)
+        if seen:
+            print(f"  seen: {seen[0].strip()}\n{diagnose(seen[0].strip())}", flush=True)
             open(evidence, "w").write(kept)
 finally:
     open(evidence, "w").write(kept)
