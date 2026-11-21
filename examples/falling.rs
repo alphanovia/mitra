@@ -29,37 +29,41 @@ fn fallen() -> Expression {
     times(times(Given(r(2, 1)), Given(r(981, 100))), input("h"))
 }
 
-/// What falls.
-fn place(object: &str) -> Place {
-    Place::at(&[object])
+/// What falls: a part of the model.
+fn part(object: &str) -> Part {
+    Part::subject(object)
+}
+/// Where it was dropped, and that this is the part the model means.
+fn tie(object: &str) -> Tie {
+    Tie {
+        piece: leaf(&format!("{object}::is the one dropped"), &part(object)),
+        location: Location::at(&["lab", "tower", object]),
+    }
 }
 /// `speed`: v² = 2·g·h within 2 m²/s². g is 9.81 m/s².
 fn speed(object: &str) -> Claim {
     let seen = times(input("v"), input("v"));
     Claim {
-        piece: leaf(&format!("{object}::speed"), &place(object)),
+        piece: leaf(&format!("{object}::speed"), &part(object)),
         expression: Apply(within(&real()), vec![seen, fallen(), Given(r(2, 1))]),
     }
 }
 /// `slow`: from 20 m or less, 2·g·h stays under 400.
 fn slow(object: &str) -> Claim {
     Claim {
-        piece: leaf(&format!("{object}::slow"), &place(object)),
+        piece: leaf(&format!("{object}::slow"), &part(object)),
         expression: Apply(less(&real()), vec![fallen(), Given(r(400, 1))]),
     }
 }
 /// The hypothesis of the architect: nothing but the height matters.
 fn only_height(object: &str) -> Piece {
-    leaf(
-        &format!("{object}::only the height matters"),
-        &place(object),
-    )
+    leaf(&format!("{object}::only the height matters"), &part(object))
 }
 fn piece(name: &str, object: &str, pre: &[Piece], post: &[Piece], by: Inference) -> Piece {
     Piece {
         name: format!("{object}::{name}"),
         pre: pre.to_vec(),
-        subject: place(object),
+        subject: part(object),
         post: post.to_vec(),
         by,
     }
@@ -112,8 +116,18 @@ fn after(object: &str, measured: &[(i64, i64)], reviewed: bool) -> Model {
     m.pieces = vec![falls(object), stays_slow(object)];
     for (h, v) in measured {
         let by = Voice::named(&format!("machine:timer {h}"));
-        m = observe(&m, &speed(object), &at(*h, *v), &Table::default(), 1.0, &by).unwrap();
+        m = observe(
+            &m,
+            &speed(object),
+            &at(*h, *v),
+            &Table::default(),
+            Some(&tie(object)),
+            1.0,
+            &by,
+        )
+        .unwrap();
     }
+    take(&mut m, tie(object).piece, "agent:modeller");
     if reviewed {
         take(&mut m, only_height(object), "agent:architect");
         take(&mut m, represents(object, measured), "agent:reviewer");
@@ -176,6 +190,7 @@ fn main() {
         &speed("stone"),
         &at(3000, 990),
         &Table::default(),
+        Some(&tie("stone")),
         1.0,
         &by,
     )

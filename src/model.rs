@@ -4,25 +4,57 @@
 
 use std::collections::BTreeMap;
 
-/// A location in the system. It is not right or wrong.
-// mitra: implements place::Place
+/// An address in the real system: a file, then what is in it. It is
+/// not right or wrong.
+// mitra: implements location::Location
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Place {
+pub struct Location {
     pub path: Vec<String>,
 }
 
-impl Place {
-    pub fn at(path: &[&str]) -> Place {
-        Place {
+impl Location {
+    pub fn at(path: &[&str]) -> Location {
+        Location {
             path: path.iter().map(|p| p.to_string()).collect(),
         }
     }
 }
 
 /// `a` is within `b`: its path goes on from the other's.
-// mitra: implements place::within
-pub fn within(a: &Place, b: &Place) -> bool {
+// mitra: implements location::within
+pub fn within(a: &Location, b: &Location) -> bool {
     a.path.starts_with(&b.path)
+}
+
+/// What a part of the system model is: built here, or bought.
+// mitra: implements part::Kind
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind {
+    Subject,
+    Boundary,
+}
+
+/// A named part of the system model.
+// mitra: implements part::Part
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Part {
+    pub name: String,
+    pub kind: Kind,
+}
+
+impl Part {
+    pub fn subject(name: &str) -> Part {
+        Part {
+            name: name.to_string(),
+            kind: Kind::Subject,
+        }
+    }
+    pub fn boundary(name: &str) -> Part {
+        Part {
+            name: name.to_string(),
+            kind: Kind::Boundary,
+        }
+    }
 }
 
 /// The step of logic a piece is.
@@ -42,14 +74,14 @@ pub enum Inference {
 pub struct Piece {
     pub name: String,
     pub pre: Vec<Piece>,
-    pub subject: Place,
+    pub subject: Part,
     pub post: Vec<Piece>,
     pub by: Inference,
 }
 
 /// A piece with nothing before and nothing after.
 // mitra: implements piece::leaf
-pub fn leaf(name: &str, subject: &Place) -> Piece {
+pub fn leaf(name: &str, subject: &Part) -> Piece {
     Piece {
         name: name.to_string(),
         pre: Vec::new(),
@@ -141,6 +173,16 @@ impl Voice {
     }
 }
 
+/// A believed link between a part of the system model and where it is
+/// in the real system. `piece` is the leaf that says so: it is about
+/// the part, and it can be wrong like any other piece.
+// mitra: implements model::Tie
+#[derive(Clone, Debug, PartialEq)]
+pub struct Tie {
+    pub piece: Piece,
+    pub location: Location,
+}
+
 /// A voice takes a piece as true or as false. `count` is how firmly:
 /// one test is 1.
 // mitra: implements model::Taking
@@ -165,6 +207,7 @@ pub struct Settings {
 
 /// - `pieces`: what is proposed. The pieces before and after a piece
 ///   are in the model with it.
+/// - `ties`: where the parts are in the real system.
 /// - `given`: pieces that hold by what they are: steps of logic.
 /// - `evaluated`: what computing a piece gave.
 /// - `taken`: what voices took.
@@ -172,6 +215,7 @@ pub struct Settings {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Model {
     pub pieces: Vec<Piece>,
+    pub ties: Vec<Tie>,
     pub given: Vec<Piece>,
     pub evaluated: Vec<(Piece, bool)>,
     pub taken: Vec<Taking>,
@@ -184,6 +228,7 @@ impl Model {
     pub fn empty(settings: Settings) -> Model {
         Model {
             pieces: Vec::new(),
+            ties: Vec::new(),
             given: Vec::new(),
             evaluated: Vec::new(),
             taken: Vec::new(),
@@ -213,10 +258,20 @@ pub fn pieces(model: &Model) -> Vec<Piece> {
     for x in model.pieces.iter().chain(&model.given) {
         collect(&mut found, x);
     }
+    for tie in &model.ties {
+        collect(&mut found, &tie.piece);
+    }
     for x in taken.chain(evaluated) {
         collect(&mut found, x);
     }
     found
+}
+
+/// Where a part is in the real system, by the ties.
+// mitra: implements model::located
+pub fn located(model: &Model, part: &Part) -> Vec<Location> {
+    let ties = model.ties.iter().filter(|t| &t.piece.subject == part);
+    ties.map(|t| t.location.clone()).collect()
 }
 
 /// What to expect of a piece before anything.

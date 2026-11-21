@@ -6,7 +6,7 @@
 //! value never depends on a piece, and an opinion never reads a value.
 
 use crate::bounds::{lifted, surely, Bounds};
-use crate::model::{leaf, Inference, Model, Piece, Taking, Voice};
+use crate::model::{leaf, Inference, Model, Piece, Taking, Tie, Voice};
 use crate::standard::{truth, Exact};
 use crate::value::{check, eval, Applies, Expression, Value};
 
@@ -65,13 +65,19 @@ pub fn instance<Q: std::fmt::Debug>(c: &Claim, inputs: &[(String, Value<Q>)]) ->
 }
 
 /// The step from a claim to one instance of it: the claim true, the
-/// instance is true; the instance false, the claim is false. It holds
-/// by what it is, so it is given to the model and never judged.
+/// instance is true; the instance false, the claim is false. With a
+/// tie, the instance was seen at the tie's location, and the tie
+/// stands before the instance with the claim: an instance that is
+/// false there says the claim and the tie cannot both be true. The
+/// step holds by what it is, so it is given to the model and never
+/// judged.
 // mitra: implements claims::instantiation
-pub fn instantiation(c: &Claim, here: &Piece) -> Piece {
+pub fn instantiation(c: &Claim, here: &Piece, at: Option<&Tie>) -> Piece {
+    let mut pre = vec![c.piece.clone()];
+    pre.extend(at.map(|tie| tie.piece.clone()));
     Piece {
         name: format!("instance: {}", here.name),
-        pre: vec![c.piece.clone()],
+        pre,
         subject: c.piece.subject.clone(),
         post: vec![here.clone()],
         by: Inference::Deduction,
@@ -80,20 +86,23 @@ pub fn instantiation(c: &Claim, here: &Piece) -> Piece {
 
 /// The crossing, whole: the claim is evaluated at these inputs, and
 /// the voice takes its instance as what that gave, `count` times
-/// over. Nothing where the claim has no value there. The model gets
-/// the instance, what evaluating gave, the taking, and the step from
-/// the claim to the instance.
+/// over. The model gets the instance, what evaluating gave, the
+/// taking, the tie, and the step from the claim to the instance.
+///
+/// Nothing where the claim has no value there, or where the tie is of
+/// another part than the claim's.
 // mitra: implements claims::observe
 pub fn observe(
     model: &Model,
     c: &Claim,
     inputs: &[(String, Value<Exact>)],
     with: &impl Applies<Exact>,
+    at: Option<&Tie>,
     count: f64,
     by: &Voice,
 ) -> Option<Model> {
     let seen = evaluate(c, inputs, with)?;
-    Some(crossed(model, c, instance(c, inputs), seen, count, by))
+    crossed(model, c, instance(c, inputs), seen, at, count, by)
 }
 
 /// The same crossing over ranges: one instance for every point in
@@ -104,16 +113,33 @@ pub fn observe_over(
     c: &Claim,
     ranges: &[(String, Value<Bounds>)],
     with: &impl Applies<Bounds>,
+    at: Option<&Tie>,
     count: f64,
     by: &Voice,
 ) -> Option<Model> {
     let seen = evaluate_over(c, ranges, with)?;
-    Some(crossed(model, c, instance(c, ranges), seen, count, by))
+    crossed(model, c, instance(c, ranges), seen, at, count, by)
 }
 
-fn crossed(model: &Model, c: &Claim, here: Piece, seen: bool, count: f64, by: &Voice) -> Model {
+fn crossed(
+    model: &Model,
+    c: &Claim,
+    here: Piece,
+    seen: bool,
+    at: Option<&Tie>,
+    count: f64,
+    by: &Voice,
+) -> Option<Model> {
     let mut out = model.clone();
-    let step = instantiation(c, &here);
+    if let Some(tie) = at {
+        if tie.piece.subject != c.piece.subject {
+            return None;
+        }
+        if !out.ties.contains(tie) {
+            out.ties.push(tie.clone());
+        }
+    }
+    let step = instantiation(c, &here, at);
     if !out.given.iter().any(|old| old.name == step.name) {
         out.given.push(step);
     }
@@ -124,5 +150,5 @@ fn crossed(model: &Model, c: &Claim, here: Piece, seen: bool, count: f64, by: &V
         count,
         by: by.clone(),
     });
-    out
+    Some(out)
 }
