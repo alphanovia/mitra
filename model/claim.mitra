@@ -1,109 +1,58 @@
-// The seam between the two sides. A claim is a statement that says an
-// expression; computing it at an input makes evidence about the claim
-// at that input. The only file that reads both model.mitra and
+// The crossing between values and pieces, in three verbs: evaluate,
+// take, judge. A claim is a piece that says an expression. Evaluating
+// it at inputs gives a truth, which is a value. A voice takes that
+// truth of the claim at those inputs, and from there the calculus of
+// model.mitra judges. The only file that reads both model.mitra and
 // value.mitra.
 //
-// Code: src/claim.rs.
+// Code: src/claim.rs. Worked case: tests/falling.rs.
 
 import std::core::{Option};
 
 subject claims {
-    require said = statement::statement_is_an_interpretation;
-    require believed = evidence::evidence_is_a_piece;
-    require yes_and_no = piece::opinion_is_counts;
+    require proposed = piece::a_piece_is_pre_subject_post;
+    require leaf = piece::a_leaf_is_said_alone;
+    require signed = model::a_taking_is_signed;
+    require logic = model::a_step_of_logic_is_given;
     require computed = value::one_value;
     require truth = standard::applied_as_written;
     require applied = Applies::applied_alone;
-    require complete = tie::completeness_is_implied;
-    require related = model::three_relations;
-    require part = model::completeness_is_a_part;
     require sure = bounds::sure_is_everywhere;
     require held = bounds::bounds_hold_the_exact;
 
-    ensure claim_is_a_truth = "A claim is a statement that says an expression. The expression gives a truth, the standard one; one that gives anything else states nothing.";
-    ensure instance_is_a_piece = "A claim at given inputs is a piece derived from the claim: at these inputs, what the claim says is so. It is named after the claim and the inputs, so the same claim at the same inputs is one piece. The inputs are exact values, or the ranges they lie in.";
-    ensure observed_is_evidence = "Computing a claim at given inputs gives evidence about the claim at those inputs and no other piece: yes where it is true, no where it is false, and no evidence where it has no value.";
-    ensure a_range_is_many_points = "Reading a claim by bounds, with each input known to lie in a range, is evidence about the claim over those ranges: yes where the claim is true everywhere in them, no where it is false everywhere, and no evidence where it may be either, may fault, or the reading is unknown. It says as many yes or no as it is given: how many observations a whole range is worth is said by who asks, and nothing here holds a value for it.";
-    ensure recorded_through_the_tie = "An observation made at the place of a tie is recorded as evidence about three pieces together: the tie, the claim at those inputs, and the tie's completeness. So a yes makes all three true, and a no says they cannot all be true. A tie that does not list the claim records nothing. With no tie, the observation is about the claim at those inputs alone.";
-    // After Gaudel, 1995, "Testing Can Be Formal, Too": the uniformity
-    // hypothesis, that the inputs of a domain behave alike, is what
-    // lets one observation stand for a claim on every input. Departs:
-    // the hypothesis is a piece that evidence speaks of, where the
-    // paper assumes it; it is given by who records; and the domain is
-    // the whole type.
-    ensure a_claim_holds_at_every_input = "Recording an observation relates the claim at those inputs to the claim: a claim holds at every input, so the claim true makes the instance true, and the instance false makes the claim false. Nothing leads from a true instance to the claim, unless who records gives one more piece, uniform: the inputs behave alike. With uniform true, one true instance makes the claim true.";
-    ensure one_way = "Evidence is made from a value; no value is made from evidence or from an opinion.";
+    ensure claim_is_a_truth = "A claim is a piece with an expression that says it. The expression gives a truth, the standard one; one that gives anything else states nothing. The claim says the expression is true at every input.";
+    ensure evaluating_gives_a_truth = "Evaluating a claim at inputs gives true, false, or nothing where the expression has no value. That is a value: nothing is believed yet.";
+    ensure instance_is_a_piece = "A claim at given inputs is a piece of its own, a leaf named after the claim and the inputs: the same claim at the same inputs is one piece. The inputs are exact values, or the ranges they lie in.";
+    ensure a_voice_takes_what_was_evaluated = "The crossing: a voice takes the instance as what evaluating gave, with a count. The model keeps both, what was evaluated and what was taken. Nothing is taken where evaluating gave nothing, and the claim itself is not touched.";
+    ensure a_claim_gives_its_instances = "With the taking, the model is given one step of logic: the claim before, the instance after. So the claim true makes the instance true, and the instance false makes the claim false. Nothing leads from a true instance to the claim: that takes a piece somebody writes and somebody takes, which says the instances represent the claim.";
+    ensure a_range_is_one_instance = "Read by bounds, with each input known to lie in a range, a claim gives true where it is true everywhere in the ranges, false where it is false everywhere, and nothing where it may be either, may fault, or the reading is unknown. The instance is the claim over those ranges.";
+    ensure one_way = "A truth is made from values and taken into the model; no value is made from an opinion.";
 
-    // What a claim says. A claim is a statement with this content.
     record Claim {
+        piece: piece::Piece,
         expression: value::Expression<standard::Exact>,
     }
 
     // The expression gives a truth.
-    fn reads(s: statement::Statement<Claim>) -> Bool
+    fn reads(c: Claim) -> Bool
         uses value::check, standard::truth;
+    fn evaluate(c: Claim, inputs: List<(String, Value<standard::Exact>)>, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>) -> Option<Bool>
+        uses value::eval, standard::truth;
+    fn evaluate_over(c: Claim, ranges: List<(String, Value<bounds::Bounds>)>, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>) -> Option<Bool>
+        uses value::eval, bounds::lifted, bounds::surely;
+    // The claim at these inputs.
+    fn instance<Q>(c: Claim, inputs: List<(String, Value<Q>)>) -> piece::Piece
+        uses piece::leaf;
+    // The step from the claim to one instance.
+    fn instantiation(c: Claim, here: piece::Piece) -> piece::Piece;
+    // Evaluate and take, at inputs.
+    fn observe(model: model::Model, c: Claim, inputs: List<(String, Value<standard::Exact>)>, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>, count: Float64, by: model::Voice) -> Option<model::Model>
+        uses evaluate, instance;
+    // Evaluate and take, over ranges.
+    fn observe_over(model: model::Model, c: Claim, ranges: List<(String, Value<bounds::Bounds>)>, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>, count: Float64, by: model::Voice) -> Option<model::Model>
+        uses evaluate_over, instance;
 
-    // The claim at these inputs: a piece derived from the claim.
-    fn instance<Q>(s: statement::Statement<Claim>, inputs: List<(String, Value<Q>)>) -> piece::Piece;
-
-    // What computing the claim at these inputs says of that instance.
-    // `with` applies its operations.
-    fn observe(s: statement::Statement<Claim>, inputs: List<(String, Value<standard::Exact>)>, by: evidence::Voice, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>) -> Option<evidence::Evidence>
-        uses only instance, value::eval, standard::truth, piece::yes, piece::no;
-
-    // What reading the claim by bounds says of its instance over these
-    // ranges: `count` yes or `count` no, or nothing.
-    fn bounded(s: statement::Statement<Claim>, ranges: List<(String, Value<bounds::Bounds>)>, count: Float64, by: evidence::Voice, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>) -> Option<evidence::Evidence>
-        uses instance, value::eval, bounds::lifted, bounds::surely, piece::yes, piece::no;
-
-    // The model with an observation of the claim in it. `e` is
-    // evidence about an instance of `s`. With a tie, it is recorded
-    // through it. The instance is related to the claim, with
-    // `uniform` when there is one. `None` when the tie does not list
-    // the claim.
-    fn recorded(model: model::Model, s: statement::Statement<Claim>, e: evidence::Evidence, at: Option<tie::Tie>, uniform: Option<piece::Piece>) -> Option<model::Model>;
-
-    // What always holds.
-    claim a_number_is_not_a_statement(p: piece::Piece) {
-        !claims::reads(Statement(p, Claim(Given(standard::number(1))))) && claims::reads(Statement(p, Claim(Given(standard::yes()))))
-    }
-    claim true_says_yes(p: piece::Piece) {
-        match claims::observe(Statement(p, Claim(Given(standard::yes()))), [], Voice("machine:mitra"), Table([])) {
-            None => false,
-            Some(e) => e.value == piece::yes() && e.by == Voice("machine:mitra"),
-        }
-    }
-    claim false_says_no(p: piece::Piece) {
-        match claims::observe(Statement(p, Claim(Given(standard::no()))), [], Voice("machine:mitra"), Table([])) {
-            None => false,
-            Some(e) => e.value == piece::no(),
-        }
-    }
-    claim no_value_says_nothing(p: piece::Piece) {
-        claims::observe(Statement(p, Claim(Input("x", standard::truth()))), [], Voice("machine:mitra"), Table([])) == None
-    }
-    claim an_observation_is_about_an_instance(s: statement::Statement<Claim>) {
-        match claims::observe(s, [], Voice("machine:mitra"), Table([])) {
-            None => true,
-            Some(e) => e.about == instance(s, []) && e.about != s.piece,
-        }
-    }
-    claim a_tie_that_does_not_list_it_records_nothing(m: model::Model, s: statement::Statement<Claim>, e: evidence::Evidence, t: piece::Piece) {
-        recorded(m, s, e, Some(Tie(t, [], Place(["ball"]))), None) == None
-    }
-    claim an_instance_is_related_to_its_claim(m: model::Model, s: statement::Statement<Claim>, e: evidence::Evidence) {
-        match recorded(m, s, e, None, None) {
-            None => false,
-            Some(after) => after.related != m.related || m.related != [],
-        }
-    }
-    claim a_sure_claim_says_its_count(p: piece::Piece, by: evidence::Voice, with: bounds::Ranges) {
-        match bounded(Statement(p, Claim(Given(standard::yes()))), [], 10.0, by, with) {
-            None => false,
-            Some(e) => e.about != p && e.value.r == 10.0 && e.value.s == 0.0,
-        }
-    }
-    claim an_unknown_reading_says_nothing(p: piece::Piece, by: evidence::Voice, with: bounds::Ranges) {
-        bounded(Statement(p, Claim(Apply(standard::equal(standard::whole()), [Given(standard::number(1)), Given(standard::number(1))]))), [], 10.0, by, with) == None
+    claim an_instance_is_a_leaf(c: Claim, here: piece::Piece) {
+        instantiation(c, here).pre == [c.piece] && instantiation(c, here).post == [here]
     }
 }

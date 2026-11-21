@@ -1,27 +1,21 @@
-//! The speed of a fall: a claim computed with the standard table, on
-//! what was measured, read in the model. The same toy as
+//! The foundation test model: the speed of a fall, from a value to a
+//! verdict. A measurement is evaluated, a voice takes what it gave,
+//! and the calculus judges every piece. The same toy as
 //! `examples/falling.rs`.
 
-use mitra_core::bounds::{between, Bounds, Ranges};
-use mitra_core::claim::{bounded, instance, observe, reads, recorded, Claim};
+use mitra_core::bounds::{between, Ranges};
+use mitra_core::claim::*;
 use mitra_core::model::*;
 use mitra_core::standard::{less, mul, ratio, real, within, Exact, Table};
-use mitra_core::verdict::{overall, state, suspects, verdict_of, State};
 
 type Value = mitra_core::value::Value<Exact>;
 use mitra_core::value::Expression::{Apply, Given, Input};
 
 type Expression = mitra_core::value::Expression<Exact>;
 
-/// The settings these are recorded at: a statement and a tie start at
-/// one half, a measurement at 0.9, and no voice is doubted. Nothing is
-/// written piece by piece.
 const S: Settings = Settings {
     weight: 0.2,
-    statement: 0.5,
-    evidence: 0.9,
-    tie: 0.5,
-    completeness: 0.6,
+    bias: 0.5,
     reliability: 1.0,
 };
 
@@ -34,255 +28,252 @@ fn input(name: &str) -> Expression {
 fn times(x: Expression, y: Expression) -> Expression {
     Apply(mul(&real()), vec![x, y])
 }
+fn fallen() -> Expression {
+    times(times(Given(r(2, 1)), Given(r(981, 100))), input("h"))
+}
 
-/// v² = 2·g·h within 2 m²/s². g is 9.81 m/s².
-fn speed() -> Statement<Claim> {
-    let fallen = times(times(Given(r(2, 1)), Given(r(981, 100))), input("h"));
+/// What falls.
+fn place(object: &str) -> Place {
+    Place::at(&[object])
+}
+/// `speed`: v² = 2·g·h within 2 m²/s². g is 9.81 m/s².
+fn speed(object: &str) -> Claim {
     let seen = times(input("v"), input("v"));
-    Statement {
-        piece: Piece::named("speed"),
-        content: Claim {
-            expression: Apply(within(&real()), vec![seen, fallen, Given(r(2, 1))]),
-        },
+    Claim {
+        piece: leaf(&format!("{object}::speed"), &place(object)),
+        expression: Apply(within(&real()), vec![seen, fallen(), Given(r(2, 1))]),
     }
 }
-fn tie_of(object: &str) -> Tie {
-    Tie {
-        piece: Piece::named(&format!("{object} applies")),
-        statements: vec![Piece::named("speed")],
-        place: Place::at(&[object]),
+/// `slow`: from 20 m or less, 2·g·h stays under 400.
+fn slow(object: &str) -> Claim {
+    Claim {
+        piece: leaf(&format!("{object}::slow"), &place(object)),
+        expression: Apply(less(&real()), vec![fallen(), Given(r(400, 1))]),
     }
 }
+/// The hypothesis of the architect: nothing but the height matters.
+fn only_height(object: &str) -> Piece {
+    leaf(
+        &format!("{object}::only the height matters"),
+        &place(object),
+    )
+}
+fn piece(name: &str, object: &str, pre: &[Piece], post: &[Piece], by: Inference) -> Piece {
+    Piece {
+        name: format!("{object}::{name}"),
+        pre: pre.to_vec(),
+        subject: place(object),
+        post: post.to_vec(),
+        by,
+    }
+}
+/// The claim of the model: given that only the height matters, the
+/// object falls at `speed`.
+fn falls(object: &str) -> Piece {
+    let then = [speed(object).piece];
+    piece(
+        "falls",
+        object,
+        &[only_height(object)],
+        &then,
+        Inference::Deduction,
+    )
+}
+/// What a reviewer says: these measured falls represent every fall.
+fn represents(object: &str, measured: &[(i64, i64)]) -> Piece {
+    let each = measured
+        .iter()
+        .map(|(h, v)| instance(&speed(object), &at(*h, *v)));
+    let seen: Vec<Piece> = each.collect();
+    let all = [speed(object).piece];
+    piece("represents", object, &seen, &all, Inference::Induction)
+}
+/// A second claim, resting on the first: given `speed`, `slow`.
+fn stays_slow(object: &str) -> Piece {
+    let (given, then) = ([speed(object).piece], [slow(object).piece]);
+    piece("stays slow", object, &given, &then, Inference::Deduction)
+}
+
 /// A height and a speed, in hundredths.
 fn at(h: i64, v: i64) -> [(String, Value); 2] {
     [("h".to_string(), r(h, 100)), ("v".to_string(), r(v, 100))]
 }
-/// The model after these measurements, each believed at 0.9 before
-/// anything and each by its own voice.
-fn after(measurements: &[(&str, i64, i64)]) -> Model {
-    after_with(measurements, false)
+fn take(m: &mut Model, x: Piece, by: &str) {
+    m.taken.push(Taking {
+        piece: x,
+        value: true,
+        count: 1.0,
+        by: Voice::named(by),
+    });
 }
-/// The piece that says the measured falls stand for all falls.
-fn uniform() -> Piece {
-    Piece::named("speed::uniform")
-}
-fn after_with(measurements: &[(&str, i64, i64)], reviewed: bool) -> Model {
+/// The model of one object after these measurements, each by its own
+/// timer. With `reviewed`, the architect takes the hypothesis and a
+/// reviewer takes that the measured falls represent all, and that
+/// `slow` follows from `speed`.
+fn after(object: &str, measured: &[(i64, i64)], reviewed: bool) -> Model {
     let mut m = Model::empty(S);
-    for (object, h, v) in measurements {
-        let by = Voice::named(&format!("machine:timer {object} {h}"));
-        let e = observe(&speed(), &at(*h, *v), &by, &Table::default()).unwrap();
-        m = recorded(&m, &speed(), e, Some(&tie_of(object)), Some(&uniform())).unwrap();
+    m.pieces = vec![falls(object), stays_slow(object)];
+    for (h, v) in measured {
+        let by = Voice::named(&format!("machine:timer {h}"));
+        m = observe(&m, &speed(object), &at(*h, *v), &Table::default(), 1.0, &by).unwrap();
     }
     if reviewed {
-        m.evidence.push(Evidence {
-            piece: Piece::named("review of uniform"),
-            about: uniform(),
-            value: yes(),
-            by: Voice::named("agent:reviewer"),
-        });
+        take(&mut m, only_height(object), "agent:architect");
+        take(&mut m, represents(object, measured), "agent:reviewer");
+        take(&mut m, stays_slow(object), "agent:reviewer");
     }
     m
 }
 
-const STONE: [(&str, i64, i64); 3] = [
-    ("stone", 500, 990),
-    ("stone", 1000, 1400),
-    ("stone", 2000, 1980),
-];
-const FEATHER: [(&str, i64, i64); 2] = [("feather", 500, 200), ("feather", 1000, 210)];
+const STONE: [(i64, i64); 3] = [(500, 990), (1000, 1400), (2000, 1980)];
+const FEATHER: [(i64, i64); 2] = [(500, 200), (1000, 210)];
 
-/// The claim reads: its expression gives a truth.
-#[test]
-fn the_speed_of_a_fall_is_a_claim() {
-    assert!(reads(&speed()));
+fn says(m: &Model, x: &Piece) -> String {
+    shown(&opinion(m, x))
 }
 
-/// A stone 5 m down at 9.9 m/s: 98.01 against 98.1, within 2. A
-/// feather at 2 m/s: 4 against 98.1.
+/// Evaluate: a value. A stone 5 m down at 9.9 m/s gives true, a
+/// feather at 2 m/s gives false, and no speed gives nothing.
+// mitra: evidence for claims::evaluating_gives_a_truth
 #[test]
-fn a_measurement_says_yes_or_no() {
-    let me = Voice::named("me");
+fn a_measurement_is_evaluated() {
     let table = Table::default();
-    let stone = observe(&speed(), &at(500, 990), &me, &table).unwrap();
-    let feather = observe(&speed(), &at(500, 200), &me, &table).unwrap();
-    assert_eq!((stone.value, feather.value), (yes(), no()));
+    assert!(reads(&speed("stone")));
+    assert_eq!(evaluate(&speed("stone"), &at(500, 990), &table), Some(true));
+    assert_eq!(
+        evaluate(&speed("stone"), &at(500, 200), &table),
+        Some(false)
+    );
+    assert_eq!(evaluate(&speed("stone"), &at(500, 990)[..1], &table), None);
 }
 
-/// What was measured on the stone is about the claim at that height
-/// and speed. Recorded through the stone's tie, it is about the tie,
-/// that instance and the tie's completeness together; a tie that does
-/// not list the claim records nothing.
-// mitra: evidence for claims::an_observation_is_about_an_instance
-// mitra: evidence for claims::a_tie_that_does_not_list_it_records_nothing
+/// Take: the only crossing. The instance carries what evaluating gave
+/// and what the timer took, and the claim itself is not touched.
+// mitra: evidence for claims::a_voice_takes_what_was_evaluated
 #[test]
-fn a_measurement_is_about_an_instance() {
-    let me = Voice::named("me");
-    let e = observe(&speed(), &at(500, 990), &me, &Table::default()).unwrap();
-    let here = instance(&speed(), &at(500, 990));
-    assert_eq!(e.about, here);
-    let m = recorded(
-        &Model::empty(S),
-        &speed(),
-        e.clone(),
-        Some(&tie_of("stone")),
-        None,
+fn a_voice_takes_what_was_evaluated() {
+    let m = after("stone", &STONE[..1], false);
+    let here = opinion(&m, &instance(&speed("stone"), &at(500, 990)));
+    assert_eq!(here.evaluated(), State::True);
+    assert_eq!(here.taken(), State::True);
+    assert_eq!(here.judged(), State::True);
+    let claim = opinion(&m, &speed("stone").piece);
+    assert_eq!(
+        (claim.evaluated(), claim.taken(), claim.judged()),
+        (State::Unknown, State::Unknown, State::Unknown)
+    );
+    assert_eq!(verdict(&m), State::Unknown);
+}
+
+/// Judge: from three point tests to the claim, through the piece that
+/// says they represent every fall, and on into a second claim.
+///
+/// - `speed` is true, as sure as the one review that the tests
+///   represent it.
+/// - `falls` holds: what it promises is true.
+/// - `slow` is true: `speed` is injected in `stays slow`.
+// mitra: evidence for calculus::a_true_piece_passes_its_state_on
+#[test]
+fn a_point_test_reaches_the_claim_and_the_next_claim() {
+    let m = after("stone", &STONE, true);
+    assert_eq!(verdict(&m), State::True);
+    assert_eq!(says(&m, &speed("stone").piece), "true 0.92");
+    assert_eq!(says(&m, &falls("stone")), "true 0.92");
+    assert_eq!(says(&m, &slow("stone").piece), "true 0.92");
+    let here = instance(&speed("stone"), &at(500, 990));
+    assert_eq!(says(&m, &here), "true 0.92");
+    assert!(suspects(&m).is_empty());
+    // Nothing is taken of `speed` or `slow`: they are judged only.
+    assert_eq!(opinion(&m, &slow("stone").piece).taken(), State::Unknown);
+}
+
+/// Without the review the tests stay point tests: the claim is
+/// unknown, and so is all that rests on it.
+#[test]
+fn point_tests_alone_do_not_reach_the_claim() {
+    let m = after("stone", &STONE, false);
+    let here = instance(&speed("stone"), &at(500, 990));
+    assert_eq!(says(&m, &here), "true 0.92");
+    assert_eq!(says(&m, &speed("stone").piece), "unknown");
+    assert_eq!(says(&m, &slow("stone").piece), "unknown");
+    assert_eq!(verdict(&m), State::Unknown);
+}
+
+/// The feather: each measurement is false, so `speed` is false there,
+/// surer with two measurements than with one. `falls` promised it
+/// under the architect's hypothesis, which is taken: `falls` is false.
+// mitra: evidence for calculus::a_false_piece_after_refutes
+#[test]
+fn the_feather_refutes_its_claim() {
+    let mut m = after("feather", &FEATHER, false);
+    take(&mut m, only_height("feather"), "agent:architect");
+    assert_eq!(says(&m, &speed("feather").piece), "false 0.95");
+    assert_eq!(says(&m, &falls("feather")), "false 0.92");
+    assert_eq!(verdict(&m), State::False);
+    // With the hypothesis not taken, nothing is refuted: `falls` and
+    // the hypothesis cannot both be true.
+    let open = after("feather", &FEATHER, false);
+    assert_eq!(says(&open, &falls("feather")), "unknown");
+    assert_eq!(
+        suspects(&open),
+        [vec![falls("feather"), only_height("feather")]]
+    );
+}
+
+/// One bad measurement of the stone after the review: `speed` follows
+/// true from the three and the review, and false from the fourth.
+/// That is a conflict, and it names what to give up.
+// mitra: evidence for calculus::a_conflict_names_what_to_give_up
+#[test]
+fn a_bad_measurement_is_a_conflict() {
+    let mut m = after("stone", &STONE, true);
+    let by = Voice::named("machine:timer 3000");
+    m = observe(
+        &m,
+        &speed("stone"),
+        &at(3000, 990),
+        &Table::default(),
+        1.0,
+        &by,
     )
     .unwrap();
-    assert_eq!(
-        parts(&m, &m.related[1].content),
-        [
-            Piece::named("stone applies"),
-            here,
-            Piece::named("complete: stone applies")
-        ]
+    assert_eq!(says(&m, &speed("stone").piece), "conflict");
+    assert_eq!(verdict(&m), State::Conflict);
+    let found = suspects(&m);
+    let bad = instance(&speed("stone"), &at(3000, 990));
+    assert!(found.contains(&vec![bad]));
+    assert!(found.contains(&vec![represents("stone", &STONE)]));
+    // The hypothesis of the architect is not contested.
+    assert_eq!(says(&m, &only_height("stone")), "true 0.92");
+}
+
+/// A proof and not a test: `slow` read by bounds over every height
+/// from 0 to 20 m is one instance that is the whole claim. A piece
+/// that says so is given, and `slow` is true by deduction alone.
+// mitra: evidence for claims::a_range_is_one_instance
+#[test]
+fn a_reading_over_the_whole_domain_is_a_proof() {
+    let heights = [("h".to_string(), between(&real(), (0, 1), (20, 1)).unwrap())];
+    let by = Voice::named("machine:mitra");
+    let mut m = Model::empty(S);
+    m = observe_over(&m, &slow("stone"), &heights, &Ranges, 10.0, &by).unwrap();
+    let over = instance(&slow("stone"), &heights);
+    assert_eq!(opinion(&m, &over).evaluated(), State::True);
+    assert_eq!(says(&m, &slow("stone").piece), "unknown");
+    let all = [slow("stone").piece];
+    let whole = piece(
+        "slow is all heights",
+        "stone",
+        &[over],
+        &all,
+        Inference::Deduction,
     );
-    assert_eq!(m.evidence[0].about, m.related[1].content.pieces[0]);
-    let other = Tie {
-        statements: vec![Piece::named("floats")],
-        ..tie_of("balloon")
-    };
+    m.given.push(whole);
+    assert_eq!(says(&m, &slow("stone").piece), "true 0.99");
+    // Up to 21 m the reading is neither true everywhere nor false.
+    let more = [("h".to_string(), between(&real(), (0, 1), (21, 1)).unwrap())];
     assert_eq!(
-        recorded(&Model::empty(S), &speed(), e, Some(&other), None),
+        observe_over(&m, &slow("stone"), &more, &Ranges, 10.0, &by),
         None
     );
-}
-
-fn shown(m: &Model, x: &str) -> String {
-    mitra_core::verdict::shown(&verdict_of(m, &Piece::named(x)), S.weight)
-}
-
-/// Three measurements of the stone, `uniform` reviewed: the claim, its
-/// instances, the tie and its completeness are true. The claim is as
-/// sure as the one review of `uniform`; the tie as three measurements.
-#[test]
-fn the_stone_holds_the_speed() {
-    let m = after_with(&STONE, true);
-    assert_eq!(overall(&m), State::True);
-    assert_eq!(shown(&m, "speed"), "true 0.91");
-    assert_eq!(shown(&m, "stone applies"), "true 0.97");
-    assert_eq!(shown(&m, "complete: stone applies"), "true 0.97");
-    for (_, h, v) in STONE {
-        let here = instance(&speed(), &at(h, v));
-        assert_eq!(shown(&m, &here.name), "true 0.95");
-    }
-    assert!(suspects(&m).is_empty());
-    // Without the review nothing leads to the claim.
-    let unreviewed = after(&STONE);
-    assert_eq!(state(&unreviewed, &Piece::named("speed")), State::Unknown);
-    assert_eq!(overall(&unreviewed), State::Unknown);
-}
-
-/// The feather after the stone: the claim stands through the stone, so
-/// it is true at the feather's heights too. Each of the feather's
-/// measurements is then false with the claim true there: the feather's
-/// tie and its completeness cannot both be true. Nothing is in
-/// conflict, and the verdict is false.
-#[test]
-fn the_feather_is_blamed_on_its_tie_and_its_completeness() {
-    let mut all = STONE.to_vec();
-    all.extend(FEATHER);
-    let m = after_with(&all, true);
-    assert_eq!(shown(&m, "speed"), "true 0.91");
-    assert_eq!(shown(&m, "stone applies"), "true 0.97");
-    let here = instance(&speed(), &at(500, 200));
-    assert_eq!(shown(&m, &here.name), "true 0.91");
-    assert_eq!(shown(&m, "feather applies"), "unknown");
-    assert_eq!(shown(&m, "complete: feather applies"), "unknown");
-    assert_eq!(overall(&m), State::False);
-    assert_eq!(
-        suspects(&m),
-        [[
-            Piece::named("feather applies"),
-            Piece::named("complete: feather applies")
-        ]]
-    );
-}
-
-/// The feather alone: nothing holds the claim up. Each measurement is
-/// false and three things cannot all be true: the tie, the claim at
-/// that height and speed, and the tie's completeness.
-#[test]
-fn the_feather_alone_leaves_the_speed_unknown() {
-    let m = after_with(&FEATHER, true);
-    assert_eq!(shown(&m, "speed"), "unknown");
-    assert_eq!(overall(&m), State::False);
-    let found = suspects(&m);
-    assert_eq!(found.len(), 2);
-    assert_eq!(found[0].len(), 3);
-    assert_eq!(found[0][0], Piece::named("feather applies"));
-}
-
-/// A height and a speed, each known within a margin, in thousandths.
-fn about(h: (i64, i64), v: (i64, i64)) -> [(String, mitra_core::value::Value<Bounds>); 2] {
-    let range = |(low, high): (i64, i64)| between(&real(), (low, 1000), (high, 1000)).unwrap();
-    [("h".to_string(), range(h)), ("v".to_string(), range(v))]
-}
-/// What a reading over a whole range is worth here, in observations.
-const RANGE: f64 = 10.0;
-
-/// The stone at 5 m and 9.9 m/s, each known to a hundredth: the claim
-/// is true wherever the real height and speed are in those margins. A
-/// feather is false everywhere in its own. Margins of a metre say
-/// nothing.
-// mitra: evidence for claims::a_sure_claim_says_its_count
-#[test]
-fn a_measurement_with_its_margin_is_read_by_bounds() {
-    let me = Voice::named("me");
-    let read = |h, v| bounded(&speed(), &about(h, v), RANGE, &me, &Ranges).map(|e| e.value);
-    let sure = read((4990, 5010), (9890, 9910)).unwrap();
-    assert_eq!((sure.r, sure.s), (RANGE, 0.0));
-    let never = read((4990, 5010), (1990, 2010)).unwrap();
-    assert_eq!((never.r, never.s), (0.0, RANGE));
-    assert_eq!(read((4000, 6000), (9890, 9910)), None);
-}
-
-/// One reading over the margins says more than the point in their
-/// middle: it stands for every point of them.
-#[test]
-fn a_range_says_more_than_a_point() {
-    let me = Voice::named("machine:timer");
-    let tie = tie_of("stone");
-    let with = |e: Evidence| {
-        recorded(&Model::empty(S), &speed(), e, Some(&tie), Some(&uniform())).unwrap()
-    };
-    let point = with(observe(&speed(), &at(500, 990), &me, &Table::default()).unwrap());
-    let ranged = bounded(
-        &speed(),
-        &about((4990, 5010), (9890, 9910)),
-        RANGE,
-        &me,
-        &Ranges,
-    );
-    let range = with(ranged.unwrap());
-    let over = instance(&speed(), &about((4990, 5010), (9890, 9910)));
-    let here = instance(&speed(), &at(500, 990));
-    assert_eq!(shown(&point, &here.name), "true 0.91");
-    assert_eq!(shown(&range, &over.name), "true 0.99");
-}
-
-/// A claim over a whole domain: from 0 to 20 m, the square of the
-/// speed stays under 400. Read by bounds it is true for every height
-/// at once; computed at 5 m it is true at 5 m.
-#[test]
-fn a_claim_is_read_over_its_whole_domain() {
-    let fallen = times(times(Given(r(2, 1)), Given(r(981, 100))), input("h"));
-    let slow = Statement {
-        piece: Piece::named("slow enough"),
-        content: Claim {
-            expression: Apply(less(&real()), vec![fallen, Given(r(400, 1))]),
-        },
-    };
-    let me = Voice::named("machine:mitra");
-    let heights = |low, high| {
-        [(
-            "h".to_string(),
-            between(&real(), (low, 1), (high, 1)).unwrap(),
-        )]
-    };
-    let all = bounded(&slow, &heights(0, 20), RANGE, &me, &Ranges).unwrap();
-    assert_eq!((all.value.r, all.value.s), (RANGE, 0.0));
-    // Up to 21 m it is not true everywhere, nor false everywhere.
-    assert_eq!(bounded(&slow, &heights(0, 21), RANGE, &me, &Ranges), None);
-    let one = observe(&slow, &[("h".to_string(), r(5, 1))], &me, &Table::default()).unwrap();
-    assert_eq!(one.value, yes());
 }

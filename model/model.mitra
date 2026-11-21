@@ -1,278 +1,205 @@
-// The side of trust. A place, a piece and the counts of an opinion;
-// the three kinds of piece: statement, evidence, tie; and the model,
-// which puts them together with the relations between them. What is
-// read of a model is in verdict.mitra.
+// The piece system. A piece is a proposed property of the system:
+// given what is before it, its subject gives what is after it. An
+// opinion is what is believed of a piece: what evaluating gave, what
+// voices took it as, what it is judged to be, how sure, and its bias.
+// The calculus judges every piece of a model from what was taken.
+// It knows nothing of values: claim.mitra is the crossing.
 //
-// Start here. Code: src/model.rs and src/model/, one file per subject.
+// Start here. Code: src/model.rs. Worked case: tests/falling.rs.
+
+import std::core::{Option};
 
 // A location in the system.
 subject place {
     ensure place_is_a_path = "A place is a location in the system, known by its path and by nothing else: it is not right or wrong, and nothing is believed of it.";
     ensure within_is_the_path = "A place is within another when its path goes on from the other's; every place is within itself.";
 
-    // From the outside in: a file, then what is in it.
     record Place {
         path: List<String>,
     }
 
     fn within(a: Place, b: Place) -> Bool;
 
-    // What always holds.
     claim within_itself(a: Place) { place::within(a, a) }
 }
 
-// Something said, and what is believed of it.
+// A proposed property of the system, and what is believed of it.
 subject piece {
-    ensure everything_is_a_piece = "Whatever can be right or wrong is a piece, known by its name: a statement, a piece of evidence, a tie, a relation. There is no second way to be believed.";
-    // After Jøsang, 2016, "Subjective Logic: A Formalism for Reasoning Under Uncertainty":
-    // counts with a base rate and a prior weight W. Departs: W is a
-    // setting given with the model, where the book fixes 2; and the
-    // counts say how sure a state is, not what the state is.
-    ensure opinion_is_counts = "Counts are a count of yes and a count of no, with a base rate: what to expect with no evidence. They read as the share of yes, the base rate counted `w` times, so with no evidence they read as the base rate. The weight `w` is one setting for the whole system, given with the model: nothing here holds a value for it. A piece of evidence says counts; how sure a state is, is counts.";
+    require located = place::place_is_a_path;
 
-    // Known by its name only.
+    // The shape is Hoare's, 1969, "An Axiomatic Basis for Computer
+    // Programming": {pre} subject {post}. Departs: what is before and
+    // after are pieces with a state each, not formulas, and the
+    // subject is a place.
+    ensure a_piece_is_pre_subject_post = "A piece is a proposed property of the system, known by its name: given the pieces before it, its subject gives the pieces after it. The subject is a place. A piece holds its own structure, so pieces chain: what is after one is before another, and a piece can itself be before or after a piece. There is no second way to be believed.";
+    ensure a_leaf_is_said_alone = "A piece with nothing before and nothing after is a leaf: something said of its subject. Nothing is drawn from a leaf alone. A hypothesis is a leaf that only stands before other pieces: it is there to be questioned when something is wrong, not to be proved.";
+    // After Peirce, 1878, "Deduction, Induction, and Hypothesis".
+    ensure a_piece_names_its_step = "A piece names the step of logic it is: a deduction, an induction, or an abduction. The name is said by who writes the piece. The calculus applies every piece the same way.";
+    // After Belnap, 1977, "A Useful Four-Valued Logic".
+    ensure a_state_is_one_of_four = "A state is one of four: unknown, nothing leads to the piece; true; false; conflict, it is told true and told false.";
+    ensure an_opinion_is_read_five_ways = "The opinion of a piece is read five ways and no other. Evaluated: what computing it gave. Taken: what voices took it as. Judged: what the calculus makes of it. Confidence: how sure the judged state is, between 0 and 1, and none for a piece judged unknown or in conflict. Bias: what to expect of it before anything, which never changes a state. What the record holds inside is not promised.";
+
+    enum Inference { Deduction, Induction, Abduction }
     record Piece {
         name: String,
+        pre: List<Piece>,
+        subject: place::Place,
+        post: List<Piece>,
+        by: Inference,
     }
+    fn leaf(name: String, subject: place::Place) -> Piece { Piece(name, [], subject, [], Deduction) }
 
-    // `r` counts of yes, `s` counts of no. `a` is the base rate.
+    enum State { Unknown, True, False, Conflict }
+    // Both said of one piece.
+    fn joined(x: State, y: State) -> State;
+
+    // The inside is free to change. Read it through the five getters.
     record Opinion {
-        r: Float64,
-        s: Float64,
-        a: Float64,
+        evaluated: State,
+        taken: State,
+        judged: State,
+        sure: Option<Float64>,
+        bias: Float64,
     }
+    fn evaluated(o: Opinion) -> State { o.evaluated }
+    fn taken(o: Opinion) -> State { o.taken }
+    fn judged(o: Opinion) -> State { o.judged }
+    fn confidence(o: Opinion) -> Option<Float64> { o.sure }
+    fn bias(o: Opinion) -> Float64 { o.bias }
 
-    fn piece_id(x: Piece) -> String;
-
-    fn nothing(a: Float64) -> Opinion { Opinion(0.0, 0.0, a) }
-    // One yes, one no.
-    fn yes() -> Opinion { Opinion(1.0, 0.0, 1.0) }
-    fn no() -> Opinion { Opinion(0.0, 1.0, 0.0) }
-
-    // The number an opinion reads as. `w` is the weight of what is
-    // expected before any evidence, in counts.
-    fn projected(o: Opinion, w: Float64) -> Float64 { (o.r + o.a * w) / (o.r + o.s + w) }
-
-}
-
-// An interpretation of the system.
-subject statement {
-    require believed = piece::everything_is_a_piece;
-
-    ensure statement_is_an_interpretation = "A statement is an interpretation of the system: a piece with a content, which is what it says the system is or does. The content is not read here, whatever it is.";
-    record Statement<C> {
-        piece: piece::Piece,
-        content: C,
+    claim joined_keeps_what_agrees(x: State) {
+        joined(x, x) == x && joined(x, Unknown) == x && joined(Unknown, x) == x
+    }
+    claim true_and_false_is_a_conflict() {
+        joined(True, False) == Conflict && joined(False, True) == Conflict
     }
 }
 
-// How an opinion moves.
-subject evidence {
-    require believed = piece::everything_is_a_piece;
-    require said = statement::statement_is_an_interpretation;
+// Pieces, and what was taken.
+subject model {
+    require proposed = piece::a_piece_is_pre_subject_post;
 
-    ensure evidence_is_a_piece = "A piece of evidence is a piece: it says a yes or a no, with a count, about another piece, by a voice. It can be wrong like any other piece.";
-    ensure count_is_firmness = "The count a piece of evidence says is how firmly it says it. A test at one point says one yes or one no. A review may say many: that is how an author states what is known from experience.";
-    ensure reliability_is_implied = "Each voice implies one statement, its reliability: this voice can be relied on. It is a piece like any other, known by the voice's name, and it stands behind all the voice says.";
+    ensure a_taking_is_signed = "A piece gets a state from outside in one way only: a voice takes it, as true or as false, with a count of how firmly. One test is 1. Every taking has a voice. A voice that takes one piece the same way twice counts once, as the firmer.";
+    ensure a_voice_weighs_as_it_is_believed = "A taking weighs its count, as far as its voice is believed: a number given with the model for that voice, or the setting for a voice nobody judged. A taking that weighs nothing is not taken at all.";
+    ensure a_step_of_logic_is_given = "A piece that holds by what it is, a step of logic, is given with the model. It is not taken by anyone, it is never judged, and it cannot be given up.";
+    ensure only_from_the_model = "Everything judged comes from the model: its pieces, what is given, what was evaluated, what was taken, the biases, the voices and the settings. Nothing here holds a value of its own.";
 
-    // Who says it.
     record Voice {
         name: String,
     }
-
-    // A piece that says `value` about `about`. `by` is its voice.
-    record Evidence {
+    record Taking {
         piece: piece::Piece,
-        about: piece::Piece,
-        value: piece::Opinion,
+        value: Bool,
+        count: Float64,
         by: Voice,
     }
-
-    // What the reliability of a voice says.
-    record Reliable {
-        voice: Voice,
-    }
-    // The reliability of a voice.
-    fn reliable(by: Voice) -> statement::Statement<Reliable>;
-
-    // reliability_is_implied
-    claim reliability_names_its_voice(by: Voice) { reliable(by).content.voice == by }
-
-}
-
-// A believed link between an interpretation and a named part of the system.
-subject tie {
-    require interpreted = statement::statement_is_an_interpretation;
-    require located = place::within_is_the_path;
-
-    ensure tie_is_a_believed_link = "A tie is a believed link between a named part of the system and what the model says of it: a piece that says one or several statements are about a place, and that can be wrong like any other piece.";
-    ensure a_tie_has_a_whole = "Each tie implies its whole: the tie, its statements and its completeness, all together. It is what an observation at the place is about. Nobody writes it.";
-    ensure completeness_is_implied = "Each tie implies one more statement, its completeness: the statements tied there are all that matters there. It is a piece like any other, known by the tie's name, written by nobody.";
-    ensure found_through_ties = "Where a statement is found, and which statements a place concerns, is read from the ties and from nothing else: a statement with no tie is nowhere, and a place concerns what is tied at it or within it.";
-
-    // `statements` are the pieces of the statements it ties. A statement
-    // shared by several places is listed by the tie of each.
-    record Tie {
-        piece: piece::Piece,
-        statements: List<piece::Piece>,
-        place: place::Place,
-    }
-    // What an observation at the place is about.
-    fn whole(t: Tie) -> piece::Piece;
-
-    // What the completeness of a tie says: nothing is missing at `tie`.
-    record Complete {
-        tie: piece::Piece,
-    }
-    // The completeness of a tie.
-    fn complete(t: Tie) -> statement::Statement<Complete>;
-
-    // The places a statement is tied to.
-    fn places(ties: List<Tie>, statement: piece::Piece) -> List<place::Place>;
-    // The statements tied at a place or within it.
-    fn concerned(ties: List<Tie>, place: place::Place) -> List<piece::Piece>
-        uses place::within;
-
-    // What always holds.
-    claim completeness_names_its_tie(t: Tie) { tie::complete(t).content.tie == t.piece }
-    claim two_ties_two_completenesses(a: piece::Piece, b: piece::Piece, x: piece::Piece) {
-        a == b || tie::complete(Tie(a, [x], Place(["ball"]))).piece != tie::complete(Tie(b, [x], Place(["ball"]))).piece
-    }
-    claim no_tie_is_nowhere(x: piece::Piece, place: place::Place) {
-        tie::places([], x) == [] && tie::concerned([], place) == []
-    }
-    claim tied_is_found(t: piece::Piece, x: piece::Piece) {
-        tie::places([Tie(t, [x], Place(["src/lib.rs", "next"]))], x) == [Place(["src/lib.rs", "next"])]
-    }
-    claim a_file_concerns_what_is_in_it(t: piece::Piece, x: piece::Piece) {
-        tie::concerned([Tie(t, [x], Place(["src/lib.rs", "next"]))], Place(["src/lib.rs"])) == [x]
-            && tie::concerned([Tie(t, [x], Place(["src/lib.rs", "next"]))], Place(["src/main.rs"])) == []
-    }
-}
-
-// All the pieces, put together.
-subject model {
-    require said = statement::statement_is_an_interpretation;
-    require complete = tie::completeness_is_implied;
-    require whole = tie::a_tie_has_a_whole;
-    require reliable = evidence::reliability_is_implied;
-
-    ensure only_from_the_model = "A model is all that is said of a system and nothing else: the evidence, the relations, the ties, the base rates that were written, and the settings. What is read of a piece is read from the model alone.";
-    ensure three_relations = "Pieces stand to each other in three ways and no other. About: a piece of evidence and the piece it speaks of; each piece of evidence implies it, and one written by hand is not read. All: a whole and its parts; each tie implies one, and others are written. Instance: a claim and the claim at given inputs, with the piece that says the inputs behave alike when there is one; written when an observation is recorded.";
-    ensure relation_is_said = "A relation between pieces is itself said: a statement whose content is the relation. One with a base rate of 1 is plain structure. One with less is doubted: it can be wrong like any piece.";
-    ensure completeness_is_a_part = "The completeness of a tie is a part of every whole the tie is a part of, though no relation names it. So what is said of such a whole is said of the completeness too: a test that passes there supports it, and one that fails there may mean that something is missing.";
-    ensure settings_are_apart = "What a model is read under is apart from what it says: the weight of a base rate, and the base rate of each kind of piece when nobody wrote one, a statement, a piece of evidence, a tie, the completeness of a tie, the reliability of a voice. They are given with the model, one value each for the whole system; a base rate that is written wins. Nothing here holds a value for any of them.";
-    ensure completeness_has_a_default = "The completeness of a tie with no base rate written has the one the model gives for all: whoever models tries for a good model and takes shortcuts, so it is better than a guess and not strong. It is a setting, given with the model.";
-
-    // How pieces stand to each other.
-    enum Relation {
-        // The first is all of the others together: true exactly when
-        // they all are. Implied by each tie, or written.
-        All,
-        // The first is evidence about the second. Implied by each
-        // piece of evidence.
-        About,
-        // The second is the first at given inputs; the third, when
-        // there is one, says the inputs behave alike.
-        Instance
-    }
-    record Related {
-        how: Relation,
-        pieces: List<piece::Piece>,
-    }
-
-    // What a model is read under, apart from what it says. `weight` is
-    // the weight of a base rate, in counts. The others are the base
-    // rate of each kind of piece when nobody wrote one: a statement
-    // (any piece that is none of the other kinds), a piece of evidence,
-    // a tie, the completeness of a tie, the reliability of a voice.
+    // `weight` is how many counts a bias weighs. `bias` is for a piece
+    // nobody gave one. `reliability` is for a voice nobody judged.
     record Settings {
         weight: Float64,
-        statement: Float64,
-        evidence: Float64,
-        tie: Float64,
-        completeness: Float64,
+        bias: Float64,
         reliability: Float64,
     }
-
-    // All that is said of a system: the evidence, the relations between
-    // pieces, each said by a statement, the base rate of each piece
-    // that has one written, and the ties, each implying its
-    // completeness. Then the settings it is read under.
     record Model {
-        evidence: List<evidence::Evidence>,
-        related: List<statement::Statement<Related>>,
-        base: List<(piece::Piece, Float64)>,
-        ties: List<tie::Tie>,
+        pieces: List<piece::Piece>,
+        given: List<piece::Piece>,
+        evaluated: List<(piece::Piece, Bool)>,
+        taken: List<Taking>,
+        bias: List<(piece::Piece, Float64)>,
+        voices: List<(Voice, Float64)>,
         settings: Settings,
     }
 
-    // The relation a piece of evidence implies.
-    fn about(e: evidence::Evidence) -> Related { Related(About, [e.piece, e.about]) }
-    // The model with the relation of each tie written out: its whole is
-    // all of the tie and its statements. That relation is structure.
-    fn written(model: Model) -> Model;
-    // The parts of a whole: the pieces its relation names after the
-    // first, and the completeness of each tie among them.
-    fn parts(model: Model, r: Related) -> List<piece::Piece>
-        uses tie::complete;
+    // Every piece of the model, each once, with those before and
+    // after each.
+    fn pieces(model: Model) -> List<piece::Piece>;
+    fn bias(model: Model, x: piece::Piece) -> Float64;
+    // How much a taking weighs.
+    fn weight(model: Model, t: Taking) -> Float64;
+}
 
-    // What to expect of a piece with no evidence.
-    fn base(model: Model, x: piece::Piece) -> Float64
-        uses tie::complete, evidence::reliable;
+// How every piece is judged.
+subject calculus {
+    require proposed = piece::a_piece_is_pre_subject_post;
+    require four = piece::a_state_is_one_of_four;
+    require read = piece::an_opinion_is_read_five_ways;
+    require signed = model::a_taking_is_signed;
+    require weighed = model::a_voice_weighs_as_it_is_believed;
+    require logic = model::a_step_of_logic_is_given;
+    require apart = model::only_from_the_model;
 
-    claim evidence_implies_about(e: evidence::Evidence) {
-        about(e).how == About && about(e).pieces == [e.piece, e.about]
+    ensure what_is_taken_starts = "A piece that a voice took starts as it was taken. No other piece starts with a state.";
+    ensure a_true_piece_passes_its_state_on = "A piece that is true, with every piece before it true, makes every piece after it true. A piece that is given needs only the pieces before it. So a piece judged true is applied like any other, and its state goes on into the pieces that rest on what is after it.";
+    ensure a_false_piece_after_refutes = "A piece after false: the piece and the pieces before it cannot all be true. With all of them true but one, that one is false. With several not known true, none is refuted: they are listed as suspects, the least expected first.";
+    ensure a_kept_promise_holds = "A piece whose every piece after is true is true, whatever is before it.";
+    ensure states_spread_to_the_end = "These three are the only steps. They are applied until none gives anything new, and the order changes nothing.";
+    // After de Kleer, 1986, "An Assumption-based TMS".
+    ensure a_state_keeps_what_it_was_drawn_from = "Each state keeps the smallest sets of takings it follows from. A set from which a piece follows both true and false cannot all be true: it is set aside. A piece is in conflict when it still follows true from one set and false from another.";
+    ensure sure_is_what_must_be_given_up = "Confidence is counted after the states and never changes one. A state is as sure as the least that would have to be given up for it to fall: one taking of each set it follows from, each weighing what it weighs. So a step never makes what it gives surer than what it was given from, two ways to one piece add up, and a state every way to which goes through one taking is no surer than that taking.";
+    // After Reiter, 1987, "A Theory of Diagnosis from First Principles".
+    ensure a_conflict_names_what_to_give_up = "When some sets of takings cannot all be true, the smallest sets of taken pieces that leave none of them whole once given up are listed, the lightest first. Nothing is given up silently.";
+    ensure the_verdict_is_one_state = "The verdict of a model is one state, read from every piece that is not given: conflict if one is in conflict; else false if one is false; else unknown if one is unknown; else true. A verdict that is true is as sure as its least sure piece, which is named.";
+
+    record Reading {
+        pieces: List<(piece::Piece, piece::Opinion)>,
+        suspects: List<List<piece::Piece>>,
+    }
+    // The opinion of every piece that is not given, and the suspects.
+    fn judge(model: model::Model) -> Reading
+        uses model::pieces, model::bias, piece::joined;
+    fn opinion(model: model::Model, x: piece::Piece) -> piece::Opinion
+        uses judge;
+    fn verdict(model: model::Model) -> piece::State
+        uses judge;
+    fn suspects(model: model::Model) -> List<List<piece::Piece>>
+        uses judge;
+    fn least_sure(model: model::Model) -> Option<(piece::Piece, Float64)>
+        uses judge, verdict;
+
+    claim nothing_taken_nothing_known(model: model::Model, x: piece::Piece) {
+        model.taken != [] || piece::judged(opinion(model, x)) == Unknown
+    }
+    claim no_state_no_confidence(model: model::Model, x: piece::Piece) {
+        piece::judged(opinion(model, x)) == True || piece::judged(opinion(model, x)) == False || piece::confidence(opinion(model, x)) == None
+    }
+    claim a_conflict_has_something_to_give_up(model: model::Model) {
+        verdict(model) != Conflict || suspects(model) != []
+    }
+    claim only_a_true_verdict_is_sure(model: model::Model) {
+        verdict(model) == True || least_sure(model) == None
     }
 }
 
-// What the promises above say, on small cases.
+// Worked cases on one piece t: {p} s {q}, all taken by one voice per
+// piece, a bias of one half, a bias weighing 0.2.
 subject tests {
-    // place
-
-    // within_is_the_path
-    claim inside_is_within() {
-        place::within(Place(["src/lib.rs", "next"]), Place(["src/lib.rs"])) && !place::within(Place(["src/lib.rs"]), Place(["src/lib.rs", "next"]))
+    fn here() -> place::Place { Place(["s"]) }
+    fn p() -> piece::Piece { piece::leaf("p", here()) }
+    fn q() -> piece::Piece { piece::leaf("q", here()) }
+    fn t() -> piece::Piece { Piece("t", [p()], here(), [q()], Deduction) }
+    fn yes(x: piece::Piece) -> model::Taking { Taking(x, true, 1.0, Voice(x.name)) }
+    fn no(x: piece::Piece) -> model::Taking { Taking(x, false, 1.0, Voice(x.name)) }
+    fn with(taken: List<model::Taking>) -> model::Model {
+        Model([t()], [], [], taken, [], [], Settings(0.2, 0.5, 1.0))
     }
-    claim beside_is_not_within() {
-        !place::within(Place(["src/lib.rs", "next"]), Place(["src/lib.rs", "back"]))
+    fn at(taken: List<model::Taking>, x: piece::Piece) -> piece::State
+        uses with, calculus::opinion
+    { piece::judged(calculus::opinion(with(taken), x)) }
+    fn sure(taken: List<model::Taking>, x: piece::Piece) -> Option<Float64>
+        uses with, calculus::opinion
+    { piece::confidence(calculus::opinion(with(taken), x)) }
+
+    claim deduction() { at([yes(t()), yes(p())], q()) == True }
+    claim a_piece_not_true_passes_nothing() { at([yes(p())], q()) == Unknown }
+    claim refutation_of_the_piece() { at([yes(p()), no(q())], t()) == False }
+    claim refutation_of_what_is_before() { at([yes(t()), no(q())], p()) == False }
+    claim a_kept_promise_holds() { at([yes(q())], t()) == True && at([yes(q())], p()) == Unknown }
+    claim two_suspects() {
+        at([no(q())], t()) == Unknown && calculus::suspects(with([no(q())])) == [[p(), t()]]
     }
-
-    // piece
-
-    claim one_yes_on_one_half_nearly_settles_it() { piece::projected(Opinion(1.0, 0.0, 0.5), 0.2) > 0.9 && piece::projected(Opinion(0.0, 1.0, 0.5), 0.2) < 0.1 }
-
-    // A small weight lets the first observation nearly settle a piece;
-    // a large one asks for more.
-    claim the_weight_is_how_fast_it_settles() {
-        piece::projected(Opinion(1.0, 0.0, 0.5), 0.2) > piece::projected(Opinion(1.0, 0.0, 0.5), 2.0)
+    claim taken_against_itself() { calculus::verdict(with([yes(t()), yes(p()), no(q())])) == Conflict }
+    // q is exactly as sure as what it was given from.
+    claim deduction_keeps_confidence() {
+        sure([yes(t()), yes(p())], q()) == sure([yes(t()), yes(p())], p())
     }
-
-    // model
-
-    // completeness_is_a_part
-    claim a_tie_adds_its_completeness_to_the_whole() {
-        model::parts(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::no(), Voice("me"))], [], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.5)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.0, 0.0, 0.0, 0.6, 1.0)), Related(All, [Piece("lands"), Piece("applies"), Piece("falls")])) == [Piece("applies"), Piece("falls"), Piece("complete: applies")]
-    }
-
-    // completeness_has_a_default
-    claim an_unwritten_completeness_has_the_setting() {
-        model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::no(), Voice("me"))], [], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.0, 0.0, 0.0, 0.6, 1.0)), Piece("complete: applies")) == 0.6
-            && model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::no(), Voice("me"))], [], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.0, 0.0, 0.0, 0.6, 1.0)), Piece("applies")) == 0.5
-            && model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::no(), Voice("me"))], [], [(Piece("applies"), 0.5), (Piece("falls"), 0.5), (Piece("throw"), 0.9)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.0, 0.0, 0.0, 0.6, 1.0)), Piece("unknown")) == 0.0
-    }
-
-    // settings_are_apart
-    claim an_unwritten_tie_has_the_setting() {
-        model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::no(), Voice("me"))], [], [(Piece("falls"), 0.5), (Piece("throw"), 0.9)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.0, 0.0, 0.5, 0.6, 1.0)), Piece("applies")) == 0.5 && model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::no(), Voice("me"))], [], [(Piece("falls"), 0.5), (Piece("throw"), 0.9)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.0, 0.0, 0.5, 0.6, 1.0)), Piece("falls")) == 0.5
-    }
-    claim every_kind_has_its_setting() {
-        model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::yes(), Voice("me"))], [], [(Piece("written"), 0.25)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.5, 0.9, 0.7, 0.6, 0.8)), Piece("falls")) == 0.5
-            && model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::yes(), Voice("me"))], [], [(Piece("written"), 0.25)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.5, 0.9, 0.7, 0.6, 0.8)), Piece("throw")) == 0.9
-            && model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::yes(), Voice("me"))], [], [(Piece("written"), 0.25)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.5, 0.9, 0.7, 0.6, 0.8)), Piece("applies")) == 0.7
-            && model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::yes(), Voice("me"))], [], [(Piece("written"), 0.25)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.5, 0.9, 0.7, 0.6, 0.8)), Piece("complete: applies")) == 0.6
-            && model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::yes(), Voice("me"))], [], [(Piece("written"), 0.25)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.5, 0.9, 0.7, 0.6, 0.8)), Piece("reliable: me")) == 0.8
-            && model::base(Model([Evidence(Piece("throw"), Piece("whole: applies"), piece::yes(), Voice("me"))], [], [(Piece("written"), 0.25)], [Tie(Piece("applies"), [Piece("falls")], Place(["ball"]))], Settings(0.2, 0.5, 0.9, 0.7, 0.6, 0.8)), Piece("written")) == 0.25
-    }
-
 }

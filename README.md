@@ -9,27 +9,32 @@ the next one starts. Code and tests come over from `main` only when a
 layer needs them. `main`'s trust goldens, ladder rungs and breaks are
 the yardstick.
 
-## Layer 1: the model, the values and the seam
+## The foundation branch
+
+This branch, `foundation`, restates the core around one shape. A piece
+is a proposed property of the system: given the pieces before it, its
+subject gives the pieces after it. An opinion is read five ways:
+evaluated, taken, judged, confidence, bias. Three verbs cross from a
+value to a verdict: a claim is **evaluated**, a voice **takes** what
+that gave, and the calculus **judges** every piece.
 
 | Model file | Subject | What it is | Code |
 |---|---|---|---|
-| `model/model.mitra` | `place` | a location in the system | `src/model/place.rs` |
-| | `piece` | something said, right or wrong; counts of yes and no | `src/model/piece.rs` |
-| | `evidence` | a piece that says yes or no, with a count, about another piece | `src/model/evidence.rs` |
-| | `statement` | an interpretation of the system; its content is not read | `src/model/statement.rs` |
-| | `tie` | a believed link between a statement and a place | `src/model/tie.rs` |
-| | `model` | all the pieces put together, and the relations between them | `src/model.rs` |
-| `model/value.mitra` | `value` | a quantity with a type, operations declared on types, expressions of them; no type, no operation and no kind of quantity built in | `src/value.rs` |
-| `model/standard.mitra` | `standard` | the standard types and operations read exactly (a truth, whole numbers, a real, records) and the table that applies them | `src/standard.rs` |
-| `model/bounds.mitra` | `bounds` | the same operations read on the bounds a value lies in, with a flag for what may have no value | `src/bounds.rs` |
-| `model/function.mitra` | `functions` | a function: an operation the code implements, its tie and its statements; helpers; a test as a measurement | `src/function.rs` |
-| `model/verdict.mitra` | `verdict` | the opinion of a piece: a state found by logic from the evidence taken as true, how sure it is, and what to give up on a conflict | `src/verdict.rs` |
-| `model/claim.mitra` | `claims` | the seam: a statement whose content is an expression; computing it at an input makes evidence about that instance | `src/claim.rs` |
+| `model/model.mitra` | `place` | a location in the system | `src/model.rs` |
+| | `piece` | {pre} subject {post}, and the opinion of it | |
+| | `model` | pieces, what is given, what was evaluated and taken, voices | |
+| | `calculus` | how every piece is judged, how sure, and the suspects | |
+| `model/value.mitra` | `value` | a quantity with a type, operations declared on types, expressions of them | `src/value.rs` |
+| `model/standard.mitra` | `standard` | the standard types and operations read exactly | `src/standard.rs` |
+| `model/bounds.mitra` | `bounds` | the same operations read on the bounds a value lies in | `src/bounds.rs` |
+| `model/claim.mitra` | `claims` | the crossing: evaluate a claim, take what it gave | `src/claim.rs` |
+
+The foundation test model is the speed of a fall: `tests/falling.rs`,
+printed by `cargo run --example falling` and kept in `docs/falling.md`.
 
 `model.mitra` and `value.mitra` read nothing and never read each
 other; `standard.mitra` reads `value.mitra`, `bounds.mitra` reads both; only the seam reads both
-sides. Inside the model a place and a piece
-read nothing, and each kind of piece reads only what it requires.
+sides.
 `tests/wall.rs` reads the sources and says so.
 
 Not here yet, on purpose: a reader of `.mitra` text, a ledger on disk,
@@ -54,23 +59,12 @@ Until then `model/evidence.mitra` is the single ledger that `main`'s
 ## To test
 
 ```sh
-cargo test                # 100 tests
-cargo run --example double
+cargo test                # 63 tests
 cargo run --example falling
 mitra conform             # with main's binary, from this folder
 ```
 
-- `tests/model.rs`, `value.rs`, `standard.rs`, `bounds.rs`, `claim.rs`,
-  `function.rs`: each claim of the models as one test, tied by name.
-- `tests/verdict.rs`: states, confidence and suspects on main's trust
-  goldens, the throwing toy and the shapes of the graph.
-- `tests/falling.rs`: the speed of a fall, on both sides.
+- `tests/model.rs`: the piece system, one piece and a few shapes.
+- `tests/falling.rs`: the fall, from a value to a verdict.
+- `tests/value.rs`, `standard.rs`, `bounds.rs`: the values, unchanged.
 - `tests/wall.rs`: the walls, and no disk.
-
-`mitra conform` says 116 ties agree and 21 differ. Those look like
-faults of `main`'s reader of Rust and are left as they are: a generic
-type applied to a record compared wrongly with the model's, a borrowed
-list, a generic enum.
-
-See [docs/review.md](docs/review.md) for what was decided alone and
-what is open.

@@ -1189,3 +1189,62 @@ clean." Core first; statement, evidence and tie after.
      "no surer than the relation", strictly lower only when the
      relation weighs least. To confirm.
 
+## Increment 124: the foundation branch (2026-11-21)
+
+**Asked** (user). "Start a new branch, build model.mitra with the
+piece being pre subject post, and opinion to be evaluated, taken,
+judged, confidence and bias. Put back value.mitra as before. Build a
+foundation mixing all of that." Then: a foundation test model like
+the fall, showing the crossing from value to verdict; a claim judged
+true is injected in another claim; "build a proof from a point test
+through a represented claim, without building specific workaround".
+
+**Done.** Branch `foundation`, from `core` at 4e9f2a7. `model.mitra`
+and `claim.mitra` rewritten, `src/model.rs` and `src/claim.rs` with
+them. `value`, `standard` and `bounds` are untouched. The fall is the
+test model: `tests/falling.rs`, `examples/falling.rs`,
+`docs/falling.md`. 63 tests. `mitra conform`: 90 ties agree, 9 differ.
+
+**Decided alone, to confirm.**
+
+763. Removed on this branch: `function.mitra`, `verdict.mitra`,
+     statement, evidence and tie as records, the three relations.
+     They are on `core`.
+764. A piece is `name, pre, subject, post, by`. The subject is a
+     place. A leaf has nothing before and nothing after.
+765. The five getters. Evaluated, taken and judged are each a state,
+     so two voices that disagree read as taken: conflict.
+766. Three steps: a true piece passes its state on; a false piece
+     after refutes; a piece whose every piece after is true holds.
+     The third is new: it is how `falls` becomes true from `speed`.
+767. New concept, `given`: a step of logic holds by what it is, is
+     never judged and is never a suspect.
+768. A claim at one input is a piece of its own, and the step from
+     the claim to it is given. Textbook: instantiation.
+769. No `uniform` and no rule for induction. That point tests
+     represent a claim is an ordinary piece, {instances} subject
+     {claim}, that a reviewer takes. The step a piece names
+     (deduction, induction, abduction) is said by who writes it and
+     the calculus does not read it.
+770. No tie record: the tie is the piece itself, `falls`: {only the
+     height matters} stone {speed}. Completeness is the hypothesis
+     leaf, taken by the architect's voice.
+771. Dropped with the rewrite: doubted relations, a review that
+     raises what a test counts. A voice still weighs as far as it is
+     believed.
+772. Confidence is one number from the count: one count reads 0.92
+     where `core` showed 0.91, because a measurement no longer starts
+     at 0.9.
+
+**Still wrong.**
+
+- A piece that rests on a contested piece stays true: after the bad
+  measurement `speed` is in conflict and `slow` reads true 0.92.
+- What is before a claim is not evaluated at the inputs: a run
+  outside the contract is not set aside.
+- An induction is no less sure than a deduction unless its taking
+  counts less.
+- A reading over the whole domain is a proof only once a given piece
+  says the range is the whole domain, and that piece is written by
+  hand.
+

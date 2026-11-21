@@ -1,170 +1,128 @@
-//! The seam (`model/claim.mitra`): here the content of a statement is
-//! filled in. Computing a claim at an input makes evidence about that
-//! instance of it.
+//! The crossing (`model/claim.mitra`): evaluate, take, judge.
 //!
-//! The only way across: a value never depends on a piece, and an
-//! opinion is only moved by evidence.
+//! A claim is a piece whose content is an expression. Evaluating it
+//! at inputs gives a truth, which is a value. A voice takes that
+//! truth, and from there the calculus judges. Nothing else crosses: a
+//! value never depends on a piece, and an opinion never reads a value.
 
 use crate::bounds::{lifted, surely, Bounds};
-use crate::model::{no, yes, Evidence, Model, Piece, Related, Relation, Statement, Tie, Voice};
+use crate::model::{leaf, Inference, Model, Piece, Taking, Voice};
 use crate::standard::{truth, Exact};
 use crate::value::{check, eval, Applies, Expression, Value};
 
-/// What a claim says: an expression that gives a truth. A claim is a
-/// statement with this content.
+/// A piece and the expression that says it. The expression gives a
+/// truth, and the claim says it is true at every input.
 // mitra: implements claims::Claim
 #[derive(Clone, Debug, PartialEq)]
 pub struct Claim {
+    pub piece: Piece,
     pub expression: Expression<Exact>,
 }
 
 /// The expression gives a truth.
 // mitra: implements claims::reads
-pub fn reads(s: &Statement<Claim>) -> bool {
-    check(&s.content.expression) == Some(truth())
+pub fn reads(c: &Claim) -> bool {
+    check(&c.expression) == Some(truth())
 }
 
-/// The claim at these inputs: "at these inputs, what the claim says is
-/// so". A piece derived from the claim, named after it and the inputs.
-/// The inputs are exact values, or the ranges they lie in.
+/// What the claim's expression gives at these inputs: true, false, or
+/// nothing where it has no value.
+// mitra: implements claims::evaluate
+pub fn evaluate(
+    c: &Claim,
+    inputs: &[(String, Value<Exact>)],
+    with: &impl Applies<Exact>,
+) -> Option<bool> {
+    let seen = eval(&c.expression, inputs, with)?;
+    match (seen.of == truth(), seen.quantity) {
+        (true, Exact::Truth(value)) => Some(value),
+        _ => None,
+    }
+}
+
+/// What the claim's expression gives over these ranges: true where it
+/// is true everywhere in them, false where it is false everywhere,
+/// nothing where it may be either or the reading is unknown.
+// mitra: implements claims::evaluate_over
+pub fn evaluate_over(
+    c: &Claim,
+    ranges: &[(String, Value<Bounds>)],
+    with: &impl Applies<Bounds>,
+) -> Option<bool> {
+    surely(&eval(&lifted(&c.expression)?, ranges, with)?)
+}
+
+/// The claim at these inputs: a piece of its own, named after the
+/// claim and the inputs. The inputs are exact values, or the ranges
+/// they lie in.
 // mitra: implements claims::instance
-pub fn instance<Q: std::fmt::Debug>(s: &Statement<Claim>, inputs: &[(String, Value<Q>)]) -> Piece {
+pub fn instance<Q: std::fmt::Debug>(c: &Claim, inputs: &[(String, Value<Q>)]) -> Piece {
     let each = inputs
         .iter()
         .map(|(name, v)| format!("{name} = {:?}", v.quantity));
+    let at = each.collect::<Vec<_>>().join(", ");
+    leaf(&format!("{} @ {at}", c.piece.name), &c.piece.subject)
+}
+
+/// The step from a claim to one instance of it: the claim true, the
+/// instance is true; the instance false, the claim is false. It holds
+/// by what it is, so it is given to the model and never judged.
+// mitra: implements claims::instantiation
+pub fn instantiation(c: &Claim, here: &Piece) -> Piece {
     Piece {
-        name: format!("{} @ {}", s.piece.name, each.collect::<Vec<_>>().join(", ")),
+        name: format!("instance: {}", here.name),
+        pre: vec![c.piece.clone()],
+        subject: c.piece.subject.clone(),
+        post: vec![here.clone()],
+        by: Inference::Deduction,
     }
 }
 
-/// What computing the claim at these inputs says of that instance:
-/// yes where it is true, no where it is false, nothing where it has no
-/// value. The evidence is named after the instance and the voice, so
-/// the same observation twice is one piece.
+/// The crossing, whole: the claim is evaluated at these inputs, and
+/// the voice takes its instance as what that gave, `count` times
+/// over. Nothing where the claim has no value there. The model gets
+/// the instance, what evaluating gave, the taking, and the step from
+/// the claim to the instance.
 // mitra: implements claims::observe
 pub fn observe(
-    s: &Statement<Claim>,
+    model: &Model,
+    c: &Claim,
     inputs: &[(String, Value<Exact>)],
-    by: &Voice,
     with: &impl Applies<Exact>,
-) -> Option<Evidence> {
-    let seen = eval(&s.content.expression, inputs, with)?;
-    let value = match (seen.of == truth(), seen.quantity) {
-        (true, Exact::Truth(true)) => yes(),
-        (true, Exact::Truth(false)) => no(),
-        _ => return None,
-    };
-    let about = instance(s, inputs);
-    Some(Evidence {
-        piece: Piece {
-            name: format!("{} by {}", about.name, by.name),
-        },
-        about,
-        value,
-        by: by.clone(),
-    })
-}
-
-/// What reading the claim by bounds says of its instance over these
-/// ranges: `count` yes where it is true everywhere in them, `count` no
-/// where it is false everywhere, and nothing where it may be either,
-/// may have no value, or the reading is unknown. `count` is how many
-/// observations a whole range is worth: it is given, and nothing here
-/// holds a value for it.
-// mitra: implements claims::bounded
-pub fn bounded(
-    s: &Statement<Claim>,
-    ranges: &[(String, Value<Bounds>)],
     count: f64,
     by: &Voice,
-    with: &impl Applies<Bounds>,
-) -> Option<Evidence> {
-    let seen = eval(&lifted(&s.content.expression)?, ranges, with)?;
-    let value = match surely(&seen)? {
-        true => crate::model::Opinion { r: count, ..yes() },
-        false => crate::model::Opinion { s: count, ..no() },
-    };
-    let about = instance(s, ranges);
-    Some(Evidence {
-        piece: Piece {
-            name: format!("{} by {}", about.name, by.name),
-        },
-        about,
-        value,
-        by: by.clone(),
-    })
+) -> Option<Model> {
+    let seen = evaluate(c, inputs, with)?;
+    Some(crossed(model, c, instance(c, inputs), seen, count, by))
 }
 
-/// The model with an observation of a claim in it. `e` is evidence
-/// about an instance of `s`, from `observe` or `bounded`.
-///
-/// - With a tie that lists the claim, the evidence is about the tie's
-///   whole at that instance: the tie, the instance and the tie's
-///   completeness, all together. So a no is shared between them.
-///   Nothing for a tie that does not list the claim.
-/// - With no tie, the evidence is about the instance alone.
-/// - The instance is related to the claim, with `uniform` when there
-///   is one: the claim holds at every input, and with `uniform` one
-///   input stands for all.
-// mitra: implements claims::recorded
-pub fn recorded(
+/// The same crossing over ranges: one instance for every point in
+/// them.
+// mitra: implements claims::observe_over
+pub fn observe_over(
     model: &Model,
-    s: &Statement<Claim>,
-    e: Evidence,
-    at: Option<&Tie>,
-    uniform: Option<&Piece>,
+    c: &Claim,
+    ranges: &[(String, Value<Bounds>)],
+    with: &impl Applies<Bounds>,
+    count: f64,
+    by: &Voice,
 ) -> Option<Model> {
+    let seen = evaluate_over(c, ranges, with)?;
+    Some(crossed(model, c, instance(c, ranges), seen, count, by))
+}
+
+fn crossed(model: &Model, c: &Claim, here: Piece, seen: bool, count: f64, by: &Voice) -> Model {
     let mut out = model.clone();
-    let structure = |out: &mut Model, whole: &Piece, parts: Vec<Piece>| {
-        let name = Piece::named(&format!("all: {}", whole.name));
-        let mut pieces = vec![whole.clone()];
-        pieces.extend(parts);
-        out.related.push(Statement {
-            piece: name.clone(),
-            content: Related {
-                how: Relation::All,
-                pieces,
-            },
-        });
-        out.base.push((name, 1.0));
-    };
-    let the_instance = e.about.clone();
-    let through = |out: &mut Model, x: &Piece| match at {
-        None => x.clone(),
-        Some(t) => {
-            let whole = Piece::named(&format!("{} at {}", x.name, t.piece.name));
-            if !out
-                .related
-                .iter()
-                .any(|said| said.content.pieces[0] == whole)
-            {
-                structure(out, &whole, vec![t.piece.clone(), x.clone()]);
-            }
-            whole
-        }
-    };
-    if let Some(t) = at {
-        if !t.statements.contains(&s.piece) {
-            return None;
-        }
-        if !out.ties.contains(t) {
-            out.ties.push(t.clone());
-        }
+    let step = instantiation(c, &here);
+    if !out.given.iter().any(|old| old.name == step.name) {
+        out.given.push(step);
     }
-    let mut pieces = vec![s.piece.clone(), the_instance.clone()];
-    pieces.extend(uniform.cloned());
-    let link = Piece::named(&format!("instance: {}", the_instance.name));
-    if !out.related.iter().any(|said| said.piece == link) {
-        out.related.push(Statement {
-            piece: link.clone(),
-            content: Related {
-                how: Relation::Instance,
-                pieces,
-            },
-        });
-        out.base.push((link, 1.0));
-    }
-    let about = through(&mut out, &the_instance);
-    out.evidence.push(Evidence { about, ..e });
-    Some(out)
+    out.evaluated.push((here.clone(), seen));
+    out.taken.push(Taking {
+        piece: here,
+        value: seen,
+        count,
+        by: by.clone(),
+    });
+    out
 }
