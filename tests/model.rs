@@ -247,3 +247,27 @@ fn the_verdict_and_its_least_sure_piece() {
     assert_eq!((verdict(&open), least_sure(&open)), (State::Unknown, None));
     assert_eq!(verdict(&with(&[], &[])), State::Unknown);
 }
+
+/// A trial: the interval of an opinion. Unknown is all of 0 to 1; one
+/// count for narrows it from below, one against from above; and the
+/// confidence of a true piece is the point of the interval at its
+/// bias.
+// mitra: evidence for piece::an_interval_is_a_trial
+#[test]
+fn the_interval_of_an_opinion() {
+    let p = l("p");
+    let near = |x: (f64, f64), y: (f64, f64)| (x.0 - y.0).abs() < 1e-9 && (x.1 - y.1).abs() < 1e-9;
+    assert_eq!(opinion(&with(&[], &[]), &p).interval(), (0.0, 1.0));
+    let held = with(&[], &[yes(&p)]);
+    assert!(near(opinion(&held, &p).interval(), (1.0 / 1.2, 1.0)));
+    let (low, high) = opinion(&held, &p).interval();
+    let at_bias = low + 0.5 * (high - low);
+    assert!((sure(&held, &p).unwrap() - at_bias).abs() < 1e-9);
+    let against = with(&[], &[no(&p)]);
+    assert!(near(opinion(&against, &p).interval(), (0.0, 0.2 / 1.2)));
+    // Taken both ways: a conflict, with no confidence and an interval.
+    let both = with(&[], &[yes(&p), took(&p, false, 1.0, "other")]);
+    assert_eq!(opinion(&both, &p).judged(), State::Conflict);
+    assert_eq!(sure(&both, &p), None);
+    assert!(near(opinion(&both, &p).interval(), (1.0 / 2.2, 1.2 / 2.2)));
+}

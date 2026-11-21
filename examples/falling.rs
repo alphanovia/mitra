@@ -158,19 +158,21 @@ fn print(title: &str, m: &Model) {
         "Verdict: {}{sure}\n",
         word(verdict(m)).replace('-', "unknown")
     );
-    println!("| piece | step | evaluated | taken | judged |");
-    println!("|---|---|---|---|---|");
+    println!("| piece | step | evaluated | taken | judged | interval |");
+    println!("|---|---|---|---|---|---|");
     for (x, o) in &reading.pieces {
         let step = match step(m, x) {
             None => "leaf".to_string(),
             Some(how) => format!("{how:?}").to_lowercase(),
         };
         println!(
-            "| `{}` | {step} | {} | {} | {} |",
+            "| `{}` | {step} | {} | {} | {} | {:.2} to {:.2} |",
             x.name,
             word(o.evaluated()),
             word(o.taken()),
-            shown(o)
+            shown(o),
+            o.interval().0,
+            o.interval().1
         );
     }
     for group in &reading.suspects {

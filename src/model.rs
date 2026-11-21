@@ -126,9 +126,17 @@ pub struct Opinion {
     judged: State,
     sure: Option<f64>,
     bias: f64,
+    between: (f64, f64),
 }
 
 impl Opinion {
+    /// A trial: how far the piece is believed, as an interval, for
+    /// any state. The low end is what says it is true, the high end
+    /// is all that does not say it is false. Unknown is 0 to 1.
+    // mitra: implements piece::interval
+    pub fn interval(&self) -> (f64, f64) {
+        self.between
+    }
     /// What computing it gave.
     // mitra: implements piece::evaluated
     pub fn evaluated(&self) -> State {
@@ -631,10 +639,16 @@ pub fn judge(model: &Model) -> Reading {
         let (judged, a) = (drawn.state(x), bias(model, x));
         let count = |value: bool| {
             let mut best = f64::INFINITY;
-            let sets = &drawn.labels[&(x.name.clone(), value)];
-            drawn.least(sets, &mut Vec::new(), &mut best);
-            best
+            match drawn.labels.get(&(x.name.clone(), value)) {
+                None => 0.0,
+                Some(sets) => {
+                    drawn.least(sets, &mut Vec::new(), &mut best);
+                    best
+                }
+            }
         };
+        let (yes, no) = (count(true), count(false));
+        let between = (yes / (yes + no + w), (yes + w) / (yes + no + w));
         let sure = match judged {
             State::True => Some((count(true) + a * w) / (count(true) + w)),
             State::False => Some((count(false) + (1.0 - a) * w) / (count(false) + w)),
@@ -646,6 +660,7 @@ pub fn judge(model: &Model) -> Reading {
             judged,
             sure,
             bias: a,
+            between,
         };
         out.push((x.clone(), opinion));
         if let State::True | State::False = judged {
@@ -715,6 +730,7 @@ pub fn opinion(model: &Model, x: &Piece) -> Opinion {
             judged: State::Unknown,
             sure: None,
             bias: bias(model, x),
+            between: (0.0, 1.0),
         },
         |(_, opinion)| opinion,
     )
