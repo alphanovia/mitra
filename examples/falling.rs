@@ -70,26 +70,19 @@ fn slow(object: &str) -> Claim {
 fn only_height(object: &str) -> Piece {
     leaf(&format!("{object}::only the height matters"), &part(object))
 }
-fn piece(name: &str, object: &str, pre: &[Piece], post: &[Piece], by: Inference) -> Piece {
+fn piece(name: &str, object: &str, pre: &[Piece], post: &[Piece]) -> Piece {
     Piece {
         name: format!("{object}::{name}"),
         pre: pre.to_vec(),
         subject: part(object),
         post: post.to_vec(),
-        by,
     }
 }
 /// The claim of the model: given that only the height matters, the
 /// object falls at `speed`.
 fn falls(object: &str) -> Piece {
     let then = [speed(object).piece];
-    piece(
-        "falls",
-        object,
-        &[only_height(object)],
-        &then,
-        Inference::Deduction,
-    )
+    piece("falls", object, &[only_height(object)], &then)
 }
 /// What a reviewer says: these measured falls represent every fall.
 fn represents(object: &str, measured: &[(i64, i64)]) -> Piece {
@@ -98,12 +91,12 @@ fn represents(object: &str, measured: &[(i64, i64)]) -> Piece {
         .map(|(h, v)| instance(&speed(object), &at(*h, *v)));
     let seen: Vec<Piece> = each.collect();
     let all = [speed(object).piece];
-    piece("represents", object, &seen, &all, Inference::Induction)
+    piece("represents", object, &seen, &all)
 }
 /// A second claim, resting on the first: given `speed`, `slow`.
 fn stays_slow(object: &str) -> Piece {
     let (given, then) = ([speed(object).piece], [slow(object).piece]);
-    piece("stays slow", object, &given, &then, Inference::Deduction)
+    piece("stays slow", object, &given, &then)
 }
 
 /// A height and a speed, in hundredths.
@@ -120,11 +113,12 @@ fn take(m: &mut Model, x: Piece, by: &str) {
 }
 /// The model of one object after these measurements, each by its own
 /// timer. With `reviewed`, the architect takes the hypothesis and a
-/// reviewer takes that the measured falls represent all, and that
-/// `slow` follows from `speed`.
+/// reviewer takes that the measured falls represent all.
 fn after(object: &str, measured: &[(i64, i64)], reviewed: bool) -> Model {
     let mut m = Model::empty(S);
     m.pieces = vec![falls(object), stays_slow(object)];
+    // `slow` follows from `speed` by arithmetic: a deduction.
+    m.bias.push((stays_slow(object), 1.0));
     for (h, v) in measured {
         let by = Voice::named(&format!("machine:timer {h}"));
         m = observe(
@@ -142,7 +136,6 @@ fn after(object: &str, measured: &[(i64, i64)], reviewed: bool) -> Model {
     if reviewed {
         take(&mut m, only_height(object), "agent:architect");
         take(&mut m, represents(object, measured), "agent:reviewer");
-        take(&mut m, stays_slow(object), "agent:reviewer");
     }
     m
 }
@@ -168,9 +161,9 @@ fn print(title: &str, m: &Model) {
     println!("| piece | step | evaluated | taken | judged |");
     println!("|---|---|---|---|---|");
     for (x, o) in &reading.pieces {
-        let step = match x.pre.is_empty() && x.post.is_empty() {
-            true => "leaf".to_string(),
-            false => format!("{:?}", x.by).to_lowercase(),
+        let step = match step(m, x) {
+            None => "leaf".to_string(),
+            Some(how) => format!("{how:?}").to_lowercase(),
         };
         println!(
             "| `{}` | {step} | {} | {} | {} |",

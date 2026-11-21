@@ -72,26 +72,19 @@ fn slow(object: &str) -> Claim {
 fn only_height(object: &str) -> Piece {
     leaf(&format!("{object}::only the height matters"), &part(object))
 }
-fn piece(name: &str, object: &str, pre: &[Piece], post: &[Piece], by: Inference) -> Piece {
+fn piece(name: &str, object: &str, pre: &[Piece], post: &[Piece]) -> Piece {
     Piece {
         name: format!("{object}::{name}"),
         pre: pre.to_vec(),
         subject: part(object),
         post: post.to_vec(),
-        by,
     }
 }
 /// The claim of the model: given that only the height matters, the
 /// object falls at `speed`.
 fn falls(object: &str) -> Piece {
     let then = [speed(object).piece];
-    piece(
-        "falls",
-        object,
-        &[only_height(object)],
-        &then,
-        Inference::Deduction,
-    )
+    piece("falls", object, &[only_height(object)], &then)
 }
 /// What a reviewer says: these measured falls represent every fall.
 fn represents(object: &str, measured: &[(i64, i64)]) -> Piece {
@@ -100,12 +93,12 @@ fn represents(object: &str, measured: &[(i64, i64)]) -> Piece {
         .map(|(h, v)| instance(&speed(object), &at(*h, *v)));
     let seen: Vec<Piece> = each.collect();
     let all = [speed(object).piece];
-    piece("represents", object, &seen, &all, Inference::Induction)
+    piece("represents", object, &seen, &all)
 }
 /// A second claim, resting on the first: given `speed`, `slow`.
 fn stays_slow(object: &str) -> Piece {
     let (given, then) = ([speed(object).piece], [slow(object).piece]);
-    piece("stays slow", object, &given, &then, Inference::Deduction)
+    piece("stays slow", object, &given, &then)
 }
 
 /// A height and a speed, in hundredths.
@@ -122,11 +115,12 @@ fn take(m: &mut Model, x: Piece, by: &str) {
 }
 /// The model of one object after these measurements, each by its own
 /// timer. With `reviewed`, the architect takes the hypothesis and a
-/// reviewer takes that the measured falls represent all, and that
-/// `slow` follows from `speed`.
+/// reviewer takes that the measured falls represent all.
 fn after(object: &str, measured: &[(i64, i64)], reviewed: bool) -> Model {
     let mut m = Model::empty(S);
     m.pieces = vec![falls(object), stays_slow(object)];
+    // `slow` follows from `speed` by arithmetic: a deduction.
+    m.bias.push((stays_slow(object), 1.0));
     for (h, v) in measured {
         let by = Voice::named(&format!("machine:timer {h}"));
         m = observe(
@@ -144,7 +138,6 @@ fn after(object: &str, measured: &[(i64, i64)], reviewed: bool) -> Model {
     if reviewed {
         take(&mut m, only_height(object), "agent:architect");
         take(&mut m, represents(object, measured), "agent:reviewer");
-        take(&mut m, stays_slow(object), "agent:reviewer");
     }
     m
 }
@@ -192,8 +185,8 @@ fn a_voice_takes_what_was_evaluated() {
 /// Judge: from three point tests to the claim, through the piece that
 /// says they represent every fall, and on into a second claim.
 ///
-/// - `speed` is true, as sure as the one review that the tests
-///   represent it.
+/// - `speed` is true, less sure than the tests: the piece that says
+///   they represent it is an induction.
 /// - `falls` holds: what it promises is true.
 /// - `slow` is true: `speed` is injected in `stays slow`.
 // mitra: evidence for calculus::a_true_piece_passes_its_state_on
@@ -201,17 +194,25 @@ fn a_voice_takes_what_was_evaluated() {
 fn a_point_test_reaches_the_claim_and_the_next_claim() {
     let m = after("stone", &STONE, true);
     assert_eq!(verdict(&m), State::True);
-    assert_eq!(says(&m, &speed("stone").piece), "true 0.92");
-    assert_eq!(says(&m, &falls("stone")), "true 0.92");
-    assert_eq!(says(&m, &slow("stone").piece), "true 0.92");
+    // The instances are as sure as their measurement. `speed` comes
+    // from them by an induction, so it is less sure, and so is all
+    // that rests on it.
     let here = instance(&speed("stone"), &at(500, 990));
     assert_eq!(says(&m, &here), "true 0.92");
+    assert_eq!(says(&m, &speed("stone").piece), "true 0.86");
+    assert_eq!(says(&m, &falls("stone")), "true 0.86");
+    assert_eq!(says(&m, &slow("stone").piece), "true 0.86");
+    assert_eq!(
+        step(&m, &represents("stone", &STONE)),
+        Some(Inference::Induction)
+    );
+    assert_eq!(step(&m, &stays_slow("stone")), Some(Inference::Deduction));
     assert!(suspects(&m).is_empty());
-    // `slow` rests on the three measurements and the two reviews.
+    // `slow` rests on the three measurements and on `represents`.
     let under = rests(&m, &slow("stone").piece);
     assert_eq!(under.len(), 1);
-    assert_eq!(under[0].len(), 5);
-    assert!(under[0].contains(&stays_slow("stone")));
+    assert_eq!(under[0].len(), 4);
+    assert!(under[0].contains(&represents("stone", &STONE)));
     // Nothing is taken of `speed` or `slow`: they are judged only.
     assert_eq!(opinion(&m, &slow("stone").piece).taken(), State::Unknown);
 }

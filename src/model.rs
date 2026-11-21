@@ -57,13 +57,13 @@ impl Part {
     }
 }
 
-/// The step of logic a piece is.
+/// The step of logic a piece is: a deduction holds by what it is, an
+/// induction may be wrong.
 // mitra: implements piece::Inference
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Inference {
     Deduction,
     Induction,
-    Abduction,
 }
 
 /// A proposed property of the system: given `pre`, `subject` gives
@@ -76,7 +76,6 @@ pub struct Piece {
     pub pre: Vec<Piece>,
     pub subject: Part,
     pub post: Vec<Piece>,
-    pub by: Inference,
 }
 
 /// A piece with nothing before and nothing after.
@@ -87,7 +86,6 @@ pub fn leaf(name: &str, subject: &Part) -> Piece {
         pre: Vec::new(),
         subject: subject.clone(),
         post: Vec::new(),
-        by: Inference::Deduction,
     }
 }
 
@@ -208,7 +206,6 @@ pub struct Settings {
 /// - `pieces`: what is proposed. The pieces before and after a piece
 ///   are in the model with it.
 /// - `ties`: where the parts are in the real system.
-/// - `given`: pieces that hold by what they are: steps of logic.
 /// - `evaluated`: what computing a piece gave.
 /// - `taken`: what voices took.
 // mitra: implements model::Model
@@ -216,7 +213,6 @@ pub struct Settings {
 pub struct Model {
     pub pieces: Vec<Piece>,
     pub ties: Vec<Tie>,
-    pub given: Vec<Piece>,
     pub evaluated: Vec<(Piece, bool)>,
     pub taken: Vec<Taking>,
     pub bias: Vec<(Piece, f64)>,
@@ -229,7 +225,6 @@ impl Model {
         Model {
             pieces: Vec::new(),
             ties: Vec::new(),
-            given: Vec::new(),
             evaluated: Vec::new(),
             taken: Vec::new(),
             bias: Vec::new(),
@@ -255,7 +250,7 @@ pub fn pieces(model: &Model) -> Vec<Piece> {
     let mut found = Vec::new();
     let taken = model.taken.iter().map(|t| &t.piece);
     let evaluated = model.evaluated.iter().map(|(x, _)| x);
-    for x in model.pieces.iter().chain(&model.given) {
+    for x in &model.pieces {
         collect(&mut found, x);
     }
     for tie in &model.ties {
@@ -289,8 +284,28 @@ pub fn weight(model: &Model, t: &Taking) -> f64 {
     t.count * voice.map_or(model.settings.reliability, |(_, a)| *a)
 }
 
+/// The step of logic a piece is, read from its bias: with a bias of 1
+/// it is a deduction, under 1 an induction. None for a leaf.
+// mitra: implements model::step
+pub fn step(model: &Model, x: &Piece) -> Option<Inference> {
+    match (x.post.is_empty(), bias(model, x) >= 1.0) {
+        (true, _) => None,
+        (false, true) => Some(Inference::Deduction),
+        (false, false) => Some(Inference::Induction),
+    }
+}
+
+/// A deduction holds by what it is: it needs no state.
 fn given(model: &Model, x: &Piece) -> bool {
-    model.given.iter().any(|g| g.name == x.name)
+    step(model, x) == Some(Inference::Deduction)
+}
+
+/// What can be given up: a taking, or the doubt of an induction.
+struct Assumed {
+    piece: Piece,
+    weight: f64,
+    /// For a taking: who took, and as what.
+    said: Option<(Voice, bool)>,
 }
 
 /// A set of takings, each by its place in the list, in order.
@@ -302,17 +317,18 @@ type Fact = (String, bool);
 struct Step {
     needs: Vec<Fact>,
     gives: Fact,
+    /// The doubt of the induction this step applies.
+    under: Option<usize>,
 }
 
 /// The states with what each was drawn from.
 ///
 /// - `labels`: for each piece told true or told false, the smallest
-///   sets of takings it follows from, none in contradiction with
-///   itself.
-/// - `nogoods`: the smallest sets of takings that cannot all be true.
-struct Drawn<'a> {
-    model: &'a Model,
-    weights: Vec<f64>,
+///   sets of what is assumed that it follows from, none in
+///   contradiction with itself.
+/// - `nogoods`: the smallest sets that cannot all be true.
+struct Drawn {
+    assumed: Vec<Assumed>,
     labels: BTreeMap<Fact, Vec<Env>>,
     nogoods: Vec<Env>,
     /// The smallest sets of takings to give up so that what is left
@@ -347,20 +363,28 @@ fn add_smallest(sets: &mut Vec<Env>, new: Env) -> bool {
 /// all the others true, the one left is false. And the piece itself
 /// is true when every piece after it is. A piece that is given needs
 /// no state.
-fn steps(model: &Model, all: &[Piece]) -> Vec<Step> {
+fn steps(model: &Model, all: &[Piece], assumed: &mut Vec<Assumed>) -> Vec<Step> {
     let mut steps = Vec::new();
     for t in all.iter().filter(|t| !t.post.is_empty()) {
         let so = |x: &Piece, value: bool| (x.name.clone(), value);
         let mut holds: Vec<&Piece> = t.pre.iter().collect();
+        // An induction is applied under its own doubt, which weighs
+        // its bias.
+        let mut doubt = None;
         if !given(model, t) {
             holds.push(t);
-        }
-        // A piece whose every piece after is true holds, whatever
-        // is before it.
-        if !given(model, t) {
+            doubt = Some(assumed.len());
+            assumed.push(Assumed {
+                piece: t.clone(),
+                weight: bias(model, t),
+                said: None,
+            });
+            // A piece whose every piece after is true holds, whatever
+            // is before it.
             steps.push(Step {
                 needs: t.post.iter().map(|q| so(q, true)).collect(),
                 gives: so(t, true),
+                under: None,
             });
         }
         for q in &t.post {
@@ -368,14 +392,18 @@ fn steps(model: &Model, all: &[Piece]) -> Vec<Step> {
             steps.push(Step {
                 needs,
                 gives: so(q, true),
+                under: doubt,
             });
             for one in &holds {
                 let mut needs = vec![so(q, false)];
                 let others = holds.iter().filter(|x| x.name != one.name);
                 needs.extend(others.map(|x| so(x, true)));
+                // Refuting the piece itself does not apply it.
+                let under = doubt.filter(|_| one.name != t.name);
                 steps.push(Step {
                     needs,
                     gives: so(one, false),
+                    under,
                 });
             }
         }
@@ -387,22 +415,27 @@ fn steps(model: &Model, all: &[Piece]) -> Vec<Step> {
 /// anything new.
 ///
 /// After de Kleer, 1986, "An Assumption-based TMS".
-fn drawn<'a>(model: &'a Model, all: &[Piece]) -> Drawn<'a> {
-    let steps = steps(model, all);
-    let weights: Vec<f64> = model.taken.iter().map(|t| weight(model, t)).collect();
+fn drawn(model: &Model, all: &[Piece]) -> Drawn {
+    let mut assumed: Vec<Assumed> = Vec::new();
     let mut labels: BTreeMap<Fact, Vec<Env>> = BTreeMap::new();
-    for (i, t) in model.taken.iter().enumerate() {
+    for t in &model.taken {
         // A taking that weighs nothing is not taken at all.
-        if weights[i] > 0.0 {
+        if weight(model, t) > 0.0 {
             let fact = (t.piece.name.clone(), t.value);
-            labels.entry(fact).or_default().push(vec![i]);
+            labels.entry(fact).or_default().push(vec![assumed.len()]);
+            assumed.push(Assumed {
+                piece: t.piece.clone(),
+                weight: weight(model, t),
+                said: Some((t.by.clone(), t.value)),
+            });
         }
     }
+    let steps = steps(model, all, &mut assumed);
     let mut nogoods: Vec<Env> = Vec::new();
     loop {
         let mut moved = false;
         for step in &steps {
-            let mut ways: Vec<Env> = vec![Vec::new()];
+            let mut ways: Vec<Env> = vec![step.under.into_iter().collect()];
             for need in &step.needs {
                 let known = labels.get(need).map(Vec::as_slice).unwrap_or(&[]);
                 let mut next: Vec<Env> = Vec::new();
@@ -441,8 +474,7 @@ fn drawn<'a>(model: &'a Model, all: &[Piece]) -> Drawn<'a> {
         labels.retain(|_, envs| !envs.is_empty());
         if !moved {
             let mut all = Drawn {
-                model,
-                weights,
+                assumed,
                 labels,
                 nogoods,
                 ways: vec![Vec::new()],
@@ -455,7 +487,7 @@ fn drawn<'a>(model: &'a Model, all: &[Piece]) -> Drawn<'a> {
     }
 }
 
-impl Drawn<'_> {
+impl Drawn {
     fn told(&self, x: &Piece, value: bool) -> bool {
         self.labels.contains_key(&(x.name.clone(), value))
     }
@@ -485,19 +517,20 @@ impl Drawn<'_> {
         }
     }
 
-    /// What a set of takings weighs together: one voice that takes
-    /// one piece the same way twice counts once, as the firmer.
+    /// What a set weighs together: one voice that takes one piece
+    /// the same way twice counts once, as the firmer.
     fn together(&self, given_up: &[usize]) -> f64 {
-        let mut said: Vec<((&Voice, &str, bool), f64)> = Vec::new();
-        for i in given_up {
-            let t = &self.model.taken[*i];
-            let what = (&t.by, t.piece.name.as_str(), t.value);
-            match said.iter_mut().find(|(old, _)| *old == what) {
-                Some(found) => found.1 = f64::max(found.1, self.weights[*i]),
-                None => said.push((what, self.weights[*i])),
+        let mut said: Vec<(&str, &Option<(Voice, bool)>, f64)> = Vec::new();
+        for a in given_up.iter().map(|i| &self.assumed[*i]) {
+            let same = said
+                .iter_mut()
+                .find(|old| a.said.is_some() && old.0 == a.piece.name && old.1 == &a.said);
+            match same {
+                Some(found) => found.2 = f64::max(found.2, a.weight),
+                None => said.push((&a.piece.name, &a.said, a.weight)),
             }
         }
-        said.iter().map(|found| found.1).sum()
+        said.iter().map(|found| found.2).sum()
     }
 
     /// The least that must be given up so that none of these sets is
@@ -552,7 +585,7 @@ impl Drawn<'_> {
 // mitra: implements calculus::Reading
 #[derive(Clone, Debug, PartialEq)]
 pub struct Reading {
-    /// Every piece that is not given, with its opinion.
+    /// Every piece that is not a deduction, with its opinion.
     pub pieces: Vec<(Piece, Opinion)>,
     /// What each judged state rests on: for a piece judged true or
     /// false, the smallest sets of taken pieces it follows from.
@@ -561,6 +594,17 @@ pub struct Reading {
     /// pieces to give up, then for each piece that came out false the
     /// pieces it rests on that are not known true.
     pub suspects: Vec<Vec<Piece>>,
+}
+
+/// The pieces a set names, each once.
+fn named(drawn: &Drawn, set: &Env) -> Vec<Piece> {
+    let mut group: Vec<Piece> = Vec::new();
+    for x in set.iter().map(|i| &drawn.assumed[*i].piece) {
+        if !group.iter().any(|old| old.name == x.name) {
+            group.push(x.clone());
+        }
+    }
+    group
 }
 
 /// Judges every piece of the model.
@@ -606,8 +650,10 @@ pub fn judge(model: &Model) -> Reading {
         out.push((x.clone(), opinion));
         if let State::True | State::False = judged {
             let sets = &drawn.labels[&(x.name.clone(), judged == State::True)];
-            let named = |env: &Env| env.iter().map(|i| model.taken[*i].piece.clone()).collect();
-            rests.push((x.clone(), sets.iter().map(named).collect()));
+            rests.push((
+                x.clone(),
+                sets.iter().map(|env| named(&drawn, env)).collect(),
+            ));
         }
     }
 
@@ -626,14 +672,10 @@ pub fn judge(model: &Model) -> Reading {
     given_up.sort_by(|x, y| x.1.total_cmp(&y.1).then(x.0.cmp(&y.0)));
     let mut suspects: Vec<Vec<Piece>> = Vec::new();
     for (set, _) in &given_up {
-        let mut group: Vec<Piece> = Vec::new();
-        for i in set {
-            let x = &model.taken[*i].piece;
-            if !group.iter().any(|old| old.name == x.name) {
-                group.push(x.clone());
-            }
+        let group = named(&drawn, set);
+        if !suspects.contains(&group) {
+            suspects.push(group);
         }
-        suspects.push(group);
     }
     for t in all.iter().filter(|t| !t.post.is_empty()) {
         if !t.post.iter().any(|q| drawn.state(q) == State::False) {

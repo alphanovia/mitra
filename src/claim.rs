@@ -6,7 +6,7 @@
 //! value never depends on a piece, and an opinion never reads a value.
 
 use crate::bounds::{lifted, point, surely, Bounds, Span};
-use crate::model::{leaf, Inference, Model, Piece, Taking, Tie, Voice};
+use crate::model::{leaf, Model, Piece, Taking, Tie, Voice};
 use crate::standard::{truth, Exact};
 use crate::value::{check, eval, Applies, Expression, Value};
 
@@ -104,8 +104,8 @@ pub fn instance<Q: std::fmt::Debug>(c: &Claim, inputs: &[(String, Value<Q>)]) ->
 /// tie, the instance was seen at the tie's location, and the tie
 /// stands before the instance with the claim: an instance that is
 /// false there says the claim and the tie cannot both be true. The
-/// step holds by what it is, so it is given to the model and never
-/// judged.
+/// step is a deduction: the model gets it with a bias of 1, and it is
+/// never judged.
 // mitra: implements claims::instantiation
 pub fn instantiation(c: &Claim, here: &Piece, at: Option<&Tie>) -> Piece {
     let mut pre = vec![c.piece.clone()];
@@ -115,7 +115,6 @@ pub fn instantiation(c: &Claim, here: &Piece, at: Option<&Tie>) -> Piece {
         pre,
         subject: c.piece.subject.clone(),
         post: vec![here.clone()],
-        by: Inference::Deduction,
     }
 }
 
@@ -198,8 +197,9 @@ fn crossed(
         }
     }
     let step = instantiation(c, &here, at);
-    if !out.given.iter().any(|old| old.name == step.name) {
-        out.given.push(step);
+    if !out.pieces.iter().any(|old| old.name == step.name) {
+        out.bias.push((step.clone(), 1.0));
+        out.pieces.push(step);
     }
     out.evaluated.push((here.clone(), seen));
     out.taken.push(Taking {

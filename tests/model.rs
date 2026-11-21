@@ -21,7 +21,6 @@ fn piece(name: &str, pre: &[Piece], post: &[Piece]) -> Piece {
         pre: pre.to_vec(),
         subject: here(),
         post: post.to_vec(),
-        by: Inference::Deduction,
     }
 }
 fn t() -> Piece {
@@ -157,25 +156,32 @@ fn taken_against_itself_is_a_conflict() {
     assert_eq!(opinion(&more, &aside).judged(), State::True);
 }
 
-/// A step gives exactly what it was given from, never more; two ways
-/// add up.
+/// A deduction gives exactly the least of what it was given from,
+/// never more; two ways add up.
 // mitra: evidence for calculus::sure_is_what_must_be_given_up
 #[test]
 fn confidence_is_the_least_to_give_up() {
-    let m = with(&[t()], &[yes(&t()), took(&l("p"), true, 3.0, "tests")]);
-    // q rests on t, taken once, and p, taken three times over.
-    assert_eq!(sure(&m, &l("q")), sure(&m, &t()));
-    assert!(sure(&m, &l("q")) < sure(&m, &l("p")));
-    // A second way to q: both must be given up.
-    let other = piece("u", &[], &[l("q")]);
-    let two = with(
-        &[t(), other.clone()],
-        &[yes(&t()), yes(&l("p")), yes(&other)],
+    let (a, b) = (l("a"), l("b"));
+    let both = piece("both", &[a.clone(), b.clone()], &[l("q")]);
+    let mut m = with(
+        std::slice::from_ref(&both),
+        &[yes(&a), took(&b, true, 3.0, "tests")],
     );
+    m.bias.push((both.clone(), 1.0));
+    // q rests on a, taken once, and b, taken three times over.
+    assert_eq!(sure(&m, &l("q")), sure(&m, &a));
+    assert!(sure(&m, &l("q")) < sure(&m, &b));
+    // A second way to q: both must be given up.
+    let other = piece("other", &[l("c")], &[l("q")]);
+    let mut two = with(
+        &[both.clone(), other.clone()],
+        &[yes(&a), yes(&b), yes(&l("c"))],
+    );
+    two.bias = vec![(both, 1.0), (other, 1.0)];
     assert!(sure(&two, &l("q")) > sure(&m, &l("q")));
     // One count at a bias of one half, a bias weighing 0.2.
-    assert_eq!(shown(&opinion(&m, &t())), "true 0.92");
-    assert_eq!(opinion(&m, &t()).bias(), 0.5);
+    assert_eq!(shown(&opinion(&m, &a)), "true 0.92");
+    assert_eq!(opinion(&m, &a).bias(), 0.5);
 }
 
 // mitra: evidence for model::a_taking_is_signed
@@ -200,18 +206,32 @@ fn a_voice_counts_once_and_as_far_as_it_is_believed() {
     assert_eq!(opinion(&doubted, &p).taken(), State::True);
 }
 
-/// A piece that is given holds by what it is: it needs no taking, it
-/// is not judged, and it is never a suspect.
-// mitra: evidence for model::a_step_of_logic_is_given
+/// A piece with a bias of 1 is a deduction: it holds by what it is,
+/// needs no taking, is not judged, and passes confidence on unchanged.
+/// Under 1 it is an induction, and what it gives is less sure.
+// mitra: evidence for model::the_step_is_read_from_the_bias
+// mitra: evidence for calculus::deduction_keeps_confidence
+// mitra: evidence for calculus::induction_lowers_confidence
 #[test]
-fn a_given_piece_needs_no_state() {
-    let mut m = with(&[], &[yes(&l("p"))]);
-    m.given.push(t());
-    assert_eq!(opinion(&m, &l("q")).judged(), State::True);
-    assert!(!judge(&m).pieces.iter().any(|(x, _)| x.name == "t"));
-    let mut back = with(&[], &[no(&l("q"))]);
-    back.given.push(t());
+fn the_step_is_read_from_the_bias() {
+    let mut sound = with(&[t()], &[yes(&l("p"))]);
+    sound.bias.push((t(), 1.0));
+    assert_eq!(step(&sound, &t()), Some(Inference::Deduction));
+    assert_eq!(step(&sound, &l("p")), None);
+    assert_eq!(opinion(&sound, &l("q")).judged(), State::True);
+    assert_eq!(sure(&sound, &l("q")), sure(&sound, &l("p")));
+    assert!(!judge(&sound).pieces.iter().any(|(x, _)| x.name == "t"));
+    let mut back = with(&[t()], &[no(&l("q"))]);
+    back.bias.push((t(), 1.0));
     assert_eq!(opinion(&back, &l("p")).judged(), State::False);
+    // The same piece at the default bias, taken: an induction.
+    let unsure = with(&[t()], &[yes(&t()), yes(&l("p"))]);
+    assert_eq!(step(&unsure, &t()), Some(Inference::Induction));
+    assert_eq!(opinion(&unsure, &l("q")).judged(), State::True);
+    assert!(sure(&unsure, &l("q")) < sure(&unsure, &l("p")));
+    // However firmly it is taken, what it gives weighs its bias.
+    let firm = with(&[t()], &[took(&t(), true, 9.0, "me"), yes(&l("p"))]);
+    assert_eq!(sure(&firm, &l("q")), sure(&unsure, &l("q")));
 }
 
 // mitra: evidence for calculus::the_verdict_is_one_state
@@ -220,8 +240,9 @@ fn the_verdict_and_its_least_sure_piece() {
     let m = with(&[t()], &[yes(&t()), took(&l("p"), true, 3.0, "tests")]);
     assert_eq!(verdict(&m), State::True);
     let (least, n) = least_sure(&m).unwrap();
-    assert!(least.name == "t" || least.name == "q");
-    assert!((n - 1.1 / 1.2).abs() < 1e-9);
+    // q comes through t, an induction weighing its bias of one half.
+    assert_eq!(least.name, "q");
+    assert!((n - 0.6 / 0.7).abs() < 1e-9);
     let open = with(&[t()], &[yes(&l("p"))]);
     assert_eq!((verdict(&open), least_sure(&open)), (State::Unknown, None));
     assert_eq!(verdict(&with(&[], &[])), State::Unknown);
