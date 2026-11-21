@@ -103,10 +103,9 @@ pub fn bounded(
 ///   completeness, all together. So a no is shared between them.
 ///   Nothing for a tie that does not list the claim.
 /// - With no tie, the evidence is about the instance alone.
-/// - With `uniform`, the observation is also evidence about the claim
-///   itself, through the tie in the same way. That evidence is
-///   believed as far as the observation and `uniform` both are.
-///   Without it nothing leads from an instance to the claim.
+/// - The instance is related to the claim, with `uniform` when there
+///   is one: the claim holds at every input, and with `uniform` one
+///   input stands for all.
 // mitra: implements claims::recorded
 pub fn recorded(
     model: &Model,
@@ -152,16 +151,18 @@ pub fn recorded(
             out.ties.push(t.clone());
         }
     }
-    if let Some(hypothesis) = uniform {
-        let stands = Piece::named(&format!("{} for {}", e.piece.name, s.piece.name));
-        structure(&mut out, &stands, vec![e.piece.clone(), hypothesis.clone()]);
-        let about = through(&mut out, &s.piece);
-        out.evidence.push(Evidence {
-            piece: stands,
-            about,
-            value: e.value,
-            by: e.by.clone(),
+    let mut pieces = vec![s.piece.clone(), the_instance.clone()];
+    pieces.extend(uniform.cloned());
+    let link = Piece::named(&format!("instance: {}", the_instance.name));
+    if !out.related.iter().any(|said| said.piece == link) {
+        out.related.push(Statement {
+            piece: link.clone(),
+            content: Related {
+                how: Relation::Instance,
+                pieces,
+            },
         });
+        out.base.push((link, 1.0));
     }
     let about = through(&mut out, &the_instance);
     out.evidence.push(Evidence { about, ..e });

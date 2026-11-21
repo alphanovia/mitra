@@ -95,27 +95,42 @@ fn an_observation_is_about_an_instance() {
     }
 }
 
-/// Without `uniform`, recording an observation relates nothing to the
-/// claim itself.
-// mitra: evidence for claims::without_uniform_nothing_leads_to_the_claim
+/// Recording an observation relates the instance to the claim, and
+/// without `uniform` nothing leads from the instance to the claim.
+// mitra: evidence for claims::an_instance_is_related_to_its_claim
 #[test]
-fn without_uniform_nothing_leads_to_the_claim() {
+fn an_instance_is_related_to_its_claim() {
+    use mitra_core::model::{Evidence, Relation};
+    use mitra_core::verdict::{state, State};
     let c = claim("c", truly());
     let seen = observe(&c, &[], &mitra(), &table()).unwrap();
-    let m = recorded(&Model::empty(S), &c, seen.clone(), None, None).unwrap();
-    assert!(m.related.is_empty());
-    assert_eq!(opinion(&m, &c.piece).r, 0.0);
-    let uniform = Piece::named("c::uniform");
-    let with = recorded(&Model::empty(S), &c, seen.clone(), None, Some(&uniform)).unwrap();
-    // With it, the same observation is also evidence about the claim,
-    // believed as far as the observation and `uniform` both are.
-    let stands = &with.evidence[0];
-    assert_eq!((&stands.about, stands.value), (&c.piece, seen.value));
+    // What Mitra computes is believed here; the review at 0.9.
+    let start = Model {
+        base: vec![(seen.piece.clone(), 1.0), (Piece::named("review"), 0.9)],
+        ..Model::empty(S)
+    };
+    let m = recorded(&start, &c, seen.clone(), None, None).unwrap();
+    assert_eq!(m.related[0].content.how, Relation::Instance);
     assert_eq!(
-        with.related[0].content.pieces,
-        [stands.piece.clone(), seen.piece.clone(), uniform]
+        m.related[0].content.pieces,
+        [c.piece.clone(), seen.about.clone()]
     );
-    assert_eq!(with.evidence[1], seen);
+    assert_eq!(m.evidence, [seen.clone()]);
+    assert_eq!(state(&m, &seen.about), State::True);
+    assert_eq!(state(&m, &c.piece), State::Unknown);
+    // With `uniform` the relation names it, and nothing more is said:
+    // the claim is true once `uniform` is.
+    let uniform = Piece::named("c::uniform");
+    let mut with = recorded(&start, &c, seen.clone(), None, Some(&uniform)).unwrap();
+    assert_eq!(with.related[0].content.pieces[2], uniform);
+    assert_eq!(state(&with, &c.piece), State::Unknown);
+    with.evidence.push(Evidence {
+        piece: Piece::named("review"),
+        about: uniform,
+        value: yes(),
+        by: Voice::named("agent:reviewer"),
+    });
+    assert_eq!(state(&with, &c.piece), State::True);
 }
 
 /// Across the seam, end to end: a value is computed, it becomes

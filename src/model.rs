@@ -35,6 +35,10 @@ pub enum Relation {
     /// far as it is believed, and is fused with what else is said of
     /// that piece. Implied by each piece of evidence, see [`about`].
     About,
+    /// The second is the first at given inputs: a claim, the claim at
+    /// an input, and when there is one the piece that says the inputs
+    /// behave alike. Read by `verdict` only.
+    Instance,
 }
 
 // mitra: implements model::Related

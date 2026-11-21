@@ -26,13 +26,12 @@ subject claims {
     ensure a_range_is_many_points = "Reading a claim by bounds, with each input known to lie in a range, is evidence about the claim over those ranges: yes where the claim is true everywhere in them, no where it is false everywhere, and no evidence where it may be either, may fault, or the reading is unknown. It says as many yes or no as it is given: how many observations a whole range is worth is said by who asks, and nothing here holds a value for it.";
     ensure recorded_through_the_tie = "An observation made at the place of a tie is recorded as evidence about three pieces together: the tie, the claim at those inputs, and the tie's completeness. So a yes supports all three and a no is shared between them. A tie that does not list the claim records nothing. With no tie, the observation is about the claim at those inputs alone.";
     // After Gaudel, 1995, "Testing Can Be Formal, Too": the uniformity
-    // hypothesis is what lets finitely many observations stand for a
-    // claim on every input. Departs: the hypothesis is a piece,
-    // believed more or less, where the paper assumes it; and it is
-    // given by who records, with nothing here saying what it covers.
-    // The discount is that of a voice's reliability: Jøsang, 2016,
-    // "Subjective Logic", trust discounting.
-    ensure uniform_discounts = "Nothing leads from a claim at one input to the claim itself, unless who records gives one more piece, uniform: the inputs observed stand for all inputs. Then each observation is also evidence about the claim itself, a yes as a yes and a no as a no, counted as far as the observation and uniform are both believed: uniform is to an observation what reliability is to a voice. It reaches the claim through the tie like the instance does.";
+    // hypothesis, that the inputs of a domain behave alike, is what
+    // lets one observation stand for a claim on every input. Departs:
+    // the hypothesis is a piece that evidence speaks of, where the
+    // paper assumes it; it is given by who records; and the domain is
+    // the whole type.
+    ensure a_claim_holds_at_every_input = "Recording an observation relates the claim at those inputs to the claim: a claim holds at every input, so the claim true makes the instance true, and the instance false makes the claim false. Nothing leads from a true instance to the claim, unless who records gives one more piece, uniform: the inputs behave alike. With uniform true, one true instance makes the claim true.";
     ensure one_way = "Evidence is made from a value; no value is made from evidence or from an opinion.";
 
     // What a claim says. A claim is a statement with this content.
@@ -59,9 +58,9 @@ subject claims {
 
     // The model with an observation of the claim in it. `e` is
     // evidence about an instance of `s`. With a tie, it is recorded
-    // through it; with `uniform`, it is also evidence about the claim
-    // itself, discounted by that piece. `None` when the tie does not
-    // list the claim.
+    // through it. The instance is related to the claim, with
+    // `uniform` when there is one. `None` when the tie does not list
+    // the claim.
     fn recorded(model: model::Model, s: statement::Statement<Claim>, e: evidence::Evidence, at: Option<tie::Tie>, uniform: Option<piece::Piece>) -> Option<model::Model>;
 
     // What always holds.
@@ -92,10 +91,10 @@ subject claims {
     claim a_tie_that_does_not_list_it_records_nothing(m: model::Model, s: statement::Statement<Claim>, e: evidence::Evidence, t: piece::Piece) {
         recorded(m, s, e, Some(Tie(t, [], Place(["ball"]))), None) == None
     }
-    claim without_uniform_nothing_leads_to_the_claim(m: model::Model, s: statement::Statement<Claim>, e: evidence::Evidence) {
+    claim an_instance_is_related_to_its_claim(m: model::Model, s: statement::Statement<Claim>, e: evidence::Evidence) {
         match recorded(m, s, e, None, None) {
             None => false,
-            Some(after) => after.related == m.related,
+            Some(after) => after.related != m.related || m.related != [],
         }
     }
     claim a_sure_claim_says_its_count(p: piece::Piece, by: evidence::Voice, with: bounds::Ranges) {

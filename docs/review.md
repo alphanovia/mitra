@@ -1005,3 +1005,78 @@ at 0.27). A counterexample does not refute: 0.80 and 0.94.
      argue a counterexample needs no hypothesis to count against the
      claim. Not built.
 
+## Increment 120: state and confidence (2026-11-21)
+
+**Asked.** "An opinion of a piece is composed of the logical state we
+choose, and a confidence on that state. And the calculus is an
+iterative process. We start with trusting the evidence as true ...
+then we propagate the logical state until we can't. If some part of
+the model is not covered then the general verdict is unknown ... If
+the verdict is hold, we can then update confidence ... If something
+is in conflict then we mark all of those in conflict and we try to
+rank the likely wrong piece." Then: the night to converge, on opinion,
+graph structure and calculus only; settle the open points by the most
+textbook choice and log each.
+
+**Done.** `model/verdict.mitra`, `src/verdict.rs`, `tests/verdict.rs`.
+`State`, `Verdict`, `Reading`; `spread`, `overall`, `read`,
+`verdict_of`, `suspects`, `weight`, `standing`, `sure`. A third
+relation, `Instance`. `claims::recorded` writes it and no longer the
+discount of increment 119. Double, the fall, the throwing toy, main's
+goldens and the structure cases are read by it. The counts calculus of
+`model.mitra` (`opinion`, `conflicts`, `judged`) is untouched and
+still tested, and nothing above it reads it any more. 164 tests.
+
+**Decided alone.** Each is reversible on its own.
+
+731. The opinion is a record of both: `Verdict { state, confidence }`.
+     The state is Belnap's four values. The confidence is the counts
+     we had, of yes for a true piece and of no for a false one.
+732. Six rules spread states. One to four are `About` and `All` read
+     as logic, in both directions: a true whole makes its parts true,
+     all parts true make the whole true, a false part makes the whole
+     false, and a false whole with one part left makes it false.
+733. A third relation, `Instance`: a claim, the claim at an input, and
+     `uniform` when there is one. The user had settled on two
+     relations; this adds one because rules five and six are not what
+     `All` says.
+734. `uniform` is Gaudel's hypothesis as written: with it true, one
+     true instance makes the claim true. So a failure after a pass is
+     a conflict and `uniform` is among what may be given up. The
+     alternative, "the claim is all of its observed instances and
+     `uniform`", makes that failure a plain false and never questions
+     `uniform`.
+735. Confidence is the least evidence to give up for the state to
+     fall, a minimum cut. It replaces "ways add, least sure premise
+     along one way", which it equals on simple shapes and which
+     counted a shared review several times on others. It is found by
+     trying every set of evidence: exact, and slow beyond sixteen
+     pieces of evidence, where only sets of three or fewer are tried.
+736. A review that says yes about a test does not spread a state: the
+     test is already true. It makes the test count for more
+     (`standing`), with the counts and the weight of the settings.
+737. A review that says no about a test puts the test in conflict. It
+     does not silence the test: rules stay monotone, so the order
+     never matters.
+738. Evidence that counts for nothing (believed at 0) is not taken.
+739. The verdict is conflict if any piece is, evidence included; false
+     if a statement is false; unknown if one is unknown; else true.
+     Statements are every piece spoken of that is not evidence, a
+     relation, or the reliability of a voice. Wholes count.
+740. Two things are listed as suspects: sets of evidence whose giving
+     up removes every conflict, lightest first (Reiter; de Kleer and
+     Williams); and for a false whole with several parts not known
+     true, those parts, least expected first, a part that is a whole
+     standing for its own parts.
+741. `f::deterministic` left the tie of a function: nothing reports
+     on it, and it kept every function unknown. The piece still has
+     its name.
+742. A relation is applied as written. One that is doubted (a base
+     rate under 1) is not yet a suspect.
+743. Reliability of a voice is read from its base rate only. Judging
+     a voice from its record (`model::judged`) is not carried over.
+744. The proposals `exact.mitra` and `saturation.mitra` are removed
+     from `docs/design`. `intent.mitra` stays.
+745. `mitra conform`: 136 ties agree, 22 differ, the same reader
+     limits.
+

@@ -23,6 +23,7 @@ the yardstick.
 | `model/standard.mitra` | `standard` | the standard types and operations read exactly (a truth, whole numbers, a real, records) and the table that applies them | `src/standard.rs` |
 | `model/bounds.mitra` | `bounds` | the same operations read on the bounds a value lies in, with a flag for what may have no value | `src/bounds.rs` |
 | `model/function.mitra` | `functions` | a function: an operation the code implements, its tie and its statements; helpers; a test as a measurement | `src/function.rs` |
+| `model/verdict.mitra` | `verdict` | the opinion of a piece: a state found by logic from the evidence taken as true, how sure it is, and what to give up on a conflict | `src/verdict.rs` |
 | `model/claim.mitra` | `claims` | the seam: a statement whose content is an expression; computing it at an input makes evidence about that instance | `src/claim.rs` |
 
 `model.mitra` and `value.mitra` read nothing and never read each
@@ -53,7 +54,7 @@ Until then `model/evidence.mitra` is the single ledger that `main`'s
 ## To test
 
 ```sh
-cargo test                # 152 tests
+cargo test                # 164 tests
 mitra conform             # with main's binary, from this folder
 ```
 

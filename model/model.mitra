@@ -268,7 +268,7 @@ subject model {
     require word = evidence::word_as_far_as_its_voice;
 
     ensure only_from_the_model = "The opinion of a piece comes from the evidence about it and from the pieces it is related to, and from nothing else: with neither it is its base rate. The base rate of a piece that is not a whole is never moved; a whole has the base rate of its parts together.";
-    ensure two_relations = "Pieces stand to each other in two ways and no other. About: a piece of evidence and the piece it speaks of; each piece of evidence implies it, and one written by hand is not read. All: a whole and its parts; each tie implies one, and others are written.";
+    ensure three_relations = "Pieces stand to each other in three ways and no other. About: a piece of evidence and the piece it speaks of; each piece of evidence implies it, and one written by hand is not read. All: a whole and its parts; each tie implies one, and others are written. Instance: a claim and the claim at given inputs, with the piece that says the inputs behave alike when there is one; written when an observation is recorded.";
     ensure relation_is_said = "A relation between pieces is itself said: a statement whose content is the relation. What is computed on a relation counts as far as that statement is believed; a relation believed at 1 is plain structure, and one believed at 0 relates nothing.";
     // After Jøsang and McAnally, 2004, "Multiplication and Comultiplication
     // of Beliefs": the product of two independent opinions as one opinion.
@@ -312,7 +312,10 @@ subject model {
         // The first is evidence about the second: what it says counts
         // as far as it is believed, and is fused with what else is said
         // of that piece. Implied by each piece of evidence.
-        About
+        About,
+        // The second is the first at given inputs; the third, when
+        // there is one, says the inputs behave alike.
+        Instance
     }
     record Related {
         how: Relation,

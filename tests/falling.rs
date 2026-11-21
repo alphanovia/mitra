@@ -6,6 +6,7 @@ use mitra_core::bounds::{between, Bounds, Ranges};
 use mitra_core::claim::{bounded, instance, observe, reads, recorded, Claim};
 use mitra_core::model::*;
 use mitra_core::standard::{less, mul, ratio, real, within, Exact, Table};
+use mitra_core::verdict::{overall, state, suspects, verdict_of, State};
 
 type Value = mitra_core::value::Value<Exact>;
 use mitra_core::value::Expression::{Apply, Given, Input};
@@ -82,12 +83,6 @@ fn after_with(measurements: &[(&str, i64, i64)], reviewed: bool) -> Model {
     }
     m
 }
-fn read(m: &Model, x: &str) -> f64 {
-    projected(opinion(m, &Piece::named(x)), S.weight)
-}
-fn near(x: f64, y: f64) -> bool {
-    (x - y).abs() < 0.005
-}
 
 const STONE: [(&str, i64, i64); 3] = [
     ("stone", 500, 990),
@@ -134,14 +129,14 @@ fn a_measurement_is_about_an_instance() {
     )
     .unwrap();
     assert_eq!(
-        parts(&m, &m.related[0].content),
+        parts(&m, &m.related[1].content),
         [
             Piece::named("stone applies"),
             here,
             Piece::named("complete: stone applies")
         ]
     );
-    assert_eq!(m.evidence[0].about, m.related[0].content.pieces[0]);
+    assert_eq!(m.evidence[0].about, m.related[1].content.pieces[0]);
     let other = Tie {
         statements: vec![Piece::named("floats")],
         ..tie_of("balloon")
@@ -152,52 +147,69 @@ fn a_measurement_is_about_an_instance() {
     );
 }
 
-/// Three measurements of the stone: each instance, the tie, its
-/// completeness and the claim are believed, and three measurements
-/// believe the claim more than one.
-#[test]
-fn the_stone_believes_the_speed() {
-    let m = after(&STONE);
-    for x in ["stone applies", "complete: stone applies"] {
-        assert!(read(&m, x) > 0.95, "{x}: {}", read(&m, x));
-    }
-    for (_, h, v) in STONE {
-        let here = instance(&speed(), &at(h, v));
-        assert!(near(read(&m, &here.name), 0.91));
-    }
-    assert!(near(read(&m, "speed"), 0.94));
-    assert!(near(read(&after_with(&STONE, true), "speed"), 0.96));
-    assert!(near(read(&after_with(&STONE[..1], true), "speed"), 0.90));
+fn shown(m: &Model, x: &str) -> String {
+    mitra_core::verdict::shown(&verdict_of(m, &Piece::named(x)), S.weight)
 }
 
-/// The feather after the stone: the claim stands through the stone,
-/// and the no goes to the feather's tie, to its completeness and to
-/// the claim at the feather's height and speed.
+/// Three measurements of the stone, `uniform` reviewed: the claim, its
+/// instances, the tie and its completeness are true. The claim is as
+/// sure as the one review of `uniform`; the tie as three measurements.
+#[test]
+fn the_stone_holds_the_speed() {
+    let m = after_with(&STONE, true);
+    assert_eq!(overall(&m), State::True);
+    assert_eq!(shown(&m, "speed"), "true 0.91");
+    assert_eq!(shown(&m, "stone applies"), "true 0.97");
+    assert_eq!(shown(&m, "complete: stone applies"), "true 0.97");
+    for (_, h, v) in STONE {
+        let here = instance(&speed(), &at(h, v));
+        assert_eq!(shown(&m, &here.name), "true 0.95");
+    }
+    assert!(suspects(&m).is_empty());
+    // Without the review nothing leads to the claim.
+    let unreviewed = after(&STONE);
+    assert_eq!(state(&unreviewed, &Piece::named("speed")), State::Unknown);
+    assert_eq!(overall(&unreviewed), State::Unknown);
+}
+
+/// The feather after the stone: the claim stands through the stone, so
+/// it is true at the feather's heights too. Each of the feather's
+/// measurements is then false with the claim true there: the feather's
+/// tie and its completeness cannot both be true. Nothing is in
+/// conflict, and the verdict is false.
 #[test]
 fn the_feather_is_blamed_on_its_tie_and_its_completeness() {
     let mut all = STONE.to_vec();
     all.extend(FEATHER);
     let m = after_with(&all, true);
-    assert!(near(read(&m, "speed"), 0.96));
-    assert!(read(&m, "stone applies") > 0.95);
-    assert!(near(read(&m, "feather applies"), 0.27));
-    assert!(near(read(&m, "complete: feather applies"), 0.40));
+    assert_eq!(shown(&m, "speed"), "true 0.91");
+    assert_eq!(shown(&m, "stone applies"), "true 0.97");
     let here = instance(&speed(), &at(500, 200));
-    assert!(near(read(&m, &here.name), 0.43));
-    assert!(near(read(&m, "speed::uniform"), 0.91));
-    let suspects = conflicts(&m);
-    assert!(suspects
-        .iter()
-        .any(|group| group.contains(&Piece::named("feather applies"))));
+    assert_eq!(shown(&m, &here.name), "true 0.91");
+    assert_eq!(shown(&m, "feather applies"), "unknown");
+    assert_eq!(shown(&m, "complete: feather applies"), "unknown");
+    assert_eq!(overall(&m), State::False);
+    assert_eq!(
+        suspects(&m),
+        [[
+            Piece::named("feather applies"),
+            Piece::named("complete: feather applies")
+        ]]
+    );
 }
 
-/// The feather alone: nothing holds the claim up, and it takes its
-/// share with the tie.
+/// The feather alone: nothing holds the claim up. Each measurement is
+/// false and three things cannot all be true: the tie, the claim at
+/// that height and speed, and the tie's completeness.
 #[test]
-fn the_feather_alone_doubts_the_speed() {
+fn the_feather_alone_leaves_the_speed_unknown() {
     let m = after_with(&FEATHER, true);
-    assert!(near(read(&m, "speed"), 0.38));
-    assert!(near(read(&m, "feather applies"), 0.38));
+    assert_eq!(shown(&m, "speed"), "unknown");
+    assert_eq!(overall(&m), State::False);
+    let found = suspects(&m);
+    assert_eq!(found.len(), 2);
+    assert_eq!(found[0].len(), 3);
+    assert_eq!(found[0][0], Piece::named("feather applies"));
 }
 
 /// A height and a speed, each known within a margin, in thousandths.
@@ -244,10 +256,8 @@ fn a_range_says_more_than_a_point() {
     let range = with(ranged.unwrap());
     let over = instance(&speed(), &about((4990, 5010), (9890, 9910)));
     let here = instance(&speed(), &at(500, 990));
-    assert!(read(&range, &over.name) > read(&point, &here.name));
-    let unsure = |m: &Model, x: &Piece| uncertainty(opinion(m, x), S.weight);
-    assert!(unsure(&range, &over) < unsure(&point, &here) / 5.0);
-    assert!(read(&range, "speed") > read(&point, "speed"));
+    assert_eq!(shown(&point, &here.name), "true 0.91");
+    assert_eq!(shown(&range, &over.name), "true 0.99");
 }
 
 /// A claim over a whole domain: from 0 to 20 m, the square of the

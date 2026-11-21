@@ -7,6 +7,7 @@ use mitra_core::model::*;
 use mitra_core::standard::{add, at_least, mul, number, truth, whole, Exact, Table};
 use mitra_core::value::Expression::{Apply, Given, Input};
 use mitra_core::value::{eval, Operation};
+use mitra_core::verdict::{overall, suspects, verdict_of, State};
 
 type Expression = mitra_core::value::Expression<Exact>;
 
@@ -74,12 +75,6 @@ fn after(f: &Function, runs: &[(i64, i64)], reviewed: bool) -> Model {
     }
     m
 }
-fn read(m: &Model, x: &str) -> f64 {
-    projected(opinion(m, &Piece::named(x)), S.weight)
-}
-fn near(x: f64, y: f64) -> bool {
-    (x - y).abs() < 0.005
-}
 
 // mitra: evidence for functions::a_body_implies_correct
 #[test]
@@ -121,10 +116,7 @@ fn the_tie_lists_the_statements() {
         .into_iter()
         .map(|p| p.name)
         .collect();
-    assert_eq!(
-        names,
-        ["double::correct", "double::deterministic", "double::grows"]
-    );
+    assert_eq!(names, ["double::correct", "double::grows"]);
 }
 
 // mitra: evidence for functions::a_claim_reads_the_signature_only
@@ -216,12 +208,19 @@ fn a_test_is_about_an_instance() {
         tested(&f, &other, &Voice::named("machine:cargo"), &known),
         None
     );
-    // Noted through the tie, with no `uniform`: the test is about the
-    // tie, the instance and the tie's completeness together.
-    let plain = double(false);
-    let m = noted(&Model::empty(S), &plain, pass.clone()).unwrap();
-    assert_eq!(m.ties, [tie(&plain).unwrap()]);
-    let through = &m.related[0].content;
+    // Noted through the tie: the test is about the tie, the instance
+    // and the tie's completeness together.
+    let m = noted(&Model::empty(S), &f, pass).unwrap();
+    assert_eq!(m.ties, [tie(&f).unwrap()]);
+    assert_eq!(
+        m.related[0].content.pieces,
+        [
+            Piece::named("double::correct"),
+            at_three.clone(),
+            Piece::named("double::uniform")
+        ]
+    );
+    let through = &m.related[1].content;
     assert_eq!(m.evidence[0].about, through.pieces[0]);
     assert_eq!(
         parts(&m, through),
@@ -231,47 +230,35 @@ fn a_test_is_about_an_instance() {
             Piece::named("complete: double::tie")
         ]
     );
-    // With `uniform`, the same test is also evidence about
-    // `double::correct` through the tie.
-    let m = noted(&Model::empty(S), &f, pass).unwrap();
-    assert_eq!(m.evidence.len(), 2);
-    let general = m
-        .related
-        .iter()
-        .find(|said| said.content.pieces[0] == m.evidence[0].about)
-        .unwrap();
-    assert_eq!(
-        parts(&m, &general.content),
-        [
-            Piece::named("double::tie"),
-            Piece::named("double::correct"),
-            Piece::named("complete: double::tie")
-        ]
-    );
 }
 
+fn shown(m: &Model, x: &str) -> String {
+    mitra_core::verdict::shown(&verdict_of(m, &Piece::named(x)), S.weight)
+}
+const AT_3: &str = "double::correct @ n = Whole(3)";
+const AT_7: &str = "double::correct @ n = Whole(7)";
+
 /// The golden. One test at 3 passes. Without `uniform`, nothing leads
-/// from that instance to `double::correct`: no belief at all. With
-/// `uniform`, the test counts for `double::correct` as far as
-/// `uniform` is believed.
+/// from that instance to `double::correct`: it is unknown, and so is
+/// the verdict. With `uniform` reviewed it is true, and as sure as
+/// that one review.
 // mitra: evidence for tests::correct_only_through_uniform
 #[test]
 fn correct_only_through_uniform() {
-    let at_three = "double::correct @ n = Whole(3)";
     let without = after(&double(false), &[(3, 6)], false);
-    let o = opinion(&without, &Piece::named("double::correct"));
-    assert_eq!((o.r, o.s), (0.0, 0.0));
-    assert!(near(read(&without, at_three), 0.91));
+    assert_eq!(shown(&without, "double::correct"), "unknown");
+    assert_eq!(shown(&without, AT_3), "true 0.91");
+    assert_eq!(overall(&without), State::Unknown);
 
-    // `uniform` at one half halves the count of the test; with a
-    // weight of 0.2 the claim still reads high on it.
     let unreviewed = after(&double(true), &[(3, 6)], false);
-    assert!(near(read(&unreviewed, "double::correct"), 0.85));
+    assert_eq!(shown(&unreviewed, "double::correct"), "unknown");
+
     let with = after(&double(true), &[(3, 6)], true);
-    assert!(near(read(&with, "double::correct"), 0.90));
-    assert!(near(read(&with, "double::uniform"), 0.91));
-    let count = |m: &Model| opinion(m, &Piece::named("double::correct")).r;
-    assert!(count(&unreviewed) < count(&with));
+    assert_eq!(overall(&with), State::True);
+    assert_eq!(shown(&with, "double::correct"), "true 0.91");
+    assert_eq!(shown(&with, "double::uniform"), "true 0.91");
+    assert_eq!(shown(&with, "double::tie"), "true 0.91");
+    assert_eq!(shown(&with, "complete: double::tie"), "true 0.93");
 
     // A function with no tie is still tested, and nothing is read of
     // a tie.
@@ -281,55 +268,81 @@ fn correct_only_through_uniform() {
     };
     let untied = after(&free, &[(3, 6)], true);
     assert!(untied.ties.is_empty());
-    assert!(near(read(&untied, "double::correct"), 0.90));
+    assert_eq!(shown(&untied, "double::correct"), "true 0.91");
 }
 
-/// More passing tests believe the claim more.
-// mitra: evidence for tests::more_tests_read_higher
+/// More passing tests make the tie and each instance surer. The claim
+/// stays as sure as the one review of `uniform`: every way to it goes
+/// through that review.
+// mitra: evidence for tests::more_tests_are_surer
 #[test]
-fn more_tests_read_higher() {
-    let one = after(&double(true), &[(3, 6)], true);
+fn more_tests_are_surer() {
     let four = after(&double(true), &[(1, 2), (2, 4), (3, 6), (4, 8)], true);
-    assert!(near(read(&one, "double::correct"), 0.90));
-    assert!(near(read(&four, "double::correct"), 0.97));
+    assert_eq!(overall(&four), State::True);
+    assert_eq!(shown(&four, "double::tie"), "true 0.97");
+    assert_eq!(shown(&four, AT_3), "true 0.95");
+    assert_eq!(shown(&four, "double::correct"), "true 0.91");
+    // A second review of `uniform` by another voice, and the claim is
+    // surer.
+    let mut twice = four.clone();
+    twice.evidence.push(Evidence {
+        piece: Piece::named("second review of uniform"),
+        about: Piece::named("double::uniform"),
+        value: yes(),
+        by: Voice::named("human:reviewer"),
+    });
+    assert_eq!(shown(&twice, "double::correct"), "true 0.95");
 }
 
-/// The golden, then a run at 7 gives 15. The instance at 7 reads low.
-///
-/// FINDING, recorded and not wanted: `double::correct` is not refuted.
-/// The no about it is one count, shared with the tie and its
-/// completeness, against the yes of the passing tests: 0.80 after one
-/// passing test and 0.94 after four.
-// mitra: evidence for tests::a_bug_lowers_correct
+/// With no `uniform`, a run at 7 that gives 15 refutes: the tie and
+/// its completeness are true by the test at 3, so the claim is false
+/// at 7, and false. Nothing is in conflict.
+// mitra: evidence for tests::a_bug_refutes_correct
 #[test]
-fn a_bug_lowers_correct() {
-    let at_seven = Piece::named("double::correct @ n = Whole(7)");
-    let one = after(&double(true), &[(3, 6), (7, 15)], true);
-    assert!(near(read(&one, "double::correct"), 0.80));
-    assert!(near(read(&one, &at_seven.name), 0.25));
-    assert!(near(read(&one, "double::uniform"), 0.91));
-    assert!(near(read(&one, "double::tie"), 0.82));
-    assert!(conflicts(&one)
-        .iter()
-        .any(|group| group.contains(&Piece::named("double::correct"))));
+fn a_bug_refutes_correct() {
+    let m = after(&double(false), &[(3, 6), (7, 15)], false);
+    assert_eq!(shown(&m, AT_3), "true 0.91");
+    assert_eq!(shown(&m, AT_7), "false 0.91");
+    assert_eq!(shown(&m, "double::correct"), "false 0.91");
+    assert_eq!(overall(&m), State::False);
+    assert!(suspects(&m).is_empty());
+    // With no passing test the tie is not known true: the failure
+    // names three suspects and refutes nothing yet.
+    let alone = after(&double(false), &[(7, 15)], false);
+    assert_eq!(shown(&alone, "double::correct"), "unknown");
+    assert_eq!(suspects(&alone)[0].len(), 3);
+}
 
-    let four = after(
+/// With `uniform` reviewed, the same run is a conflict: by `uniform`
+/// the claim is true at 7, and the run says it is not. What to give
+/// up is listed, the lightest first: the run at 7 or the review, one
+/// report each; the passing tests only all together.
+// mitra: evidence for tests::a_bug_under_uniform_is_a_conflict
+#[test]
+fn a_bug_under_uniform_is_a_conflict() {
+    let m = after(
         &double(true),
         &[(1, 2), (2, 4), (3, 6), (4, 8), (7, 15)],
         true,
     );
-    assert!(near(read(&four, "double::correct"), 0.94));
-    assert!(near(read(&four, &at_seven.name), 0.19));
-    assert!(near(read(&four, "double::tie"), 0.95));
-    let before = after(&double(true), &[(1, 2), (2, 4), (3, 6), (4, 8)], true);
-    assert!(read(&four, "double::correct") < read(&before, "double::correct"));
-
-    // With no tie the no is not shared: one pass and one failure read
-    // one half.
-    let free = Function {
-        at: None,
-        ..double(true)
-    };
-    let untied = after(&free, &[(3, 6), (7, 15)], true);
-    assert!(near(read(&untied, "double::correct"), 0.50));
+    assert_eq!(overall(&m), State::Conflict);
+    assert_eq!(shown(&m, "double::correct"), "conflict");
+    assert_eq!(shown(&m, "double::uniform"), "true 0.91");
+    let found = suspects(&m);
+    let names =
+        |group: &Vec<Piece>| -> Vec<String> { group.iter().map(|p| p.name.clone()).collect() };
+    assert_eq!(found.len(), 3);
+    assert_eq!(
+        names(&found[0]),
+        [format!("{AT_7} by machine:cargo test at 7")]
+    );
+    assert_eq!(names(&found[1]), ["review of uniform"]);
+    assert_eq!(found[2].len(), 4);
+    // Giving up the review leaves a refuted claim and no conflict.
+    let mut given_up = m.clone();
+    given_up
+        .evidence
+        .retain(|e| e.piece.name != "review of uniform");
+    assert_eq!(overall(&given_up), State::False);
+    assert_eq!(shown(&given_up, "double::correct"), "false 0.91");
 }

@@ -106,12 +106,13 @@ pub fn in_scope(f: &Function, s: &Statement<Claim>) -> bool {
 }
 
 /// The tie of a function to its code: it lists `f::correct` when
-/// there is a body, `f::deterministic`, and the function's other
-/// statements. None for a function with no place.
+/// there is a body, and the function's other statements. None for a
+/// function with no place. `f::deterministic` is not listed: nothing
+/// reports on it yet, and a statement nothing can speak of would keep
+/// every function unknown.
 // mitra: implements functions::tie
 pub fn tie(f: &Function) -> Option<Tie> {
     let mut statements: Vec<Piece> = correctness(f).into_iter().map(|s| s.piece).collect();
-    statements.push(determinism(f));
     statements.extend(f.claims.iter().map(|s| s.piece.clone()));
     Some(Tie {
         piece: named(f, "tie"),

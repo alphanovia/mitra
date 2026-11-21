@@ -11,6 +11,7 @@ use mitra_core::bounds::{between, Ranges};
 use mitra_core::claim::{bounded, instance, observe, recorded, Claim};
 use mitra_core::model::*;
 use mitra_core::standard::{mul, ratio, real, within, Exact, Table};
+use mitra_core::verdict::*;
 
 type Value = mitra_core::value::Value<Exact>;
 use mitra_core::value::Expression::{Apply, Given, Input};
@@ -109,36 +110,40 @@ fn main() {
             *v as f64 / 100.0
         );
     }
-    let read = |m: &Model, x: &str| match x.contains("applies")
-        && !m.ties.iter().any(|t| x.ends_with(&t.piece.name))
-    {
-        true => "-".to_string(),
-        false => format!("{:.2}", projected(opinion(m, &Piece::named(x)), S.weight)),
-    };
-    let seen = |m: &Model, x: &Piece| match m.related.iter().any(|r| r.content.pieces.contains(x)) {
-        true => format!("{:.2}", projected(opinion(m, x), S.weight)),
-        false => "-".to_string(),
-    };
-    println!(
-        "\n| after | `speed` | at the stone's 5 m | at the feather's 5 m | stone's tie | its completeness | feather's tie | its completeness |"
-    );
-    println!("|---|---|---|---|---|---|---|---|");
-    for (name, m) in [
+    let rows = [
         ("one fall of the stone", after(&stone[..1])),
         ("the stone alone", after(&stone)),
         ("the feather alone", after(&feather)),
         ("both", after(&both)),
-    ] {
+    ];
+    println!(
+        "\n| after | verdict | `speed` | at the stone's 5 m | at the feather's 5 m | stone's tie | its completeness | feather's tie | its completeness |"
+    );
+    println!("|---|---|---|---|---|---|---|---|---|");
+    for (name, m) in &rows {
+        let reading = read(m);
+        let p = |x: &str| {
+            let found = reading.pieces.iter().find(|(piece, _)| piece.name == x);
+            found.map_or("unknown".to_string(), |(_, v)| shown(v, S.weight))
+        };
         println!(
-            "| {name} | {} | {} | {} | {} | {} | {} | {} |",
-            read(&m, "speed"),
-            seen(&m, &instance(&speed(), &at(500, 990))),
-            seen(&m, &instance(&speed(), &at(500, 200))),
-            read(&m, "stone applies"),
-            read(&m, "complete: stone applies"),
-            read(&m, "feather applies"),
-            read(&m, "complete: feather applies"),
+            "| {name} | {} | {} | {} | {} | {} | {} | {} | {} |",
+            format!("{:?}", overall(m)).to_lowercase(),
+            p("speed"),
+            p(&instance(&speed(), &at(500, 990)).name),
+            p(&instance(&speed(), &at(500, 200)).name),
+            p("stone applies"),
+            p("complete: stone applies"),
+            p("feather applies"),
+            p("complete: feather applies"),
         );
+    }
+    println!();
+    for (name, m) in &rows {
+        for group in suspects(m) {
+            let names: Vec<&str> = group.iter().map(|p| p.name.as_str()).collect();
+            println!("{name}: cannot all be true: {}", names.join(", "));
+        }
     }
 
     // The same claim read by bounds: the height and the speed are each
@@ -156,17 +161,12 @@ fn main() {
     ];
     let ranged = bounded(&speed(), &ranges, 10.0, &by, &Ranges).unwrap();
     let range = with(ranged);
-    println!("\n| the stone, 5 m at 9.9 m/s | `speed` there | from | to |");
-    println!("|---|---|---|---|");
+    println!("\n| the stone, 5 m at 9.9 m/s | `speed` there |");
+    println!("|---|---|");
     for (name, m, x) in [
         ("read at the point", point, instance(&speed(), &inputs)),
         ("read over its margins", range, instance(&speed(), &ranges)),
     ] {
-        let o = opinion(&m, &x);
-        let (low, high) = interval(o, S.weight);
-        println!(
-            "| {name} | {:.2} | {low:.2} | {high:.2} |",
-            projected(o, S.weight)
-        );
+        println!("| {name} | {} |", shown(&verdict_of(&m, &x), S.weight));
     }
 }

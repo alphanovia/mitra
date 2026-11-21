@@ -9,6 +9,7 @@ use mitra_core::model::*;
 use mitra_core::standard::{mul, number, whole, Exact, Table};
 use mitra_core::value::Expression::{Apply, Given, Input};
 use mitra_core::value::Operation;
+use mitra_core::verdict::*;
 
 /// The settings these are recorded at.
 const S: Settings = Settings {
@@ -74,6 +75,10 @@ fn main() {
             after(&double(false), &[(3, 6)], false),
         ),
         (
+            "no `uniform`, then a run at 7 gives 15",
+            after(&double(false), &[(3, 6), (7, 15)], false),
+        ),
+        (
             "`uniform` not reviewed, a test at 3",
             after(&double(true), &[(3, 6)], false),
         ),
@@ -98,15 +103,19 @@ fn main() {
             ),
         ),
     ];
-    println!("| | `double::correct` | its belief | at 3 | at 7 | `double::uniform` | the tie | its completeness |");
+    println!("| | verdict | `double::correct` | at 3 | at 7 | `double::uniform` | the tie | its completeness |");
     println!("|---|---|---|---|---|---|---|---|");
+    let w = S.weight;
     for (name, m) in &rows {
-        let o = |x: &str| opinion(m, &Piece::named(x));
-        let p = |x: &str| projected(o(x), S.weight);
+        let reading = read(m);
+        let p = |x: &str| {
+            let found = reading.pieces.iter().find(|(piece, _)| piece.name == x);
+            found.map_or("unknown".to_string(), |(_, v)| shown(v, w))
+        };
         println!(
-            "| {name} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} |",
+            "| {name} | {} | {} | {} | {} | {} | {} | {} |",
+            format!("{:?}", overall(m)).to_lowercase(),
             p("double::correct"),
-            belief(o("double::correct"), S.weight),
             p("double::correct @ n = Whole(3)"),
             p("double::correct @ n = Whole(7)"),
             p("double::uniform"),
@@ -115,34 +124,21 @@ fn main() {
         );
     }
     println!();
-    for at in [3] {
-        for group in conflicts(&rows[at].1) {
-            let short = |p: &Piece| {
-                let run = p.name.split(" test at ").nth(1).map(|rest| {
-                    let n = rest.split(' ').next().unwrap_or("");
-                    match p.name.contains(" for ") {
-                        true => format!("the run at {n} counted for `double::correct`"),
-                        false => format!("the run at {n}"),
-                    }
-                });
-                match (run, p.name.as_str()) {
-                    (Some(run), _) => run,
-                    (None, "double::correct @ n = Whole(7)") => {
-                        "`double::correct` at 7".to_string()
-                    }
-                    (None, name) => name.to_string(),
-                }
-            };
-            let names: Vec<String> = group.iter().map(short).collect();
-            println!(
-                "cannot all be right, least believed first: {}",
-                names.join(", ")
-            );
-        }
+    let m = &rows.last().unwrap().1;
+    println!("After four tests and the run at 7, what may be given up, the lightest first:");
+    for group in suspects(m) {
+        let short = |p: &Piece| match p.name.split(" test at ").nth(1) {
+            Some(n) => format!("the run at {n}"),
+            None => format!("the {}", p.name),
+        };
+        let names: Vec<String> = group.iter().map(short).collect();
+        let mut left = m.clone();
+        left.evidence.retain(|e| !group.contains(&e.piece));
+        let correct = verdict_of(&left, &Piece::named("double::correct"));
+        println!(
+            "- {}: then `double::correct` is {}",
+            names.join(", "),
+            shown(&correct, w)
+        );
     }
-    let o = opinion(&rows[3].1, &Piece::named("double::correct"));
-    println!(
-        "\n`double::correct` after the run at 7: {:.2} yes, {:.2} no, base rate {:.2}",
-        o.r, o.s, o.a
-    );
 }

@@ -17,6 +17,9 @@
 //! - [`function`]: an operation the code implements, its tie and the
 //!   statements about it; helpers; a test as a measurement.
 //!
+//! - [`verdict`]: the state of each piece, found by logic from the
+//!   evidence taken as true, and how sure it is.
+//!
 //! Each module is the code of the model file of the same name in
 //! `model/`.
 
@@ -26,3 +29,4 @@ pub mod function;
 pub mod model;
 pub mod standard;
 pub mod value;
+pub mod verdict;
