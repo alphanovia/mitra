@@ -5,17 +5,22 @@
 //! truth, and from there the calculus judges. Nothing else crosses: a
 //! value never depends on a piece, and an opinion never reads a value.
 
-use crate::bounds::{lifted, surely, Bounds};
+use crate::bounds::{lifted, point, surely, Bounds, Span};
 use crate::model::{leaf, Inference, Model, Piece, Taking, Tie, Voice};
 use crate::standard::{truth, Exact};
 use crate::value::{check, eval, Applies, Expression, Value};
 
-/// A piece and the expression that says it. The expression gives a
-/// truth, and the claim says it is true at every input.
+/// A piece, the domain it is said on, and the expression that says
+/// it. The expression gives a truth, and the claim says it is true at
+/// every input in the domain.
+///
+/// The domain is a value: for each input, the bounds it lies in. It
+/// is what stands before the claim, as a guard.
 // mitra: implements claims::Claim
 #[derive(Clone, Debug, PartialEq)]
 pub struct Claim {
     pub piece: Piece,
+    pub domain: Vec<(String, Value<Bounds>)>,
     pub expression: Expression<Exact>,
 }
 
@@ -25,14 +30,44 @@ pub fn reads(c: &Claim) -> bool {
     check(&c.expression) == Some(truth())
 }
 
+/// The value lies in the bounds. None where it has no bounds.
+fn lies(v: &Value<Exact>, bounds: &Value<Bounds>) -> Option<bool> {
+    let at = point(v)?;
+    Some(match (&at.quantity.within, &bounds.quantity.within) {
+        (Span::Numbers { low: x, .. }, Span::Numbers { low, high }) => {
+            let under = |a: &(i64, i64), b: &(i64, i64)| {
+                a.0 as i128 * b.1 as i128 <= b.0 as i128 * a.1 as i128
+            };
+            at.of == bounds.of && under(low, x) && under(x, high)
+        }
+        (Span::Truths { yes, no }, Span::Truths { yes: y, no: n }) => (!yes || *y) && (!no || *n),
+        _ => false,
+    })
+}
+
+/// These inputs are in the domain of the claim: each input the domain
+/// names is given, and lies in its bounds.
+// mitra: implements claims::guarded
+pub fn guarded(c: &Claim, inputs: &[(String, Value<Exact>)]) -> bool {
+    c.domain.iter().all(|(name, bounds)| {
+        let given = inputs.iter().find(|(input, _)| input == name);
+        given.and_then(|(_, v)| lies(v, bounds)) == Some(true)
+    })
+}
+
 /// What the claim's expression gives at these inputs: true, false, or
-/// nothing where it has no value.
+/// nothing. Nothing where the inputs are outside the domain: the run
+/// is outside the contract, and says nothing of the claim. Nothing
+/// where the expression has no value.
 // mitra: implements claims::evaluate
 pub fn evaluate(
     c: &Claim,
     inputs: &[(String, Value<Exact>)],
     with: &impl Applies<Exact>,
 ) -> Option<bool> {
+    if !guarded(c, inputs) {
+        return None;
+    }
     let seen = eval(&c.expression, inputs, with)?;
     match (seen.of == truth(), seen.quantity) {
         (true, Exact::Truth(value)) => Some(value),
@@ -119,6 +154,29 @@ pub fn observe_over(
 ) -> Option<Model> {
     let seen = evaluate_over(c, ranges, with)?;
     crossed(model, c, instance(c, ranges), seen, at, count, by)
+}
+
+/// A proof and not a test: the claim is evaluated over its whole
+/// domain, and the voice takes the claim itself as what that gave.
+/// Nothing where the reading is not sure everywhere in the domain.
+// mitra: implements claims::prove
+pub fn prove(
+    model: &Model,
+    c: &Claim,
+    with: &impl Applies<Bounds>,
+    count: f64,
+    by: &Voice,
+) -> Option<Model> {
+    let seen = evaluate_over(c, &c.domain, with)?;
+    let mut out = model.clone();
+    out.evaluated.push((c.piece.clone(), seen));
+    out.taken.push(Taking {
+        piece: c.piece.clone(),
+        value: seen,
+        count,
+        by: by.clone(),
+    });
+    Some(out)
 }
 
 fn crossed(

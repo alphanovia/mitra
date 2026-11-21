@@ -1,6 +1,7 @@
 //! The foundation test model: the speed of a fall, from a value to a
 //! verdict. Evaluate, take, judge. The same toy as `tests/falling.rs`.
 
+use mitra_core::bounds::{between, Bounds};
 use mitra_core::claim::*;
 use mitra_core::model::*;
 use mitra_core::standard::{less, mul, ratio, real, within, Exact, Table};
@@ -29,6 +30,10 @@ fn fallen() -> Expression {
     times(times(Given(r(2, 1)), Given(r(981, 100))), input("h"))
 }
 
+/// From `low` to `high`, in whole metres or metres per second.
+fn metres(low: i64, high: i64) -> mitra_core::value::Value<Bounds> {
+    between(&real(), (low, 1), (high, 1)).unwrap()
+}
 /// What falls: a part of the model.
 fn part(object: &str) -> Part {
     Part::subject(object)
@@ -40,11 +45,16 @@ fn tie(object: &str) -> Tie {
         location: Location::at(&["lab", "tower", object]),
     }
 }
-/// `speed`: v² = 2·g·h within 2 m²/s². g is 9.81 m/s².
+/// `speed`: from 0 to 100 m and 0 to 100 m/s, v² = 2·g·h within
+/// 2 m²/s². g is 9.81 m/s².
 fn speed(object: &str) -> Claim {
     let seen = times(input("v"), input("v"));
     Claim {
         piece: leaf(&format!("{object}::speed"), &part(object)),
+        domain: vec![
+            ("h".to_string(), metres(0, 100)),
+            ("v".to_string(), metres(0, 100)),
+        ],
         expression: Apply(within(&real()), vec![seen, fallen(), Given(r(2, 1))]),
     }
 }
@@ -52,6 +62,7 @@ fn speed(object: &str) -> Claim {
 fn slow(object: &str) -> Claim {
     Claim {
         piece: leaf(&format!("{object}::slow"), &part(object)),
+        domain: vec![("h".to_string(), metres(0, 20))],
         expression: Apply(less(&real()), vec![fallen(), Given(r(400, 1))]),
     }
 }

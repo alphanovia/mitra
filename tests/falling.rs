@@ -3,7 +3,7 @@
 //! and the calculus judges every piece. The same toy as
 //! `examples/falling.rs`.
 
-use mitra_core::bounds::{between, Ranges};
+use mitra_core::bounds::{between, Bounds, Ranges};
 use mitra_core::claim::*;
 use mitra_core::model::*;
 use mitra_core::standard::{less, mul, ratio, real, within, Exact, Table};
@@ -32,6 +32,10 @@ fn fallen() -> Expression {
     times(times(Given(r(2, 1)), Given(r(981, 100))), input("h"))
 }
 
+/// From `low` to `high`, in whole metres or metres per second.
+fn metres(low: i64, high: i64) -> mitra_core::value::Value<Bounds> {
+    between(&real(), (low, 1), (high, 1)).unwrap()
+}
 /// What falls: a part of the model.
 fn part(object: &str) -> Part {
     Part::subject(object)
@@ -43,11 +47,16 @@ fn tie(object: &str) -> Tie {
         location: Location::at(&["lab", "tower", object]),
     }
 }
-/// `speed`: v² = 2·g·h within 2 m²/s². g is 9.81 m/s².
+/// `speed`: from 0 to 100 m and 0 to 100 m/s, v² = 2·g·h within
+/// 2 m²/s². g is 9.81 m/s².
 fn speed(object: &str) -> Claim {
     let seen = times(input("v"), input("v"));
     Claim {
         piece: leaf(&format!("{object}::speed"), &part(object)),
+        domain: vec![
+            ("h".to_string(), metres(0, 100)),
+            ("v".to_string(), metres(0, 100)),
+        ],
         expression: Apply(within(&real()), vec![seen, fallen(), Given(r(2, 1))]),
     }
 }
@@ -55,6 +64,7 @@ fn speed(object: &str) -> Claim {
 fn slow(object: &str) -> Claim {
     Claim {
         piece: leaf(&format!("{object}::slow"), &part(object)),
+        domain: vec![("h".to_string(), metres(0, 20))],
         expression: Apply(less(&real()), vec![fallen(), Given(r(400, 1))]),
     }
 }
@@ -197,10 +207,10 @@ fn a_point_test_reaches_the_claim_and_the_next_claim() {
     let here = instance(&speed("stone"), &at(500, 990));
     assert_eq!(says(&m, &here), "true 0.92");
     assert!(suspects(&m).is_empty());
-    // `slow` rests on the three measurements, the tie and two reviews.
+    // `slow` rests on the three measurements and the two reviews.
     let under = rests(&m, &slow("stone").piece);
     assert_eq!(under.len(), 1);
-    assert_eq!(under[0].len(), 6);
+    assert_eq!(under[0].len(), 5);
     assert!(under[0].contains(&stays_slow("stone")));
     // Nothing is taken of `speed` or `slow`: they are judged only.
     assert_eq!(opinion(&m, &slow("stone").piece).taken(), State::Unknown);
@@ -269,33 +279,42 @@ fn a_bad_measurement_is_a_conflict() {
     assert_eq!(says(&m, &only_height("stone")), "true 0.92");
 }
 
-/// A proof and not a test: `slow` read by bounds over every height
-/// from 0 to 20 m is one instance that is the whole claim. A piece
-/// that says so is given, and `slow` is true by deduction alone.
-// mitra: evidence for claims::a_range_is_one_instance
+/// The domain is a guard: a run outside it is outside the contract.
+/// From 25 m the expression of `slow` is false, and nothing is said.
+// mitra: evidence for claims::a_run_outside_the_domain_says_nothing
+#[test]
+fn a_run_outside_the_domain_says_nothing() {
+    let table = Table::default();
+    let from = |h: i64| [("h".to_string(), r(h, 1))];
+    assert_eq!(evaluate(&slow("stone"), &from(10), &table), Some(true));
+    assert_eq!(evaluate(&slow("stone"), &from(25), &table), None);
+    let by = Voice::named("machine:test");
+    let m = Model::empty(S);
+    assert_eq!(
+        observe(&m, &slow("stone"), &from(25), &table, None, 1.0, &by),
+        None
+    );
+}
+
+/// A proof and not a test: `slow` read by bounds over its whole
+/// domain, every height from 0 to 20 m. The voice takes the claim
+/// itself, and nobody writes a piece for it.
+// mitra: evidence for claims::a_reading_over_the_domain_is_a_proof
 #[test]
 fn a_reading_over_the_whole_domain_is_a_proof() {
-    let heights = [("h".to_string(), between(&real(), (0, 1), (20, 1)).unwrap())];
-    let by = Voice::named("machine:mitra");
-    let mut m = Model::empty(S);
-    m = observe_over(&m, &slow("stone"), &heights, &Ranges, None, 10.0, &by).unwrap();
-    let over = instance(&slow("stone"), &heights);
-    assert_eq!(opinion(&m, &over).evaluated(), State::True);
-    assert_eq!(says(&m, &slow("stone").piece), "unknown");
-    let all = [slow("stone").piece];
-    let whole = piece(
-        "slow is all heights",
-        "stone",
-        &[over],
-        &all,
-        Inference::Deduction,
-    );
-    m.given.push(whole);
-    assert_eq!(says(&m, &slow("stone").piece), "true 0.99");
-    // Up to 21 m the reading is neither true everywhere nor false.
-    let more = [("h".to_string(), between(&real(), (0, 1), (21, 1)).unwrap())];
+    let by = Voice::named("machine:bounds");
+    let m = prove(&Model::empty(S), &slow("stone"), &Ranges, 10.0, &by).unwrap();
+    let all = opinion(&m, &slow("stone").piece);
+    assert_eq!((all.evaluated(), all.taken()), (State::True, State::True));
+    assert_eq!(shown(&all), "true 0.99");
+    // `speed` is not true everywhere in its domain, nor false: no proof.
+    assert_eq!(prove(&m, &speed("stone"), &Ranges, 10.0, &by), None);
+    // A range inside the domain is one instance, not the claim.
+    let part_of = [("h".to_string(), metres(0, 10))];
+    let some = observe_over(&m, &slow("feather"), &part_of, &Ranges, None, 10.0, &by).unwrap();
+    assert_eq!(says(&some, &slow("feather").piece), "unknown");
     assert_eq!(
-        observe_over(&m, &slow("stone"), &more, &Ranges, None, 10.0, &by),
-        None
+        says(&some, &instance(&slow("feather"), &part_of)),
+        "true 0.99"
     );
 }
