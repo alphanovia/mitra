@@ -1,7 +1,7 @@
 //! The claims of `model/claim.mitra`, and one walk across the seam.
 
 use mitra_core::claim::*;
-use mitra_core::model::{no, opinion, trusted, yes, Model, Piece, Settings, Statement, Voice};
+use mitra_core::model::{no, yes, Model, Piece, Settings, Statement, Voice};
 use mitra_core::standard::{less, number, truth, whole, Exact, Table};
 
 type Value = mitra_core::value::Value<Exact>;
@@ -151,6 +151,7 @@ fn a_statement_computed_moves_the_opinion_of_its_instance() {
     assert!(reads(&small));
     let at = |n| -> Vec<(String, Value)> { vec![("x".to_string(), number(n))] };
 
+    use mitra_core::verdict::{state, State};
     let seen = observe(&small, &at(1), &mitra(), &table()).unwrap();
     // How far what Mitra computes is believed is a base rate like any other.
     let mut model = Model {
@@ -158,20 +159,18 @@ fn a_statement_computed_moves_the_opinion_of_its_instance() {
         ..Model::empty(S)
     };
     let at_one = instance(&small, &at(1));
-    assert!(!trusted(&model, &at_one, 0.0));
+    assert_eq!(state(&model, &at_one), State::Unknown);
     model.evidence.push(seen);
-    // One computation is one yes, about the claim at 1 and not the
-    // claim itself.
-    assert_eq!(opinion(&model, &at_one).r, 1.0);
-    assert!(trusted(&model, &at_one, 0.0));
-    assert_eq!(opinion(&model, &small.piece).r, 0.0);
+    // One computation makes the claim true at 1, and says nothing of
+    // the claim itself.
+    assert_eq!(state(&model, &at_one), State::True);
+    assert_eq!(state(&model, &small.piece), State::Unknown);
 
     let against = observe(&small, &at(5), &mitra(), &table()).unwrap();
     assert_ne!(against.piece, model.evidence[0].piece);
     model.base.push((against.piece.clone(), 1.0));
     model.evidence.push(against);
-    let o = opinion(&model, &instance(&small, &at(5)));
-    assert!(o.s == 1.0 && o.s >= o.r);
+    assert_eq!(state(&model, &instance(&small, &at(5))), State::False);
 }
 
 /// A claim whose reading by bounds is unknown says nothing: the ranges

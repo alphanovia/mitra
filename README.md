@@ -14,11 +14,11 @@ the yardstick.
 | Model file | Subject | What it is | Code |
 |---|---|---|---|
 | `model/model.mitra` | `place` | a location in the system | `src/model/place.rs` |
-| | `piece` | something said, right or wrong, and the opinion of it | `src/model/piece.rs` |
-| | `evidence` | a piece that says an opinion about another piece | `src/model/evidence.rs` |
+| | `piece` | something said, right or wrong; counts of yes and no | `src/model/piece.rs` |
+| | `evidence` | a piece that says yes or no, with a count, about another piece | `src/model/evidence.rs` |
 | | `statement` | an interpretation of the system; its content is not read | `src/model/statement.rs` |
 | | `tie` | a believed link between a statement and a place | `src/model/tie.rs` |
-| | `model` | all the pieces put together | `src/model.rs` |
+| | `model` | all the pieces put together, and the relations between them | `src/model.rs` |
 | `model/value.mitra` | `value` | a quantity with a type, operations declared on types, expressions of them; no type, no operation and no kind of quantity built in | `src/value.rs` |
 | `model/standard.mitra` | `standard` | the standard types and operations read exactly (a truth, whole numbers, a real, records) and the table that applies them | `src/standard.rs` |
 | `model/bounds.mitra` | `bounds` | the same operations read on the bounds a value lies in, with a flag for what may have no value | `src/bounds.rs` |
@@ -54,24 +54,23 @@ Until then `model/evidence.mitra` is the single ledger that `main`'s
 ## To test
 
 ```sh
-cargo test                # 164 tests
+cargo test                # 100 tests
+cargo run --example double
+cargo run --example falling
 mitra conform             # with main's binary, from this folder
 ```
 
-- `tests/model.rs`, `value.rs`, `standard.rs`, `claim.rs`: each claim of the models as
-  one test, tied by name, then the promises on small worlds.
-- `tests/goldens.rs`: 20 of `main`'s 22 trust goldens as a table over
-  the calculus (case 7 needs settings, case 6 a report).
-- `tests/structure.rs`: how the shape of the graph changes what is read.
+- `tests/model.rs`, `value.rs`, `standard.rs`, `bounds.rs`, `claim.rs`,
+  `function.rs`: each claim of the models as one test, tied by name.
+- `tests/verdict.rs`: states, confidence and suspects on main's trust
+  goldens, the throwing toy and the shapes of the graph.
+- `tests/falling.rs`: the speed of a fall, on both sides.
 - `tests/wall.rs`: the walls, and no disk.
 
-`mitra conform` says 122 ties agree and 19 differ, with one warning.
-The five look like faults of `main`'s reader of Rust and are left as
-they are: `Vec<Related>` and `Statement<Claim>` compared wrongly with
-the model's (three), a `uses` asked on `moved` whose body already
-calls `piece::projected`, and `all` not seen under `opinion`. The
-warning is true: `tie` requires `statement` and names a statement only
-by its piece.
+`mitra conform` says 116 ties agree and 21 differ. Those look like
+faults of `main`'s reader of Rust and are left as they are: a generic
+type applied to a record compared wrongly with the model's, a borrowed
+list, a generic enum.
 
 See [docs/review.md](docs/review.md) for what was decided alone and
 what is open.

@@ -1120,3 +1120,41 @@ evidence is gone. 167 tests.
      a voice that was wrong shows as a conflict, and nothing says
      which side was wrong until someone gives something up. Counting
      a record needs that resolution to exist first.
+
+## Increment 122: the counts calculus removed (2026-11-21)
+
+**Asked** (coordinator, overnight). Remove the counts calculus that
+nothing reads from `model.mitra`, and refresh `throwing.md`, so the
+files describe only what runs.
+
+**Done.** One commit, so that `git revert` of it brings everything
+back. Removed from the code and from `model.mitra`: `opinion`,
+`trusted`, `conflicts`, `judged`, `settled`, `all`; `moved`, `fuse`,
+`conflict`, `held`, `apart`; `belief`, `disbelief`, `uncertainty`,
+`interval`, `reaches`, `against`; thirteen promises and the claims on
+them. Removed tests `throwing.rs`, `goldens.rs`, `structure.rs` and
+fifty tests of `model.rs`; the cases that matter are in
+`tests/verdict.rs`. Removed eight examples that printed counts.
+`docs/throwing.md` is rewritten for states. The older trials moved to
+`docs/trials-counts.md`, marked as a record. 100 tests.
+
+**Decided alone.**
+
+753. Kept in `model.mitra`: places, pieces, the counts record and how
+     it reads as one number, evidence, voices and their reliability
+     piece, statements, ties with their whole and completeness, the
+     three relations, the model, the settings and `base`.
+754. Five promises are reworded to what runs: `everything_is_a_piece`,
+     `opinion_is_counts`, `evidence_is_a_piece`, `count_is_firmness`,
+     `only_from_the_model`, `relation_is_said`,
+     `completeness_is_a_part`. None says how a whole is believed any
+     more: that is `verdict`'s.
+755. `docs/sweep.md` is removed: it described a run of the counts
+     calculus. The sweep itself is in `tests/verdict.rs` as forty
+     objects and a feather.
+756. Not ported, and gone with the calculus: the interval of an
+     opinion, a policy threshold (`trusted`), and voices judged from
+     their record.
+757. `mitra conform`: 116 ties agree, 21 differ, the same reader
+     limits.
+

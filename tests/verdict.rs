@@ -248,11 +248,11 @@ fn one_throw(fell: bool) -> Model {
 
 /// One throw that falls makes the tie and the statement true. One
 /// that does not refutes neither: the two cannot both be true.
+// mitra: evidence for verdict::only_a_verdict_that_holds_is_sure
 #[test]
 fn one_throw_alone() {
     let m = one_throw(true);
     assert_eq!(overall(&m), State::True);
-    // mitra: evidence for verdict::only_a_verdict_that_holds_is_sure
     let (_, n) = least_sure(&m).unwrap();
     assert_eq!(format!("{n:.2}"), "0.91");
     assert_eq!(least_sure(&one_throw(false)), None);

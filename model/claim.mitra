@@ -15,8 +15,8 @@ subject claims {
     require truth = standard::applied_as_written;
     require applied = Applies::applied_alone;
     require complete = tie::completeness_is_implied;
-    require all = model::whole_is_all_its_parts;
-    require shared = model::no_is_shared;
+    require related = model::three_relations;
+    require part = model::completeness_is_a_part;
     require sure = bounds::sure_is_everywhere;
     require held = bounds::bounds_hold_the_exact;
 
@@ -24,7 +24,7 @@ subject claims {
     ensure instance_is_a_piece = "A claim at given inputs is a piece derived from the claim: at these inputs, what the claim says is so. It is named after the claim and the inputs, so the same claim at the same inputs is one piece. The inputs are exact values, or the ranges they lie in.";
     ensure observed_is_evidence = "Computing a claim at given inputs gives evidence about the claim at those inputs and no other piece: yes where it is true, no where it is false, and no evidence where it has no value.";
     ensure a_range_is_many_points = "Reading a claim by bounds, with each input known to lie in a range, is evidence about the claim over those ranges: yes where the claim is true everywhere in them, no where it is false everywhere, and no evidence where it may be either, may fault, or the reading is unknown. It says as many yes or no as it is given: how many observations a whole range is worth is said by who asks, and nothing here holds a value for it.";
-    ensure recorded_through_the_tie = "An observation made at the place of a tie is recorded as evidence about three pieces together: the tie, the claim at those inputs, and the tie's completeness. So a yes supports all three and a no is shared between them. A tie that does not list the claim records nothing. With no tie, the observation is about the claim at those inputs alone.";
+    ensure recorded_through_the_tie = "An observation made at the place of a tie is recorded as evidence about three pieces together: the tie, the claim at those inputs, and the tie's completeness. So a yes makes all three true, and a no says they cannot all be true. A tie that does not list the claim records nothing. With no tie, the observation is about the claim at those inputs alone.";
     // After Gaudel, 1995, "Testing Can Be Formal, Too": the uniformity
     // hypothesis, that the inputs of a domain behave alike, is what
     // lets one observation stand for a claim on every input. Departs:
