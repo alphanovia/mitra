@@ -1,0 +1,163 @@
+// PROPOSAL, not built. The core of model.mitra: the piece system and
+// its calculus, with nothing else. A piece, its opinion, one shape of
+// relation between pieces, and how a state transfers along it.
+// Statement, evidence and tie are not here: they are worked out on
+// top of this once it holds.
+
+import std::core::{Option};
+
+// Something that can be right or wrong, and what is believed of it.
+subject piece {
+    ensure everything_is_a_piece = "Whatever can be right or wrong is a piece, known by its name. There is no second way to be believed.";
+    ensure an_opinion_is_read_three_ways = "The opinion of a piece is read three ways and no other: its state, how sure that state is, and its bias. What the record holds inside is not promised and may change.";
+    // After Belnap, 1977, "A Useful Four-Valued Logic".
+    ensure a_state_is_one_of_four = "A state is one of four: unknown, nothing leads to the piece; true; false; conflict, it follows true from some of what is taken and false from some of it.";
+    ensure confidence_is_of_the_state = "Confidence is how sure the state is, between 0 and 1. A piece that is unknown or in conflict has none.";
+    ensure bias_is_before_anything = "Bias is what to expect of the piece before anything is said, between 0 and 1. It never changes a state. It ranks suspects, the least expected first.";
+
+    record Piece {
+        name: String,
+    }
+    enum State { Unknown, True, False, Conflict }
+    // The inside is free to move. Read it through the three getters.
+    record Opinion {
+        state: State,
+        sure: Option<Float64>,
+        bias: Float64,
+    }
+    fn state(o: Opinion) -> State { o.state }
+    fn confidence(o: Opinion) -> Option<Float64> { o.sure }
+    fn bias(o: Opinion) -> Float64 { o.bias }
+}
+
+// The one link between pieces.
+subject relation {
+    require believed = piece::everything_is_a_piece;
+
+    // The shape is Hoare's, 1969, "An Axiomatic Basis for Computer
+    // Programming": {pre} subject {post}. Departs: the three are
+    // pieces with a state each, not formulas.
+    ensure a_relation_is_pre_subject_post = "A relation names pieces before, one subject, and pieces after. It says: with every piece before true and the subject true, every piece after is true. It says nothing else. There is no other kind of relation.";
+    ensure a_relation_is_a_piece = "A relation is itself a piece: it can be wrong, and it transfers nothing unless it is true.";
+
+    record Relation {
+        piece: piece::Piece,
+        pre: List<piece::Piece>,
+        subject: piece::Piece,
+        post: List<piece::Piece>,
+    }
+}
+
+// Pieces, relations, and what is taken to start.
+subject model {
+    require linked = relation::a_relation_is_pre_subject_post;
+    require read = piece::an_opinion_is_read_three_ways;
+
+    ensure only_what_is_taken_starts = "A piece starts with a state only when the model takes it: as true or as false, with a count of how much that taking weighs. A relation with a bias under 1 is taken as true, weighing its bias; a relation with a bias of 1 is not doubted and is never given up. No other piece starts with a state.";
+    ensure only_from_the_model = "Everything read comes from the model: its relations, what it takes, the biases it gives, and its settings. Nothing here holds a value of its own.";
+
+    // `count` is how much it weighs: one test is 1.
+    record Taken {
+        piece: piece::Piece,
+        as_true: Bool,
+        count: Float64,
+    }
+    // `weight` is how many counts a bias weighs. `bias` is what a piece
+    // nobody gave one is expected to be.
+    record Settings {
+        weight: Float64,
+        bias: Float64,
+    }
+    record Model {
+        relations: List<relation::Relation>,
+        taken: List<Taken>,
+        bias: List<(piece::Piece, Float64)>,
+        settings: Settings,
+    }
+
+    // Every piece the model names.
+    fn pieces(m: Model) -> List<piece::Piece>;
+}
+
+// How states transfer, and how sure they are.
+subject calculus {
+    require linked = relation::a_relation_is_pre_subject_post;
+    require doubted = relation::a_relation_is_a_piece;
+    require four = piece::a_state_is_one_of_four;
+    require started = model::only_what_is_taken_starts;
+    require given = model::only_from_the_model;
+
+    ensure deduction = "Every piece before true, the subject true and the relation true: every piece after is true.";
+    ensure refutation = "Deduction read backwards. A piece after false: the relation, the pieces before and the subject cannot all be true. With all of them true but one, that one is false. With several not known true, none is refuted: they are listed as suspects.";
+    // After Peirce, 1878, "Deduction, Induction, and Hypothesis".
+    ensure nothing_else_transfers = "These two are the only transfers, and both are sound. A step that is not sound, from cases to a rule or from a result to its cause, is not a rule here: it is a relation somebody wrote, a piece that can be doubted and given up like any other.";
+    ensure states_spread_to_the_end = "The transfers are applied until none gives anything new. The order changes nothing.";
+    // After de Kleer, 1986, "An Assumption-based TMS".
+    ensure a_state_keeps_what_it_was_drawn_from = "Each state keeps the smallest sets of what is taken that it follows from. A set from which a piece follows both true and false cannot all be true: it is set aside. A piece is in conflict when it still follows true from one set and false from another.";
+    ensure sure_is_what_must_be_given_up = "Confidence is counted after the states and never changes one. A state is as sure as the least that would have to be given up for it to fall: one member of each set it follows from, each weighing its count. So two ways to one piece add up, and a state every way to which goes through one taking is no surer than that taking.";
+    // After Reiter, 1987, "A Theory of Diagnosis from First Principles".
+    ensure a_conflict_names_what_to_give_up = "When some sets cannot all be true, the smallest sets of takings that leave none of them whole once given up are listed, the lightest first. Nothing is given up silently.";
+    ensure the_verdict_is_one_state = "The verdict of a model is one state: conflict if any piece is in conflict; else false if any piece is false; else unknown if any piece is unknown; else true. The relations themselves are not counted.";
+
+    // The opinion of every piece of the model.
+    fn read(m: model::Model) -> List<(piece::Piece, piece::Opinion)>
+        uses model::pieces;
+    fn opinion(m: model::Model, x: piece::Piece) -> piece::Opinion
+        uses read;
+    fn verdict(m: model::Model) -> piece::State
+        uses read;
+    // Sets of pieces that cannot all be true, the lightest first.
+    fn suspects(m: model::Model) -> List<List<piece::Piece>>
+        uses read;
+
+    claim nothing_taken_nothing_known(m: model::Model, x: piece::Piece) {
+        m.taken != [] || m.relations != [] || piece::state(opinion(m, x)) == Unknown
+    }
+    claim no_state_no_confidence(m: model::Model, x: piece::Piece) {
+        piece::state(opinion(m, x)) == True || piece::state(opinion(m, x)) == False || piece::confidence(opinion(m, x)) == None
+    }
+    claim a_conflict_has_something_to_give_up(m: model::Model) {
+        verdict(m) != Conflict || suspects(m) != []
+    }
+}
+
+// Worked cases. One relation r: {p} s {q}, a bias of one half, one
+// count weighing 0.2.
+subject tests {
+    fn p() -> piece::Piece { Piece("p") }
+    fn s() -> piece::Piece { Piece("s") }
+    fn q() -> piece::Piece { Piece("q") }
+    fn yes(x: piece::Piece) -> model::Taken { Taken(x, true, 1.0) }
+    fn no(x: piece::Piece) -> model::Taken { Taken(x, false, 1.0) }
+    fn with(taken: List<model::Taken>) -> model::Model {
+        Model([Relation(Piece("r"), [p()], s(), [q()])], taken, [(Piece("r"), 1.0)], Settings(0.2, 0.5))
+    }
+    fn at(taken: List<model::Taken>, x: piece::Piece) -> piece::State
+        uses with, calculus::opinion
+    { piece::state(calculus::opinion(with(taken), x)) }
+
+    claim deduction() { at([yes(p()), yes(s())], q()) == True }
+    claim refutation() { at([yes(p()), no(q())], s()) == False }
+    claim refutation_of_the_case() { at([yes(s()), no(q())], p()) == False }
+    // One piece after, alone, leads nowhere.
+    claim a_result_alone_says_nothing() { at([yes(q())], s()) == Unknown && at([yes(q())], p()) == Unknown }
+    // Nothing refuted: p and s are the suspects.
+    claim two_suspects() {
+        at([no(q())], s()) == Unknown && calculus::suspects(with([no(q())])) == [[p(), s()]]
+    }
+    // All three taken, q as false: what is taken cannot all be true.
+    claim taken_against_itself() { calculus::verdict(with([yes(p()), yes(s()), no(q())])) == Conflict }
+
+    // Induction, written: one case `i` of a claim `c`, and `u`, which
+    // says the case stands for all. Two relations: the claim gives its
+    // case, and the case with `u` gives the claim.
+    fn case() -> List<relation::Relation> {
+        [Relation(Piece("down"), [], Piece("c"), [Piece("i")]), Relation(Piece("up"), [Piece("u")], Piece("i"), [Piece("c")])]
+    }
+    fn of(taken: List<model::Taken>) -> piece::State
+        uses case, calculus::opinion
+    { piece::state(calculus::opinion(Model(case(), taken, [(Piece("down"), 1.0), (Piece("up"), 1.0)], Settings(0.2, 0.5)), Piece("c"))) }
+    claim a_case_alone_does_not_give_the_claim() { of([yes(Piece("i"))]) == Unknown }
+    claim a_case_that_stands_for_all_gives_the_claim() { of([yes(Piece("i")), yes(Piece("u"))]) == True }
+    claim a_false_case_refutes_the_claim() { of([no(Piece("i"))]) == False }
+}

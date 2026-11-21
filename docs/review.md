@@ -1158,3 +1158,27 @@ fifty tests of `model.rs`; the cases that matter are in
 757. `mitra conform`: 116 ties agree, 21 differ, the same reader
      limits.
 
+## Increment 123: the core proposed (2026-11-21)
+
+**Asked** (user). The opinion of a piece is the verdict, read by
+three getters: state, confidence, bias. The raw relation is pieces
+before, one subject, pieces after. The calculus reads as logical
+transfer. "The point of this work is to make what we just tried
+clean." Core first; statement, evidence and tie after.
+
+**Done.** `docs/design/core.mitra`, a proposal: it reads with
+`mitra build` but nothing runs it. No code.
+
+**Decided alone, to confirm.**
+
+758. Two transfers, both sound: deduction and refutation. They
+     restate the six rules of increment 120: a whole and its parts are
+     two relations, a claim and its instance are two relations.
+759. Induction and abduction are not rules: such a step is a relation
+     somebody wrote, a piece that can be doubted. `uniform` is the
+     piece before of the relation from an instance to its claim.
+760. New concept, needed because evidence is not in the core: `Taken`,
+     a piece the model starts as true or false, with a count.
+761. One reading changes: with `uniform` reviewed and a bug, `uniform`
+     is in conflict too, by refutation. It was true 0.91.
+
