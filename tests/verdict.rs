@@ -40,10 +40,18 @@ fn all(pieces: &[&str]) -> Statement<Related> {
     }
 }
 fn model(evidence: Vec<Evidence>, related: Vec<Statement<Related>>, base: &[(&str, f64)]) -> Model {
+    // The relations of these models are plain structure, at 1,
+    // unless a base rate is written for one.
+    let mut rates: Vec<(Piece, f64)> = base.iter().map(|(x, a)| (p(x), *a)).collect();
+    for said in &related {
+        if !rates.iter().any(|(x, _)| x == &said.piece) {
+            rates.push((said.piece.clone(), 1.0));
+        }
+    }
     Model {
         evidence,
         related,
-        base: base.iter().map(|(x, a)| (p(x), *a)).collect(),
+        base: rates,
         ties: vec![],
         settings: S,
     }
@@ -363,4 +371,70 @@ fn evidence_on_the_other_parts_names_the_one_left() {
     assert_eq!(show(&m, "tide"), "false 0.91");
     assert_eq!(show(&m, "sea"), "false 0.91");
     assert_eq!(overall(&m), State::False);
+}
+
+/// A conflict marks what is contested and nothing else: the two
+/// claims and their whole. Each test stays true.
+#[test]
+fn a_conflict_marks_only_what_is_contested() {
+    let m = model(
+        vec![
+            says("t_wraps", "wraps", true, "machine:cargo"),
+            says("t_stops", "stops", true, "machine:cargo"),
+            says("not both", "wraps and stops", false, "author"),
+            says("t_other", "other", true, "machine:cargo"),
+        ],
+        vec![all(&["wraps and stops", "wraps", "stops"])],
+        &[],
+    );
+    assert_eq!(show(&m, "wraps and stops"), "conflict");
+    assert_eq!(show(&m, "wraps"), "conflict");
+    assert_eq!(show(&m, "other"), "true 0.91");
+    assert_eq!(show(&m, "t_wraps"), "true 0.90");
+    assert_eq!(overall(&m), State::Conflict);
+}
+
+/// A relation that is doubted is assumed like evidence: what follows
+/// through it is no surer than it, and it is among what may be given
+/// up.
+#[test]
+fn a_doubted_relation_is_a_suspect() {
+    let rests = all(&["lands", "applies", "falls"]);
+    let doubted = model(
+        vec![throw("throw", "lands", true)],
+        vec![rests.clone()],
+        &[("all: lands", 0.5)],
+    );
+    assert_eq!(show(&doubted, "lands"), "true 0.91");
+    assert_eq!(show(&doubted, "falls"), "true 0.86");
+    let mut against = doubted.clone();
+    against.evidence.push(throw("physics", "falls", false));
+    assert_eq!(show(&against, "falls"), "conflict");
+    assert_eq!(
+        names(&suspects(&against)),
+        [vec!["all: lands"], vec!["throw"], vec!["physics"]]
+    );
+}
+
+/// Forty objects fall, each with its own tie and its own voice. The
+/// statement is as sure as forty reports, and one feather that does
+/// not fall refutes its own tie.
+#[test]
+fn many_reports_are_counted() {
+    let mut evidence = Vec::new();
+    let mut related = Vec::new();
+    for k in 0..40 {
+        let lands = format!("object {k} lands");
+        evidence.push(throw(&format!("throw {k}"), &lands, true));
+        related.push(all(&[&lands, &format!("object {k} applies"), "falls"]));
+    }
+    evidence.push(throw("feather", "feather lands", false));
+    related.push(all(&["feather lands", "feather applies", "falls"]));
+    let m = model(evidence, related, &[]);
+    let falls = verdict_of(&m, &p("falls"));
+    assert_eq!(falls.state, State::True);
+    assert!((falls.confidence.unwrap().r - 36.0).abs() < 1e-9);
+    assert_eq!(show(&m, "falls"), "true 1.00");
+    assert_eq!(show(&m, "object 7 applies"), "true 0.91");
+    assert_eq!(show(&m, "feather applies"), "false 0.91");
 }

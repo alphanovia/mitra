@@ -1081,3 +1081,42 @@ still tested, and nothing above it reads it any more. 164 tests.
      limits.
 746. A verdict that holds is as sure as its least sure statement
      (`least_sure`), which is named. 164 tests.
+
+## Increment 121: each state keeps what it was drawn from (2026-11-21)
+
+**Asked** (coordinator, overnight). A conflict should mark only the
+pieces in a conflict set; confidence without the sixteen-evidence
+limit, by a textbook method; a voice's record and doubted relations as
+suspects if they fit without new concepts; remove the counts calculus
+nothing reads.
+
+**Done.** `src/verdict.rs` keeps, for each state, the smallest sets of
+assumptions it follows from (de Kleer 1986). Trying every set of
+evidence is gone. 167 tests.
+
+**Decided alone.**
+
+747. A set of assumptions from which a piece follows both true and
+     false is set aside, and nothing is held that only follows from
+     it. A piece is in conflict when it still follows true from one
+     consistent set and false from another. In double, after four
+     tests and a failure, only `double::correct` and the claim at 7
+     are in conflict; the tie stays true at 0.97.
+748. Confidence is the least to give up among one member of each set
+     a state follows from. Same numbers as decision 735, for any
+     number of pieces of evidence: forty objects that fall give the
+     statement a count of 36.
+749. What to give up on a conflict is every smallest set that leaves
+     no contradictory set whole (Reiter's hitting sets), lightest
+     first; at most 64 are listed.
+750. A relation with a base rate under 1 is assumed like evidence. It
+     counts for how far it stands, as one count. What follows through
+     it is no surer than it, and it is listed among what may be given
+     up.
+751. A review that says yes about a test does not say what the test
+     says in its place: given up, the test says nothing, reviewed or
+     not.
+752. A voice's record is not built. With all evidence starting true,
+     a voice that was wrong shows as a conflict, and nothing says
+     which side was wrong until someone gives something up. Counting
+     a record needs that resolution to exist first.

@@ -19,21 +19,20 @@ subject verdict {
     // After Belnap, 1977, "A Useful Four-Valued Logic": the four
     // states, and that told-true and told-false together is a state
     // of its own and not an error.
-    ensure a_state_is_one_of_four = "The state of a piece is one of four: unknown, nothing says anything of it; true; false; conflict, it was found both true and false.";
-    ensure evidence_starts_true = "Every piece of evidence starts true: what was reported is taken as it was said, until something says otherwise. No other piece starts with a state. Evidence that counts for nothing is not taken at all.";
+    ensure a_state_is_one_of_four = "The state of a piece is one of four: unknown, nothing says anything of it; true; false; conflict, it follows true from some of what is assumed and false from some of it, each without contradiction in itself.";
+    ensure evidence_starts_true = "Every piece of evidence starts true: what was reported is taken as it was said, until something says otherwise. A relation that is doubted, with a base rate under 1, starts true in the same way. These are what is assumed; no other piece starts with a state. Evidence that counts for nothing is not taken at all.";
+    // After de Kleer, 1986, "An Assumption-based TMS".
+    ensure a_state_keeps_what_it_was_drawn_from = "Each state keeps the smallest sets of what is assumed that it follows from. A set from which some piece follows both true and false cannot all be true: it is set aside, and nothing is held that only follows from it. So a conflict marks the pieces that are contested and no other: a tie that several tests made true stays true when one claim tied there is contested.";
     ensure states_spread_by_six_rules = "A state spreads by these rules and no other, until none of them gives anything new. One: evidence that is true and says yes makes the piece it is about true; says no, false. Two: a whole that is true makes each of its parts true. Three: a whole whose parts are all true is true, and a whole with a false part is false. Four: a whole that is false, with every part true but one, makes that one false. Five: a claim that is true is true at every input observed, and a claim false at one input is false. Six: a claim true at one input, with its uniform true, is true. The order the rules are applied in changes nothing.";
     ensure the_verdict_is_read_from_the_states = "The verdict of a model is one state: conflict if any piece is in conflict; else false if a statement is false; else unknown if a statement is unknown, whatever the others are; else true. The statements are every piece that is spoken of and is not itself evidence, a relation, or the reliability of a voice.";
     ensure evidence_counts_as_it_stands = "A piece of evidence counts for what it says, a yes or a no and how many, as far as it stands and as far as its voice is believed. It stands at its base rate, moved by the evidence that says yes about it: a review of a test is what makes the test count for more. A voice counts once for what it says of one piece.";
-    // The least to give up is a minimum cut: Ford and Fulkerson, 1956,
-    // "Maximal Flow Through a Network". Departs: found here by trying
-    // every set of evidence, which is exact and slow.
-    ensure sure_is_what_must_be_given_up = "Confidence is counted after the states and never changes one. A state is as sure as the least evidence that would have to be given up for it to fall: that much is its count. So two tests of one thing add up, and a state that every way to it goes through one review is no surer than that review. Nothing is counted for a piece that is unknown or in conflict. A verdict that holds is as sure as its least sure statement, which is named: it is where more evidence helps most.";
+    ensure sure_is_what_must_be_given_up = "Confidence is counted after the states and never changes one. A state is as sure as the least that would have to be given up for it to fall, one member of each set it follows from: that much is its count. So two tests of one thing add up, and a state that every way to it goes through one review is no surer than that review. Nothing is counted for a piece that is unknown or in conflict. A verdict that holds is as sure as its least sure statement, which is named: it is where more evidence helps most.";
     // After Reiter, 1987, "A Theory of Diagnosis from First
     // Principles", and de Kleer and Williams, 1987, "Diagnosing
     // Multiple Faults": the smallest sets of assumptions to give up.
     // Departs: ranked by how much each set counts for, not by a
     // probability.
-    ensure a_conflict_names_what_to_give_up = "When a piece is in conflict, the smallest sets of evidence that leave no conflict once given up are listed, the one that counts for least first. Nothing is given up silently.";
+    ensure a_conflict_names_what_to_give_up = "When some sets cannot all be true, the smallest sets of evidence and doubted relations that leave none of them whole once given up are listed, the one that counts for least first. A doubted relation counts for how far it stands. Nothing is given up silently.";
     ensure a_false_whole_names_its_suspects = "A whole that is false with more than one part not known true refutes none of them: those parts cannot all be true, and they are listed, the least expected first. A part that is itself a whole stands for its own parts.";
 
     enum State { Unknown, True, False, Conflict }
@@ -98,6 +97,9 @@ subject verdict {
     }
     claim only_a_verdict_that_holds_is_sure(m: model::Model) {
         overall(m) == True || least_sure(m) == None
+    }
+    claim a_conflict_has_something_to_give_up(m: model::Model) {
+        overall(m) != Conflict || suspects(m) != []
     }
     claim suspects_only_with_something_false(m: model::Model) {
         overall(m) == Conflict || overall(m) == False || suspects(m) == []

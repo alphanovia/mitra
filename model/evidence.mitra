@@ -26,9 +26,9 @@ evidence tie { for Type::tied holds act tie by "machine:mitra-rust" source "read
 evidence tie { for Value::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:22" }
 evidence tie { for value::Operation::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:32" }
 evidence tie { for value::Expression::tied fails act tie by "machine:mitra-rust" source "reader:rust src/value.rs:41: an enum with type parameters is not compared" }
-evidence tie { for verdict::State::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:13" }
-evidence tie { for verdict::Verdict::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:24" }
-evidence tie { for verdict::Reading::tied fails act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:229: field `pieces` is `Vec<(Piece, Verdict)>` in the code, `List<(piece::Piece, verdict::Verdict(verdict::State, Option<piece::Opinion>))>` in the model" }
+evidence tie { for verdict::State::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:14" }
+evidence tie { for verdict::Verdict::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:25" }
+evidence tie { for verdict::Reading::tied fails act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:382: field `pieces` is `Vec<(Piece, Verdict)>` in the code, `List<(piece::Piece, verdict::Verdict(verdict::State, Option<piece::Opinion>))>` in the model" }
 evidence tie { for bounds::between::tied fails act tie by "machine:mitra-rust" source "reader:rust src/bounds.rs:84: the result is `Option<Value<Bounds>>` in the code, `Option<Value<bounds::Bounds(bounds::Span, Bool)>>` in the model" }
 evidence tie { for bounds::between::uses holds act tie by "machine:mitra-rust" source "reader:rust src/bounds.rs:84" }
 evidence tie { for bounds::point::tied fails act tie by "machine:mitra-rust" source "reader:rust src/bounds.rs:104: the result is `Option<Value<Bounds>>` in the code, `Option<Value<bounds::Bounds(bounds::Span, Bool)>>` in the model" }
@@ -137,24 +137,24 @@ evidence tie { for value::type_of::tied holds act tie by "machine:mitra-rust" so
 evidence tie { for value::check::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:70; erased 1: reference(e)" }
 evidence tie { for value::eval::tied holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:94; erased 3: reference(e), reference(inputs), reference(by)" }
 evidence tie { for value::eval::uses holds act tie by "machine:mitra-rust" source "reader:rust src/value.rs:94" }
-evidence tie { for verdict::joined::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:33" }
-evidence tie { for verdict::says::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:43; erased 1: reference(e)" }
-evidence tie { for verdict::weight::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:54; erased 3: reference(model), reference(e), width" }
-evidence tie { for verdict::standing::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:62; erased 3: reference(model), reference(x), width" }
-evidence tie { for verdict::read::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:248; erased 2: reference(model), width" }
-evidence tie { for verdict::read::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:248" }
-evidence tie { for verdict::spread::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:368; erased 2: reference(model), width" }
-evidence tie { for verdict::spread::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:368" }
-evidence tie { for verdict::state::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:378; erased 3: reference(model), reference(x), width" }
-evidence tie { for verdict::state::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:378" }
-evidence tie { for verdict::statements::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:387; erased 2: reference(model), width" }
-evidence tie { for verdict::statements::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:387" }
-evidence tie { for verdict::overall::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:416; erased 2: reference(model), width" }
-evidence tie { for verdict::overall::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:416" }
-evidence tie { for verdict::verdict_of::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:439; erased 3: reference(model), reference(x), width" }
-evidence tie { for verdict::verdict_of::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:439" }
-evidence tie { for verdict::suspects::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:452; erased 2: reference(model), width" }
-evidence tie { for verdict::suspects::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:452" }
-evidence tie { for verdict::sure::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:460; erased 2: reference(v), width" }
-evidence tie { for verdict::least_sure::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:482; erased 2: reference(model), width" }
-evidence tie { for verdict::least_sure::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:482" }
+evidence tie { for verdict::joined::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:34" }
+evidence tie { for verdict::says::tied holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:44; erased 1: reference(e)" }
+evidence tie { for verdict::weight::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:55; erased 3: reference(model), reference(e), width" }
+evidence tie { for verdict::standing::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:63; erased 3: reference(model), reference(x), width" }
+evidence tie { for verdict::read::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:403; erased 2: reference(model), width" }
+evidence tie { for verdict::read::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:403" }
+evidence tie { for verdict::spread::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:497; erased 2: reference(model), width" }
+evidence tie { for verdict::spread::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:497" }
+evidence tie { for verdict::state::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:510; erased 3: reference(model), reference(x), width" }
+evidence tie { for verdict::state::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:510" }
+evidence tie { for verdict::statements::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:519; erased 2: reference(model), width" }
+evidence tie { for verdict::statements::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:519" }
+evidence tie { for verdict::overall::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:548; erased 2: reference(model), width" }
+evidence tie { for verdict::overall::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:548" }
+evidence tie { for verdict::verdict_of::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:571; erased 3: reference(model), reference(x), width" }
+evidence tie { for verdict::verdict_of::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:571" }
+evidence tie { for verdict::suspects::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:584; erased 2: reference(model), width" }
+evidence tie { for verdict::suspects::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:584" }
+evidence tie { for verdict::sure::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:592; erased 2: reference(v), width" }
+evidence tie { for verdict::least_sure::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:614; erased 2: reference(model), width" }
+evidence tie { for verdict::least_sure::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:614" }

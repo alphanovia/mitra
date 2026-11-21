@@ -328,6 +328,10 @@ fn a_bug_under_uniform_is_a_conflict() {
     assert_eq!(overall(&m), State::Conflict);
     assert_eq!(shown(&m, "double::correct"), "conflict");
     assert_eq!(shown(&m, "double::uniform"), "true 0.91");
+    // Only what is contested is marked: the claim and the claim at 7.
+    assert_eq!(shown(&m, AT_7), "conflict");
+    assert_eq!(shown(&m, AT_3), "true 0.95");
+    assert_eq!(shown(&m, "double::tie"), "true 0.97");
     let found = suspects(&m);
     let names =
         |group: &Vec<Piece>| -> Vec<String> { group.iter().map(|p| p.name.clone()).collect() };
