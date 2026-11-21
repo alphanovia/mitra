@@ -90,7 +90,9 @@ subject calculus {
     ensure deduction = "Every piece before true, the subject true and the relation true: every piece after is true.";
     ensure refutation = "Deduction read backwards. A piece after false: the relation, the pieces before and the subject cannot all be true. With all of them true but one, that one is false. With several not known true, none is refuted: they are listed as suspects.";
     // After Peirce, 1878, "Deduction, Induction, and Hypothesis".
-    ensure nothing_else_transfers = "These two are the only transfers, and both are sound. A step that is not sound, from cases to a rule or from a result to its cause, is not a rule here: it is a relation somebody wrote, a piece that can be doubted and given up like any other.";
+    ensure nothing_else_transfers = "These two are the only transfers, and both are sound. A step that is not sound, from cases to a rule or from a result to its cause, is not a rule here: it is a relation somebody wrote with a bias under 1, a piece that can be doubted and given up like any other.";
+    ensure deduction_keeps_confidence = "Through a relation that is not doubted, confidence passes unchanged: what is given is exactly as sure as the least sure of what it was given from.";
+    ensure induction_lowers_confidence = "Through a relation that is doubted, confidence goes down: what is given is no surer than the relation, so it is less sure than what it was given from whenever the relation weighs less.";
     ensure states_spread_to_the_end = "The transfers are applied until none gives anything new. The order changes nothing.";
     // After de Kleer, 1986, "An Assumption-based TMS".
     ensure a_state_keeps_what_it_was_drawn_from = "Each state keeps the smallest sets of what is taken that it follows from. A set from which a piece follows both true and false cannot all be true: it is set aside. A piece is in conflict when it still follows true from one set and false from another.";
@@ -148,16 +150,34 @@ subject tests {
     // All three taken, q as false: what is taken cannot all be true.
     claim taken_against_itself() { calculus::verdict(with([yes(p()), yes(s()), no(q())])) == Conflict }
 
+    fn sure(taken: List<model::Taken>, x: piece::Piece) -> Option<Float64>
+        uses with, calculus::opinion
+    { piece::confidence(calculus::opinion(with(taken), x)) }
+    // q is as sure as p and s, each taken once.
+    claim deduction_keeps_confidence() {
+        sure([yes(p()), yes(s())], q()) == sure([yes(p()), yes(s())], p())
+    }
+
     // Induction, written: one case `i` of a claim `c`, and `u`, which
     // says the case stands for all. Two relations: the claim gives its
-    // case, and the case with `u` gives the claim.
-    fn case() -> List<relation::Relation> {
-        [Relation(Piece("down"), [], Piece("c"), [Piece("i")]), Relation(Piece("up"), [Piece("u")], Piece("i"), [Piece("c")])]
+    // case, and the case with `u` gives the claim. `doubt` is the bias
+    // of the second: under 1 it is an induction.
+    fn case(doubt: Float64, taken: List<model::Taken>) -> model::Model {
+        Model([Relation(Piece("down"), [], Piece("c"), [Piece("i")]), Relation(Piece("up"), [Piece("u")], Piece("i"), [Piece("c")])], taken, [(Piece("down"), 1.0), (Piece("up"), doubt)], Settings(0.2, 0.5))
     }
     fn of(taken: List<model::Taken>) -> piece::State
         uses case, calculus::opinion
-    { piece::state(calculus::opinion(Model(case(), taken, [(Piece("down"), 1.0), (Piece("up"), 1.0)], Settings(0.2, 0.5)), Piece("c"))) }
+    { piece::state(calculus::opinion(case(0.9, taken), Piece("c"))) }
+    // A confidence as a number: 0 when there is none.
+    fn number(o: Option<Float64>) -> Float64;
+    fn how_sure(doubt: Float64, x: piece::Piece) -> Float64
+        uses case, number, calculus::opinion
+    { number(piece::confidence(calculus::opinion(case(doubt, [yes(Piece("i")), yes(Piece("u"))]), x))) }
     claim a_case_alone_does_not_give_the_claim() { of([yes(Piece("i"))]) == Unknown }
     claim a_case_that_stands_for_all_gives_the_claim() { of([yes(Piece("i")), yes(Piece("u"))]) == True }
     claim a_false_case_refutes_the_claim() { of([no(Piece("i"))]) == False }
+    // The claim is less sure than its case: the step may be wrong.
+    claim induction_lowers_confidence() { how_sure(0.9, Piece("c")) < how_sure(0.9, Piece("i")) }
+    // The same step not doubted is a deduction, and keeps it.
+    claim not_doubted_it_keeps_it() { how_sure(1.0, Piece("c")) == how_sure(1.0, Piece("i")) }
 }

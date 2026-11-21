@@ -1181,4 +1181,11 @@ clean." Core first; statement, evidence and tie after.
      a piece the model starts as true or false, with a count.
 761. One reading changes: with `uniform` reviewed and a bug, `uniform`
      is in conflict too, by refutation. It was true 0.91.
+762. User: "Deduction is sound means confidence stay the same from pre
+     to post condition. Induction is confidence goes down. Let's claim
+     that about opinion." Two promises and three worked claims added.
+     Induction lowers confidence because its relation is doubted and
+     weighs its bias; with the weakest link of increment 121 that is
+     "no surer than the relation", strictly lower only when the
+     relation weighs least. To confirm.
 
