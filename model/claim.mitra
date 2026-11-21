@@ -13,46 +13,56 @@ subject claims {
     require proposed = piece::a_piece_is_pre_subject_post;
     require leaf = piece::a_leaf_is_said_alone;
     require signed = model::a_taking_is_signed;
-    require logic = model::a_step_of_logic_is_given;
+    require logic = model::the_step_is_read_from_the_bias;
+    require tied = model::a_tie_is_a_believed_link;
     require computed = value::one_value;
     require truth = standard::applied_as_written;
     require applied = Applies::applied_alone;
     require sure = bounds::sure_is_everywhere;
     require held = bounds::bounds_hold_the_exact;
 
-    ensure claim_is_a_truth = "A claim is a piece with an expression that says it. The expression gives a truth, the standard one; one that gives anything else states nothing. The claim says the expression is true at every input.";
+    ensure claim_is_a_truth = "A claim is a piece with a domain and an expression that says it. The expression gives a truth, the standard one; one that gives anything else states nothing. The claim says the expression is true at every input in the domain.";
+    ensure the_domain_is_a_value = "The domain of a claim is a value: for each input it names, the bounds that input lies in. It is what stands before the claim, as a guard.";
+    ensure a_run_outside_the_domain_says_nothing = "Evaluating a claim at inputs outside its domain gives nothing: the run is outside the contract, and nothing is taken from it.";
+    ensure a_reading_over_the_domain_is_a_proof = "Read by bounds over its whole domain, a claim that is true everywhere in it, or false everywhere, is proved: the voice takes the claim itself, not an instance, and nobody writes a piece for it. Nothing where the reading is not sure everywhere.";
     ensure evaluating_gives_a_truth = "Evaluating a claim at inputs gives true, false, or nothing where the expression has no value. That is a value: nothing is believed yet.";
     ensure instance_is_a_piece = "A claim at given inputs is a piece of its own, a leaf named after the claim and the inputs: the same claim at the same inputs is one piece. The inputs are exact values, or the ranges they lie in.";
     ensure a_voice_takes_what_was_evaluated = "The crossing: a voice takes the instance as what evaluating gave, with a count. The model keeps both, what was evaluated and what was taken. Nothing is taken where evaluating gave nothing, and the claim itself is not touched.";
-    ensure a_claim_gives_its_instances = "With the taking, the model is given one step of logic: the claim before, the instance after. So the claim true makes the instance true, and the instance false makes the claim false. Nothing leads from a true instance to the claim: that takes a piece somebody writes and somebody takes, which says the instances represent the claim.";
+    ensure a_claim_gives_its_instances = "With the taking, the model gets one deduction, at a bias of 1: the claim before, the instance after. With a tie, the instance was seen at the tie's location, and the tie stands before the instance with the claim: a false instance then says the claim and the tie cannot both be true. Nothing is taken through a tie of another part than the claim's. So the claim true makes the instance true, and the instance false makes the claim false. Nothing leads from a true instance to the claim: that takes a piece somebody writes and somebody takes, which says the instances represent the claim.";
     ensure a_range_is_one_instance = "Read by bounds, with each input known to lie in a range, a claim gives true where it is true everywhere in the ranges, false where it is false everywhere, and nothing where it may be either, may fault, or the reading is unknown. The instance is the claim over those ranges.";
     ensure one_way = "A truth is made from values and taken into the model; no value is made from an opinion.";
 
     record Claim {
         piece: piece::Piece,
+        domain: List<(String, Value<bounds::Bounds>)>,
         expression: value::Expression<standard::Exact>,
     }
 
     // The expression gives a truth.
     fn reads(c: Claim) -> Bool
         uses value::check, standard::truth;
+    // The inputs are in the domain.
+    fn guarded(c: Claim, inputs: List<(String, Value<standard::Exact>)>) -> Bool;
     fn evaluate(c: Claim, inputs: List<(String, Value<standard::Exact>)>, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>) -> Option<Bool>
-        uses value::eval, standard::truth;
+        uses guarded, value::eval, standard::truth;
     fn evaluate_over(c: Claim, ranges: List<(String, Value<bounds::Bounds>)>, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>) -> Option<Bool>
         uses value::eval, bounds::lifted, bounds::surely;
     // The claim at these inputs.
     fn instance<Q>(c: Claim, inputs: List<(String, Value<Q>)>) -> piece::Piece
         uses piece::leaf;
     // The step from the claim to one instance.
-    fn instantiation(c: Claim, here: piece::Piece) -> piece::Piece;
+    fn instantiation(c: Claim, here: piece::Piece, at: Option<model::Tie>) -> piece::Piece;
     // Evaluate and take, at inputs.
-    fn observe(model: model::Model, c: Claim, inputs: List<(String, Value<standard::Exact>)>, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>, count: Float64, by: model::Voice) -> Option<model::Model>
+    fn observe(model: model::Model, c: Claim, inputs: List<(String, Value<standard::Exact>)>, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>, at: Option<model::Tie>, count: Float64, by: model::Voice) -> Option<model::Model>
         uses evaluate, instance;
     // Evaluate and take, over ranges.
-    fn observe_over(model: model::Model, c: Claim, ranges: List<(String, Value<bounds::Bounds>)>, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>, count: Float64, by: model::Voice) -> Option<model::Model>
+    fn observe_over(model: model::Model, c: Claim, ranges: List<(String, Value<bounds::Bounds>)>, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>, at: Option<model::Tie>, count: Float64, by: model::Voice) -> Option<model::Model>
         uses evaluate_over, instance;
+    // Evaluate over the whole domain and take the claim itself.
+    fn prove(model: model::Model, c: Claim, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>, count: Float64, by: model::Voice) -> Option<model::Model>
+        uses evaluate_over;
 
     claim an_instance_is_a_leaf(c: Claim, here: piece::Piece) {
-        instantiation(c, here).pre == [c.piece] && instantiation(c, here).post == [here]
+        instantiation(c, here, None).pre == [c.piece] && instantiation(c, here, None).post == [here]
     }
 }

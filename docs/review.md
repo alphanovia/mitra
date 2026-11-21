@@ -1248,3 +1248,57 @@ test model: `tests/falling.rs`, `examples/falling.rs`,
   says the range is the whole domain, and that piece is written by
   hand.
 
+## Increment 125: seven changes tried on the foundation (2026-11-22)
+
+**Asked** (user, through the coordinator). Try six changes and one
+rename: the place in a piece becomes a subject or a boundary, "named
+part of the system model", and a location is its address in the real
+system, "captured by ties". On the all-post rule: "I'm not sure about
+drop all post rules, we don't have a lot of exemple nodels to verify
+the drop", so rule 766 stays.
+
+**Done.** One commit each, in this order. 65 tests. `mitra conform`:
+101 ties agree, 11 differ. Readings of the fall before and after are
+in the report and in `docs/falling.md`.
+
+**Decided alone, to confirm.**
+
+773. `Part { name, kind }` with `Kind = Subject | Boundary`. The word
+     `Part` is from "named part of the system model". Nothing reads
+     the kind yet.
+774. A tie is back, against 770, as a link from a part to a location
+     with a leaf piece that says it. The tie stands before an instance
+     seen at its location, with the claim: a failing test says the
+     claim and the tie cannot both be true. A passing test says
+     nothing of the tie, so who tied takes it. `falls` is no longer
+     the tie: it is only the claim of the model.
+775. Change 1. With some takings in contradiction there are several
+     smallest ways to give up. A piece is true only when every way
+     keeps it true (skeptical reading, as in Reiter's diagnoses);
+     otherwise it is in conflict. `rests` reads what a state rests on.
+776. Changes 2 and 4. The pre of a claim is its domain, and the domain
+     is a value: a box of bounds, one per input, not an arbitrary
+     expression. A run outside it takes nothing. `prove` reads the
+     claim over the whole domain and takes the claim itself.
+777. Change 3. The step is read from the bias: 1 is a deduction, under
+     1 an induction. This replaces `given` (767) and the written step
+     (769). A deduction is never judged. An induction is applied under
+     its own doubt, which weighs its bias in counts, as a doubted
+     relation did in decision 750.
+778. So an induction caps what it gives: at a bias of one half, `speed`
+     reads 0.86 however many tests and however firm the review.
+779. Change 6, a trial. `interval` beside the five getters: low is
+     yes over yes, no and the weight; high adds the weight. The
+     confidence of a true piece is the point of the interval at its
+     bias. Nothing reads it.
+780. Change 5, not committed. Without rule 766 `falls` is unknown and
+     the verdict of the reviewed stone is unknown. To judge the drop
+     it takes models where a piece with pieces before it is reached
+     another way: taken by a voice, or after another piece.
+
+**Still wrong.**
+
+- A passing test says nothing of the tie.
+- `prove` trusts the domain: nothing checks that an instance over a
+  range lies inside it.
+- The kind of a part is not read: a boundary is judged like a subject.

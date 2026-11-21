@@ -20,10 +20,11 @@ that gave, and the calculus **judges** every piece.
 
 | Model file | Subject | What it is | Code |
 |---|---|---|---|
-| `model/model.mitra` | `place` | a location in the system | `src/model.rs` |
+| `model/model.mitra` | `location` | an address in the real system | `src/model.rs` |
+| | `part` | a named part of the system model: a subject or a boundary | |
 | | `piece` | {pre} subject {post}, and the opinion of it | |
-| | `model` | pieces, what is given, what was evaluated and taken, voices | |
-| | `calculus` | how every piece is judged, how sure, and the suspects | |
+| | `model` | pieces, ties, what was evaluated and taken, voices | |
+| | `calculus` | how every piece is judged, how sure, what it rests on, the suspects | |
 | `model/value.mitra` | `value` | a quantity with a type, operations declared on types, expressions of them | `src/value.rs` |
 | `model/standard.mitra` | `standard` | the standard types and operations read exactly | `src/standard.rs` |
 | `model/bounds.mitra` | `bounds` | the same operations read on the bounds a value lies in | `src/bounds.rs` |
@@ -59,7 +60,7 @@ Until then `model/evidence.mitra` is the single ledger that `main`'s
 ## To test
 
 ```sh
-cargo test                # 63 tests
+cargo test                # 65 tests
 cargo run --example falling
 mitra conform             # with main's binary, from this folder
 ```
