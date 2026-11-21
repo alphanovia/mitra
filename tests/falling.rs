@@ -197,6 +197,11 @@ fn a_point_test_reaches_the_claim_and_the_next_claim() {
     let here = instance(&speed("stone"), &at(500, 990));
     assert_eq!(says(&m, &here), "true 0.92");
     assert!(suspects(&m).is_empty());
+    // `slow` rests on the three measurements, the tie and two reviews.
+    let under = rests(&m, &slow("stone").piece);
+    assert_eq!(under.len(), 1);
+    assert_eq!(under[0].len(), 6);
+    assert!(under[0].contains(&stays_slow("stone")));
     // Nothing is taken of `speed` or `slow`: they are judged only.
     assert_eq!(opinion(&m, &slow("stone").piece).taken(), State::Unknown);
 }
@@ -258,6 +263,8 @@ fn a_bad_measurement_is_a_conflict() {
     let bad = instance(&speed("stone"), &at(3000, 990));
     assert!(found.contains(&vec![bad]));
     assert!(found.contains(&vec![represents("stone", &STONE)]));
+    // `slow` rests on `speed`, so it is contested with it.
+    assert_eq!(says(&m, &slow("stone").piece), "conflict");
     // The hypothesis of the architect is not contested.
     assert_eq!(says(&m, &only_height("stone")), "true 0.92");
 }

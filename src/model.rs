@@ -315,6 +315,9 @@ struct Drawn<'a> {
     weights: Vec<f64>,
     labels: BTreeMap<Fact, Vec<Env>>,
     nogoods: Vec<Env>,
+    /// The smallest sets of takings to give up so that what is left
+    /// can all be true. One empty set when nothing is contested.
+    ways: Vec<Env>,
 }
 
 fn inside(small: &Env, large: &Env) -> bool {
@@ -437,12 +440,17 @@ fn drawn<'a>(model: &'a Model, all: &[Piece]) -> Drawn<'a> {
         }
         labels.retain(|_, envs| !envs.is_empty());
         if !moved {
-            return Drawn {
+            let mut all = Drawn {
                 model,
                 weights,
                 labels,
                 nogoods,
+                ways: vec![Vec::new()],
             };
+            if !all.nogoods.is_empty() {
+                all.ways = all.hitting(&all.nogoods);
+            }
+            return all;
         }
     }
 }
@@ -452,12 +460,28 @@ impl Drawn<'_> {
         self.labels.contains_key(&(x.name.clone(), value))
     }
 
+    /// The state of a piece. Where some takings cannot all be true,
+    /// there are several ways to give up the least: a piece is true
+    /// only when it is told true whichever is chosen and never told
+    /// false, and a piece that some of the ways leave without its
+    /// state is in conflict with the pieces it rests on.
     fn state(&self, x: &Piece) -> State {
-        match (self.told(x, true), self.told(x, false)) {
+        let sets = |value: bool| {
+            let found = self.labels.get(&(x.name.clone(), value));
+            found.map(Vec::as_slice).unwrap_or(&[])
+        };
+        let always = |value: bool| {
+            let stands = |given_up: &Env| {
+                let mut left = sets(value).iter();
+                left.any(|env| !env.iter().any(|i| given_up.contains(i)))
+            };
+            !sets(value).is_empty() && self.ways.iter().all(stands)
+        };
+        match (!sets(true).is_empty(), !sets(false).is_empty()) {
             (false, false) => State::Unknown,
-            (true, false) => State::True,
-            (false, true) => State::False,
-            (true, true) => State::Conflict,
+            (true, false) if always(true) => State::True,
+            (false, true) if always(false) => State::False,
+            _ => State::Conflict,
         }
     }
 
@@ -530,6 +554,9 @@ impl Drawn<'_> {
 pub struct Reading {
     /// Every piece that is not given, with its opinion.
     pub pieces: Vec<(Piece, Opinion)>,
+    /// What each judged state rests on: for a piece judged true or
+    /// false, the smallest sets of taken pieces it follows from.
+    pub rests: Vec<(Piece, Vec<Vec<Piece>>)>,
     /// What cannot all be true, the lightest first: sets of taken
     /// pieces to give up, then for each piece that came out false the
     /// pieces it rests on that are not known true.
@@ -550,6 +577,7 @@ pub fn judge(model: &Model) -> Reading {
     let drawn = drawn(model, &all);
     let w = model.settings.weight;
     let mut out: Vec<(Piece, Opinion)> = Vec::new();
+    let mut rests: Vec<(Piece, Vec<Vec<Piece>>)> = Vec::new();
     for x in all.iter().filter(|x| !given(model, x)) {
         let said = |values: &mut dyn Iterator<Item = bool>| {
             values.fold(State::Unknown, |state, value| joined(state, of(value)))
@@ -576,12 +604,17 @@ pub fn judge(model: &Model) -> Reading {
             bias: a,
         };
         out.push((x.clone(), opinion));
+        if let State::True | State::False = judged {
+            let sets = &drawn.labels[&(x.name.clone(), judged == State::True)];
+            let named = |env: &Env| env.iter().map(|i| model.taken[*i].piece.clone()).collect();
+            rests.push((x.clone(), sets.iter().map(named).collect()));
+        }
     }
 
     let mut given_up: Vec<(Env, f64)> = match drawn.nogoods.is_empty() {
         true => Vec::new(),
         false => {
-            let sets = drawn.hitting(&drawn.nogoods);
+            let sets = drawn.ways.clone();
             sets.into_iter()
                 .map(|set| {
                     let cost = drawn.together(&set);
@@ -621,6 +654,7 @@ pub fn judge(model: &Model) -> Reading {
     }
     Reading {
         pieces: out,
+        rests,
         suspects,
     }
 }
@@ -642,6 +676,18 @@ pub fn opinion(model: &Model, x: &Piece) -> Opinion {
         },
         |(_, opinion)| opinion,
     )
+}
+
+/// What the judged state of a piece rests on: the smallest sets of
+/// taken pieces it follows from. Nothing for a piece that is unknown
+/// or in conflict.
+// mitra: implements calculus::rests
+pub fn rests(model: &Model, x: &Piece) -> Vec<Vec<Piece>> {
+    let found = judge(model)
+        .rests
+        .into_iter()
+        .find(|(p, _)| p.name == x.name);
+    found.map_or(Vec::new(), |(_, sets)| sets)
 }
 
 /// The verdict of a model: conflict if any piece is in conflict; else
