@@ -27,7 +27,7 @@ subject verdict {
     // The least to give up is a minimum cut: Ford and Fulkerson, 1956,
     // "Maximal Flow Through a Network". Departs: found here by trying
     // every set of evidence, which is exact and slow.
-    ensure sure_is_what_must_be_given_up = "Confidence is counted after the states and never changes one. A state is as sure as the least evidence that would have to be given up for it to fall: that much is its count. So two tests of one thing add up, and a state that every way to it goes through one review is no surer than that review. Nothing is counted for a piece that is unknown or in conflict.";
+    ensure sure_is_what_must_be_given_up = "Confidence is counted after the states and never changes one. A state is as sure as the least evidence that would have to be given up for it to fall: that much is its count. So two tests of one thing add up, and a state that every way to it goes through one review is no surer than that review. Nothing is counted for a piece that is unknown or in conflict. A verdict that holds is as sure as its least sure statement, which is named: it is where more evidence helps most.";
     // After Reiter, 1987, "A Theory of Diagnosis from First
     // Principles", and de Kleer and Williams, 1987, "Diagnosing
     // Multiple Faults": the smallest sets of assumptions to give up.
@@ -77,6 +77,9 @@ subject verdict {
         uses read;
     // How sure a state is, as one number.
     fn sure(v: Verdict, w: Float64) -> Option<Float64>;
+    // How sure a verdict that holds is: its least sure statement.
+    fn least_sure(model: model::Model) -> Option<(piece::Piece, Float64)>
+        uses overall, read, statements, sure;
 
     claim joined_keeps_what_agrees(x: State) {
         joined(x, x) == x && joined(x, Unknown) == x && joined(Unknown, x) == x
@@ -92,6 +95,9 @@ subject verdict {
     }
     claim an_unknown_piece_has_no_confidence(m: model::Model, x: piece::Piece) {
         state(m, x) != Unknown || verdict_of(m, x).confidence == None
+    }
+    claim only_a_verdict_that_holds_is_sure(m: model::Model) {
+        overall(m) == True || least_sure(m) == None
     }
     claim suspects_only_with_something_false(m: model::Model) {
         overall(m) == Conflict || overall(m) == False || suspects(m) == []

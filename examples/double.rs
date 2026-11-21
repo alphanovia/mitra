@@ -114,7 +114,10 @@ fn main() {
         };
         println!(
             "| {name} | {} | {} | {} | {} | {} | {} | {} |",
-            format!("{:?}", overall(m)).to_lowercase(),
+            match least_sure(m) {
+                Some((_, n)) => format!("true {n:.2}"),
+                None => format!("{:?}", overall(m)).to_lowercase(),
+            },
             p("double::correct"),
             p("double::correct @ n = Whole(3)"),
             p("double::correct @ n = Whole(7)"),

@@ -244,6 +244,10 @@ fn one_throw(fell: bool) -> Model {
 fn one_throw_alone() {
     let m = one_throw(true);
     assert_eq!(overall(&m), State::True);
+    // mitra: evidence for verdict::only_a_verdict_that_holds_is_sure
+    let (_, n) = least_sure(&m).unwrap();
+    assert_eq!(format!("{n:.2}"), "0.91");
+    assert_eq!(least_sure(&one_throw(false)), None);
     assert_eq!(show(&m, "applies"), "true 0.91");
     assert_eq!(show(&m, "falls"), "true 0.91");
     let m = one_throw(false);

@@ -859,8 +859,8 @@ a measurement is believed at 0.9.
 
 | after | verdict | `speed` | at the stone's 5 m | at the feather's 5 m | stone's tie | its completeness | feather's tie | its completeness |
 |---|---|---|---|---|---|---|---|---|
-| one fall of the stone | true | true 0.91 | true 0.91 | unknown | true 0.91 | true 0.93 | unknown | unknown |
-| the stone alone | true | true 0.91 | true 0.95 | unknown | true 0.97 | true 0.97 | unknown | unknown |
+| one fall of the stone | true 0.91 | true 0.91 | true 0.91 | unknown | true 0.91 | true 0.93 | unknown | unknown |
+| the stone alone | true 0.91 | true 0.91 | true 0.95 | unknown | true 0.97 | true 0.97 | unknown | unknown |
 | the feather alone | false | unknown | unknown | unknown | unknown | unknown | unknown | unknown |
 | both | false | true 0.91 | true 0.95 | true 0.91 | true 0.97 | true 0.97 | unknown | unknown |
 
@@ -906,9 +906,9 @@ tie's completeness together. `uniform` is reviewed by one voice.
 | no `uniform`, a test at 3 | unknown | unknown | true 0.91 | unknown | unknown | true 0.91 | true 0.93 |
 | no `uniform`, then a run at 7 gives 15 | false | false 0.91 | true 0.91 | false 0.91 | unknown | true 0.91 | true 0.93 |
 | `uniform` not reviewed, a test at 3 | unknown | unknown | true 0.91 | unknown | unknown | true 0.91 | true 0.93 |
-| `uniform` reviewed, a test at 3 | true | true 0.91 | true 0.91 | unknown | true 0.91 | true 0.91 | true 0.93 |
+| `uniform` reviewed, a test at 3 | true 0.91 | true 0.91 | true 0.91 | unknown | true 0.91 | true 0.91 | true 0.93 |
 | then a run at 7 gives 15 | conflict | conflict | conflict | conflict | true 0.91 | conflict | conflict |
-| tests at 1, 2, 3 and 4, `uniform` reviewed | true | true 0.91 | true 0.95 | unknown | true 0.91 | true 0.97 | true 0.98 |
+| tests at 1, 2, 3 and 4, `uniform` reviewed | true 0.91 | true 0.91 | true 0.95 | unknown | true 0.91 | true 0.97 | true 0.98 |
 | then a run at 7 gives 15 | conflict | conflict | conflict | conflict | true 0.91 | conflict | conflict |
 
 After four tests and the run at 7, what may be given up, the lightest first:
@@ -927,3 +927,5 @@ After four tests and the run at 7, what may be given up, the lightest first:
   the claim is true at 7, and the run says it is not. Everything the
   conflict reaches is marked. What may be given up is listed, and
   each choice leaves a plain state.
+- A verdict that holds shows how sure it is: its least sure
+  statement.

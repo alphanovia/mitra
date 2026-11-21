@@ -476,3 +476,23 @@ pub fn shown(v: &Verdict, w: f64) -> String {
         None => state,
     }
 }
+
+/// How sure a verdict that holds is: its least sure statement, and
+/// which one it is. Nothing unless every statement is true.
+// mitra: implements verdict::least_sure
+pub fn least_sure(model: &Model) -> Option<(Piece, f64)> {
+    if overall(model) != State::True {
+        return None;
+    }
+    let reading = read(model);
+    let w = model.settings.weight;
+    let mut least: Option<(Piece, f64)> = None;
+    for x in statements(model) {
+        let found = reading.pieces.iter().find(|(piece, _)| piece == &x)?;
+        let n = sure(&found.1, w)?;
+        if least.as_ref().is_none_or(|(_, m)| n < *m) {
+            least = Some((x, n));
+        }
+    }
+    least
+}

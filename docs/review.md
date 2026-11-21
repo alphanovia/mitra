@@ -1079,4 +1079,5 @@ still tested, and nothing above it reads it any more. 164 tests.
      from `docs/design`. `intent.mitra` stays.
 745. `mitra conform`: 136 ties agree, 22 differ, the same reader
      limits.
-
+746. A verdict that holds is as sure as its least sure statement
+     (`least_sure`), which is named. 164 tests.

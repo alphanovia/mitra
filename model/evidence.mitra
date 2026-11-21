@@ -156,3 +156,5 @@ evidence tie { for verdict::verdict_of::uses holds act tie by "machine:mitra-rus
 evidence tie { for verdict::suspects::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:452; erased 2: reference(model), width" }
 evidence tie { for verdict::suspects::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:452" }
 evidence tie { for verdict::sure::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:460; erased 2: reference(v), width" }
+evidence tie { for verdict::least_sure::tied holds trust 0.98 act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:482; erased 2: reference(model), width" }
+evidence tie { for verdict::least_sure::uses holds act tie by "machine:mitra-rust" source "reader:rust src/verdict.rs:482" }
