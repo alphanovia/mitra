@@ -1,6 +1,7 @@
 //! The foundation test model: the speed of a fall, from a value to a
 //! verdict. Evaluate, take, judge. The same toy as `tests/falling.rs`.
 
+use mitra_core::atom::*;
 use mitra_core::bounds::{between, Bounds};
 use mitra_core::claim::*;
 use mitra_core::model::*;
@@ -34,110 +35,166 @@ fn fallen() -> Expression {
 fn metres(low: i64, high: i64) -> mitra_core::value::Value<Bounds> {
     between(&real(), (low, 1), (high, 1)).unwrap()
 }
-/// What falls: a part of the model.
+/// What falls: a part of the model, with one function, `fall`: from a
+/// height `h`, a speed `v`. It is only declared: nature does it.
 fn part(object: &str) -> Part {
-    Part::subject(object)
-}
-/// Where it was dropped, and that this is the part the model means.
-fn tie(object: &str) -> Tie {
-    Tie {
-        piece: leaf(&format!("{object}::is the one dropped"), &part(object)),
-        location: Location::at(&["lab", "tower", object]),
+    Part {
+        name: object.to_string(),
+        kind: Kind::Subject,
+        records: Vec::new(),
+        functions: vec![Function {
+            name: fall(object),
+            inputs: vec![("h".to_string(), real())],
+            output: ("v".to_string(), real()),
+            body: None,
+        }],
     }
+}
+fn fall(object: &str) -> String {
+    format!("{object}::fall")
+}
+/// Where it is dropped.
+fn tower(object: &str) -> Location {
+    Location::at(&["lab", "tower", object])
+}
+/// The tie: `fall` is the drop in the tower, and the model says all
+/// that matters of it there.
+fn tie(object: &str) -> Piece<Tie> {
+    let about = Tie {
+        of: fall(object),
+        location: tower(object),
+    };
+    leaf(&format!("{object}::fall is the drop in the tower"), about)
 }
 /// `speed`: from 0 to 100 m and 0 to 100 m/s, v² = 2·g·h within
 /// 2 m²/s². g is 9.81 m/s².
-fn speed(object: &str) -> Claim {
+fn speed(object: &str) -> Piece<Claim> {
     let seen = times(input("v"), input("v"));
-    Claim {
-        piece: leaf(&format!("{object}::speed"), &part(object)),
+    let about = Claim {
+        of: fall(object),
         domain: vec![
             ("h".to_string(), metres(0, 100)),
             ("v".to_string(), metres(0, 100)),
         ],
         expression: Apply(within(&real()), vec![seen, fallen(), Given(r(2, 1))]),
-    }
+    };
+    leaf(&format!("{object}::speed"), about)
 }
 /// `slow`: from 20 m or less, 2·g·h stays under 400.
-fn slow(object: &str) -> Claim {
-    Claim {
-        piece: leaf(&format!("{object}::slow"), &part(object)),
+fn slow(object: &str) -> Piece<Claim> {
+    let about = Claim {
+        of: fall(object),
         domain: vec![("h".to_string(), metres(0, 20))],
         expression: Apply(less(&real()), vec![fallen(), Given(r(400, 1))]),
-    }
+    };
+    leaf(&format!("{object}::slow"), about)
 }
-/// The hypothesis of the architect: nothing but the height matters.
-fn only_height(object: &str) -> Piece {
-    leaf(&format!("{object}::only the height matters"), &part(object))
+/// What the part needs, said by the architect: nothing but the height
+/// matters.
+fn only_height(object: &str) -> Piece<Require> {
+    let about = Require {
+        part: object.to_string(),
+        text: "nothing but the height matters".to_string(),
+    };
+    leaf(&format!("{object}::only the height matters"), about)
 }
-fn piece(name: &str, object: &str, pre: &[Piece], post: &[Piece]) -> Piece {
+fn ensure(
+    name: &str,
+    object: &str,
+    text: &str,
+    pre: Vec<SomePiece>,
+    post: Vec<SomePiece>,
+) -> Piece<Ensure> {
     Piece {
         name: format!("{object}::{name}"),
-        pre: pre.to_vec(),
-        subject: part(object),
-        post: post.to_vec(),
+        pre,
+        about: Ensure {
+            part: object.to_string(),
+            text: text.to_string(),
+        },
+        post,
     }
 }
-/// The claim of the model: given that only the height matters, the
-/// object falls at `speed`.
-fn falls(object: &str) -> Piece {
-    let then = [speed(object).piece];
-    piece("falls", object, &[only_height(object)], &then)
+/// What the part promises: given that only the height matters, it
+/// falls at `speed`.
+fn falls(object: &str) -> Piece<Ensure> {
+    let (given, then) = (
+        vec![erased(&only_height(object))],
+        vec![erased(&speed(object))],
+    );
+    ensure("falls", object, "it falls at `speed`", given, then)
+}
+/// A height and a speed measured in the tower, in hundredths.
+fn at(object: &str, h: i64, v: i64) -> Measurement<Exact> {
+    Measurement {
+        function: fall(object),
+        at: tower(object),
+        values: vec![("h".to_string(), r(h, 100)), ("v".to_string(), r(v, 100))],
+    }
+}
+fn timer(h: i64) -> Voice {
+    Voice::named(&format!("machine:timer {h}"))
+}
+/// The piece of evidence of `speed` on one measurement.
+fn seen(object: &str, h: i64, v: i64) -> SomePiece {
+    erased(&evidence_of(&speed(object), &at(object, h, v), &timer(h)))
 }
 /// What a reviewer says: these measured falls represent every fall.
-fn represents(object: &str, measured: &[(i64, i64)]) -> Piece {
-    let each = measured
-        .iter()
-        .map(|(h, v)| instance(&speed(object), &at(*h, *v)));
-    let seen: Vec<Piece> = each.collect();
-    let all = [speed(object).piece];
-    piece("represents", object, &seen, &all)
+fn represents(object: &str, measured: &[(i64, i64)]) -> Piece<Ensure> {
+    let each = measured.iter().map(|(h, v)| seen(object, *h, *v));
+    let text = "the measured falls represent every fall";
+    ensure(
+        "represents",
+        object,
+        text,
+        each.collect(),
+        vec![erased(&speed(object))],
+    )
 }
 /// A second claim, resting on the first: given `speed`, `slow`.
-fn stays_slow(object: &str) -> Piece {
-    let (given, then) = ([speed(object).piece], [slow(object).piece]);
-    piece("stays slow", object, &given, &then)
+fn stays_slow(object: &str) -> Piece<Ensure> {
+    let (given, then) = (vec![erased(&speed(object))], vec![erased(&slow(object))]);
+    ensure(
+        "stays slow",
+        object,
+        "`slow` follows from `speed`",
+        given,
+        then,
+    )
 }
-
-/// A height and a speed, in hundredths.
-fn at(h: i64, v: i64) -> [(String, Value); 2] {
-    [("h".to_string(), r(h, 100)), ("v".to_string(), r(v, 100))]
-}
-fn take(m: &mut Model, x: Piece, by: &str) {
+fn take<T: Keyed>(m: &mut Model, x: &Piece<T>, by: &str) {
     m.taken.push(Taking {
-        piece: x,
+        piece: erased(x),
         value: true,
         count: 1.0,
         by: Voice::named(by),
+        form: Form::Review,
     });
 }
 /// The model of one object after these measurements, each by its own
-/// timer. With `reviewed`, the architect takes the hypothesis and a
-/// reviewer takes that the measured falls represent all.
+/// timer. Who tied takes the tie. With `reviewed`, the architect
+/// takes what the part needs and a reviewer takes that the measured
+/// falls represent all.
 fn after(object: &str, measured: &[(i64, i64)], reviewed: bool) -> Model {
     let mut m = Model::empty(S);
-    m.pieces = vec![falls(object), stays_slow(object)];
+    m.pieces = vec![erased(&falls(object)), erased(&stays_slow(object))];
     // `slow` follows from `speed` by arithmetic: a deduction.
-    m.bias.push((stays_slow(object), 1.0));
+    m.bias.push((erased(&stays_slow(object)), 1.0));
     for (h, v) in measured {
-        let by = Voice::named(&format!("machine:timer {h}"));
-        m = observe(
-            &m,
-            &speed(object),
-            &at(*h, *v),
-            &Table::default(),
-            Some(&tie(object)),
-            1.0,
-            &by,
-        )
-        .unwrap();
+        m = measure(&m, object, *h, *v);
     }
-    take(&mut m, tie(object).piece, "agent:modeller");
+    take(&mut m, &tie(object), "agent:modeller");
     if reviewed {
-        take(&mut m, only_height(object), "agent:architect");
-        take(&mut m, represents(object, measured), "agent:reviewer");
+        take(&mut m, &only_height(object), "agent:architect");
+        take(&mut m, &represents(object, measured), "agent:reviewer");
     }
     m
+}
+/// One more measurement, evaluated on `speed` and taken by its timer.
+fn measure(m: &Model, object: &str, h: i64, v: i64) -> Model {
+    let (table, here) = (Table::default(), tie(object));
+    let run = at(object, h, v);
+    observe(m, &speed(object), &run, &table, Some(&here), 1.0, &timer(h)).unwrap()
 }
 
 fn word(state: State) -> String {
@@ -158,7 +215,7 @@ fn print(title: &str, m: &Model) {
         "Verdict: {}{sure}\n",
         word(verdict(m)).replace('-', "unknown")
     );
-    println!("| piece | step | evaluated | taken | judged | interval |");
+    println!("| piece | keyword | step | evaluated | taken | judged |");
     println!("|---|---|---|---|---|---|");
     for (x, o) in &reading.pieces {
         let step = match step(m, x) {
@@ -166,44 +223,55 @@ fn print(title: &str, m: &Model) {
             Some(how) => format!("{how:?}").to_lowercase(),
         };
         println!(
-            "| `{}` | {step} | {} | {} | {} | {:.2} to {:.2} |",
-            x.name,
+            "| `{}` | {} | {step} | {} | {} | {} |",
+            plain(&x.name),
+            x.about,
             word(o.evaluated()),
             word(o.taken()),
             shown(o),
-            o.interval().0,
-            o.interval().1
         );
     }
     for group in &reading.suspects {
-        let names: Vec<String> = group.iter().map(|x| format!("`{}`", x.name)).collect();
-        println!("\nCannot all be true: {}", names.join(", "));
+        let names: Vec<String> = group
+            .iter()
+            .map(|x| format!("`{}`", plain(&x.name)))
+            .collect();
+        println!("\nSuspects: {}", names.join(", "));
     }
+}
+
+/// A name with its ratios written `a/b`, for the table only.
+fn plain(name: &str) -> String {
+    let mut out = String::new();
+    let mut rest = name;
+    while let Some(i) = rest.find("Many([Whole(") {
+        out.push_str(&rest[..i]);
+        let tail = &rest[i + 12..];
+        let Some(j) = tail.find(")])") else { break };
+        out.push_str(&tail[..j].replace("), Whole(", "/"));
+        rest = &tail[j + 3..];
+    }
+    out + rest
 }
 
 fn main() {
     let stone = [(500, 990), (1000, 1400), (2000, 1980)];
     let feather = [(500, 200), (1000, 210)];
+    let made = part("stone");
+    let level = function_level(&made.functions[0], 2);
+    println!(
+        "`{}` is {level:?}: declared, with two claims.",
+        made.functions[0].name
+    );
     print(
         "The stone, three measurements, nothing reviewed",
         &after("stone", &stone, false),
     );
     print("The stone, reviewed", &after("stone", &stone, true));
-    let mut bad = after("stone", &stone, true);
-    let by = Voice::named("machine:timer 3000");
-    bad = observe(
-        &bad,
-        &speed("stone"),
-        &at(3000, 990),
-        &Table::default(),
-        Some(&tie("stone")),
-        1.0,
-        &by,
-    )
-    .unwrap();
+    let bad = measure(&after("stone", &stone, true), "stone", 3000, 990);
     print("The stone, reviewed, then one bad measurement", &bad);
     let mut light = after("feather", &feather, false);
-    print("The feather, hypothesis not taken", &light);
-    take(&mut light, only_height("feather"), "agent:architect");
-    print("The feather, hypothesis taken", &light);
+    print("The feather, the require not taken", &light);
+    take(&mut light, &only_height("feather"), "agent:architect");
+    print("The feather, the require taken", &light);
 }

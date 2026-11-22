@@ -1,0 +1,59 @@
+// What a model is made of. A part is a subject or a boundary, with
+// its records and functions. Each is specified as far as its author
+// chose, from only declared to fully defined. A measurement is an
+// instance of a function taken on the system. Types are what records
+// are made of: they are value.mitra's, and fully defined. Pieces are
+// properties of all of these: model.mitra and claim.mitra.
+//
+// Code: src/atom.rs. Worked case: tests/falling.rs.
+
+import std::core::{Option};
+
+subject part {
+    require typed = value::typed;
+    require addressed = location::location_is_a_path;
+
+    ensure a_part_is_named = "A part is a named part of the system model: a subject, which is built here, or a boundary, which is bought. It holds records and functions. It is not an address: where it is in the real system is said by a tie.";
+    ensure records_and_functions_are_the_atoms = "A record is data of the system, with fields that each have a type. A function is something the system does: from inputs an output, each with a name and a type, and a body that says what the output is. Nothing else is in a part.";
+    ensure specified_is_a_spectrum = "A record, a function and a part are each specified as far as their author chose. Opaque: only declared, a record with no fields, a function with no body, and nothing claimed of it. Partial: something is claimed of it, not all. Total: fully defined, a record with its fields, a function with its body. A part is total when all it holds is, opaque when all it holds is or it holds nothing, partial otherwise.";
+    ensure a_measurement_is_an_instance = "A measurement is an instance of a function, taken on the system at a location: each input and the output with what it was. At a point the values are exact; over a set they are the bounds each lies in.";
+
+    enum Kind { Subject, Boundary }
+    record Record {
+        name: String,
+        fields: Option<List<(String, Type)>>,
+    }
+    record Function {
+        name: String,
+        inputs: List<(String, Type)>,
+        output: (String, Type),
+        body: Option<value::Expression<standard::Exact>>,
+    }
+    record Part {
+        name: String,
+        kind: Kind,
+        records: List<Record>,
+        functions: List<Function>,
+    }
+    enum Level { Opaque, Partial, Total }
+    // `claims` is how many claims are about it.
+    fn record_level(r: Record, claims: Int) -> Level;
+    fn function_level(f: Function, claims: Int) -> Level;
+    // From the levels of what a part holds.
+    fn part_level(levels: List<Level>) -> Level;
+
+    record Measurement<Q> {
+        function: String,
+        at: location::Location,
+        values: List<(String, Value<Q>)>,
+    }
+
+    claim only_declared_is_opaque(name: String) {
+        record_level(Record(name, None), 0) == Opaque && record_level(Record(name, None), 1) == Partial
+    }
+    claim fields_are_total(name: String, claims: Int) {
+        record_level(Record(name, Some([])), claims) == Total
+    }
+    claim nothing_held_is_opaque() { part_level([]) == Opaque }
+    claim all_total_is_total() { part_level([Total, Total]) == Total && part_level([Total, Opaque]) == Partial }
+}

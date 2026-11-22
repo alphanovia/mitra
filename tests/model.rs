@@ -9,17 +9,16 @@ const S: Settings = Settings {
     reliability: 1.0,
 };
 
-fn here() -> Part {
-    Part::subject("s")
-}
+/// The calculus reads pieces of any kind, so these are of any kind.
+type Piece = SomePiece;
 fn l(name: &str) -> Piece {
-    leaf(name, &here())
+    leaf(name, "claim".to_string())
 }
 fn piece(name: &str, pre: &[Piece], post: &[Piece]) -> Piece {
     Piece {
         name: name.to_string(),
         pre: pre.to_vec(),
-        subject: here(),
+        about: "ensure".to_string(),
         post: post.to_vec(),
     }
 }
@@ -32,6 +31,7 @@ fn took(x: &Piece, value: bool, count: f64, by: &str) -> Taking {
         value,
         count,
         by: Voice::named(by),
+        form: Form::Review,
     }
 }
 fn yes(x: &Piece) -> Taking {

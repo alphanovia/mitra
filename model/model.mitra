@@ -1,15 +1,21 @@
-// The piece system. A piece is a proposed property of the system:
-// given what is before it, its subject gives what is after it. The
-// subject is a named part of the system model, and a tie says where
-// that part is in the real system. An
-// opinion is what is believed of a piece: what evaluating gave, what
-// voices took it as, what it is judged to be, how sure, and its bias.
-// The calculus judges every piece of a model from what was taken.
-// It knows nothing of values: claim.mitra is the crossing.
+// The piece system. A piece is a proposed property: given the pieces
+// before it, what it is about gives the pieces after it. A piece is
+// generic: the type of what it is about gives its keyword, and the
+// pieces before and after it are of any kind. An opinion is what is
+// believed of a piece. The calculus judges every piece of a model
+// from what was taken, and reads no kind. It knows nothing of values:
+// atom.mitra says what a system is made of, claim.mitra is the
+// crossing.
 //
 // Start here. Code: src/model.rs. Worked case: tests/falling.rs.
 
 import std::core::{Option};
+
+// What a piece can be about: its type gives the keyword.
+contract Keyed {
+    fn keyword(&self) -> String;
+    ensure the_type_gives_the_keyword = "What a piece is about has one keyword, the word the language names that kind of piece by. It is given by its type and by nothing else: two things of the same type have the same keyword.";
+}
 
 // An address in the real system.
 subject location {
@@ -25,63 +31,94 @@ subject location {
     claim within_itself(a: Location) { location::within(a, a) }
 }
 
-// A named part of the system model.
-subject part {
-    ensure a_part_is_named = "A part is a named part of the system model: a subject, which is built here, or a boundary, which is bought. It is known by its name and its kind. It is not an address: where a part is in the real system is said by a tie.";
-
-    enum Kind { Subject, Boundary }
-    record Part {
-        name: String,
-        kind: Kind,
-    }
-
-    claim a_subject_is_not_a_boundary(name: String) { Part(name, Subject) != Part(name, Boundary) }
-}
-
 // A proposed property of the system, and what is believed of it.
 subject piece {
-    require named = part::a_part_is_named;
+    require addressed = location::location_is_a_path;
 
     // The shape is Hoare's, 1969, "An Axiomatic Basis for Computer
     // Programming": {pre} subject {post}. Departs: what is before and
-    // after are pieces with a state each, not formulas, and the
-    // subject is a part of the system model.
-    ensure a_piece_is_pre_subject_post = "A piece is a proposed property of the system, known by its name: given the pieces before it, its subject gives the pieces after it. The subject is a part of the system model, a subject or a boundary. A piece holds its own structure, so pieces chain: what is after one is before another, and a piece can itself be before or after a piece. There is no second way to be believed.";
-    ensure a_leaf_is_said_alone = "A piece with nothing before and nothing after is a leaf: something said of its subject. Nothing is drawn from a leaf alone. A hypothesis is a leaf that only stands before other pieces: it is there to be questioned when something is wrong, not to be proved.";
+    // after are pieces with a state each, not formulas.
+    ensure a_piece_is_pre_about_post = "A piece is a proposed property, known by its name: given the pieces before it, what it is about gives the pieces after it. A piece holds its own structure, so pieces chain: what is after one is before another. There is no second way to be believed.";
+    ensure the_type_gives_the_keyword = "A piece is generic in what it is about, and the type of that gives the keyword of the piece: a require or an ensure about a part, a tie about a location, and in claim.mitra a claim about a record or a function and evidence about a measurement.";
+    ensure before_and_after_are_of_any_kind = "The pieces before and after a piece are of any kind: each is kept as some piece, with what it is about forgotten and its keyword kept. The calculus reads pieces in that form only, so it treats every kind the same way.";
+    ensure a_leaf_is_said_alone = "A piece with nothing before and nothing after is a leaf. Nothing is drawn from a leaf alone.";
+    ensure a_part_is_required_of_and_ensures = "A require says what a part needs, an ensure what it promises. Neither can be evaluated: it is taken by a voice, or it holds or is refuted by what the calculus judges. A require that only stands before other pieces is there to be questioned when something is wrong, not to be proved.";
+    ensure a_tie_is_one_belief = "A tie says that a part, a record or a function of the model is at a location in the real system, and that the model says all that matters of it there. Identification and completeness are one belief, in one piece that can be taken or refuted. What a tie can be of is for a language frontend to say.";
     // After Belnap, 1977, "A Useful Four-Valued Logic".
     ensure a_state_is_one_of_four = "A state is one of four: unknown, nothing leads to the piece; true; false; conflict, it is told true and told false.";
-    ensure an_opinion_is_read_five_ways = "The opinion of a piece is read five ways and no other. Evaluated: what computing it gave. Taken: what voices took it as. Judged: what the calculus makes of it. Confidence: how sure the judged state is, between 0 and 1, and none for a piece judged unknown or in conflict. Bias: what to expect of it before anything, which never changes a state. What the record holds inside is not promised.";
+    ensure an_opinion_is_read_five_ways = "The opinion of a piece is read five ways and no other. Evaluated: what computing it gave. Taken: what voices took it as. Judged: what the calculus makes of it, where true is said to hold and false to be refuted. Confidence: how sure the judged state is, between 0 and 1, and none for a piece judged unknown or in conflict. Bias: what to expect of it before anything, which never changes a state. What the record holds inside is not promised.";
+    ensure the_state_is_read_not_stored = "Inside an opinion nothing is a state. There is what counts for the piece and what counts against it, which never cancel; the smallest sets of pieces each of those rests on; and the bias. The judged state is read from which sets are empty and never from the numbers: unknown with nothing for and nothing against; true with something for and nothing against; false the other way; conflict with both, or when a way out of a conflict elsewhere leaves the piece with nothing to rest on.";
     ensure an_interval_is_a_trial = "A trial, beside the five: the interval of an opinion, for any state. Its low end is what says the piece is true, its high end is all that does not say it is false; unknown is 0 to 1, and the confidence of a true piece is the point of the interval at its bias.";
 
     // After Peirce, 1878, "Deduction, Induction, and Hypothesis".
     enum Inference { Deduction, Induction }
-    record Piece {
+    // Some piece, of any kind: a piece with what it is about
+    // forgotten and its keyword kept. It is `Piece<String>`, written
+    // out because a generic record cannot name itself here.
+    record SomePiece {
         name: String,
-        pre: List<Piece>,
-        subject: part::Part,
-        post: List<Piece>,
+        pre: List<SomePiece>,
+        about: String,
+        post: List<SomePiece>,
     }
-    fn leaf(name: String, subject: part::Part) -> Piece { Piece(name, [], subject, []) }
+    record Piece<T> {
+        name: String,
+        pre: List<SomePiece>,
+        about: T,
+        post: List<SomePiece>,
+    }
+    // The piece with what it is about forgotten.
+    fn erased<T>(x: Piece<T>) -> SomePiece;
+    fn leaf<T>(name: String, about: T) -> Piece<T> { Piece(name, [], about, []) }
+
+    // `part` is the name of a subject or a boundary.
+    record Require {
+        part: String,
+        text: String,
+    }
+    record Ensure {
+        part: String,
+        text: String,
+    }
+    // `of` is the name of a part, a record or a function.
+    record Tie {
+        of: String,
+        location: location::Location,
+    }
+    impl Keyed for Require { }
+    impl Keyed for Ensure { }
+    impl Keyed for Tie { }
 
     enum State { Unknown, True, False, Conflict }
     // Both said of one piece.
     fn joined(x: State, y: State) -> State;
 
-    // The inside is free to change. Read it through the five getters.
+    // The inside is free to change. Read it through the getters.
+    // `yes` is what counts for the piece and `no` what counts against
+    // it. `falls` is the ways out of a conflict elsewhere that leave
+    // it with nothing to rest on. `weight` is how many counts the bias
+    // weighs.
     record Opinion {
         evaluated: State,
         taken: State,
-        judged: State,
-        sure: Option<Float64>,
+        yes: Float64,
+        no: Float64,
+        rests_for: List<List<SomePiece>>,
+        rests_against: List<List<SomePiece>>,
+        falls: List<List<SomePiece>>,
         bias: Float64,
-        between: (Float64, Float64),
+        weight: Float64,
     }
     fn evaluated(o: Opinion) -> State { o.evaluated }
     fn taken(o: Opinion) -> State { o.taken }
-    fn judged(o: Opinion) -> State { o.judged }
-    fn confidence(o: Opinion) -> Option<Float64> { o.sure }
+    fn judged(o: Opinion) -> State;
+    fn confidence(o: Opinion) -> Option<Float64>
+        uses judged;
     fn bias(o: Opinion) -> Float64 { o.bias }
-    fn interval(o: Opinion) -> (Float64, Float64) { o.between }
+    // What the judged state rests on.
+    fn rests(o: Opinion) -> List<List<SomePiece>>
+        uses judged;
+    fn interval(o: Opinion) -> (Float64, Float64);
 
     claim joined_keeps_what_agrees(x: State) {
         joined(x, x) == x && joined(x, Unknown) == x && joined(Unknown, x) == x
@@ -89,31 +126,35 @@ subject piece {
     claim true_and_false_is_a_conflict() {
         joined(True, False) == Conflict && joined(False, True) == Conflict
     }
+    claim nothing_to_rest_on_is_unknown(a: Float64, w: Float64) {
+        judged(Opinion(Unknown, Unknown, 0.0, 0.0, [], [], [], a, w)) == Unknown && rests(Opinion(Unknown, Unknown, 0.0, 0.0, [], [], [], a, w)) == []
+    }
+    claim erased_keeps_the_structure(x: Piece<Ensure>) {
+        erased(x).name == x.name && erased(x).pre == x.pre && erased(x).post == x.post
+    }
 }
 
 // Pieces, and what was taken.
 subject model {
-    require proposed = piece::a_piece_is_pre_subject_post;
-    require addressed = location::location_is_a_path;
+    require proposed = piece::a_piece_is_pre_about_post;
+    require erased = piece::before_and_after_are_of_any_kind;
 
-    ensure a_tie_is_a_believed_link = "A tie is a believed link between a part of the system model and its location in the real system. It has a piece, a leaf about the part, that says so: the tie can be wrong like any other piece, and it is taken by who tied. Where a part is, is read from the ties and from nothing else.";
     ensure a_taking_is_signed = "A piece gets a state from outside in one way only: a voice takes it, as true or as false, with a count of how firmly. One test is 1. Every taking has a voice. A voice that takes one piece the same way twice counts once, as the firmer.";
+    ensure a_taking_has_a_form = "A taking says how the voice came to it: a review, it read the model, the code or both; a measurement, it ran the system at a point; an evaluation, it read a claim over a set with no run. The three are the same operation for the calculus, which does not read the form.";
     ensure a_voice_weighs_as_it_is_believed = "A taking weighs its count, as far as its voice is believed: a number given with the model for that voice, or the setting for a voice nobody judged. A taking that weighs nothing is not taken at all.";
     ensure the_step_is_read_from_the_bias = "The step of logic a piece is, is read from its bias and from nothing else. With a bias of 1 it is a deduction: it holds by what it is, nobody takes it, it is never judged and never given up. Under 1 it is an induction: it may be wrong, it must be true to be applied, and it is applied under its own doubt. A leaf is no step.";
-    ensure only_from_the_model = "Everything judged comes from the model: its pieces, its ties, what was evaluated, what was taken, the biases, the voices and the settings. Nothing here holds a value of its own.";
+    ensure only_from_the_model = "Everything judged comes from the model: its pieces, what was evaluated, what was taken, the biases, the voices and the settings. Nothing here holds a value of its own.";
 
     record Voice {
         name: String,
     }
-    record Tie {
-        piece: piece::Piece,
-        location: location::Location,
-    }
+    enum Form { Review, Measurement, Evaluation }
     record Taking {
-        piece: piece::Piece,
+        piece: piece::SomePiece,
         value: Bool,
         count: Float64,
         by: Voice,
+        form: Form,
     }
     // `weight` is how many counts a bias weighs. `bias` is for a piece
     // nobody gave one. `reliability` is for a voice nobody judged.
@@ -123,23 +164,20 @@ subject model {
         reliability: Float64,
     }
     record Model {
-        pieces: List<piece::Piece>,
-        ties: List<Tie>,
-        evaluated: List<(piece::Piece, Bool)>,
+        pieces: List<piece::SomePiece>,
+        evaluated: List<(piece::SomePiece, Bool)>,
         taken: List<Taking>,
-        bias: List<(piece::Piece, Float64)>,
+        bias: List<(piece::SomePiece, Float64)>,
         voices: List<(Voice, Float64)>,
         settings: Settings,
     }
 
     // Every piece of the model, each once, with those before and
     // after each.
-    fn pieces(model: Model) -> List<piece::Piece>;
-    // Where a part is in the real system.
-    fn located(model: Model, part: part::Part) -> List<location::Location>;
-    fn bias(model: Model, x: piece::Piece) -> Float64;
+    fn pieces(model: Model) -> List<piece::SomePiece>;
+    fn bias(model: Model, x: piece::SomePiece) -> Float64;
     // None for a leaf.
-    fn step(model: Model, x: piece::Piece) -> Option<piece::Inference>
+    fn step(model: Model, x: piece::SomePiece) -> Option<piece::Inference>
         uses bias;
     // How much a taking weighs.
     fn weight(model: Model, t: Taking) -> Float64;
@@ -147,8 +185,9 @@ subject model {
 
 // How every piece is judged.
 subject calculus {
-    require proposed = piece::a_piece_is_pre_subject_post;
+    require proposed = piece::a_piece_is_pre_about_post;
     require four = piece::a_state_is_one_of_four;
+    require inside = piece::the_state_is_read_not_stored;
     require read = piece::an_opinion_is_read_five_ways;
     require signed = model::a_taking_is_signed;
     require weighed = model::a_voice_weighs_as_it_is_believed;
@@ -171,30 +210,29 @@ subject calculus {
     ensure the_verdict_is_one_state = "The verdict of a model is one state, read from every piece that is not a deduction: conflict if one is in conflict; else false if one is false; else unknown if one is unknown; else true. A verdict that is true is as sure as its least sure piece, which is named.";
 
     record Reading {
-        pieces: List<(piece::Piece, piece::Opinion)>,
-        rests: List<(piece::Piece, List<List<piece::Piece>>)>,
-        suspects: List<List<piece::Piece>>,
+        pieces: List<(piece::SomePiece, piece::Opinion)>,
+        suspects: List<List<piece::SomePiece>>,
     }
-    // The opinion of every piece that is not a deduction, what each
-    // state rests on, and the suspects.
+    // The opinion of every piece that is not a deduction, and the
+    // suspects.
     fn judge(model: model::Model) -> Reading
         uses model::pieces, model::bias, piece::joined;
     // The smallest sets of pieces the judged state of `x` rests on.
-    fn rests(model: model::Model, x: piece::Piece) -> List<List<piece::Piece>>
-        uses judge;
-    fn opinion(model: model::Model, x: piece::Piece) -> piece::Opinion
+    fn rests(model: model::Model, x: piece::SomePiece) -> List<List<piece::SomePiece>>
+        uses opinion, piece::rests;
+    fn opinion(model: model::Model, x: piece::SomePiece) -> piece::Opinion
         uses judge;
     fn verdict(model: model::Model) -> piece::State
         uses judge;
-    fn suspects(model: model::Model) -> List<List<piece::Piece>>
+    fn suspects(model: model::Model) -> List<List<piece::SomePiece>>
         uses judge;
-    fn least_sure(model: model::Model) -> Option<(piece::Piece, Float64)>
+    fn least_sure(model: model::Model) -> Option<(piece::SomePiece, Float64)>
         uses judge, verdict;
 
-    claim nothing_taken_nothing_known(model: model::Model, x: piece::Piece) {
+    claim nothing_taken_nothing_known(model: model::Model, x: piece::SomePiece) {
         model.taken != [] || piece::judged(opinion(model, x)) == Unknown
     }
-    claim no_state_no_confidence(model: model::Model, x: piece::Piece) {
+    claim no_state_no_confidence(model: model::Model, x: piece::SomePiece) {
         piece::judged(opinion(model, x)) == True || piece::judged(opinion(model, x)) == False || piece::confidence(opinion(model, x)) == None
     }
     claim a_conflict_has_something_to_give_up(model: model::Model) {
@@ -205,23 +243,22 @@ subject calculus {
     }
 }
 
-// Worked cases on one piece t: {p} s {q}. Each taking is by a voice
+// Worked cases on one piece t: {p} t {q}, of any kind. Each taking is by a voice
 // of its own. A bias of one half unless said, a bias weighing 0.2.
 subject tests {
-    fn here() -> part::Part { Part("s", Subject) }
-    fn p() -> piece::Piece { piece::leaf("p", here()) }
-    fn q() -> piece::Piece { piece::leaf("q", here()) }
-    fn t() -> piece::Piece { Piece("t", [p()], here(), [q()]) }
-    fn yes(x: piece::Piece) -> model::Taking { Taking(x, true, 1.0, Voice(x.name)) }
-    fn no(x: piece::Piece) -> model::Taking { Taking(x, false, 1.0, Voice(x.name)) }
+    fn p() -> piece::SomePiece { SomePiece("p", [], "claim", []) }
+    fn q() -> piece::SomePiece { SomePiece("q", [], "claim", []) }
+    fn t() -> piece::SomePiece { SomePiece("t", [p()], "ensure", [q()]) }
+    fn yes(x: piece::SomePiece) -> model::Taking { Taking(x, true, 1.0, Voice(x.name), Review) }
+    fn no(x: piece::SomePiece) -> model::Taking { Taking(x, false, 1.0, Voice(x.name), Review) }
     // `doubt` is the bias of t: at 1 it is a deduction.
     fn with(doubt: Float64, taken: List<model::Taking>) -> model::Model {
-        Model([t()], [], [], taken, [(t(), doubt)], [], Settings(0.2, 0.5, 1.0))
+        Model([t()], [], taken, [(t(), doubt)], [], Settings(0.2, 0.5, 1.0))
     }
-    fn at(taken: List<model::Taking>, x: piece::Piece) -> piece::State
+    fn at(taken: List<model::Taking>, x: piece::SomePiece) -> piece::State
         uses with, calculus::opinion
     { piece::judged(calculus::opinion(with(0.5, taken), x)) }
-    fn sure(doubt: Float64, x: piece::Piece) -> Option<Float64>
+    fn sure(doubt: Float64, x: piece::SomePiece) -> Option<Float64>
         uses with, calculus::opinion
     { piece::confidence(calculus::opinion(with(doubt, [yes(t()), yes(p())]), x)) }
 

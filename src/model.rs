@@ -26,37 +26,6 @@ pub fn within(a: &Location, b: &Location) -> bool {
     a.path.starts_with(&b.path)
 }
 
-/// What a part of the system model is: built here, or bought.
-// mitra: implements part::Kind
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Kind {
-    Subject,
-    Boundary,
-}
-
-/// A named part of the system model.
-// mitra: implements part::Part
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Part {
-    pub name: String,
-    pub kind: Kind,
-}
-
-impl Part {
-    pub fn subject(name: &str) -> Part {
-        Part {
-            name: name.to_string(),
-            kind: Kind::Subject,
-        }
-    }
-    pub fn boundary(name: &str) -> Part {
-        Part {
-            name: name.to_string(),
-            kind: Kind::Boundary,
-        }
-    }
-}
-
 /// The step of logic a piece is: a deduction holds by what it is, an
 /// induction may be wrong.
 // mitra: implements piece::Inference
@@ -66,26 +35,100 @@ pub enum Inference {
     Induction,
 }
 
-/// A proposed property of the system: given `pre`, `subject` gives
-/// `post`. Known by its name. With no `pre` and no `post` it is a
-/// leaf: something said of the subject, with nothing drawn from it.
+/// What a piece can be about: its type gives the keyword, the word
+/// the language names that kind of piece by.
+pub trait Keyed {
+    fn keyword(&self) -> String;
+}
+
+/// A keyword is its own.
+impl Keyed for String {
+    fn keyword(&self) -> String {
+        self.clone()
+    }
+}
+
+/// A proposed property, known by its name: given the pieces before
+/// it, what it is about gives the pieces after it. `T` is what it is
+/// about, and the type of `T` gives its keyword. The pieces before
+/// and after are of any kind.
 // mitra: implements piece::Piece
 #[derive(Clone, Debug, PartialEq)]
-pub struct Piece {
+pub struct Piece<T> {
     pub name: String,
-    pub pre: Vec<Piece>,
-    pub subject: Part,
-    pub post: Vec<Piece>,
+    pub pre: Vec<SomePiece>,
+    pub about: T,
+    pub post: Vec<SomePiece>,
+}
+
+/// Some piece, of any kind: what it is about is forgotten, and its
+/// keyword is kept. The calculus reads pieces in this form only.
+pub type SomePiece = Piece<String>;
+
+/// The piece with what it is about forgotten.
+// mitra: implements piece::erased
+pub fn erased<T: Keyed>(x: &Piece<T>) -> SomePiece {
+    Piece {
+        name: x.name.clone(),
+        pre: x.pre.clone(),
+        about: x.about.keyword(),
+        post: x.post.clone(),
+    }
 }
 
 /// A piece with nothing before and nothing after.
 // mitra: implements piece::leaf
-pub fn leaf(name: &str, subject: &Part) -> Piece {
+pub fn leaf<T>(name: &str, about: T) -> Piece<T> {
     Piece {
         name: name.to_string(),
         pre: Vec::new(),
-        subject: subject.clone(),
+        about,
         post: Vec::new(),
+    }
+}
+
+/// What a part needs: a piece about a part that cannot be evaluated.
+/// It is taken, or it holds, or it is refuted.
+// mitra: implements piece::Require
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Require {
+    pub part: String,
+    pub text: String,
+}
+
+/// What a part promises: a piece about a part that cannot be
+/// evaluated.
+// mitra: implements piece::Ensure
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Ensure {
+    pub part: String,
+    pub text: String,
+}
+
+/// A believed link: `of`, a part, a record or a function of the
+/// model, is at `location` in the real system, and the model says all
+/// that matters of it there. Identification and completeness are one
+/// belief.
+// mitra: implements piece::Tie
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Tie {
+    pub of: String,
+    pub location: Location,
+}
+
+impl Keyed for Require {
+    fn keyword(&self) -> String {
+        "require".to_string()
+    }
+}
+impl Keyed for Ensure {
+    fn keyword(&self) -> String {
+        "ensure".to_string()
+    }
+}
+impl Keyed for Tie {
+    fn keyword(&self) -> String {
+        "tie".to_string()
     }
 }
 
@@ -116,26 +159,46 @@ fn of(value: bool) -> State {
     }
 }
 
-/// What is believed of a piece. Read it through its five getters: the
+/// What is believed of a piece. Read it through its getters: the
 /// inside is free to change.
+///
+/// Inside, nothing is a state. There is what counts for the piece and
+/// what counts against it, which never cancel; the sets of pieces
+/// each of those rests on; and the bias. The state is read from
+/// which sets are empty, never from the numbers.
 // mitra: implements piece::Opinion
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Opinion {
     evaluated: State,
     taken: State,
-    judged: State,
-    sure: Option<f64>,
+    /// What counts for it, and against it.
+    yes: f64,
+    no: f64,
+    /// The smallest sets of pieces it follows true from, and false
+    /// from.
+    rests_for: Vec<Vec<SomePiece>>,
+    rests_against: Vec<Vec<SomePiece>>,
+    /// The ways out of a conflict elsewhere that leave it with
+    /// nothing to rest on.
+    falls: Vec<Vec<SomePiece>>,
     bias: f64,
-    between: (f64, f64),
+    /// How many counts the bias weighs.
+    weight: f64,
 }
 
 impl Opinion {
-    /// A trial: how far the piece is believed, as an interval, for
-    /// any state. The low end is what says it is true, the high end
-    /// is all that does not say it is false. Unknown is 0 to 1.
-    // mitra: implements piece::interval
-    pub fn interval(&self) -> (f64, f64) {
-        self.between
+    fn of(bias: f64, weight: f64) -> Opinion {
+        Opinion {
+            evaluated: State::Unknown,
+            taken: State::Unknown,
+            yes: 0.0,
+            no: 0.0,
+            rests_for: Vec::new(),
+            rests_against: Vec::new(),
+            falls: Vec::new(),
+            bias,
+            weight,
+        }
     }
     /// What computing it gave.
     // mitra: implements piece::evaluated
@@ -147,20 +210,53 @@ impl Opinion {
     pub fn taken(&self) -> State {
         self.taken
     }
-    /// What the calculus judges it to be.
+    /// What the calculus judges it to be, read from what it rests on:
+    /// unknown with nothing for and nothing against; true, it holds,
+    /// with something for and nothing against; false, it is refuted,
+    /// the other way; conflict with both, or when a way out of a
+    /// conflict elsewhere leaves it with nothing to rest on.
     // mitra: implements piece::judged
     pub fn judged(&self) -> State {
-        self.judged
+        let contested = !self.falls.is_empty();
+        match (self.rests_for.is_empty(), self.rests_against.is_empty()) {
+            (true, true) => State::Unknown,
+            (false, true) if !contested => State::True,
+            (true, false) if !contested => State::False,
+            _ => State::Conflict,
+        }
     }
     /// How sure the judged state is. None when unknown or in conflict.
     // mitra: implements piece::confidence
     pub fn confidence(&self) -> Option<f64> {
-        self.sure
+        let (a, w) = (self.bias, self.weight);
+        match self.judged() {
+            State::True => Some((self.yes + a * w) / (self.yes + w)),
+            State::False => Some((self.no + (1.0 - a) * w) / (self.no + w)),
+            _ => None,
+        }
     }
     /// What to expect of it before anything.
     // mitra: implements piece::bias
     pub fn bias(&self) -> f64 {
         self.bias
+    }
+    /// The smallest sets of pieces the judged state rests on. Nothing
+    /// for a piece that is unknown or in conflict.
+    // mitra: implements piece::rests
+    pub fn rests(&self) -> &[Vec<SomePiece>] {
+        match self.judged() {
+            State::True => &self.rests_for,
+            State::False => &self.rests_against,
+            _ => &[],
+        }
+    }
+    /// A trial: how far the piece is believed, as an interval, for
+    /// any state. The low end is what says it is true, the high end
+    /// is all that does not say it is false. Unknown is 0 to 1.
+    // mitra: implements piece::interval
+    pub fn interval(&self) -> (f64, f64) {
+        let all = self.yes + self.no + self.weight;
+        (self.yes / all, (self.yes + self.weight) / all)
     }
 }
 
@@ -179,14 +275,18 @@ impl Voice {
     }
 }
 
-/// A believed link between a part of the system model and where it is
-/// in the real system. `piece` is the leaf that says so: it is about
-/// the part, and it can be wrong like any other piece.
-// mitra: implements model::Tie
-#[derive(Clone, Debug, PartialEq)]
-pub struct Tie {
-    pub piece: Piece,
-    pub location: Location,
+/// How a voice came to take a piece. The calculus reads the three
+/// the same way.
+///
+/// - `Review`: it read the model, the code, or both.
+/// - `Measurement`: it ran the system at a point.
+/// - `Evaluation`: it read a claim over a set, with no run.
+// mitra: implements model::Form
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Form {
+    Review,
+    Measurement,
+    Evaluation,
 }
 
 /// A voice takes a piece as true or as false. `count` is how firmly:
@@ -194,10 +294,11 @@ pub struct Tie {
 // mitra: implements model::Taking
 #[derive(Clone, Debug, PartialEq)]
 pub struct Taking {
-    pub piece: Piece,
+    pub piece: SomePiece,
     pub value: bool,
     pub count: f64,
     pub by: Voice,
+    pub form: Form,
 }
 
 /// - `weight`: how many counts a bias weighs.
@@ -213,17 +314,15 @@ pub struct Settings {
 
 /// - `pieces`: what is proposed. The pieces before and after a piece
 ///   are in the model with it.
-/// - `ties`: where the parts are in the real system.
 /// - `evaluated`: what computing a piece gave.
 /// - `taken`: what voices took.
 // mitra: implements model::Model
 #[derive(Clone, Debug, PartialEq)]
 pub struct Model {
-    pub pieces: Vec<Piece>,
-    pub ties: Vec<Tie>,
-    pub evaluated: Vec<(Piece, bool)>,
+    pub pieces: Vec<SomePiece>,
+    pub evaluated: Vec<(SomePiece, bool)>,
     pub taken: Vec<Taking>,
-    pub bias: Vec<(Piece, f64)>,
+    pub bias: Vec<(SomePiece, f64)>,
     pub voices: Vec<(Voice, f64)>,
     pub settings: Settings,
 }
@@ -232,7 +331,6 @@ impl Model {
     pub fn empty(settings: Settings) -> Model {
         Model {
             pieces: Vec::new(),
-            ties: Vec::new(),
             evaluated: Vec::new(),
             taken: Vec::new(),
             bias: Vec::new(),
@@ -245,8 +343,8 @@ impl Model {
 /// Every piece of the model, each once: those listed, those taken or
 /// evaluated, and the pieces before and after each.
 // mitra: implements model::pieces
-pub fn pieces(model: &Model) -> Vec<Piece> {
-    fn collect(found: &mut Vec<Piece>, x: &Piece) {
+pub fn pieces(model: &Model) -> Vec<SomePiece> {
+    fn collect(found: &mut Vec<SomePiece>, x: &SomePiece) {
         if found.iter().any(|old| old.name == x.name) {
             return;
         }
@@ -261,25 +359,15 @@ pub fn pieces(model: &Model) -> Vec<Piece> {
     for x in &model.pieces {
         collect(&mut found, x);
     }
-    for tie in &model.ties {
-        collect(&mut found, &tie.piece);
-    }
     for x in taken.chain(evaluated) {
         collect(&mut found, x);
     }
     found
 }
 
-/// Where a part is in the real system, by the ties.
-// mitra: implements model::located
-pub fn located(model: &Model, part: &Part) -> Vec<Location> {
-    let ties = model.ties.iter().filter(|t| &t.piece.subject == part);
-    ties.map(|t| t.location.clone()).collect()
-}
-
 /// What to expect of a piece before anything.
 // mitra: implements model::bias
-pub fn bias(model: &Model, x: &Piece) -> f64 {
+pub fn bias<T>(model: &Model, x: &Piece<T>) -> f64 {
     let found = model.bias.iter().find(|(piece, _)| piece.name == x.name);
     found.map_or(model.settings.bias, |(_, a)| *a)
 }
@@ -295,7 +383,7 @@ pub fn weight(model: &Model, t: &Taking) -> f64 {
 /// The step of logic a piece is, read from its bias: with a bias of 1
 /// it is a deduction, under 1 an induction. None for a leaf.
 // mitra: implements model::step
-pub fn step(model: &Model, x: &Piece) -> Option<Inference> {
+pub fn step<T>(model: &Model, x: &Piece<T>) -> Option<Inference> {
     match (x.post.is_empty(), bias(model, x) >= 1.0) {
         (true, _) => None,
         (false, true) => Some(Inference::Deduction),
@@ -304,13 +392,13 @@ pub fn step(model: &Model, x: &Piece) -> Option<Inference> {
 }
 
 /// A deduction holds by what it is: it needs no state.
-fn given(model: &Model, x: &Piece) -> bool {
+fn given<T>(model: &Model, x: &Piece<T>) -> bool {
     step(model, x) == Some(Inference::Deduction)
 }
 
 /// What can be given up: a taking, or the doubt of an induction.
 struct Assumed {
-    piece: Piece,
+    piece: SomePiece,
     weight: f64,
     /// For a taking: who took, and as what.
     said: Option<(Voice, bool)>,
@@ -371,11 +459,11 @@ fn add_smallest(sets: &mut Vec<Env>, new: Env) -> bool {
 /// all the others true, the one left is false. And the piece itself
 /// is true when every piece after it is. A piece that is given needs
 /// no state.
-fn steps(model: &Model, all: &[Piece], assumed: &mut Vec<Assumed>) -> Vec<Step> {
+fn steps(model: &Model, all: &[SomePiece], assumed: &mut Vec<Assumed>) -> Vec<Step> {
     let mut steps = Vec::new();
     for t in all.iter().filter(|t| !t.post.is_empty()) {
-        let so = |x: &Piece, value: bool| (x.name.clone(), value);
-        let mut holds: Vec<&Piece> = t.pre.iter().collect();
+        let so = |x: &SomePiece, value: bool| (x.name.clone(), value);
+        let mut holds: Vec<&SomePiece> = t.pre.iter().collect();
         // An induction is applied under its own doubt, which weighs
         // its bias.
         let mut doubt = None;
@@ -423,7 +511,7 @@ fn steps(model: &Model, all: &[Piece], assumed: &mut Vec<Assumed>) -> Vec<Step> 
 /// anything new.
 ///
 /// After de Kleer, 1986, "An Assumption-based TMS".
-fn drawn(model: &Model, all: &[Piece]) -> Drawn {
+fn drawn(model: &Model, all: &[SomePiece]) -> Drawn {
     let mut assumed: Vec<Assumed> = Vec::new();
     let mut labels: BTreeMap<Fact, Vec<Env>> = BTreeMap::new();
     for t in &model.taken {
@@ -496,7 +584,7 @@ fn drawn(model: &Model, all: &[Piece]) -> Drawn {
 }
 
 impl Drawn {
-    fn told(&self, x: &Piece, value: bool) -> bool {
+    fn told(&self, x: &SomePiece, value: bool) -> bool {
         self.labels.contains_key(&(x.name.clone(), value))
     }
 
@@ -505,7 +593,7 @@ impl Drawn {
     /// only when it is told true whichever is chosen and never told
     /// false, and a piece that some of the ways leave without its
     /// state is in conflict with the pieces it rests on.
-    fn state(&self, x: &Piece) -> State {
+    fn state(&self, x: &SomePiece) -> State {
         let sets = |value: bool| {
             let found = self.labels.get(&(x.name.clone(), value));
             found.map(Vec::as_slice).unwrap_or(&[])
@@ -523,6 +611,22 @@ impl Drawn {
             (false, true) if always(false) => State::False,
             _ => State::Conflict,
         }
+    }
+
+    /// The ways out of a conflict that leave this side of a piece
+    /// with nothing to rest on. None where nothing is contested.
+    fn falls(&self, x: &SomePiece, value: bool) -> Vec<Env> {
+        let found = self.labels.get(&(x.name.clone(), value));
+        let sets = found.map(Vec::as_slice).unwrap_or(&[]);
+        let stands = |given_up: &Env| {
+            let mut left = sets.iter();
+            left.any(|env| !env.iter().any(|i| given_up.contains(i)))
+        };
+        self.ways
+            .iter()
+            .filter(|way| !stands(way))
+            .cloned()
+            .collect()
     }
 
     /// What a set weighs together: one voice that takes one piece
@@ -594,19 +698,16 @@ impl Drawn {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Reading {
     /// Every piece that is not a deduction, with its opinion.
-    pub pieces: Vec<(Piece, Opinion)>,
-    /// What each judged state rests on: for a piece judged true or
-    /// false, the smallest sets of taken pieces it follows from.
-    pub rests: Vec<(Piece, Vec<Vec<Piece>>)>,
+    pub pieces: Vec<(SomePiece, Opinion)>,
     /// What cannot all be true, the lightest first: sets of taken
     /// pieces to give up, then for each piece that came out false the
     /// pieces it rests on that are not known true.
-    pub suspects: Vec<Vec<Piece>>,
+    pub suspects: Vec<Vec<SomePiece>>,
 }
 
 /// The pieces a set names, each once.
-fn named(drawn: &Drawn, set: &Env) -> Vec<Piece> {
-    let mut group: Vec<Piece> = Vec::new();
+fn named(drawn: &Drawn, set: &Env) -> Vec<SomePiece> {
+    let mut group: Vec<SomePiece> = Vec::new();
     for x in set.iter().map(|i| &drawn.assumed[*i].piece) {
         if !group.iter().any(|old| old.name == x.name) {
             group.push(x.clone());
@@ -628,15 +729,13 @@ pub fn judge(model: &Model) -> Reading {
     let all = pieces(model);
     let drawn = drawn(model, &all);
     let w = model.settings.weight;
-    let mut out: Vec<(Piece, Opinion)> = Vec::new();
-    let mut rests: Vec<(Piece, Vec<Vec<Piece>>)> = Vec::new();
+    let mut out: Vec<(SomePiece, Opinion)> = Vec::new();
     for x in all.iter().filter(|x| !given(model, x)) {
         let said = |values: &mut dyn Iterator<Item = bool>| {
             values.fold(State::Unknown, |state, value| joined(state, of(value)))
         };
         let evaluated = model.evaluated.iter().filter(|(p, _)| p.name == x.name);
         let taken = model.taken.iter().filter(|t| t.piece.name == x.name);
-        let (judged, a) = (drawn.state(x), bias(model, x));
         let count = |value: bool| {
             let mut best = f64::INFINITY;
             match drawn.labels.get(&(x.name.clone(), value)) {
@@ -647,29 +746,31 @@ pub fn judge(model: &Model) -> Reading {
                 }
             }
         };
-        let (yes, no) = (count(true), count(false));
-        let between = (yes / (yes + no + w), (yes + w) / (yes + no + w));
-        let sure = match judged {
-            State::True => Some((count(true) + a * w) / (count(true) + w)),
-            State::False => Some((count(false) + (1.0 - a) * w) / (count(false) + w)),
+        let rests = |value: bool| -> Vec<Vec<SomePiece>> {
+            let found = drawn.labels.get(&(x.name.clone(), value));
+            let sets = found.map(Vec::as_slice).unwrap_or(&[]);
+            sets.iter().map(|env| named(&drawn, env)).collect()
+        };
+        let (rests_for, rests_against) = (rests(true), rests(false));
+        // Only a piece with one side can be left with nothing.
+        let side = match (rests_for.is_empty(), rests_against.is_empty()) {
+            (false, true) => Some(true),
+            (true, false) => Some(false),
             _ => None,
         };
+        let falls = side.map_or(Vec::new(), |value| drawn.falls(x, value));
         let opinion = Opinion {
             evaluated: said(&mut evaluated.map(|(_, value)| *value)),
             taken: said(&mut taken.map(|t| t.value)),
-            judged,
-            sure,
-            bias: a,
-            between,
+            yes: count(true),
+            no: count(false),
+            rests_for,
+            rests_against,
+            falls: falls.iter().map(|way| named(&drawn, way)).collect(),
+            bias: bias(model, x),
+            weight: w,
         };
         out.push((x.clone(), opinion));
-        if let State::True | State::False = judged {
-            let sets = &drawn.labels[&(x.name.clone(), judged == State::True)];
-            rests.push((
-                x.clone(),
-                sets.iter().map(|env| named(&drawn, env)).collect(),
-            ));
-        }
     }
 
     let mut given_up: Vec<(Env, f64)> = match drawn.nogoods.is_empty() {
@@ -685,7 +786,7 @@ pub fn judge(model: &Model) -> Reading {
         }
     };
     given_up.sort_by(|x, y| x.1.total_cmp(&y.1).then(x.0.cmp(&y.0)));
-    let mut suspects: Vec<Vec<Piece>> = Vec::new();
+    let mut suspects: Vec<Vec<SomePiece>> = Vec::new();
     for (set, _) in &given_up {
         let group = named(&drawn, set);
         if !suspects.contains(&group) {
@@ -696,7 +797,7 @@ pub fn judge(model: &Model) -> Reading {
         if !t.post.iter().any(|q| drawn.state(q) == State::False) {
             continue;
         }
-        let mut open: Vec<Piece> = t.pre.clone();
+        let mut open: Vec<SomePiece> = t.pre.clone();
         if !given(model, t) {
             open.push(t.clone());
         }
@@ -711,48 +812,40 @@ pub fn judge(model: &Model) -> Reading {
     }
     Reading {
         pieces: out,
-        rests,
         suspects,
     }
 }
 
 /// The opinion of one piece.
 // mitra: implements calculus::opinion
-pub fn opinion(model: &Model, x: &Piece) -> Opinion {
+pub fn opinion<T>(model: &Model, x: &Piece<T>) -> Opinion {
     let found = judge(model)
         .pieces
         .into_iter()
         .find(|(p, _)| p.name == x.name);
     found.map_or(
-        Opinion {
-            evaluated: State::Unknown,
-            taken: State::Unknown,
-            judged: State::Unknown,
-            sure: None,
-            bias: bias(model, x),
-            between: (0.0, 1.0),
-        },
+        Opinion::of(bias(model, x), model.settings.weight),
         |(_, opinion)| opinion,
     )
 }
 
 /// What the judged state of a piece rests on: the smallest sets of
-/// taken pieces it follows from. Nothing for a piece that is unknown
-/// or in conflict.
+/// pieces it follows from. Nothing for a piece that is unknown or in
+/// conflict.
 // mitra: implements calculus::rests
-pub fn rests(model: &Model, x: &Piece) -> Vec<Vec<Piece>> {
-    let found = judge(model)
-        .rests
-        .into_iter()
-        .find(|(p, _)| p.name == x.name);
-    found.map_or(Vec::new(), |(_, sets)| sets)
+pub fn rests<T>(model: &Model, x: &Piece<T>) -> Vec<Vec<SomePiece>> {
+    opinion(model, x).rests().to_vec()
 }
 
 /// The verdict of a model: conflict if any piece is in conflict; else
 /// false if one is false; else unknown if one is unknown; else true.
 // mitra: implements calculus::verdict
 pub fn verdict(model: &Model) -> State {
-    let states: Vec<State> = judge(model).pieces.iter().map(|(_, o)| o.judged).collect();
+    let states: Vec<State> = judge(model)
+        .pieces
+        .iter()
+        .map(|(_, o)| o.judged())
+        .collect();
     for worst in [State::Conflict, State::False, State::Unknown] {
         if states.contains(&worst) {
             return worst;
@@ -766,20 +859,20 @@ pub fn verdict(model: &Model) -> State {
 
 /// The suspects of a model, the lightest first.
 // mitra: implements calculus::suspects
-pub fn suspects(model: &Model) -> Vec<Vec<Piece>> {
+pub fn suspects(model: &Model) -> Vec<Vec<SomePiece>> {
     judge(model).suspects
 }
 
 /// How sure a verdict that holds is: its least sure piece, and which
 /// one it is. Nothing unless every piece is true.
 // mitra: implements calculus::least_sure
-pub fn least_sure(model: &Model) -> Option<(Piece, f64)> {
+pub fn least_sure(model: &Model) -> Option<(SomePiece, f64)> {
     if verdict(model) != State::True {
         return None;
     }
-    let mut least: Option<(Piece, f64)> = None;
+    let mut least: Option<(SomePiece, f64)> = None;
     for (x, o) in judge(model).pieces {
-        let n = o.sure?;
+        let n = o.confidence()?;
         if least.as_ref().is_none_or(|(_, m)| n < *m) {
             least = Some((x, n));
         }
@@ -790,8 +883,8 @@ pub fn least_sure(model: &Model) -> Option<(Piece, f64)> {
 /// An opinion in words: "true 0.91", "false 0.85", "unknown",
 /// "conflict".
 pub fn shown(o: &Opinion) -> String {
-    let state = format!("{:?}", o.judged).to_lowercase();
-    match o.sure {
+    let state = format!("{:?}", o.judged()).to_lowercase();
+    match o.confidence() {
         Some(n) => format!("{state} {n:.2}"),
         None => state,
     }

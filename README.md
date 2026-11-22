@@ -9,26 +9,29 @@ the next one starts. Code and tests come over from `main` only when a
 layer needs them. `main`'s trust goldens, ladder rungs and breaks are
 the yardstick.
 
-## The foundation branch
+## The foundation2 branch
 
-This branch, `foundation`, restates the core around one shape. A piece
-is a proposed property of the system: given the pieces before it, its
-subject gives the pieces after it. An opinion is read five ways:
-evaluated, taken, judged, confidence, bias. Three verbs cross from a
-value to a verdict: a claim is **evaluated**, a voice **takes** what
-that gave, and the calculus **judges** every piece.
+This branch, `foundation2`, is cut from `foundation`. The calculus
+underneath is kept; the layer above it is restated. The atoms of a
+model are records and functions inside a part, each specified from
+opaque to total. A piece is generic in what it is about, and that type
+gives its keyword: evidence, tie, require, ensure, claim. An opinion
+holds no state inside: what counts for and against a piece, what each
+rests on, and the bias; the state is read from them. Three verbs still
+cross from a value to a verdict: a claim is **evaluated**, a voice
+**takes** what that gave, and the calculus **judges** every piece.
 
 | Model file | Subject | What it is | Code |
 |---|---|---|---|
 | `model/model.mitra` | `location` | an address in the real system | `src/model.rs` |
-| | `part` | a named part of the system model: a subject or a boundary | |
-| | `piece` | {pre} subject {post}, and the opinion of it | |
-| | `model` | pieces, ties, what was evaluated and taken, voices | |
+| | `piece` | {pre} about {post}, generic in what it is about; require, ensure, tie; the opinion of a piece | |
+| | `model` | pieces, what was evaluated and taken, voices, the form of a taking | |
 | | `calculus` | how every piece is judged, how sure, what it rests on, the suspects | |
+| `model/atom.mitra` | `part` | records and functions in a subject or a boundary, how far each is specified, a measurement | `src/atom.rs` |
 | `model/value.mitra` | `value` | a quantity with a type, operations declared on types, expressions of them | `src/value.rs` |
 | `model/standard.mitra` | `standard` | the standard types and operations read exactly | `src/standard.rs` |
 | `model/bounds.mitra` | `bounds` | the same operations read on the bounds a value lies in | `src/bounds.rs` |
-| `model/claim.mitra` | `claims` | the crossing: evaluate a claim, take what it gave | `src/claim.rs` |
+| `model/claim.mitra` | `claims` | the crossing: a claim, evidence of it on a measurement, evaluate and take | `src/claim.rs` |
 
 The foundation test model is the speed of a fall: `tests/falling.rs`,
 printed by `cargo run --example falling` and kept in `docs/falling.md`.
@@ -60,12 +63,13 @@ Until then `model/evidence.mitra` is the single ledger that `main`'s
 ## To test
 
 ```sh
-cargo test                # 65 tests
+cargo test                # 74 tests
 cargo run --example falling
 mitra conform             # with main's binary, from this folder
 ```
 
 - `tests/model.rs`: the piece system, one piece and a few shapes.
-- `tests/falling.rs`: the fall, from a value to a verdict.
+- `tests/falling.rs`: the fall, from a value to a verdict, and six
+  checks that the logic is sound on it.
 - `tests/value.rs`, `standard.rs`, `bounds.rs`: the values, unchanged.
 - `tests/wall.rs`: the walls, and no disk.

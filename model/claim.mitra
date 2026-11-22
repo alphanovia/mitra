@@ -1,68 +1,82 @@
 // The crossing between values and pieces, in three verbs: evaluate,
-// take, judge. A claim is a piece that says an expression. Evaluating
-// it at inputs gives a truth, which is a value. A voice takes that
-// truth of the claim at those inputs, and from there the calculus of
-// model.mitra judges. The only file that reads both model.mitra and
-// value.mitra.
+// take, judge. A claim is a piece about a record or a function, said
+// by an expression. Evaluating it on a measurement gives a truth,
+// which is a value. A voice takes that truth as a piece of evidence,
+// and from there the calculus of model.mitra judges. The only file
+// that reads model.mitra, atom.mitra and value.mitra together.
 //
 // Code: src/claim.rs. Worked case: tests/falling.rs.
 
 import std::core::{Option};
 
 subject claims {
-    require proposed = piece::a_piece_is_pre_subject_post;
-    require leaf = piece::a_leaf_is_said_alone;
+    require proposed = piece::a_piece_is_pre_about_post;
+    require keyed = piece::the_type_gives_the_keyword;
+    require tied = piece::a_tie_is_one_belief;
     require signed = model::a_taking_is_signed;
+    require shaped = model::a_taking_has_a_form;
     require logic = model::the_step_is_read_from_the_bias;
-    require tied = model::a_tie_is_a_believed_link;
+    require measured = part::a_measurement_is_an_instance;
     require computed = value::one_value;
     require truth = standard::applied_as_written;
     require applied = Applies::applied_alone;
     require sure = bounds::sure_is_everywhere;
     require held = bounds::bounds_hold_the_exact;
 
-    ensure claim_is_a_truth = "A claim is a piece with a domain and an expression that says it. The expression gives a truth, the standard one; one that gives anything else states nothing. The claim says the expression is true at every input in the domain.";
+    ensure claim_is_a_truth = "A claim is a piece about a record or a function, with a domain and an expression that says it. The expression gives a truth, the standard one; one that gives anything else states nothing. The claim says the expression is true at every input in the domain. It can be evaluated, so it can be taken, and it holds or is refuted like any piece.";
     ensure the_domain_is_a_value = "The domain of a claim is a value: for each input it names, the bounds that input lies in. It is what stands before the claim, as a guard.";
-    ensure a_run_outside_the_domain_says_nothing = "Evaluating a claim at inputs outside its domain gives nothing: the run is outside the contract, and nothing is taken from it.";
-    ensure a_reading_over_the_domain_is_a_proof = "Read by bounds over its whole domain, a claim that is true everywhere in it, or false everywhere, is proved: the voice takes the claim itself, not an instance, and nobody writes a piece for it. Nothing where the reading is not sure everywhere.";
-    ensure evaluating_gives_a_truth = "Evaluating a claim at inputs gives true, false, or nothing where the expression has no value. That is a value: nothing is believed yet.";
-    ensure instance_is_a_piece = "A claim at given inputs is a piece of its own, a leaf named after the claim and the inputs: the same claim at the same inputs is one piece. The inputs are exact values, or the ranges they lie in.";
-    ensure a_voice_takes_what_was_evaluated = "The crossing: a voice takes the instance as what evaluating gave, with a count. The model keeps both, what was evaluated and what was taken. Nothing is taken where evaluating gave nothing, and the claim itself is not touched.";
-    ensure a_claim_gives_its_instances = "With the taking, the model gets one deduction, at a bias of 1: the claim before, the instance after. With a tie, the instance was seen at the tie's location, and the tie stands before the instance with the claim: a false instance then says the claim and the tie cannot both be true. Nothing is taken through a tie of another part than the claim's. So the claim true makes the instance true, and the instance false makes the claim false. Nothing leads from a true instance to the claim: that takes a piece somebody writes and somebody takes, which says the instances represent the claim.";
-    ensure a_range_is_one_instance = "Read by bounds, with each input known to lie in a range, a claim gives true where it is true everywhere in the ranges, false where it is false everywhere, and nothing where it may be either, may fault, or the reading is unknown. The instance is the claim over those ranges.";
+    ensure evaluating_gives_a_truth = "Evaluating a claim on a measurement gives true, false, or nothing. That is a value: nothing is believed yet. Nothing where the measurement is of something else than the claim is about, and nothing where the expression has no value.";
+    ensure a_run_outside_the_domain_says_nothing = "Evaluating a claim on a measurement outside its domain gives nothing: the run is outside the contract, and nothing is taken from it.";
+    ensure evidence_is_a_piece = "Evidence is a piece about a measurement and who made it: a leaf named after the claim and what was measured, so the same claim on the same measurement is one piece. It can be taken or refuted.";
+    ensure a_voice_takes_what_was_evaluated = "The crossing: a voice takes the evidence as what evaluating gave, with a count. The model keeps both, what was evaluated and what was taken. A run at a point is taken as a measurement, a reading over a set as an evaluation. Nothing is taken where evaluating gave nothing, and the claim itself is not touched.";
+    ensure a_claim_gives_its_evidence = "With the taking, the model gets one deduction, at a bias of 1: the claim before, the evidence after. So the claim true makes the evidence true, and the evidence false makes the claim false. Nothing leads from true evidence to the claim: that takes a piece somebody writes and somebody takes, which says the measurements represent the claim.";
+    ensure a_tie_is_of_the_claim_and_the_location = "A measurement is taken through a tie only when the tie is of what the claim is about and the measurement was made at the tie's location or within it. The tie then stands before the evidence with the claim: evidence that is false says the claim and the tie cannot both be true.";
+    ensure a_range_is_one_piece_of_evidence = "Read by bounds, with each input known to lie in a range, a claim gives true where it is true everywhere in the ranges, false where it is false everywhere, and nothing where it may be either, may fault, or the reading is unknown. The evidence is the claim over those ranges.";
+    ensure a_reading_over_the_domain_is_a_proof = "Read by bounds over its whole domain, a claim that is true everywhere in it, or false everywhere, is proved: the voice takes the claim itself, as an evaluation, and nobody writes a piece for it. Nothing where the reading is not sure everywhere.";
     ensure one_way = "A truth is made from values and taken into the model; no value is made from an opinion.";
 
+    // `of` is the name of the record or the function it is about.
     record Claim {
-        piece: piece::Piece,
+        of: String,
         domain: List<(String, Value<bounds::Bounds>)>,
         expression: value::Expression<standard::Exact>,
     }
+    record Evidence<Q> {
+        measurement: Measurement<Q>,
+        by: model::Voice,
+    }
+    // The step from a claim to one piece of evidence of it.
+    record Instance;
+    impl Keyed for Claim { }
+    impl Keyed for Evidence<Any> { }
+    impl Keyed for Instance { }
 
     // The expression gives a truth.
-    fn reads(c: Claim) -> Bool
+    fn reads(c: Piece<Claim>) -> Bool
         uses value::check, standard::truth;
-    // The inputs are in the domain.
-    fn guarded(c: Claim, inputs: List<(String, Value<standard::Exact>)>) -> Bool;
-    fn evaluate(c: Claim, inputs: List<(String, Value<standard::Exact>)>, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>) -> Option<Bool>
+    // The measurement is of what the claim is about, and in its domain.
+    fn guarded(c: Piece<Claim>, m: part::Measurement<standard::Exact>) -> Bool;
+    fn evaluate(c: Piece<Claim>, m: part::Measurement<standard::Exact>, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>) -> Option<Bool>
         uses guarded, value::eval, standard::truth;
-    fn evaluate_over(c: Claim, ranges: List<(String, Value<bounds::Bounds>)>, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>) -> Option<Bool>
+    fn evaluate_over(c: Piece<Claim>, ranges: List<(String, Value<bounds::Bounds>)>, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>) -> Option<Bool>
         uses value::eval, bounds::lifted, bounds::surely;
-    // The claim at these inputs.
-    fn instance<Q>(c: Claim, inputs: List<(String, Value<Q>)>) -> piece::Piece
+    // The piece of evidence of a claim on a measurement.
+    fn evidence_of<Q>(c: Piece<Claim>, m: part::Measurement<Q>, by: model::Voice) -> Piece<Evidence<Q>>
         uses piece::leaf;
-    // The step from the claim to one instance.
-    fn instantiation(c: Claim, here: piece::Piece, at: Option<model::Tie>) -> piece::Piece;
-    // Evaluate and take, at inputs.
-    fn observe(model: model::Model, c: Claim, inputs: List<(String, Value<standard::Exact>)>, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>, at: Option<model::Tie>, count: Float64, by: model::Voice) -> Option<model::Model>
-        uses evaluate, instance;
-    // Evaluate and take, over ranges.
-    fn observe_over(model: model::Model, c: Claim, ranges: List<(String, Value<bounds::Bounds>)>, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>, at: Option<model::Tie>, count: Float64, by: model::Voice) -> Option<model::Model>
-        uses evaluate_over, instance;
+    // The step from the claim to one piece of evidence.
+    fn instantiation(c: Piece<Claim>, e: piece::SomePiece, at: Option<Piece<piece::Tie>>) -> Piece<Instance>
+        uses piece::erased;
+    // Evaluate and take, at a point.
+    fn observe(model: model::Model, c: Piece<Claim>, m: part::Measurement<standard::Exact>, with: impl Applies<value::Operation, Value<standard::Exact>, standard::Exact>, at: Option<Piece<piece::Tie>>, count: Float64, by: model::Voice) -> Option<model::Model>
+        uses evaluate, evidence_of, piece::erased;
+    // Evaluate and take, over a set.
+    fn observe_over(model: model::Model, c: Piece<Claim>, m: part::Measurement<bounds::Bounds>, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>, at: Option<Piece<piece::Tie>>, count: Float64, by: model::Voice) -> Option<model::Model>
+        uses evaluate_over, evidence_of, piece::erased;
     // Evaluate over the whole domain and take the claim itself.
-    fn prove(model: model::Model, c: Claim, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>, count: Float64, by: model::Voice) -> Option<model::Model>
-        uses evaluate_over;
+    fn prove(model: model::Model, c: Piece<Claim>, with: impl Applies<value::Operation, Value<bounds::Bounds>, bounds::Bounds>, count: Float64, by: model::Voice) -> Option<model::Model>
+        uses evaluate_over, piece::erased;
 
-    claim an_instance_is_a_leaf(c: Claim, here: piece::Piece) {
-        instantiation(c, here, None).pre == [c.piece] && instantiation(c, here, None).post == [here]
+    claim the_step_is_from_the_claim_to_the_evidence(c: Piece<Claim>, e: piece::SomePiece) {
+        instantiation(c, e, None).pre == [piece::erased(c)] && instantiation(c, e, None).post == [e]
     }
 }

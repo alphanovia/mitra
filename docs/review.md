@@ -1302,3 +1302,101 @@ in the report and in `docs/falling.md`.
 - `prove` trusts the domain: nothing checks that an instance over a
   range lies inside it.
 - The kind of a part is not read: a boundary is judged like a subject.
+
+## Increment 126: foundation2, generic pieces and an opinion with no state inside (2026-11-22)
+
+**Asked** (user, through the coordinator). "The actual atomic of Mitra
+should be record and function in a part (subject or boundary)", each
+specified "totally, partially or not"; "piece is the core but it
+should be generic piece<T>, the type of T gives the keyword"; review,
+measurement and evaluation kept "as different shape of evidence
+because I think on the logical side the represent the same operation".
+Then the opinion as counts for and against with what each rests on:
+"Let's try this record but make sure we make the logic sound before
+fine tuning the numbers".
+
+**Done.** Branch `foundation2`, from `foundation` at b773bac. The
+calculus is kept. Above it: `Piece<T>` with the keyword read from the
+type; `model/atom.mitra` and `src/atom.rs` (records, functions, parts,
+levels, measurement); `model/claim.mitra` and `src/claim.rs` on
+generic pieces; the opinion holds counts and rests and its state is
+read. The fall runs on the new layer, with six checks of soundness in
+`tests/falling.rs`. 74 tests. `mitra build`: 85 functions, 66 claims,
+74 promises, no warning. `mitra conform`: 103 ties agree, 24 differ,
+all from `main`'s reader on a generic input or a record inside a list.
+The numbers are not changed.
+
+**Sound on the fall, checked by a test each.**
+
+- No state without support: a piece judged true or false rests on at
+  least one set of pieces; unknown and conflict rest on nothing and
+  have no confidence.
+- What a state rests on is enough: with only the takings of one set
+  it rests on, the piece is judged the same.
+- The order of pieces and takings changes no opinion and no suspect.
+- Giving up the takings of any one way out of a conflict leaves no
+  conflict.
+- A conflict in one model does not reach a piece of another that
+  shares nothing with it.
+- Nothing taken, nothing judged.
+
+**Decided alone, to confirm.**
+
+781. `SomePiece` is a piece with its content erased to its keyword,
+     and `erased` makes one. The pre and post of a piece hold
+     `SomePiece`, so they hold a piece of any kind. Forced by the
+     reader: a generic record cannot name itself with an argument.
+782. The keyword is the word of the language, a string, given by the
+     contract `Keyed` on the content type.
+783. New keyword without asking, to confirm or rename: `instance`, the
+     step from a claim (and a tie) to one piece of evidence. It is a
+     deduction, so it is never listed.
+784. `represents` and `stays slow` are typed as ensure, and the
+     hypothesis `only the height matters` as require. Nothing else
+     fits yet for a relation between pieces written by hand.
+785. An evidence piece is a claim on one measurement, signed. It is
+     named after the claim and the measured values, not the voice or
+     the location.
+786. A review is not a piece: it is a taking with the form `Review`.
+     `Form = Review | Measurement | Evaluation` sits on every taking
+     and the calculus does not read it.
+787. Atoms are in `atom`, beside the model: `Model` does not hold its
+     parts, and nothing checks that a claim names a function that
+     exists.
+788. `Level = Opaque | Partial | Total`: a record from its fields, a
+     function from its body and how many claims it has, a part from
+     the levels of what it holds.
+789. A tie is `Tie { of, location }`, one belief. It stands before
+     evidence only when it is of the claim's function and the
+     measurement was made within its location.
+790. Inside the opinion: `yes`, `no`, `rests_for`, `rests_against`,
+     `bias`, `weight`, the two states that are read from the model
+     (evaluated, taken), and one set added without asking: `falls`,
+     the ways out of a conflict elsewhere that leave the piece with
+     nothing to rest on. Without it the skeptical reading of 775
+     cannot be read from the two rests alone.
+791. `Reading` no longer lists what each piece rests on: the opinion
+     says it, through a getter `rests` beside the frozen ones.
+792. The numbers are as on `foundation`: confidence from the least to
+     give up. The reading by belief, disbelief and uncertainty waits
+     for the read of this report.
+
+**Not sound yet.**
+
+- A bias of 1 is an assertion nobody signs: whoever writes `stays
+  slow` as a deduction is believed, never judged, never a suspect.
+- A passing test says nothing of the tie; a failing one does.
+- Evidence is named without its voice or location: the same values
+  measured at two locations are one piece, and the second tie is
+  dropped.
+- `observe_over` does not check that the ranges lie in the domain, so
+  `prove` trusts whoever calls it.
+- The ways out of a conflict are capped at 64. Beyond the cap a piece
+  may read true where one more way would put it in conflict.
+- With one bad measurement after a review, the six ways out weigh the
+  same: each good measurement is as much a suspect as the bad one.
+  The logic is right (each is a smallest way out); telling them apart
+  is the numbers' work.
+- The suspects mix two meanings in one list: a way out of a conflict,
+  and the pieces before a refuted post that cannot all be true.
+- The kind of a part is not read.
