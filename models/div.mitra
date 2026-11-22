@@ -1,0 +1,27 @@
+// Main's div (README of main): `fn div(a: 0..=9, b: 0..=9) -> 0..=9
+// { if b == 0 { 0 } else { a / b } }`, written on core2. Two things of
+// main cannot be written yet, both findings of the overnight report:
+// - a type `0..=9`: core2's types are bool, Int, Real, tuples and
+//   records, so the range of the inputs is a require, in words;
+// - a division of whole numbers: `/` is on Real only, so the body
+//   cannot be written, and what div gives is said by a claim and
+//   examples instead.
+
+subject calc {
+    require inputs = "a and b are whole numbers from 0 to 9";
+
+    // The code, src/lib.rs, `pub fn div`.
+    fn div(a: Int, b: Int) -> q: Int at "src/lib.rs/div" where {
+        // a / b rounded down, for a and b from 0; and 0 when b is 0.
+        claim spec = if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
+        claim bounded = b == 0 || q <= a;
+        examples { (6, 2) -> 3, (7, 2) -> 3, (9, 3) -> 3, (5, 0) -> 0 }
+    }
+
+    ensure divides = "div gives a / b rounded down, and 0 when b is 0"
+        from (div::spec, inputs);
+
+    // Once a rule's term can be an all (the model layer adds it
+    // tonight), "div is correct everywhere" will read:
+    //   rule everywhere: div::spec |- all x in (a: 0..10, b: 0..10): correct(div, x);
+}

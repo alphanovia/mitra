@@ -24,6 +24,11 @@ pub enum Suit {
     Explain,
     /// `B`: which evidence is wrong.
     Blame,
+    /// `P`: the text of a model, read (`src/parse.rs`).
+    Parse,
+    /// `R`: what the reader is given from outside the model: Rust code,
+    /// a `cargo test` report, a store (`src/reader.rs`).
+    Reader,
 }
 
 impl Suit {
@@ -35,6 +40,8 @@ impl Suit {
             Suit::Evidence => 'V',
             Suit::Explain => 'X',
             Suit::Blame => 'B',
+            Suit::Parse => 'P',
+            Suit::Reader => 'R',
         }
     }
 }
@@ -85,6 +92,34 @@ pub const M013: Code = model(13);
 pub const M014: Code = model(14);
 pub const M015: Code = model(15);
 
+const fn parse(number: u16) -> Code {
+    Code {
+        suit: Suit::Parse,
+        number,
+    }
+}
+
+pub const P001: Code = parse(1);
+pub const P002: Code = parse(2);
+pub const P003: Code = parse(3);
+pub const P004: Code = parse(4);
+pub const P005: Code = parse(5);
+
+const fn reader(number: u16) -> Code {
+    Code {
+        suit: Suit::Reader,
+        number,
+    }
+}
+
+pub const R001: Code = reader(1);
+pub const R002: Code = reader(2);
+pub const R003: Code = reader(3);
+pub const R004: Code = reader(4);
+pub const R005: Code = reader(5);
+pub const R006: Code = reader(6);
+pub const R007: Code = reader(7);
+
 const fn entry(code: Code, title: &'static str) -> Entry {
     Entry {
         code,
@@ -111,6 +146,21 @@ pub const CATALOGUE: &[Entry] = &[
     entry(M013, "a declaration that rests on itself"),
     entry(M014, "a rule named through itself"),
     entry(M015, "an example not of its function's types"),
+    entry(P001, "a character that starts nothing"),
+    entry(P002, "a string that is not closed"),
+    entry(P003, "not what the language has here"),
+    entry(P004, "a tuple or record whose type cannot be told"),
+    entry(P005, "a fraction with zero below"),
+    entry(R001, "a `mitra:` comment the reader cannot read"),
+    entry(R002, "a tie comment on no item, or to nothing of the model"),
+    entry(R003, "a `measures` comment on no test"),
+    entry(R004, "a test that measures nothing the reader knows"),
+    entry(R005, "a measuring test that did not run"),
+    entry(
+        R006,
+        "what names nothing of the model, or is not of its types",
+    ),
+    entry(R007, "a measurement through no tie"),
 ];
 
 /// The entry of `code`, `None` when the catalogue has none.
