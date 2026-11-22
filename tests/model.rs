@@ -109,7 +109,8 @@ fn stone() -> Part {
         conclusion: at("stone::drop::slow"),
         proof: None,
     };
-    // `slows`, then its premises, give its conclusion: modus ponens.
+    // The same, shown: `slows`, used by its path, then the premises,
+    // give the conclusion by modus ponens.
     let names = [
         "stone::drop::slows",
         "stone::drop::falls",
@@ -121,7 +122,7 @@ fn stone() -> Part {
     };
     let lands = Rule {
         name: "lands".to_string(),
-        premises: names.iter().map(|n| at(n)).collect(),
+        premises: names[1..].iter().map(|n| at(n)).collect(),
         conclusion: at("stone::drop::slow"),
         proof: Some(apply(
             ponens,
@@ -200,8 +201,7 @@ fn named(p: &str) -> (Path, Piece) {
 #[test]
 fn each_proposition_is_a_piece_about_its_path() {
     let mut lands = slows();
-    if let Piece::Implies { pre, subject, .. } = &mut lands {
-        pre.insert(0, slows());
+    if let Piece::Implies { subject, .. } = &mut lands {
         *subject = "stone::drop::lands".to_string();
     }
     let expected = vec![
@@ -424,7 +424,7 @@ fn each_problem_is_found() {
     assert_eq!(number, vec![Problem::Mistyped(path("stone::drop::falls"))]);
     let body = changed(|m| m.parts[1].functions[1].body = Some(under("h", 1)));
     assert_eq!(body, vec![Problem::Mistyped(path("stone::speed"))]);
-    let proof = changed(|m| m.parts[1].functions[0].rules[1].conclusion = at("stone::drop::falls"));
+    let proof = changed(|m| m.parts[1].functions[0].rules[1].conclusion = at("stone::air"));
     assert_eq!(proof, vec![Problem::Mistyped(path("stone::drop::lands"))]);
     let ghost = Type::Record(simulation::Record {
         name: "Ghost".to_string(),
@@ -441,10 +441,344 @@ fn each_problem_is_found() {
     assert_eq!(record, vec![Problem::Mistyped(path("stone::Drop"))]);
     let empty = changed(|m| m.parts[1].ensures[0].from.push(vec![]));
     assert_eq!(empty, vec![Problem::Empty(path("stone::lands_slow"))]);
+    let rule = changed(|m| m.parts[1].functions[0].rules[0].premises[0] = at("stone::drop::lands"));
+    assert_eq!(
+        rule,
+        vec![unknown("stone::drop::slows", "stone::drop::lands")]
+    );
     let cycle = changed(|m| {
-        m.parts[1].functions[0].rules[0]
-            .premises
-            .push(at("stone::drop::slows"))
+        m.parts[1].ensures[0]
+            .from
+            .push(vec![path("stone::lands_slow")])
     });
-    assert_eq!(cycle, vec![Problem::Circular(path("stone::drop::slows"))]);
+    assert_eq!(cycle, vec![Problem::Circular(path("stone::lands_slow"))]);
+    let misnamed = changed(|m| m.parts[1].requires[1].name = "still air".to_string());
+    assert_eq!(
+        misnamed,
+        vec![Problem::Misnamed(Path::to(&["stone", "still air"]))]
+    );
+}
+
+/// A name in a proof.
+fn read(x: &str) -> Expression<judgement::Op> {
+    Expression::Name(x.to_string())
+}
+/// `name = [premises] => conclusion`, assumed.
+fn rule(name: &str, premises: &[&str], conclusion: &str) -> Rule {
+    Rule {
+        name: name.to_string(),
+        premises: premises.iter().map(|p| at(p)).collect(),
+        conclusion: at(conclusion),
+        proof: None,
+    }
+}
+
+/// A proof shows its rule only when it argues for the conclusion. The
+/// type of an opinion names its piece, not its side: reductio and
+/// modus tollens give opinions of a piece that never hold it true. So
+/// each proof is also run once, on what it reads taken true, and must
+/// give the conclusion true. A rule whose proof does not is not shown:
+/// it stays a leaf.
+#[test]
+fn a_proof_argues_for_its_conclusion() {
+    let lands = path("stone::drop::lands");
+    let mut model = fall();
+    let reductio = judgement::Op::Reductio {
+        of: Piece::named("stone::drop::slow"),
+    };
+    let proof = apply(reductio, vec![read("stone::drop::falls")]);
+    model.parts[1].functions[0].rules[1].proof = Some(proof);
+    assert_eq!(check(&model), vec![Problem::Mistyped(lands.clone())]);
+    assert!(leaves(&model).iter().any(|(at, _)| *at == lands));
+
+    // From `drop::slow`, got by an assumed rule, tollens on `slows` can
+    // only say that `falls` is false.
+    let mut model = fall();
+    let upon = Piece::Implies {
+        pre: vec![Piece::named("stone::speed::slow")],
+        subject: "stone::drop::upon".to_string(),
+        post: vec![Piece::named("stone::drop::slow")],
+    };
+    let ponens = judgement::Op::Ponens { t: upon, post: 0 };
+    let slow = apply(
+        ponens,
+        vec![read("stone::drop::upon"), read("stone::speed::slow")],
+    );
+    let tollens = judgement::Op::Tollens {
+        t: slows(),
+        post: 0,
+        blame: 1,
+    };
+    let against = vec![slow, read("stone::drop::slows"), read("stone::speed::slow")];
+    let mut back = rule("back", &["stone::speed::slow"], "stone::drop::falls");
+    back.proof = Some(apply(tollens, against));
+    let rules = &mut model.parts[1].functions[0].rules;
+    rules.push(rule("upon", &["stone::speed::slow"], "stone::drop::slow"));
+    rules.push(back);
+    let back = path("stone::drop::back");
+    assert_eq!(check(&model), vec![Problem::Mistyped(back.clone())]);
+    assert!(leaves(&model).iter().any(|(at, _)| *at == back));
+
+    // An expression written as a conclusion is its own piece, which no
+    // proof gives: to show it, name it as a claim.
+    let low = || Prop::Holds(apply(Op::AtMost, vec![name("h"), real(20)]));
+    let reductio = judgement::Op::Reductio {
+        of: Piece::named("stone::speed::same::then"),
+    };
+    for proof in [read("0"), apply(reductio, vec![read("0")])] {
+        let mut model = fall();
+        model.parts[1].functions[1].rules.push(Rule {
+            name: "same".to_string(),
+            premises: vec![low()],
+            conclusion: low(),
+            proof: Some(proof),
+        });
+        let same = Problem::Mistyped(path("stone::speed::same"));
+        assert_eq!(check(&model), vec![same]);
+    }
+}
+
+/// Nothing rests on itself. A conclusion rests on its rule's premises
+/// and on the rule, a rule on the rules its proof uses, a require on
+/// its ensure, and an ensure on what its lists name. On a cycle no
+/// piece would be a leaf, and only a taking of what is no leaf would
+/// hold any of it.
+#[test]
+fn nothing_rests_on_itself() {
+    let circular = |p: &str| Problem::Circular(path(p));
+    let again = changed(|m| {
+        let again = rule("again", &["stone::drop::slow"], "stone::drop::slow");
+        m.parts[1].functions[0].rules.push(again);
+    });
+    assert_eq!(again, vec![circular("stone::drop::again")]);
+    let both = changed(|m| {
+        let rules = &mut m.parts[1].functions[0].rules;
+        rules.push(rule("up", &["stone::drop::falls"], "stone::speed::slow"));
+        rules.push(rule("down", &["stone::speed::slow"], "stone::drop::falls"));
+    });
+    assert_eq!(
+        both,
+        vec![circular("stone::drop::down"), circular("stone::drop::up")]
+    );
+    let itself = changed(|m| {
+        let lands = &mut m.parts[1].functions[0].rules[1];
+        let mut piece = slows();
+        if let Piece::Implies { subject, .. } = &mut piece {
+            *subject = "stone::drop::lands".to_string();
+        }
+        let names = [
+            "stone::drop::lands",
+            "stone::drop::falls",
+            "stone::speed::slow",
+        ];
+        let ponens = judgement::Op::Ponens { t: piece, post: 0 };
+        lands.proof = Some(apply(ponens, names.iter().map(|n| read(n)).collect()));
+    });
+    assert_eq!(itself, vec![circular("stone::drop::lands")]);
+    // Across parts: the stone's promise rests on the sun's, which rests
+    // on the stone's. Assume–guarantee in a circle.
+    let circle = changed(|m| {
+        m.parts[0].requires.push(Require {
+            name: "landing".to_string(),
+            from: Source::Ensure(path("stone::lands_slow")),
+        });
+        m.parts[0].ensures[0].from.push(vec![path("sun::landing")]);
+        m.parts[1].ensures[0].from[0].push(path("stone::light"));
+    });
+    let expected = [
+        "stone::lands_slow",
+        "stone::light",
+        "sun::landing",
+        "sun::shines",
+    ];
+    assert_eq!(circle, expected.map(circular).to_vec());
+}
+
+/// A name is a word, so that a path reads one way: a require named
+/// `drop::falls` would give the piece of the claim `drop::falls`, and
+/// one named `drop at lab/tower/stone` that of the tie.
+#[test]
+fn names_are_words() {
+    for bad in [
+        "drop::falls",
+        "drop at lab/tower/stone",
+        "",
+        "2nd",
+        "still air",
+    ] {
+        let found = changed(|m| m.parts[1].requires[1].name = bad.to_string());
+        assert_eq!(found, vec![Problem::Misnamed(Path::to(&["stone", bad]))]);
+    }
+    for good in ["still_air", "_air", "air2", "été"] {
+        let found = changed(|m| m.parts[1].requires[1].name = good.to_string());
+        assert_eq!(found, vec![]);
+    }
+    let take = changed(|m| {
+        let odd = function("odd", "the h", ("v", Type::Real));
+        m.parts[1].functions.push(odd);
+    });
+    let odd = Path::to(&["stone", "odd", "the h"]);
+    assert_eq!(take, vec![Problem::Misnamed(odd)]);
+}
+
+/// The parts and leaves of a piece.
+fn size(p: &Piece) -> usize {
+    match p {
+        Piece::Named(_) => 1,
+        Piece::Not(x) => 1 + size(x),
+        Piece::Implies { pre, post, .. } => 1 + pre.iter().chain(post).map(size).sum::<usize>(),
+    }
+}
+
+/// A rule is not a premise of a rule: a proof uses rules by their
+/// paths. So a rule's piece holds only its premises and conclusion,
+/// however rules use rules, and a long chain of them is read in time
+/// that grows with it. Here `r_i` gives `c_{i+1}` from `c_i`, assumed,
+/// and `s_i` gives `c_{i+2}` from `c_i`, shown by `r_i` then `r_{i+1}`.
+#[test]
+fn many_rules_stay_flat() {
+    let n = 5000;
+    let c = |i: usize| format!("stone::step::c{i}");
+    let r = |i: usize| format!("stone::step::r{i}");
+    let flat = |i: usize| Piece::Implies {
+        pre: vec![Piece::named(&c(i))],
+        subject: r(i),
+        post: vec![Piece::named(&c(i + 1))],
+    };
+    let mut step = function("step", "h", ("v", Type::Real));
+    for i in 0..=n {
+        let low = apply(Op::AtMost, vec![name("h"), real(i as i64)]);
+        step.claims.push(claim(&format!("c{i}"), low));
+    }
+    for i in 0..n {
+        step.rules.push(rule(&format!("r{i}"), &[&c(i)], &c(i + 1)));
+    }
+    for i in 0..n - 1 {
+        let first = judgement::Op::Ponens {
+            t: flat(i),
+            post: 0,
+        };
+        let first = apply(first, vec![read(&r(i)), read(&c(i))]);
+        let then = judgement::Op::Ponens {
+            t: flat(i + 1),
+            post: 0,
+        };
+        let mut s = rule(&format!("s{i}"), &[&c(i)], &c(i + 2));
+        s.proof = Some(apply(then, vec![read(&r(i + 1)), first]));
+        step.rules.push(s);
+    }
+    let mut model = fall();
+    model.parts[1].functions.push(step);
+    assert_eq!(check(&model), vec![]);
+    let pieces = pieces(&model);
+    assert_eq!(pieces.len(), 12 + (n + 1) + n + (n - 1));
+    assert!(pieces.iter().all(|(_, p)| size(p) <= 4));
+    // The fall's eight, `c0`, and each `r_i`; each `s_i` is shown.
+    assert_eq!(leaves(&model).len(), 8 + 1 + n);
+}
+
+/// A record is made only as declared: not one no record declares, not
+/// one with other fields, not an opaque one, and one with no name only
+/// as a tuple, its fields `0`, `1`, ….
+#[test]
+fn records_are_made_as_declared() {
+    let drop = simulation::Record {
+        name: "Drop".to_string(),
+        fields: vec![("h".to_string(), Type::Real), ("v".to_string(), Type::Real)],
+    };
+    let declared = vec![
+        Record {
+            name: "Drop".to_string(),
+            fields: Some(drop.fields.clone()),
+            claims: vec![],
+            rules: vec![],
+        },
+        Record {
+            name: "Weather".to_string(),
+            fields: None,
+            claims: vec![],
+            rules: vec![],
+        },
+    ];
+    let make = |r: &simulation::Record| {
+        let args = r.fields.iter().map(|_| real(1)).collect();
+        apply(Op::Make(r.clone()), args)
+    };
+    let made = |r: simulation::Record| {
+        let (declared, make) = (declared.clone(), make(&r));
+        changed(move |m| {
+            m.parts[1].records = declared;
+            let slow = &mut m.parts[1].functions[1].claims[0].holds;
+            *slow = let_in(Op::Let, "made", make, slow.clone());
+        })
+    };
+    let wrong = vec![Problem::Mistyped(path("stone::speed::slow"))];
+    let named = |name: &str, fields: &[&str]| simulation::Record {
+        name: name.to_string(),
+        fields: fields.iter().map(|f| (f.to_string(), Type::Real)).collect(),
+    };
+    assert_eq!(made(drop.clone()), vec![]);
+    assert_eq!(made(named("", &["0", "1"])), vec![]);
+    assert_eq!(made(named("Ghost", &["h", "v"])), wrong);
+    assert_eq!(made(named("Drop", &["h"])), wrong);
+    assert_eq!(made(named("Weather", &[])), wrong);
+    assert_eq!(made(named("", &["a"])), wrong);
+    let ghost = make(&named("Ghost", &["h", "v"]));
+    let body =
+        changed(|m| m.parts[1].functions[1].body = Some(let_in(Op::Let, "made", ghost, two_g_h())));
+    assert_eq!(body, vec![Problem::Mistyped(path("stone::speed"))]);
+}
+
+/// Parts meet only where one requires what another ensures. A rule or
+/// a list names only its own part's propositions, a proof only its own
+/// part's rules, and a require another part's ensure. Else the sun's
+/// promise would be used with no piece to blame for it.
+#[test]
+fn parts_meet_only_through_requires() {
+    let unknown = |at: &str, names: &str| Problem::Unknown {
+        at: path(at),
+        names: path(names),
+    };
+    let shining = changed(|m| {
+        let shining = rule("shining", &["stone::air"], "sun::shines");
+        m.parts[1].functions[0].rules.push(shining);
+    });
+    assert_eq!(
+        shining,
+        vec![unknown("stone::drop::shining", "sun::shines")]
+    );
+    let list = changed(|m| m.parts[1].ensures[0].from[0].push(path("sun::shines")));
+    assert_eq!(list, vec![unknown("stone::lands_slow", "sun::shines")]);
+    let own = changed(|m| m.parts[1].requires[0].from = Source::Ensure(path("stone::lands_slow")));
+    assert_eq!(own, vec![unknown("stone::light", "stone::lands_slow")]);
+    // A proof that names a rule, even to drop it: the stone's own is
+    // fine, the sun's is not.
+    let cite = |rule_path: &'static str| {
+        changed(move |m| {
+            let positive = apply(Op::AtMost, vec![real(0), name("w")]);
+            let light = &mut m.parts[0].functions[0];
+            light.claims.push(claim("positive", positive));
+            let bright = rule("bright", &["sun::shines"], "sun::light::positive");
+            light.rules.push(bright);
+            let lands = &mut m.parts[1].functions[0].rules[1];
+            let proof = lands.proof.take().unwrap();
+            lands.proof = Some(let_in(judgement::Op::Let, "unused", read(rule_path), proof));
+        })
+    };
+    assert_eq!(cite("stone::drop::slows"), vec![]);
+    let lands = Problem::Mistyped(path("stone::drop::lands"));
+    assert_eq!(cite("sun::light::bright"), vec![lands]);
+}
+
+/// A tie that names nothing gives no piece, and a list given twice
+/// gives one.
+#[test]
+fn pieces_are_given_once_of_what_is_there() {
+    let mut model = fall();
+    model.ties[0].item = path("stone::nowhere");
+    assert_eq!(pieces(&model).len(), 11);
+    let mut model = fall();
+    let list = model.parts[1].ensures[0].from[0].clone();
+    model.parts[1].ensures[0].from.push(list);
+    assert_eq!(pieces(&model), pieces(&fall()));
 }
