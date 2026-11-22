@@ -65,9 +65,9 @@ struct Record { name, fields: Option<Vec<(String, Type)>> /* None: opaque */, cl
 struct Function { name, takes: Vec<(String, Type)>, gives: (String, Type),
                   body: Option<Expression<simulation::Op>> /* None: opaque */, claims, rules }
 struct Claim { name, holds: Expression<simulation::Op> }          // must be a truth
-struct Rule { name, premises: Vec<Prop>, conclusion: Prop,
+struct Rule { name, premises: Vec<Term>, conclusion: Term,
               proof: Option<Expression<judgement::Op>> /* None: assumed */ }
-enum Prop { At(Path), Holds(Expression<simulation::Op>) }  // a claim, require or ensure, or written in place
+enum Term { At(Path), Holds(Expression<simulation::Op>) }  // a claim, require or ensure, or written in place
 struct Require { name, from: Source }    enum Source { Prose(String), Ensure(Path) }
 struct Ensure { name, prose: String, from: Vec<Vec<Path>> }        // any one list, all of it
 struct Tie { item: Path, at: Location }
@@ -78,10 +78,9 @@ struct Path { names: Vec<String> }                                 // stone::dro
 `leaves(model)`. A `Problem` is `Twice`, `Unknown`, `Mistyped`, `Empty`,
 `Circular` or `Misnamed`, each with the path of the declaration at fault.
 
-Two types are named `Prop`. `model::Prop` is a proposition as a rule writes
-it: a path, or an expression. `judgement::Prop` is a proposition as
-judgement reads it: `Named`, `Not` or `Implies`. `props(model)` turns each
-of the model's into judgement's.
+A `Term` is a proposition as a rule writes it: a path, or an expression.
+`props(model)` gives each as judgement reads it, a `Prop`: `Named`,
+`Not` or `Implies`.
 
 ## Checks
 

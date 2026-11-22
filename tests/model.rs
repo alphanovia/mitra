@@ -7,11 +7,11 @@ mod common;
 
 use common::{apply, let_in};
 use mitra_core::expression::{eval, Expression};
-use mitra_core::judgement::{self, Judgement, Opinion, State, Taking};
+use mitra_core::judgement::{self, Judgement, Opinion, Prop, State, Taking};
 use mitra_core::location::Location;
 use mitra_core::model::{
     check, leaves, levels, props, Claim, Ensure, Function, Kind, Level, Model, Part, Path, Problem,
-    Prop, Record, Require, Rule, Source, Tie,
+    Record, Require, Rule, Source, Term, Tie,
 };
 use mitra_core::simulation::{self, tuple, Bounds, Exact, Op, Ranges, Rational, Type, Value};
 use std::collections::BTreeMap;
@@ -30,8 +30,8 @@ fn ratio(n: i64, d: i64) -> E {
 fn path(p: &str) -> Path {
     Path::to(&p.split("::").collect::<Vec<_>>())
 }
-fn at(p: &str) -> Prop {
-    Prop::At(path(p))
+fn at(p: &str) -> Term {
+    Term::At(path(p))
 }
 fn claim(name: &str, holds: E) -> Claim {
     Claim {
@@ -63,14 +63,14 @@ fn under(x: &str, max: i64) -> E {
 }
 
 /// The rule `slows`, as judgement reads it.
-fn slows() -> judgement::Prop {
-    judgement::Prop::Implies {
+fn slows() -> Prop {
+    Prop::Implies {
         pre: vec![
-            judgement::Prop::named("stone::drop::falls"),
-            judgement::Prop::named("stone::speed::slow"),
+            Prop::named("stone::drop::falls"),
+            Prop::named("stone::speed::slow"),
         ],
         subject: "stone::drop::slows".to_string(),
-        post: vec![judgement::Prop::named("stone::drop::slow")],
+        post: vec![Prop::named("stone::drop::slow")],
     }
 }
 
@@ -186,22 +186,22 @@ fn levels_are_read_not_declared() {
 }
 
 /// `{pre} about {post}`, about `about`.
-fn implies(about: &str, pre: &[&str], post: &str) -> (Path, judgement::Prop) {
-    let prop = judgement::Prop::Implies {
-        pre: pre.iter().map(|p| judgement::Prop::named(p)).collect(),
+fn implies(about: &str, pre: &[&str], post: &str) -> (Path, Prop) {
+    let prop = Prop::Implies {
+        pre: pre.iter().map(|p| Prop::named(p)).collect(),
         subject: about.to_string(),
-        post: vec![judgement::Prop::named(post)],
+        post: vec![Prop::named(post)],
     };
     (path(about), prop)
 }
-fn named(p: &str) -> (Path, judgement::Prop) {
-    (path(p), judgement::Prop::named(p))
+fn named(p: &str) -> (Path, Prop) {
+    (path(p), Prop::named(p))
 }
 
 #[test]
 fn each_proposition_is_about_its_path() {
     let mut lands = slows();
-    if let judgement::Prop::Implies { subject, .. } = &mut lands {
+    if let Prop::Implies { subject, .. } = &mut lands {
         *subject = "stone::drop::lands".to_string();
     }
     let expected = vec![
@@ -222,7 +222,7 @@ fn each_proposition_is_about_its_path() {
         named("sun::shines"),
         (
             path("stone::drop"),
-            judgement::Prop::named("stone::drop at lab/tower/stone"),
+            Prop::named("stone::drop at lab/tower/stone"),
         ),
     ];
     assert_eq!(props(&fall()), expected);
@@ -249,14 +249,14 @@ fn leaves_are_what_only_a_taking_holds() {
         named("sun::shines"),
         (
             path("stone::drop"),
-            judgement::Prop::named("stone::drop at lab/tower/stone"),
+            Prop::named("stone::drop at lab/tower/stone"),
         ),
     ];
     assert_eq!(leaves(&fall()), expected);
 }
 
 /// An opinion of `prop`, taken true once by `by`.
-fn taken(prop: judgement::Prop, by: &str) -> judgement::Value {
+fn taken(prop: Prop, by: &str) -> judgement::Value {
     let taking = Taking {
         prop: prop.clone(),
         value: true,
@@ -289,17 +289,11 @@ fn the_fall_is_judged_on_takings() {
         ("t".to_string(), taken(list.clone(), "human:reviewer")),
         (
             "slow".to_string(),
-            taken(
-                judgement::Prop::named("stone::speed::slow"),
-                "machine:ranges",
-            ),
+            taken(Prop::named("stone::speed::slow"), "machine:ranges"),
         ),
         (
             "falls".to_string(),
-            taken(
-                judgement::Prop::named("stone::drop::falls"),
-                "machine:timer",
-            ),
+            taken(Prop::named("stone::drop::falls"), "machine:timer"),
         ),
     ]);
     let args = ["t", "slow", "falls"]
@@ -307,10 +301,7 @@ fn the_fall_is_judged_on_takings() {
         .map(|n| Expression::Name(n.to_string()));
     let ponens = apply(judgement::Op::Ponens { t: list, post: 0 }, args.collect());
     let lands_slow = opinion(eval(&Judgement, &values, &ponens));
-    assert_eq!(
-        lands_slow.about(),
-        &judgement::Prop::named("stone::lands_slow")
-    );
+    assert_eq!(lands_slow.about(), &Prop::named("stone::lands_slow"));
     assert_eq!(lands_slow.state(), State::True);
 
     let model = fall();
@@ -322,21 +313,15 @@ fn the_fall_is_judged_on_takings() {
         ),
         (
             "stone::drop::falls".to_string(),
-            taken(
-                judgement::Prop::named("stone::drop::falls"),
-                "machine:timer",
-            ),
+            taken(Prop::named("stone::drop::falls"), "machine:timer"),
         ),
         (
             "stone::speed::slow".to_string(),
-            taken(
-                judgement::Prop::named("stone::speed::slow"),
-                "machine:ranges",
-            ),
+            taken(Prop::named("stone::speed::slow"), "machine:ranges"),
         ),
     ]);
     let slow = opinion(eval(&Judgement, &values, lands.proof.as_ref().unwrap()));
-    assert_eq!(slow.about(), &judgement::Prop::named("stone::drop::slow"));
+    assert_eq!(slow.about(), &Prop::named("stone::drop::slow"));
     assert_eq!(slow.state(), State::True);
 }
 
@@ -499,7 +484,7 @@ fn a_proof_argues_for_its_conclusion() {
     let lands = path("stone::drop::lands");
     let mut model = fall();
     let reductio = judgement::Op::Reductio {
-        of: judgement::Prop::named("stone::drop::slow"),
+        of: Prop::named("stone::drop::slow"),
     };
     let proof = apply(reductio, vec![read("stone::drop::falls")]);
     model.parts[1].functions[0].rules[1].proof = Some(proof);
@@ -509,10 +494,10 @@ fn a_proof_argues_for_its_conclusion() {
     // From `drop::slow`, got by an assumed rule, tollens on `slows` can
     // only say that `falls` is false.
     let mut model = fall();
-    let upon = judgement::Prop::Implies {
-        pre: vec![judgement::Prop::named("stone::speed::slow")],
+    let upon = Prop::Implies {
+        pre: vec![Prop::named("stone::speed::slow")],
         subject: "stone::drop::upon".to_string(),
-        post: vec![judgement::Prop::named("stone::drop::slow")],
+        post: vec![Prop::named("stone::drop::slow")],
     };
     let ponens = judgement::Op::Ponens { t: upon, post: 0 };
     let slow = apply(
@@ -536,9 +521,9 @@ fn a_proof_argues_for_its_conclusion() {
 
     // An expression written as a conclusion is its own proposition, which no
     // proof gives: to show it, name it as a claim.
-    let low = || Prop::Holds(apply(Op::AtMost, vec![name("h"), real(20)]));
+    let low = || Term::Holds(apply(Op::AtMost, vec![name("h"), real(20)]));
     let reductio = judgement::Op::Reductio {
-        of: judgement::Prop::named("stone::speed::same::then"),
+        of: Prop::named("stone::speed::same::then"),
     };
     for proof in [read("0"), apply(reductio, vec![read("0")])] {
         let mut model = fall();
@@ -578,7 +563,7 @@ fn nothing_rests_on_itself() {
     let itself = changed(|m| {
         let lands = &mut m.parts[1].functions[0].rules[1];
         let mut prop = slows();
-        if let judgement::Prop::Implies { subject, .. } = &mut prop {
+        if let Prop::Implies { subject, .. } = &mut prop {
             *subject = "stone::drop::lands".to_string();
         }
         let names = [
@@ -637,13 +622,11 @@ fn names_are_words() {
 }
 
 /// The parts and leaves of a proposition.
-fn size(p: &judgement::Prop) -> usize {
+fn size(p: &Prop) -> usize {
     match p {
-        judgement::Prop::Named(_) => 1,
-        judgement::Prop::Not(x) => 1 + size(x),
-        judgement::Prop::Implies { pre, post, .. } => {
-            1 + pre.iter().chain(post).map(size).sum::<usize>()
-        }
+        Prop::Named(_) => 1,
+        Prop::Not(x) => 1 + size(x),
+        Prop::Implies { pre, post, .. } => 1 + pre.iter().chain(post).map(size).sum::<usize>(),
     }
 }
 
@@ -657,10 +640,10 @@ fn many_rules_stay_flat() {
     let n = 5000;
     let c = |i: usize| format!("stone::step::c{i}");
     let r = |i: usize| format!("stone::step::r{i}");
-    let flat = |i: usize| judgement::Prop::Implies {
-        pre: vec![judgement::Prop::named(&c(i))],
+    let flat = |i: usize| Prop::Implies {
+        pre: vec![Prop::named(&c(i))],
         subject: r(i),
-        post: vec![judgement::Prop::named(&c(i + 1))],
+        post: vec![Prop::named(&c(i + 1))],
     };
     let mut step = function("step", "h", ("v", Type::Real));
     for i in 0..=n {

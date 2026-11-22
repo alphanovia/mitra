@@ -16,7 +16,7 @@
 //! taking them can hold them.
 
 use crate::expression::{check as typed, eval, Expression};
-use crate::judgement::{self, Judgement, Opinion, State, Taking};
+use crate::judgement::{self, Judgement, Opinion, Prop, State, Taking};
 use crate::location::Location;
 use crate::simulation::{self, Simulation, Type};
 use std::collections::{BTreeMap, BTreeSet};
@@ -117,17 +117,17 @@ pub struct Claim {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
     pub name: String,
-    pub premises: Vec<Prop>,
-    pub conclusion: Prop,
+    pub premises: Vec<Term>,
+    pub conclusion: Term,
     pub proof: Option<Expression<judgement::Op>>,
 }
 
-/// A proposition of a rule: the claim, require or ensure at a path in
-/// the rule's part, or an expression written in place, read as a claim
-/// of the rule's record or function. A rule is not one: a proof uses a
-/// rule by its path.
+/// A term of a rule: a proposition as the rule writes it. The claim,
+/// require or ensure at a path in the rule's part, or an expression
+/// written in place, read as a claim of the rule's record or function.
+/// A rule is not one: a proof uses a rule by its path.
 #[derive(Clone, Debug, PartialEq)]
-pub enum Prop {
+pub enum Term {
     At(Path),
     Holds(Expression<simulation::Op>),
 }
@@ -324,19 +324,19 @@ pub fn levels(model: &Model) -> Vec<(Path, Level)> {
 /// - a tie is the proposition named `item at place`.
 ///
 /// What names nothing gives no proposition, and a proposition is given once.
-pub fn props(model: &Model) -> Vec<(Path, judgement::Prop)> {
+pub fn props(model: &Model) -> Vec<(Path, Prop)> {
     let index = Index::of(model);
     let mut props = Vec::new();
     for (at, item) in &index.items {
-        let named = judgement::Prop::Named(at.to_string());
+        let named = Prop::Named(at.to_string());
         match item {
             Item::Claim => props.push((at.clone(), named)),
             Item::Rule(rule) => {
                 let written = rule.premises.iter().enumerate();
                 let written = written.map(|(i, p)| (i.to_string(), p));
-                for (place, prop) in written.chain([("then".to_string(), &rule.conclusion)]) {
-                    if let Prop::Holds(_) = prop {
-                        props.push((at.clone(), judgement::Prop::Named(format!("{at}::{place}"))));
+                for (place, term) in written.chain([("then".to_string(), &rule.conclusion)]) {
+                    if let Term::Holds(_) = term {
+                        props.push((at.clone(), Prop::Named(format!("{at}::{place}"))));
                     }
                 }
                 props.extend(index.rule_prop(at, rule).map(|p| (at.clone(), p)));
@@ -345,7 +345,7 @@ pub fn props(model: &Model) -> Vec<(Path, judgement::Prop)> {
                 props.push((at.clone(), named.clone()));
                 if let Source::Ensure(ensure) = &require.from {
                     if let Some(Item::Ensure(_)) = index.items.get(ensure) {
-                        let pre = vec![judgement::Prop::Named(ensure.to_string())];
+                        let pre = vec![Prop::Named(ensure.to_string())];
                         props.push((at.clone(), implies(pre, at, named)));
                     }
                 }
@@ -353,8 +353,7 @@ pub fn props(model: &Model) -> Vec<(Path, judgement::Prop)> {
             Item::Ensure(ensure) => {
                 props.push((at.clone(), named.clone()));
                 for list in &ensure.from {
-                    let pre: Option<Vec<judgement::Prop>> =
-                        list.iter().map(|p| index.listed(p)).collect();
+                    let pre: Option<Vec<Prop>> = list.iter().map(|p| index.listed(p)).collect();
                     if let Some(pre) = pre.filter(|pre| !pre.is_empty()) {
                         props.push((at.clone(), implies(pre, at, named.clone())));
                     }
@@ -366,7 +365,7 @@ pub fn props(model: &Model) -> Vec<(Path, judgement::Prop)> {
     for tie in &model.ties {
         if let Some(Item::Part | Item::Record | Item::Function) = index.items.get(&tie.item) {
             let named = format!("{} at {}", tie.item, tie.at.path.join("/"));
-            props.push((tie.item.clone(), judgement::Prop::Named(named)));
+            props.push((tie.item.clone(), Prop::Named(named)));
         }
     }
     let mut given = BTreeSet::new();
@@ -379,12 +378,12 @@ pub fn props(model: &Model) -> Vec<(Path, judgement::Prop)> {
 /// ensure is concluded by it, an ensure by its lists, and a rule by its
 /// proof when the proof shows it. A tie is always a leaf. Read from any
 /// model, they are all that holds the rest only in one `check` accepts.
-pub fn leaves(model: &Model) -> Vec<(Path, judgement::Prop)> {
+pub fn leaves(model: &Model) -> Vec<(Path, Prop)> {
     let index = Index::of(model);
     let props = props(model);
     let mut concluded = BTreeSet::new();
     for (at, prop) in &props {
-        if let judgement::Prop::Implies { post, .. } = prop {
+        if let Prop::Implies { post, .. } = prop {
             concluded.extend(post.iter().cloned());
             if let Some(Item::Rule(rule)) = index.items.get(at) {
                 if index.shows(at, rule) == Some(true) {
@@ -400,8 +399,8 @@ pub fn leaves(model: &Model) -> Vec<(Path, judgement::Prop)> {
 }
 
 /// `{pre} at {post}`.
-fn implies(pre: Vec<judgement::Prop>, at: &Path, post: judgement::Prop) -> judgement::Prop {
-    judgement::Prop::Implies {
+fn implies(pre: Vec<Prop>, at: &Path, post: Prop) -> Prop {
+    Prop::Implies {
         pre,
         subject: at.to_string(),
         post: vec![post],
@@ -644,33 +643,30 @@ impl<'m> Index<'m> {
         };
         fits && args.iter().all(|arg| self.made(&arg.body))
     }
-    /// `prop`, at `place` in the rule at `rule`, as judgement reads it: `None`
+    /// `term`, at `place` in the rule at `rule`, as judgement reads it: `None`
     /// when it names no claim, require or ensure.
-    fn prop(&self, rule: &Path, place: &str, prop: &Prop) -> Option<judgement::Prop> {
-        match prop {
-            Prop::At(at) => match self.items.get(at)? {
+    fn prop(&self, rule: &Path, place: &str, term: &Term) -> Option<Prop> {
+        match term {
+            Term::At(at) => match self.items.get(at)? {
                 Item::Claim | Item::Require(_) | Item::Ensure(_) => {
-                    Some(judgement::Prop::Named(at.to_string()))
+                    Some(Prop::Named(at.to_string()))
                 }
                 _ => None,
             },
-            Prop::Holds(_) => Some(judgement::Prop::Named(format!("{rule}::{place}"))),
+            Term::Holds(_) => Some(Prop::Named(format!("{rule}::{place}"))),
         }
     }
     /// `{premises} rule {conclusion}`, for the rule at `at`.
-    fn rule_prop(&self, at: &Path, rule: &Rule) -> Option<judgement::Prop> {
+    fn rule_prop(&self, at: &Path, rule: &Rule) -> Option<Prop> {
         let pre = rule.premises.iter().enumerate();
-        let pre: Option<Vec<judgement::Prop>> =
-            pre.map(|(i, p)| self.prop(at, &i.to_string(), p)).collect();
+        let pre: Option<Vec<Prop>> = pre.map(|(i, p)| self.prop(at, &i.to_string(), p)).collect();
         Some(implies(pre?, at, self.prop(at, "then", &rule.conclusion)?))
     }
     /// What a list names, as judgement reads it: a claim, a require or an
     /// ensure by its path, a rule by its own proposition.
-    fn listed(&self, at: &Path) -> Option<judgement::Prop> {
+    fn listed(&self, at: &Path) -> Option<Prop> {
         match self.items.get(at)? {
-            Item::Claim | Item::Require(_) | Item::Ensure(_) => {
-                Some(judgement::Prop::Named(at.to_string()))
-            }
+            Item::Claim | Item::Require(_) | Item::Ensure(_) => Some(Prop::Named(at.to_string())),
             Item::Rule(rule) => self.rule_prop(at, rule),
             Item::Part | Item::Record | Item::Function => None,
         }
@@ -690,8 +686,8 @@ impl<'m> Index<'m> {
         let mut reads = BTreeMap::new();
         for (i, p) in rule.premises.iter().enumerate() {
             let name = match p {
-                Prop::At(path) => path.to_string(),
-                Prop::Holds(_) => i.to_string(),
+                Term::At(path) => path.to_string(),
+                Term::Holds(_) => i.to_string(),
             };
             reads.insert(name, self.prop(at, &i.to_string(), p)?);
         }
@@ -735,9 +731,9 @@ impl<'m> Index<'m> {
         for (at, item) in &self.items {
             match item {
                 Item::Rule(rule) => {
-                    let node = |place: String, prop: &Prop| match prop {
-                        Prop::At(p) => p.clone(),
-                        Prop::Holds(_) => at.then(&place),
+                    let node = |place: String, term: &Term| match term {
+                        Term::At(p) => p.clone(),
+                        Term::Holds(_) => at.then(&place),
                     };
                     let then = node("then".to_string(), &rule.conclusion);
                     for (i, p) in rule.premises.iter().enumerate() {
@@ -799,13 +795,13 @@ impl<'m> Index<'m> {
         }
         for rule in rules {
             let here = at.then(&rule.name);
-            for prop in rule.premises.iter().chain([&rule.conclusion]) {
-                match prop {
-                    Prop::At(names) if !self.reaches(&at.names[0], names, false) => {
+            for term in rule.premises.iter().chain([&rule.conclusion]) {
+                match term {
+                    Term::At(names) if !self.reaches(&at.names[0], names, false) => {
                         let (at, names) = (here.clone(), names.clone());
                         problems.push(Problem::Unknown { at, names });
                     }
-                    Prop::Holds(e) if !truth(e) => problems.push(Problem::Mistyped(here.clone())),
+                    Term::Holds(e) if !truth(e) => problems.push(Problem::Mistyped(here.clone())),
                     _ => {}
                 }
             }
