@@ -1140,6 +1140,100 @@ fn a_thousand_levels() {
     assert_eq!(got, (true, true, true, true));
 }
 
+/// S3 through calls: a chain of functions, each calling the next, each
+/// call two levels. The large frame of a reading is not held while a
+/// callee's body runs (red team round 7: debug overflowed at 435).
+#[test]
+fn a_thousand_levels_of_calls() {
+    let levels = if cfg!(debug_assertions) { 1000 } else { 2000 };
+    let name = |i: usize| format!("c::f{i:06}");
+    // `f(a) = g(a)`, two levels; `f(a) = { let b = g(a); b }`, three.
+    type Shape = (usize, fn(E) -> E);
+    let shapes: [Shape; 2] = [
+        (2, |next| next),
+        (3, |next| let_in(Op::Let, "b", next, input("b"))),
+    ];
+    for (per, shape) in shapes {
+        let n = levels / per;
+        let chain = (0..n).map(|i| {
+            let body = match i + 1 == n {
+                true => input("a"),
+                false => shape(call(&name(i + 1), vec![input("a")])),
+            };
+            (name(i), callee(&[("a", Type::Int)], Type::Int, Some(body)))
+        });
+        let calls = Arc::new(Calls::with(chain.collect()).unwrap());
+        let e = call(&name(0), vec![int(7)]);
+        let seven = Value::Int(BigInt::from(7));
+        let got = std::thread::Builder::new()
+            .stack_size(2 << 20)
+            .spawn(move || {
+                let standard = Simulation {
+                    calls: calls.clone(),
+                };
+                (
+                    check(&standard, &BTreeMap::new(), &e) == Some(Type::Int),
+                    eval(
+                        &Exact {
+                            calls: calls.clone(),
+                        },
+                        &BTreeMap::new(),
+                        &e,
+                    ) == Ok(seven.clone()),
+                    eval(&Ranges { calls }, &BTreeMap::new(), &e) == Ok(Bounds::exactly(&seven)),
+                )
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        assert_eq!(got, (true, true, true), "{per} levels a call");
+    }
+}
+
+/// Refusing what calls one refused is one walk back (red team round 7:
+/// it was quadratic, 8,000 functions in 4 s).
+#[test]
+fn a_long_chain_is_refused_quickly() {
+    let n = 20_000;
+    let name = |i: usize| format!("c::f{i:06}");
+    let chain = (0..n).map(|i| {
+        let body = match i + 1 == n {
+            true => apply(Op::Truth(true), vec![]),
+            false => call(&name(i + 1), vec![]),
+        };
+        (name(i), callee(&[], Type::Int, Some(body)))
+    });
+    let start = std::time::Instant::now();
+    let refused = Calls::with(chain.collect()).unwrap_err();
+    assert_eq!(refused.len(), n);
+    assert!(
+        start.elapsed() < std::time::Duration::from_secs(2),
+        "{:?}",
+        start.elapsed()
+    );
+}
+
+/// Rows are not compared, here: beside a body they are never read, and
+/// of two at one point the first is (`agree` compares them).
+#[test]
+fn rows_are_read_only_without_a_body() {
+    let n = |k: i64| Value::Int(k.into());
+    let plus_one = Some(apply(Op::Add, vec![input("a"), int(1)]));
+    let both = Callee {
+        rows: vec![(vec![n(1)], n(5))],
+        ..callee(&[("a", Type::Int)], Type::Int, plus_one)
+    };
+    let twice = Callee {
+        rows: vec![(vec![n(1)], n(2)), (vec![n(1)], n(3))],
+        ..callee(&[("a", Type::Int)], Type::Int, None)
+    };
+    let calls = Arc::new(library(vec![("f", both), ("g", twice)]).unwrap());
+    let exact = Exact { calls };
+    let at_one = |f: &str| eval(&exact, &BTreeMap::new(), &call(f, vec![int(1)]));
+    assert_eq!(at_one("f"), Ok(n(2)));
+    assert_eq!(at_one("g"), Ok(n(2)));
+}
+
 fn call(f: &str, args: Vec<E>) -> E {
     apply(Op::Call(f.to_string()), args)
 }
@@ -1362,12 +1456,20 @@ fn calls_go_nowhere_round() {
         Some(input("a")),
     );
     assert_eq!(library(vec![("f", twice)]), Err(names(&["f"])));
+    // With rows, or bare, too (red team round 7).
+    let twice = || callee(&[("a", Type::Int), ("a", Type::Int)], Type::Int, None);
+    let one = || Value::Int(1.into());
+    let rows = Callee {
+        rows: vec![(vec![one(), one()], one())],
+        ..twice()
+    };
+    assert_eq!(library(vec![("f", rows)]), Err(names(&["f"])));
+    assert_eq!(library(vec![("f", twice())]), Err(names(&["f"])));
     // Rows of the wrong count or type.
     let row = |at: Vec<Value>, gives: Value| Callee {
         rows: vec![(at, gives)],
         ..callee(&[("a", Type::Int)], Type::Int, None)
     };
-    let one = || Value::Int(1.into());
     for bad in [
         row(vec![], one()),
         row(vec![one(), one()], one()),

@@ -18,6 +18,7 @@ pub fn agree(model: &Model, settings: &Settings) -> (Vec<Agreed>, Vec<Finding>)
 | a function's body | each of its claims | bounds over all it takes, then points |
 | a function's body | each of its examples | `Exact` at the example's point |
 | a function's example | each of its claims | `Exact`, the example's value as what it gives |
+| a function's example | each later one at the same point | the values they give |
 | a function's claims | each other | bounds: all of them false whatever the values |
 | a contract's claim, read of what fits | every value of its arguments | bounds, then points |
 | an example of the model | what the model computes | `Exact`, through calls, the world's values as rows |
@@ -42,6 +43,7 @@ with their neighbours, the smallest combinations first, up to
 | A005 | a contract claim a function that fits breaks |
 | A006 | an example of the model the model does not give |
 | A007 | a comparison not decided: nothing is dropped quietly |
+| A008 | two examples at one point that differ |
 
 ## What it cannot do yet (findings for you)
 

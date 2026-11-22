@@ -2540,3 +2540,66 @@ fn an_ill_formed_set_is_refused_before_its_points_are_listed() {
         start.elapsed()
     );
 }
+
+/// Red team round 7: an intro of a proposition that already writes the point
+/// the intro binds takes the diagonal for the square (J1).
+#[test]
+fn intro_of_a_proposition_that_names_its_own_point() {
+    let s = set("n", 0, 2, None);
+    let arb = Term::Arbitrary {
+        name: "x".into(),
+        over: s.clone(),
+    };
+    let rule = |pre: Prop, post: Prop| Prop::Implies {
+        pre: vec![pre],
+        subject: "k".into(),
+        post: vec![post],
+    };
+    // Taken: f at x gives g at x, at each x (the diagonal); and f at 0.
+    let diagonal = all_in(
+        "x",
+        &s,
+        rule(correct("f", var("x")), correct("g", var("x"))),
+    );
+    let f0 = correct("f", point(0));
+    let (td, tf) = (
+        take(&diagonal, true, 1, "review"),
+        take(&f0, true, 1, "test"),
+    );
+    let b = Bench::of(
+        Judgement::default(),
+        &[("diag", &diagonal, vec![td]), ("f0", &f0, vec![tf])],
+    );
+    let intro = |q: &Prop, body: E| {
+        Expression::Apply(
+            Op::Intro { q: q.clone() },
+            vec![Arg {
+                binds: vec!["p".into()],
+                body,
+            }],
+        )
+    };
+    let instance = |q: &Prop, of: E, at: E| apply(Op::Instance { q: q.clone() }, vec![of, at]);
+    // `all x in S: {f(ARB)} k {g(x)}`, ARB the point its own intro binds,
+    // proved from the diagonal at that point.
+    let q_k = all_in("x", &s, rule(correct("f", arb), correct("g", var("x"))));
+    let square = intro(&q_k, instance(&diagonal, input("diag"), input("p")));
+    // Closed by an intro whose body never reads its point: `all x in S: {f(x)} k {g(1)}`.
+    let q_j = all_in(
+        "x",
+        &s,
+        rule(correct("f", var("x")), correct("g", point(1))),
+    );
+    let closed = intro(&q_j, instance(&q_k, square, literal(1)));
+    // At 0, with f at 0: g is correct at 1.
+    let at0 = rule(correct("f", point(0)), correct("g", point(1)));
+    let g1 = apply(
+        Op::Ponens { t: at0, post: 0 },
+        vec![instance(&q_j, closed, literal(0)), input("f0")],
+    );
+    let got = b.run(&g1).map(|o| o.rests_for().clone());
+    // Now Some({{diag, f0}}): g correct at 1 from the diagonal and f at 0,
+    // which the lawful world f0, g0, !f1, !g1, {f0}k{g0}, {f1}k{g1},
+    // !{f0}k{g1} refutes: both takings hold there and g is wrong at 1.
+    assert_eq!(got, None, "J1");
+}

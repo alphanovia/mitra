@@ -136,6 +136,10 @@ fn each_finding_is_given() {
             changed("(sun::light::w = 2.0, ", "("),
             "A007 at examples::0",
         ),
+        (
+            changed("(5.0) -> 25.0", "(5.0) -> 25.0, (5.0) -> 26.0"),
+            "A008 at stone::square",
+        ),
     ];
     let mut given = std::collections::BTreeSet::new();
     for (got, expected) in cases {

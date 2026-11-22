@@ -13,7 +13,7 @@
 //!
 //! It reads a model `check` accepts: on another, it compares nothing.
 
-use crate::catalogue::{Code, Finding, A001, A002, A003, A004, A005, A006, A007};
+use crate::catalogue::{Code, Finding, A001, A002, A003, A004, A005, A006, A007, A008};
 use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
 use crate::model::{calls, contract_claims, Function, Index, Model, ModelExample, Path};
@@ -179,6 +179,18 @@ fn function(
                 },
             };
             push(format!("example {i} against claim `{}`", c.name), agreement);
+        }
+    }
+    // Two examples at one point: a function gives one value there.
+    for (i, (e, row)) in f.examples.iter().zip(&rows).enumerate() {
+        for (j, other) in f.examples.iter().enumerate().skip(i + 1) {
+            if other.takes == e.takes && other.gives != e.gives {
+                let agreement = Agreement::Fails {
+                    at: row.clone(),
+                    gives: Some(other.gives.clone()),
+                };
+                push(format!("example {i} against example {j}"), agreement);
+            }
         }
     }
     // Claims that no value can keep together, by bounds.
@@ -548,6 +560,15 @@ fn finding(a: &Agreed) -> Option<Finding> {
                 (A005, format!("false at {}", point(at)))
             } else if against == "its claims together" {
                 (A004, "no value keeps all its claims, by bounds".to_string())
+            } else if against.contains(" against example") {
+                (
+                    A008,
+                    format!(
+                        "{against}: both at {}, the second giving {}",
+                        point(at),
+                        gives(g)
+                    ),
+                )
             } else if against.contains(" against claim") {
                 (
                     A003,

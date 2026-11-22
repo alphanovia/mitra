@@ -349,14 +349,28 @@ impl Prop {
         };
         Some(body.put(name, &self.arbitrary_point()?))
     }
-    /// The point an `intro` of `self`, an all or an any, binds.
+    /// The point an `intro` of `self`, an all or an any, binds, when it
+    /// is fresh: `self` does not already write it. A point is told by
+    /// its name and set only, so one written already would be caught,
+    /// and the intro would generalize over two points as if one.
     pub fn arbitrary_point(&self) -> Option<Term> {
-        match self {
-            Prop::All { name, over, .. } | Prop::Any { name, over, .. } => Some(Term::Arbitrary {
+        let at = match self {
+            Prop::All { name, over, .. } | Prop::Any { name, over, .. } => Term::Arbitrary {
                 name: name.clone(),
                 over: over.clone(),
-            }),
-            _ => None,
+            },
+            _ => return None,
+        };
+        (!self.mentions(&at)).then_some(at)
+    }
+    /// `at` is written somewhere in `self`.
+    fn mentions(&self, at: &Term) -> bool {
+        match self {
+            Prop::Named(_) => false,
+            Prop::Not(x) => x.mentions(at),
+            Prop::Implies { pre, post, .. } => pre.iter().chain(post).any(|p| p.mentions(at)),
+            Prop::Correct { at: here, .. } => here == at,
+            Prop::All { body, .. } | Prop::Any { body, .. } => body.mentions(at),
         }
     }
     /// `self` with `at` in place of each `name` free in it. A point holds

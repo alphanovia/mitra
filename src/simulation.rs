@@ -157,7 +157,8 @@ impl Bound {
 
 impl Type {
     /// `self` with each parameter `given` names replaced by its type, in
-    /// records too.
+    /// records too. By name only: whether the type is one the bound
+    /// admits (`Bound::admits`) is the caller's to ask.
     pub fn given(&self, given: &BTreeMap<String, Type>) -> Type {
         match self {
             Type::Param { name, .. } => given.get(name).cloned().unwrap_or_else(|| self.clone()),
@@ -266,10 +267,13 @@ pub struct Calls {
 
 impl Calls {
     /// These functions, or `Err` with the paths of those refused: a
-    /// function that calls itself, however far; a body that does not
-    /// check to what it gives, from what it takes; a row that is not of
-    /// its types; a body or a row while its types name a parameter, which
-    /// no value is of; and a function that calls one refused or unknown.
+    /// function that calls itself, however far; two arguments of one
+    /// name; a body that does not check to what it gives, from what it
+    /// takes; a row that is not of its types; a body or a row while its
+    /// types name a parameter, which no value is of; and a function that
+    /// calls one refused or unknown. Rows are not compared: beside a body
+    /// they are kept and never read, and of two rows at one point the
+    /// first is read (`agree` compares them).
     pub fn with(callees: BTreeMap<String, Callee>) -> Result<Calls, BTreeSet<String>> {
         let names: Vec<&String> = callees.keys().collect();
         let place: BTreeMap<&String, usize> =
@@ -284,9 +288,12 @@ impl Calls {
         }
         // On a cycle: in a component of two or more, or calling itself.
         let component = components(&out);
+        let mut size = vec![0usize; names.len()];
+        for &c in &component {
+            size[c] += 1;
+        }
         for (i, name) in names.iter().enumerate() {
-            let shared = component.iter().filter(|&&c| c == component[i]).count() > 1;
-            if shared || out[i].contains(&i) {
+            if size[component[i]] > 1 || out[i].contains(&i) {
                 refused.insert((*name).clone());
             }
         }
@@ -299,9 +306,9 @@ impl Calls {
         for (name, callee) in &callees {
             let open = callee.gives.open() || callee.takes.iter().any(|(_, t)| t.open());
             let inputs: BTreeMap<String, Type> = callee.takes.iter().cloned().collect();
+            let distinct = inputs.len() == callee.takes.len();
             let body = callee.body.as_ref().is_none_or(|body| {
                 !refused.contains(name)
-                    && inputs.len() == callee.takes.len()
                     && check(&standard, &inputs, body) == Some(callee.gives.clone())
             });
             let row = |(at, gives): &(Vec<Value>, Value)| {
@@ -313,22 +320,27 @@ impl Calls {
                     && exact.has_type(gives, &callee.gives)
             };
             let bare = callee.body.is_none() && callee.rows.is_empty();
-            if !body || !callee.rows.iter().all(row) || (open && !bare) {
+            if !distinct || !body || !callee.rows.iter().all(row) || (open && !bare) {
                 refused.insert(name.clone());
             }
         }
-        // And whatever calls one refused, however far.
-        loop {
-            let more: Vec<String> = callees
-                .iter()
-                .filter(|(name, _)| !refused.contains(*name))
-                .filter(|(_, c)| c.body.iter().flat_map(called).any(|f| refused.contains(&f)))
-                .map(|(name, _)| name.clone())
-                .collect();
-            if more.is_empty() {
-                break;
+        // And whatever calls one refused, however far: one walk back
+        // along the calls.
+        let mut back = vec![Vec::new(); names.len()];
+        for (from, to) in out.iter().enumerate() {
+            for &to in to {
+                back[to].push(from);
             }
-            refused.extend(more);
+        }
+        let mut walk: Vec<usize> = (0..names.len())
+            .filter(|&i| refused.contains(names[i]))
+            .collect();
+        while let Some(node) = walk.pop() {
+            for &from in &back[node] {
+                if refused.insert(names[from].clone()) {
+                    walk.push(from);
+                }
+            }
         }
         match refused.is_empty() {
             true => Ok(Calls { callees }),
@@ -485,9 +497,36 @@ impl Reading for Exact {
     }
 
     fn apply(&self, op: &Op, args: &[Exactly]) -> Exactly {
-        if let Op::Call(f) = op {
-            return self.call(f, &strict(args)?);
+        // Two small frames, so that the large one is not held while a
+        // callee's body runs.
+        match op {
+            Op::Call(f) => self.call_strict(f, args),
+            _ => self.plain(op, args),
         }
+    }
+
+    fn bind(
+        &self,
+        op: &Op,
+        args: &[Exactly],
+        run: &mut dyn FnMut(usize, &[Exactly]) -> Exactly,
+    ) -> Exactly {
+        match (op, args) {
+            (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
+            (Op::All, [lo, hi, _]) => all_exactly(lo, hi, run),
+            _ => Err(Fault::Stuck),
+        }
+    }
+}
+
+impl Exact {
+    #[inline(never)]
+    fn call_strict(&self, f: &str, args: &[Exactly]) -> Exactly {
+        self.call(f, &strict(args)?)
+    }
+    /// Every operation but a call.
+    #[inline(never)]
+    fn plain(&self, op: &Op, args: &[Exactly]) -> Exactly {
         match (op, args) {
             (Op::If, [test, then, otherwise]) => {
                 return match decides(test)? {
@@ -544,19 +583,6 @@ impl Reading for Exact {
             }
             _ => return Err(Fault::Stuck),
         })
-    }
-
-    fn bind(
-        &self,
-        op: &Op,
-        args: &[Exactly],
-        run: &mut dyn FnMut(usize, &[Exactly]) -> Exactly,
-    ) -> Exactly {
-        match (op, args) {
-            (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
-            (Op::All, [lo, hi, _]) => all_exactly(lo, hi, run),
-            _ => Err(Fault::Stuck),
-        }
     }
 }
 
@@ -922,6 +948,36 @@ impl Reading for Ranges {
     }
 
     fn apply(&self, op: &Op, args: &[Bounded]) -> Bounded {
+        // Two small frames, so that the large one is not held while a
+        // callee's body runs.
+        match op {
+            Op::Call(f) => self.call_strict(f, args),
+            _ => self.plain(op, args),
+        }
+    }
+
+    fn bind(
+        &self,
+        op: &Op,
+        args: &[Bounded],
+        run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded,
+    ) -> Bounded {
+        match (op, args) {
+            (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
+            (Op::All, [lo, hi, _]) => all(lo, hi, run),
+            _ => Err(Fault::Stuck),
+        }
+    }
+}
+
+impl Ranges {
+    #[inline(never)]
+    fn call_strict(&self, f: &str, args: &[Bounded]) -> Bounded {
+        self.call(f, &strict(args)?)
+    }
+    /// Every operation but a call.
+    #[inline(never)]
+    fn plain(&self, op: &Op, args: &[Bounded]) -> Bounded {
         match (op, args) {
             (Op::If, [test, then, otherwise]) => {
                 return choose(test, then.clone(), otherwise.clone())
@@ -931,9 +987,6 @@ impl Reading for Ranges {
             _ => {}
         }
         let args = strict(args)?;
-        if let Op::Call(f) = op {
-            return self.call(f, &args);
-        }
         let may_fault = args.iter().any(|b| b.may_fault);
         let spans: Vec<&Span> = args.iter().map(|b| &b.span).collect();
         use Span::Number as N;
@@ -964,19 +1017,6 @@ impl Reading for Ranges {
             _ => return Err(Fault::Stuck),
         };
         Ok(Bounds { span, may_fault })
-    }
-
-    fn bind(
-        &self,
-        op: &Op,
-        args: &[Bounded],
-        run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded,
-    ) -> Bounded {
-        match (op, args) {
-            (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
-            (Op::All, [lo, hi, _]) => all(lo, hi, run),
-            _ => Err(Fault::Stuck),
-        }
     }
 }
 

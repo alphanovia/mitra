@@ -114,6 +114,7 @@ pub const A004: Code = agree(4);
 pub const A005: Code = agree(5);
 pub const A006: Code = agree(6);
 pub const A007: Code = agree(7);
+pub const A008: Code = agree(8);
 
 const fn evidence(number: u16) -> Code {
     Code {
@@ -202,6 +203,7 @@ pub const CATALOGUE: &[Entry] = &[
     entry(A005, "a contract claim a function that fits breaks"),
     entry(A006, "an example of the model the model does not give"),
     entry(A007, "a comparison not decided"),
+    entry(A008, "two examples at one point that differ"),
     entry(V001, "a measurement that names no input or output"),
     entry(V002, "a measurement through no tie"),
     entry(V003, "a measured value not of its type"),
