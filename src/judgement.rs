@@ -23,11 +23,13 @@
 //! A proposition may be about points: `correct(f, x)`, under `all x in
 //! S` or `any x in S`. Types are then dependent, syntactically: the type
 //! of an opinion names its proposition, points and bound names
-//! included, and two are equal only when written the same. A rule at a
-//! point writes the point in place of the name, so the types of its
-//! arguments say which point. Judgement reads a set with the simulation
-//! standard: `Exact` says whether a point is in it, and lists the points
-//! of a set of whole numbers.
+//! included, and two are equal only when written the same. A point is a
+//! value of a proof, and its type is the point itself: `[6, 2]`, or the
+//! point `intro` binds, any point of a set. A rule at a point writes the
+//! point in place of the name, so the types of its arguments say which
+//! point. Judgement reads a set with the simulation standard: `Exact`
+//! says whether a point is in it, and lists the points of a set of whole
+//! numbers.
 
 use crate::expression::{check, eval, strict, Expression, Fault, Outcome, Reading, Standard};
 use crate::graph::components;
@@ -72,12 +74,27 @@ pub enum Prop {
 }
 
 /// Where a function is said correct: at a point, the values of its
-/// arguments in order, as in a row of its examples; or at the name an
-/// all or an any around it binds to each point of its set.
+/// arguments in order, as in a row of its examples; at the name an all
+/// or an any around it binds to each point of its set; or at the point
+/// an `intro` binds, any point of a set, known by the name of the all or
+/// the any it proves and by that set.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Term {
     Point(Vec<simulation::Value>),
     Var(String),
+    Arbitrary { name: String, over: Set },
+}
+
+impl Term {
+    /// A point of `set`: a value in it, or the point an `intro` binds,
+    /// of a set within it.
+    fn within(&self, set: &Set) -> bool {
+        match self {
+            Term::Point(point) => set.contains(point),
+            Term::Arbitrary { over, .. } => over.within(set),
+            Term::Var(_) => false,
+        }
+    }
 }
 
 /// A set of points: one number per range, each in its range, `lo..hi`,
@@ -123,6 +140,29 @@ impl Set {
         point.len() == self.ranges.len()
             && self.ranges.iter().zip(point).all(inside)
             && self.such_at(point)
+    }
+    /// Every point of `self` is in `other`, as written: as many ranges,
+    /// each within the other's, of the same kind, and the other's `such`
+    /// none, or the same as `self`'s, with the same names. Whether one
+    /// condition holds wherever another does is not asked: such sets
+    /// are not found within.
+    pub fn within(&self, other: &Set) -> bool {
+        use simulation::Value as V;
+        let range = |((_, lo, hi), (_, low, high)): (&(String, V, V), &(String, V, V))| {
+            match (lo, hi, low, high) {
+                (V::Int(lo), V::Int(hi), V::Int(low), V::Int(high)) => low <= lo && hi <= high,
+                (V::Real(lo), V::Real(hi), V::Real(low), V::Real(high)) => low <= lo && hi <= high,
+                _ => false,
+            }
+        };
+        let names = |s: &Set| s.ranges.iter().map(|(n, _, _)| n.clone()).collect::<Vec<_>>();
+        let such = match &other.such {
+            None => true,
+            Some(_) => self.such == other.such && names(self) == names(other),
+        };
+        self.ranges.len() == other.ranges.len()
+            && self.ranges.iter().zip(&other.ranges).all(range)
+            && such
     }
     /// `such` is true at `point`, or there is none.
     fn such_at(&self, point: &[simulation::Value]) -> bool {
@@ -259,6 +299,7 @@ impl Prop {
             Prop::Correct { at, .. } => match at {
                 Term::Point(_) => true,
                 Term::Var(x) => bound.contains(&x.as_str()),
+                Term::Arbitrary { over, .. } => over.well_formed(),
             },
             Prop::All { name, over, body } | Prop::Any { name, over, body } => {
                 bound.push(name);
@@ -268,23 +309,57 @@ impl Prop {
             }
         }
     }
+    /// It is about the point an `intro` binds. No taking and no rule
+    /// known by name is: they name their points.
+    pub fn arbitrary(&self) -> bool {
+        match self {
+            Prop::Named(_) => false,
+            Prop::Not(x) => x.arbitrary(),
+            Prop::Implies { pre, post, .. } => pre.iter().chain(post).any(Prop::arbitrary),
+            Prop::Correct { at, .. } => matches!(at, Term::Arbitrary { .. }),
+            Prop::All { body, .. } | Prop::Any { body, .. } => body.arbitrary(),
+        }
+    }
     /// The body of an all or an any at `point`, a point of its set: the
     /// body with `point` in place of the name it binds. `None` when
     /// `self` is neither, or `point` is not in its set.
     pub fn at(&self, point: &[simulation::Value]) -> Option<Prop> {
+        self.at_term(&Term::Point(point.to_vec()))
+    }
+    /// The body of an all or an any at `at`, a point of its set, or the
+    /// point an `intro` binds, of a set within it.
+    fn at_term(&self, at: &Term) -> Option<Prop> {
         match self {
             Prop::All { name, over, body } | Prop::Any { name, over, body }
-                if over.contains(point) =>
+                if at.within(over) =>
             {
-                Some(body.put(name, point))
+                Some(body.put(name, at))
             }
             _ => None,
         }
     }
-    /// `self` with `point` in place of each `name` free in it. A point
-    /// holds no name, so nothing is caught.
-    fn put(&self, name: &str, point: &[simulation::Value]) -> Prop {
-        let put = |p: &Prop| p.put(name, point);
+    /// What an `intro` of `self`, an all or an any, proves: its body at
+    /// the point the intro binds.
+    pub fn introduced(&self) -> Option<Prop> {
+        let (Prop::All { name, body, .. } | Prop::Any { name, body, .. }) = self else {
+            return None;
+        };
+        Some(body.put(name, &self.arbitrary_point()?))
+    }
+    /// The point an `intro` of `self`, an all or an any, binds.
+    pub fn arbitrary_point(&self) -> Option<Term> {
+        match self {
+            Prop::All { name, over, .. } | Prop::Any { name, over, .. } => Some(Term::Arbitrary {
+                name: name.clone(),
+                over: over.clone(),
+            }),
+            _ => None,
+        }
+    }
+    /// `self` with `at` in place of each `name` free in it. A point holds
+    /// no name, so nothing is caught.
+    fn put(&self, name: &str, at: &Term) -> Prop {
+        let put = |p: &Prop| p.put(name, at);
         match self {
             Prop::Named(_) => self.clone(),
             Prop::Not(x) => Prop::Not(Box::new(put(x))),
@@ -298,7 +373,7 @@ impl Prop {
                 at: Term::Var(x),
             } if x == name => Prop::Correct {
                 function: function.clone(),
-                at: Term::Point(point.to_vec()),
+                at: at.clone(),
             },
             Prop::Correct { .. } => self.clone(),
             // An all or an any that binds `name` again hides it.
@@ -332,7 +407,9 @@ impl Prop {
             return None;
         };
         let points = over.points()?.take(n.saturating_add(1));
-        let bodies: Vec<Prop> = points.map(|point| body.put(name, &point)).collect();
+        let bodies: Vec<Prop> = points
+            .map(|point| body.put(name, &Term::Point(point)))
+            .collect();
         (bodies.len() == n).then_some(bodies)
     }
 }
@@ -421,9 +498,10 @@ impl Opinion {
     /// What these takings of `about` say of it: each taking it true is
     /// a set it follows true from, each taking it false one it follows
     /// false from. `None` when a taking is of another proposition, or
-    /// `about` is not well formed.
+    /// `about` is not well formed, or is about the point an `intro`
+    /// binds.
     pub fn taken(about: Prop, takings: Vec<Taking>) -> Option<Opinion> {
-        if !about.well_formed() {
+        if !about.well_formed() || about.arbitrary() {
             return None;
         }
         let mut opinion = Opinion {
@@ -510,18 +588,40 @@ fn all_of(sides: &[&Rests]) -> Rests {
     ways
 }
 
-/// The types: a state, or an opinion of a proposition.
+/// The types: a state, an opinion of a proposition, or a point, the
+/// type of which is the point itself.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
     State,
     Opinion(Prop),
+    Point(Term),
 }
 
-/// A value: a state, or an opinion.
+/// A value: a state, an opinion, or a point.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Value {
     State(State),
     Opinion(Opinion),
+    Point(Point),
+}
+
+/// A point as a proof holds it: written in place, or the point an
+/// `intro` binds. Only an `intro` makes the second, and only for its
+/// argument: anywhere else, it could stand for a point of an empty set,
+/// of which anything follows. So what is given to a proof is a point
+/// written in place, as an opinion given is one `Opinion::taken` makes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Point(Term);
+
+impl Point {
+    /// The point of these values, in order.
+    pub fn of(values: Vec<simulation::Value>) -> Point {
+        Point(Term::Point(values))
+    }
+    /// The point as a proposition writes it.
+    pub fn term(&self) -> &Term {
+        &self.0
+    }
 }
 
 /// The rules. The premises of an implication `t` are `t`, then its pres.
@@ -549,19 +649,27 @@ pub enum Op {
     /// `let x = a; b`: `b`, with `x` standing for what `a` gives. The
     /// second argument binds `x`.
     Let,
-    /// From an opinion of `q`, an all or an any, one of its body at
-    /// `at`, a point of its set: an all true makes it true, an any false
-    /// makes it false.
-    Instance { q: Prop, at: Vec<simulation::Value> },
-    /// From an opinion of the body of `q` at `at`, a point of its set,
-    /// one of `q`: true there makes an any true, false there makes an
-    /// all false.
-    Witness { q: Prop, at: Vec<simulation::Value> },
+    /// A point: the values of a function's arguments, in order.
+    Point(Vec<simulation::Value>),
+    /// From an opinion of `q`, an all or an any, then a point of its set,
+    /// an opinion of its body at the point: an all true makes it true,
+    /// an any false makes it false.
+    Instance { q: Prop },
+    /// From an opinion of the body of `q` at a point of its set, then
+    /// the point, an opinion of `q`: true there makes an any true, false
+    /// there makes an all false.
+    Witness { q: Prop },
     /// From an opinion of the body of `q` at each point of its set, in
     /// the order `Set::points` lists them, one of `q`: all the points
     /// tell. An all is true when every point is, and false when one is;
     /// an any is true when one is, and false when every one is.
     Cases { q: Prop },
+    /// `intro(q, |x| p)`: from `p`, an opinion of the body of `q`, an
+    /// all or an any, at `x`, any point of its set, an opinion of `q`.
+    /// True at any point makes an all true, false at any point makes an
+    /// any false. The argument binds `x`, of the type `Point` of
+    /// `Term::Arbitrary`.
+    Intro { q: Prop },
 }
 
 /// The judgement standard and its reading. It knows rules by name: the
@@ -616,7 +724,11 @@ impl Judgement {
     fn unfold<'a>(&'a self, t: &'a Prop) -> Option<(&'a [Prop], &'a [Prop])> {
         match t {
             Prop::Implies { pre, post, .. } => Some((pre, post)),
-            Prop::Named(n) => self.rules.get(n).map(|d| (&d.pre[..], &d.post[..])),
+            Prop::Named(n) => {
+                let d = self.rules.get(n)?;
+                let arbitrary = d.pre.iter().chain(&d.post).any(Prop::arbitrary);
+                (!arbitrary).then_some((&d.pre[..], &d.post[..]))
+            }
             _ => None,
         }
     }
@@ -633,12 +745,12 @@ impl Judgement {
         Some(self.unfold(t)?.1)
     }
     /// What a rule takes and gives, read from its parameters, when it
-    /// is given `n` arguments: the propositions of its arguments, in
-    /// order, and the proposition it gives an opinion of. `None` for an
-    /// operation that is not a rule, a rule that does not apply, or one
-    /// that would give or take an opinion of a proposition that is not
-    /// well formed.
-    fn rule(&self, op: &Op, n: usize) -> Option<(Vec<Prop>, Prop)> {
+    /// is given `n` opinions, and the point `at` for an instance or a
+    /// witness: the propositions of its opinions, in order, and the
+    /// proposition it gives an opinion of. `None` for an operation that
+    /// is not a rule, a rule that does not apply, or one that would give
+    /// or take an opinion of a proposition that is not well formed.
+    fn rule(&self, op: &Op, n: usize, at: Option<&Term>) -> Option<(Vec<Prop>, Prop)> {
         let (from, gives) = match op {
             Op::Ponens { t, post } => (self.premises(t)?, self.posts(t)?.get(*post)?.clone()),
             Op::Tollens { t, post, blame } => {
@@ -650,8 +762,8 @@ impl Judgement {
                 let blamed = premises.remove(*blame);
                 ([vec![q], premises].concat(), blamed)
             }
-            Op::Instance { q, at } => (vec![q.clone()], q.at(at)?),
-            Op::Witness { q, at } => (vec![q.at(at)?], q.clone()),
+            Op::Instance { q } => (vec![q.clone()], q.at_term(at?)?),
+            Op::Witness { q } => (vec![q.at_term(at?)?], q.clone()),
             Op::Cases { q } => (q.cases(n)?, q.clone()),
             _ => return None,
         };
@@ -666,26 +778,27 @@ impl Standard for Judgement {
     fn binds(&self, op: &Op, i: usize, before: &[Type]) -> Vec<Type> {
         match (op, i, before) {
             (Op::Let, 1, [t]) => vec![t.clone()],
+            (Op::Intro { q }, 0, []) => q.arbitrary_point().map(Type::Point).into_iter().collect(),
             _ => vec![],
         }
     }
     fn gives(&self, op: &Op, takes: &[Type]) -> Option<Type> {
-        use Type::{Opinion, State};
+        use Type::{Opinion, Point, State};
         match (op, takes) {
+            (Op::Point(at), []) => Some(Point(Term::Point(at.clone()))),
+            (Op::Instance { .. } | Op::Witness { .. }, [Opinion(x), Point(at)]) => {
+                let (from, gives) = self.rule(op, 1, Some(at))?;
+                (x == &from[0]).then_some(Opinion(gives))
+            }
+            (Op::Intro { q }, [Opinion(x)]) => (Some(x) == q.introduced().as_ref() && q.well_formed())
+                .then(|| Opinion(q.clone())),
             (Op::Not, [State]) | (Op::And | Op::Join, [State, State]) => Some(State),
             (Op::StateOf, [Opinion(_)]) => Some(State),
             (Op::Not, [Opinion(x)]) => Some(Opinion(x.not())),
             (Op::Join, [Opinion(x), Opinion(y)]) if x == y => Some(Opinion(x.clone())),
             (Op::Reductio { of }, [Opinion(_)]) if of.well_formed() => Some(Opinion(of.clone())),
-            (
-                Op::Ponens { .. }
-                | Op::Tollens { .. }
-                | Op::Instance { .. }
-                | Op::Witness { .. }
-                | Op::Cases { .. },
-                takes,
-            ) => {
-                let (from, gives) = self.rule(op, takes.len())?;
+            (Op::Ponens { .. } | Op::Tollens { .. } | Op::Cases { .. }, takes) => {
+                let (from, gives) = self.rule(op, takes.len(), None)?;
                 let matches = takes
                     .iter()
                     .zip(&from)
@@ -709,14 +822,28 @@ impl Reading for Judgement {
         match (value, of) {
             (Value::State(_), Type::State) => true,
             (Value::Opinion(o), Type::Opinion(x)) => &o.about == x,
+            (Value::Point(at), Type::Point(t)) => &at.0 == t,
             _ => false,
         }
     }
 
     fn apply(&self, op: &Op, args: &[Judged]) -> Judged {
         let args = strict(args)?;
-        use Value::{Opinion as O, State as S};
+        use Value::{Opinion as O, Point as P, State as S};
         let opinion = match (op, args.as_slice()) {
+            (Op::Point(at), []) => return Ok(P(Point::of(at.clone()))),
+            (Op::Instance { q } | Op::Witness { q }, [O(x), P(at)]) => {
+                let (from, gives) = self.rule(op, 1, Some(&at.0)).ok_or(Fault::Stuck)?;
+                if x.about != from[0] {
+                    return Err(Fault::Stuck);
+                }
+                let (rests_for, rests_against) = quantified(op, matches!(q, Prop::All { .. }), &[x]);
+                Opinion {
+                    about: gives,
+                    rests_for,
+                    rests_against,
+                }
+            }
             (Op::Not, [S(a)]) => return Ok(S(!*a)),
             (Op::And, [S(a), S(b)]) => return Ok(S(a.and(*b))),
             (Op::Join, [S(a), S(b)]) => return Ok(S(a.join(*b))),
@@ -732,15 +859,8 @@ impl Reading for Judgement {
                 rests_against: smallest(x.rests_against.iter().chain(&y.rests_against).cloned()),
             },
             (Op::Reductio { of }, [O(x)]) if of.well_formed() => reductio(of, x),
-            (
-                Op::Ponens { .. }
-                | Op::Tollens { .. }
-                | Op::Instance { .. }
-                | Op::Witness { .. }
-                | Op::Cases { .. },
-                args,
-            ) => {
-                let (from, gives) = self.rule(op, args.len()).ok_or(Fault::Stuck)?;
+            (Op::Ponens { .. } | Op::Tollens { .. } | Op::Cases { .. }, args) => {
+                let (from, gives) = self.rule(op, args.len(), None).ok_or(Fault::Stuck)?;
                 let mut opinions = Vec::with_capacity(args.len());
                 for (arg, prop) in args.iter().zip(&from) {
                     match arg {
@@ -761,9 +881,7 @@ impl Reading for Judgement {
                             .collect();
                         (Rests::new(), all_of(&sides))
                     }
-                    Op::Instance { q, .. } | Op::Witness { q, .. } | Op::Cases { q } => {
-                        quantified(op, matches!(q, Prop::All { .. }), &opinions)
-                    }
+                    Op::Cases { q } => quantified(op, matches!(q, Prop::All { .. }), &opinions),
                     _ => return Err(Fault::Stuck),
                 };
                 Opinion {
@@ -785,6 +903,22 @@ impl Reading for Judgement {
     ) -> Judged {
         match (op, args) {
             (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
+            (Op::Intro { q }, [_]) => {
+                let (Some(point), Some(body)) = (q.arbitrary_point(), q.introduced()) else {
+                    return Err(Fault::Stuck);
+                };
+                match run(0, &[Ok(Value::Point(Point(point)))])? {
+                    Value::Opinion(x) if x.about == body && q.well_formed() => {
+                        let all = matches!(q, Prop::All { .. });
+                        Ok(Value::Opinion(Opinion {
+                            about: q.clone(),
+                            rests_for: if all { x.rests_for } else { Rests::new() },
+                            rests_against: if all { Rests::new() } else { x.rests_against },
+                        }))
+                    }
+                    _ => Err(Fault::Stuck),
+                }
+            }
             _ => Err(Fault::Stuck),
         }
     }

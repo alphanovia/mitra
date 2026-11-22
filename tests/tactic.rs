@@ -8,7 +8,7 @@ use common::{apply, let_in};
 use mitra_core::expression::{check, eval, Expression};
 use mitra_core::judgement::{Judgement, Op, Opinion, Prop, Set, State, Taking, Term, Type, Value};
 use mitra_core::simulation::{self, Value as V};
-use mitra_core::tactic::cases;
+use mitra_core::tactic::{cases, intro};
 use std::collections::{BTreeMap, BTreeSet};
 
 type E = Expression<Op>;
@@ -51,6 +51,10 @@ fn everywhere(over: Set) -> Prop {
 }
 fn point(a: i64, b: i64) -> Vec<V> {
     vec![int(a), int(b)]
+}
+/// The point `p`, written in a proof.
+fn literal(p: &[V]) -> E {
+    apply(Op::Point(p.to_vec()), vec![])
 }
 fn take(p: &Prop, value: bool, by: &str) -> Taking {
     Taking {
@@ -182,13 +186,9 @@ fn two_classes_two_tests() {
             true => (&r.on_zero, "z"),
             false => (&r.on_rest, "r"),
         };
-        let at = p.to_vec();
         apply(
-            Op::Instance {
-                q: class.clone(),
-                at,
-            },
-            vec![name(held)],
+            Op::Instance { q: class.clone() },
+            vec![name(held), literal(p)],
         )
     })
     .unwrap();
@@ -221,7 +221,6 @@ fn a_failing_test_refutes_its_class() {
     ledger.take("t7_3", &t73, vec![fail.clone()]);
     let witness = Op::Witness {
         q: r.on_rest.clone(),
-        at: point(7, 3),
     };
     let tollens = Op::Tollens {
         t: r.rest.clone(),
@@ -230,7 +229,10 @@ fn a_failing_test_refutes_its_class() {
     };
     let proof = apply(
         tollens,
-        vec![apply(witness, vec![name("t7_3")]), name("t6_2")],
+        vec![
+            apply(witness, vec![name("t7_3"), literal(&point(7, 3))]),
+            name("t6_2"),
+        ],
     );
     let o = ledger.prove(&proof, &r.rest);
     assert_eq!(o.state(), State::False);
@@ -296,24 +298,105 @@ fn a_large_set_is_taken_or_refuted() {
         vec![fail.clone()],
     );
     let down = apply(
-        Op::Instance {
-            q: q.clone(),
-            at: at.clone(),
-        },
-        vec![name("review")],
+        Op::Instance { q: q.clone() },
+        vec![name("review"), literal(&at)],
     );
     let o = ledger.prove(&down, &correct(Term::Point(at)));
     assert_eq!(o.rests_for(), &BTreeSet::from([BTreeSet::from([review])]));
     let up = apply(
-        Op::Witness {
-            q: q.clone(),
-            at: fail_at,
-        },
-        vec![name("fail")],
+        Op::Witness { q: q.clone() },
+        vec![name("fail"), literal(&fail_at)],
     );
     let o = ledger.prove(&up, &q);
     assert_eq!(o.rests_against(), &BTreeSet::from([BTreeSet::from([fail])]));
     // Out of the set: b is 0.
-    let out = apply(Op::Instance { q, at: point(1, 0) }, vec![name("review")]);
+    let out = apply(
+        Op::Instance { q },
+        vec![name("review"), literal(&point(1, 0))],
+    );
     assert_eq!(check(&Judgement::default(), &ledger.inputs, &out), None);
+}
+
+/// One proof for every point of a large set, by `intro`: div is correct
+/// on all of it (a review), and quot is wherever div is (a rule a
+/// reviewer takes). Quot is then correct on all of it, from those two
+/// takings, in one step: no point is listed.
+#[test]
+fn one_proof_for_every_point() {
+    let big = |b_from: i64| Set {
+        ranges: vec![
+            ("a".into(), int(0), int(1 << 40)),
+            ("b".into(), int(b_from), int(1 << 40)),
+        ],
+        such: None,
+    };
+    let x = || Term::Var("x".to_string());
+    let quot = |at: Term| Prop::Correct {
+        function: "quot".to_string(),
+        at,
+    };
+    let follows = |at: Term| Prop::Implies {
+        pre: vec![correct(at.clone())],
+        subject: "quot".to_string(),
+        post: vec![quot(at)],
+    };
+    let on = |over: Set, body: Prop| Prop::All {
+        name: "x".to_string(),
+        over,
+        body: Box::new(body),
+    };
+    let (div_all, chain) = (everywhere(big(1)), on(big(1), follows(x())));
+    let (review, rule) = (
+        take(&div_all, true, "human:reviewer"),
+        take(&chain, true, "human:reviewer"),
+    );
+    let mut ledger = Ledger::default();
+    ledger.take("div", &div_all, vec![review.clone()]);
+    ledger.take("chain", &chain, vec![rule.clone()]);
+    let by = |at: &Term| {
+        let instance = |q: &Prop, held: &str| {
+            apply(Op::Instance { q: q.clone() }, vec![name(held), name("p")])
+        };
+        apply(
+            Op::Ponens {
+                t: follows(at.clone()),
+                post: 0,
+            },
+            vec![instance(&chain, "chain"), instance(&div_all, "div")],
+        )
+    };
+    let goal = on(big(1), quot(x()));
+    let proof = intro(&goal, "p", |g, at| {
+        assert_eq!(g, &quot(at.clone()));
+        by(at)
+    })
+    .unwrap();
+    let o = ledger.prove(&proof, &goal);
+    assert_eq!(o.rests_for(), &BTreeSet::from([BTreeSet::from([review.clone(), rule])]));
+    // Over a set wider than what is known, b from 0: div is not known at
+    // b == 0, so the instances do not check.
+    let wider = on(big(0), quot(x()));
+    let proof = intro(&wider, "p", |_, at| by(at)).unwrap();
+    assert_eq!(check(&Judgement::default(), &ledger.inputs, &proof), None);
+    // An any, false at any point, is false: no point where div is wrong.
+    let wrong = Prop::Any {
+        name: "x".to_string(),
+        over: big(1),
+        body: Box::new(Prop::Not(Box::new(correct(x())))),
+    };
+    let proof = intro(&wrong, "p", |_, _| {
+        let at_p = apply(Op::Instance { q: div_all.clone() }, vec![name("div"), name("p")]);
+        apply(Op::Not, vec![at_p])
+    })
+    .unwrap();
+    let o = ledger.prove(&proof, &wrong);
+    assert_eq!(o.state(), State::False);
+    assert_eq!(o.rests_against(), &BTreeSet::from([BTreeSet::from([review])]));
+    // The point is known only inside the proof.
+    let outside = apply(
+        Op::Instance { q: div_all.clone() },
+        vec![name("div"), name("p")],
+    );
+    assert_eq!(check(&Judgement::default(), &ledger.inputs, &outside), None);
+    assert!(intro(&correct(x()), "p", |_, _| name("div")).is_none());
 }

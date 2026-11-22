@@ -78,7 +78,7 @@ are ordinary operations, not special forms: both branches are computed (choice
 | S4 | **Determinism**: `eval` is a function of reading, values and expression. | evaluating twice |
 | S5 | **Covering**, per operation: typed as in S1, each bounded argument of its type or an `Op` fault, each exact one in `γ` of its bounds at its type, and each body run in `Exact` at values in `γ` of those run in `Ranges` giving an outcome in `γ` of what that gives ⇒ `covers(t, Ranges, Exact)`. Then by induction: `check(Γ, e) = Some(T)`, `fits(Ranges, Γ, B)`, each exact input in `γ` of its bounds at its type ⇒ `covers(T, eval(Ranges, B, e), eval(Exact, C, e))`. On points it loses nothing: when each bound is `Bounds::exactly` of the exact input, the bounded outcome is `Bounds::exactly` of the exact one, or the same fault. | each operation with fault arguments; `all` over uncertain ends; random expressions end to end; random expressions on points; `all` on numbers, each read |
 | S6 | **Substitution**, in the core: when `e₁` checks to `T₁` and `e₂` to `T₂` with `x : T₁`, `substitute(e₂, x, e₁)` checks to `T₂`; on every reading, when `e₁` gives `v`, `e₂` with `x = v` gives what `substitute(e₂, x, e₁)` gives. **Let shares**, in `Exact`, `Ranges` and judgement: `let x = e₁; e₂` gives what `substitute(e₂, x, e₁)` gives, faults included, and `e₁` is evaluated once. **Let chooses once**, in a reading of sets: `let` gives a subset of what writing it out gives, so S6 fails there, by design. | random expressions whose binders bind the names of `e₁`; random expressions with lets and shadowing, written out, every reading, typed and wild; a count of operations applied; sets, random |
-| J1 | **Rules preserve truth**: each set an opinion of `x` rests on, for or against, entails `x`, or `!x`, where `t = {p} s {q}` means `t → (∧p → ∧q)`, a name `r` defined `{p} r {q}` the same, an all is the conjunction of its body at each point of its set, and an any the disjunction. | every valuation of every random derivation, its rules written in place or known by name; half the worlds over points, with alls and anys over four sets (one empty, one with a condition), nested, a name bound again, rules under an all, each instance and each set's points listed by hand |
+| J1 | **Rules preserve truth**: each set an opinion of `x` rests on, for or against, entails `x`, or `!x`, where `t = {p} s {q}` means `t → (∧p → ∧q)`, a name `r` defined `{p} r {q}` the same, an all is the conjunction of its body at each point of its set, and an any the disjunction. For a derivation whose inputs are what can be given: opinions `Opinion::taken` makes and points `Point::of` makes. Inside an `intro`, the point stands for each point of its set, and only what the intro proves leaves it. | every valuation of every closed step of every random derivation, its rules written in place or known by name; half the worlds over points, with alls and anys over four sets (one empty, one with a condition), nested, a name bound again, rules under an all, intros, nested, with instances, witnesses and rules at the point, each instance and each set's points listed by hand |
 | J2 | **State is read from rests**: `state(not o) = not state(o)`, `state(join a b) = join(state a, state b)`. | random opinions |
 | J3 | **Rests are the smallest, and all**: no rest holds another. Keeping only the takings in a set `S`, a proposition follows only if one of its rests lies in `S`, unless a `Reductio` lies below another; and, with no `Reductio`, whenever one does. A reductio's rest leaves out the taking it finds wrong. Below another reductio, a taking added can take a conclusion away: the inner one keeps only its smallest blame. | random derivations, random `S`; the case found by the red team |
 
@@ -104,16 +104,21 @@ are ordinary operations, not special forms: both branches are computed (choice
 
 ## judgement.rs
 
-- Types `State | Opinion(Prop)`. A proposition is `Named(n) | Not(x) |
+- Types `State | Opinion(Prop) | Point(Term)`. A proposition is `Named(n) | Not(x) |
   Implies { pre, subject, post } | Correct { function, at } | All { name,
   over, body } | Any { name, over, body }`, where `Implies` is `t = {p} s
   {q}`.
 - Points. `correct(f, at)`: the function `f`, known by its path, gives
   what it should at `at`. Judgement does not know `f`; the model does. `at`
   is a term: `Point([6, 2])`, the values of `f`'s arguments in order, as in
-  a row of its examples; or `Var(x)`, the name an all or an any around it
-  binds. `all x in S: p` holds when `p` holds at every point of `S`, `x`
-  standing for the point; `any x in S: p`, at some point.
+  a row of its examples; `Var(x)`, the name an all or an any around it
+  binds; or `Arbitrary { name, over }`, the point an `intro` binds, any
+  point of `over`. `all x in S: p` holds when `p` holds at every point of
+  `S`, `x` standing for the point; `any x in S: p`, at some point.
+- A point is a value of a proof, and its type is the point itself:
+  `Point([6, 2])` writes `[6, 2]`, of type `Point([6, 2])`. `Instance` and
+  `Witness` take it as their second argument, so a `let` can share it and
+  an `intro` can give it.
 - Sets. `Set { ranges: [(a, 0, 10), (b, 0, 10)], such: Some(b != 0) }` is
   the points `[a, b]` with `a` and `b` in `0..10`, `hi` left out as in Rust,
   where `b != 0`. `such` is read by `Exact`, each name standing for its
@@ -150,20 +155,34 @@ are ordinary operations, not special forms: both branches are computed (choice
   - `Reductio { of }`: an opinion of `x` gives one of `of`.
   - `Not` and `Join` on opinions; `And`, `Not` and `Join` on states; `StateOf` gives an opinion's state.
   - `let x = a; b`, to use one derivation twice.
-  - `Instance { q, at }`: from an opinion of `q`, an all or an any, one of
-    its body at `at`, a point of its set. An all true makes it true; an any
-    false makes it false. Down.
-  - `Witness { q, at }`: from an opinion of the body at `at`, one of `q`.
-    True there makes an any true; false there makes an all false. Up, from
-    one point.
+  - `Instance { q }`: from an opinion of `q`, an all or an any, then a
+    point of its set, an opinion of its body at the point. An all true
+    makes it true; an any false makes it false. Down.
+  - `Witness { q }`: from an opinion of the body at a point, then the
+    point, one of `q`. True there makes an any true; false there makes an
+    all false. Up, from one point.
   - `Cases { q }`: from an opinion of the body at each point of the set, in
     order, one of `q`: all the points tell. An all is true when every point
     is, false when one is; an any is true when one is, false when every
     one is. Over an empty set, an all is true and an any false, from
     nothing. Up, from every point.
+  - `Intro { q }`: `intro(q, |x| p)`, from `p`, an opinion of the body of
+    `q` at `x`, the point the intro binds, one of `q`. True at any point
+    makes an all true; false at any point makes an any false. Up, from any
+    point: one proof for every point, whatever the size of the set.
   - No rule goes up from some of the points: that would be induction. An
-    all over a set too large to list is taken (a review) or refuted (a
-    witness).
+    all over a set too large to list is taken (a review), refuted (a
+    witness), or proved by an intro from what holds on all of it.
+- The point an intro binds. Only an intro makes it, and only for its
+  argument: `Point` keeps its term private, and `Point::of` writes a point
+  in place. Nothing taken is about it (`Opinion::taken` refuses), nor any
+  rule known by name. An instance or a witness at it needs its set within
+  the other's (`Set::within`, by writing: as many ranges, each within the
+  other's, of the same kind, and the other's `such` none or the same).
+  Inside the intro, what follows is about any point of the set: of an
+  empty set, there is none, and what follows there says nothing, as after
+  Lean's `intro x` on an empty type. Only what the intro proves leaves it,
+  and that holds of an empty set too: an all is true, an any false.
 - Numbers sit only on takings, and no rule touches one.
 - Costs: `Cases` reads every point of its set's ranges, in the set or not,
   when it is checked as when it runs: checking a proof is no longer linear
@@ -180,7 +199,13 @@ trusted with nothing: a wrong proof does not check, whatever wrote it, and
 a checked proof is a taking by the checker (`docs/model.md`, choice 5).
 `cases(q, case)` writes `Cases { q }` with one argument per point of `q`'s
 set, in order: `case(goal, point)` writes a proof of `goal`, the body at
-that point. `intro`, one proof for every point, is next.
+that point. `intro(q, name, body)` writes `Intro { q }`: `body(goal, at)`
+writes a proof of `goal`, the body at `at`, the point it binds, which the
+proof calls `name`, as Lean's `intro x`. One proof, whatever the size of
+the set: on `0..2⁴⁰ × 1..2⁴⁰`, "quot is correct everywhere" rests on two
+takings, "div is correct everywhere" and "quot is correct wherever div
+is". An intro does not split a set by its condition: it reads only what
+holds on all of its set, so div's two classes need `cases` (or a taking).
 
 On main's `div(a, b)`, `a` and `b` in `0..10`, "div is correct
 everywhere" rests on 100 tests by cases; or on 4 takings: a review of each
@@ -360,6 +385,20 @@ and the kernel does again what the tactic did.
 (the "de Bruijn criterion"). Isabelle and HOL: only the kernel's functions
 make theorems (the LCF style).
 
+**11. The any point.** `intro` proves an all from one proof at a point
+that stands for every point of the set.
+*Example*: `intro(all x in D: correct(quot, x), |p| ponens(chain at p,
+div at p))`: if div is correct on all of `D` and quot is wherever div is,
+quot is, for 2⁸⁰ points, in one step.
+*Gain*: a set too large to list is proved, not only taken or refuted, and
+the proof stays small. A chain of rules over a set becomes one proof.
+*Give up*: the point is special. Only an intro makes it, nothing taken can
+be about it, and what is derived inside is about any point: over an empty
+set, about none. Its set must be written within the sets it reads.
+*Elsewhere*: Lean's `intro x` and Coq's `intros`, the ∀-introduction of
+natural deduction: prove `p(x)` for a fresh `x`, then `∀x. p(x)`. The
+"fresh" condition is what the private `Point` keeps here.
+
 ## Choices taken on Rust's form
 
 `!x`, `&&`, `||`, `if`, `R { .. }`, `r.x`, `let x = e₁; e₂`, and
@@ -390,5 +429,9 @@ be an operation.
 15. **Substitution in a proposition is its own** (`Prop::at`): a point holds no name, so nothing can be caught, and core's `substitute` works on expressions only.
 16. **Only well formed propositions** (`Prop::well_formed`): `Opinion::taken` and every rule refuse the others.
 17. `simulation::Value` and `simulation::Op` are now **ordered and hashed**, to keep propositions in sets; a `Set` orders its `such` part by part, in judgement.rs, since expression.rs does not change.
+18. **Points are values of proofs**, of a type that is the point itself (`Type::Point`), written by `Op::Point`: `Instance` and `Witness` now take the point as an argument, not a parameter, so that an intro can give one.
+19. **`Point` keeps its term private**: only an intro makes the any point, so what is given to a proof is a point written in place.
+20. **`Set::within` is by writing**: a set with a condition is within another only if that one has none or the same. Whether one condition holds wherever another does is not asked.
+21. **Inside an intro, anything may follow at the point**, witnesses and rules included: only what the intro proves leaves it.
 
-Not in this round: an `Option` type, `Int → Real` conversion, units, diagnosis, streams, `intro` (next), and an all or an any written in the model.
+Not in this round: an `Option` type, `Int → Real` conversion, units, diagnosis, streams, and an all or an any written in the model (next, in `model.rs`).

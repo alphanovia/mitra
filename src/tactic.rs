@@ -4,7 +4,7 @@
 //! A checked proof is a taking by the checker, whatever wrote it.
 
 use crate::expression::{Arg, Expression};
-use crate::judgement::{Op, Prop};
+use crate::judgement::{Op, Prop, Term};
 use crate::simulation::Value;
 
 /// A proof of `q`, an all or an any over a set of whole numbers, by its
@@ -30,4 +30,25 @@ pub fn cases(
         });
     }
     Some(Expression::Apply(Op::Cases { q: q.clone() }, args))
+}
+
+/// A proof of `q`, an all or an any, for any point of its set at once,
+/// as Lean's `intro x`: `body(goal, at)` writes a proof of `goal`, the
+/// body of `q` at `at`, the point the intro binds, which the proof
+/// names `name`. One proof, whatever the size of the set. `None` when
+/// `q` is neither.
+pub fn intro(
+    q: &Prop,
+    name: &str,
+    body: impl FnOnce(&Prop, &Term) -> Expression<Op>,
+) -> Option<Expression<Op>> {
+    let (goal, at) = (q.introduced()?, q.arbitrary_point()?);
+    let body = body(&goal, &at);
+    Some(Expression::Apply(
+        Op::Intro { q: q.clone() },
+        vec![Arg {
+            binds: vec![name.to_string()],
+            body,
+        }],
+    ))
 }
