@@ -8,12 +8,14 @@ can hold. It runs nothing, but each rule's proof, once (choice 5).
 
 `src/expression.rs` did not change for it (`git diff eca4b67 --
 src/expression.rs` is empty). `src/simulation.rs` gained one helper,
-`tuple`. `src/judgement.rs` only renamed `Piece` to `Prop`.
+`tuple`. `src/judgement.rs` renamed `Piece` to `Prop`, and now knows rules
+by name (choice 9).
 
 ## The fall
 
 The test model is `tests/model.rs`. Here it is in an illustrative syntax, not
-a proposal, with paths shortened inside a part:
+a proposal, with paths shortened inside a part. A rule is written
+`name: premises |- conclusion`, the turnstile you are trying:
 
 ```text
 environment sun {
@@ -26,9 +28,9 @@ subject stone {
     fn drop(h: Real) -> v: Real {                     // opaque: nature does it
         claim falls = within(v * v, 2 * 9.81 * h, 2);
         claim slow = !(h <= 20) || v < 21;
-        rule slows = [drop::falls, speed::slow] => drop::slow;          // assumed
-        rule lands = [drop::falls, speed::slow] => drop::slow
-            by ponens(drop::slows, drop::falls, speed::slow);   // shown, using slows
+        rule slows: drop::falls, speed::slow |- drop::slow;                // assumed
+        rule lands: drop::slows, drop::falls, speed::slow |- drop::slow    // a rule as premise
+            by ponens(drop::slows, drop::falls, speed::slow);              // shown
     }
     fn speed(h: Real) -> v2: Real = 2 * 9.81 * h {    // total: it has a body
         claim slow = !(h <= 20) || v2 < 400;
@@ -48,10 +50,11 @@ What the tests show on it:
   the assumed rule `slows`, what binds `light` to `shines`, what gives
   `lands_slow` from its list, and the tie. `light`, `lands_slow` and
   `drop::slow` follow from them. `lands` is shown by its proof.
-- Judgement reads the propositions as they are. Taking the list of
-  `lands_slow` (a reviewer) and its two claims (a machine, a timer) gives
-  `lands_slow` true. The proof of `lands`, run on takings of what it reads,
-  gives `drop::slow` true.
+- Judgement reads the propositions as they are, and knows each rule by its
+  path. Taking the list of `lands_slow` (a reviewer) and its two claims (a
+  machine, a timer) gives `lands_slow` true. The proof of `lands`, run on
+  takings of what it reads, gives `drop::slow` true. A run that sees the
+  stone land fast blames `slows` itself, by modus tollens.
 - Simulation runs the claims as they are. `speed::slow` holds for every
   height up to 20 m, by bounds, with the body read in place of `v2`.
   `drop::falls` holds on one measured fall, 5 m at 9.9 m/s.
@@ -67,20 +70,22 @@ struct Function { name, takes: Vec<(String, Type)>, gives: (String, Type),
 struct Claim { name, holds: Expression<simulation::Op> }          // must be a truth
 struct Rule { name, premises: Vec<Term>, conclusion: Term,
               proof: Option<Expression<judgement::Op>> /* None: assumed */ }
-enum Term { At(Path), Holds(Expression<simulation::Op>) }  // a claim, require or ensure, or written in place
+enum Term { At(Path), Holds(Expression<simulation::Op>) }  // a claim, rule, require or ensure, or written in place
 struct Require { name, from: Source }    enum Source { Prose(String), Ensure(Path) }
 struct Ensure { name, prose: String, from: Vec<Vec<Path>> }        // any one list, all of it
 struct Tie { item: Path, at: Location }
 struct Path { names: Vec<String> }                                 // stone::drop::falls
 ```
 
-`check(model) -> Vec<Problem>`, `levels(model)`, `props(model)` and
-`leaves(model)`. A `Problem` is `Twice`, `Unknown`, `Mistyped`, `Empty`,
-`Circular` or `Misnamed`, each with the path of the declaration at fault.
+`check(model) -> Vec<Problem>`, `levels(model)`, `props(model)`,
+`judgement(model)` and `leaves(model)`. A `Problem` is `Twice`, `Unknown`,
+`Mistyped`, `Empty`, `Circular` or `Misnamed`, each with the path of the
+declaration at fault.
 
 A `Term` is a proposition as a rule writes it: a path, or an expression.
 `props(model)` gives each as judgement reads it, a `Prop`: `Named`,
-`Not` or `Implies`.
+`Not` or `Implies`. A rule is `Named` by its path, and `judgement(model)`
+knows what it says: its premises give its conclusion.
 
 ## Checks
 
@@ -92,17 +97,18 @@ A `Term` is a proposition as a rule writes it: a path, or an expression.
 - A body checks to the type its function gives, from what it takes.
 - A claim checks to a truth. In a function it reads what the function takes
   and gives. In a record it reads the record as `self`.
-- Parts meet only through requires. A rule's premises and conclusion name
-  claims, requires or ensures of its part. A list of an ensure names claims,
-  rules, requires or ensures of its part. A require's `from` names an ensure
+- Parts meet only through requires. A rule's premises and conclusion, and
+  a list of an ensure, name claims, rules, requires or ensures of its part. A require's `from` names an ensure
   of another part. A tie names a part, record or function.
 - An expression written in a rule checks to a truth, read as a claim of the
   rule's record or function.
 - A proof shows its rule (choice 5).
 - Nothing rests on itself. A conclusion rests on its rule's premises and on
-  the rule, a rule on the rules its proof uses, a require on its ensure, and
-  an ensure on what its lists name. Each declaration on a cycle, across
-  parts too, is `Circular`.
+  the rule, a require on its ensure, and an ensure on what its lists name.
+  Each declaration on a cycle, across parts too, is `Circular`.
+- No rule is named through itself: a term of it names it, or names a rule
+  a term of which does, and so on. Each rule on such a cycle is `Circular`
+  too (choice 9).
 - No list of an ensure's `from` is empty.
 
 ## Propositions, as judgement reads them
@@ -110,14 +116,14 @@ A `Term` is a proposition as a rule writes it: a path, or an expression.
 | In the model | The proposition | About |
 |---|---|---|
 | claim, require, ensure at `p` | `p` | `p` |
-| rule at `r` | `{premises} r {conclusion}` | `r` |
+| rule at `r` | `r`, which judgement knows: `premises |- conclusion` | `r` |
 | an expression written in rule `r` | `r::0`, `r::1`, … or `r::then` | `r` |
 | require `q` from ensure `e` | `{e} q {q}` | `q` |
-| each list `l` of ensure `e` (a rule in it is its proposition) | `{l} e {e}` | `e` |
+| each list `l` of ensure `e` | `{l} e {e}` | `e` |
 | tie of `i` at `place` | `i at place` | `i` |
 
 A proposition is given once. A leaf is a proposition nothing concludes. A
-rule concludes its conclusion. A require from an ensure is concluded by it,
+rule judgement knows concludes its conclusion. A require from an ensure is concluded by it,
 and an ensure by its lists. A rule is concluded by its proof when the proof
 shows it. A tie is always a leaf. This holds in a model `check` accepts: on
 a cycle, nothing would be a leaf.
@@ -165,8 +171,7 @@ no time, no distributions.
 
 **5. A proof is checked by its type, and by one run.** A rule says that its
 premises give its conclusion. Its proof is a judgement expression: it reads
-opinions of the premises, and of the rules of its part, and gives an opinion
-of the conclusion. Its type must be an opinion of the conclusion. But an
+opinions of the premises, and gives an opinion of the conclusion. Its type must be an opinion of the conclusion. But an
 opinion can argue against its proposition (modus tollens) or come from a
 conflict (reductio). So the proof is also run once, with all it reads taken
 true, and it must give the conclusion true. Then the rule is shown. Without
@@ -216,20 +221,27 @@ is what is there, and that the model says all that matters of it there.
 *Elsewhere*: traceability links in requirements tools, and the
 `// mitra: implements` comments that main reads in Rust code.
 
-**9. A rule is used by its name, not as a premise.** A rule's premises and
-conclusion are claims, requires, ensures or expressions written in place:
-propositions about the system. A proof uses another rule by its path.
-*Example*: the proof of `lands` uses `slows`; the premises of `lands` are
-`falls` and `speed::slow`.
-*Gain*: a rule's proposition holds only its own premises and conclusion. Before,
-a rule named as a premise was copied whole into the proposition, with the rules
-it named in turn: 36 rules gave one proposition of 655,358 parts, and a chain of
-580 rules overflowed the stack. Now 5,000 rules are checked and read in
-about a second, in a debug build.
-*Give up*: a premise cannot be a rule ("if `slows` holds, then …"). A list
-of an ensure still can name one.
-*Elsewhere*: Lean and Coq. A theorem states something about objects, and
-its proof uses other theorems by name.
+**9. A rule is a premise by its name, and judgement holds what it says,
+once.** A rule's premises and conclusion are claims, rules, requires,
+ensures or expressions written in place. A rule is the proposition named by
+its path. Judgement holds its definition, `Definition { pre, post }`: its
+premises give its conclusion. Ponens and tollens on `slows` look it up.
+*Example*: `lands: slows, falls, speed::slow |- drop::slow`, shown by
+`ponens(slows, falls, speed::slow)`. When a run sees the stone land fast,
+`tollens` on `slows` blames `slows` itself.
+*Gain*: rules use rules, and each is written once. In the first version, a
+rule named as a premise was copied whole, with the rules it named in turn:
+36 rules gave one proposition of 655,358 parts, and a chain of 580 rules
+overflowed the stack. Now 5,000 chained rules, and 128 that each take the
+two before (over 2⁶⁴ parts if written out), are checked and read in 1.5 s in a
+debug build. The dependence stays visible: a rule a proof uses is one of
+its premises, so blame reaches it.
+*Give up*: no rule is named through itself. What it says would be said in
+terms of itself: then it means nothing, or several things (`r: r |- q` with
+`q` false). And a proof reads only its premises: a rule it uses must be one.
+*Elsewhere*: definitions in any language. Lean's `def` is unfolded by the
+kernel only when it must. An ML `let` cannot name itself; `let rec` can, and
+needs a meaning of its own, which judgement does not have.
 
 ## Beyond what was named (going ahead; say no to undo)
 
@@ -242,9 +254,11 @@ its proof uses other theorems by name.
 4. **An expression written in a rule is its own proposition**, named by the rule
    and its place. Two rules never share one. To chain, name it as a claim.
 5. **A proof reads its premises by path**, or by place when written in
-   place, and the rules of its part by path.
-6. **The subject of a rule's proposition is the rule.** For a require from an
-   ensure it is the require, and for an ensure's list the ensure.
+   place, and nothing else.
+6. **Only rules are known by name.** A require's link to an ensure and each
+   list of an ensure stay implications written in place, `{e} q {q}` and
+   `{l} e {e}`, the require or the ensure as subject: nothing names them, so
+   nothing copies them.
 7. **An opaque record's type has no field to read**, and no value of it
    is made.
 8. **A tie names a part, record or function**, and its proposition is
@@ -255,6 +269,11 @@ its proof uses other theorems by name.
 10. **Parts meet only through requires** (choice 6).
 11. **Names are words**, so that a path reads one way. `Misnamed` is new.
 12. **A cycle is a problem anywhere**, across parts too (choice 6).
+13. **A rule's conclusion may be a rule**, as in the first version: a rule
+    that gives a rule.
+14. **A rule judgement does not know stops its users' proofs quietly.** A
+    proof whose rule names a rule with a broken term, or one named through
+    itself, is not checked: the problem is reported where it is, once.
 
 ## Contracts: not built
 
@@ -285,7 +304,7 @@ in `tests/model.rs`:
 | A proof by reductio or tollens type-checked, and its rule counted as shown | a proof is also run once (choice 5) | `a_proof_argues_for_its_conclusion` |
 | Cycles not through a rule's own path passed, and vanished from the leaves | every cycle of what rests on what is `Circular` | `nothing_rests_on_itself` |
 | A name with `::` or ` at ` made two propositions one | names are words | `names_are_words` |
-| Propositions grew exponentially; 580 chained rules overflowed the stack | rules used by name (choice 9); cycles found without the call stack | `many_rules_stay_flat` |
+| Propositions grew exponentially; 580 chained rules overflowed the stack | rules are premises by name, held once by judgement (choice 9); cycles found without the call stack | `rules_sharing_rules_stay_small` |
 | A claim could make a record no one declares | records made as declared | `records_are_made_as_declared` |
 | "Parts connect only through requires" was false | now checked | `parts_meet_only_through_requires` |
 | A tie to nothing gave a proposition; a list given twice gave two; leaves trusted a rejected proof | fixed | `props_are_given_once_of_what_is_there` |

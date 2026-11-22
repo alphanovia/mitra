@@ -8,6 +8,11 @@
 //! opinion names its proposition, so the type of a rule is the rule:
 //! `Ponens` takes opinions of `t, p₁ … pₙ` and gives one of `q`.
 //!
+//! An implication is written in place, or known by a name: judgement
+//! holds the definition of each name it knows as a rule, once, however
+//! many propositions name it. No definition reaches itself through the
+//! names it uses.
+//!
 //! Every rule preserves truth. Numbers live only on takings: no rule
 //! reads or makes one. The state of a proposition is read from what it rests
 //! on, never from numbers.
@@ -16,13 +21,15 @@
 //! b` gives what `b` with `a` written in place of `x` gives.
 
 use crate::expression::{strict, Fault, Outcome, Reading, Standard};
+use crate::graph::components;
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::Infallible;
 
 /// A proposition about the system.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Prop {
-    /// A proposition known by its name.
+    /// A proposition known by its name. A name judgement defines is a
+    /// rule: the implication its definition says.
     Named(String),
     /// `!x`: `x` is false.
     Not(Box<Prop>),
@@ -47,21 +54,26 @@ impl Prop {
             x => Prop::Not(Box::new(x.clone())),
         }
     }
-    /// The premises of an implication `t`: `t` itself, then its pres.
-    /// `None` for any other proposition.
-    pub fn premises(&self) -> Option<Vec<Prop>> {
-        match self {
-            Prop::Implies { pre, .. } => Some([vec![self.clone()], pre.clone()].concat()),
-            _ => None,
+    /// Every name in `self`, into `found`. On a stack of its own, so
+    /// that a deep proposition does not run out of the call stack.
+    fn names<'a>(&'a self, found: &mut BTreeSet<&'a str>) {
+        let mut todo = vec![self];
+        while let Some(p) = todo.pop() {
+            match p {
+                Prop::Named(n) => _ = found.insert(n),
+                Prop::Not(x) => todo.push(x),
+                Prop::Implies { pre, post, .. } => todo.extend(pre.iter().chain(post)),
+            }
         }
     }
-    /// The posts of an implication. `None` for any other proposition.
-    pub fn posts(&self) -> Option<&[Prop]> {
-        match self {
-            Prop::Implies { post, .. } => Some(post),
-            _ => None,
-        }
-    }
+}
+
+/// What a rule known by its name says: when every proposition of `pre`
+/// holds, every proposition of `post` does.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Definition {
+    pub pre: Vec<Prop>,
+    pub post: Vec<Prop>,
 }
 
 /// What is known of a proposition (Belnap): nothing, true, false, or both.
@@ -264,27 +276,92 @@ pub enum Op {
     Let,
 }
 
-/// The judgement standard and its reading.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Judgement;
+/// The judgement standard and its reading. It knows rules by name: the
+/// definition of each, held once. `Judgement::default()` knows none.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Judgement {
+    rules: BTreeMap<String, Definition>,
+}
 
-/// What a rule takes and gives, read from `t`: the propositions of its
-/// arguments, in order, and the proposition it gives an opinion of. `None`
-/// for an operation that is not a rule, or a rule that does not apply
-/// to `t`.
-fn rule(op: &Op) -> Option<(Vec<Prop>, Prop)> {
-    match op {
-        Op::Ponens { t, post } => Some((t.premises()?, t.posts()?.get(*post)?.clone())),
-        Op::Tollens { t, post, blame } => {
-            let mut premises = t.premises()?;
-            let q = t.posts()?.get(*post)?.clone();
-            if *blame >= premises.len() {
-                return None;
-            }
-            let blamed = premises.remove(*blame);
-            Some(([vec![q], premises].concat(), blamed))
+impl Judgement {
+    /// Judgement that knows these rules, each by its name. `Err` with
+    /// the names defined through themselves: the definition of each
+    /// names it, or names a rule whose definition does, and so on. What
+    /// such a name means would rest on itself.
+    pub fn with(rules: BTreeMap<String, Definition>) -> Result<Judgement, BTreeSet<String>> {
+        let number: BTreeMap<&str, usize> = rules
+            .keys()
+            .enumerate()
+            .map(|(i, n)| (n.as_str(), i))
+            .collect();
+        let out: Vec<Vec<usize>> = rules
+            .values()
+            .map(|d| {
+                let mut names = BTreeSet::new();
+                d.pre
+                    .iter()
+                    .chain(&d.post)
+                    .for_each(|p| p.names(&mut names));
+                names
+                    .iter()
+                    .filter_map(|n| number.get(n).copied())
+                    .collect()
+            })
+            .collect();
+        // On a cycle: a name the definition of which names one of its
+        // own component, itself included.
+        let component = components(&out);
+        let circular: BTreeSet<String> = rules
+            .keys()
+            .zip(&out)
+            .enumerate()
+            .filter(|(i, (_, to))| to.iter().any(|&t| component[t] == component[*i]))
+            .map(|(_, (name, _))| name.clone())
+            .collect();
+        match circular.is_empty() {
+            true => Ok(Judgement { rules }),
+            false => Err(circular),
         }
-        _ => None,
+    }
+    /// The pres and posts of the rule `t`: its own when it is written in
+    /// place, its definition's when it is a name judgement knows.
+    fn unfold<'a>(&'a self, t: &'a Prop) -> Option<(&'a [Prop], &'a [Prop])> {
+        match t {
+            Prop::Implies { pre, post, .. } => Some((pre, post)),
+            Prop::Named(n) => self.rules.get(n).map(|d| (&d.pre[..], &d.post[..])),
+            Prop::Not(_) => None,
+        }
+    }
+    /// The premises of the rule `t`: `t` itself, then its pres. `None`
+    /// for a proposition that is no rule: a name judgement does not
+    /// know, or a negation.
+    pub fn premises(&self, t: &Prop) -> Option<Vec<Prop>> {
+        let (pre, _) = self.unfold(t)?;
+        Some([std::slice::from_ref(t), pre].concat())
+    }
+    /// The posts of the rule `t`. `None` for a proposition that is no
+    /// rule.
+    pub fn posts<'a>(&'a self, t: &'a Prop) -> Option<&'a [Prop]> {
+        Some(self.unfold(t)?.1)
+    }
+    /// What a rule takes and gives, read from `t`: the propositions of
+    /// its arguments, in order, and the proposition it gives an opinion
+    /// of. `None` for an operation that is not a rule, or a rule that
+    /// does not apply to `t`.
+    fn rule(&self, op: &Op) -> Option<(Vec<Prop>, Prop)> {
+        match op {
+            Op::Ponens { t, post } => Some((self.premises(t)?, self.posts(t)?.get(*post)?.clone())),
+            Op::Tollens { t, post, blame } => {
+                let mut premises = self.premises(t)?;
+                let q = self.posts(t)?.get(*post)?.clone();
+                if *blame >= premises.len() {
+                    return None;
+                }
+                let blamed = premises.remove(*blame);
+                Some(([vec![q], premises].concat(), blamed))
+            }
+            _ => None,
+        }
     }
 }
 
@@ -306,7 +383,7 @@ impl Standard for Judgement {
             (Op::Join, [Opinion(x), Opinion(y)]) if x == y => Some(Opinion(x.clone())),
             (Op::Reductio { of }, [Opinion(_)]) => Some(Opinion(of.clone())),
             (Op::Ponens { .. } | Op::Tollens { .. }, takes) => {
-                let (from, gives) = rule(op)?;
+                let (from, gives) = self.rule(op)?;
                 let matches = takes.len() == from.len()
                     && takes
                         .iter()
@@ -355,7 +432,7 @@ impl Reading for Judgement {
             },
             (Op::Reductio { of }, [O(x)]) => reductio(of, x),
             (Op::Ponens { .. } | Op::Tollens { .. }, args) => {
-                let (from, gives) = rule(op).ok_or(Fault::Stuck)?;
+                let (from, gives) = self.rule(op).ok_or(Fault::Stuck)?;
                 if args.len() != from.len() {
                     return Err(Fault::Stuck);
                 }

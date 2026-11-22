@@ -76,7 +76,7 @@ are ordinary operations, not special forms: both branches are computed (choice
 | S4 | **Determinism**: `eval` is a function of reading, values and expression. | evaluating twice |
 | S5 | **Covering**, per operation: typed as in S1, each bounded argument of its type or an `Op` fault, each exact one in `γ` of its bounds at its type, and each body run in `Exact` at values in `γ` of those run in `Ranges` giving an outcome in `γ` of what that gives ⇒ `covers(t, Ranges, Exact)`. Then by induction: `check(Γ, e) = Some(T)`, `fits(Ranges, Γ, B)`, each exact input in `γ` of its bounds at its type ⇒ `covers(T, eval(Ranges, B, e), eval(Exact, C, e))`. On points it loses nothing: when each bound is `Bounds::exactly` of the exact input, the bounded outcome is `Bounds::exactly` of the exact one, or the same fault. | each operation with fault arguments; `all` over uncertain ends; random expressions end to end; random expressions on points; `all` on numbers, each read |
 | S6 | **Substitution**, in the core: when `e₁` checks to `T₁` and `e₂` to `T₂` with `x : T₁`, `substitute(e₂, x, e₁)` checks to `T₂`; on every reading, when `e₁` gives `v`, `e₂` with `x = v` gives what `substitute(e₂, x, e₁)` gives. **Let shares**, in `Exact`, `Ranges` and judgement: `let x = e₁; e₂` gives what `substitute(e₂, x, e₁)` gives, faults included, and `e₁` is evaluated once. **Let chooses once**, in a reading of sets: `let` gives a subset of what writing it out gives, so S6 fails there, by design. | random expressions whose binders bind the names of `e₁`; random expressions with lets and shadowing, written out, every reading, typed and wild; a count of operations applied; sets, random |
-| J1 | **Rules preserve truth**: each set an opinion of `x` rests on, for or against, entails `x`, or `!x`, where `t = {p} s {q}` means `t → (∧p → ∧q)`. | every valuation of every random derivation |
+| J1 | **Rules preserve truth**: each set an opinion of `x` rests on, for or against, entails `x`, or `!x`, where `t = {p} s {q}` means `t → (∧p → ∧q)`, and a name `r` defined `{p} r {q}` the same. | every valuation of every random derivation, its rules written in place or known by name |
 | J2 | **State is read from rests**: `state(not o) = not state(o)`, `state(join a b) = join(state a, state b)`. | random opinions |
 | J3 | **Rests are the smallest, and all**: no rest holds another. Keeping only the takings in a set `S`, a proposition follows only if one of its rests lies in `S`, unless a `Reductio` lies below another; and, with no `Reductio`, whenever one does. A reductio's rest leaves out the taking it finds wrong. Below another reductio, a taking added can take a conclusion away: the inner one keeps only its smallest blame. | random derivations, random `S`; the case found by the red team |
 
@@ -104,11 +104,19 @@ are ordinary operations, not special forms: both branches are computed (choice
 
 - Types `State | Opinion(Prop)`. A proposition is `Named(n) | Not(x) |
   Implies { pre, subject, post }`, where the last is `t = {p} s {q}`.
+- Rules known by name. `Judgement::with(definitions)` holds a
+  `Definition { pre, post }` for each name, once, and `Named(r)` is then the
+  rule `{pre} r {post}`. A name it does not know is no rule: a ponens on it
+  has no type. `with` refuses the names defined through themselves, with
+  `Err(names)`: a definition that names itself, or names a rule whose
+  definition does, and so on, through negations and implications written
+  in place too. `Judgement::default()` knows none.
 - Values: a `State` (Belnap), or an `Opinion { about, rests_for,
   rests_against }`. The rests are the smallest sets of takings, where a taking
   is `{ prop, value, count, by }`. The state is read from which rests are
   empty. Counts stay on the takings; nothing reads them yet.
-- The rules, whose types are the rules (premises of `t` = `t, p₁ … pₙ`):
+- The rules, whose types are the rules (premises of `t` = `t, p₁ … pₙ`,
+  read by `premises(t)` and `posts(t)` from `t`, or from its definition):
   - `Ponens { t, post }`: opinions of every premise give one of `q`.
   - `Tollens { t, post, blame }`: `q`, then every premise but `blame`, give an opinion against premise `blame`.
   - `Reductio { of }`: an opinion of `x` gives one of `of`.

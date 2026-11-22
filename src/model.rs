@@ -10,13 +10,15 @@
 //! `check` says where a model is not well formed. It runs nothing but
 //! each rule's proof, once, on what the proof reads taken true.
 //! `props` gives the propositions judgement reasons about, each with
-//! the path of what it is about. `levels` and `leaves` are read from
+//! the path of what it is about, and `judgement` what the rules among
+//! them say, each known by its path. `levels` and `leaves` are read from
 //! the model, never declared: how far each record and function is
 //! specified, and which propositions nothing concludes, so that only someone
 //! taking them can hold them.
 
 use crate::expression::{check as typed, eval, Expression};
-use crate::judgement::{self, Judgement, Opinion, Prop, State, Taking};
+use crate::graph::components;
+use crate::judgement::{self, Definition, Judgement, Opinion, Prop, State, Taking};
 use crate::location::Location;
 use crate::simulation::{self, Simulation, Type};
 use std::collections::{BTreeMap, BTreeSet};
@@ -38,11 +40,6 @@ impl Path {
     fn then(&self, name: &str) -> Path {
         let mut names = self.names.clone();
         names.push(name.to_string());
-        Path { names }
-    }
-    /// The path written `a::b::c`.
-    fn read(written: &str) -> Path {
-        let names = written.split("::").map(str::to_string).collect();
         Path { names }
     }
 }
@@ -112,8 +109,8 @@ pub struct Claim {
 }
 
 /// Its premises give its conclusion. `proof` is `None` when nothing
-/// shows it: the rule is assumed. A proof reads the premises, and the
-/// rules of its part, as opinions, and gives one of the conclusion.
+/// shows it: the rule is assumed. A proof reads the premises as
+/// opinions, and gives one of the conclusion.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
     pub name: String,
@@ -123,9 +120,9 @@ pub struct Rule {
 }
 
 /// A term of a rule: a proposition as the rule writes it. The claim,
-/// require or ensure at a path in the rule's part, or an expression
-/// written in place, read as a claim of the rule's record or function.
-/// A rule is not one: a proof uses a rule by its path.
+/// rule, require or ensure at a path in the rule's part, or an
+/// expression written in place, read as a claim of the rule's record or
+/// function.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Term {
     At(Path),
@@ -195,7 +192,8 @@ pub enum Problem {
     /// A list of an ensure's `from` with nothing in it.
     Empty(Path),
     /// A declaration on a cycle: what it gives is among what it rests
-    /// on.
+    /// on. Or a rule named through itself: a term of it names it, or
+    /// names a rule a term of which does, and so on.
     Circular(Path),
     /// A name that is not a word: letters, digits and `_`, and not
     /// first a digit.
@@ -206,7 +204,8 @@ pub enum Problem {
 /// word, declared once; each path naming what it must, in its own part,
 /// or, for a require, in another; each claim a truth, each body of the
 /// type its function gives, each record made as declared; each proof
-/// showing its rule; and nothing resting on itself.
+/// showing its rule; nothing resting on itself, and no rule named
+/// through itself.
 pub fn check(model: &Model) -> Vec<Problem> {
     let index = Index::of(model);
     let mut problems = index.problems.clone();
@@ -266,7 +265,7 @@ pub fn check(model: &Model) -> Vec<Problem> {
                 if list.is_empty() {
                     problems.push(Problem::Empty(here.clone()));
                 }
-                for names in list.iter().filter(|p| !index.reaches(&part.name, p, true)) {
+                for names in list.iter().filter(|p| !index.reaches(&part.name, p)) {
                     let at = here.clone();
                     problems.push(Problem::Unknown {
                         at,
@@ -314,13 +313,13 @@ pub fn levels(model: &Model) -> Vec<(Path, Level)> {
 /// The propositions of a model, as judgement reads them, each with the
 /// path of what it is about:
 ///
-/// - a claim, a require or an ensure is the proposition named by its path;
-/// - a rule is `{premises} rule {conclusion}`, an expression written in
-///   it the proposition named by the rule's path and its place, `0`, `1`, …
-///   for a premise and `then` for the conclusion;
+/// - a claim, a rule, a require or an ensure is the proposition named
+///   by its path; what a rule says, `judgement` knows;
+/// - an expression written in a rule is the proposition named by the
+///   rule's path and its place, `0`, `1`, … for a premise and `then` for
+///   the conclusion;
 /// - a require from an ensure adds `{ensure} require {require}`, and an
-///   ensure adds `{list} ensure {ensure}` for each list of its `from`,
-///   where a rule is its proposition;
+///   ensure adds `{list} ensure {ensure}` for each list of its `from`;
 /// - a tie is the proposition named `item at place`.
 ///
 /// What names nothing gives no proposition, and a proposition is given once.
@@ -339,7 +338,7 @@ pub fn props(model: &Model) -> Vec<(Path, Prop)> {
                         props.push((at.clone(), Prop::Named(format!("{at}::{place}"))));
                     }
                 }
-                props.extend(index.rule_prop(at, rule).map(|p| (at.clone(), p)));
+                props.push((at.clone(), named));
             }
             Item::Require(require) => {
                 props.push((at.clone(), named.clone()));
@@ -353,7 +352,7 @@ pub fn props(model: &Model) -> Vec<(Path, Prop)> {
             Item::Ensure(ensure) => {
                 props.push((at.clone(), named.clone()));
                 for list in &ensure.from {
-                    let pre: Option<Vec<Prop>> = list.iter().map(|p| index.listed(p)).collect();
+                    let pre: Option<Vec<Prop>> = list.iter().map(|p| index.prop_at(p)).collect();
                     if let Some(pre) = pre.filter(|pre| !pre.is_empty()) {
                         props.push((at.clone(), implies(pre, at, named.clone())));
                     }
@@ -373,6 +372,14 @@ pub fn props(model: &Model) -> Vec<(Path, Prop)> {
     props
 }
 
+/// Judgement that knows the rules of a model, each by its path: its
+/// premises give its conclusion, as `props` gives them. A rule a term of
+/// which names nothing is not known, nor one named through itself:
+/// `check` finds both.
+pub fn judgement(model: &Model) -> Judgement {
+    Index::of(model).judgement
+}
+
 /// The propositions nothing in the model concludes: only someone taking them
 /// holds them. A rule concludes its conclusion, a require from an
 /// ensure is concluded by it, an ensure by its lists, and a rule by its
@@ -383,12 +390,12 @@ pub fn leaves(model: &Model) -> Vec<(Path, Prop)> {
     let props = props(model);
     let mut concluded = BTreeSet::new();
     for (at, prop) in &props {
-        if let Prop::Implies { post, .. } = prop {
-            concluded.extend(post.iter().cloned());
-            if let Some(Item::Rule(rule)) = index.items.get(at) {
-                if index.shows(at, rule) == Some(true) {
-                    concluded.insert(prop.clone());
-                }
+        if let Some(posts) = index.judgement.posts(prop) {
+            concluded.extend(posts.iter().cloned());
+        }
+        if let Some(Item::Rule(rule)) = index.items.get(at) {
+            if *prop == Prop::Named(at.to_string()) && index.shows(at, rule) == Some(true) {
+                concluded.insert(prop.clone());
             }
         }
     }
@@ -465,91 +472,16 @@ fn record_type(r: &Record) -> Type {
     })
 }
 
-/// The names an expression reads from outside it.
-fn free<Op>(e: &Expression<Op>) -> BTreeSet<String> {
-    fn walk<Op>(e: &Expression<Op>, bound: &mut Vec<String>, found: &mut BTreeSet<String>) {
-        match e {
-            Expression::Name(n) => {
-                if !bound.contains(n) {
-                    found.insert(n.clone());
-                }
-            }
-            Expression::Apply(_, args) => {
-                for arg in args {
-                    let depth = bound.len();
-                    bound.extend(arg.binds.iter().cloned());
-                    walk(&arg.body, bound, found);
-                    bound.truncate(depth);
-                }
-            }
-        }
-    }
-    let mut found = BTreeSet::new();
-    walk(e, &mut Vec::new(), &mut found);
-    found
-}
-
-/// The component of each node, where `out` holds the nodes each goes
-/// to: two nodes are in one component when each reaches the other.
-/// Kosaraju's walk, on stacks of its own, so that a long chain does not
-/// run out of the call stack.
-fn components(out: &[Vec<usize>]) -> Vec<usize> {
-    let n = out.len();
-    let (mut finished, mut seen) = (Vec::with_capacity(n), vec![false; n]);
-    for start in 0..n {
-        if seen[start] {
-            continue;
-        }
-        seen[start] = true;
-        let mut walk = vec![(start, 0)];
-        while let Some(&(node, next)) = walk.last() {
-            let top = walk.len() - 1;
-            match out[node].get(next) {
-                Some(&to) => {
-                    walk[top].1 += 1;
-                    if !seen[to] {
-                        seen[to] = true;
-                        walk.push((to, 0));
-                    }
-                }
-                None => {
-                    finished.push(node);
-                    walk.pop();
-                }
-            }
-        }
-    }
-    let mut back = vec![Vec::new(); n];
-    for (from, to) in out.iter().enumerate() {
-        for &to in to {
-            back[to].push(from);
-        }
-    }
-    let mut component = vec![usize::MAX; n];
-    for (c, &start) in finished.iter().rev().enumerate() {
-        if component[start] != usize::MAX {
-            continue;
-        }
-        component[start] = c;
-        let mut walk = vec![start];
-        while let Some(node) = walk.pop() {
-            for &from in &back[node] {
-                if component[from] == usize::MAX {
-                    component[from] = c;
-                    walk.push(from);
-                }
-            }
-        }
-    }
-    component
-}
-
 /// Every path of a model, each record by name, and the problems found
-/// on the way: names that are not words, or declared twice.
+/// on the way: names that are not words, or declared twice. And
+/// judgement, knowing every rule it can: the rules named through
+/// themselves, by path, it does not.
 struct Index<'m> {
     items: BTreeMap<Path, Item<'m>>,
     records: BTreeMap<&'m str, &'m Record>,
     problems: Vec<Problem>,
+    judgement: Judgement,
+    cyclic: BTreeSet<String>,
 }
 
 impl<'m> Index<'m> {
@@ -558,6 +490,8 @@ impl<'m> Index<'m> {
             items: BTreeMap::new(),
             records: BTreeMap::new(),
             problems: Vec::new(),
+            judgement: Judgement::default(),
+            cyclic: BTreeSet::new(),
         };
         for part in &model.parts {
             let at = Path::to(&[&part.name]);
@@ -578,6 +512,18 @@ impl<'m> Index<'m> {
                 index.add(&at.then(&e.name), Item::Ensure(e));
             }
         }
+        let mut rules = BTreeMap::new();
+        for (at, item) in &index.items {
+            if let Item::Rule(rule) = item {
+                rules.extend(index.definition(at, rule).map(|d| (at.to_string(), d)));
+            }
+        }
+        // Without the rules named through themselves, none is left that is.
+        index.judgement = Judgement::with(rules.clone()).unwrap_or_else(|cyclic| {
+            rules.retain(|name, _| !cyclic.contains(name));
+            index.cyclic = cyclic;
+            Judgement::with(rules).unwrap_or_default()
+        });
         index
     }
     /// `at` names `item`, unless it names something already.
@@ -600,15 +546,10 @@ impl<'m> Index<'m> {
             self.add(&at.then(&r.name), Item::Rule(r));
         }
     }
-    /// `p` names a claim, a require or an ensure of the part `part`, or
-    /// a rule of it too when `rules`.
-    fn reaches(&self, part: &str, p: &Path, rules: bool) -> bool {
-        let here = p.names.first().is_some_and(|name| name == part);
-        here && match self.items.get(p) {
-            Some(Item::Claim | Item::Require(_) | Item::Ensure(_)) => true,
-            Some(Item::Rule(_)) => rules,
-            _ => false,
-        }
+    /// `p` names a claim, a rule, a require or an ensure of the part
+    /// `part`.
+    fn reaches(&self, part: &str, p: &Path) -> bool {
+        p.names.first().is_some_and(|name| name == part) && self.prop_at(p).is_some()
     }
     /// `t` is a type: a truth, a number, a tuple of types, or the type
     /// of a record of the model.
@@ -643,43 +584,43 @@ impl<'m> Index<'m> {
         };
         fits && args.iter().all(|arg| self.made(&arg.body))
     }
-    /// `term`, at `place` in the rule at `rule`, as judgement reads it: `None`
-    /// when it names no claim, require or ensure.
-    fn prop(&self, rule: &Path, place: &str, term: &Term) -> Option<Prop> {
-        match term {
-            Term::At(at) => match self.items.get(at)? {
-                Item::Claim | Item::Require(_) | Item::Ensure(_) => {
-                    Some(Prop::Named(at.to_string()))
-                }
-                _ => None,
-            },
-            Term::Holds(_) => Some(Prop::Named(format!("{rule}::{place}"))),
-        }
-    }
-    /// `{premises} rule {conclusion}`, for the rule at `at`.
-    fn rule_prop(&self, at: &Path, rule: &Rule) -> Option<Prop> {
-        let pre = rule.premises.iter().enumerate();
-        let pre: Option<Vec<Prop>> = pre.map(|(i, p)| self.prop(at, &i.to_string(), p)).collect();
-        Some(implies(pre?, at, self.prop(at, "then", &rule.conclusion)?))
-    }
-    /// What a list names, as judgement reads it: a claim, a require or an
-    /// ensure by its path, a rule by its own proposition.
-    fn listed(&self, at: &Path) -> Option<Prop> {
+    /// The proposition at `at`, named by its path: a claim, a rule, a
+    /// require or an ensure. `None` for anything else.
+    fn prop_at(&self, at: &Path) -> Option<Prop> {
         match self.items.get(at)? {
-            Item::Claim | Item::Require(_) | Item::Ensure(_) => Some(Prop::Named(at.to_string())),
-            Item::Rule(rule) => self.rule_prop(at, rule),
+            Item::Claim | Item::Rule(_) | Item::Require(_) | Item::Ensure(_) => {
+                Some(Prop::Named(at.to_string()))
+            }
             Item::Part | Item::Record | Item::Function => None,
         }
     }
-    /// Whether the proof of the rule at `at` shows it. It may read the
+    /// `term`, at `place` in the rule at `rule`, as judgement reads it: `None`
+    /// when it names no proposition.
+    fn prop(&self, rule: &Path, place: &str, term: &Term) -> Option<Prop> {
+        match term {
+            Term::At(at) => self.prop_at(at),
+            Term::Holds(_) => Some(Prop::Named(format!("{rule}::{place}"))),
+        }
+    }
+    /// What the rule at `at` says, as judgement reads it: `None` when a
+    /// term of it names no proposition.
+    fn definition(&self, at: &Path, rule: &Rule) -> Option<Definition> {
+        let pre = rule.premises.iter().enumerate();
+        let pre = pre.map(|(i, p)| self.prop(at, &i.to_string(), p));
+        Some(Definition {
+            pre: pre.collect::<Option<_>>()?,
+            post: vec![self.prop(at, "then", &rule.conclusion)?],
+        })
+    }
+    /// Whether the proof of the rule at `at` shows it. It reads the
     /// rule's premises, each by its path or, written in place, by its
-    /// place, and the rules of its part, by their paths: nothing else
-    /// has a type. It must check to an opinion of the conclusion. And
-    /// since an opinion can be against its proposition (modus tollens) or come
-    /// from a conflict (reductio), it is run once, on all it may read
-    /// taken true: it must give the conclusion true. `None` when there
-    /// is no proof, or when what it reads has no proposition, a problem found
-    /// where it is.
+    /// place: nothing else has a type. It must check to an opinion of
+    /// the conclusion. And since an opinion can be against its
+    /// proposition (modus tollens) or come from a conflict (reductio), it
+    /// is run once, on all it reads taken true: it must give the
+    /// conclusion true. `None` when there is no proof, or when a term
+    /// names no proposition, or a rule judgement does not know: a
+    /// problem found where it is.
     fn shows(&self, at: &Path, rule: &Rule) -> Option<bool> {
         let proof = rule.proof.as_ref()?;
         let conclusion = self.prop(at, "then", &rule.conclusion)?;
@@ -691,19 +632,21 @@ impl<'m> Index<'m> {
             };
             reads.insert(name, self.prop(at, &i.to_string(), p)?);
         }
-        for name in free(proof) {
-            let cited = Path::read(&name);
-            if let Some(Item::Rule(r)) = self.items.get(&cited) {
-                if cited.names[0] == at.names[0] {
-                    reads.insert(name, self.rule_prop(&cited, r)?);
-                }
+        let unknown = |term: &Term| match term {
+            Term::At(p) => {
+                let rule = matches!(self.items.get(p), Some(Item::Rule(_)));
+                rule && self.judgement.posts(&Prop::Named(p.to_string())).is_none()
             }
+            Term::Holds(_) => false,
+        };
+        if rule.premises.iter().chain([&rule.conclusion]).any(unknown) {
+            return None;
         }
         let types = reads.iter().map(|(name, prop)| {
             let opinion = judgement::Type::Opinion(prop.clone());
             (name.clone(), opinion)
         });
-        let gives = typed(&Judgement, &types.collect(), proof);
+        let gives = typed(&self.judgement, &types.collect(), proof);
         if gives != Some(judgement::Type::Opinion(conclusion)) {
             return Some(false);
         }
@@ -718,13 +661,13 @@ impl<'m> Index<'m> {
             let opinion = Opinion::taken(prop, vec![taking])?;
             values.insert(name, judgement::Value::Opinion(opinion));
         }
-        let given = eval(&Judgement, &values, proof);
+        let given = eval(&self.judgement, &values, proof);
         Some(matches!(given, Ok(judgement::Value::Opinion(o)) if o.state() == State::True))
     }
     /// A problem for each declaration on a cycle of what rests on what:
-    /// a rule's conclusion on its premises and on the rule, a rule on
-    /// the rules its proof names, a require on its ensure, and an ensure
-    /// on what its lists name.
+    /// a rule's conclusion on its premises and on the rule, a require on
+    /// its ensure, and an ensure on what its lists name. And one for
+    /// each rule named through itself.
     fn circular(&self) -> Vec<Problem> {
         // From, to, and the declaration that says so.
         let mut rests: Vec<(Path, Path, &Path)> = Vec::new();
@@ -740,12 +683,6 @@ impl<'m> Index<'m> {
                         rests.push((then.clone(), node(i.to_string(), p), at));
                     }
                     rests.push((then, at.clone(), at));
-                    for name in rule.proof.iter().flat_map(free) {
-                        let cited = Path::read(&name);
-                        if let Some(Item::Rule(_)) = self.items.get(&cited) {
-                            rests.push((at.clone(), cited, at));
-                        }
-                    }
                 }
                 Item::Require(require) => {
                     if let Source::Ensure(ensure) = &require.from {
@@ -773,10 +710,16 @@ impl<'m> Index<'m> {
         }
         let component = components(&out);
         let on_cycle = |from: &Path, to: &Path| component[number[from]] == component[number[to]];
+        let named = self
+            .items
+            .keys()
+            .filter(|at| self.cyclic.contains(&at.to_string()));
         rests
             .iter()
             .filter(|(from, to, _)| on_cycle(from, to))
-            .map(|(_, _, at)| Problem::Circular((*at).clone()))
+            .map(|(_, _, at)| *at)
+            .chain(named)
+            .map(|at| Problem::Circular(at.clone()))
             .collect()
     }
     /// The claims and rules of the record or function at `at`.
@@ -797,7 +740,7 @@ impl<'m> Index<'m> {
             let here = at.then(&rule.name);
             for term in rule.premises.iter().chain([&rule.conclusion]) {
                 match term {
-                    Term::At(names) if !self.reaches(&at.names[0], names, false) => {
+                    Term::At(names) if !self.reaches(&at.names[0], names) => {
                         let (at, names) = (here.clone(), names.clone());
                         problems.push(Problem::Unknown { at, names });
                     }

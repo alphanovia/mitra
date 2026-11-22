@@ -7,14 +7,14 @@ mod common;
 
 use common::{apply, let_in};
 use mitra_core::expression::{eval, Expression};
-use mitra_core::judgement::{self, Judgement, Opinion, Prop, State, Taking};
+use mitra_core::judgement::{self, Opinion, Prop, State, Taking};
 use mitra_core::location::Location;
 use mitra_core::model::{
-    check, leaves, levels, props, Claim, Ensure, Function, Kind, Level, Model, Part, Path, Problem,
-    Record, Require, Rule, Source, Term, Tie,
+    check, judgement, leaves, levels, props, Claim, Ensure, Function, Kind, Level, Model, Part,
+    Path, Problem, Record, Require, Rule, Source, Term, Tie,
 };
 use mitra_core::simulation::{self, tuple, Bounds, Exact, Op, Ranges, Rational, Type, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 type E = Expression<Op>;
 
@@ -62,16 +62,9 @@ fn under(x: &str, max: i64) -> E {
     apply(Op::Or, vec![apply(Op::Not, vec![low]), under])
 }
 
-/// The rule `slows`, as judgement reads it.
+/// The rule `slows`, as judgement reads it: by its name.
 fn slows() -> Prop {
-    Prop::Implies {
-        pre: vec![
-            Prop::named("stone::drop::falls"),
-            Prop::named("stone::speed::slow"),
-        ],
-        subject: "stone::drop::slows".to_string(),
-        post: vec![Prop::named("stone::drop::slow")],
-    }
+    Prop::named("stone::drop::slows")
 }
 
 /// The sun, outside the system. It gives light, how is not known, and
@@ -109,8 +102,8 @@ fn stone() -> Part {
         conclusion: at("stone::drop::slow"),
         proof: None,
     };
-    // The same, shown: `slows`, used by its path, then the premises,
-    // give the conclusion by modus ponens.
+    // The same, shown: from `slows` and its premises, the conclusion,
+    // by modus ponens.
     let names = [
         "stone::drop::slows",
         "stone::drop::falls",
@@ -122,7 +115,7 @@ fn stone() -> Part {
     };
     let lands = Rule {
         name: "lands".to_string(),
-        premises: names[1..].iter().map(|n| at(n)).collect(),
+        premises: names.iter().map(|n| at(n)).collect(),
         conclusion: at("stone::drop::slow"),
         proof: Some(apply(
             ponens,
@@ -198,18 +191,16 @@ fn named(p: &str) -> (Path, Prop) {
     (path(p), Prop::named(p))
 }
 
+/// Each proposition is named by its path, a rule too: what a rule says,
+/// judgement knows by that name.
 #[test]
 fn each_proposition_is_about_its_path() {
-    let mut lands = slows();
-    if let Prop::Implies { subject, .. } = &mut lands {
-        *subject = "stone::drop::lands".to_string();
-    }
     let expected = vec![
         named("stone::air"),
         named("stone::drop::falls"),
-        (path("stone::drop::lands"), lands),
+        named("stone::drop::lands"),
         named("stone::drop::slow"),
-        (path("stone::drop::slows"), slows()),
+        named("stone::drop::slows"),
         named("stone::lands_slow"),
         implies(
             "stone::lands_slow",
@@ -226,6 +217,22 @@ fn each_proposition_is_about_its_path() {
         ),
     ];
     assert_eq!(props(&fall()), expected);
+    let known = judgement(&fall());
+    let names = |ps: &[&str]| ps.iter().map(|p| Prop::named(p)).collect::<Vec<_>>();
+    let (falls, speed, slow) = (
+        "stone::drop::falls",
+        "stone::speed::slow",
+        "stone::drop::slow",
+    );
+    let lands = Prop::named("stone::drop::lands");
+    let (slows_pre, lands_pre) = (
+        names(&["stone::drop::slows", falls, speed]),
+        names(&["stone::drop::lands", "stone::drop::slows", falls, speed]),
+    );
+    assert_eq!(known.premises(&slows()), Some(slows_pre));
+    assert_eq!(known.premises(&lands), Some(lands_pre));
+    assert_eq!(known.posts(&lands), Some(&names(&[slow])[..]));
+    assert_eq!(known.premises(&Prop::named(falls)), None);
 }
 
 /// What only a taking holds: the hypothesis `air`, what the sun
@@ -238,7 +245,7 @@ fn leaves_are_what_only_a_taking_holds() {
     let expected = vec![
         named("stone::air"),
         named("stone::drop::falls"),
-        (path("stone::drop::slows"), slows()),
+        named("stone::drop::slows"),
         implies(
             "stone::lands_slow",
             &["stone::speed::slow", "stone::drop::falls"],
@@ -300,7 +307,8 @@ fn the_fall_is_judged_on_takings() {
         .iter()
         .map(|n| Expression::Name(n.to_string()));
     let ponens = apply(judgement::Op::Ponens { t: list, post: 0 }, args.collect());
-    let lands_slow = opinion(eval(&Judgement, &values, &ponens));
+    let known = judgement(&fall());
+    let lands_slow = opinion(eval(&known, &values, &ponens));
     assert_eq!(lands_slow.about(), &Prop::named("stone::lands_slow"));
     assert_eq!(lands_slow.state(), State::True);
 
@@ -320,9 +328,37 @@ fn the_fall_is_judged_on_takings() {
             taken(Prop::named("stone::speed::slow"), "machine:ranges"),
         ),
     ]);
-    let slow = opinion(eval(&Judgement, &values, lands.proof.as_ref().unwrap()));
+    let slow = opinion(eval(&known, &values, lands.proof.as_ref().unwrap()));
     assert_eq!(slow.about(), &Prop::named("stone::drop::slow"));
     assert_eq!(slow.state(), State::True);
+
+    // A run sees the stone land fast. Modus tollens on `slows` blames
+    // the assumed rule itself, on the run and the two other takings.
+    let mut values = values;
+    let run = Taking {
+        prop: Prop::named("stone::drop::slow"),
+        value: false,
+        count: 1,
+        by: "machine:run".to_string(),
+    };
+    let fast = Opinion::taken(run.prop.clone(), vec![run]).unwrap();
+    values.insert("fast".to_string(), judgement::Value::Opinion(fast));
+    let tollens = judgement::Op::Tollens {
+        t: slows(),
+        post: 0,
+        blame: 0,
+    };
+    let reads = ["fast", "stone::drop::falls", "stone::speed::slow"];
+    let blamed = apply(tollens, reads.iter().map(|n| read(n)).collect());
+    let blamed = opinion(eval(&known, &values, &blamed));
+    assert_eq!(blamed.about(), &slows());
+    assert_eq!(blamed.state(), State::False);
+    let rest = blamed.rests_against().first().unwrap();
+    let by: BTreeSet<&str> = rest.iter().map(|t| t.by.as_str()).collect();
+    assert_eq!(
+        by,
+        BTreeSet::from(["machine:run", "machine:timer", "machine:ranges"])
+    );
 }
 
 /// A claim of a function with a body runs on it: `speed::slow` holds
@@ -441,10 +477,10 @@ fn each_problem_is_found() {
     assert_eq!(record, vec![Problem::Mistyped(path("stone::Drop"))]);
     let empty = changed(|m| m.parts[1].ensures[0].from.push(vec![]));
     assert_eq!(empty, vec![Problem::Empty(path("stone::lands_slow"))]);
-    let rule = changed(|m| m.parts[1].functions[0].rules[0].premises[0] = at("stone::drop::lands"));
+    let function = changed(|m| m.parts[1].functions[0].rules[0].premises[0] = at("stone::speed"));
     assert_eq!(
-        rule,
-        vec![unknown("stone::drop::slows", "stone::drop::lands")]
+        function,
+        vec![unknown("stone::drop::slows", "stone::speed")]
     );
     let cycle = changed(|m| {
         m.parts[1].ensures[0]
@@ -494,11 +530,7 @@ fn a_proof_argues_for_its_conclusion() {
     // From `drop::slow`, got by an assumed rule, tollens on `slows` can
     // only say that `falls` is false.
     let mut model = fall();
-    let upon = Prop::Implies {
-        pre: vec![Prop::named("stone::speed::slow")],
-        subject: "stone::drop::upon".to_string(),
-        post: vec![Prop::named("stone::drop::slow")],
-    };
+    let upon = Prop::named("stone::drop::upon");
     let ponens = judgement::Op::Ponens { t: upon, post: 0 };
     let slow = apply(
         ponens,
@@ -510,7 +542,12 @@ fn a_proof_argues_for_its_conclusion() {
         blame: 1,
     };
     let against = vec![slow, read("stone::drop::slows"), read("stone::speed::slow")];
-    let mut back = rule("back", &["stone::speed::slow"], "stone::drop::falls");
+    let premises = [
+        "stone::drop::upon",
+        "stone::drop::slows",
+        "stone::speed::slow",
+    ];
+    let mut back = rule("back", &premises, "stone::drop::falls");
     back.proof = Some(apply(tollens, against));
     let rules = &mut model.parts[1].functions[0].rules;
     rules.push(rule("upon", &["stone::speed::slow"], "stone::drop::slow"));
@@ -539,10 +576,10 @@ fn a_proof_argues_for_its_conclusion() {
 }
 
 /// Nothing rests on itself. A conclusion rests on its rule's premises
-/// and on the rule, a rule on the rules its proof uses, a require on
-/// its ensure, and an ensure on what its lists name. On a cycle no
-/// proposition would be a leaf, and only a taking of what is no leaf would
-/// hold any of it.
+/// and on the rule, a require on its ensure, and an ensure on what its
+/// lists name. On a cycle no proposition would be a leaf, and only a
+/// taking of what is no leaf would hold any of it. And no rule is named
+/// through itself: what it says would be said in terms of itself.
 #[test]
 fn nothing_rests_on_itself() {
     let circular = |p: &str| Problem::Circular(path(p));
@@ -560,21 +597,37 @@ fn nothing_rests_on_itself() {
         both,
         vec![circular("stone::drop::down"), circular("stone::drop::up")]
     );
-    let itself = changed(|m| {
-        let lands = &mut m.parts[1].functions[0].rules[1];
-        let mut prop = slows();
-        if let Prop::Implies { subject, .. } = &mut prop {
-            *subject = "stone::drop::lands".to_string();
-        }
-        let names = [
-            "stone::drop::lands",
-            "stone::drop::falls",
-            "stone::speed::slow",
-        ];
-        let ponens = judgement::Op::Ponens { t: prop, post: 0 };
-        lands.proof = Some(apply(ponens, names.iter().map(|n| read(n)).collect()));
-    });
-    assert_eq!(itself, vec![circular("stone::drop::lands")]);
+    // `lands` is a premise of itself, and shown by itself. A rule that
+    // only names it is not on the cycle: judgement still knows it, and
+    // `slows`.
+    let mut model = fall();
+    let rules = &mut model.parts[1].functions[0].rules;
+    let names = [
+        "stone::drop::lands",
+        "stone::drop::falls",
+        "stone::speed::slow",
+    ];
+    let ponens = judgement::Op::Ponens {
+        t: Prop::named(names[0]),
+        post: 0,
+    };
+    rules[1].premises = names.iter().map(|n| at(n)).collect();
+    rules[1].proof = Some(apply(ponens, names.iter().map(|n| read(n)).collect()));
+    rules.push(rule("far", &[names[0]], "stone::drop::slow"));
+    assert_eq!(check(&model), vec![circular("stone::drop::lands")]);
+    let known = judgement(&model);
+    let knows = |p: &str| known.premises(&Prop::named(p)).is_some();
+    assert!(!knows("stone::drop::lands"));
+    assert!(knows("stone::drop::far") && knows("stone::drop::slows"));
+    // `slows` names `lands`, which names `slows`.
+    let both = changed(|m| m.parts[1].functions[0].rules[0].premises[0] = at("stone::drop::lands"));
+    assert_eq!(
+        both,
+        vec![
+            circular("stone::drop::lands"),
+            circular("stone::drop::slows")
+        ]
+    );
     // Across parts: the stone's promise rests on the sun's, which rests
     // on the stone's. Assume–guarantee in a circle.
     let circle = changed(|m| {
@@ -630,21 +683,19 @@ fn size(p: &Prop) -> usize {
     }
 }
 
-/// A rule is not a premise of a rule: a proof uses rules by their
-/// paths. So a rule's proposition holds only its premises and conclusion,
-/// however rules use rules, and a long chain of them is read in time
-/// that grows with it. Here `r_i` gives `c_{i+1}` from `c_i`, assumed,
-/// and `s_i` gives `c_{i+2}` from `c_i`, shown by `r_i` then `r_{i+1}`.
+/// A rule is a premise by its name, and judgement holds what it says
+/// once. So however rules use rules, each proposition and each
+/// definition stays as small as the rule is written, and a long chain is
+/// read in time that grows with it. Here `r_i` gives `c_{i+1}` from
+/// `c_i`, assumed, and `s_i` gives `c_{i+2}` from `r_i`, `r_{i+1}` and
+/// `c_i`, shown by `r_i` then `r_{i+1}`. And `t_i` and `u_i` each take
+/// both `t_{i-1}` and `u_{i-1}`: written out in place, `t_64` would hold
+/// 2⁶³ copies of `r_0`.
 #[test]
-fn many_rules_stay_flat() {
-    let n = 5000;
+fn rules_sharing_rules_stay_small() {
+    let (n, m) = (5000, 64);
     let c = |i: usize| format!("stone::step::c{i}");
     let r = |i: usize| format!("stone::step::r{i}");
-    let flat = |i: usize| Prop::Implies {
-        pre: vec![Prop::named(&c(i))],
-        subject: r(i),
-        post: vec![Prop::named(&c(i + 1))],
-    };
     let mut step = function("step", "h", ("v", Type::Real));
     for i in 0..=n {
         let low = apply(Op::AtMost, vec![name("h"), real(i as i64)]);
@@ -654,27 +705,43 @@ fn many_rules_stay_flat() {
         step.rules.push(rule(&format!("r{i}"), &[&c(i)], &c(i + 1)));
     }
     for i in 0..n - 1 {
-        let first = judgement::Op::Ponens {
-            t: flat(i),
+        let ponens = |i: usize| judgement::Op::Ponens {
+            t: Prop::named(&r(i)),
             post: 0,
         };
-        let first = apply(first, vec![read(&r(i)), read(&c(i))]);
-        let then = judgement::Op::Ponens {
-            t: flat(i + 1),
-            post: 0,
-        };
-        let mut s = rule(&format!("s{i}"), &[&c(i)], &c(i + 2));
-        s.proof = Some(apply(then, vec![read(&r(i + 1)), first]));
+        let first = apply(ponens(i), vec![read(&r(i)), read(&c(i))]);
+        let premises = [&r(i)[..], &r(i + 1), &c(i)];
+        let mut s = rule(&format!("s{i}"), &premises, &c(i + 2));
+        s.proof = Some(apply(ponens(i + 1), vec![read(&r(i + 1)), first]));
         step.rules.push(s);
+    }
+    let tu = |i: usize| match i {
+        0 => [r(0), r(1)],
+        i => ["t", "u"].map(|x| format!("stone::step::{x}{i}")),
+    };
+    for i in 1..=m {
+        let below = tu(i - 1);
+        let below = [&below[0][..], &below[1]];
+        step.rules.push(rule(&format!("t{i}"), &below, &c(i)));
+        step.rules.push(rule(&format!("u{i}"), &below, &c(i)));
     }
     let mut model = fall();
     model.parts[1].functions.push(step);
+    let start = std::time::Instant::now();
     assert_eq!(check(&model), vec![]);
     let props = props(&model);
-    assert_eq!(props.len(), 12 + (n + 1) + n + (n - 1));
+    assert_eq!(props.len(), 12 + (n + 1) + n + (n - 1) + 2 * m);
     assert!(props.iter().all(|(_, p)| size(p) <= 4));
-    // The fall's eight, `c0`, and each `r_i`; each `s_i` is shown.
-    assert_eq!(leaves(&model).len(), 8 + 1 + n);
+    let known = judgement(&model);
+    for (_, p) in props.iter().filter(|(at, _)| at.names.len() == 4) {
+        let premises = known.premises(p).unwrap_or_default();
+        let posts = known.posts(p).unwrap_or_default();
+        assert!(premises.iter().chain(posts).all(|x| size(x) == 1));
+    }
+    // The fall's eight, `c0`, each `r_i`, `t_i` and `u_i`; each `s_i` is
+    // shown.
+    assert_eq!(leaves(&model).len(), 8 + 1 + n + 2 * m);
+    assert!(start.elapsed() < std::time::Duration::from_secs(20));
 }
 
 /// A record is made only as declared: not one no record declares, not
@@ -730,9 +797,10 @@ fn records_are_made_as_declared() {
 }
 
 /// Parts meet only where one requires what another ensures. A rule or
-/// a list names only its own part's propositions, a proof only its own
-/// part's rules, and a require another part's ensure. Else the sun's
-/// promise would be used with no proposition to blame for it.
+/// a list names only its own part's propositions, a proof reads only
+/// its rule's premises, and a require names another part's ensure.
+/// Else the sun's promise would be used with no proposition to blame
+/// for it.
 #[test]
 fn parts_meet_only_through_requires() {
     let unknown = |at: &str, names: &str| Problem::Unknown {
@@ -751,8 +819,8 @@ fn parts_meet_only_through_requires() {
     assert_eq!(list, vec![unknown("stone::lands_slow", "sun::shines")]);
     let own = changed(|m| m.parts[1].requires[0].from = Source::Ensure(path("stone::lands_slow")));
     assert_eq!(own, vec![unknown("stone::light", "stone::lands_slow")]);
-    // A proof that names a rule, even to drop it: the stone's own is
-    // fine, the sun's is not.
+    // A proof that reads a rule, even to drop it: a premise is fine, the
+    // sun's rule is not.
     let cite = |rule_path: &'static str| {
         changed(move |m| {
             let positive = apply(Op::AtMost, vec![real(0), name("w")]);
