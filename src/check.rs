@@ -5,40 +5,76 @@
 
 use crate::catalogue::{
     Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013,
-    M014, M015,
+    M014, M015, M016, M017, M018, M019, M020, M021, M022, M023,
 };
 use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
 use crate::graph::components;
-use crate::model::{Claim, Function, Index, Item, Model, Path, Record, Rule, Source, Term};
-use crate::simulation::{self, Exact, Simulation, Type, Value};
+use crate::judgement::{self, Prop};
+use crate::model::{
+    contract_calls, signatures, Claim, Contract, Function, Implements, Index, Item, Model, Part,
+    Path, Record, Rule, Source, Term, Use,
+};
+use crate::simulation::{self, Bound, Exact, Simulation, Type, Value};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 /// The errors of a model, none when it is well formed: each name a
 /// word, declared once; each type declared, each record made as
 /// declared, each body of the type its function gives, each claim a
 /// truth; each path naming what it must, in its own part, or, for a
-/// require, an ensure of another; no empty list; each proof showing its
-/// rule; nothing resting on itself, and no rule named through itself.
+/// require, an ensure of another; another part's functions and records
+/// read only through a use, and no function calling itself; each
+/// contract well formed and each impl fitting it; each example of the
+/// model naming inputs and outputs, of their types; no empty list; each
+/// proof showing its rule; nothing resting on itself, and no rule named
+/// through itself.
 pub fn check(model: &Model) -> Vec<Error> {
     let index = Index::of(model);
+    let standard = Simulation {
+        calls: Arc::new(signatures(model)),
+    };
     let mut errors = names(model);
+    for contract in &model.contracts {
+        errors.extend(contract_errors(&index, contract));
+    }
     for part in &model.parts {
         let at = Path::to(&[&part.name]);
+        errors.extend(uses(&index, part));
         for record in &part.records {
             let here = at.then(&record.name);
             let known = types(&index, &here, record.fields.iter().flatten(), &mut errors);
+            for (name, t) in record.fields.iter().flatten() {
+                errors.extend(unused_records(&index, part, &here.then(name), t));
+            }
             let (of, claims, rules) = (Of::Record(record), &record.claims, &record.rules);
-            said(&index, &here, of, known, claims, rules, &mut errors);
+            said(
+                &index,
+                &standard,
+                part,
+                &here,
+                of,
+                known,
+                claims,
+                rules,
+                &mut errors,
+            );
         }
         for function in &part.functions {
             let here = at.then(&function.name);
             let names = function.takes.iter().chain([&function.gives]);
             let known = types(&index, &here, names, &mut errors);
+            for (name, t) in function.takes.iter().chain([&function.gives]) {
+                errors.extend(unused_records(&index, part, &here.then(name), t));
+            }
             if let Some(body) = &function.body {
+                let read = reads(&index, part, &here, body);
+                // A call of no function is the error, not the type it makes.
+                let calls = !read.iter().any(|e| e.code == M017);
+                errors.extend(read);
                 let takes = function.takes.iter().cloned().collect();
                 let gives = &function.gives;
-                if known && typed(&Simulation::default(), &takes, body).as_ref() != Some(&gives.1) {
+                if known && calls && typed(&standard, &takes, body).as_ref() != Some(&gives.1) {
                     let message = format!("the body is not of the type of `{}`", gives.0);
                     errors.push(error(M005, &here, message));
                 }
@@ -68,7 +104,22 @@ pub fn check(model: &Model) -> Vec<Error> {
                 }
             }
             let (of, claims, rules) = (Of::Function(function), &function.claims, &function.rules);
-            said(&index, &here, of, known, claims, rules, &mut errors);
+            said(
+                &index,
+                &standard,
+                part,
+                &here,
+                of,
+                known,
+                claims,
+                rules,
+                &mut errors,
+            );
+        }
+        for i in &part.implements {
+            if let Some(message) = misfit(&index, part, i) {
+                errors.push(error(M020, &impl_at(part, i), message));
+            }
         }
         for require in &part.requires {
             if let Source::Ensure(names) = &require.from {
@@ -98,6 +149,10 @@ pub fn check(model: &Model) -> Vec<Error> {
             errors.push(error(M010, &tie.item, message));
         }
     }
+    for (i, example) in model.examples.iter().enumerate() {
+        errors.extend(model_example(&index, i, example));
+    }
+    errors.extend(calls_itself(model));
     errors.extend(rests_on_itself(&index));
     for at in index.items.keys() {
         if index.cyclic.contains(&at.to_string()) {
@@ -139,16 +194,52 @@ fn names(model: &Model) -> Vec<Error> {
             }
             declared.push(here.clone());
             declared.extend(said_at(&here, &r.claims, &r.rules));
-            errors.extend(listed(&here, r.fields.iter().flatten()));
+            errors.extend(listed(
+                &here,
+                r.fields.iter().flatten().map(|(n, t)| (n, t)),
+            ));
         }
         for f in &part.functions {
             let here = at.then(&f.name);
             declared.push(here.clone());
             declared.extend(said_at(&here, &f.claims, &f.rules));
-            errors.extend(listed(&here, f.takes.iter().chain([&f.gives])));
+            errors.extend(listed(
+                &here,
+                f.takes.iter().chain([&f.gives]).map(|(n, t)| (n, t)),
+            ));
         }
         declared.extend(part.requires.iter().map(|q| at.then(&q.name)));
         declared.extend(part.ensures.iter().map(|e| at.then(&e.name)));
+        // An impl is declared in the function it is of, beside its claims.
+        declared.extend(
+            part.implements
+                .iter()
+                .filter(|i| !i.functions.is_empty())
+                .map(|i| impl_at(part, i)),
+        );
+    }
+    // A contract is named as a part is: `Monotone::f` is a path.
+    for c in &model.contracts {
+        let here = Path::to(&[&c.name]);
+        declared.push(here.clone());
+        errors.extend(listed(
+            &here,
+            c.params.iter().map(|(n, _)| (n, &Type::Truth)),
+        ));
+        for f in &c.functions {
+            declared.push(here.then(&f.name));
+            errors.extend(listed(
+                &here.then(&f.name),
+                f.takes.iter().chain([&f.gives]).map(|(n, t)| (n, t)),
+            ));
+        }
+        for law in &c.claims {
+            declared.push(here.then(&law.name));
+            errors.extend(listed(
+                &here.then(&law.name),
+                law.over.iter().map(|(n, t)| (n, t)),
+            ));
+        }
     }
     let mut seen = BTreeSet::new();
     for at in declared {
@@ -182,7 +273,7 @@ fn twice(at: &Path) -> Error {
 
 /// M001 and M002 for each name of a list of names and types, read in
 /// the item at `at`.
-fn listed<'a>(at: &Path, names: impl Iterator<Item = &'a (String, Type)>) -> Vec<Error> {
+fn listed<'a>(at: &Path, names: impl Iterator<Item = (&'a String, &'a Type)>) -> Vec<Error> {
     let (mut seen, mut errors) = (BTreeSet::new(), Vec::new());
     for (name, _) in names {
         let here = at.then(name);
@@ -202,9 +293,23 @@ fn types<'a>(
     names: impl Iterator<Item = &'a (String, Type)>,
     errors: &mut Vec<Error>,
 ) -> bool {
+    typed_in(index, at, names, &[], errors)
+}
+
+/// `types`, in a contract with these parameters.
+fn typed_in<'a>(
+    index: &Index,
+    at: &Path,
+    names: impl Iterator<Item = &'a (String, Type)>,
+    params: &[(String, Bound)],
+    errors: &mut Vec<Error>,
+) -> bool {
     let mut all = true;
-    for (name, _) in names.filter(|(_, t)| !known(index, t)) {
-        let message = format!("the type of `{name}` names no record of the model as declared");
+    for (name, t) in names.filter(|(_, t)| !known_in(index, t, params)) {
+        let message = match t.open() && params.is_empty() {
+            true => format!("the type of `{name}` is a type parameter: only a contract names one"),
+            false => format!("the type of `{name}` names no record of the model as declared"),
+        };
         errors.push(error(M003, &at.then(name), message));
         all = false;
     }
@@ -214,19 +319,23 @@ fn types<'a>(
 /// `t` is a type: a truth, a number, a tuple of types, or the type of a
 /// record of the model.
 fn known(index: &Index, t: &Type) -> bool {
+    known_in(index, t, &[])
+}
+
+/// `known`, or a parameter declared so in a contract with `params`.
+fn known_in(index: &Index, t: &Type, params: &[(String, Bound)]) -> bool {
     match t {
         Type::Truth | Type::Int | Type::Real => true,
-        // A type parameter is known only in its contract.
-        Type::Param { .. } => false,
+        Type::Param { name, bound } => params.iter().any(|(n, b)| n == name && b == bound),
         // A tuple: a record with no name, its fields `0`, `1`, ….
         Type::Record(r) if r.name.is_empty() => {
             let mut fields = r.fields.iter().enumerate();
-            fields.all(|(i, (name, t))| *name == i.to_string() && known(index, t))
+            fields.all(|(i, (name, t))| *name == i.to_string() && known_in(index, t, params))
         }
         Type::Record(r) => {
             let declared = index.records.get(r.name.as_str());
             declared.is_some_and(|d| record_type(d) == *t)
-                && r.fields.iter().all(|(_, t)| known(index, t))
+                && r.fields.iter().all(|(_, t)| known_in(index, t, params))
         }
     }
 }
@@ -234,6 +343,11 @@ fn known(index: &Index, t: &Type) -> bool {
 /// Each record `e` makes is a tuple, or a record of the model with its
 /// fields known, made with them.
 fn made(index: &Index, e: &Expression<simulation::Op>) -> bool {
+    made_in(index, e, &[])
+}
+
+/// `made`, in a contract with these parameters.
+fn made_in(index: &Index, e: &Expression<simulation::Op>, params: &[(String, Bound)]) -> bool {
     let Expression::Apply(op, args) = e else {
         return true;
     };
@@ -241,11 +355,11 @@ fn made(index: &Index, e: &Expression<simulation::Op>) -> bool {
         simulation::Op::Make(r) => {
             let declared = index.records.get(r.name.as_str());
             (r.name.is_empty() || declared.is_some_and(|d| d.fields.is_some()))
-                && known(index, &Type::Record(r.clone()))
+                && known_in(index, &Type::Record(r.clone()), params)
         }
         _ => true,
     };
-    fits && args.iter().all(|arg| made(index, &arg.body))
+    fits && args.iter().all(|arg| made_in(index, &arg.body, params))
 }
 
 /// Each record in `v` is one of the model, with its fields known: an
@@ -299,8 +413,11 @@ fn names_wrong(index: &Index, at: &Path, names: &Path) -> Option<Error> {
 
 /// The claims and rules of the record or function at `at`. Their types
 /// are checked only when the types they read are `known`.
+#[allow(clippy::too_many_arguments)]
 fn said(
     index: &Index,
+    standard: &Simulation,
+    part: &Part,
     at: &Path,
     of: Of,
     known: bool,
@@ -309,15 +426,18 @@ fn said(
     errors: &mut Vec<Error>,
 ) {
     let scope = scope(of);
-    // M006 and M004 for an expression read as a claim, at `here`.
+    // M006, M004, M017 and M018 for an expression read as a claim, at `here`.
     let claim = |here: &Path, e, what: &str, errors: &mut Vec<Error>| {
-        if known && typed(&Simulation::default(), &scope, e) != Some(Type::Truth) {
+        let read = reads(index, part, here, e);
+        let calls = !read.iter().any(|e| e.code == M017);
+        if known && calls && typed(standard, &scope, e) != Some(Type::Truth) {
             errors.push(error(M006, here, format!("{what} is not a truth")));
         }
         if !made(index, e) {
             let message = format!("{what} makes a record other than as declared");
             errors.push(error(M004, here, message));
         }
+        errors.extend(read);
     };
     for c in claims {
         claim(
@@ -335,6 +455,7 @@ fn said(
             match term {
                 Term::At(names) => errors.extend(names_wrong(index, &here, names)),
                 Term::Holds(e) => claim(&here, e, &place, errors),
+                Term::Prop(p) => errors.extend(correct_wrong(index, &here, &place, p)),
             }
         }
         if index.shows(&here, rule) == Some(false) {
@@ -356,6 +477,10 @@ fn rests_on_itself(index: &Index) -> Vec<Error> {
                 let node = |place: String, term: &Term| match term {
                     Term::At(p) => p.clone(),
                     Term::Holds(_) => at.then(&place),
+                    // One proposition, whichever rule writes it.
+                    Term::Prop(p) => Path {
+                        names: vec![format!("{p:?}")],
+                    },
                 };
                 let then = node("then".to_string(), &rule.conclusion);
                 for (i, p) in rule.premises.iter().enumerate() {
@@ -397,4 +522,406 @@ fn rests_on_itself(index: &Index) -> Vec<Error> {
             error(M013, at, message)
         })
         .collect()
+}
+
+/// Where an impl is declared: in the first function it names, beside
+/// its claims, `stone::speed::Monotone`; in its part when it names none.
+fn impl_at(part: &Part, i: &Implements) -> Path {
+    let at = Path::to(&[&part.name]);
+    match i.functions.first() {
+        Some(f) => at.then(f).then(&i.contract),
+        None => at.then(&i.contract),
+    }
+}
+
+/// M016: each use names another part, and functions or records of it.
+fn uses(index: &Index, part: &Part) -> Vec<Error> {
+    let at = Path::to(&[&part.name]);
+    let mut errors = Vec::new();
+    for u in &part.uses {
+        let of = u.part();
+        let there = Path::to(&[of]);
+        if of == part.name || !matches!(index.items.get(&there), Some(Item::Part)) {
+            let message = format!("`use {of}` names no other part");
+            errors.push(error(M016, &at, message));
+            continue;
+        }
+        if let Use::Names { names, .. } = u {
+            for name in names {
+                let item = index.items.get(&there.then(name));
+                if !matches!(item, Some(Item::Function | Item::Record)) {
+                    let message = format!("`{of}::{name}` is no function or record of `{of}`");
+                    errors.push(error(M016, &at, message));
+                }
+            }
+        }
+    }
+    errors
+}
+
+/// `part` reads `name` of the part `of`: its own, or through a use.
+fn visible(part: &Part, of: &str, name: &str) -> bool {
+    of == part.name || part.uses.iter().any(|u| u.reads(of, name))
+}
+
+/// M018 for each record a type names that is of another part, not used,
+/// read at `at`.
+fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error> {
+    let mut errors = Vec::new();
+    let mut todo = vec![t];
+    while let Some(t) = todo.pop() {
+        if let Type::Record(r) = t {
+            if let Some(of) = index.record_parts.get(r.name.as_str()) {
+                if !visible(part, of, &r.name) {
+                    let message = format!(
+                        "`{of}::{}` is of another part: `use {of}::{};`",
+                        r.name, r.name
+                    );
+                    errors.push(error(M018, at, message));
+                }
+            }
+            todo.extend(r.fields.iter().map(|(_, t)| t));
+        }
+    }
+    errors
+}
+
+/// M017 and M018 for the calls and records of `e`, at `at` in `part`:
+/// each call names a function of the model, and each function and record
+/// of another part is used.
+fn reads(index: &Index, part: &Part, at: &Path, e: &Expression<simulation::Op>) -> Vec<Error> {
+    let mut errors = Vec::new();
+    let mut todo = vec![e];
+    while let Some(e) = todo.pop() {
+        let Expression::Apply(op, args) = e else {
+            continue;
+        };
+        match op {
+            simulation::Op::Call(f) => match index.functions.get(f) {
+                None => errors.push(error(
+                    M017,
+                    at,
+                    format!("`{f}` names no function of the model"),
+                )),
+                Some(_) => {
+                    let (of, name) = f.split_once("::").unwrap_or_default();
+                    if !visible(part, of, name) {
+                        let message = format!("`{f}` is of another part: `use {f};`");
+                        errors.push(error(M018, at, message));
+                    }
+                }
+            },
+            simulation::Op::Make(r) => {
+                errors.extend(unused_records(index, part, at, &Type::Record(r.clone())))
+            }
+            _ => {}
+        }
+        todo.extend(args.iter().map(|a| &a.body));
+    }
+    errors
+}
+
+/// M019 for each function on a cycle of calls, through bodies.
+fn calls_itself(model: &Model) -> Vec<Error> {
+    let mut paths: Vec<Path> = Vec::new();
+    let mut bodies = Vec::new();
+    for part in &model.parts {
+        for f in &part.functions {
+            paths.push(Path::to(&[&part.name, &f.name]));
+            bodies.push(f.body.as_ref());
+        }
+    }
+    let number: BTreeMap<String, usize> = paths
+        .iter()
+        .enumerate()
+        .rev()
+        .map(|(i, p)| (p.to_string(), i))
+        .collect();
+    let mut out = vec![Vec::new(); paths.len()];
+    for (i, body) in bodies.iter().enumerate() {
+        let mut todo: Vec<&Expression<simulation::Op>> = body.iter().copied().collect();
+        while let Some(e) = todo.pop() {
+            if let Expression::Apply(op, args) = e {
+                if let simulation::Op::Call(f) = op {
+                    out[i].extend(number.get(f));
+                }
+                todo.extend(args.iter().map(|a| &a.body));
+            }
+        }
+    }
+    let component = components(&out);
+    let mut errors = Vec::new();
+    for (i, at) in paths.iter().enumerate() {
+        let shared = component.iter().filter(|&&c| c == component[i]).count() > 1;
+        if shared || out[i].contains(&i) {
+            errors.push(error(
+                M019,
+                at,
+                format!("`{at}` calls itself, through its body"),
+            ));
+        }
+    }
+    errors
+}
+
+/// A contract, checked once: its types known with its parameters, each
+/// claim a truth over its arguments, calling only the contract's
+/// functions (M003, M006, M004, M017).
+fn contract_errors(index: &Index, c: &Contract) -> Vec<Error> {
+    let here = Path::to(&[&c.name]);
+    let mut errors = Vec::new();
+    let mut known = true;
+    for f in &c.functions {
+        let names = f.takes.iter().chain([&f.gives]);
+        known &= typed_in(index, &here.then(&f.name), names, &c.params, &mut errors);
+    }
+    let standard = Simulation {
+        calls: Arc::new(contract_calls(c)),
+    };
+    for law in &c.claims {
+        let at = here.then(&law.name);
+        let ok = typed_in(index, &at, law.over.iter(), &c.params, &mut errors);
+        let scope: BTreeMap<String, Type> = law.over.iter().cloned().collect();
+        let mut calls = true;
+        let mut todo = vec![&law.holds];
+        while let Some(e) = todo.pop() {
+            if let Expression::Apply(op, args) = e {
+                if let simulation::Op::Call(f) = op {
+                    if standard.calls.get(f).is_none() {
+                        let message = format!("`{f}` is no function of `{}`", c.name);
+                        errors.push(error(M017, &at, message));
+                        calls = false;
+                    }
+                }
+                todo.extend(args.iter().map(|a| &a.body));
+            }
+        }
+        if known && ok && calls && typed(&standard, &scope, &law.holds) != Some(Type::Truth) {
+            errors.push(error(M006, &at, format!("`{}` is not a truth", law.name)));
+        }
+        if !made_in(index, &law.holds, &c.params) {
+            let message = format!("`{}` makes a record other than as declared", law.name);
+            errors.push(error(M004, &at, message));
+        }
+    }
+    errors
+}
+
+/// Why `i`, in `part`, does not fit its contract (M020), if it does not:
+/// a type for each parameter, within its bound, and a function of the
+/// part for each of the contract's, of its types.
+pub(crate) fn misfit(index: &Index, part: &Part, i: &Implements) -> Option<String> {
+    let Some(c) = index.contracts.get(i.contract.as_str()) else {
+        return Some(format!("`{}` names no contract", i.contract));
+    };
+    if i.types.len() != c.params.len() {
+        return Some(format!(
+            "`{}` takes {} types, given {}",
+            c.name,
+            c.params.len(),
+            i.types.len()
+        ));
+    }
+    for ((name, bound), t) in c.params.iter().zip(&i.types) {
+        if !known(index, t) || !bound.admits(t) {
+            let wanted = match bound {
+                Bound::Number => format!("`{name}: Number`"),
+                Bound::Any => format!("`{name}`"),
+            };
+            return Some(format!(
+                "`{}` cannot be {wanted} of `{}`",
+                crate::print::type_(t),
+                c.name
+            ));
+        }
+    }
+    if i.functions.len() != c.functions.len() {
+        let message = format!(
+            "`{}` has {} functions, given {}",
+            c.name,
+            c.functions.len(),
+            i.functions.len()
+        );
+        return Some(message);
+    }
+    let given: BTreeMap<String, Type> = c
+        .params
+        .iter()
+        .map(|(n, _)| n.clone())
+        .zip(i.types.iter().cloned())
+        .collect();
+    for (wanted, name) in c.functions.iter().zip(&i.functions) {
+        let Some(f) = part.functions.iter().find(|f| &f.name == name) else {
+            return Some(format!("`{name}` is no function of `{}`", part.name));
+        };
+        let takes: Vec<Type> = wanted.takes.iter().map(|(_, t)| t.given(&given)).collect();
+        let fits = f.takes.len() == takes.len()
+            && f.takes.iter().zip(&takes).all(|((_, a), b)| a == b)
+            && f.gives.1 == wanted.gives.1.given(&given);
+        if !fits {
+            return Some(format!(
+                "`{name}` does not take and give what `{}::{}` does",
+                c.name, wanted.name
+            ));
+        }
+    }
+    None
+}
+
+/// M021 and M022 for the example of the model at `i`: each input what a
+/// function takes, or what one with no body gives; each output what a
+/// function gives; each once, of its type; and each argument of a
+/// function an output or an input reads given.
+fn model_example(index: &Index, i: usize, example: &crate::model::ModelExample) -> Vec<Error> {
+    let at = Path::to(&["examples", &i.to_string()]);
+    let mut errors = Vec::new();
+    // The function of a port, and the type of the port; whether it is
+    // what the function gives.
+    let port = |p: &Path| -> Option<(&Function, Path, Type, bool)> {
+        let [part, f, name] = p.names.as_slice() else {
+            return None;
+        };
+        let function = *index.functions.get(&format!("{part}::{f}"))?;
+        let takes = function.takes.iter().find(|(n, _)| n == name);
+        match takes {
+            Some((_, t)) => Some((function, Path::to(&[part, f]), t.clone(), false)),
+            None if &function.gives.0 == name => Some((
+                function,
+                Path::to(&[part, f]),
+                function.gives.1.clone(),
+                true,
+            )),
+            None => None,
+        }
+    };
+    let mut given = BTreeSet::new();
+    let mut needs: Vec<(Path, &Function)> = Vec::new();
+    for (side, ports) in [("input", &example.inputs), ("output", &example.outputs)] {
+        let mut seen = BTreeSet::new();
+        for (p, v) in ports.iter() {
+            let Some((function, f, t, gives)) = port(p) else {
+                errors.push(error(
+                    M021,
+                    &at,
+                    format!("`{p}` is nothing a function takes or gives"),
+                ));
+                continue;
+            };
+            if !seen.insert(p.clone()) {
+                errors.push(error(M021, &at, format!("`{p}` is given twice")));
+            }
+            match (side, gives) {
+                ("input", true) if function.body.is_some() => {
+                    let message = format!("`{p}` is what `{f}` gives, and the model computes it: an output, not an input");
+                    errors.push(error(M021, &at, message));
+                }
+                ("output", false) => {
+                    let message =
+                        format!("`{p}` is what `{f}` takes: an output is what a function gives");
+                    errors.push(error(M021, &at, message));
+                }
+                _ => {}
+            }
+            if side == "input" {
+                given.insert(p.clone());
+            }
+            if gives {
+                needs.push((f, function));
+            }
+            if known(index, &t) && !Exact::default().has_type(v, &t) {
+                errors.push(error(
+                    M022,
+                    &at,
+                    format!("the value of `{p}` is not of its type"),
+                ));
+            }
+            if !value_made(index, v) {
+                errors.push(error(
+                    M004,
+                    &at,
+                    format!("the value of `{p}` makes a record other than as declared"),
+                ));
+            }
+        }
+    }
+    for (f, function) in needs {
+        for (name, _) in &function.takes {
+            if !given.contains(&f.then(name)) {
+                errors.push(error(M022, &at, format!("`{f}::{name}` is not given")));
+            }
+        }
+    }
+    errors
+}
+
+/// M023 and M008 for a proposition written in the rule at `at`: where
+/// functions of its part are correct, at points of their arguments, or
+/// at the point an all or an any around binds, over a set of their
+/// kinds.
+fn correct_wrong(index: &Index, at: &Path, place: &str, p: &Prop) -> Vec<Error> {
+    let mut errors = Vec::new();
+    let wrong = |why: String| error(M023, at, format!("{place}: {why}"));
+    if !p.well_formed() {
+        errors.push(wrong(
+            "a name no all or any binds, or a set that is not well formed".to_string(),
+        ));
+        return errors;
+    }
+    // Each proposition with the sets of the names bound around it.
+    let mut todo: Vec<(&Prop, Vec<(&str, &judgement::Set)>)> = vec![(p, vec![])];
+    while let Some((p, bound)) = todo.pop() {
+        match p {
+            Prop::Not(x) => todo.push((x, bound)),
+            Prop::All { name, over, body } | Prop::Any { name, over, body } => {
+                let mut bound = bound.clone();
+                bound.push((name, over));
+                todo.push((body, bound));
+            }
+            Prop::Correct { function, at: term } => {
+                let Some(f) = index.functions.get(function) else {
+                    errors.push(wrong(format!(
+                        "`{function}` names no function of the model"
+                    )));
+                    continue;
+                };
+                if function.split("::").next() != at.names.first().map(String::as_str) {
+                    let message = format!(
+                        "`{function}` is of another part: parts meet only through requires"
+                    );
+                    errors.push(error(M008, at, message));
+                }
+                let fits = match term {
+                    judgement::Term::Point(values) => {
+                        values.len() == f.takes.len()
+                            && values
+                                .iter()
+                                .zip(&f.takes)
+                                .all(|(v, (_, t))| Exact::default().has_type(v, t))
+                    }
+                    judgement::Term::Var(x) => {
+                        let set = bound.iter().rev().find(|(n, _)| n == x).map(|(_, s)| s);
+                        set.is_some_and(|s| {
+                            s.ranges.len() == f.takes.len()
+                                && s.ranges
+                                    .iter()
+                                    .zip(&f.takes)
+                                    .all(|((_, lo, _), (_, t))| Exact::default().has_type(lo, t))
+                        })
+                    }
+                    judgement::Term::Arbitrary { .. } => false,
+                };
+                if !fits {
+                    errors.push(wrong(format!(
+                        "`{function}` is not said correct at a point of what it takes"
+                    )));
+                }
+            }
+            Prop::Named(_) | Prop::Implies { .. } => {
+                errors.push(wrong(
+                    "only `correct`, `all`, `any` and `!` are written in place".to_string(),
+                ));
+            }
+        }
+    }
+    errors
 }

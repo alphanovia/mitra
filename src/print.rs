@@ -338,6 +338,7 @@ impl Writer<'_> {
         match t {
             Term::At(p) => self.path_of(p),
             Term::Holds(e) => format!("{{ {} }}", sim(e)),
+            Term::Prop(p) => self.prop(p),
         }
     }
 

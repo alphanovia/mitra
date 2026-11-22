@@ -91,6 +91,14 @@ pub const M012: Code = model(12);
 pub const M013: Code = model(13);
 pub const M014: Code = model(14);
 pub const M015: Code = model(15);
+pub const M016: Code = model(16);
+pub const M017: Code = model(17);
+pub const M018: Code = model(18);
+pub const M019: Code = model(19);
+pub const M020: Code = model(20);
+pub const M021: Code = model(21);
+pub const M022: Code = model(22);
+pub const M023: Code = model(23);
 
 const fn parse(number: u16) -> Code {
     Code {
@@ -146,6 +154,17 @@ pub const CATALOGUE: &[Entry] = &[
     entry(M013, "a declaration that rests on itself"),
     entry(M014, "a rule named through itself"),
     entry(M015, "an example not of its function's types"),
+    entry(M016, "a use that names nothing of another part"),
+    entry(M017, "a call of no function"),
+    entry(M018, "a function or record of another part, not used"),
+    entry(M019, "a function that calls itself"),
+    entry(M020, "an impl that does not fit its contract"),
+    entry(M021, "a model example that names no input or output"),
+    entry(
+        M022,
+        "a model example not of its types, or missing an input",
+    ),
+    entry(M023, "a correct, all or any a rule cannot write"),
     entry(P001, "a character that starts nothing"),
     entry(P002, "a string that is not closed"),
     entry(P003, "not what the language has here"),

@@ -82,6 +82,8 @@ fn sun() -> Part {
     Part {
         name: "sun".to_string(),
         kind: Kind::Environment,
+        uses: vec![],
+        implements: vec![],
         records: vec![],
         functions: vec![light],
         requires: vec![],
@@ -145,6 +147,8 @@ fn stone() -> Part {
     Part {
         name: "stone".to_string(),
         kind: Kind::Subject,
+        uses: vec![],
+        implements: vec![],
         records: vec![],
         functions: vec![drop, speed],
         requires: vec![
@@ -169,6 +173,8 @@ fn stone() -> Part {
 fn fall() -> Model {
     Model {
         parts: vec![sun(), stone()],
+        contracts: vec![],
+        examples: vec![],
         ties: vec![Tie {
             item: path("stone::drop"),
             at: Location::at(&["lab", "tower", "stone"]),
@@ -494,6 +500,8 @@ fn numbers_read_and_print_exactly() {
     assert_eq!(real_text(&r(1, 1000)), "0.001");
     let m = Model {
         parts: vec![],
+        contracts: vec![],
+        examples: vec![],
         ties: vec![],
     };
     let (takes, gives) = parse_row("(1/3, -2, 0.25, true) -> (1, 2.5)", &m).unwrap();
@@ -685,11 +693,15 @@ fn in_a_model(holds: E) -> Model {
         parts: vec![Part {
             name: "s".to_string(),
             kind: Kind::Subject,
+            uses: vec![],
+            implements: vec![],
             records: vec![],
             functions: vec![f],
             requires: vec![],
             ensures: vec![],
         }],
+        contracts: vec![],
+        examples: vec![],
         ties: vec![],
     }
 }

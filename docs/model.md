@@ -8,8 +8,9 @@ can hold. It runs nothing, but each rule's proof, once (choice 5).
 
 `src/expression.rs` did not change for it (`git diff eca4b67 --
 src/expression.rs` is empty). `src/simulation.rs` gained one helper,
-`tuple`. `src/judgement.rs` renamed `Piece` to `Prop`, and now knows rules
-by name (choice 9).
+`tuple`, then calls by path and type parameters (`docs/core2.md`, choices
+12 and 13). `src/judgement.rs` renamed `Piece` to `Prop`, and now knows
+rules by name (choice 9).
 
 ## The fall
 
@@ -64,8 +65,15 @@ What the tests show on it:
 ## Data
 
 ```rust
-struct Model { parts: Vec<Part>, ties: Vec<Tie> }
-struct Part { name, kind: Kind /* Subject | Environment */, records, functions, requires, ensures }
+struct Model { parts: Vec<Part>, contracts: Vec<Contract>, examples: Vec<ModelExample>, ties: Vec<Tie> }
+struct Part { name, kind: Kind /* Subject | Environment */, uses: Vec<Use>, records, functions,
+              implements: Vec<Implements>, requires, ensures }
+enum Use { Names { part, names: Vec<String> } /* use sun::{light, Ray}; */, Glob { part } /* use sun::*; */ }
+struct Contract { name, params: Vec<(String, Bound)> /* T, T: Number */, functions: Vec<Signature>, claims: Vec<Law> }
+struct Signature { name, takes: Vec<(String, Type)>, gives: (String, Type) }
+struct Law { name, over: Vec<(String, Type)>, holds: Expression<simulation::Op> }   // true at every value of `over`
+struct Implements { contract, types: Vec<Type>, functions: Vec<String> }            // impl Monotone<Real> for speed;
+struct ModelExample { inputs: Vec<(Path, Value)>, outputs: Vec<(Path, Value)> }    // stone::speed::h = 5.0 -> stone::speed::v2 = 98.1
 struct Record { name, fields: Option<Vec<(String, Type)>> /* None: opaque */, claims, rules }
 struct Function { name, takes: Vec<(String, Type)>, gives: (String, Type),
                   body: Option<Expression<simulation::Op>> /* None: opaque */,
@@ -74,7 +82,7 @@ struct Example { takes: Vec<simulation::Value>, gives: simulation::Value }   // 
 struct Claim { name, holds: Expression<simulation::Op> }          // must be a truth
 struct Rule { name, premises: Vec<Term>, conclusion: Term,
               proof: Option<Expression<judgement::Op>> /* None: assumed */ }
-enum Term { At(Path), Holds(Expression<simulation::Op>) }  // a claim, rule, require or ensure, or written in place
+enum Term { At(Path), Holds(Expression<simulation::Op>), Prop(Prop) }  // by path, an expression, or correct/all/any in place
 struct Require { name, from: Source }    enum Source { Prose(String), Ensure(Path) }
 struct Ensure { name, prose: String, from: Vec<Vec<Path>> }        // any one list, all of it
 struct Tie { item: Path, at: Location }
@@ -82,7 +90,9 @@ struct Path { names: Vec<String> }                                 // stone::dro
 ```
 
 `levels(model)`, `props(model)`, `judgement(model)` and `leaves(model)`
-read the model. `check(model) -> Vec<Error>`, in `src/check.rs`, says
+read the model. `calls(model)` gives its functions as simulation calls
+them, and `contract_claims(model)` each contract's claim read of the
+functions that fit it. `check(model) -> Vec<Error>`, in `src/check.rs`, says
 where it is not well formed: each error has a code of the catalogue, the
 path of the declaration to fix, and a message (below).
 
@@ -113,6 +123,14 @@ and each code its page in `docs/reference`, with an example and the fix.
 | M013 | Nothing rests on itself. A conclusion rests on its rule's premises and on the rule, a require on its ensure, and an ensure on what its lists name. Each declaration on a cycle, across parts too, is reported. |
 | M014 | No rule is named through itself: a term of it names it, or names a rule a term of which does, and so on (choice 9). Found even when a term of the rule names nothing. |
 | M015 | An example takes one value for each name its function takes, in order, each of its type, and gives one of the type the function gives. |
+| M016 | A use names another part, and functions or records of it. |
+| M017 | A call names a function of the model; a contract's claim, one of the contract's. A body or claim with such a call is not also checked for its type. |
+| M018 | Another part's function is called, and its record named, only through a use. |
+| M019 | No function calls itself through its body, however far. Each on a cycle is reported. |
+| M020 | An impl names a contract, gives a type for each parameter within its bound, and one function of its part for each of the contract's, of its types. |
+| M021 | An example of the model names what functions take or give: inputs what they take, or what one with no body gives; outputs what they give; each once. |
+| M022 | Each value of an example of the model is of its type, and every argument of a function it reads the output of is given. |
+| M023 | A proposition written in a rule is `correct(f, point)` of a function of its part, or an all, an any or a `!` of those, with points and sets that fit what `f` takes. |
 
 ## Errors and the catalogue
 
@@ -145,6 +163,8 @@ error[M002]: `falls` is declared twice
 | require `q` from ensure `e` | `{e} q {q}` | `q` |
 | each list `l` of ensure `e` | `{l} e {e}` | `e` |
 | tie of `i` at `place` | `i at place` | `i` |
+| `correct(f, x)`, or an all or an any of them, written in a rule `r` | itself, whichever rule writes it | `r` |
+| claim `c` of contract `C`, for an impl of `C` for `f` | `f::C::c` | `f` |
 
 A proposition is given once. A leaf is a proposition nothing concludes. A
 rule judgement knows concludes its conclusion. A require from an ensure is concluded by it,
@@ -223,7 +243,8 @@ same way, and the numbers layer weighs each voice.
 require comes from words (a hypothesis) or from another part's ensure. An
 ensure follows from any one of its lists, each held together. With no list,
 only someone taking it holds it. Rules and lists name only their own part's
-items, so parts meet only through requires.
+items, so propositions of parts meet only through requires. Data meets
+through `use` (choice 10).
 *Example*: `stone::light` comes from `sun::shines`. A stone rule cannot name
 `sun::shines`: it names `stone::light`.
 *Gain*: each link between parts is a proposition that can be blamed.
@@ -324,25 +345,80 @@ needs a meaning of its own, which judgement does not have.
     with examples and no body is partial.
 18. **The checker's voice is `machine:mitra-check`**, in the takings its
     proofs give. Nothing gives them yet: the evidence layer will.
+19. **A use is `Use::Names` or `Use::Glob`**, and a part needs none for its
+    own functions and records. A record of another part in a type, or made
+    in an expression, needs one, as a call does.
+20. **A contract's claim is a `Law`**, a claim with its own arguments
+    (`over`), true at every value of them. Say no to name it otherwise.
+21. **An impl is declared in the first function it names**, beside its
+    claims: `stone::speed::Monotone`, so a claim of `speed` named
+    `Monotone` is M002. Its claims are under it:
+    `stone::speed::Monotone::rises`, one name deeper than a function's.
+22. **Contracts are named like parts** (`Monotone::f` is a path), so a
+    contract and a part do not share a name (M002).
+23. **An error in an example of the model is at `examples::i`**, its
+    place in the list: the example has no name.
+24. **A `correct` written in a rule is the proposition itself**, the same
+    for every rule that writes it, unlike an expression written in place.
+    So a cycle through it is found (M013).
+25. **A call of no function is reported alone** (M017): the body or claim
+    is not also checked for its type.
 
-## Contracts: not built
+## Uses, contracts and examples of the model
 
-A contract is a named bundle of claims, rules, requires and ensures that
-several items promise (main's `contract C` and `impl C for T`). Its claims
-must be read in each item that promises it, with that item's names and
-types. There are two ways, and the choice is yours:
+**10. A part reads another's functions and records through a `use`.** As
+Rust's: `use sun::{light, Ray};` names some, `use sun::*;` all. A call is
+written by its path, `sun::light()`, and simulation runs it (`docs/core2.md`,
+choice 12): the body, or a row of its examples, or no value.
+*Example*: `stone::speed` is `2 · g · h · sun::light()`. With `use
+sun::light;` it is well formed; without, M018 says which use is missing.
+*Gain*: the model computes across parts, so an example or a test can give
+A's inputs and state B's outputs. Each link is written once, at the top of
+the part, and can be blamed: a claim that reads `light()` rests on the sun
+too (the explain layer).
+*Give up*: a use is one more line per link. Records are named by their
+name alone (they are unique in the model), so `use sun::Ray;` only says
+that the stone may name it.
+*Elsewhere*: Rust's `use`, Python's `import`, Java's `import`. Ada's
+`with` clauses make the same links explicit for the same reason: a
+package's dependencies are read from its first lines.
 
-- **Checked in each item** (like C++ templates). `Implements { contract,
-  item }` in the model, and each claim of the contract checked again in the
-  item's scope. About 40 lines, no change to simulation. A contract is
-  only checked where it is used.
-- **Type parameters** (like Rust traits). The contract is checked once,
-  over types it names but does not fix. This needs type variables in the
-  simulation standard and in its `gives`. It is bigger, and it changes
-  simulation, not expression.
+**11. A contract is a property written once, for every function that
+fits it.** As a Rust trait with a bound: `contract Monotone<T: Number> {
+fn f(x: T) -> y: T; claim rises(a: T, b: T) = !(a <= b) || f(a) <= f(b);
+}`. The contract is checked once, with `T` named but not fixed: its types,
+and that each claim is a truth calling only the contract's functions
+(`Monotone::f`). `impl Monotone<Real> for speed;` only checks that `speed`
+fits: `Real` is a number, and `speed` takes and gives a `Real`. The claim
+then becomes one about `speed`, `stone::speed::Monotone::rises`, read with
+`speed` for `f` and `Real` for `T`, which agree and explain check like any
+claim.
+*Example*: the stone's `speed` rises with the height; so does any other
+function that fits `Monotone`, with no claim written again.
+*Gain*: one property for many functions; a mistake in it is reported once,
+at the contract (M006 at `Monotone::rises`), not at each use.
+*Give up*: a contract claim has its own arguments (`a`, `b`), unlike a
+function's claim, which reads what the function takes and gives. Nothing is
+computed on `T` itself: no value is of it. A contract has functions and
+claims only; rules, requires and ensures in a contract are not in this
+round.
+*Elsewhere*: Rust traits and Haskell type classes are checked once, as
+here; C++ templates are checked at each use. Your first option, checking
+each claim again in each item, was the C++ way.
 
-Not in this round: syntax, nesting of parts, contracts, evidence and
-measurements, a reading of circular assume–guarantee (for diagnose).
+**12. Examples of the model as a whole.** A row says what the model gives
+across parts, as an end-to-end test would: `(sun::light::w = 850.0,
+stone::speed::h = 5.0) -> stone::speed::v2 = 98.1`. Inputs are what
+functions take, or what a function with no body gives (the world's value
+there); outputs are what functions give. Through calls, the model computes
+the outputs, and agree compares them, as it compares a function's rows.
+*Gain*: the spec of an end-to-end test, written with the model's names; a
+measurement through ties has the same shape, so the two can be compared.
+*Give up*: the model must compute each output: every argument of its
+function is given. An output the model can only reach through a function
+it does not call is not computed: the example says so (M022).
+*Elsewhere*: Gherkin's examples tables (Given/When/Then), and golden
+tests: inputs and expected outputs of a whole program.
 
 ## Red team (round 4)
 

@@ -636,6 +636,8 @@ impl<'c> Parser<'c> {
         }
         Ok(Model {
             parts,
+            contracts: vec![],
+            examples: vec![],
             ties: self.ties,
         })
     }
@@ -670,8 +672,10 @@ impl<'c> Parser<'c> {
         let mut part = Part {
             name,
             kind,
+            uses: vec![],
             records: vec![],
             functions: vec![],
+            implements: vec![],
             requires: vec![],
             ensures: vec![],
         };

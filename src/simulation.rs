@@ -276,7 +276,7 @@ impl Calls {
             names.iter().enumerate().map(|(i, n)| (*n, i)).collect();
         let mut out = vec![Vec::new(); names.len()];
         let mut refused = BTreeSet::new();
-        for (i, (name, callee)) in callees.iter().enumerate() {
+        for (i, callee) in callees.values().enumerate() {
             // A function the library lacks is refused by its type, below.
             for called in callee.body.iter().flat_map(called) {
                 out[i].extend(place.get(&called).copied());

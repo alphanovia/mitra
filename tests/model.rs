@@ -12,11 +12,15 @@ use mitra_core::expression::{eval, Expression};
 use mitra_core::judgement::{self, Opinion, Prop, State, Taking};
 use mitra_core::location::Location;
 use mitra_core::model::{
-    judgement, leaves, levels, props, Claim, Ensure, Example, Function, Kind, Level, Model, Part,
-    Path, Record, Require, Rule, Source, Term, Tie,
+    calls, contract_claims, judgement, leaves, levels, props, Claim, Contract, Ensure, Example,
+    Function, Implements, Kind, Law, Level, Model, ModelExample, Part, Path, Record, Require, Rule,
+    Signature, Source, Term, Tie, Use,
 };
-use mitra_core::simulation::{self, tuple, Bounds, Exact, Op, Ranges, Rational, Type, Value};
+use mitra_core::simulation::{
+    self, tuple, Bound, Bounds, Exact, Op, Ranges, Rational, Type, Value,
+};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 type E = Expression<Op>;
 
@@ -78,6 +82,8 @@ fn sun() -> Part {
     Part {
         name: "sun".to_string(),
         kind: Kind::Environment,
+        uses: vec![],
+        implements: vec![],
         records: vec![],
         functions: vec![light],
         requires: vec![],
@@ -141,6 +147,8 @@ fn stone() -> Part {
     Part {
         name: "stone".to_string(),
         kind: Kind::Subject,
+        uses: vec![],
+        implements: vec![],
         records: vec![],
         functions: vec![drop, speed],
         requires: vec![
@@ -165,6 +173,8 @@ fn stone() -> Part {
 fn fall() -> Model {
     Model {
         parts: vec![sun(), stone()],
+        contracts: vec![],
+        examples: vec![],
         ties: vec![Tie {
             item: path("stone::drop"),
             at: Location::at(&["lab", "tower", "stone"]),
@@ -436,7 +446,10 @@ fn claims_run_in_simulation() {
     let slow = let_in(Op::Let, "v2", body, speed.claims[0].holds.clone());
     let low = Bounds::between(Rational::integer(0), Rational::integer(20)).unwrap();
     let heights = BTreeMap::from([("h".to_string(), low)]);
-    assert_eq!(eval(&Ranges::default(), &heights, &slow).unwrap().surely(), Some(true));
+    assert_eq!(
+        eval(&Ranges::default(), &heights, &slow).unwrap().surely(),
+        Some(true)
+    );
     let measured = BTreeMap::from([
         ("h".to_string(), Value::Real(Rational::integer(5))),
         ("v".to_string(), Value::Real(Rational::new(99, 10).unwrap())),
@@ -602,6 +615,48 @@ fn each_error_is_found() {
                     gives: Value::Real(Rational::integer(0)),
                 };
                 m.parts[1].functions[1].examples.push(row);
+            }),
+        ),
+        (
+            "M016 at stone",
+            Box::new(|m| m.parts[1].uses.push(uses("sun", &["lamp"]))),
+        ),
+        (
+            "M017 at stone::speed",
+            Box::new(|m| m.parts[1].functions[1].body = Some(times_light("sun::lamp"))),
+        ),
+        (
+            "M018 at stone::speed",
+            Box::new(|m| m.parts[1].functions[1].body = Some(times_light("sun::light"))),
+        ),
+        (
+            "M019 at stone::speed",
+            Box::new(|m| {
+                m.parts[1].functions[1].body = Some(call("stone::speed", vec![name("h")]))
+            }),
+        ),
+        (
+            "M020 at stone::speed::Monotone",
+            Box::new(|m| {
+                m.parts[1]
+                    .implements
+                    .push(fits("Monotone", Type::Real, "speed"))
+            }),
+        ),
+        (
+            "M021 at examples::0",
+            Box::new(|m| m.examples.push(example(&[], &[("stone::speed::h", 5)]))),
+        ),
+        (
+            "M022 at examples::0",
+            Box::new(|m| m.examples.push(example(&[], &[("stone::speed::v2", 98)]))),
+        ),
+        (
+            "M023 at stone::drop::everywhere",
+            Box::new(|m| {
+                let mut everywhere = rule("everywhere", &[], "stone::drop::slow");
+                everywhere.conclusion = Term::Prop(correct("stone::drop", Some(vec![])));
+                m.parts[1].functions[0].rules.push(everywhere);
             }),
         ),
     ];
@@ -1190,4 +1245,458 @@ fn props_are_given_once_of_what_is_there() {
     let list = model.parts[1].ensures[0].from[0].clone();
     model.parts[1].ensures[0].from.push(list);
     assert_eq!(props(&model), props(&fall()));
+}
+
+fn call(f: &str, args: Vec<E>) -> E {
+    apply(Op::Call(f.to_string()), args)
+}
+fn uses(part: &str, names: &[&str]) -> Use {
+    Use::Names {
+        part: part.to_string(),
+        names: names.iter().map(|n| n.to_string()).collect(),
+    }
+}
+/// 2·g·h times what `f` gives.
+fn times_light(f: &str) -> E {
+    apply(Op::Mul, vec![two_g_h(), call(f, vec![])])
+}
+fn fits(contract: &str, t: Type, function: &str) -> Implements {
+    Implements {
+        contract: contract.to_string(),
+        types: vec![t],
+        functions: vec![function.to_string()],
+    }
+}
+fn number(n: i64) -> Value {
+    Value::Real(Rational::integer(n))
+}
+fn example(inputs: &[(&str, i64)], outputs: &[(&str, i64)]) -> ModelExample {
+    let side = |ports: &[(&str, i64)]| ports.iter().map(|(p, n)| (path(p), number(*n))).collect();
+    ModelExample {
+        inputs: side(inputs),
+        outputs: side(outputs),
+    }
+}
+/// `correct(f, point)`, or `correct(f, x)` for `x` bound around it.
+fn correct(f: &str, point: Option<Vec<Value>>) -> Prop {
+    Prop::Correct {
+        function: f.to_string(),
+        at: match point {
+            Some(p) => judgement::Term::Point(p),
+            None => judgement::Term::Var("x".to_string()),
+        },
+    }
+}
+/// `T: Number`.
+fn number_param() -> Type {
+    Type::Param {
+        name: "T".to_string(),
+        bound: Bound::Number,
+    }
+}
+/// `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T,
+/// b: T) = !(a <= b) || f(a) <= f(b); }`
+fn monotone() -> Contract {
+    let t = number_param();
+    let f = |x: &str| call("Monotone::f", vec![name(x)]);
+    let le = |a: E, b: E| apply(Op::AtMost, vec![a, b]);
+    let rises = apply(
+        Op::Or,
+        vec![
+            apply(Op::Not, vec![le(name("a"), name("b"))]),
+            le(f("a"), f("b")),
+        ],
+    );
+    Contract {
+        name: "Monotone".to_string(),
+        params: vec![("T".to_string(), Bound::Number)],
+        functions: vec![Signature {
+            name: "f".to_string(),
+            takes: vec![("x".to_string(), t.clone())],
+            gives: ("y".to_string(), t.clone()),
+        }],
+        claims: vec![Law {
+            name: "rises".to_string(),
+            over: vec![("a".to_string(), t.clone()), ("b".to_string(), t)],
+            holds: rises,
+        }],
+    }
+}
+
+/// `use`: the stone reads the sun's light, and its speed is computed
+/// through the call. A use names another part, and what it lists is
+/// there; a record of another part is named only through one too.
+#[test]
+fn parts_read_each_other_through_uses() {
+    let lit = |m: &mut Model| m.parts[1].functions[1].body = Some(times_light("sun::light"));
+    let used = changed(|m| {
+        lit(m);
+        m.parts[1].uses.push(uses("sun", &["light"]));
+    });
+    assert_eq!(used, Vec::<String>::new());
+    let glob = changed(|m| {
+        lit(m);
+        m.parts[1].uses.push(Use::Glob {
+            part: "sun".to_string(),
+        });
+    });
+    assert_eq!(glob, Vec::<String>::new());
+    // Another name of the sun is not this one; and its own part needs none.
+    let other = changed(|m| {
+        lit(m);
+        m.parts[1].uses.push(uses("sun", &["shines"]));
+    });
+    assert_eq!(other, ["M016 at stone", "M018 at stone::speed"]);
+    let own = changed(|m| {
+        m.parts[1].uses.push(Use::Glob {
+            part: "stone".to_string(),
+        })
+    });
+    assert_eq!(own, ["M016 at stone"]);
+    let nowhere = changed(|m| {
+        m.parts[1].uses.push(Use::Glob {
+            part: "moon".to_string(),
+        })
+    });
+    assert_eq!(nowhere, ["M016 at stone"]);
+    let inside =
+        changed(|m| m.parts[1].functions[1].body = Some(call("stone::drop", vec![name("h")])));
+    assert_eq!(inside, Vec::<String>::new());
+    // Through a claim, a rule's expression, a type and a record made.
+    let ray = Record {
+        name: "Ray".to_string(),
+        fields: Some(vec![("w".to_string(), Type::Real)]),
+        claims: vec![],
+        rules: vec![],
+    };
+    let ray_type = Type::Record(simulation::Record {
+        name: "Ray".to_string(),
+        fields: vec![("w".to_string(), Type::Real)],
+    });
+    let read = |m: &mut Model| {
+        m.parts[0].records.push(ray.clone());
+        let bright = apply(Op::Less, vec![real(0), call("sun::light", vec![])]);
+        m.parts[1].functions[1]
+            .claims
+            .push(claim("bright", bright.clone()));
+        let mut lit = rule("lit", &[], "stone::speed::slow");
+        lit.premises.push(Term::Holds(bright));
+        m.parts[1].functions[1].rules.push(lit);
+        m.parts[1].functions[0]
+            .takes
+            .push(("r".to_string(), ray_type.clone()));
+        let make = apply(
+            Op::Make(match ray_type.clone() {
+                Type::Record(r) => r,
+                _ => unreachable!(),
+            }),
+            vec![real(1)],
+        );
+        let made = apply(
+            Op::Less,
+            vec![real(0), apply(Op::Field("w".to_string()), vec![make])],
+        );
+        m.parts[1].functions[0].claims.push(claim("made", made));
+    };
+    let unused = changed(read);
+    let expected = [
+        "M018 at stone::drop::made",
+        "M018 at stone::drop::r",
+        "M018 at stone::speed::bright",
+        "M018 at stone::speed::lit",
+    ];
+    assert_eq!(unused, expected);
+    let used = changed(|m| {
+        read(m);
+        m.parts[1].uses.push(uses("sun", &["light", "Ray"]));
+    });
+    assert_eq!(used, Vec::<String>::new());
+}
+
+/// Calls never go round, through bodies: every function on a cycle is
+/// named. A claim may call its own function: claims do not run inside
+/// bodies.
+#[test]
+fn no_function_calls_itself() {
+    let round = changed(|m| {
+        m.parts[1].functions[1].body = Some(call("stone::drop", vec![name("h")]));
+        m.parts[1].functions[0].body = Some(call("stone::speed", vec![name("h")]));
+    });
+    assert_eq!(round, ["M019 at stone::drop", "M019 at stone::speed"]);
+    let claimed = changed(|m| {
+        let again = apply(
+            Op::Equal,
+            vec![call("stone::speed", vec![name("h")]), name("v2")],
+        );
+        m.parts[1].functions[1].claims.push(claim("again", again));
+    });
+    assert_eq!(claimed, Vec::<String>::new());
+    // The library: what the model computes, through calls; refused names
+    // when a function goes round.
+    let mut model = fall();
+    model.parts[1].uses.push(uses("sun", &["light"]));
+    model.parts[1].functions[1].body = Some(times_light("sun::light"));
+    model.parts[0].functions[0].examples.push(Example {
+        takes: vec![],
+        gives: number(2),
+    });
+    let library = Arc::new(calls(&model).unwrap());
+    let exact = Exact { calls: library };
+    let speed = call("stone::speed", vec![real(5)]);
+    let gives = eval(&exact, &BTreeMap::new(), &speed);
+    assert_eq!(gives, Ok(Value::Real(Rational::new(1962, 10).unwrap())));
+    model.parts[1].functions[0].body = Some(call("stone::drop", vec![name("h")]));
+    assert_eq!(
+        calls(&model).err(),
+        Some(BTreeSet::from(["stone::drop".to_string()]))
+    );
+}
+
+/// A contract, Rust's trait: written once over `T: Number`, checked
+/// once, and an impl only fits it. Its claim is then a claim about the
+/// function that fits, with its calls made calls of that function.
+#[test]
+fn contracts_are_checked_once_and_fitted() {
+    let with = |change: Box<dyn FnOnce(&mut Contract)>, fit: Option<Implements>| {
+        changed(move |m| {
+            let mut c = monotone();
+            change(&mut c);
+            m.contracts.push(c);
+            m.parts[1].implements.extend(fit);
+        })
+    };
+    let fine = || Some(fits("Monotone", Type::Real, "speed"));
+    assert_eq!(with(Box::new(|_| {}), fine()), Vec::<String>::new());
+    // Its claim, read of `speed`.
+    let mut model = fall();
+    model.contracts.push(monotone());
+    model.parts[1]
+        .implements
+        .push(fits("Monotone", Type::Real, "speed"));
+    let claims = contract_claims(&model);
+    assert_eq!(claims.len(), 1);
+    assert_eq!(claims[0].at, path("stone::speed::Monotone::rises"));
+    assert_eq!(
+        claims[0].over,
+        vec![("a".to_string(), Type::Real), ("b".to_string(), Type::Real)]
+    );
+    let reads_speed = format!("{:?}", claims[0].holds);
+    assert!(reads_speed.contains("stone::speed") && !reads_speed.contains("Monotone::f"));
+    let rises = Prop::named("stone::speed::Monotone::rises");
+    assert!(props(&model).contains(&(path("stone::speed::Monotone::rises"), rises)));
+    // Run at two points, it holds: speed rises with h.
+    let exact = Exact {
+        calls: Arc::new(calls(&model).unwrap()),
+    };
+    let points = BTreeMap::from([("a".to_string(), number(1)), ("b".to_string(), number(2))]);
+    assert_eq!(
+        eval(&exact, &points, &claims[0].holds),
+        Ok(Value::Truth(true))
+    );
+    // Errors in the contract are found once, at the contract.
+    let not_truth = with(
+        Box::new(|c| c.claims[0].holds = call("Monotone::f", vec![name("a")])),
+        fine(),
+    );
+    assert_eq!(not_truth, ["M006 at Monotone::rises"]);
+    let outside = with(
+        Box::new(|c| {
+            c.claims[0].holds = apply(Op::Less, vec![real(0), call("sun::light", vec![])])
+        }),
+        fine(),
+    );
+    assert_eq!(outside, ["M017 at Monotone::rises"]);
+    let any = with(
+        Box::new(|c| {
+            c.functions[0].takes[0].1 = Type::Param {
+                name: "T".to_string(),
+                bound: Bound::Any,
+            }
+        }),
+        fine(),
+    );
+    assert_eq!(any, ["M003 at Monotone::f::x"]);
+    let named = with(
+        Box::new(|c| {
+            c.name = "sun".to_string();
+            c.claims.clear();
+        }),
+        None,
+    );
+    assert_eq!(named, ["M002 at sun"]);
+    // A parameter outside a contract.
+    let open = changed(|m| m.parts[1].functions[1].takes[0].1 = number_param());
+    assert_eq!(open, ["M003 at stone::speed::h"]);
+    // An impl only fits: the bound, the count, the functions and their types.
+    for (fit, why) in [
+        (fits("Monotone", Type::Truth, "speed"), "bound"),
+        (
+            Implements {
+                types: vec![],
+                ..fits("Monotone", Type::Real, "speed")
+            },
+            "count",
+        ),
+        (fits("Monotone", Type::Int, "speed"), "types"),
+        (fits("Monotone", Type::Real, "nowhere"), "function"),
+        (
+            Implements {
+                functions: vec![],
+                ..fits("Monotone", Type::Real, "speed")
+            },
+            "functions",
+        ),
+    ] {
+        let at = match fit.functions.is_empty() {
+            true => "M020 at stone::Monotone",
+            false => "M020 at stone::speed::Monotone",
+        };
+        let at = if why == "function" {
+            "M020 at stone::nowhere::Monotone"
+        } else {
+            at
+        };
+        assert_eq!(with(Box::new(|_| {}), Some(fit)), [at], "{why}");
+    }
+    // An impl declared twice, or beside a claim of its name.
+    let twice = with(Box::new(|_| {}), fine());
+    assert!(twice.is_empty());
+    let twice = changed(|m| {
+        m.contracts.push(monotone());
+        m.parts[1]
+            .implements
+            .push(fits("Monotone", Type::Real, "speed"));
+        m.parts[1]
+            .implements
+            .push(fits("Monotone", Type::Real, "speed"));
+    });
+    assert_eq!(twice, ["M002 at stone::speed::Monotone"]);
+    // A function that fits says more than its name: it is no longer opaque.
+    let mut model = fall();
+    model.contracts.push(monotone());
+    model.parts[0].functions[0]
+        .takes
+        .push(("t".to_string(), Type::Real));
+    model.parts[0]
+        .implements
+        .push(fits("Monotone", Type::Real, "light"));
+    assert_eq!(check(&model), vec![]);
+    assert_eq!(levels(&model)[0], (path("sun::light"), Level::Partial));
+}
+
+/// Examples of the model as a whole, end to end: inputs on what
+/// functions take, or on what one with no body gives; outputs on what
+/// functions give, each argument given.
+#[test]
+fn model_examples_name_inputs_and_outputs() {
+    let lit = |m: &mut Model| {
+        m.parts[1].uses.push(uses("sun", &["light"]));
+        m.parts[1].functions[1].body = Some(times_light("sun::light"));
+    };
+    let fine = changed(|m| {
+        lit(m);
+        m.examples.push(example(
+            &[("sun::light::w", 2), ("stone::speed::h", 5)],
+            &[("stone::speed::v2", 196)],
+        ));
+    });
+    assert_eq!(fine, Vec::<String>::new());
+    for (inputs, outputs, expected) in [
+        // An input the model computes; an output it takes; a name of nothing.
+        (
+            vec![("stone::speed::v2", 1), ("stone::speed::h", 1)],
+            vec![],
+            "M021",
+        ),
+        (
+            vec![("stone::speed::h", 1)],
+            vec![("stone::speed::h", 1)],
+            "M021",
+        ),
+        (vec![("stone::speed::x", 1)], vec![], "M021"),
+        (vec![("stone::speed", 1)], vec![], "M021"),
+        (
+            vec![("stone::speed::h", 1), ("stone::speed::h", 2)],
+            vec![],
+            "M021",
+        ),
+        // What a function with no body gives, at no point.
+        (vec![("stone::drop::v", 1)], vec![], "M022"),
+    ] {
+        let got = changed(|m| {
+            lit(m);
+            m.examples.push(example(&inputs, &outputs));
+        });
+        assert_eq!(
+            got,
+            [format!("{expected} at examples::0")],
+            "{inputs:?} {outputs:?}"
+        );
+    }
+    let typed = changed(|m| {
+        m.examples.push(ModelExample {
+            inputs: vec![(path("stone::speed::h"), Value::Truth(true))],
+            outputs: vec![],
+        });
+    });
+    assert_eq!(typed, ["M022 at examples::0"]);
+}
+
+/// A rule writes where functions of its part are correct: at a point,
+/// or over a set, as an all or an any. Such a proposition is itself,
+/// whichever rule writes it.
+#[test]
+fn rules_write_where_functions_are_correct() {
+    let set = |kind: Value| judgement::Set {
+        ranges: vec![("h".to_string(), kind.clone(), kind)],
+        such: None,
+    };
+    let everywhere = |over: judgement::Set, body: Prop| Prop::All {
+        name: "x".to_string(),
+        over,
+        body: Box::new(body),
+    };
+    let with = |conclusion: Prop| {
+        changed(move |m| {
+            let mut r = rule("everywhere", &["stone::speed::slow"], "stone::drop::slow");
+            r.conclusion = Term::Prop(conclusion);
+            m.parts[1].functions[1].rules.push(r);
+        })
+    };
+    let fine = everywhere(set(number(0)), correct("stone::speed", None));
+    assert_eq!(with(fine.clone()), Vec::<String>::new());
+    let at_point = correct("stone::speed", Some(vec![number(5)]));
+    assert_eq!(with(at_point), Vec::<String>::new());
+    let ints = everywhere(set(Value::Int(0.into())), correct("stone::speed", None));
+    assert_eq!(with(ints), ["M023 at stone::speed::everywhere"]);
+    let free = correct("stone::speed", None);
+    assert_eq!(with(free), ["M023 at stone::speed::everywhere"]);
+    let sun = correct("sun::light", Some(vec![]));
+    assert_eq!(with(sun), ["M008 at stone::speed::everywhere"]);
+    let nothing = correct("stone::nothing", Some(vec![]));
+    assert_eq!(with(nothing), ["M023 at stone::speed::everywhere"]);
+    assert_eq!(
+        with(Prop::named("stone::speed::slow")),
+        ["M023 at stone::speed::everywhere"]
+    );
+    // The proposition is itself, a leaf when nothing gives it.
+    let mut model = fall();
+    let mut r = rule("represented", &[], "stone::speed::slow");
+    r.premises.push(Term::Prop(fine.clone()));
+    model.parts[1].functions[1].rules.push(r);
+    assert_eq!(check(&model), vec![]);
+    assert!(props(&model).contains(&(path("stone::speed::represented"), fine.clone())));
+    assert!(leaves(&model).iter().any(|(_, p)| *p == fine));
+    // Two rules writing it, one from the other: a cycle through it.
+    let round = changed(|m| {
+        let mut a = rule("a", &[], "stone::speed::slow");
+        a.premises.push(Term::Prop(fine.clone()));
+        let mut b = rule("b", &["stone::speed::slow"], "stone::speed::slow");
+        b.conclusion = Term::Prop(fine.clone());
+        m.parts[1].functions[1].rules.extend([a, b]);
+    });
+    assert!(
+        round.iter().all(|e| e.starts_with("M013")) && !round.is_empty(),
+        "{round:?}"
+    );
 }
