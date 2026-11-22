@@ -466,43 +466,43 @@ impl<'c> Parser<'c> {
 
     // ------------------------------------------------ tokens
 
-    fn peek(&self) -> &Tok {
+    pub(crate) fn peek(&self) -> &Tok {
         &self.tokens[self.i.min(self.tokens.len() - 1)].0
     }
     fn peek_at(&self, k: usize) -> &Tok {
         &self.tokens[(self.i + k).min(self.tokens.len() - 1)].0
     }
-    fn pos(&self) -> Pos {
+    pub(crate) fn pos(&self) -> Pos {
         self.tokens[self.i.min(self.tokens.len() - 1)].1
     }
-    fn bump(&mut self) -> Tok {
+    pub(crate) fn bump(&mut self) -> Tok {
         let t = self.peek().clone();
         if self.i < self.tokens.len() - 1 {
             self.i += 1;
         }
         t
     }
-    fn is(&self, s: &str) -> bool {
+    pub(crate) fn is(&self, s: &str) -> bool {
         matches!(self.peek(), Tok::Sym(x) if *x == s)
     }
-    fn is_word(&self, w: &str) -> bool {
+    pub(crate) fn is_word(&self, w: &str) -> bool {
         matches!(self.peek(), Tok::Word(x) if x == w)
     }
-    fn eat(&mut self, s: &str) -> bool {
+    pub(crate) fn eat(&mut self, s: &str) -> bool {
         let here = self.is(s);
         if here {
             self.bump();
         }
         here
     }
-    fn eat_word(&mut self, w: &str) -> bool {
+    pub(crate) fn eat_word(&mut self, w: &str) -> bool {
         let here = self.is_word(w);
         if here {
             self.bump();
         }
         here
     }
-    fn expected<T>(&self, what: &str) -> Result<T> {
+    pub(crate) fn expected<T>(&self, what: &str) -> Result<T> {
         let found = describe(self.peek());
         Err(error(
             P003,
@@ -510,13 +510,13 @@ impl<'c> Parser<'c> {
             format!("expected {what}, found {found}"),
         ))
     }
-    fn expect(&mut self, s: &str) -> Result<()> {
+    pub(crate) fn expect(&mut self, s: &str) -> Result<()> {
         match self.eat(s) {
             true => Ok(()),
             false => self.expected(&format!("`{s}`")),
         }
     }
-    fn expect_word(&mut self, w: &str) -> Result<()> {
+    pub(crate) fn expect_word(&mut self, w: &str) -> Result<()> {
         match self.eat_word(w) {
             true => Ok(()),
             false => self.expected(&format!("`{w}`")),
@@ -529,7 +529,7 @@ impl<'c> Parser<'c> {
         }
     }
     /// A name: a word that is no keyword.
-    fn name(&mut self) -> Result<String> {
+    pub(crate) fn name(&mut self) -> Result<String> {
         match self.peek().clone() {
             Tok::Word(w) if !KEYWORDS.contains(&w.as_str()) => {
                 self.bump();
@@ -538,7 +538,7 @@ impl<'c> Parser<'c> {
             _ => self.expected("a name"),
         }
     }
-    fn string(&mut self) -> Result<String> {
+    pub(crate) fn string(&mut self) -> Result<String> {
         match self.peek().clone() {
             Tok::Str(s) => {
                 self.bump();
@@ -567,7 +567,7 @@ impl<'c> Parser<'c> {
     // ------------------------------------------------ paths
 
     /// `a::b::c`, as written; `crate::` first says it is whole.
-    fn raw_path(&mut self) -> Result<Vec<String>> {
+    pub(crate) fn raw_path(&mut self) -> Result<Vec<String>> {
         let mut names = vec![match self.eat_word("crate") {
             true => "crate".to_string(),
             false => self.name()?,
@@ -1450,7 +1450,7 @@ impl<'c> Parser<'c> {
         };
         Ok(apply(op, args))
     }
-    fn number(&mut self) -> Result<usize> {
+    pub(crate) fn number(&mut self) -> Result<usize> {
         match self.peek().clone() {
             Tok::Int(n) => {
                 self.bump();

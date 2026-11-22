@@ -18,5 +18,6 @@ pub mod location;
 pub mod model;
 pub mod parse;
 pub mod print;
+pub mod reader;
 pub mod simulation;
 pub mod tactic;
