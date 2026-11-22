@@ -279,21 +279,18 @@ pub fn judgement(model: &Model) -> Judgement {
 
 /// The propositions nothing in the model concludes: only someone taking them
 /// holds them. A rule concludes its conclusion, a require from an
-/// ensure is concluded by it, an ensure by its lists, and a rule by its
-/// proof when the proof shows it. A tie is always a leaf. Read from any
-/// model, they are all that holds the rest only in one `check` accepts.
+/// ensure is concluded by it, and an ensure by its lists. A rule with a
+/// proof is a leaf all the same: when the proof shows it, the checker
+/// takes it (`machine:mitra-check`), as Lean or Verus could, a firm
+/// taking but a taking. A tie is always a leaf. Read from any model,
+/// they are all that holds the rest only in one `check` accepts.
 pub fn leaves(model: &Model) -> Vec<(Path, Prop)> {
     let index = Index::of(model);
     let props = props(model);
     let mut concluded = BTreeSet::new();
-    for (at, prop) in &props {
+    for (_, prop) in &props {
         if let Some(posts) = index.judgement.posts(prop) {
             concluded.extend(posts.iter().cloned());
-        }
-        if let Some(Item::Rule(rule)) = index.items.get(at) {
-            if *prop == Prop::Named(at.to_string()) && index.shows(at, rule) == Some(true) {
-                concluded.insert(prop.clone());
-            }
         }
     }
     props

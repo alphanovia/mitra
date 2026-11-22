@@ -30,7 +30,7 @@ subject stone {
         claim slow = !(h <= 20) || v < 21;
         rule slows: drop::falls, speed::slow |- drop::slow;                // assumed
         rule lands: drop::slows, drop::falls, speed::slow |- drop::slow    // a rule as premise
-            by ponens(drop::slows, drop::falls, speed::slow);              // shown
+            by ponens(drop::slows, drop::falls, speed::slow);              // shown: the checker takes it
     }
     fn speed(h: Real) -> v2: Real = 2 * 9.81 * h {    // total: it has a body
         claim slow = !(h <= 20) || v2 < 400;
@@ -47,10 +47,11 @@ What the tests show on it:
   is changed to have it.
 - Levels: `sun::light` is opaque, `stone::drop` partial, `stone::speed` total.
 - Propositions: 12, each with the path it is about (below).
-- Leaves: 8. They are `air`, `shines`, the claims `falls` and `speed::slow`,
-  the assumed rule `slows`, what binds `light` to `shines`, what gives
-  `lands_slow` from its list, and the tie. `light`, `lands_slow` and
-  `drop::slow` follow from them. `lands` is shown by its proof.
+- Leaves: 9. They are `air`, `shines`, the claims `falls` and `speed::slow`,
+  the assumed rule `slows`, the rule `lands`, shown by its proof, which the
+  checker takes, what binds `light` to `shines`, what gives `lands_slow`
+  from its list, and the tie. `light`, `lands_slow` and `drop::slow`
+  follow from them.
 - Judgement reads the propositions as they are, and knows each rule by its
   path. Taking the list of `lands_slow` (a reviewer) and its two claims (a
   machine, a timer) gives `lands_slow` true. The proof of `lands`, run on
@@ -197,8 +198,11 @@ premises give its conclusion. Its proof is a judgement expression: it reads
 opinions of the premises, and gives an opinion of the conclusion. Its type must be an opinion of the conclusion. But an
 opinion can argue against its proposition (modus tollens) or come from a
 conflict (reductio). So the proof is also run once, with all it reads taken
-true, and it must give the conclusion true. Then the rule is shown. Without
-a proof, it is assumed.
+true, and it must give the conclusion true. Then the rule is shown, and the
+checker takes it true: a taking like any other, by the voice
+`machine:mitra-check`. Without a proof, it is assumed, and someone else
+must take it. Either way the rule is a leaf (your choice: Mitra will read
+other checkers, and a proof stays a suspect, the firmest one).
 *Example*: `lands` is shown by `ponens(slows, falls, speed::slow)`; `slows`
 is assumed, since no rule of judgement does arithmetic. `reductio(falls)`
 has the type of a proof of `lands`, but run on `falls` true it gives
@@ -211,7 +215,9 @@ own proposition, and no proof gives it. To show it, name it as a claim.
 proof is a value of it), with one difference. In Lean, Coq and Agda, the
 type of a proof says that the proposition holds, so the type is enough.
 Here `Opinion(p)` says what is believed of `p`, for or against, hence the
-run. An unproved rule is Lean's `sorry`, or an axiom.
+run. An unproved rule is Lean's `sorry`, or an axiom. Lean trusts its
+kernel; here the checker is a voice, so Lean or Verus can take a rule the
+same way, and the numbers layer weighs each voice.
 
 **6. Requires and ensures: what a part needs, and what it promises.** A
 require comes from words (a hypothesis) or from another part's ensure. An
@@ -230,7 +236,8 @@ lists are the AND/OR refinement of goal models (KAOS).
 
 **7. What is assumed is read, never declared.** There is no `assume`. A leaf
 is a proposition nothing in the model concludes: only a taking holds it.
-*Example*: `air` (words only), `shines` (no list), `slows` (no proof).
+*Example*: `air` (words only), `shines` (no list), `slows` (no proof),
+`lands` (a proof: the checker takes it).
 *Gain*: nothing is assumed quietly: every leaf is listed, and each is where
 evidence must come in.
 *Give up*: a long list of leaves, even for things everyone believes.
@@ -315,6 +322,8 @@ needs a meaning of its own, which judgement does not have.
     body (your option B). A row gives no proposition yet: with binders it
     is the answer `Correct(f, x)` is read against at its point. A function
     with examples and no body is partial.
+18. **The checker's voice is `machine:mitra-check`**, in the takings its
+    proofs give. Nothing gives them yet: the evidence layer will.
 
 ## Contracts: not built
 
@@ -365,7 +374,7 @@ A fresh agent attacked choice 9 (7e9624a), the catalogue aside:
 | An opinion does not say under which definitions it was made | said so (choice 9, `Opinion`) | |
 | Choice 9 gave a reason that J1 does not need | rewritten | |
 | `a: b, p |- q`, proved, and `c: a |- p`: a cycle through the proof? | no: the proof shows the whole rule, its premises as hypotheses, so `a` rests on none of them | |
-| A proved rule that another rule uses is held by no leaf, and no rule of judgement gives it | open: your decision | |
+| A proved rule that another rule uses is held by no leaf, and no rule of judgement gives it | your choice: a proved rule is a leaf, which the checker takes (choice 5) | `the_leaves_hold_everything` |
 
 Attacks that held, kept as tests: blame reaches the rule that gives a rule
 (`a_rule_given_by_a_rule`); `with` refuses exactly the names on a cycle, on

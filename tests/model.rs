@@ -260,6 +260,7 @@ fn leaves_are_what_only_a_taking_holds() {
     let expected = vec![
         named("stone::air"),
         named("stone::drop::falls"),
+        named("stone::drop::lands"),
         named("stone::drop::slows"),
         implies(
             "stone::lands_slow",
@@ -374,6 +375,54 @@ fn the_fall_is_judged_on_takings() {
         by,
         BTreeSet::from(["machine:run", "machine:timer", "machine:ranges"])
     );
+}
+
+/// What the leaves hold, through the rules judgement knows: a rule and
+/// its pres held give its posts.
+fn held(model: &Model) -> BTreeSet<Prop> {
+    let known = judgement(model);
+    let all: Vec<Prop> = props(model).into_iter().map(|(_, p)| p).collect();
+    let mut held: BTreeSet<Prop> = leaves(model).into_iter().map(|(_, p)| p).collect();
+    loop {
+        let before = held.len();
+        for t in &all {
+            if let (Some(premises), Some(posts)) = (known.premises(t), known.posts(t)) {
+                if premises.iter().all(|p| held.contains(p)) {
+                    held.extend(posts.iter().cloned());
+                }
+            }
+        }
+        if held.len() == before {
+            return held;
+        }
+    }
+}
+
+/// The leaves of a well-formed model hold all of it. A proof concludes
+/// nothing in the model: the checker takes the rule it shows, so a
+/// proved rule is a leaf, and what uses it is held: here `gentle`, given
+/// by `soft: lands, drop::slow |- drop::gentle` from the proved `lands`.
+/// And in the fall with a rule given by a rule.
+#[test]
+fn the_leaves_hold_everything() {
+    let mut model = fall();
+    let drop = &mut model.parts[1].functions[0];
+    drop.claims.push(claim("gentle", under("v", 30)));
+    let premises = ["stone::drop::lands", "stone::drop::slow"];
+    drop.rules
+        .push(rule("soft", &premises, "stone::drop::gentle"));
+    assert_eq!(check(&model), vec![]);
+    let lands = (
+        path("stone::drop::lands"),
+        Prop::named("stone::drop::lands"),
+    );
+    assert!(leaves(&model).contains(&lands));
+    let mut law = fall();
+    with_law(&mut law);
+    for model in [fall(), model, law] {
+        let all: BTreeSet<Prop> = props(&model).into_iter().map(|(_, p)| p).collect();
+        assert_eq!(held(&model), all);
+    }
 }
 
 /// A claim of a function with a body runs on it: `speed::slow` holds
@@ -619,7 +668,7 @@ fn rule(name: &str, premises: &[&str], conclusion: &str) -> Rule {
 /// modus tollens give opinions of a proposition that never hold it true. So
 /// each proof is also run once, on what it reads taken true, and must
 /// give the conclusion true. A rule whose proof does not is not shown:
-/// it stays a leaf.
+/// M012, and the checker does not take it.
 #[test]
 fn a_proof_argues_for_its_conclusion() {
     let lands = path("stone::drop::lands");
@@ -798,8 +847,11 @@ fn a_rule_given_by_a_rule() {
     let mut model = fall();
     with_law(&mut model);
     assert_eq!(check(&model), vec![]);
-    let by_law = path("stone::drop::by_law");
-    assert!(leaves(&model).iter().all(|(at, _)| *at != by_law));
+    // `slows`, which `law` gives, is no leaf; `by_law`, proved, is one,
+    // which the checker takes.
+    let leaves = leaves(&model);
+    let leaf = |at: &str| leaves.iter().any(|(p, _)| *p == path(at));
+    assert!(!leaf("stone::drop::slows") && leaf("stone::drop::by_law"));
     let (falls, slow) = ("stone::drop::falls", "stone::speed::slow");
     let law = Prop::named("stone::drop::law");
     let run = Taking {
@@ -975,9 +1027,9 @@ fn rules_sharing_rules_stay_small() {
         let posts = known.posts(p).unwrap_or_default();
         assert!(premises.iter().chain(posts).all(|x| size(x) == 1));
     }
-    // The fall's eight, `c0`, each `r_i`, `t_i` and `u_i`; each `s_i` is
-    // shown.
-    assert_eq!(leaves(&model).len(), 8 + 1 + n + 2 * m);
+    // The fall's nine, `c0`, each `r_i`, `s_i`, `t_i` and `u_i`: a shown
+    // rule is taken by the checker.
+    assert_eq!(leaves(&model).len(), 9 + 1 + n + (n - 1) + 2 * m);
     assert!(start.elapsed() < std::time::Duration::from_secs(20));
 }
 
