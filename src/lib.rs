@@ -7,10 +7,12 @@
 //! reports (`docs/reference`), and `tactic`, what writes proofs for
 //! judgement to check. `parse` and `print` read and write the text of a
 //! model (`docs/syntax.md`), and `reader` reads ties and tests from Rust
-//! code and a store of what people saw and said.
+//! code and a store of what people saw and said: the ledger, which
+//! `evidence` holds and checks against a model.
 
 pub mod catalogue;
 pub mod check;
+pub mod evidence;
 pub mod expression;
 mod graph;
 pub mod judgement;

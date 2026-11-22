@@ -16,9 +16,8 @@
 //! Nothing given is dropped quietly: what cannot be used is a
 //! `ReaderFinding`, with a code of suit `R` and where it is.
 //!
-//! The ledger types are `Measurement`, `Review` and `Ledger`, the shapes
-//! the evidence layer fixes (`src/evidence.rs`, to come): here until it
-//! lands, then taken from there.
+//! The ledger types are `Measurement`, `Review` and `Ledger`, of the
+//! evidence layer (`src/evidence.rs`).
 
 use crate::catalogue::{Code, R001, R002, R003, R004, R005, R006, R007};
 use crate::location::Location;
@@ -29,32 +28,7 @@ use crate::simulation::Value;
 
 // ---------------------------------------------------------------- the ledger
 
-/// What a tied function was seen to do, `count` times: at its inputs,
-/// each by its path (`calc::div::a`), it gave its outputs (`calc::div::q`)
-/// when `seen`, and something else when not.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Measurement {
-    pub inputs: Vec<(Path, Value)>,
-    pub outputs: Vec<(Path, Value)>,
-    pub seen: bool,
-    pub count: u64,
-    pub by: String,
-}
-
-/// Someone says the claim, rule, require, ensure or tied item at `prop`
-/// holds, or not.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Review {
-    pub prop: Path,
-    pub holds: bool,
-    pub by: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Ledger {
-    pub measurements: Vec<Measurement>,
-    pub reviews: Vec<Review>,
-}
+pub use crate::evidence::{Ledger, Measurement, Review};
 
 /// What the reader was given and cannot use, at `file:line`.
 #[derive(Clone, Debug, PartialEq, Eq)]

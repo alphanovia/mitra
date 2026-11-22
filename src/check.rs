@@ -825,7 +825,9 @@ fn model_example(index: &Index, i: usize, example: &crate::model::ModelExample) 
             if side == "input" {
                 given.insert(p.clone());
             }
-            if gives {
+            // What the model must compute: an output, or a value the
+            // world gave, at the point its function was given.
+            if gives && (side == "output" || function.body.is_none()) {
                 needs.push((f, function));
             }
             if known(index, &t) && !Exact::default().has_type(v, &t) {

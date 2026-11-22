@@ -100,6 +100,21 @@ pub const M021: Code = model(21);
 pub const M022: Code = model(22);
 pub const M023: Code = model(23);
 
+const fn evidence(number: u16) -> Code {
+    Code {
+        suit: Suit::Evidence,
+        number,
+    }
+}
+
+pub const V001: Code = evidence(1);
+pub const V002: Code = evidence(2);
+pub const V003: Code = evidence(3);
+pub const V004: Code = evidence(4);
+pub const V005: Code = evidence(5);
+pub const V006: Code = evidence(6);
+pub const V007: Code = evidence(7);
+
 const fn parse(number: u16) -> Code {
     Code {
         suit: Suit::Parse,
@@ -165,6 +180,13 @@ pub const CATALOGUE: &[Entry] = &[
         "a model example not of its types, or missing an input",
     ),
     entry(M023, "a correct, all or any a rule cannot write"),
+    entry(V001, "a measurement that names no input or output"),
+    entry(V002, "a measurement through no tie"),
+    entry(V003, "a measured value not of its type"),
+    entry(V004, "a measurement of no run"),
+    entry(V005, "a review of nothing a review can name"),
+    entry(V006, "a measurement missing an input, or with no output"),
+    entry(V007, "a voice missing, or saying twice"),
     entry(P001, "a character that starts nothing"),
     entry(P002, "a string that is not closed"),
     entry(P003, "not what the language has here"),
