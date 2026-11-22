@@ -1,0 +1,18 @@
+// An address in the real system: the tether between the model and the
+// system it is about. A file, then what is in it. It is not right or
+// wrong.
+//
+// Code: src/location.rs.
+
+subject location {
+    ensure location_is_a_path = "A location is an address in the real system, known by its path and by nothing else: a file, then what is in it. It is not right or wrong, and nothing is believed of it.";
+    ensure within_is_the_path = "A location is within another when its path goes on from the other's; every location is within itself.";
+
+    record Location {
+        path: List<String>,
+    }
+
+    fn within(a: Location, b: Location) -> Bool;
+
+    claim within_itself(a: Location) { location::within(a, a) }
+}
