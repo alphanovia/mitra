@@ -125,8 +125,8 @@ pub enum Op {
     Truth(bool),
     Int(BigInt),
     Real(Rational),
-    /// `!a`, `a && b`, `a || b`: `&&` and `||` read `b` only when `a`
-    /// does not decide.
+    /// `!a`, `a && b`, `a || b`: `&&` and `||` drop what `b` gives,
+    /// fault included, when `a` decides. `b` is computed all the same.
     Not,
     And,
     Or,
@@ -144,7 +144,8 @@ pub enum Op {
     /// `within(a, b, tol)`: `|a - b| <= tol`, on three `Int` or three
     /// `Real`. Rust would write `(a - b).abs() <= tol`.
     Within,
-    /// `if c { a } else { b }`: reads only the branch `c` takes.
+    /// `if c { a } else { b }`: gives what the branch `c` takes gives,
+    /// and drops the other, fault included. Both are computed.
     If,
     /// `R { x: a, y: b }`, the fields in the record's order.
     Make(Record),
@@ -726,7 +727,8 @@ fn all(lo: &Bounded, hi: &Bounded, run: &mut dyn FnMut(usize, &[Bounded]) -> Bou
     })
 }
 
-/// `p` at each number from `lo` up to `hi`, as `&&` reads it.
+/// `p` at each number from `lo` up to `hi`, as `&&` reads it, until the
+/// outcome can no longer be true: no number after can change it.
 #[inline(never)]
 fn all_points(
     lo: &Rational,
@@ -734,7 +736,16 @@ fn all_points(
     run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded,
 ) -> Bounded {
     let (mut x, mut so_far) = (lo.clone(), said(true));
-    while &x < hi && matches!(&so_far, Ok(b) if b.surely() != Some(false)) {
+    let may_be_true = |b: &Bounded| {
+        matches!(
+            b,
+            Ok(Bounds {
+                span: Span::Truth { yes: true, .. },
+                ..
+            })
+        )
+    };
+    while &x < hi && may_be_true(&so_far) {
         so_far = and_at(so_far, &x, run);
         x = x.plus(&Rational::integer(1));
     }

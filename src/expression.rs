@@ -150,14 +150,13 @@ pub trait Reading {
     type Standard: Standard;
     type Value: Clone;
     type Fault: Clone;
-    /// `value` is a value of type `of`. Read from what the value is,
-    /// not from a name it carries.
+    /// `value` is a value of type `of`, by the reading's own test.
     fn has_type(&self, value: &Self::Value, of: &TypeOf<Self>) -> bool;
     /// What `op` gives when none of its arguments binds a name. Each
-    /// argument is what its expression gave, fault included: an
-    /// operation that does not need an argument, as `if` does not need
-    /// the branch it does not take, may give a value anyway. Every other
-    /// operation is `strict`.
+    /// argument is computed first, and is what its expression gave, fault
+    /// included: an operation that does not need one, as `if` does not
+    /// need the branch it does not take, may give a value anyway. One
+    /// that needs them all reads them with `strict`.
     fn apply(&self, op: &OpOf<Self>, args: &[OutcomeOf<Self>]) -> OutcomeOf<Self>;
     /// What `op` gives when an argument binds names. `args` is as for
     /// `apply`, but an argument that binds names has no outcome of its
@@ -344,40 +343,58 @@ pub fn substitute<Op: Clone>(
             other => other.clone(),
         };
     };
-    let args = args.iter().map(|arg| {
-        if arg.binds.iter().any(|b| b == name) || !free(&arg.body).contains(name) {
-            return arg.clone();
-        }
-        let caught = free(with);
-        let (mut binds, mut body) = (arg.binds.clone(), arg.body.clone());
-        // The last of two equal names is the one read: rename it first.
-        for k in (0..binds.len()).rev() {
-            if caught.contains(&binds[k]) {
-                let used = free(&body);
-                let mut new = binds[k].clone();
-                while caught.contains(&new) || used.contains(&new) || binds.contains(&new) {
-                    new.push('\'');
-                }
-                body = substitute(&body, &binds[k], &Expression::Name(new.clone()));
-                binds[k] = new;
+    let mut written = Vec::with_capacity(args.len());
+    for arg in args {
+        written.push(substitute_in(arg, name, with));
+    }
+    Expression::Apply(op.clone(), written)
+}
+
+/// `substitute` in one argument.
+fn substitute_in<Op: Clone>(arg: &Arg<Op>, name: &str, with: &Expression<Op>) -> Arg<Op> {
+    if arg.binds.iter().any(|b| b == name) || !free(&arg.body).contains(name) {
+        return arg.clone();
+    }
+    let caught = free(with);
+    let mut binds = arg.binds.clone();
+    // The body once a name it binds is renamed.
+    let mut renamed: Option<Expression<Op>> = None;
+    // The last of two equal names is the one read: rename it first.
+    for k in (0..binds.len()).rev() {
+        if caught.contains(&binds[k]) {
+            let body = renamed.as_ref().unwrap_or(&arg.body);
+            let used = free(body);
+            let mut new = binds[k].clone();
+            while caught.contains(&new) || used.contains(&new) || binds.contains(&new) {
+                new.push('\'');
             }
+            renamed = Some(substitute(body, &binds[k], &Expression::Name(new.clone())));
+            binds[k] = new;
         }
-        let body = substitute(&body, name, with);
-        Arg { binds, body }
-    });
-    Expression::Apply(op.clone(), args.collect())
+    }
+    let body = substitute(renamed.as_ref().unwrap_or(&arg.body), name, with);
+    Arg { binds, body }
 }
 
 /// The names free in `e`: those no argument around them binds.
 fn free<Op>(e: &Expression<Op>) -> BTreeSet<String> {
+    let mut found = BTreeSet::new();
+    free_in(e, &mut Scope::new(), &mut found);
+    found
+}
+
+fn free_in<'e, Op>(e: &'e Expression<Op>, bound: &mut Scope<'e, ()>, found: &mut BTreeSet<String>) {
     match e {
-        Expression::Name(n) => BTreeSet::from([n.clone()]),
-        Expression::Apply(_, args) => args
-            .iter()
-            .flat_map(|arg| {
-                let inner = free(&arg.body).into_iter();
-                inner.filter(move |n| !arg.binds.contains(n))
-            })
-            .collect(),
+        Expression::Name(n) if nearest(bound, n).is_none() => {
+            found.insert(n.clone());
+        }
+        Expression::Name(_) => {}
+        Expression::Apply(_, args) => {
+            for arg in args {
+                enter(bound, &arg.binds, std::iter::repeat(()));
+                free_in(&arg.body, bound, found);
+                leave(bound, &arg.binds);
+            }
+        }
     }
 }

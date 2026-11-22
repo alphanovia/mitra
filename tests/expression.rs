@@ -332,6 +332,11 @@ fn substituting() {
     // Nothing is renamed where the name is not read.
     let e = let_("x", zero(), zero());
     assert_eq!(substitute(&e, "y", &name("x")), e);
+    // Nor for a name `with` binds itself: in `let x = 0; y`, y := `let x
+    // = 0; x` renames nothing.
+    let e = let_("x", zero(), name("y"));
+    let with = let_("x", zero(), name("x"));
+    assert_eq!(substitute(&e, "y", &with), let_("x", zero(), with.clone()));
     // Two names alike, the last read: each renamed, the read one kept so.
     // `let (x, x) = (0, n + 1); if y == 0 { x } else { 0 }`, y := the input x.
     let e = pair(
@@ -345,6 +350,16 @@ fn substituting() {
     let values = BTreeMap::from([("x".to_string(), 0), ("n".to_string(), 6)]);
     assert_eq!(eval(&Counting, &values, &written), Ok(7));
     let values = BTreeMap::from([("x".to_string(), 1), ("n".to_string(), 6)]);
+    assert_eq!(eval(&Counting, &values, &written), Ok(0));
+    // The new name is not another the same argument binds:
+    // `let (x, x') = (0, n + 1); if y == 0 { x } else { 0 }`, y := the
+    // input x. x becomes x'', not x', which would read n + 1.
+    let body = op(Op::IfZero, vec![name("y"), name("x"), zero()]);
+    let e = pair("x", "x'", zero(), succ(n()), body);
+    let written = substitute(&e, "y", &name("x"));
+    let body = op(Op::IfZero, vec![name("x"), name("x''"), zero()]);
+    assert_eq!(written, pair("x''", "x'", zero(), succ(n()), body));
+    let values = BTreeMap::from([("x".to_string(), 0), ("n".to_string(), 6)]);
     assert_eq!(eval(&Counting, &values, &written), Ok(0));
 }
 

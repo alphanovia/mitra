@@ -54,14 +54,17 @@ binds a name free in `e₁` around an `x` has that name renamed first (`y` to
 answer for the same arguments: a reading keeps no state that changes one.
 S4 and S6 rest on it.
 
-**Value typing.** `has_type(v, T)` belongs to the reading and reads what the
-value is. Nothing stamps a type on a value, so preservation is not vacuous.
+**Value typing.** `has_type(v, T)` belongs to the reading. A truth or a
+number is of its kind. A record carries its record type, and each field must
+be of its type; an opinion carries the piece it is about. The reading
+computes what a value carries, so preservation still checks it.
 
 **Faults.** `Op(f)` is the reading's own "no value here" (a division by zero).
 `Stuck` is evaluation going wrong (a missing input, an operation given values
 it does not take). An operation sees each argument's outcome, fault included,
-so `if`, `&&` and `||` drop the branch they do not take. They are ordinary
-operations, not special forms. Every other operation is `strict`.
+so `if`, `&&` and `||` drop the branch they do not take, fault and all. They
+are ordinary operations, not special forms: both branches are computed (choice
+8 below). Every other operation that binds no name is `strict`.
 
 ## Soundness statements
 
@@ -69,9 +72,9 @@ operations, not special forms. Every other operation is `strict`.
 |---|---|---|
 | S1 | **Agreement**, per reading and operation: `gives(op, ts) = Some(t)`, with argument `i` binding names of the types `binds(op, i, …)`, and each argument a value of its type or an `Op` fault, whenever its names stand for values of their types or `Op` faults ⇒ the operation gives a value of type `t` or an `Op` fault, and `bind` runs an argument only at such values. | depth-1 expressions over random inputs, every operation; `all` over random ends and bodies |
 | S2 | **Preservation and progress**, from S1 by induction: `check(Γ, e) = Some(T)` and `fits(Γ, values)` ⇒ `eval(values, e)` is `Ok(v)` with `has_type(v, T)`, or `Err(Op(_))`, never `Err(Stuck)`. The induction keeps each name in scope standing for a value of its type or an `Op` fault. | random well-typed expressions with `let`, `all` and a two-name binder, each reading |
-| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. They recurse once per level, as do `substitute` and the derived `Clone`, `PartialEq` and drop, and a binder's body runs inside its reading. So depth is bounded by the stack: on a 2 MiB thread, 1,000 levels in a debug build and 2,000 in release hold for all of them, where each `all` counts as three. Time and memory are not bounded by the size of an expression: an operation may run an argument many times (`all`, once per number), and each `let` may square a number. | random ill-typed expressions and values, names bound anywhere; 1,000 levels of `if`, of ponens, of `let`s in value and in body position; 333 nested `all` |
+| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. They recurse once per level, as do `substitute` and the derived `Clone`, `PartialEq` and drop, and a binder's body runs inside its reading. So depth is bounded by the stack: on a 2 MiB thread, 1,000 levels in a debug build and 2,000 in release hold for all of them, where each `all` counts as three. Time and memory are not bounded by the size of an expression: an operation may run an argument many times (`all`, once per number), and each `let` may square a number. | random ill-typed expressions and values, names bound anywhere; 1,000 levels (2,000 in release) of `if`, of ponens, of `let`s in value and in body position, each also substituted, renaming at every level; nested `all`. Measured on 2 MiB: about 1,350 to 1,600 levels in debug, 2,300 to 4,800 in release |
 | S4 | **Determinism**: `eval` is a function of reading, values and expression. | evaluating twice |
-| S5 | **Covering**, per operation: typed as in S1, each bounded argument of its type or an `Op` fault, each exact one in `γ` of its bounds at its type, and each body run in `Exact` at values in `γ` of those run in `Ranges` giving an outcome in `γ` of what that gives ⇒ `covers(t, Ranges, Exact)`. Then by induction: `check(Γ, e) = Some(T)`, `fits(Ranges, Γ, B)`, each exact input in `γ` of its bounds at its type ⇒ `covers(T, eval(Ranges, B, e), eval(Exact, C, e))`. On points it loses nothing: when each bound is `Bounds::exactly` of the exact input, the bounded outcome is `Bounds::exactly` of the exact one, or the same fault. | each operation with fault arguments; `all` over uncertain ends; random expressions end to end; random expressions on points |
+| S5 | **Covering**, per operation: typed as in S1, each bounded argument of its type or an `Op` fault, each exact one in `γ` of its bounds at its type, and each body run in `Exact` at values in `γ` of those run in `Ranges` giving an outcome in `γ` of what that gives ⇒ `covers(t, Ranges, Exact)`. Then by induction: `check(Γ, e) = Some(T)`, `fits(Ranges, Γ, B)`, each exact input in `γ` of its bounds at its type ⇒ `covers(T, eval(Ranges, B, e), eval(Exact, C, e))`. On points it loses nothing: when each bound is `Bounds::exactly` of the exact input, the bounded outcome is `Bounds::exactly` of the exact one, or the same fault. | each operation with fault arguments; `all` over uncertain ends; random expressions end to end; random expressions on points; `all` on numbers, each read |
 | S6 | **Substitution**, in the core: when `e₁` checks to `T₁` and `e₂` to `T₂` with `x : T₁`, `substitute(e₂, x, e₁)` checks to `T₂`; on every reading, when `e₁` gives `v`, `e₂` with `x = v` gives what `substitute(e₂, x, e₁)` gives. **Let shares**, in `Exact`, `Ranges` and judgement: `let x = e₁; e₂` gives what `substitute(e₂, x, e₁)` gives, faults included, and `e₁` is evaluated once. **Let chooses once**, in a reading of sets: `let` gives a subset of what writing it out gives, so S6 fails there, by design. | random expressions whose binders bind the names of `e₁`; random expressions with lets and shadowing, written out, every reading, typed and wild; a count of operations applied; sets, random |
 | J1 | **Rules preserve truth**: each set an opinion of `x` rests on, for or against, entails `x`, or `!x`, where `t = {p} s {q}` means `t → (∧p → ∧q)`. | every valuation of every random derivation |
 | J2 | **State is read from rests**: `state(not o) = not state(o)`, `state(join a b) = join(state a, state b)`. | random opinions |
@@ -149,7 +152,7 @@ operations times readings; and the Rust compiler cannot check that a reading
 keeps to the types. The tests do (S1).
 *Elsewhere*: an ordinary program has one meaning, running it. Static
 analysers give the same program a second one (abstract interpretation:
-Astrée, Frama-C, Infer). Haskell's "tagless final" style writes one program
+Astrée, Frama-C). Haskell's "tagless final" style writes one program
 for several interpreters.
 
 **3. Two kinds of "no value": `Op` and `Stuck`.** An `Op` fault is the
@@ -181,9 +184,12 @@ wordier to build by hand; every reading defines every binder; a body runs
 inside its reading, which costs stack. The depth bound drops from 1,500 to
 1,000 levels in a debug build, and an `all` counts as three. A chain of
 `let`s used to take no stack at all.
-*Elsewhere*: most compilers build in a fixed few binders (`let`, functions,
-`match`). The general form is Harper's abstract binding trees, and how proof
-assistants (Isabelle, Lean, Coq) treat every binder.
+*Elsewhere*: most languages build in a fixed few binders (`let`, functions,
+`match`). The general form is Harper's abstract binding trees. Proof
+assistants (Lean, Coq, Isabelle) get the same headroom another way: a few
+binders built in, the function `fun x => p` among them, and every other
+binder an operation on a function, as `∃ x, p` is `Exists (fun x => p)`. That way needs functions as
+values, which we do not have (6).
 
 **5. `let` chooses once.** When a value may be one of several (a set, later
 a distribution), `let x = e₁; e₂` picks one of what `e₁` may be, and every
@@ -215,9 +221,9 @@ function, return one, or keep one in a record.
 *Example*: `(lo..hi).all(|x| p)` looks like a Rust closure, but `p` is an
 argument that binds `x`, run by `all` itself. It is not a value you could
 pass on.
-*Gain*: types stay simple (no function types), evaluation always ends, and
-`Ranges` and judgement need no meaning for functions; bounding a function
-is hard.
+*Gain*: types stay simple (no function types); with no function to call
+itself, evaluation always ends; and `Ranges` and judgement need no meaning
+for functions, where bounding a function is hard.
 *Give up*: no helper of your own that takes a function (`map(xs, f)`). Each
 such pattern must be an operation of the standard, with a binder.
 *Elsewhere*: Rust, Python, JavaScript and Haskell pass functions as values.
@@ -240,13 +246,28 @@ PostgreSQL lets a function be declared `IMMUTABLE`, so it can be cached.
 Excel formulas are pure, but for "volatile" ones such as `RAND()` and
 `NOW()`. Rust and Python allow side effects anywhere.
 
+**8. Every argument is computed before its operation reads it**, but those
+that bind names, which the operation runs itself.
+*Example*: `if x == 0 { 0 } else { 1 / x }` at `x = 0` computes `1 / x`, gets
+a fault, and drops it: the outcome is `0`, as in Rust.
+*Gain*: one order everywhere, simple to state and to test; the outcome is
+Rust's, faults included.
+*Give up*: time. A guard saves no work: `false && (0..10^15).all(|i| …)`
+runs the whole range, where Rust would skip it. Skipping would need a reading
+to ask for each argument when it needs it: one method in place of `apply` and
+`bind`, and more stack per level.
+*Elsewhere*: most languages compute arguments first ("call by value"), with
+`&&`, `||` and `if` built in as exceptions. Haskell computes nothing until it
+is needed ("lazy").
+
 ## Choices taken on Rust's form
 
-`!x`, `&&`, `||` short-circuit, `if` reads one branch, `R { .. }`, `r.x`,
-`let x = e₁; e₂`, and `(lo..hi).all(|x| p)` for "for all" over a range, `hi`
-left out, as Rust's ranges and `Iterator::all`. `within(a, b, tol)` stays as
-you named it, where Rust would write `(a - b).abs() <= tol`. Unlike Rust, a
-fault in what a `let` binds counts only where it is read (above). No
+`!x`, `&&`, `||`, `if`, `R { .. }`, `r.x`, `let x = e₁; e₂`, and
+`(lo..hi).all(|x| p)` for "for all" over a range, `hi` left out, as Rust's
+ranges and `Iterator::all`. `within(a, b, tol)` stays as you named it, where
+Rust would write `(a - b).abs() <= tol`. Unlike Rust, a fault in what a `let`
+binds counts only where it is read (5), and `&&`, `||` and `if` compute the
+side they drop (8): the outcome is Rust's, the time is not. No
 conversion is implicit: `Int` and `Real` never mix, and a conversion would
 be an operation.
 

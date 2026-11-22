@@ -6,7 +6,7 @@ mod common;
 
 use common::{apply, inline, let_in, Rng};
 use mitra_core::expression::{
-    check, eval, fits, Arg, Expression, Fault, Outcome, Reading, Standard,
+    check, eval, fits, substitute, Arg, Expression, Fault, Outcome, Reading, Standard,
 };
 use mitra_core::simulation::{
     covers, lies_in, Bounds, Exact, Op, Ranges, Rational, Record, Simulation, Span, Type,
@@ -931,8 +931,47 @@ fn a_shared_division() {
 /// turn; and 333 of `all`, each in the body of the one before, as each
 /// counts as three. Checked, read by both readings, cloned, compared and
 /// dropped.
+/// `(lo..hi).all(|i| i < k)`, and with `<=` and `==`, on ends that are
+/// numbers: by bounds `i` is each number in turn, so nothing is lost.
+#[test]
+fn all_on_numbers_reads_each() {
+    let none: BTreeMap<String, Bounds> = BTreeMap::new();
+    for lo in -1..3 {
+        for hi in -1..4 {
+            for k in -1..4 {
+                for op in [Op::Less, Op::AtMost, Op::Equal] {
+                    let p = apply(op, vec![input("i"), int(k)]);
+                    let e = all(int(lo), int(hi), "i", p);
+                    let exact = eval(&Exact, &BTreeMap::new(), &e);
+                    let exactly = exact.map(|v| Bounds::exactly(&v));
+                    assert_eq!(eval(&Ranges, &none, &e), exactly, "{e:?}");
+                }
+            }
+        }
+    }
+}
+
+/// `(0..10^15).all(|i| c)` by bounds, `c` false or a fault: the outcome
+/// is fixed at the first number, so no other is read.
+#[test]
+fn all_stops_once_its_outcome_is_fixed() {
+    let big = apply(Op::Int(BigInt::from(10u64.pow(15))), vec![]);
+    let e = all(int(0), big, "i", input("c"));
+    let c = Bounds {
+        span: Span::Truth {
+            yes: false,
+            no: true,
+        },
+        may_fault: true,
+    };
+    let bounds = BTreeMap::from([("c".to_string(), c.clone())]);
+    assert_eq!(eval(&Ranges, &bounds, &e), Ok(c));
+}
+
 #[test]
 fn a_thousand_levels() {
+    // S3: 1,000 levels in a debug build, 2,000 in a release build.
+    let levels = if cfg!(debug_assertions) { 1000 } else { 2000 };
     let deep = |start: E, shape: fn(usize, E) -> E, levels: usize, of: Type, gives: Value| {
         std::thread::Builder::new()
             .stack_size(2 << 20)
@@ -945,10 +984,17 @@ fn a_thousand_levels() {
                 let value = at(&[("x", Value::Int(BigInt::from(7)))]);
                 let bounds = BTreeMap::from([("x".to_string(), Bounds::exactly(&value["x"]))]);
                 let same = e.clone() == e;
+                // `x := y`, which renames every `y` an argument binds
+                // around an `x`.
+                let written = substitute(&e, "x", &input("y"));
+                let y = typed(&[("y", Type::Int)]);
+                let at_y = at(&[("y", Value::Int(BigInt::from(7)))]);
                 (
-                    same && check(&Simulation, &x, &e) == Some(of),
+                    same && check(&Simulation, &x, &e) == Some(of.clone()),
                     eval(&Exact, &value, &e) == Ok(gives.clone()),
                     eval(&Ranges, &bounds, &e) == Ok(Bounds::exactly(&gives)),
+                    check(&Simulation, &y, &written) == Some(of)
+                        && eval(&Exact, &at_y, &written) == Ok(gives),
                 )
             })
             .unwrap()
@@ -956,7 +1002,7 @@ fn a_thousand_levels() {
             .unwrap()
     };
     let seven = Value::Int(BigInt::from(7));
-    let shapes: [fn(usize, E) -> E; 4] = [
+    let shapes: [fn(usize, E) -> E; 5] = [
         |_, e| apply(Op::If, vec![apply(Op::Truth(true), vec![]), e, int(0)]),
         |_, e| let_in(Op::Let, "y", e, input("y")),
         |level, e| match level % 2 {
@@ -965,14 +1011,16 @@ fn a_thousand_levels() {
         },
         // A chain: `let x = x + 0; let x = x + 0; …; x`.
         |_, e| let_in(Op::Let, "x", apply(Op::Add, vec![input("x"), int(0)]), e),
+        // `let y = 0; let y = 0; …; x`: each `y` renamed for `x := y`.
+        |_, e| let_in(Op::Let, "y", int(0), e),
     ];
     for shape in shapes {
-        let got = deep(input("x"), shape, 1000, Type::Int, seven.clone());
-        assert_eq!(got, (true, true, true));
+        let got = deep(input("x"), shape, levels, Type::Int, seven.clone());
+        assert_eq!(got, (true, true, true, true));
     }
-    // `(0..1).all(|i| (0..1).all(|i| … x == 7))`.
+    // `(0..1).all(|i| (0..1).all(|i| … x == 7))`, each `all` three levels.
     let start = apply(Op::Equal, vec![input("x"), int(7)]);
     let nested = |_: usize, e: E| all(int(0), int(1), "i", e);
-    let got = deep(start, nested, 333, Type::Truth, Value::Truth(true));
-    assert_eq!(got, (true, true, true));
+    let got = deep(start, nested, levels / 3, Type::Truth, Value::Truth(true));
+    assert_eq!(got, (true, true, true, true));
 }

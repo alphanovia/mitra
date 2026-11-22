@@ -1006,8 +1006,10 @@ fn a_thousand_levels() {
     let deep = std::thread::Builder::new()
         .stack_size(2 << 20)
         .spawn(move || {
+            // S3: 1,000 levels in a debug build, 2,000 in a release build.
+            let levels = if cfg!(debug_assertions) { 1000 } else { 2000 };
             let mut e = input("p");
-            for level in 0..1000 {
+            for level in 0..levels {
                 e = match level % 2 {
                     0 => apply(
                         Op::Ponens {
