@@ -31,16 +31,18 @@
 //! reading `C` of the same standard by γ, where `γ_T(a)` is the set of
 //! outcomes of `C`, faults included, that an outcome `a` of `A` of type
 //! `T` stands for. For every operation with `gives(op, [T₁ … Tₙ]) =
-//! Some(T)`, and arguments with each `cᵢ` in `γ_Tᵢ(aᵢ)`, `C.apply(op, c)`
-//! is in `γ_T(A.apply(op, a))`. Then by induction, as for preservation:
-//! when `check(s, Γ, e) == Some(T)` and each input's value in `C` is in
-//! `γ` of its value in `A` at its type, `eval(C, …, e)` is in
-//! `γ_T(eval(A, …, e))`.
+//! Some(T)`, and arguments where each `aᵢ` is a value of type `Tᵢ` or an
+//! operation's fault and each `cᵢ` is in `γ_Tᵢ(aᵢ)`, `C.apply(op, c)` is
+//! in `γ_T(A.apply(op, a))`. Then by induction, as for preservation:
+//! when `check(s, Γ, e) == Some(T)`, the inputs' values in `A` fit `Γ`
+//! and each input's value in `C` is in `γ` of its value in `A` at its
+//! type, `eval(C, …, e)` is in `γ_T(eval(A, …, e))`.
 //!
 //! `check` and `eval` never panic, on any expression and any values.
-//! They recurse once per level of the expression, so the depth of an
-//! expression is bounded by the stack: a few thousand levels on a
-//! thread of 2 MiB.
+//! They recurse once per level of the expression, as do the derived
+//! `Clone`, `PartialEq` and drop, so depth is bounded by the stack: on a
+//! thread of 2 MiB, 700 levels in a debug build and 2,500 in a release
+//! build hold for the standards here.
 
 use std::collections::BTreeMap;
 

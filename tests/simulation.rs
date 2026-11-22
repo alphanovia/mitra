@@ -504,10 +504,12 @@ proptest! {
         prop_assert!(covers(&t, &b, &x), "{:?} on {:?}\nbounds {:?}\nexact {:?}", op, takes, b, x);
     }
 
-    /// S5 with every input exact: the bounds of a point hold the exact
-    /// outcome.
+    /// S5 on points: when every input's bounds are its exact value, the
+    /// bounds of the outcome are the exact outcome, or its fault. Bounds
+    /// that said "anything, may fault" everywhere would cover, and fail
+    /// here.
     #[test]
-    fn points_cover_exact(seed in any::<u64>(), depth in 1u32..6) {
+    fn points_are_exact(seed in any::<u64>(), depth in 1u32..6) {
         let mut g = Gen::new(seed);
         let t = g.ty();
         let e = g.expr(&t, depth);
@@ -515,6 +517,7 @@ proptest! {
         let points: BTreeMap<_, _> = exact.iter().map(|(n, v)| (n.clone(), Bounds::exactly(v))).collect();
         let (b, x) = (eval(&Ranges, &points, &e), eval(&Exact, &exact, &e));
         prop_assert!(covers(&t, &b, &x), "{:?}\nbounds {:?}\nexact {:?}", e, b, x);
+        prop_assert_eq!(&b, &x.clone().map(|v| Bounds::exactly(&v)), "{:?}", e);
     }
 
     /// S3: no expression and no values make `check` or `eval` panic.
@@ -741,4 +744,32 @@ fn gamma_is_typed() {
     let x = BTreeMap::from([("x".to_string(), Type::Int)]);
     let bounds = BTreeMap::from([("x".to_string(), fractional)]);
     assert!(!fits(&Ranges, &x, &bounds));
+}
+
+/// S3's bound on depth: an `if` nested 700 deep is checked and read, by
+/// both readings, on a thread of 2 MiB.
+#[test]
+fn seven_hundred_levels() {
+    let deep = std::thread::Builder::new()
+        .stack_size(2 << 20)
+        .spawn(|| {
+            let mut e = input("x");
+            for _ in 0..700 {
+                e = apply(Op::If, vec![apply(Op::Truth(true), vec![]), e, int(0)]);
+            }
+            let x = typed(&[("x", Type::Int)]);
+            let value = at(&[("x", Value::Int(BigInt::from(7)))]);
+            let bounds = BTreeMap::from([("x".to_string(), Bounds::exactly(&value["x"]))]);
+            (
+                check(&Simulation, &x, &e),
+                eval(&Exact, &value, &e),
+                eval(&Ranges, &bounds, &e),
+            )
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+    assert_eq!(deep.0, Some(Type::Int));
+    assert_eq!(deep.1, Ok(Value::Int(BigInt::from(7))));
+    assert_eq!(deep.2, Ok(Bounds::exactly(&Value::Int(BigInt::from(7)))));
 }

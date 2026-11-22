@@ -199,6 +199,10 @@ fn smallest(sets: impl IntoIterator<Item = BTreeSet<Taking>>) -> Rests {
 /// Every way to have all of `sides`: one set of each, together. Sides
 /// with no taking in common already give only the smallest.
 fn all_of(sides: &[&Rests]) -> Rests {
+    // Sides with fewest sets first: a side that holds the others' takings
+    // then keeps the ways few.
+    let mut sides = sides.to_vec();
+    sides.sort_by_key(|side| side.len());
     let mut ways = Rests::from([BTreeSet::new()]);
     let mut seen: BTreeSet<&Taking> = BTreeSet::new();
     for side in sides {
@@ -382,7 +386,7 @@ impl Reading for Judgement {
 /// of takings that cannot all hold. For each taking of `of` in it, the
 /// rest of the set says that taking is wrong.
 fn reductio(of: &Piece, x: &Opinion) -> Opinion {
-    let (mut wrong_true, mut wrong_false) = (Vec::new(), Vec::new());
+    let (mut wrong_true, mut wrong_false) = (Rests::new(), Rests::new());
     for yes in &x.rests_for {
         for no in &x.rests_against {
             let cannot: BTreeSet<Taking> = yes.union(no).cloned().collect();
@@ -390,9 +394,9 @@ fn reductio(of: &Piece, x: &Opinion) -> Opinion {
                 let mut rest = cannot.clone();
                 rest.remove(taking);
                 match taking.value {
-                    true => wrong_true.push(rest),
-                    false => wrong_false.push(rest),
-                }
+                    true => wrong_true.insert(rest),
+                    false => wrong_false.insert(rest),
+                };
             }
         }
     }

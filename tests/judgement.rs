@@ -357,9 +357,10 @@ proptest! {
     /// J3: rests are the smallest sets of takings a derivation reads, and
     /// all of them. No set holds another. Keeping only the takings in a
     /// set `S`, a piece still follows true (false) only when one of its
-    /// rests for (against) lies in `S`; and, with no reductio, whenever
-    /// one does. A reductio's rest leaves out the taking it finds wrong,
-    /// which its derivation still reads.
+    /// rests for (against) lies in `S`, unless a reductio lies below
+    /// another (`a_reductio_below_another`); and, with no reductio,
+    /// whenever one does. A reductio's rest leaves out the taking it
+    /// finds wrong, which its derivation still reads.
     #[test]
     fn rests_are_the_smallest_and_all(seed in any::<u64>(), depth in 1u32..6) {
         let mut w = World::new(seed);
@@ -379,7 +380,12 @@ proptest! {
             Value::Opinion(o) => o.rests_for().iter().chain(o.rests_against()).flatten().cloned().collect(),
             Value::State(_) => vec![],
         }).collect();
-        let exact = !subexpressions(&e).iter().any(|s| matches!(s, Expression::Apply(Op::Reductio { .. }, _)));
+        let reductio = |s: &&E| matches!(s, Expression::Apply(Op::Reductio { .. }, _));
+        let exact = !subexpressions(&e).iter().any(reductio);
+        let nested = subexpressions(&e).iter().any(|s| match s {
+            Expression::Apply(Op::Reductio { .. }, args) => args.iter().any(|a| subexpressions(a).iter().any(reductio)),
+            _ => false,
+        });
         for _ in 0..8 {
             let kept: BTreeSet<Taking> = takings.iter().filter(|_| w.rng.coin()).cloned().collect();
             let values: BTreeMap<String, Value> = w.values.iter().map(|(name, v)| (name.clone(), match v {
@@ -392,7 +398,7 @@ proptest! {
             let part = opinion(eval(&j, &values, &e));
             for (some, all) in [(part.rests_for(), whole.rests_for()), (part.rests_against(), whole.rests_against())] {
                 let within = all.iter().any(|r| r.is_subset(&kept));
-                prop_assert!(some.is_empty() || within, "follows from {:?} but no rest of {:?} lies in it", kept, all);
+                prop_assert!(nested || some.is_empty() || within, "follows from {:?} but no rest of {:?} lies in it", kept, all);
                 prop_assert!(!exact || !within || !some.is_empty(), "a rest of {:?} lies in {:?}, yet nothing follows", all, kept);
             }
         }
@@ -805,4 +811,199 @@ fn a_much_taken_leaf() {
     .unwrap();
     assert_eq!(joined.0.rests_for().len(), 20_000);
     assert_eq!(joined.1.rests_for().len(), 20_000);
+}
+
+/// Red team, round 2: below another reductio, a taking added can take a
+/// conclusion away. The inner reductio keeps only its smallest blame,
+/// and the outer one needed a larger one, which held a taking of `q`.
+/// What is lost rested on takings that cannot all hold.
+#[test]
+fn a_reductio_below_another() {
+    let (z, q, w) = (Piece::named("z"), Piece::named("q"), Piece::named("w"));
+    let t7 = Piece::Implies {
+        pre: vec![z.not()],
+        subject: "s7".to_string(),
+        post: vec![w.not()],
+    };
+    let t9 = Piece::Implies {
+        pre: vec![z.not(), q.clone()],
+        subject: "s9".to_string(),
+        post: vec![z.not()],
+    };
+    let (u, u2, v) = (
+        take(&z, false, 1, "u"),
+        take(&z, false, 1, "u2"),
+        take(&z, false, 1, "v"),
+    );
+    let (qt, t7t, t9t, wt) = (
+        take(&q, true, 1, "qt"),
+        take(&t7, true, 1, "t7"),
+        take(&t9, true, 1, "t9"),
+        take(&w, true, 1, "wt"),
+    );
+    let leaves = [
+        ("zu", &z, &u),
+        ("zu2", &z, &u2),
+        ("zv", &z, &v),
+        ("q", &q, &qt),
+        ("t7", &t7, &t7t),
+        ("t9", &t9, &t9t),
+        ("w", &w, &wt),
+    ];
+    let values = |without: Option<&Taking>| -> BTreeMap<String, Value> {
+        leaves
+            .iter()
+            .map(|(name, x, taking)| {
+                let takings = match Some(*taking) == without {
+                    true => vec![],
+                    false => vec![(*taking).clone()],
+                };
+                let o = Opinion::taken((*x).clone(), takings).unwrap();
+                (name.to_string(), Value::Opinion(o))
+            })
+            .collect()
+    };
+    let not_z = apply(
+        Op::Join,
+        vec![
+            apply(Op::Not, vec![input("zu")]),
+            apply(
+                Op::Ponens {
+                    t: t9.clone(),
+                    post: 0,
+                },
+                vec![input("t9"), apply(Op::Not, vec![input("zu2")]), input("q")],
+            ),
+        ],
+    );
+    let not_w = apply(
+        Op::Ponens {
+            t: t7.clone(),
+            post: 0,
+        },
+        vec![input("t7"), not_z],
+    );
+    let w_both = apply(Op::Join, vec![input("w"), apply(Op::Not, vec![not_w])]);
+    let blame_z = apply(Op::Reductio { of: z.clone() }, vec![w_both]);
+    let z_both = apply(Op::Join, vec![blame_z.clone(), input("zv")]);
+    let e = apply(Op::Reductio { of: q.clone() }, vec![z_both]);
+    let inputs = leaves
+        .iter()
+        .map(|(name, x, _)| (name.to_string(), Type::Opinion((*x).clone())))
+        .collect();
+    assert_eq!(
+        check(&Judgement, &inputs, &e),
+        Some(Type::Opinion(q.clone()))
+    );
+    let all = opinion(eval(&Judgement, &values(None), &e));
+    let fewer = opinion(eval(&Judgement, &values(Some(&u)), &e));
+    // The inner reductio: z follows from {wt, t7} (blaming u) and from
+    // {wt, t7, t9, qt} (blaming u2); only the smaller stays.
+    let inner = opinion(eval(&Judgement, &values(None), &blame_z));
+    let smaller = BTreeSet::from([wt.clone(), t7t.clone()]);
+    assert_eq!(inner.rests_for(), &BTreeSet::from([smaller]));
+    assert_eq!(all.state(), State::Unknown);
+    let lost = BTreeSet::from([wt.clone(), t7t.clone(), t9t, v.clone()]);
+    assert_eq!(fewer.rests_against(), &BTreeSet::from([lost.clone()]));
+    let meaning = Meaning::of(&[z, q.clone(), w, t7]);
+    assert!(meaning.entails(&lost, &q, false));
+    let cannot = BTreeSet::from([wt, t7t, v]);
+    assert!(meaning.entails(&cannot, &q, true) && meaning.entails(&cannot, &q, false));
+}
+
+/// S3's bound on depth: ponens nested 700 deep is checked and judged
+/// on a thread of 2 MiB.
+#[test]
+fn seven_hundred_levels() {
+    let p = Piece::named("p");
+    let t = Piece::Implies {
+        pre: vec![p.clone()],
+        subject: "s".to_string(),
+        post: vec![p.clone()],
+    };
+    let deep = std::thread::Builder::new()
+        .stack_size(2 << 20)
+        .spawn(move || {
+            let mut e = input("p");
+            for _ in 0..700 {
+                e = apply(
+                    Op::Ponens {
+                        t: t.clone(),
+                        post: 0,
+                    },
+                    vec![input("t"), e],
+                );
+            }
+            let inputs = BTreeMap::from([
+                ("p".to_string(), Type::Opinion(p.clone())),
+                ("t".to_string(), Type::Opinion(t.clone())),
+            ]);
+            let values = BTreeMap::from([
+                (
+                    "p".to_string(),
+                    Value::Opinion(
+                        Opinion::taken(p.clone(), vec![take(&p, true, 1, "run")]).unwrap(),
+                    ),
+                ),
+                (
+                    "t".to_string(),
+                    Value::Opinion(
+                        Opinion::taken(t.clone(), vec![take(&t, true, 1, "review")]).unwrap(),
+                    ),
+                ),
+            ]);
+            let ty = check(&Judgement, &inputs, &e);
+            (ty, opinion(eval(&Judgement, &values, &e)).state())
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+    assert_eq!(deep, (Some(Type::Opinion(Piece::named("p"))), State::True));
+}
+
+/// Red team, round 2: a premise whose one rest holds the takings of every
+/// other premise keeps a ponens over sixteen premises, two ways each, to
+/// one rest, whatever the order of its premises.
+#[test]
+fn a_premise_that_holds_the_others() {
+    let ps: Vec<Piece> = (0..16).map(|i| Piece::named(&format!("p{i}"))).collect();
+    let z = Piece::named("z");
+    let tz = Piece::Implies {
+        pre: [ps.clone(), ps.clone()].concat(),
+        subject: "sz".to_string(),
+        post: vec![z.clone()],
+    };
+    let t = Piece::Implies {
+        pre: [ps.clone(), vec![z]].concat(),
+        subject: "s".to_string(),
+        post: vec![Piece::named("q")],
+    };
+    let mut values = BTreeMap::new();
+    let mut leaf = |name: String, x: &Piece, by: &[&str]| {
+        let takings = by.iter().map(|b| take(x, true, 1, b)).collect();
+        let o = Opinion::taken(x.clone(), takings).unwrap();
+        values.insert(name.clone(), Value::Opinion(o));
+        input(&name)
+    };
+    let mut z_args = vec![leaf("tz".to_string(), &tz, &["a"])];
+    for (i, x) in ps.iter().enumerate() {
+        z_args.push(leaf(format!("a{i}"), x, &["a"]));
+    }
+    for (i, x) in ps.iter().enumerate() {
+        z_args.push(leaf(format!("b{i}"), x, &["b"]));
+    }
+    let mut args = vec![leaf("t".to_string(), &t, &["a"])];
+    for (i, x) in ps.iter().enumerate() {
+        args.push(leaf(format!("ab{i}"), x, &["a", "b"]));
+    }
+    args.push(apply(Op::Ponens { t: tz, post: 0 }, z_args));
+    let e = apply(Op::Ponens { t, post: 0 }, args);
+    let start = std::time::Instant::now();
+    let q = opinion(eval(&Judgement, &values, &e));
+    assert_eq!(q.rests_for().len(), 1);
+    assert!(
+        start.elapsed() < std::time::Duration::from_secs(2),
+        "{:?}",
+        start.elapsed()
+    );
 }
