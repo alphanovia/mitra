@@ -60,8 +60,8 @@ subject stone {
 | `R { x: 1.0, y: 2.0 }`, `(a, b)`, `r.x`, `t.0` | `Make`, `Field` | Rust |
 | `let x = a in b` | `Let` | your choice, not Rust's `;` |
 | `(lo..hi).all(\|x\| p)` | `All` | Rust |
-| `ponens(r, p, q)`, `ponens[t, 1](…)`, `tollens[t, 0, 2](…)`, `reductio[p](…)`, `cases[q](…)`, `instance[q, (3, 4)](…)`, `witness[q, (3, 4)](…)`, `join(a, b)`, `state(a)`, `!a`, `a && b`, `let x = a in b` | a proof, `judgement::Op` | flagged |
-| `all x in (a: 0..10, b: 0..10) where b != 0: p`, `any …`, `!p`, `{p, q} s {r}`, `correct(f, (6, 2))`, `correct(f, x)` | `Prop` | flagged |
+| `ponens(r, p, q)`, `ponens[t, 1](…)`, `tollens[t, 0, 2](…)`, `reductio[p](…)`, `cases[q](…)`, `instance[q](o, point(3, 4))`, `witness[q](o, p)`, `intro[q](|p| …)`, `point(3, 4)`, `join(a, b)`, `state(a)`, `!a`, `a && b`, `let x = a in b` | a proof, `judgement::Op` | flagged |
+| `all x in (a: 0..10, b: 0..10) where b != 0: p`, `any …`, `!p`, `{p, q} s {r}`, `correct(f, (6, 2))`, `correct(f, x)`, `correct(f, x in (a: 0..10))` | `Prop` | flagged |
 | `// …` | nothing: comments are not kept | Rust |
 
 ## The choices, in plain words
@@ -130,7 +130,8 @@ different things. *Elsewhere*: Lisp and Scheme write exact fractions
 **9. Proofs: an operation's parameters in `[…]`** (flagged). *What*:
 `ponens[t, post](args)`, and `ponens(r, …)` when the rule is the first
 argument and the post is 0, as model.md writes it. A premise written in
-place is read by its place, `0`, `1`, …. *Gain*: every judgement
+place is read by its place, `0`, `1`, …. A point is `point(6, 2)`; `intro[q](|p| …)` binds the point `p`, as a
+Rust closure does. *Gain*: every judgement
 operation has one spelling. *Cost*: brackets are not Rust's call form.
 *Elsewhere*: Rust's turbofish `f::<T>(x)` gives parameters apart from
 arguments, as do Lean's `@f T x`.
@@ -138,6 +139,9 @@ arguments, as do Lean's `@f T x`.
 **10. Quantifiers: `all x in (a: 0..10, b: 0..10) where b != 0: p`**
 (flagged). *What*: as `judgement::Prop::All`: a name for the point, the
 ranges (`hi` left out, as Rust's `0..10`), the condition, the body.
+Inside an intro, a proposition about the point it binds, any point of
+the set, writes that set: `correct(div, x in (a: 0..10, b: 0..10))`
+(flagged: long, but it reads alone, with no scope to follow).
 *Gain*: reads as maths. *Cost*: only in a proof's parameters and in a
 store of reviews today: a rule cannot name one until the model has it.
 *Elsewhere*: Lean `∀ x ∈ s, p x`; Dafny `forall x | 0 <= x < 10 :: p`.

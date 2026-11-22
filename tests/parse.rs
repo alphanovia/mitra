@@ -308,7 +308,9 @@ subject geo at "src/geo.rs" {
         rule over: flip::back |- flip::pair
             by cases[all x in (a: 0..2, b: -1..1) where b != 0: correct(flip, x)](flip::back, flip::back);
         rule points: flip::back |- flip::pair
-            by instance[any x in (a: 0.0..1.0): {flip::back, lab::lit} flip {correct(flip, (Point { x: 0.5, y: 1.0 }))}, (0.5)](witness[all x in (n: 0..1): flip::back, (0)](flip::back));
+            by instance[any x in (a: 0.0..1.0): {flip::back, lab::lit} flip {correct(flip, (Point { x: 0.5, y: 1.0 }))}](witness[all x in (n: 0..1): flip::back](flip::back, point(0)), point(0.5));
+        rule any_point: flip::back |- flip::pair
+            by intro[all x in (a: 0..3): correct(flip, x)](|p| instance[all x in (a: 0..3): correct(flip, x)](reductio[correct(flip, x in (a: 0..3) where a != 1)](flip::back), p));
         examples {
             (Point { y: 2.0, x: 1.0 }) -> Point { x: 2.0, y: 1.0 },
             (Point { x: 0.0, y: 0.0 }) -> Point { x: 0.0, y: 0.0 },
@@ -430,6 +432,38 @@ fn the_text_keeps_what_check_finds() {
         .collect();
     assert!(codes.contains(&"M010 at nowhere".to_string()), "{codes:?}");
     assert!(codes.contains(&"M011 at lab::lit".to_string()), "{codes:?}");
+}
+
+/// An intro binds its point; a proposition about that point writes its set.
+#[test]
+fn intro_binds_its_point() {
+    let m = read(EVERY_FORM);
+    let rule = m.parts[1].functions[0]
+        .rules
+        .iter()
+        .find(|r| r.name == "any_point")
+        .unwrap();
+    let Some(Expression::Apply(judgement::Op::Intro { q }, args)) = &rule.proof else {
+        panic!()
+    };
+    assert!(matches!(q, Prop::All { .. }));
+    assert_eq!(args[0].binds, vec!["p".to_string()]);
+    let Expression::Apply(judgement::Op::Instance { .. }, inner) = &args[0].body else {
+        panic!()
+    };
+    assert_eq!(inner[1].body, Expression::Name("p".to_string()));
+    let Expression::Apply(judgement::Op::Reductio { of }, _) = &inner[0].body else {
+        panic!()
+    };
+    let Prop::Correct {
+        at: judgement::Term::Arbitrary { name, over },
+        ..
+    } = of
+    else {
+        panic!("{of:?}")
+    };
+    assert_eq!(name, "x");
+    assert!(over.such.is_some());
 }
 
 #[test]

@@ -148,7 +148,8 @@ pub const KEYWORDS: &[&str] = &[
 /// The operations of a proof, by the word that writes them. Each is
 /// an operation only when `(` or `[` follows it.
 const PROOF_OPS: &[&str] = &[
-    "join", "state", "ponens", "tollens", "reductio", "instance", "witness", "cases",
+    "join", "state", "ponens", "tollens", "reductio", "instance", "witness", "cases", "intro",
+    "point",
 ];
 
 // ---------------------------------------------------------------- tokens
@@ -1386,9 +1387,30 @@ impl<'c> Parser<'c> {
     }
     fn proof_op(&mut self, w: &str, bound: &mut Vec<String>, at: Pos) -> Result<J> {
         use judgement::Op as O;
+        // `point(6, 2)`: a point, its values in order.
+        if w == "point" {
+            return Ok(apply(O::Point(self.values()?), vec![]));
+        }
         let params = self.eat("[");
-        // `instance[q, (6, 2)](o)`: the point, now the second argument.
-        let mut point = None;
+        // `intro[q](|x| p)`: the argument binds the point.
+        if (w, params) == ("intro", true) {
+            let q = self.prop()?;
+            self.expect("]")?;
+            self.expect("(")?;
+            self.expect("|")?;
+            let x = self.name()?;
+            self.expect("|")?;
+            bound.push(x.clone());
+            let body = self.proof(bound);
+            bound.pop();
+            let body = body?;
+            self.expect(")")?;
+            let args = vec![Arg {
+                binds: vec![x],
+                body,
+            }];
+            return Ok(Expression::Apply(O::Intro { q }, args));
+        }
         let op = match (w, params) {
             ("join", false) => Some(O::Join),
             ("state", false) => Some(O::StateOf),
@@ -1412,9 +1434,6 @@ impl<'c> Parser<'c> {
             ("reductio", true) => Some(O::Reductio { of: self.prop()? }),
             ("instance" | "witness", true) => {
                 let q = self.prop()?;
-                if self.eat(",") {
-                    point = Some(self.values()?);
-                }
                 Some(match w {
                     "instance" => O::Instance { q },
                     _ => O::Witness { q },
@@ -1436,10 +1455,7 @@ impl<'c> Parser<'c> {
             self.expect("]")?;
         }
         self.expect("(")?;
-        let mut args = self.list(")", |p| p.proof(bound))?;
-        if let Some(at) = point {
-            args.push(apply(O::Point(at), vec![]));
-        }
+        let args = self.list(")", |p| p.proof(bound))?;
         let op = match op {
             Some(op) => op,
             // `ponens(r, p, q)`: the rule is what is first, by its name.
@@ -1514,7 +1530,17 @@ impl<'c> Parser<'c> {
             self.expect(",")?;
             let at = match self.is("(") {
                 true => judgement::Term::Point(self.values()?),
-                false => judgement::Term::Var(self.name()?),
+                false => {
+                    // `x in (a: 0..10)`: the point an intro binds, any of the set.
+                    let name = self.name()?;
+                    match self.eat_word("in") {
+                        true => judgement::Term::Arbitrary {
+                            name,
+                            over: self.set()?,
+                        },
+                        false => judgement::Term::Var(name),
+                    }
+                }
             };
             self.expect(")")?;
             return Ok(Prop::Correct { function, at });

@@ -390,7 +390,7 @@ impl Writer<'_> {
                 _ => (MALFORMED.to_string(), ATOM),
             };
         }
-        // Stub until the parser thread writes intro's own form.
+        // `intro[q](|x| p)`.
         if let O::Intro { q } = op {
             return match &args[..] {
                 [Arg { binds, body }] if binds.len() == 1 => {
@@ -441,21 +441,15 @@ impl Writer<'_> {
                 format!("reductio[{}]({})", self.prop(of), each(LET).join(", ")),
                 ATOM,
             ),
-            O::Instance { q } | O::Witness { q } => {
-                let word = match op {
-                    O::Instance { .. } => "instance",
-                    _ => "witness",
-                };
-                // A point written in place prints as before, `[q, (6, 2)]`.
-                match &args[..] {
-                    [o, Arg { body: Expression::Apply(O::Point(at), none), .. }] if none.is_empty() => {
-                        let o = wrap(self.proof(&o.body, bound), LET);
-                        (format!("{word}[{}, {}]({o})", self.prop(q), values(at)), ATOM)
-                    }
-                    _ => (format!("{word}[{}]({})", self.prop(q), each(LET).join(", ")), ATOM),
-                }
-            }
-            O::Point(at) if args.is_empty() => (values(at), ATOM),
+            O::Instance { q } => (
+                format!("instance[{}]({})", self.prop(q), each(LET).join(", ")),
+                ATOM,
+            ),
+            O::Witness { q } => (
+                format!("witness[{}]({})", self.prop(q), each(LET).join(", ")),
+                ATOM,
+            ),
+            O::Point(at) if args.is_empty() => (format!("point{}", values(at)), ATOM),
             O::Point(_) | O::Intro { .. } => (MALFORMED.to_string(), ATOM),
             O::Cases { q } => (
                 format!("cases[{}]({})", self.prop(q), each(LET).join(", ")),
@@ -494,8 +488,7 @@ impl Writer<'_> {
                 let at = match at {
                     judgement::Term::Point(vs) => values(vs),
                     judgement::Term::Var(x) => x.clone(),
-                    // Stub: the any point an intro binds, by its name.
-                    judgement::Term::Arbitrary { name, .. } => name.clone(),
+                    judgement::Term::Arbitrary { name, over } => format!("{name} in {}", set(over)),
                 };
                 (
                     format!("correct({}, {at})", self.named(function, &[])),
