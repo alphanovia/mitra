@@ -1,15 +1,15 @@
 //! The judgement standard (`docs/core2.md`): what is believed of
-//! pieces, and the rules that pass it on. Judging runs the model on
+//! propositions, and the rules that pass it on. Judging runs the model on
 //! takings and gives states.
 //!
-//! A piece is `p`, a premise; `t`, the implication `{p} s {q}`, itself
-//! a premise that can be blamed; or `q`, a conclusion. A leaf is a piece
+//! A proposition is `p`, a premise; `t`, the implication `{p} s {q}`, itself
+//! a premise that can be blamed; or `q`, a conclusion. A leaf is a proposition
 //! nothing concludes: it is held only by being taken. The type of an
-//! opinion names its piece, so the type of a rule is the rule:
+//! opinion names its proposition, so the type of a rule is the rule:
 //! `Ponens` takes opinions of `t, p₁ … pₙ` and gives one of `q`.
 //!
 //! Every rule preserves truth. Numbers live only on takings: no rule
-//! reads or makes one. The state of a piece is read from what it rests
+//! reads or makes one. The state of a proposition is read from what it rests
 //! on, never from numbers.
 //!
 //! `let` names a derivation to use it twice. It shares (S6): `let x = a;
@@ -21,50 +21,50 @@ use std::convert::Infallible;
 
 /// A proposition about the system.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Piece {
-    /// A piece known by its name.
+pub enum Prop {
+    /// A proposition known by its name.
     Named(String),
     /// `!x`: `x` is false.
-    Not(Box<Piece>),
-    /// `t = {pre} subject {post}`: when every piece of `pre` holds,
-    /// `subject` makes every piece of `post` hold.
+    Not(Box<Prop>),
+    /// `t = {pre} subject {post}`: when every proposition of `pre` holds,
+    /// `subject` makes every proposition of `post` hold.
     Implies {
-        pre: Vec<Piece>,
+        pre: Vec<Prop>,
         subject: String,
-        post: Vec<Piece>,
+        post: Vec<Prop>,
     },
 }
 
-impl Piece {
-    pub fn named(name: &str) -> Piece {
-        Piece::Named(name.to_string())
+impl Prop {
+    pub fn named(name: &str) -> Prop {
+        Prop::Named(name.to_string())
     }
-    /// `!self`: the negation of a `Not(x)` is `x`, of any other piece
+    /// `!self`: the negation of a `Not(x)` is `x`, of any other proposition
     /// its `Not`.
-    pub fn not(&self) -> Piece {
+    pub fn not(&self) -> Prop {
         match self {
-            Piece::Not(x) => (**x).clone(),
-            x => Piece::Not(Box::new(x.clone())),
+            Prop::Not(x) => (**x).clone(),
+            x => Prop::Not(Box::new(x.clone())),
         }
     }
     /// The premises of an implication `t`: `t` itself, then its pres.
-    /// `None` for any other piece.
-    pub fn premises(&self) -> Option<Vec<Piece>> {
+    /// `None` for any other proposition.
+    pub fn premises(&self) -> Option<Vec<Prop>> {
         match self {
-            Piece::Implies { pre, .. } => Some([vec![self.clone()], pre.clone()].concat()),
+            Prop::Implies { pre, .. } => Some([vec![self.clone()], pre.clone()].concat()),
             _ => None,
         }
     }
-    /// The posts of an implication. `None` for any other piece.
-    pub fn posts(&self) -> Option<&[Piece]> {
+    /// The posts of an implication. `None` for any other proposition.
+    pub fn posts(&self) -> Option<&[Prop]> {
         match self {
-            Piece::Implies { post, .. } => Some(post),
+            Prop::Implies { post, .. } => Some(post),
             _ => None,
         }
     }
 }
 
-/// What is known of a piece (Belnap): nothing, true, false, or both.
+/// What is known of a proposition (Belnap): nothing, true, false, or both.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum State {
     Unknown,
@@ -74,7 +74,7 @@ pub enum State {
 }
 
 impl State {
-    /// The state of a piece told true or not, told false or not.
+    /// The state of a proposition told true or not, told false or not.
     pub fn told(told_true: bool, told_false: bool) -> State {
         match (told_true, told_false) {
             (false, false) => State::Unknown,
@@ -111,11 +111,11 @@ impl std::ops::Not for State {
     }
 }
 
-/// A voice takes a piece as true or as false, `count` times as firmly
+/// A voice takes a proposition as true or as false, `count` times as firmly
 /// as one test.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Taking {
-    pub piece: Piece,
+    pub prop: Prop,
     pub value: bool,
     pub count: u64,
     pub by: String,
@@ -124,12 +124,12 @@ pub struct Taking {
 /// Sets of takings, none holding another.
 pub type Rests = BTreeSet<BTreeSet<Taking>>;
 
-/// What is believed of one piece: the smallest sets of takings it
+/// What is believed of one proposition: the smallest sets of takings it
 /// follows true from, and false from. Made only by `taken` and by the
-/// rules, so every set it holds is one the piece follows from.
+/// rules, so every set it holds is one the proposition follows from.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Opinion {
-    about: Piece,
+    about: Prop,
     rests_for: Rests,
     rests_against: Rests,
 }
@@ -137,15 +137,15 @@ pub struct Opinion {
 impl Opinion {
     /// What these takings of `about` say of it: each taking it true is
     /// a set it follows true from, each taking it false one it follows
-    /// false from. `None` when a taking is of another piece.
-    pub fn taken(about: Piece, takings: Vec<Taking>) -> Option<Opinion> {
+    /// false from. `None` when a taking is of another proposition.
+    pub fn taken(about: Prop, takings: Vec<Taking>) -> Option<Opinion> {
         let mut opinion = Opinion {
             about,
             rests_for: Rests::new(),
             rests_against: Rests::new(),
         };
         for taking in takings {
-            if taking.piece != opinion.about {
+            if taking.prop != opinion.about {
                 return None;
             }
             let side = match taking.value {
@@ -156,7 +156,7 @@ impl Opinion {
         }
         Some(opinion)
     }
-    pub fn about(&self) -> &Piece {
+    pub fn about(&self) -> &Prop {
         &self.about
     }
     pub fn rests_for(&self) -> &Rests {
@@ -223,11 +223,11 @@ fn all_of(sides: &[&Rests]) -> Rests {
     ways
 }
 
-/// The types: a state, or an opinion of a piece.
+/// The types: a state, or an opinion of a proposition.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
     State,
-    Opinion(Piece),
+    Opinion(Prop),
 }
 
 /// A value: a state, or an opinion.
@@ -244,21 +244,21 @@ pub enum Op {
     Not,
     /// On two states.
     And,
-    /// All that both tell: two states, or two opinions of one piece.
+    /// All that both tell: two states, or two opinions of one proposition.
     Join,
     /// The state of an opinion.
     StateOf,
     /// Modus ponens. From every premise of `t`, in order, its post
     /// number `post`.
-    Ponens { t: Piece, post: usize },
+    Ponens { t: Prop, post: usize },
     /// Modus tollens. From post number `post` of `t`, then every premise
     /// of `t` but number `blame`, in order: premise `blame` is false.
     /// `blame` 0 blames `t`.
-    Tollens { t: Piece, post: usize, blame: usize },
+    Tollens { t: Prop, post: usize, blame: usize },
     /// Reductio. Where an opinion follows both true and false, the
     /// takings it follows from cannot all hold: whatever else they rest
     /// on says a taking of `of` is wrong.
-    Reductio { of: Piece },
+    Reductio { of: Prop },
     /// `let x = a; b`: `b`, with `x` standing for what `a` gives. The
     /// second argument binds `x`.
     Let,
@@ -268,11 +268,11 @@ pub enum Op {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Judgement;
 
-/// What a rule takes and gives, read from `t`: the pieces of its
-/// arguments, in order, and the piece it gives an opinion of. `None`
+/// What a rule takes and gives, read from `t`: the propositions of its
+/// arguments, in order, and the proposition it gives an opinion of. `None`
 /// for an operation that is not a rule, or a rule that does not apply
 /// to `t`.
-fn rule(op: &Op) -> Option<(Vec<Piece>, Piece)> {
+fn rule(op: &Op) -> Option<(Vec<Prop>, Prop)> {
     match op {
         Op::Ponens { t, post } => Some((t.premises()?, t.posts()?.get(*post)?.clone())),
         Op::Tollens { t, post, blame } => {
@@ -360,9 +360,9 @@ impl Reading for Judgement {
                     return Err(Fault::Stuck);
                 }
                 let mut opinions = Vec::with_capacity(args.len());
-                for (arg, piece) in args.iter().zip(&from) {
+                for (arg, prop) in args.iter().zip(&from) {
                     match arg {
-                        O(x) if &x.about == piece => opinions.push(x),
+                        O(x) if &x.about == prop => opinions.push(x),
                         _ => return Err(Fault::Stuck),
                     }
                 }
@@ -410,12 +410,12 @@ impl Reading for Judgement {
 /// Each way `x` follows true, with each way it follows false, is a set
 /// of takings that cannot all hold. For each taking of `of` in it, the
 /// rest of the set says that taking is wrong.
-fn reductio(of: &Piece, x: &Opinion) -> Opinion {
+fn reductio(of: &Prop, x: &Opinion) -> Opinion {
     let (mut wrong_true, mut wrong_false) = (Rests::new(), Rests::new());
     for yes in &x.rests_for {
         for no in &x.rests_against {
             let cannot: BTreeSet<Taking> = yes.union(no).cloned().collect();
-            for taking in cannot.iter().filter(|t| &t.piece == of) {
+            for taking in cannot.iter().filter(|t| &t.prop == of) {
                 let mut rest = cannot.clone();
                 rest.remove(taking);
                 match taking.value {

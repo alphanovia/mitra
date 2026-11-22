@@ -56,7 +56,7 @@ S4 and S6 rest on it.
 
 **Value typing.** `has_type(v, T)` belongs to the reading. A truth or a
 number is of its kind. A record carries its record type, and each field must
-be of its type; an opinion carries the piece it is about. The reading
+be of its type; an opinion carries the proposition it is about. The reading
 computes what a value carries, so preservation still checks it.
 
 **Faults.** `Op(f)` is the reading's own "no value here" (a division by zero).
@@ -78,7 +78,7 @@ are ordinary operations, not special forms: both branches are computed (choice
 | S6 | **Substitution**, in the core: when `e₁` checks to `T₁` and `e₂` to `T₂` with `x : T₁`, `substitute(e₂, x, e₁)` checks to `T₂`; on every reading, when `e₁` gives `v`, `e₂` with `x = v` gives what `substitute(e₂, x, e₁)` gives. **Let shares**, in `Exact`, `Ranges` and judgement: `let x = e₁; e₂` gives what `substitute(e₂, x, e₁)` gives, faults included, and `e₁` is evaluated once. **Let chooses once**, in a reading of sets: `let` gives a subset of what writing it out gives, so S6 fails there, by design. | random expressions whose binders bind the names of `e₁`; random expressions with lets and shadowing, written out, every reading, typed and wild; a count of operations applied; sets, random |
 | J1 | **Rules preserve truth**: each set an opinion of `x` rests on, for or against, entails `x`, or `!x`, where `t = {p} s {q}` means `t → (∧p → ∧q)`. | every valuation of every random derivation |
 | J2 | **State is read from rests**: `state(not o) = not state(o)`, `state(join a b) = join(state a, state b)`. | random opinions |
-| J3 | **Rests are the smallest, and all**: no rest holds another. Keeping only the takings in a set `S`, a piece follows only if one of its rests lies in `S`, unless a `Reductio` lies below another; and, with no `Reductio`, whenever one does. A reductio's rest leaves out the taking it finds wrong. Below another reductio, a taking added can take a conclusion away: the inner one keeps only its smallest blame. | random derivations, random `S`; the case found by the red team |
+| J3 | **Rests are the smallest, and all**: no rest holds another. Keeping only the takings in a set `S`, a proposition follows only if one of its rests lies in `S`, unless a `Reductio` lies below another; and, with no `Reductio`, whenever one does. A reductio's rest leaves out the taking it finds wrong. Below another reductio, a taking added can take a conclusion away: the inner one keeps only its smallest blame. | random derivations, random `S`; the case found by the red team |
 
 ## simulation.rs
 
@@ -102,11 +102,11 @@ are ordinary operations, not special forms: both branches are computed (choice
 
 ## judgement.rs
 
-- Types `State | Opinion(Piece)`. A piece is `Named(n) | Not(x) |
+- Types `State | Opinion(Prop)`. A proposition is `Named(n) | Not(x) |
   Implies { pre, subject, post }`, where the last is `t = {p} s {q}`.
 - Values: a `State` (Belnap), or an `Opinion { about, rests_for,
   rests_against }`. The rests are the smallest sets of takings, where a taking
-  is `{ piece, value, count, by }`. The state is read from which rests are
+  is `{ prop, value, count, by }`. The state is read from which rests are
   empty. Counts stay on the takings; nothing reads them yet.
 - The rules, whose types are the rules (premises of `t` = `t, p₁ … pₙ`):
   - `Ponens { t, post }`: opinions of every premise give one of `q`.
@@ -277,8 +277,8 @@ be an operation.
 2. Core: **`Fault::Op` vs `Fault::Stuck`**, and operations see their arguments' faults, so `if` is not special.
 3. **Int = ℤ, Real = ℚ, unbounded** (num-bigint). Nothing overflows. Machine numbers (i64, Int8) are not in this round.
 4. **`/` on Real**, the one fault.
-5. **`Piece::Not`**, with `not` on opinions (`!x`). There is no `and` on opinions, because a step's pre is already a conjunction.
-6. **Taking `{ piece, value, count, by }`**. An opinion carries its piece (`about`), so its value says what it is about.
+5. **`Prop::Not`**, with `not` on opinions (`!x`). There is no `and` on opinions, because a step's pre is already a conjunction.
+6. **Taking `{ prop, value, count, by }`**. An opinion carries its proposition (`about`), so its value says what it is about.
 7. Removed after the red team: **bias**, and **`yes` / `no`** (the least count to give up). No rule reads either, and the least count is a smallest hitting set: exponential, and it crashed on 20,000 takings. Numbers come back when the logic is settled.
 8. Binding trees: the pair is named **`Arg { binds, body }`**, not `Bound`, since `Bounds` already means ranges in simulation.
 9. **`Reading::bind`**, a second method beside `apply`, for operations that bind: plain arguments come evaluated, `Stuck` stands in for the others, and `run` evaluates them. `apply` is unchanged for every other operation.

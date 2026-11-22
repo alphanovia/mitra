@@ -2,13 +2,13 @@
 
 `src/model.rs` is what you write about a system, as Rust data. It has no
 syntax yet: the language is decided later. It checks that a model is well
-formed and reads three things from it: how far each item is specified, the
-pieces judgement reasons about, and which of them only a taking can hold.
-It runs nothing, but each rule's proof, once (choice 5).
+formed and reads three things from it: how far each item is specified,
+the propositions judgement reasons about, and which of them only a taking
+can hold. It runs nothing, but each rule's proof, once (choice 5).
 
 `src/expression.rs` did not change for it (`git diff eca4b67 --
-src/expression.rs` is empty), nor did `src/judgement.rs`.
-`src/simulation.rs` gained one helper, `tuple`.
+src/expression.rs` is empty). `src/simulation.rs` gained one helper,
+`tuple`. `src/judgement.rs` only renamed `Piece` to `Prop`.
 
 ## The fall
 
@@ -43,15 +43,15 @@ What the tests show on it:
 - `check` finds nothing wrong. Each kind of problem is found when the model
   is changed to have it.
 - Levels: `sun::light` is opaque, `stone::drop` partial, `stone::speed` total.
-- Pieces: 12, each with the path it is about (below).
+- Propositions: 12, each with the path it is about (below).
 - Leaves: 8. They are `air`, `shines`, the claims `falls` and `speed::slow`,
   the assumed rule `slows`, what binds `light` to `shines`, what gives
   `lands_slow` from its list, and the tie. `light`, `lands_slow` and
   `drop::slow` follow from them. `lands` is shown by its proof.
-- Judgement reads the pieces as they are. Taking the list of `lands_slow`
-  (a reviewer) and its two claims (a machine, a timer) gives `lands_slow`
-  true. The proof of `lands`, run on takings of what it reads, gives
-  `drop::slow` true.
+- Judgement reads the propositions as they are. Taking the list of
+  `lands_slow` (a reviewer) and its two claims (a machine, a timer) gives
+  `lands_slow` true. The proof of `lands`, run on takings of what it reads,
+  gives `drop::slow` true.
 - Simulation runs the claims as they are. `speed::slow` holds for every
   height up to 20 m, by bounds, with the body read in place of `v2`.
   `drop::falls` holds on one measured fall, 5 m at 9.9 m/s.
@@ -74,9 +74,14 @@ struct Tie { item: Path, at: Location }
 struct Path { names: Vec<String> }                                 // stone::drop::falls
 ```
 
-`check(model) -> Vec<Problem>`, `levels(model)`, `pieces(model)` and
+`check(model) -> Vec<Problem>`, `levels(model)`, `props(model)` and
 `leaves(model)`. A `Problem` is `Twice`, `Unknown`, `Mistyped`, `Empty`,
 `Circular` or `Misnamed`, each with the path of the declaration at fault.
+
+Two types are named `Prop`. `model::Prop` is a proposition as a rule writes
+it: a path, or an expression. `judgement::Prop` is a proposition as
+judgement reads it: `Named`, `Not` or `Implies`. `props(model)` turns each
+of the model's into judgement's.
 
 ## Checks
 
@@ -101,22 +106,22 @@ struct Path { names: Vec<String> }                                 // stone::dro
   parts too, is `Circular`.
 - No list of an ensure's `from` is empty.
 
-## Pieces
+## Propositions, as judgement reads them
 
-| In the model | The piece | About |
+| In the model | The proposition | About |
 |---|---|---|
 | claim, require, ensure at `p` | `p` | `p` |
 | rule at `r` | `{premises} r {conclusion}` | `r` |
 | an expression written in rule `r` | `r::0`, `r::1`, … or `r::then` | `r` |
 | require `q` from ensure `e` | `{e} q {q}` | `q` |
-| each list `l` of ensure `e` (a rule in it is its piece) | `{l} e {e}` | `e` |
+| each list `l` of ensure `e` (a rule in it is its proposition) | `{l} e {e}` | `e` |
 | tie of `i` at `place` | `i at place` | `i` |
 
-A piece is given once. A leaf is a piece nothing concludes. A rule concludes
-its conclusion. A require from an ensure is concluded by it, and an ensure by
-its lists. A rule is concluded by its proof when the proof shows it. A tie is
-always a leaf. This holds in a model `check` accepts: on a cycle, nothing
-would be a leaf.
+A proposition is given once. A leaf is a proposition nothing concludes. A
+rule concludes its conclusion. A require from an ensure is concluded by it,
+and an ensure by its lists. A rule is concluded by its proof when the proof
+shows it. A tie is always a leaf. This holds in a model `check` accepts: on
+a cycle, nothing would be a leaf.
 
 ## The choices, in plain words
 
@@ -163,10 +168,10 @@ no time, no distributions.
 premises give its conclusion. Its proof is a judgement expression: it reads
 opinions of the premises, and of the rules of its part, and gives an opinion
 of the conclusion. Its type must be an opinion of the conclusion. But an
-opinion can argue against its piece (modus tollens) or come from a conflict
-(reductio). So the proof is also run once, with all it reads taken true, and
-it must give the conclusion true. Then the rule is shown. Without a proof,
-it is assumed.
+opinion can argue against its proposition (modus tollens) or come from a
+conflict (reductio). So the proof is also run once, with all it reads taken
+true, and it must give the conclusion true. Then the rule is shown. Without
+a proof, it is assumed.
 *Example*: `lands` is shown by `ponens(slows, falls, speed::slow)`; `slows`
 is assumed, since no rule of judgement does arithmetic. `reductio(falls)`
 has the type of a proof of `lands`, but run on `falls` true it gives
@@ -174,7 +179,7 @@ has the type of a proof of `lands`, but run on `falls` true it gives
 *Gain*: a proof is checked by the same core as everything else, with
 nothing new to trust.
 *Give up*: an expression written as a conclusion cannot be shown. It is its
-own piece, and no proof gives it. To show it, name it as a claim.
+own proposition, and no proof gives it. To show it, name it as a claim.
 *Elsewhere*: the Curry–Howard correspondence (a proposition is a type, a
 proof is a value of it), with one difference. In Lean, Coq and Agda, the
 type of a proof says that the proposition holds, so the type is enough.
@@ -188,7 +193,7 @@ only someone taking it holds it. Rules and lists name only their own part's
 items, so parts meet only through requires.
 *Example*: `stone::light` comes from `sun::shines`. A stone rule cannot name
 `sun::shines`: it names `stone::light`.
-*Gain*: each link between parts is a piece that can be blamed.
+*Gain*: each link between parts is a proposition that can be blamed.
 *Give up*: a link from an ensure to a require is a judgement that the
 words match, and someone must take it. And a circle of requires and ensures
 across parts, which assume–guarantee reasoning allows when an argument over
@@ -197,7 +202,7 @@ time backs it, is a problem here.
 lists are the AND/OR refinement of goal models (KAOS).
 
 **7. What is assumed is read, never declared.** There is no `assume`. A leaf
-is a piece nothing in the model concludes: only a taking holds it.
+is a proposition nothing in the model concludes: only a taking holds it.
 *Example*: `air` (words only), `shines` (no list), `slows` (no proof).
 *Gain*: nothing is assumed quietly: every leaf is listed, and each is where
 evidence must come in.
@@ -207,7 +212,7 @@ evidence must come in.
 **8. A tie says where an item is in the real system.** One belief: that it
 is what is there, and that the model says all that matters of it there.
 *Example*: `stone::drop` is the drop in the tower, `lab/tower/stone`.
-*Gain*: a tie can be wrong, so it can be blamed, like any piece.
+*Gain*: a tie can be wrong, so it can be blamed, like any proposition.
 *Give up*: a tie names one place; a part spread over several needs several.
 *Elsewhere*: traceability links in requirements tools, and the
 `// mitra: implements` comments that main reads in Rust code.
@@ -217,9 +222,9 @@ conclusion are claims, requires, ensures or expressions written in place:
 propositions about the system. A proof uses another rule by its path.
 *Example*: the proof of `lands` uses `slows`; the premises of `lands` are
 `falls` and `speed::slow`.
-*Gain*: a rule's piece holds only its own premises and conclusion. Before,
-a rule named as a premise was copied whole into the piece, with the rules
-it named in turn: 36 rules gave one piece of 655,358 parts, and a chain of
+*Gain*: a rule's proposition holds only its own premises and conclusion. Before,
+a rule named as a premise was copied whole into the proposition, with the rules
+it named in turn: 36 rules gave one proposition of 655,358 parts, and a chain of
 580 rules overflowed the stack. Now 5,000 rules are checked and read in
 about a second, in a debug build.
 *Give up*: a premise cannot be a rule ("if `slows` holds, then …"). A list
@@ -235,15 +240,15 @@ its proof uses other theorems by name.
    `0.0 <= self.h`.
 3. **Ensures can be named in a rule or a list**, beside claims and requires,
    and rules in a list.
-4. **An expression written in a rule is its own piece**, named by the rule
+4. **An expression written in a rule is its own proposition**, named by the rule
    and its place. Two rules never share one. To chain, name it as a claim.
 5. **A proof reads its premises by path**, or by place when written in
    place, and the rules of its part by path.
-6. **The subject of a rule's piece is the rule.** For a require from an
+6. **The subject of a rule's proposition is the rule.** For a require from an
    ensure it is the require, and for an ensure's list the ensure.
 7. **An opaque record's type has no field to read**, and no value of it
    is made.
-8. **A tie names a part, record or function**, and its piece is
+8. **A tie names a part, record or function**, and its proposition is
    `item at place`.
 9. **Tuples are records with no name**, their fields `0`, `1`, … in order:
    `simulation::tuple(types)`. `(a, b)` is `Make` and `t.0` is `Field("0")`.
@@ -280,11 +285,11 @@ in `tests/model.rs`:
 |---|---|---|
 | A proof by reductio or tollens type-checked, and its rule counted as shown | a proof is also run once (choice 5) | `a_proof_argues_for_its_conclusion` |
 | Cycles not through a rule's own path passed, and vanished from the leaves | every cycle of what rests on what is `Circular` | `nothing_rests_on_itself` |
-| A name with `::` or ` at ` made two pieces one | names are words | `names_are_words` |
-| Pieces grew exponentially; 580 chained rules overflowed the stack | rules used by name (choice 9); cycles found without the call stack | `many_rules_stay_flat` |
+| A name with `::` or ` at ` made two propositions one | names are words | `names_are_words` |
+| Propositions grew exponentially; 580 chained rules overflowed the stack | rules used by name (choice 9); cycles found without the call stack | `many_rules_stay_flat` |
 | A claim could make a record no one declares | records made as declared | `records_are_made_as_declared` |
 | "Parts connect only through requires" was false | now checked | `parts_meet_only_through_requires` |
-| A tie to nothing gave a piece; a list given twice gave two; leaves trusted a rejected proof | fixed | `pieces_are_given_once_of_what_is_there` |
+| A tie to nothing gave a proposition; a list given twice gave two; leaves trusted a rejected proof | fixed | `props_are_given_once_of_what_is_there` |
 | `kind` is never read | said so (choice 2) | |
 | `self.h >= 0` cannot be written; "Rust's" comments; GSN has no "or" | fixed above | |
 

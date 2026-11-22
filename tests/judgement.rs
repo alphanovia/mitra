@@ -1,13 +1,13 @@
 //! The judgement standard (`docs/core2.md`): S2 to S4, J1 (every rule
 //! preserves truth, checked on every valuation), J2 (states are read
 //! from rests) and J3 (rests are the smallest, and all) on random
-//! derivations, and the piece walked through.
+//! derivations, and the proposition walked through.
 
 mod common;
 
 use common::{apply, inline, let_in, Rng};
 use mitra_core::expression::{check, eval, fits, Arg, Expression, Fault, Reading};
-use mitra_core::judgement::{Judgement, Op, Opinion, Piece, State, Taking, Type, Value};
+use mitra_core::judgement::{Judgement, Op, Opinion, Prop, State, Taking, Type, Value};
 use proptest::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -20,14 +20,14 @@ fn input(name: &str) -> E {
     Expression::Name(name.to_string())
 }
 
-/// A random model: three named pieces and their negations, one to three
+/// A random model: three named propositions and their negations, one to three
 /// implications over them (an implication may be about an earlier one),
-/// and a leaf opinion of every piece from random takings.
+/// and a leaf opinion of every proposition from random takings.
 struct World {
     rng: Rng,
-    pieces: Vec<Piece>,
-    steps: Vec<Piece>,
-    names: BTreeMap<Piece, String>,
+    props: Vec<Prop>,
+    steps: Vec<Prop>,
+    names: BTreeMap<Prop, String>,
     inputs: BTreeMap<String, Type>,
     values: BTreeMap<String, Value>,
     /// The names `let` binds in scope, the nearest last.
@@ -37,41 +37,41 @@ struct World {
 impl World {
     fn new(seed: u64) -> World {
         let mut rng = Rng::new(seed);
-        let atoms: Vec<Piece> = ["a", "b", "c"].map(Piece::named).to_vec();
-        let mut pieces: Vec<Piece> = atoms
+        let atoms: Vec<Prop> = ["a", "b", "c"].map(Prop::named).to_vec();
+        let mut props: Vec<Prop> = atoms
             .iter()
             .cloned()
-            .chain(atoms.iter().map(Piece::not))
+            .chain(atoms.iter().map(Prop::not))
             .collect();
-        let mut steps: Vec<Piece> = Vec::new();
+        let mut steps: Vec<Prop> = Vec::new();
         for i in 0..1 + rng.below(3) {
-            let pool: Vec<Piece> = pieces.iter().chain(&steps).cloned().collect();
+            let pool: Vec<Prop> = props.iter().chain(&steps).cloned().collect();
             let pre = (0..rng.below(3)).map(|_| rng.pick(&pool).clone()).collect();
             let post = (0..1 + rng.below(2))
                 .map(|_| rng.pick(&pool).clone())
                 .collect();
-            steps.push(Piece::Implies {
+            steps.push(Prop::Implies {
                 pre,
                 subject: format!("s{i}"),
                 post,
             });
         }
-        pieces.extend(steps.iter().flat_map(|t| [t.clone(), t.not()]));
+        props.extend(steps.iter().flat_map(|t| [t.clone(), t.not()]));
         let mut w = World {
             rng,
-            pieces: pieces.clone(),
+            props: props.clone(),
             steps,
             names: BTreeMap::new(),
             inputs: BTreeMap::new(),
             values: BTreeMap::new(),
             bound: Vec::new(),
         };
-        for (i, piece) in pieces.iter().enumerate() {
+        for (i, prop) in props.iter().enumerate() {
             let name = format!("o{i}");
-            let takings = (0..w.rng.below(4)).map(|_| w.taking(piece)).collect();
-            let opinion = Opinion::taken(piece.clone(), takings).unwrap();
-            w.names.insert(piece.clone(), name.clone());
-            w.inputs.insert(name.clone(), Type::Opinion(piece.clone()));
+            let takings = (0..w.rng.below(4)).map(|_| w.taking(prop)).collect();
+            let opinion = Opinion::taken(prop.clone(), takings).unwrap();
+            w.names.insert(prop.clone(), name.clone());
+            w.inputs.insert(name.clone(), Type::Opinion(prop.clone()));
             w.values.insert(name, Value::Opinion(opinion));
         }
         for name in ["s0", "s1"] {
@@ -83,16 +83,16 @@ impl World {
         }
         w
     }
-    fn taking(&mut self, piece: &Piece) -> Taking {
+    fn taking(&mut self, prop: &Prop) -> Taking {
         Taking {
-            piece: piece.clone(),
+            prop: prop.clone(),
             value: self.rng.below(3) > 0,
             count: 1 + self.rng.below(3) as u64,
             by: self.rng.pick(&["v1", "v2"]).to_string(),
         }
     }
-    fn piece(&mut self) -> Piece {
-        self.rng.pick(&self.pieces.clone()).clone()
+    fn prop(&mut self) -> Prop {
+        self.rng.pick(&self.props.clone()).clone()
     }
     /// A name in scope of type `t`: an input, or one a `let` binds.
     fn name(&mut self, t: &Type) -> E {
@@ -128,7 +128,7 @@ impl World {
         let_in(Op::Let, &name, value, body)
     }
     /// A random derivation of an opinion of `x`.
-    fn opinion(&mut self, x: &Piece, depth: u32) -> E {
+    fn opinion(&mut self, x: &Prop, depth: u32) -> E {
         if depth == 0 || self.rng.below(4) == 0 {
             return self.name(&Type::Opinion(x.clone()));
         }
@@ -136,7 +136,7 @@ impl World {
         if self.rng.below(6) == 0 {
             let y = match self.rng.coin() {
                 true => x.clone(),
-                false => self.piece(),
+                false => self.prop(),
             };
             let x = x.clone();
             return self.let_in(
@@ -172,8 +172,8 @@ impl World {
             Op::Not => vec![self.opinion(&x.not(), d)],
             Op::Reductio { .. } => {
                 // Where a conflict may hold a taking of x: x itself, a post
-                // of an implication x is a premise of, or any piece.
-                let posts: Vec<Piece> = self
+                // of an implication x is a premise of, or any proposition.
+                let posts: Vec<Prop> = self
                     .steps
                     .iter()
                     .filter(|t| t.premises().unwrap().contains(x))
@@ -182,7 +182,7 @@ impl World {
                 let y = match self.rng.below(3) {
                     0 => x.clone(),
                     1 if !posts.is_empty() => self.rng.pick(&posts).clone(),
-                    _ => self.piece(),
+                    _ => self.prop(),
                 };
                 vec![self.opinion(&y, d)]
             }
@@ -214,7 +214,7 @@ impl World {
         match self.rng.below(5) {
             4 => self.let_in(Type::State, |w| w.state(d), |w| w.state(d)),
             0 => {
-                let y = self.piece();
+                let y = self.prop();
                 apply(Op::StateOf, vec![self.opinion(&y, d)])
             }
             1 => apply(Op::Not, vec![self.state(d)]),
@@ -227,14 +227,14 @@ impl World {
         match self.rng.below(4) {
             0 => (Type::State, self.state(depth)),
             _ => {
-                let x = self.piece();
+                let x = self.prop();
                 (Type::Opinion(x.clone()), self.opinion(&x, depth))
             }
         }
     }
     /// Any operation, with any parameters.
     fn wild_op(&mut self) -> Op {
-        let t = self.piece();
+        let t = self.prop();
         let (post, blame) = (self.rng.below(4), self.rng.below(5));
         let all = [
             Op::Not,
@@ -255,15 +255,15 @@ impl World {
     /// Any expression, typed or not.
     fn wild(&mut self, depth: u32) -> E {
         if depth == 0 || self.rng.below(4) == 0 {
-            return Expression::Name(format!("o{}", self.rng.below(self.pieces.len() + 2)));
+            return Expression::Name(format!("o{}", self.rng.below(self.props.len() + 2)));
         }
         if self.rng.below(6) == 0 {
-            let name = format!("o{}", self.rng.below(self.pieces.len() + 2));
+            let name = format!("o{}", self.rng.below(self.props.len() + 2));
             let (value, body) = (self.wild(depth - 1), self.wild(depth - 1));
             return let_in(Op::Let, &name, value, body);
         }
         let op = self.wild_op();
-        let names = self.pieces.len() + 2;
+        let names = self.props.len() + 2;
         let args = (0..self.rng.below(5))
             .map(|_| {
                 let binds = (0..[0, 0, 0, 1, 2][self.rng.below(5)])
@@ -279,42 +279,42 @@ impl World {
     }
 }
 
-/// The meaning of pieces, for J1: a valuation gives a truth to every
-/// named piece and every implication, and an implication `t` that is
+/// The meaning of propositions, for J1: a valuation gives a truth to every
+/// named proposition and every implication, and an implication `t` that is
 /// true makes its posts true when its pres are.
 struct Meaning {
-    vars: Vec<Piece>,
+    vars: Vec<Prop>,
 }
 
 impl Meaning {
-    fn of(pieces: &[Piece]) -> Meaning {
-        fn collect(p: &Piece, vars: &mut BTreeSet<Piece>) {
+    fn of(props: &[Prop]) -> Meaning {
+        fn collect(p: &Prop, vars: &mut BTreeSet<Prop>) {
             match p {
-                Piece::Named(_) => {
+                Prop::Named(_) => {
                     vars.insert(p.clone());
                 }
-                Piece::Not(x) => collect(x, vars),
-                Piece::Implies { pre, post, .. } => {
+                Prop::Not(x) => collect(x, vars),
+                Prop::Implies { pre, post, .. } => {
                     vars.insert(p.clone());
                     pre.iter().chain(post).for_each(|q| collect(q, vars));
                 }
             }
         }
         let mut vars = BTreeSet::new();
-        pieces.iter().for_each(|p| collect(p, &mut vars));
+        props.iter().for_each(|p| collect(p, &mut vars));
         Meaning {
             vars: vars.into_iter().collect(),
         }
     }
-    fn truth(&self, p: &Piece, bits: u64) -> bool {
+    fn truth(&self, p: &Prop, bits: u64) -> bool {
         match p {
-            Piece::Not(x) => !self.truth(x, bits),
+            Prop::Not(x) => !self.truth(x, bits),
             _ => {
                 let place = self
                     .vars
                     .iter()
                     .position(|v| v == p)
-                    .expect("a piece outside the world");
+                    .expect("a prop outside the world");
                 bits >> place & 1 == 1
             }
         }
@@ -322,7 +322,7 @@ impl Meaning {
     /// Every implication holds as it says.
     fn lawful(&self, bits: u64) -> bool {
         self.vars.iter().all(|t| match t {
-            Piece::Implies { pre, post, .. } => {
+            Prop::Implies { pre, post, .. } => {
                 let applies = self.truth(t, bits) && pre.iter().all(|p| self.truth(p, bits));
                 !applies || post.iter().all(|q| self.truth(q, bits))
             }
@@ -331,10 +331,10 @@ impl Meaning {
     }
     /// `set` entails that `x` is `value`: in every lawful valuation where
     /// every taking of `set` holds.
-    fn entails(&self, set: &BTreeSet<Taking>, x: &Piece, value: bool) -> bool {
+    fn entails(&self, set: &BTreeSet<Taking>, x: &Prop, value: bool) -> bool {
         (0..1u64 << self.vars.len()).all(|bits| {
             let holds =
-                self.lawful(bits) && set.iter().all(|t| self.truth(&t.piece, bits) == t.value);
+                self.lawful(bits) && set.iter().all(|t| self.truth(&t.prop, bits) == t.value);
             !holds || self.truth(x, bits) == value
         })
     }
@@ -387,7 +387,7 @@ proptest! {
     fn every_rule_preserves_truth(seed in any::<u64>(), depth in 1u32..6) {
         let mut w = World::new(seed);
         let (_, e) = w.typed(depth);
-        let meaning = Meaning::of(&w.pieces);
+        let meaning = Meaning::of(&w.props);
         let j = Judgement;
         let written = inline(&e, &is_let);
         for sub in subexpressions(&written) {
@@ -402,7 +402,7 @@ proptest! {
     #[test]
     fn states_follow_from_rests(seed in any::<u64>(), depth in 0u32..5) {
         let mut w = World::new(seed);
-        let x = w.piece();
+        let x = w.prop();
         let j = Judgement;
         let (e1, e2, e3) = (w.opinion(&x, depth), w.opinion(&x, depth), w.opinion(&x, depth));
         let (a, b, c) = (opinion(eval(&j, &w.values, &e1)), opinion(eval(&j, &w.values, &e2)), opinion(eval(&j, &w.values, &e3)));
@@ -422,7 +422,7 @@ proptest! {
 
     /// J3: rests are the smallest sets of takings a derivation reads, and
     /// all of them. No set holds another. Keeping only the takings in a
-    /// set `S`, a piece still follows true (false) only when one of its
+    /// set `S`, a proposition still follows true (false) only when one of its
     /// rests for (against) lies in `S`, unless a reductio lies below
     /// another (`a_reductio_below_another`); and, with no reductio,
     /// whenever one does. A reductio's rest leaves out the taking it
@@ -430,7 +430,7 @@ proptest! {
     #[test]
     fn rests_are_the_smallest_and_all(seed in any::<u64>(), depth in 1u32..6) {
         let mut w = World::new(seed);
-        let x = w.piece();
+        let x = w.prop();
         let e = w.opinion(&x, depth);
         let j = Judgement;
         let written = inline(&e, &is_let);
@@ -457,7 +457,7 @@ proptest! {
             let kept: BTreeSet<Taking> = takings.iter().filter(|_| w.rng.coin()).cloned().collect();
             let values: BTreeMap<String, Value> = w.values.iter().map(|(name, v)| (name.clone(), match v {
                 Value::Opinion(o) => {
-                    let left = kept.iter().filter(|t| &t.piece == o.about()).cloned().collect();
+                    let left = kept.iter().filter(|t| &t.prop == o.about()).cloned().collect();
                     Value::Opinion(Opinion::taken(o.about().clone(), left).unwrap())
                 }
                 state => state.clone(),
@@ -527,21 +527,21 @@ fn belnap() {
     assert_eq!(True.join(False), Conflict);
 }
 
-fn take(x: &Piece, value: bool, count: u64, by: &str) -> Taking {
+fn take(x: &Prop, value: bool, count: u64, by: &str) -> Taking {
     Taking {
-        piece: x.clone(),
+        prop: x.clone(),
         value,
         count,
         by: by.to_string(),
     }
 }
 
-/// The piece `t = {p} s {q}` walked through: each of `p`, `t` and `q`
+/// The proposition `t = {p} s {q}` walked through: each of `p`, `t` and `q`
 /// has a state and an opinion; ponens, tollens and reductio.
 #[test]
-fn a_piece_walked_through() {
-    let (p, q) = (Piece::named("p"), Piece::named("q"));
-    let t = Piece::Implies {
+fn a_proposition_walked_through() {
+    let (p, q) = (Prop::named("p"), Prop::named("q"));
+    let t = Prop::Implies {
         pre: vec![p.clone()],
         subject: "s".to_string(),
         post: vec![q.clone()],
@@ -635,14 +635,14 @@ fn a_piece_walked_through() {
 /// The type of a rule is the rule: ponens on the wrong premise, or on
 /// another implication of the same subject, does not check.
 #[test]
-fn rules_check_their_pieces() {
-    let (p, q, r) = (Piece::named("p"), Piece::named("q"), Piece::named("r"));
-    let t = Piece::Implies {
+fn rules_check_their_propositions() {
+    let (p, q, r) = (Prop::named("p"), Prop::named("q"), Prop::named("r"));
+    let t = Prop::Implies {
         pre: vec![p.clone()],
         subject: "s".to_string(),
         post: vec![q.clone()],
     };
-    let other = Piece::Implies {
+    let other = Prop::Implies {
         pre: vec![p.clone()],
         subject: "s".to_string(),
         post: vec![r.clone()],
@@ -684,8 +684,8 @@ fn rules_check_their_pieces() {
 /// is a premise: untaken, it gives nothing; taken false, nothing either.
 #[test]
 fn nothing_follows_from_nothing() {
-    let q = Piece::named("q");
-    let t = Piece::Implies {
+    let q = Prop::named("q");
+    let t = Prop::Implies {
         pre: vec![],
         subject: "d".to_string(),
         post: vec![q.clone()],
@@ -707,13 +707,13 @@ fn nothing_follows_from_nothing() {
     }
 }
 
-/// Counts never decide a state: a taking of count 0 holds a piece as
+/// Counts never decide a state: a taking of count 0 holds a proposition as
 /// firmly, for the logic, as one of count 10. Two takings of p are two
 /// ways for it; through t, every way needs the review.
 #[test]
 fn counts_never_decide() {
-    let (p, q) = (Piece::named("p"), Piece::named("q"));
-    let t = Piece::Implies {
+    let (p, q) = (Prop::named("p"), Prop::named("q"));
+    let t = Prop::Implies {
         pre: vec![p.clone()],
         subject: "s".to_string(),
         post: vec![q.clone()],
@@ -761,8 +761,8 @@ fn counts_never_decide() {
 /// opinion follows false from no taking.
 #[test]
 fn an_impossible_implication_is_refuted() {
-    let a = Piece::named("a");
-    let t = Piece::Implies {
+    let a = Prop::named("a");
+    let t = Prop::Implies {
         pre: vec![],
         subject: "s".to_string(),
         post: vec![a.clone(), a.not()],
@@ -801,10 +801,10 @@ fn an_impossible_implication_is_refuted() {
     assert!(Meaning::of(&[t]).sound(&refuted));
 }
 
-/// A leaf opinion is of the takings of its own piece only.
+/// A leaf opinion is of the takings of its own proposition only.
 #[test]
 fn a_leaf_is_its_own_takings() {
-    let (p, q) = (Piece::named("p"), Piece::named("q"));
+    let (p, q) = (Prop::named("p"), Prop::named("q"));
     assert!(Opinion::taken(p.clone(), vec![take(&q, true, 1, "v")]).is_none());
     let o = Opinion::taken(p.clone(), vec![]).unwrap();
     assert_eq!(o.state(), State::Unknown);
@@ -816,11 +816,11 @@ fn a_leaf_is_its_own_takings() {
 /// quickly: premises that share no taking are not compared.
 #[test]
 fn a_wide_ponens_is_quick() {
-    let pre: Vec<Piece> = (0..11).map(|i| Piece::named(&format!("p{i}"))).collect();
-    let t = Piece::Implies {
+    let pre: Vec<Prop> = (0..11).map(|i| Prop::named(&format!("p{i}"))).collect();
+    let t = Prop::Implies {
         pre,
         subject: "s".to_string(),
-        post: vec![Piece::named("q")],
+        post: vec![Prop::named("q")],
     };
     let premises = t.premises().unwrap();
     let (mut inputs, mut values, mut args) = (BTreeMap::new(), BTreeMap::new(), vec![]);
@@ -856,8 +856,8 @@ fn a_wide_ponens_is_quick() {
 /// rules over it neither recurse per taking nor slow down.
 #[test]
 fn a_much_taken_leaf() {
-    let (p, q) = (Piece::named("p"), Piece::named("q"));
-    let t = Piece::Implies {
+    let (p, q) = (Prop::named("p"), Prop::named("q"));
+    let t = Prop::Implies {
         pre: vec![p.clone()],
         subject: "s".to_string(),
         post: vec![q.clone()],
@@ -901,13 +901,13 @@ fn a_much_taken_leaf() {
 /// What is lost rested on takings that cannot all hold.
 #[test]
 fn a_reductio_below_another() {
-    let (z, q, w) = (Piece::named("z"), Piece::named("q"), Piece::named("w"));
-    let t7 = Piece::Implies {
+    let (z, q, w) = (Prop::named("z"), Prop::named("q"), Prop::named("w"));
+    let t7 = Prop::Implies {
         pre: vec![z.not()],
         subject: "s7".to_string(),
         post: vec![w.not()],
     };
-    let t9 = Piece::Implies {
+    let t9 = Prop::Implies {
         pre: vec![z.not(), q.clone()],
         subject: "s9".to_string(),
         post: vec![z.not()],
@@ -997,8 +997,8 @@ fn a_reductio_below_another() {
 /// and judged on a thread of 2 MiB.
 #[test]
 fn a_thousand_levels() {
-    let p = Piece::named("p");
-    let t = Piece::Implies {
+    let p = Prop::named("p");
+    let t = Prop::Implies {
         pre: vec![p.clone()],
         subject: "s".to_string(),
         post: vec![p.clone()],
@@ -1045,7 +1045,7 @@ fn a_thousand_levels() {
         .unwrap()
         .join()
         .unwrap();
-    assert_eq!(deep, (Some(Type::Opinion(Piece::named("p"))), State::True));
+    assert_eq!(deep, (Some(Type::Opinion(Prop::named("p"))), State::True));
 }
 
 /// Red team, round 2: a premise whose one rest holds the takings of every
@@ -1053,20 +1053,20 @@ fn a_thousand_levels() {
 /// one rest, whatever the order of its premises.
 #[test]
 fn a_premise_that_holds_the_others() {
-    let ps: Vec<Piece> = (0..16).map(|i| Piece::named(&format!("p{i}"))).collect();
-    let z = Piece::named("z");
-    let tz = Piece::Implies {
+    let ps: Vec<Prop> = (0..16).map(|i| Prop::named(&format!("p{i}"))).collect();
+    let z = Prop::named("z");
+    let tz = Prop::Implies {
         pre: [ps.clone(), ps.clone()].concat(),
         subject: "sz".to_string(),
         post: vec![z.clone()],
     };
-    let t = Piece::Implies {
+    let t = Prop::Implies {
         pre: [ps.clone(), vec![z]].concat(),
         subject: "s".to_string(),
-        post: vec![Piece::named("q")],
+        post: vec![Prop::named("q")],
     };
     let mut values = BTreeMap::new();
-    let mut leaf = |name: String, x: &Piece, by: &[&str]| {
+    let mut leaf = |name: String, x: &Prop, by: &[&str]| {
         let takings = by.iter().map(|b| take(x, true, 1, b)).collect();
         let o = Opinion::taken(x.clone(), takings).unwrap();
         values.insert(name.clone(), Value::Opinion(o));
