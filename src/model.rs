@@ -65,7 +65,9 @@ pub struct Model {
     pub ties: Vec<Tie>,
 }
 
-/// In the system, or outside it. A label for now: nothing reads it.
+/// In the system, or outside it. Only explain reads it: what a
+/// subject's opaque function was seen to give may be copied as its
+/// examples, not what the environment gave.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     /// In the system: what is built, or bought and used.
@@ -272,6 +274,13 @@ pub struct Tie {
     pub at: Location,
 }
 
+impl Tie {
+    /// The proposition the tie is: `item at place`.
+    pub fn prop(&self) -> Prop {
+        Prop::Named(format!("{} at {}", self.item, self.at.path.join("/")))
+    }
+}
+
 /// How far a record or function is specified. Read, never declared.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Level {
@@ -368,8 +377,7 @@ pub fn props(model: &Model) -> Vec<(Path, Prop)> {
     }
     for tie in &model.ties {
         if let Some(Item::Part | Item::Record | Item::Function) = index.items.get(&tie.item) {
-            let named = format!("{} at {}", tie.item, tie.at.path.join("/"));
-            props.push((tie.item.clone(), Prop::Named(named)));
+            props.push((tie.item.clone(), tie.prop()));
         }
     }
     let mut given = BTreeSet::new();
@@ -440,6 +448,8 @@ pub(crate) struct Index<'m> {
     pub(crate) functions: BTreeMap<String, &'m Function>,
     pub(crate) contracts: BTreeMap<&'m str, &'m Contract>,
     pub(crate) judgement: Judgement,
+    /// What each rule judgement knows says, by path.
+    pub(crate) definitions: BTreeMap<String, Definition>,
     pub(crate) cyclic: BTreeSet<String>,
     /// The rules judgement does not know.
     unknown: BTreeSet<String>,
@@ -454,6 +464,7 @@ impl<'m> Index<'m> {
             functions: BTreeMap::new(),
             contracts: BTreeMap::new(),
             judgement: Judgement::default(),
+            definitions: BTreeMap::new(),
             cyclic: BTreeSet::new(),
             unknown: BTreeSet::new(),
         };
@@ -515,6 +526,7 @@ impl<'m> Index<'m> {
         whole.retain(|name, _| !index.cyclic.contains(name));
         index.unknown.extend(index.cyclic.iter().cloned());
         // Without those, none left is named through itself.
+        index.definitions = whole.clone();
         index.judgement = Judgement::with(whole).unwrap_or_default();
         index
     }

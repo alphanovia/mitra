@@ -9,12 +9,14 @@
 //! model (`docs/syntax.md`), and `reader` reads ties and tests from Rust
 //! code and a store of what people saw and said: the ledger, which
 //! `evidence` holds and checks against a model. `agree` compares what
-//! the model says twice, with no evidence.
+//! the model says twice, with no evidence, and `explain` reads the model
+//! with the evidence.
 
 pub mod agree;
 pub mod catalogue;
 pub mod check;
 pub mod evidence;
+pub mod explain;
 pub mod expression;
 mod graph;
 pub mod judgement;

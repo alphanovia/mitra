@@ -190,7 +190,7 @@ or takes them.
 environment.
 *Gain*, later: diagnose can tell a fault in what you answer for (a bug to
 fix) from one in what you assume of the world (a belief to revise).
-*Today*: a label. No check and no reading uses it yet.
+*Today*: explain reads it for one hint only: what a subject's opaque function was seen to give may be copied as examples, not what the environment gave.
 *Give up*: the line is yours to draw, and moving it changes the model.
 *Elsewhere*: systems engineering draws the same "system boundary"; SysML
 calls the outside "actors" and "external systems".

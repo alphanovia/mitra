@@ -131,6 +131,21 @@ pub const V005: Code = evidence(5);
 pub const V006: Code = evidence(6);
 pub const V007: Code = evidence(7);
 
+const fn explain(number: u16) -> Code {
+    Code {
+        suit: Suit::Explain,
+        number,
+    }
+}
+
+pub const X001: Code = explain(1);
+pub const X002: Code = explain(2);
+pub const X003: Code = explain(3);
+pub const X004: Code = explain(4);
+pub const X005: Code = explain(5);
+pub const X006: Code = explain(6);
+pub const X007: Code = explain(7);
+
 const fn parse(number: u16) -> Code {
     Code {
         suit: Suit::Parse,
@@ -211,6 +226,19 @@ pub const CATALOGUE: &[Entry] = &[
     entry(V005, "a review of nothing a review can name"),
     entry(V006, "a measurement missing an input, or with no output"),
     entry(V007, "a voice missing, or saying twice"),
+    entry(
+        X001,
+        "a measurement nothing in the model says what to expect of",
+    ),
+    entry(
+        X002,
+        "a failed test whose expected value the model does not give",
+    ),
+    entry(X003, "a claim a measurement does not decide"),
+    entry(X004, "an output the model cannot compute from the inputs"),
+    entry(X005, "an input nothing measured reads"),
+    entry(X006, "judging stopped before it was done"),
+    entry(X007, "an opaque function measured the same each time"),
     entry(P001, "a character that starts nothing"),
     entry(P002, "a string that is not closed"),
     entry(P003, "not what the language has here"),
@@ -247,6 +275,20 @@ pub struct Finding {
     pub code: Code,
     pub at: Path,
     pub message: String,
+}
+
+/// Less than a finding: what a reading saw that may help, at `at`.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Hint {
+    pub code: Code,
+    pub at: Path,
+    pub message: String,
+}
+
+impl std::fmt::Display for Hint {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "hint[{}]: {}\n --> {}", self.code, self.message, self.at)
+    }
 }
 
 /// As rustc writes it: `error[M005]: …`, then where.
