@@ -78,6 +78,21 @@ pub struct Verdicted {
     pub verdict: Verdict,
 }
 
+/// Where a taking comes from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Source {
+    /// A leaf of the model, which only the model says.
+    Model,
+    /// The measurement of the ledger at this place.
+    Measurement(usize),
+    /// The review of the ledger at this place.
+    Review(usize),
+    /// A rule of the model its proof shows.
+    Proof,
+    /// A rule explain wrote to link a measurement to the model.
+    Written,
+}
+
 /// What explain gives.
 #[derive(Clone, Debug, Default)]
 pub struct Explanation {
@@ -86,6 +101,8 @@ pub struct Explanation {
     pub verdicts: Vec<Verdicted>,
     /// All that judging gave, by proposition: what blame reads.
     pub opinions: BTreeMap<Prop, Opinion>,
+    /// Where each taking comes from.
+    pub sources: BTreeMap<Taking, Source>,
     pub findings: Vec<Finding>,
     pub hints: Vec<Hint>,
 }
@@ -103,6 +120,7 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         model,
         library: &library,
         takings: Vec::new(),
+        sources: BTreeMap::new(),
         rules: index.definitions.clone(),
         written: Vec::new(),
         findings: Vec::new(),
@@ -120,7 +138,11 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
             true => (CHECK, 1),
             false => (MODEL, 0),
         };
-        given.take(prop, true, count, by);
+        let source = match shown {
+            true => Source::Proof,
+            false => Source::Model,
+        };
+        given.take(prop, true, count, by, source);
     }
     for (i, r) in ledger.reviews.iter().enumerate() {
         if refused.contains(&Path::to(&["reviews", &i.to_string()])) {
@@ -136,7 +158,7 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
                 .collect(),
         };
         for p in props {
-            given.take(p, r.holds, 1, &r.by);
+            given.take(p, r.holds, 1, &r.by, Source::Review(i));
         }
     }
     for (i, m) in ledger.measurements.iter().enumerate() {
@@ -146,6 +168,7 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
     }
     let Given {
         takings,
+        sources,
         rules,
         written,
         mut findings,
@@ -214,6 +237,7 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
     Explanation {
         verdicts,
         opinions: judge.opinions,
+        sources,
         findings,
         hints,
     }
@@ -248,6 +272,7 @@ struct Given<'a, 'm> {
     model: &'m Model,
     library: &'a Calls,
     takings: Vec<Taking>,
+    sources: BTreeMap<Taking, Source>,
     /// Every rule judgement will know: the model's, and those written to
     /// link a measurement to it.
     rules: BTreeMap<String, Definition>,
@@ -260,13 +285,15 @@ struct Given<'a, 'm> {
 }
 
 impl Given<'_, '_> {
-    fn take(&mut self, prop: Prop, value: bool, count: u64, by: &str) {
-        self.takings.push(Taking {
+    fn take(&mut self, prop: Prop, value: bool, count: u64, by: &str, source: Source) {
+        let taking = Taking {
             prop,
             value,
             count,
             by: by.to_string(),
-        });
+        };
+        self.sources.entry(taking.clone()).or_insert(source);
+        self.takings.push(taking);
     }
 
     /// A rule `pre |- post`, by `name`, written once and taken by the
@@ -282,7 +309,7 @@ impl Given<'_, '_> {
                 post: vec![post],
             },
         );
-        self.take(Prop::Named(name), true, 1, CHECK);
+        self.take(Prop::Named(name), true, 1, CHECK, Source::Written);
     }
 
     fn finding(&mut self, code: crate::catalogue::Code, at: &Path, message: String) {
@@ -495,7 +522,7 @@ impl Given<'_, '_> {
                     function: path.clone(),
                     at: Term::Point(x.clone()),
                 };
-                self.take(prop.clone(), value, m.count, &m.by);
+                self.take(prop.clone(), value, m.count, &m.by, Source::Measurement(i));
                 self.write(
                     format!("{path} at {point}, by its ties"),
                     ties.clone(),
@@ -506,7 +533,13 @@ impl Given<'_, '_> {
             for (c, value) in held {
                 let claim = f.then(&c.name);
                 let instance = Prop::Named(format!("{claim} at {point}"));
-                self.take(instance.clone(), value, m.count, &m.by);
+                self.take(
+                    instance.clone(),
+                    value,
+                    m.count,
+                    &m.by,
+                    Source::Measurement(i),
+                );
                 let mut through = self.reach([&c.holds]);
                 through.insert(path.clone());
                 let pre = [vec![Prop::Named(claim.to_string())], self.ties(&through)].concat();
@@ -531,11 +564,7 @@ impl Given<'_, '_> {
 /// What opaque functions gave where nothing said what they should: each
 /// a finding, and a hint to copy them as examples when a subject's
 /// function gave one value at each point.
-fn observations(
-    model: &Model,
-    observed: Observed,
-    findings: &mut Vec<Finding>,
-) -> Vec<Hint> {
+fn observations(model: &Model, observed: Observed, findings: &mut Vec<Finding>) -> Vec<Hint> {
     let mut by_function: BTreeMap<Path, Vec<Seen>> = BTreeMap::new();
     for ((f, x), seen) in observed {
         for (i, y) in &seen {

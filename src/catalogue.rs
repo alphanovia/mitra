@@ -146,6 +146,16 @@ pub const X005: Code = explain(5);
 pub const X006: Code = explain(6);
 pub const X007: Code = explain(7);
 
+const fn blame(number: u16) -> Code {
+    Code {
+        suit: Suit::Blame,
+        number,
+    }
+}
+
+pub const B001: Code = blame(1);
+pub const B002: Code = blame(2);
+
 const fn parse(number: u16) -> Code {
     Code {
         suit: Suit::Parse,
@@ -239,6 +249,8 @@ pub const CATALOGUE: &[Entry] = &[
     entry(X005, "an input nothing measured reads"),
     entry(X006, "judging stopped before it was done"),
     entry(X007, "an opaque function measured the same each time"),
+    entry(B001, "a conflict the model's claims alone hold"),
+    entry(B002, "more diagnoses than blame looked for"),
     entry(P001, "a character that starts nothing"),
     entry(P002, "a string that is not closed"),
     entry(P003, "not what the language has here"),
