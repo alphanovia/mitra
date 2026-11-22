@@ -66,7 +66,15 @@ fn codes_read_as_written() {
         entry_of(M002).map(|e| e.title),
         Some("a name is declared twice")
     );
-    assert_eq!(entry_of(agree), None);
+    assert_eq!(
+        entry_of(agree).map(|e| e.title),
+        Some("a body that breaks a claim")
+    );
+    let unlisted = Code {
+        suit: Suit::Expression,
+        number: 1,
+    };
+    assert_eq!(entry_of(unlisted), None);
     let at = Path::to(&["stone", "drop", "falls"]);
     let error = Error {
         code: M002,

@@ -100,6 +100,21 @@ pub const M021: Code = model(21);
 pub const M022: Code = model(22);
 pub const M023: Code = model(23);
 
+const fn agree(number: u16) -> Code {
+    Code {
+        suit: Suit::Agree,
+        number,
+    }
+}
+
+pub const A001: Code = agree(1);
+pub const A002: Code = agree(2);
+pub const A003: Code = agree(3);
+pub const A004: Code = agree(4);
+pub const A005: Code = agree(5);
+pub const A006: Code = agree(6);
+pub const A007: Code = agree(7);
+
 const fn evidence(number: u16) -> Code {
     Code {
         suit: Suit::Evidence,
@@ -180,6 +195,13 @@ pub const CATALOGUE: &[Entry] = &[
         "a model example not of its types, or missing an input",
     ),
     entry(M023, "a correct, all or any a rule cannot write"),
+    entry(A001, "a body that breaks a claim"),
+    entry(A002, "a body that disagrees with an example"),
+    entry(A003, "an example that breaks a claim"),
+    entry(A004, "claims no value keeps together"),
+    entry(A005, "a contract claim a function that fits breaks"),
+    entry(A006, "an example of the model the model does not give"),
+    entry(A007, "a comparison not decided"),
     entry(V001, "a measurement that names no input or output"),
     entry(V002, "a measurement through no tie"),
     entry(V003, "a measured value not of its type"),

@@ -8,8 +8,10 @@
 //! judgement to check. `parse` and `print` read and write the text of a
 //! model (`docs/syntax.md`), and `reader` reads ties and tests from Rust
 //! code and a store of what people saw and said: the ledger, which
-//! `evidence` holds and checks against a model.
+//! `evidence` holds and checks against a model. `agree` compares what
+//! the model says twice, with no evidence.
 
+pub mod agree;
 pub mod catalogue;
 pub mod check;
 pub mod evidence;
