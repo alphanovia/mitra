@@ -19,6 +19,7 @@ fn every_code_is_listed_once_and_kept() {
         Suit::Evidence,
         Suit::Explain,
         Suit::Blame,
+        Suit::Parse,
     ];
     for suit in suits {
         let numbers: Vec<u16> = codes

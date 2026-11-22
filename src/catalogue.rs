@@ -24,6 +24,8 @@ pub enum Suit {
     Explain,
     /// `B`: which evidence is wrong.
     Blame,
+    /// `P`: the text of a model, read (`src/parse.rs`).
+    Parse,
 }
 
 impl Suit {
@@ -35,6 +37,7 @@ impl Suit {
             Suit::Evidence => 'V',
             Suit::Explain => 'X',
             Suit::Blame => 'B',
+            Suit::Parse => 'P',
         }
     }
 }
@@ -85,6 +88,19 @@ pub const M013: Code = model(13);
 pub const M014: Code = model(14);
 pub const M015: Code = model(15);
 
+const fn parse(number: u16) -> Code {
+    Code {
+        suit: Suit::Parse,
+        number,
+    }
+}
+
+pub const P001: Code = parse(1);
+pub const P002: Code = parse(2);
+pub const P003: Code = parse(3);
+pub const P004: Code = parse(4);
+pub const P005: Code = parse(5);
+
 const fn entry(code: Code, title: &'static str) -> Entry {
     Entry {
         code,
@@ -111,6 +127,11 @@ pub const CATALOGUE: &[Entry] = &[
     entry(M013, "a declaration that rests on itself"),
     entry(M014, "a rule named through itself"),
     entry(M015, "an example not of its function's types"),
+    entry(P001, "a character that starts nothing"),
+    entry(P002, "a string that is not closed"),
+    entry(P003, "not what the language has here"),
+    entry(P004, "a tuple or record whose type cannot be told"),
+    entry(P005, "a fraction with zero below"),
 ];
 
 /// The entry of `code`, `None` when the catalogue has none.
