@@ -17,12 +17,13 @@ pub struct Numbers<'e>   // Numbers::of(explanation, settings)
   voice (`Settings::voices`, 1 when not said), `r` for and `s` against:
   `b = r/(r+s+W)`, `d = s/(r+s+W)`, `u = W/(r+s+W)`, expected `b + a·u`.
   What only the model says counts 0: `u = 1`, expected `a`.
-- **Any proposition, from its rests**: a rest is as strong as the product
-  of its takings (a taking's proposition's belief, or its disbelief when
-  taken false); the proposition's belief is its strongest rest for, its
-  disbelief its strongest rest against; above 1 together, each in
-  proportion. One operation for every rule of judgement, read from what
-  they gave.
+- **Any proposition, from its rests**: a rest is as strong as the belief
+  that all its takings hold, by Subjective Logic's multiplication
+  (Jøsang and McAnally, 2005; each taking its proposition's opinion, or
+  its negation's when taken false); the proposition's belief is its
+  strongest rest for, its disbelief its strongest rest against; above 1
+  together, each in proportion. One operation for every rule of
+  judgement, read from what they gave.
 - **Doubt**: a taking is wrong with `1 −` the chance its proposition is as
   it says, every taking of it fused; a measurement or a review with its
   most doubtful taking; a diagnosis with the product of its suspects'.
@@ -34,15 +35,19 @@ there saying 3, the one that saw 4 is doubted 0.98 and blamed first.
 
 ## Your choices, flagged (say no to undo)
 
-1. **The product along a rest reads takings as independent.** Two rests
+1. **Multiplication, not a plain product of beliefs**: what only the
+   model says has a belief of 0, so a plain product would make every
+   contradiction through a tie weigh nothing. Multiplication keeps what
+   its uncertainty says.
+2. **The product along a rest reads takings as independent.** Two rests
    sharing takings are not added (only the strongest counts), so nothing
    is counted twice across rests, but within a rest correlated takings
    are.
-2. **A conjunction of many uncertain points is uncertain**: the all of
-   div's 100 points by its cases, one run each, has belief (⅓)¹⁰⁰. This is
-   Subjective Logic's conjunction. A large all needs many runs a point, a
+3. **A conjunction of many uncertain points is uncertain**: the all of
+   div's 100 points by its cases, one run each, has a belief below 0.001.
+   This is Subjective Logic's conjunction. A large all needs many runs a point, a
    smaller prior weight, or another operation for cases: your call.
-3. **A measurement's doubt is its weakest taking's**, not the product:
+4. **A measurement's doubt is its weakest taking's**, not the product:
    what one run says at once is not independent.
-4. **Counts are only on takings**; a rule explain writes counts one run
+5. **Counts are only on takings**; a rule explain writes counts one run
    of the checker.

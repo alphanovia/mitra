@@ -1,0 +1,6 @@
+running 3 tests
+test tests::div_by_two ... ok
+test tests::div_by_zero ... ok
+test tests::div_by_three ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

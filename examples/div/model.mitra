@@ -1,0 +1,17 @@
+// Main's div, on core2: the model at the root of its project. The tie is
+// in the code (`// mitra: implements calc::div` in src/lib.rs).
+
+subject calc {
+    require inputs = "a and b are whole numbers from 0 to 9";
+
+    fn div(a: Int, b: Int) -> q: Int where {
+        // a / b rounded down, for a and b from 0; and 0 when b is 0.
+        claim spec = if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
+        claim bounded = b == 0 || q <= a;
+        examples { (6, 2) -> 3, (7, 2) -> 3, (9, 3) -> 3, (5, 0) -> 0 }
+        rule everywhere: div::spec |- all x in (a: 0..10, b: 0..10): correct(div, x);
+    }
+
+    ensure divides = "div gives a / b rounded down, and 0 when b is 0"
+        from (div::spec, inputs);
+}

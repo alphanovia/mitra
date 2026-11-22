@@ -1,0 +1,3 @@
+// Written by hand: one measurement taken wrong, one review.
+measure calc::div (7, 2) -> 4 by "human:ana";
+review calc::div::spec holds by "human:bo";

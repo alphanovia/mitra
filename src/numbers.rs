@@ -8,8 +8,9 @@
 //! model alone says counts nothing: `u = 1`, expected `a`.
 //!
 //! A proposition judgement gave is read from its rests: a rest is as
-//! strong as the product of its takings (each its proposition's belief,
-//! or disbelief when it is taken false), and the proposition as its
+//! strong as the belief that all its takings hold, by Subjective
+//! Logic's multiplication (each taking its proposition's opinion, or
+//! its negation's when taken false), and the proposition as its
 //! strongest rest for, and against. So one operation everywhere: a
 //! product along a rest, the largest across rests, and `!p` swaps them,
 //! as judgement already does. The product reads takings as independent.
@@ -73,6 +74,34 @@ impl Belief {
     }
 }
 
+/// An opinion with its base rate, as multiplication reads it.
+#[derive(Clone, Copy, Debug)]
+struct Said {
+    b: f64,
+    d: f64,
+    u: f64,
+    a: f64,
+}
+
+/// `x` and `y` both hold: Subjective Logic's binomial multiplication.
+fn times(x: Said, y: Said) -> Said {
+    let k = 1.0 - x.a * y.a;
+    let (b, u) = match k > 0.0 {
+        true => (
+            x.b * y.b + ((1.0 - x.a) * y.a * x.b * y.u + x.a * (1.0 - y.a) * x.u * y.b) / k,
+            x.u * y.u + ((1.0 - y.a) * x.b * y.u + (1.0 - x.a) * x.u * y.b) / k,
+        ),
+        // Both certain to hold with no evidence: the plain product.
+        false => (x.b * y.b, x.u * y.u + x.b * y.u + x.u * y.b),
+    };
+    Said {
+        b,
+        d: x.d + y.d - x.d * y.d,
+        u,
+        a: x.a * y.a,
+    }
+}
+
 /// Counts read by voice.
 fn weight(t: &Taking, settings: &Settings) -> f64 {
     let w = settings.voices.get(&t.by).copied().unwrap_or(1.0);
@@ -120,23 +149,43 @@ impl<'e> Numbers<'e> {
         }
     }
 
-    /// How strongly a taking holds: its proposition's belief, or its
-    /// disbelief when it is taken false.
-    fn strength(&self, t: &Taking) -> f64 {
+    /// What a taking says, in numbers: its proposition's opinion, all
+    /// its takings fused; or that of its negation when it is taken false.
+    fn said(&self, t: &Taking) -> Said {
         let b = self
             .taken
             .get(&t.prop)
             .copied()
             .unwrap_or_else(|| fused([t], &self.settings));
+        let a = self.settings.base_rate;
         match t.value {
-            true => b.belief,
-            false => b.disbelief,
+            true => Said {
+                b: b.belief,
+                d: b.disbelief,
+                u: b.uncertainty,
+                a,
+            },
+            false => Said {
+                b: b.disbelief,
+                d: b.belief,
+                u: b.uncertainty,
+                a: 1.0 - a,
+            },
         }
     }
 
-    /// How strong a rest is: the product of its takings.
+    /// How strong a rest is: the belief that all its takings hold, by
+    /// Subjective Logic's multiplication (Jøsang and McAnally, 2005),
+    /// which keeps what uncertainty says where a plain product of
+    /// beliefs would give 0 for anything only the model says.
     pub fn rest(&self, rest: &BTreeSet<Taking>) -> f64 {
-        rest.iter().map(|t| self.strength(t)).product()
+        let one = Said {
+            b: 1.0,
+            d: 0.0,
+            u: 0.0,
+            a: 1.0,
+        };
+        rest.iter().map(|t| self.said(t)).fold(one, times).b
     }
 
     /// The strongest of these rests, and how strong.

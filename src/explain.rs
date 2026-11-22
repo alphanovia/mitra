@@ -335,6 +335,8 @@ impl Given<'_, '_> {
                     || (t.item.names.len() == 1 && parts.contains(item.as_str()))
             })
             .map(|t| t.prop())
+            .collect::<BTreeSet<Prop>>()
+            .into_iter()
             .collect()
     }
 

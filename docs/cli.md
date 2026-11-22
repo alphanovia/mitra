@@ -1,0 +1,54 @@
+# The command line on core2
+
+One command per question (your choice, 21:47), as rustc writes its
+reports. `cargo build --release`, then `target/release/mitra`.
+
+```text
+mitra check MODEL
+mitra explain MODEL [--code DIR]... [--report FILE] [--store FILE]
+mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
+```
+
+- `MODEL`: the `.mitra` file at the root of the project. Paths of Rust
+  files are read from its folder, as ties write them: `src/lib.rs/div`.
+- `--code`: a folder (or a file) of Rust code: its `// mitra:
+  implements` ties and `// mitra: measures` tests (`docs/reader.md`).
+- `--report`: what `cargo test` printed (`cargo test > report.txt 2>&1`).
+- `--store`: measurements and reviews written by hand.
+
+| Command | Question | Says |
+|---|---|---|
+| `check` | 1: is the model sound on itself? | parse and `check` errors; then agree's findings and a count of comparisons |
+| `explain` | 2: does it explain the system, assuming the evidence? | reader findings, evidence errors, a verdict on each proposition with its numbers, explain's findings and hints |
+| `blame` | 3: which evidence is wrong, given it explains the system? | the diagnoses, most doubtful first, and blame's findings |
+
+The exit code is 1 when something is not well formed (a parse, model
+or evidence error), 2 for a wrong command line, else 0: findings are
+verdicts, not faults.
+
+A verdict line: `explained correct(calc::div, (6, 2)) 0.67 (b 0.33, d
+0.00, u 0.67: 1 for, 0 against, test:tests::div_by_two)`: the verdict,
+the proposition, its expected value, belief, disbelief and uncertainty,
+then its strongest rest: counts for and against, how many takings only
+the model says, and the voices.
+
+## Try it
+
+```text
+cargo build --release
+M=target/release/mitra
+E="--code examples/div/src --report examples/div/report.txt --store examples/div/evidence.mitra"
+$M check examples/div/model.mitra
+$M explain examples/div/model.mitra $E
+$M blame examples/div/model.mitra $E
+```
+
+`examples/div`: main's div, tied in its code, three tests that pass, a
+store with a measurement taken wrong (`(7, 2) -> 4`) and a review.
+`blame` doubts that measurement first.
+
+## Not in this round
+
+- No `--json`; no colours; no settings on the command line (each
+  layer's defaults).
+- `check` runs agree; `explain` and `blame` do not run agree again.
