@@ -1213,6 +1213,20 @@ fn a_rule_known_by_its_name() {
     );
     assert_eq!(check(&j, &inputs, &on_p), None);
     assert_eq!(eval(&j, &values, &on_p), Err(Fault::Stuck));
+    // Nor is a negation, or a name judgement does not know.
+    for t in [r.not(), Prop::named("s")] {
+        let e = apply(Op::Ponens { t, post: 0 }, vec![input("r"), input("p")]);
+        assert_eq!(check(&j, &inputs, &e), None);
+        assert_eq!(eval(&j, &values, &e), Err(Fault::Stuck));
+    }
+    // A blame past the premises has no type.
+    let past = Op::Tollens {
+        t: r.clone(),
+        post: 0,
+        blame: 2,
+    };
+    let past = apply(past, vec![input("q"), input("p")]);
+    assert_eq!(check(&j, &inputs, &past), None);
 }
 
 /// No rule is defined through itself: not by naming itself, nor
@@ -1248,6 +1262,63 @@ fn no_rule_is_defined_through_itself() {
         ("e", &[&p], &[&q]),
     ]);
     assert!(fine.is_ok());
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(3000))]
+
+    /// `with` refuses exactly the names on a cycle, on random tables,
+    /// against reachability worked out by brute force: a name reaches
+    /// the names its pres and posts mention, through negations and
+    /// implications written in place, but not their subjects.
+    #[test]
+    fn with_refuses_exactly_the_names_on_a_cycle(seed in any::<u64>()) {
+        let mut rng = Rng::new(seed);
+        let n = 1 + rng.below(7);
+        let name = |i: usize| format!("n{i}");
+        let (mut edges, mut rules) = (vec![BTreeSet::new(); n], BTreeMap::new());
+        for (i, out) in edges.iter_mut().enumerate() {
+            let (mut pre, mut post) = (Vec::new(), Vec::new());
+            for _ in 0..rng.below(3) {
+                // `n` and `n + 1` name no rule.
+                let to = rng.below(n + 2);
+                if to < n {
+                    out.insert(to);
+                }
+                let x = match rng.below(4) {
+                    0 => Prop::named(&name(to)).not(),
+                    1 => Prop::Implies {
+                        pre: vec![Prop::named(&name(to))],
+                        subject: name(rng.below(n)),
+                        post: vec![Prop::named("q")],
+                    },
+                    _ => Prop::named(&name(to)),
+                };
+                match rng.coin() {
+                    true => pre.push(x),
+                    false => post.push(x),
+                }
+            }
+            rules.insert(name(i), Definition { pre, post });
+        }
+        // `i` reaches itself in one step or more.
+        let back = |i: usize| {
+            let (mut seen, mut todo) = (BTreeSet::new(), vec![i]);
+            while let Some(k) = todo.pop() {
+                for &to in &edges[k] {
+                    if seen.insert(to) {
+                        todo.push(to);
+                    }
+                }
+            }
+            seen.contains(&i)
+        };
+        let cyclic: BTreeSet<String> = (0..n).filter(|&i| back(i)).map(name).collect();
+        match Judgement::with(rules) {
+            Ok(_) => prop_assert!(cyclic.is_empty()),
+            Err(refused) => prop_assert_eq!(refused, cyclic),
+        }
+    }
 }
 
 /// A chain of 100,000 rules, each named by the next, is known at once,

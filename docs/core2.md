@@ -110,7 +110,10 @@ are ordinary operations, not special forms: both branches are computed (choice
   has no type. `with` refuses the names defined through themselves, with
   `Err(names)`: a definition that names itself, or names a rule whose
   definition does, and so on, through negations and implications written
-  in place too. `Judgement::default()` knows none.
+  in place too. `Judgement::default()` knows none. An opinion rests on
+  takings under the definitions of the judgement that made it, and does
+  not say which: read it only with that judgement, and make it again
+  after a rule changes.
 - Values: a `State` (Belnap), or an `Opinion { about, rests_for,
   rests_against }`. The rests are the smallest sets of takings, where a taking
   is `{ prop, value, count, by }`. The state is read from which rests are

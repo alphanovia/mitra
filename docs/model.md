@@ -107,7 +107,7 @@ and each code its page in `docs/reference`, with an example and the fix.
 | M011 | No list of an ensure's `from` is empty. |
 | M012 | A proof shows its rule (choice 5). |
 | M013 | Nothing rests on itself. A conclusion rests on its rule's premises and on the rule, a require on its ensure, and an ensure on what its lists name. Each declaration on a cycle, across parts too, is reported. |
-| M014 | No rule is named through itself: a term of it names it, or names a rule a term of which does, and so on (choice 9). |
+| M014 | No rule is named through itself: a term of it names it, or names a rule a term of which does, and so on (choice 9). Found even when a term of the rule names nothing. |
 
 ## Errors and the catalogue
 
@@ -253,11 +253,18 @@ rule named as a premise was copied whole, with the rules it named in turn:
 36 rules gave one proposition of 655,358 parts, and a chain of 580 rules
 overflowed the stack. Now 5,000 chained rules, and 128 that each take the
 two before (over 2⁶⁴ parts if written out), are checked and read in 1.5 s in a
-debug build. The dependence stays visible: a rule a proof uses is one of
-its premises, so blame reaches it.
-*Give up*: no rule is named through itself. What it says would be said in
-terms of itself: then it means nothing, or several things (`r: r |- q` with
-`q` false). And a proof reads only its premises: a rule it uses must be one.
+debug build. The dependence stays visible: a proof reads only its
+premises, so a rule it applies is one of them, or given by them (`law:
+drop::falls |- drop::slows`), and blame reaches it.
+*Give up*: no rule is named through itself, `r: r |- q`. J1 reads a rule
+one way, as an implication that can be false: there `r` says `r → (r → q)`,
+lawful but of no use, since only holding `r` lets you use it. Refused all
+the same, so that a rule can also be read as exactly what it defines, true
+when its premises give its conclusion. Read so, `r` with `q` false means
+nothing (it is true exactly when it is false), and `a: b |- q` with
+`b: a |- q` means two things (`a` or `b`). And an opinion does not say
+under which definitions it was made: read it only with the judgement that
+made it, and make it again after a rule changes.
 *Elsewhere*: definitions in any language. Lean's `def` is unfolded by the
 kernel only when it must. An ML `let` cannot name itself; `let rec` can, and
 needs a meaning of its own, which judgement does not have.
@@ -290,9 +297,10 @@ needs a meaning of its own, which judgement does not have.
 12. **A cycle is a problem anywhere**, across parts too (choice 6).
 13. **A rule's conclusion may be a rule**, as in the first version: a rule
     that gives a rule.
-14. **A rule judgement does not know stops its users' proofs quietly.** A
-    proof whose rule names a rule with a broken term, or one named through
-    itself, is not checked: the problem is reported where it is, once.
+14. **A proof that applies a rule judgement does not know is not
+    checked.** That rule has a term that names nothing, or is named
+    through itself: it is reported where it is, once, and the proof is
+    checked when it is fixed.
 15. **An error is at the narrowest declaration**: a type at the field or at
     what the function takes or gives (`stone::Drop::h`), a term at its rule,
     a list at its ensure.
@@ -337,3 +345,23 @@ in `tests/model.rs`:
 | `self.h >= 0` cannot be written; "Rust's" comments; GSN has no "or" | fixed above | |
 
 Fifteen bugs seeded in the fixes were all caught by these tests.
+
+## Red team (round 5): rules known by name
+
+A fresh agent attacked choice 9 (7e9624a), the catalogue aside:
+
+| Found | Now | Test |
+|---|---|---|
+| A cycle of names through a rule with a term that names nothing was not reported | cycles are found on every rule, its broken terms left out | `a_cycle_is_found_through_a_broken_rule` |
+| A proof applying a rule given by a rule (`law` gives `slows`) got M012 when `slows` was named through itself: a cascade | a proof is not checked when it applies a rule judgement does not know (item 14) | `a_proof_on_a_rule_judgement_does_not_know_is_not_checked` |
+| An opinion does not say under which definitions it was made | said so (choice 9, `Opinion`) | |
+| Choice 9 gave a reason that J1 does not need | rewritten | |
+| `a: b, p |- q`, proved, and `c: a |- p`: a cycle through the proof? | no: the proof shows the whole rule, its premises as hypotheses, so `a` rests on none of them | |
+| A proved rule that another rule uses is held by no leaf, and no rule of judgement gives it | open: your decision | |
+
+Attacks that held, kept as tests: blame reaches the rule that gives a rule
+(`a_rule_given_by_a_rule`); `with` refuses exactly the names on a cycle, on
+3,000 random tables against brute force
+(`with_refuses_exactly_the_names_on_a_cycle`); a negation or a name
+judgement does not know is no rule (`a_rule_known_by_its_name`). Eleven
+bugs seeded in the fixes were all caught by these tests.

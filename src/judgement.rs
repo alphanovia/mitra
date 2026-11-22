@@ -138,7 +138,9 @@ pub type Rests = BTreeSet<BTreeSet<Taking>>;
 
 /// What is believed of one proposition: the smallest sets of takings it
 /// follows true from, and false from. Made only by `taken` and by the
-/// rules, so every set it holds is one the proposition follows from.
+/// rules, so every set it holds is one the proposition follows from,
+/// under the rules the judgement that made it knows by name. It does not
+/// say which: read it only with that judgement.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Opinion {
     about: Prop,

@@ -314,12 +314,15 @@ pub(crate) enum Item<'m> {
 
 /// Every path of a model, and each record by name: the first, where a
 /// name is declared twice (`check` says so). And judgement, knowing
-/// every rule it can: not those named through themselves, by path.
+/// every rule it can, by path: not those named through themselves
+/// (`cyclic`), nor those a term of which names nothing.
 pub(crate) struct Index<'m> {
     pub(crate) items: BTreeMap<Path, Item<'m>>,
     pub(crate) records: BTreeMap<&'m str, &'m Record>,
     pub(crate) judgement: Judgement,
     pub(crate) cyclic: BTreeSet<String>,
+    /// The rules judgement does not know.
+    unknown: BTreeSet<String>,
 }
 
 impl<'m> Index<'m> {
@@ -329,6 +332,7 @@ impl<'m> Index<'m> {
             records: BTreeMap::new(),
             judgement: Judgement::default(),
             cyclic: BTreeSet::new(),
+            unknown: BTreeSet::new(),
         };
         for part in &model.parts {
             let at = Path::to(&[&part.name]);
@@ -347,18 +351,26 @@ impl<'m> Index<'m> {
                 index.add(&at.then(&e.name), Item::Ensure(e));
             }
         }
-        let mut rules = BTreeMap::new();
+        // Every rule as far as its terms name propositions, and the rules
+        // all of whose terms do.
+        let (mut all, mut whole) = (BTreeMap::new(), BTreeMap::new());
         for (at, item) in &index.items {
             if let Item::Rule(rule) = item {
-                rules.extend(index.definition(at, rule).map(|d| (at.to_string(), d)));
+                let (definition, named) = index.definition(at, rule);
+                if named {
+                    whole.insert(at.to_string(), definition.clone());
+                } else {
+                    index.unknown.insert(at.to_string());
+                }
+                all.insert(at.to_string(), definition);
             }
         }
-        // Without the rules named through themselves, none is left that is.
-        index.judgement = Judgement::with(rules.clone()).unwrap_or_else(|cyclic| {
-            rules.retain(|name, _| !cyclic.contains(name));
-            index.cyclic = cyclic;
-            Judgement::with(rules).unwrap_or_default()
-        });
+        // A rule is named through itself whatever else is wrong with it.
+        index.cyclic = Judgement::with(all).err().unwrap_or_default();
+        whole.retain(|name, _| !index.cyclic.contains(name));
+        index.unknown.extend(index.cyclic.iter().cloned());
+        // Without those, none left is named through itself.
+        index.judgement = Judgement::with(whole).unwrap_or_default();
         index
     }
     /// `at` names `item`, unless it names something already.
@@ -393,15 +405,21 @@ impl<'m> Index<'m> {
             Term::Holds(_) => Some(Prop::Named(format!("{rule}::{place}"))),
         }
     }
-    /// What the rule at `at` says, as judgement reads it: `None` when a
-    /// term of it names no proposition.
-    fn definition(&self, at: &Path, rule: &Rule) -> Option<Definition> {
+    /// What the rule at `at` says, as judgement reads it, but for the
+    /// terms that name no proposition; and whether every term names one.
+    fn definition(&self, at: &Path, rule: &Rule) -> (Definition, bool) {
         let pre = rule.premises.iter().enumerate();
-        let pre = pre.map(|(i, p)| self.prop(at, &i.to_string(), p));
-        Some(Definition {
-            pre: pre.collect::<Option<_>>()?,
-            post: vec![self.prop(at, "then", &rule.conclusion)?],
-        })
+        let pre: Vec<_> = pre.map(|(i, p)| self.prop(at, &i.to_string(), p)).collect();
+        let post = self.prop(at, "then", &rule.conclusion);
+        let named = post.is_some() && pre.iter().all(Option::is_some);
+        let pre = pre.into_iter().flatten().collect();
+        (
+            Definition {
+                pre,
+                post: post.into_iter().collect(),
+            },
+            named,
+        )
     }
     /// Whether the proof of the rule at `at` shows it. It reads the
     /// rule's premises, each by its path or, written in place, by its
@@ -410,8 +428,8 @@ impl<'m> Index<'m> {
     /// proposition (modus tollens) or come from a conflict (reductio), it
     /// is run once, on all it reads taken true: it must give the
     /// conclusion true. `None` when there is no proof, or when a term
-    /// names no proposition, or a rule judgement does not know: a
-    /// problem found where it is.
+    /// names no proposition, or the proof applies a rule of the model
+    /// judgement does not know: a problem found where it is.
     pub(crate) fn shows(&self, at: &Path, rule: &Rule) -> Option<bool> {
         let proof = rule.proof.as_ref()?;
         let conclusion = self.prop(at, "then", &rule.conclusion)?;
@@ -423,14 +441,8 @@ impl<'m> Index<'m> {
             };
             reads.insert(name, self.prop(at, &i.to_string(), p)?);
         }
-        let unknown = |term: &Term| match term {
-            Term::At(p) => {
-                let rule = matches!(self.items.get(p), Some(Item::Rule(_)));
-                rule && self.judgement.posts(&Prop::Named(p.to_string())).is_none()
-            }
-            Term::Holds(_) => false,
-        };
-        if rule.premises.iter().chain([&rule.conclusion]).any(unknown) {
+        let unknown = |t: &Prop| matches!(t, Prop::Named(n) if self.unknown.contains(n));
+        if applied(proof).into_iter().any(unknown) {
             return None;
         }
         let types = reads.iter().map(|(name, prop)| {
@@ -455,4 +467,18 @@ impl<'m> Index<'m> {
         let given = eval(&self.judgement, &values, proof);
         Some(matches!(given, Ok(judgement::Value::Opinion(o)) if o.state() == State::True))
     }
+}
+
+/// The rules a proof applies, by modus ponens or tollens.
+fn applied(proof: &Expression<judgement::Op>) -> Vec<&Prop> {
+    let (mut applied, mut todo) = (Vec::new(), vec![proof]);
+    while let Some(e) = todo.pop() {
+        if let Expression::Apply(op, args) = e {
+            if let judgement::Op::Ponens { t, .. } | judgement::Op::Tollens { t, .. } = op {
+                applied.push(t);
+            }
+            todo.extend(args.iter().map(|arg| &arg.body));
+        }
+    }
+    applied
 }

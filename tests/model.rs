@@ -535,7 +535,7 @@ fn each_error_is_found() {
             "M014 at stone::drop::lands",
             Box::new(|m| {
                 let lands = at("stone::drop::lands");
-                m.parts[1].functions[0].rules[1].premises[0] = lands;
+                m.parts[1].functions[0].rules[1].premises.push(lands);
             }),
         ),
     ];
@@ -730,6 +730,142 @@ fn nothing_rests_on_itself() {
         "M013 at sun::shines",
     ];
     assert_eq!(circle, expected);
+}
+
+/// A rule is named through itself whatever else is wrong with it:
+/// `slows` names `lands`, which names `slows`, and a term of `slows`
+/// names nothing. All three are found at once.
+#[test]
+fn a_cycle_is_found_through_a_broken_rule() {
+    let found = changed(|m| {
+        let slows = &mut m.parts[1].functions[0].rules[0].premises;
+        slows.push(at("stone::drop::lands"));
+        slows.push(at("stone::drop::fell"));
+    });
+    let expected = [
+        "M007 at stone::drop::slows",
+        "M014 at stone::drop::lands",
+        "M014 at stone::drop::slows",
+    ];
+    assert_eq!(found, expected);
+}
+
+/// The fall, and a rule that gives a rule, `law: drop::falls |-
+/// drop::slows`. `by_law: law, drop::falls, speed::slow |- drop::slow`
+/// is shown by applying `slows`, which `law` gives: the proof never
+/// reads `slows`.
+fn with_law(m: &mut Model) {
+    let (falls, slow) = ("stone::drop::falls", "stone::speed::slow");
+    let law = judgement::Op::Ponens {
+        t: Prop::named("stone::drop::law"),
+        post: 0,
+    };
+    let given = apply(law, vec![read("stone::drop::law"), read(falls)]);
+    let ponens = judgement::Op::Ponens {
+        t: slows(),
+        post: 0,
+    };
+    let premises = ["stone::drop::law", falls, slow];
+    let mut by_law = rule("by_law", &premises, "stone::drop::slow");
+    by_law.proof = Some(apply(ponens, vec![given, read(falls), read(slow)]));
+    let rules = &mut m.parts[1].functions[0].rules;
+    rules.push(rule("law", &[falls], "stone::drop::slows"));
+    rules.push(by_law);
+}
+
+/// A rule given by a rule is used like any other. When a run sees the
+/// stone land fast, modus tollens blames `slows`, then the law that gave
+/// it, each on the run and the takings of the other premises.
+#[test]
+fn a_rule_given_by_a_rule() {
+    let mut model = fall();
+    with_law(&mut model);
+    assert_eq!(check(&model), vec![]);
+    let by_law = path("stone::drop::by_law");
+    assert!(leaves(&model).iter().all(|(at, _)| *at != by_law));
+    let (falls, slow) = ("stone::drop::falls", "stone::speed::slow");
+    let law = Prop::named("stone::drop::law");
+    let run = Taking {
+        prop: Prop::named("stone::drop::slow"),
+        value: false,
+        count: 1,
+        by: "machine:run".to_string(),
+    };
+    let fast = Opinion::taken(run.prop.clone(), vec![run]).unwrap();
+    let values = BTreeMap::from([
+        (
+            "stone::drop::law".to_string(),
+            taken(law.clone(), "human:reviewer"),
+        ),
+        (
+            falls.to_string(),
+            taken(Prop::named(falls), "machine:timer"),
+        ),
+        (slow.to_string(), taken(Prop::named(slow), "machine:ranges")),
+        ("fast".to_string(), judgement::Value::Opinion(fast)),
+    ]);
+    let known = judgement(&model);
+    let proof = model.parts[1].functions[0].rules[3].proof.as_ref().unwrap();
+    let given = opinion(eval(&known, &values, proof));
+    let expected = (&Prop::named("stone::drop::slow"), State::True);
+    assert_eq!((given.about(), given.state()), expected);
+    let blame = |t: Prop, args: Vec<Expression<judgement::Op>>| {
+        let op = judgement::Op::Tollens {
+            t,
+            post: 0,
+            blame: 0,
+        };
+        apply(op, args)
+    };
+    let wrong = blame(slows(), vec![read("fast"), read(falls), read(slow)]);
+    let wrong = blame(law.clone(), vec![wrong, read(falls)]);
+    let blamed = opinion(eval(&known, &values, &wrong));
+    assert_eq!((blamed.about(), blamed.state()), (&law, State::False));
+    assert_eq!(blamed.rests_against().len(), 1);
+    let rest = blamed.rests_against().first().unwrap();
+    let by: BTreeSet<&str> = rest.iter().map(|t| t.by.as_str()).collect();
+    let expected = BTreeSet::from(["machine:run", "machine:timer", "machine:ranges"]);
+    assert_eq!(by, expected);
+}
+
+/// A proof that applies a rule judgement does not know is not checked:
+/// that rule is wrong where it is declared, and reported there, once.
+/// `slows`, which `law` gives, named through `lands`: the proofs of
+/// `lands` and `by_law` apply it. And `x`, a premise of which names
+/// nothing, applied by modus tollens inside a `let` in the proof of
+/// `lands`; and `y`, whose conclusion names nothing. Judgement knows
+/// neither.
+#[test]
+fn a_proof_on_a_rule_judgement_does_not_know_is_not_checked() {
+    let cycle = changed(|m| {
+        with_law(m);
+        let slows = &mut m.parts[1].functions[0].rules[0].premises;
+        slows.push(at("stone::drop::lands"));
+    });
+    assert_eq!(
+        cycle,
+        ["M014 at stone::drop::lands", "M014 at stone::drop::slows"]
+    );
+    let mut model = fall();
+    let (falls, slow) = ("stone::drop::falls", "stone::speed::slow");
+    let rules = &mut model.parts[1].functions[0].rules;
+    rules.push(rule("x", &[falls, "stone::drop::fell"], slow));
+    rules.push(rule("y", &[falls], "stone::drop::fell"));
+    let x = judgement::Op::Tollens {
+        t: Prop::named("stone::drop::x"),
+        post: 0,
+        blame: 0,
+    };
+    let doubt = apply(x, vec![read(slow), read(falls)]);
+    let lands = &mut rules[1];
+    let proof = lands.proof.take().unwrap();
+    lands.proof = Some(let_in(judgement::Op::Let, "doubt", doubt, proof));
+    let expected = ["M007 at stone::drop::x", "M007 at stone::drop::y"];
+    assert_eq!(errors(&model), expected);
+    let known = judgement(&model);
+    for rule in ["stone::drop::x", "stone::drop::y"] {
+        assert_eq!(known.premises(&Prop::named(rule)), None);
+    }
 }
 
 /// A name is a word, so that a path reads one way: a require named
