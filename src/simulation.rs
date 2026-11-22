@@ -3,6 +3,14 @@
 //! and gives values. `Ranges` runs it on bounds of the inputs and gives
 //! bounds every exact value lies in (Cousot and Cousot, 1977).
 //!
+//! Two operations bind a name: `let` and `all`. In both readings `let`
+//! shares (S6): `let x = a; b` gives what `b` with `a` written in place
+//! of `x` gives, so a fault of `a` counts only where `x` is read.
+//! `(lo..hi).all(|x| p)` reads `p` at each number from `lo` to `hi - 1`
+//! in turn, as `&&` does. By bounds, when both ends are one number each
+//! it does the same; else it reads `p` once, with `x` anywhere the range
+//! may reach, and allows true when the range may be empty.
+//!
 //! Numbers are of the world: a whole number is any integer and a real
 //! is any ratio of two, both exact and unbounded. Nothing overflows;
 //! the one fault is a division by zero.
@@ -142,6 +150,13 @@ pub enum Op {
     Make(Record),
     /// `r.x`: the first field named `x`.
     Field(String),
+    /// `let x = a; b`: `b`, with `x` standing for what `a` gives. The
+    /// second argument binds `x`.
+    Let,
+    /// `(lo..hi).all(|x| p)`: `p` holds for every whole number `x` from
+    /// `lo` up to `hi`, `hi` left out. The third argument binds `x`, an
+    /// `Int`, and is read for each number in turn, as `&&` reads.
+    All,
 }
 
 /// The simulation standard: its types and the type of each operation.
@@ -155,6 +170,13 @@ fn number(t: &Type) -> bool {
 impl Standard for Simulation {
     type Type = Type;
     type Op = Op;
+    fn binds(&self, op: &Op, i: usize, before: &[Type]) -> Vec<Type> {
+        match (op, i, before) {
+            (Op::Let, 1, [t]) => vec![t.clone()],
+            (Op::All, 2, _) => vec![Type::Int],
+            _ => vec![],
+        }
+    }
     fn gives(&self, op: &Op, takes: &[Type]) -> Option<Type> {
         use Type::{Int, Real, Truth};
         Some(match (op, takes) {
@@ -172,6 +194,8 @@ impl Standard for Simulation {
                 Type::Record(r.clone())
             }
             (Op::Field(name), [Type::Record(r)]) => r.field(name)?.1.clone(),
+            (Op::Let, [_, t]) => t.clone(),
+            (Op::All, [Int, Int, Truth]) => Truth,
             _ => return None,
         })
     }
@@ -278,6 +302,39 @@ impl Reading for Exact {
             _ => return Err(Fault::Stuck),
         })
     }
+
+    fn bind(
+        &self,
+        op: &Op,
+        args: &[Exactly],
+        run: &mut dyn FnMut(usize, &[Exactly]) -> Exactly,
+    ) -> Exactly {
+        match (op, args) {
+            (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
+            (Op::All, [lo, hi, _]) => all_exactly(lo, hi, run),
+            _ => Err(Fault::Stuck),
+        }
+    }
+}
+
+/// `(lo..hi).all(|x| p)`: `p` at each number in turn, until one is not
+/// true.
+#[inline(never)]
+fn all_exactly(
+    lo: &Exactly,
+    hi: &Exactly,
+    run: &mut dyn FnMut(usize, &[Exactly]) -> Exactly,
+) -> Exactly {
+    let (Value::Int(mut x), Value::Int(hi)) = (lo.clone()?, hi.clone()?) else {
+        return Err(Fault::Stuck);
+    };
+    while x < hi {
+        if !decides(&run(2, &[Ok(Value::Int(x.clone()))]))? {
+            return Ok(Value::Truth(false));
+        }
+        x += 1;
+    }
+    Ok(Value::Truth(true))
 }
 
 /// Bounds a value lies in, and whether computing it may have no value.
@@ -630,5 +687,117 @@ impl Reading for Ranges {
             _ => return Err(Fault::Stuck),
         };
         Ok(Bounds { span, may_fault })
+    }
+
+    fn bind(
+        &self,
+        op: &Op,
+        args: &[Bounded],
+        run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded,
+    ) -> Bounded {
+        match (op, args) {
+            (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
+            (Op::All, [lo, hi, _]) => all(lo, hi, run),
+            _ => Err(Fault::Stuck),
+        }
+    }
+}
+
+/// `(lo..hi).all(|x| p)` on bounds. When `lo` and `hi` are each one
+/// number, `p` is read at each number in turn, as `&&` reads it, so
+/// nothing is lost on points. Else `p` is read once, with `x` anywhere
+/// the range may reach, and the range may be empty.
+#[inline(never)]
+fn all(lo: &Bounded, hi: &Bounded, run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded) -> Bounded {
+    let (lo, hi) = match (lo, hi) {
+        (Ok(lo), Ok(hi)) => (lo, hi),
+        (Err(fault), _) | (_, Err(fault)) => return Err(fault.clone()),
+    };
+    let gives = match (&lo.span, &hi.span) {
+        (Span::Number(Some((ll, lh))), Span::Number(Some((hl, hh)))) if ll == lh && hl == hh => {
+            all_points(ll, hl, run)
+        }
+        (Span::Number(low), Span::Number(high)) => all_once(low, high, run),
+        _ => Err(Fault::Stuck),
+    };
+    gives.map(|b| Bounds {
+        may_fault: b.may_fault || lo.may_fault || hi.may_fault,
+        ..b
+    })
+}
+
+/// `p` at each number from `lo` up to `hi`, as `&&` reads it.
+#[inline(never)]
+fn all_points(
+    lo: &Rational,
+    hi: &Rational,
+    run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded,
+) -> Bounded {
+    let (mut x, mut so_far) = (lo.clone(), said(true));
+    while &x < hi && matches!(&so_far, Ok(b) if b.surely() != Some(false)) {
+        so_far = and_at(so_far, &x, run);
+        x = x.plus(&Rational::integer(1));
+    }
+    so_far
+}
+
+/// `so_far && p`, `p` read with `x` at one number.
+#[inline(never)]
+fn and_at(
+    so_far: Bounded,
+    x: &Rational,
+    run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded,
+) -> Bounded {
+    let p = read_at(Span::Number(Some((x.clone(), x.clone()))), run);
+    choose(&so_far, p, said(false))
+}
+
+/// `p` read with `x` in `span`.
+#[inline(never)]
+fn read_at(span: Span, run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded) -> Bounded {
+    run(
+        2,
+        &[Ok(Bounds {
+            span,
+            may_fault: false,
+        })],
+    )
+}
+
+/// `p` once, with `x` anywhere from the least `lo` to the most `hi`, `hi`
+/// left out. True when the range may be empty.
+#[inline(never)]
+fn all_once(low: &Ends, high: &Ends, run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded) -> Bounded {
+    let reach = match (low, high) {
+        (Some((ll, _)), Some((_, hh))) => {
+            let top = hh.minus(&Rational::integer(1));
+            if &top < ll {
+                return said(true);
+            }
+            Some((ll.clone(), top))
+        }
+        _ => None,
+    };
+    let may_be_empty = match (low, high) {
+        (Some((_, lh)), Some((hl, _))) => lh >= hl,
+        _ => true,
+    };
+    match read_at(Span::Number(reach), run) {
+        Ok(Bounds {
+            span: Span::Truth { yes, no },
+            may_fault,
+        }) => Ok(Bounds {
+            span: Span::Truth {
+                yes: yes || may_be_empty,
+                no,
+            },
+            may_fault,
+        }),
+        Ok(_) => Err(Fault::Stuck),
+        Err(Fault::Op(_)) if may_be_empty => Ok(Bounds {
+            may_fault: true,
+            ..Bounds::exactly(&Value::Truth(true))
+        }),
+        Err(fault) => Err(fault),
     }
 }

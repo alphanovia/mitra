@@ -11,6 +11,9 @@
 //! Every rule preserves truth. Numbers live only on takings: no rule
 //! reads or makes one. The state of a piece is read from what it rests
 //! on, never from numbers.
+//!
+//! `let` names a derivation to use it twice. It shares (S6): `let x = a;
+//! b` gives what `b` with `a` written in place of `x` gives.
 
 use crate::expression::{strict, Fault, Outcome, Reading, Standard};
 use std::collections::{BTreeMap, BTreeSet};
@@ -256,6 +259,9 @@ pub enum Op {
     /// takings it follows from cannot all hold: whatever else they rest
     /// on says a taking of `of` is wrong.
     Reductio { of: Piece },
+    /// `let x = a; b`: `b`, with `x` standing for what `a` gives. The
+    /// second argument binds `x`.
+    Let,
 }
 
 /// The judgement standard and its reading.
@@ -285,6 +291,12 @@ fn rule(op: &Op) -> Option<(Vec<Piece>, Piece)> {
 impl Standard for Judgement {
     type Type = Type;
     type Op = Op;
+    fn binds(&self, op: &Op, i: usize, before: &[Type]) -> Vec<Type> {
+        match (op, i, before) {
+            (Op::Let, 1, [t]) => vec![t.clone()],
+            _ => vec![],
+        }
+    }
     fn gives(&self, op: &Op, takes: &[Type]) -> Option<Type> {
         use Type::{Opinion, State};
         match (op, takes) {
@@ -302,6 +314,7 @@ impl Standard for Judgement {
                         .all(|(t, p)| t == &Opinion(p.clone()));
                 matches.then_some(Opinion(gives))
             }
+            (Op::Let, [_, t]) => Some(t.clone()),
             _ => None,
         }
     }
@@ -379,6 +392,18 @@ impl Reading for Judgement {
             _ => return Err(Fault::Stuck),
         };
         Ok(O(opinion))
+    }
+
+    fn bind(
+        &self,
+        op: &Op,
+        args: &[Judged],
+        run: &mut dyn FnMut(usize, &[Judged]) -> Judged,
+    ) -> Judged {
+        match (op, args) {
+            (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
+            _ => Err(Fault::Stuck),
+        }
     }
 }
 

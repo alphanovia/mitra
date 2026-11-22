@@ -28,35 +28,55 @@ impl Rng {
     }
 }
 
-use mitra_core::expression::Expression;
+use mitra_core::expression::{substitute, Arg, Expression};
 
-/// `let name = value; body`.
+/// `op` on arguments that bind no name.
 #[allow(dead_code)]
-pub fn let_in<Op>(name: &str, value: Expression<Op>, body: Expression<Op>) -> Expression<Op> {
-    Expression::Let(name.to_string(), Box::new(value), Box::new(body))
+pub fn apply<Op>(op: Op, args: Vec<Expression<Op>>) -> Expression<Op> {
+    let args = args.into_iter().map(|body| Arg {
+        binds: vec![],
+        body,
+    });
+    Expression::Apply(op, args.collect())
 }
 
-/// `e` with every `Let` written out: each name a `Let` binds replaced by
-/// what it binds. Inner `Let`s go first, so no name is ever caught.
+/// `let name = value; body`, where `op` is the standard's `let`.
 #[allow(dead_code)]
-pub fn inline<Op: Clone>(e: &Expression<Op>) -> Expression<Op> {
-    match e {
-        Expression::Name(name) => Expression::Name(name.clone()),
-        Expression::Apply(op, args) => {
-            Expression::Apply(op.clone(), args.iter().map(inline).collect())
-        }
-        Expression::Let(name, value, body) => put(&inline(body), name, &inline(value)),
-    }
+pub fn let_in<Op>(
+    op: Op,
+    name: &str,
+    value: Expression<Op>,
+    body: Expression<Op>,
+) -> Expression<Op> {
+    let value = Arg {
+        binds: vec![],
+        body: value,
+    };
+    let body = Arg {
+        binds: vec![name.to_string()],
+        body,
+    };
+    Expression::Apply(op, vec![value, body])
 }
 
-/// `e`, which has no `Let`, with `with` in place of every `name`.
-fn put<Op: Clone>(e: &Expression<Op>, name: &str, with: &Expression<Op>) -> Expression<Op> {
+/// `e` with every `let` written out: what each binds written in place of
+/// its name, by `substitute`. `is_let` says which operation is `let`.
+#[allow(dead_code)]
+pub fn inline<Op: Clone>(e: &Expression<Op>, is_let: &impl Fn(&Op) -> bool) -> Expression<Op> {
     match e {
-        Expression::Name(n) if n == name => with.clone(),
-        Expression::Apply(op, args) => Expression::Apply(
-            op.clone(),
-            args.iter().map(|a| put(a, name, with)).collect(),
-        ),
-        other => other.clone(),
+        Expression::Name(_) => e.clone(),
+        Expression::Apply(op, args) => match args.as_slice() {
+            [value, body] if is_let(op) && value.binds.is_empty() && body.binds.len() == 1 => {
+                let value = inline(&value.body, is_let);
+                substitute(&inline(&body.body, is_let), &body.binds[0], &value)
+            }
+            _ => {
+                let args = args.iter().map(|arg| Arg {
+                    binds: arg.binds.clone(),
+                    body: inline(&arg.body, is_let),
+                });
+                Expression::Apply(op.clone(), args.collect())
+            }
+        },
     }
 }
