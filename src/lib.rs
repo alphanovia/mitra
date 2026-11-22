@@ -2,8 +2,12 @@
 //!
 //! On the experiment branch `core2`: `expression` (to freeze), and the
 //! two standards on it, `simulation` and `judgement` (`docs/core2.md`),
-//! and `model`, what is written about a system (`docs/model.md`).
+//! `model`, what is written about a system (`docs/model.md`), `check`,
+//! whether it is well formed, and `catalogue`, the codes of what Mitra
+//! reports (`docs/reference`).
 
+pub mod catalogue;
+pub mod check;
 pub mod expression;
 mod graph;
 pub mod judgement;

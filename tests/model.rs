@@ -6,12 +6,14 @@
 mod common;
 
 use common::{apply, let_in};
+use mitra_core::catalogue::{Suit, CATALOGUE};
+use mitra_core::check::check;
 use mitra_core::expression::{eval, Expression};
 use mitra_core::judgement::{self, Opinion, Prop, State, Taking};
 use mitra_core::location::Location;
 use mitra_core::model::{
-    check, judgement, leaves, levels, props, Claim, Ensure, Function, Kind, Level, Model, Part,
-    Path, Problem, Record, Require, Rule, Source, Term, Tie,
+    judgement, leaves, levels, props, Claim, Ensure, Function, Kind, Level, Model, Part, Path,
+    Record, Require, Rule, Source, Term, Tie,
 };
 use mitra_core::simulation::{self, tuple, Bounds, Exact, Op, Ranges, Rational, Type, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -166,6 +168,12 @@ fn fall() -> Model {
 #[test]
 fn the_fall_is_well_formed() {
     assert_eq!(check(&fall()), vec![]);
+}
+
+/// The errors of a model, each as its code and where: `M002 at a::b`.
+fn errors(model: &Model) -> Vec<String> {
+    let errors = check(model).into_iter();
+    errors.map(|e| format!("{} at {}", e.code, e.at)).collect()
 }
 
 #[test]
@@ -421,78 +429,158 @@ fn records_and_tuples() {
     };
     wrong.fields[1].0 = "x".to_string();
     model.parts[1].functions[2].gives.1 = Type::Record(wrong);
-    assert_eq!(check(&model), vec![Problem::Mistyped(path("stone::both"))]);
+    assert_eq!(errors(&model), ["M003 at stone::both::o"]);
 }
 
-/// The problems of the fall with one change. Reading its propositions and
+/// The errors of the fall with one change. Reading its propositions and
 /// leaves ends all the same.
-fn changed(change: impl FnOnce(&mut Model)) -> Vec<Problem> {
+fn changed(change: impl FnOnce(&mut Model)) -> Vec<String> {
     let mut model = fall();
     change(&mut model);
-    let _ = (props(&model), leaves(&model), levels(&model));
-    check(&model)
+    let _ = (
+        props(&model),
+        leaves(&model),
+        levels(&model),
+        judgement(&model),
+    );
+    errors(&model)
 }
 
+/// A change to a model.
+type Change = Box<dyn FnOnce(&mut Model)>;
+
+/// Each code of the model is given, where its declaration is, by the
+/// fall with one change. The cases give every code the catalogue lists
+/// for the model.
 #[test]
-fn each_problem_is_found() {
-    let unknown = |at: &str, names: &str| Problem::Unknown {
-        at: path(at),
-        names: path(names),
-    };
-    let falls = changed(|m| {
-        let falls = m.parts[1].functions[0].claims[0].clone();
-        m.parts[1].functions[0].claims.push(falls);
-    });
-    assert_eq!(falls, vec![Problem::Twice(path("stone::drop::falls"))]);
-    let fell = changed(|m| m.parts[1].functions[0].rules[0].premises[0] = at("stone::drop::fell"));
-    assert_eq!(
-        fell,
-        vec![unknown("stone::drop::slows", "stone::drop::fell")]
-    );
-    let light = changed(|m| m.parts[1].requires[0].from = Source::Ensure(path("sun::light")));
-    assert_eq!(light, vec![unknown("stone::light", "sun::light")]);
-    let tie = changed(|m| m.ties[0].item = path("stone::drop::falls"));
-    assert_eq!(
-        tie,
-        vec![unknown("stone::drop::falls", "stone::drop::falls")]
-    );
-    let number = changed(|m| m.parts[1].functions[0].claims[0].holds = name("v"));
-    assert_eq!(number, vec![Problem::Mistyped(path("stone::drop::falls"))]);
-    let body = changed(|m| m.parts[1].functions[1].body = Some(under("h", 1)));
-    assert_eq!(body, vec![Problem::Mistyped(path("stone::speed"))]);
-    let proof = changed(|m| m.parts[1].functions[0].rules[1].conclusion = at("stone::air"));
-    assert_eq!(proof, vec![Problem::Mistyped(path("stone::drop::lands"))]);
-    let ghost = Type::Record(simulation::Record {
+fn each_error_is_found() {
+    let ghost = |fields: &[&str]| simulation::Record {
         name: "Ghost".to_string(),
-        fields: vec![],
-    });
-    let record = changed(|m| {
-        m.parts[1].records.push(Record {
-            name: "Drop".to_string(),
-            fields: Some(vec![("h".to_string(), ghost)]),
+        fields: fields.iter().map(|f| (f.to_string(), Type::Real)).collect(),
+    };
+    let cases: Vec<(&str, Change)> = vec![
+        (
+            "M001 at stone::still air",
+            Box::new(|m| m.parts[1].requires[1].name = "still air".to_string()),
+        ),
+        (
+            "M002 at stone::drop::falls",
+            Box::new(|m| {
+                let falls = m.parts[1].functions[0].claims[0].clone();
+                m.parts[1].functions[0].claims.push(falls);
+            }),
+        ),
+        (
+            "M003 at stone::Drop::h",
+            Box::new(move |m| {
+                m.parts[1].records.push(Record {
+                    name: "Drop".to_string(),
+                    fields: Some(vec![("h".to_string(), Type::Record(ghost(&[])))]),
+                    claims: vec![],
+                    rules: vec![],
+                })
+            }),
+        ),
+        (
+            "M004 at stone::speed::slow",
+            Box::new(move |m| {
+                let made = apply(Op::Make(ghost(&["h"])), vec![real(1)]);
+                let slow = &mut m.parts[1].functions[1].claims[0].holds;
+                *slow = let_in(Op::Let, "made", made, slow.clone());
+            }),
+        ),
+        (
+            "M005 at stone::speed",
+            Box::new(|m| m.parts[1].functions[1].body = Some(under("h", 1))),
+        ),
+        (
+            "M006 at stone::drop::falls",
+            Box::new(|m| m.parts[1].functions[0].claims[0].holds = name("v")),
+        ),
+        (
+            "M007 at stone::drop::slows",
+            Box::new(|m| m.parts[1].functions[0].rules[0].premises[0] = at("stone::drop::fell")),
+        ),
+        (
+            "M008 at stone::drop::shining",
+            Box::new(|m| {
+                let shining = rule("shining", &["stone::air"], "sun::shines");
+                m.parts[1].functions[0].rules.push(shining);
+            }),
+        ),
+        (
+            "M009 at stone::light",
+            Box::new(|m| m.parts[1].requires[0].from = Source::Ensure(path("sun::light"))),
+        ),
+        (
+            "M010 at stone::drop::falls",
+            Box::new(|m| m.ties[0].item = path("stone::drop::falls")),
+        ),
+        (
+            "M011 at stone::lands_slow",
+            Box::new(|m| m.parts[1].ensures[0].from.push(vec![])),
+        ),
+        (
+            "M012 at stone::drop::lands",
+            Box::new(|m| m.parts[1].functions[0].rules[1].conclusion = at("stone::air")),
+        ),
+        (
+            "M013 at stone::lands_slow",
+            Box::new(|m| {
+                let itself = vec![path("stone::lands_slow")];
+                m.parts[1].ensures[0].from.push(itself);
+            }),
+        ),
+        (
+            "M014 at stone::drop::lands",
+            Box::new(|m| {
+                let lands = at("stone::drop::lands");
+                m.parts[1].functions[0].rules[1].premises[0] = lands;
+            }),
+        ),
+    ];
+    let mut given = Vec::new();
+    for (expected, change) in cases {
+        assert_eq!(changed(change), [expected]);
+        given.push(expected[..4].to_string());
+    }
+    let listed = CATALOGUE
+        .iter()
+        .filter(|e| e.code.suit == Suit::Model && !e.retired);
+    let listed: Vec<String> = listed.map(|e| e.code.to_string()).collect();
+    assert_eq!(given, listed);
+    // A term that names a function is no proposition.
+    let function = changed(|m| m.parts[1].functions[0].rules[0].premises[0] = at("stone::speed"));
+    assert_eq!(function, ["M007 at stone::drop::slows"]);
+    // Two records named alike in two parts: a record's name is once in
+    // the model. A name twice among what a function takes.
+    let records = changed(|m| {
+        let calm = Record {
+            name: "Calm".to_string(),
+            fields: Some(vec![]),
             claims: vec![],
             rules: vec![],
-        })
+        };
+        m.parts[0].records.push(calm.clone());
+        m.parts[1].records.push(calm);
     });
-    assert_eq!(record, vec![Problem::Mistyped(path("stone::Drop"))]);
-    let empty = changed(|m| m.parts[1].ensures[0].from.push(vec![]));
-    assert_eq!(empty, vec![Problem::Empty(path("stone::lands_slow"))]);
-    let function = changed(|m| m.parts[1].functions[0].rules[0].premises[0] = at("stone::speed"));
-    assert_eq!(
-        function,
-        vec![unknown("stone::drop::slows", "stone::speed")]
-    );
-    let cycle = changed(|m| {
-        m.parts[1].ensures[0]
-            .from
-            .push(vec![path("stone::lands_slow")])
+    assert_eq!(records, ["M002 at stone::Calm"]);
+    let takes = changed(|m| {
+        let h = m.parts[1].functions[1].takes[0].clone();
+        m.parts[1].functions[1].takes.push(h);
     });
-    assert_eq!(cycle, vec![Problem::Circular(path("stone::lands_slow"))]);
-    let misnamed = changed(|m| m.parts[1].requires[1].name = "still air".to_string());
-    assert_eq!(
-        misnamed,
-        vec![Problem::Misnamed(Path::to(&["stone", "still air"]))]
-    );
+    assert_eq!(takes, ["M002 at stone::speed::h"]);
+    // An expression written in a rule is read as a claim.
+    let holds = changed(|m| {
+        let mut low = rule("low", &[], "stone::drop::slow");
+        low.premises.push(Term::Holds(name("h")));
+        m.parts[1].functions[0].rules.push(low);
+    });
+    assert_eq!(holds, ["M006 at stone::drop::low"]);
+    // A function that takes a type no record declares: its body is not
+    // checked against it too.
+    let takes = changed(move |m| m.parts[1].functions[1].takes[0].1 = Type::Record(ghost(&[])));
+    assert_eq!(takes, ["M003 at stone::speed::h"]);
 }
 
 /// A name in a proof.
@@ -524,7 +612,7 @@ fn a_proof_argues_for_its_conclusion() {
     };
     let proof = apply(reductio, vec![read("stone::drop::falls")]);
     model.parts[1].functions[0].rules[1].proof = Some(proof);
-    assert_eq!(check(&model), vec![Problem::Mistyped(lands.clone())]);
+    assert_eq!(errors(&model), ["M012 at stone::drop::lands"]);
     assert!(leaves(&model).iter().any(|(at, _)| *at == lands));
 
     // From `drop::slow`, got by an assumed rule, tollens on `slows` can
@@ -553,7 +641,7 @@ fn a_proof_argues_for_its_conclusion() {
     rules.push(rule("upon", &["stone::speed::slow"], "stone::drop::slow"));
     rules.push(back);
     let back = path("stone::drop::back");
-    assert_eq!(check(&model), vec![Problem::Mistyped(back.clone())]);
+    assert_eq!(errors(&model), ["M012 at stone::drop::back"]);
     assert!(leaves(&model).iter().any(|(at, _)| *at == back));
 
     // An expression written as a conclusion is its own proposition, which no
@@ -570,8 +658,7 @@ fn a_proof_argues_for_its_conclusion() {
             conclusion: low(),
             proof: Some(proof),
         });
-        let same = Problem::Mistyped(path("stone::speed::same"));
-        assert_eq!(check(&model), vec![same]);
+        assert_eq!(errors(&model), ["M012 at stone::speed::same"]);
     }
 }
 
@@ -582,12 +669,13 @@ fn a_proof_argues_for_its_conclusion() {
 /// through itself: what it says would be said in terms of itself.
 #[test]
 fn nothing_rests_on_itself() {
-    let circular = |p: &str| Problem::Circular(path(p));
+    // Twice through `again`, reported once.
     let again = changed(|m| {
-        let again = rule("again", &["stone::drop::slow"], "stone::drop::slow");
+        let slow = "stone::drop::slow";
+        let again = rule("again", &[slow, slow], slow);
         m.parts[1].functions[0].rules.push(again);
     });
-    assert_eq!(again, vec![circular("stone::drop::again")]);
+    assert_eq!(again, ["M013 at stone::drop::again"]);
     let both = changed(|m| {
         let rules = &mut m.parts[1].functions[0].rules;
         rules.push(rule("up", &["stone::drop::falls"], "stone::speed::slow"));
@@ -595,7 +683,7 @@ fn nothing_rests_on_itself() {
     });
     assert_eq!(
         both,
-        vec![circular("stone::drop::down"), circular("stone::drop::up")]
+        ["M013 at stone::drop::down", "M013 at stone::drop::up"]
     );
     // `lands` is a premise of itself, and shown by itself. A rule that
     // only names it is not on the cycle: judgement still knows it, and
@@ -614,7 +702,7 @@ fn nothing_rests_on_itself() {
     rules[1].premises = names.iter().map(|n| at(n)).collect();
     rules[1].proof = Some(apply(ponens, names.iter().map(|n| read(n)).collect()));
     rules.push(rule("far", &[names[0]], "stone::drop::slow"));
-    assert_eq!(check(&model), vec![circular("stone::drop::lands")]);
+    assert_eq!(errors(&model), ["M014 at stone::drop::lands"]);
     let known = judgement(&model);
     let knows = |p: &str| known.premises(&Prop::named(p)).is_some();
     assert!(!knows("stone::drop::lands"));
@@ -623,10 +711,7 @@ fn nothing_rests_on_itself() {
     let both = changed(|m| m.parts[1].functions[0].rules[0].premises[0] = at("stone::drop::lands"));
     assert_eq!(
         both,
-        vec![
-            circular("stone::drop::lands"),
-            circular("stone::drop::slows")
-        ]
+        ["M014 at stone::drop::lands", "M014 at stone::drop::slows"]
     );
     // Across parts: the stone's promise rests on the sun's, which rests
     // on the stone's. Assume–guarantee in a circle.
@@ -639,12 +724,12 @@ fn nothing_rests_on_itself() {
         m.parts[1].ensures[0].from[0].push(path("stone::light"));
     });
     let expected = [
-        "stone::lands_slow",
-        "stone::light",
-        "sun::landing",
-        "sun::shines",
+        "M013 at stone::lands_slow",
+        "M013 at stone::light",
+        "M013 at sun::landing",
+        "M013 at sun::shines",
     ];
-    assert_eq!(circle, expected.map(circular).to_vec());
+    assert_eq!(circle, expected);
 }
 
 /// A name is a word, so that a path reads one way: a require named
@@ -660,18 +745,17 @@ fn names_are_words() {
         "still air",
     ] {
         let found = changed(|m| m.parts[1].requires[1].name = bad.to_string());
-        assert_eq!(found, vec![Problem::Misnamed(Path::to(&["stone", bad]))]);
+        assert_eq!(found, [format!("M001 at stone::{bad}")]);
     }
     for good in ["still_air", "_air", "air2", "été"] {
         let found = changed(|m| m.parts[1].requires[1].name = good.to_string());
-        assert_eq!(found, vec![]);
+        assert!(found.is_empty());
     }
     let take = changed(|m| {
         let odd = function("odd", "the h", ("v", Type::Real));
         m.parts[1].functions.push(odd);
     });
-    let odd = Path::to(&["stone", "odd", "the h"]);
-    assert_eq!(take, vec![Problem::Misnamed(odd)]);
+    assert_eq!(take, ["M001 at stone::odd::the h"]);
 }
 
 /// The parts and leaves of a proposition.
@@ -779,13 +863,13 @@ fn records_are_made_as_declared() {
             *slow = let_in(Op::Let, "made", make, slow.clone());
         })
     };
-    let wrong = vec![Problem::Mistyped(path("stone::speed::slow"))];
+    let wrong = ["M004 at stone::speed::slow"];
     let named = |name: &str, fields: &[&str]| simulation::Record {
         name: name.to_string(),
         fields: fields.iter().map(|f| (f.to_string(), Type::Real)).collect(),
     };
-    assert_eq!(made(drop.clone()), vec![]);
-    assert_eq!(made(named("", &["0", "1"])), vec![]);
+    assert!(made(drop.clone()).is_empty());
+    assert!(made(named("", &["0", "1"])).is_empty());
     assert_eq!(made(named("Ghost", &["h", "v"])), wrong);
     assert_eq!(made(named("Drop", &["h"])), wrong);
     assert_eq!(made(named("Weather", &[])), wrong);
@@ -793,7 +877,7 @@ fn records_are_made_as_declared() {
     let ghost = make(&named("Ghost", &["h", "v"]));
     let body =
         changed(|m| m.parts[1].functions[1].body = Some(let_in(Op::Let, "made", ghost, two_g_h())));
-    assert_eq!(body, vec![Problem::Mistyped(path("stone::speed"))]);
+    assert_eq!(body, ["M004 at stone::speed"]);
 }
 
 /// Parts meet only where one requires what another ensures. A rule or
@@ -803,22 +887,15 @@ fn records_are_made_as_declared() {
 /// for it.
 #[test]
 fn parts_meet_only_through_requires() {
-    let unknown = |at: &str, names: &str| Problem::Unknown {
-        at: path(at),
-        names: path(names),
-    };
     let shining = changed(|m| {
         let shining = rule("shining", &["stone::air"], "sun::shines");
         m.parts[1].functions[0].rules.push(shining);
     });
-    assert_eq!(
-        shining,
-        vec![unknown("stone::drop::shining", "sun::shines")]
-    );
+    assert_eq!(shining, ["M008 at stone::drop::shining"]);
     let list = changed(|m| m.parts[1].ensures[0].from[0].push(path("sun::shines")));
-    assert_eq!(list, vec![unknown("stone::lands_slow", "sun::shines")]);
+    assert_eq!(list, ["M008 at stone::lands_slow"]);
     let own = changed(|m| m.parts[1].requires[0].from = Source::Ensure(path("stone::lands_slow")));
-    assert_eq!(own, vec![unknown("stone::light", "stone::lands_slow")]);
+    assert_eq!(own, ["M009 at stone::light"]);
     // A proof that reads a rule, even to drop it: a premise is fine, the
     // sun's rule is not.
     let cite = |rule_path: &'static str| {
@@ -833,9 +910,8 @@ fn parts_meet_only_through_requires() {
             lands.proof = Some(let_in(judgement::Op::Let, "unused", read(rule_path), proof));
         })
     };
-    assert_eq!(cite("stone::drop::slows"), vec![]);
-    let lands = Problem::Mistyped(path("stone::drop::lands"));
-    assert_eq!(cite("sun::light::bright"), vec![lands]);
+    assert!(cite("stone::drop::slows").is_empty());
+    assert_eq!(cite("sun::light::bright"), ["M012 at stone::drop::lands"]);
 }
 
 /// A tie that names nothing gives no proposition, and a list given twice

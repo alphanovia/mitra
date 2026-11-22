@@ -77,10 +77,10 @@ struct Tie { item: Path, at: Location }
 struct Path { names: Vec<String> }                                 // stone::drop::falls
 ```
 
-`check(model) -> Vec<Problem>`, `levels(model)`, `props(model)`,
-`judgement(model)` and `leaves(model)`. A `Problem` is `Twice`, `Unknown`,
-`Mistyped`, `Empty`, `Circular` or `Misnamed`, each with the path of the
-declaration at fault.
+`levels(model)`, `props(model)`, `judgement(model)` and `leaves(model)`
+read the model. `check(model) -> Vec<Error>`, in `src/check.rs`, says
+where it is not well formed: each error has a code of the catalogue, the
+path of the declaration to fix, and a message (below).
 
 A `Term` is a proposition as a rule writes it: a path, or an expression.
 `props(model)` gives each as judgement reads it, a `Prop`: `Named`,
@@ -89,27 +89,46 @@ knows what it says: its premises give its conclusion.
 
 ## Checks
 
-- Each name is a word (letters, digits and `_`, not first a digit), declared
-  once in its place. Record names are unique in the whole model, because a
-  record's type is named by it.
-- Each type is a truth, a number, a tuple, or the type of a declared record.
-  A record is made only with its declared fields, and an opaque one never.
-- A body checks to the type its function gives, from what it takes.
-- A claim checks to a truth. In a function it reads what the function takes
-  and gives. In a record it reads the record as `self`.
-- Parts meet only through requires. A rule's premises and conclusion, and
-  a list of an ensure, name claims, rules, requires or ensures of its part. A require's `from` names an ensure
-  of another part. A tie names a part, record or function.
-- An expression written in a rule checks to a truth, read as a claim of the
-  rule's record or function.
-- A proof shows its rule (choice 5).
-- Nothing rests on itself. A conclusion rests on its rule's premises and on
-  the rule, a require on its ensure, and an ensure on what its lists name.
-  Each declaration on a cycle, across parts too, is `Circular`.
-- No rule is named through itself: a term of it names it, or names a rule
-  a term of which does, and so on. Each rule on such a cycle is `Circular`
-  too (choice 9).
-- No list of an ensure's `from` is empty.
+`check` gives every error it finds, not the first. Each check has its code,
+and each code its page in `docs/reference`, with an example and the fix.
+
+| Code | The check |
+|---|---|
+| M001 | Each name is a word: letters, digits and `_`, not first a digit. |
+| M002 | Each name is declared once in its place. Record names are unique in the whole model, because a record's type is named by it. |
+| M003 | Each type is a truth, a number, a tuple, or the type of a declared record. |
+| M004 | A record is made only with its declared fields, and an opaque one never. |
+| M005 | A body checks to the type its function gives, from what it takes. |
+| M006 | A claim checks to a truth. In a function it reads what the function takes and gives; in a record, the record as `self`. An expression written in a rule is read as a claim of its record or function. |
+| M007 | A rule's premises and conclusion, and a list of an ensure, name claims, rules, requires or ensures. |
+| M008 | … of their own part: parts meet only through requires. |
+| M009 | A require's `from` names an ensure of another part. |
+| M010 | A tie names a part, record or function. |
+| M011 | No list of an ensure's `from` is empty. |
+| M012 | A proof shows its rule (choice 5). |
+| M013 | Nothing rests on itself. A conclusion rests on its rule's premises and on the rule, a require on its ensure, and an ensure on what its lists name. Each declaration on a cycle, across parts too, is reported. |
+| M014 | No rule is named through itself: a term of it names it, or names a rule a term of which does, and so on (choice 9). |
+
+## Errors and the catalogue
+
+`src/catalogue.rs` is one list of codes for every layer. A code is a suit,
+the layer that gives it, and a number: `M005`. The suits are `E` for the
+expression core (none yet), `M` for the model as written (`check`), `A`
+for the model against itself (agree), `V` for evidence, `X` for
+explaining the system, and `B` for blame. A code is never taken out or
+given to something else: one no longer given is marked retired, and stays
+listed with its page. A test holds the list, the numbering and the pages
+together.
+
+An `Error { code, at, message }` says the model must be fixed before
+anything reads it. A `Finding`, the same shape, will say what a reading
+found in a well-formed model: a verdict, not a fault. Both are written as
+rustc writes its errors:
+
+```text
+error[M002]: `falls` is declared twice
+ --> stone::drop::falls
+```
 
 ## Propositions, as judgement reads them
 
@@ -267,13 +286,19 @@ needs a meaning of its own, which judgement does not have.
    `simulation::tuple(types)`. `(a, b)` is `Make` and `t.0` is `Field("0")`.
    No new operation.
 10. **Parts meet only through requires** (choice 6).
-11. **Names are words**, so that a path reads one way. `Misnamed` is new.
+11. **Names are words**, so that a path reads one way (M001).
 12. **A cycle is a problem anywhere**, across parts too (choice 6).
 13. **A rule's conclusion may be a rule**, as in the first version: a rule
     that gives a rule.
 14. **A rule judgement does not know stops its users' proofs quietly.** A
     proof whose rule names a rule with a broken term, or one named through
     itself, is not checked: the problem is reported where it is, once.
+15. **An error is at the narrowest declaration**: a type at the field or at
+    what the function takes or gives (`stone::Drop::h`), a term at its rule,
+    a list at its ensure.
+16. **A body or a claim is checked for its type only when the types it
+    reads are known**, so a missing record gives M003 alone, not M005 or
+    M006 too.
 
 ## Contracts: not built
 
@@ -302,7 +327,7 @@ in `tests/model.rs`:
 | Found | Now | Test |
 |---|---|---|
 | A proof by reductio or tollens type-checked, and its rule counted as shown | a proof is also run once (choice 5) | `a_proof_argues_for_its_conclusion` |
-| Cycles not through a rule's own path passed, and vanished from the leaves | every cycle of what rests on what is `Circular` | `nothing_rests_on_itself` |
+| Cycles not through a rule's own path passed, and vanished from the leaves | every cycle of what rests on what is reported (M013) | `nothing_rests_on_itself` |
 | A name with `::` or ` at ` made two propositions one | names are words | `names_are_words` |
 | Propositions grew exponentially; 580 chained rules overflowed the stack | rules are premises by name, held once by judgement (choice 9); cycles found without the call stack | `rules_sharing_rules_stay_small` |
 | A claim could make a record no one declares | records made as declared | `records_are_made_as_declared` |
