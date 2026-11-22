@@ -29,10 +29,15 @@ and `gives(op, [T₁ … Tₙ]) = T`, then `Γ ⊢ Apply(op, [e₁ … eₙ]) : 
 `x` is in scope in `e₂` only, and the nearest `let` of a name shadows the
 others and any input of that name.
 
-**Let.** `Let(x, e₁, e₂)` evaluates `e₁` once and reads `e₂` with `x`
-standing for its outcome, fault included. A fault of `e₁` counts only where
-`x` is read, as if `e₁` were written there. So a `let` never changes what an
-expression gives: it shares.
+**Let.** `Let(x, e₁, e₂)` is written as Rust's `let x = e₁; e₂`. It
+evaluates `e₁` once and reads `e₂` with `x` standing for its outcome, fault
+included. Unlike Rust, a fault of `e₁` is not raised at the `let`: it counts
+only where `x` is read, as if `e₁` were written there. So a `let` never
+changes what an expression gives: it shares.
+
+**Readings are functions.** `has_type` and `apply` give the same answer for
+the same arguments: a reading keeps no state that changes one. S4 and S6 rest
+on it.
 
 **Value typing.** `has_type(v, T)` belongs to the reading and reads what the
 value is. Nothing stamps a type on a value, so preservation is not vacuous.
@@ -49,7 +54,7 @@ operations, not special forms. Every other operation is `strict`.
 |---|---|---|
 | S1 | **Agreement**, per reading and operation: `gives(op, ts) = Some(t)` and each argument is a value of its type or an `Op` fault ⇒ `apply` gives a value of type `t` or an `Op` fault. | depth-1 expressions over random inputs, every operation |
 | S2 | **Preservation and progress**, from S1 by induction: `check(Γ, e) = Some(T)` and `fits(Γ, values)` ⇒ `eval(values, e)` is `Ok(v)` with `has_type(v, T)`, or `Err(Op(_))`, never `Err(Stuck)`. The induction keeps each name a `let` binds standing for a value of its type or an `Op` fault. | random well-typed expressions with lets, each reading |
-| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. They recurse once per level, as do the derived `Clone`, `PartialEq` and drop, so depth is bounded by the stack: on a 2 MiB thread, 1,500 levels in a debug build and 3,000 in release. | random ill-typed expressions and values; 1,500 levels of `if` and of ponens, every other one a `let` |
+| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. They recurse once per level, except along a chain of `let`s each in the body of the one before, which takes no stack; the derived `Clone`, `PartialEq` and drop recurse on every level. So depth is bounded by the stack: on a 2 MiB thread, 1,500 levels in a debug build and 3,000 in release hold for all of them. Time and memory are not bounded by the size of an expression: each `let` may square a number. | random ill-typed expressions and values; 1,500 levels of `if`, of ponens and of `let`s in bound position; a chain of 10,000 `let`s |
 | S4 | **Determinism**: `eval` is a function of reading, values and expression. | evaluating twice |
 | S5 | **Covering**, per operation: `gives(op, ts) = Some(t)`, each bounded argument of its type or an `Op` fault, each exact argument in `γ` of its bounds at its type ⇒ `covers(t, Ranges.apply(op, b), Exact.apply(op, c))`. Then by induction: `check(Γ, e) = Some(T)`, `fits(Ranges, Γ, B)`, each exact input in `γ` of its bounds at its type ⇒ `covers(T, eval(Ranges, B, e), eval(Exact, C, e))`. On points it loses nothing: when each bound is `Bounds::exactly` of the exact input, the bounded outcome is `Bounds::exactly` of the exact one, or the same fault. | each operation with fault arguments; random expressions end to end; random expressions on points |
 | S6 | **Sharing**: `eval(Let(x, e₁, e₂))` is `eval` of `e₂` with `e₁` written in place of `x`, on every reading, checked or not; and when `Let(x, e₁, e₂)` checks to `T`, so does that. `e₁` is evaluated once. | random expressions with lets and shadowing, written out, on every reading, typed and wild; a count of operations applied |

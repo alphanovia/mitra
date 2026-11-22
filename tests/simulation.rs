@@ -518,6 +518,9 @@ proptest! {
         let mut g = Gen::new(seed);
         let e = g.wild(depth);
         let written = inline(&e);
+        if let Some(t) = check(&Simulation, &g.inputs, &e) {
+            prop_assert_eq!(check(&Simulation, &g.inputs, &written), Some(t));
+        }
         let values: BTreeMap<String, Value> = (0..8).map(|i| (format!("x{i}"), g.wild_value())).collect();
         let bounds: BTreeMap<String, Bounds> = (0..8).map(|i| (format!("x{i}"), g.wild_bounds())).collect();
         prop_assert_eq!(eval(&Exact, &values, &e), eval(&Exact, &values, &written));
@@ -829,33 +832,61 @@ fn a_shared_division() {
     assert!(eval(&Ranges, &around, &e).unwrap().may_fault);
 }
 
-/// S3's bound on depth: 1,500 levels, every other one a `let`, checked
-/// and read by both readings on a thread of 2 MiB.
+/// S3's bound on depth, on a thread of 2 MiB: 1,500 levels of `if`, of
+/// `let`s in bound position, and of both in turn, checked, read by both
+/// readings, cloned, compared and dropped; and a chain of 10,000 `let`s,
+/// each in the body of the one before, which takes no stack.
 #[test]
 fn fifteen_hundred_levels() {
-    let deep = std::thread::Builder::new()
+    let deep = |shape: fn(usize, E) -> E, levels: usize| {
+        std::thread::Builder::new()
+            .stack_size(2 << 20)
+            .spawn(move || {
+                let mut e = input("x");
+                for level in 0..levels {
+                    e = shape(level, e);
+                }
+                let x = typed(&[("x", Type::Int)]);
+                let value = at(&[("x", Value::Int(BigInt::from(7)))]);
+                let bounds = BTreeMap::from([("x".to_string(), Bounds::exactly(&value["x"]))]);
+                let same = e.clone() == e;
+                (
+                    same && check(&Simulation, &x, &e) == Some(Type::Int),
+                    eval(&Exact, &value, &e) == Ok(Value::Int(BigInt::from(7))),
+                    eval(&Ranges, &bounds, &e) == Ok(Bounds::exactly(&value["x"])),
+                )
+            })
+            .unwrap()
+            .join()
+            .unwrap()
+    };
+    let shapes: [fn(usize, E) -> E; 3] = [
+        |_, e| apply(Op::If, vec![apply(Op::Truth(true), vec![]), e, int(0)]),
+        |_, e| let_in("y", e, input("y")),
+        |level, e| match level % 2 {
+            0 => apply(Op::If, vec![apply(Op::Truth(true), vec![]), e, int(0)]),
+            _ => let_in("y", e, input("y")),
+        },
+    ];
+    for shape in shapes {
+        assert_eq!(deep(shape, 1500), (true, true, true));
+    }
+    let chain = std::thread::Builder::new()
         .stack_size(2 << 20)
         .spawn(|| {
             let mut e = input("x");
-            for level in 0..1500 {
-                e = match level % 2 {
-                    0 => apply(Op::If, vec![apply(Op::Truth(true), vec![]), e, int(0)]),
-                    _ => let_in("y", e, input("y")),
-                };
+            for _ in 0..10_000 {
+                e = let_in("x", apply(Op::Add, vec![input("x"), int(1)]), e);
             }
             let x = typed(&[("x", Type::Int)]);
-            let value = at(&[("x", Value::Int(BigInt::from(7)))]);
-            let bounds = BTreeMap::from([("x".to_string(), Bounds::exactly(&value["x"]))]);
-            (
-                check(&Simulation, &x, &e),
-                eval(&Exact, &value, &e),
-                eval(&Ranges, &bounds, &e),
-            )
+            let value = at(&[("x", Value::Int(BigInt::from(0)))]);
+            (check(&Simulation, &x, &e), eval(&Exact, &value, &e))
         })
         .unwrap()
         .join()
         .unwrap();
-    assert_eq!(deep.0, Some(Type::Int));
-    assert_eq!(deep.1, Ok(Value::Int(BigInt::from(7))));
-    assert_eq!(deep.2, Ok(Bounds::exactly(&Value::Int(BigInt::from(7)))));
+    assert_eq!(
+        chain,
+        (Some(Type::Int), Ok(Value::Int(BigInt::from(10_000))))
+    );
 }
