@@ -4,7 +4,7 @@
 
 mod common;
 
-use common::Rng;
+use common::{inline, let_in, Rng};
 use mitra_core::expression::{check, eval, fits, Expression, Fault, Outcome, Reading, Standard};
 use mitra_core::simulation::{
     covers, lies_in, Bounds, Exact, Op, Ranges, Rational, Record, Simulation, Span, Type,
@@ -63,6 +63,8 @@ struct Gen {
     rng: Rng,
     records: Vec<Record>,
     inputs: BTreeMap<String, Type>,
+    /// The names `let` binds in scope, the nearest last.
+    scope: Vec<(String, Type)>,
 }
 
 impl Gen {
@@ -71,6 +73,7 @@ impl Gen {
             rng: Rng::new(seed),
             records: records(),
             inputs: BTreeMap::new(),
+            scope: Vec::new(),
         };
         for i in 0..g.rng.below(6) {
             let t = g.ty();
@@ -139,8 +142,19 @@ impl Gen {
         }
     }
     fn leaf(&mut self, t: &Type) -> E {
-        let names: Vec<String> = self
-            .inputs
+        let mut visible = self.inputs.clone();
+        visible.extend(self.scope.iter().cloned());
+        // A name a let binds, read often.
+        let bound: Vec<String> = self
+            .scope
+            .iter()
+            .filter(|(n, _)| &visible[n] == t)
+            .map(|(n, _)| n.clone())
+            .collect();
+        if !bound.is_empty() && self.rng.coin() {
+            return Expression::Input(self.rng.pick(&bound).clone());
+        }
+        let names: Vec<String> = visible
             .iter()
             .filter(|(_, it)| *it == t)
             .map(|(n, _)| n.clone())
@@ -171,6 +185,19 @@ impl Gen {
                 let test = self.expr(&Type::Truth, d);
                 let (a, b) = (self.expr(t, d), self.expr(t, d));
                 return apply(Op::If, vec![test, a, b]);
+            }
+            // A let, which may shadow an input or another let, of any type.
+            2 => {
+                let name = self.rng.pick(&["l0", "l1", "x0", "x1"]).to_string();
+                let u = match self.rng.coin() {
+                    true => t.clone(),
+                    false => self.ty(),
+                };
+                let value = self.expr(&u, d);
+                self.scope.push((name.clone(), u));
+                let body = self.expr(t, d);
+                self.scope.pop();
+                return let_in(&name, value, body);
             }
             1 if !reads.is_empty() => {
                 let (r, name) = self.rng.pick(&reads).clone();
@@ -383,6 +410,11 @@ impl Gen {
                 }
             };
         }
+        if self.rng.below(6) == 0 {
+            let name = format!("x{}", self.rng.below(8));
+            let (value, body) = (self.wild(depth - 1), self.wild(depth - 1));
+            return let_in(&name, value, body);
+        }
         let op = self.wild_op();
         let args = (0..self.rng.below(4))
             .map(|_| self.wild(depth - 1))
@@ -464,6 +496,32 @@ proptest! {
         let out = eval(&Ranges, &bounds, &e);
         prop_assert!(progress(&Ranges, &out, &t), "{:?} gave {:?}", e, out);
         prop_assert_eq!(out, eval(&Ranges, &bounds, &e));
+    }
+
+    /// S6: a let shares. Each reading gives what the expression with
+    /// every let written out gives, and that checks to the same type.
+    #[test]
+    fn a_let_shares(seed in any::<u64>(), depth in 1u32..6) {
+        let mut g = Gen::new(seed);
+        let t = g.ty();
+        let e = g.expr(&t, depth);
+        let written = inline(&e);
+        prop_assert_eq!(check(&Simulation, &g.inputs, &written), Some(t.clone()));
+        let (bounds, exact) = g.bounded();
+        prop_assert_eq!(eval(&Exact, &exact, &e), eval(&Exact, &exact, &written));
+        prop_assert_eq!(eval(&Ranges, &bounds, &e), eval(&Ranges, &bounds, &written));
+    }
+
+    /// S6 on any expression, checked or not.
+    #[test]
+    fn a_let_shares_anything(seed in any::<u64>(), depth in 0u32..6) {
+        let mut g = Gen::new(seed);
+        let e = g.wild(depth);
+        let written = inline(&e);
+        let values: BTreeMap<String, Value> = (0..8).map(|i| (format!("x{i}"), g.wild_value())).collect();
+        let bounds: BTreeMap<String, Bounds> = (0..8).map(|i| (format!("x{i}"), g.wild_bounds())).collect();
+        prop_assert_eq!(eval(&Exact, &values, &e), eval(&Exact, &values, &written));
+        prop_assert_eq!(eval(&Ranges, &bounds, &e), eval(&Ranges, &bounds, &written));
     }
 
     /// S5: every exact outcome lies in the bounded one, when each exact
@@ -746,16 +804,44 @@ fn gamma_is_typed() {
     assert!(!fits(&Ranges, &x, &bounds));
 }
 
-/// S3's bound on depth: an `if` nested 700 deep is checked and read, by
-/// both readings, on a thread of 2 MiB.
+/// `let q = 1 / x; if x != 0 { q } else { 0 }` has a value at 0: the
+/// fault of what a let binds counts only where it is read. Rust would
+/// fault at the let. By bounds, over [-1, 1], it may fault.
 #[test]
-fn seven_hundred_levels() {
+fn a_shared_division() {
+    let x = || input("x");
+    let zero = || real(0, 1);
+    let nonzero = apply(Op::Not, vec![apply(Op::Equal, vec![x(), zero()])]);
+    let e = let_in(
+        "q",
+        apply(Op::Div, vec![real(1, 1), x()]),
+        apply(Op::If, vec![nonzero, input("q"), zero()]),
+    );
+    let reals = typed(&[("x", Type::Real)]);
+    assert_eq!(check(&Simulation, &reals, &e), Some(Type::Real));
+    let value = |x: i64| eval(&Exact, &at(&[("x", Value::Real(Rational::integer(x)))]), &e);
+    assert_eq!(value(0), Ok(Value::Real(Rational::integer(0))));
+    assert_eq!(value(2), Ok(Value::Real(Rational::new(1, 2).unwrap())));
+    let around = BTreeMap::from([(
+        "x".to_string(),
+        Bounds::between(Rational::integer(-1), Rational::integer(1)).unwrap(),
+    )]);
+    assert!(eval(&Ranges, &around, &e).unwrap().may_fault);
+}
+
+/// S3's bound on depth: 1,500 levels, every other one a `let`, checked
+/// and read by both readings on a thread of 2 MiB.
+#[test]
+fn fifteen_hundred_levels() {
     let deep = std::thread::Builder::new()
         .stack_size(2 << 20)
         .spawn(|| {
             let mut e = input("x");
-            for _ in 0..700 {
-                e = apply(Op::If, vec![apply(Op::Truth(true), vec![]), e, int(0)]);
+            for level in 0..1500 {
+                e = match level % 2 {
+                    0 => apply(Op::If, vec![apply(Op::Truth(true), vec![]), e, int(0)]),
+                    _ => let_in("y", e, input("y")),
+                };
             }
             let x = typed(&[("x", Type::Int)]);
             let value = at(&[("x", Value::Int(BigInt::from(7)))]);

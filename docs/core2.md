@@ -8,7 +8,9 @@ different Rust types.
 ## expression.rs
 
 ```rust
-enum Expression<Op> { Input(String), Apply(Op, Vec<Expression<Op>>) }  // a constant: Apply(op, [])
+enum Expression<Op> { Input(String),                                  // a name: an input, or bound by a let
+    Apply(Op, Vec<Expression<Op>>),                                    // a constant: Apply(op, [])
+    Let(String, Box<Expression<Op>>, Box<Expression<Op>>) }            // let x = e₁; e₂
 trait Standard { type Type; type Op;                                   // a language
     fn gives(&self, op, takes: &[Type]) -> Option<Type>; }
 trait Reading { type Standard; type Value; type Fault;                 // a meaning of it
@@ -22,7 +24,15 @@ fn strict(args) -> Result<Vec<Value>, Fault>                           // all va
 ```
 
 **Typing judgement.** `Γ ⊢ Input(x) : Γ(x)`. If `Γ ⊢ eᵢ : Tᵢ` for each `i`
-and `gives(op, [T₁ … Tₙ]) = T`, then `Γ ⊢ Apply(op, [e₁ … eₙ]) : T`.
+and `gives(op, [T₁ … Tₙ]) = T`, then `Γ ⊢ Apply(op, [e₁ … eₙ]) : T`. If
+`Γ ⊢ e₁ : T₁` and `Γ, x : T₁ ⊢ e₂ : T₂`, then `Γ ⊢ Let(x, e₁, e₂) : T₂`:
+`x` is in scope in `e₂` only, and the nearest `let` of a name shadows the
+others and any input of that name.
+
+**Let.** `Let(x, e₁, e₂)` evaluates `e₁` once and reads `e₂` with `x`
+standing for its outcome, fault included. A fault of `e₁` counts only where
+`x` is read, as if `e₁` were written there. So a `let` never changes what an
+expression gives: it shares.
 
 **Value typing.** `has_type(v, T)` belongs to the reading and reads what the
 value is. Nothing stamps a type on a value, so preservation is not vacuous.
@@ -38,10 +48,11 @@ operations, not special forms. Every other operation is `strict`.
 | | Statement | Tested by |
 |---|---|---|
 | S1 | **Agreement**, per reading and operation: `gives(op, ts) = Some(t)` and each argument is a value of its type or an `Op` fault ⇒ `apply` gives a value of type `t` or an `Op` fault. | depth-1 expressions over random inputs, every operation |
-| S2 | **Preservation and progress**, from S1 by induction: `check(Γ, e) = Some(T)` and `fits(Γ, values)` ⇒ `eval(values, e)` is `Ok(v)` with `has_type(v, T)`, or `Err(Op(_))`, never `Err(Stuck)`. | random well-typed expressions, each reading |
-| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. They recurse once per level, as do the derived `Clone`, `PartialEq` and drop, so depth is bounded by the stack: on a 2 MiB thread, 700 levels in a debug build and 2,500 in release. | random ill-typed expressions and values; 700 levels of `if` and of ponens |
+| S2 | **Preservation and progress**, from S1 by induction: `check(Γ, e) = Some(T)` and `fits(Γ, values)` ⇒ `eval(values, e)` is `Ok(v)` with `has_type(v, T)`, or `Err(Op(_))`, never `Err(Stuck)`. The induction keeps each name a `let` binds standing for a value of its type or an `Op` fault. | random well-typed expressions with lets, each reading |
+| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. They recurse once per level, as do the derived `Clone`, `PartialEq` and drop, so depth is bounded by the stack: on a 2 MiB thread, 1,500 levels in a debug build and 3,000 in release. | random ill-typed expressions and values; 1,500 levels of `if` and of ponens, every other one a `let` |
 | S4 | **Determinism**: `eval` is a function of reading, values and expression. | evaluating twice |
 | S5 | **Covering**, per operation: `gives(op, ts) = Some(t)`, each bounded argument of its type or an `Op` fault, each exact argument in `γ` of its bounds at its type ⇒ `covers(t, Ranges.apply(op, b), Exact.apply(op, c))`. Then by induction: `check(Γ, e) = Some(T)`, `fits(Ranges, Γ, B)`, each exact input in `γ` of its bounds at its type ⇒ `covers(T, eval(Ranges, B, e), eval(Exact, C, e))`. On points it loses nothing: when each bound is `Bounds::exactly` of the exact input, the bounded outcome is `Bounds::exactly` of the exact one, or the same fault. | each operation with fault arguments; random expressions end to end; random expressions on points |
+| S6 | **Sharing**: `eval(Let(x, e₁, e₂))` is `eval` of `e₂` with `e₁` written in place of `x`, on every reading, checked or not; and when `Let(x, e₁, e₂)` checks to `T`, so does that. `e₁` is evaluated once. | random expressions with lets and shadowing, written out, on every reading, typed and wild; a count of operations applied |
 | J1 | **Rules preserve truth**: each set an opinion of `x` rests on, for or against, entails `x`, or `!x`, where `t = {p} s {q}` means `t → (∧p → ∧q)`. | every valuation of every random derivation |
 | J2 | **State is read from rests**: `state(not o) = not state(o)`, `state(join a b) = join(state a, state b)`. | random opinions |
 | J3 | **Rests are the smallest, and all**: no rest holds another. Keeping only the takings in a set `S`, a piece follows only if one of its rests lies in `S`, unless a `Reductio` lies below another; and, with no `Reductio`, whenever one does. A reductio's rest leaves out the taking it finds wrong. Below another reductio, a taking added can take a conclusion away: the inner one keeps only its smallest blame. | random derivations, random `S`; the case found by the red team |
@@ -82,9 +93,13 @@ operations, not special forms. Every other operation is `strict`.
 
 ## Choices taken on Rust's form
 
-`!x`, `&&`, `||` short-circuit, `if` reads one branch, `R { .. }`, `r.x`.
-`within(a, b, tol)` stays as you named it, where Rust would write
-`(a - b).abs() <= tol`.
+`!x`, `&&`, `||` short-circuit, `if` reads one branch, `R { .. }`, `r.x`,
+`let x = e₁; e₂`. `within(a, b, tol)` stays as you named it, where Rust would
+write `(a - b).abs() <= tol`. Unlike Rust, a fault in what a `let` binds
+counts only where it is read (`let q = 1 / x; if x != 0 { q } else { 0 }`
+has a value at 0). That keeps a `let` to sharing, and keeps bounds sound with
+nothing new asked of a reading. No conversion is implicit: `Int` and `Real`
+never mix, and a conversion would be an operation.
 
 ## Beyond what was named (going ahead; say no to undo)
 
@@ -96,6 +111,4 @@ operations, not special forms. Every other operation is `strict`.
 6. **Taking `{ piece, value, count, by }`**. An opinion carries its piece (`about`), so its value says what it is about.
 7. Removed after the red team: **bias**, and **`yes` / `no`** (the least count to give up). No rule reads either, and the least count is a smallest hitting set: exponential, and it crashed on 20,000 takings. Numbers come back when the logic is settled.
 
-Not in this round: an `Option` type, `Int → Real` conversion, units, diagnosis,
-sharing a sub-expression (`let`: today an input does it, bound by whatever
-evaluates the model).
+Not in this round: an `Option` type, `Int → Real` conversion, units, diagnosis.

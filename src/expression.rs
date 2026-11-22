@@ -9,13 +9,25 @@
 //! This file knows no type, no value and no operation. A constant is an
 //! operation that takes nothing.
 //!
-//! The typing judgement `Γ ⊢ e : T` is `check(standard, Γ, e) == Some(T)`:
+//! The typing judgement `Γ ⊢ e : T` is `check(standard, Γ, e) == Some(T)`,
+//! where `Γ, x : T₁` is `Γ` with `x` now of type `T₁`:
 //!
 //! ```text
 //!   Γ(x) = T                      Γ ⊢ eᵢ : Tᵢ (each i)    gives(op, [T₁ … Tₙ]) = T
 //!   ─────────────────             ───────────────────────────────────────────────
 //!   Γ ⊢ Input(x) : T              Γ ⊢ Apply(op, [e₁ … eₙ]) : T
+//!
+//!   Γ ⊢ e₁ : T₁    Γ, x : T₁ ⊢ e₂ : T₂
+//!   ──────────────────────────────────
+//!   Γ ⊢ Let(x, e₁, e₂) : T₂
 //! ```
+//!
+//! `Let(x, e₁, e₂)` is Rust's `let x = e₁; e₂`. It evaluates `e₁` once
+//! and reads `e₂` with `x` standing for its outcome, fault included: a
+//! fault of `e₁` counts only where `x` is read, as if `e₁` were written
+//! there. So a `Let` never changes what an expression gives; it shares
+//! (sharing): `eval` of `Let(x, e₁, e₂)` is `eval` of `e₂` with `e₁`
+//! in place of each `x` it binds.
 //!
 //! What a reading must keep, for every operation (agreement): when
 //! `gives(op, [T₁ … Tₙ]) = Some(T)` and each argument is a value of its
@@ -25,7 +37,9 @@
 //! What follows, by induction on `e` (preservation and progress): when
 //! `check(s, Γ, e) == Some(T)` and `fits(r, Γ, values)`, then
 //! `eval(r, values, e)` is `Ok(v)` with `r.has_type(&v, &T)`, or
-//! `Err(Fault::Op(_))`. It is never `Err(Fault::Stuck)`.
+//! `Err(Fault::Op(_))`. It is never `Err(Fault::Stuck)`. The induction
+//! keeps every name in scope standing for a value of its type or an
+//! operation's fault.
 //!
 //! When one reading bounds another (covering): a reading `A` bounds a
 //! reading `C` of the same standard by γ, where `γ_T(a)` is the set of
@@ -41,17 +55,21 @@
 //! `check` and `eval` never panic, on any expression and any values.
 //! They recurse once per level of the expression, as do the derived
 //! `Clone`, `PartialEq` and drop, so depth is bounded by the stack: on a
-//! thread of 2 MiB, 700 levels in a debug build and 2,500 in a release
+//! thread of 2 MiB, 1,500 levels in a debug build and 3,000 in a release
 //! build hold for the standards here.
 
 use std::collections::BTreeMap;
 
-/// An expression: a named input, or an operation on what other
-/// expressions give.
+/// An expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expression<Op> {
+    /// A name: what the nearest enclosing `Let` of it binds, or else an
+    /// input.
     Input(String),
+    /// An operation on what other expressions give.
     Apply(Op, Vec<Expression<Op>>),
+    /// `let x = e₁; e₂`: `e₂`, where `x` stands for what `e₁` gives.
+    Let(String, Box<Expression<Op>>, Box<Expression<Op>>),
 }
 
 /// A language: its types and its operations.
@@ -101,38 +119,86 @@ pub trait Reading {
     fn apply(&self, op: &OpOf<Self>, args: &[OutcomeOf<Self>]) -> OutcomeOf<Self>;
 }
 
+/// What the names bound by the enclosing `Let`s stand for, the nearest
+/// last.
+type Bound<'e, X> = Vec<(&'e str, X)>;
+
+/// What the nearest `Let` of `name` binds it to.
+fn nearest<'b, X>(bound: &'b Bound<'_, X>, name: &str) -> Option<&'b X> {
+    bound.iter().rev().find(|(n, _)| *n == name).map(|(_, x)| x)
+}
+
 /// The type of `e` when its inputs have the types of `inputs`. `None`
-/// when it has none: an input not in `inputs`, or an operation that does
-/// not take the types it is given.
+/// when it has none: a name neither bound nor in `inputs`, or an
+/// operation that does not take the types it is given.
 pub fn check<S: Standard>(
     standard: &S,
     inputs: &BTreeMap<String, S::Type>,
     e: &Expression<S::Op>,
 ) -> Option<S::Type> {
+    check_in(standard, inputs, &mut Vec::new(), e)
+}
+
+fn check_in<'e, S: Standard>(
+    standard: &S,
+    inputs: &BTreeMap<String, S::Type>,
+    bound: &mut Bound<'e, S::Type>,
+    e: &'e Expression<S::Op>,
+) -> Option<S::Type> {
     match e {
-        Expression::Input(name) => inputs.get(name).cloned(),
+        Expression::Input(name) => nearest(bound, name).or_else(|| inputs.get(name)).cloned(),
         Expression::Apply(op, args) => {
-            let takes = args
-                .iter()
-                .map(|arg| check(standard, inputs, arg))
-                .collect::<Option<Vec<_>>>()?;
+            let mut takes = Vec::with_capacity(args.len());
+            for arg in args {
+                takes.push(check_in(standard, inputs, bound, arg)?);
+            }
             standard.gives(op, &takes)
+        }
+        Expression::Let(name, value, body) => {
+            let t = check_in(standard, inputs, bound, value)?;
+            bound.push((name, t));
+            let gives = check_in(standard, inputs, bound, body);
+            bound.pop();
+            gives
         }
     }
 }
 
 /// What `e` gives at these values of its inputs. Every argument is
 /// evaluated, left to right, and the operation is given all of them.
+/// The value of a `Let` is evaluated once, before its body.
 pub fn eval<R: Reading>(
     reading: &R,
     values: &BTreeMap<String, R::Value>,
     e: &Expression<OpOf<R>>,
 ) -> OutcomeOf<R> {
+    eval_in(reading, values, &mut Vec::new(), e)
+}
+
+fn eval_in<'e, R: Reading>(
+    reading: &R,
+    values: &BTreeMap<String, R::Value>,
+    bound: &mut Bound<'e, OutcomeOf<R>>,
+    e: &'e Expression<OpOf<R>>,
+) -> OutcomeOf<R> {
     match e {
-        Expression::Input(name) => values.get(name).cloned().ok_or(Fault::Stuck),
+        Expression::Input(name) => match nearest(bound, name) {
+            Some(outcome) => outcome.clone(),
+            None => values.get(name).cloned().ok_or(Fault::Stuck),
+        },
         Expression::Apply(op, args) => {
-            let args: Vec<_> = args.iter().map(|arg| eval(reading, values, arg)).collect();
-            reading.apply(op, &args)
+            let mut outcomes = Vec::with_capacity(args.len());
+            for arg in args {
+                outcomes.push(eval_in(reading, values, bound, arg));
+            }
+            reading.apply(op, &outcomes)
+        }
+        Expression::Let(name, value, body) => {
+            let outcome = eval_in(reading, values, bound, value);
+            bound.push((name, outcome));
+            let gives = eval_in(reading, values, bound, body);
+            bound.pop();
+            gives
         }
     }
 }

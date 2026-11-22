@@ -5,7 +5,7 @@
 
 mod common;
 
-use common::Rng;
+use common::{inline, let_in, Rng};
 use mitra_core::expression::{check, eval, fits, Expression, Fault, Reading};
 use mitra_core::judgement::{Judgement, Op, Opinion, Piece, State, Taking, Type, Value};
 use proptest::prelude::*;
@@ -30,6 +30,8 @@ struct World {
     names: BTreeMap<Piece, String>,
     inputs: BTreeMap<String, Type>,
     values: BTreeMap<String, Value>,
+    /// The names `let` binds in scope, the nearest last.
+    bound: Vec<(String, Type)>,
 }
 
 impl World {
@@ -62,6 +64,7 @@ impl World {
             names: BTreeMap::new(),
             inputs: BTreeMap::new(),
             values: BTreeMap::new(),
+            bound: Vec::new(),
         };
         for (i, piece) in pieces.iter().enumerate() {
             let name = format!("o{i}");
@@ -91,12 +94,57 @@ impl World {
     fn piece(&mut self) -> Piece {
         self.rng.pick(&self.pieces.clone()).clone()
     }
+    /// A name in scope of type `t`: an input, or one a `let` binds.
+    fn name(&mut self, t: &Type) -> E {
+        let mut visible = self.inputs.clone();
+        visible.extend(self.bound.iter().cloned());
+        let names: Vec<String> = visible
+            .into_iter()
+            .filter(|(_, it)| it == t)
+            .map(|(n, _)| n)
+            .collect();
+        Expression::Input(self.rng.pick(&names).clone())
+    }
+    /// `let n = <value of type t>; <body>`, where `n` may shadow a name of
+    /// the same type, or another let.
+    fn let_in(
+        &mut self,
+        t: Type,
+        value: impl FnOnce(&mut Self) -> E,
+        body: impl FnOnce(&mut Self) -> E,
+    ) -> E {
+        let same = match &t {
+            Type::Opinion(y) => self.names[y].clone(),
+            Type::State => "s0".to_string(),
+        };
+        let name = self
+            .rng
+            .pick(&[same, "l0".to_string(), "l1".to_string()])
+            .clone();
+        let value = value(self);
+        self.bound.push((name.clone(), t));
+        let body = body(self);
+        self.bound.pop();
+        let_in(&name, value, body)
+    }
     /// A random derivation of an opinion of `x`.
     fn opinion(&mut self, x: &Piece, depth: u32) -> E {
         if depth == 0 || self.rng.below(4) == 0 {
-            return Expression::Input(self.names[x].clone());
+            return self.name(&Type::Opinion(x.clone()));
         }
         let d = depth - 1;
+        if self.rng.below(6) == 0 {
+            let y = match self.rng.coin() {
+                true => x.clone(),
+                false => self.piece(),
+            };
+            let x = x.clone();
+            return self.let_in(
+                Type::Opinion(y.clone()),
+                |w| w.opinion(&y, d),
+                |w| w.opinion(&x, d),
+            );
+        }
         let mut ways = vec![Op::Join, Op::Not, Op::Reductio { of: x.clone() }];
         for t in &self.steps {
             let (premises, posts) = (t.premises().unwrap(), t.posts().unwrap());
@@ -160,10 +208,11 @@ impl World {
     /// A random expression of a state.
     fn state(&mut self, depth: u32) -> E {
         if depth == 0 || self.rng.below(4) == 0 {
-            return input(self.rng.pick(&["s0", "s1"]));
+            return self.name(&Type::State);
         }
         let d = depth - 1;
-        match self.rng.below(4) {
+        match self.rng.below(5) {
+            4 => self.let_in(Type::State, |w| w.state(d), |w| w.state(d)),
             0 => {
                 let y = self.piece();
                 apply(Op::StateOf, vec![self.opinion(&y, d)])
@@ -206,6 +255,11 @@ impl World {
     fn wild(&mut self, depth: u32) -> E {
         if depth == 0 || self.rng.below(4) == 0 {
             return Expression::Input(format!("o{}", self.rng.below(self.pieces.len() + 2)));
+        }
+        if self.rng.below(6) == 0 {
+            let name = format!("o{}", self.rng.below(self.pieces.len() + 2));
+            let (value, body) = (self.wild(depth - 1), self.wild(depth - 1));
+            return let_in(&name, value, body);
         }
         let op = self.wild_op();
         let args = (0..self.rng.below(5))
@@ -324,7 +378,8 @@ proptest! {
         let (_, e) = w.typed(depth);
         let meaning = Meaning::of(&w.pieces);
         let j = Judgement;
-        for sub in subexpressions(&e) {
+        let written = inline(&e);
+        for sub in subexpressions(&written) {
             if let Ok(Value::Opinion(o)) = eval(&j, &w.values, sub) {
                 prop_assert!(meaning.sound(&o), "unsound: {:?}\nfrom {:?}", o, sub);
             }
@@ -367,7 +422,8 @@ proptest! {
         let x = w.piece();
         let e = w.opinion(&x, depth);
         let j = Judgement;
-        for sub in subexpressions(&e) {
+        let written = inline(&e);
+        for sub in subexpressions(&written) {
             if let Ok(Value::Opinion(o)) = eval(&j, &w.values, sub) {
                 for rests in [o.rests_for(), o.rests_against()] {
                     let held = rests.iter().any(|s| rests.iter().any(|r| r != s && r.is_subset(s)));
@@ -381,8 +437,8 @@ proptest! {
             Value::State(_) => vec![],
         }).collect();
         let reductio = |s: &&E| matches!(s, Expression::Apply(Op::Reductio { .. }, _));
-        let exact = !subexpressions(&e).iter().any(reductio);
-        let nested = subexpressions(&e).iter().any(|s| match s {
+        let exact = !subexpressions(&written).iter().any(reductio);
+        let nested = subexpressions(&written).iter().any(|s| match s {
             Expression::Apply(Op::Reductio { .. }, args) => args.iter().any(|a| subexpressions(a).iter().any(reductio)),
             _ => false,
         });
@@ -402,6 +458,21 @@ proptest! {
                 prop_assert!(!exact || !within || !some.is_empty(), "a rest of {:?} lies in {:?}, yet nothing follows", all, kept);
             }
         }
+    }
+
+    /// S6: a let shares. Judging gives what the derivation with every let
+    /// written out gives, and that checks to the same type, checked or
+    /// not.
+    #[test]
+    fn a_let_shares(seed in any::<u64>(), depth in 1u32..6) {
+        let mut w = World::new(seed);
+        let (t, e) = w.typed(depth);
+        let written = inline(&e);
+        let j = Judgement;
+        prop_assert_eq!(check(&j, &w.inputs, &written), Some(t));
+        prop_assert_eq!(eval(&j, &w.values, &e), eval(&j, &w.values, &written));
+        let wild = w.wild(depth);
+        prop_assert_eq!(eval(&j, &w.values, &wild), eval(&j, &w.values, &inline(&wild)));
     }
 
     /// S3: no expression makes `check` or `eval` panic.
@@ -911,10 +982,10 @@ fn a_reductio_below_another() {
     assert!(meaning.entails(&cannot, &q, true) && meaning.entails(&cannot, &q, false));
 }
 
-/// S3's bound on depth: ponens nested 700 deep is checked and judged
-/// on a thread of 2 MiB.
+/// S3's bound on depth: 1,500 levels, every other one a `let`, checked
+/// and judged on a thread of 2 MiB.
 #[test]
-fn seven_hundred_levels() {
+fn fifteen_hundred_levels() {
     let p = Piece::named("p");
     let t = Piece::Implies {
         pre: vec![p.clone()],
@@ -925,14 +996,17 @@ fn seven_hundred_levels() {
         .stack_size(2 << 20)
         .spawn(move || {
             let mut e = input("p");
-            for _ in 0..700 {
-                e = apply(
-                    Op::Ponens {
-                        t: t.clone(),
-                        post: 0,
-                    },
-                    vec![input("t"), e],
-                );
+            for level in 0..1500 {
+                e = match level % 2 {
+                    0 => apply(
+                        Op::Ponens {
+                            t: t.clone(),
+                            post: 0,
+                        },
+                        vec![input("t"), e],
+                    ),
+                    _ => let_in("o", e, input("o")),
+                };
             }
             let inputs = BTreeMap::from([
                 ("p".to_string(), Type::Opinion(p.clone())),

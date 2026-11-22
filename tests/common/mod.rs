@@ -27,3 +27,36 @@ impl Rng {
         &xs[self.below(xs.len())]
     }
 }
+
+use mitra_core::expression::Expression;
+
+/// `let name = value; body`.
+#[allow(dead_code)]
+pub fn let_in<Op>(name: &str, value: Expression<Op>, body: Expression<Op>) -> Expression<Op> {
+    Expression::Let(name.to_string(), Box::new(value), Box::new(body))
+}
+
+/// `e` with every `Let` written out: each name a `Let` binds replaced by
+/// what it binds. Inner `Let`s go first, so no name is ever caught.
+#[allow(dead_code)]
+pub fn inline<Op: Clone>(e: &Expression<Op>) -> Expression<Op> {
+    match e {
+        Expression::Input(name) => Expression::Input(name.clone()),
+        Expression::Apply(op, args) => {
+            Expression::Apply(op.clone(), args.iter().map(inline).collect())
+        }
+        Expression::Let(name, value, body) => put(&inline(body), name, &inline(value)),
+    }
+}
+
+/// `e`, which has no `Let`, with `with` in place of every `name`.
+fn put<Op: Clone>(e: &Expression<Op>, name: &str, with: &Expression<Op>) -> Expression<Op> {
+    match e {
+        Expression::Input(n) if n == name => with.clone(),
+        Expression::Apply(op, args) => Expression::Apply(
+            op.clone(),
+            args.iter().map(|a| put(a, name, with)).collect(),
+        ),
+        other => other.clone(),
+    }
+}
