@@ -21,7 +21,7 @@ fn apply(op: Op, args: Vec<E>) -> E {
     Expression::Apply(op, args)
 }
 fn input(name: &str) -> E {
-    Expression::Input(name.to_string())
+    Expression::Name(name.to_string())
 }
 fn int(n: i64) -> E {
     apply(Op::Int(BigInt::from(n)), vec![])
@@ -152,7 +152,7 @@ impl Gen {
             .map(|(n, _)| n.clone())
             .collect();
         if !bound.is_empty() && self.rng.coin() {
-            return Expression::Input(self.rng.pick(&bound).clone());
+            return Expression::Name(self.rng.pick(&bound).clone());
         }
         let names: Vec<String> = visible
             .iter()
@@ -161,7 +161,7 @@ impl Gen {
             .collect();
         match names.is_empty() || self.rng.coin() {
             true => self.constant(t),
-            false => Expression::Input(self.rng.pick(&names).clone()),
+            false => Expression::Name(self.rng.pick(&names).clone()),
         }
     }
     /// A random expression of type `t`.
@@ -403,7 +403,7 @@ impl Gen {
     fn wild(&mut self, depth: u32) -> E {
         if depth == 0 || self.rng.below(4) == 0 {
             return match self.rng.coin() {
-                true => Expression::Input(format!("x{}", self.rng.below(8))),
+                true => Expression::Name(format!("x{}", self.rng.below(8))),
                 false => {
                     let t = self.ty();
                     self.constant(&t)

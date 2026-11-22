@@ -17,7 +17,7 @@ fn apply(op: Op, args: Vec<E>) -> E {
     Expression::Apply(op, args)
 }
 fn input(name: &str) -> E {
-    Expression::Input(name.to_string())
+    Expression::Name(name.to_string())
 }
 
 /// A random model: three named pieces and their negations, one to three
@@ -103,7 +103,7 @@ impl World {
             .filter(|(_, it)| it == t)
             .map(|(n, _)| n)
             .collect();
-        Expression::Input(self.rng.pick(&names).clone())
+        Expression::Name(self.rng.pick(&names).clone())
     }
     /// `let n = <value of type t>; <body>`, where `n` may shadow a name of
     /// the same type, or another let.
@@ -254,7 +254,7 @@ impl World {
     /// Any expression, typed or not.
     fn wild(&mut self, depth: u32) -> E {
         if depth == 0 || self.rng.below(4) == 0 {
-            return Expression::Input(format!("o{}", self.rng.below(self.pieces.len() + 2)));
+            return Expression::Name(format!("o{}", self.rng.below(self.pieces.len() + 2)));
         }
         if self.rng.below(6) == 0 {
             let name = format!("o{}", self.rng.below(self.pieces.len() + 2));

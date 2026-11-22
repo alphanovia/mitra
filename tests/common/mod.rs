@@ -41,7 +41,7 @@ pub fn let_in<Op>(name: &str, value: Expression<Op>, body: Expression<Op>) -> Ex
 #[allow(dead_code)]
 pub fn inline<Op: Clone>(e: &Expression<Op>) -> Expression<Op> {
     match e {
-        Expression::Input(name) => Expression::Input(name.clone()),
+        Expression::Name(name) => Expression::Name(name.clone()),
         Expression::Apply(op, args) => {
             Expression::Apply(op.clone(), args.iter().map(inline).collect())
         }
@@ -52,7 +52,7 @@ pub fn inline<Op: Clone>(e: &Expression<Op>) -> Expression<Op> {
 /// `e`, which has no `Let`, with `with` in place of every `name`.
 fn put<Op: Clone>(e: &Expression<Op>, name: &str, with: &Expression<Op>) -> Expression<Op> {
     match e {
-        Expression::Input(n) if n == name => with.clone(),
+        Expression::Name(n) if n == name => with.clone(),
         Expression::Apply(op, args) => Expression::Apply(
             op.clone(),
             args.iter().map(|a| put(a, name, with)).collect(),

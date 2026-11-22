@@ -15,7 +15,7 @@
 //! ```text
 //!   Γ(x) = T                      Γ ⊢ eᵢ : Tᵢ (each i)    gives(op, [T₁ … Tₙ]) = T
 //!   ─────────────────             ───────────────────────────────────────────────
-//!   Γ ⊢ Input(x) : T              Γ ⊢ Apply(op, [e₁ … eₙ]) : T
+//!   Γ ⊢ Name(x) : T               Γ ⊢ Apply(op, [e₁ … eₙ]) : T
 //!
 //!   Γ ⊢ e₁ : T₁    Γ, x : T₁ ⊢ e₂ : T₂
 //!   ──────────────────────────────────
@@ -69,7 +69,7 @@ use std::collections::BTreeMap;
 pub enum Expression<Op> {
     /// A name: what the nearest enclosing `Let` of it binds, or else an
     /// input.
-    Input(String),
+    Name(String),
     /// An operation on what other expressions give.
     Apply(Op, Vec<Expression<Op>>),
     /// `let x = e₁; e₂`: `e₂`, where `x` stands for what `e₁` gives.
@@ -160,7 +160,7 @@ fn check_in<'e, S: Standard>(
     e: &'e Expression<S::Op>,
 ) -> Option<S::Type> {
     match e {
-        Expression::Input(name) => nearest(bound, name).or_else(|| inputs.get(name)).cloned(),
+        Expression::Name(name) => nearest(bound, name).or_else(|| inputs.get(name)).cloned(),
         Expression::Apply(op, args) => {
             let mut takes = Vec::with_capacity(args.len());
             for arg in args {
@@ -215,7 +215,7 @@ fn eval_in<'e, R: Reading>(
     e: &'e Expression<OpOf<R>>,
 ) -> OutcomeOf<R> {
     match e {
-        Expression::Input(name) => read::<R>(values, bound, name),
+        Expression::Name(name) => read::<R>(values, bound, name),
         Expression::Apply(op, args) => {
             let mut outcomes = Vec::with_capacity(args.len());
             for arg in args {

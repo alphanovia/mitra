@@ -72,7 +72,7 @@ fn op(op: Op, args: Vec<E>) -> E {
     Expression::Apply(op, args)
 }
 fn n() -> E {
-    Expression::Input("n".to_string())
+    Expression::Name("n".to_string())
 }
 fn zero() -> E {
     op(Op::Zero, vec![])
@@ -133,7 +133,7 @@ fn fitting() {
 }
 
 fn name(x: &str) -> E {
-    Expression::Input(x.to_string())
+    Expression::Name(x.to_string())
 }
 
 /// A random expression, its names among `n` and those `let` binds in

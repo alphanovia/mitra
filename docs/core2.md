@@ -8,7 +8,7 @@ different Rust types.
 ## expression.rs
 
 ```rust
-enum Expression<Op> { Input(String),                                  // a name: an input, or bound by a let
+enum Expression<Op> { Name(String),                                   // a name: bound by a let, or an input
     Apply(Op, Vec<Expression<Op>>),                                    // a constant: Apply(op, [])
     Let(String, Box<Expression<Op>>, Box<Expression<Op>>) }            // let x = e₁; e₂
 trait Standard { type Type; type Op;                                   // a language
@@ -23,7 +23,7 @@ fn fits(r, Γ, values) -> bool                                          // each 
 fn strict(args) -> Result<Vec<Value>, Fault>                           // all values, or the first fault
 ```
 
-**Typing judgement.** `Γ ⊢ Input(x) : Γ(x)`. If `Γ ⊢ eᵢ : Tᵢ` for each `i`
+**Typing judgement.** `Γ ⊢ Name(x) : Γ(x)`. If `Γ ⊢ eᵢ : Tᵢ` for each `i`
 and `gives(op, [T₁ … Tₙ]) = T`, then `Γ ⊢ Apply(op, [e₁ … eₙ]) : T`. If
 `Γ ⊢ e₁ : T₁` and `Γ, x : T₁ ⊢ e₂ : T₂`, then `Γ ⊢ Let(x, e₁, e₂) : T₂`:
 `x` is in scope in `e₂` only, and the nearest `let` of a name shadows the
