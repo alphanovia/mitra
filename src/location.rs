@@ -1,4 +1,4 @@
-//! An address in the real system (`model/location.mitra`).
+//! An address in the real system (`docs/frozen.md`).
 
 /// An address in the real system: a file, then what is in it. It is
 /// not right or wrong.

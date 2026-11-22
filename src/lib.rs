@@ -1,4 +1,3 @@
-//! Mitra, what is frozen. Each module is the code of the model file of
-//! the same name in `model/`.
+//! Mitra, what is frozen. Each module is one item of `docs/frozen.md`.
 
 pub mod location;
