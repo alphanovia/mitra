@@ -62,6 +62,12 @@ subject stone {
 | `(lo..hi).all(\|x\| p)` | `All` | Rust |
 | `ponens(r, p, q)`, `ponens[t, 1](…)`, `tollens[t, 0, 2](…)`, `reductio[p](…)`, `cases[q](…)`, `instance[q](o, point(3, 4))`, `witness[q](o, p)`, `intro[q](|p| …)`, `point(3, 4)`, `join(a, b)`, `state(a)`, `!a`, `a && b`, `let x = a in b` | a proof, `judgement::Op` | flagged |
 | `all x in (a: 0..10, b: 0..10) where b != 0: p`, `any …`, `!p`, `{p, q} s {r}`, `correct(f, (6, 2))`, `correct(f, x)`, `correct(f, x in (a: 0..10))` | `Prop` | flagged |
+| `use sun::{light, Ray};`, `use sun::light;`, `use sun::*;` in a part | `Use` | Rust |
+| `light(h)`, `sun::light(h)` | `Op::Call("sun::light")` | Rust |
+| `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T) = …; }` | `Contract`, `Law` | Rust's trait, keyword and `Number` flagged |
+| `impl Monotone<Real> for speed;`, `impl Pair<Real> for (f, g);` | `Implements` | Rust's form, `for (f, g)` flagged |
+| `examples { (sun::light::w = 850.0, stone::speed::h = 5.0) -> stone::speed::v2 = 98.1 }` at the top | `ModelExample` | flagged |
+| a rule term `all …`, `any …`, `!p`, `correct(f, …)`, `(p)` | `Term::Prop` | flagged |
 | `// …` | nothing: comments are not kept | Rust |
 
 ## The choices, in plain words
@@ -146,7 +152,22 @@ the set, writes that set: `correct(div, x in (a: 0..10, b: 0..10))`
 store of reviews today: a rule cannot name one until the model has it.
 *Elsewhere*: Lean `∀ x ∈ s, p x`; Dafny `forall x | 0 <= x < 10 :: p`.
 
-**11. Rust's own rules kept**. `if c { … }` takes no record literal in
+**11. Calls, uses and contracts** (calls and `use` Rust's). *What*: a
+call names a function whole, `sun::light(h)`, or by its name alone,
+`light(h)`, when the part has it or one `use` reads it; in a contract,
+its own functions by name. `impl C<Real> for f;` says `f` fits `C`; with
+several functions, `for (f, g)`, in the contract's order (flagged: Rust
+implements a trait for one type). *Gain*: what Rust writes. *Cost*: a
+name two uses read must be written whole. *Elsewhere*: Rust, Python's
+`from sun import light`.
+
+**12. Examples of the model, and propositions in rules** (flagged).
+`examples { (a::f::x = 1, …) -> b::g::y = 2 }` at the top level, each
+port whole, several outputs in parentheses. A rule's term may be a
+proposition, `all x in (a: 0..10): correct(div, x)`; one that would
+read as a path or a block is put in parentheses, `(stone::air)`.
+
+**13. Rust's own rules kept**. `if c { … }` takes no record literal in
 `c` unless it is in parentheses. One comparison at most, `a < b < c`
 refused. `-` only before a number: there is no negation of an
 expression in core2. `a > b` is read as `b < a` and printed so.

@@ -17,9 +17,11 @@ use crate::expression::{Arg, Expression};
 use crate::judgement::{self, Prop, Set};
 use crate::location::Location;
 use crate::model::{
-    Ensure, Function, Kind, Model, Part, Path, Record, Require, Rule, Source, Term, Tie,
+    Contract, Ensure, Function, Implements, Kind, Model, ModelExample, Part, Path, Record, Require,
+    Rule, Source, Term, Tie, Use,
 };
-use crate::simulation::{Op, Rational, Type, Value};
+use crate::parse::Calling;
+use crate::simulation::{Bound, Op, Rational, Type, Value};
 use num_bigint::BigInt;
 use num_traits::{One, Signed, Zero};
 use std::collections::{BTreeMap, BTreeSet};
@@ -27,20 +29,47 @@ use std::collections::{BTreeMap, BTreeSet};
 /// The text of a model.
 pub fn print(model: &Model) -> String {
     let items = items(model);
+    let calling = Calling::of(model);
     let mut placed = vec![false; model.ties.len()];
-    let mut out = String::new();
+    let mut blocks: Vec<String> = vec![];
+    for c in &model.contracts {
+        let w = Writer {
+            part: None,
+            items: &items,
+            calling: &calling,
+            contract: Some(&c.name),
+        };
+        blocks.push(w.contract(c));
+    }
     let mut seen_parts = BTreeSet::new();
-    for (i, part) in model.parts.iter().enumerate() {
-        if i > 0 {
-            out.push('\n');
-        }
+    for part in &model.parts {
         let first = seen_parts.insert(part.name.clone());
         let w = Writer {
             part: Some(&part.name),
             items: &items,
+            calling: &calling,
+            contract: None,
         };
+        let mut out = String::new();
         w.part(part, model, &mut placed, first, &mut out);
+        blocks.push(out);
     }
+    if !model.examples.is_empty() {
+        let w = Writer {
+            part: None,
+            items: &items,
+            calling: &calling,
+            contract: None,
+        };
+        let rows: Vec<String> = model.examples.iter().map(|e| w.model_example(e)).collect();
+        blocks.push(format!(
+            "examples {{\n{}}}\n",
+            rows.iter()
+                .map(|r| format!("    {r},\n"))
+                .collect::<String>()
+        ));
+    }
+    let mut out = blocks.join("\n");
     let loose: Vec<&Tie> = model
         .ties
         .iter()
@@ -49,7 +78,7 @@ pub fn print(model: &Model) -> String {
         .map(|(t, _)| t)
         .collect();
     if !loose.is_empty() {
-        if !model.parts.is_empty() {
+        if !out.is_empty() {
             out.push('\n');
         }
         for tie in loose {
@@ -63,9 +92,12 @@ pub fn print(model: &Model) -> String {
 /// A proposition, its paths whole, as a store of reviews writes it.
 pub fn print_prop(prop: &Prop) -> String {
     let items = BTreeMap::new();
+    let calling = Calling::default();
     Writer {
         part: None,
         items: &items,
+        calling: &calling,
+        contract: None,
     }
     .prop(prop)
 }
@@ -112,6 +144,8 @@ fn string(s: &str) -> String {
 struct Writer<'a> {
     part: Option<&'a str>,
     items: &'a BTreeMap<String, BTreeSet<String>>,
+    calling: &'a Calling,
+    contract: Option<&'a str>,
 }
 
 const MALFORMED: &str = "__malformed__";
@@ -135,6 +169,61 @@ fn wrap((s, p): (String, u8), at_least: u8) -> String {
 }
 
 impl Writer<'_> {
+    fn cx(&self) -> Cx<'_> {
+        Cx {
+            calling: self.calling,
+            part: self.part,
+            contract: self.contract,
+        }
+    }
+
+    fn contract(&self, c: &Contract) -> String {
+        let params: Vec<String> = c
+            .params
+            .iter()
+            .map(|(n, b)| match b {
+                Bound::Any => n.clone(),
+                Bound::Number => format!("{n}: Number"),
+            })
+            .collect();
+        let params = match params.is_empty() {
+            true => String::new(),
+            false => format!("<{}>", params.join(", ")),
+        };
+        let mut s = format!("contract {}{params} {{\n", c.name);
+        for f in &c.functions {
+            s.push_str(&format!(
+                "    fn {}({}) -> {}: {};\n",
+                f.name,
+                takes(&f.takes),
+                f.gives.0,
+                type_(&f.gives.1)
+            ));
+        }
+        for l in &c.claims {
+            s.push_str(&format!(
+                "    claim {}({}) = {};\n",
+                l.name,
+                takes(&l.over),
+                sim_in(&self.cx(), &l.holds)
+            ));
+        }
+        s.push_str("}\n");
+        s
+    }
+
+    /// `(sun::light::w = 850.0, stone::speed::h = 5.0) -> stone::speed::v2 = 98.1`.
+    fn model_example(&self, e: &ModelExample) -> String {
+        let port = |(p, v): &(Path, Value)| format!("{} = {}", self.path_of(p), value(v));
+        let inputs: Vec<String> = e.inputs.iter().map(port).collect();
+        let outputs: Vec<String> = e.outputs.iter().map(port).collect();
+        let outputs = match outputs.len() {
+            1 => outputs[0].clone(),
+            _ => format!("({})", outputs.join(", ")),
+        };
+        format!("({}) -> {outputs}", inputs.join(", "))
+    }
+
     fn local(&self, name: &str) -> bool {
         self.part
             .and_then(|p| self.items.get(p))
@@ -201,6 +290,10 @@ impl Writer<'_> {
         };
         out.push_str(&format!("{kind} {}{} {{\n", part.name, tied(&here, placed)));
         let mut blocks: Vec<String> = vec![];
+        let uses: String = part.uses.iter().map(use_).collect();
+        if !uses.is_empty() {
+            blocks.push(uses);
+        }
         let requires: String = part.requires.iter().map(|q| self.require(q)).collect();
         if !requires.is_empty() {
             blocks.push(requires);
@@ -219,6 +312,10 @@ impl Writer<'_> {
                 false => String::new(),
             };
             blocks.push(self.function(f, &ties));
+        }
+        let impls: String = part.implements.iter().map(implements).collect();
+        if !impls.is_empty() {
+            blocks.push(impls);
         }
         let ensures: String = part.ensures.iter().map(|e| self.ensure(e)).collect();
         if !ensures.is_empty() {
@@ -293,7 +390,7 @@ impl Writer<'_> {
             type_(&f.gives.1)
         );
         if let Some(body) = &f.body {
-            s.push_str(&format!(" {{ {} }}", sim(body)));
+            s.push_str(&format!(" {{ {} }}", sim_in(&self.cx(), body)));
         }
         let said = !f.claims.is_empty() || !f.rules.is_empty() || !f.examples.is_empty();
         let rows: Vec<String> = f
@@ -312,7 +409,11 @@ impl Writer<'_> {
     fn where_(&self, claims: &[crate::model::Claim], rules: &[Rule], rows: &[String]) -> String {
         let mut s = String::from(" where {\n");
         for c in claims {
-            s.push_str(&format!("        claim {} = {};\n", c.name, sim(&c.holds)));
+            s.push_str(&format!(
+                "        claim {} = {};\n",
+                c.name,
+                sim_in(&self.cx(), &c.holds)
+            ));
         }
         for r in rules {
             s.push_str(&self.rule(r));
@@ -337,7 +438,11 @@ impl Writer<'_> {
     fn term(&self, t: &Term) -> String {
         match t {
             Term::At(p) => self.path_of(p),
-            Term::Holds(e) => format!("{{ {} }}", sim(e)),
+            Term::Holds(e) => format!("{{ {} }}", sim_in(&self.cx(), e)),
+            // A proposition that would read as a path or a block is in parentheses.
+            Term::Prop(p @ (Prop::Named(_) | Prop::Implies { .. })) => {
+                format!("({})", self.prop(p))
+            }
             Term::Prop(p) => self.prop(p),
         }
     }
@@ -489,7 +594,9 @@ impl Writer<'_> {
                 let at = match at {
                     judgement::Term::Point(vs) => values(vs),
                     judgement::Term::Var(x) => x.clone(),
-                    judgement::Term::Arbitrary { name, over } => format!("{name} in {}", set(over)),
+                    judgement::Term::Arbitrary { name, over } => {
+                        format!("{name} in {}", set(&self.cx(), over))
+                    }
                 };
                 (
                     format!("correct({}, {at})", self.named(function, &[])),
@@ -497,18 +604,61 @@ impl Writer<'_> {
                 )
             }
             Prop::All { name, over, body } => (
-                format!("all {name} in {}: {}", set(over), self.prop(body)),
+                format!(
+                    "all {name} in {}: {}",
+                    set(&self.cx(), over),
+                    self.prop(body)
+                ),
                 LET,
             ),
             Prop::Any { name, over, body } => (
-                format!("any {name} in {}: {}", set(over), self.prop(body)),
+                format!(
+                    "any {name} in {}: {}",
+                    set(&self.cx(), over),
+                    self.prop(body)
+                ),
                 LET,
             ),
         }
     }
 }
 
-fn set(s: &Set) -> String {
+/// `use sun::{light, Ray};`, `use sun::light;`, `use sun::*;`.
+fn use_(u: &Use) -> String {
+    match u {
+        Use::Glob { part } => format!("    use {part}::*;\n"),
+        Use::Names { part, names } if names.len() == 1 => {
+            format!("    use {part}::{};\n", names[0])
+        }
+        Use::Names { part, names } => format!("    use {part}::{{{}}};\n", names.join(", ")),
+    }
+}
+
+/// `impl Monotone<Real> for speed;`, `impl Pair<Real> for (f, g);`.
+fn implements(i: &Implements) -> String {
+    let types = match i.types.is_empty() {
+        true => String::new(),
+        false => format!(
+            "<{}>",
+            i.types.iter().map(type_).collect::<Vec<_>>().join(", ")
+        ),
+    };
+    let functions = match &i.functions[..] {
+        [one] => one.clone(),
+        many => format!("({})", many.join(", ")),
+    };
+    format!("    impl {}{types} for {functions};\n", i.contract)
+}
+
+/// `x: Real, y: Int`.
+fn takes(ts: &[(String, Type)]) -> String {
+    ts.iter()
+        .map(|(n, t)| format!("{n}: {}", type_(t)))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn set(cx: &Cx, s: &Set) -> String {
     let ranges: Vec<String> = s
         .ranges
         .iter()
@@ -516,7 +666,7 @@ fn set(s: &Set) -> String {
         .collect();
     let mut out = format!("({})", ranges.join(", "));
     if let Some(such) = &s.such {
-        out.push_str(&format!(" where {}", sim(such)));
+        out.push_str(&format!(" where {}", sim_in(cx, such)));
     }
     out
 }
@@ -537,7 +687,6 @@ pub fn type_(t: &Type) -> String {
             }
         }
         Type::Record(r) => r.name.clone(),
-        // Stub until the parser thread writes contracts: the name.
         Type::Param { name, .. } => name.clone(),
     }
 }
@@ -607,7 +756,44 @@ pub fn values(vs: &[Value]) -> String {
 
 /// An expression of simulation, as Rust writes it, `let x = a in b` aside.
 pub fn sim(e: &Expression<Op>) -> String {
-    sim_at(e).0
+    let calling = Calling::default();
+    sim_in(
+        &Cx {
+            calling: &calling,
+            part: None,
+            contract: None,
+        },
+        e,
+    )
+}
+
+fn sim_in(cx: &Cx, e: &Expression<Op>) -> String {
+    sim_at(cx, e).0
+}
+
+/// What a call reads names from.
+struct Cx<'a> {
+    calling: &'a Calling,
+    part: Option<&'a str>,
+    contract: Option<&'a str>,
+}
+
+impl Cx<'_> {
+    /// A call's function by its name alone when that reads back the
+    /// same, else whole.
+    fn call(&self, full: &str) -> String {
+        if let Some((_, last)) = full.rsplit_once("::") {
+            if self
+                .calling
+                .resolve(self.part, self.contract, last)
+                .as_deref()
+                == Some(full)
+            {
+                return last.to_string();
+            }
+        }
+        full.to_string()
+    }
 }
 
 /// Whether `e` makes a named record anywhere: then it is put in
@@ -622,7 +808,7 @@ fn makes_record(e: &Expression<Op>) -> bool {
     }
 }
 
-fn sim_at(e: &Expression<Op>) -> (String, u8) {
+fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
     let (op, args) = match e {
         Expression::Name(n) => return (n.clone(), ATOM),
         Expression::Apply(op, args) => (op, args),
@@ -634,8 +820,8 @@ fn sim_at(e: &Expression<Op>) -> (String, u8) {
         (
             format!(
                 "{} {symbol} {}",
-                wrap(sim_at(body(0)), left),
-                wrap(sim_at(body(1)), right)
+                wrap(sim_at(cx, body(0)), left),
+                wrap(sim_at(cx, body(1)), right)
             ),
             p,
         )
@@ -643,7 +829,11 @@ fn sim_at(e: &Expression<Op>) -> (String, u8) {
     match (op, args.len(), plain) {
         (Op::Let, 2, _) => match (&args[0].binds[..], &args[1].binds[..]) {
             ([], [x]) => (
-                format!("let {x} = {} in {}", sim(body(0)), sim(body(1))),
+                format!(
+                    "let {x} = {} in {}",
+                    sim_in(cx, body(0)),
+                    sim_in(cx, body(1))
+                ),
                 LET,
             ),
             _ => bad,
@@ -652,19 +842,19 @@ fn sim_at(e: &Expression<Op>) -> (String, u8) {
             ([], [], [x]) => (
                 format!(
                     "({}..{}).all(|{x}| {})",
-                    sim(body(0)),
-                    sim(body(1)),
-                    sim(body(2))
+                    sim_in(cx, body(0)),
+                    sim_in(cx, body(1)),
+                    sim_in(cx, body(2))
                 ),
                 POSTFIX,
             ),
             _ => bad,
         },
         (_, _, false) => bad,
-        // Stub until the parser thread writes `use`: `sun::light(a, b)`.
+        // `light(h)`, `sun::light(h)`.
         (Op::Call(f), _, _) => {
-            let args: Vec<String> = args.iter().map(|a| sim(&a.body)).collect();
-            (format!("{f}({})", args.join(", ")), POSTFIX)
+            let args: Vec<String> = args.iter().map(|a| sim_in(cx, &a.body)).collect();
+            (format!("{}({})", cx.call(f), args.join(", ")), POSTFIX)
         }
         (Op::Truth(b), 0, _) => (b.to_string(), ATOM),
         (Op::Int(n), 0, _) => (n.to_string(), if n.is_negative() { UNARY } else { ATOM }),
@@ -677,13 +867,13 @@ fn sim_at(e: &Expression<Op>) -> (String, u8) {
                 (
                     format!(
                         "{} != {}",
-                        wrap(sim_at(a), CMP + 1),
-                        wrap(sim_at(b), CMP + 1)
+                        wrap(sim_at(cx, a), CMP + 1),
+                        wrap(sim_at(cx, b), CMP + 1)
                     ),
                     CMP,
                 )
             }
-            x => (format!("!{}", wrap(sim_at(x), UNARY)), UNARY),
+            x => (format!("!{}", wrap(sim_at(cx, x), UNARY)), UNARY),
         },
         (Op::Or, 2, _) => binary("||", OR, OR, OR + 1),
         (Op::And, 2, _) => binary("&&", AND, AND, AND + 1),
@@ -697,33 +887,33 @@ fn sim_at(e: &Expression<Op>) -> (String, u8) {
         (Op::Within, 3, _) => (
             format!(
                 "within({}, {}, {})",
-                sim(body(0)),
-                sim(body(1)),
-                sim(body(2))
+                sim_in(cx, body(0)),
+                sim_in(cx, body(1)),
+                sim_in(cx, body(2))
             ),
             ATOM,
         ),
         (Op::If, 3, _) => {
             let c = body(0);
             let c = match makes_record(c) {
-                true => format!("({})", sim(c)),
-                false => wrap(sim_at(c), OR),
+                true => format!("({})", sim_in(cx, c)),
+                false => wrap(sim_at(cx, c), OR),
             };
             let otherwise = match body(2) {
                 e @ Expression::Apply(Op::If, a)
                     if a.len() == 3 && a.iter().all(|a| a.binds.is_empty()) =>
                 {
-                    sim(e)
+                    sim_in(cx, e)
                 }
-                e => format!("{{ {} }}", sim(e)),
+                e => format!("{{ {} }}", sim_in(cx, e)),
             };
             (
-                format!("if {c} {{ {} }} else {otherwise}", sim(body(1))),
+                format!("if {c} {{ {} }} else {otherwise}", sim_in(cx, body(1))),
                 LET,
             )
         }
         (Op::Make(r), n, _) if n == r.fields.len() => {
-            let items: Vec<String> = (0..n).map(|i| sim(body(i))).collect();
+            let items: Vec<String> = (0..n).map(|i| sim_in(cx, body(i))).collect();
             match (r.name.is_empty(), n) {
                 (true, 1) => (format!("({},)", items[0]), ATOM),
                 (true, _) => (format!("({})", items.join(", ")), ATOM),
@@ -738,7 +928,10 @@ fn sim_at(e: &Expression<Op>) -> (String, u8) {
                 }
             }
         }
-        (Op::Field(f), 1, _) => (format!("{}.{f}", wrap(sim_at(body(0)), POSTFIX)), POSTFIX),
+        (Op::Field(f), 1, _) => (
+            format!("{}.{f}", wrap(sim_at(cx, body(0)), POSTFIX)),
+            POSTFIX,
+        ),
         _ => bad,
     }
 }

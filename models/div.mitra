@@ -16,12 +16,11 @@ subject calc {
         claim spec = if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
         claim bounded = b == 0 || q <= a;
         examples { (6, 2) -> 3, (7, 2) -> 3, (9, 3) -> 3, (5, 0) -> 0 }
+        // "div is correct everywhere": an all of the model, which only
+        // a taking holds, or a proof by cases over its 100 points.
+        rule everywhere: div::spec |- all x in (a: 0..10, b: 0..10): correct(div, x);
     }
 
     ensure divides = "div gives a / b rounded down, and 0 when b is 0"
         from (div::spec, inputs);
-
-    // Once a rule's term can be an all (the model layer adds it
-    // tonight), "div is correct everywhere" will read:
-    //   rule everywhere: div::spec |- all x in (a: 0..10, b: 0..10): correct(div, x);
 }

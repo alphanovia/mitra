@@ -273,16 +273,31 @@ subject stone {
 
 /// Every form the language has, once at least.
 const EVERY_FORM: &str = r#"
+contract Monotone<T: Number> {
+    fn f(x: T) -> y: T;
+    claim rises(a: T, b: T) = !(a <= b) || f(a) <= f(b);
+}
+
+contract Same<T, U> {
+    fn g(x: T) -> y: T;
+    fn h(x: U) -> y: U;
+    claim keeps(a: T, b: U) = g(a) == a && Same::h(b) == b;
+}
+
 environment lab at "lab", "lab/annex" {
     record Photon;
     record Beam where {
         claim lit = true;
     }
     fn clock() -> t: Int;
+    fn shine(t: Int) -> w: Real;
     ensure lit = "the lamp is on" from ();
 }
 
 subject geo at "src/geo.rs" {
+    use lab::{clock, Photon};
+    use lab::*;
+    use lab::shine;
     require lamp = lab::lit;
     require geo = "a require named as its part";
     record Point at "src/geo.rs/Point" { x: Real, y: Real } where {
@@ -324,7 +339,22 @@ subject geo at "src/geo.rs" {
     }
     fn pair(a: Int, b: (Int, bool)) -> c: Pair;
     fn constant() -> c: (Real,) { (1.5,) }
+    fn later(d: Int) -> t: Int { clock() + d } where {
+        claim after = t == lab::clock() + d && shine(t) <= shine(t + 1) && (later(d), 1).0 == t;
+        rule everywhere: later::after |- all x in (d: 0..3): correct(later, x);
+        rule here: (later::after), !later::after, ({later::after} later {later::after}) |- correct(later, (1));
+        rule any_: later::after |- any x in (d: 0..3) where d != 1: !correct(crate::lab::clock, x);
+    }
+    fn rise(h: Real) -> v: Real { geo::rise2(h) * 2.0 }
+    fn rise2(h: Real) -> v: Real { h }
+    impl Monotone<Real> for rise;
+    impl Same<Int, Real> for (later, rise);
     ensure ok = "flip flips" from (flip::back, flip::pair) | (lamp) | (crate::geo);
+}
+
+examples {
+    (geo::later::d = 1, lab::clock::t = 5) -> geo::later::t = 6,
+    (geo::rise::h = 1.0) -> (geo::rise::v = 2.0, geo::rise2::v = 1.0),
 }
 
 tie geo::flip::back at "src/geo.rs/flip_back";
@@ -438,6 +468,104 @@ fn the_text_keeps_what_check_finds() {
         .collect();
     assert!(codes.contains(&"M010 at nowhere".to_string()), "{codes:?}");
     assert!(codes.contains(&"M011 at lab::lit".to_string()), "{codes:?}");
+}
+
+/// Uses, calls, contracts, impls, examples of the model, and
+/// propositions as rule terms read as the model layer writes them.
+#[test]
+fn uses_calls_and_contracts() {
+    use mitra_core::model::{Implements, ModelExample, Use};
+    let m = read(EVERY_FORM);
+    let geo = &m.parts[1];
+    assert_eq!(
+        geo.uses,
+        vec![
+            Use::Names {
+                part: "lab".to_string(),
+                names: vec!["clock".to_string(), "Photon".to_string()]
+            },
+            Use::Glob {
+                part: "lab".to_string()
+            },
+            Use::Names {
+                part: "lab".to_string(),
+                names: vec!["shine".to_string()]
+            },
+        ]
+    );
+    let later = geo.functions.iter().find(|f| f.name == "later").unwrap();
+    let Some(Expression::Apply(Op::Add, args)) = &later.body else {
+        panic!()
+    };
+    assert_eq!(
+        args[0].body,
+        apply(Op::Call("lab::clock".to_string()), vec![])
+    );
+    let rise = geo.functions.iter().find(|f| f.name == "rise").unwrap();
+    let Some(Expression::Apply(Op::Mul, args)) = &rise.body else {
+        panic!()
+    };
+    let Expression::Apply(Op::Call(f), _) = &args[0].body else {
+        panic!()
+    };
+    assert_eq!(f, "geo::rise2");
+    let same = &m.contracts[1];
+    assert_eq!(same.params.len(), 2);
+    let Expression::Apply(Op::And, both) = &same.claims[0].holds else {
+        panic!()
+    };
+    let Expression::Apply(Op::Equal, eq) = &both[0].body else {
+        panic!()
+    };
+    let Expression::Apply(Op::Call(g), _) = &eq[0].body else {
+        panic!()
+    };
+    assert_eq!(g, "Same::g");
+    assert_eq!(
+        geo.implements[1],
+        Implements {
+            contract: "Same".to_string(),
+            types: vec![Type::Int, Type::Real],
+            functions: vec!["later".to_string(), "rise".to_string()],
+        }
+    );
+    let int = |n: i64| Value::Int(n.into());
+    assert_eq!(
+        m.examples[0],
+        ModelExample {
+            inputs: vec![
+                (path("geo::later::d"), int(1)),
+                (path("lab::clock::t"), int(5))
+            ],
+            outputs: vec![(path("geo::later::t"), int(6))],
+        }
+    );
+    let rule = &later.rules[0];
+    let Term::Prop(Prop::All { body, .. }) = &rule.conclusion else {
+        panic!("{:?}", rule.conclusion)
+    };
+    assert_eq!(
+        **body,
+        Prop::Correct {
+            function: "geo::later".to_string(),
+            at: judgement::Term::Var("x".to_string())
+        }
+    );
+    let here = &later.rules[1];
+    assert_eq!(
+        here.premises[0],
+        Term::Prop(Prop::named("geo::later::after"))
+    );
+    let codes: Vec<String> = check(&m)
+        .iter()
+        .map(|e| format!("{} at {}", e.code, e.at))
+        .collect();
+    assert!(
+        !codes
+            .iter()
+            .any(|c| c.starts_with("M017") || c.starts_with("M018") || c.starts_with("M020")),
+        "{codes:?}"
+    );
 }
 
 /// An intro binds its point; a proposition about that point writes its set.

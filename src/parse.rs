@@ -17,8 +17,8 @@ use crate::expression::{check as typed, Arg, Expression};
 use crate::judgement::{self, Prop, Set};
 use crate::location::Location;
 use crate::model::{
-    Claim, Ensure, Example, Function, Kind, Model, Part, Path, Record, Require, Rule, Source, Term,
-    Tie,
+    Claim, Contract, Ensure, Example, Function, Implements, Kind, Law, Model, ModelExample, Part,
+    Path, Record, Require, Rule, Signature, Source, Term, Tie, Use,
 };
 use crate::simulation::{self, Op, Rational, Simulation, Type, Value};
 use num_bigint::BigInt;
@@ -143,6 +143,10 @@ pub const KEYWORDS: &[&str] = &[
     "crate",
     "all",
     "any",
+    "use",
+    "impl",
+    "for",
+    "contract",
 ];
 
 /// The operations of a proof, by the word that writes them. Each is
@@ -339,6 +343,70 @@ pub(crate) struct Context {
     records: BTreeMap<String, simulation::Record>,
     declared: BTreeMap<String, Option<Vec<String>>>,
     items: BTreeMap<String, BTreeSet<String>>,
+    /// Who calls what: the functions of each part and contract, and each part's uses.
+    pub(crate) calling: Calling,
+    /// The model's functions, to type a call.
+    simulation: Simulation,
+    /// Each contract's functions, to type its claims' calls.
+    contracts: BTreeMap<String, Simulation>,
+}
+
+/// What a call written by a name alone, `light(h)`, names: the
+/// functions of each part and contract, and each part's uses.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Calling {
+    pub(crate) functions: BTreeMap<String, BTreeSet<String>>,
+    pub(crate) uses: BTreeMap<String, Vec<Use>>,
+    pub(crate) contracts: BTreeMap<String, BTreeSet<String>>,
+}
+
+impl Calling {
+    pub(crate) fn of(model: &Model) -> Calling {
+        let mut calling = Calling::default();
+        for part in &model.parts {
+            let fns = calling.functions.entry(part.name.clone()).or_default();
+            fns.extend(part.functions.iter().map(|f| f.name.clone()));
+            let uses = calling.uses.entry(part.name.clone()).or_default();
+            uses.extend(part.uses.iter().cloned());
+        }
+        for c in &model.contracts {
+            let fns = calling.contracts.entry(c.name.clone()).or_default();
+            fns.extend(c.functions.iter().map(|f| f.name.clone()));
+        }
+        calling
+    }
+    /// The function a call by `name` alone names, by its path: in a
+    /// contract, its own; in a part, its own, else the one function of
+    /// that name its uses read. `None` when none, or several.
+    pub(crate) fn resolve(
+        &self,
+        part: Option<&str>,
+        contract: Option<&str>,
+        name: &str,
+    ) -> Option<String> {
+        if let Some(c) = contract {
+            return self
+                .contracts
+                .get(c)
+                .filter(|fs| fs.contains(name))
+                .map(|_| format!("{c}::{name}"));
+        }
+        let part = part?;
+        if self.functions.get(part).is_some_and(|fs| fs.contains(name)) {
+            return Some(format!("{part}::{name}"));
+        }
+        let mut found: BTreeSet<String> = BTreeSet::new();
+        for u in self.uses.get(part).into_iter().flatten() {
+            let from = u.part();
+            if u.reads(from, name) && self.functions.get(from).is_some_and(|fs| fs.contains(name)) {
+                found.insert(format!("{from}::{name}"));
+            }
+        }
+        match found.len() {
+            1 => found.pop_first(),
+            _ => None,
+        }
+    }
 }
 
 impl Context {
@@ -367,10 +435,24 @@ impl Context {
             .keys()
             .map(|name| (name.clone(), record_of(name, &fields, 0)))
             .collect();
+        let simulation = Simulation {
+            calls: std::sync::Arc::new(crate::model::signatures(model)),
+        };
+        let contracts = model
+            .contracts
+            .iter()
+            .map(|c| {
+                let calls = std::sync::Arc::new(crate::model::contract_calls(c));
+                (c.name.clone(), Simulation { calls })
+            })
+            .collect();
         Context {
             records,
             declared,
             items,
+            calling: Calling::of(model),
+            simulation,
+            contracts,
         }
     }
 }
@@ -451,6 +533,9 @@ pub(crate) struct Parser<'c> {
     /// In the condition of an `if`, as in Rust: `R { … }` must be in
     /// parentheses there.
     no_record: bool,
+    /// The contract being read, and its type parameters.
+    contract: Option<String>,
+    params: Vec<(String, simulation::Bound)>,
 }
 
 impl<'c> Parser<'c> {
@@ -462,6 +547,8 @@ impl<'c> Parser<'c> {
             part: None,
             ties: vec![],
             no_record: false,
+            contract: None,
+            params: vec![],
         }
     }
 
@@ -618,10 +705,16 @@ impl<'c> Parser<'c> {
     // ------------------------------------------------ the model
 
     pub(crate) fn model(mut self) -> Result<Model> {
-        let mut parts = vec![];
+        let (mut parts, mut contracts, mut examples) = (vec![], vec![], vec![]);
         loop {
             match self.peek() {
                 Tok::End => break,
+                Tok::Word(w) if w == "contract" => contracts.push(self.contract()?),
+                Tok::Word(w) if w == "examples" => {
+                    self.bump();
+                    self.expect("{")?;
+                    examples.extend(self.list("}", |p| p.model_example())?);
+                }
                 Tok::Word(w) if w == "subject" || w == "environment" => parts.push(self.part_()?),
                 Tok::Word(w) if w == "tie" => {
                     self.bump();
@@ -631,14 +724,160 @@ impl<'c> Parser<'c> {
                     self.expect(";")?;
                     self.ties.push(Tie { item, at });
                 }
-                _ => return self.expected("`subject`, `environment` or `tie`"),
+                _ => {
+                    return self
+                        .expected("`subject`, `environment`, `contract`, `examples` or `tie`")
+                }
             }
         }
         Ok(Model {
             parts,
-            contracts: vec![],
-            examples: vec![],
+            contracts,
+            examples,
             ties: self.ties,
+        })
+    }
+
+    /// `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T) = …; }`.
+    fn contract(&mut self) -> Result<Contract> {
+        self.expect_word("contract")?;
+        let name = self.name()?;
+        let mut params = vec![];
+        if self.eat("<") {
+            params = self.list(">", |p| {
+                let n = p.name()?;
+                let bound = match p.eat(":") {
+                    true => {
+                        p.expect_word("Number")?;
+                        simulation::Bound::Number
+                    }
+                    false => simulation::Bound::Any,
+                };
+                Ok((n, bound))
+            })?;
+        }
+        self.params = params.clone();
+        self.contract = Some(name.clone());
+        let result = self.contract_body(name, params);
+        self.params = vec![];
+        self.contract = None;
+        result
+    }
+    fn contract_body(
+        &mut self,
+        name: String,
+        params: Vec<(String, simulation::Bound)>,
+    ) -> Result<Contract> {
+        self.expect("{")?;
+        let (mut functions, mut claims) = (vec![], vec![]);
+        while !self.eat("}") {
+            if self.eat_word("fn") {
+                let f = self.name()?;
+                let takes = self.takes()?;
+                self.expect("->")?;
+                let g = self.name()?;
+                self.expect(":")?;
+                let gives = (g, self.type_()?);
+                self.expect(";")?;
+                functions.push(Signature {
+                    name: f,
+                    takes,
+                    gives,
+                });
+            } else if self.eat_word("claim") {
+                let c = self.name()?;
+                let over = self.takes()?;
+                self.expect("=")?;
+                let mut env: Env = over
+                    .iter()
+                    .map(|(n, t)| (n.clone(), Some(t.clone())))
+                    .collect();
+                let holds = self.expr(&mut env)?;
+                self.expect(";")?;
+                claims.push(Law {
+                    name: c,
+                    over,
+                    holds,
+                });
+            } else {
+                return self.expected("`fn`, `claim` or `}`");
+            }
+        }
+        Ok(Contract {
+            name,
+            params,
+            functions,
+            claims,
+        })
+    }
+    /// `(x: Real, y: Int)`.
+    fn takes(&mut self) -> Result<Vec<(String, Type)>> {
+        self.expect("(")?;
+        self.list(")", |p| {
+            let n = p.name()?;
+            p.expect(":")?;
+            Ok((n, p.type_()?))
+        })
+    }
+
+    /// `(sun::light::w = 850.0, stone::speed::h = 5.0) -> stone::speed::v2 = 98.1`;
+    /// several outputs in parentheses.
+    fn model_example(&mut self) -> Result<ModelExample> {
+        let port = |p: &mut Self| -> Result<(Path, Value)> {
+            let path = p.path()?;
+            p.expect("=")?;
+            Ok((path, p.value()?))
+        };
+        self.expect("(")?;
+        let inputs = self.list(")", port)?;
+        self.expect("->")?;
+        let outputs = match self.eat("(") {
+            true => self.list(")", port)?,
+            false => vec![port(self)?],
+        };
+        Ok(ModelExample { inputs, outputs })
+    }
+
+    /// `use sun::{light, Ray};`, `use sun::light;` or `use sun::*;`.
+    fn use_(&mut self) -> Result<Use> {
+        self.expect_word("use")?;
+        let part = self.name()?;
+        self.expect("::")?;
+        let u = if self.eat("*") {
+            Use::Glob { part }
+        } else if self.eat("{") {
+            Use::Names {
+                part,
+                names: self.list("}", |p| p.name())?,
+            }
+        } else {
+            Use::Names {
+                part,
+                names: vec![self.name()?],
+            }
+        };
+        self.expect(";")?;
+        Ok(u)
+    }
+
+    /// `impl Monotone<Real> for speed;`, `impl Pair<Real> for (f, g);`.
+    fn implements(&mut self) -> Result<Implements> {
+        self.expect_word("impl")?;
+        let contract = self.name()?;
+        let mut types = vec![];
+        if self.eat("<") {
+            types = self.list(">", |p| p.type_())?;
+        }
+        self.expect_word("for")?;
+        let functions = match self.eat("(") {
+            true => self.list(")", |p| p.name())?,
+            false => vec![self.name()?],
+        };
+        self.expect(";")?;
+        Ok(Implements {
+            contract,
+            types,
+            functions,
         })
     }
 
@@ -685,7 +924,12 @@ impl<'c> Parser<'c> {
                 Tok::Word(w) if w == "ensure" => part.ensures.push(self.ensure()?),
                 Tok::Word(w) if w == "record" => part.records.push(self.record(&here)?),
                 Tok::Word(w) if w == "fn" => part.functions.push(self.function(&here)?),
-                _ => return self.expected("`require`, `ensure`, `record`, `fn` or `}`"),
+                Tok::Word(w) if w == "use" => part.uses.push(self.use_()?),
+                Tok::Word(w) if w == "impl" => part.implements.push(self.implements()?),
+                _ => {
+                    return self
+                        .expected("`use`, `require`, `ensure`, `record`, `fn`, `impl` or `}`")
+                }
             }
         }
         self.part = None;
@@ -880,6 +1124,15 @@ impl<'c> Parser<'c> {
             self.expect("}")?;
             return Ok(Term::Holds(holds));
         }
+        // A proposition: `all …`, `any …`, `!p`, `correct(f, …)`, `(p)`.
+        let prop = self.is_word("all")
+            || self.is_word("any")
+            || self.is("!")
+            || self.is("(")
+            || (self.is_word("correct") && *self.peek_at(1) == Tok::Sym("("));
+        if prop {
+            return Ok(Term::Prop(self.prop()?));
+        }
         Ok(Term::At(self.path()?))
     }
 
@@ -905,6 +1158,12 @@ impl<'c> Parser<'c> {
             return Ok(simulation::tuple(types));
         }
         let name = self.name()?;
+        if let Some((_, bound)) = self.params.iter().find(|(p, _)| *p == name) {
+            return Ok(Type::Param {
+                name,
+                bound: *bound,
+            });
+        }
         Ok(match name.as_str() {
             "bool" => Type::Truth,
             "Int" => Type::Int,
@@ -1055,7 +1314,12 @@ impl<'c> Parser<'c> {
                 None => inputs.remove(n),
             };
         }
-        typed(&Simulation::default(), &inputs, e)
+        let context = self.context?;
+        let standard = match &self.contract {
+            Some(c) => context.contracts.get(c).cloned().unwrap_or_default(),
+            None => context.simulation.clone(),
+        };
+        typed(&standard, &inputs, e)
     }
     fn type_or_any(&self, env: &Env, e: &E) -> Option<Type> {
         match self.context {
@@ -1281,6 +1545,17 @@ impl<'c> Parser<'c> {
                 self.expect(")")?;
                 self.tuple(items, env, at)
             }
+            Tok::Word(w)
+                if w == "crate" || matches!(self.peek_at(1), Tok::Sym("::") | Tok::Sym("(")) =>
+            {
+                let names = self.raw_path()?;
+                if !self.is("(") {
+                    return self.expected("`(`: a path is a call here");
+                }
+                self.bump();
+                let args = self.list(")", |p| p.inner(&mut env.clone()))?;
+                Ok(apply(Op::Call(self.call_path(names)), args))
+            }
             Tok::Word(_) => {
                 let name = self.name()?;
                 if self.is("{") && !self.no_record {
@@ -1298,6 +1573,23 @@ impl<'c> Parser<'c> {
             }
             _ => self.expected("an expression"),
         }
+    }
+    /// The path of the function a call names: whole when written with
+    /// `::`, else the one a name alone names (`Calling::resolve`), else
+    /// as written, which `check` finds names nothing.
+    fn call_path(&self, mut names: Vec<String>) -> String {
+        if names[0] == "crate" {
+            names.remove(0);
+            return names.join("::");
+        }
+        if names.len() > 1 {
+            return names.join("::");
+        }
+        let resolved = self.context.and_then(|c| {
+            c.calling
+                .resolve(self.part.as_deref(), self.contract.as_deref(), &names[0])
+        });
+        resolved.unwrap_or_else(|| names[0].clone())
     }
     /// An expression inside brackets of its own, where `R { … }` may be
     /// written again.
