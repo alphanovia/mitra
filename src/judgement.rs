@@ -13,9 +13,9 @@
 //! many propositions name it. No definition reaches itself through the
 //! names it uses.
 //!
-//! Every rule preserves truth. Numbers live only on takings: no rule
-//! reads or makes one. The state of a proposition is read from what it rests
-//! on, never from numbers.
+//! Every rule preserves truth. Counts live only on takings: no rule
+//! reads or makes one. The state of a proposition is read from what it
+//! rests on, never from counts.
 //!
 //! `let` names a derivation to use it twice. It shares (S6): `let x = a;
 //! b` gives what `b` with `a` written in place of `x` gives.
@@ -571,21 +571,31 @@ fn all_of(sides: &[&Rests]) -> Rests {
     // then keeps the ways few.
     let mut sides = sides.to_vec();
     sides.sort_by_key(|side| side.len());
-    let mut ways = Rests::from([BTreeSet::new()]);
+    let mut ways: Vec<BTreeSet<Taking>> = vec![BTreeSet::new()];
     let mut seen: BTreeSet<&Taking> = BTreeSet::new();
     for side in sides {
         let takings: BTreeSet<&Taking> = side.iter().flatten().collect();
         let shared = takings.iter().any(|t| seen.contains(t));
-        let next = ways
-            .iter()
-            .flat_map(|way| side.iter().map(move |s| way.union(s).cloned().collect()));
-        ways = match shared {
-            true => smallest(next),
-            false => next.collect(),
+        ways = match side.first() {
+            // One set: added to each way where it is, so that many sides
+            // of one set each, as the cases of many points, stay linear.
+            Some(only) if side.len() == 1 => {
+                for way in &mut ways {
+                    way.extend(only.iter().cloned());
+                }
+                ways
+            }
+            _ => ways
+                .iter()
+                .flat_map(|way| side.iter().map(move |s| way.union(s).cloned().collect()))
+                .collect(),
         };
+        if shared {
+            ways = smallest(ways).into_iter().collect();
+        }
         seen.extend(takings);
     }
-    ways
+    ways.into_iter().collect()
 }
 
 /// The types: a state, an opinion of a proposition, or a point, the
@@ -734,7 +744,8 @@ impl Judgement {
     }
     /// The premises of the rule `t`: `t` itself, then its pres. `None`
     /// for a proposition that is no rule: a name judgement does not
-    /// know, or a negation.
+    /// know, one defined about the point an intro binds, a negation, a
+    /// `correct`, an all or an any.
     pub fn premises(&self, t: &Prop) -> Option<Vec<Prop>> {
         let (pre, _) = self.unfold(t)?;
         Some([std::slice::from_ref(t), pre].concat())
@@ -764,7 +775,8 @@ impl Judgement {
             }
             Op::Instance { q } => (vec![q.clone()], q.at_term(at?)?),
             Op::Witness { q } => (vec![q.at_term(at?)?], q.clone()),
-            Op::Cases { q } => (q.cases(n)?, q.clone()),
+            // Well formed first: listing the points may be long.
+            Op::Cases { q } if q.well_formed() => (q.cases(n)?, q.clone()),
             _ => return None,
         };
         let formed = gives.well_formed() && from.iter().all(Prop::well_formed);

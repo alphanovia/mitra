@@ -1,6 +1,6 @@
 # core2: the expression type system
 
-Three files. `src/expression.rs` is the core to freeze. `src/simulation.rs`
+Four files. `src/expression.rs` is the core to freeze. `src/simulation.rs`
 and `src/judgement.rs` are two standards on it. An expression never mixes
 the two: `Expression<simulation::Op>` and `Expression<judgement::Op>` are
 different Rust types. Judgement reads simulation: the condition of a set
@@ -74,7 +74,7 @@ are ordinary operations, not special forms: both branches are computed (choice
 |---|---|---|
 | S1 | **Agreement**, per reading and operation: `gives(op, ts) = Some(t)`, with argument `i` binding names of the types `binds(op, i, …)`, and each argument a value of its type or an `Op` fault, whenever its names stand for values of their types or `Op` faults ⇒ the operation gives a value of type `t` or an `Op` fault, and `bind` runs an argument only at such values. | depth-1 expressions over random inputs, every operation; `all` over random ends and bodies |
 | S2 | **Preservation and progress**, from S1 by induction: `check(Γ, e) = Some(T)` and `fits(Γ, values)` ⇒ `eval(values, e)` is `Ok(v)` with `has_type(v, T)`, or `Err(Op(_))`, never `Err(Stuck)`. The induction keeps each name in scope standing for a value of its type or an `Op` fault. | random well-typed expressions with `let`, `all` and a two-name binder, each reading |
-| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. They recurse once per level, as do `substitute` and the derived `Clone`, `PartialEq` and drop, and a binder's body runs inside its reading. So depth is bounded by the stack: on a 2 MiB thread, 1,000 levels in a debug build and 2,000 in release hold for all of them, where each `all` counts as three. Time and memory are not bounded by the size of an expression: an operation may run an argument many times (`all`, once per number), and each `let` may square a number. | random ill-typed expressions and values, names bound anywhere; 1,000 levels (2,000 in release) of `if`, of ponens, of `let`s in value and in body position, each also substituted, renaming at every level; nested `all`. Measured on 2 MiB: about 1,350 to 1,600 levels in debug, 2,300 to 4,800 in release |
+| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. They recurse once per level, as do `substitute` and the derived `Clone`, `PartialEq` and drop, and a binder's body runs inside its reading. So depth is bounded by the stack: on a 2 MiB thread, 1,000 levels in a debug build and 2,000 in release hold for all of them, where each `all` counts as three, and a set's condition runs inside the proof that reads it, so its levels add to the proof's. Time and memory are not bounded by the size of an expression: an operation may run an argument many times (`all`, once per number), and each `let` may square a number. | random ill-typed expressions and values, names bound anywhere; 1,000 levels (2,000 in release) of `if`, of ponens, of `let`s in value and in body position, each also substituted, renaming at every level; nested `all`. Measured on 2 MiB: about 1,350 to 1,600 levels in debug, 2,300 to 4,800 in release |
 | S4 | **Determinism**: `eval` is a function of reading, values and expression. | evaluating twice |
 | S5 | **Covering**, per operation: typed as in S1, each bounded argument of its type or an `Op` fault, each exact one in `γ` of its bounds at its type, and each body run in `Exact` at values in `γ` of those run in `Ranges` giving an outcome in `γ` of what that gives ⇒ `covers(t, Ranges, Exact)`. Then by induction: `check(Γ, e) = Some(T)`, `fits(Ranges, Γ, B)`, each exact input in `γ` of its bounds at its type ⇒ `covers(T, eval(Ranges, B, e), eval(Exact, C, e))`. On points it loses nothing: when each bound is `Bounds::exactly` of the exact input, the bounded outcome is `Bounds::exactly` of the exact one, or the same fault. | each operation with fault arguments; `all` over uncertain ends; random expressions end to end; random expressions on points; `all` on numbers, each read |
 | S6 | **Substitution**, in the core: when `e₁` checks to `T₁` and `e₂` to `T₂` with `x : T₁`, `substitute(e₂, x, e₁)` checks to `T₂`; on every reading, when `e₁` gives `v`, `e₂` with `x = v` gives what `substitute(e₂, x, e₁)` gives. **Let shares**, in `Exact`, `Ranges` and judgement: `let x = e₁; e₂` gives what `substitute(e₂, x, e₁)` gives, faults included, and `e₁` is evaluated once. **Let chooses once**, in a reading of sets: `let` gives a subset of what writing it out gives, so S6 fails there, by design. | random expressions whose binders bind the names of `e₁`; random expressions with lets and shadowing, written out, every reading, typed and wild; a count of operations applied; sets, random |
@@ -128,7 +128,9 @@ are ordinary operations, not special forms: both branches are computed (choice
 - Well formed: each name a term uses is bound by an all or an any around
   it, and each set is (names distinct, each range two `Int` or two `Real`,
   `such` a truth). Judgement reasons about no other: `Opinion::taken`
-  refuses one, and no rule gives or takes one.
+  refuses one, and no rule gives one. `not`, `join`, `state` and
+  `reductio` may name one in the type of what they take, which no value
+  fits.
 - Dependent types, syntactically: the type of an opinion names its
   proposition, points and bound names included, as `Opinion(correct(div,
   [6, 2]))`. Two types are equal only when written the same. A rule at a
@@ -140,7 +142,8 @@ are ordinary operations, not special forms: both branches are computed (choice
   has no type. `with` refuses the names defined through themselves, with
   `Err(names)`: a definition that names itself, or names a rule whose
   definition does, and so on, through negations and implications written
-  in place too. `Judgement::default()` knows none. An opinion rests on
+  in place too. `with` does not ask that a definition be well formed: one
+  that is not is never applied. `Judgement::default()` knows none. An opinion rests on
   takings under the definitions of the judgement that made it, and does
   not say which: read it only with that judgement, and make it again
   after a rule changes.
@@ -183,11 +186,13 @@ are ordinary operations, not special forms: both branches are computed (choice
   empty set, there is none, and what follows there says nothing, as after
   Lean's `intro x` on an empty type. Only what the intro proves leaves it,
   and that holds of an empty set too: an all is true, an any false.
-- Numbers sit only on takings, and no rule touches one.
+- Counts sit only on takings, and no rule touches one.
 - Costs: `Cases` reads every point of its set's ranges, in the set or not,
   when it is checked as when it runs: checking a proof is no longer linear
   in its size, and `0..1000 × 0..1000` is a million points. `such` runs once
-  per point read. A ponens over `n` premises, each with two ways, rests on `2ⁿ` sets,
+  per point read. Running it adds each case's takings once: 4,000 points of
+  one test each take milliseconds (the red team found it quadratic, 6 s;
+  fixed). A ponens over `n` premises, each with two ways, rests on `2ⁿ` sets,
   each a different smallest way: inherent. A ponens copies its ways as they
   grow: quadratic in its premises (2,000 premises: 0.4 s). A reductio reads
   every pair of a way for and a way against.
@@ -428,7 +433,7 @@ be an operation.
 14. **`Cases` gives all the cases tell**, both sides: an all is also false when one case is, as `Witness` says.
 15. **Substitution in a proposition is its own** (`Prop::at`): a point holds no name, so nothing can be caught, and core's `substitute` works on expressions only.
 16. **Only well formed propositions** (`Prop::well_formed`): `Opinion::taken` and every rule refuse the others.
-17. `simulation::Value` and `simulation::Op` are now **ordered and hashed**, to keep propositions in sets; a `Set` orders its `such` part by part, in judgement.rs, since expression.rs does not change.
+17. `simulation::Value` is now **ordered and hashed**, and `simulation::Op` ordered, to keep propositions in sets; a `Set` orders its `such` part by part, in judgement.rs, since expression.rs does not change.
 18. **Points are values of proofs**, of a type that is the point itself (`Type::Point`), written by `Op::Point`: `Instance` and `Witness` now take the point as an argument, not a parameter, so that an intro can give one.
 19. **`Point` keeps its term private**: only an intro makes the any point, so what is given to a proof is a point written in place.
 20. **`Set::within` is by writing**: a set with a condition is within another only if that one has none or the same. Whether one condition holds wherever another does is not asked.

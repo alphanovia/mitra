@@ -2350,3 +2350,113 @@ proptest! {
         }
     }
 }
+
+/// Red team round 6: every rule refuses an all or an any that is not
+/// well formed, a condition that is no truth or a name twice, in its
+/// type and when it runs.
+#[test]
+fn an_ill_formed_quantifier_is_refused_by_every_rule() {
+    let j = Judgement::default();
+    let one = sim(simulation::Op::Int(1.into()), vec![]);
+    let not_a_truth = set("n", 0, 2, Some(one));
+    let vacuous = apply(Op::Cases { q: all_in("x", &not_a_truth, correct("f", var("x"))) }, vec![]);
+    assert_eq!(check(&j, &BTreeMap::new(), &vacuous), None);
+    assert_eq!(eval(&j, &BTreeMap::new(), &vacuous), Err(Fault::Stuck));
+    let twice = Set {
+        ranges: vec![("a".into(), int(0), int(1)), ("a".into(), int(0), int(1))],
+        such: None,
+    };
+    let q = any_in("x", &twice, correct("f", var("x")));
+    let at = vec![int(0), int(0)];
+    let inst = correct("f", Term::Point(at.clone()));
+    assert!(!q.well_formed() && inst.well_formed());
+    let inputs = BTreeMap::from([("i".to_string(), Type::Opinion(inst.clone()))]);
+    let o = Opinion::taken(inst.clone(), vec![take(&inst, true, 1, "test")]).unwrap();
+    let values = BTreeMap::from([("i".to_string(), Value::Opinion(o))]);
+    let point = apply(Op::Point(at), vec![]);
+    let w = apply(Op::Witness { q: q.clone() }, vec![input("i"), point.clone()]);
+    assert_eq!(check(&j, &inputs, &w), None);
+    assert_eq!(eval(&j, &values, &w), Err(Fault::Stuck));
+    let c = apply(Op::Cases { q: q.clone() }, vec![input("i")]);
+    assert_eq!(check(&j, &inputs, &c), None);
+    assert_eq!(eval(&j, &values, &c), Err(Fault::Stuck));
+    let mut with_q = inputs.clone();
+    with_q.insert("q".into(), Type::Opinion(q.clone()));
+    let i = apply(Op::Instance { q }, vec![input("q"), point]);
+    assert_eq!(check(&j, &with_q, &i), None);
+}
+
+/// Red team round 6: `cases` adds each case's takings once, so that a
+/// set of many points runs in time near its size, not its square.
+#[test]
+fn many_cases_run_in_linear_time() {
+    let n: i64 = 4000;
+    let q = all_in("x", &set("n", 0, n, None), correct("f", var("x")));
+    let (mut inputs, mut values, mut args) = (BTreeMap::new(), BTreeMap::new(), vec![]);
+    for v in 0..n {
+        let p = correct("f", point(v));
+        let o = Opinion::taken(p.clone(), vec![take(&p, true, 1, "test")]).unwrap();
+        inputs.insert(format!("t{v}"), Type::Opinion(p));
+        values.insert(format!("t{v}"), Value::Opinion(o));
+        args.push(input(&format!("t{v}")));
+    }
+    let e = apply(Op::Cases { q: q.clone() }, args);
+    let j = Judgement::default();
+    assert_eq!(check(&j, &inputs, &e), Some(Type::Opinion(q)));
+    let start = std::time::Instant::now();
+    let o = opinion(eval(&j, &values, &e));
+    let ways: Vec<usize> = o.rests_for().iter().map(BTreeSet::len).collect();
+    assert_eq!(ways, [n as usize]);
+    // Quadratic, as before, took 6 s in a debug build.
+    assert!(start.elapsed() < std::time::Duration::from_secs(2), "{:?}", start.elapsed());
+}
+
+/// S3, red team round 6: a set's condition runs inside the proof that
+/// reads it, so its levels add to the proof's. 600 levels of proof over
+/// a condition of 400 hold, as 1,000 levels do.
+#[test]
+fn a_condition_adds_to_the_depth() {
+    let deep = std::thread::Builder::new()
+        .stack_size(2 << 20)
+        .spawn(|| {
+            let p = Prop::named("p");
+            let t = Prop::Implies {
+                pre: vec![p.clone()],
+                subject: "s".into(),
+                post: vec![p.clone()],
+            };
+            let mut such = sim(simulation::Op::Truth(true), vec![]);
+            for _ in 0..200 {
+                such = sim(simulation::Op::Not, vec![sim(simulation::Op::Not, vec![such])]);
+            }
+            let q = all_in("x", &set("n", 0, 1, Some(such)), p.clone());
+            let mut e = apply(Op::Instance { q: q.clone() }, vec![input("q"), literal(0)]);
+            for level in 0..600 {
+                e = match level % 2 {
+                    0 => apply(Op::Ponens { t: t.clone(), post: 0 }, vec![input("t"), e]),
+                    _ => let_in(Op::Let, "o", e, input("o")),
+                };
+            }
+            let inputs = BTreeMap::from([
+                ("q".to_string(), Type::Opinion(q)),
+                ("t".to_string(), Type::Opinion(t)),
+            ]);
+            check(&Judgement::default(), &inputs, &e)
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+    assert_eq!(deep, Some(Type::Opinion(Prop::named("p"))));
+}
+
+/// Red team round 6: `cases` over a set that is not well formed is
+/// refused before its points are listed, so a large one costs nothing.
+#[test]
+fn an_ill_formed_set_is_refused_before_its_points_are_listed() {
+    let one = sim(simulation::Op::Int(1.into()), vec![]);
+    let q = all_in("x", &set("n", 0, 3_000_000, Some(one)), correct("f", var("x")));
+    let start = std::time::Instant::now();
+    let e = apply(Op::Cases { q }, vec![]);
+    assert_eq!(check(&Judgement::default(), &BTreeMap::new(), &e), None);
+    assert!(start.elapsed() < std::time::Duration::from_millis(500), "{:?}", start.elapsed());
+}

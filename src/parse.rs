@@ -1387,6 +1387,8 @@ impl<'c> Parser<'c> {
     fn proof_op(&mut self, w: &str, bound: &mut Vec<String>, at: Pos) -> Result<J> {
         use judgement::Op as O;
         let params = self.eat("[");
+        // `instance[q, (6, 2)](o)`: the point, now the second argument.
+        let mut point = None;
         let op = match (w, params) {
             ("join", false) => Some(O::Join),
             ("state", false) => Some(O::StateOf),
@@ -1410,11 +1412,12 @@ impl<'c> Parser<'c> {
             ("reductio", true) => Some(O::Reductio { of: self.prop()? }),
             ("instance" | "witness", true) => {
                 let q = self.prop()?;
-                self.expect(",")?;
-                let at = self.values()?;
+                if self.eat(",") {
+                    point = Some(self.values()?);
+                }
                 Some(match w {
-                    "instance" => O::Instance { q, at },
-                    _ => O::Witness { q, at },
+                    "instance" => O::Instance { q },
+                    _ => O::Witness { q },
                 })
             }
             ("cases", true) => Some(O::Cases { q: self.prop()? }),
@@ -1433,7 +1436,10 @@ impl<'c> Parser<'c> {
             self.expect("]")?;
         }
         self.expect("(")?;
-        let args = self.list(")", |p| p.proof(bound))?;
+        let mut args = self.list(")", |p| p.proof(bound))?;
+        if let Some(at) = point {
+            args.push(apply(O::Point(at), vec![]));
+        }
         let op = match op {
             Some(op) => op,
             // `ponens(r, p, q)`: the rule is what is first, by its name.
