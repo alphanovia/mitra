@@ -2,7 +2,9 @@
 //!
 //! Two sides that never read each other, and one crossing:
 //!
-//! - [`model`]: locations, pieces generic in what they are about,
+//! - [`location`]: an address in the real system, frozen in
+//!   `main2` (`docs/frozen.md`).
+//! - [`model`]: pieces generic in what they are about,
 //!   opinions, and the calculus that judges every piece from what was
 //!   taken. It knows nothing of values.
 //! - [`value`]: a quantity with a type, the operations declared on
@@ -24,6 +26,7 @@
 pub mod atom;
 pub mod bounds;
 pub mod claim;
+pub mod location;
 pub mod model;
 pub mod standard;
 pub mod value;

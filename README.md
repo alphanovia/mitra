@@ -23,7 +23,7 @@ cross from a value to a verdict: a claim is **evaluated**, a voice
 
 | Model file | Subject | What it is | Code |
 |---|---|---|---|
-| `model/model.mitra` | `location` | an address in the real system | `src/model.rs` |
+| `model/model.mitra` | `location` | an address in the real system, frozen in `main2` | `src/location.rs` |
 | | `piece` | {pre} about {post}, generic in what it is about; require, ensure, tie; the opinion of a piece | |
 | | `model` | pieces, what was evaluated and taken, voices, the form of a taking | |
 | | `calculus` | how every piece is judged, how sure, what it rests on, the suspects | |
