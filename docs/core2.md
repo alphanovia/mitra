@@ -73,10 +73,10 @@ are ordinary operations, not special forms: both branches are computed (choice
 | | Statement | Tested by |
 |---|---|---|
 | S1 | **Agreement**, per reading and operation: `gives(op, ts) = Some(t)`, with argument `i` binding names of the types `binds(op, i, …)`, and each argument a value of its type or an `Op` fault, whenever its names stand for values of their types or `Op` faults ⇒ the operation gives a value of type `t` or an `Op` fault, and `bind` runs an argument only at such values. | depth-1 expressions over random inputs, every operation; `all` over random ends and bodies |
-| S2 | **Preservation and progress**, from S1 by induction: `check(Γ, e) = Some(T)` and `fits(Γ, values)` ⇒ `eval(values, e)` is `Ok(v)` with `has_type(v, T)`, or `Err(Op(_))`, never `Err(Stuck)`. The induction keeps each name in scope standing for a value of its type or an `Op` fault. | random well-typed expressions with `let`, `all` and a two-name binder, each reading |
-| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. They recurse once per level, as do `substitute` and the derived `Clone`, `PartialEq` and drop, and a binder's body runs inside its reading. So depth is bounded by the stack: on a 2 MiB thread, 1,000 levels in a debug build and 2,000 in release hold for all of them, where each `all` counts as three, and a set's condition runs inside the proof that reads it, so its levels add to the proof's. Time and memory are not bounded by the size of an expression: an operation may run an argument many times (`all`, once per number), and each `let` may square a number. | random ill-typed expressions and values, names bound anywhere; 1,000 levels (2,000 in release) of `if`, of ponens, of `let`s in value and in body position, each also substituted, renaming at every level; nested `all`. Measured on 2 MiB: about 1,350 to 1,600 levels in debug, 2,300 to 4,800 in release |
+| S2 | **Preservation and progress**, from S1 by induction: `check(Γ, e) = Some(T)` and `fits(Γ, values)` ⇒ `eval(values, e)` is `Ok(v)` with `has_type(v, T)`, or `Err(Op(_))`, never `Err(Stuck)`. The induction keeps each name in scope standing for a value of its type or an `Op` fault. A call runs a body `Calls::with` checked, on values of its argument types; a call of a function with no body, at a point no row has, is the `Op` fault `Unknown`. | random well-typed expressions with `let`, `all` and a two-name binder, each reading; each calling a random library of three functions, with bodies (calling those before), rows, or nothing |
+| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. They recurse once per level, as do `substitute` and the derived `Clone`, `PartialEq` and drop, and a binder's body runs inside its reading. So depth is bounded by the stack: on a 2 MiB thread, 1,000 levels in a debug build and 2,000 in release hold for all of them, where each `all` counts as three, and a set's condition runs inside the proof that reads it, so its levels add to the proof's, as a callee's body runs inside its call. Calls never go round, so evaluation ends. Time and memory are not bounded by the size of an expression: an operation may run an argument many times (`all`, once per number), and each `let` may square a number. | random ill-typed expressions and values, names bound anywhere; 1,000 levels (2,000 in release) of `if`, of ponens, of `let`s in value and in body position, each also substituted, renaming at every level; nested `all`. Measured on 2 MiB: about 1,350 to 1,600 levels in debug, 2,300 to 4,800 in release |
 | S4 | **Determinism**: `eval` is a function of reading, values and expression. | evaluating twice |
-| S5 | **Covering**, per operation: typed as in S1, each bounded argument of its type or an `Op` fault, each exact one in `γ` of its bounds at its type, and each body run in `Exact` at values in `γ` of those run in `Ranges` giving an outcome in `γ` of what that gives ⇒ `covers(t, Ranges, Exact)`. Then by induction: `check(Γ, e) = Some(T)`, `fits(Ranges, Γ, B)`, each exact input in `γ` of its bounds at its type ⇒ `covers(T, eval(Ranges, B, e), eval(Exact, C, e))`. On points it loses nothing: when each bound is `Bounds::exactly` of the exact input, the bounded outcome is `Bounds::exactly` of the exact one, or the same fault. | each operation with fault arguments; `all` over uncertain ends; random expressions end to end; random expressions on points; `all` on numbers, each read |
+| S5 | **Covering**, per operation: typed as in S1, each bounded argument of its type or an `Op` fault, each exact one in `γ` of its bounds at its type, and each body run in `Exact` at values in `γ` of those run in `Ranges` giving an outcome in `γ` of what that gives ⇒ `covers(t, Ranges, Exact)`. Then by induction: `check(Γ, e) = Some(T)`, `fits(Ranges, Γ, B)`, each exact input in `γ` of its bounds at its type ⇒ `covers(T, eval(Ranges, B, e), eval(Exact, C, e))`. On points it loses nothing: when each bound is `Bounds::exactly` of the exact input, the bounded outcome is `Bounds::exactly` of the exact one, or the same fault, when every function called has a body. Of one without, `Exact` has a row or no value, and `Ranges` knows only the type. | each operation with fault arguments; `all` over uncertain ends; random expressions end to end; random expressions on points; `all` on numbers, each read |
 | S6 | **Substitution**, in the core: when `e₁` checks to `T₁` and `e₂` to `T₂` with `x : T₁`, `substitute(e₂, x, e₁)` checks to `T₂`; on every reading, when `e₁` gives `v`, `e₂` with `x = v` gives what `substitute(e₂, x, e₁)` gives. **Let shares**, in `Exact`, `Ranges` and judgement: `let x = e₁; e₂` gives what `substitute(e₂, x, e₁)` gives, faults included, and `e₁` is evaluated once. **Let chooses once**, in a reading of sets: `let` gives a subset of what writing it out gives, so S6 fails there, by design. | random expressions whose binders bind the names of `e₁`; random expressions with lets and shadowing, written out, every reading, typed and wild; a count of operations applied; sets, random |
 | J1 | **Rules preserve truth**: each set an opinion of `x` rests on, for or against, entails `x`, or `!x`, where `t = {p} s {q}` means `t → (∧p → ∧q)`, a name `r` defined `{p} r {q}` the same, an all is the conjunction of its body at each point of its set, and an any the disjunction. For a derivation whose inputs are what can be given: opinions `Opinion::taken` makes and points `Point::of` makes. Inside an `intro`, the point stands for each point of its set, and only what the intro proves leaves it. | every valuation of every closed step of every random derivation, its rules written in place or known by name; half the worlds over points, with alls and anys over four sets (one empty, one with a condition), nested, a name bound again, rules under an all, intros, nested, with instances, witnesses and rules at the point, each instance and each set's points listed by hand |
 | J2 | **State is read from rests**: `state(not o) = not state(o)`, `state(join a b) = join(state a, state b)`. | random opinions |
@@ -101,6 +101,22 @@ are ordinary operations, not special forms: both branches are computed (choice
 - `all` by bounds: when both ends are one number each, `p` is read at each
   number in turn; else once, with `x` anywhere the range may reach, and true
   is allowed when the range may be empty.
+- Calls (`use`): `sun::light()` calls a function of the model by its path,
+  typed by its signature. `Calls::with` takes the library once: what each
+  function takes and gives, its body, or else its rows (examples). It refuses,
+  by name, a function that calls itself however far, one that calls a
+  function the library lacks, a body not of its type, a row not of its types,
+  two arguments of one name, and whatever calls one it refuses. The standard
+  and both readings hold the same library. `Exact` runs the body, or reads the
+  row at the arguments; with neither, the call has no value:
+  `Undefined::Unknown(path)`, an `Op` fault, so S2 holds. `Ranges` runs the
+  body, or else allows any value of the type, and a fault. A call is strict,
+  as Rust's: a fault in an argument is the call's, read or not.
+- Type parameters, `T` and `T: Number` (`Type::Param`), for contracts: a type
+  named but not fixed. `T: Number` has `+ - *`, `< <=`, `within` and `==`;
+  `T` has `==` only. No literal is of a parameter (`x + 1` is refused), no
+  value is either, and a function whose types name one has no body and no
+  rows: its contract says the rest. `Type::given` fixes them.
 
 ## judgement.rs
 
@@ -322,7 +338,8 @@ argument that binds `x`, run by `all` itself. It is not a value you could
 pass on.
 *Gain*: types stay simple (no function types); with no function to call
 itself, evaluation always ends; and `Ranges` and judgement need no meaning
-for functions, where bounding a function is hard.
+for functions, where bounding a function is hard. A function of the model
+is called by its path (12), never passed.
 *Give up*: no helper of your own that takes a function (`map(xs, f)`). Each
 such pattern must be an operation of the standard, with a binder.
 *Elsewhere*: Rust, Python, JavaScript and Haskell pass functions as values.
@@ -404,11 +421,46 @@ set, about none. Its set must be written within the sets it reads.
 natural deduction: prove `p(x)` for a fresh `x`, then `∀x. p(x)`. The
 "fresh" condition is what the private `Point` keeps here.
 
+**12. Calls by path, never round.** A function of one part can call a
+function of another by its path, as Rust's `use`; a call takes the values
+of its arguments first; no function calls itself, however far.
+*Example*: `stone::speed(h)` reads `sun::light()`. `Exact` runs light's
+body, or reads its row for `()`; if it has neither, the call has no value,
+named: "no value for sun::light here". `Ranges` runs the body, or allows any
+value of light's type.
+*Gain*: the model computes across parts, so a test of A's inputs can state
+B's outputs. With no cycle, evaluation still always ends, and a function is
+checked once, when the library is made, not at each call.
+*Give up*: no recursion: a function that needs it is written as an `all`
+over a range, or left opaque with rows. By bounds, a function with no body
+is known only by its type: its rows and claims are not read there (yet).
+*Elsewhere*: Rust, Python and most languages allow recursion. Lustre and
+SCADE (avionics), Excel and SQL views refuse cycles, for the same reason:
+every evaluation ends and its cost is known.
+
+**13. Type parameters.** A contract can name a type it does not fix: `T`,
+with `==` only, or `T: Number`, a whole number or a real, with `+ - *` and
+`<`. It is checked once with the parameter; each use fixes it.
+*Example*: `contract Monotone<T: Number> { fn f(x: T) -> T; x <= y implies
+f(x) <= f(y) }` is checked once; `impl Monotone<Real> for speed` checks only
+that `speed` fits (takes and gives a `Real`), and the claim becomes one
+about `speed`.
+*Gain*: one property written once for every function that has it; an error
+is reported at the contract, not at each use.
+*Give up*: nothing can be computed on `T` itself: no value is of it, so a
+contract's claims are proved by rules, or checked at each use. No literal is
+of `T` (`x + 1` is refused): a number written in a contract must be given.
+*Elsewhere*: Rust's generics with trait bounds (`T: Ord`), Haskell's type
+classes, Java's interfaces. `Number` is built in here; Rust's standard
+library has no such trait (crates such as `num-traits` add one).
+
 ## Choices taken on Rust's form
 
 `!x`, `&&`, `||`, `if`, `R { .. }`, `r.x`, `let x = e₁; e₂`, and
 `(lo..hi).all(|x| p)` for "for all" over a range, `hi` left out, as Rust's
-ranges and `Iterator::all`. `within(a, b, tol)` stays as you named it, where
+ranges and `Iterator::all`; `sun::light()` for a call by path; `T` and
+`T: Number` for type parameters, though Rust's standard library has no
+`Number`. `within(a, b, tol)` stays as you named it, where
 Rust would write `(a - b).abs() <= tol`. Unlike Rust, a fault in what a `let`
 binds counts only where it is read (5), and `&&`, `||` and `if` compute the
 side they drop (8): the outcome is Rust's, the time is not. No
@@ -438,5 +490,9 @@ be an operation.
 19. **`Point` keeps its term private**: only an intro makes the any point, so what is given to a proof is a point written in place.
 20. **`Set::within` is by writing**: a set with a condition is within another only if that one has none or the same. Whether one condition holds wherever another does is not asked.
 21. **Inside an intro, anything may follow at the point**, witnesses and rules included: only what the intro proves leaves it.
+22. **The library travels with the standard**: `Simulation`, `Exact` and `Ranges` each hold the same `Arc<Calls>`; `::default()` has no functions.
+23. **A call with no value is named**: `Undefined::Unknown(path)`, an `Op` fault beside the division by zero.
+24. **By bounds, a function with no body gives any value of its type, and may fault**: its rows and claims are not read there.
+25. **A function whose types name a parameter is bare** (no body, no rows): only its contract speaks of it.
 
-Not in this round: an `Option` type, `Int → Real` conversion, units, diagnosis, streams, and an all or an any written in the model (next, in `model.rs`).
+Not in this round: an `Option` type, `Int → Real` conversion, units, diagnosis, streams, recursion, functions as values, and an all or an any written in the model (next, in `model.rs`).

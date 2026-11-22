@@ -38,7 +38,7 @@ pub fn check(model: &Model) -> Vec<Error> {
             if let Some(body) = &function.body {
                 let takes = function.takes.iter().cloned().collect();
                 let gives = &function.gives;
-                if known && typed(&Simulation, &takes, body).as_ref() != Some(&gives.1) {
+                if known && typed(&Simulation::default(), &takes, body).as_ref() != Some(&gives.1) {
                     let message = format!("the body is not of the type of `{}`", gives.0);
                     errors.push(error(M005, &here, message));
                 }
@@ -54,7 +54,9 @@ pub fn check(model: &Model) -> Vec<Error> {
                 let row = example.takes.iter().chain([&example.gives]);
                 let types = function.takes.iter().chain([&function.gives]);
                 let fits = example.takes.len() == function.takes.len()
-                    && row.zip(types).all(|(v, (_, t))| Exact.has_type(v, t));
+                    && row
+                        .zip(types)
+                        .all(|(v, (_, t))| Exact::default().has_type(v, t));
                 if known && !fits {
                     let message = format!("example {i} is not of the types of `{}`", function.name);
                     errors.push(error(M015, &here, message));
@@ -214,6 +216,8 @@ fn types<'a>(
 fn known(index: &Index, t: &Type) -> bool {
     match t {
         Type::Truth | Type::Int | Type::Real => true,
+        // A type parameter is known only in its contract.
+        Type::Param { .. } => false,
         // A tuple: a record with no name, its fields `0`, `1`, ….
         Type::Record(r) if r.name.is_empty() => {
             let mut fields = r.fields.iter().enumerate();
@@ -307,7 +311,7 @@ fn said(
     let scope = scope(of);
     // M006 and M004 for an expression read as a claim, at `here`.
     let claim = |here: &Path, e, what: &str, errors: &mut Vec<Error>| {
-        if known && typed(&Simulation, &scope, e) != Some(Type::Truth) {
+        if known && typed(&Simulation::default(), &scope, e) != Some(Type::Truth) {
             errors.push(error(M006, here, format!("{what} is not a truth")));
         }
         if !made(index, e) {

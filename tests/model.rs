@@ -436,13 +436,13 @@ fn claims_run_in_simulation() {
     let slow = let_in(Op::Let, "v2", body, speed.claims[0].holds.clone());
     let low = Bounds::between(Rational::integer(0), Rational::integer(20)).unwrap();
     let heights = BTreeMap::from([("h".to_string(), low)]);
-    assert_eq!(eval(&Ranges, &heights, &slow).unwrap().surely(), Some(true));
+    assert_eq!(eval(&Ranges::default(), &heights, &slow).unwrap().surely(), Some(true));
     let measured = BTreeMap::from([
         ("h".to_string(), Value::Real(Rational::integer(5))),
         ("v".to_string(), Value::Real(Rational::new(99, 10).unwrap())),
     ]);
     assert_eq!(
-        eval(&Exact, &measured, &drop.claims[0].holds),
+        eval(&Exact::default(), &measured, &drop.claims[0].holds),
         Ok(Value::Truth(true))
     );
 }

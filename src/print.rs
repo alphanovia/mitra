@@ -536,6 +536,8 @@ pub fn type_(t: &Type) -> String {
             }
         }
         Type::Record(r) => r.name.clone(),
+        // Stub until the parser thread writes contracts: the name.
+        Type::Param { name, .. } => name.clone(),
     }
 }
 
@@ -658,6 +660,11 @@ fn sim_at(e: &Expression<Op>) -> (String, u8) {
             _ => bad,
         },
         (_, _, false) => bad,
+        // Stub until the parser thread writes `use`: `sun::light(a, b)`.
+        (Op::Call(f), _, _) => {
+            let args: Vec<String> = args.iter().map(|a| sim(&a.body)).collect();
+            (format!("{f}({})", args.join(", ")), POSTFIX)
+        }
         (Op::Truth(b), 0, _) => (b.to_string(), ATOM),
         (Op::Int(n), 0, _) => (n.to_string(), if n.is_negative() { UNARY } else { ATOM }),
         (Op::Real(r), 0, _) => (real(r), if r.numer().is_negative() { UNARY } else { ATOM }),

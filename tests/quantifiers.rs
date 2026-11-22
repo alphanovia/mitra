@@ -104,9 +104,18 @@ fn such(rng: &mut Rng, depth: u32) -> Sim {
             Expression::Apply(
                 O::All,
                 vec![
-                    Arg { binds: vec![], body: lo },
-                    Arg { binds: vec![], body: hi },
-                    Arg { binds: vec![x], body: p },
+                    Arg {
+                        binds: vec![],
+                        body: lo,
+                    },
+                    Arg {
+                        binds: vec![],
+                        body: hi,
+                    },
+                    Arg {
+                        binds: vec![x],
+                        body: p,
+                    },
                 ],
             )
         }
@@ -167,7 +176,7 @@ fn brute(s: &Set) -> Vec<Vec<V>> {
                     .zip(p)
                     .map(|((n, _, _), v)| (n.clone(), v.clone()))
                     .collect();
-                eval(&Exact, &values, e) == Ok(V::Truth(true))
+                eval(&Exact::default(), &values, e) == Ok(V::Truth(true))
             }
         })
         .collect()
@@ -226,8 +235,16 @@ fn any_prop(rng: &mut Rng, sets: &[Set], depth: u32) -> Prop {
     let d = depth - 1;
     match rng.below(4) {
         0 => Prop::Not(Box::new(any_prop(rng, sets, d))),
-        1 => all_in(rng.pick(&["x", "y"]), rng.pick(sets), any_prop(rng, sets, d)),
-        2 => any_in(rng.pick(&["x", "y"]), rng.pick(sets), any_prop(rng, sets, d)),
+        1 => all_in(
+            rng.pick(&["x", "y"]),
+            rng.pick(sets),
+            any_prop(rng, sets, d),
+        ),
+        2 => any_in(
+            rng.pick(&["x", "y"]),
+            rng.pick(sets),
+            any_prop(rng, sets, d),
+        ),
         _ => Prop::Implies {
             pre: vec![any_prop(rng, sets, d)],
             subject: "s".to_string(),
@@ -395,7 +412,10 @@ proptest! {
 fn subst(p: &Prop, x: &str, v: &[V]) -> Prop {
     let s = |q: &Prop| subst(q, x, v);
     match p {
-        Prop::Correct { function, at: Term::Var(y) } if y == x => correct(function, Term::Point(v.to_vec())),
+        Prop::Correct {
+            function,
+            at: Term::Var(y),
+        } if y == x => correct(function, Term::Point(v.to_vec())),
         Prop::Named(_) | Prop::Correct { .. } => p.clone(),
         Prop::Not(q) => Prop::Not(Box::new(s(q))),
         Prop::Implies { pre, subject, post } => Prop::Implies {
@@ -418,7 +438,9 @@ fn small_set(rng: &mut Rng) -> Set {
             .ranges
             .iter()
             .map(|(_, lo, hi)| match (lo, hi) {
-                (V::Int(lo), V::Int(hi)) => (i64::try_from(hi).unwrap() - i64::try_from(lo).unwrap()).max(0),
+                (V::Int(lo), V::Int(hi)) => {
+                    (i64::try_from(hi).unwrap() - i64::try_from(lo).unwrap()).max(0)
+                }
                 _ => 9,
             })
             .product();
@@ -466,8 +488,12 @@ impl Rich {
     fn truth(&self, p: &Prop, bits: u64) -> bool {
         match p {
             Prop::Not(x) => !self.truth(x, bits),
-            Prop::All { name, over, body } => brute(over).iter().all(|v| self.truth(&subst(body, name, v), bits)),
-            Prop::Any { name, over, body } => brute(over).iter().any(|v| self.truth(&subst(body, name, v), bits)),
+            Prop::All { name, over, body } => brute(over)
+                .iter()
+                .all(|v| self.truth(&subst(body, name, v), bits)),
+            Prop::Any { name, over, body } => brute(over)
+                .iter()
+                .any(|v| self.truth(&subst(body, name, v), bits)),
             _ => {
                 let place = self.vars.iter().position(|v| v == p).expect("outside");
                 bits >> place & 1 == 1
@@ -485,8 +511,12 @@ impl Rich {
         })
     }
     fn sound(&self, o: &Opinion) -> bool {
-        o.rests_for().iter().all(|s| self.entails(s, o.about(), true))
-            && o.rests_against().iter().all(|s| self.entails(s, o.about(), false))
+        o.rests_for()
+            .iter()
+            .all(|s| self.entails(s, o.about(), true))
+            && o.rests_against()
+                .iter()
+                .all(|s| self.entails(s, o.about(), false))
     }
 }
 
@@ -506,7 +536,10 @@ fn derive(rng: &mut Rng, x: &Prop, pool: &[Prop], names: &BTreeMap<Prop, String>
             for v in brute(over) {
                 if &subst(body, name, &v) == x {
                     let point = apply(Op::Point(v.clone()), vec![]);
-                    ways.push(apply(Op::Instance { q: q.clone() }, vec![derive(rng, q, pool, names, d), point]));
+                    ways.push(apply(
+                        Op::Instance { q: q.clone() },
+                        vec![derive(rng, q, pool, names, d), point],
+                    ));
                 }
             }
         }
@@ -516,9 +549,15 @@ fn derive(rng: &mut Rng, x: &Prop, pool: &[Prop], names: &BTreeMap<Prop, String>
         if let Some(v) = points.get(rng.below(points.len().max(1))) {
             let at = subst(body, name, v);
             let point = apply(Op::Point(v.clone()), vec![]);
-            ways.push(apply(Op::Witness { q: x.clone() }, vec![derive(rng, &at, pool, names, d), point]));
+            ways.push(apply(
+                Op::Witness { q: x.clone() },
+                vec![derive(rng, &at, pool, names, d), point],
+            ));
         }
-        let cases = points.iter().map(|v| derive(rng, &subst(body, name, v), pool, names, d)).collect();
+        let cases = points
+            .iter()
+            .map(|v| derive(rng, &subst(body, name, v), pool, names, d))
+            .collect();
         ways.push(apply(Op::Cases { q: x.clone() }, cases));
     }
     if let Prop::Implies { .. } = x {
@@ -531,7 +570,13 @@ fn derive(rng: &mut Rng, x: &Prop, pool: &[Prop], names: &BTreeMap<Prop, String>
                 if p == x {
                     let mut args = vec![derive(rng, t, pool, names, d)];
                     args.extend(pre.iter().map(|p| derive(rng, p, pool, names, d)));
-                    ways.push(apply(Op::Ponens { t: t.clone(), post: k }, args));
+                    ways.push(apply(
+                        Op::Ponens {
+                            t: t.clone(),
+                            post: k,
+                        },
+                        args,
+                    ));
                 }
             }
             // Tollens blaming x, a premise of t.
@@ -545,7 +590,14 @@ fn derive(rng: &mut Rng, x: &Prop, pool: &[Prop], names: &BTreeMap<Prop, String>
                             args.push(derive(rng, p, pool, names, d));
                         }
                     }
-                    ways.push(apply(Op::Tollens { t: t.clone(), post: k, blame: b }, args));
+                    ways.push(apply(
+                        Op::Tollens {
+                            t: t.clone(),
+                            post: k,
+                            blame: b,
+                        },
+                        args,
+                    ));
                 }
             }
         }
@@ -624,7 +676,8 @@ struct Seen {
 fn count(e: &E, seen: &mut Seen) {
     if let Expression::Apply(op, args) = e {
         if let Op::Ponens { t, .. } | Op::Tollens { t, .. } = op {
-            if matches!(t, Prop::Implies { pre, .. } if pre.iter().any(|p| matches!(p, Prop::Correct { at: Term::Point(_), .. }))) {
+            if matches!(t, Prop::Implies { pre, .. } if pre.iter().any(|p| matches!(p, Prop::Correct { at: Term::Point(_), .. })))
+            {
                 seen.skipped += 1_000_000;
             }
         }

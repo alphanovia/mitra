@@ -126,7 +126,7 @@ impl Set {
         }
         self.such
             .as_ref()
-            .is_none_or(|such| check(&Simulation, &inputs, such) == Some(T::Truth))
+            .is_none_or(|such| check(&Simulation::default(), &inputs, such) == Some(T::Truth))
     }
     /// `point` is in the set: one value per range, each in its range,
     /// and `such` true there.
@@ -148,14 +148,19 @@ impl Set {
     /// are not found within.
     pub fn within(&self, other: &Set) -> bool {
         use simulation::Value as V;
-        let range = |((_, lo, hi), (_, low, high)): (&(String, V, V), &(String, V, V))| {
-            match (lo, hi, low, high) {
-                (V::Int(lo), V::Int(hi), V::Int(low), V::Int(high)) => low <= lo && hi <= high,
-                (V::Real(lo), V::Real(hi), V::Real(low), V::Real(high)) => low <= lo && hi <= high,
-                _ => false,
-            }
+        let range = |((_, lo, hi), (_, low, high)): (&(String, V, V), &(String, V, V))| match (
+            lo, hi, low, high,
+        ) {
+            (V::Int(lo), V::Int(hi), V::Int(low), V::Int(high)) => low <= lo && hi <= high,
+            (V::Real(lo), V::Real(hi), V::Real(low), V::Real(high)) => low <= lo && hi <= high,
+            _ => false,
         };
-        let names = |s: &Set| s.ranges.iter().map(|(n, _, _)| n.clone()).collect::<Vec<_>>();
+        let names = |s: &Set| {
+            s.ranges
+                .iter()
+                .map(|(n, _, _)| n.clone())
+                .collect::<Vec<_>>()
+        };
         let such = match &other.such {
             None => true,
             Some(_) => self.such == other.such && names(self) == names(other),
@@ -173,7 +178,7 @@ impl Set {
         let values = values
             .map(|((name, _, _), v)| (name.clone(), v.clone()))
             .collect();
-        eval(&Exact, &values, such) == Ok(simulation::Value::Truth(true))
+        eval(&Exact::default(), &values, such) == Ok(simulation::Value::Truth(true))
     }
     /// Every point of the set, in increasing order, the first number
     /// first, as Rust orders tuples. `None` when a range is not of whole
@@ -330,9 +335,7 @@ impl Prop {
     /// point an `intro` binds, of a set within it.
     fn at_term(&self, at: &Term) -> Option<Prop> {
         match self {
-            Prop::All { name, over, body } | Prop::Any { name, over, body }
-                if at.within(over) =>
-            {
+            Prop::All { name, over, body } | Prop::Any { name, over, body } if at.within(over) => {
                 Some(body.put(name, at))
             }
             _ => None,
@@ -802,8 +805,9 @@ impl Standard for Judgement {
                 let (from, gives) = self.rule(op, 1, Some(at))?;
                 (x == &from[0]).then_some(Opinion(gives))
             }
-            (Op::Intro { q }, [Opinion(x)]) => (Some(x) == q.introduced().as_ref() && q.well_formed())
-                .then(|| Opinion(q.clone())),
+            (Op::Intro { q }, [Opinion(x)]) => {
+                (Some(x) == q.introduced().as_ref() && q.well_formed()).then(|| Opinion(q.clone()))
+            }
             (Op::Not, [State]) | (Op::And | Op::Join, [State, State]) => Some(State),
             (Op::StateOf, [Opinion(_)]) => Some(State),
             (Op::Not, [Opinion(x)]) => Some(Opinion(x.not())),
@@ -849,7 +853,8 @@ impl Reading for Judgement {
                 if x.about != from[0] {
                     return Err(Fault::Stuck);
                 }
-                let (rests_for, rests_against) = quantified(op, matches!(q, Prop::All { .. }), &[x]);
+                let (rests_for, rests_against) =
+                    quantified(op, matches!(q, Prop::All { .. }), &[x]);
                 Opinion {
                     about: gives,
                     rests_for,

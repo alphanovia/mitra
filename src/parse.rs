@@ -1051,7 +1051,7 @@ impl<'c> Parser<'c> {
                 None => inputs.remove(n),
             };
         }
-        typed(&Simulation, &inputs, e)
+        typed(&Simulation::default(), &inputs, e)
     }
     fn type_or_any(&self, env: &Env, e: &E) -> Option<Type> {
         match self.context {

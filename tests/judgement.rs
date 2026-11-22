@@ -604,7 +604,16 @@ impl World {
         };
         let mut found = Vec::new();
         for around in self.quantified() {
-            let (Prop::All { name, over: s, body } | Prop::Any { name, over: s, body }) = &around
+            let (Prop::All {
+                name,
+                over: s,
+                body,
+            }
+            | Prop::Any {
+                name,
+                over: s,
+                body,
+            }) = &around
             else {
                 unreachable!()
             };
@@ -2001,7 +2010,8 @@ fn quantifiers_walked_through() {
             ("some", &some, vec![none.clone()]),
         ],
     );
-    let instance = |q: &Prop, n, x| apply(Op::Instance { q: q.clone() }, vec![input(x), literal(n)]);
+    let instance =
+        |q: &Prop, n, x| apply(Op::Instance { q: q.clone() }, vec![input(x), literal(n)]);
     let witness = |q: &Prop, n, x| apply(Op::Witness { q: q.clone() }, vec![input(x), literal(n)]);
     let cases = |q: &Prop, xs: &[&str]| {
         apply(
@@ -2074,10 +2084,17 @@ fn quantifiers_walked_through() {
     let one = |args: Vec<E>| apply(Op::Instance { q: every.clone() }, args);
     assert!(b.run(&one(vec![input("every")])).is_none());
     assert!(b.run(&one(vec![literal(1), input("every")])).is_none());
-    assert!(b.run(&one(vec![input("every"), literal(1), literal(1)])).is_none());
+    assert!(b
+        .run(&one(vec![input("every"), literal(1), literal(1)]))
+        .is_none());
     let pair = apply(Op::Point(vec![int(1), int(1)]), vec![]);
     assert!(b.run(&one(vec![input("every"), pair])).is_none());
-    let shared = let_in(Op::Let, "p", literal(1), one(vec![input("every"), input("p")]));
+    let shared = let_in(
+        Op::Let,
+        "p",
+        literal(1),
+        one(vec![input("every"), input("p")]),
+    );
     assert_eq!(b.run(&shared), b.run(&instance(&every, 1, "every")));
     let not_q = Op::Cases { q: a };
     assert!(b.run(&apply(not_q, vec![])).is_none());
@@ -2109,10 +2126,19 @@ fn intro_walked_through() {
         any_in("x", &s, Prop::Not(Box::new(correct("f", var("x"))))),
     );
     let review = take(&every, true, 1, "review");
-    let mut b = Bench::of(Judgement::default(), &[("every", &every, vec![review.clone()])]);
+    let mut b = Bench::of(
+        Judgement::default(),
+        &[("every", &every, vec![review.clone()])],
+    );
     b.inputs.insert("one".into(), Type::Point(point(1)));
-    b.values.insert("one".into(), Value::Point(Point::of(vec![int(1)])));
-    let at_p = |q: &Prop| apply(Op::Instance { q: q.clone() }, vec![input("every"), input("p")]);
+    b.values
+        .insert("one".into(), Value::Point(Point::of(vec![int(1)])));
+    let at_p = |q: &Prop| {
+        apply(
+            Op::Instance { q: q.clone() },
+            vec![input("every"), input("p")],
+        )
+    };
     let intro = |q: &Prop, body: E| {
         Expression::Apply(
             Op::Intro { q: q.clone() },
@@ -2131,13 +2157,17 @@ fn intro_walked_through() {
         assert!(o.rests_against().is_empty());
     }
     // Any false from the body false at the point: f wrong nowhere.
-    let o = b.run(&intro(&some_not, apply(Op::Not, vec![at_p(&every)]))).unwrap();
+    let o = b
+        .run(&intro(&some_not, apply(Op::Not, vec![at_p(&every)])))
+        .unwrap();
     assert_eq!(o.rests_against(), &rests(&[&[&review]]));
     assert!(o.rests_for().is_empty());
     // An all false at the point, or an any true there, says nothing of
     // the whole: the point is any point, not one that was tested.
     let wrong = all_in("x", &s, Prop::Not(Box::new(correct("f", var("x")))));
-    let o = b.run(&intro(&wrong, apply(Op::Not, vec![at_p(&every)]))).unwrap();
+    let o = b
+        .run(&intro(&wrong, apply(Op::Not, vec![at_p(&every)])))
+        .unwrap();
     assert!(o.rests_for().is_empty() && o.rests_against().is_empty());
     // A set not within the one read, or a body of another proposition:
     // nothing. Nor outside the intro, where `p` is unbound.
@@ -2150,17 +2180,33 @@ fn intro_walked_through() {
     // only if written the same: 0..3 is not within 0..3 where n != 1.
     let (not_one, _) = sets().swap_remove(1);
     let on_some = all_in("x", &not_one, correct("f", var("x")));
-    let c = Bench::of(Judgement::default(), &[("some", &on_some, vec![take(&on_some, true, 1, "review")])]);
-    let from_some = apply(Op::Instance { q: on_some.clone() }, vec![input("some"), input("p")]);
+    let c = Bench::of(
+        Judgement::default(),
+        &[("some", &on_some, vec![take(&on_some, true, 1, "review")])],
+    );
+    let from_some = apply(
+        Op::Instance { q: on_some.clone() },
+        vec![input("some"), input("p")],
+    );
     assert!(c.run(&intro(&every, from_some.clone())).is_none());
-    let o = c.run(&intro(&all_in("y", &not_one, correct("f", var("y"))), from_some)).unwrap();
+    let o = c
+        .run(&intro(
+            &all_in("y", &not_one, correct("f", var("y"))),
+            from_some,
+        ))
+        .unwrap();
     assert_eq!(o.state(), State::True);
     // The point given as an input is a point written in place, of its
     // own type only.
-    let at_one = apply(Op::Instance { q: every.clone() }, vec![input("every"), input("one")]);
+    let at_one = apply(
+        Op::Instance { q: every.clone() },
+        vec![input("every"), input("one")],
+    );
     assert_eq!(b.run(&at_one).unwrap().about(), &correct("f", point(1)));
     let two = Value::Point(Point::of(vec![int(2)]));
-    assert!(b.judgement.has_type(&b.values["one"], &Type::Point(point(1))));
+    assert!(b
+        .judgement
+        .has_type(&b.values["one"], &Type::Point(point(1))));
     assert!(!b.judgement.has_type(&two, &Type::Point(point(1))));
     assert!(!b.judgement.has_type(&two, &Type::Point(arbitrary(&every))));
     // The any point of a set that is not well formed is not well formed.
@@ -2192,7 +2238,12 @@ fn intro_walked_through() {
     // Inside an intro, the point may be taken back to its whole, or be
     // a witness: what follows is about any point of the set, so only
     // what the intro proves leaves it.
-    let up = apply(Op::Witness { q: any_in("z", &s, correct("f", var("z"))) }, vec![at_p(&every), input("p")]);
+    let up = apply(
+        Op::Witness {
+            q: any_in("z", &s, correct("f", var("z"))),
+        },
+        vec![at_p(&every), input("p")],
+    );
     let q = all_in("y", &s, correct("f", var("y")));
     let inside = let_in(Op::Let, "w", up, at_p(&every));
     let o = b.run(&intro(&q, inside)).unwrap();
@@ -2359,7 +2410,12 @@ fn an_ill_formed_quantifier_is_refused_by_every_rule() {
     let j = Judgement::default();
     let one = sim(simulation::Op::Int(1.into()), vec![]);
     let not_a_truth = set("n", 0, 2, Some(one));
-    let vacuous = apply(Op::Cases { q: all_in("x", &not_a_truth, correct("f", var("x"))) }, vec![]);
+    let vacuous = apply(
+        Op::Cases {
+            q: all_in("x", &not_a_truth, correct("f", var("x"))),
+        },
+        vec![],
+    );
     assert_eq!(check(&j, &BTreeMap::new(), &vacuous), None);
     assert_eq!(eval(&j, &BTreeMap::new(), &vacuous), Err(Fault::Stuck));
     let twice = Set {
@@ -2374,7 +2430,10 @@ fn an_ill_formed_quantifier_is_refused_by_every_rule() {
     let o = Opinion::taken(inst.clone(), vec![take(&inst, true, 1, "test")]).unwrap();
     let values = BTreeMap::from([("i".to_string(), Value::Opinion(o))]);
     let point = apply(Op::Point(at), vec![]);
-    let w = apply(Op::Witness { q: q.clone() }, vec![input("i"), point.clone()]);
+    let w = apply(
+        Op::Witness { q: q.clone() },
+        vec![input("i"), point.clone()],
+    );
     assert_eq!(check(&j, &inputs, &w), None);
     assert_eq!(eval(&j, &values, &w), Err(Fault::Stuck));
     let c = apply(Op::Cases { q: q.clone() }, vec![input("i")]);
@@ -2408,7 +2467,11 @@ fn many_cases_run_in_linear_time() {
     let ways: Vec<usize> = o.rests_for().iter().map(BTreeSet::len).collect();
     assert_eq!(ways, [n as usize]);
     // Quadratic, as before, took 6 s in a debug build.
-    assert!(start.elapsed() < std::time::Duration::from_secs(2), "{:?}", start.elapsed());
+    assert!(
+        start.elapsed() < std::time::Duration::from_secs(2),
+        "{:?}",
+        start.elapsed()
+    );
 }
 
 /// S3, red team round 6: a set's condition runs inside the proof that
@@ -2427,13 +2490,22 @@ fn a_condition_adds_to_the_depth() {
             };
             let mut such = sim(simulation::Op::Truth(true), vec![]);
             for _ in 0..200 {
-                such = sim(simulation::Op::Not, vec![sim(simulation::Op::Not, vec![such])]);
+                such = sim(
+                    simulation::Op::Not,
+                    vec![sim(simulation::Op::Not, vec![such])],
+                );
             }
             let q = all_in("x", &set("n", 0, 1, Some(such)), p.clone());
             let mut e = apply(Op::Instance { q: q.clone() }, vec![input("q"), literal(0)]);
             for level in 0..600 {
                 e = match level % 2 {
-                    0 => apply(Op::Ponens { t: t.clone(), post: 0 }, vec![input("t"), e]),
+                    0 => apply(
+                        Op::Ponens {
+                            t: t.clone(),
+                            post: 0,
+                        },
+                        vec![input("t"), e],
+                    ),
                     _ => let_in(Op::Let, "o", e, input("o")),
                 };
             }
@@ -2454,9 +2526,17 @@ fn a_condition_adds_to_the_depth() {
 #[test]
 fn an_ill_formed_set_is_refused_before_its_points_are_listed() {
     let one = sim(simulation::Op::Int(1.into()), vec![]);
-    let q = all_in("x", &set("n", 0, 3_000_000, Some(one)), correct("f", var("x")));
+    let q = all_in(
+        "x",
+        &set("n", 0, 3_000_000, Some(one)),
+        correct("f", var("x")),
+    );
     let start = std::time::Instant::now();
     let e = apply(Op::Cases { q }, vec![]);
     assert_eq!(check(&Judgement::default(), &BTreeMap::new(), &e), None);
-    assert!(start.elapsed() < std::time::Duration::from_millis(500), "{:?}", start.elapsed());
+    assert!(
+        start.elapsed() < std::time::Duration::from_millis(500),
+        "{:?}",
+        start.elapsed()
+    );
 }

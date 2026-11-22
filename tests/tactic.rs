@@ -372,7 +372,10 @@ fn one_proof_for_every_point() {
     })
     .unwrap();
     let o = ledger.prove(&proof, &goal);
-    assert_eq!(o.rests_for(), &BTreeSet::from([BTreeSet::from([review.clone(), rule])]));
+    assert_eq!(
+        o.rests_for(),
+        &BTreeSet::from([BTreeSet::from([review.clone(), rule])])
+    );
     // Over a set wider than what is known, b from 0: div is not known at
     // b == 0, so the instances do not check.
     let wider = on(big(0), quot(x()));
@@ -385,13 +388,19 @@ fn one_proof_for_every_point() {
         body: Box::new(Prop::Not(Box::new(correct(x())))),
     };
     let proof = intro(&wrong, "p", |_, _| {
-        let at_p = apply(Op::Instance { q: div_all.clone() }, vec![name("div"), name("p")]);
+        let at_p = apply(
+            Op::Instance { q: div_all.clone() },
+            vec![name("div"), name("p")],
+        );
         apply(Op::Not, vec![at_p])
     })
     .unwrap();
     let o = ledger.prove(&proof, &wrong);
     assert_eq!(o.state(), State::False);
-    assert_eq!(o.rests_against(), &BTreeSet::from([BTreeSet::from([review])]));
+    assert_eq!(
+        o.rests_against(),
+        &BTreeSet::from([BTreeSet::from([review])])
+    );
     // The point is known only inside the proof.
     let outside = apply(
         Op::Instance { q: div_all.clone() },

@@ -19,11 +19,27 @@
 //! `covers`: for every checked expression, bounds that fit the inputs'
 //! types and exact values in γ of them, the exact outcome is in γ of
 //! the bounded one.
+//!
+//! A call names a function of the model by its path, `sun::light()`.
+//! The standard and both readings hold the same `Calls`: what each
+//! function takes and gives, and its body, or rows of what it gives at
+//! points when it has none. `Exact` runs the body, or reads a row; with
+//! neither, a call has no value (`Undefined::Unknown`). `Ranges` runs the
+//! body, or else allows any value of the type, or none. Calls never go
+//! round: `Calls::with` refuses a function that calls itself, however
+//! far. A call takes the values of its arguments, as Rust's does: a
+//! fault in one is the call's.
+//!
+//! A type parameter, `T` or `T: Number`, is a type a contract names but
+//! does not fix. A contract is checked once with it; no value is of it.
 
-use crate::expression::{strict, Fault, Outcome, Reading, Standard};
+use crate::expression::{check, eval, strict, Expression, Fault, Outcome, Reading, Standard};
+use crate::graph::components;
 use num_bigint::BigInt;
 use num_rational::BigRational;
 use num_traits::{Signed, Zero};
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 /// A ratio of two integers, in lowest terms, its lower part above zero.
 /// Made only by `new`, `integer` and the operations, so there is no
@@ -112,6 +128,58 @@ pub enum Type {
     Int,
     Real,
     Record(Record),
+    /// A type a contract names but does not fix, with its bound: `T`, or
+    /// `T: Number`, a whole number or a real. No value is of it.
+    Param {
+        name: String,
+        bound: Bound,
+    },
+}
+
+/// What a type parameter promises: nothing but `==`, or a number, with
+/// `+`, `-`, `*`, `<`, `<=` and `within`. Rust's `T` and `T: Number`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Bound {
+    Any,
+    Number,
+}
+
+impl Bound {
+    /// `t` keeps the promise: any type, or `Int`, `Real` or a parameter
+    /// bound by `Number`, for `Number`.
+    pub fn admits(&self, t: &Type) -> bool {
+        match self {
+            Bound::Any => true,
+            Bound::Number => number(t),
+        }
+    }
+}
+
+impl Type {
+    /// `self` with each parameter `given` names replaced by its type, in
+    /// records too.
+    pub fn given(&self, given: &BTreeMap<String, Type>) -> Type {
+        match self {
+            Type::Param { name, .. } => given.get(name).cloned().unwrap_or_else(|| self.clone()),
+            Type::Record(r) => Type::Record(Record {
+                name: r.name.clone(),
+                fields: r
+                    .fields
+                    .iter()
+                    .map(|(n, t)| (n.clone(), t.given(given)))
+                    .collect(),
+            }),
+            _ => self.clone(),
+        }
+    }
+    /// It names a type parameter, in a record too.
+    pub fn open(&self) -> bool {
+        match self {
+            Type::Param { .. } => true,
+            Type::Record(r) => r.fields.iter().any(|(_, t)| t.open()),
+            _ => false,
+        }
+    }
 }
 
 /// An exact value. Its order is only for keeping values in sets: it
@@ -129,6 +197,9 @@ pub enum Value {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Undefined {
     DivisionByZero,
+    /// A call of this function has no value here: it has no body, and no
+    /// row gives one at these arguments.
+    Unknown(String),
 }
 
 /// The operations, in Rust's form.
@@ -171,14 +242,140 @@ pub enum Op {
     /// `lo` up to `hi`, `hi` left out. The third argument binds `x`, an
     /// `Int`, and is read for each number in turn, as `&&` reads.
     All,
+    /// `sun::light(a, b)`: the function at this path, at these arguments.
+    Call(String),
 }
 
-/// The simulation standard: its types and the type of each operation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Simulation;
+/// A function a call can name: what it takes, each by name, what it
+/// gives, and its body; or, with no body, rows of what it gives at
+/// points (its examples, observations). With neither it is opaque.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Callee {
+    pub takes: Vec<(String, Type)>,
+    pub gives: Type,
+    pub body: Option<Expression<Op>>,
+    pub rows: Vec<(Vec<Value>, Value)>,
+}
+
+/// The functions calls can name, each by its path. Only `with` makes
+/// one with functions, and it checks them.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Calls {
+    callees: BTreeMap<String, Callee>,
+}
+
+impl Calls {
+    /// These functions, or `Err` with the paths of those refused: a
+    /// function that calls itself, however far; a body that does not
+    /// check to what it gives, from what it takes; a row that is not of
+    /// its types; a body or a row while its types name a parameter, which
+    /// no value is of; and a function that calls one refused or unknown.
+    pub fn with(callees: BTreeMap<String, Callee>) -> Result<Calls, BTreeSet<String>> {
+        let names: Vec<&String> = callees.keys().collect();
+        let place: BTreeMap<&String, usize> =
+            names.iter().enumerate().map(|(i, n)| (*n, i)).collect();
+        let mut out = vec![Vec::new(); names.len()];
+        let mut refused = BTreeSet::new();
+        for (i, (name, callee)) in callees.iter().enumerate() {
+            // A function the library lacks is refused by its type, below.
+            for called in callee.body.iter().flat_map(called) {
+                out[i].extend(place.get(&called).copied());
+            }
+        }
+        // On a cycle: in a component of two or more, or calling itself.
+        let component = components(&out);
+        for (i, name) in names.iter().enumerate() {
+            let shared = component.iter().filter(|&&c| c == component[i]).count() > 1;
+            if shared || out[i].contains(&i) {
+                refused.insert((*name).clone());
+            }
+        }
+        let standard = Simulation {
+            calls: Arc::new(Calls {
+                callees: callees.clone(),
+            }),
+        };
+        let exact = Exact::default();
+        for (name, callee) in &callees {
+            let open = callee.gives.open() || callee.takes.iter().any(|(_, t)| t.open());
+            let inputs: BTreeMap<String, Type> = callee.takes.iter().cloned().collect();
+            let body = callee.body.as_ref().is_none_or(|body| {
+                !refused.contains(name)
+                    && inputs.len() == callee.takes.len()
+                    && check(&standard, &inputs, body) == Some(callee.gives.clone())
+            });
+            let row = |(at, gives): &(Vec<Value>, Value)| {
+                at.len() == callee.takes.len()
+                    && at
+                        .iter()
+                        .zip(&callee.takes)
+                        .all(|(v, (_, t))| exact.has_type(v, t))
+                    && exact.has_type(gives, &callee.gives)
+            };
+            let bare = callee.body.is_none() && callee.rows.is_empty();
+            if !body || !callee.rows.iter().all(row) || (open && !bare) {
+                refused.insert(name.clone());
+            }
+        }
+        // And whatever calls one refused, however far.
+        loop {
+            let more: Vec<String> = callees
+                .iter()
+                .filter(|(name, _)| !refused.contains(*name))
+                .filter(|(_, c)| c.body.iter().flat_map(called).any(|f| refused.contains(&f)))
+                .map(|(name, _)| name.clone())
+                .collect();
+            if more.is_empty() {
+                break;
+            }
+            refused.extend(more);
+        }
+        match refused.is_empty() {
+            true => Ok(Calls { callees }),
+            false => Err(refused),
+        }
+    }
+    /// The function at `path`.
+    pub fn get(&self, path: &str) -> Option<&Callee> {
+        self.callees.get(path)
+    }
+    /// Every function, by path.
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Callee)> {
+        self.callees.iter()
+    }
+}
+
+/// The paths a body calls, each once.
+fn called(body: &Expression<Op>) -> BTreeSet<String> {
+    let (mut found, mut todo) = (BTreeSet::new(), vec![body]);
+    while let Some(e) = todo.pop() {
+        if let Expression::Apply(op, args) = e {
+            if let Op::Call(f) = op {
+                found.insert(f.clone());
+            }
+            todo.extend(args.iter().map(|a| &a.body));
+        }
+    }
+    found
+}
+
+/// The simulation standard: its types, the type of each operation, and
+/// the functions a call can name.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Simulation {
+    pub calls: Arc<Calls>,
+}
 
 fn number(t: &Type) -> bool {
-    matches!(t, Type::Int | Type::Real)
+    matches!(
+        t,
+        Type::Int
+            | Type::Real
+            | Type::Param {
+                bound: Bound::Number,
+                ..
+            }
+    )
 }
 
 impl Standard for Simulation {
@@ -210,6 +407,12 @@ impl Standard for Simulation {
             (Op::Field(name), [Type::Record(r)]) => r.field(name)?.1.clone(),
             (Op::Let, [_, t]) => t.clone(),
             (Op::All, [Int, Int, Truth]) => Truth,
+            (Op::Call(f), takes) => {
+                let callee = self.calls.get(f)?;
+                let fits = takes.len() == callee.takes.len()
+                    && takes.iter().zip(&callee.takes).all(|(t, (_, u))| t == u);
+                return fits.then(|| callee.gives.clone());
+            }
             _ => return None,
         })
     }
@@ -222,8 +425,31 @@ fn fits_fields<X>(these: &[X], r: &Record, right: impl Fn(&X, &Type) -> bool) ->
 }
 
 /// The exact reading: values.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Exact;
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Exact {
+    pub calls: Arc<Calls>,
+}
+
+impl Exact {
+    /// A call of `f` at these values: its body run on them, or else the
+    /// row at them.
+    fn call(&self, f: &str, args: &[Value]) -> Exactly {
+        let callee = self.calls.get(f).ok_or(Fault::Stuck)?;
+        if args.len() != callee.takes.len() {
+            return Err(Fault::Stuck);
+        }
+        match &callee.body {
+            Some(body) => {
+                let names = callee.takes.iter().map(|(n, _)| n.clone());
+                eval(self, &names.zip(args.iter().cloned()).collect(), body)
+            }
+            None => match callee.rows.iter().find(|(at, _)| at.as_slice() == args) {
+                Some((_, gives)) => Ok(gives.clone()),
+                None => Err(Fault::Op(Undefined::Unknown(f.to_string()))),
+            },
+        }
+    }
+}
 
 type Exactly = Outcome<Value, Undefined>;
 
@@ -259,6 +485,9 @@ impl Reading for Exact {
     }
 
     fn apply(&self, op: &Op, args: &[Exactly]) -> Exactly {
+        if let Op::Call(f) = op {
+            return self.call(f, &strict(args)?);
+        }
         match (op, args) {
             (Op::If, [test, then, otherwise]) => {
                 return match decides(test)? {
@@ -399,7 +628,7 @@ pub fn covers(of: &Type, bounds: &Outcome<Bounds, Undefined>, exact: &Exactly) -
     match (bounds, exact) {
         (Err(Fault::Op(_)), Err(Fault::Op(_))) => true,
         (Ok(b), Err(Fault::Op(_))) => b.may_fault,
-        (Ok(b), Ok(v)) => Exact.has_type(v, of) && lies_in(v, &b.span),
+        (Ok(b), Ok(v)) => Exact::default().has_type(v, of) && lies_in(v, &b.span),
         _ => false,
     }
 }
@@ -430,7 +659,8 @@ impl Bounds {
                     yes: true,
                     no: true,
                 },
-                Type::Int | Type::Real => Span::Number(None),
+                // No value is of a parameter: its span is never read.
+                Type::Int | Type::Real | Type::Param { .. } => Span::Number(None),
                 Type::Record(r) => {
                     Span::Record(r.clone(), r.fields.iter().map(|(_, f)| span(f)).collect())
                 }
@@ -477,8 +707,38 @@ fn fits(span: &Span, of: &Type) -> bool {
 }
 
 /// The reading by bounds.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Ranges;
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Ranges {
+    pub calls: Arc<Calls>,
+}
+
+impl Ranges {
+    /// A call of `f` on these bounds: its body run on them, or else any
+    /// value of its type, which may be none; none at all when its type
+    /// names a parameter. It may fault where an argument may.
+    fn call(&self, f: &str, args: &[Bounds]) -> Bounded {
+        let callee = self.calls.get(f).ok_or(Fault::Stuck)?;
+        if args.len() != callee.takes.len() {
+            return Err(Fault::Stuck);
+        }
+        let gives = match &callee.body {
+            Some(body) => {
+                let names = callee.takes.iter().map(|(n, _)| n.clone());
+                eval(self, &names.zip(args.iter().cloned()).collect(), body)
+            }
+            None if callee.gives.open() => Err(Fault::Op(Undefined::Unknown(f.to_string()))),
+            None => Ok(Bounds {
+                may_fault: true,
+                ..Bounds::any(&callee.gives)
+            }),
+        };
+        let may_fault = args.iter().any(|b| b.may_fault);
+        gives.map(|b| Bounds {
+            may_fault: b.may_fault || may_fault,
+            ..b
+        })
+    }
+}
 
 type Bounded = Outcome<Bounds, Undefined>;
 
@@ -671,12 +931,15 @@ impl Reading for Ranges {
             _ => {}
         }
         let args = strict(args)?;
+        if let Op::Call(f) = op {
+            return self.call(f, &args);
+        }
         let may_fault = args.iter().any(|b| b.may_fault);
         let spans: Vec<&Span> = args.iter().map(|b| &b.span).collect();
         use Span::Number as N;
         let span = match (op, spans.as_slice()) {
             (Op::Truth(_) | Op::Int(_) | Op::Real(_), []) => {
-                let exact = Exact.apply(op, &[])?;
+                let exact = Exact::default().apply(op, &[])?;
                 Bounds::exactly(&exact).span
             }
             (Op::Not, [Span::Truth { yes, no }]) => Span::Truth { yes: *no, no: *yes },

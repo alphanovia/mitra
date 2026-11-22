@@ -9,13 +9,14 @@ use mitra_core::expression::{
     check, eval, fits, substitute, Arg, Expression, Fault, Outcome, Reading, Standard,
 };
 use mitra_core::simulation::{
-    covers, lies_in, Bounds, Exact, Op, Ranges, Rational, Record, Simulation, Span, Type,
-    Undefined, Value,
+    covers, lies_in, Bound, Bounds, Callee, Calls, Exact, Op, Ranges, Rational, Record, Simulation,
+    Span, Type, Undefined, Value,
 };
 use num_bigint::BigInt;
 use num_traits::{Signed, Zero};
 use proptest::prelude::*;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 type E = Expression<Op>;
 
@@ -79,16 +80,65 @@ struct Gen {
     inputs: BTreeMap<String, Type>,
     /// The names `let` binds in scope, the nearest last.
     scope: Vec<(String, Type)>,
+    /// The functions an expression may call.
+    calls: Arc<Calls>,
 }
 
 impl Gen {
     fn new(seed: u64) -> Gen {
+        Gen::library(seed, true)
+    }
+    /// A generator whose library's functions all have bodies, unless
+    /// `opaque`: then some have only rows, or nothing.
+    fn library(seed: u64, opaque: bool) -> Gen {
         let mut g = Gen {
             rng: Rng::new(seed),
             records: records(),
             inputs: BTreeMap::new(),
             scope: Vec::new(),
+            calls: Arc::default(),
         };
+        // Three functions, each calling only those before it: with a
+        // body, with rows (one of no argument always found), or opaque.
+        let mut callees = BTreeMap::new();
+        for i in 0..3 {
+            let takes: Vec<(String, Type)> = (0..g.rng.below(3))
+                .map(|k| (format!("a{k}"), g.ty()))
+                .collect();
+            let gives = g.ty();
+            let (body, rows) = match g.rng.below(4) {
+                n if n < 2 || !opaque => {
+                    let mut sub = Gen {
+                        rng: Rng::new(g.rng.next()),
+                        records: g.records.clone(),
+                        inputs: takes.iter().cloned().collect(),
+                        scope: Vec::new(),
+                        calls: Arc::new(Calls::with(callees.clone()).unwrap()),
+                    };
+                    (Some(sub.expr(&gives, 3)), vec![])
+                }
+                2 => {
+                    let rows = (0..1 + g.rng.below(3))
+                        .map(|_| {
+                            (
+                                takes.iter().map(|(_, t)| g.value(t)).collect(),
+                                g.value(&gives),
+                            )
+                        })
+                        .collect();
+                    (None, rows)
+                }
+                _ => (None, vec![]),
+            };
+            let callee = Callee {
+                takes,
+                gives,
+                body,
+                rows,
+            };
+            callees.insert(format!("lib::f{i}"), callee);
+        }
+        g.calls = Arc::new(Calls::with(callees).unwrap());
         for i in 0..g.rng.below(6) {
             let t = g.ty();
             g.inputs.insert(format!("x{i}"), t);
@@ -96,6 +146,21 @@ impl Gen {
         // A truth the ends of ranges may turn on.
         g.inputs.insert("c".to_string(), Type::Truth);
         g
+    }
+    fn standard(&self) -> Simulation {
+        Simulation {
+            calls: self.calls.clone(),
+        }
+    }
+    fn exact(&self) -> Exact {
+        Exact {
+            calls: self.calls.clone(),
+        }
+    }
+    fn ranges(&self) -> Ranges {
+        Ranges {
+            calls: self.calls.clone(),
+        }
     }
     fn ty(&mut self) -> Type {
         let mut all = vec![Type::Truth, Type::Int, Type::Real];
@@ -137,6 +202,7 @@ impl Gen {
     }
     fn value(&mut self, t: &Type) -> Value {
         match t {
+            Type::Param { .. } => unreachable!("no value is of a parameter"),
             Type::Truth => Value::Truth(self.rng.coin()),
             Type::Int => Value::Int(self.int()),
             Type::Real => Value::Real(self.rational()),
@@ -148,6 +214,7 @@ impl Gen {
     }
     fn constant(&mut self, t: &Type) -> E {
         match t {
+            Type::Param { .. } => unreachable!("no value is of a parameter"),
             Type::Truth => apply(Op::Truth(self.rng.coin()), vec![]),
             Type::Int => apply(Op::Int(self.int()), vec![]),
             Type::Real => apply(Op::Real(self.rational()), vec![]),
@@ -230,6 +297,20 @@ impl Gen {
                 let of = self.expr(&Type::Record(r), d);
                 return apply(Op::Field(name), vec![of]);
             }
+            // A call of a function that gives `t`.
+            4 | 5 => {
+                let giving: Vec<(String, Callee)> = self
+                    .calls
+                    .iter()
+                    .filter(|(_, c)| &c.gives == t)
+                    .map(|(f, c)| (f.clone(), c.clone()))
+                    .collect();
+                if !giving.is_empty() {
+                    let (f, callee) = self.rng.pick(&giving).clone();
+                    let args = callee.takes.iter().map(|(_, u)| self.expr(u, d)).collect();
+                    return apply(Op::Call(f), args);
+                }
+            }
             _ => {}
         }
         match t {
@@ -277,6 +358,7 @@ impl Gen {
                 let fields = r.fields.iter().map(|(_, f)| self.expr(f, d)).collect();
                 apply(Op::Make(r.clone()), fields)
             }
+            Type::Param { .. } => unreachable!("no value is of a parameter"),
         }
     }
     /// An end of a range: a small number, or one of two others by a test
@@ -286,7 +368,7 @@ impl Gen {
         let b = (a + 1 + self.rng.below(3)) % 4;
         let test = match self.rng.below(4) {
             0 => return int(a as i64 - 1),
-            1 => input("c"),
+            1 if self.inputs.contains_key("c") => input("c"),
             // `1 / r < 0`, which has no value where `r` is 0.
             2 => {
                 let r = self.leaf(&Type::Real);
@@ -335,6 +417,7 @@ impl Gen {
                 r.clone(),
                 r.fields.iter().map(|(_, f)| self.span(f)).collect(),
             ),
+            Type::Param { .. } => unreachable!("no value is of a parameter"),
         }
     }
     /// A value in `span`: γ, sampled.
@@ -444,6 +527,7 @@ impl Gen {
             Op::Field(name),
             Op::Let,
             Op::All,
+            Op::Call(format!("lib::f{}", self.rng.below(4))),
         ];
         self.rng.pick(&all).clone()
     }
@@ -540,12 +624,12 @@ proptest! {
         let mut g = Gen::new(seed);
         let t = g.ty();
         let e = g.expr(&t, depth);
-        prop_assert_eq!(check(&Simulation, &g.inputs, &e), Some(t.clone()));
+        prop_assert_eq!(check(&g.standard(), &g.inputs, &e), Some(t.clone()));
         let values = g.values();
-        prop_assert!(fits(&Exact, &g.inputs, &values));
-        let out = eval(&Exact, &values, &e);
-        prop_assert!(progress(&Exact, &out, &t), "{:?} gave {:?}", e, out);
-        prop_assert_eq!(out, eval(&Exact, &values, &e));
+        prop_assert!(fits(&g.exact(), &g.inputs, &values));
+        let out = eval(&g.exact(), &values, &e);
+        prop_assert!(progress(&g.exact(), &out, &t), "{:?} gave {:?}", e, out);
+        prop_assert_eq!(out, eval(&g.exact(), &values, &e));
     }
 
     /// S1, S2, S4 on the reading by bounds.
@@ -555,10 +639,10 @@ proptest! {
         let t = g.ty();
         let e = g.expr(&t, depth);
         let (bounds, _) = g.bounded();
-        prop_assert!(fits(&Ranges, &g.inputs, &bounds));
-        let out = eval(&Ranges, &bounds, &e);
-        prop_assert!(progress(&Ranges, &out, &t), "{:?} gave {:?}", e, out);
-        prop_assert_eq!(out, eval(&Ranges, &bounds, &e));
+        prop_assert!(fits(&g.ranges(), &g.inputs, &bounds));
+        let out = eval(&g.ranges(), &bounds, &e);
+        prop_assert!(progress(&g.ranges(), &out, &t), "{:?} gave {:?}", e, out);
+        prop_assert_eq!(out, eval(&g.ranges(), &bounds, &e));
     }
 
     /// S6: a let shares. Each reading gives what the expression with
@@ -569,10 +653,10 @@ proptest! {
         let t = g.ty();
         let e = g.expr(&t, depth);
         let written = inline(&e, &is_let);
-        prop_assert_eq!(check(&Simulation, &g.inputs, &written), Some(t.clone()));
+        prop_assert_eq!(check(&g.standard(), &g.inputs, &written), Some(t.clone()));
         let (bounds, exact) = g.bounded();
-        prop_assert_eq!(eval(&Exact, &exact, &e), eval(&Exact, &exact, &written));
-        prop_assert_eq!(eval(&Ranges, &bounds, &e), eval(&Ranges, &bounds, &written));
+        prop_assert_eq!(eval(&g.exact(), &exact, &e), eval(&g.exact(), &exact, &written));
+        prop_assert_eq!(eval(&g.ranges(), &bounds, &e), eval(&g.ranges(), &bounds, &written));
     }
 
     /// S6 on any expression, checked or not.
@@ -581,13 +665,13 @@ proptest! {
         let mut g = Gen::new(seed);
         let e = g.wild(depth);
         let written = inline(&e, &is_let);
-        if let Some(t) = check(&Simulation, &g.inputs, &e) {
-            prop_assert_eq!(check(&Simulation, &g.inputs, &written), Some(t));
+        if let Some(t) = check(&g.standard(), &g.inputs, &e) {
+            prop_assert_eq!(check(&g.standard(), &g.inputs, &written), Some(t));
         }
         let values: BTreeMap<String, Value> = (0..8).map(|i| (format!("x{i}"), g.wild_value())).collect();
         let bounds: BTreeMap<String, Bounds> = (0..8).map(|i| (format!("x{i}"), g.wild_bounds())).collect();
-        prop_assert_eq!(eval(&Exact, &values, &e), eval(&Exact, &values, &written));
-        prop_assert_eq!(eval(&Ranges, &bounds, &e), eval(&Ranges, &bounds, &written));
+        prop_assert_eq!(eval(&g.exact(), &values, &e), eval(&g.exact(), &values, &written));
+        prop_assert_eq!(eval(&g.ranges(), &bounds, &e), eval(&g.ranges(), &bounds, &written));
     }
 
     /// S5: every exact outcome lies in the bounded one, when each exact
@@ -598,12 +682,12 @@ proptest! {
         let t = g.ty();
         let e = g.expr(&t, depth);
         let (bounds, exact) = g.bounded();
-        prop_assert!(fits(&Ranges, &g.inputs, &bounds));
+        prop_assert!(fits(&g.ranges(), &g.inputs, &bounds));
         for (name, value) in &exact {
             let (b, x) = (Ok(bounds[name].clone()), Ok(value.clone()));
             prop_assert!(covers(&g.inputs[name], &b, &x));
         }
-        let (b, x) = (eval(&Ranges, &bounds, &e), eval(&Exact, &exact, &e));
+        let (b, x) = (eval(&g.ranges(), &bounds, &e), eval(&g.exact(), &exact, &e));
         prop_assert!(covers(&t, &b, &x), "{:?}\nbounds {:?}\nexact {:?}\nat {:?} in {:?}", e, b, x, exact, bounds);
     }
 
@@ -620,29 +704,30 @@ proptest! {
         if args.iter().any(|a| !a.binds.is_empty()) {
             return Ok(());
         }
-        let takes: Vec<Type> = args.iter().map(|a| check(&Simulation, &g.inputs, &a.body).unwrap()).collect();
-        prop_assert_eq!(Simulation.gives(&op, &takes), Some(t.clone()));
+        let takes: Vec<Type> = args.iter().map(|a| check(&g.standard(), &g.inputs, &a.body).unwrap()).collect();
+        prop_assert_eq!(g.standard().gives(&op, &takes), Some(t.clone()));
         let (bounds, exact): (Vec<_>, Vec<_>) = takes.iter().map(|ty| g.outcome(ty)).unzip();
         for ((ty, b), x) in takes.iter().zip(&bounds).zip(&exact) {
-            prop_assert!(b.as_ref().map_or(true, |b| Ranges.has_type(b, ty)));
+            prop_assert!(b.as_ref().map_or(true, |b| g.ranges().has_type(b, ty)));
             prop_assert!(covers(ty, b, x));
         }
-        let (b, x) = (Ranges.apply(&op, &bounds), Exact.apply(&op, &exact));
+        let (b, x) = (g.ranges().apply(&op, &bounds), g.exact().apply(&op, &exact));
         prop_assert!(covers(&t, &b, &x), "{:?} on {:?}\nbounds {:?}\nexact {:?}", op, takes, b, x);
     }
 
     /// S5 on points: when every input's bounds are its exact value, the
     /// bounds of the outcome are the exact outcome, or its fault. Bounds
     /// that said "anything, may fault" everywhere would cover, and fail
-    /// here.
+    /// here. Every function called has a body: of one without, `Exact`
+    /// has no value and `Ranges` knows only the type.
     #[test]
     fn points_are_exact(seed in any::<u64>(), depth in 1u32..6) {
-        let mut g = Gen::new(seed);
+        let mut g = Gen::library(seed, false);
         let t = g.ty();
         let e = g.expr(&t, depth);
         let exact = g.values();
         let points: BTreeMap<_, _> = exact.iter().map(|(n, v)| (n.clone(), Bounds::exactly(v))).collect();
-        let (b, x) = (eval(&Ranges, &points, &e), eval(&Exact, &exact, &e));
+        let (b, x) = (eval(&g.ranges(), &points, &e), eval(&g.exact(), &exact, &e));
         prop_assert!(covers(&t, &b, &x), "{:?}\nbounds {:?}\nexact {:?}", e, b, x);
         prop_assert_eq!(&b, &x.clone().map(|v| Bounds::exactly(&v)), "{:?}", e);
     }
@@ -660,7 +745,7 @@ proptest! {
         let p = g.expr(&Type::Truth, depth);
         g.scope.pop();
         let e = all(input("lo"), input("hi"), &x, p);
-        prop_assert_eq!(check(&Simulation, &g.inputs, &e), Some(Type::Truth));
+        prop_assert_eq!(check(&g.standard(), &g.inputs, &e), Some(Type::Truth));
         let (mut bounds, mut exact) = g.bounded();
         for end in ["lo", "hi"] {
             let low = g.rng.below(5) as i64 - 2;
@@ -670,7 +755,7 @@ proptest! {
             exact.insert(end.to_string(), Value::Int(BigInt::from(low + g.rng.below((high - low + 1) as usize) as i64)));
             bounds.insert(end.to_string(), b);
         }
-        let (b, v) = (eval(&Ranges, &bounds, &e), eval(&Exact, &exact, &e));
+        let (b, v) = (eval(&g.ranges(), &bounds, &e), eval(&g.exact(), &exact, &e));
         prop_assert!(covers(&Type::Truth, &b, &v), "{:?}\nbounds {:?}\nexact {:?}\nat {:?} in {:?}", e, b, v, exact, bounds);
     }
 
@@ -681,9 +766,9 @@ proptest! {
         let e = g.wild(depth);
         let values: BTreeMap<_, _> = (0..8).map(|i| (format!("x{i}"), g.wild_value())).collect();
         let bounds: BTreeMap<_, _> = (0..8).map(|i| (format!("x{i}"), g.wild_bounds())).collect();
-        let _ = check(&Simulation, &g.inputs, &e);
-        let _ = eval(&Exact, &values, &e);
-        let _ = eval(&Ranges, &bounds, &e);
+        let _ = check(&g.standard(), &g.inputs, &e);
+        let _ = eval(&g.exact(), &values, &e);
+        let _ = eval(&g.ranges(), &bounds, &e);
     }
 }
 
@@ -705,9 +790,14 @@ fn typed(pairs: &[(&str, Type)]) -> BTreeMap<String, Type> {
 #[test]
 fn within_at_the_ends_of_i64() {
     let e = apply(Op::Within, vec![int(i64::MIN), int(i64::MAX), int(0)]);
-    assert_eq!(eval(&Exact, &BTreeMap::new(), &e), Ok(Value::Truth(false)));
     assert_eq!(
-        eval(&Ranges, &BTreeMap::new(), &e).unwrap().surely(),
+        eval(&Exact::default(), &BTreeMap::new(), &e),
+        Ok(Value::Truth(false))
+    );
+    assert_eq!(
+        eval(&Ranges::default(), &BTreeMap::new(), &e)
+            .unwrap()
+            .surely(),
         Some(false)
     );
 }
@@ -726,10 +816,10 @@ fn a_sum_of_small_reals_is_exact() {
     )
     .unwrap();
     assert_eq!(
-        eval(&Exact, &BTreeMap::new(), &e),
+        eval(&Exact::default(), &BTreeMap::new(), &e),
         Ok(Value::Real(sum.clone()))
     );
-    let b = eval(&Ranges, &BTreeMap::new(), &e).unwrap();
+    let b = eval(&Ranges::default(), &BTreeMap::new(), &e).unwrap();
     assert_eq!(b.span, Span::Number(Some((sum.clone(), sum))));
     assert!(!b.may_fault);
 }
@@ -743,21 +833,21 @@ fn a_value_is_of_its_type_only() {
         fake.clone(),
         vec![Value::Int(1.into()), Value::Int(2.into())],
     );
-    assert!(!Exact.has_type(&Value::Truth(true), &Type::Int));
-    assert!(!Exact.has_type(&half, &Type::Real));
-    assert!(Exact.has_type(&half, &Type::Record(fake.clone())));
+    assert!(!Exact::default().has_type(&Value::Truth(true), &Type::Int));
+    assert!(!Exact::default().has_type(&half, &Type::Real));
+    assert!(Exact::default().has_type(&half, &Type::Record(fake.clone())));
     // A record of the right name with fields of the wrong type is not one.
     let point = record("Point", &[("x", Type::Real), ("y", Type::Real)]);
     let wrong = Value::Record(
         point.clone(),
         vec![Value::Int(1.into()), Value::Int(2.into())],
     );
-    assert!(!Exact.has_type(&wrong, &Type::Record(point)));
+    assert!(!Exact::default().has_type(&wrong, &Type::Record(point)));
     // `+` does not take two of the fake.
     let inputs = typed(&[("a", Type::Record(fake.clone())), ("b", Type::Record(fake))]);
     assert_eq!(
         check(
-            &Simulation,
+            &Simulation::default(),
             &inputs,
             &apply(Op::Add, vec![input("a"), input("b")])
         ),
@@ -772,9 +862,9 @@ fn a_value_is_of_its_type_only() {
 fn operations_are_the_standards() {
     let inputs = typed(&[("a", Type::Int)]);
     let e = apply(Op::Add, vec![input("a"), int(1)]);
-    assert_eq!(check(&Simulation, &inputs, &e), Some(Type::Int));
+    assert_eq!(check(&Simulation::default(), &inputs, &e), Some(Type::Int));
     let e = apply(Op::Add, vec![input("a"), real(1, 2)]);
-    assert_eq!(check(&Simulation, &inputs, &e), None);
+    assert_eq!(check(&Simulation::default(), &inputs, &e), None);
 }
 
 /// `if`, `&&` and `||` read only what they need, as in Rust:
@@ -794,7 +884,7 @@ fn branches_not_taken_are_not_read() {
     );
     let at_zero = at(&[("x", Value::Real(Rational::integer(0)))]);
     assert_eq!(
-        eval(&Exact, &at_zero, &inverse),
+        eval(&Exact::default(), &at_zero, &inverse),
         Ok(Value::Real(Rational::integer(0)))
     );
     let guarded = apply(
@@ -807,10 +897,13 @@ fn branches_not_taken_are_not_read() {
             ),
         ],
     );
-    assert_eq!(eval(&Exact, &at_zero, &guarded), Ok(Value::Truth(false)));
+    assert_eq!(
+        eval(&Exact::default(), &at_zero, &guarded),
+        Ok(Value::Truth(false))
+    );
     let unguarded = apply(Op::Div, vec![real(1, 1), x()]);
     assert_eq!(
-        eval(&Exact, &at_zero, &unguarded),
+        eval(&Exact::default(), &at_zero, &unguarded),
         Err(Fault::Op(mitra_core::simulation::Undefined::DivisionByZero))
     );
     // By bounds, x in [-1, 1]: the inverse may fault, the guarded `if` may too
@@ -819,11 +912,15 @@ fn branches_not_taken_are_not_read() {
         "x".to_string(),
         Bounds::between(Rational::integer(-1), Rational::integer(1)).unwrap(),
     )]);
-    assert!(eval(&Ranges, &around, &unguarded).unwrap().may_fault);
+    assert!(
+        eval(&Ranges::default(), &around, &unguarded)
+            .unwrap()
+            .may_fault
+    );
     assert!(covers(
         &Type::Real,
-        &eval(&Ranges, &around, &inverse),
-        &eval(&Exact, &at_zero, &inverse)
+        &eval(&Ranges::default(), &around, &inverse),
+        &eval(&Exact::default(), &at_zero, &inverse)
     ));
 }
 
@@ -841,10 +938,19 @@ fn a_claim_holds_over_a_domain() {
     );
     let low = apply(Op::Less, vec![product.clone(), real(400, 1)]);
     let inputs = typed(&[("h", Type::Real)]);
-    assert_eq!(check(&Simulation, &inputs, &low), Some(Type::Truth));
-    assert_eq!(eval(&Ranges, &h, &low).unwrap().surely(), Some(true));
+    assert_eq!(
+        check(&Simulation::default(), &inputs, &low),
+        Some(Type::Truth)
+    );
+    assert_eq!(
+        eval(&Ranges::default(), &h, &low).unwrap().surely(),
+        Some(true)
+    );
     let too_low = apply(Op::Less, vec![product, real(300, 1)]);
-    assert_eq!(eval(&Ranges, &h, &too_low).unwrap().surely(), None);
+    assert_eq!(
+        eval(&Ranges::default(), &h, &too_low).unwrap().surely(),
+        None
+    );
 }
 
 /// Two fields of one name: `r.x` is the first, in type and in value.
@@ -853,9 +959,12 @@ fn the_first_field_of_a_name() {
     let dup = record("Dup", &[("x", Type::Int), ("x", Type::Truth)]);
     let made = apply(Op::Make(dup), vec![int(7), apply(Op::Truth(true), vec![])]);
     let read = apply(Op::Field("x".to_string()), vec![made]);
-    assert_eq!(check(&Simulation, &BTreeMap::new(), &read), Some(Type::Int));
     assert_eq!(
-        eval(&Exact, &BTreeMap::new(), &read),
+        check(&Simulation::default(), &BTreeMap::new(), &read),
+        Some(Type::Int)
+    );
+    assert_eq!(
+        eval(&Exact::default(), &BTreeMap::new(), &read),
         Ok(Value::Int(7.into()))
     );
 }
@@ -893,11 +1002,11 @@ fn gamma_is_typed() {
     let empty = Value::Record(r.clone(), vec![]);
     assert!(!covers(&Type::Record(r.clone()), &none, &Ok(empty)));
     let fractional = Bounds::between(half, Rational::new(3, 2).unwrap()).unwrap();
-    assert!(!Ranges.has_type(&fractional, &Type::Int));
-    assert!(Ranges.has_type(&fractional, &Type::Real));
+    assert!(!Ranges::default().has_type(&fractional, &Type::Int));
+    assert!(Ranges::default().has_type(&fractional, &Type::Real));
     let x = BTreeMap::from([("x".to_string(), Type::Int)]);
     let bounds = BTreeMap::from([("x".to_string(), fractional)]);
-    assert!(!fits(&Ranges, &x, &bounds));
+    assert!(!fits(&Ranges::default(), &x, &bounds));
 }
 
 /// `let q = 1 / x; if x != 0 { q } else { 0 }` has a value at 0: the
@@ -915,15 +1024,21 @@ fn a_shared_division() {
         apply(Op::If, vec![nonzero, input("q"), zero()]),
     );
     let reals = typed(&[("x", Type::Real)]);
-    assert_eq!(check(&Simulation, &reals, &e), Some(Type::Real));
-    let value = |x: i64| eval(&Exact, &at(&[("x", Value::Real(Rational::integer(x)))]), &e);
+    assert_eq!(check(&Simulation::default(), &reals, &e), Some(Type::Real));
+    let value = |x: i64| {
+        eval(
+            &Exact::default(),
+            &at(&[("x", Value::Real(Rational::integer(x)))]),
+            &e,
+        )
+    };
     assert_eq!(value(0), Ok(Value::Real(Rational::integer(0))));
     assert_eq!(value(2), Ok(Value::Real(Rational::new(1, 2).unwrap())));
     let around = BTreeMap::from([(
         "x".to_string(),
         Bounds::between(Rational::integer(-1), Rational::integer(1)).unwrap(),
     )]);
-    assert!(eval(&Ranges, &around, &e).unwrap().may_fault);
+    assert!(eval(&Ranges::default(), &around, &e).unwrap().may_fault);
 }
 
 /// S3's bound on depth, on a thread of 2 MiB: 1,000 levels of `if`, of
@@ -942,9 +1057,9 @@ fn all_on_numbers_reads_each() {
                 for op in [Op::Less, Op::AtMost, Op::Equal] {
                     let p = apply(op, vec![input("i"), int(k)]);
                     let e = all(int(lo), int(hi), "i", p);
-                    let exact = eval(&Exact, &BTreeMap::new(), &e);
+                    let exact = eval(&Exact::default(), &BTreeMap::new(), &e);
                     let exactly = exact.map(|v| Bounds::exactly(&v));
-                    assert_eq!(eval(&Ranges, &none, &e), exactly, "{e:?}");
+                    assert_eq!(eval(&Ranges::default(), &none, &e), exactly, "{e:?}");
                 }
             }
         }
@@ -965,7 +1080,7 @@ fn all_stops_once_its_outcome_is_fixed() {
         may_fault: true,
     };
     let bounds = BTreeMap::from([("c".to_string(), c.clone())]);
-    assert_eq!(eval(&Ranges, &bounds, &e), Ok(c));
+    assert_eq!(eval(&Ranges::default(), &bounds, &e), Ok(c));
 }
 
 #[test]
@@ -990,11 +1105,11 @@ fn a_thousand_levels() {
                 let y = typed(&[("y", Type::Int)]);
                 let at_y = at(&[("y", Value::Int(BigInt::from(7)))]);
                 (
-                    same && check(&Simulation, &x, &e) == Some(of.clone()),
-                    eval(&Exact, &value, &e) == Ok(gives.clone()),
-                    eval(&Ranges, &bounds, &e) == Ok(Bounds::exactly(&gives)),
-                    check(&Simulation, &y, &written) == Some(of)
-                        && eval(&Exact, &at_y, &written) == Ok(gives),
+                    same && check(&Simulation::default(), &x, &e) == Some(of.clone()),
+                    eval(&Exact::default(), &value, &e) == Ok(gives.clone()),
+                    eval(&Ranges::default(), &bounds, &e) == Ok(Bounds::exactly(&gives)),
+                    check(&Simulation::default(), &y, &written) == Some(of)
+                        && eval(&Exact::default(), &at_y, &written) == Ok(gives),
                 )
             })
             .unwrap()
@@ -1023,4 +1138,391 @@ fn a_thousand_levels() {
     let nested = |_: usize, e: E| all(int(0), int(1), "i", e);
     let got = deep(start, nested, levels / 3, Type::Truth, Value::Truth(true));
     assert_eq!(got, (true, true, true, true));
+}
+
+fn call(f: &str, args: Vec<E>) -> E {
+    apply(Op::Call(f.to_string()), args)
+}
+fn callee(takes: &[(&str, Type)], gives: Type, body: Option<E>) -> Callee {
+    Callee {
+        takes: takes
+            .iter()
+            .map(|(n, t)| (n.to_string(), t.clone()))
+            .collect(),
+        gives,
+        body,
+        rows: vec![],
+    }
+}
+fn library(callees: Vec<(&str, Callee)>) -> Result<Calls, std::collections::BTreeSet<String>> {
+    Calls::with(
+        callees
+            .into_iter()
+            .map(|(n, c)| (n.to_string(), c))
+            .collect(),
+    )
+}
+fn names(these: &[&str]) -> std::collections::BTreeSet<String> {
+    these.iter().map(|n| n.to_string()).collect()
+}
+fn param(name: &str, bound: Bound) -> Type {
+    Type::Param {
+        name: name.to_string(),
+        bound,
+    }
+}
+
+/// `use`: a function of another part, called by its path. The body
+/// runs; or a row gives the value; with neither there is none, by name.
+/// Ranges runs the body, or allows any value of the type.
+#[test]
+fn calls_walked_through() {
+    let double = callee(
+        &[("a", Type::Int)],
+        Type::Int,
+        Some(apply(Op::Add, vec![input("a"), input("a")])),
+    );
+    let quad = callee(
+        &[("a", Type::Int)],
+        Type::Int,
+        Some(call(
+            "lib::double",
+            vec![call("lib::double", vec![input("a")])],
+        )),
+    );
+    let light = Callee {
+        rows: vec![(vec![], Value::Int(850.into()))],
+        ..callee(&[], Type::Int, None)
+    };
+    let square = Callee {
+        rows: vec![(vec![Value::Int(2.into())], Value::Int(4.into()))],
+        ..callee(&[("a", Type::Int)], Type::Int, None)
+    };
+    let half = callee(&[("r", Type::Real)], Type::Real, None);
+    let one = callee(&[("r", Type::Real)], Type::Int, Some(int(1)));
+    let calls = Arc::new(
+        library(vec![
+            ("lib::double", double),
+            ("lib::quad", quad),
+            ("sun::light", light),
+            ("lib::square", square),
+            ("lib::half", half),
+            ("lib::one", one),
+        ])
+        .unwrap(),
+    );
+    let (standard, exact, ranges) = (
+        Simulation {
+            calls: calls.clone(),
+        },
+        Exact {
+            calls: calls.clone(),
+        },
+        Ranges {
+            calls: calls.clone(),
+        },
+    );
+    let ints = typed(&[("a", Type::Int)]);
+    let reals = typed(&[("r", Type::Real)]);
+    let at_a = |n: i64| at(&[("a", Value::Int(n.into()))]);
+    let int_value = |n: i64| Ok(Value::Int(n.into()));
+    let between =
+        |lo: i64, hi: i64| Bounds::between(Rational::integer(lo), Rational::integer(hi)).unwrap();
+
+    // A body, through another call.
+    let e = call("lib::quad", vec![input("a")]);
+    assert_eq!(check(&standard, &ints, &e), Some(Type::Int));
+    assert_eq!(eval(&exact, &at_a(3), &e), int_value(12));
+    let b = BTreeMap::from([("a".to_string(), between(1, 2))]);
+    assert_eq!(eval(&ranges, &b, &e), Ok(between(4, 8)));
+
+    // Rows: a value where a row is, none elsewhere, named.
+    let e = call("sun::light", vec![]);
+    assert_eq!(check(&standard, &ints, &e), Some(Type::Int));
+    assert_eq!(eval(&exact, &at_a(0), &e), int_value(850));
+    let unknown = |f: &str| Err(Fault::Op(Undefined::Unknown(f.to_string())));
+    let e = call("lib::square", vec![input("a")]);
+    assert_eq!(eval(&exact, &at_a(2), &e), int_value(4));
+    assert_eq!(eval(&exact, &at_a(3), &e), unknown("lib::square"));
+    // By bounds, a function with no body may give any value, or none.
+    let any_int = Ok(Bounds {
+        may_fault: true,
+        ..Bounds::any(&Type::Int)
+    });
+    let b = BTreeMap::from([("a".to_string(), between(2, 2))]);
+    assert_eq!(eval(&ranges, &b, &e), any_int);
+
+    // Opaque: none at all, and any real by bounds.
+    let e = call("lib::half", vec![input("r")]);
+    assert_eq!(check(&standard, &reals, &e), Some(Type::Real));
+    let r = at(&[("r", Value::Real(Rational::integer(1)))]);
+    assert_eq!(eval(&exact, &r, &e), unknown("lib::half"));
+    let b = BTreeMap::from([("r".to_string(), Bounds::exactly(&r["r"]))]);
+    let any_real = Bounds {
+        may_fault: true,
+        ..Bounds::any(&Type::Real)
+    };
+    assert_eq!(eval(&ranges, &b, &e), Ok(any_real));
+
+    // Strict, as Rust: a fault in an argument is the call's, read or not.
+    let e = call(
+        "lib::one",
+        vec![apply(Op::Div, vec![real(1, 1), input("r")])],
+    );
+    let zero = at(&[("r", Value::Real(Rational::integer(0)))]);
+    assert_eq!(
+        eval(&exact, &zero, &e),
+        Err(Fault::Op(Undefined::DivisionByZero))
+    );
+    assert_eq!(eval(&exact, &r, &e), int_value(1));
+    let b = BTreeMap::from([(
+        "r".to_string(),
+        Bounds::between(Rational::integer(-1), Rational::integer(1)).unwrap(),
+    )]);
+    let got = eval(&ranges, &b, &e).unwrap();
+    assert_eq!((got.span, got.may_fault), (between(1, 1).span, true));
+
+    // Typing: the callee's signature, nothing else.
+    for wrong in [
+        call("lib::double", vec![]),
+        call("lib::double", vec![real(1, 2)]),
+        call("lib::double", vec![int(1), int(2)]),
+        call("lib::nowhere", vec![int(1)]),
+        call("lib::double", vec![input("r")]),
+    ] {
+        assert_eq!(check(&standard, &ints, &wrong), None, "{wrong:?}");
+    }
+    // A standard with no functions knows none of them.
+    let e = call("lib::double", vec![int(1)]);
+    assert_eq!(check(&Simulation::default(), &ints, &e), None);
+    // Run unchecked, an unknown function or a wrong count is stuck.
+    assert_eq!(eval(&Exact::default(), &at_a(0), &e), Err(Fault::Stuck));
+    assert_eq!(
+        eval(&Ranges::default(), &BTreeMap::new(), &e),
+        Err(Fault::Stuck)
+    );
+    for e in [
+        call("lib::double", vec![]),
+        call("lib::double", vec![int(1), int(2)]),
+        call("lib::square", vec![]),
+        call("lib::square", vec![int(1), int(2)]),
+    ] {
+        assert_eq!(eval(&exact, &at_a(0), &e), Err(Fault::Stuck), "{e:?}");
+        assert_eq!(
+            eval(&ranges, &BTreeMap::new(), &e),
+            Err(Fault::Stuck),
+            "{e:?}"
+        );
+    }
+}
+
+/// Calls never go round, and every function is checked once, when the
+/// library is made: `Calls::with` names each it refuses.
+#[test]
+fn calls_go_nowhere_round() {
+    let calling = |f: &str| {
+        callee(
+            &[("a", Type::Int)],
+            Type::Int,
+            Some(call(f, vec![input("a")])),
+        )
+    };
+    let fine = || callee(&[("a", Type::Int)], Type::Int, Some(input("a")));
+    // Itself.
+    assert_eq!(library(vec![("f", calling("f"))]), Err(names(&["f"])));
+    // Round two, and whatever calls into them, however far.
+    let got = library(vec![
+        ("f", calling("g")),
+        ("g", calling("f")),
+        ("h", calling("f")),
+        ("k", calling("h")),
+        ("ok", fine()),
+    ]);
+    assert_eq!(got, Err(names(&["f", "g", "h", "k"])));
+    // A function no library has.
+    assert_eq!(
+        library(vec![("f", calling("missing")), ("ok", fine())]),
+        Err(names(&["f"]))
+    );
+    // A body not of the type given, or reading what is not taken.
+    let wrong = callee(
+        &[("a", Type::Int)],
+        Type::Int,
+        Some(apply(Op::Truth(true), vec![])),
+    );
+    let reads = callee(&[("a", Type::Int)], Type::Int, Some(input("b")));
+    assert_eq!(
+        library(vec![("f", wrong), ("g", reads), ("h", calling("g"))]),
+        Err(names(&["f", "g", "h"]))
+    );
+    // Two arguments of one name.
+    let twice = callee(
+        &[("a", Type::Int), ("a", Type::Int)],
+        Type::Int,
+        Some(input("a")),
+    );
+    assert_eq!(library(vec![("f", twice)]), Err(names(&["f"])));
+    // Rows of the wrong count or type.
+    let row = |at: Vec<Value>, gives: Value| Callee {
+        rows: vec![(at, gives)],
+        ..callee(&[("a", Type::Int)], Type::Int, None)
+    };
+    let one = || Value::Int(1.into());
+    for bad in [
+        row(vec![], one()),
+        row(vec![one(), one()], one()),
+        row(vec![Value::Truth(true)], one()),
+        row(vec![one()], Value::Truth(true)),
+    ] {
+        assert_eq!(library(vec![("f", bad)]), Err(names(&["f"])));
+    }
+    assert!(library(vec![("f", row(vec![one()], one()))]).is_ok());
+    // A parameter: only bare, its contract says the rest.
+    let t = param("T", Bound::Any);
+    let open = |body: Option<E>, rows: Vec<(Vec<Value>, Value)>| Callee {
+        rows,
+        ..callee(&[("x", t.clone())], t.clone(), body)
+    };
+    assert_eq!(
+        library(vec![("f", open(Some(input("x")), vec![]))]),
+        Err(names(&["f"]))
+    );
+    let takes_open = callee(&[("x", t.clone())], Type::Int, Some(int(1)));
+    assert_eq!(library(vec![("f", takes_open)]), Err(names(&["f"])));
+    let point = record("P", &[("x", t.clone())]);
+    let half_open = Callee {
+        rows: vec![(vec![one()], one())],
+        ..callee(&[("a", Type::Int)], Type::Record(point), None)
+    };
+    assert_eq!(library(vec![("f", half_open)]), Err(names(&["f"])));
+    // A library that holds: each function found by its path.
+    let calls = library(vec![
+        ("f", calling("g")),
+        ("g", fine()),
+        ("t", open(None, vec![])),
+    ])
+    .unwrap();
+    assert_eq!(calls.get("g"), Some(&fine()));
+    assert_eq!(calls.get("nowhere"), None);
+    assert_eq!(calls.iter().count(), 3);
+    assert!(library(vec![]).is_ok());
+}
+
+/// Type parameters, Rust's `T` and `T: Number`: what a contract can
+/// write about a type it does not fix. No value is of one.
+#[test]
+fn type_parameters() {
+    let (t, n, m) = (
+        param("T", Bound::Any),
+        param("N", Bound::Number),
+        param("M", Bound::Number),
+    );
+    let inputs = typed(&[
+        ("x", n.clone()),
+        ("y", n.clone()),
+        ("u", m.clone()),
+        ("a", t.clone()),
+        ("b", t.clone()),
+    ]);
+    let two = |op: Op, a: &str, b: &str| apply(op, vec![input(a), input(b)]);
+    let standard = Simulation::default();
+    let typed_as = |e: &E| check(&standard, &inputs, e);
+    // A number: + - *, < <=, within and ==; no /, no literal.
+    for op in [Op::Add, Op::Sub, Op::Mul] {
+        assert_eq!(typed_as(&two(op, "x", "y")), Some(n.clone()));
+    }
+    for op in [Op::Less, Op::AtMost, Op::Equal] {
+        assert_eq!(typed_as(&two(op, "x", "y")), Some(Type::Truth));
+    }
+    let within = apply(Op::Within, vec![input("x"), input("y"), input("x")]);
+    assert_eq!(typed_as(&within), Some(Type::Truth));
+    assert_eq!(typed_as(&two(Op::Div, "x", "y")), None);
+    assert_eq!(typed_as(&apply(Op::Add, vec![input("x"), int(1)])), None);
+    assert_eq!(
+        typed_as(&apply(Op::Add, vec![input("x"), real(1, 1)])),
+        None
+    );
+    // Two parameters are two types, though both are numbers.
+    assert_eq!(typed_as(&two(Op::Add, "x", "u")), None);
+    // Any type: == only.
+    assert_eq!(typed_as(&two(Op::Equal, "a", "b")), Some(Type::Truth));
+    for op in [Op::Add, Op::Less, Op::AtMost] {
+        assert_eq!(typed_as(&two(op, "a", "b")), None);
+    }
+    let pick = apply(
+        Op::If,
+        vec![two(Op::Equal, "a", "b"), input("a"), input("b")],
+    );
+    assert_eq!(typed_as(&pick), Some(t.clone()));
+    // A call of a function the contract names, by its signature.
+    let calls =
+        Arc::new(library(vec![("C::f", callee(&[("x", n.clone())], n.clone(), None))]).unwrap());
+    let standard = Simulation {
+        calls: calls.clone(),
+    };
+    let e = apply(
+        Op::Less,
+        vec![
+            call("C::f", vec![input("x")]),
+            call("C::f", vec![input("y")]),
+        ],
+    );
+    assert_eq!(check(&standard, &inputs, &e), Some(Type::Truth));
+    assert_eq!(
+        check(&standard, &inputs, &call("C::f", vec![input("u")])),
+        None
+    );
+    // Run by bounds anyway, it has no value: none is of `N`.
+    let e = call("C::f", vec![int(1)]);
+    let unknown = Err(Fault::Op(Undefined::Unknown("C::f".to_string())));
+    assert_eq!(
+        eval(
+            &Ranges {
+                calls: calls.clone()
+            },
+            &BTreeMap::new(),
+            &e
+        ),
+        unknown
+    );
+    let unknown = Err(Fault::Op(Undefined::Unknown("C::f".to_string())));
+    assert_eq!(eval(&Exact { calls }, &BTreeMap::new(), &e), unknown);
+    // What a bound admits.
+    for (bound, ty, admits) in [
+        (Bound::Number, Type::Int, true),
+        (Bound::Number, Type::Real, true),
+        (Bound::Number, n.clone(), true),
+        (Bound::Number, Type::Truth, false),
+        (Bound::Number, t.clone(), false),
+        (
+            Bound::Number,
+            Type::Record(record("P", &[("x", Type::Int)])),
+            false,
+        ),
+        (Bound::Any, Type::Truth, true),
+        (Bound::Any, t.clone(), true),
+    ] {
+        assert_eq!(bound.admits(&ty), admits, "{bound:?} {ty:?}");
+    }
+    // Given: in records too; a parameter not given stays.
+    let point = Type::Record(record("P", &[("x", n.clone()), ("y", m.clone())]));
+    assert!(point.open() && n.open() && !Type::Int.open());
+    let given = BTreeMap::from([("N".to_string(), Type::Real)]);
+    let half = Type::Record(record("P", &[("x", Type::Real), ("y", m.clone())]));
+    assert_eq!(point.given(&given), half);
+    assert!(half.open());
+    let full = BTreeMap::from([("N".to_string(), Type::Real), ("M".to_string(), Type::Int)]);
+    assert!(!point.given(&full).open());
+    assert_eq!(Type::Truth.given(&full), Type::Truth);
+    // No value, and no bounds, are of a parameter.
+    for v in [
+        Value::Int(1.into()),
+        Value::Real(Rational::integer(1)),
+        Value::Truth(true),
+    ] {
+        assert!(!Exact::default().has_type(&v, &n));
+        assert!(!Exact::default().has_type(&v, &t));
+        assert!(!Ranges::default().has_type(&Bounds::exactly(&v), &n));
+    }
+    assert!(!Ranges::default().has_type(&Bounds::any(&n), &n));
 }
