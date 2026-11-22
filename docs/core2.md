@@ -39,11 +39,12 @@ operations, not special forms. Every other operation is `strict`.
 |---|---|---|
 | S1 | **Agreement**, per reading and operation: `gives(op, ts) = Some(t)` and each argument is a value of its type or an `Op` fault ⇒ `apply` gives a value of type `t` or an `Op` fault. | depth-1 expressions over random inputs, every operation |
 | S2 | **Preservation and progress**, from S1 by induction: `check(Γ, e) = Some(T)` and `fits(Γ, values)` ⇒ `eval(values, e)` is `Ok(v)` with `has_type(v, T)`, or `Err(Op(_))`, never `Err(Stuck)`. | random well-typed expressions, each reading |
-| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. | random ill-typed expressions and values |
+| S3 | **Totality**: `check` and `eval` never panic, on any expression and values. They recurse once per level, so depth is bounded by the stack: a few thousand levels on a 2 MiB thread. | random ill-typed expressions and values |
 | S4 | **Determinism**: `eval` is a function of reading, values and expression. | evaluating twice |
-| S5 | **γ** (bounds): if each input's exact value lies in its bounds, the exact outcome lies in the bounded outcome: `covers(eval(Ranges, B, e), eval(Exact, C, e))`. | random `B`, `C ∈ γ(B)`, end to end and per operation |
+| S5 | **Covering**, per operation: `gives(op, ts) = Some(t)`, each bounded argument of its type or an `Op` fault, each exact argument in `γ` of its bounds at its type ⇒ `covers(t, Ranges.apply(op, b), Exact.apply(op, c))`. Then by induction: `check(Γ, e) = Some(T)`, `fits(Ranges, Γ, B)`, each exact input in `γ` of its bounds at its type ⇒ `covers(T, eval(Ranges, B, e), eval(Exact, C, e))`. | each operation with fault arguments; random expressions end to end; points |
 | J1 | **Rules preserve truth**: each set an opinion of `x` rests on, for or against, entails `x`, or `!x`, where `t = {p} s {q}` means `t → (∧p → ∧q)`. | every valuation of every random derivation |
 | J2 | **State is read from rests**: `state(not o) = not state(o)`, `state(join a b) = join(state a, state b)`. | random opinions |
+| J3 | **Rests are the smallest, and all**: no rest holds another. Keeping only the takings in a set `S`, a piece follows only if one of its rests lies in `S`, and, with no `Reductio`, whenever one does (a reductio's rest leaves out the taking it finds wrong). | random derivations, random `S` |
 
 ## simulation.rs
 
@@ -56,8 +57,9 @@ operations, not special forms. Every other operation is `strict`.
   `within(a, b, tol)`, `if`, `R { .. }`, `r.x`.
 - Readings: `Exact`, and `Ranges`, which works on bounds: a truth may be
   true, false or both, a number lies in `[low, high]` or anywhere, a record is
-  bounded field by field, and any of them may fault. The γ is `lies_in` and
-  `covers`.
+  bounded field by field, and any of them may fault. The γ is `covers(T, b,
+  x)`: `x` is a value of type `T` that lies in `b`, or a fault where `b` may
+  fault or is one. Bounds carry no type; the expression's type says which.
 
 ## judgement.rs
 
@@ -66,8 +68,7 @@ operations, not special forms. Every other operation is `strict`.
 - Values: a `State` (Belnap), or an `Opinion { about, rests_for,
   rests_against }`. The rests are the smallest sets of takings, where a taking
   is `{ piece, value, count, by }`. The state is read from which rests are
-  empty. `yes` and `no` are read from the rests as the least count to give up.
-  They never cancel.
+  empty. Counts stay on the takings; nothing reads them yet.
 - The rules, whose types are the rules (premises of `t` = `t, p₁ … pₙ`):
   - `Ponens { t, post }`: opinions of every premise give one of `q`.
   - `Tollens { t, post, blame }`: `q`, then every premise but `blame`, give an opinion against premise `blame`.
@@ -89,6 +90,6 @@ operations, not special forms. Every other operation is `strict`.
 4. **`/` on Real**, the one fault.
 5. **`Piece::Not`**, with `not` on opinions (`!x`). There is no `and` on opinions, because a step's pre is already a conjunction.
 6. **Taking `{ piece, value, count, by }`**. An opinion carries its piece (`about`), so its value says what it is about.
-7. **Bias** is held per piece by the judgement reading, not inside the opinion, because no rule reads it.
+7. Removed after the red team: **bias**, and **`yes` / `no`** (the least count to give up). No rule reads either, and the least count is a smallest hitting set: exponential, and it crashed on 20,000 takings. Numbers come back when the logic is settled.
 
 Not in this round: an `Option` type, `Int → Real` conversion, units, diagnosis.

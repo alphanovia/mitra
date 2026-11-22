@@ -36,7 +36,8 @@ impl Piece {
     pub fn named(name: &str) -> Piece {
         Piece::Named(name.to_string())
     }
-    /// `!self`. `!!x` is `x`.
+    /// `!self`: the negation of a `Not(x)` is `x`, of any other piece
+    /// its `Not`.
     pub fn not(&self) -> Piece {
         match self {
             Piece::Not(x) => (**x).clone(),
@@ -166,53 +167,51 @@ impl Opinion {
     pub fn state(&self) -> State {
         State::told(!self.rests_for.is_empty(), !self.rests_against.is_empty())
     }
-    /// What counts for it: the least count of takings to give up for it
-    /// to follow true from nothing left. `None` when it follows true
-    /// from no taking at all: nothing given up removes that.
-    pub fn yes(&self) -> Option<u64> {
-        least(&self.rests_for.iter().collect::<Vec<_>>())
-    }
-    /// What counts against it, the same way. Never cancels `yes`.
-    pub fn no(&self) -> Option<u64> {
-        least(&self.rests_against.iter().collect::<Vec<_>>())
-    }
-}
-
-/// The least count of a set of takings that meets every one of `sets`.
-fn least(sets: &[&BTreeSet<Taking>]) -> Option<u64> {
-    let Some(first) = sets.iter().min_by_key(|s| s.len()) else {
-        return Some(0);
-    };
-    first
-        .iter()
-        .filter_map(|taking| {
-            let left: Vec<_> = sets
-                .iter()
-                .filter(|s| !s.contains(taking))
-                .copied()
-                .collect();
-            least(&left).map(|count| count.saturating_add(taking.count))
-        })
-        .min()
 }
 
 /// Only the smallest: every set that holds another goes.
 fn smallest(sets: impl IntoIterator<Item = BTreeSet<Taking>>) -> Rests {
-    let all: Rests = sets.into_iter().collect();
-    all.iter()
-        .filter(|s| !all.iter().any(|o| o != *s && o.is_subset(s)))
-        .cloned()
+    let mut all: Vec<BTreeSet<Taking>> = sets.into_iter().collect::<Rests>().into_iter().collect();
+    all.sort_by_key(BTreeSet::len);
+    // A kept set within `s` has its least taking in `s`: look only there.
+    let mut by_least: BTreeMap<&Taking, Vec<usize>> = BTreeMap::new();
+    let mut keep = vec![false; all.len()];
+    for (i, s) in all.iter().enumerate() {
+        let Some(least) = s.first() else {
+            return Rests::from([BTreeSet::new()]);
+        };
+        let within = |x| {
+            by_least
+                .get(x)
+                .is_some_and(|ks: &Vec<usize>| ks.iter().any(|&k| all[k].is_subset(s)))
+        };
+        if !s.iter().any(within) {
+            by_least.entry(least).or_default().push(i);
+            keep[i] = true;
+        }
+    }
+    all.into_iter()
+        .zip(keep)
+        .filter_map(|(s, k)| k.then_some(s))
         .collect()
 }
 
-/// Every way to have all of `sides`: one set of each, together.
+/// Every way to have all of `sides`: one set of each, together. Sides
+/// with no taking in common already give only the smallest.
 fn all_of(sides: &[&Rests]) -> Rests {
     let mut ways = Rests::from([BTreeSet::new()]);
+    let mut seen: BTreeSet<&Taking> = BTreeSet::new();
     for side in sides {
+        let takings: BTreeSet<&Taking> = side.iter().flatten().collect();
+        let shared = takings.iter().any(|t| seen.contains(t));
         let next = ways
             .iter()
             .flat_map(|way| side.iter().map(move |s| way.union(s).cloned().collect()));
-        ways = smallest(next);
+        ways = match shared {
+            true => smallest(next),
+            false => next.collect(),
+        };
+        seen.extend(takings);
     }
     ways
 }
@@ -256,12 +255,8 @@ pub enum Op {
 }
 
 /// The judgement standard and its reading.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Judgement {
-    /// What to expect of a piece before anything, from 0 to 1. No rule
-    /// reads it.
-    pub bias: BTreeMap<Piece, f64>,
-}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Judgement;
 
 /// What a rule takes and gives, read from `t`: the pieces of its
 /// arguments, in order, and the piece it gives an opinion of. `None`

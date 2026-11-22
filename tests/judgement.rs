@@ -1,6 +1,7 @@
 //! The judgement standard (`docs/core2.md`): S2 to S4, J1 (every rule
-//! preserves truth, checked on every valuation) and J2 (states are read
-//! from rests) on random derivations, and the piece walked through.
+//! preserves truth, checked on every valuation), J2 (states are read
+//! from rests) and J3 (rests are the smallest, and all) on random
+//! derivations, and the piece walked through.
 
 mod common;
 
@@ -307,7 +308,7 @@ proptest! {
     fn judging_preserves_progresses_and_is_determined(seed in any::<u64>(), depth in 1u32..6) {
         let mut w = World::new(seed);
         let (t, e) = w.typed(depth);
-        let j = Judgement::default();
+        let j = Judgement;
         prop_assert_eq!(check(&j, &w.inputs, &e), Some(t.clone()));
         prop_assert!(fits(&j, &w.inputs, &w.values));
         let out = eval(&j, &w.values, &e);
@@ -322,7 +323,7 @@ proptest! {
         let mut w = World::new(seed);
         let (_, e) = w.typed(depth);
         let meaning = Meaning::of(&w.pieces);
-        let j = Judgement::default();
+        let j = Judgement;
         for sub in subexpressions(&e) {
             if let Ok(Value::Opinion(o)) = eval(&j, &w.values, sub) {
                 prop_assert!(meaning.sound(&o), "unsound: {:?}\nfrom {:?}", o, sub);
@@ -336,7 +337,7 @@ proptest! {
     fn states_follow_from_rests(seed in any::<u64>(), depth in 0u32..5) {
         let mut w = World::new(seed);
         let x = w.piece();
-        let j = Judgement::default();
+        let j = Judgement;
         let (e1, e2, e3) = (w.opinion(&x, depth), w.opinion(&x, depth), w.opinion(&x, depth));
         let (a, b, c) = (opinion(eval(&j, &w.values, &e1)), opinion(eval(&j, &w.values, &e2)), opinion(eval(&j, &w.values, &e3)));
         let o = |v: &Opinion| Ok(Value::Opinion(v.clone()));
@@ -353,12 +354,56 @@ proptest! {
         prop_assert_eq!(a.state(), State::told(!a.rests_for().is_empty(), !a.rests_against().is_empty()));
     }
 
+    /// J3: rests are the smallest sets of takings a derivation reads, and
+    /// all of them. No set holds another. Keeping only the takings in a
+    /// set `S`, a piece still follows true (false) only when one of its
+    /// rests for (against) lies in `S`; and, with no reductio, whenever
+    /// one does. A reductio's rest leaves out the taking it finds wrong,
+    /// which its derivation still reads.
+    #[test]
+    fn rests_are_the_smallest_and_all(seed in any::<u64>(), depth in 1u32..6) {
+        let mut w = World::new(seed);
+        let x = w.piece();
+        let e = w.opinion(&x, depth);
+        let j = Judgement;
+        for sub in subexpressions(&e) {
+            if let Ok(Value::Opinion(o)) = eval(&j, &w.values, sub) {
+                for rests in [o.rests_for(), o.rests_against()] {
+                    let held = rests.iter().any(|s| rests.iter().any(|r| r != s && r.is_subset(s)));
+                    prop_assert!(!held, "a rest holds another: {:?}\nfrom {:?}", o, sub);
+                }
+            }
+        }
+        let whole = opinion(eval(&j, &w.values, &e));
+        let takings: Vec<Taking> = w.values.values().flat_map(|v| match v {
+            Value::Opinion(o) => o.rests_for().iter().chain(o.rests_against()).flatten().cloned().collect(),
+            Value::State(_) => vec![],
+        }).collect();
+        let exact = !subexpressions(&e).iter().any(|s| matches!(s, Expression::Apply(Op::Reductio { .. }, _)));
+        for _ in 0..8 {
+            let kept: BTreeSet<Taking> = takings.iter().filter(|_| w.rng.coin()).cloned().collect();
+            let values: BTreeMap<String, Value> = w.values.iter().map(|(name, v)| (name.clone(), match v {
+                Value::Opinion(o) => {
+                    let left = kept.iter().filter(|t| &t.piece == o.about()).cloned().collect();
+                    Value::Opinion(Opinion::taken(o.about().clone(), left).unwrap())
+                }
+                state => state.clone(),
+            })).collect();
+            let part = opinion(eval(&j, &values, &e));
+            for (some, all) in [(part.rests_for(), whole.rests_for()), (part.rests_against(), whole.rests_against())] {
+                let within = all.iter().any(|r| r.is_subset(&kept));
+                prop_assert!(some.is_empty() || within, "follows from {:?} but no rest of {:?} lies in it", kept, all);
+                prop_assert!(!exact || !within || !some.is_empty(), "a rest of {:?} lies in {:?}, yet nothing follows", all, kept);
+            }
+        }
+    }
+
     /// S3: no expression makes `check` or `eval` panic.
     #[test]
     fn nothing_panics(seed in any::<u64>(), depth in 0u32..6) {
         let mut w = World::new(seed);
         let e = w.wild(depth);
-        let j = Judgement::default();
+        let j = Judgement;
         let _ = check(&j, &w.inputs, &e);
         let _ = eval(&j, &w.values, &e);
     }
@@ -418,7 +463,7 @@ fn a_piece_walked_through() {
         take(&t, true, 1, "review"),
         take(&q, false, 2, "run"),
     );
-    let j = Judgement::default();
+    let j = Judgement;
     let inputs = BTreeMap::from([
         ("p".to_string(), Type::Opinion(p.clone())),
         ("t".to_string(), Type::Opinion(t.clone())),
@@ -452,7 +497,7 @@ fn a_piece_walked_through() {
         q_derived.rests_for(),
         &BTreeSet::from([set(&[&test, &review])])
     );
-    assert_eq!((q_derived.yes(), q_derived.no()), (Some(1), Some(0)));
+    assert!(q_derived.rests_against().is_empty());
 
     // The run says q is false: q is in conflict.
     let q_all = apply(Op::Join, vec![ponens.clone(), input("q")]);
@@ -514,7 +559,7 @@ fn rules_check_their_pieces() {
         subject: "s".to_string(),
         post: vec![r.clone()],
     };
-    let j = Judgement::default();
+    let j = Judgement;
     let inputs: BTreeMap<String, Type> = [("p", &p), ("q", &q), ("t", &t), ("other", &other)]
         .into_iter()
         .map(|(n, x)| (n.to_string(), Type::Opinion(x.clone())))
@@ -557,7 +602,7 @@ fn nothing_follows_from_nothing() {
         subject: "d".to_string(),
         post: vec![q.clone()],
     };
-    let j = Judgement::default();
+    let j = Judgement;
     let ponens = apply(
         Op::Ponens {
             t: t.clone(),
@@ -574,9 +619,11 @@ fn nothing_follows_from_nothing() {
     }
 }
 
-/// Counts never decide a state, and the bias is read by no rule.
+/// Counts never decide a state: a taking of count 0 holds a piece as
+/// firmly, for the logic, as one of count 10. Two takings of p are two
+/// ways for it; through t, every way needs the review.
 #[test]
-fn numbers_never_decide() {
+fn counts_never_decide() {
     let (p, q) = (Piece::named("p"), Piece::named("q"));
     let t = Piece::Implies {
         pre: vec![p.clone()],
@@ -590,6 +637,7 @@ fn numbers_never_decide() {
         },
         vec![input("t"), input("p")],
     );
+    let (v1, v2) = (take(&p, true, 3, "v1"), take(&p, true, 5, "v2"));
     let at = |count_t: u64| -> BTreeMap<String, Value> {
         BTreeMap::from([
             (
@@ -600,33 +648,25 @@ fn numbers_never_decide() {
             ),
             (
                 "p".to_string(),
-                Value::Opinion(
-                    Opinion::taken(
-                        p.clone(),
-                        vec![take(&p, true, 3, "v1"), take(&p, true, 5, "v2")],
-                    )
-                    .unwrap(),
-                ),
+                Value::Opinion(Opinion::taken(p.clone(), vec![v1.clone(), v2.clone()]).unwrap()),
             ),
         ])
     };
-    let plain = Judgement::default();
-    let biased = Judgement {
-        bias: BTreeMap::from([(q.clone(), 0.01), (t.clone(), 0.99)]),
-    };
-    for count in [0, 1, 10] {
-        let (a, b) = (
-            eval(&plain, &at(count), &ponens),
-            eval(&biased, &at(count), &ponens),
-        );
-        assert_eq!(a, b);
-        assert_eq!(opinion(a).state(), State::True);
-    }
-    // Two takings of p add: 3 + 5. Through t, the least to give up.
-    let p_alone = opinion(eval(&plain, &at(1), &input("p")));
-    assert_eq!(p_alone.yes(), Some(8));
-    assert_eq!(opinion(eval(&plain, &at(1), &ponens)).yes(), Some(1));
-    assert_eq!(opinion(eval(&plain, &at(10), &ponens)).yes(), Some(8));
+    let j = Judgement;
+    let states: Vec<State> = [0, 1, 10]
+        .into_iter()
+        .map(|count| opinion(eval(&j, &at(count), &ponens)).state())
+        .collect();
+    assert_eq!(states, vec![State::True; 3]);
+    let review = take(&t, true, 1, "review");
+    let q_from = opinion(eval(&j, &at(1), &ponens));
+    assert_eq!(
+        q_from.rests_for(),
+        &BTreeSet::from([
+            BTreeSet::from([review.clone(), v1]),
+            BTreeSet::from([review, v2])
+        ])
+    );
 }
 
 /// An implication that cannot hold is refuted by logic alone: its
@@ -639,7 +679,7 @@ fn an_impossible_implication_is_refuted() {
         subject: "s".to_string(),
         post: vec![a.clone(), a.not()],
     };
-    let j = Judgement::default();
+    let j = Judgement;
     let values = BTreeMap::from([(
         "t".to_string(),
         Value::Opinion(Opinion::taken(t.clone(), vec![take(&t, true, 1, "review")]).unwrap()),
@@ -669,7 +709,7 @@ fn an_impossible_implication_is_refuted() {
         &apply(Op::Reductio { of: t.clone() }, vec![both]),
     ));
     assert_eq!(refuted.rests_against(), &BTreeSet::from([BTreeSet::new()]));
-    assert_eq!((refuted.state(), refuted.no()), (State::False, None));
+    assert_eq!(refuted.state(), State::False);
     assert!(Meaning::of(&[t]).sound(&refuted));
 }
 
@@ -679,9 +719,90 @@ fn a_leaf_is_its_own_takings() {
     let (p, q) = (Piece::named("p"), Piece::named("q"));
     assert!(Opinion::taken(p.clone(), vec![take(&q, true, 1, "v")]).is_none());
     let o = Opinion::taken(p.clone(), vec![]).unwrap();
-    assert_eq!(
-        (o.state(), o.yes(), o.no()),
-        (State::Unknown, Some(0), Some(0))
+    assert_eq!(o.state(), State::Unknown);
+    assert!(!Judgement.has_type(&Value::Opinion(o), &Type::Opinion(q)));
+}
+
+/// Red team, round 1: one ponens over twelve premises, each taken by two
+/// voices, rests on 4,096 sets. That is what rests are, and it must come
+/// quickly: premises that share no taking are not compared.
+#[test]
+fn a_wide_ponens_is_quick() {
+    let pre: Vec<Piece> = (0..11).map(|i| Piece::named(&format!("p{i}"))).collect();
+    let t = Piece::Implies {
+        pre,
+        subject: "s".to_string(),
+        post: vec![Piece::named("q")],
+    };
+    let premises = t.premises().unwrap();
+    let (mut inputs, mut values, mut args) = (BTreeMap::new(), BTreeMap::new(), vec![]);
+    for (i, x) in premises.iter().enumerate() {
+        let name = format!("x{i}");
+        let takings = vec![take(x, true, 1, "u"), take(x, true, 1, "v")];
+        inputs.insert(name.clone(), Type::Opinion(x.clone()));
+        values.insert(
+            name.clone(),
+            Value::Opinion(Opinion::taken(x.clone(), takings).unwrap()),
+        );
+        args.push(input(&name));
+    }
+    let e = apply(
+        Op::Ponens {
+            t: t.clone(),
+            post: 0,
+        },
+        args,
     );
-    assert!(!Judgement::default().has_type(&Value::Opinion(o), &Type::Opinion(q)));
+    assert!(check(&Judgement, &inputs, &e).is_some());
+    let start = std::time::Instant::now();
+    let q = opinion(eval(&Judgement, &values, &e));
+    assert_eq!(q.rests_for().len(), 1 << 12);
+    assert!(
+        start.elapsed() < std::time::Duration::from_secs(2),
+        "{:?}",
+        start.elapsed()
+    );
+}
+
+/// Red team, round 1: a leaf taken 20,000 times. Its opinion and the
+/// rules over it neither recurse per taking nor slow down.
+#[test]
+fn a_much_taken_leaf() {
+    let (p, q) = (Piece::named("p"), Piece::named("q"));
+    let t = Piece::Implies {
+        pre: vec![p.clone()],
+        subject: "s".to_string(),
+        post: vec![q.clone()],
+    };
+    let many = (0..20_000)
+        .map(|i| take(&p, true, 1, &format!("run{i}")))
+        .collect();
+    let values = BTreeMap::from([
+        (
+            "p".to_string(),
+            Value::Opinion(Opinion::taken(p.clone(), many).unwrap()),
+        ),
+        (
+            "t".to_string(),
+            Value::Opinion(Opinion::taken(t.clone(), vec![take(&t, true, 1, "review")]).unwrap()),
+        ),
+    ]);
+    let e = apply(
+        Op::Join,
+        vec![
+            input("p"),
+            apply(Op::Not, vec![apply(Op::Not, vec![input("p")])]),
+        ],
+    );
+    let joined = std::thread::spawn(move || {
+        let ponens = apply(Op::Ponens { t, post: 0 }, vec![input("t"), input("p")]);
+        (
+            opinion(eval(&Judgement, &values, &e)),
+            opinion(eval(&Judgement, &values, &ponens)),
+        )
+    })
+    .join()
+    .unwrap();
+    assert_eq!(joined.0.rests_for().len(), 20_000);
+    assert_eq!(joined.1.rests_for().len(), 20_000);
 }

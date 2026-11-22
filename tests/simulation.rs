@@ -5,9 +5,10 @@
 mod common;
 
 use common::Rng;
-use mitra_core::expression::{check, eval, fits, Expression, Fault, Reading};
+use mitra_core::expression::{check, eval, fits, Expression, Fault, Outcome, Reading, Standard};
 use mitra_core::simulation::{
-    covers, lies_in, Bounds, Exact, Op, Ranges, Rational, Record, Simulation, Span, Type, Value,
+    covers, lies_in, Bounds, Exact, Op, Ranges, Rational, Record, Simulation, Span, Type,
+    Undefined, Value,
 };
 use num_bigint::BigInt;
 use num_traits::{Signed, Zero};
@@ -324,6 +325,25 @@ impl Gen {
         }
         (bounds, exact)
     }
+    /// Bounds of type `t` or a fault, and an exact outcome in γ of them:
+    /// a fault where the bounds may fault or are one.
+    fn outcome(&mut self, t: &Type) -> (Outcome<Bounds, Undefined>, Outcome<Value, Undefined>) {
+        fn fault<V>() -> Outcome<V, Undefined> {
+            Err(Fault::Op(Undefined::DivisionByZero))
+        }
+        if self.rng.below(6) == 0 {
+            return (fault(), fault());
+        }
+        let b = Bounds {
+            span: self.span(t),
+            may_fault: self.rng.below(3) == 0,
+        };
+        let x = match b.may_fault && self.rng.coin() {
+            true => fault(),
+            false => Ok(self.member(&b.span, t)),
+        };
+        (Ok(b), x)
+    }
     /// Any operation, with any parameters.
     fn wild_op(&mut self) -> Op {
         let r = self.rng.pick(&self.records.clone()).clone();
@@ -454,11 +474,34 @@ proptest! {
         let t = g.ty();
         let e = g.expr(&t, depth);
         let (bounds, exact) = g.bounded();
+        prop_assert!(fits(&Ranges, &g.inputs, &bounds));
         for (name, value) in &exact {
-            prop_assert!(lies_in(value, &bounds[name].span));
+            let (b, x) = (Ok(bounds[name].clone()), Ok(value.clone()));
+            prop_assert!(covers(&g.inputs[name], &b, &x));
         }
         let (b, x) = (eval(&Ranges, &bounds, &e), eval(&Exact, &exact, &e));
-        prop_assert!(covers(&b, &x), "{:?}\nbounds {:?}\nexact {:?}\nat {:?} in {:?}", e, b, x, exact, bounds);
+        prop_assert!(covers(&t, &b, &x), "{:?}\nbounds {:?}\nexact {:?}\nat {:?} in {:?}", e, b, x, exact, bounds);
+    }
+
+    /// S5 for each operation alone, its obligation in `expression`:
+    /// arguments of their types or faults, each exact one in γ of its
+    /// bounds at its type. The induction needs no more.
+    #[test]
+    fn each_operation_covers(seed in any::<u64>()) {
+        let mut g = Gen::new(seed);
+        let t = g.ty();
+        let Expression::Apply(op, args) = g.expr(&t, 1) else {
+            return Ok(());
+        };
+        let takes: Vec<Type> = args.iter().map(|a| check(&Simulation, &g.inputs, a).unwrap()).collect();
+        prop_assert_eq!(Simulation.gives(&op, &takes), Some(t.clone()));
+        let (bounds, exact): (Vec<_>, Vec<_>) = takes.iter().map(|ty| g.outcome(ty)).unzip();
+        for ((ty, b), x) in takes.iter().zip(&bounds).zip(&exact) {
+            prop_assert!(b.as_ref().map_or(true, |b| Ranges.has_type(b, ty)));
+            prop_assert!(covers(ty, b, x));
+        }
+        let (b, x) = (Ranges.apply(&op, &bounds), Exact.apply(&op, &exact));
+        prop_assert!(covers(&t, &b, &x), "{:?} on {:?}\nbounds {:?}\nexact {:?}", op, takes, b, x);
     }
 
     /// S5 with every input exact: the bounds of a point hold the exact
@@ -471,7 +514,7 @@ proptest! {
         let exact = g.values();
         let points: BTreeMap<_, _> = exact.iter().map(|(n, v)| (n.clone(), Bounds::exactly(v))).collect();
         let (b, x) = (eval(&Ranges, &points, &e), eval(&Exact, &exact, &e));
-        prop_assert!(covers(&b, &x), "{:?}\nbounds {:?}\nexact {:?}", e, b, x);
+        prop_assert!(covers(&t, &b, &x), "{:?}\nbounds {:?}\nexact {:?}", e, b, x);
     }
 
     /// S3: no expression and no values make `check` or `eval` panic.
@@ -621,6 +664,7 @@ fn branches_not_taken_are_not_read() {
     )]);
     assert!(eval(&Ranges, &around, &unguarded).unwrap().may_fault);
     assert!(covers(
+        &Type::Real,
         &eval(&Ranges, &around, &inverse),
         &eval(&Exact, &at_zero, &inverse)
     ));
@@ -657,4 +701,44 @@ fn the_first_field_of_a_name() {
         eval(&Exact, &BTreeMap::new(), &read),
         Ok(Value::Int(7.into()))
     );
+}
+
+/// Red team, round 1: γ is read at a type. A real is in no bounds of a
+/// whole number, and a record with a field of another type, or none, is
+/// in no bounds of its record. Bounds with fractional ends are bounds of
+/// a real only.
+#[test]
+fn gamma_is_typed() {
+    let half = Rational::new(1, 2).unwrap();
+    let unit = Ok(Bounds::between(Rational::integer(0), Rational::integer(1)).unwrap());
+    assert!(covers(&Type::Int, &unit, &Ok(Value::Int(BigInt::from(1)))));
+    assert!(!covers(&Type::Int, &unit, &Ok(Value::Real(half.clone()))));
+    assert!(covers(&Type::Real, &unit, &Ok(Value::Real(half.clone()))));
+    let r = record("R", &[("f", Type::Int)]);
+    let wrong = Value::Record(r.clone(), vec![Value::Truth(true)]);
+    let span = Span::Record(
+        r.clone(),
+        vec![Span::Truth {
+            yes: true,
+            no: false,
+        }],
+    );
+    assert!(lies_in(&wrong, &span));
+    let wrong_bounds = Ok(Bounds {
+        span,
+        may_fault: false,
+    });
+    assert!(!covers(&Type::Record(r.clone()), &wrong_bounds, &Ok(wrong)));
+    let none = Ok(Bounds {
+        span: Span::Record(r.clone(), vec![]),
+        may_fault: false,
+    });
+    let empty = Value::Record(r.clone(), vec![]);
+    assert!(!covers(&Type::Record(r.clone()), &none, &Ok(empty)));
+    let fractional = Bounds::between(half, Rational::new(3, 2).unwrap()).unwrap();
+    assert!(!Ranges.has_type(&fractional, &Type::Int));
+    assert!(Ranges.has_type(&fractional, &Type::Real));
+    let x = BTreeMap::from([("x".to_string(), Type::Int)]);
+    let bounds = BTreeMap::from([("x".to_string(), fractional)]);
+    assert!(!fits(&Ranges, &x, &bounds));
 }

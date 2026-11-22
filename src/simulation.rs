@@ -6,6 +6,11 @@
 //! Numbers are of the world: a whole number is any integer and a real
 //! is any ratio of two, both exact and unbounded. Nothing overflows;
 //! the one fault is a division by zero.
+//!
+//! `Ranges` bounds `Exact` (the covering of `expression`), with γ given by
+//! `covers`: for every checked expression, bounds that fit the inputs'
+//! types and exact values in γ of them, the exact outcome is in γ of
+//! the bounded one.
 
 use crate::expression::{strict, Fault, Outcome, Reading, Standard};
 use num_bigint::BigInt;
@@ -316,13 +321,14 @@ pub fn lies_in(value: &Value, span: &Span) -> bool {
     }
 }
 
-/// γ on outcomes: what `exact` gave is one of those `bounds` allow. A
-/// fault is allowed where bounds say it may fault, or are a fault.
-pub fn covers(bounds: &Outcome<Bounds, Undefined>, exact: &Exactly) -> bool {
+/// γ on outcomes of type `of`: what `exact` gave is one of those
+/// `bounds` stand for. A value must be of the type and lie in the span;
+/// a fault is allowed where the bounds may fault, or are a fault.
+pub fn covers(of: &Type, bounds: &Outcome<Bounds, Undefined>, exact: &Exactly) -> bool {
     match (bounds, exact) {
         (Err(Fault::Op(_)), Err(Fault::Op(_))) => true,
         (Ok(b), Err(Fault::Op(_))) => b.may_fault,
-        (Ok(b), Ok(v)) => lies_in(v, &b.span),
+        (Ok(b), Ok(v)) => Exact.has_type(v, of) && lies_in(v, &b.span),
         _ => false,
     }
 }

@@ -27,15 +27,26 @@
 //! `eval(r, values, e)` is `Ok(v)` with `r.has_type(&v, &T)`, or
 //! `Err(Fault::Op(_))`. It is never `Err(Fault::Stuck)`.
 //!
+//! When one reading bounds another (covering): a reading `A` bounds a
+//! reading `C` of the same standard by γ, where `γ_T(a)` is the set of
+//! outcomes of `C`, faults included, that an outcome `a` of `A` of type
+//! `T` stands for. For every operation with `gives(op, [T₁ … Tₙ]) =
+//! Some(T)`, and arguments with each `cᵢ` in `γ_Tᵢ(aᵢ)`, `C.apply(op, c)`
+//! is in `γ_T(A.apply(op, a))`. Then by induction, as for preservation:
+//! when `check(s, Γ, e) == Some(T)` and each input's value in `C` is in
+//! `γ` of its value in `A` at its type, `eval(C, …, e)` is in
+//! `γ_T(eval(A, …, e))`.
+//!
 //! `check` and `eval` never panic, on any expression and any values.
 //! They recurse once per level of the expression, so the depth of an
-//! expression is bounded by the stack.
+//! expression is bounded by the stack: a few thousand levels on a
+//! thread of 2 MiB.
 
 use std::collections::BTreeMap;
 
 /// An expression: a named input, or an operation on what other
 /// expressions give.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expression<Op> {
     Input(String),
     Apply(Op, Vec<Expression<Op>>),
@@ -51,7 +62,7 @@ pub trait Standard {
 }
 
 /// Why an expression has no value.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Fault<F> {
     /// An operation has no value here, by its own reading: a division
     /// by zero, for one.
