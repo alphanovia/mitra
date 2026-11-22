@@ -84,6 +84,18 @@ pub struct Record {
     pub fields: Vec<(String, Type)>,
 }
 
+/// The type of a tuple `(a, b, …)`: a record with no name, its fields
+/// named `0`, `1`, … in order, so that `t.0` reads the first. No
+/// declared record has no name.
+pub fn tuple(of: Vec<Type>) -> Type {
+    let fields = of.into_iter().enumerate();
+    let fields = fields.map(|(i, t)| (i.to_string(), t)).collect();
+    Type::Record(Record {
+        name: String::new(),
+        fields,
+    })
+}
+
 impl Record {
     /// The place and type of the first field named `name`.
     pub fn field(&self, name: &str) -> Option<(usize, &Type)> {
