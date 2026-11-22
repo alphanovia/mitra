@@ -28,7 +28,7 @@ use num_traits::{Signed, Zero};
 /// A ratio of two integers, in lowest terms, its lower part above zero.
 /// Made only by `new`, `integer` and the operations, so there is no
 /// other kind.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Rational(BigRational);
 
 impl Rational {
@@ -114,8 +114,9 @@ pub enum Type {
     Record(Record),
 }
 
-/// An exact value.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// An exact value. Its order is only for keeping values in sets: it
+/// is not the order of numbers between kinds.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Value {
     Truth(bool),
     Int(BigInt),
@@ -131,7 +132,7 @@ pub enum Undefined {
 }
 
 /// The operations, in Rust's form.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Op {
     /// Constants: `true`, `3`, `1/3`.
     Truth(bool),

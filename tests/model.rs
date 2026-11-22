@@ -969,6 +969,8 @@ fn size(p: &Prop) -> usize {
         Prop::Named(_) => 1,
         Prop::Not(x) => 1 + size(x),
         Prop::Implies { pre, post, .. } => 1 + pre.iter().chain(post).map(size).sum::<usize>(),
+        Prop::Correct { .. } => 1,
+        Prop::All { body, .. } | Prop::Any { body, .. } => 1 + size(body),
     }
 }
 

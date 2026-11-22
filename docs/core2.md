@@ -3,7 +3,9 @@
 Three files. `src/expression.rs` is the core to freeze. `src/simulation.rs`
 and `src/judgement.rs` are two standards on it. An expression never mixes
 the two: `Expression<simulation::Op>` and `Expression<judgement::Op>` are
-different Rust types.
+different Rust types. Judgement reads simulation: the condition of a set
+of points is a simulation expression. `src/tactic.rs` writes proofs that
+judgement checks.
 
 ## expression.rs
 
@@ -76,7 +78,7 @@ are ordinary operations, not special forms: both branches are computed (choice
 | S4 | **Determinism**: `eval` is a function of reading, values and expression. | evaluating twice |
 | S5 | **Covering**, per operation: typed as in S1, each bounded argument of its type or an `Op` fault, each exact one in `γ` of its bounds at its type, and each body run in `Exact` at values in `γ` of those run in `Ranges` giving an outcome in `γ` of what that gives ⇒ `covers(t, Ranges, Exact)`. Then by induction: `check(Γ, e) = Some(T)`, `fits(Ranges, Γ, B)`, each exact input in `γ` of its bounds at its type ⇒ `covers(T, eval(Ranges, B, e), eval(Exact, C, e))`. On points it loses nothing: when each bound is `Bounds::exactly` of the exact input, the bounded outcome is `Bounds::exactly` of the exact one, or the same fault. | each operation with fault arguments; `all` over uncertain ends; random expressions end to end; random expressions on points; `all` on numbers, each read |
 | S6 | **Substitution**, in the core: when `e₁` checks to `T₁` and `e₂` to `T₂` with `x : T₁`, `substitute(e₂, x, e₁)` checks to `T₂`; on every reading, when `e₁` gives `v`, `e₂` with `x = v` gives what `substitute(e₂, x, e₁)` gives. **Let shares**, in `Exact`, `Ranges` and judgement: `let x = e₁; e₂` gives what `substitute(e₂, x, e₁)` gives, faults included, and `e₁` is evaluated once. **Let chooses once**, in a reading of sets: `let` gives a subset of what writing it out gives, so S6 fails there, by design. | random expressions whose binders bind the names of `e₁`; random expressions with lets and shadowing, written out, every reading, typed and wild; a count of operations applied; sets, random |
-| J1 | **Rules preserve truth**: each set an opinion of `x` rests on, for or against, entails `x`, or `!x`, where `t = {p} s {q}` means `t → (∧p → ∧q)`, and a name `r` defined `{p} r {q}` the same. | every valuation of every random derivation, its rules written in place or known by name |
+| J1 | **Rules preserve truth**: each set an opinion of `x` rests on, for or against, entails `x`, or `!x`, where `t = {p} s {q}` means `t → (∧p → ∧q)`, a name `r` defined `{p} r {q}` the same, an all is the conjunction of its body at each point of its set, and an any the disjunction. | every valuation of every random derivation, its rules written in place or known by name; half the worlds over points, with alls and anys over four sets (one empty, one with a condition), nested, a name bound again, rules under an all, each instance and each set's points listed by hand |
 | J2 | **State is read from rests**: `state(not o) = not state(o)`, `state(join a b) = join(state a, state b)`. | random opinions |
 | J3 | **Rests are the smallest, and all**: no rest holds another. Keeping only the takings in a set `S`, a proposition follows only if one of its rests lies in `S`, unless a `Reductio` lies below another; and, with no `Reductio`, whenever one does. A reductio's rest leaves out the taking it finds wrong. Below another reductio, a taking added can take a conclusion away: the inner one keeps only its smallest blame. | random derivations, random `S`; the case found by the red team |
 
@@ -103,7 +105,30 @@ are ordinary operations, not special forms: both branches are computed (choice
 ## judgement.rs
 
 - Types `State | Opinion(Prop)`. A proposition is `Named(n) | Not(x) |
-  Implies { pre, subject, post }`, where the last is `t = {p} s {q}`.
+  Implies { pre, subject, post } | Correct { function, at } | All { name,
+  over, body } | Any { name, over, body }`, where `Implies` is `t = {p} s
+  {q}`.
+- Points. `correct(f, at)`: the function `f`, known by its path, gives
+  what it should at `at`. Judgement does not know `f`; the model does. `at`
+  is a term: `Point([6, 2])`, the values of `f`'s arguments in order, as in
+  a row of its examples; or `Var(x)`, the name an all or an any around it
+  binds. `all x in S: p` holds when `p` holds at every point of `S`, `x`
+  standing for the point; `any x in S: p`, at some point.
+- Sets. `Set { ranges: [(a, 0, 10), (b, 0, 10)], such: Some(b != 0) }` is
+  the points `[a, b]` with `a` and `b` in `0..10`, `hi` left out as in Rust,
+  where `b != 0`. `such` is read by `Exact`, each name standing for its
+  number; a fault is not true. A set names nothing outside itself. A set of
+  whole numbers lists its points, in Rust's order of tuples; one of reals
+  only says whether a point is in it.
+- Well formed: each name a term uses is bound by an all or an any around
+  it, and each set is (names distinct, each range two `Int` or two `Real`,
+  `such` a truth). Judgement reasons about no other: `Opinion::taken`
+  refuses one, and no rule gives or takes one.
+- Dependent types, syntactically: the type of an opinion names its
+  proposition, points and bound names included, as `Opinion(correct(div,
+  [6, 2]))`. Two types are equal only when written the same. A rule at a
+  point writes the point in place of the name (`Prop::at`), so the types of
+  its arguments say which point.
 - Rules known by name. `Judgement::with(definitions)` holds a
   `Definition { pre, post }` for each name, once, and `Named(r)` is then the
   rule `{pre} r {post}`. A name it does not know is no rule: a ponens on it
@@ -125,11 +150,44 @@ are ordinary operations, not special forms: both branches are computed (choice
   - `Reductio { of }`: an opinion of `x` gives one of `of`.
   - `Not` and `Join` on opinions; `And`, `Not` and `Join` on states; `StateOf` gives an opinion's state.
   - `let x = a; b`, to use one derivation twice.
+  - `Instance { q, at }`: from an opinion of `q`, an all or an any, one of
+    its body at `at`, a point of its set. An all true makes it true; an any
+    false makes it false. Down.
+  - `Witness { q, at }`: from an opinion of the body at `at`, one of `q`.
+    True there makes an any true; false there makes an all false. Up, from
+    one point.
+  - `Cases { q }`: from an opinion of the body at each point of the set, in
+    order, one of `q`: all the points tell. An all is true when every point
+    is, false when one is; an any is true when one is, false when every
+    one is. Over an empty set, an all is true and an any false, from
+    nothing. Up, from every point.
+  - No rule goes up from some of the points: that would be induction. An
+    all over a set too large to list is taken (a review) or refuted (a
+    witness).
 - Numbers sit only on takings, and no rule touches one.
-- Costs: a ponens over `n` premises, each with two ways, rests on `2ⁿ` sets,
+- Costs: `Cases` reads every point of its set's ranges, in the set or not,
+  when it is checked as when it runs: checking a proof is no longer linear
+  in its size, and `0..1000 × 0..1000` is a million points. `such` runs once
+  per point read. A ponens over `n` premises, each with two ways, rests on `2ⁿ` sets,
   each a different smallest way: inherent. A ponens copies its ways as they
   grow: quadratic in its premises (2,000 premises: 0.4 s). A reductio reads
   every pair of a way for and a way against.
+
+## tactic.rs
+
+A tactic writes a proof, and judgement checks it like any other. It is
+trusted with nothing: a wrong proof does not check, whatever wrote it, and
+a checked proof is a taking by the checker (`docs/model.md`, choice 5).
+`cases(q, case)` writes `Cases { q }` with one argument per point of `q`'s
+set, in order: `case(goal, point)` writes a proof of `goal`, the body at
+that point. `intro`, one proof for every point, is next.
+
+On main's `div(a, b)`, `a` and `b` in `0..10`, "div is correct
+everywhere" rests on 100 tests by cases; or on 4 takings: a review of each
+class (`b != 0`, `b == 0`) as a rule, "correct at one point gives correct on
+the class", and one test in each. `cases` then takes each point from its
+class by `Instance`. A failing second test in a class refutes its review,
+by `Witness` then `Tollens`, naming both tests (`tests/tactic.rs`).
 
 ## The choices in the core, in plain words
 
@@ -271,6 +329,37 @@ to ask for each argument when it needs it: one method in place of `apply` and
 `&&`, `||` and `if` built in as exceptions. Haskell computes nothing until it
 is needed ("lazy").
 
+**9. Dependent types, by writing.** The type of an opinion says what it
+is about, down to the point. Two types are equal only when they are
+written the same.
+*Example*: `Instance` of `all x in D: correct(div, x)` at `[6, 2]` has type
+`Opinion(correct(div, [6, 2]))`. A ponens that needs the test at `[7, 3]`
+does not take it.
+*Gain*: the checker knows which point each opinion is about, so a proof
+cannot pass off one point's test for another's. One checker for all.
+*Give up*: equality is only by writing: `all x in S: p` and the same with
+`y` are two propositions, and nothing is computed in a type (`[12 / 2, 2]`
+could not even be written: a point holds values only). Checking a proof
+may run `such` and list points.
+*Elsewhere*: Lean, Coq and Agda have full dependent types, where types
+equal up to computation are the same (`2 + 2` and `4`). LambdaPi (Löh,
+McBride and Swierstra, 2010) is the smallest such checker. Dependent ML
+(`int(n)`) and TypeScript's literal types (`let n: 5`) put values in
+types, with no computation.
+
+**10. Tactics outside the kernel.** Judgement checks proofs; tactics write
+them.
+*Example*: `cases(q, …)` writes div's proof by cases, 100 arguments; the
+kernel lists the 100 points itself and checks each argument against its
+point.
+*Gain*: a bug in a tactic cannot make a wrong proof pass. A new tactic
+changes nothing in the kernel, which stays small enough to red-team.
+*Give up*: a proof a tactic writes can be large (one argument per point),
+and the kernel does again what the tactic did.
+*Elsewhere*: Lean and Coq: tactics write terms, a small kernel checks them
+(the "de Bruijn criterion"). Isabelle and HOL: only the kernel's functions
+make theorems (the LCF style).
+
 ## Choices taken on Rust's form
 
 `!x`, `&&`, `||`, `if`, `R { .. }`, `r.x`, `let x = e₁; e₂`, and
@@ -295,5 +384,11 @@ be an operation.
 9. **`Reading::bind`**, a second method beside `apply`, for operations that bind: plain arguments come evaluated, `Stuck` stands in for the others, and `run` evaluates them. `apply` is unchanged for every other operation.
 10. **`let` in judgement too**, as it was before, now as one of its operations.
 11. The **reading of sets with `choose`** lives in the tests only, to show `let` choosing once; no standard here has `choose`.
+12. A **point is the list of a function's arguments**, `[6, 2]`, as in a row of examples, not one tuple value.
+13. A **set's ranges are named**, `(a, 0, 10)`, `hi` left out as in Rust, and `such` reads those names. A fault in `such` is not true.
+14. **`Cases` gives all the cases tell**, both sides: an all is also false when one case is, as `Witness` says.
+15. **Substitution in a proposition is its own** (`Prop::at`): a point holds no name, so nothing can be caught, and core's `substitute` works on expressions only.
+16. **Only well formed propositions** (`Prop::well_formed`): `Opinion::taken` and every rule refuse the others.
+17. `simulation::Value` and `simulation::Op` are now **ordered and hashed**, to keep propositions in sets; a `Set` orders its `such` part by part, in judgement.rs, since expression.rs does not change.
 
-Not in this round: an `Option` type, `Int → Real` conversion, units, diagnosis, streams.
+Not in this round: an `Option` type, `Int → Real` conversion, units, diagnosis, streams, `intro` (next), and an all or an any written in the model.

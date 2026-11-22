@@ -1,17 +1,184 @@
 //! The judgement standard (`docs/core2.md`): S2 to S4, J1 (every rule
 //! preserves truth, checked on every valuation), J2 (states are read
 //! from rests) and J3 (rests are the smallest, and all) on random
-//! derivations, and the proposition walked through.
+//! derivations, half of them over points, and the proposition walked
+//! through.
 
 mod common;
 
 use common::{apply, inline, let_in, Rng};
 use mitra_core::expression::{check, eval, fits, Arg, Expression, Fault, Reading};
-use mitra_core::judgement::{Definition, Judgement, Op, Opinion, Prop, State, Taking, Type, Value};
+use mitra_core::judgement::{
+    Definition, Judgement, Op, Opinion, Prop, Set, State, Taking, Term, Type, Value,
+};
+use mitra_core::simulation;
 use proptest::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 
 type E = Expression<Op>;
+type Sim = Expression<simulation::Op>;
+
+fn int(n: i64) -> simulation::Value {
+    simulation::Value::Int(n.into())
+}
+fn sim(op: simulation::Op, args: Vec<Sim>) -> Sim {
+    apply(op, args)
+}
+fn word(name: &str) -> Sim {
+    Expression::Name(name.to_string())
+}
+/// `name` in `lo..hi`, such that `such`.
+fn set(name: &str, lo: i64, hi: i64, such: Option<Sim>) -> Set {
+    Set {
+        ranges: vec![(name.to_string(), int(lo), int(hi))],
+        such,
+    }
+}
+fn correct(f: &str, at: Term) -> Prop {
+    Prop::Correct {
+        function: f.to_string(),
+        at,
+    }
+}
+fn var(x: &str) -> Term {
+    Term::Var(x.to_string())
+}
+fn point(n: i64) -> Term {
+    Term::Point(vec![int(n)])
+}
+fn all_in(x: &str, over: &Set, body: Prop) -> Prop {
+    Prop::All {
+        name: x.to_string(),
+        over: over.clone(),
+        body: Box::new(body),
+    }
+}
+fn any_in(x: &str, over: &Set, body: Prop) -> Prop {
+    Prop::Any {
+        name: x.to_string(),
+        over: over.clone(),
+        body: Box::new(body),
+    }
+}
+
+/// The test's own substitution, to check the kernel's: `p` with the point
+/// `[v]` in place of each `name` free in it.
+fn subst(p: &Prop, name: &str, v: i64) -> Prop {
+    let s = |q: &Prop| subst(q, name, v);
+    match p {
+        Prop::Correct {
+            function,
+            at: Term::Var(x),
+        } if x == name => correct(function, point(v)),
+        Prop::Named(_) | Prop::Correct { .. } => p.clone(),
+        Prop::Not(x) => Prop::Not(Box::new(s(x))),
+        Prop::Implies { pre, subject, post } => Prop::Implies {
+            pre: pre.iter().map(s).collect(),
+            subject: subject.clone(),
+            post: post.iter().map(s).collect(),
+        },
+        Prop::All { name: x, .. } | Prop::Any { name: x, .. } if x == name => p.clone(),
+        Prop::All {
+            name: x,
+            over,
+            body,
+        } => all_in(x, over, s(body)),
+        Prop::Any {
+            name: x,
+            over,
+            body,
+        } => any_in(x, over, s(body)),
+    }
+}
+
+/// The sets of the worlds over points, each with its points listed by
+/// hand: `0..3`, `0..3` but 1, `2..3`, and `0..0`, which is empty.
+fn sets() -> Vec<(Set, Vec<i64>)> {
+    let not_one = sim(
+        simulation::Op::Not,
+        vec![sim(
+            simulation::Op::Equal,
+            vec![word("n"), sim(simulation::Op::Int(1.into()), vec![])],
+        )],
+    );
+    vec![
+        (set("n", 0, 3, None), vec![0, 1, 2]),
+        (set("n", 0, 3, Some(not_one)), vec![0, 2]),
+        (set("n", 2, 3, None), vec![2]),
+        (set("n", 0, 0, None), vec![]),
+    ]
+}
+
+/// The points of `over`, as listed by hand in `sets`.
+fn listed<'a>(sets: &'a [(Set, Vec<i64>)], over: &Set) -> &'a [i64] {
+    &sets
+        .iter()
+        .find(|(s, _)| s == over)
+        .expect("a set outside the world")
+        .1
+}
+
+/// A random proposition over points, of `f` at `x`: `correct`, its
+/// negation, a rule from it to `a`, or an all or an any around one,
+/// binding `x` again or `y`.
+fn over_points(rng: &mut Rng, sets: &[(Set, Vec<i64>)], depth: u32) -> Prop {
+    let quantified = |rng: &mut Rng, body: Prop| {
+        let over = &rng.pick(sets).0;
+        match rng.coin() {
+            true => all_in("x", over, body),
+            false => any_in("x", over, body),
+        }
+    };
+    let body = match (depth, rng.below(5)) {
+        (0, _) | (_, 0) => correct("f", var("x")),
+        (_, 1) => Prop::Not(Box::new(correct("f", var("x")))),
+        (_, 2) => Prop::Implies {
+            pre: vec![correct("f", var("x"))],
+            subject: "k".to_string(),
+            post: vec![Prop::named("a")],
+        },
+        (_, 3) => {
+            // An inner all or any binding `x` again, which hides the outer.
+            over_points(rng, sets, depth - 1)
+        }
+        _ => {
+            // An inner one binding `y`, its body still of the outer `x`.
+            let inner = Prop::Implies {
+                pre: vec![correct("f", var("x"))],
+                subject: "k".to_string(),
+                post: vec![correct("f", var("y"))],
+            };
+            let over = &rng.pick(sets).0;
+            match rng.coin() {
+                true => all_in("y", over, inner),
+                false => any_in("y", over, inner),
+            }
+        }
+    };
+    quantified(rng, body)
+}
+
+/// `p` and every instance of every all and any in it, as the test lists
+/// them, each once.
+fn with_instances(p: &Prop, sets: &[(Set, Vec<i64>)], found: &mut Vec<Prop>) {
+    if found.contains(p) {
+        return;
+    }
+    found.push(p.clone());
+    match p {
+        Prop::Not(x) => with_instances(x, sets, found),
+        Prop::Implies { pre, post, .. } => pre
+            .iter()
+            .chain(post)
+            .for_each(|q| with_instances(q, sets, found)),
+        Prop::All { name, over, body } | Prop::Any { name, over, body } => {
+            for &v in listed(sets, over) {
+                with_instances(&subst(body, name, v), sets, found);
+            }
+        }
+        _ => {}
+    }
+}
 
 fn is_let(op: &Op) -> bool {
     matches!(op, Op::Let)
@@ -27,6 +194,8 @@ fn input(name: &str) -> E {
 struct World {
     rng: Rng,
     props: Vec<Prop>,
+    /// The sets, each with its points, in the worlds over points.
+    sets: Vec<(Set, Vec<i64>)>,
     /// Each rule, its pres and its posts, as the world makes them.
     rules: Vec<(Prop, Vec<Prop>, Vec<Prop>)>,
     defined: BTreeMap<String, Definition>,
@@ -39,16 +208,51 @@ struct World {
 }
 
 impl World {
+    /// Half the worlds are over points: `a`, `f` correct at 0, 1 and 2,
+    /// one or two alls and anys over them, each with its instances, and
+    /// fewer rules, so that valuations stay few.
     fn new(seed: u64) -> World {
         let mut rng = Rng::new(seed);
-        let atoms: Vec<Prop> = ["a", "b", "c"].map(Prop::named).to_vec();
+        let points = rng.coin();
+        World::made(rng, points)
+    }
+    /// A world over points.
+    fn over_points(seed: u64) -> World {
+        let mut rng = Rng::new(seed);
+        rng.coin();
+        World::made(rng, true)
+    }
+    fn made(mut rng: Rng, points: bool) -> World {
+        let sets = match points {
+            true => sets(),
+            false => vec![],
+        };
+        let atoms: Vec<Prop> = match points {
+            false => ["a", "b", "c"].map(Prop::named).to_vec(),
+            true => {
+                let mut atoms = vec![Prop::named("a")];
+                atoms.extend((0..3).map(|i| correct("f", point(i))));
+                for _ in 0..1 + rng.below(2) {
+                    let q = over_points(&mut rng, &sets, 1);
+                    with_instances(&q, &sets, &mut atoms);
+                }
+                atoms
+            }
+        };
         let mut props: Vec<Prop> = atoms
             .iter()
             .cloned()
             .chain(atoms.iter().map(Prop::not))
             .collect();
         let (mut rules, mut defined) = (Vec::new(), BTreeMap::new());
-        for i in 0..1 + rng.below(3) {
+        // The rules a world over points holds: each instance of a rule
+        // under an all or an any, written in place.
+        for p in &atoms {
+            if let Prop::Implies { pre, post, .. } = p {
+                rules.push((p.clone(), pre.clone(), post.clone()));
+            }
+        }
+        for i in 0..1 + rng.below([3, 2][points as usize]) {
             let pool: Vec<Prop> = props
                 .iter()
                 .chain(rules.iter().map(|(t, _, _)| t))
@@ -75,9 +279,13 @@ impl World {
         }
         props.extend(rules.iter().flat_map(|(t, _, _)| [t.clone(), t.not()]));
         let judgement = Judgement::with(defined.clone()).unwrap();
+        // Each proposition once: an instance may be the negation of another.
+        let mut seen = BTreeSet::new();
+        props.retain(|p| seen.insert(p.clone()));
         let mut w = World {
             rng,
             props: props.clone(),
+            sets,
             rules,
             defined,
             judgement,
@@ -111,7 +319,18 @@ impl World {
             by: self.rng.pick(&["v1", "v2"]).to_string(),
         }
     }
+    /// A proposition of the world; over points, an all or an any one
+    /// time in three.
     fn prop(&mut self) -> Prop {
+        let quantified: Vec<Prop> = self
+            .props
+            .iter()
+            .filter(|p| matches!(p, Prop::All { .. } | Prop::Any { .. }))
+            .cloned()
+            .collect();
+        if !quantified.is_empty() && self.rng.below(3) == 0 {
+            return self.rng.pick(&quantified).clone();
+        }
         self.rng.pick(&self.props.clone()).clone()
     }
     /// The premises of the rule `t`, `t` first, and its posts.
@@ -171,6 +390,35 @@ impl World {
             );
         }
         let mut ways = vec![Op::Join, Op::Not, Op::Reductio { of: x.clone() }];
+        // Down to x from an all or an any it is an instance of; up to
+        // x, an all or an any, from one point, or from every point.
+        for q in &self.props {
+            if let Prop::All { name, over, body } | Prop::Any { name, over, body } = q {
+                for &v in listed(&self.sets, over) {
+                    if &subst(body, name, v) == x {
+                        ways.extend(vec![
+                            Op::Instance {
+                                q: q.clone(),
+                                at: vec![int(v)]
+                            };
+                            4
+                        ]);
+                    }
+                    if q == x {
+                        ways.extend(vec![
+                            Op::Witness {
+                                q: q.clone(),
+                                at: vec![int(v)]
+                            };
+                            3
+                        ]);
+                    }
+                }
+                if q == x {
+                    ways.extend(vec![Op::Cases { q: q.clone() }; 6]);
+                }
+            }
+        }
         for (t, _, _) in &self.rules {
             let (premises, posts) = self.rule(t);
             for (post, q) in posts.iter().enumerate() {
@@ -212,6 +460,21 @@ impl World {
                 vec![self.opinion(&y, d)]
             }
             Op::Ponens { t, .. } => self.rule(t).0.iter().map(|p| self.opinion(p, d)).collect(),
+            Op::Instance { q, .. } => vec![self.opinion(&q.clone(), d)],
+            Op::Witness { q, at } => {
+                let instance = self.instance(q, at);
+                vec![self.opinion(&instance, d)]
+            }
+            Op::Cases { q } => {
+                let (Prop::All { name, over, body } | Prop::Any { name, over, body }) = q else {
+                    unreachable!()
+                };
+                let cases: Vec<Prop> = listed(&self.sets, over)
+                    .iter()
+                    .map(|&v| subst(body, name, v))
+                    .collect();
+                cases.iter().map(|p| self.opinion(p, d)).collect()
+            }
             Op::Tollens { t, post, blame } => {
                 let (mut from, posts) = self.rule(t);
                 from.remove(*blame);
@@ -224,6 +487,16 @@ impl World {
             _ => unreachable!(),
         };
         apply(op, args)
+    }
+    /// The instance of `q` at `at`, by the test's own substitution.
+    fn instance(&self, q: &Prop, at: &[simulation::Value]) -> Prop {
+        let (Prop::All { name, body, .. } | Prop::Any { name, body, .. }) = q else {
+            unreachable!()
+        };
+        let [simulation::Value::Int(v)] = at else {
+            unreachable!()
+        };
+        subst(body, name, i64::try_from(v).unwrap())
     }
     /// A random expression of a state.
     fn state(&mut self, depth: u32) -> E {
@@ -256,7 +529,24 @@ impl World {
     fn wild_op(&mut self) -> Op {
         let t = self.prop();
         let (post, blame) = (self.rng.below(4), self.rng.below(5));
+        let at = self
+            .rng
+            .pick(&[
+                vec![],
+                vec![int(0)],
+                vec![int(1)],
+                vec![int(2)],
+                vec![int(7)],
+                vec![int(0), int(1)],
+            ])
+            .clone();
         let all = [
+            Op::Instance {
+                q: t.clone(),
+                at: at.clone(),
+            },
+            Op::Witness { q: t.clone(), at },
+            Op::Cases { q: t.clone() },
             Op::Not,
             Op::And,
             Op::Join,
@@ -306,12 +596,17 @@ impl World {
 struct Meaning {
     vars: Vec<Prop>,
     rules: Vec<(Prop, Vec<Prop>, Vec<Prop>)>,
+    sets: Vec<(Set, Vec<i64>)>,
 }
 
 type Rules = BTreeSet<(Prop, Vec<Prop>, Vec<Prop>)>;
 
 impl Meaning {
-    fn of(props: &[Prop], defined: &BTreeMap<String, Definition>) -> Meaning {
+    fn of(
+        props: &[Prop],
+        defined: &BTreeMap<String, Definition>,
+        sets: &[(Set, Vec<i64>)],
+    ) -> Meaning {
         let collect = |p: &Prop, vars: &mut BTreeSet<Prop>, rules: &mut Rules| {
             let mut todo = vec![p.clone()];
             while let Some(p) = todo.pop() {
@@ -322,6 +617,14 @@ impl Meaning {
                         continue;
                     }
                     Prop::Implies { pre, post, .. } => Some((pre.clone(), post.clone())),
+                    Prop::Correct { .. } => None,
+                    // An all or an any is no variable: its truth is read
+                    // from its instances.
+                    Prop::All { name, over, body } | Prop::Any { name, over, body } => {
+                        let at = listed(sets, over).iter();
+                        todo.extend(at.map(|&v| subst(body, name, v)));
+                        continue;
+                    }
                 };
                 if vars.insert(p.clone()) {
                     if let Some((pre, post)) = rule {
@@ -336,11 +639,18 @@ impl Meaning {
         Meaning {
             vars: vars.into_iter().collect(),
             rules: rules.into_iter().collect(),
+            sets: sets.to_vec(),
         }
     }
     fn truth(&self, p: &Prop, bits: u64) -> bool {
         match p {
             Prop::Not(x) => !self.truth(x, bits),
+            Prop::All { name, over, body } => listed(&self.sets, over)
+                .iter()
+                .all(|&v| self.truth(&subst(body, name, v), bits)),
+            Prop::Any { name, over, body } => listed(&self.sets, over)
+                .iter()
+                .any(|&v| self.truth(&subst(body, name, v), bits)),
             _ => {
                 let place = self
                     .vars
@@ -416,7 +726,7 @@ proptest! {
     fn every_rule_preserves_truth(seed in any::<u64>(), depth in 1u32..6) {
         let mut w = World::new(seed);
         let (_, e) = w.typed(depth);
-        let meaning = Meaning::of(&w.props, &w.defined);
+        let meaning = Meaning::of(&w.props, &w.defined, &w.sets);
         let j = w.judgement.clone();
         let written = inline(&e, &is_let);
         for sub in subexpressions(&written) {
@@ -494,7 +804,7 @@ proptest! {
             let part = opinion(eval(&j, &values, &e));
             for (some, all) in [(part.rests_for(), whole.rests_for()), (part.rests_against(), whole.rests_against())] {
                 let within = all.iter().any(|r| r.is_subset(&kept));
-                prop_assert!(nested || some.is_empty() || within, "follows from {:?} but no rest of {:?} lies in it", kept, all);
+                prop_assert!(nested || some.is_empty() || within, "follows from {:?} but no rest of {:?} lies in it\nderivation {:?}\npart {:?}", kept, all, e, part);
                 prop_assert!(!exact || !within || !some.is_empty(), "a rest of {:?} lies in {:?}, yet nothing follows", all, kept);
             }
         }
@@ -523,6 +833,31 @@ proptest! {
         let j = w.judgement.clone();
         let _ = check(&j, &w.inputs, &e);
         let _ = eval(&j, &w.values, &e);
+    }
+}
+
+proptest! {
+    // Valuations over points are many: fewer cases, each a deeper search.
+    #![proptest_config(ProptestConfig::with_cases(1000))]
+
+    /// J1 over points: every set every opinion rests on, in a random
+    /// derivation of an all, an any or one of their instances, entails
+    /// what it supports, under the truth of an all and an any read from
+    /// their points, listed by hand.
+    #[test]
+    fn quantifiers_preserve_truth(seed in any::<u64>(), depth in 1u32..4) {
+        let mut w = World::over_points(seed);
+        let x = w.prop();
+        let e = w.opinion(&x, depth);
+        let j = w.judgement.clone();
+        prop_assert_eq!(check(&j, &w.inputs, &e), Some(Type::Opinion(x.clone())));
+        let meaning = Meaning::of(&w.props, &w.defined, &w.sets);
+        let written = inline(&e, &is_let);
+        for sub in subexpressions(&written) {
+            if let Ok(Value::Opinion(o)) = eval(&j, &w.values, sub) {
+                prop_assert!(meaning.sound(&o), "unsound: {:?}\nfrom {:?}", o, sub);
+            }
+        }
     }
 }
 
@@ -827,7 +1162,7 @@ fn an_impossible_implication_is_refuted() {
     ));
     assert_eq!(refuted.rests_against(), &BTreeSet::from([BTreeSet::new()]));
     assert_eq!(refuted.state(), State::False);
-    assert!(Meaning::of(&[t], &BTreeMap::new()).sound(&refuted));
+    assert!(Meaning::of(&[t], &BTreeMap::new(), &[]).sound(&refuted));
 }
 
 /// A leaf opinion is of the takings of its own proposition only.
@@ -1016,7 +1351,7 @@ fn a_reductio_below_another() {
     assert_eq!(all.state(), State::Unknown);
     let lost = BTreeSet::from([wt.clone(), t7t.clone(), t9t, v.clone()]);
     assert_eq!(fewer.rests_against(), &BTreeSet::from([lost.clone()]));
-    let meaning = Meaning::of(&[z, q.clone(), w, t7], &BTreeMap::new());
+    let meaning = Meaning::of(&[z, q.clone(), w, t7], &BTreeMap::new(), &[]);
     assert!(meaning.entails(&lost, &q, false));
     let cannot = BTreeSet::from([wt, t7t, v]);
     assert!(meaning.entails(&cannot, &q, true) && meaning.entails(&cannot, &q, false));
@@ -1198,7 +1533,7 @@ fn a_rule_known_by_its_name() {
             post: vec![q.clone()],
         },
     )]);
-    let meaning = Meaning::of(&[p.clone(), q.clone(), r.clone()], &defined);
+    let meaning = Meaning::of(&[p.clone(), q.clone(), r.clone()], &defined, &[]);
     assert!(meaning.sound(&given) && meaning.sound(&blamed));
     // Not known: no type, and stuck if run anyway.
     let none = Judgement::default();
@@ -1255,6 +1590,12 @@ fn no_rule_is_defined_through_itself() {
     };
     let through = knowing(&[("c", &[&p], &[&inside]), ("d", &[&c], &[&q])]);
     assert_eq!(through, refused(&["c", "d"]));
+    // Through the body of an all, and of an any.
+    let s = set("n", 0, 3, None);
+    let every = all_in("x", &s, Prop::Not(Box::new(e.clone())));
+    assert_eq!(knowing(&[("e", &[&every], &[&q])]), refused(&["e"]));
+    let some = any_in("x", &s, inside.clone());
+    assert_eq!(knowing(&[("d", &[&p], &[&some])]), refused(&["d"]));
     // Names that only name rules, or are no rule, are fine.
     let fine = knowing(&[
         ("c", &[&d, &d], &[&q]),
@@ -1350,4 +1691,406 @@ fn a_long_chain_of_names() {
     assert!(chain(false).is_ok());
     assert_eq!(chain(true).unwrap_err().len(), n);
     assert!(start.elapsed() < std::time::Duration::from_secs(5));
+}
+
+/// Opinions taken of `props`, each by its name, and what checks and runs
+/// on them: `Some` opinion when the derivation checks, `None` when it
+/// does not, in which case it does not run either.
+struct Bench {
+    judgement: Judgement,
+    inputs: BTreeMap<String, Type>,
+    values: BTreeMap<String, Value>,
+}
+
+impl Bench {
+    fn of(judgement: Judgement, taken: &[(&str, &Prop, Vec<Taking>)]) -> Bench {
+        let mut bench = Bench {
+            judgement,
+            inputs: BTreeMap::new(),
+            values: BTreeMap::new(),
+        };
+        for (name, p, takings) in taken {
+            let o = Opinion::taken((*p).clone(), takings.clone()).unwrap();
+            bench
+                .inputs
+                .insert(name.to_string(), Type::Opinion((*p).clone()));
+            bench.values.insert(name.to_string(), Value::Opinion(o));
+        }
+        bench
+    }
+    fn run(&self, e: &E) -> Option<Opinion> {
+        let out = eval(&self.judgement, &self.values, e);
+        match check(&self.judgement, &self.inputs, e) {
+            Some(_) => Some(opinion(out)),
+            None => {
+                assert_eq!(out, Err(Fault::Stuck), "runs but does not check: {e:?}");
+                None
+            }
+        }
+    }
+}
+
+fn rests(sets: &[&[&Taking]]) -> BTreeSet<BTreeSet<Taking>> {
+    let set = |ts: &&[&Taking]| ts.iter().map(|t| (*t).clone()).collect();
+    sets.iter().map(set).collect()
+}
+
+/// A set: its points in order, what is in it, and what is not well
+/// formed.
+#[test]
+fn a_set_and_its_points() {
+    use simulation::Op as O;
+    let lit = |n: i64| sim(O::Int(n.into()), vec![]);
+    let real = |n: i64, d: i64| simulation::Value::Real(simulation::Rational::new(n, d).unwrap());
+    let differ = sim(O::Not, vec![sim(O::Equal, vec![word("a"), word("b")])]);
+    let s = Set {
+        ranges: vec![("a".into(), int(0), int(3)), ("b".into(), int(0), int(2))],
+        such: Some(differ),
+    };
+    assert!(s.well_formed());
+    let points: Vec<Vec<simulation::Value>> = s.points().unwrap().collect();
+    let expected = [[0, 1], [1, 0], [2, 0], [2, 1]].map(|p| p.map(int).to_vec());
+    assert_eq!(points, expected);
+    assert!(s.contains(&[int(2), int(1)]));
+    for out in [
+        vec![int(1), int(1)],
+        vec![int(3), int(0)],
+        vec![int(-1), int(0)],
+        vec![int(0)],
+        vec![int(0), int(1), int(0)],
+        vec![real(1, 1), int(0)],
+    ] {
+        assert!(!s.contains(&out), "{out:?} is not in it");
+    }
+    // Reals: in or not, never listed.
+    let r = Set {
+        ranges: vec![("v".into(), real(0, 1), real(1, 1))],
+        such: None,
+    };
+    assert!(r.well_formed() && r.contains(&[real(1, 2)]));
+    assert!(!r.contains(&[real(1, 1)]) && !r.contains(&[int(0)]));
+    assert!(r.points().is_none());
+    // A fault is not true: `1 / v <= 4` has no value at 0.
+    let one = sim(O::Real(simulation::Rational::integer(1)), vec![]);
+    let four = sim(O::Real(simulation::Rational::integer(4)), vec![]);
+    let inverse = sim(O::AtMost, vec![sim(O::Div, vec![one, word("v")]), four]);
+    let r = Set {
+        ranges: vec![("v".into(), real(-1, 1), real(1, 1))],
+        such: Some(inverse),
+    };
+    assert!(r.well_formed() && r.contains(&[real(1, 2)]) && !r.contains(&[real(0, 1)]));
+    // No point in an empty range; one point, of no number, with no range.
+    assert_eq!(set("n", 3, 3, None).points().unwrap().count(), 0);
+    assert_eq!(set("n", 5, 2, None).points().unwrap().count(), 0);
+    let none = Set {
+        ranges: vec![],
+        such: None,
+    };
+    assert_eq!(none.points().unwrap().collect::<Vec<_>>(), [vec![]]);
+    // Not well formed: a range of two kinds, or of truths, a name twice,
+    // `such` not a truth, or naming what is no range.
+    let (yes, no) = (
+        simulation::Value::Truth(true),
+        simulation::Value::Truth(false),
+    );
+    for bad in [
+        vec![("a".into(), int(0), real(1, 1))],
+        vec![("a".into(), no, yes)],
+        vec![("a".into(), int(0), int(1)), ("a".into(), int(0), int(1))],
+    ] {
+        let bad = Set {
+            ranges: bad,
+            such: None,
+        };
+        assert!(!bad.well_formed(), "{bad:?}");
+    }
+    for such in [lit(1), sim(O::Equal, vec![word("z"), lit(0)])] {
+        let bad = set("a", 0, 1, Some(such));
+        assert!(!bad.well_formed(), "{bad:?}");
+    }
+}
+
+/// `all x in 0..3: correct(f, x)` and its any, each rule on each side,
+/// by hand: down to a point, up from one point, up from every point.
+#[test]
+fn quantifiers_walked_through() {
+    let s = set("n", 0, 3, None);
+    let (every, some) = (
+        all_in("x", &s, correct("f", var("x"))),
+        any_in("x", &s, correct("f", var("x"))),
+    );
+    let f = |n: i64| correct("f", point(n));
+    let (t0, t1, t2) = (
+        take(&f(0), true, 1, "test"),
+        take(&f(1), false, 1, "test"),
+        take(&f(2), true, 1, "test"),
+    );
+    let (review, none) = (
+        take(&every, true, 1, "review"),
+        take(&some, false, 1, "review"),
+    );
+    let b = Bench::of(
+        Judgement::default(),
+        &[
+            ("o0", &f(0), vec![t0.clone()]),
+            ("o1", &f(1), vec![t1.clone()]),
+            ("o2", &f(2), vec![t2.clone()]),
+            ("every", &every, vec![review.clone()]),
+            ("some", &some, vec![none.clone()]),
+        ],
+    );
+    let at = |n: i64| vec![int(n)];
+    let instance = |q: &Prop, n, x| {
+        apply(
+            Op::Instance {
+                q: q.clone(),
+                at: at(n),
+            },
+            vec![input(x)],
+        )
+    };
+    let witness = |q: &Prop, n, x| {
+        apply(
+            Op::Witness {
+                q: q.clone(),
+                at: at(n),
+            },
+            vec![input(x)],
+        )
+    };
+    let cases = |q: &Prop, xs: &[&str]| {
+        apply(
+            Op::Cases { q: q.clone() },
+            xs.iter().map(|x| input(x)).collect(),
+        )
+    };
+
+    // Down: the review of the all says f is correct at 1; the review of
+    // the any, false, says f is wrong at 1. Neither says the other side.
+    let down = b.run(&instance(&every, 1, "every")).unwrap();
+    assert_eq!(
+        (down.about(), down.rests_for()),
+        (&f(1), &rests(&[&[&review]]))
+    );
+    assert!(down.rests_against().is_empty());
+    let down = b.run(&instance(&some, 1, "some")).unwrap();
+    assert_eq!(
+        (down.about(), down.rests_against()),
+        (&f(1), &rests(&[&[&none]]))
+    );
+    assert!(down.rests_for().is_empty());
+
+    // Up from one point: f wrong at 1 makes the all false; f correct at
+    // 0 makes the any true. Not the other way.
+    let up = b.run(&witness(&every, 1, "o1")).unwrap();
+    assert_eq!(up.rests_against(), &rests(&[&[&t1]]));
+    assert!(up.rests_for().is_empty());
+    let up = b.run(&witness(&every, 0, "o0")).unwrap();
+    assert!(up.rests_for().is_empty() && up.rests_against().is_empty());
+    let up = b.run(&witness(&some, 0, "o0")).unwrap();
+    assert_eq!(up.rests_for(), &rests(&[&[&t0]]));
+    assert!(up.rests_against().is_empty());
+
+    // Up from every point: the all is false by 1, the any true by 0 or by 2.
+    let all3 = b.run(&cases(&every, &["o0", "o1", "o2"])).unwrap();
+    assert!(all3.rests_for().is_empty());
+    assert_eq!(all3.rests_against(), &rests(&[&[&t1]]));
+    let any3 = b.run(&cases(&some, &["o0", "o1", "o2"])).unwrap();
+    assert_eq!(any3.rests_for(), &rests(&[&[&t0], &[&t2]]));
+    assert!(any3.rests_against().is_empty());
+    // With f correct at 1 too, by the review's instance: the all is true
+    // from the two tests and the review.
+    let mixed = Expression::Apply(
+        Op::Cases { q: every.clone() },
+        [input("o0"), instance(&every, 1, "every"), input("o2")]
+            .map(|body| Arg {
+                binds: vec![],
+                body,
+            })
+            .to_vec(),
+    );
+    let mixed = b.run(&mixed).unwrap();
+    assert_eq!(mixed.rests_for(), &rests(&[&[&t0, &review, &t2]]));
+
+    // Not a point of the set, not every point, or not in order: nothing.
+    assert!(b.run(&instance(&every, 3, "every")).is_none());
+    assert!(b.run(&witness(&every, 5, "o1")).is_none());
+    assert!(b.run(&witness(&every, 0, "o1")).is_none());
+    assert!(b.run(&cases(&every, &["o0", "o1"])).is_none());
+    assert!(b.run(&cases(&every, &["o0", "o2", "o1"])).is_none());
+    assert!(b.run(&cases(&every, &["o0", "o1", "o2", "o2"])).is_none());
+    // Nor on what is no all and no any.
+    let a = Prop::named("a");
+    let not_q = Op::Instance {
+        q: f(0),
+        at: vec![],
+    };
+    assert!(b.run(&apply(not_q, vec![input("o0")])).is_none());
+    let not_q = Op::Cases { q: a };
+    assert!(b.run(&apply(not_q, vec![])).is_none());
+
+    // Over an empty set: an all is true from nothing, an any false.
+    let empty = set("n", 0, 0, None);
+    let (every, some) = (
+        all_in("x", &empty, correct("f", var("x"))),
+        any_in("x", &empty, correct("f", var("x"))),
+    );
+    let vacuous = b.run(&cases(&every, &[])).unwrap();
+    assert_eq!(vacuous.rests_for(), &rests(&[&[]]));
+    assert_eq!(vacuous.state(), State::True);
+    let vacuous = b.run(&cases(&some, &[])).unwrap();
+    assert_eq!(vacuous.rests_against(), &rests(&[&[]]));
+    assert_eq!(vacuous.state(), State::False);
+}
+
+/// Judgement reasons only about propositions that are well formed: a
+/// name a term uses is bound around it, and each set is well formed. It
+/// takes no other, and no rule gives or takes one.
+#[test]
+fn only_well_formed_propositions() {
+    let s = set("n", 0, 3, None);
+    let open = correct("f", var("x"));
+    assert!(!open.well_formed());
+    assert!(Opinion::taken(open.clone(), vec![]).is_none());
+    assert!(!all_in("x", &s, correct("f", var("y"))).well_formed());
+    assert!(!Prop::Not(Box::new(open.clone())).well_formed());
+    let twice = Set {
+        ranges: vec![("a".into(), int(0), int(1)), ("a".into(), int(0), int(1))],
+        such: None,
+    };
+    assert!(!all_in("x", &twice, Prop::named("a")).well_formed());
+    // Bound by an all around another.
+    assert!(all_in("x", &s, any_in("y", &s, correct("f", var("x")))).well_formed());
+    assert!(any_in("x", &s, all_in("y", &s, open.clone())).well_formed());
+
+    // A rule that gives what is not well formed gives nothing.
+    let (a, r) = (Prop::named("a"), Prop::named("r"));
+    let gives_open = Definition {
+        pre: vec![a.clone()],
+        post: vec![open.clone()],
+    };
+    let j = Judgement::with(BTreeMap::from([("r".to_string(), gives_open)])).unwrap();
+    let b = Bench::of(
+        j,
+        &[
+            ("a", &a, vec![take(&a, true, 1, "test")]),
+            ("r", &r, vec![take(&r, true, 1, "review")]),
+        ],
+    );
+    let ponens = apply(
+        Op::Ponens {
+            t: r.clone(),
+            post: 0,
+        },
+        vec![input("r"), input("a")],
+    );
+    assert!(b.run(&ponens).is_none());
+    let reductio = apply(Op::Reductio { of: open.clone() }, vec![input("a")]);
+    assert!(b.run(&reductio).is_none());
+    let reductio = apply(Op::Reductio { of: a.clone() }, vec![input("a")]);
+    assert!(b.run(&reductio).is_some());
+}
+
+/// An all or an any that binds a name again hides the outer one, and a
+/// point is written only where the name is free.
+#[test]
+fn a_name_bound_again_is_hidden() {
+    let (s, t) = (set("n", 0, 3, None), set("n", 2, 3, None));
+    let hidden = all_in("x", &s, any_in("x", &t, correct("f", var("x"))));
+    assert_eq!(
+        hidden.at(&[int(0)]),
+        Some(any_in("x", &t, correct("f", var("x"))))
+    );
+    let outer = all_in("x", &s, any_in("y", &t, correct("f", var("x"))));
+    assert_eq!(
+        outer.at(&[int(0)]),
+        Some(any_in("y", &t, correct("f", point(0))))
+    );
+    let rule = all_in(
+        "x",
+        &s,
+        Prop::Implies {
+            pre: vec![correct("f", var("x"))],
+            subject: "k".to_string(),
+            post: vec![Prop::Not(Box::new(correct("g", var("x"))))],
+        },
+    );
+    let at_2 = Prop::Implies {
+        pre: vec![correct("f", point(2))],
+        subject: "k".to_string(),
+        post: vec![Prop::Not(Box::new(correct("g", point(2))))],
+    };
+    assert_eq!(rule.at(&[int(2)]), Some(at_2));
+    assert_eq!(rule.at(&[int(3)]), None);
+    assert_eq!(correct("f", point(0)).at(&[int(0)]), None);
+}
+
+/// A random `such`, small so that two are often equal: `a`, `b`, 0 to
+/// 2, `!`, `==`, `<`, `&&`, and a `let` binding `a` or `c`.
+fn such(rng: &mut Rng, depth: u32) -> Sim {
+    use simulation::Op as O;
+    if depth == 0 || rng.below(3) == 0 {
+        return match rng.below(3) {
+            0 => word(rng.pick(&["a", "b"])),
+            _ => sim(O::Int((rng.below(3) as i64).into()), vec![]),
+        };
+    }
+    let d = depth - 1;
+    match rng.below(5) {
+        0 => sim(O::Not, vec![such(rng, d)]),
+        1 => sim(O::Equal, vec![such(rng, d), such(rng, d)]),
+        2 => sim(O::Less, vec![such(rng, d), such(rng, d)]),
+        3 => sim(O::And, vec![such(rng, d), such(rng, d)]),
+        _ => {
+            let name = rng.pick(&["a", "c"]).to_string();
+            let (value, body) = (such(rng, d), such(rng, d));
+            let_in(O::Let, &name, value, body)
+        }
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(3000))]
+
+    /// Sets are ordered as they are equal, so that propositions about
+    /// them can be kept in sets: `cmp` is `Equal` exactly when `==`
+    /// holds, turns round with its sides, and is transitive; equal sets
+    /// hash alike.
+    #[test]
+    fn sets_are_ordered_as_they_are_equal(seed in any::<u64>()) {
+        use std::cmp::Ordering;
+        use std::hash::{DefaultHasher, Hash, Hasher};
+        let mut rng = Rng::new(seed);
+        let mut make = || Set {
+            ranges: vec![("a".to_string(), int(0), int(1 + rng.below(2) as i64))],
+            such: match rng.below(4) {
+                0 => None,
+                _ => Some(such(&mut rng, 2)),
+            },
+        };
+        let three = [make(), make(), make()];
+        let hash = |x: &Set| {
+            let mut h = DefaultHasher::new();
+            x.hash(&mut h);
+            h.finish()
+        };
+        // Two that differ only in the name a `let` binds.
+        let (one, two) = (sim(simulation::Op::Int(1.into()), vec![]), sim(simulation::Op::Int(2.into()), vec![]));
+        let (by_a, by_c) = (
+            let_in(simulation::Op::Let, "a", one.clone(), two.clone()),
+            let_in(simulation::Op::Let, "c", one, two),
+        );
+        let (x, y) = (set("a", 0, 1, Some(by_a)), set("a", 0, 1, Some(by_c)));
+        prop_assert!(x != y && x.cmp(&y) != Ordering::Equal);
+        for x in &three {
+            for y in &three {
+                prop_assert_eq!(x.cmp(y) == Ordering::Equal, x == y);
+                prop_assert_eq!(x.cmp(y), y.cmp(x).reverse());
+                prop_assert!(x != y || hash(x) == hash(y));
+                for z in &three {
+                    prop_assert!(!(x <= y && y <= z) || x <= z);
+                }
+            }
+        }
+    }
 }
