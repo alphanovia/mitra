@@ -10,7 +10,8 @@
 //! code and a store of what people saw and said: the ledger, which
 //! `evidence` holds and checks against a model. `agree` compares what
 //! the model says twice, with no evidence, `explain` reads the model
-//! with the evidence, and `blame` says which evidence to doubt.
+//! with the evidence, `blame` says which evidence to doubt, and `numbers`
+//! how much each says.
 
 pub mod agree;
 pub mod blame;
@@ -23,6 +24,7 @@ mod graph;
 pub mod judgement;
 pub mod location;
 pub mod model;
+pub mod numbers;
 pub mod parse;
 pub mod print;
 pub mod reader;
