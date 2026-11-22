@@ -83,6 +83,7 @@ pub const M011: Code = model(11);
 pub const M012: Code = model(12);
 pub const M013: Code = model(13);
 pub const M014: Code = model(14);
+pub const M015: Code = model(15);
 
 const fn entry(code: Code, title: &'static str) -> Entry {
     Entry {
@@ -109,6 +110,7 @@ pub const CATALOGUE: &[Entry] = &[
     entry(M012, "a proof that does not show its rule"),
     entry(M013, "a declaration that rests on itself"),
     entry(M014, "a rule named through itself"),
+    entry(M015, "an example not of its function's types"),
 ];
 
 /// The entry of `code`, `None` when the catalogue has none.

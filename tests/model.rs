@@ -12,8 +12,8 @@ use mitra_core::expression::{eval, Expression};
 use mitra_core::judgement::{self, Opinion, Prop, State, Taking};
 use mitra_core::location::Location;
 use mitra_core::model::{
-    judgement, leaves, levels, props, Claim, Ensure, Function, Kind, Level, Model, Part, Path,
-    Record, Require, Rule, Source, Term, Tie,
+    judgement, leaves, levels, props, Claim, Ensure, Example, Function, Kind, Level, Model, Part,
+    Path, Record, Require, Rule, Source, Term, Tie,
 };
 use mitra_core::simulation::{self, tuple, Bounds, Exact, Op, Ranges, Rational, Type, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -47,6 +47,7 @@ fn function(name: &str, takes: &str, gives: (&str, Type)) -> Function {
         takes: vec![(takes.to_string(), Type::Real)],
         gives: (gives.0.to_string(), gives.1),
         body: None,
+        examples: vec![],
         claims: vec![],
         rules: vec![],
     }
@@ -131,6 +132,12 @@ fn stone() -> Part {
     let mut speed = function("speed", "h", ("v2", Type::Real));
     speed.body = Some(two_g_h());
     speed.claims = vec![claim("slow", under("v2", 400))];
+    // What it gives at 5 m: 2·9.81·5.
+    let real = |n, d| Value::Real(Rational::new(n, d).unwrap());
+    speed.examples = vec![Example {
+        takes: vec![real(5, 1)],
+        gives: real(981, 10),
+    }];
     Part {
         name: "stone".to_string(),
         kind: Kind::Subject,
@@ -538,6 +545,16 @@ fn each_error_is_found() {
                 m.parts[1].functions[0].rules[1].premises.push(lands);
             }),
         ),
+        (
+            "M015 at stone::speed",
+            Box::new(|m| {
+                let row = Example {
+                    takes: vec![Value::Truth(true)],
+                    gives: Value::Real(Rational::integer(0)),
+                };
+                m.parts[1].functions[1].examples.push(row);
+            }),
+        ),
     ];
     let mut given = Vec::new();
     for (expected, change) in cases {
@@ -566,10 +583,10 @@ fn each_error_is_found() {
     });
     assert_eq!(records, ["M002 at stone::Calm"]);
     let takes = changed(|m| {
-        let h = m.parts[1].functions[1].takes[0].clone();
-        m.parts[1].functions[1].takes.push(h);
+        let h = m.parts[1].functions[0].takes[0].clone();
+        m.parts[1].functions[0].takes.push(h);
     });
-    assert_eq!(takes, ["M002 at stone::speed::h"]);
+    assert_eq!(takes, ["M002 at stone::drop::h"]);
     // An expression written in a rule is read as a claim.
     let holds = changed(|m| {
         let mut low = rule("low", &[], "stone::drop::slow");
@@ -962,6 +979,64 @@ fn rules_sharing_rules_stay_small() {
     // shown.
     assert_eq!(leaves(&model).len(), 8 + 1 + n + 2 * m);
     assert!(start.elapsed() < std::time::Duration::from_secs(20));
+}
+
+/// Examples say what a function gives at some points: `5 -> 98.1` for
+/// `speed` in the fall, 2·9.81·5. Each row takes what the function takes,
+/// in order, and gives what it gives, and makes no record but as
+/// declared. A function with examples and no body is partial: here
+/// `sun::light`, giving 1000 W/m².
+#[test]
+fn examples_are_of_their_function() {
+    let real = |n: i64, d: i64| Value::Real(Rational::new(n, d).unwrap());
+    let row = |takes: Vec<Value>, gives: Value| Example { takes, gives };
+    let mut model = fall();
+    model.parts[0].functions[0]
+        .examples
+        .push(row(vec![], real(1000, 1)));
+    assert_eq!(check(&model), vec![]);
+    let level = |at: &str| levels(&model).into_iter().find(|(p, _)| *p == path(at));
+    assert_eq!(
+        level("sun::light"),
+        Some((path("sun::light"), Level::Partial))
+    );
+    assert_eq!(
+        level("stone::speed"),
+        Some((path("stone::speed"), Level::Total))
+    );
+    let speed = |r: Example| changed(move |m| m.parts[1].functions[1].examples.push(r));
+    let wrong = ["M015 at stone::speed"];
+    assert_eq!(speed(row(vec![], real(1, 1))), wrong);
+    assert_eq!(speed(row(vec![real(5, 1), real(5, 1)], real(1, 1))), wrong);
+    assert_eq!(speed(row(vec![Value::Int(5.into())], real(1, 1))), wrong);
+    assert_eq!(speed(row(vec![real(5, 1)], Value::Truth(true))), wrong);
+    // A value of an opaque record is made by no one.
+    let calm = changed(|m| {
+        m.parts[1].records.push(Record {
+            name: "Calm".to_string(),
+            fields: None,
+            claims: vec![],
+            rules: vec![],
+        });
+        let opaque = simulation::Record {
+            name: "Calm".to_string(),
+            fields: vec![],
+        };
+        let mut still = function("still", "h", ("v", Type::Real));
+        still.takes[0].1 = Type::Record(opaque.clone());
+        let value = Value::Record(opaque.clone(), vec![]);
+        still.examples.push(row(vec![value.clone()], real(0, 1)));
+        // Nor within a tuple.
+        let mut pair = function("calm_pair", "h", ("v", Type::Real));
+        let Type::Record(one) = tuple(vec![Type::Record(opaque)]) else {
+            unreachable!()
+        };
+        pair.takes[0].1 = Type::Record(one.clone());
+        pair.examples
+            .push(row(vec![Value::Record(one, vec![value])], real(0, 1)));
+        m.parts[1].functions.extend([still, pair]);
+    });
+    assert_eq!(calm, ["M004 at stone::calm_pair", "M004 at stone::still"]);
 }
 
 /// A record is made only as declared: not one no record declares, not

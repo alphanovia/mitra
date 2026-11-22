@@ -88,14 +88,25 @@ pub struct Record {
 
 /// From what it takes, what it gives, named so that claims can read
 /// it. `body` is `None` when how is not known: the function is opaque.
+/// `examples` say what it gives at some points.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
     pub name: String,
     pub takes: Vec<(String, Type)>,
     pub gives: (String, Type),
     pub body: Option<Expression<simulation::Op>>,
+    pub examples: Vec<Example>,
     pub claims: Vec<Claim>,
     pub rules: Vec<Rule>,
+}
+
+/// A row of a function's examples, `(6, 2) -> 3`: at what it takes, in
+/// order, what it gives. The model's answer at that point, beside the
+/// body if there is one, or in its place.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Example {
+    pub takes: Vec<simulation::Value>,
+    pub gives: simulation::Value,
 }
 
 /// A proposition written as an expression: true of its record, read as
@@ -168,7 +179,7 @@ pub struct Tie {
 pub enum Level {
     /// Nothing but its name and types.
     Opaque,
-    /// Claims or rules, but no fields or body.
+    /// Claims, rules or examples, but no fields or body.
     Partial,
     /// Fields, or a body.
     Total,
@@ -189,7 +200,7 @@ pub fn levels(model: &Model) -> Vec<(Path, Level)> {
             levels.push((at.then(&r.name), level(r.fields.is_some(), said)));
         }
         for f in &part.functions {
-            let said = !f.claims.is_empty() || !f.rules.is_empty();
+            let said = !f.claims.is_empty() || !f.rules.is_empty() || !f.examples.is_empty();
             levels.push((at.then(&f.name), level(f.body.is_some(), said)));
         }
     }

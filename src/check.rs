@@ -4,12 +4,14 @@
 //! reads taken true.
 
 use crate::catalogue::{
-    Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013, M014,
+    Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013,
+    M014, M015,
 };
+use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
 use crate::graph::components;
 use crate::model::{Claim, Function, Index, Item, Model, Path, Record, Rule, Source, Term};
-use crate::simulation::{self, Simulation, Type};
+use crate::simulation::{self, Exact, Simulation, Type, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// The errors of a model, none when it is well formed: each name a
@@ -46,6 +48,21 @@ pub fn check(model: &Model) -> Vec<Error> {
                         &here,
                         "the body makes a record other than as declared",
                     ));
+                }
+            }
+            for (i, example) in function.examples.iter().enumerate() {
+                let row = example.takes.iter().chain([&example.gives]);
+                let types = function.takes.iter().chain([&function.gives]);
+                let fits = example.takes.len() == function.takes.len()
+                    && row.zip(types).all(|(v, (_, t))| Exact.has_type(v, t));
+                if known && !fits {
+                    let message = format!("example {i} is not of the types of `{}`", function.name);
+                    errors.push(error(M015, &here, message));
+                }
+                let row = example.takes.iter().chain([&example.gives]);
+                if !row.into_iter().all(|v| value_made(&index, v)) {
+                    let message = format!("example {i} makes a record other than as declared");
+                    errors.push(error(M004, &here, message));
                 }
             }
             let (of, claims, rules) = (Of::Function(function), &function.claims, &function.rules);
@@ -225,6 +242,19 @@ fn made(index: &Index, e: &Expression<simulation::Op>) -> bool {
         _ => true,
     };
     fits && args.iter().all(|arg| made(index, &arg.body))
+}
+
+/// Each record in `v` is one of the model, with its fields known: an
+/// opaque record has no value.
+fn value_made(index: &Index, v: &Value) -> bool {
+    match v {
+        Value::Record(r, values) => {
+            let declared = index.records.get(r.name.as_str());
+            let known = r.name.is_empty() || declared.is_some_and(|d| d.fields.is_some());
+            known && values.iter().all(|v| value_made(index, v))
+        }
+        Value::Truth(_) | Value::Int(_) | Value::Real(_) => true,
+    }
 }
 
 /// What a claim or a rule is of.

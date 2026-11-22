@@ -34,6 +34,7 @@ subject stone {
     }
     fn speed(h: Real) -> v2: Real = 2 * 9.81 * h {    // total: it has a body
         claim slow = !(h <= 20) || v2 < 400;
+        examples { 5.0 -> 98.1 }                      // what it gives at 5 m
     }
     ensure lands_slow = "lands slowly" from (speed::slow, drop::falls);
 }
@@ -66,7 +67,9 @@ struct Model { parts: Vec<Part>, ties: Vec<Tie> }
 struct Part { name, kind: Kind /* Subject | Environment */, records, functions, requires, ensures }
 struct Record { name, fields: Option<Vec<(String, Type)>> /* None: opaque */, claims, rules }
 struct Function { name, takes: Vec<(String, Type)>, gives: (String, Type),
-                  body: Option<Expression<simulation::Op>> /* None: opaque */, claims, rules }
+                  body: Option<Expression<simulation::Op>> /* None: opaque */,
+                  examples: Vec<Example>, claims, rules }
+struct Example { takes: Vec<simulation::Value>, gives: simulation::Value }   // (6, 2) -> 3
 struct Claim { name, holds: Expression<simulation::Op> }          // must be a truth
 struct Rule { name, premises: Vec<Term>, conclusion: Term,
               proof: Option<Expression<judgement::Op>> /* None: assumed */ }
@@ -97,7 +100,7 @@ and each code its page in `docs/reference`, with an example and the fix.
 | M001 | Each name is a word: letters, digits and `_`, not first a digit. |
 | M002 | Each name is declared once in its place. Record names are unique in the whole model, because a record's type is named by it. |
 | M003 | Each type is a truth, a number, a tuple, or the type of a declared record. |
-| M004 | A record is made only with its declared fields, and an opaque one never. |
+| M004 | A record is made only with its declared fields, and an opaque one never: in a body, a claim or an example. |
 | M005 | A body checks to the type its function gives, from what it takes. |
 | M006 | A claim checks to a truth. In a function it reads what the function takes and gives; in a record, the record as `self`. An expression written in a rule is read as a claim of its record or function. |
 | M007 | A rule's premises and conclusion, and a list of an ensure, name claims, rules, requires or ensures. |
@@ -108,6 +111,7 @@ and each code its page in `docs/reference`, with an example and the fix.
 | M012 | A proof shows its rule (choice 5). |
 | M013 | Nothing rests on itself. A conclusion rests on its rule's premises and on the rule, a require on its ensure, and an ensure on what its lists name. Each declaration on a cycle, across parts too, is reported. |
 | M014 | No rule is named through itself: a term of it names it, or names a rule a term of which does, and so on (choice 9). Found even when a term of the rule names nothing. |
+| M015 | An example takes one value for each name its function takes, in order, each of its type, and gives one of the type the function gives. |
 
 ## Errors and the catalogue
 
@@ -171,8 +175,8 @@ fix) from one in what you assume of the world (a belief to revise).
 calls the outside "actors" and "external systems".
 
 **3. How far something is specified is read, never declared.** A record or
-function is opaque (names and types only), partial (claims or rules, but no
-body or fields) or total (a body, or fields).
+function is opaque (names and types only), partial (claims, rules or
+examples, but no body or fields) or total (a body, or fields).
 *Example*: `drop` is partial, and `speed`, with its body, total.
 *Gain*: the level cannot be wrong: it is what the model says.
 *Give up*: you cannot mark something "total, details elsewhere".
@@ -307,6 +311,10 @@ needs a meaning of its own, which judgement does not have.
 16. **A body or a claim is checked for its type only when the types it
     reads are known**, so a missing record gives M003 alone, not M005 or
     M006 too.
+17. **Examples are rows of values**, `Example { takes, gives }`, beside the
+    body (your option B). A row gives no proposition yet: with binders it
+    is the answer `Correct(f, x)` is read against at its point. A function
+    with examples and no body is partial.
 
 ## Contracts: not built
 
