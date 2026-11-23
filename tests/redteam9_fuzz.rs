@@ -373,7 +373,16 @@ fn accepted_models_are_read_without_a_panic() {
         .flat_map(|t| t.split_whitespace().map(str::to_string).collect::<Vec<_>>())
         .collect();
     let (mut accepted, mut panics) = (0, vec![]);
-    for seed in 0..20000u64 {
+    // `SEEDS=a..b` for part of the run; each model slower than a second
+    // is said.
+    let (from, to) = std::env::var("SEEDS")
+        .ok()
+        .and_then(|s| {
+            let (a, b) = s.split_once("..")?;
+            Some((a.parse().ok()?, b.parse().ok()?))
+        })
+        .unwrap_or((0u64, 20000u64));
+    for seed in from..to {
         let mut r = Rng::new(seed);
         let base = r.pick(&corpus).clone();
         let mut toks: Vec<String> = base.split_whitespace().map(str::to_string).collect();
@@ -400,10 +409,20 @@ fn accepted_models_are_read_without_a_panic() {
             continue;
         }
         accepted += 1;
+        if std::env::var("TRACE").is_ok() {
+            eprintln!("start {seed}: {text}");
+        }
+        let start = std::time::Instant::now();
         let outcome = std::panic::catch_unwind(|| {
             let _ = agree(&model, &Settings { points: 16 });
             let _ = explain(&model, &Ledger::default(), &ExplainSettings::default());
         });
+        if start.elapsed().as_secs() >= 1 {
+            eprintln!("seed {seed}: {:?}", start.elapsed());
+            if std::env::var("SHOW").is_ok() {
+                eprintln!("{text}");
+            }
+        }
         if outcome.is_err() {
             panics.push(text);
         }

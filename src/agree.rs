@@ -300,10 +300,22 @@ impl<'m> Reading<'m> {
             .zip(rows)
             .map(|(e, row)| gives(row, &e.gives))
             .collect();
+        let keeps = |point: &[(String, Value)]| {
+            eval(&self.exact, &point.iter().cloned().collect(), &all) == Ok(Value::Truth(true))
+        };
+        if first.iter().any(|point| keeps(point)) {
+            return Agreement::Holds;
+        }
+        // What the body gives, point by point: the first that keeps them
+        // all ends the search, before the body is read anywhere else.
         if let Some(body) = &f.body {
             for point in self.candidates(&f.takes, body, rows) {
                 if let Ok(v) = eval(&self.exact, &point.iter().cloned().collect(), body) {
-                    first.push(gives(&point, &v));
+                    let point = gives(&point, &v);
+                    if keeps(&point) {
+                        return Agreement::Holds;
+                    }
+                    first.push(point);
                 }
             }
         }
