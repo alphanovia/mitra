@@ -176,6 +176,7 @@ fn a_measurement_is_through_a_tie() {
         .map(|e| format!("{} at {}: {}", e.code, e.at, e.message))
         .collect();
     let expected = [
+        "V001 at measurements::0: `stone::drop::h` is both an input and an output: it would be its own expected value",
         "V001 at measurements::0: `stone::drop::h` is what `stone::drop` takes: an output is what a function gives",
         "V001 at measurements::0: `stone::speed::v2` is what `stone::speed` gives, and the model computes it: an output, not an input",
         "V002 at measurements::0: `stone::speed` is tied to nothing: a measurement is always through a tie",

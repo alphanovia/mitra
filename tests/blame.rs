@@ -173,6 +173,35 @@ fn each_finding_is_given() {
     let codes: Vec<String> = b.findings.iter().map(|f| f.code.to_string()).collect();
     assert_eq!(codes, vec!["B001"]);
     given.insert("B001".to_string());
+    // An all by cases, a point measured twice: a diagnosis that drops the
+    // first taking there alone may leave the all standing, and says so.
+    let cased = parse(
+        r#"
+subject calc {
+    fn div(a: Int, b: Int) -> q: Int at "src/lib.rs/div" where {
+        claim spec = if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
+        claim bounded = b == 0 || q <= a;
+        rule r: all x in (a: 0..2, b: 1..2): correct(div, x) |- div::bounded;
+    }
+}
+"#,
+    )
+    .unwrap();
+    assert_eq!(check(&cased), vec![]);
+    let mut again = divided(0, 1, 0);
+    again.by = "test:again".to_string();
+    let ledger = Ledger {
+        measurements: vec![divided(0, 1, 0), divided(1, 1, 1), again],
+        reviews: vec![Review {
+            prop: path("calc::div::bounded"),
+            holds: false,
+            by: "human:zoe".to_string(),
+        }],
+    };
+    let b = blame(&cased, &explained(&cased, &ledger), &Settings::default());
+    let codes: Vec<String> = b.findings.iter().map(|f| f.code.to_string()).collect();
+    assert_eq!(codes, vec!["B003"]);
+    given.insert("B003".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Blame && !e.retired);

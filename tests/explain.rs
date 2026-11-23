@@ -293,6 +293,29 @@ fn each_finding_is_given() {
             )],
             "X005 at measurements::0",
         ),
+        (
+            // One run seen alone and in an end-to-end test, by one voice:
+            // the same taking, read once.
+            vec![
+                measured(
+                    &[("stone::square::h", five.clone())],
+                    &[("stone::square::s", real(25, 1))],
+                    true,
+                ),
+                measured(
+                    &[
+                        ("stone::square::h", five.clone()),
+                        ("stone::noise::a", int(1)),
+                    ],
+                    &[
+                        ("stone::square::s", real(25, 1)),
+                        ("stone::noise::n", int(5)),
+                    ],
+                    true,
+                ),
+            ],
+            "X008 at measurements::1",
+        ),
     ];
     let mut given = std::collections::BTreeSet::new();
     for (measurements, expected) in cases {

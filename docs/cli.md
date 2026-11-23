@@ -10,11 +10,16 @@ mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
 ```
 
 - `MODEL`: the `.mitra` file at the root of the project. Paths of Rust
-  files are read from its folder, as ties write them: `src/lib.rs/div`.
+  files are read from its folder, as ties write them: `src/lib.rs/div`,
+  however the folders are spelled (`./`, absolute).
 - `--code`: a folder (or a file) of Rust code: its `// mitra:
   implements` ties and `// mitra: measures` tests (`docs/reader.md`).
 - `--report`: what `cargo test` printed (`cargo test > report.txt 2>&1`).
+  With `--code` and no report, each measuring test is R005 ("not in the
+  report"), after a line saying so.
 - `--store`: measurements and reviews written by hand.
+
+`--report` and `--store` are given once each.
 
 | Command | Question | Says |
 |---|---|---|
@@ -23,8 +28,9 @@ mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
 | `blame` | 3: which evidence is wrong, given it explains the system? | the diagnoses, most doubtful first, and blame's findings |
 
 The exit code is 1 when something is not well formed (a parse, model
-or evidence error), 2 for a wrong command line, else 0: findings are
-verdicts, not faults.
+or evidence error), 2 for a wrong command line or a file that cannot be
+read, else 0: findings are verdicts, not faults. When what reads the
+output stops (`| head`), `mitra` ends quietly.
 
 A verdict line: `explained correct(calc::div, (6, 2)) 0.67 (b 0.33, d
 0.00, u 0.67: 1 for, 0 against, test:tests::div_by_two)`: the verdict,
@@ -45,7 +51,8 @@ $M blame examples/div/model.mitra $E
 
 `examples/div`: main's div, tied in its code, three tests that pass, a
 store with a measurement taken wrong (`(7, 2) -> 4`) and a review.
-`blame` doubts that measurement first.
+`blame` doubts that measurement first. A diagnosis names measurements
+explain read as one together: `measurements::0 and 4`.
 
 ## Not in this round
 

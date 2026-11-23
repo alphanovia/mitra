@@ -6,10 +6,12 @@ the system, assuming the evidence, and if not, where? It reads a model
 refuses is left out, and reported there.
 
 ```rust
-pub struct Settings { pub rounds: usize, pub cases: usize }   // defaults 64, 1,024
+pub struct Settings { pub rounds: usize, pub cases: usize, pub rests: usize }   // 64, 1,024, 1,024
 pub enum Verdict { Explained, Contradicted { against: Rests }, Unsupported }
 pub struct Verdicted { pub at: Path, pub prop: Prop, pub verdict: Verdict }
 pub struct Explanation { pub verdicts: Vec<Verdicted>, pub opinions: BTreeMap<Prop, Opinion>,
+                         pub sources: BTreeMap<Taking, Source>, pub same: BTreeMap<usize, Vec<usize>>,
+                         pub alike: BTreeMap<Taking, Vec<Taking>>,
                          pub findings: Vec<Finding>, pub hints: Vec<Hint> }
 pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanation
 ```
@@ -23,20 +25,27 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
 | a review of a claim, rule, require or ensure | `holds` | its voice, 1 |
 | a review of a tied item | each of its ties, `holds` | its voice, 1 |
 | a measurement at `x`, where the model gives a value `v` there (a body, or an example, through calls) | `correct(f, x)`: seen, `y == v`; not seen, false when `y == v` | its voice, its count |
-| the same, where the model gives no value but `f` has claims | `correct(f, x)`, seen only: false when a claim breaks, true when all hold | its voice, its count |
+| the same, where the model gives no value but `f` has claims | `correct(f, x)`, seen only: false when a claim breaks, true when all hold (a failed test there: X002) | its voice, its count |
 | the same, each claim `c` of `f`, seen only | `f::c at x`: `c` read with what the system gave | its voice, its count |
 
 `y` is the value the test states, `x` the arguments of the function it
 measured. The world's values a measurement gives as inputs (what a
 function with no body gave) are read as rows, before its examples.
 
+Measurements that say the same (inputs and outputs in any order, seen
+or not, voice) are one, their counts added: `same` lists them by the
+first one's place. Two that differ elsewhere but say one thing at one
+point, by one voice and count, are one taking, read once: X008.
+
 ## 2. Rules explain writes
 
 Each is taken by the checker, `machine:mitra-check`, count 1, and can be
 blamed like any taking:
 
-- `f at x, by its ties`: the ties of `f` and of every function it calls,
-  however far (a function's own tie or its part's), give `correct(f, x)`.
+- `f at x, by its ties`: the ties of `f` and of every function its body
+  calls, however far (a function's own tie or its part's), give
+  `correct(f, x)`. With no value to compare, its claims decided: the
+  ties of what they call instead.
 - `f::c at x, by its ties`: the claim `c` and the ties of `f` and of what
   `c` calls give `f::c at x`.
 
@@ -52,11 +61,25 @@ premise but one), and each all or any written in the model at the points
 opinions are about: down to each (instance), up from each (witness: an
 all false, an any true). Until nothing changes, within `Settings::rounds`.
 
-An all is true, or an any false, by its cases when its set has at most
-`Settings::cases` points and the ledger says so at every one. **Each
-point by the first taking that says so** (flagged): the ways to have
-every point multiply, so on div's 100 points with two ways each there
-would be 2¹⁰⁰.
+- **A negation is kept with what it negates**: `!p` true is `p` false,
+  so a rule that concludes `!p` meets a test that says `p`.
+- **A round reads what it began with** and joins what it gives at its
+  end: one link of a chain a round. A rule is read again only when the
+  side it reads changed (forward, its premises true; back, a post false
+  or the other premises true).
+- **A rule whose premises rest on more than `Settings::rests` sets
+  together is left out** (flagged), with X006 naming it: each way to
+  have every premise is one more set the conclusion rests on, and
+  judgement keeps the smallest by comparing each with each. An ensure
+  from 7 claims, each reviewed by 3 voices, rests on 4⁷ sets.
+
+An all is true, or an any false, by its cases when its ranges hold at
+most `Settings::cases` points (its condition is read after: a few points
+in large ranges are not listed) and the ledger says so at every one.
+**Each point by the first taking that says so** (flagged): the ways to
+have every point multiply, so on div's 100 points with two ways each
+there would be 2¹⁰⁰. The others at a point are kept in `alike`, and
+blame says when a diagnosis may leave the all to them (B003).
 
 ## 4. Verdicts
 
@@ -81,8 +104,9 @@ layer's (corroboration).
 | X003 | a claim a measurement does not decide |
 | X004 | an output the model cannot compute from the inputs |
 | X005 | an input nothing measured reads |
-| X006 | judging stopped before it was done |
+| X006 | judging stopped before it was done, or a rule left out (`rests`) |
 | X007 | hint: an opaque function measured the same each time |
+| X008 | two measurements that say one thing, by one voice and count |
 
 A hint is below a finding: something that may help.
 
@@ -102,6 +126,12 @@ A hint is below a finding: something that may help.
 5. **One taking a point in a proof by cases**, the first.
 6. **A review of a proposition is always read**: by its own verdict, so
    "a review nothing uses" is not a finding.
+7. **Measurements that say the same are one**, their counts added: the
+   same run written twice says nothing new apart, and blame doubts them
+   together.
+8. **A rule whose premises rest on too many sets is left out**
+   (`Settings::rests`, 1,024), said by X006: the kernel's smallest sets
+   are found by comparing each with each.
 
 ## Not in this round (findings for you)
 
@@ -116,5 +146,6 @@ A hint is below a finding: something that may help.
   2.0, then 3.0) are one point: `correct(f, x)` holds only `f`'s arguments.
 - Corroboration: tests explain a claim at their points, never as a whole
   (numbers layer).
-- Cost: a rule with many premises, each followed from many ways, rests on
-  their product; `Settings::rounds` bounds the rounds, not their size.
+- Cost, measured after red team round 8 (release): 300 tests through a
+  chain of 50 calls, 30 failing, 0.25 s; an all of 100 points by cases,
+  a few ms; a set of 5 points in 10,000 × 10,000 ranges, not listed.

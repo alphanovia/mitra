@@ -145,6 +145,7 @@ pub const X004: Code = explain(4);
 pub const X005: Code = explain(5);
 pub const X006: Code = explain(6);
 pub const X007: Code = explain(7);
+pub const X008: Code = explain(8);
 
 const fn blame(number: u16) -> Code {
     Code {
@@ -155,6 +156,7 @@ const fn blame(number: u16) -> Code {
 
 pub const B001: Code = blame(1);
 pub const B002: Code = blame(2);
+pub const B003: Code = blame(3);
 
 const fn parse(number: u16) -> Code {
     Code {
@@ -235,7 +237,7 @@ pub const CATALOGUE: &[Entry] = &[
     entry(V004, "a measurement of no run"),
     entry(V005, "a review of nothing a review can name"),
     entry(V006, "a measurement missing an input, or with no output"),
-    entry(V007, "a voice missing, or saying twice"),
+    entry(V007, "a voice missing, Mitra's own, or saying twice"),
     entry(
         X001,
         "a measurement nothing in the model says what to expect of",
@@ -249,8 +251,13 @@ pub const CATALOGUE: &[Entry] = &[
     entry(X005, "an input nothing measured reads"),
     entry(X006, "judging stopped before it was done"),
     entry(X007, "an opaque function measured the same each time"),
+    entry(
+        X008,
+        "two measurements that say one thing, by one voice and count",
+    ),
     entry(B001, "a conflict the model's claims alone hold"),
     entry(B002, "more diagnoses than blame looked for"),
+    entry(B003, "a diagnosis a proof by cases may outlive"),
     entry(P001, "a character that starts nothing"),
     entry(P002, "a string that is not closed"),
     entry(P003, "not what the language has here"),

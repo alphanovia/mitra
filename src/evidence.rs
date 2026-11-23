@@ -83,6 +83,18 @@ pub(crate) fn port<'m>(index: &Index<'m>, p: &Path) -> Option<Port<'m>> {
     }
 }
 
+/// What is wrong with a voice the ledger gives, if anything: none, or
+/// one of Mitra's own (`model`, `machine:mitra-check`), which only
+/// explain takes with.
+fn voice_error(by: &str) -> Option<String> {
+    if by.is_empty() {
+        return Some("it says no voice".to_string());
+    }
+    [crate::explain::MODEL, crate::explain::CHECK]
+        .contains(&by)
+        .then(|| format!("`{by}` is Mitra's own voice: the ledger says who else saw or said it"))
+}
+
 /// The errors of `ledger` read against `model`, none when it reads.
 pub fn check(model: &Model, ledger: &Ledger) -> Vec<Error> {
     let index = Index::of(model);
@@ -98,8 +110,8 @@ pub fn check(model: &Model, ledger: &Ledger) -> Vec<Error> {
         if m.count == 0 {
             errors.push(error(V004, "it counts no run".to_string()));
         }
-        if m.by.is_empty() {
-            errors.push(error(V007, "it says no voice".to_string()));
+        if let Some(message) = voice_error(&m.by) {
+            errors.push(error(V007, message));
         }
         if m.outputs.is_empty() {
             errors.push(error(V006, "it measures no output".to_string()));
@@ -151,6 +163,17 @@ pub fn check(model: &Model, ledger: &Ledger) -> Vec<Error> {
                 through.insert(port.at);
             }
         }
+        // What the system was given is not what it gave: a value on both
+        // sides would be its own expected value.
+        let outputs: BTreeSet<&Path> = m.outputs.iter().map(|(p, _)| p).collect();
+        for (p, _) in &m.inputs {
+            if outputs.contains(p) {
+                let message = format!(
+                    "`{p}` is both an input and an output: it would be its own expected value"
+                );
+                errors.push(error(V001, message));
+            }
+        }
         for f in &through {
             let part = Path::to(&[&f.names[0]]);
             if !tied.contains(f) && !tied.contains(&part) {
@@ -186,8 +209,8 @@ pub fn check(model: &Model, ledger: &Ledger) -> Vec<Error> {
             );
             errors.push(error(V005, message));
         }
-        if r.by.is_empty() {
-            errors.push(error(V007, "it says no voice".to_string()));
+        if let Some(message) = voice_error(&r.by) {
+            errors.push(error(V007, message));
         } else if !said.insert((&r.prop, &r.by)) {
             let message = format!("`{}` reviews `{}` twice", r.by, r.prop);
             errors.push(error(V007, message));

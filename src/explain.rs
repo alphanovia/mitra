@@ -21,7 +21,7 @@
 //! false from some, and unsupported otherwise. Nothing given is dropped
 //! quietly: what explain cannot read is a finding (suit `X`).
 
-use crate::catalogue::{Finding, Hint, X001, X002, X003, X004, X005, X006, X007};
+use crate::catalogue::{Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008};
 use crate::evidence::{self, port, Ledger, Measurement};
 use crate::expression::{eval, Arg, Expression, Fault};
 use crate::judgement::{self, Definition, Judgement, Opinion, Point, Prop, Rests, Taking, Term};
@@ -45,8 +45,14 @@ pub struct Settings {
     /// Default 64. A finding says when judging stopped there.
     pub rounds: usize,
     /// An all or an any is decided by every one of its points only when
-    /// its set has at most this many. Default 1,024.
+    /// its ranges hold at most this many. Default 1,024.
     pub cases: usize,
+    /// A rule is applied only when the sets of takings its premises rest
+    /// on, taken together, number at most this many: each way to have
+    /// every premise is one more set its conclusion rests on, and
+    /// judgement keeps the smallest by comparing each with each. Default
+    /// 1,024. A finding names each rule left out.
+    pub rests: usize,
 }
 
 impl Default for Settings {
@@ -54,6 +60,7 @@ impl Default for Settings {
         Settings {
             rounds: 64,
             cases: 1024,
+            rests: 1024,
         }
     }
 }
@@ -103,6 +110,12 @@ pub struct Explanation {
     pub opinions: BTreeMap<Prop, Opinion>,
     /// Where each taking comes from.
     pub sources: BTreeMap<Taking, Source>,
+    /// Measurements that say the same, by the same voice, read as one,
+    /// their counts added: by the first one's place, all of theirs.
+    pub same: BTreeMap<usize, Vec<usize>>,
+    /// Each taking a proof by cases read at a point, with the others that
+    /// say the same there: dropping it alone leaves the all to them.
+    pub alike: BTreeMap<Taking, Vec<Taking>>,
     pub findings: Vec<Finding>,
     pub hints: Vec<Hint>,
 }
@@ -161,10 +174,24 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
             given.take(p, r.holds, 1, &r.by, Source::Review(i));
         }
     }
+    // Measurements that say the same, by the same voice, are one, their
+    // counts added: the same run written twice says nothing new apart.
+    let mut read: Vec<(usize, Measurement)> = Vec::new();
+    let mut same: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
     for (i, m) in ledger.measurements.iter().enumerate() {
-        if !refused.contains(&Path::to(&["measurements", &i.to_string()])) {
-            given.measurement(i, m);
+        if refused.contains(&Path::to(&["measurements", &i.to_string()])) {
+            continue;
         }
+        match read.iter_mut().find(|(_, r)| alike(r, m)) {
+            Some((first, r)) => {
+                r.count = r.count.saturating_add(m.count);
+                same.entry(*first).or_insert_with(|| vec![*first]).push(i);
+            }
+            None => read.push((i, m.clone())),
+        }
+    }
+    for (i, m) in &read {
+        given.measurement(*i, m);
     }
     let Given {
         takings,
@@ -188,31 +215,46 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         }
         grouped.entry(t.prop.clone()).or_default().push(t);
     }
-    let mut opinions = BTreeMap::new();
+    let mut judge = Judge {
+        judgement,
+        opinions: BTreeMap::new(),
+        changed: Changed::default(),
+        stopped: BTreeSet::new(),
+        alike: BTreeMap::new(),
+    };
     for (p, ts) in grouped {
-        if let Some(o) = Opinion::taken(p.clone(), ts) {
-            opinions.insert(p, o);
+        if let Some(o) = Opinion::taken(p, ts) {
+            judge.add(o);
         }
     }
-    let mut rule_props: Vec<Prop> = props.iter().map(|(_, p)| p.clone()).collect();
+    let mut rule_props: BTreeSet<Prop> = props.iter().map(|(_, p)| p.clone()).collect();
     rule_props.extend(names);
-    rule_props.retain(|p| judgement.premises(p).is_some());
-    rule_props.dedup();
+    rule_props.retain(|p| judge.judgement.premises(p).is_some());
+    let rule_props: Vec<Prop> = rule_props.into_iter().collect();
     let quantified: Vec<Prop> = props
         .iter()
         .map(|(_, p)| p.clone())
         .filter(|p| matches!(p, Prop::All { .. } | Prop::Any { .. }))
+        .collect::<BTreeSet<Prop>>()
+        .into_iter()
         .collect();
-    let mut judge = Judge {
-        judgement,
-        opinions,
-    };
     for q in &quantified {
         if let Some(o) = judge.cases(q, &evidence, settings) {
             judge.add(o);
         }
     }
     let done = judge.run(&rule_props, &quantified, settings);
+    for t in &judge.stopped {
+        findings.push(Finding {
+            code: X006,
+            at: Path::to(&["explain"]),
+            message: format!(
+                "rule `{}`: its premises came to rest on more than {} sets of takings together (`Settings::rests`), and it was left out from then on: what follows from it may not be said",
+                print::print_prop(t),
+                settings.rests
+            ),
+        });
+    }
     if !done {
         findings.push(Finding {
             code: X006,
@@ -230,17 +272,34 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         if !seen.insert(prop.clone()) {
             continue;
         }
-        let verdict = verdict(judge.opinions.get(&prop));
+        let verdict = verdict(judge.opinion(&prop).as_ref());
         verdicts.push(Verdicted { at, prop, verdict });
     }
     findings.sort();
+    findings.dedup();
     Explanation {
         verdicts,
         opinions: judge.opinions,
         sources,
+        same,
+        alike: judge.alike,
         findings,
         hints,
     }
+}
+
+/// Two measurements that say the same, by the same voice, whatever
+/// their counts: the same inputs and outputs, in any order.
+fn alike(a: &Measurement, b: &Measurement) -> bool {
+    let sorted = |ports: &[(Path, Value)]| {
+        let mut ports = ports.to_vec();
+        ports.sort();
+        ports
+    };
+    a.seen == b.seen
+        && a.by == b.by
+        && sorted(&a.inputs) == sorted(&b.inputs)
+        && sorted(&a.outputs) == sorted(&b.outputs)
 }
 
 /// The verdict an opinion gives.
@@ -292,6 +351,21 @@ impl Given<'_, '_> {
             count,
             by: by.to_string(),
         };
+        // Two measurements that say one thing, by one voice and count, are
+        // one taking: judgement cannot tell them apart.
+        if let (Some(Source::Measurement(j)), Source::Measurement(i)) =
+            (self.sources.get(&taking), source)
+        {
+            if *j != i {
+                let message = format!(
+                    "it says `{}` is {}, as measurements::{j} does, by the same voice and count: read once, and blamed with measurements::{j}",
+                    print::print_prop(&taking.prop),
+                    taking.value
+                );
+                let at = Path::to(&["measurements", &i.to_string()]);
+                self.finding(X008, &at, message);
+            }
+        }
         self.sources.entry(taking.clone()).or_insert(source);
         self.takings.push(taking);
     }
@@ -419,7 +493,9 @@ impl Given<'_, '_> {
                     continue;
                 };
                 let g = format!("{part}::{g}");
-                if g == path || (reached.contains(&g) && rows.get(&g) == Some(&p)) {
+                // Its own arguments, and what a function it reaches gave,
+                // with that function's arguments, read as its row.
+                if g == path || (reached.contains(&g) && rows.contains_key(&g)) {
                     read.insert(p);
                 }
             }
@@ -500,6 +576,13 @@ impl Given<'_, '_> {
                     correct = Some(true);
                 }
             }
+            if opaque && !function.claims.is_empty() && !m.seen {
+                let message = format!(
+                    "the test expected {} at {point}, and the system gave something else: nothing in the model says what `{path}` gives there, and its claims need what it gave",
+                    shown(y)
+                );
+                self.finding(X002, &at, message);
+            }
             if opaque && function.claims.is_empty() {
                 match m.seen {
                     true => self
@@ -516,7 +599,12 @@ impl Given<'_, '_> {
                     }
                 }
             }
-            let mut through = reached.clone();
+            // Through what the model's value came: the body and what it
+            // calls, or, with no value, the claims that decided.
+            let mut through = match opaque {
+                true => self.reach(function.claims.iter().map(|c| &c.holds)),
+                false => self.reach(function.body.iter()),
+            };
             through.insert(path.clone());
             let ties = self.ties(&through);
             if let Some(value) = correct {
@@ -611,10 +699,65 @@ fn observations(model: &Model, observed: Observed, findings: &mut Vec<Finding>) 
 }
 
 /// Judgement at work: an opinion of each proposition, joined as rules
-/// give more.
+/// give more. A negation is kept with what it negates: an opinion of
+/// `!p` is one of `p`, its sides swapped, so that `p` and `!p` meet.
 struct Judge {
     judgement: Judgement,
     opinions: BTreeMap<Prop, Opinion>,
+    /// What follows true from more, or false from more, since the rules
+    /// last read it.
+    changed: Changed,
+    /// The rules left out: their premises rest on too many sets.
+    stopped: BTreeSet<Prop>,
+    /// Each taking a proof by cases read at a point, with the others
+    /// that say the same there.
+    alike: BTreeMap<Taking, Vec<Taking>>,
+}
+
+/// What `p` is kept under: what it negates, however many times.
+fn kept(p: &Prop) -> &Prop {
+    match p {
+        Prop::Not(x) => kept(x),
+        _ => p,
+    }
+}
+
+/// Whether `p` negates what it is kept under: an odd number of `!`.
+fn negated(p: &Prop) -> bool {
+    match p {
+        Prop::Not(x) => !negated(x),
+        _ => false,
+    }
+}
+
+/// What changed, by side: the propositions that follow true from more
+/// sets, and those that follow false from more.
+#[derive(Default)]
+struct Changed {
+    for_: BTreeSet<Prop>,
+    against: BTreeSet<Prop>,
+}
+
+impl Changed {
+    fn is_empty(&self) -> bool {
+        self.for_.is_empty() && self.against.is_empty()
+    }
+    /// `p` follows true from more: of `!p`, `p` false from more.
+    fn true_of(&self, p: &Prop) -> bool {
+        match negated(p) {
+            false => self.for_.contains(kept(p)),
+            true => self.against.contains(kept(p)),
+        }
+    }
+    fn false_of(&self, p: &Prop) -> bool {
+        match negated(p) {
+            false => self.against.contains(kept(p)),
+            true => self.for_.contains(kept(p)),
+        }
+    }
+    fn either(&self, p: &Prop) -> bool {
+        self.for_.contains(kept(p)) || self.against.contains(kept(p))
+    }
 }
 
 impl Judge {
@@ -638,38 +781,85 @@ impl Judge {
         }
     }
 
+    /// `!o`, by judgement's `not`.
+    fn not(&self, o: Opinion) -> Option<Opinion> {
+        self.apply(judgement::Op::Not, vec![judgement::Value::Opinion(o)])
+    }
+
+    /// What is known of `p`: of `!p`, what is known of `p`, its sides
+    /// swapped.
+    fn opinion(&self, p: &Prop) -> Option<Opinion> {
+        match p {
+            Prop::Not(x) => self.not(self.opinion(x)?),
+            _ => self.opinions.get(p).cloned(),
+        }
+    }
+
     /// Join `o` into what is known of its proposition: whether it adds.
-    fn add(&mut self, o: Opinion) -> bool {
+    fn add(&mut self, mut o: Opinion) -> bool {
+        while let Prop::Not(_) = o.about() {
+            match self.not(o.clone()) {
+                Some(n) => o = n,
+                None => return false,
+            }
+        }
         let about = o.about().clone();
-        let joined = match self.opinions.get(&about) {
-            None => o,
+        let (joined, more_for, more_against) = match self.opinions.get(&about) {
+            None => {
+                let sides = (!o.rests_for().is_empty(), !o.rests_against().is_empty());
+                (o, sides.0, sides.1)
+            }
             Some(old) => {
                 let both = vec![
                     judgement::Value::Opinion(old.clone()),
                     judgement::Value::Opinion(o),
                 ];
                 match self.apply(judgement::Op::Join, both) {
-                    Some(j) if &j != old => j,
+                    Some(j) if &j != old => {
+                        let more_for = j.rests_for() != old.rests_for();
+                        let more_against = j.rests_against() != old.rests_against();
+                        (j, more_for, more_against)
+                    }
                     _ => return false,
                 }
             }
         };
-        self.opinions.insert(about, joined);
+        self.opinions.insert(about.clone(), joined);
+        if more_for {
+            self.changed.for_.insert(about.clone());
+        }
+        if more_against {
+            self.changed.against.insert(about);
+        }
         true
     }
 
     /// The opinion of `p`, when it follows true from something.
     fn told_true(&self, p: &Prop) -> Option<judgement::Value> {
-        let o = self.opinions.get(p).filter(|o| !o.rests_for().is_empty())?;
-        Some(judgement::Value::Opinion(o.clone()))
+        let o = self.opinion(p).filter(|o| !o.rests_for().is_empty())?;
+        Some(judgement::Value::Opinion(o))
+    }
+
+    /// How many sets these opinions rest on together, each on one side.
+    fn ways(sides: impl IntoIterator<Item = usize>) -> usize {
+        sides.into_iter().fold(1usize, usize::saturating_mul)
     }
 
     /// Every rule, forward and back, and every all and any by the
     /// points opinions are about, until nothing changes: whether it got
-    /// there within the rounds.
+    /// there within the rounds. A rule is read again only when the side
+    /// it reads of something changed: forward, its premises true; back,
+    /// a post false, or the other premises true. What a round gives is
+    /// joined at its end, so every rule of a round reads what the round
+    /// began with: one link of a chain a round.
     fn run(&mut self, rules: &[Prop], quantified: &[Prop], settings: &Settings) -> bool {
-        for _ in 0..settings.rounds {
-            let mut changed = false;
+        for round in 0..settings.rounds {
+            let changed = std::mem::take(&mut self.changed);
+            if changed.is_empty() && round > 0 {
+                return true;
+            }
+            let first = round == 0;
+            let mut gave: Vec<Opinion> = Vec::new();
             for t in rules {
                 let (Some(premises), Some(posts)) = (
                     self.judgement.premises(t),
@@ -677,24 +867,36 @@ impl Judge {
                 ) else {
                     continue;
                 };
+                let premises_more = first || premises.iter().any(|p| changed.true_of(p));
+                if !premises_more && !posts.iter().any(|q| changed.false_of(q)) {
+                    continue;
+                }
                 // Forward: from every premise, each post.
-                let all: Option<Vec<_>> = premises.iter().map(|p| self.told_true(p)).collect();
+                let all: Option<Vec<_>> = match premises_more {
+                    true => premises.iter().map(|p| self.told_true(p)).collect(),
+                    false => None,
+                };
                 if let Some(all) = all {
-                    for post in 0..posts.len() {
-                        let op = judgement::Op::Ponens { t: t.clone(), post };
-                        if let Some(o) = self.apply(op, all.clone()) {
-                            changed |= self.add(o);
+                    let ways = Self::ways(all.iter().map(|v| match v {
+                        judgement::Value::Opinion(o) => o.rests_for().len(),
+                        _ => 1,
+                    }));
+                    if ways > settings.rests {
+                        self.stopped.insert(t.clone());
+                    } else {
+                        for post in 0..posts.len() {
+                            let op = judgement::Op::Ponens { t: t.clone(), post };
+                            gave.extend(self.apply(op, all.clone()));
                         }
                     }
                 }
                 // Back: from a post false and every premise but one, that
                 // one is false.
                 for (post, q) in posts.iter().enumerate() {
-                    let Some(false_q) = self
-                        .opinions
-                        .get(q)
-                        .filter(|o| !o.rests_against().is_empty())
-                        .cloned()
+                    if !premises_more && !changed.false_of(q) {
+                        continue;
+                    }
+                    let Some(false_q) = self.opinion(q).filter(|o| !o.rests_against().is_empty())
                     else {
                         continue;
                     };
@@ -706,6 +908,17 @@ impl Judge {
                             .map(|(_, p)| self.told_true(p))
                             .collect();
                         let Some(others) = others else { continue };
+                        let ways =
+                            Self::ways(std::iter::once(false_q.rests_against().len()).chain(
+                                others.iter().map(|v| match v {
+                                    judgement::Value::Opinion(o) => o.rests_for().len(),
+                                    _ => 1,
+                                }),
+                            ));
+                        if ways > settings.rests {
+                            self.stopped.insert(t.clone());
+                            continue;
+                        }
                         let args =
                             [vec![judgement::Value::Opinion(false_q.clone())], others].concat();
                         let op = judgement::Op::Tollens {
@@ -713,27 +926,24 @@ impl Judge {
                             post,
                             blame,
                         };
-                        if let Some(o) = self.apply(op, args) {
-                            changed |= self.add(o);
-                        }
+                        gave.extend(self.apply(op, args));
                     }
                 }
             }
-            for q in quantified {
-                changed |= self.points(q);
+            for o in gave {
+                self.add(o);
             }
-            if !changed {
-                return true;
+            for q in quantified {
+                self.points(q, round == 0, &changed);
             }
         }
-        false
+        self.changed.is_empty()
     }
 
     /// An all or an any at the points opinions are about: down to each
     /// (an instance), and up from each (a witness: an all false, an any
-    /// true).
-    fn points(&mut self, q: &Prop) -> bool {
-        let mut changed = false;
+    /// true). Only where something changed, after the first round.
+    fn points(&mut self, q: &Prop, first: bool, changed: &Changed) {
         let mut points: BTreeSet<Vec<Value>> = BTreeSet::new();
         for p in self.opinions.keys() {
             if let Prop::Correct {
@@ -743,32 +953,52 @@ impl Judge {
                 points.insert(x.clone());
             }
         }
+        let q_changed = first || changed.either(q);
+        let fresh_points: BTreeSet<&Vec<Value>> = changed
+            .for_
+            .iter()
+            .chain(&changed.against)
+            .filter_map(|p| match p {
+                Prop::Correct {
+                    at: Term::Point(y), ..
+                } => Some(y),
+                _ => None,
+            })
+            .collect();
         for x in points {
             let Some(body) = q.at(&x) else { continue };
+            let fresh = fresh_points.contains(&x);
             let point = || judgement::Value::Point(Point::of(x.clone()));
-            if let Some(of_q) = self.opinions.get(q).cloned() {
-                let op = judgement::Op::Instance { q: q.clone() };
-                if let Some(o) = self.apply(op, vec![judgement::Value::Opinion(of_q), point()]) {
-                    changed |= self.add(o);
+            if q_changed || fresh {
+                if let Some(of_q) = self.opinions.get(q).cloned() {
+                    let op = judgement::Op::Instance { q: q.clone() };
+                    if let Some(o) = self.apply(op, vec![judgement::Value::Opinion(of_q), point()])
+                    {
+                        self.add(o);
+                    }
                 }
             }
-            if let Some(of_body) = self.opinions.get(&body).cloned() {
-                let op = judgement::Op::Witness { q: q.clone() };
-                if let Some(o) = self.apply(op, vec![judgement::Value::Opinion(of_body), point()]) {
-                    changed |= self.add(o);
+            if first || fresh || changed.either(&body) {
+                if let Some(of_body) = self.opinion(&body) {
+                    let op = judgement::Op::Witness { q: q.clone() };
+                    if let Some(o) =
+                        self.apply(op, vec![judgement::Value::Opinion(of_body), point()])
+                    {
+                        self.add(o);
+                    }
                 }
             }
         }
-        changed
     }
 
     /// An all true, or an any false, from every one of its points, when
-    /// its set is small enough: each point by the first taking of the
+    /// its ranges hold few enough: each point by the first taking of the
     /// ledger that says so there. One taking a point: the ways to have
     /// every point grow as the product of the ways at each, so the
-    /// others, and what the model alone says, are left to each point.
+    /// others, and what the model alone says, are left to each point;
+    /// the others are kept in `alike`, for blame.
     fn cases(
-        &self,
+        &mut self,
         q: &Prop,
         evidence: &BTreeMap<Prop, Vec<Taking>>,
         settings: &Settings,
@@ -777,23 +1007,46 @@ impl Judge {
             return None;
         };
         let all = matches!(q, Prop::All { .. });
-        let listed: Vec<Vec<Value>> = over
-            .points()?
-            .take(settings.cases.saturating_add(1))
-            .collect();
-        if listed.len() > settings.cases {
+        // The ranges are read whole, the condition after: a set with few
+        // points in large ranges is not listed.
+        let mut size = num_bigint::BigInt::from(1);
+        for (_, lo, hi) in &over.ranges {
+            let (Value::Int(lo), Value::Int(hi)) = (lo, hi) else {
+                return None;
+            };
+            size *= (hi - lo).max(num_bigint::BigInt::from(0));
+        }
+        if size > num_bigint::BigInt::from(settings.cases) {
             return None;
         }
-        let cases: Option<Vec<_>> = listed
-            .iter()
-            .map(|x| {
-                let body = q.at(x)?;
-                let first = evidence.get(&body)?.iter().find(|t| t.value == all)?;
-                let o = Opinion::taken(body, vec![first.clone()])?;
-                Some(judgement::Value::Opinion(o))
-            })
-            .collect();
-        self.apply(judgement::Op::Cases { q: q.clone() }, cases?)
+        let listed: Vec<Vec<Value>> = over.points()?.collect();
+        let mut alike = Vec::new();
+        let mut cases = Vec::with_capacity(listed.len());
+        for x in &listed {
+            let body = q.at(x)?;
+            // `!p` at the point: `p` taken the other way.
+            let (said, value) = match &body {
+                Prop::Not(p) => ((**p).clone(), !all),
+                _ => (body.clone(), all),
+            };
+            let mut these = evidence.get(&said)?.iter().filter(|t| t.value == value);
+            let first = these.next()?;
+            let others: Vec<Taking> = these.cloned().collect();
+            if !others.is_empty() {
+                alike.push((first.clone(), others));
+            }
+            let mut o = Opinion::taken(said, vec![first.clone()])?;
+            if &body != o.about() {
+                o = self.not(o)?;
+            }
+            if &body != o.about() {
+                return None;
+            }
+            cases.push(judgement::Value::Opinion(o));
+        }
+        let o = self.apply(judgement::Op::Cases { q: q.clone() }, cases)?;
+        self.alike.extend(alike);
+        Some(o)
     }
 }
 

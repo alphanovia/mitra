@@ -9,12 +9,13 @@
 //!   explains the system? The diagnoses, the most doubtful first.
 //!
 //! Paths in the code are read from the model's folder, as its ties
-//! write them: `src/lib.rs/div`. The exit code is 1 when something is
-//! not well formed (an error), 0 otherwise: findings are verdicts, not
-//! faults.
+//! write them: `src/lib.rs/div`, however the folders are spelled on
+//! the command line. The exit code is 1 when something is not well
+//! formed (an error), 2 when the command line is wrong or a file cannot
+//! be read, 0 otherwise: findings are verdicts, not faults.
 
 use mitra_core::blame::{self, Suspect};
-use mitra_core::catalogue::{Error, Finding};
+use mitra_core::catalogue::{Error, Finding, R005};
 use mitra_core::check::check;
 use mitra_core::evidence;
 use mitra_core::explain::{self, Explanation, Source, Verdict, MODEL};
@@ -22,8 +23,19 @@ use mitra_core::judgement::Taking;
 use mitra_core::model::Model;
 use mitra_core::numbers::{self, Numbers};
 use mitra_core::{agree, parse, print, reader};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+
+/// `println!`, ending quietly when what reads the output stops reading
+/// (`mitra explain … | head`).
+macro_rules! out {
+    ($($t:tt)*) => {
+        if writeln!(std::io::stdout(), $($t)*).is_err() {
+            std::process::exit(0);
+        }
+    };
+}
 
 const USAGE: &str = "usage:
   mitra check MODEL
@@ -70,19 +82,18 @@ fn arguments(args: &[String]) -> Result<Given, String> {
         store: None,
     };
     while let Some(flag) = it.next() {
-        let value = || {
-            it.clone()
-                .next()
-                .cloned()
-                .ok_or(format!("`{flag}` needs a value"))
+        if !["--code", "--report", "--store"].contains(&flag.as_str()) {
+            return Err(format!("`{flag}` is no option"));
+        }
+        let v = PathBuf::from(it.next().ok_or(format!("`{flag}` needs a value"))?);
+        let once = |slot: &mut Option<PathBuf>| match slot.replace(v.clone()) {
+            None => Ok(()),
+            Some(_) => Err(format!("`{flag}` is given twice: one file each")),
         };
-        let v = PathBuf::from(value()?);
-        it.next();
         match flag.as_str() {
-            "--code" => given.code.push(v),
-            "--report" => given.report = Some(v),
-            "--store" => given.store = Some(v),
-            _ => return Err(format!("`{flag}` is no option")),
+            "--code" => given.code.push(v.clone()),
+            "--report" => once(&mut given.report)?,
+            _ => once(&mut given.store)?,
         }
     }
     if given.command == "check"
@@ -104,30 +115,40 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     let model = match parse::parse(&source) {
         Ok(m) => m,
         Err(e) => {
-            print!("{}", e.render(&shown, &source));
+            out!("{}", e.render(&shown, &source).trim_end());
             return Ok(ExitCode::from(1));
         }
     };
     let errors = check(&model);
     if !errors.is_empty() {
         errors_out(&errors);
-        println!("{} errors: the model is not well formed", errors.len());
+        out!("{} errors: the model is not well formed", errors.len());
         return Ok(ExitCode::from(1));
     }
     if given.command == "check" {
         return Ok(check_out(&model));
     }
-    let root = given.model.parent().unwrap_or(Path::new(".")).to_path_buf();
+    // Paths from the model's folder, however both are spelled.
+    let whole = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
+    let parent = given.model.parent().filter(|p| !p.as_os_str().is_empty());
+    let root = whole(parent.unwrap_or(Path::new(".")));
     let mut files = Vec::new();
     for dir in &given.code {
         rust_files(dir, &mut files)?;
     }
     let mut code = Vec::new();
     for f in &files {
-        let relative = f.strip_prefix(&root).unwrap_or(f);
+        let full = whole(f);
+        let relative = full.strip_prefix(&root).unwrap_or(&full);
         code.push((relative.display().to_string().replace('\\', "/"), read(f)?));
     }
-    let report = given.report.as_deref().map(read).transpose()?;
+    // Code read with no report: its tests ran in none, and say so.
+    let unreported = given.report.is_none() && !files.is_empty();
+    let report = match &given.report {
+        Some(r) => Some(read(r)?),
+        None if unreported => Some(String::new()),
+        None => None,
+    };
     let store_text = given.store.as_deref().map(read).transpose()?;
     let store_name = given.store.as_ref().map(|p| p.display().to_string());
     let store = store_name.as_deref().zip(store_text.as_deref());
@@ -136,12 +157,15 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
             Ok(read) => read,
             Err(e) => {
                 let (name, text) = store.unwrap_or(("store", ""));
-                print!("{}", e.render(name, text));
+                out!("{}", e.render(name, text).trim_end());
                 return Ok(ExitCode::from(1));
             }
         };
+    if unreported && reader_findings.iter().any(|f| f.code == R005) {
+        out!("no `--report`: the tests in the code that measure ran in no report, and measured nothing\n");
+    }
     for f in &reader_findings {
-        println!("{f}\n");
+        out!("{f}\n");
     }
     let mut model = model;
     model.ties = Vec::new();
@@ -154,7 +178,7 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     errors_out(&refused);
     let e = explain::explain(&model, &ledger, &explain::Settings::default());
     let n = Numbers::of(&e, &numbers::Settings::default());
-    println!(
+    out!(
         "evidence: {} measurements, {} reviews, {} ties",
         ledger.measurements.len(),
         ledger.reviews.len(),
@@ -193,13 +217,13 @@ fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
 
 fn errors_out(errors: &[Error]) {
     for e in errors {
-        println!("{e}\n");
+        out!("{e}\n");
     }
 }
 
 fn findings_out(findings: &[Finding]) {
     for f in findings {
-        println!("{f}\n");
+        out!("{f}\n");
     }
 }
 
@@ -211,7 +235,7 @@ fn check_out(model: &Model) -> ExitCode {
         .iter()
         .filter(|a| a.agreement == agree::Agreement::Holds)
         .count();
-    println!(
+    out!(
         "check: well formed; agree: {} comparisons, {holds} hold, {} findings",
         agreed.len(),
         findings.len()
@@ -272,7 +296,7 @@ fn explain_out(e: &Explanation, n: &Numbers) {
             said.push(format!("{assumed} only the model says"));
         }
         said.extend(voices);
-        println!(
+        out!(
             "{word:<12} {} {:.2} (b {:.2}, d {:.2}, u {:.2}: {})",
             print::print_prop(&v.prop),
             b.expected,
@@ -282,12 +306,12 @@ fn explain_out(e: &Explanation, n: &Numbers) {
             said.join(", ")
         );
     }
-    println!();
+    out!();
     findings_out(&e.findings);
     for h in &e.hints {
-        println!("{h}\n");
+        out!("{h}\n");
     }
-    println!(
+    out!(
         "explain: {} propositions, {explained} explained, {contradicted} contradicted, {unsupported} unsupported; {} findings, {} hints",
         e.verdicts.len(),
         e.findings.len(),
@@ -306,8 +330,14 @@ fn suspect_text(ledger: &evidence::Ledger, e: &Explanation, s: &Suspect) -> Stri
                 .map(|(p, v)| format!("{p} = {}", print::value(v)))
                 .collect();
             let seen = if m.seen { "saw" } else { "did not see" };
+            // Measurements that say the same are one suspect.
+            let all: Vec<String> = match e.same.get(i) {
+                Some(same) => same.iter().map(usize::to_string).collect(),
+                None => vec![i.to_string()],
+            };
             format!(
-                "measurements::{i} ({}, {seen} {})",
+                "measurements::{} ({}, {seen} {})",
+                all.join(" and "),
                 m.by,
                 outputs.join(", ")
             )
@@ -333,7 +363,7 @@ fn suspect_text(ledger: &evidence::Ledger, e: &Explanation, s: &Suspect) -> Stri
 fn blame_out(model: &Model, ledger: &evidence::Ledger, e: &Explanation, n: &Numbers) {
     let b = blame::blame(model, e, &blame::Settings::default());
     if b.conflicts.is_empty() {
-        println!("blame: nothing conflicts, nothing to blame");
+        out!("blame: nothing conflicts, nothing to blame");
         findings_out(&b.findings);
         return;
     }
@@ -344,17 +374,17 @@ fn blame_out(model: &Model, ledger: &evidence::Ledger, e: &Explanation, n: &Numb
             .iter()
             .map(|s| suspect_text(ledger, e, s))
             .collect();
-        println!(
+        out!(
             "diagnosis {} (doubt {doubt:.2}): drop {}",
             i + 1,
             drop.join("; ")
         );
     }
-    println!();
+    out!();
     findings_out(&b.findings);
     let which = match b.complete {
         true => format!("{} diagnoses", ranked.len()),
         false => format!("the first {} diagnoses", ranked.len()),
     };
-    println!("blame: {} conflicts, {which}", b.conflicts.len());
+    out!("blame: {} conflicts, {which}", b.conflicts.len());
 }

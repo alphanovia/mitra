@@ -21,8 +21,8 @@
 //! suspects'.
 
 use crate::blame::{Blame, Diagnosis, Suspect};
-use crate::explain::{Explanation, Source};
-use crate::judgement::{Prop, Taking};
+use crate::explain::{Explanation, Source, CHECK};
+use crate::judgement::{Prop, Rests, Taking};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// The numbers' settings: each is a choice, none is fixed in the code.
@@ -32,6 +32,10 @@ pub struct Settings {
     pub base_rate: f64,
     /// How many runs uncertainty weighs as: 2.
     pub prior_weight: f64,
+    /// How many runs one count of Mitra's checker (`machine:mitra-check`)
+    /// is: 1,000. It finds the same each time it checks, so one check
+    /// weighs more than one run of a test, and it stays a suspect.
+    pub checker: f64,
     /// How many runs one count of a voice is, by voice: 1 when not said.
     pub voices: BTreeMap<String, f64>,
 }
@@ -41,7 +45,36 @@ impl Default for Settings {
         Settings {
             base_rate: 0.5,
             prior_weight: 2.0,
+            checker: 1000.0,
             voices: BTreeMap::new(),
+        }
+    }
+}
+
+/// The largest weight a count is read with: beyond it, sums of weights
+/// could overflow.
+const HEAVIEST: f64 = 1e300;
+
+impl Settings {
+    /// These settings within their bounds: a base rate in `[0, 1]`, a
+    /// weight a number from 0 up, read as 0 when it is not one.
+    fn sane(&self) -> Settings {
+        let weight = |w: f64| match w.is_nan() {
+            true => 0.0,
+            false => w.clamp(0.0, HEAVIEST),
+        };
+        Settings {
+            base_rate: match self.base_rate.is_nan() {
+                true => 0.5,
+                false => self.base_rate.clamp(0.0, 1.0),
+            },
+            prior_weight: weight(self.prior_weight),
+            checker: weight(self.checker),
+            voices: self
+                .voices
+                .iter()
+                .map(|(v, w)| (v.clone(), weight(*w)))
+                .collect(),
         }
     }
 }
@@ -102,20 +135,26 @@ fn times(x: Said, y: Said) -> Said {
     }
 }
 
-/// Counts read by voice.
+/// Counts read by voice: the checker's by `checker`, unless `voices`
+/// says otherwise.
 fn weight(t: &Taking, settings: &Settings) -> f64 {
-    let w = settings.voices.get(&t.by).copied().unwrap_or(1.0);
-    w * t.count as f64
+    let w = match settings.voices.get(&t.by) {
+        Some(w) => *w,
+        None if t.by == CHECK => settings.checker,
+        None => 1.0,
+    };
+    (w * t.count as f64).min(HEAVIEST)
 }
 
 /// What the takings of one proposition say, fused: their weighted
 /// counts added, for and against.
 pub fn fused<'t>(takings: impl IntoIterator<Item = &'t Taking>, settings: &Settings) -> Belief {
-    let (mut r, mut s) = (0.0, 0.0);
+    let settings = &settings.sane();
+    let (mut r, mut s) = (0.0f64, 0.0f64);
     for t in takings {
         match t.value {
-            true => r += weight(t, settings),
-            false => s += weight(t, settings),
+            true => r = (r + weight(t, settings)).min(HEAVIEST),
+            false => s = (s + weight(t, settings)).min(HEAVIEST),
         }
     }
     let all = r + s + settings.prior_weight;
@@ -145,7 +184,19 @@ impl<'e> Numbers<'e> {
         Numbers {
             explanation,
             taken,
-            settings: settings.clone(),
+            settings: settings.sane(),
+        }
+    }
+
+    /// The sets `p` follows true from, and false from: of `!p`, those of
+    /// `p` swapped, since explain keeps a negation with what it negates.
+    fn sides(&self, p: &Prop) -> Option<(&'e Rests, &'e Rests)> {
+        match p {
+            Prop::Not(x) => self.sides(x).map(|(f, a)| (a, f)),
+            _ => {
+                let o = self.explanation.opinions.get(p)?;
+                Some((o.rests_for(), o.rests_against()))
+            }
         }
     }
 
@@ -202,11 +253,11 @@ impl<'e> Numbers<'e> {
     /// The numbers of `p`, from what judging gave of it: its strongest
     /// rest for, and against. Nothing known: uncertainty 1.
     pub fn prop(&self, p: &Prop) -> Belief {
-        let Some(o) = self.explanation.opinions.get(p) else {
+        let Some((r_for, r_against)) = self.sides(p) else {
             return Belief::of(0.0, 0.0, &self.settings);
         };
-        let belief = self.strongest(o.rests_for()).map_or(0.0, |(_, s)| s);
-        let disbelief = self.strongest(o.rests_against()).map_or(0.0, |(_, s)| s);
+        let belief = self.strongest(r_for).map_or(0.0, |(_, s)| s);
+        let disbelief = self.strongest(r_against).map_or(0.0, |(_, s)| s);
         Belief::of(belief, disbelief, &self.settings)
     }
 
@@ -215,12 +266,12 @@ impl<'e> Numbers<'e> {
         &self,
         p: &Prop,
     ) -> (Option<&'e BTreeSet<Taking>>, Option<&'e BTreeSet<Taking>>) {
-        let Some(o) = self.explanation.opinions.get(p) else {
+        let Some((r_for, r_against)) = self.sides(p) else {
             return (None, None);
         };
         (
-            self.strongest(o.rests_for()).map(|(r, _)| r),
-            self.strongest(o.rests_against()).map(|(r, _)| r),
+            self.strongest(r_for).map(|(r, _)| r),
+            self.strongest(r_against).map(|(r, _)| r),
         )
     }
 
