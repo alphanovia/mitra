@@ -21,11 +21,11 @@ a proposal, with paths shortened inside a part. A rule is written
 ```text
 environment sun {
     fn light() -> w: Real;                            // opaque: how is not known
-    ensure shines = "at least 200 W/m² at noon";      // only a taking holds it
+    ensure shines: "at least 200 W/m² at noon";      // only a taking holds it
 }
 subject stone {
-    require light = sun::shines;                      // the sun's ensure gives it
-    require air = "still air";                        // a hypothesis
+    require light: sun::shines;                      // the sun's ensure gives it
+    require air: "still air";                        // a hypothesis
     fn drop(h: Real) -> v: Real {                     // opaque: nature does it
         claim falls: within(v * v, 2 * 9.81 * h, 2);
         claim slow: !(h <= 20) || v < 21;
@@ -37,7 +37,7 @@ subject stone {
         claim slow: !(h <= 20) || v2 < 400;
         examples { 5.0 -> 98.1 }                      // what it gives at 5 m
     }
-    ensure lands_slow = "lands slowly" from (speed::slow, drop::falls);
+    ensure lands_slow: "lands slowly" from (speed::slow, drop::falls);
 }
 tie stone::drop at lab/tower/stone;
 ```

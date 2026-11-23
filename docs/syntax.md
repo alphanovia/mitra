@@ -13,12 +13,12 @@ form for it, it is **flagged**: a proposal, yours to change.
 ```text
 environment sun {
     fn light() -> w: Real;                                 // opaque
-    ensure shines = "at least 200 W/m² at noon";
+    ensure shines: "at least 200 W/m² at noon";
 }
 
 subject stone {
-    require light = sun::shines;                           // from an ensure
-    require air = "still air";                             // in words
+    require light: sun::shines;                           // from an ensure
+    require air: "still air";                             // in words
     record Drop at "src/drop.rs/Drop" { h: Real, v: Real } where {
         claim up: 0.0 <= self.h;
     }
@@ -32,7 +32,7 @@ subject stone {
         claim slow: !(h <= 20.0) || v2 < 400.0;
         examples { (5.0) -> 98.1 }
     }
-    ensure lands_slow = "lands slowly" from (speed::slow, drop::falls) | (air);
+    ensure lands_slow: "lands slowly" from (speed::slow, drop::falls) | (air);
 }
 ```
 
@@ -41,12 +41,12 @@ subject stone {
 | Form | Model | Rust? |
 |---|---|---|
 | `subject s { … }`, `environment e { … }` | `Part`, `Kind` | flagged (Rust has `mod`) |
-| `require q = sun::shines;` / `= "words";` | `Require`, `Source` | flagged |
-| `ensure e = "words" from (a, b) \| (c);` | `Ensure`, its lists | flagged |
+| `require q: sun::shines;` / `require q: "words";` | `Require`, `Source` | flagged |
+| `ensure e: "words" from (a, b) \| (c);` | `Ensure`, its lists | flagged |
 | `record R;` opaque, `record R { x: Real }`, `record R {}` | `Record` | Rust's `struct` form, keyword flagged |
 | `fn f(x: Real) -> y: Real;` opaque, `… { body }` | `Function` | Rust, but the named result is flagged |
 | `where { claim …; rule …; examples { … } }` after the signature or body | claims, rules, examples | flagged |
-| `claim c: expression;` | `Claim` | flagged |
+| `claim c: expression;` | `Claim` | flagged: every naming form reads `name: …` (claim, require, ensure, rule, contract claim); `=` stays for `let x = e`, which binds a value, and for a port `path = value` in a model example row, which gives one |
 | `rule r: p, q \|- c by proof;` | `Rule` | your spelling |
 | `{ expression }` as a term of a rule | `Term::Holds` | Rust's block, flagged |
 | `examples { (6, 2) -> 3, (7, 0) -> 0 }` | `Example` rows | flagged |

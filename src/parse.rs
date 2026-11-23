@@ -936,11 +936,11 @@ impl<'c> Parser<'c> {
         Ok(part)
     }
 
-    /// `require light = sun::shines;` or `require air = "still air";`.
+    /// `require light: sun::shines;` or `require air: "still air";`.
     fn require(&mut self) -> Result<Require> {
         self.expect_word("require")?;
         let name = self.name()?;
-        self.expect("=")?;
+        self.expect(":")?;
         let from = match self.peek() {
             Tok::Str(_) => Source::Prose(self.string()?),
             _ => Source::Ensure(self.path()?),
@@ -949,11 +949,11 @@ impl<'c> Parser<'c> {
         Ok(Require { name, from })
     }
 
-    /// `ensure lands = "lands slowly" from (a, b) | (c);`.
+    /// `ensure lands: "lands slowly" from (a, b) | (c);`.
     fn ensure(&mut self) -> Result<Ensure> {
         self.expect_word("ensure")?;
         let name = self.name()?;
-        self.expect("=")?;
+        self.expect(":")?;
         let prose = self.string()?;
         let mut from = vec![];
         if self.eat_word("from") {

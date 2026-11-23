@@ -244,12 +244,12 @@ fn the_fall_prints_as_written() {
     let expected = r#"environment sun {
     fn light() -> w: Real;
 
-    ensure shines = "at least 200 W/m² at noon";
+    ensure shines: "at least 200 W/m² at noon";
 }
 
 subject stone {
-    require light = sun::shines;
-    require air = "still air";
+    require light: sun::shines;
+    require air: "still air";
 
     fn drop(h: Real) -> v: Real at "lab/tower/stone" where {
         claim falls: within(v * v, 2.0 * 9.81 * h, 2.0);
@@ -264,7 +264,7 @@ subject stone {
         examples { (5.0) -> 98.1 }
     }
 
-    ensure lands_slow = "lands slowly" from (speed::slow, drop::falls);
+    ensure lands_slow: "lands slowly" from (speed::slow, drop::falls);
 }
 "#;
     assert_eq!(print(&fall()), expected);
@@ -292,15 +292,15 @@ environment lab at "lab", "lab/annex" {
     }
     fn clock() -> t: Int;
     fn shine(t: Int) -> w: Real;
-    ensure lit = "the lamp is on" from ();
+    ensure lit: "the lamp is on" from ();
 }
 
 subject geo at "src/geo.rs" {
     use lab::{clock, Photon};
     use lab::*;
     use lab::shine;
-    require lamp = lab::lit;
-    require geo = "a require named as its part";
+    require lamp: lab::lit;
+    require geo: "a require named as its part";
     record Point at "src/geo.rs/Point" { x: Real, y: Real } where {
         claim right: 0.0 <= self.x && self.y >= -1/3;
         rule upper: Point::right, { self.x < 10.0 } |- Point::right;
@@ -350,7 +350,7 @@ subject geo at "src/geo.rs" {
     fn rise2(h: Real) -> v: Real { h }
     impl Monotone<Real> for rise;
     impl Same<Int, Real> for (later, rise);
-    ensure ok = "flip flips" from (flip::back, flip::pair) | (lamp) | (crate::geo);
+    ensure ok: "flip flips" from (flip::back, flip::pair) | (lamp) | (crate::geo);
 }
 
 examples {
@@ -701,7 +701,7 @@ fn errors_say_where() {
     );
     assert_eq!(fails("subject s { # }").0, P001.to_string());
     assert_eq!(
-        fails("subject s { require a = \"open; }").0,
+        fails("subject s { require a: \"open; }").0,
         P002.to_string()
     );
     assert_eq!(
@@ -725,6 +725,30 @@ fn errors_say_where() {
         P003.to_string()
     );
     assert_eq!(fails("subject fn { }").3, "expected a name, found `fn`");
+}
+
+#[test]
+fn names_take_a_colon() {
+    // Every naming form reads `name: …`; `=` is not read, and no hint
+    // speaks of it.
+    for text in [
+        "subject s { require a = \"open\"; }",
+        "subject s { ensure e = \"open\"; }",
+        "subject s { record R { x: Int } where { claim c = true; } }",
+        "subject s { fn f(x: Int) -> y: Int { x } where { claim c = true; } }",
+        "contract C<T> { fn f(x: T) -> y: T; claim c(a: T) = f(a) == f(a); }",
+    ] {
+        let (code, _, _, message) = fails(text);
+        assert_eq!(
+            (code.as_str(), message.as_str()),
+            ("P003", "expected `:`, found `=`"),
+            "{text}"
+        );
+    }
+    let m = read("subject s { require a: \"open\"; ensure e: \"shut\"; }");
+    assert_eq!(m.parts[0].requires[0].name, "a");
+    assert_eq!(m.parts[0].ensures[0].name, "e");
+    round_trip(&m);
 }
 
 // ---------------------------------------------------------------- random expressions

@@ -8,7 +8,7 @@
 //   examples instead.
 
 subject calc {
-    require inputs = "a and b are whole numbers from 0 to 9";
+    require inputs: "a and b are whole numbers from 0 to 9";
 
     // The code, src/lib.rs, `pub fn div`.
     fn div(a: Int, b: Int) -> q: Int at "src/lib.rs/div" where {
@@ -21,6 +21,6 @@ subject calc {
         rule everywhere: div::spec |- all x in (a: 0..10, b: 0..10): correct(div, x);
     }
 
-    ensure divides = "div gives a / b rounded down, and 0 when b is 0"
+    ensure divides: "div gives a / b rounded down, and 0 when b is 0"
         from (div::spec, inputs);
 }

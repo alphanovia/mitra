@@ -2,7 +2,7 @@
 // in the code (`// mitra: implements calc::div` in src/lib.rs).
 
 subject calc {
-    require inputs = "a and b are whole numbers from 0 to 9";
+    require inputs: "a and b are whole numbers from 0 to 9";
 
     fn div(a: Int, b: Int) -> q: Int where {
         // a / b rounded down, for a and b from 0; and 0 when b is 0.
@@ -12,6 +12,6 @@ subject calc {
         rule everywhere: div::spec |- all x in (a: 0..10, b: 0..10): correct(div, x);
     }
 
-    ensure divides = "div gives a / b rounded down, and 0 when b is 0"
+    ensure divides: "div gives a / b rounded down, and 0 when b is 0"
         from (div::spec, inputs);
 }

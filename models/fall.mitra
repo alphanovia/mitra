@@ -7,13 +7,13 @@ environment sun {
     fn light() -> w: Real;
 
     // No list: only someone taking it holds it.
-    ensure shines = "at least 200 W/m² at noon";
+    ensure shines: "at least 200 W/m² at noon";
 }
 
 subject stone {
     // The sun's ensure gives the first; the second is a hypothesis.
-    require light = sun::shines;
-    require air = "still air";
+    require light: sun::shines;
+    require air: "still air";
 
     // How the stone falls: nature does it, how is not known. Tied to
     // the drop in the tower.
@@ -36,5 +36,5 @@ subject stone {
         examples { (5.0) -> 98.1 }
     }
 
-    ensure lands_slow = "lands slowly" from (speed::slow, drop::falls);
+    ensure lands_slow: "lands slowly" from (speed::slow, drop::falls);
 }

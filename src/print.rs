@@ -330,11 +330,11 @@ impl Writer<'_> {
             Source::Prose(s) => string(s),
             Source::Ensure(p) => self.path_of(p),
         };
-        format!("    require {} = {from};\n", q.name)
+        format!("    require {}: {from};\n", q.name)
     }
 
     fn ensure(&self, e: &Ensure) -> String {
-        let mut s = format!("    ensure {} = {}", e.name, string(&e.prose));
+        let mut s = format!("    ensure {}: {}", e.name, string(&e.prose));
         if !e.from.is_empty() {
             let lists: Vec<String> = e
                 .from

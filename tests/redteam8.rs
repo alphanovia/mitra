@@ -996,7 +996,7 @@ fn cost_ensure_from_reviewed_claims() {
     }
     let list: Vec<String> = (0..n).map(|i| format!("f{i}::c")).collect();
     src.push_str(&format!(
-        "    ensure ok = \"good\" from ({});\n}}\n",
+        "    ensure ok: \"good\" from ({});\n}}\n",
         list.join(", ")
     ));
     let model = model(&src);
