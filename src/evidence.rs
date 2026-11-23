@@ -83,16 +83,28 @@ pub(crate) fn port<'m>(index: &Index<'m>, p: &Path) -> Option<Port<'m>> {
     }
 }
 
-/// What is wrong with a voice the ledger gives, if anything: none, or
-/// one of Mitra's own (`model`, `machine:mitra-check`), which only
-/// explain takes with.
+/// The kinds of voice: `human:name`, `agent:…`, `machine:tool`,
+/// `test:name`.
+pub const KINDS: [&str; 4] = ["human", "agent", "machine", "test"];
+
+/// What is wrong with a voice the ledger gives, if anything: none, one
+/// not of a kind, or one of Mitra's own (`model`, `machine:mitra-check`),
+/// which only explain takes with.
 fn voice_error(by: &str) -> Option<String> {
     if by.is_empty() {
         return Some("it says no voice".to_string());
     }
-    [crate::explain::MODEL, crate::explain::CHECK]
-        .contains(&by)
-        .then(|| format!("`{by}` is Mitra's own voice: the ledger says who else saw or said it"))
+    if [crate::explain::MODEL, crate::explain::CHECK].contains(&by) {
+        let message =
+            format!("`{by}` is Mitra's own voice: the ledger says who else saw or said it");
+        return Some(message);
+    }
+    let kind = by
+        .split_once(':')
+        .filter(|(k, name)| KINDS.contains(k) && !name.is_empty());
+    kind.is_none().then(|| {
+        format!("`{by}` is no voice: `human:name`, `agent:name`, `machine:tool` or `test:name`")
+    })
 }
 
 /// The errors of `ledger` read against `model`, none when it reads.
@@ -151,6 +163,9 @@ pub fn check(model: &Model, ledger: &Ledger) -> Vec<Error> {
                         V003,
                         format!("the value of `{p}` is not of its type"),
                     ));
+                } else if !crate::check::value_made(&index, v) {
+                    let message = format!("the value of `{p}` makes a record other than as declared: no value of an opaque record is written");
+                    errors.push(error(V003, message));
                 }
                 if side == "input" {
                     given.insert(p.clone());

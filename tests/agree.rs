@@ -61,8 +61,9 @@ fn findings(model: &Model) -> Vec<String> {
 fn div_agrees_with_itself() {
     let (agreed, findings) = agree(&model(DIV), &Settings::default());
     assert_eq!(findings, vec![]);
-    // Eight comparisons: four examples against two claims.
-    assert_eq!(agreed.len(), 8);
+    // Nine comparisons: four examples against two claims, and the claims
+    // together, kept at an example.
+    assert_eq!(agreed.len(), 9);
     assert!(agreed.iter().all(|a| a.agreement == Agreement::Holds));
 }
 
@@ -82,16 +83,20 @@ fn the_fall_agrees_where_it_can_tell() {
         ]
     );
     // `flips` at both of its points; the example against the body and
-    // the claim; the example of the model, through the call.
+    // the claim; each function's claims together, at a point that keeps
+    // them; the example of the model, through the call.
     let holds: Vec<String> = agreed
         .iter()
         .filter(|a| a.agreement == Agreement::Holds)
         .map(|a| format!("{} {}", a.at, a.against))
         .collect();
     let expected = [
+        "stone::speed its claims together",
         "stone::square example 0",
         "stone::square example 0 against claim `small`",
+        "stone::square its claims together",
         "stone::lit claim `flips`",
+        "stone::lit its claims together",
         "examples::0 `stone::speed::v2`",
     ];
     assert_eq!(holds, expected);
@@ -139,6 +144,13 @@ fn each_finding_is_given() {
         (
             changed("(5.0) -> 25.0", "(5.0) -> 25.0, (5.0) -> 26.0"),
             "A008 at stone::square",
+        ),
+        (
+            changed(
+                "stone::speed::h = 5.0)",
+                "stone::speed::h = 5.0, stone::square::h = 1.0)",
+            ),
+            "A009 at examples::0",
         ),
     ];
     let mut given = std::collections::BTreeSet::new();

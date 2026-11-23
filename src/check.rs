@@ -120,6 +120,9 @@ pub fn check(model: &Model) -> Vec<Error> {
             if let Some(message) = misfit(&index, part, i) {
                 errors.push(error(M020, &impl_at(part, i), message));
             }
+            for t in &i.types {
+                errors.extend(unused_records(&index, part, &impl_at(part, i), t));
+            }
         }
         for require in &part.requires {
             if let Source::Ensure(names) = &require.from {
@@ -364,7 +367,7 @@ fn made_in(index: &Index, e: &Expression<simulation::Op>, params: &[(String, Bou
 
 /// Each record in `v` is one of the model, with its fields known: an
 /// opaque record has no value.
-fn value_made(index: &Index, v: &Value) -> bool {
+pub(crate) fn value_made(index: &Index, v: &Value) -> bool {
     match v {
         Value::Record(r, values) => {
             let declared = index.records.get(r.name.as_str());
@@ -534,10 +537,12 @@ fn impl_at(part: &Part, i: &Implements) -> Path {
     }
 }
 
-/// M016: each use names another part, and functions or records of it.
+/// M016: each use names another part, and functions or records of it,
+/// each once in the part (Rust: E0252).
 fn uses(index: &Index, part: &Part) -> Vec<Error> {
     let at = Path::to(&[&part.name]);
     let mut errors = Vec::new();
+    let mut used = BTreeSet::new();
     for u in &part.uses {
         let of = u.part();
         let there = Path::to(&[of]);
@@ -547,10 +552,17 @@ fn uses(index: &Index, part: &Part) -> Vec<Error> {
             continue;
         }
         if let Use::Names { names, .. } = u {
+            if names.is_empty() {
+                let message = format!("`use {of}::{{}}` names nothing of `{of}`");
+                errors.push(error(M016, &at, message));
+            }
             for name in names {
                 let item = index.items.get(&there.then(name));
                 if !matches!(item, Some(Item::Function | Item::Record)) {
                     let message = format!("`{of}::{name}` is no function or record of `{of}`");
+                    errors.push(error(M016, &at, message));
+                } else if !used.insert((of, name)) {
+                    let message = format!("`{of}::{name}` is used twice");
                     errors.push(error(M016, &at, message));
                 }
             }
@@ -598,11 +610,7 @@ fn reads(index: &Index, part: &Part, at: &Path, e: &Expression<simulation::Op>) 
         };
         match op {
             simulation::Op::Call(f) => match index.functions.get(f) {
-                None => errors.push(error(
-                    M017,
-                    at,
-                    format!("`{f}` names no function of the model"),
-                )),
+                None => errors.push(error(M017, at, no_function(index, part, f))),
                 Some(_) => {
                     let (of, name) = f.split_once("::").unwrap_or_default();
                     if !visible(part, of, name) {
@@ -619,6 +627,29 @@ fn reads(index: &Index, part: &Part, at: &Path, e: &Expression<simulation::Op>) 
         todo.extend(args.iter().map(|a| &a.body));
     }
     errors
+}
+
+/// Why the call `f` in `part` names no function: none of that name, or,
+/// for a name alone, several its uses read.
+fn no_function(index: &Index, part: &Part, f: &str) -> String {
+    let read: Vec<String> = part
+        .uses
+        .iter()
+        .map(|u| format!("{}::{f}", u.part()))
+        .filter(|g| {
+            let (of, name) = g.split_once("::").unwrap_or_default();
+            index.functions.contains_key(g) && part.uses.iter().any(|u| u.reads(of, name))
+        })
+        .collect::<BTreeSet<String>>()
+        .into_iter()
+        .collect();
+    match read.as_slice() {
+        [_, _, ..] if !f.contains("::") => format!(
+            "`{f}` names several functions its uses read, `{}`: write which",
+            read.join("`, `")
+        ),
+        _ => format!("`{f}` names no function of the model"),
+    }
 }
 
 /// M019 for each function on a cycle of calls, through bodies.
@@ -714,6 +745,12 @@ pub(crate) fn misfit(index: &Index, part: &Part, i: &Implements) -> Option<Strin
     let Some(c) = index.contracts.get(i.contract.as_str()) else {
         return Some(format!("`{}` names no contract", i.contract));
     };
+    if i.functions.is_empty() {
+        return Some(format!(
+            "`for ()` names no function: the claims of `{}` are read of the functions an impl names",
+            c.name
+        ));
+    }
     if i.types.len() != c.params.len() {
         return Some(format!(
             "`{}` takes {} types, given {}",
@@ -794,6 +831,20 @@ fn model_example(index: &Index, i: usize, example: &crate::model::ModelExample) 
             None => None,
         }
     };
+    if example.outputs.is_empty() {
+        let message = "it states no output: an example of the model says what the model gives";
+        errors.push(error(M021, &at, message.to_string()));
+    }
+    // What the model is given is not what it gives: a value on both
+    // sides would be its own expected value.
+    let outputs: BTreeSet<&Path> = example.outputs.iter().map(|(p, _)| p).collect();
+    for (p, _) in &example.inputs {
+        if outputs.contains(p) {
+            let message =
+                format!("`{p}` is both an input and an output: it would be its own expected value");
+            errors.push(error(M021, &at, message));
+        }
+    }
     let mut given = BTreeSet::new();
     let mut needs: Vec<(Path, &Function)> = Vec::new();
     for (side, ports) in [("input", &example.inputs), ("output", &example.outputs)] {
@@ -891,6 +942,13 @@ fn correct_wrong(index: &Index, at: &Path, place: &str, p: &Prop) -> Vec<Error> 
                         "`{function}` is of another part: parts meet only through requires"
                     );
                     errors.push(error(M008, at, message));
+                }
+                if let judgement::Term::Point(values) = term {
+                    if !values.iter().all(|v| value_made(index, v)) {
+                        let message =
+                            format!("{place}: a point makes a record other than as declared");
+                        errors.push(error(M004, at, message));
+                    }
                 }
                 let fits = match term {
                     judgement::Term::Point(values) => {

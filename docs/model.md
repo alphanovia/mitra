@@ -391,8 +391,10 @@ and that each claim is a truth calling only the contract's functions
 (`Monotone::f`). `impl Monotone<Real> for speed;` only checks that `speed`
 fits: `Real` is a number, and `speed` takes and gives a `Real`. The claim
 then becomes one about `speed`, `stone::speed::Monotone::rises`, read with
-`speed` for `f` and `Real` for `T`, which agree and explain check like any
-claim.
+`speed` for `f` and `Real` for `T`, which agree checks like any claim.
+Explain does not read it yet: measurements of `speed` leave it
+unsupported, with no finding (a finding for you). An impl names one
+function at least (M020, flagged).
 *Example*: the stone's `speed` rises with the height; so does any other
 function that fits `Monotone`, with no claim written again.
 *Gain*: one property for many functions; a mistake in it is reported once,

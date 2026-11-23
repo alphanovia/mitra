@@ -1601,11 +1601,13 @@ fn model_examples_name_inputs_and_outputs() {
         ));
     });
     assert_eq!(fine, Vec::<String>::new());
+    // An output of its own: the sun's light, which takes nothing.
+    let lit_up = vec![("sun::light::w", 2)];
     for (inputs, outputs, expected) in [
         // An input the model computes; an output it takes; a name of nothing.
         (
             vec![("stone::speed::v2", 1), ("stone::speed::h", 1)],
-            vec![],
+            lit_up.clone(),
             "M021",
         ),
         (
@@ -1613,30 +1615,35 @@ fn model_examples_name_inputs_and_outputs() {
             vec![("stone::speed::h", 1)],
             "M021",
         ),
-        (vec![("stone::speed::x", 1)], vec![], "M021"),
-        (vec![("stone::speed", 1)], vec![], "M021"),
+        (vec![("stone::speed::x", 1)], lit_up.clone(), "M021"),
+        (vec![("stone::speed", 1)], lit_up.clone(), "M021"),
         (
             vec![("stone::speed::h", 1), ("stone::speed::h", 2)],
-            vec![],
+            lit_up.clone(),
             "M021",
         ),
+        // No output; a port on both sides.
+        (vec![("stone::speed::h", 1)], vec![], "M021"),
+        (lit_up.clone(), lit_up.clone(), "M021"),
         // What a function with no body gives, at no point.
-        (vec![("stone::drop::v", 1)], vec![], "M022"),
+        (vec![("stone::drop::v", 1)], lit_up.clone(), "M022"),
     ] {
         let got = changed(|m| {
             lit(m);
             m.examples.push(example(&inputs, &outputs));
         });
-        assert_eq!(
-            got,
-            [format!("{expected} at examples::0")],
-            "{inputs:?} {outputs:?}"
+        // One error or more, each of the code: an output that is what a
+        // function takes is on both sides too.
+        let wanted = format!("{expected} at examples::0");
+        assert!(
+            !got.is_empty() && got.iter().all(|g| g == &wanted),
+            "{inputs:?} {outputs:?}: {got:?}"
         );
     }
     let typed = changed(|m| {
         m.examples.push(ModelExample {
             inputs: vec![(path("stone::speed::h"), Value::Truth(true))],
-            outputs: vec![],
+            outputs: vec![(path("sun::light::w"), number(2))],
         });
     });
     assert_eq!(typed, ["M022 at examples::0"]);

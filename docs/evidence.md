@@ -39,8 +39,8 @@ struct Ledger { measurements: Vec<Measurement>, reviews: Vec<Review> }
 |---|---|
 | V001 | Each input is what a function takes, or what one with no body gave; each output what a function gives; each once, on one side. |
 | V002 | Each function a measurement names is tied, or its part is. |
-| V003 | Each value is of the type of what it names. |
+| V003 | Each value is of the type of what it names, and no value of an opaque record (`record Key;`) is written, as in an example (M004). |
 | V004 | A measurement counts one run at least. |
 | V005 | A review names a claim, rule, require or ensure, or a tied item. |
 | V006 | A measurement has an output, and every argument of a function whose output it measures (or whose value it gives, with no body) is given. |
-| V007 | Every measurement and review has a voice, not one of Mitra's own (`model`, `machine:mitra-check`), and one voice reviews one proposition once. |
+| V007 | Every measurement and review has a voice of a kind with a name (`human:`, `agent:`, `machine:`, `test:`), not one of Mitra's own (`model`, `machine:mitra-check`), and one voice reviews one proposition once. |

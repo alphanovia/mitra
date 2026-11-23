@@ -29,7 +29,7 @@ fn check_says_the_model_agrees() {
     let (code, out) = mitra(&["check", "examples/div/model.mitra"]);
     assert_eq!(code, 0, "{out}");
     assert!(
-        out.contains("check: well formed; agree: 8 comparisons, 8 hold, 0 findings"),
+        out.contains("check: well formed; agree: 9 comparisons, 9 hold, 0 findings"),
         "{out}"
     );
 }

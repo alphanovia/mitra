@@ -115,6 +115,7 @@ pub const A005: Code = agree(5);
 pub const A006: Code = agree(6);
 pub const A007: Code = agree(7);
 pub const A008: Code = agree(8);
+pub const A009: Code = agree(9);
 
 const fn evidence(number: u16) -> Code {
     Code {
@@ -212,12 +213,21 @@ pub const CATALOGUE: &[Entry] = &[
     entry(M013, "a declaration that rests on itself"),
     entry(M014, "a rule named through itself"),
     entry(M015, "an example not of its function's types"),
-    entry(M016, "a use that names nothing of another part"),
+    entry(
+        M016,
+        "a use that names nothing of another part, or a name twice",
+    ),
     entry(M017, "a call of no function"),
     entry(M018, "a function or record of another part, not used"),
     entry(M019, "a function that calls itself"),
-    entry(M020, "an impl that does not fit its contract"),
-    entry(M021, "a model example that names no input or output"),
+    entry(
+        M020,
+        "an impl that does not fit its contract, or names no function",
+    ),
+    entry(
+        M021,
+        "a model example that names no input or output, or states no output",
+    ),
     entry(
         M022,
         "a model example not of its types, or missing an input",
@@ -231,13 +241,20 @@ pub const CATALOGUE: &[Entry] = &[
     entry(A006, "an example of the model the model does not give"),
     entry(A007, "a comparison not decided"),
     entry(A008, "two examples at one point that differ"),
+    entry(A009, "an input of a model example no output reads"),
     entry(V001, "a measurement that names no input or output"),
     entry(V002, "a measurement through no tie"),
-    entry(V003, "a measured value not of its type"),
+    entry(
+        V003,
+        "a measured value not of its type, or of an opaque record",
+    ),
     entry(V004, "a measurement of no run"),
     entry(V005, "a review of nothing a review can name"),
     entry(V006, "a measurement missing an input, or with no output"),
-    entry(V007, "a voice missing, Mitra's own, or saying twice"),
+    entry(
+        V007,
+        "a voice missing, not of a kind, Mitra's own, or saying twice",
+    ),
     entry(
         X001,
         "a measurement nothing in the model says what to expect of",
