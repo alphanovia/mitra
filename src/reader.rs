@@ -474,6 +474,23 @@ fn measured(
             format!("`{at}` is tied to nothing: a measurement is always through a tie"),
         ));
     }
+    // A variant whose parameters the row does not tell (`None`) takes
+    // them from where it goes.
+    let takes: Vec<Value> = takes
+        .iter()
+        .zip(
+            f.takes
+                .iter()
+                .map(|(_, t)| Some(t))
+                .chain(std::iter::repeat(None)),
+        )
+        .map(|(v, t)| match t {
+            Some(t) => crate::parse::settle_value(v.clone(), t),
+            None => v.clone(),
+        })
+        .collect();
+    let gives = &crate::parse::settle_value(gives.clone(), &f.gives.1);
+    let takes = takes.as_slice();
     let row = print::print_row(takes, gives);
     let fits = takes.len() == f.takes.len()
         && takes

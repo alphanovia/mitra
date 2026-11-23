@@ -9,8 +9,8 @@ use mitra_core::expression::{
     check, eval, fits, substitute, Arg, Expression, Fault, Outcome, Reading, Standard,
 };
 use mitra_core::simulation::{
-    covers, lies_in, Bound, Bounds, Callee, Calls, Exact, Numbers, Op, Ranges, Rational, Record,
-    Simulation, Span, Type, Undefined, Value,
+    covers, lies_in, Bound, Bounds, Callee, Calls, Enum, Exact, Numbers, Op, Ranges, Rational,
+    Record, Simulation, Span, Type, Undefined, Value,
 };
 use num_bigint::BigInt;
 use num_traits::{Signed, Zero};
@@ -46,6 +46,7 @@ fn real(n: i64, d: i64) -> E {
 }
 fn record(name: &str, fields: &[(&str, Type)]) -> Record {
     Record {
+        args: vec![],
         name: name.to_string(),
         fields: fields
             .iter()
@@ -74,9 +75,35 @@ fn records() -> Vec<Record> {
     ]
 }
 
+/// The enums the generators use: one with a unit and a number, one of
+/// units only, one holding a record and two values.
+fn enums() -> Vec<Enum> {
+    let point = records()[0].clone();
+    let e = |name: &str, variants: &[(&str, &[Type])]| Enum {
+        name: name.to_string(),
+        args: vec![],
+        variants: variants
+            .iter()
+            .map(|(n, ts)| (n.to_string(), ts.to_vec()))
+            .collect(),
+    };
+    vec![
+        e("Maybe", &[("None", &[]), ("Some", &[Type::Int])]),
+        e("Light", &[("Red", &[]), ("Amber", &[]), ("Green", &[])]),
+        e(
+            "Either",
+            &[
+                ("L", &[Type::Real]),
+                ("R", &[Type::Record(point), Type::Truth]),
+            ],
+        ),
+    ]
+}
+
 struct Gen {
     rng: Rng,
     records: Vec<Record>,
+    enums: Vec<Enum>,
     inputs: BTreeMap<String, Type>,
     /// The names `let` binds in scope, the nearest last.
     scope: Vec<(String, Type)>,
@@ -94,6 +121,7 @@ impl Gen {
         let mut g = Gen {
             rng: Rng::new(seed),
             records: records(),
+            enums: enums(),
             inputs: BTreeMap::new(),
             scope: Vec::new(),
             calls: Arc::default(),
@@ -111,6 +139,7 @@ impl Gen {
                     let mut sub = Gen {
                         rng: Rng::new(g.rng.next()),
                         records: g.records.clone(),
+                        enums: g.enums.clone(),
                         inputs: takes.iter().cloned().collect(),
                         scope: Vec::new(),
                         calls: Arc::new(Calls::with(callees.clone()).unwrap()),
@@ -168,6 +197,7 @@ impl Gen {
     fn ty(&mut self) -> Type {
         let mut all = vec![Type::Truth, Type::Int, Type::Real];
         all.extend(self.records.iter().cloned().map(Type::Record));
+        all.extend(self.enums.iter().cloned().map(Type::Enum));
         self.rng.pick(&all).clone()
     }
     fn number_type(&mut self) -> Type {
@@ -206,6 +236,11 @@ impl Gen {
     fn value(&mut self, t: &Type) -> Value {
         match t {
             Type::Param { .. } => unreachable!("no value is of a parameter"),
+            Type::Enum(e) => {
+                let i = self.rng.below(e.variants.len());
+                let holds = e.variants[i].1.iter().map(|t| self.value(t)).collect();
+                Value::Variant(e.clone(), i, holds)
+            }
             Type::Truth => Value::Truth(self.rng.coin()),
             Type::Int => Value::Int(self.int()),
             Type::Real => Value::Real(self.rational()),
@@ -218,6 +253,11 @@ impl Gen {
     fn constant(&mut self, t: &Type) -> E {
         match t {
             Type::Param { .. } => unreachable!("no value is of a parameter"),
+            Type::Enum(e) => {
+                let i = self.rng.below(e.variants.len());
+                let holds = e.variants[i].1.iter().map(|t| self.constant(t)).collect();
+                apply(Op::Variant(e.clone(), i), holds)
+            }
             Type::Truth => apply(Op::Truth(self.rng.coin()), vec![]),
             Type::Int => apply(Op::Int(self.int()), vec![]),
             Type::Real => apply(Op::Real(self.rational()), vec![]),
@@ -295,6 +335,31 @@ impl Gen {
                 self.scope.pop();
                 return all(lo, hi, &name, p);
             }
+            // A match on an enum, each arm binding what its variant
+            // holds, names that may shadow.
+            6 => {
+                let e = self.rng.pick(&self.enums.clone()).clone();
+                let of = self.expr(&Type::Enum(e.clone()), d);
+                let mut args = vec![Arg {
+                    binds: vec![],
+                    body: of,
+                }];
+                for (_, holds) in &e.variants {
+                    let binds: Vec<String> = holds
+                        .iter()
+                        .map(|_| self.rng.pick(&["l0", "l1", "x0", "x1"]).to_string())
+                        .collect();
+                    for (n, t) in binds.iter().zip(holds) {
+                        self.scope.push((n.clone(), t.clone()));
+                    }
+                    let body = self.expr(t, d);
+                    for _ in holds {
+                        self.scope.pop();
+                    }
+                    args.push(Arg { binds, body });
+                }
+                return Expression::Apply(Op::Match(e), args);
+            }
             1 if !reads.is_empty() => {
                 let (r, name) = self.rng.pick(&reads).clone();
                 let of = self.expr(&Type::Record(r), d);
@@ -363,6 +428,11 @@ impl Gen {
                 apply(Op::Make(r.clone()), fields)
             }
             Type::Param { .. } => unreachable!("no value is of a parameter"),
+            Type::Enum(e) => {
+                let i = self.rng.below(e.variants.len());
+                let holds = e.variants[i].1.iter().map(|t| self.expr(t, d)).collect();
+                apply(Op::Variant(e.clone(), i), holds)
+            }
         }
     }
     /// An end of a range: a small number, or one of two others by a test
@@ -439,6 +509,20 @@ impl Gen {
                 r.fields.iter().map(|(_, f)| self.span(f)).collect(),
             ),
             Type::Param { .. } => unreachable!("no value is of a parameter"),
+            Type::Enum(e) => {
+                // Each variant may be or not, at least one.
+                let sure = self.rng.below(e.variants.len());
+                let may = e
+                    .variants
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (_, holds))| {
+                        (i == sure || self.rng.coin())
+                            .then(|| holds.iter().map(|t| self.span(t)).collect())
+                    })
+                    .collect();
+                Span::Variant(e.clone(), may)
+            }
         }
     }
     /// A value in `span`: γ, sampled.
@@ -513,6 +597,17 @@ impl Gen {
                     .collect();
                 Value::Record(r.clone(), fields)
             }
+            (Span::Variant(e, may), Type::Enum(_)) => {
+                let there: Vec<usize> = (0..may.len()).filter(|i| may[*i].is_some()).collect();
+                let i = *self.rng.pick(&there);
+                let spans = may[i].clone().unwrap();
+                let holds = spans
+                    .iter()
+                    .zip(&e.variants[i].1)
+                    .map(|(s, t)| self.member(s, t))
+                    .collect();
+                Value::Variant(e.clone(), i, holds)
+            }
             _ => unreachable!("a span of another type"),
         }
     }
@@ -551,6 +646,7 @@ impl Gen {
     /// Any operation, with any parameters.
     fn wild_op(&mut self) -> Op {
         let r = self.rng.pick(&self.records.clone()).clone();
+        let e = self.rng.pick(&self.enums.clone()).clone();
         let name = self
             .rng
             .pick(&["x", "y", "p", "ok", "n", "d", "zz"])
@@ -573,6 +669,8 @@ impl Gen {
             Op::Within,
             Op::If,
             Op::Make(r),
+            Op::Variant(e.clone(), self.rng.below(3)),
+            Op::Match(e),
             Op::Field(name),
             Op::Let,
             Op::All,
@@ -625,6 +723,10 @@ impl Gen {
                 let fields = (0..self.rng.below(3)).map(|_| self.wild_value()).collect();
                 Value::Record(r, fields)
             }
+            (0, Type::Enum(e)) => {
+                let holds = (0..self.rng.below(3)).map(|_| self.wild_value()).collect();
+                Value::Variant(e, self.rng.below(4), holds)
+            }
             (_, t) => self.value(&t),
         }
     }
@@ -644,6 +746,11 @@ impl Gen {
             ),
             2 => match t {
                 Type::Record(r) => Span::Record(r, vec![]),
+                // No variant may be, or one holds too few.
+                Type::Enum(e) => match self.rng.coin() {
+                    true => Span::Variant(e.clone(), vec![None; e.variants.len()]),
+                    false => Span::Variant(e, vec![Some(vec![])]),
+                },
                 t => self.span(&t),
             },
             _ => self.span(&t),

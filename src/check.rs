@@ -5,7 +5,7 @@
 
 use crate::catalogue::{
     Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013,
-    M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024, M025, M026,
+    M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024, M025, M026, M027,
 };
 use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
@@ -41,9 +41,31 @@ pub fn check(model: &Model) -> Vec<Error> {
     for part in &model.parts {
         let at = Path::to(&[&part.name]);
         errors.extend(uses(&index, part));
+        for e in &part.enums {
+            let here = at.then(&e.name);
+            let holds: Vec<(String, Type)> = e
+                .variants
+                .iter()
+                .flat_map(|(v, ts)| {
+                    ts.iter()
+                        .enumerate()
+                        .map(move |(k, t)| (format!("{v}::{k}"), t.clone()))
+                })
+                .collect();
+            typed_in(&index, &here, holds.iter(), &e.params, &mut errors);
+            for (name, t) in &holds {
+                errors.extend(unused_records(&index, part, &here.then(name), t));
+            }
+        }
         for record in &part.records {
             let here = at.then(&record.name);
-            let known = types(&index, &here, record.fields.iter().flatten(), &mut errors);
+            let known = typed_in(
+                &index,
+                &here,
+                record.fields.iter().flatten(),
+                &record.params,
+                &mut errors,
+            );
             for (name, t) in record.fields.iter().flatten() {
                 errors.extend(unused_records(&index, part, &here.then(name), t));
             }
@@ -189,8 +211,11 @@ pub fn check(model: &Model) -> Vec<Error> {
     }
     for tie in &model.ties {
         let item = index.items.get(&tie.item);
-        if !matches!(item, Some(Item::Part | Item::Record | Item::Function)) {
-            let message = format!("`{}` is no part, record or function", tie.item);
+        if !matches!(
+            item,
+            Some(Item::Part | Item::Record | Item::Enum | Item::Function)
+        ) {
+            let message = format!("`{}` is no part, record, enum or function", tie.item);
             errors.push(error(M010, &tie.item, message));
         }
     }
@@ -198,6 +223,7 @@ pub fn check(model: &Model) -> Vec<Error> {
         errors.extend(model_example(&index, i, example));
     }
     errors.extend(calls_itself(model));
+    errors.extend(declared_wrong(model));
     errors.extend(rests_on_itself(&index));
     for at in index.items.keys() {
         if index.cyclic.contains(&at.to_string()) {
@@ -225,13 +251,128 @@ fn word(name: &str) -> bool {
         && chars.all(|c| c.is_alphanumeric() || c == '_')
 }
 
+/// M027 for each enum with no variant, each type parameter a record or
+/// an enum does not use, and each record or enum that holds itself.
+fn declared_wrong(model: &Model) -> Vec<Error> {
+    let mut errors = Vec::new();
+    // What each record and enum holds, by name.
+    let mut holds: BTreeMap<&str, Vec<&Type>> = BTreeMap::new();
+    let mut at: BTreeMap<&str, Path> = BTreeMap::new();
+    // Each record and enum, its parameters, and the types it holds.
+    type Declared<'a> = (Path, &'a [(String, Bound)], Vec<&'a Type>);
+    let mut params: Vec<Declared> = Vec::new();
+    for part in &model.parts {
+        let here = Path::to(&[&part.name]);
+        for e in &part.enums {
+            let types: Vec<&Type> = e.variants.iter().flat_map(|(_, ts)| ts).collect();
+            if e.variants.is_empty() {
+                let message = format!("`{}` has no variant: no value is of it", e.name);
+                errors.push(error(M027, &here.then(&e.name), message));
+            }
+            params.push((here.then(&e.name), &e.params, types.clone()));
+            holds.entry(&e.name).or_insert(types);
+            at.entry(&e.name).or_insert(here.then(&e.name));
+        }
+        for r in &part.records {
+            let types: Vec<&Type> = r.fields.iter().flatten().map(|(_, t)| t).collect();
+            params.push((here.then(&r.name), &r.params, types.clone()));
+            holds.entry(&r.name).or_insert(types);
+            at.entry(&r.name).or_insert(here.then(&r.name));
+        }
+    }
+    for (here, ps, types) in params {
+        for (p, _) in ps {
+            if !types.iter().any(|t| names_param(t, p)) {
+                let message =
+                    format!("the type parameter `{p}` is used by nothing it holds: Rust's E0392");
+                errors.push(error(M027, &here, message));
+            }
+        }
+    }
+    // A name it holds, however deep, by what each holds.
+    for (name, here) in &at {
+        let mut seen: BTreeSet<&str> = BTreeSet::new();
+        let mut todo: Vec<&Type> = holds.get(name).cloned().unwrap_or_default();
+        let mut itself = false;
+        while let Some(t) = todo.pop() {
+            for n in named_in(t) {
+                if n == *name {
+                    itself = true;
+                } else if seen.insert(n) {
+                    todo.extend(holds.get(n).cloned().unwrap_or_default());
+                }
+            }
+        }
+        if itself {
+            let message = format!(
+                "`{name}` holds itself: a value of it would never end (trees come later, finding 3)"
+            );
+            errors.push(error(M027, here, message));
+        }
+    }
+    errors
+}
+
+/// `t` names the parameter `p`.
+fn names_param(t: &Type, p: &str) -> bool {
+    match t {
+        Type::Param { name, .. } => name == p,
+        Type::Record(r) => r
+            .args
+            .iter()
+            .chain(r.fields.iter().map(|(_, t)| t))
+            .any(|t| names_param(t, p)),
+        Type::Enum(e) => e.args.iter().any(|t| names_param(t, p)),
+        _ => false,
+    }
+}
+
+/// The records and enums `t` names, by name, as written.
+fn named_in(t: &Type) -> Vec<&str> {
+    match t {
+        Type::Record(r) => {
+            let mut found: Vec<&str> = match r.name.is_empty() {
+                true => vec![],
+                false => vec![r.name.as_str()],
+            };
+            for t in r.args.iter().chain(r.fields.iter().map(|(_, t)| t)) {
+                found.extend(named_in(t));
+            }
+            found
+        }
+        Type::Enum(e) => {
+            let mut found = vec![e.name.as_str()];
+            for t in &e.args {
+                found.extend(named_in(t));
+            }
+            found
+        }
+        _ => vec![],
+    }
+}
+
 /// M001 and M002: each name a word, declared once in its place, and the
-/// name of each record once in the model.
+/// name of each record and enum once in the model.
 fn names(model: &Model) -> Vec<Error> {
     let (mut errors, mut declared, mut records) = (Vec::new(), Vec::new(), BTreeSet::new());
     for part in &model.parts {
         let at = Path::to(&[&part.name]);
         declared.push(at.clone());
+        for e in &part.enums {
+            let here = at.then(&e.name);
+            if !records.insert(&e.name) {
+                errors.push(twice(&here));
+            }
+            declared.push(here.clone());
+            errors.extend(listed(
+                &here,
+                e.variants.iter().map(|(v, _)| (v, &Type::Truth)),
+            ));
+            errors.extend(listed(
+                &here,
+                e.params.iter().map(|(n, _)| (n, &Type::Truth)),
+            ));
+        }
         for r in &part.records {
             let here = at.then(&r.name);
             if !records.insert(&r.name) {
@@ -352,7 +493,7 @@ fn typed_in<'a>(
     let mut all = true;
     for (name, t) in names.filter(|(_, t)| !known_in(index, t, params)) {
         let message = match t.open() && params.is_empty() {
-            true => format!("the type of `{name}` is a type parameter: only a contract names one"),
+            true => format!("the type of `{name}` is a type parameter: only a contract, a record or an enum names one"),
             false => format!("the type of `{name}` names no record of the model as declared"),
         };
         errors.push(error(M003, &at.then(name), message));
@@ -377,12 +518,63 @@ fn known_in(index: &Index, t: &Type, params: &[(String, Bound)]) -> bool {
             let mut fields = r.fields.iter().enumerate();
             fields.all(|(i, (name, t))| *name == i.to_string() && known_in(index, t, params))
         }
+        // One that holds itself is M027's, not M003's.
+        Type::Record(r) if holds_itself(t, &r.name, false) => true,
+        Type::Enum(e) if holds_itself(t, &e.name, false) => true,
         Type::Record(r) => {
             let declared = index.records.get(r.name.as_str());
-            declared.is_some_and(|d| record_type(d) == *t)
+            declared.is_some_and(|d| instance_of(&d.type_(), &d.params, &r.args, t, params))
                 && r.fields.iter().all(|(_, t)| known_in(index, t, params))
         }
+        Type::Enum(e) => {
+            let declared = index.enums.get(e.name.as_str());
+            declared.is_some_and(|d| instance_of(&d.type_(), &d.params, &e.args, t, params))
+                && e.variants
+                    .iter()
+                    .flat_map(|(_, ts)| ts)
+                    .all(|t| known_in(index, t, params))
+        }
     }
+}
+
+/// `t`, below its top unless `here`, holds a record or an enum named
+/// `name`: a type that holds itself, cut where the model reads it.
+fn holds_itself(t: &Type, name: &str, here: bool) -> bool {
+    match t {
+        Type::Record(r) if here && r.name == name => true,
+        Type::Enum(e) if here && e.name == name => true,
+        Type::Record(r) => r.fields.iter().any(|(_, t)| holds_itself(t, name, true)),
+        Type::Enum(e) => e
+            .variants
+            .iter()
+            .flat_map(|(_, ts)| ts)
+            .any(|t| holds_itself(t, name, true)),
+        _ => false,
+    }
+}
+
+/// `t` is the type `declared` declares, each of its parameters given the
+/// type `args` gives it, in order, one its bound admits and known.
+fn instance_of(
+    declared: &Type,
+    declared_params: &[(String, Bound)],
+    args: &[Type],
+    t: &Type,
+    params: &[(String, Bound)],
+) -> bool {
+    if args.len() != declared_params.len() {
+        return false;
+    }
+    let given: BTreeMap<String, Type> = declared_params
+        .iter()
+        .map(|(n, _)| n.clone())
+        .zip(args.iter().cloned())
+        .collect();
+    declared_params
+        .iter()
+        .zip(args)
+        .all(|((_, b), a)| b.admits(a) && (!a.open() || matches!(a, Type::Param { name, bound } if params.iter().any(|(n, c)| n == name && c == bound))))
+        && declared.given(&given) == *t
 }
 
 /// Each record `e` makes is a tuple, or a record of the model with its
@@ -401,6 +593,9 @@ fn made_in(index: &Index, e: &Expression<simulation::Op>, params: &[(String, Bou
             let declared = index.records.get(r.name.as_str());
             (r.name.is_empty() || declared.is_some_and(|d| d.fields.is_some()))
                 && known_in(index, &Type::Record(r.clone()), params)
+        }
+        simulation::Op::Variant(e, _) | simulation::Op::Match(e) => {
+            known_in(index, &Type::Enum(e.clone()), params)
         }
         _ => true,
     };
@@ -423,6 +618,11 @@ pub(crate) fn value_made(index: &Index, v: &Value) -> bool {
             declared.is_some_and(|d| d.fields.is_some())
                 && values.iter().flatten().all(|v| value_made(index, v))
         }
+        Value::Variant(e, _, holds) => {
+            index.enums.contains_key(e.name.as_str())
+                && known(index, &Type::Enum(e.clone()))
+                && holds.iter().all(|v| value_made(index, v))
+        }
         Value::Truth(_) | Value::Int(_) | Value::Real(_) => true,
     }
 }
@@ -442,13 +642,10 @@ fn scope(of: Of) -> BTreeMap<String, Type> {
     }
 }
 
-/// The type of a record's values. An opaque one has no field to read.
+/// The type of a record's values, its parameters open. An opaque one
+/// has no field to read.
 fn record_type(r: &Record) -> Type {
-    let fields = r.fields.clone().unwrap_or_default();
-    Type::Record(simulation::Record {
-        name: r.name.clone(),
-        fields,
-    })
+    r.type_()
 }
 
 /// M007 or M008 when `names`, in a rule or list of the declaration at
@@ -557,7 +754,7 @@ fn rests_on_itself(index: &Index) -> Vec<Error> {
                     rests.push((at.clone(), p.clone(), at));
                 }
             }
-            Item::Part | Item::Record | Item::Function | Item::Claim => {}
+            Item::Part | Item::Record | Item::Enum | Item::Function | Item::Claim => {}
         }
     }
     let mut number: BTreeMap<&Path, usize> = BTreeMap::new();
@@ -614,8 +811,9 @@ fn uses(index: &Index, part: &Part) -> Vec<Error> {
             }
             for name in names {
                 let item = index.items.get(&there.then(name));
-                if !matches!(item, Some(Item::Function | Item::Record)) {
-                    let message = format!("`{of}::{name}` is no function or record of `{of}`");
+                if !matches!(item, Some(Item::Function | Item::Record | Item::Enum)) {
+                    let message =
+                        format!("`{of}::{name}` is no function, record or enum of `{of}`");
                     errors.push(error(M016, &at, message));
                 } else if !used.insert((of, name)) {
                     let message = format!("`{of}::{name}` is used twice");
@@ -650,6 +848,18 @@ fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error>
             }
             todo.extend(r.fields.iter().map(|(_, t)| t));
         }
+        if let Type::Enum(e) = t {
+            if let Some(of) = index.enum_parts.get(e.name.as_str()) {
+                if !visible(part, of, &e.name) {
+                    let message = format!(
+                        "`{of}::{}` is of another part: `use {of}::{};`",
+                        e.name, e.name
+                    );
+                    errors.push(error(M018, at, message));
+                }
+            }
+            todo.extend(e.variants.iter().flat_map(|(_, ts)| ts));
+        }
     }
     errors
 }
@@ -677,6 +887,9 @@ fn reads(index: &Index, part: &Part, at: &Path, e: &Expression<simulation::Op>) 
             },
             simulation::Op::Make(r) => {
                 errors.extend(unused_records(index, part, at, &Type::Record(r.clone())))
+            }
+            simulation::Op::Variant(e, _) | simulation::Op::Match(e) => {
+                errors.extend(unused_records(index, part, at, &Type::Enum(e.clone())))
             }
             _ => {}
         }
@@ -1202,6 +1415,12 @@ impl Mistyped<'_> {
     fn wanted(&self, op: &simulation::Op) -> Option<Vec<(String, Type)>> {
         match op {
             simulation::Op::Make(r) => Some(r.fields.clone()),
+            simulation::Op::Variant(e, i) => e.variants.get(*i).map(|(_, ts)| {
+                ts.iter()
+                    .enumerate()
+                    .map(|(k, t)| (k.to_string(), t.clone()))
+                    .collect()
+            }),
             simulation::Op::Call(f) => self.standard.calls.get(f).map(|c| c.takes.clone()),
             _ => None,
         }
@@ -1254,6 +1473,19 @@ impl Mistyped<'_> {
                 }
                 None => return Vec::new(),
             },
+            Op::Variant(e, i) => {
+                let (name, ts) = &e.variants[(*i).min(e.variants.len().saturating_sub(1))];
+                let ts: Vec<String> = ts.iter().map(crate::print::type_).collect();
+                format!(
+                    "`{name}` of `{}` holds ({})",
+                    crate::print::type_(&Type::Enum(e.clone())),
+                    ts.join(", ")
+                )
+            }
+            Op::Match(e) => format!(
+                "`match` takes a `{}`, then one arm for each of its variants, all of one type",
+                crate::print::type_(&Type::Enum(e.clone()))
+            ),
             Op::Let | Op::Truth(_) | Op::Int(_) | Op::Real(_) => return Vec::new(),
         };
         let mut notes = vec![format!("note: {takes_what}")];

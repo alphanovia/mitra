@@ -66,7 +66,7 @@ What the tests show on it:
 
 ```rust
 struct Model { parts: Vec<Part>, contracts: Vec<Contract>, examples: Vec<ModelExample>, ties: Vec<Tie> }
-struct Part { name, kind: Kind /* Subject | Environment */, uses: Vec<Use>, records, functions,
+struct Part { name, kind: Kind /* Subject | Environment */, uses: Vec<Use>, records, enums, functions,
               implements: Vec<Implements>, requires, ensures }
 enum Use { Names { part, names: Vec<String> } /* use sun::{light, Ray}; */, Glob { part } /* use sun::*; */ }
 struct Contract { name, params: Vec<(String, Bound)> /* T, T: Number */, functions: Vec<Signature>, claims: Vec<Law> }
@@ -74,7 +74,8 @@ struct Signature { name, takes: Vec<(String, Type)>, gives: (String, Type) }
 struct Law { name, over: Vec<(String, Type)>, holds: Expression<simulation::Op> }   // true at every value of `over`
 struct Implements { contract, types: Vec<Type>, functions: Vec<String> }            // impl Monotone<Real> for speed;
 struct ModelExample { inputs: Vec<(Path, Value)>, outputs: Vec<(Path, Value)> }    // stone::speed::h = 5.0 -> stone::speed::v2 = 98.1
-struct Record { name, fields: Option<Vec<(String, Type)>> /* None: opaque */, claims, rules }
+struct Record { name, params: Vec<(String, Bound)> /* Pair<T> */, fields: Option<Vec<(String, Type)>> /* None: opaque */, claims, rules }
+struct Enum { name, params: Vec<(String, Bound)>, variants: Vec<(String, Vec<Type>)> }   // enum Option<T> { None, Some(T) }
 struct Function { name, takes: Vec<(String, Type)>, gives: (String, Type),
                   body: Option<Expression<simulation::Op>> /* None: opaque */,
                   examples: Vec<Example>, claims, rules }

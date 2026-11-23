@@ -12,7 +12,7 @@
 //! catalogue (suit `P`) and where it is: line and column, as rustc
 //! writes them. Only the first is given.
 
-use crate::catalogue::{Code, P001, P002, P003, P004, P005};
+use crate::catalogue::{Code, P001, P002, P003, P004, P005, P006, P007, P008, P009};
 use crate::expression::{check as typed, Arg, Expression};
 use crate::judgement::{self, Prop, Set};
 use crate::location::Location;
@@ -147,6 +147,8 @@ pub const KEYWORDS: &[&str] = &[
     "impl",
     "for",
     "contract",
+    "enum",
+    "match",
 ];
 
 /// The operations of a proof, by the word that writes them. Each is
@@ -170,8 +172,8 @@ pub(crate) enum Tok {
 
 /// Longest first.
 const SYMBOLS: &[&str] = &[
-    "::", "->", "|-", "==", "!=", "<=", ">=", "&&", "||", "..", "{", "}", "(", ")", "[", "]", ",",
-    ";", ":", "=", "<", ">", "+", "-", "*", "/", "%", "!", ".", "|",
+    "::", "->", "=>", "|-", "==", "!=", "<=", ">=", "&&", "||", "..", "{", "}", "(", ")", "[", "]",
+    ",", ";", ":", "=", "<", ">", "+", "-", "*", "/", "%", "!", ".", "|",
 ];
 
 fn describe(t: &Tok) -> String {
@@ -341,6 +343,12 @@ pub(crate) fn lex(source: &str) -> Result<Vec<(Tok, Pos)>> {
 /// fields as declared (`None` when opaque), and the names of each part.
 pub(crate) struct Context {
     records: BTreeMap<String, simulation::Record>,
+    /// Each enum's type, its parameters open, and the parameters of each
+    /// enum and record that has some.
+    enums: BTreeMap<String, simulation::Enum>,
+    params: BTreeMap<String, Vec<(String, simulation::Bound)>>,
+    /// Each variant's name, and the enums that have one of that name.
+    variants: BTreeMap<String, Vec<String>>,
     declared: BTreeMap<String, Option<Vec<String>>>,
     items: BTreeMap<String, BTreeSet<String>>,
     /// Who calls what: the functions of each part and contract, and each part's uses.
@@ -414,11 +422,27 @@ impl Context {
         let mut declared = BTreeMap::new();
         let mut fields = BTreeMap::new();
         let mut items: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        let mut shapes = Shapes::default();
+        let mut params = BTreeMap::new();
+        let mut variants: BTreeMap<String, Vec<String>> = BTreeMap::new();
         for part in &model.parts {
             let names = items.entry(part.name.clone()).or_default();
+            for e in &part.enums {
+                names.insert(e.name.clone());
+                if !shapes.enums.contains_key(&e.name) && !fields.contains_key(&e.name) {
+                    shapes.enums.insert(e.name.clone(), e.variants.clone());
+                    params.insert(e.name.clone(), e.params.clone());
+                    for (v, _) in &e.variants {
+                        variants.entry(v.clone()).or_default().push(e.name.clone());
+                    }
+                }
+            }
             for r in &part.records {
                 names.insert(r.name.clone());
-                if !declared.contains_key(&r.name) {
+                if !declared.contains_key(&r.name) && !shapes.enums.contains_key(&r.name) {
+                    if !r.params.is_empty() {
+                        params.insert(r.name.clone(), r.params.clone());
+                    }
                     let names = r
                         .fields
                         .as_ref()
@@ -431,23 +455,50 @@ impl Context {
             names.extend(part.requires.iter().map(|q| q.name.clone()));
             names.extend(part.ensures.iter().map(|e| e.name.clone()));
         }
-        let records = fields
+        shapes.fields = fields;
+        shapes.params = params.clone();
+        let records = shapes
+            .fields
             .keys()
-            .map(|name| (name.clone(), record_of(name, &fields, 0)))
+            .map(|name| (name.clone(), record_of(name, &shapes, &[])))
             .collect();
+        let enums = shapes
+            .enums
+            .keys()
+            .map(|name| (name.clone(), enum_of(name, &shapes, &[])))
+            .collect();
+        // The signatures with each record and enum written out, so that
+        // a call tells what its arguments are (`g(None)`).
+        let followed = |calls: simulation::Calls| -> simulation::Calls {
+            let callees = calls
+                .iter()
+                .map(|(path, c)| {
+                    let mut c = c.clone();
+                    for (_, t) in c.takes.iter_mut() {
+                        *t = follow(t, &shapes, &[]);
+                    }
+                    c.gives = follow(&c.gives, &shapes, &[]);
+                    (path.clone(), c)
+                })
+                .collect();
+            simulation::Calls::with(callees).unwrap_or(calls)
+        };
         let simulation = Simulation {
-            calls: std::sync::Arc::new(crate::model::signatures(model)),
+            calls: std::sync::Arc::new(followed(crate::model::signatures(model))),
         };
         let contracts = model
             .contracts
             .iter()
             .map(|c| {
-                let calls = std::sync::Arc::new(crate::model::contract_calls(c));
+                let calls = std::sync::Arc::new(followed(crate::model::contract_calls(c)));
                 (c.name.clone(), Simulation { calls })
             })
             .collect();
         Context {
             records,
+            enums,
+            params,
+            variants,
             declared,
             items,
             calling: Calling::of(model),
@@ -457,41 +508,216 @@ impl Context {
     }
 }
 
-/// How deep a record's fields are followed: a record that holds itself
-/// stops there, with no field.
-const DEPTH: usize = 32;
+/// The records and enums being followed, outermost first: one met again
+/// inside itself stops there, empty (check says M027). Cut at the first
+/// repeat, not at a depth: `Node(Tree, Int, Tree)` doubles at each level.
+type On<'a> = &'a [String];
 
-/// The type of the record `name`, its fields' types followed.
-fn record_of(
-    name: &str,
-    fields: &BTreeMap<String, Vec<(String, Type)>>,
-    depth: usize,
-) -> simulation::Record {
-    let fields = match fields.get(name) {
-        Some(fs) if depth < DEPTH => fs
+/// What the first reading declares: each record's fields, each enum's
+/// variants, and the parameters of each that has some, all as written.
+#[derive(Default)]
+struct Shapes {
+    fields: BTreeMap<String, Vec<(String, Type)>>,
+    enums: BTreeMap<String, Vec<(String, Vec<Type>)>>,
+    params: BTreeMap<String, Vec<(String, simulation::Bound)>>,
+}
+
+impl Shapes {
+    /// The parameters of `name`, open.
+    fn open(&self, name: &str) -> Vec<Type> {
+        self.params
+            .get(name)
+            .into_iter()
+            .flatten()
+            .map(|(n, b)| Type::Param {
+                name: n.clone(),
+                bound: *b,
+            })
+            .collect()
+    }
+}
+
+/// The type of the record `name`, its fields' types followed, its
+/// parameters open.
+fn record_of(name: &str, shapes: &Shapes, on: On) -> simulation::Record {
+    let inner = [on, &[name.to_string()]].concat();
+    let fields = match shapes.fields.get(name) {
+        Some(fs) if !on.iter().any(|n| n == name) => fs
             .iter()
-            .map(|(n, t)| (n.clone(), follow(t, fields, depth + 1)))
+            .map(|(n, t)| (n.clone(), follow(t, shapes, &inner)))
             .collect(),
         _ => vec![],
     };
     simulation::Record {
         name: name.to_string(),
+        args: shapes.open(name),
         fields,
     }
 }
 
-fn follow(t: &Type, fields: &BTreeMap<String, Vec<(String, Type)>>, depth: usize) -> Type {
+/// The type of the enum `name`, what each variant holds followed, its
+/// parameters open. One that holds itself stops there, with no variant.
+fn enum_of(name: &str, shapes: &Shapes, on: On) -> simulation::Enum {
+    let inner = [on, &[name.to_string()]].concat();
+    let variants = match shapes.enums.get(name) {
+        Some(vs) if !on.iter().any(|n| n == name) => vs
+            .iter()
+            .map(|(v, ts)| {
+                (
+                    v.clone(),
+                    ts.iter().map(|t| follow(t, shapes, &inner)).collect(),
+                )
+            })
+            .collect(),
+        _ => vec![],
+    };
+    simulation::Enum {
+        name: name.to_string(),
+        args: shapes.open(name),
+        variants,
+    }
+}
+
+/// `t`, each record and enum it names by name written out: the first
+/// reading cannot tell one from the other, nor their fields.
+fn follow(t: &Type, shapes: &Shapes, on: On) -> Type {
+    let given = |name: &str, args: &[Type]| -> BTreeMap<String, Type> {
+        let params = shapes.params.get(name).cloned().unwrap_or_default();
+        params
+            .iter()
+            .map(|(n, _)| n.clone())
+            .zip(args.iter().map(|a| follow(a, shapes, on)))
+            .collect()
+    };
     match t {
         Type::Record(r) if r.name.is_empty() => Type::Record(simulation::Record {
             name: String::new(),
+            args: vec![],
             fields: r
                 .fields
                 .iter()
-                .map(|(n, t)| (n.clone(), follow(t, fields, depth)))
+                .map(|(n, t)| (n.clone(), follow(t, shapes, on)))
                 .collect(),
         }),
-        Type::Record(r) => Type::Record(record_of(&r.name, fields, depth)),
+        Type::Record(simulation::Record { name, args, .. })
+        | Type::Enum(simulation::Enum { name, args, .. }) => {
+            let open = match shapes.enums.contains_key(name) {
+                true => Type::Enum(enum_of(name, shapes, on)),
+                false => Type::Record(record_of(name, shapes, on)),
+            };
+            open.given(&given(name, args))
+        }
         other => other.clone(),
+    }
+}
+
+/// A parameter a variant could not tell yet, `?T`: settled by where the
+/// value goes (`Parser::settle`), else P009.
+fn hole(name: &str) -> Type {
+    Type::Param {
+        name: format!("?{name}"),
+        bound: simulation::Bound::Any,
+    }
+}
+
+/// `t` names a parameter not told yet.
+fn holed(t: &Type) -> bool {
+    match t {
+        Type::Param { name, .. } => name.starts_with('?'),
+        Type::Record(r) => r.args.iter().any(holed) || r.fields.iter().any(|(_, t)| holed(t)),
+        Type::Enum(e) => e.args.iter().any(holed),
+        _ => false,
+    }
+}
+
+/// A value of `v`'s variants and records, each parameter not told taken
+/// from `want`, the type it goes to.
+pub(crate) fn settle_value(v: Value, want: &Type) -> Value {
+    match (v, want) {
+        (Value::Variant(e, i, holds), Type::Enum(w))
+            if w.name == e.name && w.variants.len() == e.variants.len() =>
+        {
+            let ts = w
+                .variants
+                .get(i)
+                .map(|(_, ts)| ts.clone())
+                .unwrap_or_default();
+            let holds = match ts.len() == holds.len() {
+                true => holds
+                    .into_iter()
+                    .zip(&ts)
+                    .map(|(v, t)| settle_value(v, t))
+                    .collect(),
+                false => holds,
+            };
+            match holed(&Type::Enum(e.clone())) && !holed(want) {
+                true => Value::Variant(w.clone(), i, holds),
+                false => Value::Variant(e, i, holds),
+            }
+        }
+        (Value::Record(r, vs), Type::Record(w))
+            if r.name == w.name && vs.len() == w.fields.len() =>
+        {
+            let vs = vs
+                .into_iter()
+                .zip(&w.fields)
+                .map(|(v, (_, t))| settle_value(v, t))
+                .collect();
+            match holed(&Type::Record(r.clone())) && !holed(want) {
+                true => Value::Record(w.clone(), vs),
+                false => Value::Record(r, vs),
+            }
+        }
+        (v, _) => v,
+    }
+}
+
+/// The first variant in `v` whose type is not told, by its name.
+fn untold(v: &Value) -> Option<String> {
+    match v {
+        Value::Variant(e, i, holds) => match holed(&Type::Enum(e.clone())) {
+            true => e.variants.get(*i).map(|(n, _)| n.clone()),
+            false => holds.iter().find_map(untold),
+        },
+        Value::Record(r, _) if r.args.iter().any(holed) => Some(r.name.clone()),
+        Value::Record(_, vs) => vs.iter().find_map(untold),
+        Value::Partial(_, vs) => vs.iter().flatten().find_map(untold),
+        _ => None,
+    }
+}
+
+/// The first variant `e` makes whose type is not told, by its name.
+fn untold_in(e: &E) -> Option<String> {
+    let Expression::Apply(op, args) = e else {
+        return None;
+    };
+    if let Op::Variant(en, i) = op {
+        if holed(&Type::Enum(en.clone())) {
+            return en.variants.get(*i).map(|(n, _)| n.clone());
+        }
+    }
+    // A record's own hole, not one only a field's variant has.
+    if let Op::Make(r) = op {
+        if r.args.iter().any(holed) {
+            return Some(r.name.clone());
+        }
+    }
+    args.iter().find_map(|a| untold_in(&a.body))
+}
+
+/// What a variant holds, against what it was given: P007's message.
+fn holds_message(e: &simulation::Enum, i: usize, given: usize) -> String {
+    let (v, ts) = &e.variants[i];
+    let shown: Vec<String> = ts.iter().map(crate::print::type_).collect();
+    match ts.is_empty() {
+        true => format!("`{v}` of `{}` holds nothing: write `{v}`", e.name),
+        false => format!(
+            "`{v}` of `{}` holds {} value{}, `{v}({})`, and is given {given}",
+            e.name,
+            ts.len(),
+            if ts.len() == 1 { "" } else { "s" },
+            shown.join(", ")
+        ),
     }
 }
 
@@ -502,6 +728,7 @@ pub(crate) fn type_of(v: &Value) -> Type {
         Value::Int(_) => Type::Int,
         Value::Real(_) => Type::Real,
         Value::Record(r, _) | Value::Partial(r, _) => Type::Record(r.clone()),
+        Value::Variant(e, _, _) => Type::Enum(e.clone()),
     }
 }
 
@@ -742,20 +969,7 @@ impl<'c> Parser<'c> {
     fn contract(&mut self) -> Result<Contract> {
         self.expect_word("contract")?;
         let name = self.name()?;
-        let mut params = vec![];
-        if self.eat("<") {
-            params = self.list(">", |p| {
-                let n = p.name()?;
-                let bound = match p.eat(":") {
-                    true => {
-                        p.expect_word("Number")?;
-                        simulation::Bound::Number
-                    }
-                    false => simulation::Bound::Any,
-                };
-                Ok((n, bound))
-            })?;
-        }
+        let params = self.params_()?;
         self.params = params.clone();
         self.contract = Some(name.clone());
         let result = self.contract_body(name, params);
@@ -763,6 +977,52 @@ impl<'c> Parser<'c> {
         self.contract = None;
         result
     }
+    /// `<T, U: Number>`, if there: the type parameters a declaration names.
+    fn params_(&mut self) -> Result<Vec<(String, simulation::Bound)>> {
+        if !self.eat("<") {
+            return Ok(vec![]);
+        }
+        self.list(">", |p| {
+            let n = p.name()?;
+            let bound = match p.eat(":") {
+                true => {
+                    p.expect_word("Number")?;
+                    simulation::Bound::Number
+                }
+                false => simulation::Bound::Any,
+            };
+            Ok((n, bound))
+        })
+    }
+
+    /// `enum Option<T> { None, Some(T) }`: Rust's, each variant holding
+    /// the values of the types it lists, in parentheses.
+    fn enum_(&mut self, part: &Path) -> Result<crate::model::Enum> {
+        self.expect_word("enum")?;
+        let name = self.name()?;
+        let params = self.params_()?;
+        self.ties_of(&part.then(&name))?;
+        let was = std::mem::replace(&mut self.params, params.clone());
+        let variants = self.enum_body();
+        self.params = was;
+        Ok(crate::model::Enum {
+            name,
+            params,
+            variants: variants?,
+        })
+    }
+    fn enum_body(&mut self) -> Result<Vec<(String, Vec<Type>)>> {
+        self.expect("{")?;
+        self.list("}", |p| {
+            let v = p.name()?;
+            let holds = match p.eat("(") {
+                true => p.list(")", |p| p.type_())?,
+                false => vec![],
+            };
+            Ok((v, holds))
+        })
+    }
+
     fn contract_body(
         &mut self,
         name: String,
@@ -792,7 +1052,9 @@ impl<'c> Parser<'c> {
                     .iter()
                     .map(|(n, t)| (n.clone(), Some(t.clone())))
                     .collect();
+                let at = self.pos();
                 let holds = self.expr(&mut env)?;
+                let holds = self.settled(holds, Some(&Type::Truth), &env, at)?;
                 self.expect(";")?;
                 claims.push(Law {
                     name: c,
@@ -826,7 +1088,23 @@ impl<'c> Parser<'c> {
         let port = |p: &mut Self| -> Result<(Path, Value)> {
             let path = p.path()?;
             p.expect("=")?;
-            Ok((path, p.value()?))
+            let at = p.pos();
+            let v = p.value()?;
+            // The type of the port: what its function takes of that
+            // name, else what it gives.
+            let want = p.context.and_then(|c| {
+                let (port, f) = path.names.split_last()?;
+                let callee = c.simulation.calls.get(&f.join("::"))?;
+                Some(match callee.takes.iter().find(|(n, _)| n == port) {
+                    Some((_, t)) => t.clone(),
+                    None => callee.gives.clone(),
+                })
+            });
+            let v = match want {
+                Some(t) => p.settled_value(v, &t, at)?,
+                None => v,
+            };
+            Ok((path, v))
         };
         self.expect("(")?;
         let inputs = self.list(")", port)?;
@@ -913,6 +1191,7 @@ impl<'c> Parser<'c> {
             kind,
             uses: vec![],
             records: vec![],
+            enums: vec![],
             functions: vec![],
             implements: vec![],
             requires: vec![],
@@ -923,12 +1202,14 @@ impl<'c> Parser<'c> {
                 Tok::Word(w) if w == "require" => part.requires.push(self.require()?),
                 Tok::Word(w) if w == "ensure" => part.ensures.push(self.ensure()?),
                 Tok::Word(w) if w == "record" => part.records.push(self.record(&here)?),
+                Tok::Word(w) if w == "enum" => part.enums.push(self.enum_(&here)?),
                 Tok::Word(w) if w == "fn" => part.functions.push(self.function(&here)?),
                 Tok::Word(w) if w == "use" => part.uses.push(self.use_()?),
                 Tok::Word(w) if w == "impl" => part.implements.push(self.implements()?),
                 _ => {
-                    return self
-                        .expected("`use`, `require`, `ensure`, `record`, `fn`, `impl` or `}`")
+                    return self.expected(
+                        "`use`, `require`, `ensure`, `record`, `enum`, `fn`, `impl` or `}`",
+                    )
                 }
             }
         }
@@ -974,9 +1255,21 @@ impl<'c> Parser<'c> {
     fn record(&mut self, part: &Path) -> Result<Record> {
         self.expect_word("record")?;
         let name = self.name()?;
+        let params = self.params_()?;
         self.ties_of(&part.then(&name))?;
+        let was = std::mem::replace(&mut self.params, params.clone());
+        let record = self.record_body(name, params);
+        self.params = was;
+        record
+    }
+    fn record_body(
+        &mut self,
+        name: String,
+        params: Vec<(String, simulation::Bound)>,
+    ) -> Result<Record> {
         let mut record = Record {
             name: name.clone(),
+            params,
             fields: None,
             claims: vec![],
             rules: vec![],
@@ -996,6 +1289,7 @@ impl<'c> Parser<'c> {
                 Some(r) => Type::Record(r.clone()),
                 None => Type::Record(simulation::Record {
                     name,
+                    args: vec![],
                     fields: vec![],
                 }),
             };
@@ -1043,7 +1337,9 @@ impl<'c> Parser<'c> {
             .collect();
         let mut body = None;
         if self.eat("{") {
-            body = Some(self.expr(&mut env)?);
+            let at = self.pos();
+            let e = self.expr(&mut env)?;
+            body = Some(self.settled(e, Some(&gives.1), &env, at)?);
             self.expect("}")?;
         }
         env.push((gives.0.clone(), Some(gives.1.clone())));
@@ -1061,7 +1357,16 @@ impl<'c> Parser<'c> {
             let (claims, rules, examples) = self.where_(&env)?;
             function.claims = claims;
             function.rules = rules;
-            function.examples = examples.into_iter().map(|(e, _)| e).collect();
+            let mut rows = vec![];
+            for (e, at) in examples {
+                let mut takes = vec![];
+                for (v, (_, t)) in e.takes.into_iter().zip(&function.takes) {
+                    takes.push(self.settled_value(v, t, at)?);
+                }
+                let gives = self.settled_value(e.gives, &function.gives.1, at)?;
+                rows.push(Example { takes, gives });
+            }
+            function.examples = rows;
         } else if function.body.is_none() {
             self.expect(";")?;
         }
@@ -1078,7 +1383,9 @@ impl<'c> Parser<'c> {
             if self.eat_word("claim") {
                 let name = self.name()?;
                 self.expect(":")?;
+                let at = self.pos();
                 let holds = self.expr(&mut env.clone())?;
+                let holds = self.settled(holds, Some(&Type::Truth), env, at)?;
                 self.expect(";")?;
                 claims.push(Claim { name, holds });
             } else if self.eat_word("rule") {
@@ -1128,7 +1435,9 @@ impl<'c> Parser<'c> {
     /// A path, or `{ expression }` written in place.
     fn term(&mut self, env: &Env) -> Result<Term> {
         if self.eat("{") {
+            let at = self.pos();
             let holds = self.expr(&mut env.clone())?;
+            let holds = self.settled(holds, Some(&Type::Truth), env, at)?;
             self.expect("}")?;
             return Ok(Term::Holds(holds));
         }
@@ -1188,6 +1497,7 @@ impl<'c> Parser<'c> {
             }
             return Ok(simulation::tuple(types));
         }
+        let at = self.pos();
         let name = self.name()?;
         if let Some((_, bound)) = self.params.iter().find(|(p, _)| *p == name) {
             return Ok(Type::Param {
@@ -1195,12 +1505,128 @@ impl<'c> Parser<'c> {
                 bound: *bound,
             });
         }
+        let args = match self.eat("<") {
+            true => self.list(">", |p| p.type_())?,
+            false => vec![],
+        };
         Ok(match name.as_str() {
+            "bool" | "Int" | "Real" if !args.is_empty() => {
+                return Err(error(P008, at, format!("`{name}` takes no type arguments")))
+            }
             "bool" => Type::Truth,
             "Int" => Type::Int,
             "Real" => Type::Real,
-            _ => Type::Record(self.record_type(&name)),
+            _ => self.instance(&name, args, at)?,
         })
+    }
+
+    /// The record or enum `name`, its parameters given `args`: each one
+    /// its bound admits, as many as it has (P008). On the first reading,
+    /// a stand-in.
+    fn instance(&self, name: &str, args: Vec<Type>, at: Pos) -> Result<Type> {
+        let Some(context) = self.context else {
+            return Ok(Type::Record(simulation::Record {
+                name: name.to_string(),
+                args,
+                fields: vec![],
+            }));
+        };
+        let open = match context.enums.get(name) {
+            Some(e) => Type::Enum(e.clone()),
+            None => Type::Record(self.record_type(name)),
+        };
+        let params = context.params.get(name).cloned().unwrap_or_default();
+        if params.len() != args.len()
+            && (context.enums.contains_key(name) || context.records.contains_key(name))
+        {
+            let wanted: Vec<&str> = params.iter().map(|(n, _)| n.as_str()).collect();
+            let message = match params.is_empty() {
+                true => format!("`{name}` takes no type arguments"),
+                false => format!(
+                    "`{name}` takes {} type argument{}: `{name}<{}>`",
+                    params.len(),
+                    if params.len() == 1 { "" } else { "s" },
+                    wanted.join(", ")
+                ),
+            };
+            return Err(error(P008, at, message));
+        }
+        let mut given = BTreeMap::new();
+        for ((n, bound), t) in params.iter().zip(args) {
+            if !bound.admits(&t) {
+                let message = format!(
+                    "`{name}` takes `{n}: Number`, and `{}` is no number",
+                    crate::print::type_(&t)
+                );
+                return Err(error(P008, at, message));
+            }
+            given.insert(n.clone(), t);
+        }
+        Ok(open.given(&given))
+    }
+
+    /// The enum and place of the variant `names` names, `Some` or
+    /// `Option::Some`: `None` when it names none (P007 when it could name
+    /// several).
+    fn variant_named(
+        &self,
+        names: &[String],
+        at: Pos,
+    ) -> Result<Option<(simulation::Enum, usize)>> {
+        let Some(context) = self.context else {
+            return Ok(None);
+        };
+        let (enum_name, v) = match names {
+            [e, v] if context.enums.contains_key(e) => (e.clone(), v),
+            [v] => match context.variants.get(v).map(Vec::as_slice) {
+                Some([e]) => (e.clone(), v),
+                Some(several) if several.len() > 1 => {
+                    let message = format!(
+                        "`{v}` is a variant of {}: write which, `{}::{v}`",
+                        several
+                            .iter()
+                            .map(|e| format!("`{e}`"))
+                            .collect::<Vec<_>>()
+                            .join(" and "),
+                        several[0]
+                    );
+                    return Err(error(P007, at, message));
+                }
+                _ => return Ok(None),
+            },
+            _ => return Ok(None),
+        };
+        let e = context.enums[&enum_name].clone();
+        match e.variant(v) {
+            Some(i) => Ok(Some((e, i))),
+            None => {
+                let message = format!("`{enum_name}` has no variant `{v}`");
+                Err(error(P007, at, message))
+            }
+        }
+    }
+
+    /// The enum `open`, each parameter learnt from `holds`, the types of
+    /// what variant `i` holds where told; one not told is a hole (`?T`).
+    fn told(&self, open: &simulation::Enum, i: usize, holds: &[Option<Type>]) -> simulation::Enum {
+        let mut learnt = BTreeMap::new();
+        for (t, h) in open.variants[i].1.iter().zip(holds) {
+            if let Some(h) = h.as_ref().filter(|h| !holed(h)) {
+                let mut more = learnt.clone();
+                if t.learn(h, &mut more) {
+                    learnt = more;
+                }
+            }
+        }
+        for a in &open.args {
+            if let Type::Param { name, .. } = a {
+                learnt.entry(name.clone()).or_insert_with(|| hole(name));
+            }
+        }
+        match Type::Enum(open.clone()).given(&learnt) {
+            Type::Enum(e) => e,
+            _ => open.clone(),
+        }
     }
 
     /// The type of the record `name`, as declared; with no field when
@@ -1210,6 +1636,7 @@ impl<'c> Parser<'c> {
             Some(r) => r.clone(),
             None => simulation::Record {
                 name: name.to_string(),
+                args: vec![],
                 fields: vec![],
             },
         }
@@ -1272,7 +1699,19 @@ impl<'c> Parser<'c> {
                 Ok(Value::Record(r, values))
             }
             Tok::Word(_) => {
-                let name = self.name()?;
+                let names = self.raw_path()?;
+                if !self.is("{") {
+                    // A variant: `None`, `Some(1)`, `Option::Some(1)`.
+                    let holds = match self.eat("(") {
+                        true => self.list(")", |p| p.value())?,
+                        false => vec![],
+                    };
+                    return self.variant_value(&names, holds, at);
+                }
+                let [name] = names.as_slice() else {
+                    return Err(error(P003, at, "a record is named by one word"));
+                };
+                let name = name.clone();
                 self.expect("{")?;
                 // Its fields, and `..` last when the others are not known:
                 // Rust's struct pattern.
@@ -1301,6 +1740,34 @@ impl<'c> Parser<'c> {
         }
     }
 
+    /// The variant `names` names, holding `holds`; on the first reading a
+    /// stand-in.
+    fn variant_value(&self, names: &[String], holds: Vec<Value>, at: Pos) -> Result<Value> {
+        let shown = names.join("::");
+        if self.context.is_none() {
+            let e = simulation::Enum {
+                name: String::new(),
+                args: vec![],
+                variants: vec![(shown, holds.iter().map(type_of).collect())],
+            };
+            return Ok(Value::Variant(e, 0, holds));
+        }
+        let Some((open, i)) = self.variant_named(names, at)? else {
+            return Err(error(
+                P007,
+                at,
+                format!("`{shown}` is no variant of an enum of the model, nor a value"),
+            ));
+        };
+        let wanted = open.variants[i].1.len();
+        if wanted != holds.len() {
+            return Err(error(P007, at, holds_message(&open, i, holds.len())));
+        }
+        let types: Vec<Option<Type>> = holds.iter().map(|v| Some(type_of(v))).collect();
+        let e = self.told(&open, i, &types);
+        Ok(Value::Variant(e, i, holds))
+    }
+
     /// `R { f: v, .. }`: the declared record `R`, known in its fields
     /// `fields`, the others not.
     fn known_in_part(&self, name: &str, fields: Vec<(String, Value)>, at: Pos) -> Result<Value> {
@@ -1313,6 +1780,7 @@ impl<'c> Parser<'c> {
             known.push(("..".to_string(), Type::Truth));
             let r = simulation::Record {
                 name: name.to_string(),
+                args: vec![],
                 fields: known,
             };
             let mut values: Vec<Option<Value>> = fields.into_iter().map(|(_, v)| Some(v)).collect();
@@ -1356,6 +1824,7 @@ impl<'c> Parser<'c> {
                 .collect();
             let r = simulation::Record {
                 name: name.to_string(),
+                args: vec![],
                 fields: fields_,
             };
             return Ok((r, fields.into_iter().map(|(_, x)| x).collect()));
@@ -1365,8 +1834,30 @@ impl<'c> Parser<'c> {
             let wanted: BTreeSet<&String> = declared.iter().collect();
             if written == wanted && written.len() == fields.len() {
                 let mut by_name: BTreeMap<String, X> = fields.into_iter().collect();
-                let xs = declared.iter().filter_map(|n| by_name.remove(n)).collect();
-                return Ok((self.record_type(name), xs));
+                let xs: Vec<X> = declared.iter().filter_map(|n| by_name.remove(n)).collect();
+                let open = self.record_type(name);
+                let Some(params) = context.params.get(name).filter(|p| !p.is_empty()) else {
+                    return Ok((open, xs));
+                };
+                // Its parameters, learnt from what its fields are given.
+                let mut learnt = BTreeMap::new();
+                for ((_, t), x) in open.fields.iter().zip(&xs) {
+                    if let Some(u) = type_of(x).filter(|u| !holed(u)) {
+                        let mut more = learnt.clone();
+                        if t.learn(&u, &mut more) {
+                            learnt = more;
+                        }
+                    }
+                }
+                // One its fields do not tell is a hole, settled by where the
+                // record goes (`Parser::settle`), else P009.
+                for (p, _) in params {
+                    learnt.entry(p.clone()).or_insert_with(|| hole(p));
+                }
+                return match Type::Record(open).given(&learnt) {
+                    Type::Record(r) => Ok((r, xs)),
+                    _ => unreachable!("a record stays a record"),
+                };
             }
         }
         let mut types = vec![];
@@ -1380,6 +1871,7 @@ impl<'c> Parser<'c> {
         }
         let r = simulation::Record {
             name: name.to_string(),
+            args: vec![],
             fields: types,
         };
         Ok((r, fields.into_iter().map(|(_, x)| x).collect()))
@@ -1567,6 +2059,10 @@ impl<'c> Parser<'c> {
                 };
                 Ok(apply(Op::If, vec![c, a, b]))
             }
+            Tok::Word(w) if w == "match" => {
+                self.bump();
+                self.match_(env, at)
+            }
             Tok::Word(w) if w == "within" && *self.peek_at(1) == Tok::Sym("(") => {
                 self.bump();
                 self.bump();
@@ -1633,6 +2129,28 @@ impl<'c> Parser<'c> {
                 if w == "crate" || matches!(self.peek_at(1), Tok::Sym("::") | Tok::Sym("(")) =>
             {
                 let names = self.raw_path()?;
+                let function = self.context.is_some_and(|c| {
+                    names.len() > 1
+                        || c.calling
+                            .resolve(self.part.as_deref(), self.contract.as_deref(), &names[0])
+                            .is_some()
+                }) && !(names.len() == 2
+                    && self
+                        .context
+                        .is_some_and(|c| c.enums.contains_key(&names[0])));
+                if !function {
+                    if let Some((open, i)) = self.variant_named(&names, at)? {
+                        let holds = match self.eat("(") {
+                            true => self.list(")", |p| p.inner(&mut env.clone()))?,
+                            false => vec![],
+                        };
+                        return self.variant_expr(&open, i, holds, env, at);
+                    }
+                }
+                if !self.is("(") && self.context.is_none() {
+                    // `Light::Red`: the first reading knows no enum yet.
+                    return Ok(Expression::Name(names.join("::")));
+                }
                 if !self.is("(") {
                     return self.expected("`(`: a path is a call here");
                 }
@@ -1653,11 +2171,506 @@ impl<'c> Parser<'c> {
                         self.made(&name, fields, |e| self.type_or_any(env, e), at)?;
                     return Ok(apply(Op::Make(record), args));
                 }
+                // A unit variant, `None`, unless a name in scope is so named.
+                let bound = env.iter().any(|(n, _)| *n == name);
+                if !bound {
+                    if let Some((open, i)) = self.variant_named(std::slice::from_ref(&name), at)? {
+                        return self.variant_expr(&open, i, vec![], env, at);
+                    }
+                }
                 Ok(Expression::Name(name))
             }
             _ => self.expected("an expression"),
         }
     }
+    /// The variant `i` of `open`, holding `holds`, its parameters learnt
+    /// from what they give; one not told is settled by where it goes.
+    fn variant_expr(
+        &self,
+        open: &simulation::Enum,
+        i: usize,
+        holds: Vec<E>,
+        env: &Env,
+        at: Pos,
+    ) -> Result<E> {
+        if open.variants[i].1.len() != holds.len() {
+            return Err(error(P007, at, holds_message(open, i, holds.len())));
+        }
+        let types: Vec<Option<Type>> = holds.iter().map(|h| self.type_in(env, h)).collect();
+        let e = self.told(open, i, &types);
+        Ok(apply(Op::Variant(e, i), holds))
+    }
+
+    /// `match e { None => a, Some(x) => b }`, after `match`: one arm per
+    /// variant of what `e` gives, in any order, or `_` for those left.
+    fn match_(&mut self, env: &mut Env, at: Pos) -> Result<E> {
+        let was = std::mem::replace(&mut self.no_record, true);
+        let scrutinee = self.expr(env);
+        self.no_record = was;
+        let scrutinee = scrutinee?;
+        let en = match (self.context, self.type_in(env, &scrutinee)) {
+            (None, _) => None,
+            (Some(_), Some(Type::Enum(e))) if !holed(&Type::Enum(e.clone())) => Some(e),
+            (Some(_), Some(t)) => {
+                let message = format!(
+                    "`match` reads an enum, and this is `{}`",
+                    crate::print::type_(&t)
+                );
+                return Err(error(P003, at, message));
+            }
+            (Some(_), None) => {
+                return Err(error(
+                    P004,
+                    at,
+                    "the type of what `match` reads cannot be told here",
+                ))
+            }
+        };
+        self.expect("{")?;
+        // Each arm: where, the variant's place (`None` for `_`), the names
+        // it binds and its body.
+        let mut arms: Vec<(Pos, Option<usize>, Vec<String>, E)> = vec![];
+        let mut written: Vec<(String, usize)> = vec![];
+        while !self.eat("}") {
+            let here = self.pos();
+            let (place, binds) = match self.eat_word("_") {
+                true => (None, vec![]),
+                false => {
+                    let names = self.raw_path()?;
+                    let binds = match self.eat("(") {
+                        true => self.list(")", |p| p.name())?,
+                        false => vec![],
+                    };
+                    match &en {
+                        None => {
+                            written.push((names.join("::"), binds.len()));
+                            (Some(written.len() - 1), binds)
+                        }
+                        Some(e) => {
+                            let v = names.last().cloned().unwrap_or_default();
+                            let wrong_enum = names.len() == 2 && names[0] != e.name;
+                            let Some(i) = e.variant(&v).filter(|_| names.len() <= 2 && !wrong_enum)
+                            else {
+                                let message = format!(
+                                    "`{}` is no variant of `{}`, which `match` reads here",
+                                    names.join("::"),
+                                    crate::print::type_(&Type::Enum(e.clone()))
+                                );
+                                return Err(error(P007, here, message));
+                            };
+                            if e.variants[i].1.len() != binds.len() {
+                                return Err(error(P007, here, holds_message(e, i, binds.len())));
+                            }
+                            (Some(i), binds)
+                        }
+                    }
+                }
+            };
+            self.expect("=>")?;
+            let types: Vec<Option<Type>> = match (&en, place) {
+                (Some(e), Some(i)) => e.variants[i].1.iter().cloned().map(Some).collect(),
+                _ => binds.iter().map(|_| None).collect(),
+            };
+            let depth = env.len();
+            env.extend(binds.iter().cloned().zip(types));
+            let body = self.inner(env);
+            env.truncate(depth);
+            arms.push((here, place, binds, body?));
+            if !self.eat(",") {
+                self.expect("}")?;
+                break;
+            }
+        }
+        let plain = |body: E| Arg {
+            binds: vec![],
+            body,
+        };
+        let Some(e) = en else {
+            // The first reading: a stand-in, read again with the types.
+            let e = simulation::Enum {
+                name: String::new(),
+                args: vec![],
+                variants: written
+                    .iter()
+                    .map(|(n, k)| (n.clone(), vec![Type::Truth; *k]))
+                    .collect(),
+            };
+            let mut args = vec![plain(scrutinee)];
+            args.extend(
+                arms.into_iter()
+                    .map(|(_, _, binds, body)| Arg { binds, body }),
+            );
+            return Ok(Expression::Apply(Op::Match(e), args));
+        };
+        let mut by_variant: Vec<Option<Arg<Op>>> = vec![None; e.variants.len()];
+        let mut rest: Option<(Pos, E)> = None;
+        for (here, place, binds, body) in arms {
+            match place {
+                Some(i) if by_variant[i].is_some() || rest.is_some() => {
+                    let message = format!(
+                        "`{}` is matched twice: the second arm is never taken",
+                        e.variants[i].0
+                    );
+                    return Err(error(P006, here, message));
+                }
+                Some(i) => by_variant[i] = Some(Arg { binds, body }),
+                None if rest.is_some() => {
+                    return Err(error(
+                        P006,
+                        here,
+                        "`_` is written twice: the second arm is never taken",
+                    ));
+                }
+                None => rest = Some((here, body)),
+            }
+        }
+        let missing: Vec<&str> = e
+            .variants
+            .iter()
+            .zip(&by_variant)
+            .filter(|(_, a)| a.is_none())
+            .map(|((v, _), _)| v.as_str())
+            .collect();
+        match (&rest, missing.is_empty()) {
+            (None, false) => {
+                let message = format!(
+                    "`match` misses {}: give each an arm, or `_ =>` for the rest",
+                    missing
+                        .iter()
+                        .map(|v| format!("`{v}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+                return Err(error(P006, at, message));
+            }
+            (Some((here, _)), true) => {
+                return Err(error(
+                    P006,
+                    *here,
+                    "`_` matches nothing: every variant has its arm",
+                ));
+            }
+            _ => {}
+        }
+        let mut args = vec![plain(scrutinee)];
+        for ((_, ts), arm) in e.variants.iter().zip(by_variant) {
+            args.push(match (arm, &rest) {
+                (Some(arm), _) => arm,
+                (None, Some((_, body))) => Arg {
+                    binds: vec!["_".to_string(); ts.len()],
+                    body: body.clone(),
+                },
+                (None, None) => unreachable!("a missing variant is an error above"),
+            });
+        }
+        Ok(Expression::Apply(Op::Match(e), args))
+    }
+
+    /// `e`, each variant whose parameters it could not tell given them by
+    /// where it goes: `want`, the type wanted there, when known.
+    fn settle(&self, e: E, want: Option<&Type>, env: &mut Env) -> E {
+        let Some(context) = self.context else {
+            return e;
+        };
+        let Expression::Apply(op, args) = e else {
+            return e;
+        };
+        let typed = |p: &Self, env: &Env, e: &E| p.type_in(env, e).filter(|t| !holed(t));
+        // Each argument settled by its own wanted type.
+        let each =
+            |p: &Self, args: Vec<Arg<Op>>, wants: &[Option<Type>], env: &mut Env| -> Vec<Arg<Op>> {
+                args.into_iter()
+                    .enumerate()
+                    .map(|(k, a)| Arg {
+                        binds: a.binds,
+                        body: p.settle(a.body, wants.get(k).cloned().flatten().as_ref(), env),
+                    })
+                    .collect()
+            };
+        // Arguments of one type: each settled alone, then, only those a
+        // hole is still in, by the others (settling all twice would take
+        // time doubling with each level).
+        let alike = |p: &Self, args: Vec<Arg<Op>>, env: &mut Env| -> Vec<Arg<Op>> {
+            let args = each(p, args, &[], env);
+            if args.iter().all(|a| untold_in(&a.body).is_none()) {
+                return args;
+            }
+            let Some(t) = args.iter().find_map(|a| typed(p, env, &a.body)) else {
+                return args;
+            };
+            args.into_iter()
+                .map(|a| match untold_in(&a.body) {
+                    Some(_) => Arg {
+                        binds: a.binds,
+                        body: p.settle(a.body, Some(&t), env),
+                    },
+                    None => a,
+                })
+                .collect()
+        };
+        let truth = Some(Type::Truth);
+        match op {
+            Op::Variant(en, i) => {
+                let en = match want {
+                    Some(Type::Enum(w))
+                        if holed(&Type::Enum(en.clone()))
+                            && !holed(want.expect("some"))
+                            && w.name == en.name
+                            && w.variants.len() == en.variants.len() =>
+                    {
+                        w.clone()
+                    }
+                    _ => en,
+                };
+                let wants: Vec<Option<Type>> = en.variants[i].1.iter().cloned().map(Some).collect();
+                let args = each(self, args, &wants, env);
+                let en = match (holed(&Type::Enum(en.clone())), context.enums.get(&en.name)) {
+                    (true, Some(open)) => {
+                        let types: Vec<Option<Type>> =
+                            args.iter().map(|a| typed(self, env, &a.body)).collect();
+                        self.told(open, i, &types)
+                    }
+                    _ => en,
+                };
+                Expression::Apply(Op::Variant(en, i), args)
+            }
+            Op::If => {
+                let mut it = args.into_iter();
+                let (c, a, b) = match (it.next(), it.next(), it.next()) {
+                    (Some(c), Some(a), Some(b)) => (c, a, b),
+                    _ => return Expression::Apply(Op::If, vec![]),
+                };
+                let c = Arg {
+                    binds: c.binds,
+                    body: self.settle(c.body, truth.as_ref(), env),
+                };
+                let branches = match want {
+                    Some(_) => each(self, vec![a, b], &[want.cloned(), want.cloned()], env),
+                    None => alike(self, vec![a, b], env),
+                };
+                Expression::Apply(Op::If, [vec![c], branches].concat())
+            }
+            Op::Equal
+            | Op::Less
+            | Op::AtMost
+            | Op::Add
+            | Op::Sub
+            | Op::Mul
+            | Op::Div
+            | Op::Rem
+            | Op::Within => {
+                let args = alike(self, args, env);
+                Expression::Apply(op, args)
+            }
+            Op::Not | Op::And | Op::Or => {
+                let args = each(self, args, &[truth.clone(), truth.clone()], env);
+                Expression::Apply(op, args)
+            }
+            Op::Make(r) => {
+                // A record whose parameters its fields did not tell takes
+                // them from where it goes; else, from its fields settled.
+                let r = match want {
+                    Some(Type::Record(w))
+                        if r.args.iter().any(holed)
+                            && !holed(want.expect("some"))
+                            && w.name == r.name
+                            && w.fields.len() == r.fields.len() =>
+                    {
+                        w.clone()
+                    }
+                    _ => r,
+                };
+                let wants: Vec<Option<Type>> =
+                    r.fields.iter().map(|(_, t)| Some(t.clone())).collect();
+                let args = each(self, args, &wants, env);
+                let r = match (r.args.iter().any(holed), context.records.get(&r.name)) {
+                    (true, Some(open)) => {
+                        let mut learnt = BTreeMap::new();
+                        for ((_, t), a) in open.fields.iter().zip(&args) {
+                            if let Some(u) = typed(self, env, &a.body) {
+                                let mut more = learnt.clone();
+                                if t.learn(&u, &mut more) {
+                                    learnt = more;
+                                }
+                            }
+                        }
+                        let params = context.params.get(&r.name).cloned().unwrap_or_default();
+                        for (p, _) in &params {
+                            learnt.entry(p.clone()).or_insert_with(|| hole(p));
+                        }
+                        match Type::Record(open.clone()).given(&learnt) {
+                            Type::Record(told) => told,
+                            _ => r,
+                        }
+                    }
+                    _ => r,
+                };
+                Expression::Apply(Op::Make(r), args)
+            }
+            Op::Call(f) => {
+                let calls = match &self.contract {
+                    Some(c) => context.contracts.get(c).map(|s| s.calls.clone()),
+                    None => Some(context.simulation.calls.clone()),
+                };
+                let wants: Vec<Option<Type>> = calls
+                    .and_then(|calls| {
+                        calls
+                            .get(&f)
+                            .map(|c| c.takes.iter().map(|(_, t)| Some(t.clone())).collect())
+                    })
+                    .unwrap_or_default();
+                let args = each(self, args, &wants, env);
+                Expression::Apply(Op::Call(f), args)
+            }
+            Op::Let => {
+                let mut it = args.into_iter();
+                let (Some(a), Some(b)) = (it.next(), it.next()) else {
+                    return Expression::Apply(Op::Let, vec![]);
+                };
+                let a = Arg {
+                    binds: a.binds,
+                    body: self.settle(a.body, None, env),
+                };
+                let t = typed(self, env, &a.body);
+                let depth = env.len();
+                env.extend(b.binds.iter().cloned().map(|x| (x, t.clone())));
+                let body = self.settle(b.body, want, env);
+                env.truncate(depth);
+                Expression::Apply(
+                    Op::Let,
+                    vec![
+                        a,
+                        Arg {
+                            binds: b.binds,
+                            body,
+                        },
+                    ],
+                )
+            }
+            Op::All => {
+                let mut it = args.into_iter();
+                let (Some(lo), Some(hi), Some(p)) = (it.next(), it.next(), it.next()) else {
+                    return Expression::Apply(Op::All, vec![]);
+                };
+                let int = Some(Type::Int);
+                let lo = Arg {
+                    binds: lo.binds,
+                    body: self.settle(lo.body, int.as_ref(), env),
+                };
+                let hi = Arg {
+                    binds: hi.binds,
+                    body: self.settle(hi.body, int.as_ref(), env),
+                };
+                let depth = env.len();
+                env.extend(p.binds.iter().cloned().map(|x| (x, int.clone())));
+                let body = self.settle(p.body, truth.as_ref(), env);
+                env.truncate(depth);
+                Expression::Apply(
+                    Op::All,
+                    vec![
+                        lo,
+                        hi,
+                        Arg {
+                            binds: p.binds,
+                            body,
+                        },
+                    ],
+                )
+            }
+            Op::Match(en) => {
+                let mut it = args.into_iter();
+                let Some(scrutinee) = it.next() else {
+                    return Expression::Apply(Op::Match(en), vec![]);
+                };
+                let scrutinee = Arg {
+                    binds: scrutinee.binds,
+                    body: self.settle(scrutinee.body, Some(&Type::Enum(en.clone())), env),
+                };
+                let arm = |p: &Self,
+                           k: usize,
+                           a: Arg<Op>,
+                           want: Option<&Type>,
+                           env: &mut Env|
+                 -> Arg<Op> {
+                    let ts = en
+                        .variants
+                        .get(k)
+                        .map(|(_, ts)| ts.clone())
+                        .unwrap_or_default();
+                    let depth = env.len();
+                    env.extend(a.binds.iter().cloned().zip(ts.into_iter().map(Some)));
+                    let body = p.settle(a.body, want, env);
+                    env.truncate(depth);
+                    Arg {
+                        binds: a.binds,
+                        body,
+                    }
+                };
+                let mut arms: Vec<Arg<Op>> = it
+                    .enumerate()
+                    .map(|(k, a)| arm(self, k, a, want, env))
+                    .collect();
+                if want.is_none() {
+                    // The type one arm gives, for the others.
+                    let mut known = None;
+                    for (k, a) in arms.iter().enumerate() {
+                        let ts = en
+                            .variants
+                            .get(k)
+                            .map(|(_, ts)| ts.clone())
+                            .unwrap_or_default();
+                        let depth = env.len();
+                        env.extend(a.binds.iter().cloned().zip(ts.into_iter().map(Some)));
+                        known = known.or_else(|| typed(self, env, &a.body));
+                        env.truncate(depth);
+                    }
+                    if let Some(t) = known {
+                        arms = arms
+                            .into_iter()
+                            .enumerate()
+                            .map(|(k, a)| arm(self, k, a, Some(&t), env))
+                            .collect();
+                    }
+                }
+                Expression::Apply(Op::Match(en), [vec![scrutinee], arms].concat())
+            }
+            op => {
+                let args = each(self, args, &[], env);
+                Expression::Apply(op, args)
+            }
+        }
+    }
+
+    /// `e` settled for `want`, P009 at `at` when a variant's type is still
+    /// not told.
+    fn settled(&self, e: E, want: Option<&Type>, env: &Env, at: Pos) -> Result<E> {
+        let e = self.settle(e, want, &mut env.clone());
+        match untold_in(&e).filter(|_| self.context.is_some()) {
+            Some(v) => Err(error(
+                P009,
+                at,
+                format!("the type of `{v}` cannot be told here: use it where a value of its type is wanted, as a function's result, a field, an argument, or beside `==`"),
+            )),
+            None => Ok(e),
+        }
+    }
+    /// `v` settled for `want`, P009 at `at` when a variant's type is
+    /// still not told.
+    fn settled_value(&self, v: Value, want: &Type, at: Pos) -> Result<Value> {
+        let v = settle_value(v, want);
+        match untold(&v).filter(|_| self.context.is_some()) {
+            Some(n) => Err(error(
+                P009,
+                at,
+                format!(
+                    "the type of `{n}` cannot be told here: nothing says which `{}` it is",
+                    crate::print::type_(want)
+                ),
+            )),
+            None => Ok(v),
+        }
+    }
+
     /// The path of the function a call names: whole when written with
     /// `::`, else the one a name alone names (`Calling::resolve`), else
     /// as written, which `check` finds names nothing.

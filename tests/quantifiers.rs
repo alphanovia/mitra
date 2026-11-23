@@ -299,6 +299,7 @@ proptest! {
 /// A random point: of any length, any kind of value.
 fn any_point(rng: &mut Rng) -> Vec<V> {
     let rec = simulation::Record {
+        args: vec![],
         name: "R".to_string(),
         fields: vec![("x".to_string(), simulation::Type::Int)],
     };

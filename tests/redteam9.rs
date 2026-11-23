@@ -355,6 +355,7 @@ subject s {
 "#;
     let model = model(text);
     let key = simulation::Record {
+        args: vec![],
         name: "Key".to_string(),
         fields: vec![],
     };

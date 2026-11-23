@@ -44,6 +44,8 @@ impl Default for Settings {
 
 /// What can be doubted: one measurement or one review of the ledger,
 /// with all it says, or one taking of the model's own or of a check.
+// A taking holds a value, a variant's among them: large beside an index.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Suspect {
     Measurement(usize),

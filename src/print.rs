@@ -306,6 +306,13 @@ impl Writer<'_> {
             };
             blocks.push(self.record(r, &ties));
         }
+        for e in &part.enums {
+            let ties = match seen.insert(e.name.clone()) {
+                true => tied(&here.then(&e.name), placed),
+                false => String::new(),
+            };
+            blocks.push(enum_(e, &ties));
+        }
         for f in &part.functions {
             let ties = match seen.insert(f.name.clone()) {
                 true => tied(&here.then(&f.name), placed),
@@ -356,7 +363,7 @@ impl Writer<'_> {
     }
 
     fn record(&self, r: &Record, ties: &str) -> String {
-        let mut s = format!("    record {}{ties}", r.name);
+        let mut s = format!("    record {}{}{ties}", r.name, params(&r.params));
         if let Some(fields) = &r.fields {
             let fields: Vec<String> = fields
                 .iter()
@@ -630,6 +637,27 @@ impl Writer<'_> {
 }
 
 /// `use sun::{light, Ray};`, `use sun::light;`, `use sun::*;`.
+/// `enum Option<T> { None, Some(T) }`.
+fn enum_(e: &crate::model::Enum, ties: &str) -> String {
+    let variants: Vec<String> = e
+        .variants
+        .iter()
+        .map(|(v, ts)| match ts.is_empty() {
+            true => v.clone(),
+            false => format!(
+                "{v}({})",
+                ts.iter().map(type_).collect::<Vec<_>>().join(", ")
+            ),
+        })
+        .collect();
+    format!(
+        "    enum {}{}{ties} {{ {} }}\n",
+        e.name,
+        params(&e.params),
+        variants.join(", ")
+    )
+}
+
 fn use_(u: &Use) -> String {
     match u {
         Use::Glob { part } => format!("    use {part}::*;\n"),
@@ -692,9 +720,36 @@ pub fn type_(t: &Type) -> String {
                 _ => format!("({})", types.join(", ")),
             }
         }
-        Type::Record(r) => r.name.clone(),
+        Type::Record(r) => generic(&r.name, &r.args),
+        Type::Enum(e) => generic(&e.name, &e.args),
         Type::Param { name, .. } => name.clone(),
     }
+}
+
+/// `Pair`, or `Pair<Int, Real>`.
+fn generic(name: &str, args: &[Type]) -> String {
+    match args.is_empty() {
+        true => name.to_string(),
+        false => format!(
+            "{name}<{}>",
+            args.iter().map(type_).collect::<Vec<_>>().join(", ")
+        ),
+    }
+}
+
+/// `<T>`, `<T: Number, U>`: the parameters a declaration names.
+fn params(ps: &[(String, crate::simulation::Bound)]) -> String {
+    if ps.is_empty() {
+        return String::new();
+    }
+    let ps: Vec<String> = ps
+        .iter()
+        .map(|(n, b)| match b {
+            crate::simulation::Bound::Number => format!("{n}: Number"),
+            crate::simulation::Bound::Any => n.clone(),
+        })
+        .collect();
+    format!("<{}>", ps.join(", "))
 }
 
 /// `9.81`, `2.0`, `-0.5`; a ratio no decimal writes, `1/3`.
@@ -760,6 +815,13 @@ pub fn value(v: &Value) -> String {
                 .collect();
             fields.push("..".to_string());
             format!("{} {{ {} }}", r.name, fields.join(", "))
+        }
+        Value::Variant(e, i, holds) => {
+            let name = e.variants.get(*i).map(|(n, _)| n.as_str()).unwrap_or("?");
+            match holds.is_empty() {
+                true => name.to_string(),
+                false => format!("{name}{}", values(holds)),
+            }
         }
     }
 }
@@ -885,7 +947,38 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
             ),
             _ => bad,
         },
+        // `match e { None => a, Some(x) => b }`: every variant, in order.
+        (Op::Match(en), n, _) if n == en.variants.len() + 1 && args[0].binds.is_empty() => {
+            let e = body(0);
+            let e = match makes_record(e) {
+                true => format!("({})", sim_in(cx, e)),
+                false => wrap(sim_at(cx, e), OR),
+            };
+            let mut arms = Vec::new();
+            for ((v, ts), arm) in en.variants.iter().zip(&args[1..]) {
+                if arm.binds.len() != ts.len() {
+                    return bad;
+                }
+                let pattern = match ts.is_empty() {
+                    true => v.clone(),
+                    false => format!("{v}({})", arm.binds.join(", ")),
+                };
+                arms.push(format!("{pattern} => {}", sim_in(cx, &arm.body)));
+            }
+            (format!("match {e} {{ {} }}", arms.join(", ")), LET)
+        }
         (_, _, false) => bad,
+        // `None`, `Some(x)`.
+        (Op::Variant(en, i), n, _) if en.variants.get(*i).is_some_and(|(_, ts)| ts.len() == n) => {
+            let name = &en.variants[*i].0;
+            match n {
+                0 => (name.clone(), ATOM),
+                _ => {
+                    let items: Vec<String> = (0..n).map(|k| sim_in(cx, body(k))).collect();
+                    (format!("{name}({})", items.join(", ")), POSTFIX)
+                }
+            }
+        }
         // `light(h)`, `sun::light(h)`.
         (Op::Call(f), _, _) => {
             let args: Vec<String> = args.iter().map(|a| sim_in(cx, &a.body)).collect();

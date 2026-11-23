@@ -81,6 +81,7 @@ fn sun() -> Part {
     let mut light = function("light", "", ("w", Type::Real));
     light.takes.clear();
     Part {
+        enums: vec![],
         name: "sun".to_string(),
         kind: Kind::Environment,
         uses: vec![],
@@ -146,6 +147,7 @@ fn stone() -> Part {
         gives: real(981, 10),
     }];
     Part {
+        enums: vec![],
         name: "stone".to_string(),
         kind: Kind::Subject,
         uses: vec![],
@@ -474,6 +476,7 @@ fn records_and_tuples() {
     let h = apply(Op::Field("h".to_string()), vec![name("self")]);
     model.parts[1].records = vec![
         Record {
+            params: vec![],
             name: "Drop".to_string(),
             fields: Some(vec![
                 ("h".to_string(), Type::Real),
@@ -483,6 +486,7 @@ fn records_and_tuples() {
             rules: vec![],
         },
         Record {
+            params: vec![],
             name: "Weather".to_string(),
             fields: None,
             claims: vec![],
@@ -530,6 +534,7 @@ type Change = Box<dyn FnOnce(&mut Model)>;
 #[test]
 fn each_error_is_found() {
     let ghost = |fields: &[&str]| simulation::Record {
+        args: vec![],
         name: "Ghost".to_string(),
         fields: fields.iter().map(|f| (f.to_string(), Type::Real)).collect(),
     };
@@ -549,6 +554,7 @@ fn each_error_is_found() {
             "M003 at stone::Drop::h",
             Box::new(move |m| {
                 m.parts[1].records.push(Record {
+                    params: vec![],
                     name: "Drop".to_string(),
                     fields: Some(vec![("h".to_string(), Type::Record(ghost(&[])))]),
                     claims: vec![],
@@ -701,7 +707,18 @@ fn each_error_is_found() {
         digits("subject d {\n    fn f(a: 0..=9) -> b: Int { a }\n}\nexamples { (d::f::a = 10) -> d::f::b = 10 }"),
         ["error[M026]: `d::f::a` = 10, outside its range 0..=9\n --> examples::0"]
     );
-    given.extend(["M025".to_string(), "M026".to_string()]);
+    // Enums and records no value fits (M027), and no M003 beside them.
+    assert_eq!(
+        digits("subject d {\n    enum Never {}\n    record Box<T> { n: Int }\n    enum List { Nil, Cons(Int, List) }\n    record R { s: S }\n    record S { r: R }\n    fn f(a: List, b: R, c: Box<Int>) -> e: Int { 0 }\n}"),
+        [
+            "error[M027]: the type parameter `T` is used by nothing it holds: Rust's E0392\n --> d::Box",
+            "error[M027]: `List` holds itself: a value of it would never end (trees come later, finding 3)\n --> d::List",
+            "error[M027]: `Never` has no variant: no value is of it\n --> d::Never",
+            "error[M027]: `R` holds itself: a value of it would never end (trees come later, finding 3)\n --> d::R",
+            "error[M027]: `S` holds itself: a value of it would never end (trees come later, finding 3)\n --> d::S",
+        ]
+    );
+    given.extend(["M025".to_string(), "M026".to_string(), "M027".to_string()]);
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Model && !e.retired);
@@ -714,6 +731,7 @@ fn each_error_is_found() {
     // the model. A name twice among what a function takes.
     let records = changed(|m| {
         let calm = Record {
+            params: vec![],
             name: "Calm".to_string(),
             fields: Some(vec![]),
             claims: vec![],
@@ -1159,12 +1177,14 @@ fn examples_are_of_their_function() {
     // A value of an opaque record is made by no one.
     let calm = changed(|m| {
         m.parts[1].records.push(Record {
+            params: vec![],
             name: "Calm".to_string(),
             fields: None,
             claims: vec![],
             rules: vec![],
         });
         let opaque = simulation::Record {
+            args: vec![],
             name: "Calm".to_string(),
             fields: vec![],
         };
@@ -1191,17 +1211,20 @@ fn examples_are_of_their_function() {
 #[test]
 fn records_are_made_as_declared() {
     let drop = simulation::Record {
+        args: vec![],
         name: "Drop".to_string(),
         fields: vec![("h".to_string(), Type::Real), ("v".to_string(), Type::Real)],
     };
     let declared = vec![
         Record {
+            params: vec![],
             name: "Drop".to_string(),
             fields: Some(drop.fields.clone()),
             claims: vec![],
             rules: vec![],
         },
         Record {
+            params: vec![],
             name: "Weather".to_string(),
             fields: None,
             claims: vec![],
@@ -1222,6 +1245,7 @@ fn records_are_made_as_declared() {
     };
     let wrong = ["M004 at stone::speed::slow"];
     let named = |name: &str, fields: &[&str]| simulation::Record {
+        args: vec![],
         name: name.to_string(),
         fields: fields.iter().map(|f| (f.to_string(), Type::Real)).collect(),
     };
@@ -1401,12 +1425,14 @@ fn parts_read_each_other_through_uses() {
     assert_eq!(inside, Vec::<String>::new());
     // Through a claim, a rule's expression, a type and a record made.
     let ray = Record {
+        params: vec![],
         name: "Ray".to_string(),
         fields: Some(vec![("w".to_string(), Type::Real)]),
         claims: vec![],
         rules: vec![],
     };
     let ray_type = Type::Record(simulation::Record {
+        args: vec![],
         name: "Ray".to_string(),
         fields: vec![("w".to_string(), Type::Real)],
     });

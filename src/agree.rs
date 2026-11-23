@@ -611,6 +611,10 @@ impl<'m> Reading<'m> {
                 self.opaque.contains(r.name.as_str())
                     || r.fields.iter().any(|(_, t)| self.opaque_in(t))
             }
+            Type::Enum(e) => e
+                .variants
+                .iter()
+                .any(|(_, ts)| ts.iter().any(|t| self.opaque_in(t))),
             Type::Truth | Type::Int | Type::Real | Type::Param { .. } => false,
         }
     }
@@ -686,6 +690,15 @@ impl<'m> Reading<'m> {
                 .iter()
                 .map(|(_, t)| self.size_of(t))
                 .try_fold(1usize, |n, k| n.checked_mul(k?)),
+            Type::Enum(e) => e
+                .variants
+                .iter()
+                .map(|(_, ts)| {
+                    ts.iter()
+                        .map(|t| self.size_of(t))
+                        .try_fold(1usize, |n, k| n.checked_mul(k?))
+                })
+                .try_fold(0usize, |n, k| n.checked_add(k?)),
             Type::Int | Type::Real | Type::Param { .. } => None,
         }
     }
@@ -836,6 +849,42 @@ impl<'m> Reading<'m> {
                             .map(|f| f[i.min(f.len() - 1)].clone())
                             .collect();
                         add(Value::partial(r.clone(), values));
+                    }
+                }
+            }
+            // Each variant: what it holds, every value together when few
+            // enough, else the i-th of each; none when what it holds has
+            // no value written (an opaque record).
+            Type::Enum(e) => {
+                let few = self.size_of(t).is_some_and(|k| k <= self.settings.points);
+                for (i, (_, ts)) in e.variants.iter().enumerate() {
+                    let holds: Vec<Vec<Option<Value>>> = ts
+                        .iter()
+                        .map(|t| self.values_of(t, constants).into_iter().map(Some).collect())
+                        .collect();
+                    if holds.iter().any(Vec::is_empty) {
+                        continue;
+                    }
+                    let rows: Vec<Vec<Option<Value>>> = match few {
+                        true => product(&holds),
+                        false => {
+                            let most = holds.iter().map(Vec::len).max().unwrap_or(1).max(1);
+                            (0..most)
+                                .map(|k| {
+                                    holds
+                                        .iter()
+                                        .map(|h| h[k.min(h.len() - 1)].clone())
+                                        .collect()
+                                })
+                                .collect()
+                        }
+                    };
+                    for row in rows {
+                        add(Value::Variant(
+                            e.clone(),
+                            i,
+                            row.into_iter().flatten().collect(),
+                        ));
                     }
                 }
             }

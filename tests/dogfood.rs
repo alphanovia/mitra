@@ -38,10 +38,12 @@ fn dogfood_times() {
     assert_eq!(q(2, 3).times(&q(3, 4)), q(1, 2));
 }
 
-// mitra: measures simulation::over (1/2, 1/4) -> 2.0
+// mitra: measures simulation::over (1/2, 1/4) -> Some(2.0)
+// mitra: measures simulation::over (1/2, 0.0) -> None
 #[test]
 fn dogfood_over() {
     assert_eq!(q(1, 2).over(&q(1, 4)), Some(q(2, 1)));
+    assert_eq!(q(1, 2).over(&q(0, 1)), None);
 }
 
 // mitra: measures simulation::abs (-3/2) -> 3/2

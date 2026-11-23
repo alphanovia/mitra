@@ -44,6 +44,10 @@ subject stone {
 | `require q: sun::shines;` / `require q: "words";` | `Require`, `Source` | flagged |
 | `ensure e: "words" from (a, b) \| (c);` | `Ensure`, its lists | flagged |
 | `record R;` opaque, `record R { x: Real }`, `record R {}` | `Record` | Rust's `struct` form, keyword flagged |
+| `record Pair<T> { a: T, b: T }`, `enum Light { Red, Amber, Green }`, `enum Option<T> { None, Some(T) }` | `Record.params`, `Enum` | Rust's `struct` and `enum`; `T: Number` flagged |
+| `Option<Int>`, `Pair<Real>` | a type given its parameters | Rust |
+| `Some(x)`, `None`, `Light::Red`, `Option::Some(x)` | `Op::Variant` | Rust; a variant alone when one enum the part reads has it |
+| `match o { Some(x) => x, None => 0 }`, `_ => …` for the rest | `Op::Match`, one arm per variant | Rust; no guards, no nested patterns, no `\|` in a pattern |
 | `fn f(x: Real) -> y: Real;` opaque, `… { body }` | `Function` | Rust, but the named result is flagged |
 | `where { claim …; rule …; examples { … } }` after the signature or body | claims, rules, examples | flagged |
 | `claim c: expression;` | `Claim` | flagged: every naming form reads `name: …` (claim, require, ensure, rule, contract claim); `=` stays for `let x = e`, which binds a value, and for a port `path = value` in a model example row, which gives one |
@@ -173,6 +177,22 @@ read as a path or a block is put in parentheses, `(stone::air)`.
 `c` unless it is in parentheses. One comparison at most, `a < b < c`
 refused. `-` only before a number: there is no negation of an
 expression in core2. `a > b` is read as `b < a` and printed so.
+
+**14. Enums, `match` and type parameters on records** (Rust's).
+*What*: `enum Option<T> { None, Some(T) }` says a value is one of its
+variants, each holding what it lists; `match o { Some(x) => x, None => 0
+}` reads which one, an arm for each variant or `_` for the rest (P006).
+`record Pair<T> { a: T, b: T }` names a type its fields use, given at
+each use: `Pair<Real>`. `None` alone tells no `T`: Mitra reads it from
+where it goes, a result, a field, an argument or the other side of `==`,
+and never guesses (P009). *Gain*: a value that may be missing, or one of
+a few cases, is said as Rust says it. *Cost*: no guards, no nested
+patterns; an enum that holds itself (a list, a tree) waits (M027).
+Differences from main, each Rust's form: `use`, not `import`; a variant
+holds types in order, `Some(T)`, not named fields `Some(value: T)`; a
+`match` that misses a variant is an error; a std file holds one part
+(`subject core`; loading it is the next step). *Elsewhere*: Rust, Haskell's `data`, OCaml's variants, Swift's
+`enum`.
 
 ## Errors
 

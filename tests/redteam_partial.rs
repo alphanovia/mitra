@@ -17,6 +17,7 @@ type E = Expression<Op>;
 
 fn r() -> Record {
     Record {
+        args: vec![],
         name: "R".to_string(),
         fields: ["a", "b", "c"]
             .iter()

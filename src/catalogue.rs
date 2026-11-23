@@ -102,6 +102,7 @@ pub const M023: Code = model(23);
 pub const M024: Code = model(24);
 pub const M025: Code = model(25);
 pub const M026: Code = model(26);
+pub const M027: Code = model(27);
 
 const fn agree(number: u16) -> Code {
     Code {
@@ -179,6 +180,10 @@ pub const P002: Code = parse(2);
 pub const P003: Code = parse(3);
 pub const P004: Code = parse(4);
 pub const P005: Code = parse(5);
+pub const P006: Code = parse(6);
+pub const P007: Code = parse(7);
+pub const P008: Code = parse(8);
+pub const P009: Code = parse(9);
 
 const fn reader(number: u16) -> Code {
     Code {
@@ -254,6 +259,10 @@ pub const CATALOGUE: &[Entry] = &[
     entry(M024, "two examples at one point that differ"),
     entry(M025, "a range type that holds no number"),
     entry(M026, "an example outside the range of its type"),
+    entry(
+        M027,
+        "an enum or a record declared so that no value fits it",
+    ),
     entry(A001, "a body that breaks a claim"),
     entry(A002, "a body that disagrees with an example"),
     entry(A003, "an example that breaks a claim"),
@@ -313,6 +322,13 @@ pub const CATALOGUE: &[Entry] = &[
     entry(P003, "not what the language has here"),
     entry(P004, "a tuple or record whose type cannot be told"),
     entry(P005, "a fraction with zero below"),
+    entry(P006, "a `match` that misses a variant, or names one twice"),
+    entry(
+        P007,
+        "an unknown variant, or one given the wrong number of values",
+    ),
+    entry(P008, "a type given the wrong type arguments"),
+    entry(P009, "a value whose type cannot be told here"),
     entry(R001, "a `mitra:` comment the reader cannot read"),
     entry(R002, "a tie comment on no item, or to nothing of the model"),
     entry(R003, "a `measures` comment on no test"),

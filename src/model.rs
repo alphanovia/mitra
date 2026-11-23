@@ -83,6 +83,7 @@ pub struct Part {
     /// What it reads of other parts.
     pub uses: Vec<Use>,
     pub records: Vec<Record>,
+    pub enums: Vec<Enum>,
     pub functions: Vec<Function>,
     /// The contracts its functions fit.
     pub implements: Vec<Implements>,
@@ -178,9 +179,61 @@ pub struct ModelExample {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Record {
     pub name: String,
+    /// Its type parameters, `record Pair<A, B> { a: A, b: B }`: each
+    /// stands in its fields for a type given where the record is used.
+    pub params: Vec<(String, Bound)>,
     pub fields: Option<Vec<(String, Type)>>,
     pub claims: Vec<Claim>,
     pub rules: Vec<Rule>,
+}
+
+/// A value that is one of its variants, Rust's `enum`: `enum Option<T>
+/// { None, Some(T) }`. Each variant holds values of the types it lists,
+/// none for `None`. Its name is a type's, unique among records and
+/// enums of the model; its variants' names are read alone, `Some(1)`,
+/// wherever it is used.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Enum {
+    pub name: String,
+    pub params: Vec<(String, Bound)>,
+    pub variants: Vec<(String, Vec<Type>)>,
+}
+
+impl Enum {
+    /// The type it declares, its parameters left open.
+    pub fn type_(&self) -> Type {
+        Type::Enum(simulation::Enum {
+            name: self.name.clone(),
+            args: self
+                .params
+                .iter()
+                .map(|(n, b)| Type::Param {
+                    name: n.clone(),
+                    bound: *b,
+                })
+                .collect(),
+            variants: self.variants.clone(),
+        })
+    }
+}
+
+impl Record {
+    /// The type it declares, its parameters left open; an opaque one has
+    /// no field to read.
+    pub fn type_(&self) -> Type {
+        Type::Record(simulation::Record {
+            name: self.name.clone(),
+            args: self
+                .params
+                .iter()
+                .map(|(n, b)| Type::Param {
+                    name: n.clone(),
+                    bound: *b,
+                })
+                .collect(),
+            fields: self.fields.clone().unwrap_or_default(),
+        })
+    }
 }
 
 /// From what it takes, what it gives, named so that claims can read
@@ -375,11 +428,13 @@ pub fn props(model: &Model) -> Vec<(Path, Prop)> {
                     }
                 }
             }
-            Item::Part | Item::Record | Item::Function => {}
+            Item::Part | Item::Record | Item::Enum | Item::Function => {}
         }
     }
     for tie in &model.ties {
-        if let Some(Item::Part | Item::Record | Item::Function) = index.items.get(&tie.item) {
+        if let Some(Item::Part | Item::Record | Item::Enum | Item::Function) =
+            index.items.get(&tie.item)
+        {
             props.push((tie.item.clone(), tie.prop()));
         }
     }
@@ -432,6 +487,7 @@ fn implies(pre: Vec<Prop>, at: &Path, post: Prop) -> Prop {
 pub(crate) enum Item<'m> {
     Part,
     Record,
+    Enum,
     Function,
     Claim,
     Rule(&'m Rule),
@@ -448,6 +504,8 @@ pub(crate) struct Index<'m> {
     pub(crate) items: BTreeMap<Path, Item<'m>>,
     pub(crate) records: BTreeMap<&'m str, &'m Record>,
     pub(crate) record_parts: BTreeMap<&'m str, &'m str>,
+    pub(crate) enums: BTreeMap<&'m str, &'m Enum>,
+    pub(crate) enum_parts: BTreeMap<&'m str, &'m str>,
     pub(crate) functions: BTreeMap<String, &'m Function>,
     pub(crate) contracts: BTreeMap<&'m str, &'m Contract>,
     pub(crate) judgement: Judgement,
@@ -466,6 +524,8 @@ impl<'m> Index<'m> {
             items: BTreeMap::new(),
             records: BTreeMap::new(),
             record_parts: BTreeMap::new(),
+            enums: BTreeMap::new(),
+            enum_parts: BTreeMap::new(),
             functions: BTreeMap::new(),
             contracts: BTreeMap::new(),
             judgement: Judgement::default(),
@@ -484,6 +544,11 @@ impl<'m> Index<'m> {
                 index.records.entry(&r.name).or_insert(r);
                 index.record_parts.entry(&r.name).or_insert(&part.name);
                 index.add_said(&at.then(&r.name), Item::Record, &r.claims, &r.rules);
+            }
+            for e in &part.enums {
+                index.enums.entry(&e.name).or_insert(e);
+                index.enum_parts.entry(&e.name).or_insert(&part.name);
+                index.add(&at.then(&e.name), Item::Enum);
             }
             for f in &part.functions {
                 index
@@ -557,7 +622,7 @@ impl<'m> Index<'m> {
             Item::Claim | Item::Rule(_) | Item::Require(_) | Item::Ensure(_) => {
                 Some(Prop::Named(at.to_string()))
             }
-            Item::Part | Item::Record | Item::Function => None,
+            Item::Part | Item::Record | Item::Enum | Item::Function => None,
         }
     }
     /// `term`, at `place` in the rule at `rule`, as judgement reads it: `None`
@@ -797,6 +862,14 @@ fn fitted(
                 Op::Call(f) => Op::Call(to.get(f).cloned().unwrap_or_else(|| f.clone())),
                 Op::Make(r) => match Type::Record(r.clone()).given(given) {
                     Type::Record(r) => Op::Make(r),
+                    _ => op.clone(),
+                },
+                Op::Variant(e, i) => match Type::Enum(e.clone()).given(given) {
+                    Type::Enum(e) => Op::Variant(e, *i),
+                    _ => op.clone(),
+                },
+                Op::Match(e) => match Type::Enum(e.clone()).given(given) {
+                    Type::Enum(e) => Op::Match(e),
                     _ => op.clone(),
                 },
                 _ => op.clone(),

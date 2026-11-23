@@ -114,7 +114,30 @@ impl Rational {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Record {
     pub name: String,
+    /// The types its parameters are given, `Pair<Int, Real>`: already
+    /// written in its fields. Empty for a record with none.
+    pub args: Vec<Type>,
     pub fields: Vec<(String, Type)>,
+}
+
+/// An enum, Rust's: a value that is one of its variants, each with the
+/// values it holds, `enum Option<T> { None, Some(T) }`. Known by all of
+/// it, as a record: `Option<Int>` and `Option<Real>` are two types.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Enum {
+    pub name: String,
+    /// The types its parameters are given, already written in its
+    /// variants.
+    pub args: Vec<Type>,
+    /// Each variant: its name and the types of what it holds, in order.
+    pub variants: Vec<(String, Vec<Type>)>,
+}
+
+impl Enum {
+    /// The place of the variant named `name`.
+    pub fn variant(&self, name: &str) -> Option<usize> {
+        self.variants.iter().position(|(n, _)| n == name)
+    }
 }
 
 /// The type of a tuple `(a, b, …)`: a record with no name, its fields
@@ -125,6 +148,7 @@ pub fn tuple(of: Vec<Type>) -> Type {
     let fields = fields.map(|(i, t)| (i.to_string(), t)).collect();
     Type::Record(Record {
         name: String::new(),
+        args: vec![],
         fields,
     })
 }
@@ -145,7 +169,8 @@ pub enum Type {
     Int,
     Real,
     Record(Record),
-    /// A type a contract names but does not fix, with its bound: `T`, or
+    Enum(Enum),
+    /// A type a contract, a record or an enum names but does not fix, with its bound: `T`, or
     /// `T: Number`, a whole number or a real. No value is of it.
     Param {
         name: String,
@@ -181,10 +206,20 @@ impl Type {
             Type::Param { name, .. } => given.get(name).cloned().unwrap_or_else(|| self.clone()),
             Type::Record(r) => Type::Record(Record {
                 name: r.name.clone(),
+                args: r.args.iter().map(|t| t.given(given)).collect(),
                 fields: r
                     .fields
                     .iter()
                     .map(|(n, t)| (n.clone(), t.given(given)))
+                    .collect(),
+            }),
+            Type::Enum(e) => Type::Enum(Enum {
+                name: e.name.clone(),
+                args: e.args.iter().map(|t| t.given(given)).collect(),
+                variants: e
+                    .variants
+                    .iter()
+                    .map(|(n, ts)| (n.clone(), ts.iter().map(|t| t.given(given)).collect()))
                     .collect(),
             }),
             _ => self.clone(),
@@ -195,7 +230,44 @@ impl Type {
         match self {
             Type::Param { .. } => true,
             Type::Record(r) => r.fields.iter().any(|(_, t)| t.open()),
+            Type::Enum(e) => e.variants.iter().any(|(_, ts)| ts.iter().any(Type::open)),
             _ => false,
+        }
+    }
+    /// Learns what each parameter of `self` stands for, from `actual`,
+    /// a type of the same shape: `Option<T>` against `Option<Int>`
+    /// learns `T` is `Int`. False when the two differ elsewhere, or a
+    /// parameter would stand for two types.
+    pub fn learn(&self, actual: &Type, learnt: &mut BTreeMap<String, Type>) -> bool {
+        match (self, actual) {
+            (Type::Param { name, .. }, t) => match learnt.get(name) {
+                Some(known) => known == t,
+                None => {
+                    learnt.insert(name.clone(), t.clone());
+                    true
+                }
+            },
+            (Type::Record(a), Type::Record(b)) => {
+                a.name == b.name
+                    && a.fields.len() == b.fields.len()
+                    && a.fields
+                        .iter()
+                        .zip(&b.fields)
+                        .all(|((n, x), (m, y))| n == m && x.learn(y, learnt))
+            }
+            (Type::Enum(a), Type::Enum(b)) => {
+                a.name == b.name
+                    && a.variants.len() == b.variants.len()
+                    && a.variants
+                        .iter()
+                        .zip(&b.variants)
+                        .all(|((n, xs), (m, ys))| {
+                            n == m
+                                && xs.len() == ys.len()
+                                && xs.iter().zip(ys).all(|(x, y)| x.learn(y, learnt))
+                        })
+            }
+            (a, b) => a == b,
         }
     }
 }
@@ -214,6 +286,8 @@ pub enum Value {
     /// `Value::partial`. Reading a field not known has no value
     /// (`Undefined::Unknown`), nor has `==` that only it decides.
     Partial(Record, Vec<Option<Value>>),
+    /// A variant of an enum, by its place, and what it holds.
+    Variant(Enum, usize, Vec<Value>),
 }
 
 impl Value {
@@ -254,6 +328,23 @@ pub fn same(a: &Value, b: &Value) -> Result<bool, String> {
             _ => None,
         }
     };
+    if let (Value::Variant(e, i, xs), Value::Variant(f, j, ys)) = (a, b) {
+        if e != f || i != j || xs.len() != ys.len() {
+            return Ok(false);
+        }
+        let mut unknown = None;
+        for (x, y) in xs.iter().zip(ys) {
+            match same(x, y) {
+                Ok(true) => {}
+                Ok(false) => return Ok(false),
+                Err(g) => _ = unknown.get_or_insert(g),
+            }
+        }
+        return match unknown {
+            Some(g) => Err(g),
+            None => Ok(true),
+        };
+    }
     let (Some((r, xs)), Some((t, ys))) = (fields(a), fields(b)) else {
         return Ok(a == b);
     };
@@ -483,6 +574,14 @@ pub enum Op {
     All,
     /// `sun::light(a, b)`: the function at this path, at these arguments.
     Call(String),
+    /// `Some(a)`: the variant at this place of the enum, holding what its
+    /// arguments give.
+    Variant(Enum, usize),
+    /// `match e { None => a, Some(x) => b }`: what the arm of the variant
+    /// `e` gives gives, the others dropped. The first argument is `e`;
+    /// then one arm per variant, in the enum's order, each binding what
+    /// its variant holds. Rust's `match`, every variant covered.
+    Match(Enum),
 }
 
 /// A function a call can name: what it takes, each by name, what it
@@ -749,6 +848,11 @@ impl Standard for Simulation {
         match (op, i, before) {
             (Op::Let, 1, [t]) => vec![t.clone()],
             (Op::All, 2, _) => vec![Type::Int],
+            (Op::Match(e), i, _) if i >= 1 => e
+                .variants
+                .get(i - 1)
+                .map(|(_, ts)| ts.clone())
+                .unwrap_or_default(),
             _ => vec![],
         }
     }
@@ -772,6 +876,21 @@ impl Standard for Simulation {
             (Op::Field(name), [Type::Record(r)]) => r.field(name)?.1.clone(),
             (Op::Let, [_, t]) => t.clone(),
             (Op::All, [Int, Int, Truth]) => Truth,
+            (Op::Variant(e, i), holds)
+                if e.variants
+                    .get(*i)
+                    .is_some_and(|(_, ts)| ts.as_slice() == holds) =>
+            {
+                Type::Enum(e.clone())
+            }
+            (Op::Match(e), [Type::Enum(t), arms @ ..])
+                if e == t
+                    && !arms.is_empty()
+                    && arms.len() == e.variants.len()
+                    && arms.iter().all(|a| a == &arms[0]) =>
+            {
+                arms[0].clone()
+            }
             (Op::Call(f), takes) => {
                 let callee = self.calls.get(f)?;
                 let fits = takes.len() == callee.takes.len()
@@ -895,6 +1014,13 @@ impl Reading for Exact {
                         v.as_ref().is_none_or(|v| self.has_type(v, f))
                     })
             }
+            (Value::Variant(e, i, holds), Type::Enum(t)) => {
+                e == t
+                    && t.variants.get(*i).is_some_and(|(_, ts)| {
+                        ts.len() == holds.len()
+                            && holds.iter().zip(ts).all(|(v, t)| self.has_type(v, t))
+                    })
+            }
             _ => false,
         }
     }
@@ -917,6 +1043,14 @@ impl Reading for Exact {
         match (op, args) {
             (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
             (Op::All, [lo, hi, _]) => all_exactly(lo, hi, run),
+            (Op::Match(_), [scrutinee, ..]) => match scrutinee {
+                Ok(Value::Variant(_, i, holds)) => {
+                    let holds: Vec<Exactly> = holds.iter().cloned().map(Ok).collect();
+                    run(1 + i, &holds)
+                }
+                Ok(_) => Err(Fault::Stuck),
+                Err(fault) => Err(fault.clone()),
+            },
             _ => Err(Fault::Stuck),
         }
     }
@@ -931,6 +1065,10 @@ impl Reading for Exact {
         match (op, i) {
             (Op::If, 1) | (Op::And, 1) => test() == Some(true),
             (Op::If, 2) | (Op::Or, 1) => test() == Some(false),
+            // `match`: the arm of its variant only.
+            (Op::Match(_), i) if i >= 1 => {
+                matches!(before.first(), Some(Ok(Value::Variant(_, k, _))) if i == 1 + k)
+            }
             _ => true,
         }
     }
@@ -949,6 +1087,16 @@ impl Exact {
                 return match decides(test)? {
                     true => then.clone(),
                     false => otherwise.clone(),
+                }
+            }
+            // Arms that bind nothing: the one of its variant was computed.
+            (Op::Match(_), [scrutinee, arms @ ..]) => {
+                return match scrutinee {
+                    Ok(Value::Variant(_, i, _)) => {
+                        arms.get(*i).cloned().unwrap_or(Err(Fault::Stuck))
+                    }
+                    Ok(_) => Err(Fault::Stuck),
+                    Err(fault) => Err(fault.clone()),
                 }
             }
             (Op::And, [a, b]) => {
@@ -1001,6 +1149,14 @@ impl Exact {
             (Op::Within, [Real(a), Real(b), Real(tol)]) => Truth(a.minus(b).abs() <= *tol),
             (Op::Make(r), fields) if fits_fields(fields, r, |v, f| self.has_type(v, f)) => {
                 Value::Record(r.clone(), fields.to_vec())
+            }
+            (Op::Variant(e, i), holds)
+                if e.variants.get(*i).is_some_and(|(_, ts)| {
+                    ts.len() == holds.len()
+                        && holds.iter().zip(ts).all(|(v, t)| self.has_type(v, t))
+                }) =>
+            {
+                Value::Variant(e.clone(), *i, holds.to_vec())
             }
             (Op::Field(name), [Value::Record(r, values)]) => {
                 match r.field(name).and_then(|(place, _)| values.get(place)) {
@@ -1067,6 +1223,9 @@ pub enum Span {
     Number(Numbers, Option<Rational>, Option<Rational>),
     /// A record, each field in its span.
     Record(Record, Vec<Span>),
+    /// An enum: for each variant, `None` when it may not be, else the
+    /// spans of what it holds. At least one may be.
+    Variant(Enum, Vec<Option<Vec<Span>>>),
 }
 
 /// γ: `value` lies in `span`.
@@ -1092,6 +1251,15 @@ pub fn lies_in(value: &Value, span: &Span) -> bool {
                     .iter()
                     .zip(spans)
                     .all(|(v, s)| v.as_ref().is_none_or(|v| lies_in(v, s)))
+        }
+        (Value::Variant(e, i, holds), Span::Variant(f, may)) => {
+            e == f
+                && may.get(*i).is_some_and(|m| {
+                    m.as_ref().is_some_and(|spans| {
+                        spans.len() == holds.len()
+                            && holds.iter().zip(spans).all(|(v, s)| lies_in(v, s))
+                    })
+                })
         }
         _ => false,
     }
@@ -1122,6 +1290,12 @@ impl Bounds {
                 Value::Record(r, values) => {
                     Span::Record(r.clone(), values.iter().map(span).collect())
                 }
+                Value::Variant(e, i, holds) => Span::Variant(
+                    e.clone(),
+                    (0..e.variants.len())
+                        .map(|k| (k == *i).then(|| holds.iter().map(span).collect()))
+                        .collect(),
+                ),
                 // A field not known: any value of its type.
                 Value::Partial(r, values) => Span::Record(
                     r.clone(),
@@ -1155,6 +1329,13 @@ impl Bounds {
                 Type::Record(r) => {
                     Span::Record(r.clone(), r.fields.iter().map(|(_, f)| span(f)).collect())
                 }
+                Type::Enum(e) => Span::Variant(
+                    e.clone(),
+                    e.variants
+                        .iter()
+                        .map(|(_, ts)| Some(ts.iter().map(span).collect()))
+                        .collect(),
+                ),
             }
         }
         Bounds {
@@ -1251,6 +1432,16 @@ fn fits(span: &Span, of: &Type) -> bool {
                 }
         }
         (Span::Record(r, spans), Type::Record(t)) => r == t && fits_fields(spans, t, fits),
+        (Span::Variant(e, may), Type::Enum(t)) => {
+            e == t
+                && may.len() == t.variants.len()
+                && may.iter().any(Option::is_some)
+                && may.iter().zip(&t.variants).all(|(m, (_, ts))| {
+                    m.as_ref().is_none_or(|spans| {
+                        spans.len() == ts.len() && spans.iter().zip(ts).all(|(s, t)| fits(s, t))
+                    })
+                })
+        }
         _ => false,
     }
 }
@@ -1365,6 +1556,23 @@ fn hull(a: &Span, b: &Span) -> Option<Span> {
             let fields = xs.iter().zip(ys).map(|(x, y)| hull(x, y));
             Span::Record(r.clone(), fields.collect::<Option<_>>()?)
         }
+        (Span::Variant(e, xs), Span::Variant(f, ys)) if e == f && xs.len() == ys.len() => {
+            let mut may = Vec::with_capacity(xs.len());
+            for (x, y) in xs.iter().zip(ys) {
+                may.push(match (x, y) {
+                    (None, None) => None,
+                    (Some(x), None) | (None, Some(x)) => Some(x.clone()),
+                    (Some(x), Some(y)) if x.len() == y.len() => Some(
+                        x.iter()
+                            .zip(y)
+                            .map(|(a, b)| hull(a, b))
+                            .collect::<Option<_>>()?,
+                    ),
+                    _ => return None,
+                });
+            }
+            Span::Variant(e.clone(), may)
+        }
         _ => return None,
     })
 }
@@ -1385,6 +1593,37 @@ fn join(a: Bounded, b: Bounded) -> Bounded {
             }),
             None => Err(Fault::Stuck),
         },
+    }
+}
+
+/// What a `match` on `scrutinee` may give: what the arm of each variant
+/// it may be gives, joined, and a fault if it may fault.
+fn arms(scrutinee: &Bounded, arm: &mut dyn FnMut(usize, &[Span]) -> Bounded) -> Bounded {
+    let (may, may_fault) = match scrutinee {
+        Ok(Bounds {
+            span: Span::Variant(_, may),
+            may_fault,
+        }) => (may.clone(), *may_fault),
+        Ok(_) => return Err(Fault::Stuck),
+        Err(fault) => return Err(fault.clone()),
+    };
+    let mut gives: Option<Bounded> = None;
+    for (k, holds) in may.iter().enumerate() {
+        if let Some(holds) = holds {
+            let this = arm(k, holds);
+            gives = Some(match gives {
+                None => this,
+                Some(before) => join(before, this),
+            });
+        }
+    }
+    match gives {
+        None => Err(Fault::Stuck),
+        Some(Ok(b)) => Ok(Bounds {
+            may_fault: b.may_fault || may_fault,
+            ..b
+        }),
+        Some(fault) => fault,
     }
 }
 
@@ -1593,6 +1832,29 @@ fn compare(a: &Span, b: &Span) -> Option<(bool, bool)> {
             }
             (equal, differ)
         }
+        // Equal only in one variant both may be, each value it holds
+        // equal; different in two variants, or in what one holds.
+        (Span::Variant(e, xs), Span::Variant(f, ys)) if e == f && xs.len() == ys.len() => {
+            let may: Vec<usize> = (0..xs.len()).filter(|k| xs[*k].is_some()).collect();
+            let other: Vec<usize> = (0..ys.len()).filter(|k| ys[*k].is_some()).collect();
+            let (mut equal, mut differ) = (false, may.iter().any(|k| other.iter().any(|j| j != k)));
+            for k in &may {
+                if let (Some(x), Some(y)) = (&xs[*k], &ys[*k]) {
+                    if x.len() != y.len() {
+                        return None;
+                    }
+                    let (mut all_equal, mut one_differs) = (true, false);
+                    for (a, b) in x.iter().zip(y) {
+                        let (e, d) = compare(a, b)?;
+                        all_equal &= e;
+                        one_differs |= d;
+                    }
+                    equal |= all_equal;
+                    differ |= one_differs;
+                }
+            }
+            (equal, differ)
+        }
         _ => return None,
     })
 }
@@ -1648,6 +1910,21 @@ impl Reading for Ranges {
         match (op, args) {
             (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
             (Op::All, [lo, hi, _]) => all(lo, hi, run),
+            (Op::Match(_), [scrutinee, ..]) => {
+                let mut arm = |k: usize, holds: &[Span]| {
+                    let holds: Vec<Bounded> = holds
+                        .iter()
+                        .map(|s| {
+                            Ok(Bounds {
+                                span: s.clone(),
+                                may_fault: false,
+                            })
+                        })
+                        .collect();
+                    run(1 + k, &holds)
+                };
+                arms(scrutinee, &mut arm)
+            }
             _ => Err(Fault::Stuck),
         }
     }
@@ -1825,6 +2102,12 @@ impl Ranges {
                 return choose(test, then.clone(), otherwise.clone())
             }
             (Op::And, [a, b]) => return choose(a, b.clone(), said(false)),
+            // Arms that bind nothing: each computed, the possible joined.
+            (Op::Match(_), [scrutinee, given @ ..]) => {
+                return arms(scrutinee, &mut |k, _| {
+                    given.get(k).cloned().unwrap_or(Err(Fault::Stuck))
+                })
+            }
             (Op::Or, [a, b]) => return choose(a, said(true), b.clone()),
             _ => {}
         }
@@ -1870,6 +2153,18 @@ impl Ranges {
             }
             (Op::Make(r), fields) if fits_fields(fields, r, |s, f| fits(s, f)) => {
                 Span::Record(r.clone(), fields.iter().map(|s| (*s).clone()).collect())
+            }
+            (Op::Variant(e, i), holds)
+                if e.variants.get(*i).is_some_and(|(_, ts)| {
+                    ts.len() == holds.len() && holds.iter().zip(ts).all(|(s, t)| fits(s, t))
+                }) =>
+            {
+                Span::Variant(
+                    e.clone(),
+                    (0..e.variants.len())
+                        .map(|k| (k == *i).then(|| holds.iter().map(|s| (*s).clone()).collect()))
+                        .collect(),
+                )
             }
             (Op::Field(name), [Span::Record(r, spans)]) => {
                 match r.field(name).and_then(|(place, _)| spans.get(place)) {

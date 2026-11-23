@@ -81,6 +81,7 @@ fn sun() -> Part {
     let mut light = function("light", "", ("w", Type::Real));
     light.takes.clear();
     Part {
+        enums: vec![],
         name: "sun".to_string(),
         kind: Kind::Environment,
         uses: vec![],
@@ -146,6 +147,7 @@ fn stone() -> Part {
         gives: real(981, 10),
     }];
     Part {
+        enums: vec![],
         name: "stone".to_string(),
         kind: Kind::Subject,
         uses: vec![],
@@ -433,6 +435,7 @@ fn short_paths_are_from_their_part() {
     // A record's type is as declared, a tuple's what it holds.
     let pair = &geo.records[2];
     let point = simulation::Record {
+        args: vec![],
         name: "Point".to_string(),
         fields: vec![("x".to_string(), Type::Real), ("y".to_string(), Type::Real)],
     };
@@ -846,6 +849,7 @@ fn in_a_model(holds: E) -> Model {
     };
     Model {
         parts: vec![Part {
+            enums: vec![],
             name: "s".to_string(),
             kind: Kind::Subject,
             uses: vec![],
@@ -901,6 +905,7 @@ fn ties_come_back_in_their_blocks() {
             such: None,
         },
         Record {
+            params: vec![],
             name: String::new(),
             fields: None,
             claims: vec![],
