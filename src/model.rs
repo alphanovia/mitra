@@ -883,6 +883,7 @@ fn fitted(
                     Type::Enum(e) => Op::Match(e),
                     _ => op.clone(),
                 },
+                Op::Seq(t) => Op::Seq(t.given(given)),
                 _ => op.clone(),
             };
             let args = args.iter().map(|a| Arg {

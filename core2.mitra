@@ -30,8 +30,8 @@ environment cargo {
 }
 
 environment std {
-    // Rust's String, and the collections core2 builds of it: the model
-    // has no text, list or map, so each is an opaque record here.
+    // Rust's String: the model has no text yet, nor maps, so each is an
+    // opaque record here. A Vec is a sequence, `[T]`.
     record String;
 }
 
@@ -41,8 +41,14 @@ environment float {
 }
 
 subject location {
-    record Location at "src/location.rs/Location";
-    fn within(a: Location, b: Location) -> inside: bool at "src/location.rs/within";
+    use std::String;
+    record Location at "src/location.rs/Location" { path: [String] }
+    // Rust's `a.path.starts_with(&b.path)`.
+    fn within(a: Location, b: Location) -> inside: bool at "src/location.rs/within" {
+        b.path.len() <= a.path.len() && (0..b.path.len()).all(|i| a.path[i] == b.path[i])
+    } where {
+        claim root: b.path.len() != 0 || inside;
+    }
     ensure prefix: "within(a, b) holds when b's names begin a's names";
 }
 
@@ -89,6 +95,7 @@ subject simulation {
     }
     ensure remembered: "a reading that remembers calls, and computes only the side of if, && and || it takes, gives what one that does neither gives";
     ensure budgeted: "a computation past its budget of steps or depth gives no value, Undefined::Budget, and never aborts; by bounds too, never read as a value that may fault";
+    ensure indexed: "xs[i] has no value below 0 or at the length of xs or past it, Undefined::Index; by bounds a sequence keeps its length, a span of all it holds and the span of each place it surely holds";
     ensure variants: "a match computes the arm of its value's variant only; by bounds, it joins the arms of each variant that may be";
     ensure kept_sound: "a value at which the comparisons an expression joins by && all hold lies in the bounds Ranges::kept gives, and Ranges::kept gives none only when no value does";
     ensure known_in_part: "what Exact gives of a record known in part, it gives of every record that fills in the fields not known; else Undefined::Unknown; its bounds hold every such record";
@@ -202,12 +209,10 @@ subject evidence {
     use std::String;
     use model::Path;
     // `by` is a keyword of the model: the field `by` is `voice` here.
-    // Lists of what was measured and reviewed, and of (path, value)
-    // pairs: opaque.
+    // A list of (path, value) pairs: opaque, as a value of the model is
+    // not a record of it.
     record Ports;
-    record Measurements;
-    record Reviews;
-    record Ledger at "src/evidence.rs/Ledger" { measurements: Measurements, reviews: Reviews }
+    record Ledger at "src/evidence.rs/Ledger" { measurements: [Measurement], reviews: [Review] }
     record Measurement at "src/evidence.rs/Measurement" {
         inputs: Ports, outputs: Ports, seen: bool, count: Int, voice: String
     }
@@ -235,9 +240,9 @@ subject agree {
     // Each limit a setting, none fixed in the code.
     require stops: simulation::budgeted;
     use simulation::Budget;
-    record AgreeSettings at "src/agree.rs/Settings" { points: Int, splits: Int, budget: Budget }
+    record AgreeSettings at "src/agree.rs/Settings" { points: Int, splits: Int, budget: Budget, length: Int }
     fn agree_defaults() -> s: AgreeSettings at "src/agree.rs/Settings/default" {
-        AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 } }
+        AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 }, length: 3 }
     }
     ensure no_false_holds: "agree says Holds only when what the model says twice agrees at every point where the claims of functions with no body hold"
         from (checked, exact, ranges, kept, given, promised);
@@ -245,6 +250,7 @@ subject agree {
     ensure given_named: "a comparison that holds by the claims of a function with no body names them: hint A010, and `given` on each finding" from (promised);
     ensure no_false_none: "agree says no value keeps a function's claims (A004) only when none does"
         from (checked, exact, ranges, kept);
+    ensure lengths: "agree tries sequences from `[]` up to `Settings::length` long, of the values worth trying of what they hold";
     ensure ends: "agree ends on every well-formed model: a budget reached, by bounds or at points, is unknown (A007), with the budget it reached" from (stops);
 }
 

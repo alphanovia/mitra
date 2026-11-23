@@ -88,6 +88,12 @@ computation calls for, or what that function takes. Any other is A009.
   (a setting, 4) below zero and above it, so `0 <= x * x` holds and
   `0 < q && q < 0` keeps nothing. A cut elsewhere, or bisection, would
   decide `!(h <= 20) || v2 < 400`; today it is unknown.
+- **Sequences are tried up to `length` long** (a setting, 3): `[]`, then
+  for each length the values worth trying of what it holds, in turn and
+  repeated. A claim false only on longer ones is unknown (A007). By
+  bounds, a sequence keeps its length and one span for all it holds, and
+  the span of each place it surely holds: `p[0] < p[1]` of `[a, a + 1]`
+  is read place by place only at a point.
 - **Range types are read as premises.** `fn f(a: 0..=9)` reads each
   claim as `!(0 <= a && a <= 9) || claim`, and the range of what it
   gives as one more comparison, `its range \`q: 0..=9\``: a body that

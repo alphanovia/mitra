@@ -57,6 +57,8 @@ subject stone {
 | `at "a/b/c"` after a name, `at "x", "y"` for two | `Tie` | your choice: in the block |
 | `tie a::b at "x";` at the end | a tie to what has no block | flagged |
 | `bool`, `Int`, `Real`, `(Int, bool)`, `(Real,)`, `()`, `R` | `Type` | Rust, but `Int`/`Real` flagged |
+| `[Int]`, `[[Real]]`, `[Option<Int>]` | `Type::Seq`: a sequence, its length its own, never changed | Rust's slice form `[T]`, not `Vec<T>` |
+| `[1, 2, 3]`, `[]`, `xs.len()`, `xs[i]`, `xs == ys` | `Op::Seq`, `Len`, `Index`, `Equal` | Rust; `xs[i]` out of range has no value, as Rust's panics |
 | `fn f(a: 0..=9) -> q: 0..=9` | `Function.ranges`: an `Int` that is checked | Rust's range form; as a type Ada's `range 0 .. 9`, flagged |
 | `true`, `3`, `-3`, `9.81`, `1/3` | constants | Rust, but `1/3` flagged |
 | `Location { depth: 2, .. }` in a row | a value known in part (`Value::Partial`) | Rust's struct pattern, used for a value, flagged |
@@ -195,6 +197,22 @@ holds types in order, `Some(T)`, not named fields `Some(value: T)`; a
 `match` that misses a variant is an error; a std file holds one part
 (`subject core`). *Elsewhere*: Rust, Haskell's `data`, OCaml's variants, Swift's
 `enum`.
+
+**15. Sequences, `[T]`** (finding 3, step 2; your "ok", 20:24). *What*:
+`[Int]` is a sequence of `Int`, of some length, written `[1, 2, 3]`;
+`xs.len()` is its length, `xs[i]` the value at place `i` from 0, `xs ==
+ys` compares place by place. `xs[i]` below 0 or at its length has no
+value, as division by zero has none (Rust panics). `[]` alone tells no
+`T`: as `None`, it is read from where it goes, else P009. *Gain*: a
+list a function takes or gives is said, and a test row can write one
+(`([3, 4]) -> 3`). *Cost*: only this minimal set: no `[v; n]`, `get`,
+`push`, slices `xs[a..b]`, nor loops over a sequence (`fold`, `until`,
+next). A record holding a sequence of itself is a tree, and waits
+(M027). Agree tries sequences up to `Settings::length` long (3: empty,
+one value, two or three to compare). The name is Rust's slice form, not
+`Vec<T>`: a sequence is never changed, so a real `Vec` can be modelled
+later. *Elsewhere*: Rust's `&[T]`, Haskell's and OCaml's lists, Lean's
+`List`, Dafny's `seq<T>`.
 
 ## Errors
 

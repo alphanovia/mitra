@@ -170,6 +170,9 @@ pub enum Type {
     Real,
     Record(Record),
     Enum(Enum),
+    /// A sequence of values of one type, `[T]`: Rust's slice form. Its
+    /// length is its own; it is not changed, only read (finding 3, step 2).
+    Seq(Box<Type>),
     /// A type a contract, a record or an enum names but does not fix, with its bound: `T`, or
     /// `T: Number`, a whole number or a real. No value is of it.
     Param {
@@ -222,6 +225,7 @@ impl Type {
                     .map(|(n, ts)| (n.clone(), ts.iter().map(|t| t.given(given)).collect()))
                     .collect(),
             }),
+            Type::Seq(t) => Type::Seq(Box::new(t.given(given))),
             _ => self.clone(),
         }
     }
@@ -231,6 +235,7 @@ impl Type {
             Type::Param { .. } => true,
             Type::Record(r) => r.fields.iter().any(|(_, t)| t.open()),
             Type::Enum(e) => e.variants.iter().any(|(_, ts)| ts.iter().any(Type::open)),
+            Type::Seq(t) => t.open(),
             _ => false,
         }
     }
@@ -267,6 +272,7 @@ impl Type {
                                 && xs.iter().zip(ys).all(|(x, y)| x.learn(y, learnt))
                         })
             }
+            (Type::Seq(a), Type::Seq(b)) => a.learn(b, learnt),
             (a, b) => a == b,
         }
     }
@@ -288,6 +294,8 @@ pub enum Value {
     Partial(Record, Vec<Option<Value>>),
     /// A variant of an enum, by its place, and what it holds.
     Variant(Enum, usize, Vec<Value>),
+    /// A sequence: the type of what it holds, and each value in order.
+    Seq(Type, Vec<Value>),
 }
 
 impl Value {
@@ -328,8 +336,15 @@ pub fn same(a: &Value, b: &Value) -> Result<bool, String> {
             _ => None,
         }
     };
-    if let (Value::Variant(e, i, xs), Value::Variant(f, j, ys)) = (a, b) {
-        if e != f || i != j || xs.len() != ys.len() {
+    let held = match (a, b) {
+        (Value::Variant(e, i, xs), Value::Variant(f, j, ys)) => {
+            Some((e == f && i == j && xs.len() == ys.len(), xs, ys))
+        }
+        (Value::Seq(t, xs), Value::Seq(u, ys)) => Some((t == u && xs.len() == ys.len(), xs, ys)),
+        _ => None,
+    };
+    if let Some((alike, xs, ys)) = held {
+        if !alike {
             return Ok(false);
         }
         let mut unknown = None;
@@ -380,6 +395,8 @@ pub enum Undefined {
     Budget(String),
     /// A value outside the range of its type, at a call: what, and where.
     Outside(String),
+    /// `xs[i]` with no value at `i`: below zero, or at or past its length.
+    Index(String),
 }
 
 /// Whole numbers from `low` to `high`, both in: the type `0..=9`, an
@@ -582,6 +599,14 @@ pub enum Op {
     /// then one arm per variant, in the enum's order, each binding what
     /// its variant holds. Rust's `match`, every variant covered.
     Match(Enum),
+    /// `[a, b, c]`: a sequence of what its arguments give, each of this
+    /// type; `[]` holds none.
+    Seq(Type),
+    /// `xs.len()`: how many values a sequence holds, an `Int`.
+    Len,
+    /// `xs[i]`: the value at place `i` of a sequence, from 0. No value
+    /// below 0, or at its length or past it, as Rust's `xs[i]` panics.
+    Index,
 }
 
 /// A function a call can name: what it takes, each by name, what it
@@ -891,6 +916,9 @@ impl Standard for Simulation {
             {
                 arms[0].clone()
             }
+            (Op::Seq(t), holds) if holds.iter().all(|h| h == t) => Type::Seq(Box::new(t.clone())),
+            (Op::Len, [Type::Seq(_)]) => Int,
+            (Op::Index, [Type::Seq(t), Int]) => (**t).clone(),
             (Op::Call(f), takes) => {
                 let callee = self.calls.get(f)?;
                 let fits = takes.len() == callee.takes.len()
@@ -1020,6 +1048,9 @@ impl Reading for Exact {
                         ts.len() == holds.len()
                             && holds.iter().zip(ts).all(|(v, t)| self.has_type(v, t))
                     })
+            }
+            (Value::Seq(t, holds), Type::Seq(u)) => {
+                t == &**u && holds.iter().all(|v| self.has_type(v, t))
             }
             _ => false,
         }
@@ -1158,6 +1189,21 @@ impl Exact {
             {
                 Value::Variant(e.clone(), *i, holds.to_vec())
             }
+            (Op::Seq(t), holds) if holds.iter().all(|v| self.has_type(v, t)) => {
+                Value::Seq(t.clone(), holds.to_vec())
+            }
+            (Op::Len, [Value::Seq(_, holds)]) => Int(BigInt::from(holds.len())),
+            (Op::Index, [Value::Seq(_, holds), Int(i)]) => {
+                match usize::try_from(i).ok().and_then(|k| holds.get(k)) {
+                    Some(v) => v.clone(),
+                    None => {
+                        return Err(Fault::Op(Undefined::Index(format!(
+                            "the index is {i}, and the sequence holds {}",
+                            holds.len()
+                        ))))
+                    }
+                }
+            }
             (Op::Field(name), [Value::Record(r, values)]) => {
                 match r.field(name).and_then(|(place, _)| values.get(place)) {
                     Some(v) => v.clone(),
@@ -1226,6 +1272,12 @@ pub enum Span {
     /// An enum: for each variant, `None` when it may not be, else the
     /// spans of what it holds. At least one may be.
     Variant(Enum, Vec<Option<Vec<Span>>>),
+    /// A sequence of values of this type: its length, a span of `Int`
+    /// from zero up; a span every value it holds lies in; and the spans
+    /// of its first places, each surely held (no more of them than its
+    /// least length), so that a sequence known at a point is known
+    /// exactly.
+    Seq(Type, Box<Span>, Box<Span>, Vec<Span>),
 }
 
 /// γ: `value` lies in `span`.
@@ -1260,6 +1312,13 @@ pub fn lies_in(value: &Value, span: &Span) -> bool {
                             && holds.iter().zip(spans).all(|(v, s)| lies_in(v, s))
                     })
                 })
+        }
+        (Value::Seq(t, holds), Span::Seq(u, length, each, first)) => {
+            t == u
+                && lies_in(&Value::Int(BigInt::from(holds.len())), length)
+                && holds.iter().all(|v| lies_in(v, each))
+                && first.len() <= holds.len()
+                && holds.iter().zip(first).all(|(v, s)| lies_in(v, s))
         }
         _ => false,
     }
@@ -1298,6 +1357,8 @@ impl Bounds {
                         .map(|k| (k == *i).then(|| holds.iter().map(span).collect()))
                         .collect(),
                 ),
+                Value::Seq(t, holds) => held(t, holds.iter().map(span).collect())
+                    .unwrap_or_else(|| Bounds::any(&Type::Seq(Box::new(t.clone()))).span),
                 // A field not known: any value of its type.
                 Value::Partial(r, values) => Span::Record(
                     r.clone(),
@@ -1337,6 +1398,12 @@ impl Bounds {
                         .iter()
                         .map(|(_, ts)| Some(ts.iter().map(span).collect()))
                         .collect(),
+                ),
+                Type::Seq(t) => Span::Seq(
+                    (**t).clone(),
+                    Box::new(Span::Number(Numbers::Int, Some(Rational::integer(0)), None)),
+                    Box::new(span(t)),
+                    vec![],
                 ),
             }
         }
@@ -1443,6 +1510,14 @@ fn fits(span: &Span, of: &Type) -> bool {
                         spans.len() == ts.len() && spans.iter().zip(ts).all(|(s, t)| fits(s, t))
                     })
                 })
+        }
+        (Span::Seq(t, length, each, first), Type::Seq(u)) => {
+            t == &**u
+                && fits(length, &Type::Int)
+                && matches!(&**length, Span::Number(_, Some(low), _)
+                    if low >= &Rational::integer(0) && low >= &Rational::integer(BigInt::from(first.len())))
+                && fits(each, t)
+                && first.iter().all(|s| fits(s, t))
         }
         _ => false,
     }
@@ -1575,6 +1650,16 @@ fn hull(a: &Span, b: &Span) -> Option<Span> {
             }
             Span::Variant(e.clone(), may)
         }
+        // The first places both surely hold, each joined.
+        (Span::Seq(t, al, ae, af), Span::Seq(u, bl, be, bf)) if t == u => Span::Seq(
+            t.clone(),
+            Box::new(hull(al, bl)?),
+            Box::new(hull(ae, be)?),
+            af.iter()
+                .zip(bf)
+                .map(|(a, b)| hull(a, b))
+                .collect::<Option<_>>()?,
+        ),
         _ => return None,
     })
 }
@@ -1861,6 +1946,35 @@ fn compare(a: &Span, b: &Span) -> Option<(bool, bool)> {
             }
             (equal, differ)
         }
+        // Equal only at one length both may have, each value equal; they
+        // differ in length, or in a value, unless both surely hold none.
+        // Two of one length, each place known: place by place.
+        (Span::Seq(t, al, _, af), Span::Seq(u, bl, _, bf))
+            if t == u
+                && one_length(al) == Some(af.len())
+                && one_length(bl) == Some(af.len())
+                && bf.len() == af.len() =>
+        {
+            let (mut equal, mut differ) = (true, false);
+            for (x, y) in af.iter().zip(bf) {
+                let (e, d) = compare(x, y)?;
+                equal &= e;
+                differ |= d;
+            }
+            (equal, differ)
+        }
+        (Span::Seq(t, al, ae, _), Span::Seq(u, bl, be, _)) if t == u => {
+            let (same_length, other_length) = compare(al, bl)?;
+            let (one_equal, one_differs) = compare(ae, be)?;
+            let zero = Rational::integer(0);
+            let may_be_empty =
+                |l: &Span| matches!(l, Span::Number(_, Some(low), _) if low == &zero);
+            let surely_empty = |l: &Span| matches!(l, Span::Number(_, Some(low), Some(high)) if low == &zero && high == &zero);
+            (
+                same_length && (one_equal || (may_be_empty(al) && may_be_empty(bl))),
+                other_length || (one_differs && !(surely_empty(al) && surely_empty(bl))),
+            )
+        }
         _ => return None,
     })
 }
@@ -1886,6 +2000,88 @@ fn within(a: &Ends, b: &Ends, tol: &Ends) -> Span {
     Span::Truth {
         yes: near <= th,
         no: far > tl,
+    }
+}
+
+/// `xs[i]` on bounds: any value `xs` holds, which may be none when `i`
+/// may be below zero or at its length or past it; none at all when `i`
+/// surely is.
+fn index(
+    length: &Span,
+    each: &Span,
+    first: &[Span],
+    at: (&Option<Rational>, &Option<Rational>),
+    may_fault: bool,
+) -> Bounded {
+    let Span::Number(_, low, high) = length else {
+        return Err(Fault::Stuck);
+    };
+    let zero = End::At(Rational::integer(0));
+    let (il, ih) = ends(at.0, at.1);
+    let (ll, lh) = ends(low, high);
+    // The highest place a value may be at, and the lowest it surely is.
+    let one = Rational::integer(1);
+    let top = match &lh {
+        End::At(h) => End::At(h.minus(&one)),
+        other => other.clone(),
+    };
+    let surely_held = match &ll {
+        End::At(l) => End::At(l.minus(&one)),
+        other => other.clone(),
+    };
+    if ih < zero || il > top {
+        // At one index and one length, said as `Exact` says it.
+        let why = match (&il, &ih, &ll, &lh) {
+            (End::At(i), End::At(j), End::At(n), End::At(m)) if i == j && n == m => format!(
+                "the index is {}, and the sequence holds {}",
+                i.numer(),
+                n.numer()
+            ),
+            _ => "the index lies outside every place the sequence may have".to_string(),
+        };
+        return Err(Fault::Op(Undefined::Index(why)));
+    }
+    // At one place surely held: what is known of it.
+    let span = match (&il, &ih) {
+        (End::At(i), End::At(j)) if i == j => usize::try_from(i.numer())
+            .ok()
+            .and_then(|k| first.get(k))
+            .unwrap_or(each)
+            .clone(),
+        _ => each.clone(),
+    };
+    Ok(Bounds {
+        span,
+        may_fault: may_fault || il < zero || ih > surely_held,
+    })
+}
+
+/// A sequence holding values in these spans, each place known: of one
+/// length, `None` when two spans are of different kinds.
+fn held(t: &Type, holds: Vec<Span>) -> Option<Span> {
+    let mut each: Option<Span> = None;
+    for s in &holds {
+        each = Some(match each {
+            None => s.clone(),
+            Some(e) => hull(&e, s)?,
+        });
+    }
+    Some(Span::Seq(
+        t.clone(),
+        Box::new(point(
+            Numbers::Int,
+            Rational::integer(BigInt::from(holds.len())),
+        )),
+        Box::new(each.unwrap_or_else(|| Bounds::any(t).span)),
+        holds,
+    ))
+}
+
+/// The length of a sequence when it is one number, and fits a `usize`.
+fn one_length(length: &Span) -> Option<usize> {
+    match length {
+        Span::Number(_, Some(l), Some(h)) if l == h => usize::try_from(l.numer()).ok(),
+        _ => None,
     }
 }
 
@@ -2178,6 +2374,14 @@ impl Ranges {
                     None => return Err(Fault::Stuck),
                 }
             }
+            (Op::Seq(t), holds) if holds.iter().all(|s| fits(s, t)) => {
+                held(t, holds.iter().map(|s| (*s).clone()).collect()).ok_or(Fault::Stuck)?
+            }
+            (Op::Len, [Span::Seq(_, length, _, _)]) => (**length).clone(),
+            (
+                Op::Index,
+                [Span::Seq(_, length, each, first), Span::Number(Numbers::Int, il, ih)],
+            ) => return index(length, each, first, (il, ih), may_fault),
             _ => return Err(Fault::Stuck),
         };
         Ok(Bounds { span, may_fault })

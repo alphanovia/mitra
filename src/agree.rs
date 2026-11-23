@@ -43,18 +43,23 @@ pub struct Settings {
     /// How far one computation through calls may go: past it, the
     /// comparison is unknown, and says which budget it reached.
     pub budget: Budget,
+    /// The longest sequence tried as a point: from `[]` up to this
+    /// length (finding 3, step 2).
+    pub length: usize,
 }
 
 /// 64 points per comparison: every example row, and for one or two
 /// arguments the small numbers and constants of a typical claim. 4
 /// numbers cut at zero: 16 readings by bounds, enough for the squares and
-/// signs of a function of a few numbers.
+/// signs of a function of a few numbers. Sequences up to 3 long: empty,
+/// one value, and two or three to compare.
 impl Default for Settings {
     fn default() -> Settings {
         Settings {
             points: 64,
             splits: 4,
             budget: Budget::default(),
+            length: 3,
         }
     }
 }
@@ -640,6 +645,7 @@ impl<'m> Reading<'m> {
                 .variants
                 .iter()
                 .any(|(_, ts)| ts.iter().any(|t| self.opaque_in(t))),
+            Type::Seq(t) => self.opaque_in(t),
             Type::Truth | Type::Int | Type::Real | Type::Param { .. } => false,
         }
     }
@@ -724,7 +730,8 @@ impl<'m> Reading<'m> {
                         .try_fold(1usize, |n, k| n.checked_mul(k?))
                 })
                 .try_fold(0usize, |n, k| n.checked_add(k?)),
-            Type::Int | Type::Real | Type::Param { .. } => None,
+            // Sequences of every length: too many to list.
+            Type::Int | Type::Real | Type::Seq(_) | Type::Param { .. } => None,
         }
     }
 
@@ -910,6 +917,20 @@ impl<'m> Reading<'m> {
                             i,
                             row.into_iter().flatten().collect(),
                         ));
+                    }
+                }
+            }
+            // Up to `Settings::length` values: the empty one first, then
+            // for each length, from each value of its type on, the next
+            // ones in turn, and that value repeated.
+            Type::Seq(t) => {
+                let each = self.values_of(t, constants);
+                add(Value::Seq((**t).clone(), vec![]));
+                for k in 1..=self.settings.length {
+                    for i in 0..each.len() {
+                        let turn = (0..k).map(|j| each[(i + j) % each.len()].clone());
+                        add(Value::Seq((**t).clone(), turn.collect()));
+                        add(Value::Seq((**t).clone(), vec![each[i].clone(); k]));
                     }
                 }
             }

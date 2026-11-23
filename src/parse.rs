@@ -610,6 +610,7 @@ fn follow(t: &Type, shapes: &Shapes, on: On) -> Type {
             };
             open.given(&given(name, args))
         }
+        Type::Seq(t) => Type::Seq(Box::new(follow(t, shapes, on))),
         other => other.clone(),
     }
 }
@@ -629,6 +630,7 @@ fn holed(t: &Type) -> bool {
         Type::Param { name, .. } => name.starts_with('?'),
         Type::Record(r) => r.args.iter().any(holed) || r.fields.iter().any(|(_, t)| holed(t)),
         Type::Enum(e) => e.args.iter().any(holed),
+        Type::Seq(t) => holed(t),
         _ => false,
     }
 }
@@ -671,6 +673,13 @@ pub(crate) fn settle_value(v: Value, want: &Type) -> Value {
                 false => Value::Record(r, vs),
             }
         }
+        (Value::Seq(t, holds), Type::Seq(w)) => {
+            let holds: Vec<Value> = holds.into_iter().map(|v| settle_value(v, w)).collect();
+            match holed(&t) && !holed(w) {
+                true => Value::Seq((**w).clone(), holds),
+                false => Value::Seq(t, holds),
+            }
+        }
         (v, _) => v,
     }
 }
@@ -685,6 +694,10 @@ fn untold(v: &Value) -> Option<String> {
         Value::Record(r, _) if r.args.iter().any(holed) => Some(r.name.clone()),
         Value::Record(_, vs) => vs.iter().find_map(untold),
         Value::Partial(_, vs) => vs.iter().flatten().find_map(untold),
+        Value::Seq(t, vs) => vs
+            .iter()
+            .find_map(untold)
+            .or_else(|| holed(t).then(|| "[]".to_string())),
         _ => None,
     }
 }
@@ -705,7 +718,12 @@ fn untold_in(e: &E) -> Option<String> {
             return Some(r.name.clone());
         }
     }
-    args.iter().find_map(|a| untold_in(&a.body))
+    let inside = args.iter().find_map(|a| untold_in(&a.body));
+    // A sequence of a type nothing tells: `[]`, or `[None]`.
+    match op {
+        Op::Seq(t) if inside.is_none() && holed(t) => Some("[]".to_string()),
+        _ => inside,
+    }
 }
 
 /// What a variant holds, against what it was given: P007's message.
@@ -732,6 +750,7 @@ pub(crate) fn type_of(v: &Value) -> Type {
         Value::Real(_) => Type::Real,
         Value::Record(r, _) | Value::Partial(r, _) => Type::Record(r.clone()),
         Value::Variant(e, _, _) => Type::Enum(e.clone()),
+        Value::Seq(t, _) => Type::Seq(Box::new(t.clone())),
     }
 }
 
@@ -1535,6 +1554,12 @@ impl<'c> Parser<'c> {
         self.deeper(|p| p.type_at())
     }
     fn type_at(&mut self) -> Result<Type> {
+        // `[T]`, a sequence: Rust's slice form (finding 3, step 2).
+        if self.eat("[") {
+            let t = self.type_()?;
+            self.expect("]")?;
+            return Ok(Type::Seq(Box::new(t)));
+        }
         if self.eat("(") {
             let mut types = vec![];
             let mut comma = false;
@@ -1734,6 +1759,19 @@ impl<'c> Parser<'c> {
             Tok::Word(w) if w == "true" || w == "false" => {
                 self.bump();
                 Ok(Value::Truth(w == "true"))
+            }
+            // `[1, 2]`, `[]`: of the type of its first value whose type is
+            // told, else settled by where it goes (P009).
+            Tok::Sym("[") => {
+                self.bump();
+                let holds = self.list("]", |p| p.value())?;
+                let t = holds
+                    .iter()
+                    .map(type_of)
+                    .find(|t| !holed(t))
+                    .unwrap_or_else(|| hole("T"));
+                let holds = holds.into_iter().map(|v| settle_value(v, &t)).collect();
+                Ok(Value::Seq(t, holds))
             }
             Tok::Sym("(") => {
                 self.bump();
@@ -2054,9 +2092,9 @@ impl<'c> Parser<'c> {
         if self.eat("-") {
             // Only a number: there is no negation of an expression.
             return match self.bump() {
-                Tok::Int(n) => self.postfix(apply(Op::Int(-n), vec![])),
+                Tok::Int(n) => self.postfix(apply(Op::Int(-n), vec![]), env),
                 Tok::Real(r) => {
-                    self.postfix(apply(Op::Real(Rational::integer(0).minus(&r)), vec![]))
+                    self.postfix(apply(Op::Real(Rational::integer(0).minus(&r)), vec![]), env)
                 }
                 _ => Err(error(
                     P003,
@@ -2066,12 +2104,30 @@ impl<'c> Parser<'c> {
             };
         }
         let e = self.primary(env)?;
-        self.postfix(e)
+        self.postfix(e, env)
     }
-    /// `.x`, `.0`.
-    fn postfix(&mut self, mut e: E) -> Result<E> {
-        while self.is(".") {
+    /// `.x`, `.0`, `.len()`, `[i]`.
+    fn postfix(&mut self, mut e: E, env: &mut Env) -> Result<E> {
+        loop {
+            if self.eat("[") {
+                let i = self.inner(env)?;
+                self.expect("]")?;
+                e = apply(Op::Index, vec![e, i]);
+                continue;
+            }
+            if !self.is(".") {
+                break;
+            }
             self.bump();
+            if matches!(self.peek(), Tok::Word(w) if w == "len")
+                && *self.peek_at(1) == Tok::Sym("(")
+            {
+                self.bump();
+                self.bump();
+                self.expect(")")?;
+                e = apply(Op::Len, vec![e]);
+                continue;
+            }
             let field = match self.bump() {
                 Tok::Word(w) => w,
                 Tok::Int(n) => n.to_string(),
@@ -2135,6 +2191,17 @@ impl<'c> Parser<'c> {
             }
             Tok::Word(w) if w == "let" => {
                 self.expected("an expression: put a `let` in parentheses here")
+            }
+            // `[a, b]`, `[]`: of the type of its first value whose type is
+            // told, else settled by where it goes (P009).
+            Tok::Sym("[") => {
+                self.bump();
+                let holds = self.list("]", |p| p.inner(&mut env.clone()))?;
+                let t = holds
+                    .iter()
+                    .find_map(|h| self.type_in(env, h).filter(|t| !holed(t)))
+                    .unwrap_or_else(|| hole("T"));
+                Ok(apply(Op::Seq(t), holds))
             }
             Tok::Sym("(") => {
                 self.bump();
@@ -2695,6 +2762,35 @@ impl<'c> Parser<'c> {
                 }
                 Expression::Apply(Op::Match(en), [vec![scrutinee], arms].concat())
             }
+            Op::Seq(t) => {
+                // Its type from where it goes when its values did not tell
+                // it; then each value settled by it.
+                let t = match want {
+                    Some(Type::Seq(w)) if holed(&t) && !holed(w) => (**w).clone(),
+                    _ => t,
+                };
+                let n = args.len();
+                let args = match holed(&t) {
+                    false => each(self, args, &vec![Some(t.clone()); n], env),
+                    true => alike(self, args, env),
+                };
+                let t = match holed(&t) {
+                    true => args
+                        .iter()
+                        .find_map(|a| typed(self, env, &a.body))
+                        .unwrap_or(t),
+                    false => t,
+                };
+                Expression::Apply(Op::Seq(t), args)
+            }
+            Op::Index => {
+                let wants = [
+                    want.map(|w| Type::Seq(Box::new(w.clone()))),
+                    Some(Type::Int),
+                ];
+                let args = each(self, args, &wants, env);
+                Expression::Apply(op, args)
+            }
             op => {
                 let args = each(self, args, &[], env);
                 Expression::Apply(op, args)
@@ -2719,7 +2815,15 @@ impl<'c> Parser<'c> {
     /// still not told.
     fn settled_value(&self, v: Value, want: &Type, at: Pos) -> Result<Value> {
         let v = settle_value(v, want);
-        match untold(&v).filter(|_| self.context.is_some()) {
+        // A value of another kind than `want` is check's to refuse, with
+        // the types (M015): its own type is not what is missing.
+        let shaped = matches!(
+            (&v, want),
+            (Value::Seq(..), Type::Seq(_))
+                | (Value::Variant(..), Type::Enum(_))
+                | (Value::Record(..) | Value::Partial(..), Type::Record(_))
+        );
+        match untold(&v).filter(|_| self.context.is_some() && shaped) {
             Some(n) => Err(error(
                 P009,
                 at,

@@ -323,6 +323,7 @@ fn names_param(t: &Type, p: &str) -> bool {
             .chain(r.fields.iter().map(|(_, t)| t))
             .any(|t| names_param(t, p)),
         Type::Enum(e) => e.args.iter().any(|t| names_param(t, p)),
+        Type::Seq(t) => names_param(t, p),
         _ => false,
     }
 }
@@ -347,6 +348,7 @@ fn named_in(t: &Type) -> Vec<&str> {
             }
             found
         }
+        Type::Seq(t) => named_in(t),
         _ => vec![],
     }
 }
@@ -515,6 +517,7 @@ fn std_named(t: &Type) -> Option<(&'static str, String)> {
     let name = match t {
         Type::Record(r) => r.name.clone(),
         Type::Enum(e) => e.name.clone(),
+        Type::Seq(t) => return std_named(t),
         _ => return None,
     };
     let declares = |text: &str| {
@@ -539,6 +542,7 @@ fn known(index: &Index, t: &Type) -> bool {
 fn known_in(index: &Index, t: &Type, params: &[(String, Bound)]) -> bool {
     match t {
         Type::Truth | Type::Int | Type::Real => true,
+        Type::Seq(t) => known_in(index, t, params),
         Type::Param { name, bound } => params.iter().any(|(n, b)| n == name && b == bound),
         // A tuple: a record with no name, its fields `0`, `1`, ….
         Type::Record(r) if r.name.is_empty() => {
@@ -576,6 +580,8 @@ fn holds_itself(t: &Type, name: &str, here: bool) -> bool {
             .iter()
             .flat_map(|(_, ts)| ts)
             .any(|t| holds_itself(t, name, true)),
+        // A sequence of itself is a tree: not in this round (finding 3).
+        Type::Seq(t) => holds_itself(t, name, here),
         _ => false,
     }
 }
@@ -645,12 +651,28 @@ pub(crate) fn value_made(index: &Index, v: &Value) -> bool {
             declared.is_some_and(|d| d.fields.is_some())
                 && values.iter().flatten().all(|v| value_made(index, v))
         }
+        // A type the parser could not tell (`None`, `[]` given where no
+        // such value goes) is the types' error, M015, not this one.
         Value::Variant(e, _, holds) => {
             index.enums.contains_key(e.name.as_str())
-                && known(index, &Type::Enum(e.clone()))
+                && (untold(&Type::Enum(e.clone())) || known(index, &Type::Enum(e.clone())))
                 && holds.iter().all(|v| value_made(index, v))
         }
+        Value::Seq(t, holds) => {
+            (untold(t) || known(index, t)) && holds.iter().all(|v| value_made(index, v))
+        }
         Value::Truth(_) | Value::Int(_) | Value::Real(_) => true,
+    }
+}
+
+/// `t` names a parameter the parser could not tell, `?T`.
+fn untold(t: &Type) -> bool {
+    match t {
+        Type::Param { name, .. } => name.starts_with('?'),
+        Type::Record(r) => r.args.iter().any(untold),
+        Type::Enum(e) => e.args.iter().any(untold),
+        Type::Seq(t) => untold(t),
+        _ => false,
     }
 }
 
@@ -898,6 +920,9 @@ fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error>
                 }
             }
             todo.extend(e.variants.iter().flat_map(|(_, ts)| ts));
+        }
+        if let Type::Seq(t) = t {
+            todo.push(t);
         }
     }
     errors
@@ -1490,6 +1515,9 @@ impl Mistyped<'_> {
             Op::Or => "`||` takes two bool".to_string(),
             Op::If => "`if` takes a bool, then two branches of one type".to_string(),
             Op::All => "`all` takes two Int bounds and a bool".to_string(),
+            Op::Field(name) if name == "len" && matches!(takes.first(), Some(Type::Seq(_))) => {
+                "`.len` reads a field of a record that has one: the length of a sequence is `.len()`".to_string()
+            }
             Op::Field(name) => format!("`.{name}` reads a field of a record that has one"),
             Op::Make(r) => {
                 let fields: Vec<String> = r
@@ -1525,6 +1553,12 @@ impl Mistyped<'_> {
                 "`match` takes a `{}`, then one arm for each of its variants, all of one type",
                 crate::print::type_(&Type::Enum(e.clone()))
             ),
+            Op::Seq(t) => format!(
+                "`[…]` holds values of one type, here `{}`",
+                crate::print::type_(t)
+            ),
+            Op::Len => "`.len()` reads a sequence".to_string(),
+            Op::Index => "`xs[i]` reads a sequence `xs` at an Int `i`".to_string(),
             Op::Let | Op::Truth(_) | Op::Int(_) | Op::Real(_) => return Vec::new(),
         };
         let mut notes = vec![format!("note: {takes_what}")];

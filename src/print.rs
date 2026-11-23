@@ -728,6 +728,7 @@ pub fn type_(t: &Type) -> String {
         }
         Type::Record(r) => generic(&r.name, &r.args),
         Type::Enum(e) => generic(&e.name, &e.args),
+        Type::Seq(t) => format!("[{}]", type_(t)),
         Type::Param { name, .. } => name.clone(),
     }
 }
@@ -821,6 +822,10 @@ pub fn value(v: &Value) -> String {
                 .collect();
             fields.push("..".to_string());
             format!("{} {{ {} }}", r.name, fields.join(", "))
+        }
+        Value::Seq(_, holds) => {
+            let holds: Vec<String> = holds.iter().map(value).collect();
+            format!("[{}]", holds.join(", "))
         }
         Value::Variant(e, i, holds) => {
             let name = e.variants.get(*i).map(|(n, _)| n.as_str()).unwrap_or("?");
@@ -1065,6 +1070,23 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
         }
         (Op::Field(f), 1, _) => (
             format!("{}.{f}", wrap(sim_at(cx, body(0)), POSTFIX)),
+            POSTFIX,
+        ),
+        // `[1, 2]`, `xs.len()`, `xs[i]`.
+        (Op::Seq(_), n, _) => {
+            let items: Vec<String> = (0..n).map(|i| sim_in(cx, body(i))).collect();
+            (format!("[{}]", items.join(", ")), ATOM)
+        }
+        (Op::Len, 1, _) => (
+            format!("{}.len()", wrap(sim_at(cx, body(0)), POSTFIX)),
+            POSTFIX,
+        ),
+        (Op::Index, 2, _) => (
+            format!(
+                "{}[{}]",
+                wrap(sim_at(cx, body(0)), POSTFIX),
+                sim_in(cx, body(1))
+            ),
             POSTFIX,
         ),
         _ => bad,

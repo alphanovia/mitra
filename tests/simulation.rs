@@ -198,7 +198,14 @@ impl Gen {
         let mut all = vec![Type::Truth, Type::Int, Type::Real];
         all.extend(self.records.iter().cloned().map(Type::Record));
         all.extend(self.enums.iter().cloned().map(Type::Enum));
+        // Sequences: of numbers, and of an enum (finding 3, step 2).
+        all.push(Type::Seq(Box::new(Type::Int)));
+        all.push(Type::Seq(Box::new(Type::Enum(self.enums[0].clone()))));
         self.rng.pick(&all).clone()
+    }
+    /// A short length, `[]` often.
+    fn length(&mut self) -> usize {
+        self.rng.below(4)
     }
     fn number_type(&mut self) -> Type {
         match self.rng.coin() {
@@ -248,6 +255,10 @@ impl Gen {
                 r.clone(),
                 r.fields.iter().map(|(_, f)| self.value(f)).collect(),
             ),
+            Type::Seq(t) => {
+                let k = self.length();
+                Value::Seq((**t).clone(), (0..k).map(|_| self.value(t)).collect())
+            }
         }
     }
     fn constant(&mut self, t: &Type) -> E {
@@ -264,6 +275,11 @@ impl Gen {
             Type::Record(r) => {
                 let fields = r.fields.iter().map(|(_, f)| self.constant(f)).collect();
                 apply(Op::Make(r.clone()), fields)
+            }
+            Type::Seq(t) => {
+                let k = self.length();
+                let holds = (0..k).map(|_| self.constant(t)).collect();
+                apply(Op::Seq((**t).clone()), holds)
             }
         }
     }
@@ -365,6 +381,21 @@ impl Gen {
                 let of = self.expr(&Type::Record(r), d);
                 return apply(Op::Field(name), vec![of]);
             }
+            // `xs[i]` of any type, at an index that may be out of range;
+            // `xs.len()`.
+            7 => {
+                let xs = self.expr(&Type::Seq(Box::new(t.clone())), d);
+                let i = match self.rng.coin() {
+                    true => int(self.rng.below(5) as i64 - 1),
+                    false => self.expr(&Type::Int, d),
+                };
+                return apply(Op::Index, vec![xs, i]);
+            }
+            8 if t == &Type::Int => {
+                let u = self.ty();
+                let xs = self.expr(&Type::Seq(Box::new(u)), d);
+                return apply(Op::Len, vec![xs]);
+            }
             // A call of a function that gives `t`.
             4 | 5 => {
                 let giving: Vec<(String, Callee)> = self
@@ -432,6 +463,11 @@ impl Gen {
                 let i = self.rng.below(e.variants.len());
                 let holds = e.variants[i].1.iter().map(|t| self.expr(t, d)).collect();
                 apply(Op::Variant(e.clone(), i), holds)
+            }
+            Type::Seq(u) => {
+                let k = self.length();
+                let holds = (0..k).map(|_| self.expr(u, d)).collect();
+                apply(Op::Seq((**u).clone()), holds)
             }
         }
     }
@@ -523,6 +559,30 @@ impl Gen {
                     .collect();
                 Span::Variant(e.clone(), may)
             }
+            // A length from 0 or more, perhaps with no end; a span of
+            // what it holds.
+            Type::Seq(u) => {
+                let low = self.rng.below(3) as i64;
+                let high = match self.rng.below(3) {
+                    0 => None,
+                    _ => Some(Rational::integer(low + self.rng.below(3) as i64)),
+                };
+                // Places surely held, each in the span of every value.
+                let each = self.span(u);
+                let first = (0..self.rng.below(low as usize + 1))
+                    .map(|_| each.clone())
+                    .collect();
+                Span::Seq(
+                    (**u).clone(),
+                    Box::new(Span::Number(
+                        Numbers::Int,
+                        Some(Rational::integer(low)),
+                        high,
+                    )),
+                    Box::new(each),
+                    first,
+                )
+            }
         }
     }
     /// A value in `span`: γ, sampled.
@@ -608,6 +668,14 @@ impl Gen {
                     .collect();
                 Value::Variant(e.clone(), i, holds)
             }
+            (Span::Seq(u, length, each, _), Type::Seq(_)) => {
+                let k = match self.member(length, &Type::Int) {
+                    // Long ones cut to 4, past every low end here.
+                    Value::Int(k) => usize::try_from(k.min(BigInt::from(4))).unwrap_or(0),
+                    _ => 0,
+                };
+                Value::Seq(u.clone(), (0..k).map(|_| self.member(each, u)).collect())
+            }
             _ => unreachable!("a span of another type"),
         }
     }
@@ -675,6 +743,9 @@ impl Gen {
             Op::Let,
             Op::All,
             Op::Call(format!("lib::f{}", self.rng.below(4))),
+            Op::Seq(self.ty()),
+            Op::Len,
+            Op::Index,
         ];
         self.rng.pick(&all).clone()
     }
@@ -727,6 +798,10 @@ impl Gen {
                 let holds = (0..self.rng.below(3)).map(|_| self.wild_value()).collect();
                 Value::Variant(e, self.rng.below(4), holds)
             }
+            (0, Type::Seq(u)) => {
+                let holds = (0..self.rng.below(3)).map(|_| self.wild_value()).collect();
+                Value::Seq(*u, holds)
+            }
             (_, t) => self.value(&t),
         }
     }
@@ -751,6 +826,16 @@ impl Gen {
                     true => Span::Variant(e.clone(), vec![None; e.variants.len()]),
                     false => Span::Variant(e, vec![Some(vec![])]),
                 },
+                // A length below zero, or of reals.
+                Type::Seq(u) => Span::Seq(
+                    *u.clone(),
+                    Box::new(match self.rng.coin() {
+                        true => Span::Number(Numbers::Int, Some(Rational::integer(-2)), None),
+                        false => Span::Number(Numbers::Real, None, None),
+                    }),
+                    Box::new(self.span(&u)),
+                    vec![],
+                ),
                 t => self.span(&t),
             },
             _ => self.span(&t),
