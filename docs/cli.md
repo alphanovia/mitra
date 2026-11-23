@@ -4,7 +4,7 @@ One command per question (your choice, 21:47), as rustc writes its
 reports. `cargo build --release`, then `target/release/mitra`.
 
 ```text
-mitra check MODEL
+mitra check MODEL [--points N]
 mitra explain MODEL [--code DIR]... [--report FILE] [--store FILE]
 mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
 ```
@@ -19,7 +19,12 @@ mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
   report"), after a line saying so.
 - `--store`: measurements and reviews written by hand.
 
-`--report` and `--store` are given once each.
+- `--points`: for `check` only, the most points agree tries for one
+  comparison (its setting `points`, default 64). `main`'s div takes
+  `a: 0..=9, b: 0..=9`, 100 pairs: with `--points 100` every pair is
+  tried and it holds; at 64 it is unknown (A007).
+
+`--report`, `--store` and `--points` are given once each.
 
 | Command | Question | Says |
 |---|---|---|
@@ -56,6 +61,6 @@ explain read as one together: `measurements::0 and 4`.
 
 ## Not in this round
 
-- No `--json`; no colours; no settings on the command line (each
-  layer's defaults).
+- No `--json`; no colours; no other settings on the command line
+  (each layer's defaults).
 - `check` runs agree; `explain` and `blame` do not run agree again.

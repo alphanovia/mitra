@@ -1,7 +1,8 @@
 //! `mitra`: one command per question (`docs/cli.md`).
 //!
-//! - `mitra check MODEL`: is the model sound on itself, and if not,
-//!   where? Its errors (`check`), then what agree finds.
+//! - `mitra check MODEL [--points N]`: is the model sound on itself,
+//!   and if not, where? Its errors (`check`), then what agree finds,
+//!   trying at most `N` points per comparison (agree's `points`).
 //! - `mitra explain MODEL [--code DIR]... [--report FILE] [--store FILE]`:
 //!   does the model explain the system, assuming the evidence? A verdict
 //!   on each proposition, with its numbers, then the findings.
@@ -38,14 +39,15 @@ macro_rules! out {
 }
 
 const USAGE: &str = "usage:
-  mitra check MODEL
+  mitra check MODEL [--points N]
   mitra explain MODEL [--code DIR]... [--report FILE] [--store FILE]
   mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
 
   MODEL     the model, a .mitra file at the root of the project
   --code    a folder of Rust files, read for ties and measuring tests
   --report  the output of `cargo test`
-  --store   measurements and reviews written by hand";
+  --store   measurements and reviews written by hand
+  --points  the most points agree tries per comparison (default 64)";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -65,6 +67,7 @@ struct Given {
     code: Vec<PathBuf>,
     report: Option<PathBuf>,
     store: Option<PathBuf>,
+    points: Option<usize>,
 }
 
 fn arguments(args: &[String]) -> Result<Given, String> {
@@ -80,8 +83,19 @@ fn arguments(args: &[String]) -> Result<Given, String> {
         code: vec![],
         report: None,
         store: None,
+        points: None,
     };
     while let Some(flag) = it.next() {
+        if flag == "--points" {
+            let v = it.next().ok_or("`--points` needs a value")?;
+            let n: usize = v.parse().ok().filter(|n| *n > 0).ok_or(format!(
+                "`--points` takes a whole number above 0, not `{v}`"
+            ))?;
+            if given.points.replace(n).is_some() {
+                return Err("`--points` is given twice".to_string());
+            }
+            continue;
+        }
         if !["--code", "--report", "--store"].contains(&flag.as_str()) {
             return Err(format!("`{flag}` is no option"));
         }
@@ -95,6 +109,9 @@ fn arguments(args: &[String]) -> Result<Given, String> {
             "--report" => once(&mut given.report)?,
             _ => once(&mut given.store)?,
         }
+    }
+    if given.command != "check" && given.points.is_some() {
+        return Err("`--points` is for `check`: only it compares".to_string());
     }
     if given.command == "check"
         && (given.report.is_some() || given.store.is_some() || !given.code.is_empty())
@@ -126,7 +143,11 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
         return Ok(ExitCode::from(1));
     }
     if given.command == "check" {
-        return Ok(check_out(&model));
+        let mut settings = agree::Settings::default();
+        if let Some(n) = given.points {
+            settings.points = n;
+        }
+        return Ok(check_out(&model, &settings));
     }
     // Paths from the model's folder, however both are spelled.
     let whole = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
@@ -228,8 +249,8 @@ fn findings_out(findings: &[Finding]) {
 }
 
 /// Question 1.
-fn check_out(model: &Model) -> ExitCode {
-    let (agreed, findings) = agree::agree(model, &agree::Settings::default());
+fn check_out(model: &Model, settings: &agree::Settings) -> ExitCode {
+    let (agreed, findings) = agree::agree(model, settings);
     findings_out(&findings);
     for h in agree::hints(&agreed) {
         out!("{h}\n");

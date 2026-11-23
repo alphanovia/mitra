@@ -81,3 +81,54 @@ fn a_model_not_well_formed_stops_with_its_errors() {
     assert_eq!(code, 2, "{out}");
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn points_decide_main_s_div_on_every_pair() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-points-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let div = dir.join("div.mitra");
+    std::fs::write(
+        &div,
+        "subject calc {
+    fn div(a: 0..=9, b: 0..=9) -> q: 0..=9 { if b == 0 { 0 } else { a / b } } where {
+        claim spec: if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
+    }
+}",
+    )
+    .unwrap();
+    let d = div.to_str().unwrap();
+    // 10 x 10 = 100 pairs: more than the 64 points agree tries by default.
+    let (code, out) = mitra(&["check", d]);
+    assert_eq!(code, 0, "{out}");
+    assert!(
+        out.contains("finding[A007]: claim `spec`: unknown"),
+        "{out}"
+    );
+    let (code, out) = mitra(&["check", d, "--points", "100"]);
+    assert_eq!(code, 0, "{out}");
+    assert!(out.contains("3 comparisons, 3 hold, 0 findings"), "{out}");
+    let (code, out) = mitra(&["check", d, "--points", "99"]);
+    assert_eq!(code, 0, "{out}");
+    assert!(out.contains("finding[A007]"), "{out}");
+    for (args, says) in [
+        (
+            vec!["check", d, "--points", "0"],
+            "takes a whole number above 0",
+        ),
+        (
+            vec!["check", d, "--points", "x"],
+            "takes a whole number above 0",
+        ),
+        (vec!["check", d, "--points"], "needs a value"),
+        (
+            vec!["check", d, "--points", "9", "--points", "9"],
+            "given twice",
+        ),
+        (vec!["explain", d, "--points", "9"], "is for `check`"),
+    ] {
+        let (code, out) = mitra(&args);
+        assert_eq!(code, 2, "{args:?}: {out}");
+        assert!(out.contains(says), "{args:?}: {out}");
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
