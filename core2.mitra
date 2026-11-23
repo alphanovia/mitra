@@ -197,7 +197,7 @@ subject evidence {
         inputs: Ports, outputs: Ports, seen: bool, count: Int, voice: String
     }
     record Review at "src/evidence.rs/Review" { prop: Path, holds: bool, voice: String }
-    ensure fits: "a ledger evidence accepts measures only tied functions of the model, with every input and an output, each in the range of its type, and reviews only what a review can name"
+    ensure fits: "a ledger evidence accepts measures only tied functions of the model, with every input and an output, and reviews only what a review can name"
         from (checked);
 }
 
@@ -247,6 +247,7 @@ subject explain {
     fn explain_defaults() -> s: ExplainSettings at "src/explain.rs/Settings/default" {
         ExplainSettings { rounds: 64, cases: 1024, rests: 1024, budget: Budget { steps: 1000000, depth: 1000 } }
     }
+    ensure drift: "a value measured outside the range of its type is a taking against the function at that point, by its ties, and X011 says which value; a failed test there takes nothing" from (fits);
     ensure only_known: "a measurement known in part is a taking only where what it knows decides; elsewhere X010 says which field" from (in_part);
     ensure verdicts: "each proposition is explained, contradicted or unsupported, as judgement gives it from the model and the ledger"
         from (checked, fits, kernel, read, given);

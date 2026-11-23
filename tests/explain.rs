@@ -431,6 +431,19 @@ subject location {
         ["finding[X010]: at (Location { depth: 1, .. }), `location::keep::m = Location { depth: 1, .. }` is known in part: only `Location::first`, not known, could tell it from what the model gives, Location { depth: 1, .. }\n --> measurements::0"]
     );
     given.insert("X010".to_string());
+    // X011: a value outside its range, in tests/redteam_drift.rs too.
+    let ranged = parse("subject calc {\n    fn div(a: 0..=9, b: 1..=9) -> q: 0..=9 at \"src/lib.rs/div\" { a / b }\n}").unwrap();
+    let store = "measure calc::div (12, 2) -> 6 by \"test:big\";";
+    let ledger = mitra_core::reader::read_store("s", store, &ranged, &ranged.ties)
+        .unwrap()
+        .0;
+    let e = explain(&ranged, &ledger, &Settings::default());
+    let shown: Vec<String> = e.findings.iter().map(|f| f.to_string()).collect();
+    assert_eq!(
+        shown,
+        ["finding[X011]: at (12, 2), `a` = 12 lies outside its range 0..=9: the system and the model disagree there, a drift between them or a measurement taken wrong\n --> measurements::0"]
+    );
+    given.insert("X011".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Explain && !e.retired);

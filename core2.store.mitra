@@ -43,6 +43,7 @@ review simulation::ranges_checked holds by "test:a_call_by_bounds_holds_what_exa
 review agree::within_ranges holds by "test:agree_is_right_within_the_ranges";
 review simulation::known_in_part holds by "test:what_is_known_in_part_holds_of_every_record_that_fills_it_in";
 review explain::only_known holds by "test:each_finding_is_given";
+review explain::drift holds by "test:an_input_outside_its_range_counts_against_the_model";
 review check::in_ranges holds by "test:each_error_is_found";
 review simulation::Budget holds by "agent:anthropic/opus-5.5/dogfood";
 review explain::verdicts holds by "test:a_hundred_tests_explain_div_everywhere";

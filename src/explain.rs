@@ -21,7 +21,9 @@
 //! false from some, and unsupported otherwise. Nothing given is dropped
 //! quietly: what explain cannot read is a finding (suit `X`).
 
-use crate::catalogue::{Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008, X009, X010};
+use crate::catalogue::{
+    Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008, X009, X010, X011,
+};
 use crate::evidence::{self, port, Ledger, Measurement};
 use crate::expression::{eval, Arg, Expression, Fault};
 use crate::judgement::{self, Definition, Judgement, Opinion, Point, Prop, Rests, Taking, Term};
@@ -444,6 +446,44 @@ impl Given<'_, '_> {
 
     /// One measurement: at each output, what the model expects there,
     /// and what the measurement then says.
+    /// A measurement outside a range of `f` at `x`: a finding, and, when
+    /// the system was seen to give it, a taking that `f` is not correct
+    /// there, by its ties: a drift between the model and the code, unless
+    /// the measurement was taken wrong.
+    #[allow(clippy::too_many_arguments)]
+    fn drift(
+        &mut self,
+        i: usize,
+        m: &Measurement,
+        at: &Path,
+        f: &Path,
+        x: &[Value],
+        point: &str,
+        drift: &str,
+    ) {
+        let message = match m.seen {
+            true => format!("at {point}, {drift}: the system and the model disagree there, a drift between them or a measurement taken wrong"),
+            false => format!("the test expected, at {point}, {drift}: the model says nothing there"),
+        };
+        self.finding(X011, at, message);
+        if !m.seen {
+            return;
+        }
+        let path = f.to_string();
+        let prop = Prop::Correct {
+            function: path.clone(),
+            at: Term::Point(x.to_vec()),
+        };
+        self.take(prop.clone(), false, m.count, &m.by, Source::Measurement(i));
+        let ties = self.ties(&BTreeSet::from([path.clone()]));
+        self.write(
+            format!("{path} at {point}, by its ties"),
+            ties,
+            prop.clone(),
+        );
+        self.written.push((f.clone(), prop));
+    }
+
     fn measurement(&mut self, i: usize, m: &Measurement) {
         let at = Path::to(&["measurements", &i.to_string()]);
         let index = self.index;
@@ -466,6 +506,13 @@ impl Given<'_, '_> {
             }
             let path = port.at.to_string();
             if let Some(args) = args_of(&port.at, port.function) {
+                // A value outside its range: the system gave what the
+                // model says it never gives.
+                if let Some(drift) = outside(port.function, &args, v) {
+                    let point = print::values(&args);
+                    self.drift(i, m, &at, &port.at, &args, &point, &drift);
+                    continue;
+                }
                 // Refused only for a value of another type, which V003
                 // refuses before.
                 library = library
@@ -487,6 +534,16 @@ impl Given<'_, '_> {
                 continue;
             };
             let point = print::values(&x);
+            // Outside a range: the system and the model's range disagree.
+            if let Some(drift) = outside(function, &x, y) {
+                for (p, _) in &m.inputs {
+                    if p.names.len() == 3 && format!("{}::{}", p.names[0], p.names[1]) == path {
+                        read.insert(p);
+                    }
+                }
+                self.drift(i, m, &at, &f, &x, &point, &drift);
+                continue;
+            }
             // What it reads: its arguments, and what the functions its
             // body and claims call gave.
             let claims = function.claims.iter().map(|c| &c.holds);
@@ -747,6 +804,30 @@ struct Judge {
     /// Each taking a proof by cases read at a point, with the others
     /// that say the same there.
     alike: BTreeMap<Taking, Vec<Taking>>,
+}
+
+/// What lies outside a range of `f`, called with `x` and giving `y`:
+/// each such value with its range, or `None`.
+fn outside(f: &Function, x: &[Value], y: &Value) -> Option<String> {
+    let mut said = Vec::new();
+    for ((n, _), v) in f.takes.iter().zip(x) {
+        if let Some(range) = f.ranges.takes.get(n).filter(|r| !r.holds(v)) {
+            said.push(format!(
+                "`{n}` = {} lies outside its range {range}",
+                print::value(v)
+            ));
+        }
+    }
+    if let Some((q, range)) = f.ranges.gives.as_ref().filter(|(_, r)| !r.holds(y)) {
+        said.push(format!(
+            "`{q}` = {} lies outside its range {range}",
+            print::value(y)
+        ));
+    }
+    match said.is_empty() {
+        true => None,
+        false => Some(said.join(", and ")),
+    }
 }
 
 /// What `p` is kept under: what it negates, however many times.

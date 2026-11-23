@@ -44,4 +44,4 @@ struct Ledger { measurements: Vec<Measurement>, reviews: Vec<Review> }
 | V005 | A review names a claim, rule, require or ensure, or a tied item. |
 | V006 | A measurement has an output, and every argument of a function whose output it measures (or whose value it gives, with no body) is given. |
 | V007 | Every measurement and review has a voice of a kind with a name (`human:`, `agent:`, `machine:`, `test:`), not one of Mitra's own (`model`, `machine:mitra-check`), and one voice reviews one proposition once. |
-| V008 | Every measured value lies in the range type of what it measures (`a: 0..=9`). |
+| V008 | Retired: a measured value outside its range type is evidence against the model, explain's X011. |

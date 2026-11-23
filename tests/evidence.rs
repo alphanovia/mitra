@@ -114,8 +114,6 @@ fn each_error_is_found() {
     // div has one function, and it is tied: V002 is given on the fall,
     // in `a_measurement_is_through_a_tie`.
     given.push("V002".to_string());
-    // V008 on a model with a range type, below.
-    given.push("V008".to_string());
     given.sort();
     let listed = CATALOGUE
         .iter()
@@ -187,8 +185,8 @@ fn a_measurement_is_through_a_tie() {
     assert_eq!(errors, expected);
 }
 
-/// A measured value outside the range of its type is refused: the
-/// model says nothing there (finding 11).
+/// A measured value outside the range of its type is not refused: it
+/// is evidence against the model there (X011, `tests/redteam_drift.rs`).
 #[test]
 fn a_measured_value_outside_its_range() {
     let model = mitra_core::parse::parse(
@@ -199,12 +197,5 @@ fn a_measured_value_outside_its_range() {
         measurements: vec![divided(12, 2, 6), divided(6, 2, 3)],
         reviews: vec![],
     };
-    let errors: Vec<String> = check(&model, &ledger)
-        .iter()
-        .map(|e| e.to_string())
-        .collect();
-    assert_eq!(
-        errors,
-        ["error[V008]: `calc::div::a` = 12, outside its range 0..=9: the model says nothing there\n --> measurements::0"]
-    );
+    assert_eq!(check(&model, &ledger), vec![]);
 }

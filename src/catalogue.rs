@@ -154,6 +154,7 @@ pub const X007: Code = explain(7);
 pub const X008: Code = explain(8);
 pub const X009: Code = explain(9);
 pub const X010: Code = explain(10);
+pub const X011: Code = explain(11);
 
 const fn blame(number: u16) -> Code {
     Code {
@@ -280,7 +281,7 @@ pub const CATALOGUE: &[Entry] = &[
         V007,
         "a voice missing, not of a kind, Mitra's own, or saying twice",
     ),
-    entry(V008, "a measured value outside the range of its type"),
+    retired(V008, "a measured value outside the range of its type"),
     entry(
         X001,
         "a measurement nothing in the model says what to expect of",
@@ -303,6 +304,7 @@ pub const CATALOGUE: &[Entry] = &[
         X010,
         "a value known in part, where only what is not known could tell",
     ),
+    entry(X011, "a measured value outside the range of its type"),
     entry(B001, "a conflict the model's claims alone hold"),
     entry(B002, "more diagnoses than blame looked for"),
     entry(B003, "a diagnosis a proof by cases may outlive"),

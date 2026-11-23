@@ -110,6 +110,7 @@ layer's (corroboration).
 | X008 | two measurements that say one thing, by one voice and count |
 | X009 | a budget of steps or depth reached |
 | X010 | a value known in part, where only what is not known could tell |
+| X011 | a measured value outside the range of its type: a taking against the function there, by its ties |
 
 A hint is below a finding: something that may help.
 
