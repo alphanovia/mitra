@@ -93,3 +93,9 @@ review numbers::NumbersSettings holds by "agent:anthropic/opus-5.5/dogfood";
 review agree::agree_defaults holds by "agent:anthropic/opus-5.5/dogfood";
 review explain::explain_defaults holds by "agent:anthropic/opus-5.5/dogfood";
 review blame::blame_defaults holds by "agent:anthropic/opus-5.5/dogfood";
+
+// 10a (M024): what a library refuses and reads, and what check gives.
+review simulation::one_value holds by "test:rows_are_read_only_without_a_body";
+review simulation::given_first holds by "test:rows_are_read_only_without_a_body";
+review check::one_value holds by "test:each_error_is_found";
+review simulation::Calls holds by "agent:anthropic/opus-5.5/dogfood";

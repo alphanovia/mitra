@@ -16,14 +16,12 @@
 //!
 //! It reads a model `check` accepts: on another, it compares nothing.
 
-use crate::catalogue::{Code, Finding, A001, A002, A003, A004, A005, A006, A007, A008, A009};
+use crate::catalogue::{Code, Finding, A001, A002, A003, A004, A005, A006, A007, A009};
 use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
 use crate::model::{calls, contract_claims, Function, Index, Model, ModelExample, Path};
 use crate::print;
-use crate::simulation::{
-    Bounds, Callee, Calls, Exact, Op, Ranges, Rational, Type, Undefined, Value,
-};
+use crate::simulation::{Bounds, Calls, Exact, Op, Ranges, Rational, Type, Undefined, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -199,22 +197,7 @@ impl<'m> Reading<'m> {
                 push(format!("example {i} against claim `{}`", c.name), agreement);
             }
         }
-        // Two examples at one point: a function gives one value there.
-        for (i, (e, row)) in f.examples.iter().zip(&rows).enumerate() {
-            for (j, other) in f.examples.iter().enumerate().skip(i + 1) {
-                if other.takes != e.takes {
-                    continue;
-                }
-                let agreement = match other.gives == e.gives {
-                    true => Agreement::Holds,
-                    false => Agreement::Fails {
-                        at: row.clone(),
-                        gives: Some(other.gives.clone()),
-                    },
-                };
-                push(format!("example {i} against example {j}"), agreement);
-            }
-        }
+        // Two examples at one point that differ: check refuses them (M024).
         // Some value keeps all its claims.
         if !f.claims.is_empty() {
             push("its claims together".to_string(), self.together(f, &rows));
@@ -601,21 +584,14 @@ impl<'m> Reading<'m> {
             args.collect()
         };
         let mut agreed = Vec::new();
-        // A row for each function with no body whose value is given.
-        let mut callees: BTreeMap<String, Callee> = self
-            .library
-            .iter()
-            .map(|(n, c)| (n.clone(), c.clone()))
-            .collect();
+        // What each function with no body is given, read first.
+        let mut library = (*self.library).clone();
         for (p, v) in &example.inputs {
             let Some(port) = port(index, p) else { continue };
             if !port.gives || port.function.body.is_some() {
                 continue;
             }
-            let (Some(args), Some(callee)) = (
-                args_of(&port.at, port.function),
-                callees.get_mut(&port.at.to_string()),
-            ) else {
+            let Some(args) = args_of(&port.at, port.function) else {
                 continue;
             };
             // What the function's own examples say there.
@@ -636,13 +612,13 @@ impl<'m> Reading<'m> {
                     agreement,
                 });
             }
-            callee.rows.insert(0, (args, v.clone()));
+            // Refused only for a value of another type, which M022 refuses.
+            library = library
+                .given(&port.at.to_string(), args, v.clone())
+                .unwrap_or_else(|same| same);
         }
-        let Ok(with_rows) = Calls::with(callees) else {
-            return (agreed, vec![]);
-        };
         let exact = Exact {
-            calls: Arc::new(with_rows),
+            calls: Arc::new(library),
         };
         for (p, expected) in &example.outputs {
             let Some(port) = port(index, p) else { continue };
@@ -810,15 +786,6 @@ fn finding(a: &Agreed) -> Option<Finding> {
                 }
             } else if against == "its claims together" {
                 (A004, "no value keeps all its claims".to_string())
-            } else if against.contains(" against example") {
-                (
-                    A008,
-                    format!(
-                        "{against}: both at {}, the second giving {}",
-                        point(at),
-                        gives(g)
-                    ),
-                )
             } else if against.contains(" against claim") {
                 (
                     A003,

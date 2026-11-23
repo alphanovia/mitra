@@ -106,9 +106,11 @@ are ordinary operations, not special forms: both branches are computed (choice
   function takes and gives, its body, or else its rows (examples). It refuses,
   by name, a function that calls itself however far, one that calls a
   function the library lacks, a body not of its type, a row not of its types,
-  two arguments of one name, and whatever calls one it refuses. The standard
-  and both readings hold the same library. `Exact` runs the body, or reads the
-  row at the arguments; with neither, the call has no value:
+  two arguments of one name, two rows at one point that give different values, and whatever calls one it refuses. The standard
+  and both readings hold the same library. `Exact` runs the body, or reads what the reading
+  was given at the arguments (`Calls::given`: a world value a measurement or
+  an example of the model saw, for a function with no body, of its types),
+  or else the row there; with neither, the call has no value:
   `Undefined::Unknown(path)`, an `Op` fault, so S2 holds. `Ranges` runs the
   body, or else allows any value of the type, and a fault. A call is strict,
   as Rust's: a fault in an argument is the call's, read or not.
@@ -498,6 +500,6 @@ be an operation.
 24. **By bounds, a function with no body gives any value of its type, and may fault**: its rows and claims are not read there.
 25. **A function whose types name a parameter is bare** (no body, no rows): only its contract speaks of it.
 26. **An intro's point is fresh**: an intro of a proposition that already writes the point it would bind is refused (red team round 7 caught the diagonal taken for the square).
-27. **Rows are not compared in the library**: beside a body they are kept and never read, and of two at one point the first is read. `agree` compares them with the body and with each other.
+27. **A function gives one value at a point**: `Calls::with` refuses two rows at one point that differ (check says M024). Beside a body, rows are kept and never read: `agree` compares them with the body (A002). What a reading is given (`Calls::given`) is read before the rows, never before a body.
 
 Not in this round: an `Option` type, `Int → Real` conversion, units, diagnosis, streams, recursion, functions as values, and an all or an any written in the model (next, in `model.rs`).

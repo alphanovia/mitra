@@ -142,10 +142,6 @@ fn each_finding_is_given() {
             "A007 at examples::0",
         ),
         (
-            changed("(5.0) -> 25.0", "(5.0) -> 25.0, (5.0) -> 26.0"),
-            "A008 at stone::square",
-        ),
-        (
             changed(
                 "stone::speed::h = 5.0)",
                 "stone::speed::h = 5.0, stone::square::h = 1.0)",

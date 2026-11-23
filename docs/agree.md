@@ -18,10 +18,9 @@ pub fn agree(model: &Model, settings: &Settings) -> (Vec<Agreed>, Vec<Finding>)
 | a function's body | each of its claims | bounds over all it takes, then points |
 | a function's body | each of its examples | `Exact` at the example's point |
 | a function's example | each of its claims | `Exact`, the example's value as what it gives |
-| a function's example | each later one at the same point | the values they give |
 | a function's claims (one or more) | some value that keeps them all | bounds, then points: its examples, what its body gives, candidates |
 | a contract's claim, read of what fits | every value of its arguments | bounds, then points |
-| an example of the model | what the model computes | `Exact`, through calls, the world's values as rows |
+| an example of the model | what the model computes | `Exact`, through calls, the world's values given first (`Calls::given`) |
 | a value of the world an example of the model gives | the function's own examples at that point | the values they give |
 
 A comparison **holds** when bounds say surely true over all of what it
@@ -63,7 +62,7 @@ computation calls for, or what that function takes. Any other is A009.
 | A005 | a contract claim a function that fits breaks |
 | A006 | an example of the model the model does not give |
 | A007 | a comparison not decided: nothing is dropped quietly |
-| A008 | two examples at one point that differ |
+| A008 | retired: two examples at one point that differ are now the error M024 |
 | A009 | an input of a model example no output reads |
 
 ## Your choices, flagged (say no to undo)

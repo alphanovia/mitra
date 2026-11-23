@@ -73,6 +73,11 @@ subject simulation {
         from (exact_numbers, trees);
     ensure ranges_sound = "every value Exact gives lies in the bounds Ranges gives"
         from (exact_numbers, trees);
+    // A library of functions (`Calls`): what a call reads, and in which
+    // order.
+    record Calls at "src/simulation.rs/Calls";
+    ensure one_value = "Calls::with refuses a function two of whose rows at one point give different values";
+    ensure given_first = "a call reads what the reading was given at its point, else the body, else the row there";
 }
 
 subject judgement {
@@ -138,7 +143,7 @@ subject catalogue {
     record Suit at "src/catalogue.rs/Suit";
     record Code at "src/catalogue.rs/Code" { suit: Suit, number: Int }
     record Entry at "src/catalogue.rs/Entry" { code: Code, title: String, retired: bool }
-    ensure never_reused = "a code is given to one meaning, never reused";
+    ensure never_reused = "a code is given to one meaning, never reused: a code no longer given is kept, retired";
     ensure documented = "every code has an entry and a page in docs/reference";
 }
 
@@ -148,8 +153,9 @@ subject check {
     // What check gives is a list of errors: opaque.
     record Errors;
     fn check(m: Model) -> errors: Errors at "src/check.rs/check";
-    ensure sound = "a model check gives no error for has every path resolved, every type agreed, no support cycle, and every proof checked by type and by one run"
-        from (codes);
+    ensure sound = "a model check gives no error for has every path resolved, every type agreed, no support cycle, every proof checked by type and by one run, and one value for each function at each point of its examples"
+        from (codes, one_value);
+    ensure one_value = "two examples of a function at one point that give different values are the error M024";
 }
 
 subject print {
@@ -190,6 +196,8 @@ subject reader {
 
 subject agree {
     require checked = check::sound;
+    // A value of the world an example of the model gives is read first.
+    require given = simulation::given_first;
     require exact = simulation::exact_right;
     require ranges = simulation::ranges_sound;
     // Each limit a setting, none fixed in the code.
@@ -198,11 +206,13 @@ subject agree {
         AgreeSettings { points: 64 }
     }
     ensure no_false_holds = "agree says Holds only when what the model says twice agrees at every point"
-        from (checked, exact, ranges);
+        from (checked, exact, ranges, given);
 }
 
 subject explain {
     require checked = check::sound;
+    // What a measurement saw an opaque function give is read first.
+    require given = simulation::given_first;
     require fits = evidence::fits;
     require kernel = judgement::sound;
     require read = reader::nothing_dropped;
@@ -212,7 +222,7 @@ subject explain {
         ExplainSettings { rounds: 64, cases: 1024, rests: 1024 }
     }
     ensure verdicts = "each proposition is explained, contradicted or unsupported, as judgement gives it from the model and the ledger"
-        from (checked, fits, kernel, read);
+        from (checked, fits, kernel, read, given);
 }
 
 subject blame {

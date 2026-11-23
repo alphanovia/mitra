@@ -27,7 +27,7 @@ use crate::expression::{eval, Arg, Expression, Fault};
 use crate::judgement::{self, Definition, Judgement, Opinion, Point, Prop, Rests, Taking, Term};
 use crate::model::{self, Function, Index, Item, Kind, Model, Path};
 use crate::print;
-use crate::simulation::{Callee, Calls, Exact, Op, Undefined, Value};
+use crate::simulation::{Calls, Exact, Op, Undefined, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -449,13 +449,9 @@ impl Given<'_, '_> {
                 .map(|(n, _)| given.get(&f.then(n)).map(|v| (*v).clone()));
             args.collect()
         };
-        // What a function with no body gave, at its point: a row read
-        // before its examples.
-        let mut callees: BTreeMap<String, Callee> = self
-            .library
-            .iter()
-            .map(|(n, c)| (n.clone(), c.clone()))
-            .collect();
+        // What a function with no body gave, at its point: read before
+        // its examples.
+        let mut library = self.library.clone();
         let mut rows: BTreeMap<String, &Path> = BTreeMap::new();
         for (p, v) in &m.inputs {
             let Some(port) = port(index, p) else { continue };
@@ -463,14 +459,15 @@ impl Given<'_, '_> {
                 continue;
             }
             let path = port.at.to_string();
-            if let (Some(args), Some(callee)) =
-                (args_of(&port.at, port.function), callees.get_mut(&path))
-            {
-                callee.rows.insert(0, (args, v.clone()));
+            if let Some(args) = args_of(&port.at, port.function) {
+                // Refused only for a value of another type, which V003
+                // refuses before.
+                library = library
+                    .given(&path, args, v.clone())
+                    .unwrap_or_else(|same| same);
                 rows.insert(path, p);
             }
         }
-        let library = Calls::with(callees).unwrap_or_else(|_| self.library.clone());
         let exact = Exact {
             calls: Arc::new(library),
         };

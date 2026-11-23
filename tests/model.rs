@@ -659,6 +659,16 @@ fn each_error_is_found() {
                 m.parts[1].functions[0].rules.push(everywhere);
             }),
         ),
+        (
+            "M024 at stone::speed",
+            Box::new(|m| {
+                let at = m.parts[1].functions[1].examples[0].takes.clone();
+                m.parts[1].functions[1].examples.push(Example {
+                    takes: at,
+                    gives: Value::Real(Rational::integer(99)),
+                })
+            }),
+        ),
     ];
     let mut given = Vec::new();
     for (expected, change) in cases {

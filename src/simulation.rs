@@ -263,6 +263,10 @@ pub struct Callee {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Calls {
     callees: BTreeMap<String, Callee>,
+    /// What a reading is given, by path, at points: a value of the world
+    /// a measurement or an example of the model saw, of a function with
+    /// no body. Read before its rows, and never compared with them here.
+    given: BTreeMap<String, Vec<(Vec<Value>, Value)>>,
 }
 
 impl Calls {
@@ -271,9 +275,10 @@ impl Calls {
     /// name; a body that does not check to what it gives, from what it
     /// takes; a row that is not of its types; a body or a row while its
     /// types name a parameter, which no value is of; and a function that
-    /// calls one refused or unknown. Rows are not compared: beside a body
-    /// they are kept and never read, and of two rows at one point the
-    /// first is read (`agree` compares them).
+    /// calls one refused or unknown; two rows at one point that give
+    /// different values (a function gives one value at a point). Beside
+    /// a body, rows are kept and never read (`agree` compares them with
+    /// it, A002).
     pub fn with(callees: BTreeMap<String, Callee>) -> Result<Calls, BTreeSet<String>> {
         let names: Vec<&String> = callees.keys().collect();
         let place: BTreeMap<&String, usize> =
@@ -300,6 +305,7 @@ impl Calls {
         let standard = Simulation {
             calls: Arc::new(Calls {
                 callees: callees.clone(),
+                given: BTreeMap::new(),
             }),
         };
         let exact = Exact::default();
@@ -320,7 +326,12 @@ impl Calls {
                     && exact.has_type(gives, &callee.gives)
             };
             let bare = callee.body.is_none() && callee.rows.is_empty();
-            if !distinct || !body || !callee.rows.iter().all(row) || (open && !bare) {
+            let one_value = callee.rows.iter().enumerate().all(|(i, (at, gives))| {
+                callee.rows[i + 1..]
+                    .iter()
+                    .all(|(other, g)| other != at || g == gives)
+            });
+            if !distinct || !body || !callee.rows.iter().all(row) || !one_value || (open && !bare) {
                 refused.insert(name.clone());
             }
         }
@@ -343,9 +354,39 @@ impl Calls {
             }
         }
         match refused.is_empty() {
-            true => Ok(Calls { callees }),
+            true => Ok(Calls {
+                callees,
+                given: BTreeMap::new(),
+            }),
             false => Err(refused),
         }
+    }
+    /// These functions, with `gives` given for `path` at `at`: read
+    /// first, before its rows. Only a function with no body takes a
+    /// value so, of its types (none of them a parameter): else `Err`,
+    /// with the functions as they were. A body is what the function
+    /// gives, and `Ranges` reads it, not what was given.
+    pub fn given(mut self, path: &str, at: Vec<Value>, gives: Value) -> Result<Calls, Calls> {
+        let exact = Exact::default();
+        let fits = self.callees.get(path).is_some_and(|c| {
+            c.body.is_none()
+                && !c.gives.open()
+                && c.takes.iter().all(|(_, t)| !t.open())
+                && at.len() == c.takes.len()
+                && at
+                    .iter()
+                    .zip(&c.takes)
+                    .all(|(v, (_, t))| exact.has_type(v, t))
+                && exact.has_type(&gives, &c.gives)
+        });
+        if !fits {
+            return Err(self);
+        }
+        self.given
+            .entry(path.to_string())
+            .or_default()
+            .insert(0, (at, gives));
+        Ok(self)
     }
     /// The function at `path`.
     pub fn get(&self, path: &str) -> Option<&Callee> {
@@ -443,22 +484,24 @@ pub struct Exact {
 }
 
 impl Exact {
-    /// A call of `f` at these values: its body run on them, or else the
-    /// row at them.
+    /// A call of `f` at these values: its body run on them; or else what
+    /// the reading was given there, else its row at them.
     fn call(&self, f: &str, args: &[Value]) -> Exactly {
         let callee = self.calls.get(f).ok_or(Fault::Stuck)?;
         if args.len() != callee.takes.len() {
             return Err(Fault::Stuck);
         }
-        match &callee.body {
-            Some(body) => {
-                let names = callee.takes.iter().map(|(n, _)| n.clone());
-                eval(self, &names.zip(args.iter().cloned()).collect(), body)
-            }
-            None => match callee.rows.iter().find(|(at, _)| at.as_slice() == args) {
-                Some((_, gives)) => Ok(gives.clone()),
-                None => Err(Fault::Op(Undefined::Unknown(f.to_string()))),
-            },
+        if let Some(body) = &callee.body {
+            let names = callee.takes.iter().map(|(n, _)| n.clone());
+            return eval(self, &names.zip(args.iter().cloned()).collect(), body);
+        }
+        let given = self.calls.given.get(f).into_iter().flatten();
+        if let Some((_, gives)) = given.into_iter().find(|(at, _)| at.as_slice() == args) {
+            return Ok(gives.clone());
+        }
+        match callee.rows.iter().find(|(at, _)| at.as_slice() == args) {
+            Some((_, gives)) => Ok(gives.clone()),
+            None => Err(Fault::Op(Undefined::Unknown(f.to_string()))),
         }
     }
 }

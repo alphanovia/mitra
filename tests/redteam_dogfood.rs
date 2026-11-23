@@ -46,7 +46,13 @@ fn with(prior_weight: f64, base_rate: f64) -> Settings {
 // mitra: measures numbers::fused (1.0, 0.0, -2.0, 1/2) -> Belief { belief: 1.0, disbelief: 0.0, uncertainty: 0.0, expected: 1.0 }
 #[test]
 fn rt_fused_negative_prior() {
-    is(fused(&[taking(true, 1, "x")], &with(-2.0, 0.5)), 1.0, 0.0, 0.0, 1.0);
+    is(
+        fused(&[taking(true, 1, "x")], &with(-2.0, 0.5)),
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+    );
 }
 
 // A base rate above 1 is clamped to 1. The model gives expected = a = 2,
@@ -74,7 +80,13 @@ fn rt_fused_negative_voice() {
         voices: BTreeMap::from([("human:neg".to_string(), -1.0)]),
         ..Settings::default()
     };
-    is(fused(&[taking(true, 1, "human:neg")], &s), 0.0, 0.0, 1.0, 0.5);
+    is(
+        fused(&[taking(true, 1, "human:neg")], &s),
+        0.0,
+        0.0,
+        1.0,
+        0.5,
+    );
 }
 
 // Control: where the model and the code agree although w < 0 (n > 0,
@@ -82,7 +94,10 @@ fn rt_fused_negative_voice() {
 // mitra: measures numbers::fused (3.0, 1.0, -1.0, 1/2) -> Belief { belief: 3/4, disbelief: 1/4, uncertainty: 0.0, expected: 3/4 }
 #[test]
 fn rt_fused_negative_prior_agrees() {
-    let b = fused(&[taking(true, 3, "x"), taking(false, 1, "x")], &with(-1.0, 0.5));
+    let b = fused(
+        &[taking(true, 3, "x"), taking(false, 1, "x")],
+        &with(-1.0, 0.5),
+    );
     is(b, 0.75, 0.25, 0.0, 0.75);
 }
 
@@ -91,7 +106,13 @@ fn rt_fused_negative_prior_agrees() {
 #[test]
 fn rt_fused_nan_settings_unmeasurable() {
     is(fused(&[], &with(f64::NAN, f64::NAN)), 0.0, 0.0, 1.0, 0.5);
-    is(fused(&[taking(true, 1, "x")], &with(f64::NAN, 0.5)), 1.0, 0.0, 0.0, 1.0);
+    is(
+        fused(&[taking(true, 1, "x")], &with(f64::NAN, 0.5)),
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+    );
 }
 
 // Rational::over gives None at 0; the model's division faults. No row can
@@ -126,6 +147,7 @@ fn rt_ignored() {
 // attribute, so this row is credited to the NEXT test, which measures
 // something else entirely.
 // mitra: measures judgement::join (State { t: false, f: false }, State { t: false, f: false }) -> State { t: false, f: false }
+#[rustfmt::skip]
 #[test] fn rt_one_line() { assert_eq!(State::Unknown.join(State::Unknown), State::Unknown); }
 
 #[test]

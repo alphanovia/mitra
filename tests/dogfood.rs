@@ -133,7 +133,13 @@ fn dogfood_fused_no_prior() {
         base_rate: 0.25,
         ..Settings::default()
     };
-    is(fused(&[taking(true, 1), taking(false, 1)], &s), 0.5, 0.5, 0.0, 0.5);
+    is(
+        fused(&[taking(true, 1), taking(false, 1)], &s),
+        0.5,
+        0.5,
+        0.0,
+        0.5,
+    );
 }
 
 // ------------------------------------------- judgement, every point

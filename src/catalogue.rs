@@ -99,6 +99,7 @@ pub const M020: Code = model(20);
 pub const M021: Code = model(21);
 pub const M022: Code = model(22);
 pub const M023: Code = model(23);
+pub const M024: Code = model(24);
 
 const fn agree(number: u16) -> Code {
     Code {
@@ -195,6 +196,16 @@ const fn entry(code: Code, title: &'static str) -> Entry {
     }
 }
 
+/// A code no longer given, kept so that it is never given to anything
+/// else.
+const fn retired(code: Code, title: &'static str) -> Entry {
+    Entry {
+        code,
+        title,
+        retired: true,
+    }
+}
+
 /// Every code, in order. Nothing is ever taken out: a code no longer
 /// given is marked retired.
 pub const CATALOGUE: &[Entry] = &[
@@ -233,6 +244,7 @@ pub const CATALOGUE: &[Entry] = &[
         "a model example not of its types, or missing an input",
     ),
     entry(M023, "a correct, all or any a rule cannot write"),
+    entry(M024, "two examples at one point that differ"),
     entry(A001, "a body that breaks a claim"),
     entry(A002, "a body that disagrees with an example"),
     entry(A003, "an example that breaks a claim"),
@@ -240,7 +252,8 @@ pub const CATALOGUE: &[Entry] = &[
     entry(A005, "a contract claim a function that fits breaks"),
     entry(A006, "an example of the model the model does not give"),
     entry(A007, "a comparison not decided"),
-    entry(A008, "two examples at one point that differ"),
+    // Now M024: a model with it is not well formed.
+    retired(A008, "two examples at one point that differ"),
     entry(A009, "an input of a model example no output reads"),
     entry(V001, "a measurement that names no input or output"),
     entry(V002, "a measurement through no tie"),

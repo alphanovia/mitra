@@ -30,7 +30,8 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
 
 `y` is the value the test states, `x` the arguments of the function it
 measured. The world's values a measurement gives as inputs (what a
-function with no body gave) are read as rows, before its examples.
+function with no body gave) are given to the library (`Calls::given`),
+read before its examples.
 
 Measurements that say the same (inputs and outputs in any order, seen
 or not, voice) are one, their counts added: `same` lists them by the

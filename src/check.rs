@@ -5,7 +5,7 @@
 
 use crate::catalogue::{
     Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013,
-    M014, M015, M016, M017, M018, M019, M020, M021, M022, M023,
+    M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024,
 };
 use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
@@ -86,13 +86,16 @@ pub fn check(model: &Model) -> Vec<Error> {
                     ));
                 }
             }
-            for (i, example) in function.examples.iter().enumerate() {
-                let row = example.takes.iter().chain([&example.gives]);
+            let of_types = |e: &crate::model::Example| {
+                let row = e.takes.iter().chain([&e.gives]);
                 let types = function.takes.iter().chain([&function.gives]);
-                let fits = example.takes.len() == function.takes.len()
+                e.takes.len() == function.takes.len()
                     && row
                         .zip(types)
-                        .all(|(v, (_, t))| Exact::default().has_type(v, t));
+                        .all(|(v, (_, t))| Exact::default().has_type(v, t))
+            };
+            for (i, example) in function.examples.iter().enumerate() {
+                let fits = of_types(example);
                 if known && !fits {
                     let message = format!("example {i} is not of the types of `{}`", function.name);
                     errors.push(error(M015, &here, message));
@@ -101,6 +104,24 @@ pub fn check(model: &Model) -> Vec<Error> {
                 if !row.into_iter().all(|v| value_made(&index, v)) {
                     let message = format!("example {i} makes a record other than as declared");
                     errors.push(error(M004, &here, message));
+                }
+                // A function gives one value at a point (of examples of
+                // its types: M015 says the rest).
+                // Each later one against the first at its point.
+                let first = function.examples[..i]
+                    .iter()
+                    .all(|e| e.takes != example.takes);
+                let others = function.examples.iter().enumerate().skip(i + 1);
+                for (j, other) in others.filter(|(_, o)| first && fits && of_types(o)) {
+                    if other.takes == example.takes && other.gives != example.gives {
+                        let message = format!(
+                            "examples {i} and {j} are both at {}, giving {} and {}",
+                            crate::print::values(&example.takes),
+                            crate::print::value(&example.gives),
+                            crate::print::value(&other.gives),
+                        );
+                        errors.push(error(M024, &here, message));
+                    }
                 }
             }
             let (of, claims, rules) = (Of::Function(function), &function.claims, &function.rules);

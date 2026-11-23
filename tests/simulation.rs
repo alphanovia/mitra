@@ -118,14 +118,15 @@ impl Gen {
                     (Some(sub.expr(&gives, 3)), vec![])
                 }
                 2 => {
-                    let rows = (0..1 + g.rng.below(3))
-                        .map(|_| {
-                            (
-                                takes.iter().map(|(_, t)| g.value(t)).collect(),
-                                g.value(&gives),
-                            )
-                        })
-                        .collect();
+                    // One row a point: a function gives one value there.
+                    let mut rows: Vec<(Vec<Value>, Value)> = Vec::new();
+                    for _ in 0..1 + g.rng.below(3) {
+                        let at: Vec<Value> = takes.iter().map(|(_, t)| g.value(t)).collect();
+                        let gives = g.value(&gives);
+                        if !rows.iter().any(|(a, _)| *a == at) {
+                            rows.push((at, gives));
+                        }
+                    }
                     (None, rows)
                 }
                 _ => (None, vec![]),
@@ -1227,11 +1228,49 @@ fn rows_are_read_only_without_a_body() {
         rows: vec![(vec![n(1)], n(2)), (vec![n(1)], n(3))],
         ..callee(&[("a", Type::Int)], Type::Int, None)
     };
-    let calls = Arc::new(library(vec![("f", both), ("g", twice)]).unwrap());
+    // Two rows at one point that differ: refused, as a body that does
+    // not check is. The same row twice is one value.
+    assert_eq!(library(vec![("g", twice)]), Err(names(&["g"])));
+    let same = Callee {
+        rows: vec![(vec![n(1)], n(2)), (vec![n(1)], n(2))],
+        ..callee(&[("a", Type::Int)], Type::Int, None)
+    };
+    let calls = Arc::new(library(vec![("f", both), ("g", same)]).unwrap());
     let exact = Exact { calls };
     let at_one = |f: &str| eval(&exact, &BTreeMap::new(), &call(f, vec![int(1)]));
     assert_eq!(at_one("f"), Ok(n(2)));
     assert_eq!(at_one("g"), Ok(n(2)));
+    // What a reading is given comes before the rows of a function with
+    // no body; a body, a value of another type or an unknown function
+    // takes none.
+    let opaque = Callee {
+        rows: vec![(vec![n(1)], n(2))],
+        ..callee(&[("a", Type::Int)], Type::Int, None)
+    };
+    let with_body = callee(
+        &[("a", Type::Int)],
+        Type::Int,
+        Some(apply(Op::Add, vec![input("a"), int(1)])),
+    );
+    let lib = library(vec![("g", opaque), ("f", with_body)]).unwrap();
+    assert!(lib.clone().given("f", vec![n(1)], n(7)).is_err());
+    assert!(lib
+        .clone()
+        .given("g", vec![n(1)], Value::Truth(true))
+        .is_err());
+    assert!(lib.clone().given("g", vec![], n(7)).is_err());
+    assert!(lib.clone().given("h", vec![n(1)], n(7)).is_err());
+    let exact = Exact {
+        calls: Arc::new(lib.given("g", vec![n(1)], n(7)).unwrap()),
+    };
+    assert_eq!(
+        eval(&exact, &BTreeMap::new(), &call("g", vec![int(1)])),
+        Ok(n(7))
+    );
+    assert_eq!(
+        eval(&exact, &BTreeMap::new(), &call("f", vec![int(1)])),
+        Ok(n(2))
+    );
 }
 
 fn call(f: &str, args: Vec<E>) -> E {

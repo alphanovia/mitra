@@ -131,6 +131,7 @@ and each code its page in `docs/reference`, with an example and the fix.
 | M021 | An example of the model names what functions take or give: inputs what they take, or what one with no body gives; outputs what they give; each once. |
 | M022 | Each value of an example of the model is of its type, and every argument of a function it reads the output of is given. |
 | M023 | A proposition written in a rule is `correct(f, point)` of a function of its part, or an all, an any or a `!` of those, with points and sets that fit what `f` takes. |
+| M024 | Two examples of a function at one point give the same value. |
 
 ## Errors and the catalogue
 
