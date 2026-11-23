@@ -156,6 +156,7 @@ subject check {
     ensure sound = "a model check gives no error for has every path resolved, every type agreed, no support cycle, every proof checked by type and by one run, and one value for each function at each point of its examples"
         from (codes, one_value);
     ensure one_value = "two examples of a function at one point that give different values are the error M024";
+    ensure type_explained = "a type error (M005, M006) shows the expression, underlines its innermost part with no type and the type of each argument, says what that operation takes, and converts no number";
 }
 
 subject print {

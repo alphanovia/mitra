@@ -343,11 +343,14 @@ impl std::fmt::Display for Hint {
 /// As rustc writes it: `error[M005]: …`, then where.
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "error[{}]: {}\n --> {}",
-            self.code, self.message, self.at
-        )
+        // The first line says the error; the lines after it, below
+        // where, show and explain it, as rustc does.
+        let (first, rest) = self.message.split_once('\n').unwrap_or((&self.message, ""));
+        write!(f, "error[{}]: {first}\n --> {}", self.code, self.at)?;
+        if !rest.is_empty() {
+            write!(f, "\n{rest}")?;
+        }
+        Ok(())
     }
 }
 

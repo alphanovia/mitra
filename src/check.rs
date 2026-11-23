@@ -75,7 +75,14 @@ pub fn check(model: &Model) -> Vec<Error> {
                 let takes = function.takes.iter().cloned().collect();
                 let gives = &function.gives;
                 if known && calls && typed(&standard, &takes, body).as_ref() != Some(&gives.1) {
-                    let message = format!("the body is not of the type of `{}`", gives.0);
+                    let why = Mistyped {
+                        index: &index,
+                        part: Some(&part.name),
+                        contract: None,
+                        standard: &standard,
+                    }
+                    .explain(&takes, body, &gives.1);
+                    let message = format!("the body is not of the type of `{}`{why}", gives.0);
                     errors.push(error(M005, &here, message));
                 }
                 if !made(&index, body) {
@@ -455,7 +462,14 @@ fn said(
         let read = reads(index, part, here, e);
         let calls = !read.iter().any(|e| e.code == M017);
         if known && calls && typed(standard, &scope, e) != Some(Type::Truth) {
-            errors.push(error(M006, here, format!("{what} is not a truth")));
+            let why = Mistyped {
+                index,
+                part: Some(&part.name),
+                contract: None,
+                standard,
+            }
+            .explain(&scope, e, &Type::Truth);
+            errors.push(error(M006, here, format!("{what} is not a truth{why}")));
         }
         if !made(index, e) {
             let message = format!("{what} makes a record other than as declared");
@@ -749,7 +763,18 @@ fn contract_errors(index: &Index, c: &Contract) -> Vec<Error> {
             }
         }
         if known && ok && calls && typed(&standard, &scope, &law.holds) != Some(Type::Truth) {
-            errors.push(error(M006, &at, format!("`{}` is not a truth", law.name)));
+            let why = Mistyped {
+                index,
+                part: None,
+                contract: Some(&c.name),
+                standard: &standard,
+            }
+            .explain(&scope, &law.holds, &Type::Truth);
+            errors.push(error(
+                M006,
+                &at,
+                format!("`{}` is not a truth{why}", law.name),
+            ));
         }
         if !made_in(index, &law.holds, &c.params) {
             let message = format!("`{}` makes a record other than as declared", law.name);
@@ -1005,4 +1030,201 @@ fn correct_wrong(index: &Index, at: &Path, place: &str, p: &Prop) -> Vec<Error> 
         }
     }
     errors
+}
+
+/// Why an expression is not of the type it should be, as rustc says it:
+/// the expression, the innermost part that has no type underlined with
+/// the type of each of its arguments, what the operation takes, and how
+/// to write it when a number is the cause.
+struct Mistyped<'a> {
+    index: &'a Index<'a>,
+    part: Option<&'a str>,
+    contract: Option<&'a str>,
+    standard: &'a Simulation,
+}
+
+type Sim = Expression<simulation::Op>;
+
+impl Mistyped<'_> {
+    fn show(&self, e: &Sim) -> String {
+        crate::print::sim_from(&self.index.calling, self.part, self.contract, e)
+    }
+
+    /// The lines after the first of an error's message: empty when `e`
+    /// has the type `want`.
+    fn explain(&self, scope: &BTreeMap<String, Type>, e: &Sim, want: &Type) -> String {
+        use crate::print::type_;
+        let whole = self.show(e);
+        let (part, label, notes) = match self.innermost(scope, e) {
+            Some((part, takes)) => {
+                let Expression::Apply(op, args) = part else {
+                    return String::new();
+                };
+                let wanted = self.wanted(op);
+                let each: Vec<String> = match &wanted {
+                    // A call or a record: each argument that does not fit,
+                    // against what it should be.
+                    Some(want) => args
+                        .iter()
+                        .zip(&takes)
+                        .zip(want)
+                        .filter(|((_, t), (_, w))| *t != w)
+                        .map(|((a, t), (n, w))| {
+                            let (a, t, w) = (self.show(&a.body), type_(t), type_(w));
+                            format!("`{a}` is {t} where `{n}` is {w}")
+                        })
+                        .collect(),
+                    None => args
+                        .iter()
+                        .zip(&takes)
+                        .map(|(a, t)| format!("`{}` is {}", self.show(&a.body), type_(t)))
+                        .collect(),
+                };
+                let label = match each.split_last() {
+                    Some((last, [])) => last.clone(),
+                    Some((last, rest)) => format!("{} and {last}", rest.join(", ")),
+                    None if wanted.is_some_and(|w| w.len() != args.len()) => {
+                        format!("{} arguments", args.len())
+                    }
+                    None => String::new(),
+                };
+                (part, label, self.notes(op, args, &takes))
+            }
+            None => match typed(self.standard, scope, e) {
+                Some(t) if &t != want => {
+                    let label = format!("this is {}", type_(&t));
+                    let note = format!("note: it should be {}", type_(want));
+                    (e, label, vec![note])
+                }
+                _ => return String::new(),
+            },
+        };
+        let shown = self.show(part);
+        let column = whole.find(&shown).map_or(0, |b| whole[..b].chars().count());
+        let width = shown.chars().count().max(1);
+        let mut out = format!(
+            "\n  |\n  | {whole}\n  | {}{} {label}",
+            " ".repeat(column),
+            "^".repeat(width)
+        );
+        for note in notes {
+            out.push_str(&format!("\n  = {note}"));
+        }
+        out
+    }
+
+    /// The innermost part of `e` whose arguments each have a type, but
+    /// not ones its operation takes, with those types.
+    fn innermost<'e>(
+        &self,
+        scope: &BTreeMap<String, Type>,
+        e: &'e Sim,
+    ) -> Option<(&'e Sim, Vec<Type>)> {
+        use crate::expression::Standard;
+        let Expression::Apply(op, args) = e else {
+            return None;
+        };
+        let mut takes = Vec::new();
+        for (i, arg) in args.iter().enumerate() {
+            let mut inner = scope.clone();
+            let binds = self.standard.binds(op, i, &takes);
+            inner.extend(arg.binds.iter().cloned().zip(binds));
+            match typed(self.standard, &inner, &arg.body) {
+                Some(t) => takes.push(t),
+                None => return self.innermost(&inner, &arg.body),
+            }
+        }
+        match self.standard.gives(op, &takes) {
+            Some(_) => None,
+            None => Some((e, takes)),
+        }
+    }
+
+    /// What a call or a record takes, by name: `None` for any other
+    /// operation.
+    fn wanted(&self, op: &simulation::Op) -> Option<Vec<(String, Type)>> {
+        match op {
+            simulation::Op::Make(r) => Some(r.fields.clone()),
+            simulation::Op::Call(f) => self.standard.calls.get(f).map(|c| c.takes.clone()),
+            _ => None,
+        }
+    }
+
+    /// What `op` takes, and a help when a whole number meets a `Real`
+    /// or a type parameter.
+    fn notes(
+        &self,
+        op: &simulation::Op,
+        args: &[crate::expression::Arg<simulation::Op>],
+        takes: &[Type],
+    ) -> Vec<String> {
+        use simulation::Op;
+        const SAME: &str = "of one type: Int, Real, or one `T: Number`";
+        let takes_what = match op {
+            Op::Add => format!("`+` takes two numbers {SAME}"),
+            Op::Sub => format!("`-` takes two numbers {SAME}"),
+            Op::Mul => format!("`*` takes two numbers {SAME}"),
+            Op::Div => "`/` takes two Real".to_string(),
+            Op::Less => format!("`<` compares two numbers {SAME}"),
+            Op::AtMost => format!("`<=` compares two numbers {SAME}"),
+            Op::Equal => "`==` compares two values of one type".to_string(),
+            Op::Within => format!("`within` takes three numbers {SAME}"),
+            Op::Not => "`!` takes a bool".to_string(),
+            Op::And => "`&&` takes two bool".to_string(),
+            Op::Or => "`||` takes two bool".to_string(),
+            Op::If => "`if` takes a bool, then two branches of one type".to_string(),
+            Op::All => "`all` takes two Int bounds and a bool".to_string(),
+            Op::Field(name) => format!("`.{name}` reads a field of a record that has one"),
+            Op::Make(r) => {
+                let fields: Vec<String> = r
+                    .fields
+                    .iter()
+                    .map(|(n, t)| format!("{n}: {}", crate::print::type_(t)))
+                    .collect();
+                format!("`{}` takes {{ {} }}", r.name, fields.join(", "))
+            }
+            Op::Call(f) => match self.standard.calls.get(f) {
+                Some(callee) => {
+                    let takes: Vec<String> = callee
+                        .takes
+                        .iter()
+                        .map(|(n, t)| format!("{n}: {}", crate::print::type_(t)))
+                        .collect();
+                    let name = self.show(&Expression::Apply(op.clone(), vec![]));
+                    let name = name.trim_end_matches("()");
+                    format!("`{name}` takes ({})", takes.join(", "))
+                }
+                None => return Vec::new(),
+            },
+            Op::Let | Op::Truth(_) | Op::Int(_) | Op::Real(_) => return Vec::new(),
+        };
+        let mut notes = vec![format!("note: {takes_what}")];
+        // What each argument meets: the type the call or record wants
+        // there, else the other arguments' types.
+        let meets: Vec<Vec<Type>> = match self.wanted(op) {
+            Some(want) => want.into_iter().map(|(_, t)| vec![t]).collect(),
+            None => takes.iter().map(|_| takes.to_vec()).collect(),
+        };
+        let mut helps = BTreeSet::new();
+        for ((a, t), meets) in args.iter().zip(takes).zip(&meets) {
+            let Expression::Apply(Op::Int(n), none) = &a.body else {
+                continue;
+            };
+            if t != &Type::Int || !none.is_empty() {
+                continue;
+            }
+            if meets.contains(&Type::Real) {
+                helps.insert(format!(
+                    "help: Mitra converts no number; write `{n}.0` for a Real"
+                ));
+            }
+            if let Some(Type::Param { name, .. }) = meets.iter().find(|t| t.open()) {
+                helps.insert(format!(
+                    "help: Mitra converts no number; a {name} comes from a function that gives one, declared beside the others"
+                ));
+            }
+        }
+        notes.extend(helps);
+        notes
+    }
 }

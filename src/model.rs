@@ -453,6 +453,8 @@ pub(crate) struct Index<'m> {
     pub(crate) cyclic: BTreeSet<String>,
     /// The rules judgement does not know.
     unknown: BTreeSet<String>,
+    /// What a call by a name alone names, for messages.
+    pub(crate) calling: crate::parse::Calling,
 }
 
 impl<'m> Index<'m> {
@@ -467,6 +469,7 @@ impl<'m> Index<'m> {
             definitions: BTreeMap::new(),
             cyclic: BTreeSet::new(),
             unknown: BTreeSet::new(),
+            calling: crate::parse::Calling::of(model),
         };
         for c in &model.contracts {
             index.contracts.entry(&c.name).or_insert(c);

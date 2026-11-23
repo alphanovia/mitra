@@ -767,6 +767,24 @@ pub fn sim(e: &Expression<Op>) -> String {
     )
 }
 
+/// An expression of simulation as written in `part` or `contract`: a
+/// call by its name alone when that reads back the same.
+pub(crate) fn sim_from(
+    calling: &Calling,
+    part: Option<&str>,
+    contract: Option<&str>,
+    e: &Expression<Op>,
+) -> String {
+    sim_in(
+        &Cx {
+            calling,
+            part,
+            contract,
+        },
+        e,
+    )
+}
+
 fn sim_in(cx: &Cx, e: &Expression<Op>) -> String {
     sim_at(cx, e).0
 }

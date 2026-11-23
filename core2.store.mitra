@@ -98,4 +98,5 @@ review blame::blame_defaults holds by "agent:anthropic/opus-5.5/dogfood";
 review simulation::one_value holds by "test:rows_are_read_only_without_a_body";
 review simulation::given_first holds by "test:rows_are_read_only_without_a_body";
 review check::one_value holds by "test:each_error_is_found";
+review check::type_explained holds by "test:every_type_error_shows_and_underlines";
 review simulation::Calls holds by "agent:anthropic/opus-5.5/dogfood";
