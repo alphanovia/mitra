@@ -94,7 +94,8 @@ are ordinary operations, not special forms: both branches are computed (choice
   `let x = a; b`, and `(lo..hi).all(|x| p)` on two `Int` and a truth, `hi`
   left out, which reads `p` at each number in turn as `&&` does.
 - Readings: `Exact`, and `Ranges`, which works on bounds: a truth may be
-  true, false or both, a number lies in `[low, high]` or anywhere, a record is
+  true, false or both, a number lies from a low end to a high end, either
+  of which may be missing (`q >= 1` is `[1, ∞)`), a record is
   bounded field by field, and any of them may fault. The γ is `covers(T, b,
   x)`: `x` is a value of type `T` that lies in `b`, or a fault where `b` may
   fault or is one. Bounds carry no type; the expression's type says which.

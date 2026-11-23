@@ -74,7 +74,9 @@ fn the_innermost_part_is_underlined() {
 }";
     let e = one(text);
     assert!(
-        e.contains("  | let z = f(x) + 1 in f(x) <= z\n  |         ^^^^^^^^ `f(x)` is T and `1` is Int"),
+        e.contains(
+            "  | let z = f(x) + 1 in f(x) <= z\n  |         ^^^^^^^^ `f(x)` is T and `1` is Int"
+        ),
         "{e}"
     );
 }
@@ -91,7 +93,9 @@ fn a_call_and_a_record_name_what_does_not_fit() {
     let all = errors(text);
     assert_eq!(all.len(), 2, "{all:#?}");
     assert!(all[0].contains("^^^^^^ `1.0` is Real where `x` is Int\n  = note: `g` takes (x: Int)"));
-    assert!(all[1].contains("`2` is Int where `y` is Real\n  = note: `P` takes { x: Int, y: Real }"));
+    assert!(
+        all[1].contains("`2` is Int where `y` is Real\n  = note: `P` takes { x: Int, y: Real }")
+    );
     assert!(all[1].ends_with("= help: Mitra converts no number; write `2.0` for a Real"));
 }
 
