@@ -53,7 +53,7 @@ fn d1_a_repeated_example_is_not_a_second_point() {
     let text = r#"
 subject s {
     fn f(p: (bool, bool)) -> r: bool { p.0 && !p.1 } where {
-        claim never = !r;
+        claim never: !r;
         examples { ((false, true)) -> false, ((false, true)) -> false }
     }
 }
@@ -73,7 +73,7 @@ fn d1_at_the_default_settings_too() {
     let text = r#"
 subject s {
     fn f(a: bool, b: bool, c: bool, d: bool, e: bool, g: bool) -> r: bool { a && b && c && d && e && g } where {
-        claim never = !r;
+        claim never: !r;
         examples { (false, false, false, false, false, false) -> false, (false, false, false, false, false, false) -> false }
     }
 }
@@ -93,11 +93,11 @@ fn d2_an_opaque_record_is_not_one_value() {
 subject s {
     record Key;
     fn same(a: Key, b: Key) -> r: bool { a == b } where {
-        claim always = r;
+        claim always: r;
     }
     fn swap(a: Key, b: Key) -> r: bool where {
-        claim distinct = !(a == b);
-        claim told = r;
+        claim distinct: !(a == b);
+        claim told: r;
     }
 }
 "#;
@@ -124,10 +124,10 @@ subject s {
         examples { () -> -5.0 }
     }
     fn g() -> y: Real { light() } where {
-        claim pos = 0.0 < y;
+        claim pos: 0.0 < y;
     }
     fn z() -> y: Real { 1.0 / 0.0 } where {
-        claim pos = 0.0 < y;
+        claim pos: 0.0 < y;
     }
 }
 "#;
@@ -143,7 +143,7 @@ fn d4_one_claim_no_value_keeps_is_found() {
     let text = r#"
 subject s {
     fn drop(h: Real) -> v: Real where {
-        claim never = 1.0 < 0.0;
+        claim never: 1.0 < 0.0;
     }
 }
 "#;
@@ -161,7 +161,7 @@ subject s {
 fn d5_an_impl_for_no_function_is_not_dropped() {
     let text = r#"
 contract Bad<T: Number> {
-    claim never(a: T, b: T) = a < b && b < a;
+    claim never(a: T, b: T): a < b && b < a;
 }
 subject s {
     impl Bad<Real> for ();
@@ -235,7 +235,7 @@ fn d8_a_record_named_by_an_impl_is_used() {
     let text = r#"
 contract C<T> {
     fn f(x: Real) -> y: Real;
-    claim c(a: T, b: T) = a == b || f(1.0) <= f(2.0);
+    claim c(a: T, b: T): a == b || f(1.0) <= f(2.0);
 }
 environment sun { record Ray { w: Real } }
 subject stone {
@@ -390,7 +390,7 @@ fn after_a_small_record_is_tried_at_every_value() {
     let text = r#"
 subject s {
     fn f(p: (bool, bool)) -> r: bool { p.0 && !p.1 } where {
-        claim never = !r;
+        claim never: !r;
     }
 }
 "#;
@@ -410,7 +410,7 @@ subject s {
     record Key;
     fn mk(n: Int) -> k: Key;
     fn g(n: Int) -> r: bool { mk(n) == mk(n + 1) } where {
-        claim c = r;
+        claim c: r;
     }
 }
 "#;
@@ -425,7 +425,7 @@ fn after_a_point_of_nothing_prints() {
     let text = r#"
 subject s {
     fn z() -> y: Real { 1.0 / 0.0 } where {
-        claim pos = 0.0 < y;
+        claim pos: 0.0 < y;
     }
 }
 "#;
@@ -445,15 +445,15 @@ fn after_claims_together_hold_fail_or_say_why() {
     let text = r#"
 subject s {
     fn lit(on: bool) -> off: bool { !on } where {
-        claim flips = off != on;
+        claim flips: off != on;
     }
     fn never(on: bool) -> off: bool where {
-        claim a = off;
-        claim b = !off;
+        claim a: off;
+        claim b: !off;
     }
     record Key;
     fn keys(a: Key) -> r: bool where {
-        claim c = r;
+        claim c: r;
     }
 }
 "#;
@@ -480,7 +480,7 @@ fn after_a_contract_claim_tries_the_constants_of_what_it_calls() {
     let text = r#"
 contract Monotone<T: Number> {
     fn f(x: T) -> y: T;
-    claim rises(a: T, b: T) = !(a <= b) || f(a) <= f(b);
+    claim rises(a: T, b: T): !(a <= b) || f(a) <= f(b);
 }
 subject s {
     fn g(x: Real) -> y: Real { if x < 7.5 { x } else { 0.0 } }
@@ -575,7 +575,7 @@ fn after_a_rule_point_makes_no_opaque_record() {
 subject s {
     record Key;
     fn has(k: Key) -> r: bool where {
-        claim c = r;
+        claim c: r;
         rule r1: has::c |- correct(has, (Key {}));
     }
 }
@@ -638,9 +638,9 @@ fn c1_a_chain_through_if_doubles_at_each_level() {
             };
             out.push(format!(
                 "fn f{i}(x: Real, y: Real) -> r: Real {{ {body} }} where {{ \
-                 claim a = !(0.0 <= x) || !(0.0 <= y) || 0.0 <= r; \
-                 claim b = !(x == 0.0 && y == 0.0) || r <= 1000000.0; \
-                 claim c = r == r; }}"
+                 claim a: !(0.0 <= x) || !(0.0 <= y) || 0.0 <= r; \
+                 claim b: !(x == 0.0 && y == 0.0) || r <= 1000000.0; \
+                 claim c: r == r; }}"
             ));
         }
         out.push("}".to_string());
@@ -670,9 +670,9 @@ fn held_a_guarded_division_and_a_failure_with_no_value() {
     let text = r#"
 subject s {
     fn inv(x: Real) -> y: Real { 1.0 / x } where {
-        claim back = x == 0.0 || x * y == 1.0;
-        claim pos = !(0.0 < x) || 0.0 < y;
-        claim never = !(x == 0.0) || 0.0 < y;
+        claim back: x == 0.0 || x * y == 1.0;
+        claim pos: !(0.0 < x) || 0.0 < y;
+        claim never: !(x == 0.0) || 0.0 < y;
     }
 }
 "#;

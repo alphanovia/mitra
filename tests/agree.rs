@@ -17,8 +17,8 @@ fn model(text: &str) -> Model {
 const DIV: &str = r#"
 subject calc {
     fn div(a: Int, b: Int) -> q: Int where {
-        claim spec = if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
-        claim bounded = b == 0 || q <= a;
+        claim spec: if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
+        claim bounded: b == 0 || q <= a;
         examples { (6, 2) -> 3, (7, 2) -> 3, (9, 3) -> 3, (5, 0) -> 0 }
     }
 }
@@ -31,19 +31,19 @@ environment sun {
 subject stone {
     use sun::light;
     fn speed(h: Real) -> v2: Real { 2.0 * 9.81 * h * light() } where {
-        claim slow = !(h <= 20.0) || v2 < 400.0;
+        claim slow: !(h <= 20.0) || v2 < 400.0;
     }
     fn square(h: Real) -> s: Real { h * h } where {
-        claim small = !(h <= 20.0) || !(0.0 <= h) || s <= 400.0;
+        claim small: !(h <= 20.0) || !(0.0 <= h) || s <= 400.0;
         examples { (5.0) -> 25.0 }
     }
     fn lit(on: bool) -> off: bool { !on } where {
-        claim flips = off != on;
+        claim flips: off != on;
     }
 }
 contract Monotone<T: Number> {
     fn f(x: T) -> y: T;
-    claim rises(a: T, b: T) = !(a <= b) || f(a) <= f(b);
+    claim rises(a: T, b: T): !(a <= b) || f(a) <= f(b);
 }
 examples { (sun::light::w = 2.0, stone::speed::h = 5.0) -> stone::speed::v2 = 196.2 }
 "#;
@@ -122,7 +122,7 @@ fn each_finding_is_given() {
         (changed("(6, 2) -> 3", "(6, 2) -> 4"), "A003 at calc::div"),
         (
             // A claim false whatever the values.
-            changed("claim bounded = b == 0 || q <= a;", "claim never = 1 < 0;"),
+            changed("claim bounded: b == 0 || q <= a;", "claim never: 1 < 0;"),
             "A004 at calc::div",
         ),
         (
@@ -160,11 +160,11 @@ fn each_finding_is_given() {
     let text = FALL
         .replace(
             "fn light() -> w: Real;",
-            "fn light() -> w: Real where { claim bright = 0.0 <= w; }",
+            "fn light() -> w: Real where { claim bright: 0.0 <= w; }",
         )
         .replace(
-            "claim slow = !(h <= 20.0) || v2 < 400.0;",
-            "claim slow = !(0.0 <= h) || 0.0 <= v2;",
+            "claim slow: !(h <= 20.0) || v2 < 400.0;",
+            "claim slow: !(0.0 <= h) || 0.0 <= v2;",
         );
     let (agreed, _) = agree(&model(&text), &Settings::default());
     let hints: Vec<String> = mitra_core::agree::hints(&agreed)

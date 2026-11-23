@@ -63,7 +63,7 @@ proptest! {
         let gives = rq.map_or("Int".to_string(), shown);
         let cmp = ["<", "<=", "=="][op];
         let text = format!(
-            "subject s {{\n    fn f(a: {}, b: {}) -> q: {gives} {{ {body} }} where {{ claim c = {c} {cmp} q + {k}; }}\n}}\n",
+            "subject s {{\n    fn f(a: {}, b: {}) -> q: {gives} {{ {body} }} where {{ claim c: {c} {cmp} q + {k}; }}\n}}\n",
             shown(ra), shown(rb)
         );
         let Ok(model) = parse(&text) else { return Ok(()) };
@@ -140,7 +140,7 @@ proptest! {
 fn main_s_div_in_full() {
     let text = "subject calc {
     fn div(a: 0..=9, b: 0..=9) -> q: 0..=9 { if b == 0 { 0 } else { a / b } } where {
-        claim spec = if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
+        claim spec: if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
     }
 }";
     let model = parse(text).unwrap();
@@ -169,7 +169,7 @@ fn a_caller_outside_the_range_has_no_value_and_agree_says_where() {
     let text = "subject calc {
     fn digit(a: 0..=9) -> q: Int { a }
     fn next(x: Int) -> y: Int { digit(x + 1) } where {
-        claim c = y == x + 1;
+        claim c: y == x + 1;
     }
 }";
     let (_, findings) = agree(&parse(text).unwrap(), &Settings::default());
@@ -184,7 +184,7 @@ fn a_caller_outside_the_range_has_no_value_and_agree_says_where() {
     // call never out of range.
     let inside = text
         .replace("fn next(x: Int)", "fn next(x: 0..=8)")
-        .replace("claim c = y == x + 1;", "claim c = 1 <= y && y <= 9;");
+        .replace("claim c: y == x + 1;", "claim c: 1 <= y && y <= 9;");
     let (agreed, _) = agree(
         &parse(&inside).unwrap(),
         &Settings {
@@ -214,9 +214,9 @@ fn a_caller_outside_the_range_has_no_value_and_agree_says_where() {
 fn a_conclusion_read_first_must_not_fault_anywhere() {
     let text = "subject s {
     fn f(x: Real) -> y: Real { 1.0 / x } where {
-        claim first = !(1.0 <= x) || y <= 1.0;
-        claim last = y <= 1.0 || !(1.0 <= x);
-        claim never = y <= 1.0 || !(1.0 <= x && x <= 0.0);
+        claim first: !(1.0 <= x) || y <= 1.0;
+        claim last: y <= 1.0 || !(1.0 <= x);
+        claim never: y <= 1.0 || !(1.0 <= x && x <= 0.0);
     }
 }";
     let (agreed, findings) = agree(

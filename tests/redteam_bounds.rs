@@ -137,11 +137,11 @@ proptest! {
 fn the_two_examples_of_finding_7() {
     let text = "subject s {
     fn f(x: Int) -> q: Int where {
-        claim pos = 0 < q;
-        claim neg = q < 0;
+        claim pos: 0 < q;
+        claim neg: q < 0;
     }
     fn sq(x: Real) -> y: Real { x * x } where {
-        claim never_negative = 0.0 <= y;
+        claim never_negative: 0.0 <= y;
     }
 }";
     let (agreed, findings) = agree(&parse(text).unwrap(), &Settings::default());
@@ -162,8 +162,8 @@ fn a_real_strict_bound_stays_open_to_its_end() {
     // the cut at zero tells: `0.0 < q && q < 0.0` is A004.)
     let text = "subject s {
     fn f(x: Real) -> q: Real where {
-        claim pos = 1.0 < q;
-        claim neg = q < 1.0;
+        claim pos: 1.0 < q;
+        claim neg: q < 1.0;
     }
 }";
     let (_, findings) = agree(&parse(text).unwrap(), &Settings::default());
@@ -177,8 +177,8 @@ fn cuts_away_from_zero() {
     // comparisons read together do.
     let text = "subject s {
     fn f(x: Int) -> q: Int where {
-        claim a = 5 < q;
-        claim b = q < 3;
+        claim a: 5 < q;
+        claim b: q < 3;
     }
 }";
     let (_, findings) = agree(

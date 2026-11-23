@@ -738,7 +738,7 @@ impl<'c> Parser<'c> {
         })
     }
 
-    /// `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T) = …; }`.
+    /// `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T): …; }`.
     fn contract(&mut self) -> Result<Contract> {
         self.expect_word("contract")?;
         let name = self.name()?;
@@ -787,7 +787,7 @@ impl<'c> Parser<'c> {
             } else if self.eat_word("claim") {
                 let c = self.name()?;
                 let over = self.takes()?;
-                self.expect("=")?;
+                self.expect(":")?;
                 let mut env: Env = over
                     .iter()
                     .map(|(n, t)| (n.clone(), Some(t.clone())))
@@ -1077,7 +1077,7 @@ impl<'c> Parser<'c> {
         while !self.eat("}") {
             if self.eat_word("claim") {
                 let name = self.name()?;
-                self.expect("=")?;
+                self.expect(":")?;
                 let holds = self.expr(&mut env.clone())?;
                 self.expect(";")?;
                 claims.push(Claim { name, holds });

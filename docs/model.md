@@ -27,14 +27,14 @@ subject stone {
     require light = sun::shines;                      // the sun's ensure gives it
     require air = "still air";                        // a hypothesis
     fn drop(h: Real) -> v: Real {                     // opaque: nature does it
-        claim falls = within(v * v, 2 * 9.81 * h, 2);
-        claim slow = !(h <= 20) || v < 21;
+        claim falls: within(v * v, 2 * 9.81 * h, 2);
+        claim slow: !(h <= 20) || v < 21;
         rule slows: drop::falls, speed::slow |- drop::slow;                // assumed
         rule lands: drop::slows, drop::falls, speed::slow |- drop::slow    // a rule as premise
             by ponens(drop::slows, drop::falls, speed::slow);              // shown: the checker takes it
     }
     fn speed(h: Real) -> v2: Real = 2 * 9.81 * h {    // total: it has a body
-        claim slow = !(h <= 20) || v2 < 400;
+        claim slow: !(h <= 20) || v2 < 400;
         examples { 5.0 -> 98.1 }                      // what it gives at 5 m
     }
     ensure lands_slow = "lands slowly" from (speed::slow, drop::falls);
@@ -388,7 +388,7 @@ package's dependencies are read from its first lines.
 
 **11. A contract is a property written once, for every function that
 fits it.** As a Rust trait with a bound: `contract Monotone<T: Number> {
-fn f(x: T) -> y: T; claim rises(a: T, b: T) = !(a <= b) || f(a) <= f(b);
+fn f(x: T) -> y: T; claim rises(a: T, b: T): !(a <= b) || f(a) <= f(b);
 }`. The contract is checked once, with `T` named but not fixed: its types,
 and that each claim is a truth calling only the contract's functions
 (`Monotone::f`). `impl Monotone<Real> for speed;` only checks that `speed`

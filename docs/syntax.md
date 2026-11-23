@@ -20,16 +20,16 @@ subject stone {
     require light = sun::shines;                           // from an ensure
     require air = "still air";                             // in words
     record Drop at "src/drop.rs/Drop" { h: Real, v: Real } where {
-        claim up = 0.0 <= self.h;
+        claim up: 0.0 <= self.h;
     }
     fn drop(h: Real) -> v: Real at "lab/tower/stone" where {
-        claim falls = within(v * v, 2.0 * 9.81 * h, 2.0);
+        claim falls: within(v * v, 2.0 * 9.81 * h, 2.0);
         rule slows: drop::falls, speed::slow |- drop::slow;
         rule lands: drop::slows, drop::falls, speed::slow |- drop::slow
             by ponens(drop::slows, drop::falls, speed::slow);
     }
     fn speed(h: Real) -> v2: Real { 2.0 * 9.81 * h } where {
-        claim slow = !(h <= 20.0) || v2 < 400.0;
+        claim slow: !(h <= 20.0) || v2 < 400.0;
         examples { (5.0) -> 98.1 }
     }
     ensure lands_slow = "lands slowly" from (speed::slow, drop::falls) | (air);
@@ -46,7 +46,7 @@ subject stone {
 | `record R;` opaque, `record R { x: Real }`, `record R {}` | `Record` | Rust's `struct` form, keyword flagged |
 | `fn f(x: Real) -> y: Real;` opaque, `… { body }` | `Function` | Rust, but the named result is flagged |
 | `where { claim …; rule …; examples { … } }` after the signature or body | claims, rules, examples | flagged |
-| `claim c = expression;` | `Claim` | flagged |
+| `claim c: expression;` | `Claim` | flagged |
 | `rule r: p, q \|- c by proof;` | `Rule` | your spelling |
 | `{ expression }` as a term of a rule | `Term::Holds` | Rust's block, flagged |
 | `examples { (6, 2) -> 3, (7, 0) -> 0 }` | `Example` rows | flagged |
@@ -66,7 +66,7 @@ subject stone {
 | `all x in (a: 0..10, b: 0..10) where b != 0: p`, `any …`, `!p`, `{p, q} s {r}`, `correct(f, (6, 2))`, `correct(f, x)`, `correct(f, x in (a: 0..10))` | `Prop` | flagged |
 | `use sun::{light, Ray};`, `use sun::light;`, `use sun::*;` in a part | `Use` | Rust |
 | `light(h)`, `sun::light(h)` | `Op::Call("sun::light")` | Rust |
-| `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T) = …; }` | `Contract`, `Law` | Rust's trait, keyword and `Number` flagged |
+| `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T): …; }` | `Contract`, `Law` | Rust's trait, keyword and `Number` flagged |
 | `impl Monotone<Real> for speed;`, `impl Pair<Real> for (f, g);` | `Implements` | Rust's form, `for (f, g)` flagged |
 | `examples { (sun::light::w = 850.0, stone::speed::h = 5.0) -> stone::speed::v2 = 98.1 }` at the top | `ModelExample` | flagged |
 | a rule term `all …`, `any …`, `!p`, `correct(f, …)`, `(p)` | `Term::Prop` | flagged |
@@ -75,7 +75,7 @@ subject stone {
 ## The choices, in plain words
 
 **1. `let x = a in b`** (your choice). *What*: name a value inside one
-expression. *Example*: `claim c = let d = v - w in d * d < 1.0;`.
+expression. *Example*: `claim c: let d = v - w in d * d < 1.0;`.
 *Gain*: one expression, no statements: what follows `in` is the whole
 scope. *Cost*: Rust writes `{ let d = v - w; d * d < 1.0 }`, so a Rust
 reader meets a new word. *Elsewhere*: OCaml, Haskell and F# write `let … in`.
@@ -90,7 +90,7 @@ as written (flagged). *Elsewhere*: Rust's `#[path = "…"]` on a module,
 Java annotations.
 
 **3. A named result, `-> v: Real`** (flagged). *What*: what a function
-gives has a name. *Example*: `claim falls = within(v * v, …)` reads `v`.
+gives has a name. *Example*: `claim falls: within(v * v, …)` reads `v`.
 *Gain*: claims read the result by name, as the model needs (`gives:
 (String, Type)`). *Cost*: not Rust, where the result has no name.
 *Elsewhere*: Go (`func f() (v float64)`), Ada/SPARK (`F'Result`),
@@ -99,7 +99,7 @@ Dafny (`returns (v: real)`).
 **4. `where { … }` for what is said of a record or function**
 (flagged). *What*: claims, rules and examples, in a block after the
 signature, or after the body. *Example*: `fn speed(h: Real) -> v2: Real
-{ 2.0 * 9.81 * h } where { claim slow = …; }`. *Gain*: the body stays
+{ 2.0 * 9.81 * h } where { claim slow: …; }`. *Gain*: the body stays
 what Rust writes, and what is said of it is apart. *Cost*: Rust's
 `where` is for bounds on types, before the body. *Elsewhere*: Haskell's
 `where` after a definition; Dafny puts `ensures` between signature and

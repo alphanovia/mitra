@@ -252,15 +252,15 @@ subject stone {
     require air = "still air";
 
     fn drop(h: Real) -> v: Real at "lab/tower/stone" where {
-        claim falls = within(v * v, 2.0 * 9.81 * h, 2.0);
-        claim slow = !(h <= 20.0) || v < 21.0;
+        claim falls: within(v * v, 2.0 * 9.81 * h, 2.0);
+        claim slow: !(h <= 20.0) || v < 21.0;
         rule slows: drop::falls, speed::slow |- drop::slow;
         rule lands: drop::slows, drop::falls, speed::slow |- drop::slow
             by ponens(drop::slows, drop::falls, speed::slow);
     }
 
     fn speed(h: Real) -> v2: Real { 2.0 * 9.81 * h } where {
-        claim slow = !(h <= 20.0) || v2 < 400.0;
+        claim slow: !(h <= 20.0) || v2 < 400.0;
         examples { (5.0) -> 98.1 }
     }
 
@@ -276,19 +276,19 @@ subject stone {
 const EVERY_FORM: &str = r#"
 contract Monotone<T: Number> {
     fn f(x: T) -> y: T;
-    claim rises(a: T, b: T) = !(a <= b) || f(a) <= f(b);
+    claim rises(a: T, b: T): !(a <= b) || f(a) <= f(b);
 }
 
 contract Same<T, U> {
     fn g(x: T) -> y: T;
     fn h(x: U) -> y: U;
-    claim keeps(a: T, b: U) = g(a) == a && Same::h(b) == b;
+    claim keeps(a: T, b: U): g(a) == a && Same::h(b) == b;
 }
 
 environment lab at "lab", "lab/annex" {
     record Photon;
     record Beam where {
-        claim lit = true;
+        claim lit: true;
     }
     fn clock() -> t: Int;
     fn shine(t: Int) -> w: Real;
@@ -302,22 +302,22 @@ subject geo at "src/geo.rs" {
     require lamp = lab::lit;
     require geo = "a require named as its part";
     record Point at "src/geo.rs/Point" { x: Real, y: Real } where {
-        claim right = 0.0 <= self.x && self.y >= -1/3;
+        claim right: 0.0 <= self.x && self.y >= -1/3;
         rule upper: Point::right, { self.x < 10.0 } |- Point::right;
     }
     record Empty {}
     record Pair { p: Point, n: (Int, bool) }
     fn flip(p: Point) -> q: Point { Point { y: p.x, x: p.y } } where {
-        claim back = q.x == p.y && q.y != p.x;
-        claim pair = (p.x, 1, true).0 == p.x;
-        claim one = (3,).0 > 2;
-        claim unit = () == ();
-        claim cond = if (Point { x: 0.0, y: 0.0 }) == p { true } else { q.x - -2.5 <= 1/7 };
-        claim let_ = let d = q.x - p.y in let e = d * d in e == 0.0 || e / 2.0 < 1.0;
-        claim nested = if p.x < 0.0 { false } else if p.y < 0.0 { false } else { true };
-        claim sweep = (0..10).all(|i| (i..i + 1).all(|j| j - i == 0));
-        claim tol = within(p.x, q.y, 0.001);
-        claim paren = (1 + 2) * 3 == 9 && !(1 < 2 || false) == false;
+        claim back: q.x == p.y && q.y != p.x;
+        claim pair: (p.x, 1, true).0 == p.x;
+        claim one: (3,).0 > 2;
+        claim unit: () == ();
+        claim cond: if (Point { x: 0.0, y: 0.0 }) == p { true } else { q.x - -2.5 <= 1/7 };
+        claim let_: let d = q.x - p.y in let e = d * d in e == 0.0 || e / 2.0 < 1.0;
+        claim nested: if p.x < 0.0 { false } else if p.y < 0.0 { false } else { true };
+        claim sweep: (0..10).all(|i| (i..i + 1).all(|j| j - i == 0));
+        claim tol: within(p.x, q.y, 0.001);
+        claim paren: (1 + 2) * 3 == 9 && !(1 < 2 || false) == false;
         rule same: flip::back |- flip::pair;
         rule nothing: |- { true };
         rule shown: flip::same, flip::back |- flip::pair
@@ -341,7 +341,7 @@ subject geo at "src/geo.rs" {
     fn pair(a: Int, b: (Int, bool)) -> c: Pair;
     fn constant() -> c: (Real,) { (1.5,) }
     fn later(d: Int) -> t: Int { clock() + d } where {
-        claim after = t == lab::clock() + d && shine(t) <= shine(t + 1) && (later(d), 1).0 == t;
+        claim after: t == lab::clock() + d && shine(t) <= shine(t + 1) && (later(d), 1).0 == t;
         rule everywhere: later::after |- all x in (d: 0..3): correct(later, x);
         rule here: (later::after), !later::after, ({later::after} later {later::after}) |- correct(later, (1));
         rule any_: later::after |- any x in (d: 0..3) where d != 1: !correct(crate::lab::clock, x);
@@ -604,7 +604,7 @@ fn intro_binds_its_point() {
 #[test]
 fn sugar_reads_as_rust_writes_it() {
     // `a > b` is `b < a`, `a >= b` is `b <= a`, `a != b` is `!(a == b)`.
-    let m = read("subject s { fn f(a: Int, b: Int) -> c: bool where { claim g = a > b && a >= b && a != b; } }");
+    let m = read("subject s { fn f(a: Int, b: Int) -> c: bool where { claim g: a > b && a >= b && a != b; } }");
     let holds = &m.parts[0].functions[0].claims[0].holds;
     let (a, b) = (
         Expression::Name("a".to_string()),
@@ -615,7 +615,7 @@ fn sugar_reads_as_rust_writes_it() {
     let differ = apply(Op::Not, vec![apply(Op::Equal, vec![a, b])]);
     let expected = apply(Op::And, vec![apply(Op::And, vec![less, most]), differ]);
     assert_eq!(holds, &expected);
-    assert!(print(&m).contains("claim g = b < a && b <= a && a != b;"));
+    assert!(print(&m).contains("claim g: b < a && b <= a && a != b;"));
 }
 
 #[test]
@@ -705,7 +705,7 @@ fn errors_say_where() {
         P002.to_string()
     );
     assert_eq!(
-        fails("subject s { fn f(x: Int) -> y: Int where { claim c = (x, zz).0 == x; } }").0,
+        fails("subject s { fn f(x: Int) -> y: Int where { claim c: (x, zz).0 == x; } }").0,
         P004.to_string()
     );
     assert_eq!(
@@ -713,11 +713,11 @@ fn errors_say_where() {
         P005.to_string()
     );
     assert_eq!(
-        fails("subject s { fn f(x: Int) -> y: Int where { claim c = -x == 0; } }").0,
+        fails("subject s { fn f(x: Int) -> y: Int where { claim c: -x == 0; } }").0,
         P003.to_string()
     );
     assert_eq!(
-        fails("subject s { fn f(x: Int) -> y: Int where { claim c = x < 1 < 2; } }").0,
+        fails("subject s { fn f(x: Int) -> y: Int where { claim c: x < 1 < 2; } }").0,
         P003.to_string()
     );
     assert_eq!(

@@ -119,7 +119,7 @@ impl Use {
 
 /// A property written once, over types it names but does not fix, for
 /// every function that fits it: Rust's trait. `contract Monotone<T:
-/// Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T) = !(a <= b) ||
+/// Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T): !(a <= b) ||
 /// f(a) <= f(b); }`. Its claims call its functions by `Monotone::f`.
 /// It is checked once; an `impl` only checks that functions fit.
 #[derive(Clone, Debug, PartialEq)]

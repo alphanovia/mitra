@@ -65,8 +65,8 @@ subject simulation {
     fn abs(x: Real) -> z: Real at "src/simulation.rs/Rational/abs" {
         if x < 0.0 { 0.0 - x } else { x }
     } where {
-        claim positive = 0.0 <= z;
-        claim same = z == x || z == 0.0 - x;
+        claim positive: 0.0 <= z;
+        claim same: z == x || z == 0.0 - x;
     }
 
     ensure exact_right = "Exact gives the value an expression means, or a fault"
@@ -113,19 +113,19 @@ subject judgement {
         told(x.t && y.t, x.f || y.f)
     } where {
         // Told false when either is; told true only when both are.
-        claim false_wins = (x.f || y.f) == z.f;
-        claim true_needs_both = !z.t || (x.t && y.t);
+        claim false_wins: (x.f || y.f) == z.f;
+        claim true_needs_both: !z.t || (x.t && y.t);
     }
     fn join(x: State, y: State) -> z: State at "src/judgement.rs/State/join" {
         told(x.t || y.t, x.f || y.f)
     } where {
         // Join forgets nothing either tells.
-        claim keeps = (!x.t || z.t) && (!x.f || z.f) && (!y.t || z.t) && (!y.f || z.f);
+        claim keeps: (!x.t || z.t) && (!x.f || z.f) && (!y.t || z.t) && (!y.f || z.f);
     }
     fn negate(x: State) -> z: State at "src/judgement.rs/State/not" {
         told(x.f, x.t)
     } where {
-        claim swaps = z.t == x.f && z.f == x.t;
+        claim swaps: z.t == x.f && z.f == x.t;
     }
 
     ensure sound = "a proposition judged true follows from its rests by the rules of judgement"
@@ -290,8 +290,8 @@ subject numbers {
         let u = if 1.0 - b - d < 0.0 { 0.0 } else { 1.0 - b - d } in
         Belief { belief: b, disbelief: d, uncertainty: u, expected: b + a * u }
     } where {
-        claim sums_to_one = o.belief + o.disbelief + o.uncertainty == 1.0;
-        claim in_unit = !(0.0 <= belief && 0.0 <= disbelief && 0.0 <= a && a <= 1.0)
+        claim sums_to_one: o.belief + o.disbelief + o.uncertainty == 1.0;
+        claim in_unit: !(0.0 <= belief && 0.0 <= disbelief && 0.0 <= a && a <= 1.0)
             || (0.0 <= o.expected && o.expected <= 1.0);
     }
 
@@ -307,8 +307,8 @@ subject numbers {
         let n = r0 + s0 + w0 in
         if 0.0 < n { opinion(r0 / n, s0 / n, a0) } else { opinion(0.0, 0.0, a0) }
     } where {
-        claim nothing_known = !(r <= 0.0 && s <= 0.0) || !(0.0 <= a && a <= 1.0) || o.expected == a;
-        claim clean_rate = 0.0 <= o.expected && o.expected <= 1.0;
+        claim nothing_known: !(r <= 0.0 && s <= 0.0) || !(0.0 <= a && a <= 1.0) || o.expected == a;
+        claim clean_rate: 0.0 <= o.expected && o.expected <= 1.0;
         examples { (97.0, 3.0, 2.0, 1/2) -> Belief { belief: 97/102, disbelief: 1/34, uncertainty: 1/51, expected: 49/51 } }
     }
 

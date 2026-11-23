@@ -19,9 +19,9 @@ subject stone {
     // the drop in the tower.
     fn drop(h: Real) -> v: Real at "lab/tower/stone" where {
         // v² = 2·g·h, within 2 m²/s².
-        claim falls = within(v * v, 2.0 * 9.81 * h, 2.0);
+        claim falls: within(v * v, 2.0 * 9.81 * h, 2.0);
         // From 20 m or less, under 21 m/s.
-        claim slow = !(h <= 20.0) || v < 21.0;
+        claim slow: !(h <= 20.0) || v < 21.0;
         // Arithmetic, which no rule of judgement does: assumed.
         rule slows: drop::falls, speed::slow |- drop::slow;
         // The same, shown by modus ponens: the checker takes it.
@@ -31,7 +31,7 @@ subject stone {
 
     // The model's own square of the speed: it has a body.
     fn speed(h: Real) -> v2: Real { 2.0 * 9.81 * h } where {
-        claim slow = !(h <= 20.0) || v2 < 400.0;
+        claim slow: !(h <= 20.0) || v2 < 400.0;
         // What it gives at 5 m: 2 · 9.81 · 5.
         examples { (5.0) -> 98.1 }
     }

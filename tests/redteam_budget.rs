@@ -15,7 +15,7 @@ fn chain(n: usize) -> String {
     ];
     for i in 1..=n {
         out.push(format!(
-            "    fn f{i}(x: Int) -> y: Int {{ if x < 0 {{ f{0}(x) }} else {{ f{0}(x) + 1 }} }} where {{ claim c = 0 <= y || x < 0; }}",
+            "    fn f{i}(x: Int) -> y: Int {{ if x < 0 {{ f{0}(x) }} else {{ f{0}(x) + 1 }} }} where {{ claim c: 0 <= y || x < 0; }}",
             i - 1
         ));
     }
@@ -35,7 +35,7 @@ fn deep(n: usize, depth: usize) -> String {
             body = format!("({body} + 1)");
         }
         out.push(format!(
-            "    fn f{i}(x: Int) -> y: Int {{ {body} }} where {{ claim c = x < y; }}"
+            "    fn f{i}(x: Int) -> y: Int {{ {body} }} where {{ claim c: x < y; }}"
         ));
     }
     out.push("}".to_string());
@@ -107,10 +107,10 @@ fn under_the_depth_budget_nothing_stops() {
 fn the_step_budget_is_a_setting() {
     // Only the last function has a claim: nothing is remembered before
     // it, so its first point needs a call of each of the six before it.
-    let text = chain(6).replace(" where { claim c = 0 <= y || x < 0; }", "");
+    let text = chain(6).replace(" where { claim c: 0 <= y || x < 0; }", "");
     let text = text.replacen(
         "f5(x) + 1 } }",
-        "f5(x) + 1 } } where { claim c = 0 <= y || x < 0; }",
+        "f5(x) + 1 } } where { claim c: 0 <= y || x < 0; }",
         1,
     );
     let model = parse(&text).unwrap();

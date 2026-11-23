@@ -284,7 +284,7 @@ fn agree_on_numbers_by_bounds() {
         let body = num(&mut r, 3, false);
         let claim = truth(&mut r, 2, true);
         let text = format!(
-            "subject s {{ fn f(x: Real, y: Real) -> r: Real {{ {body} }} where {{ claim c = {claim}; }} }}"
+            "subject s {{ fn f(x: Real, y: Real) -> r: Real {{ {body} }} where {{ claim c: {claim}; }} }}"
         );
         let Ok(model) = parse(&text) else { continue };
         if !check(&model).is_empty() {
@@ -476,7 +476,7 @@ fn depth_composes_through_calls() {
         ));
     }
     out.push(format!(
-        "fn top(x: Real) -> y: Real {{ f{}(x) }} where {{ claim c = y == y; }}",
+        "fn top(x: Real) -> y: Real {{ f{}(x) }} where {{ claim c: y == y; }}",
         k - 1
     ));
     out.push("}".to_string());

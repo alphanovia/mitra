@@ -67,8 +67,8 @@ proptest! {
         c in claim(&["x", "y"]),
     ) {
         let text = format!(
-            "environment env {{\n    fn g(x: Int) -> w: Int where {{ claim p = {promise}; }}\n}}\n\
-             subject s {{\n    use env::g;\n    fn f(x: Int) -> y: Int {{ {body} }} where {{ claim c = {c}; }}\n}}\n"
+            "environment env {{\n    fn g(x: Int) -> w: Int where {{ claim p: {promise}; }}\n}}\n\
+             subject s {{\n    use env::g;\n    fn f(x: Int) -> y: Int {{ {body} }} where {{ claim c: {c}; }}\n}}\n"
         );
         sound(&text)?;
     }
@@ -175,8 +175,8 @@ proptest! {
         }),
     ) {
         let text = format!(
-            "environment env {{\n    fn g(x: Int) -> w: Int where {{ claim p = {promise}; }}\n}}\n\
-             subject s {{\n    use env::g;\n    fn f(x: Int) -> y: Int {{ g(x) + {add} }} where {{ claim c = !({p}) || {conclusion}; }}\n}}\n"
+            "environment env {{\n    fn g(x: Int) -> w: Int where {{ claim p: {promise}; }}\n}}\n\
+             subject s {{\n    use env::g;\n    fn f(x: Int) -> y: Int {{ g(x) + {add} }} where {{ claim c: !({p}) || {conclusion}; }}\n}}\n"
         );
         sound(&text)?;
     }
@@ -185,21 +185,21 @@ proptest! {
 #[test]
 fn bounded_promises_hold_given_often() {
     // The property above must not pass by deciding nothing.
-    let text = "environment env {\n    fn g(x: Int) -> w: Int where { claim p = 0 <= w; }\n}\n\
-                subject s {\n    use env::g;\n    fn f(x: Int) -> y: Int { g(x) + x } where { claim c = !(1 <= x) || 1 <= y; }\n}\n";
+    let text = "environment env {\n    fn g(x: Int) -> w: Int where { claim p: 0 <= w; }\n}\n\
+                subject s {\n    use env::g;\n    fn f(x: Int) -> y: Int { g(x) + x } where { claim c: !(1 <= x) || 1 <= y; }\n}\n";
     assert!(sound(text).unwrap());
 }
 
 const SUN: &str = "environment sun {
     fn light() -> w: Real where {
-        claim bright = 200.0 <= w;
+        claim bright: 200.0 <= w;
         examples { () -> 850.0 }
     }
 }
 subject stone {
     use sun::light;
     fn heat(h: Real) -> e: Real { h * light() } where {
-        claim warm = !(1.0 <= h) || 200.0 <= e;
+        claim warm: !(1.0 <= h) || 200.0 <= e;
     }
 }";
 
@@ -216,7 +216,7 @@ fn the_example_of_finding_8_holds_given_bright() {
 
 #[test]
 fn without_the_promise_it_is_unknown() {
-    let text = SUN.replace("claim bright = 200.0 <= w;", "");
+    let text = SUN.replace("claim bright: 200.0 <= w;", "");
     let (_, findings) = agree(&parse(&text).unwrap(), &Settings::default());
     let codes: Vec<String> = findings.iter().map(|f| f.code.to_string()).collect();
     assert_eq!(codes, ["A007"]);
@@ -225,11 +225,11 @@ fn without_the_promise_it_is_unknown() {
 #[test]
 fn a_promise_that_calls_its_own_function_ends() {
     let text = "environment e {
-    fn g(x: Int) -> w: Int where { claim c = w <= g(x); }
+    fn g(x: Int) -> w: Int where { claim c: w <= g(x); }
 }
 subject s {
     use e::g;
-    fn f(x: Int) -> y: Int { g(x) + 1 } where { claim d = !(0 <= x) || y <= g(x) + 1; }
+    fn f(x: Int) -> y: Int { g(x) + 1 } where { claim d: !(0 <= x) || y <= g(x) + 1; }
 }";
     let model = parse(text).unwrap();
     // It ends: a promise reads its own function within the budget only.
@@ -242,7 +242,7 @@ fn a_premise_on_a_name_a_let_binds_is_not_read() {
     // premise on it says nothing of the input, and must not cut it.
     let text = "subject s {
     fn f(x: Int) -> y: Int { 0 - x } where {
-        claim c = !(0 <= y) || x <= 0;
+        claim c: !(0 <= y) || x <= 0;
     }
 }";
     let (agreed, _) = agree(
@@ -265,10 +265,10 @@ fn a_premise_on_a_name_a_let_binds_is_not_read() {
 fn bounds_alone_keep_out_what_faults_or_shadows() {
     let text = "subject s {
     fn f(x: Int) -> y: Int { x } where {
-        claim c = let x = 0 - x in !(1 <= x) || 1 <= 0 - x;
+        claim c: let x = 0 - x in !(1 <= x) || 1 <= 0 - x;
     }
     fn g(x: Real) -> y: Real { x } where {
-        claim d = !(6.0 / x <= 6.0 && 1.0 <= x) || 1.0 <= x;
+        claim d: !(6.0 / x <= 6.0 && 1.0 <= x) || 1.0 <= x;
     }
 }";
     let model = parse(text).unwrap();

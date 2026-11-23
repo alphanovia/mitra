@@ -137,7 +137,7 @@ fn x1_a_negated_conclusion_is_never_set_against_its_proposition() {
         r#"
 subject calc {
     fn div(a: Int, b: Int) -> q: Int at "src/lib.rs/div" where {
-        claim spec = if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
+        claim spec: if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
         examples { (6, 2) -> 3 }
         rule never: div::spec |- !correct(div, (6, 2));
     }
@@ -165,7 +165,7 @@ environment sun {
 subject stone {
     use sun::{light, ray};
     fn lit(h: Real) -> l: Real at "src/stone.rs/lit" where {
-        claim bright = l <= light();
+        claim bright: l <= light();
     }
     fn noise(a: Int) -> n: Int at "src/stone.rs/noise";
     fn beam(k: Int) -> s: Real at "src/stone.rs/beam" { ray(k) * 2.0 }
@@ -268,7 +268,7 @@ fn x5_a_body_failure_blames_the_tie_of_a_function_only_a_claim_calls() {
         r#"
 subject s {
     fn f(a: Int) -> b: Int at "src/f.rs/f" { a + 1 } where {
-        claim c = b <= g(a) + 10;
+        claim c: b <= g(a) + 10;
     }
     fn g(a: Int) -> b: Int at "src/g.rs/g" { a * 2 }
 }
@@ -369,8 +369,8 @@ fn b2_a_case_diagnosis_does_not_resolve_when_a_point_is_measured_twice() {
         r#"
 subject calc {
     fn div(a: Int, b: Int) -> q: Int at "src/lib.rs/div" where {
-        claim spec = if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
-        claim bounded = b == 0 || q <= a;
+        claim spec: if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
+        claim bounded: b == 0 || q <= a;
         examples { (0, 1) -> 0, (1, 1) -> 1 }
         rule r: all x in (a: 0..2, b: 1..2): correct(div, x) |- div::bounded;
     }
@@ -991,7 +991,7 @@ fn cost_ensure_from_reviewed_claims() {
     let mut src = String::from("subject s {\n");
     for i in 0..n {
         src.push_str(&format!(
-            "    fn f{i}(a: Int) -> b: Int at \"src/s.rs/f{i}\" {{ a + 1 }} where {{ claim c = a < b; }}\n"
+            "    fn f{i}(a: Int) -> b: Int at \"src/s.rs/f{i}\" {{ a + 1 }} where {{ claim c: a < b; }}\n"
         ));
     }
     let list: Vec<String> = (0..n).map(|i| format!("f{i}::c")).collect();
@@ -1040,7 +1040,7 @@ fn cost_deep_call_chain_with_failures() {
             format!("f{}(a) + 1", i - 1)
         };
         src.push_str(&format!(
-            "    fn f{i}(a: Int) -> b: Int at \"src/p.rs/f{i}\" {{ {body} }} where {{ claim c = a < b; }}\n"
+            "    fn f{i}(a: Int) -> b: Int at \"src/p.rs/f{i}\" {{ {body} }} where {{ claim c: a < b; }}\n"
         ));
     }
     src.push_str("}\n");
@@ -1078,7 +1078,7 @@ fn cost_a_sparse_set_with_no_evidence() {
         r#"
 subject calc {{
     fn div(a: Int, b: Int) -> q: Int at "src/lib.rs/div" where {{
-        claim spec = if b == 0 {{ q == 0 }} else {{ q * b <= a && a < (q + 1) * b }};
+        claim spec: if b == 0 {{ q == 0 }} else {{ q * b <= a && a < (q + 1) * b }};
         rule diagonal: div::spec |- all x in (a: 0..{n}, b: 0..{n}) where a == b && a < 5: correct(div, x);
     }}
 }}
@@ -1113,7 +1113,7 @@ fn cost_blame_memory_on_independent_modules() {
                 format!("f{}(a) + 1", i - 1)
             };
             src.push_str(&format!(
-                "    fn f{i}(a: Int) -> b: Int at \"src/p{p}.rs/f{i}\" {{ {body} }} where {{ claim c = a < b; }}\n"
+                "    fn f{i}(a: Int) -> b: Int at \"src/p{p}.rs/f{i}\" {{ {body} }} where {{ claim c: a < b; }}\n"
             ));
         }
         src.push_str("}\n");

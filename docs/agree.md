@@ -109,7 +109,7 @@ computation calls for, or what that function takes. Any other is A009.
 - Record claims are not compared: a record has no body.
 - A proposition written in a rule's `{ … }` term is read as a claim by
   `check` (M006), and not compared by agree.
-- A contract claim false for every function (`claim lie(a: T) = a < a`)
+- A contract claim false for every function (`claim lie(a: T): a < a`)
   is said at each impl (A005, "fix the function"), never at the
   contract: a contract is checked once, by type, where it is written.
 - Cost: `Exact` computes both sides of an `if`, `&&` and `||`, and does

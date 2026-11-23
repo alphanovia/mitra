@@ -23,7 +23,7 @@ fn one(text: &str) -> String {
 fn a_whole_number_beside_a_type_parameter() {
     let text = "contract Positive<T: Number> {
     fn f(x: T) -> y: T;
-    claim pos(a: T) = 0 <= f(a);
+    claim pos(a: T): 0 <= f(a);
 }";
     assert_eq!(
         one(text),
@@ -42,7 +42,7 @@ fn the_contract_s_own_function_gives_the_zero() {
     let text = "contract Positive<T: Number> {
     fn zero() -> z: T;
     fn f(x: T) -> y: T;
-    claim pos(a: T) = zero() <= f(a);
+    claim pos(a: T): zero() <= f(a);
 }";
     assert_eq!(errors(text), Vec::<String>::new());
 }
@@ -51,7 +51,7 @@ fn the_contract_s_own_function_gives_the_zero() {
 fn a_whole_number_beside_a_real() {
     let text = "subject s {
     fn g(x: Real) -> y: Real { x } where {
-        claim c = y <= 1;
+        claim c: y <= 1;
     }
 }";
     assert_eq!(
@@ -70,7 +70,7 @@ fn a_whole_number_beside_a_real() {
 fn the_innermost_part_is_underlined() {
     let text = "contract C<T: Number> {
     fn f(x: T) -> y: T;
-    claim a(x: T) = let z = f(x) + 1 in f(x) <= z;
+    claim a(x: T): let z = f(x) + 1 in f(x) <= z;
 }";
     let e = one(text);
     assert!(
@@ -86,8 +86,8 @@ fn a_call_and_a_record_name_what_does_not_fit() {
     let text = "subject s {
     record P { x: Int, y: Real }
     fn g(x: Int) -> y: Real { 1.0 } where {
-        claim e = g(1.0) == y;
-        claim h = P { x: 1, y: 2 }.y == y;
+        claim e: g(1.0) == y;
+        claim h: P { x: 1, y: 2 }.y == y;
     }
 }";
     let all = errors(text);
@@ -150,7 +150,7 @@ proptest! {
     #[test]
     fn every_type_error_shows_and_underlines(e in expr()) {
         let text = format!(
-            "contract C<T: Number> {{\n    fn f(x: T) -> y: T;\n    claim c(i: Int, r: Real, t: T) = {e};\n}}"
+            "contract C<T: Number> {{\n    fn f(x: T) -> y: T;\n    claim c(i: Int, r: Real, t: T): {e};\n}}"
         );
         let Ok(model) = parse(&text) else { return Ok(()) };
         for error in check(&model) {

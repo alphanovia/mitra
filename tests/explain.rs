@@ -217,10 +217,10 @@ environment sun {
 subject stone {
     use sun::light;
     fn speed(h: Real) -> v2: Real at "src/stone.rs/speed" { 2.0 * 9.81 * h * light() } where {
-        claim slow = !(h <= 20.0) || v2 < 400.0;
+        claim slow: !(h <= 20.0) || v2 < 400.0;
     }
     fn lit(h: Real) -> l: Real at "src/stone.rs/lit" where {
-        claim bright = l <= light();
+        claim bright: l <= light();
     }
     fn noise(a: Int) -> n: Int at "src/stone.rs/noise";
     fn square(h: Real) -> s: Real at "src/stone.rs/square" { h * h }

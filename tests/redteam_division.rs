@@ -146,8 +146,8 @@ fn agree_reads_whole_division() {
     // True of Rust's `/` and `%`: a == q * b + r, at every point.
     let text = "subject s {
     fn f(a: Int, b: Int) -> r: Int { if b == 0 { 0 } else { a % b } } where {
-        claim parts = b == 0 || a == (a / b) * b + r;
-        claim smaller = !(0 < b) || r < b;
+        claim parts: b == 0 || a == (a / b) * b + r;
+        claim smaller: !(0 < b) || r < b;
     }
 }";
     // Bounds prove no law of algebra: unknown, and said (A007), never a
@@ -163,8 +163,8 @@ fn agree_reads_whole_division() {
     assert_eq!(codes, ["A007", "A007"]);
     // Floor's rule is not Rust's: -7 / 2 is -3, not -4. Agree says where.
     let floor = text.replace(
-        "claim smaller = !(0 < b) || r < b;",
-        "claim floor = !(0 < b) || 0 <= r;",
+        "claim smaller: !(0 < b) || r < b;",
+        "claim floor: !(0 < b) || 0 <= r;",
     );
     let (_, findings) = agree(&parse(&floor).unwrap(), &Settings::default());
     let shown: Vec<String> = findings.iter().map(|f| f.to_string()).collect();

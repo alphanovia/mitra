@@ -1332,7 +1332,7 @@ fn number_param() -> Type {
     }
 }
 /// `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T,
-/// b: T) = !(a <= b) || f(a) <= f(b); }`
+/// b: T): !(a <= b) || f(a) <= f(b); }`
 fn monotone() -> Contract {
     let t = number_param();
     let f = |x: &str| call("Monotone::f", vec![name(x)]);

@@ -202,7 +202,7 @@ impl Writer<'_> {
         }
         for l in &c.claims {
             s.push_str(&format!(
-                "    claim {}({}) = {};\n",
+                "    claim {}({}): {};\n",
                 l.name,
                 takes(&l.over),
                 sim_in(&self.cx(), &l.holds)
@@ -416,7 +416,7 @@ impl Writer<'_> {
         let mut s = String::from(" where {\n");
         for c in claims {
             s.push_str(&format!(
-                "        claim {} = {};\n",
+                "        claim {}: {};\n",
                 c.name,
                 sim_in(&self.cx(), &c.holds)
             ));
