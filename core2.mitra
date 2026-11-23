@@ -77,7 +77,7 @@ subject simulation {
     // order.
     record Calls at "src/simulation.rs/Calls";
     ensure one_value = "Calls::with refuses a function two of whose rows at one point give different values";
-    ensure given_first = "a call reads what the reading was given at its point, else the body, else the row there";
+    ensure given_first = "a call reads the body; with none, what the reading was given at its point, else the row there";
 }
 
 subject judgement {
