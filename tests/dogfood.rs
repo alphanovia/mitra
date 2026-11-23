@@ -135,3 +135,51 @@ fn dogfood_fused_no_prior() {
     };
     is(fused(&[taking(true, 1), taking(false, 1)], &s), 0.5, 0.5, 0.0, 0.5);
 }
+
+// ------------------------------------------- judgement, every point
+
+/// The claims of `judgement::and`, `join` and `negate` in core2.mitra,
+/// at every one of the 16 (or 4) points: the store reviews each claim
+/// by this test's voice.
+#[test]
+fn dogfood_state_claims_everywhere() {
+    let all = [State::Unknown, State::True, State::False, State::Conflict];
+    for x in all {
+        let (xt, xf) = x.sides();
+        let (nt, nf) = (!x).sides();
+        // negate::swaps
+        assert!(nt == xf && nf == xt);
+        for y in all {
+            let (yt, yf) = y.sides();
+            let (zt, zf) = x.and(y).sides();
+            // and::false_wins, and::true_needs_both
+            assert_eq!(xf || yf, zf);
+            assert!(!zt || (xt && yt));
+            let (jt, jf) = x.join(y).sides();
+            // join::keeps
+            assert!((!xt || jt) && (!xf || jf) && (!yt || jt) && (!yf || jf));
+        }
+    }
+}
+
+// ---------------------------------------------- settings, their defaults
+
+// mitra: measures agree::agree_defaults () -> AgreeSettings { points: 64 }
+#[test]
+fn dogfood_agree_defaults() {
+    assert_eq!(mitra_core::agree::Settings::default().points, 64);
+}
+
+// mitra: measures explain::explain_defaults () -> ExplainSettings { rounds: 64, cases: 1024, rests: 1024 }
+#[test]
+fn dogfood_explain_defaults() {
+    let s = mitra_core::explain::Settings::default();
+    assert_eq!((s.rounds, s.cases, s.rests), (64, 1024, 1024));
+}
+
+// mitra: measures blame::blame_defaults () -> BlameSettings { diagnoses: 10, tries: 100000 }
+#[test]
+fn dogfood_blame_defaults() {
+    let s = mitra_core::blame::Settings::default();
+    assert_eq!((s.diagnoses, s.tries), (10, 100_000));
+}

@@ -29,6 +29,12 @@ environment cargo {
     ensure reports = "`cargo test` prints one line `test NAME ... ok`, `FAILED` or `ignored` for each test it runs";
 }
 
+environment std {
+    // Rust's String, and the collections core2 builds of it: the model
+    // has no text, list or map, so each is an opaque record here.
+    record String;
+}
+
 environment float {
     // Rust's f64, which numbers.rs computes with.
     ensure near = "f64 arithmetic on the numbers of numbers.rs is within 1e-12 of the exact result";
@@ -72,6 +78,13 @@ subject simulation {
 subject judgement {
     require holds = simulation::exact_right;
 
+    use std::String;
+    // A proposition is a tree: opaque.
+    record Prop at "src/judgement.rs/Prop";
+    // A voice takes a proposition as true or false, count times (`by`
+    // is a keyword of the model: `voice` here).
+    record Taking at "src/judgement.rs/Taking" { prop: Prop, value: bool, count: Int, voice: String }
+
     // Belnap's four states, as their two sides: told true, told false.
     record State at "src/judgement.rs/State" { t: bool, f: bool }
 
@@ -111,22 +124,30 @@ subject tactic {
 
 subject model {
     require kernel = judgement::sound;
+    // A model holds parts, contracts, examples and ties: lists, opaque.
     record Model at "src/model.rs/Model";
+    // A path is a list of names: opaque.
     record Path at "src/model.rs/Path";
     ensure props = "props gives every proposition the model names, and only those";
     ensure leaves = "leaves gives the propositions no rule concludes, each a suspect";
 }
 
 subject catalogue {
-    record Code at "src/catalogue.rs/Code";
+    use std::String;
+    // The suit is an enum of seven letters: opaque.
+    record Suit at "src/catalogue.rs/Suit";
+    record Code at "src/catalogue.rs/Code" { suit: Suit, number: Int }
+    record Entry at "src/catalogue.rs/Entry" { code: Code, title: String, retired: bool }
     ensure never_reused = "a code is given to one meaning, never reused";
     ensure documented = "every code has an entry and a page in docs/reference";
 }
 
 subject check {
     require codes = catalogue::never_reused;
-    // `fn check(m: model::Model) -> …` cannot be written: a type names
-    // no record of another part (finding).
+    use model::Model;
+    // What check gives is a list of errors: opaque.
+    record Errors;
+    fn check(m: Model) -> errors: Errors at "src/check.rs/check";
     ensure sound = "a model check gives no error for has every path resolved, every type agreed, no support cycle, and every proof checked by type and by one run"
         from (codes);
 }
@@ -143,9 +164,19 @@ subject parse {
 
 subject evidence {
     require checked = check::sound;
-    record Ledger at "src/evidence.rs/Ledger";
-    record Measurement at "src/evidence.rs/Measurement";
-    record Review at "src/evidence.rs/Review";
+    use std::String;
+    use model::Path;
+    // `by` is a keyword of the model: the field `by` is `voice` here.
+    // Lists of what was measured and reviewed, and of (path, value)
+    // pairs: opaque.
+    record Ports;
+    record Measurements;
+    record Reviews;
+    record Ledger at "src/evidence.rs/Ledger" { measurements: Measurements, reviews: Reviews }
+    record Measurement at "src/evidence.rs/Measurement" {
+        inputs: Ports, outputs: Ports, seen: bool, count: Int, voice: String
+    }
+    record Review at "src/evidence.rs/Review" { prop: Path, holds: bool, voice: String }
     ensure fits = "a ledger evidence accepts measures only tied functions of the model, with every input and an output, and reviews only what a review can name"
         from (checked);
 }
@@ -161,7 +192,11 @@ subject agree {
     require checked = check::sound;
     require exact = simulation::exact_right;
     require ranges = simulation::ranges_sound;
-    record AgreeSettings at "src/agree.rs/Settings";
+    // Each limit a setting, none fixed in the code.
+    record AgreeSettings at "src/agree.rs/Settings" { points: Int }
+    fn agree_defaults() -> s: AgreeSettings at "src/agree.rs/Settings/default" {
+        AgreeSettings { points: 64 }
+    }
     ensure no_false_holds = "agree says Holds only when what the model says twice agrees at every point"
         from (checked, exact, ranges);
 }
@@ -172,14 +207,20 @@ subject explain {
     require kernel = judgement::sound;
     require read = reader::nothing_dropped;
     record Explanation at "src/explain.rs/Explanation";
-    record ExplainSettings at "src/explain.rs/Settings";
+    record ExplainSettings at "src/explain.rs/Settings" { rounds: Int, cases: Int, rests: Int }
+    fn explain_defaults() -> s: ExplainSettings at "src/explain.rs/Settings/default" {
+        ExplainSettings { rounds: 64, cases: 1024, rests: 1024 }
+    }
     ensure verdicts = "each proposition is explained, contradicted or unsupported, as judgement gives it from the model and the ledger"
         from (checked, fits, kernel, read);
 }
 
 subject blame {
     require explained = explain::verdicts;
-    record BlameSettings at "src/blame.rs/Settings";
+    record BlameSettings at "src/blame.rs/Settings" { diagnoses: Int, tries: Int }
+    fn blame_defaults() -> s: BlameSettings at "src/blame.rs/Settings/default" {
+        BlameSettings { diagnoses: 10, tries: 100000 }
+    }
     ensure minimal = "each diagnosis is a smallest set of suspects whose drop leaves nothing contradicted"
         from (explained);
 }
@@ -187,6 +228,12 @@ subject blame {
 subject numbers {
     require explained = explain::verdicts;
     require near = float::near;
+
+    // The voices' weights are a map: opaque.
+    record Voices;
+    record NumbersSettings at "src/numbers.rs/Settings" {
+        base_rate: Real, prior_weight: Real, checker: Real, voices: Voices
+    }
 
     // An opinion in numbers.
     record Belief at "src/numbers.rs/Belief" {

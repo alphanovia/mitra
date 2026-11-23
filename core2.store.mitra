@@ -1,0 +1,95 @@
+// The dogfood store: reviews of core2.mitra (flagged choice, see the
+// dogfood report). An ensure in words is reviewed by the voice of the
+// test that checks it (`test:name`), written here by hand because a
+// test can only measure rows (finding F6); this store does not read the
+// cargo report, so a failing test does not undo its review. Two tests
+// are named `each_finding_is_given`/`each_error_is_found` in several
+// files (F5): here `each_error_is_found` is the one of tests/model.rs
+// for check, of tests/evidence.rs for evidence. A tie, and
+// a claim shown by hand, is reviewed by the agent that checked it.
+
+// Ensures, each by the passing test that checks it.
+review num::exact holds by "test:a_sum_of_small_reals_is_exact";
+review float::near holds by "test:dogfood_fused";
+review location::prefix holds by "test:a_place_is_within_what_its_path_goes_on_from";
+review expression::binding holds by "test:binding";
+review expression::substitution holds by "test:substitution";
+review simulation::exact_right holds by "test:exact_preserves_progresses_and_is_determined";
+review simulation::ranges_sound holds by "test:exact_lies_in_ranges";
+review judgement::sound holds by "test:every_rule_preserves_truth";
+review judgement::taken_only holds by "test:a_leaf_is_its_own_takings";
+review tactic::checked holds by "test:a_tactic_is_trusted_with_nothing";
+review model::props holds by "test:props_are_given_once_of_what_is_there";
+review model::leaves holds by "test:leaves_are_what_only_a_taking_holds";
+review catalogue::never_reused holds by "test:every_code_is_listed_once_and_kept";
+review catalogue::documented holds by "test:every_code_is_documented";
+review check::sound holds by "test:each_error_is_found";
+review print::reads_back holds by "test:the_fall_prints_as_written";
+review parse::round_trip holds by "test:every_form_comes_back";
+review parse::first_error holds by "test:errors_say_where";
+review evidence::fits holds by "test:each_error_is_found";
+review reader::ties_read holds by "test:ties_come_from_comments";
+review agree::no_false_holds holds by "test:div_agrees_with_itself";
+review explain::verdicts holds by "test:a_hundred_tests_explain_div_everywhere";
+review blame::minimal holds by "test:held_blame_diagnoses_are_hitting_sets";
+review numbers::in_unit holds by "test:held_numbers_invariants";
+review cli::answers holds by "test:explain_gives_a_verdict_on_each_proposition";
+review judgement::and::false_wins holds by "test:dogfood_state_claims_everywhere";
+review judgement::and::true_needs_both holds by "test:dogfood_state_claims_everywhere";
+review judgement::join::keeps holds by "test:dogfood_state_claims_everywhere";
+review judgement::negate::swaps holds by "test:dogfood_state_claims_everywhere";
+
+// The red team found rows the reader takes from inside a string and
+// from a one-line test, with no finding (F1, F2): this ensure fails.
+review reader::nothing_dropped fails by "agent:anthropic/opus-5.5/dogfood";
+// cargo: seen in every report read for the dogfood.
+review cargo::reports holds by "agent:anthropic/opus-5.5/dogfood";
+
+// Claims shown by hand (agree cannot split unbounded inputs, A1).
+review simulation::abs::positive holds by "agent:anthropic/opus-5.5/dogfood";
+review simulation::abs::same holds by "agent:anthropic/opus-5.5/dogfood";
+review numbers::opinion::sums_to_one holds by "agent:anthropic/opus-5.5/dogfood";
+review numbers::opinion::in_unit holds by "agent:anthropic/opus-5.5/dogfood";
+review numbers::fused::nothing_known holds by "agent:anthropic/opus-5.5/dogfood";
+review numbers::fused::clean_rate holds by "agent:anthropic/opus-5.5/dogfood";
+
+// Ties: each path read against the code by hand (reader naming).
+review location::Location holds by "agent:anthropic/opus-5.5/dogfood";
+review location::within holds by "agent:anthropic/opus-5.5/dogfood";
+review expression::Expression holds by "agent:anthropic/opus-5.5/dogfood";
+review simulation::Rational holds by "agent:anthropic/opus-5.5/dogfood";
+review simulation::plus holds by "agent:anthropic/opus-5.5/dogfood";
+review simulation::minus holds by "agent:anthropic/opus-5.5/dogfood";
+review simulation::times holds by "agent:anthropic/opus-5.5/dogfood";
+review simulation::over holds by "agent:anthropic/opus-5.5/dogfood";
+review simulation::abs holds by "agent:anthropic/opus-5.5/dogfood";
+review judgement::State holds by "agent:anthropic/opus-5.5/dogfood";
+review judgement::told holds by "agent:anthropic/opus-5.5/dogfood";
+review judgement::sides holds by "agent:anthropic/opus-5.5/dogfood";
+review judgement::and holds by "agent:anthropic/opus-5.5/dogfood";
+review judgement::join holds by "agent:anthropic/opus-5.5/dogfood";
+review judgement::negate holds by "agent:anthropic/opus-5.5/dogfood";
+review model::Model holds by "agent:anthropic/opus-5.5/dogfood";
+review model::Path holds by "agent:anthropic/opus-5.5/dogfood";
+review catalogue::Code holds by "agent:anthropic/opus-5.5/dogfood";
+review evidence::Ledger holds by "agent:anthropic/opus-5.5/dogfood";
+review evidence::Measurement holds by "agent:anthropic/opus-5.5/dogfood";
+review evidence::Review holds by "agent:anthropic/opus-5.5/dogfood";
+review agree::AgreeSettings holds by "agent:anthropic/opus-5.5/dogfood";
+review explain::Explanation holds by "agent:anthropic/opus-5.5/dogfood";
+review explain::ExplainSettings holds by "agent:anthropic/opus-5.5/dogfood";
+review blame::BlameSettings holds by "agent:anthropic/opus-5.5/dogfood";
+review numbers::Belief holds by "agent:anthropic/opus-5.5/dogfood";
+review numbers::Said holds by "agent:anthropic/opus-5.5/dogfood";
+review numbers::opinion holds by "agent:anthropic/opus-5.5/dogfood";
+review numbers::fused holds by "agent:anthropic/opus-5.5/dogfood";
+review numbers::times holds by "agent:anthropic/opus-5.5/dogfood";
+review judgement::Prop holds by "agent:anthropic/opus-5.5/dogfood";
+review judgement::Taking holds by "agent:anthropic/opus-5.5/dogfood";
+review catalogue::Suit holds by "agent:anthropic/opus-5.5/dogfood";
+review catalogue::Entry holds by "agent:anthropic/opus-5.5/dogfood";
+review check::check holds by "agent:anthropic/opus-5.5/dogfood";
+review numbers::NumbersSettings holds by "agent:anthropic/opus-5.5/dogfood";
+review agree::agree_defaults holds by "agent:anthropic/opus-5.5/dogfood";
+review explain::explain_defaults holds by "agent:anthropic/opus-5.5/dogfood";
+review blame::blame_defaults holds by "agent:anthropic/opus-5.5/dogfood";
