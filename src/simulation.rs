@@ -209,6 +209,86 @@ pub enum Undefined {
     /// A call of this function has no value here: it has no body, and no
     /// row gives one at these arguments.
     Unknown(String),
+    /// A budget was reached before the value was: what it was, and where.
+    Budget(String),
+}
+
+/// How far one computation through calls may go, each a setting: the
+/// most calls from outside one call, and the most levels of the bodies
+/// active at once. A reading that reaches one gives `Undefined::Budget`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Budget {
+    pub steps: usize,
+    pub depth: usize,
+}
+
+/// A million calls; 1,000 levels, what `expression` says a thread of
+/// 2 MiB holds in a debug build.
+impl Default for Budget {
+    fn default() -> Budget {
+        Budget {
+            steps: 1_000_000,
+            depth: 1_000,
+        }
+    }
+}
+
+/// The calls of one function `Ranges` has read: arguments, and outcome.
+type Seen = Vec<(Vec<Bounds>, Bounded)>;
+
+/// What the readings remember of calls: a call's outcome at its
+/// arguments, each body's height, and the count of steps and levels of
+/// the computation under way. It never changes an answer, so two are
+/// always equal, and a copy starts empty.
+#[derive(Default)]
+struct Memo {
+    exact: std::sync::Mutex<BTreeMap<(String, Vec<Value>), Exactly>>,
+    ranges: std::sync::Mutex<BTreeMap<String, Seen>>,
+    heights: std::sync::Mutex<BTreeMap<String, usize>>,
+    depth: std::sync::atomic::AtomicUsize,
+    steps: std::sync::atomic::AtomicUsize,
+}
+
+impl Clone for Memo {
+    fn clone(&self) -> Memo {
+        Memo::default()
+    }
+}
+
+impl PartialEq for Memo {
+    fn eq(&self, _: &Memo) -> bool {
+        true
+    }
+}
+
+impl Eq for Memo {}
+
+impl std::fmt::Debug for Memo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("Memo")
+    }
+}
+
+/// The levels of `e`.
+fn height<Op>(e: &Expression<Op>) -> usize {
+    match e {
+        Expression::Name(_) => 1,
+        Expression::Apply(_, args) => 1 + args.iter().map(|a| height(&a.body)).max().unwrap_or(0),
+    }
+}
+
+/// One call under way: its levels counted until it ends.
+struct Active<'m> {
+    memo: &'m Memo,
+    levels: usize,
+}
+
+impl Drop for Active<'_> {
+    fn drop(&mut self) {
+        self.memo
+            .depth
+            .fetch_sub(self.levels, std::sync::atomic::Ordering::SeqCst);
+    }
 }
 
 /// The operations, in Rust's form.
@@ -219,7 +299,8 @@ pub enum Op {
     Int(BigInt),
     Real(Rational),
     /// `!a`, `a && b`, `a || b`: `&&` and `||` drop what `b` gives,
-    /// fault included, when `a` decides. `b` is computed all the same.
+    /// fault included, when `a` decides. `Exact` does not compute `b`
+    /// then; `Ranges` computes both.
     Not,
     And,
     Or,
@@ -238,7 +319,8 @@ pub enum Op {
     /// `Real`. Rust would write `(a - b).abs() <= tol`.
     Within,
     /// `if c { a } else { b }`: gives what the branch `c` takes gives,
-    /// and drops the other, fault included. Both are computed.
+    /// and drops the other, fault included. `Exact` computes only the
+    /// branch taken; `Ranges` both.
     If,
     /// `R { x: a, y: b }`, the fields in the record's order.
     Make(Record),
@@ -275,9 +357,54 @@ pub struct Calls {
     /// a measurement or an example of the model saw, of a function with
     /// no body. Read before its rows, and never compared with them here.
     given: BTreeMap<String, Vec<(Vec<Value>, Value)>>,
+    /// How far a computation through calls may go.
+    budget: Budget,
+    memo: Box<Memo>,
 }
 
 impl Calls {
+    /// These functions, with this budget.
+    pub fn budget(mut self, budget: Budget) -> Calls {
+        self.budget = budget;
+        self.memo = Box::default();
+        self
+    }
+    /// Enter a call of `f`: `Err` when it would pass the budget. The
+    /// first call from outside starts the count of steps.
+    fn enter(&self, f: &str) -> Result<Active<'_>, Fault<Undefined>> {
+        use std::sync::atomic::Ordering::SeqCst;
+        let levels = {
+            let mut heights = self.memo.heights.lock().unwrap_or_else(|e| e.into_inner());
+            *heights.entry(f.to_string()).or_insert_with(|| {
+                self.callees
+                    .get(f)
+                    .and_then(|c| c.body.as_ref())
+                    .map_or(1, height)
+            })
+        };
+        let before = self.memo.depth.fetch_add(levels, SeqCst);
+        let active = Active {
+            memo: &self.memo,
+            levels,
+        };
+        if before == 0 {
+            self.memo.steps.store(0, SeqCst);
+        }
+        let steps = self.memo.steps.fetch_add(1, SeqCst) + 1;
+        if before + levels > self.budget.depth {
+            return Err(Fault::Op(Undefined::Budget(format!(
+                "the depth budget, {} levels of bodies through calls, reached at `{f}`",
+                self.budget.depth
+            ))));
+        }
+        if steps > self.budget.steps {
+            return Err(Fault::Op(Undefined::Budget(format!(
+                "the step budget, {} calls, reached at `{f}`",
+                self.budget.steps
+            ))));
+        }
+        Ok(active)
+    }
     /// These functions, or `Err` with the paths of those refused: a
     /// function that calls itself, however far; two arguments of one
     /// name; a body that does not check to what it gives, from what it
@@ -313,7 +440,7 @@ impl Calls {
         let standard = Simulation {
             calls: Arc::new(Calls {
                 callees: callees.clone(),
-                given: BTreeMap::new(),
+                ..Calls::default()
             }),
         };
         let exact = Exact::default();
@@ -364,7 +491,7 @@ impl Calls {
         match refused.is_empty() {
             true => Ok(Calls {
                 callees,
-                given: BTreeMap::new(),
+                ..Calls::default()
             }),
             false => Err(refused),
         }
@@ -390,6 +517,7 @@ impl Calls {
         if !fits {
             return Err(self);
         }
+        self.memo = Box::default();
         self.given
             .entry(path.to_string())
             .or_default()
@@ -500,8 +628,22 @@ impl Exact {
             return Err(Fault::Stuck);
         }
         if let Some(body) = &callee.body {
+            let key = (f.to_string(), args.to_vec());
+            let memo = &self.calls.memo.exact;
+            if let Some(known) = memo.lock().unwrap_or_else(|e| e.into_inner()).get(&key) {
+                return known.clone();
+            }
+            let active = self.calls.enter(f)?;
             let names = callee.takes.iter().map(|(n, _)| n.clone());
-            return eval(self, &names.zip(args.iter().cloned()).collect(), body);
+            let gives = eval(self, &names.zip(args.iter().cloned()).collect(), body);
+            drop(active);
+            // A budget reached depends on the way here: not remembered.
+            if !matches!(gives, Err(Fault::Op(Undefined::Budget(_)))) {
+                memo.lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert(key, gives.clone());
+            }
+            return gives;
         }
         let given = self.calls.given.get(f).into_iter().flatten();
         if let Some((_, gives)) = given.into_iter().find(|(at, _)| at.as_slice() == args) {
@@ -566,6 +708,20 @@ impl Reading for Exact {
             (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
             (Op::All, [lo, hi, _]) => all_exactly(lo, hi, run),
             _ => Err(Fault::Stuck),
+        }
+    }
+
+    /// `if`, `&&` and `||` compute only the side they take: none when
+    /// the test has no value, which is then what they give.
+    fn needed(&self, op: &Op, i: usize, before: &[Exactly]) -> bool {
+        let test = || match before.first() {
+            Some(Ok(Value::Truth(b))) => Some(*b),
+            _ => None,
+        };
+        match (op, i) {
+            (Op::If, 1) | (Op::And, 1) => test() == Some(true),
+            (Op::If, 2) | (Op::Or, 1) => test() == Some(false),
+            _ => true,
         }
     }
 }
@@ -853,8 +1009,33 @@ impl Ranges {
         }
         let gives = match &callee.body {
             Some(body) => {
-                let names = callee.takes.iter().map(|(n, _)| n.clone());
-                eval(self, &names.zip(args.iter().cloned()).collect(), body)
+                let memo = &self.calls.memo.ranges;
+                let known = memo
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .get(f)
+                    .and_then(|seen| {
+                        seen.iter()
+                            .find(|(at, _)| at.as_slice() == args)
+                            .map(|(_, g)| g.clone())
+                    });
+                match known {
+                    Some(gives) => gives,
+                    None => {
+                        let active = self.calls.enter(f)?;
+                        let names = callee.takes.iter().map(|(n, _)| n.clone());
+                        let gives = eval(self, &names.zip(args.iter().cloned()).collect(), body);
+                        drop(active);
+                        if !matches!(gives, Err(Fault::Op(Undefined::Budget(_)))) {
+                            memo.lock()
+                                .unwrap_or_else(|e| e.into_inner())
+                                .entry(f.to_string())
+                                .or_default()
+                                .push((args.to_vec(), gives.clone()));
+                        }
+                        gives
+                    }
+                }
             }
             None if callee.gives.open() => Err(Fault::Op(Undefined::Unknown(f.to_string()))),
             None => Ok(Bounds {

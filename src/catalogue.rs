@@ -148,6 +148,7 @@ pub const X005: Code = explain(5);
 pub const X006: Code = explain(6);
 pub const X007: Code = explain(7);
 pub const X008: Code = explain(8);
+pub const X009: Code = explain(9);
 
 const fn blame(number: u16) -> Code {
     Code {
@@ -285,6 +286,7 @@ pub const CATALOGUE: &[Entry] = &[
         X008,
         "two measurements that say one thing, by one voice and count",
     ),
+    entry(X009, "a budget of steps or depth reached"),
     entry(B001, "a conflict the model's claims alone hold"),
     entry(B002, "more diagnoses than blame looked for"),
     entry(B003, "a diagnosis a proof by cases may outlive"),

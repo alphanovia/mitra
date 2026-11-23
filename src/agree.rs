@@ -21,7 +21,9 @@ use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
 use crate::model::{calls, contract_claims, Function, Index, Model, ModelExample, Path};
 use crate::print;
-use crate::simulation::{Bounds, Calls, Exact, Op, Ranges, Rational, Span, Type, Undefined, Value};
+use crate::simulation::{
+    Bounds, Budget, Calls, Exact, Op, Ranges, Rational, Span, Type, Undefined, Value,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -36,6 +38,9 @@ pub struct Settings {
     /// above it: `x * x` is never negative on either side. `n` of them
     /// is `2^n` readings by bounds per comparison.
     pub splits: usize,
+    /// How far one computation through calls may go: past it, the
+    /// comparison is unknown, and says which budget it reached.
+    pub budget: Budget,
 }
 
 /// 64 points per comparison: every example row, and for one or two
@@ -47,6 +52,7 @@ impl Default for Settings {
         Settings {
             points: 64,
             splits: 4,
+            budget: Budget::default(),
         }
     }
 }
@@ -83,6 +89,7 @@ pub fn agree(model: &Model, settings: &Settings) -> (Vec<Agreed>, Vec<Finding>) 
         return (vec![], vec![]);
     };
     let index = Index::of(model);
+    let library = library.budget(settings.budget);
     let reading = Reading::new(&index, Arc::new(library), *settings);
     let mut agreed = Vec::new();
     for part in &model.parts {
@@ -178,6 +185,7 @@ impl<'m> Reading<'m> {
                     Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
                         why: format!("no value for `{g}` here"),
                     },
+                    Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
                     Err(_) => Agreement::Fails {
                         at: row.clone(),
                         gives: None,
@@ -197,6 +205,7 @@ impl<'m> Reading<'m> {
                     Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
                         why: format!("no value for `{g}` here"),
                     },
+                    Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
                     // False, or no value: a claim with none does not hold.
                     _ => Agreement::Fails {
                         at: row.clone(),
@@ -231,6 +240,7 @@ impl<'m> Reading<'m> {
             match eval(&self.exact, &point.iter().cloned().collect(), holds) {
                 Ok(Value::Truth(true)) => {}
                 Err(Fault::Op(Undefined::Unknown(g))) => _ = unknown.insert(g),
+                Err(Fault::Op(Undefined::Budget(why))) => return Agreement::Unknown { why },
                 Ok(v) => {
                     return Agreement::Fails {
                         at: point,
@@ -317,6 +327,7 @@ impl<'m> Reading<'m> {
             match eval(&self.exact, &point.iter().cloned().collect(), &all) {
                 Ok(Value::Truth(true)) => return Agreement::Holds,
                 Err(Fault::Op(Undefined::Unknown(g))) => _ = unknown.insert(g),
+                Err(Fault::Op(Undefined::Budget(why))) => return Agreement::Unknown { why },
                 _ => {}
             }
         }
@@ -689,6 +700,7 @@ impl<'m> Reading<'m> {
                 Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
                     why: format!("no value for `{g}` here"),
                 },
+                Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
                 Err(_) => Agreement::Fails {
                     at: point,
                     gives: None,

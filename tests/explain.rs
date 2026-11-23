@@ -343,6 +343,35 @@ fn each_finding_is_given() {
             given.insert("X007".to_string());
         }
     }
+    // A computation past its budget says so, and decides nothing there.
+    let shallow = Settings {
+        budget: mitra_core::simulation::Budget {
+            steps: 1_000_000,
+            depth: 1,
+        },
+        ..Settings::default()
+    };
+    let ledger = Ledger {
+        measurements: vec![measured(
+            &[("stone::square::h", five.clone())],
+            &[("stone::square::s", real(25, 1))],
+            true,
+        )],
+        reviews: vec![],
+    };
+    let e = explain(&model, &ledger, &shallow);
+    let budget: Vec<String> = e
+        .findings
+        .iter()
+        .filter(|f| f.code.to_string() == "X009")
+        .map(|f| f.to_string())
+        .collect();
+    assert!(!budget.is_empty(), "{:?}", e.findings);
+    assert!(
+        budget[0].contains("the depth budget, 1 levels"),
+        "{budget:?}"
+    );
+    given.insert("X009".to_string());
     // Judging that cannot finish within its rounds says so.
     let stopped = Settings {
         rounds: 0,

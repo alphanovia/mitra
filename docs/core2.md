@@ -93,7 +93,8 @@ are ordinary operations, not special forms: both branches are computed (choice
   `within(a, b, tol)`, `if`, `R { .. }`, `r.x`, and two that bind a name:
   `let x = a; b`, and `(lo..hi).all(|x| p)` on two `Int` and a truth, `hi`
   left out, which reads `p` at each number in turn as `&&` does.
-- Readings: `Exact`, and `Ranges`, which works on bounds: a truth may be
+- Readings: `Exact`, which computes only the side of `if`, `&&` and `||`
+  it takes, and `Ranges`, which works on bounds: a truth may be
   true, false or both, a number lies from a low end to a high end, either
   of which may be missing (`q >= 1` is `[1, ∞)`), a record is
   bounded field by field, and any of them may fault. The γ is `covers(T, b,
@@ -502,5 +503,8 @@ be an operation.
 25. **A function whose types name a parameter is bare** (no body, no rows): only its contract speaks of it.
 26. **An intro's point is fresh**: an intro of a proposition that already writes the point it would bind is refused (red team round 7 caught the diagonal taken for the square).
 27. **A function gives one value at a point**: `Calls::with` refuses two rows at one point that differ (check says M024). Beside a body, rows are kept and never read: `agree` compares them with the body (A002). What a reading is given (`Calls::given`) is read before the rows, never before a body.
+28. **Half-lines** (finding 6): a span of numbers has a low end and a high end, either of which may be missing; zero times no end is zero.
+29. **Comparisons read together, numbers cut at zero** (finding 7): `Ranges::kept` cuts each name by the comparisons joined by `&&`, one name at a time, strict on `Int` only; agree reads its first `splits` numbers (a setting, 4) below and above zero.
+30. **Calls remembered, `if` lazy, budgets** (finding 9): `Exact` and `Ranges` remember a call's outcome at its arguments; `Exact` computes only the side of `if`, `&&`, `||` it takes (`Reading::needed`, in `expression`); a computation past `Budget { steps, depth }` (settings, a million calls and 1,000 levels) gives `Undefined::Budget`: agree says unknown (A007), explain X009.
 
 Not in this round: an `Option` type, `Int → Real` conversion, units, diagnosis, streams, recursion, functions as values, and an all or an any written in the model (next, in `model.rs`).

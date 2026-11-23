@@ -78,6 +78,13 @@ subject simulation {
     record Calls at "src/simulation.rs/Calls";
     ensure one_value = "Calls::with refuses a function two of whose rows at one point give different values";
     ensure given_first = "a call reads the body; with none, what the reading was given at its point, else the row there";
+    // How far a computation through calls may go: a setting.
+    record Budget at "src/simulation.rs/Budget" { steps: Int, depth: Int }
+    fn budget_defaults() -> b: Budget at "src/simulation.rs/Budget/default" {
+        Budget { steps: 1000000, depth: 1000 }
+    }
+    ensure remembered = "a reading that remembers calls, and computes only the side of if, && and || it takes, gives what one that does neither gives";
+    ensure budgeted = "a computation past its budget of steps or depth gives no value, Undefined::Budget, and never aborts";
     ensure kept_sound = "a value at which the comparisons an expression joins by && all hold lies in the bounds Ranges::kept gives, and Ranges::kept gives none only when no value does";
 }
 
@@ -204,14 +211,17 @@ subject agree {
     require ranges = simulation::ranges_sound;
     require kept = simulation::kept_sound;
     // Each limit a setting, none fixed in the code.
-    record AgreeSettings at "src/agree.rs/Settings" { points: Int, splits: Int }
+    require stops = simulation::budgeted;
+    use simulation::Budget;
+    record AgreeSettings at "src/agree.rs/Settings" { points: Int, splits: Int, budget: Budget }
     fn agree_defaults() -> s: AgreeSettings at "src/agree.rs/Settings/default" {
-        AgreeSettings { points: 64, splits: 4 }
+        AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 } }
     }
     ensure no_false_holds = "agree says Holds only when what the model says twice agrees at every point"
         from (checked, exact, ranges, kept, given);
     ensure no_false_none = "agree says no value keeps a function's claims (A004) only when none does"
         from (checked, exact, ranges, kept);
+    ensure ends = "agree ends on every well-formed model: a budget reached is unknown (A007), with the budget it reached" from (stops);
 }
 
 subject explain {
@@ -222,9 +232,10 @@ subject explain {
     require kernel = judgement::sound;
     require read = reader::nothing_dropped;
     record Explanation at "src/explain.rs/Explanation";
-    record ExplainSettings at "src/explain.rs/Settings" { rounds: Int, cases: Int, rests: Int }
+    use simulation::Budget;
+    record ExplainSettings at "src/explain.rs/Settings" { rounds: Int, cases: Int, rests: Int, budget: Budget }
     fn explain_defaults() -> s: ExplainSettings at "src/explain.rs/Settings/default" {
-        ExplainSettings { rounds: 64, cases: 1024, rests: 1024 }
+        ExplainSettings { rounds: 64, cases: 1024, rests: 1024, budget: Budget { steps: 1000000, depth: 1000 } }
     }
     ensure verdicts = "each proposition is explained, contradicted or unsupported, as judgement gives it from the model and the ledger"
         from (checked, fits, kernel, read, given);

@@ -33,6 +33,10 @@ review agree::no_false_holds holds by "test:div_agrees_with_itself";
 review agree::no_false_holds holds by "test:what_agree_decides_by_bounds_is_true_at_points";
 review agree::no_false_none holds by "test:what_agree_decides_by_bounds_is_true_at_points";
 review simulation::kept_sound holds by "test:what_agree_decides_by_bounds_is_true_at_points";
+review simulation::remembered holds by "test:remembered_calls_change_no_answer";
+review simulation::budgeted holds by "test:deep_bodies_through_calls_stop_at_the_depth_budget";
+review agree::ends holds by "test:deep_bodies_through_calls_stop_at_the_depth_budget";
+review simulation::Budget holds by "agent:anthropic/opus-5.5/dogfood";
 review explain::verdicts holds by "test:a_hundred_tests_explain_div_everywhere";
 review blame::minimal holds by "test:held_blame_diagnoses_are_hitting_sets";
 review numbers::in_unit holds by "test:held_numbers_invariants";
@@ -95,6 +99,7 @@ review check::check holds by "agent:anthropic/opus-5.5/dogfood";
 review numbers::NumbersSettings holds by "agent:anthropic/opus-5.5/dogfood";
 review agree::agree_defaults holds by "agent:anthropic/opus-5.5/dogfood";
 review explain::explain_defaults holds by "agent:anthropic/opus-5.5/dogfood";
+review simulation::budget_defaults holds by "agent:anthropic/opus-5.5/dogfood";
 review blame::blame_defaults holds by "agent:anthropic/opus-5.5/dogfood";
 
 // 10a (M024): what a library refuses and reads, and what check gives.

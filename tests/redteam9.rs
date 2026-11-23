@@ -616,12 +616,11 @@ fn after_a_voice_is_of_a_kind() {
 
 // ------------------------------------------------------------ cost
 
-/// C1 (inner: `Exact` computes the side `if` drops, and calls are not
-/// remembered). A chain of 12 functions, each calling the one before in
-/// both branches of an `if`, three claims each: about 1 s; each level
-/// doubles it (20 levels: about 4 min). The same chain with `let` is 15 ms.
+/// C1, held since finding 9: `Exact` computes only the side `if` takes,
+/// and calls are remembered. A chain of 12 functions, each calling the
+/// one before in both branches of an `if`, three claims each, took about
+/// 1 s, each level doubling it; now a few ms, as with `let`.
 #[test]
-#[ignore]
 fn c1_a_chain_through_if_doubles_at_each_level() {
     let chain = |n: usize, shared: bool| {
         let mut out = vec!["subject p {".to_string()];

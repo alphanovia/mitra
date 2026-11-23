@@ -1804,3 +1804,28 @@ fn half_lines_by_hand() {
     let two = Span::Number(q(2), q(2));
     assert_eq!(on(Op::Div, &[two, above_one]), Span::Number(q(0), q(2)));
 }
+
+// ------------------------------------------------- remembered calls (A8)
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(2000))]
+
+    /// A reading that remembers calls gives what one that remembers
+    /// none gives: one `Exact` and one `Ranges` read many points, each
+    /// compared with a fresh one (a copy of the calls starts empty).
+    #[test]
+    fn remembered_calls_change_no_answer(seed in any::<u64>(), depth in 1u32..5) {
+        let mut g = Gen::library(seed, true);
+        let t = g.ty();
+        let e = g.expr(&t, depth);
+        let (exact, ranges) = (g.exact(), g.ranges());
+        for _ in 0..6 {
+            let values = g.values();
+            let fresh = Exact { calls: Arc::new((*g.calls).clone()) };
+            prop_assert_eq!(eval(&exact, &values, &e), eval(&fresh, &values, &e));
+            let (bounds, _) = g.bounded();
+            let fresh = Ranges { calls: Arc::new((*g.calls).clone()) };
+            prop_assert_eq!(eval(&ranges, &bounds, &e), eval(&fresh, &bounds, &e));
+        }
+    }
+}

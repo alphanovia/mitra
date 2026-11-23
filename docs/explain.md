@@ -108,6 +108,7 @@ layer's (corroboration).
 | X006 | judging stopped before it was done, or a rule left out (`rests`) |
 | X007 | hint: an opaque function measured the same each time |
 | X008 | two measurements that say one thing, by one voice and count |
+| X009 | a budget of steps or depth reached |
 
 A hint is below a finding: something that may help.
 

@@ -21,7 +21,7 @@
 //! false from some, and unsupported otherwise. Nothing given is dropped
 //! quietly: what explain cannot read is a finding (suit `X`).
 
-use crate::catalogue::{Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008};
+use crate::catalogue::{Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008, X009};
 use crate::evidence::{self, port, Ledger, Measurement};
 use crate::expression::{eval, Arg, Expression, Fault};
 use crate::judgement::{self, Definition, Judgement, Opinion, Point, Prop, Rests, Taking, Term};
@@ -53,6 +53,9 @@ pub struct Settings {
     /// judgement keeps the smallest by comparing each with each. Default
     /// 1,024. A finding names each rule left out.
     pub rests: usize,
+    /// How far one computation through calls may go: past it, X009, and
+    /// nothing is decided there.
+    pub budget: crate::simulation::Budget,
 }
 
 impl Default for Settings {
@@ -61,6 +64,7 @@ impl Default for Settings {
             rounds: 64,
             cases: 1024,
             rests: 1024,
+            budget: crate::simulation::Budget::default(),
         }
     }
 }
@@ -123,7 +127,9 @@ pub struct Explanation {
 /// Explain the system: the model, assuming the evidence.
 pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanation {
     let index = Index::of(model);
-    let library = model::calls(model).unwrap_or_default();
+    let library = model::calls(model)
+        .unwrap_or_default()
+        .budget(settings.budget);
     let refused: BTreeSet<Path> = evidence::check(model, ledger)
         .into_iter()
         .map(|e| e.at)
@@ -517,6 +523,9 @@ impl Given<'_, '_> {
                     self.finding(X002, &at, message);
                 }
                 Err(Fault::Op(Undefined::Unknown(g))) if g == &path => opaque = true,
+                Err(Fault::Op(Undefined::Budget(why))) => {
+                    self.finding(X009, &at, format!("at {point}, `{path}`: {why}"));
+                }
                 Err(Fault::Op(Undefined::Unknown(g))) => {
                     let message = format!(
                         "at {point}, `{path}` needs what `{g}` gave, which nothing gives: measure it as an input"
@@ -554,6 +563,11 @@ impl Given<'_, '_> {
                                 c.name
                             );
                             self.finding(X003, &at, message);
+                        }
+                        Err(Fault::Op(Undefined::Budget(why))) => {
+                            undecided = true;
+                            let message = format!("claim `{}` at {point}: {why}", c.name);
+                            self.finding(X009, &at, message);
                         }
                         _ => {
                             undecided = true;

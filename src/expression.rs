@@ -174,6 +174,16 @@ pub trait Reading {
         let _ = (op, args, run);
         Err(Fault::Stuck)
     }
+    /// Whether argument `i` of `op` is needed, given what the arguments
+    /// before it gave: one that is not is never computed, and `Stuck`
+    /// stands in its place. Only an argument `apply` would drop may be
+    /// left out, as `if` drops the branch it does not take, so this
+    /// changes the time a reading takes, never what it gives. Every one,
+    /// unless the reading says otherwise.
+    fn needed(&self, op: &OpOf<Self>, i: usize, before: &[OutcomeOf<Self>]) -> bool {
+        let _ = (op, i, before);
+        true
+    }
 }
 
 /// What each name in scope stands for: its bindings, the nearest last.
@@ -259,8 +269,9 @@ fn eval_in<'e, R: Reading>(
         Expression::Name(name) => read::<R>(values, scope, name),
         Expression::Apply(op, args) => {
             let mut outcomes = Vec::with_capacity(args.len());
-            for arg in args {
-                outcomes.push(match arg.binds.is_empty() {
+            for (i, arg) in args.iter().enumerate() {
+                let needed = arg.binds.is_empty() && reading.needed(op, i, &outcomes);
+                outcomes.push(match needed {
                     true => eval_in(reading, values, scope, &arg.body),
                     false => Err(Fault::Stuck),
                 });
