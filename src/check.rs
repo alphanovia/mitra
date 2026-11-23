@@ -494,12 +494,39 @@ fn typed_in<'a>(
     for (name, t) in names.filter(|(_, t)| !known_in(index, t, params)) {
         let message = match t.open() && params.is_empty() {
             true => format!("the type of `{name}` is a type parameter: only a contract, a record or an enum names one"),
-            false => format!("the type of `{name}` names no record of the model as declared"),
+            false => match std_named(t) {
+                Some((part, n)) => format!(
+                    "the type of `{name}` names `{n}`, which no part of the model declares: it is in Mitra's standard model, `use std::{part}::{n};`"
+                ),
+                None => format!(
+                    "the type of `{name}` names no record or enum of the model as declared"
+                ),
+            },
         };
         errors.push(error(M003, &at.then(name), message));
         all = false;
     }
     all
+}
+
+/// The first record or enum `t` names that a part of Mitra's standard
+/// model declares, with that part: for a message.
+fn std_named(t: &Type) -> Option<(&'static str, String)> {
+    let name = match t {
+        Type::Record(r) => r.name.clone(),
+        Type::Enum(e) => e.name.clone(),
+        _ => return None,
+    };
+    let declares = |text: &str| {
+        crate::parse::parse(text).is_ok_and(|m| {
+            let mut parts = m.parts.iter();
+            parts.any(|p| {
+                p.enums.iter().any(|e| e.name == name) || p.records.iter().any(|r| r.name == name)
+            })
+        })
+    };
+    let found = crate::parse::STD.iter().find(|(_, text)| declares(text));
+    found.map(|(part, _)| (*part, name))
 }
 
 /// `t` is a type: a truth, a number, a tuple of types, or the type of a
@@ -830,6 +857,14 @@ fn visible(part: &Part, of: &str, name: &str) -> bool {
     of == part.name || part.uses.iter().any(|u| u.reads(of, name))
 }
 
+/// `std::` before a part of Mitra's standard model, in a `use` to write.
+fn std_(index: &Index, part: &str) -> &'static str {
+    match index.std.contains(part) {
+        true => "std::",
+        false => "",
+    }
+}
+
 /// M018 for each record a type names that is of another part, not used,
 /// read at `at`.
 fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error> {
@@ -840,8 +875,10 @@ fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error>
             if let Some(of) = index.record_parts.get(r.name.as_str()) {
                 if !visible(part, of, &r.name) {
                     let message = format!(
-                        "`{of}::{}` is of another part: `use {of}::{};`",
-                        r.name, r.name
+                        "`{of}::{}` is of another part: `use {}{of}::{};`",
+                        r.name,
+                        std_(index, of),
+                        r.name
                     );
                     errors.push(error(M018, at, message));
                 }
@@ -852,8 +889,10 @@ fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error>
             if let Some(of) = index.enum_parts.get(e.name.as_str()) {
                 if !visible(part, of, &e.name) {
                     let message = format!(
-                        "`{of}::{}` is of another part: `use {of}::{};`",
-                        e.name, e.name
+                        "`{of}::{}` is of another part: `use {}{of}::{};`",
+                        e.name,
+                        std_(index, of),
+                        e.name
                     );
                     errors.push(error(M018, at, message));
                 }

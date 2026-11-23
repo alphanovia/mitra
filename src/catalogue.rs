@@ -184,6 +184,7 @@ pub const P006: Code = parse(6);
 pub const P007: Code = parse(7);
 pub const P008: Code = parse(8);
 pub const P009: Code = parse(9);
+pub const P010: Code = parse(10);
 
 const fn reader(number: u16) -> Code {
     Code {
@@ -329,6 +330,7 @@ pub const CATALOGUE: &[Entry] = &[
     ),
     entry(P008, "a type given the wrong type arguments"),
     entry(P009, "a value whose type cannot be told here"),
+    entry(P010, "a part no file of the model declares"),
     entry(R001, "a `mitra:` comment the reader cannot read"),
     entry(R002, "a tie comment on no item, or to nothing of the model"),
     entry(R003, "a `measures` comment on no test"),

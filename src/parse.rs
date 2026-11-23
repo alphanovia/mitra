@@ -12,7 +12,7 @@
 //! catalogue (suit `P`) and where it is: line and column, as rustc
 //! writes them. Only the first is given.
 
-use crate::catalogue::{Code, P001, P002, P003, P004, P005, P006, P007, P008, P009};
+use crate::catalogue::{Code, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010};
 use crate::expression::{check as typed, Arg, Expression};
 use crate::judgement::{self, Prop, Set};
 use crate::location::Location;
@@ -88,11 +88,10 @@ fn error(code: Code, at: Pos, message: impl Into<String>) -> ParseError {
 }
 
 /// A model from its text.
+/// A `use std::…` reads Mitra's own standard model; a part no file
+/// declares is left to `check` (`load` reads files).
 pub fn parse(source: &str) -> Result<Model> {
-    let tokens = lex(source)?;
-    let first = Parser::new(tokens.clone(), None).model()?;
-    let context = Context::of(&first);
-    Parser::new(tokens, Some(&context)).model()
+    files(source, None).map_err(|l| l.error)
 }
 
 /// A proposition from its text, its paths whole (`stone::drop::falls`),
@@ -763,6 +762,8 @@ pub(crate) struct Parser<'c> {
     /// The contract being read, and its type parameters.
     contract: Option<String>,
     params: Vec<(String, simulation::Bound)>,
+    /// Each part a `use` reads, whether through `std::`, and where.
+    reads: Vec<Read>,
 }
 
 impl<'c> Parser<'c> {
@@ -776,6 +777,7 @@ impl<'c> Parser<'c> {
             no_record: false,
             contract: None,
             params: vec![],
+            reads: vec![],
         }
     }
 
@@ -931,7 +933,13 @@ impl<'c> Parser<'c> {
 
     // ------------------------------------------------ the model
 
-    pub(crate) fn model(mut self) -> Result<Model> {
+    pub(crate) fn model(self) -> Result<Model> {
+        self.model_reads().map(|(m, _)| m)
+    }
+
+    /// The model, and each part its uses read, through `std::` or not,
+    /// and where.
+    fn model_reads(mut self) -> Result<(Model, Vec<Read>)> {
         let (mut parts, mut contracts, mut examples) = (vec![], vec![], vec![]);
         loop {
             match self.peek() {
@@ -957,12 +965,13 @@ impl<'c> Parser<'c> {
                 }
             }
         }
-        Ok(Model {
+        let model = Model {
             parts,
             contracts,
             examples,
             ties: self.ties,
-        })
+        };
+        Ok((model, self.reads))
     }
 
     /// `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T): …; }`.
@@ -1117,10 +1126,21 @@ impl<'c> Parser<'c> {
     }
 
     /// `use sun::{light, Ray};`, `use sun::light;` or `use sun::*;`.
+    /// `use std::core::Option;` reads the part `core` of Mitra's own
+    /// standard model (`std/core.mitra`): three names, the first `std`.
     fn use_(&mut self) -> Result<Use> {
         self.expect_word("use")?;
-        let part = self.name()?;
+        let at = self.pos();
+        let mut part = self.name()?;
         self.expect("::")?;
+        let std = part == "std"
+            && matches!(self.peek(), Tok::Word(_))
+            && *self.peek_at(1) == Tok::Sym("::");
+        if std {
+            part = self.name()?;
+            self.expect("::")?;
+        }
+        self.reads.push((part.clone(), std, at));
         let u = if self.eat("*") {
             Use::Glob { part }
         } else if self.eat("{") {
@@ -1196,6 +1216,7 @@ impl<'c> Parser<'c> {
             implements: vec![],
             requires: vec![],
             ensures: vec![],
+            file: None,
         };
         while !self.eat("}") {
             match self.peek() {
@@ -2975,4 +2996,161 @@ pub fn location(text: &str) -> Location {
         false => text.split('/').map(str::to_string).collect(),
     };
     Location { path }
+}
+
+// ---------------------------------------------------------------- files
+
+/// Mitra's own standard model, shipped in the binary: each part by name.
+/// Nothing in it is built into the language (finding 3).
+pub const STD: &[(&str, &str)] = &[("core", include_str!("../std/core.mitra"))];
+
+/// A part a `use` reads, whether through `std::`, and where.
+type Read = (String, bool, Pos);
+
+/// What reads the file `<part>.mitra` beside a model, if it is there.
+pub type ReadFile<'a> = &'a dyn Fn(&str) -> Option<String>;
+
+/// A file still to read: its name (`None` for the model's own), its
+/// text, and the part it was read for, where, and by which file.
+type ToRead = (
+    Option<String>,
+    String,
+    Option<(String, Pos, Option<String>)>,
+);
+
+/// A parse error in one of the files of a model: which, and its text,
+/// to render it (`ParseError::render`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Loaded {
+    pub file: String,
+    pub source: String,
+    pub error: ParseError,
+}
+
+/// A model from its text and the files it reads: each part a `use`
+/// names that no file read so far declares is read from `<part>.mitra`
+/// by `read` (beside the model, for the CLI), and each `use std::…`
+/// from Mitra's own standard model. A part no file declares is P010.
+pub fn load(source: &str, read: ReadFile) -> std::result::Result<Model, Loaded> {
+    files(source, Some(read))
+}
+
+/// `load`, with `files` a reader of `<part>.mitra`, or none (`parse`):
+/// then a part no file declares is left to `check`.
+fn files(source: &str, read: Option<ReadFile>) -> std::result::Result<Model, Loaded> {
+    // Each file: its name (`None` for the model itself), its text, its
+    // tokens and its first reading.
+    struct File {
+        name: Option<String>,
+        source: String,
+        tokens: Vec<(Tok, Pos)>,
+        first: Model,
+    }
+    let failed = |name: &Option<String>, source: &str, error: ParseError| Loaded {
+        file: name.clone().unwrap_or_default(),
+        source: source.to_string(),
+        error,
+    };
+    let mut done: Vec<File> = Vec::new();
+    let mut todo: Vec<ToRead> = vec![(None, source.to_string(), None)];
+    while let Some((name, text, wanted)) = todo.pop() {
+        let tokens = lex(&text).map_err(|e| failed(&name, &text, e))?;
+        let (first, reads) = Parser::new(tokens.clone(), None)
+            .model_reads()
+            .map_err(|e| failed(&name, &text, e))?;
+        // A file read for a part declares it.
+        if let Some((part, at, by)) = wanted {
+            if !first.parts.iter().any(|p| p.name == part) {
+                let message = format!(
+                    "`{}` declares no part `{part}`: a part read from a file is declared in it",
+                    name.clone().unwrap_or_default()
+                );
+                let by_text = done
+                    .iter()
+                    .find(|f| f.name == by)
+                    .map(|f| f.source.clone())
+                    .unwrap_or_default();
+                return Err(failed(&by, &by_text, error(P010, at, message)));
+            }
+        }
+        done.push(File {
+            name: name.clone(),
+            source: text.clone(),
+            tokens,
+            first,
+        });
+        for (part, std, at) in reads {
+            let declared = |files: &[File]| {
+                files
+                    .iter()
+                    .any(|f| f.first.parts.iter().any(|p| p.name == part))
+            };
+            let queued = todo
+                .iter()
+                .any(|(_, _, w)| w.as_ref().is_some_and(|(p, _, _)| *p == part));
+            if declared(&done) || queued {
+                continue;
+            }
+            let found = match std {
+                true => STD
+                    .iter()
+                    .find(|(n, _)| *n == part)
+                    .map(|(n, t)| (format!("std/{n}.mitra"), t.to_string())),
+                false => match read {
+                    Some(read) => {
+                        read(&format!("{part}.mitra")).map(|t| (format!("{part}.mitra"), t))
+                    }
+                    None => continue,
+                },
+            };
+            match found {
+                Some((file, t)) => todo.push((Some(file), t, Some((part, at, name.clone())))),
+                None => {
+                    let message = match std {
+                        true => format!(
+                            "no part `std::{part}`: Mitra's standard model has {}",
+                            STD.iter().map(|(n, _)| format!("`std::{n}`")).collect::<Vec<_>>().join(", ")
+                        ),
+                        false => format!(
+                            "no part `{part}`: no file of the model declares it, and there is no `{part}.mitra` beside it"
+                        ),
+                    };
+                    return Err(failed(&name, &text, error(P010, at, message)));
+                }
+            }
+        }
+    }
+    // One reading of them all, then each file read again with it.
+    let mut all = Model {
+        parts: vec![],
+        contracts: vec![],
+        examples: vec![],
+        ties: vec![],
+    };
+    for f in &done {
+        all.parts.extend(f.first.parts.iter().cloned());
+        all.contracts.extend(f.first.contracts.iter().cloned());
+        all.examples.extend(f.first.examples.iter().cloned());
+        all.ties.extend(f.first.ties.iter().cloned());
+    }
+    let context = Context::of(&all);
+    let mut model = all;
+    model.parts.clear();
+    model.contracts.clear();
+    model.examples.clear();
+    model.ties.clear();
+    for f in done {
+        let read = Parser::new(f.tokens, Some(&context))
+            .model()
+            .map_err(|e| failed(&f.name, &f.source, e))?;
+        let mut parts = read.parts;
+        for p in parts.iter_mut() {
+            p.file = f.name.clone();
+        }
+        model.parts.extend(parts);
+        model.contracts.extend(read.contracts);
+        model.examples.extend(read.examples);
+        model.ties.extend(read.ties);
+    }
+    Ok(model)
 }

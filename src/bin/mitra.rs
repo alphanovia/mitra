@@ -129,10 +129,28 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     let given = arguments(args)?;
     let source = read(&given.model)?;
     let shown = given.model.display().to_string();
-    let model = match parse::parse(&source) {
+    // A part the model uses and does not declare is read from
+    // `<part>.mitra` beside it.
+    let beside = given
+        .model
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_default();
+    let read_part = |file: &str| std::fs::read_to_string(beside.join(file)).ok();
+    let model = match parse::load(&source, &read_part) {
         Ok(m) => m,
-        Err(e) => {
-            out!("{}", e.render(&shown, &source).trim_end());
+        Err(l) => {
+            let (file, text) = match l.file.is_empty() {
+                true => (shown.clone(), source.clone()),
+                false => {
+                    let file = match l.file.starts_with("std/") {
+                        true => l.file.clone(),
+                        false => beside.join(&l.file).display().to_string(),
+                    };
+                    (file, l.source.clone())
+                }
+            };
+            out!("{}", l.error.render(&file, &text).trim_end());
             return Ok(ExitCode::from(1));
         }
     };

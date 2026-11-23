@@ -52,7 +52,10 @@ pub fn print(model: &Model) -> String {
         };
         let mut out = String::new();
         w.part(part, model, &mut placed, first, &mut out);
-        blocks.push(out);
+        // A part read from another file stays there: its ties too.
+        if part.file.is_none() {
+            blocks.push(out);
+        }
     }
     if !model.examples.is_empty() {
         let w = Writer {
@@ -290,7 +293,7 @@ impl Writer<'_> {
         };
         out.push_str(&format!("{kind} {}{} {{\n", part.name, tied(&here, placed)));
         let mut blocks: Vec<String> = vec![];
-        let uses: String = part.uses.iter().map(use_).collect();
+        let uses: String = part.uses.iter().map(|u| use_(u, model)).collect();
         if !uses.is_empty() {
             blocks.push(uses);
         }
@@ -658,13 +661,21 @@ fn enum_(e: &crate::model::Enum, ties: &str) -> String {
     )
 }
 
-fn use_(u: &Use) -> String {
+/// A use, `std::` before a part of Mitra's standard model.
+fn use_(u: &Use, model: &Model) -> String {
+    let std = model
+        .parts
+        .iter()
+        .any(|p| p.name == u.part() && p.file.as_ref().is_some_and(|f| f.starts_with("std/")));
+    let from = if std { "std::" } else { "" };
     match u {
-        Use::Glob { part } => format!("    use {part}::*;\n"),
+        Use::Glob { part } => format!("    use {from}{part}::*;\n"),
         Use::Names { part, names } if names.len() == 1 => {
-            format!("    use {part}::{};\n", names[0])
+            format!("    use {from}{part}::{};\n", names[0])
         }
-        Use::Names { part, names } => format!("    use {part}::{{{}}};\n", names.join(", ")),
+        Use::Names { part, names } => {
+            format!("    use {from}{part}::{{{}}};\n", names.join(", "))
+        }
     }
 }
 

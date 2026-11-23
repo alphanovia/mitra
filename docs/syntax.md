@@ -69,6 +69,8 @@ subject stone {
 | `ponens(r, p, q)`, `ponens[t, 1](…)`, `tollens[t, 0, 2](…)`, `reductio[p](…)`, `cases[q](…)`, `instance[q](o, point(3, 4))`, `witness[q](o, p)`, `intro[q](|p| …)`, `point(3, 4)`, `join(a, b)`, `state(a)`, `!a`, `a && b`, `let x = a in b` | a proof, `judgement::Op` | flagged |
 | `all x in (a: 0..10, b: 0..10) where b != 0: p`, `any …`, `!p`, `{p, q} s {r}`, `correct(f, (6, 2))`, `correct(f, x)`, `correct(f, x in (a: 0..10))` | `Prop` | flagged |
 | `use sun::{light, Ray};`, `use sun::light;`, `use sun::*;` in a part | `Use` | Rust |
+| `use std::core::Option;`: Mitra's standard model (`std/core.mitra`, in the binary: `Option<T>`, `Result<T, E>`) | `Use` of the part `core`, `Part.file` | Rust's path; a std file holds one part (flagged) |
+| a part used and not declared: read from `<part>.mitra` beside the model | `Part.file` | Rust's `mod` file rule, without `mod` (flagged) |
 | `light(h)`, `sun::light(h)` | `Op::Call("sun::light")` | Rust |
 | `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T): …; }` | `Contract`, `Law` | Rust's trait, keyword and `Number` flagged |
 | `impl Monotone<Real> for speed;`, `impl Pair<Real> for (f, g);` | `Implements` | Rust's form, `for (f, g)` flagged |
@@ -191,7 +193,7 @@ patterns; an enum that holds itself (a list, a tree) waits (M027).
 Differences from main, each Rust's form: `use`, not `import`; a variant
 holds types in order, `Some(T)`, not named fields `Some(value: T)`; a
 `match` that misses a variant is an error; a std file holds one part
-(`subject core`; loading it is the next step). *Elsewhere*: Rust, Haskell's `data`, OCaml's variants, Swift's
+(`subject core`). *Elsewhere*: Rust, Haskell's `data`, OCaml's variants, Swift's
 `enum`.
 
 ## Errors

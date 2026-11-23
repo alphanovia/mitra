@@ -81,6 +81,7 @@ fn sun() -> Part {
     let mut light = function("light", "", ("w", Type::Real));
     light.takes.clear();
     Part {
+        file: None,
         enums: vec![],
         name: "sun".to_string(),
         kind: Kind::Environment,
@@ -147,6 +148,7 @@ fn stone() -> Part {
         gives: real(981, 10),
     }];
     Part {
+        file: None,
         enums: vec![],
         name: "stone".to_string(),
         kind: Kind::Subject,
@@ -849,6 +851,7 @@ fn in_a_model(holds: E) -> Model {
     };
     Model {
         parts: vec![Part {
+            file: None,
             enums: vec![],
             name: "s".to_string(),
             kind: Kind::Subject,

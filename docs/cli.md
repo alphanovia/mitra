@@ -26,6 +26,10 @@ mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
 
 `--report`, `--store` and `--points` are given once each.
 
+A part the model uses and does not declare is read from `<part>.mitra`
+beside the model file, and `use std::core::…` from Mitra's own standard
+model, in the binary (P010 when neither has it).
+
 | Command | Question | Says |
 |---|---|---|
 | `check` | 1: is the model sound on itself? | parse and `check` errors; then agree's findings and a count of comparisons |

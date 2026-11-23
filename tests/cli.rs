@@ -132,3 +132,36 @@ fn points_decide_main_s_div_on_every_pair() {
     }
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn a_part_is_read_from_the_file_beside_the_model() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-files-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let model = dir.join("calc.mitra");
+    std::fs::write(
+        &model,
+        "subject calc {\n    use geometry::Point;\n    use std::core::Option;\n    fn mid(p: Point) -> m: Option<Real> { Some((p.x + p.y) / 2.0) }\n}\n",
+    )
+    .unwrap();
+    let (code, out) = mitra(&["check", model.to_str().unwrap()]);
+    assert_eq!(code, 1, "{out}");
+    assert!(out.contains("error[P010]: no part `geometry`"), "{out}");
+    assert!(out.contains("calc.mitra:2:9"), "{out}");
+    std::fs::write(
+        dir.join("geometry.mitra"),
+        "subject geometry {\n    record Point { x: Real, y: }\n}\n",
+    )
+    .unwrap();
+    let (code, out) = mitra(&["check", model.to_str().unwrap()]);
+    assert_eq!(code, 1, "{out}");
+    assert!(out.contains("geometry.mitra:2:"), "{out}");
+    std::fs::write(
+        dir.join("geometry.mitra"),
+        "subject geometry {\n    record Point { x: Real, y: Real }\n}\n",
+    )
+    .unwrap();
+    let (code, out) = mitra(&["check", model.to_str().unwrap()]);
+    assert_eq!(code, 0, "{out}");
+    assert!(out.contains("check: well formed"), "{out}");
+    std::fs::remove_dir_all(&dir).unwrap();
+}

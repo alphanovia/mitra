@@ -56,8 +56,8 @@ subject simulation {
     require exact_numbers: num::exact;
     require trees: expression::binding;
 
+    use std::core::Option;
     record Rational at "src/simulation.rs/Rational";
-    enum Option<T> { None, Some(T) }
     fn plus(x: Real, y: Real) -> z: Real at "src/simulation.rs/Rational/plus" { x + y }
     fn minus(x: Real, y: Real) -> z: Real at "src/simulation.rs/Rational/minus" { x - y }
     fn times(x: Real, y: Real) -> z: Real at "src/simulation.rs/Rational/times" { x * y }
@@ -186,6 +186,7 @@ subject parse {
     require printed: print::reads_back;
     ensure round_trip: "parse(print(m)) is m, ties aside" from (printed);
     ensure first_error: "a text that is not a model gives its first error, at its line and column, suit P";
+    ensure files: "a part used and not declared is read from `<part>.mitra` beside the model, `use std::…` from Mitra's standard model in the binary; one found nowhere is P010, at the use";
     ensure exhaustive: "a match gives each variant of its enum one arm, or `_` for the rest (P006); a value whose type nothing around it tells is P009, never a guess";
 }
 

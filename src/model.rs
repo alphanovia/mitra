@@ -89,6 +89,9 @@ pub struct Part {
     pub implements: Vec<Implements>,
     pub requires: Vec<Require>,
     pub ensures: Vec<Ensure>,
+    /// The file it was read from, when not the model's own:
+    /// `std/core.mitra`, or `geometry.mitra` beside the model.
+    pub file: Option<String>,
 }
 
 /// What a part reads of another, as Rust's `use`: the functions it
@@ -516,6 +519,8 @@ pub(crate) struct Index<'m> {
     unknown: BTreeSet<String>,
     /// What a call by a name alone names, for messages.
     pub(crate) calling: crate::parse::Calling,
+    /// The parts read from Mitra's standard model (`use std::…`).
+    pub(crate) std: BTreeSet<&'m str>,
 }
 
 impl<'m> Index<'m> {
@@ -533,6 +538,12 @@ impl<'m> Index<'m> {
             cyclic: BTreeSet::new(),
             unknown: BTreeSet::new(),
             calling: crate::parse::Calling::of(model),
+            std: model
+                .parts
+                .iter()
+                .filter(|p| p.file.as_ref().is_some_and(|f| f.starts_with("std/")))
+                .map(|p| p.name.as_str())
+                .collect(),
         };
         for c in &model.contracts {
             index.contracts.entry(&c.name).or_insert(c);
