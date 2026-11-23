@@ -84,6 +84,14 @@ impl Rational {
             false => Some(Rational(&self.0 / &other.0)),
         }
     }
+    /// The greatest whole number at most this one.
+    fn floor(&self) -> Rational {
+        Rational(self.0.floor())
+    }
+    /// The least whole number at least this one.
+    fn ceil(&self) -> Rational {
+        Rational(self.0.ceil())
+    }
     pub fn abs(&self) -> Rational {
         Rational(self.0.abs())
     }
@@ -1094,6 +1102,96 @@ impl Reading for Ranges {
             (Op::All, [lo, hi, _]) => all(lo, hi, run),
             _ => Err(Fault::Stuck),
         }
+    }
+}
+
+impl Ranges {
+    /// The bounds of each name in `over` that `e` keeps, when `e` is
+    /// true: each comparison of a name with what bounds give of the other
+    /// side, among the `&&` at the top of `e`, cuts that name's span, one
+    /// name at a time. `None` when a span is cut to nothing: `e` is true
+    /// nowhere in `bounds`. Strict on `Int`, not on `Real`, where the end
+    /// stays in.
+    pub fn kept(
+        &self,
+        over: &[(String, Type)],
+        bounds: &BTreeMap<String, Bounds>,
+        e: &Expression<Op>,
+    ) -> Option<BTreeMap<String, Bounds>> {
+        let mut kept = bounds.clone();
+        let mut todo = vec![e];
+        while let Some(e) = todo.pop() {
+            let Expression::Apply(op, args) = e else {
+                continue;
+            };
+            if args.iter().any(|a| !a.binds.is_empty()) {
+                continue;
+            }
+            let (a, b) = match (op, args.as_slice()) {
+                (Op::And, [a, b]) => {
+                    todo.extend([&a.body, &b.body]);
+                    continue;
+                }
+                (Op::Less | Op::AtMost | Op::Equal, [a, b]) => (&a.body, &b.body),
+                _ => continue,
+            };
+            // `n < x` cuts n's high end, `x < n` its low end.
+            for (name, other, n_low) in [(a, b, false), (b, a, true)] {
+                let Expression::Name(n) = name else { continue };
+                let whole = over.iter().any(|(m, t)| m == n && t == &Type::Int);
+                let Some(Bounds {
+                    span: Span::Number(low, high),
+                    may_fault,
+                }) = kept.get(n).cloned()
+                else {
+                    continue;
+                };
+                let Ok(Bounds {
+                    span: Span::Number(ol, oh),
+                    ..
+                }) = eval(self, &kept, other)
+                else {
+                    continue;
+                };
+                let strict = whole && matches!(op, Op::Less);
+                let one = Rational::integer(1);
+                let (mut low, mut high) = (low, high);
+                if n_low || matches!(op, Op::Equal) {
+                    // x <= n: n is at least the least x; x < n on Int, one more.
+                    if let Some(l) = &ol {
+                        let l = match whole {
+                            true if strict => l.floor().plus(&one),
+                            true => l.ceil(),
+                            false => l.clone(),
+                        };
+                        low = Some(low.map_or(l.clone(), |x| x.max(l)));
+                    }
+                }
+                if !n_low || matches!(op, Op::Equal) {
+                    if let Some(h) = &oh {
+                        let h = match whole {
+                            true if strict => h.ceil().minus(&one),
+                            true => h.floor(),
+                            false => h.clone(),
+                        };
+                        high = Some(high.map_or(h.clone(), |x| x.min(h)));
+                    }
+                }
+                if let (Some(l), Some(h)) = (&low, &high) {
+                    if l > h {
+                        return None;
+                    }
+                }
+                kept.insert(
+                    n.clone(),
+                    Bounds {
+                        span: Span::Number(low, high),
+                        may_fault,
+                    },
+                );
+            }
+        }
+        Some(kept)
     }
 }
 

@@ -83,14 +83,15 @@ computation calls for, or what that function takes. Any other is A009.
 
 ## What it cannot do yet (findings for you)
 
-- **No splitting.** Bisection needs bounded inputs, and core2's numbers
-  are all of ℤ or ℚ: `Ranges` has a number in `[low, high]` or anywhere,
-  with no half-line, so `(−∞, ∞)` cannot be cut in two. A claim like
-  `!(h <= 20) || v2 < 400` is unknown, though it holds. Either half-lines
-  in `Ranges` (an inner change) or range types (main's `0..=9`) would let
-  agree split and show it.
-- **Bounds read each name on its own.** `0 < q && q < 0` is not seen as
-  false, nor `0 <= x * x` as true: interval reasoning has no relations.
+- **Cuts only at zero.** Bounds read each of the first `splits` numbers
+  (a setting, 4) below zero and above it, so `0 <= x * x` holds and
+  `0 < q && q < 0` keeps nothing. A cut elsewhere, or bisection, would
+  decide `!(h <= 20) || v2 < 400`; today it is unknown.
+- **Comparisons read together one name at a time.** Among the claims
+  joined by `&&`, each comparison of a name with what bounds give of the
+  other side cuts that name (`5 < q && q < 3` keeps nothing). Relations
+  between two names (`x < z && z < x`) are not kept: no octagons. On
+  `Real` a strict end stays in: `1.0 < q && q < 1.0` is unknown.
 - **No solver**, by your choice: points are tried, not found.
 - Record claims are not compared: a record has no body.
 - A proposition written in a rule's `{ … }` term is read as a claim by

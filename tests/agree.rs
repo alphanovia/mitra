@@ -175,7 +175,13 @@ fn a_failure_says_where() {
         "{messages:?}"
     );
     // With no points to try, it is unknown, and says so.
-    let (_, findings) = agree(&model(&text), &Settings { points: 0 });
+    let (_, findings) = agree(
+        &model(&text),
+        &Settings {
+            points: 0,
+            ..Settings::default()
+        },
+    );
     assert!(findings
         .iter()
         .any(|f| f.message.ends_with("nor at 0 points")));

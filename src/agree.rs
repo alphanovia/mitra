@@ -21,7 +21,7 @@ use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
 use crate::model::{calls, contract_claims, Function, Index, Model, ModelExample, Path};
 use crate::print;
-use crate::simulation::{Bounds, Calls, Exact, Op, Ranges, Rational, Type, Undefined, Value};
+use crate::simulation::{Bounds, Calls, Exact, Op, Ranges, Rational, Span, Type, Undefined, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -32,13 +32,22 @@ pub struct Settings {
     /// leave it open: the examples' points first, then small numbers and
     /// the constants the expressions write, and their neighbours.
     pub points: usize,
+    /// The most numbers bounds cut at zero, each read below zero and
+    /// above it: `x * x` is never negative on either side. `n` of them
+    /// is `2^n` readings by bounds per comparison.
+    pub splits: usize,
 }
 
 /// 64 points per comparison: every example row, and for one or two
-/// arguments the small numbers and constants of a typical claim.
+/// arguments the small numbers and constants of a typical claim. 4
+/// numbers cut at zero: 16 readings by bounds, enough for the squares and
+/// signs of a function of a few numbers.
 impl Default for Settings {
     fn default() -> Settings {
-        Settings { points: 64 }
+        Settings {
+            points: 64,
+            splits: 4,
+        }
     }
 }
 
@@ -328,13 +337,54 @@ impl<'m> Reading<'m> {
         Agreement::Unknown { why }
     }
 
-    /// What bounds over every value of `over` say of `e`, when sure.
+    /// What bounds over every value of `over` say of `e`, when sure: the
+    /// same in every reading, its first numbers (up to `splits`) each cut
+    /// at zero. In a reading where the comparisons `e` joins by `&&` keep
+    /// no value of a name, `e` is false there.
     fn surely(&self, over: &[(String, Type)], e: &Expression<Op>) -> Option<bool> {
-        let bounds = over
+        let all: BTreeMap<String, Bounds> = over
             .iter()
             .map(|(n, t)| (n.clone(), Bounds::any(t)))
             .collect();
-        eval(&self.ranges, &bounds, e).ok().and_then(|b| b.surely())
+        let numbers: Vec<&String> = over
+            .iter()
+            .filter(|(_, t)| matches!(t, Type::Int | Type::Real))
+            .map(|(n, _)| n)
+            .take(self.settings.splits)
+            .collect();
+        let zero = || Some(Rational::integer(0));
+        let mut readings = vec![all];
+        for n in numbers {
+            readings = readings
+                .into_iter()
+                .flat_map(|r| {
+                    [Span::Number(None, zero()), Span::Number(zero(), None)].map(|span| {
+                        let mut r = r.clone();
+                        r.insert(
+                            n.clone(),
+                            Bounds {
+                                span,
+                                may_fault: false,
+                            },
+                        );
+                        r
+                    })
+                })
+                .collect();
+        }
+        let mut sure = None;
+        for bounds in readings {
+            let here = match self.ranges.kept(over, &bounds, e) {
+                None => Some(false),
+                Some(_) => eval(&self.ranges, &bounds, e).ok().and_then(|b| b.surely()),
+            };
+            match (here, sure) {
+                (None, _) => return None,
+                (Some(h), Some(s)) if h != s => return None,
+                (h, _) => sure = h,
+            }
+        }
+        sure
     }
 
     /// Whether bounds may be read of `e` over `over`: no value of an

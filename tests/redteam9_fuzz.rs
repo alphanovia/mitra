@@ -293,7 +293,13 @@ fn agree_on_numbers_by_bounds() {
         let exact = Exact {
             calls: Arc::new(calls(&model).unwrap()),
         };
-        let (agreed, _) = agree(&model, &Settings { points: 4 });
+        let (agreed, _) = agree(
+            &model,
+            &Settings {
+                points: 4,
+                ..Settings::default()
+            },
+        );
         let f = &model.parts[0].functions[0];
         let body_e = f.body.clone().unwrap();
         for a in &agreed {
@@ -414,7 +420,13 @@ fn accepted_models_are_read_without_a_panic() {
         }
         let start = std::time::Instant::now();
         let outcome = std::panic::catch_unwind(|| {
-            let _ = agree(&model, &Settings { points: 16 });
+            let _ = agree(
+                &model,
+                &Settings {
+                    points: 16,
+                    ..Settings::default()
+                },
+            );
             let _ = explain(&model, &Ledger::default(), &ExplainSettings::default());
         });
         if start.elapsed().as_secs() >= 1 {

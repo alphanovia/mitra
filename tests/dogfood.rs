@@ -170,10 +170,11 @@ fn dogfood_state_claims_everywhere() {
 
 // ---------------------------------------------- settings, their defaults
 
-// mitra: measures agree::agree_defaults () -> AgreeSettings { points: 64 }
+// mitra: measures agree::agree_defaults () -> AgreeSettings { points: 64, splits: 4 }
 #[test]
 fn dogfood_agree_defaults() {
-    assert_eq!(mitra_core::agree::Settings::default().points, 64);
+    let s = mitra_core::agree::Settings::default();
+    assert_eq!((s.points, s.splits), (64, 4));
 }
 
 // mitra: measures explain::explain_defaults () -> ExplainSettings { rounds: 64, cases: 1024, rests: 1024 }

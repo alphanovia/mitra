@@ -78,6 +78,7 @@ subject simulation {
     record Calls at "src/simulation.rs/Calls";
     ensure one_value = "Calls::with refuses a function two of whose rows at one point give different values";
     ensure given_first = "a call reads the body; with none, what the reading was given at its point, else the row there";
+    ensure kept_sound = "a value at which the comparisons an expression joins by && all hold lies in the bounds Ranges::kept gives, and Ranges::kept gives none only when no value does";
 }
 
 subject judgement {
@@ -201,13 +202,16 @@ subject agree {
     require given = simulation::given_first;
     require exact = simulation::exact_right;
     require ranges = simulation::ranges_sound;
+    require kept = simulation::kept_sound;
     // Each limit a setting, none fixed in the code.
-    record AgreeSettings at "src/agree.rs/Settings" { points: Int }
+    record AgreeSettings at "src/agree.rs/Settings" { points: Int, splits: Int }
     fn agree_defaults() -> s: AgreeSettings at "src/agree.rs/Settings/default" {
-        AgreeSettings { points: 64 }
+        AgreeSettings { points: 64, splits: 4 }
     }
     ensure no_false_holds = "agree says Holds only when what the model says twice agrees at every point"
-        from (checked, exact, ranges, given);
+        from (checked, exact, ranges, kept, given);
+    ensure no_false_none = "agree says no value keeps a function's claims (A004) only when none does"
+        from (checked, exact, ranges, kept);
 }
 
 subject explain {
