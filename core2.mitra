@@ -1,0 +1,260 @@
+// core2, modelled in its own language: the dogfood model.
+//
+// One subject per module of src/, in the order the layers stand on each
+// other; three environments for what core2 uses and does not write. Ties
+// are in the model (`at "src/x.rs/…"`), so the code is not touched.
+//
+// What core2's language can write is numbers, truths, tuples and
+// records. Most of core2 works on text, trees and maps: those functions
+// and records are opaque here, and what they promise is an ensure, in
+// words. Where core2 computes on numbers or truths (Rational, the
+// states of judgement, Subjective Logic), the model has the body.
+//
+// Modelling choices, flagged for review (none is a new concept of the
+// language):
+// - `judgement::State` is an enum in Rust; here it is a record of its
+//   two sides, as `State::sides` gives them.
+// - `numbers::fused` takes takings in Rust; here it takes what they add
+//   up to: weighted runs for and against, with the prior weight and the
+//   base rate of the settings.
+// - f64 in Rust, Real (exact) here: a measuring test compares within
+//   1e-12, the row is exact.
+
+environment num {
+    // num-rational's BigRational, which simulation's Rational wraps.
+    ensure exact = "BigRational adds, subtracts, multiplies and divides exactly";
+}
+
+environment cargo {
+    ensure reports = "`cargo test` prints one line `test NAME ... ok`, `FAILED` or `ignored` for each test it runs";
+}
+
+environment float {
+    // Rust's f64, which numbers.rs computes with.
+    ensure near = "f64 arithmetic on the numbers of numbers.rs is within 1e-12 of the exact result";
+}
+
+subject location {
+    record Location at "src/location.rs/Location";
+    fn within(a: Location, b: Location) -> inside: bool at "src/location.rs/within";
+    ensure prefix = "within(a, b) holds when b's names begin a's names";
+}
+
+subject expression {
+    record Expression at "src/expression.rs/Expression";
+    ensure binding = "an expression is a binding tree: each name is bound once, an argument is read at most once, a fault is lazy";
+    ensure substitution = "substitute replaces free names only, and never captures";
+}
+
+subject simulation {
+    require exact_numbers = num::exact;
+    require trees = expression::binding;
+
+    record Rational at "src/simulation.rs/Rational";
+    fn plus(x: Real, y: Real) -> z: Real at "src/simulation.rs/Rational/plus" { x + y }
+    fn minus(x: Real, y: Real) -> z: Real at "src/simulation.rs/Rational/minus" { x - y }
+    fn times(x: Real, y: Real) -> z: Real at "src/simulation.rs/Rational/times" { x * y }
+    // Rust gives None at y = 0; the model's division faults there.
+    fn over(x: Real, y: Real) -> z: Real at "src/simulation.rs/Rational/over" { x / y }
+    fn abs(x: Real) -> z: Real at "src/simulation.rs/Rational/abs" {
+        if x < 0.0 { 0.0 - x } else { x }
+    } where {
+        claim positive = 0.0 <= z;
+        claim same = z == x || z == 0.0 - x;
+    }
+
+    ensure exact_right = "Exact gives the value an expression means, or a fault"
+        from (exact_numbers, trees);
+    ensure ranges_sound = "every value Exact gives lies in the bounds Ranges gives"
+        from (exact_numbers, trees);
+}
+
+subject judgement {
+    require holds = simulation::exact_right;
+
+    // Belnap's four states, as their two sides: told true, told false.
+    record State at "src/judgement.rs/State" { t: bool, f: bool }
+
+    fn told(t: bool, f: bool) -> s: State at "src/judgement.rs/State/told" {
+        State { t: t, f: f }
+    }
+    fn sides(s: State) -> p: (bool, bool) at "src/judgement.rs/State/sides" { (s.t, s.f) }
+    fn and(x: State, y: State) -> z: State at "src/judgement.rs/State/and" {
+        told(x.t && y.t, x.f || y.f)
+    } where {
+        // Told false when either is; told true only when both are.
+        claim false_wins = (x.f || y.f) == z.f;
+        claim true_needs_both = !z.t || (x.t && y.t);
+    }
+    fn join(x: State, y: State) -> z: State at "src/judgement.rs/State/join" {
+        told(x.t || y.t, x.f || y.f)
+    } where {
+        // Join forgets nothing either tells.
+        claim keeps = (!x.t || z.t) && (!x.f || z.f) && (!y.t || z.t) && (!y.f || z.f);
+    }
+    fn negate(x: State) -> z: State at "src/judgement.rs/State/not" {
+        told(x.f, x.t)
+    } where {
+        claim swaps = z.t == x.f && z.f == x.t;
+    }
+
+    ensure sound = "a proposition judged true follows from its rests by the rules of judgement"
+        from (holds);
+    ensure taken_only = "every rest is a set of takings, and nothing is true without one";
+}
+
+subject tactic {
+    require kernel = judgement::sound;
+    ensure checked = "cases and intro write proofs that judgement checks; they add nothing it trusts"
+        from (kernel);
+}
+
+subject model {
+    require kernel = judgement::sound;
+    record Model at "src/model.rs/Model";
+    record Path at "src/model.rs/Path";
+    ensure props = "props gives every proposition the model names, and only those";
+    ensure leaves = "leaves gives the propositions no rule concludes, each a suspect";
+}
+
+subject catalogue {
+    record Code at "src/catalogue.rs/Code";
+    ensure never_reused = "a code is given to one meaning, never reused";
+    ensure documented = "every code has an entry and a page in docs/reference";
+}
+
+subject check {
+    require codes = catalogue::never_reused;
+    // `fn check(m: model::Model) -> …` cannot be written: a type names
+    // no record of another part (finding).
+    ensure sound = "a model check gives no error for has every path resolved, every type agreed, no support cycle, and every proof checked by type and by one run"
+        from (codes);
+}
+
+subject print {
+    ensure reads_back = "what print writes, parse reads back";
+}
+
+subject parse {
+    require printed = print::reads_back;
+    ensure round_trip = "parse(print(m)) is m, ties aside" from (printed);
+    ensure first_error = "a text that is not a model gives its first error, at its line and column, suit P";
+}
+
+subject evidence {
+    require checked = check::sound;
+    record Ledger at "src/evidence.rs/Ledger";
+    record Measurement at "src/evidence.rs/Measurement";
+    record Review at "src/evidence.rs/Review";
+    ensure fits = "a ledger evidence accepts measures only tied functions of the model, with every input and an output, and reviews only what a review can name"
+        from (checked);
+}
+
+subject reader {
+    require report = cargo::reports;
+    ensure nothing_dropped = "whatever the reader is given and cannot use is a finding of suit R";
+    ensure ties_read = "a `// mitra: implements` comment above a fn, struct or enum ties that item, at file/mods/name"
+        from (report);
+}
+
+subject agree {
+    require checked = check::sound;
+    require exact = simulation::exact_right;
+    require ranges = simulation::ranges_sound;
+    record AgreeSettings at "src/agree.rs/Settings";
+    ensure no_false_holds = "agree says Holds only when what the model says twice agrees at every point"
+        from (checked, exact, ranges);
+}
+
+subject explain {
+    require checked = check::sound;
+    require fits = evidence::fits;
+    require kernel = judgement::sound;
+    require read = reader::nothing_dropped;
+    record Explanation at "src/explain.rs/Explanation";
+    record ExplainSettings at "src/explain.rs/Settings";
+    ensure verdicts = "each proposition is explained, contradicted or unsupported, as judgement gives it from the model and the ledger"
+        from (checked, fits, kernel, read);
+}
+
+subject blame {
+    require explained = explain::verdicts;
+    record BlameSettings at "src/blame.rs/Settings";
+    ensure minimal = "each diagnosis is a smallest set of suspects whose drop leaves nothing contradicted"
+        from (explained);
+}
+
+subject numbers {
+    require explained = explain::verdicts;
+    require near = float::near;
+
+    // An opinion in numbers.
+    record Belief at "src/numbers.rs/Belief" {
+        belief: Real, disbelief: Real, uncertainty: Real, expected: Real
+    }
+    // An opinion with its base rate, as multiplication reads it.
+    record Said at "src/numbers.rs/Said" { b: Real, d: Real, u: Real, a: Real }
+
+    // From a belief and a disbelief, with base rate a: a conflict (more
+    // than 1 together) is read in proportion, with no uncertainty.
+    fn opinion(belief: Real, disbelief: Real, a: Real) -> o: Belief
+        at "src/numbers.rs/Belief/of"
+    {
+        let total = belief + disbelief in
+        let b = if 1.0 < total { belief / total } else { belief } in
+        let d = if 1.0 < total { disbelief / total } else { disbelief } in
+        let u = if 1.0 - b - d < 0.0 { 0.0 } else { 1.0 - b - d } in
+        Belief { belief: b, disbelief: d, uncertainty: u, expected: b + a * u }
+    } where {
+        claim sums_to_one = o.belief + o.disbelief + o.uncertainty == 1.0;
+        claim in_unit = !(0.0 <= belief && 0.0 <= disbelief && 0.0 <= a && a <= 1.0)
+            || (0.0 <= o.expected && o.expected <= 1.0);
+    }
+
+    // r runs for, s against (weighted by voice), prior weight w.
+    fn fused(r: Real, s: Real, w: Real, a: Real) -> o: Belief at "src/numbers.rs/fused" {
+        let n = r + s + w in
+        if 0.0 < n { opinion(r / n, s / n, a) } else { opinion(0.0, 0.0, a) }
+    } where {
+        claim nothing_known = !(r == 0.0 && s == 0.0) || o.expected == a;
+        examples { (97.0, 3.0, 2.0, 1/2) -> Belief { belief: 97/102, disbelief: 1/34, uncertainty: 1/51, expected: 49/51 } }
+    }
+
+    // Subjective Logic's binomial multiplication (Jøsang, McAnally).
+    fn times(x: Said, y: Said) -> z: Said at "src/numbers.rs/times" {
+        let k = 1.0 - x.a * y.a in
+        if 0.0 < k {
+            Said {
+                b: x.b * y.b + ((1.0 - x.a) * y.a * x.b * y.u + x.a * (1.0 - y.a) * x.u * y.b) / k,
+                d: x.d + y.d - x.d * y.d,
+                u: x.u * y.u + ((1.0 - y.a) * x.b * y.u + (1.0 - x.a) * x.u * y.b) / k,
+                a: x.a * y.a
+            }
+        } else {
+            Said {
+                b: x.b * y.b,
+                d: x.d + y.d - x.d * y.d,
+                u: x.u * y.u + x.b * y.u + x.u * y.b,
+                a: x.a * y.a
+            }
+        }
+    } where {
+        // Certain truth, with base rate 1, is the unit of multiplication.
+        examples { (Said { b: 1.0, d: 0.0, u: 0.0, a: 1.0 }, Said { b: 1/2, d: 1/4, u: 1/4, a: 1/2 })
+                   -> Said { b: 1/2, d: 1/4, u: 1/4, a: 1/2 } }
+    }
+
+    ensure in_unit = "every number given is in [0, 1], and belief, disbelief and uncertainty add to 1"
+        from (opinion::sums_to_one, opinion::in_unit, near);
+}
+
+subject cli {
+    require checked = check::sound;
+    require agreed = agree::no_false_holds;
+    require explained = explain::verdicts;
+    require blamed = blame::minimal;
+    require numbered = numbers::in_unit;
+    require parsed = parse::first_error;
+    ensure answers = "check, explain and blame each answer their question; the exit code is 1 on a malformed model or evidence, 2 on a wrong command line, else 0"
+        from (checked, agreed, explained, blamed, numbered, parsed);
+}
