@@ -329,7 +329,7 @@ subject geo at "src/geo.rs" {
         rule again: flip::same, flip::back |- flip::pair
             by let s = flip::same in ponens(s, flip::back);
         rule against: flip::same, flip::pair, { false } |- flip::back
-            by tollens[flip::same, 0, 1](flip::pair, 2) && !state(join(flip::same, flip::same));
+            by tollens[flip::same, 0, 1](flip::pair, 2);
         rule rest: flip::back |- flip::pair by reductio[!flip::back](flip::back);
         rule over: flip::back |- flip::pair
             by cases[all x in (a: 0..2, b: -1..1) where b != 0: correct(flip, x)](flip::back, flip::back);
@@ -421,15 +421,12 @@ fn short_paths_are_from_their_part() {
     assert_eq!(inner[0].body, Expression::Name("s".to_string()));
     // A premise written in place is read by its place.
     let against = rules[4].proof.as_ref().unwrap();
-    let Expression::Apply(judgement::Op::And, args) = against else {
-        panic!()
-    };
     let Expression::Apply(
         judgement::Op::Tollens {
             post: 0, blame: 1, ..
         },
         read,
-    ) = &args[0].body
+    ) = against
     else {
         panic!()
     };
@@ -754,6 +751,35 @@ fn names_take_a_colon() {
     assert_eq!(m.parts[0].requires[0].name, "a");
     assert_eq!(m.parts[0].ensures[0].name, "e");
     round_trip(&m);
+}
+
+#[test]
+fn a_proof_writes_no_state() {
+    // `state(…)` and `&&` on states are judgement's own (finding 27): no
+    // proof could give an opinion through them, so the text has neither,
+    // and no hint speaks of them.
+    let rule = |by: &str| {
+        format!("subject s {{ fn f(x: Int) -> y: bool {{ x < 3 }} where {{ claim c: y; rule r: s::f::c |- s::f::c by {by}; }} }}")
+    };
+    let (code, _, _, message) = fails(&rule("state(s::f::c)"));
+    assert_eq!(
+        (code.as_str(), message.as_str()),
+        ("P003", "expected `;`, found `(`")
+    );
+    let (code, _, _, message) = fails(&rule("s::f::c && s::f::c"));
+    assert_eq!(
+        (code.as_str(), message.as_str()),
+        ("P003", "expected `;`, found `&&`")
+    );
+    // `state` is no word of the language any more: a premise may be named so.
+    let m = read(&rule("let state = s::f::c in state"));
+    round_trip(&m);
+    // Built from Rust, they print as no text.
+    let r = judgement::Op::StateOf;
+    let e = apply(r, vec![Expression::Name("s::f::c".to_string())]);
+    let mut m = read(&rule("s::f::c"));
+    m.parts[0].functions[0].rules[0].proof = Some(e);
+    assert!(print(&m).contains("__malformed__"), "{}", print(&m));
 }
 
 // ---------------------------------------------------------------- random expressions

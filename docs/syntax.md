@@ -66,7 +66,7 @@ subject stone {
 | `R { x: 1.0, y: 2.0 }`, `(a, b)`, `r.x`, `t.0` | `Make`, `Field` | Rust |
 | `let x = a in b` | `Let` | your choice, not Rust's `;` |
 | `(lo..hi).all(\|x\| p)` | `All` | Rust |
-| `ponens(r, p, q)`, `ponens[t, 1](…)`, `tollens[t, 0, 2](…)`, `reductio[p](…)`, `cases[q](…)`, `instance[q](o, point(3, 4))`, `witness[q](o, p)`, `intro[q](|p| …)`, `point(3, 4)`, `join(a, b)`, `state(a)`, `!a`, `a && b`, `let x = a in b` | a proof, `judgement::Op` | flagged |
+| `ponens(r, p, q)`, `ponens[t, 1](…)`, `tollens[t, 0, 2](…)`, `reductio[p](…)`, `cases[q](…)`, `instance[q](o, point(3, 4))`, `witness[q](o, p)`, `intro[q](|p| …)`, `point(3, 4)`, `join(a, b)`, `!a`, `let x = a in b` | a proof, `judgement::Op` | flagged |
 | `all x in (a: 0..10, b: 0..10) where b != 0: p`, `any …`, `!p`, `{p, q} s {r}`, `correct(f, (6, 2))`, `correct(f, x)`, `correct(f, x in (a: 0..10))` | `Prop` | flagged |
 | `use sun::{light, Ray};`, `use sun::light;`, `use sun::*;` in a part | `Use` | Rust |
 | `use std::core::Option;`: Mitra's standard model (`std/core.mitra`, in the binary: `Option<T>`, `Result<T, E>`) | `Use` of the part `core`, `Part.file` | Rust's path; a std file holds one part (flagged) |
@@ -219,3 +219,6 @@ error[P003]: expected `;`, found `}`
   `__malformed__`, which does not read back.
 - A location with a `/` inside one of its names.
 - A text nested deeper than `parse::Settings::depth` levels (P011).
+- In a proof, `state(a)` or `a && b`: what is known of an opinion is
+  judgement's own (`judgement::Op::StateOf`, `And`), used by explain and
+  numbers; no proof could give an opinion through it (finding 27).

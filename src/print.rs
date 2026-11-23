@@ -534,14 +534,9 @@ impl Writer<'_> {
         };
         match op {
             O::Not if args.len() == 1 => (format!("!{}", each(UNARY)[0]), UNARY),
-            O::And if args.len() == 2 => {
-                let left = wrap(self.proof(&args[0].body, bound), AND);
-                let right = wrap(self.proof(&args[1].body, bound), AND + 1);
-                (format!("{left} && {right}"), AND)
-            }
-            O::Not | O::And | O::Let => (MALFORMED.to_string(), ATOM),
+            // `state(…)` and `&&` on states have no text (finding 27).
+            O::Not | O::Let | O::And | O::StateOf => (MALFORMED.to_string(), ATOM),
             O::Join => (format!("join({})", each(LET).join(", ")), ATOM),
-            O::StateOf => (format!("state({})", each(LET).join(", ")), ATOM),
             O::Ponens { t, post } => {
                 let sugar = matches!((t, args.first()), (Prop::Named(r), Some(Arg { body: Expression::Name(n), .. })) if r == n)
                     && *post == 0;

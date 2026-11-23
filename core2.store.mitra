@@ -130,3 +130,6 @@ review simulation::Calls holds by "agent:anthropic/opus-5.5/dogfood";
 review parse::deep holds by "test:a_deep_text_is_p011";
 review simulation::budgeted holds by "test:a_budget_reached_by_bounds_is_said";
 review agree::ends holds by "test:a_budget_reached_by_bounds_is_said";
+
+// 27: a proof writes no state.
+review parse::usable holds by "test:a_proof_writes_no_state";

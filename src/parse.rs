@@ -158,8 +158,7 @@ pub const KEYWORDS: &[&str] = &[
 /// The operations of a proof, by the word that writes them. Each is
 /// an operation only when `(` or `[` follows it.
 const PROOF_OPS: &[&str] = &[
-    "join", "state", "ponens", "tollens", "reductio", "instance", "witness", "cases", "intro",
-    "point",
+    "join", "ponens", "tollens", "reductio", "instance", "witness", "cases", "intro", "point",
 ];
 
 // ---------------------------------------------------------------- tokens
@@ -2783,7 +2782,7 @@ impl<'c> Parser<'c> {
 
     // ------------------------------------------------ proofs
 
-    /// A judgement expression: `let x = a in b`, `a && b`, `!a`,
+    /// A judgement expression: `let x = a in b`, `!a`,
     /// `ponens(r, p, q)`, a premise by its path.
     pub(crate) fn proof(&mut self, bound: &mut Vec<String>) -> Result<J> {
         if self.eat_word("let") {
@@ -2806,11 +2805,9 @@ impl<'c> Parser<'c> {
             ];
             return Ok(Expression::Apply(judgement::Op::Let, args));
         }
-        let mut e = self.proof_unary(bound)?;
-        while self.eat("&&") {
-            e = apply(judgement::Op::And, vec![e, self.proof_unary(bound)?]);
-        }
-        Ok(e)
+        // `state(…)` and `&&` on states are judgement's own, not text
+        // (finding 27): no proof could give an opinion through them.
+        self.proof_unary(bound)
     }
     fn proof_unary(&mut self, bound: &mut Vec<String>) -> Result<J> {
         if self.eat("!") {
@@ -2871,7 +2868,6 @@ impl<'c> Parser<'c> {
         }
         let op = match (w, params) {
             ("join", false) => Some(O::Join),
-            ("state", false) => Some(O::StateOf),
             ("ponens", false) => None,
             ("ponens", true) => {
                 let t = self.prop()?;
