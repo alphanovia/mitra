@@ -211,12 +211,20 @@ subject numbers {
             || (0.0 <= o.expected && o.expected <= 1.0);
     }
 
-    // r runs for, s against (weighted by voice), prior weight w.
+    // r runs for, s against (weighted by voice), prior weight w, base
+    // rate a. As Settings::sane does, a weight below 0 is read as 0 and
+    // the base rate is clamped into [0, 1]. (Weights are also capped at
+    // 1e300 and NaN read as 0 or 1/2: neither can be written here.)
     fn fused(r: Real, s: Real, w: Real, a: Real) -> o: Belief at "src/numbers.rs/fused" {
-        let n = r + s + w in
-        if 0.0 < n { opinion(r / n, s / n, a) } else { opinion(0.0, 0.0, a) }
+        let r0 = if r < 0.0 { 0.0 } else { r } in
+        let s0 = if s < 0.0 { 0.0 } else { s } in
+        let w0 = if w < 0.0 { 0.0 } else { w } in
+        let a0 = if a < 0.0 { 0.0 } else { if 1.0 < a { 1.0 } else { a } } in
+        let n = r0 + s0 + w0 in
+        if 0.0 < n { opinion(r0 / n, s0 / n, a0) } else { opinion(0.0, 0.0, a0) }
     } where {
-        claim nothing_known = !(r == 0.0 && s == 0.0) || o.expected == a;
+        claim nothing_known = !(r <= 0.0 && s <= 0.0) || !(0.0 <= a && a <= 1.0) || o.expected == a;
+        claim clean_rate = 0.0 <= o.expected && o.expected <= 1.0;
         examples { (97.0, 3.0, 2.0, 1/2) -> Belief { belief: 97/102, disbelief: 1/34, uncertainty: 1/51, expected: 49/51 } }
     }
 
