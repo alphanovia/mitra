@@ -38,6 +38,10 @@ review simulation::budgeted holds by "test:deep_bodies_through_calls_stop_at_the
 review agree::ends holds by "test:deep_bodies_through_calls_stop_at_the_depth_budget";
 review simulation::promised holds by "test:bounded_promises_are_read_soundly";
 review agree::given_named holds by "test:the_example_of_finding_8_holds_given_bright";
+review simulation::whole_division holds by "test:bounds_hold_what_exact_gives";
+review simulation::ranges_checked holds by "test:a_call_by_bounds_holds_what_exact_gives";
+review agree::within_ranges holds by "test:agree_is_right_within_the_ranges";
+review check::in_ranges holds by "test:each_error_is_found";
 review simulation::Budget holds by "agent:anthropic/opus-5.5/dogfood";
 review explain::verdicts holds by "test:a_hundred_tests_explain_div_everywhere";
 review blame::minimal holds by "test:held_blame_diagnoses_are_hitting_sets";

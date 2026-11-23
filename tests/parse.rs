@@ -54,6 +54,7 @@ fn function(name: &str, takes: &str, gives: (&str, Type)) -> Function {
         examples: vec![],
         claims: vec![],
         rules: vec![],
+        ranges: Default::default(),
     }
 }
 
@@ -750,6 +751,7 @@ fn expression(depth: u32) -> BoxedStrategy<E> {
             two(Op::Sub, inner.clone()),
             two(Op::Mul, inner.clone()),
             two(Op::Div, inner.clone()),
+            two(Op::Rem, inner.clone()),
             two(Op::Less, inner.clone()),
             two(Op::AtMost, inner.clone()),
             two(Op::Equal, inner.clone()),
@@ -816,6 +818,7 @@ fn in_a_model(holds: E) -> Model {
         examples: vec![],
         claims: vec![claim("c", holds)],
         rules: vec![],
+        ranges: Default::default(),
     };
     Model {
         parts: vec![Part {

@@ -153,6 +153,7 @@ fn library(f: Callee) -> Calls {
 fn held_given_to_a_body_is_refused_so_ranges_cover_exact() {
     let f = Callee {
         promises: None,
+        ranges: Default::default(),
         takes: vec![("a".to_string(), Type::Int)],
         gives: Type::Int,
         body: Some(apply(Op::Add, vec![Expression::Name("a".into()), int(1)])),
@@ -189,6 +190,7 @@ fn held_given_to_a_body_is_refused_so_ranges_cover_exact() {
 fn held_given_is_type_checked() {
     let f = Callee {
         promises: None,
+        ranges: Default::default(),
         takes: vec![("a".to_string(), Type::Int)],
         gives: Type::Int,
         body: None,

@@ -100,6 +100,8 @@ pub const M021: Code = model(21);
 pub const M022: Code = model(22);
 pub const M023: Code = model(23);
 pub const M024: Code = model(24);
+pub const M025: Code = model(25);
+pub const M026: Code = model(26);
 
 const fn agree(number: u16) -> Code {
     Code {
@@ -133,6 +135,7 @@ pub const V004: Code = evidence(4);
 pub const V005: Code = evidence(5);
 pub const V006: Code = evidence(6);
 pub const V007: Code = evidence(7);
+pub const V008: Code = evidence(8);
 
 const fn explain(number: u16) -> Code {
     Code {
@@ -247,6 +250,8 @@ pub const CATALOGUE: &[Entry] = &[
     ),
     entry(M023, "a correct, all or any a rule cannot write"),
     entry(M024, "two examples at one point that differ"),
+    entry(M025, "a range type that holds no number"),
+    entry(M026, "an example outside the range of its type"),
     entry(A001, "a body that breaks a claim"),
     entry(A002, "a body that disagrees with an example"),
     entry(A003, "an example that breaks a claim"),
@@ -274,6 +279,7 @@ pub const CATALOGUE: &[Entry] = &[
         V007,
         "a voice missing, not of a kind, Mitra's own, or saying twice",
     ),
+    entry(V008, "a measured value outside the range of its type"),
     entry(
         X001,
         "a measurement nothing in the model says what to expect of",

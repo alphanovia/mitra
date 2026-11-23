@@ -54,6 +54,7 @@ fn function(name: &str, takes: &str, gives: (&str, Type)) -> Function {
         examples: vec![],
         claims: vec![],
         rules: vec![],
+        ranges: Default::default(),
     }
 }
 
@@ -444,7 +445,12 @@ fn claims_run_in_simulation() {
     let (drop, speed) = (&model.parts[1].functions[0], &model.parts[1].functions[1]);
     let body = speed.body.clone().unwrap();
     let slow = let_in(Op::Let, "v2", body, speed.claims[0].holds.clone());
-    let low = Bounds::between(Rational::integer(0), Rational::integer(20)).unwrap();
+    let low = Bounds::between(
+        mitra_core::simulation::Numbers::Real,
+        Rational::integer(0),
+        Rational::integer(20),
+    )
+    .unwrap();
     let heights = BTreeMap::from([("h".to_string(), low)]);
     assert_eq!(
         eval(&Ranges::default(), &heights, &slow).unwrap().surely(),
@@ -675,6 +681,27 @@ fn each_error_is_found() {
         assert_eq!(changed(change), [expected]);
         given.push(expected[..4].to_string());
     }
+    // Range types (finding 11), on a model of whole numbers.
+    let digits = |text: &str| -> Vec<String> {
+        let model = mitra_core::parse::parse(text).unwrap();
+        check(&model).iter().map(|e| e.to_string()).collect()
+    };
+    assert_eq!(
+        digits("subject d {\n    fn f(a: 9..=0) -> b: Int { a }\n}"),
+        ["error[M025]: `a: 9..=0` holds no number: a range is written low end first, `0..=9`\n --> d::f"]
+    );
+    assert_eq!(
+        digits("subject d {\n    fn f(a: 0..=9) -> b: 0..=9 where { examples { (12) -> 1, (1) -> 10 } }\n}"),
+        [
+            "error[M026]: example 0 has `a` = 12, outside its range 0..=9\n --> d::f",
+            "error[M026]: example 1 has `b` = 10, outside its range 0..=9\n --> d::f",
+        ]
+    );
+    assert_eq!(
+        digits("subject d {\n    fn f(a: 0..=9) -> b: Int { a }\n}\nexamples { (d::f::a = 10) -> d::f::b = 10 }"),
+        ["error[M026]: `d::f::a` = 10, outside its range 0..=9\n --> examples::0"]
+    );
+    given.extend(["M025".to_string(), "M026".to_string()]);
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Model && !e.retired);

@@ -5,7 +5,7 @@
 
 use crate::catalogue::{
     Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013,
-    M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024,
+    M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024, M025, M026,
 };
 use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
@@ -101,7 +101,21 @@ pub fn check(model: &Model) -> Vec<Error> {
                         .zip(types)
                         .all(|(v, (_, t))| Exact::default().has_type(v, t))
             };
+            // Each range holds a number (M025); each example lies in them (M026).
+            errors.extend(empty_ranges(function, &here));
             for (i, example) in function.examples.iter().enumerate() {
+                let named = function.takes.iter().map(|(n, _)| n).zip(&example.takes);
+                for (n, v) in named.chain([(&function.gives.0, &example.gives)]) {
+                    if let Some(range) = range_of(function, n) {
+                        if !range.holds(v) && matches!(v, Value::Int(_)) {
+                            let message = format!(
+                                "example {i} has `{n}` = {}, outside its range {range}",
+                                crate::print::value(v)
+                            );
+                            errors.push(error(M026, &here, message));
+                        }
+                    }
+                }
                 let fits = of_types(example);
                 if known && !fits {
                     let message = format!("example {i} is not of the types of `{}`", function.name);
@@ -855,6 +869,32 @@ pub(crate) fn misfit(index: &Index, part: &Part, i: &Implements) -> Option<Strin
 /// function takes, or what one with no body gives; each output what a
 /// function gives; each once, of its type; and each argument of a
 /// function an output or an input reads given.
+/// The range of what `f` takes or gives named `n`, if it has one.
+fn range_of<'f>(f: &'f Function, n: &str) -> Option<&'f simulation::Range> {
+    match &f.ranges.gives {
+        Some((q, range)) if q == n => Some(range),
+        _ => f.ranges.takes.get(n),
+    }
+}
+
+/// M025: a range type that holds no number, `9..=0`.
+fn empty_ranges(f: &Function, here: &Path) -> Vec<Error> {
+    let all = f
+        .ranges
+        .takes
+        .iter()
+        .chain(f.ranges.gives.iter().map(|(q, r)| (q, r)));
+    all.filter(|(_, r)| r.low > r.high)
+        .map(|(n, r)| {
+            let message = format!(
+                "`{n}: {r}` holds no number: a range is written low end first, `{}..={}`",
+                r.high, r.low
+            );
+            error(M025, here, message)
+        })
+        .collect()
+}
+
 fn model_example(index: &Index, i: usize, example: &crate::model::ModelExample) -> Vec<Error> {
     let at = Path::to(&["examples", &i.to_string()]);
     let mut errors = Vec::new();
@@ -933,6 +973,16 @@ fn model_example(index: &Index, i: usize, example: &crate::model::ModelExample) 
                     &at,
                     format!("the value of `{p}` is not of its type"),
                 ));
+            }
+            let name = p.names.last().map(String::as_str).unwrap_or_default();
+            if let Some(range) = range_of(function, name) {
+                if matches!(v, Value::Int(_)) && !range.holds(v) {
+                    let message = format!(
+                        "`{p}` = {}, outside its range {range}",
+                        crate::print::value(v)
+                    );
+                    errors.push(error(M026, &at, message));
+                }
             }
             if !value_made(index, v) {
                 errors.push(error(
@@ -1164,7 +1214,8 @@ impl Mistyped<'_> {
             Op::Add => format!("`+` takes two numbers {SAME}"),
             Op::Sub => format!("`-` takes two numbers {SAME}"),
             Op::Mul => format!("`*` takes two numbers {SAME}"),
-            Op::Div => "`/` takes two Real".to_string(),
+            Op::Div => "`/` takes two Int or two Real".to_string(),
+            Op::Rem => "`%` takes two Int".to_string(),
             Op::Less => format!("`<` compares two numbers {SAME}"),
             Op::AtMost => format!("`<=` compares two numbers {SAME}"),
             Op::Equal => "`==` compares two values of one type".to_string(),

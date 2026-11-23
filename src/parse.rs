@@ -171,7 +171,7 @@ pub(crate) enum Tok {
 /// Longest first.
 const SYMBOLS: &[&str] = &[
     "::", "->", "|-", "==", "!=", "<=", ">=", "&&", "||", "..", "{", "}", "(", ")", "[", "]", ",",
-    ";", ":", "=", "<", ">", "+", "-", "*", "/", "!", ".", "|",
+    ";", ":", "=", "<", ">", "+", "-", "*", "/", "%", "!", ".", "|",
 ];
 
 fn describe(t: &Tok) -> String {
@@ -1020,15 +1020,22 @@ impl<'c> Parser<'c> {
         self.expect_word("fn")?;
         let name = self.name()?;
         self.expect("(")?;
+        let mut ranges = simulation::Ranged::default();
         let takes = self.list(")", |p| {
             let n = p.name()?;
             p.expect(":")?;
-            Ok((n, p.type_()?))
+            let (t, range) = p.type_or_range()?;
+            if let Some(range) = range {
+                ranges.takes.insert(n.clone(), range);
+            }
+            Ok((n, t))
         })?;
         self.expect("->")?;
         let gives_name = self.name()?;
         self.expect(":")?;
-        let gives = (gives_name, self.type_()?);
+        let (t, range) = self.type_or_range()?;
+        ranges.gives = range.map(|r| (gives_name.clone(), r));
+        let gives = (gives_name, t);
         self.ties_of(&part.then(&name))?;
         let mut env: Env = takes
             .iter()
@@ -1048,6 +1055,7 @@ impl<'c> Parser<'c> {
             examples: vec![],
             claims: vec![],
             rules: vec![],
+            ranges,
         };
         if self.is_word("where") {
             let (claims, rules, examples) = self.where_(&env)?;
@@ -1139,6 +1147,29 @@ impl<'c> Parser<'c> {
     // ------------------------------------------------ types and values
 
     /// `bool`, `Int`, `Real`, `(A, B)`, `()`, or a record's name.
+    /// A type, or a range of whole numbers, `0..=9`, both ends in: an
+    /// `Int` that is checked. Rust's form of a range; as a type, Ada's.
+    fn type_or_range(&mut self) -> Result<(Type, Option<simulation::Range>)> {
+        let starts = matches!(self.peek(), Tok::Int(_))
+            || (self.is("-") && matches!(self.peek_at(1), Tok::Int(_)));
+        if !starts {
+            return Ok((self.type_()?, None));
+        }
+        let end = |p: &mut Self| -> Result<BigInt> {
+            let at = p.pos();
+            match p.value()? {
+                Value::Int(n) => Ok(n),
+                _ => Err(error(P003, at, "a range type's ends are whole numbers")),
+            }
+        };
+        let low = end(self)?;
+        self.expect("..")?;
+        if !self.eat("=") {
+            return self.expected("`=`: a range type is written `0..=9`, both ends in");
+        }
+        let high = end(self)?;
+        Ok((Type::Int, Some(simulation::Range { low, high })))
+    }
     fn type_(&mut self) -> Result<Type> {
         if self.eat("(") {
             let mut types = vec![];
@@ -1403,6 +1434,7 @@ impl<'c> Parser<'c> {
             let op = match self.peek() {
                 Tok::Sym("*") => Op::Mul,
                 Tok::Sym("/") => Op::Div,
+                Tok::Sym("%") => Op::Rem,
                 _ => return Ok(e),
             };
             self.bump();

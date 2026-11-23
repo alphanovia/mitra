@@ -22,8 +22,10 @@ use crate::expression::{eval, Arg, Expression, Fault};
 use crate::model::{calls, contract_claims, Function, Index, Model, ModelExample, Path};
 use crate::print;
 use crate::simulation::{
-    Bounds, Budget, Calls, Exact, Op, Ranges, Rational, Span, Type, Undefined, Value,
+    Bounds, Budget, Calls, Exact, Numbers, Op, Range, Ranges, Rational, Span, Type, Undefined,
+    Value,
 };
+use num_bigint::BigInt;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -136,6 +138,9 @@ struct Reading<'m> {
     settings: Settings,
     /// What the last outcome decided by bounds was given.
     last_given: std::cell::RefCell<Vec<String>>,
+    /// The ranges of the names of the function read now: points are
+    /// tried in them only, every one when they are few enough.
+    domains: std::cell::RefCell<BTreeMap<String, Range>>,
 }
 
 impl<'m> Reading<'m> {
@@ -174,11 +179,23 @@ impl<'m> Reading<'m> {
             functions: index.functions.clone(),
             settings,
             last_given: Default::default(),
+            domains: Default::default(),
         }
     }
 
     /// The comparisons of one function.
     fn function(&self, at: &Path, f: &Function, agreed: &mut Vec<Agreed>) {
+        let ranges = f
+            .ranges
+            .takes
+            .iter()
+            .chain(f.ranges.gives.iter().map(|(q, r)| (q, r)));
+        *self.domains.borrow_mut() = ranges.map(|(n, r)| (n.clone(), r.clone())).collect();
+        self.function_in(at, f, agreed);
+        self.domains.borrow_mut().clear();
+    }
+
+    fn function_in(&self, at: &Path, f: &Function, agreed: &mut Vec<Agreed>) {
         let rows: Vec<Vec<(String, Value)>> = f
             .examples
             .iter()
@@ -192,12 +209,30 @@ impl<'m> Reading<'m> {
                 given: self.given(),
             })
         };
+        // Its ranges of what it takes: a claim is read where they hold.
+        let takes_in = conjunction(f.ranges.takes.iter().map(|(n, r)| in_range(n, r)));
+        let read_in = |holds: Expression<Op>| match &takes_in {
+            Some(r) => Expression::Apply(
+                Op::Or,
+                vec![
+                    plain(Expression::Apply(Op::Not, vec![plain(r.clone())])),
+                    plain(holds),
+                ],
+            ),
+            None => holds,
+        };
         if let Some(body) = &f.body {
             // Each claim, with the body read in place of what it gives.
             for c in &f.claims {
-                let with_body = let_in(&f.gives.0, body, &c.holds);
+                let with_body = let_in(&f.gives.0, body, &read_in(c.holds.clone()));
                 let agreement = self.claim(&f.takes, &with_body, &rows);
                 push(format!("claim `{}`", c.name), agreement);
+            }
+            // The range of what it gives, as a claim the body keeps.
+            if let Some((q, range)) = &f.ranges.gives {
+                let with_body = let_in(&f.gives.0, body, &read_in(in_range(q, range)));
+                let agreement = self.claim(&f.takes, &with_body, &rows);
+                push(format!("its range `{q}: {range}`"), agreement);
             }
             // Each example: the body at its point.
             for (i, (e, row)) in f.examples.iter().zip(&rows).enumerate() {
@@ -303,12 +338,20 @@ impl<'m> Reading<'m> {
     /// body gives, then candidates; else unknown.
     fn together(&self, f: &Function, rows: &[Vec<(String, Value)>]) -> Agreement {
         let over: Vec<(String, Type)> = f.takes.iter().chain([&f.gives]).cloned().collect();
-        let Some(all) = f
-            .claims
+        if f.claims.is_empty() {
+            return Agreement::Holds;
+        }
+        // Its ranges first: a value that keeps the claims is in them.
+        let ranges = f
+            .ranges
+            .takes
             .iter()
-            .map(|c| c.holds.clone())
-            .reduce(|a, b| Expression::Apply(Op::And, vec![plain(a), plain(b)]))
-        else {
+            .chain(f.ranges.gives.iter().map(|(q, r)| (q, r)));
+        let Some(all) = conjunction(
+            ranges
+                .map(|(n, r)| in_range(n, r))
+                .chain(f.claims.iter().map(|c| c.holds.clone())),
+        ) else {
             return Agreement::Holds;
         };
         let bounded = self.bounded(&over, &all);
@@ -386,19 +429,26 @@ impl<'m> Reading<'m> {
             .iter()
             .map(|(n, t)| (n.clone(), Bounds::any(t)))
             .collect();
-        let numbers: Vec<&String> = over
+        let numbers: Vec<(&String, Numbers)> = over
             .iter()
-            .filter(|(_, t)| matches!(t, Type::Int | Type::Real))
-            .map(|(n, _)| n)
+            .filter_map(|(n, t)| match t {
+                Type::Int => Some((n, Numbers::Int)),
+                Type::Real => Some((n, Numbers::Real)),
+                _ => None,
+            })
             .take(self.settings.splits)
             .collect();
         let zero = || Some(Rational::integer(0));
         let mut readings = vec![all];
-        for n in numbers {
+        for (n, of) in numbers {
             readings = readings
                 .into_iter()
                 .flat_map(|r| {
-                    [Span::Number(None, zero()), Span::Number(zero(), None)].map(|span| {
+                    [
+                        Span::Number(of, None, zero()),
+                        Span::Number(of, zero(), None),
+                    ]
+                    .map(|span| {
                         let mut r = r.clone();
                         r.insert(
                             n.clone(),
@@ -471,6 +521,8 @@ impl<'m> Reading<'m> {
         }
         let bound: BTreeSet<&str> = lets.iter().map(|(n, _)| n.as_str()).collect();
         let (mut premises, mut conclusions) = (Vec::new(), Vec::new());
+        // Whether every premise is read before any conclusion.
+        let mut premises_first = true;
         for d in disjuncts {
             match d {
                 Expression::Apply(Op::Not, args)
@@ -478,6 +530,7 @@ impl<'m> Reading<'m> {
                         && args[0].binds.is_empty()
                         && !reads_any(&args[0].body, &bound) =>
                 {
+                    premises_first &= conclusions.is_empty();
                     premises.push(args[0].body.clone())
                 }
                 _ => conclusions.push(d.clone()),
@@ -500,27 +553,34 @@ impl<'m> Reading<'m> {
                 .rev()
                 .fold(inner, |body, (n, v)| let_in(n, v, &body))
         };
-        // No fault in `bounds`: each let value, each premise.
-        let safe =
-            |x: Expression<Op>| matches!(eval(&self.ranges, bounds, &x), Ok(b) if !b.may_fault);
-        // A conclusion before a false premise is read first: none may
-        // fault either, anywhere in `bounds`.
-        if !(0..lets.len()).all(|i| safe(around(lets[i].1.clone(), i)))
-            || !premises.iter().all(|p| safe(p.clone()))
-            || !safe(around(conclusion.clone(), lets.len()))
+        // No fault in `bounds`: each premise, read wherever `e` is.
+        let safe_in = |b: &BTreeMap<String, Bounds>, x: Expression<Op>| matches!(eval(&self.ranges, b, &x), Ok(b) if !b.may_fault);
+        if !premises.iter().all(|p| safe_in(bounds, p.clone())) {
+            return false;
+        }
+        let Some(kept) = self.ranges.kept(over, bounds, &premise) else {
+            // No value keeps the premises: a premise is false, and `e`
+            // true, wherever the premises are all read first.
+            return premises_first || {
+                (0..lets.len()).all(|i| safe_in(bounds, around(lets[i].1.clone(), i)))
+                    && safe_in(bounds, around(conclusion, lets.len()))
+            };
+        };
+        // A let's value is read only through its name, in a conclusion.
+        // Every premise read first: a conclusion only where they all
+        // hold, so only there may it not fault. Else a conclusion may be
+        // read before a false premise: nowhere in `bounds`.
+        let reach = if premises_first { &kept } else { bounds };
+        if !(0..lets.len()).all(|i| safe_in(reach, around(lets[i].1.clone(), i)))
+            || !safe_in(reach, around(conclusion.clone(), lets.len()))
         {
             return false;
         }
-        match self.ranges.kept(over, bounds, &premise) {
-            None => true,
-            Some(kept) => {
-                let read = around(conclusion, lets.len());
-                eval(&self.ranges, &kept, &read)
-                    .ok()
-                    .and_then(|b| b.surely())
-                    == Some(true)
-            }
-        }
+        let read = around(conclusion, lets.len());
+        eval(&self.ranges, &kept, &read)
+            .ok()
+            .and_then(|b| b.surely())
+            == Some(true)
     }
 
     /// Whether bounds may be read of `e` over `over`: no value of an
@@ -601,8 +661,12 @@ impl<'m> Reading<'m> {
 
     /// How many values `over` has together, when few enough to list.
     fn size(&self, over: &[(String, Type)]) -> Option<usize> {
+        let domains = self.domains.borrow();
         over.iter()
-            .map(|(_, t)| self.size_of(t))
+            .map(|(n, t)| match domains.get(n) {
+                Some(range) => size_of_range(range),
+                None => self.size_of(t),
+            })
             .try_fold(1usize, |n, k| n.checked_mul(k?))
     }
 
@@ -640,9 +704,30 @@ impl<'m> Reading<'m> {
             }
         }
         let constants = self.constants(e);
+        let domains = self.domains.borrow();
+        // In a range, every number when they all fit in `n` together,
+        // else the values worth trying that lie in it, and its ends.
+        let every = self.size(over).is_some_and(|k| k <= n);
         let lists: Vec<Vec<Value>> = over
             .iter()
-            .map(|(_, t)| self.values_of(t, &constants))
+            .map(|(name, t)| match domains.get(name) {
+                Some(range) if every => num_iter(range).map(Value::Int).collect(),
+                Some(range) => {
+                    let ends = [&range.low, &range.high].map(|e| Value::Int(e.clone()));
+                    let mut values: Vec<Value> = self
+                        .values_of(t, &constants)
+                        .into_iter()
+                        .filter(|v| range.holds(v))
+                        .collect();
+                    for v in ends {
+                        if !values.contains(&v) {
+                            values.push(v);
+                        }
+                    }
+                    values
+                }
+                None => self.values_of(t, &constants),
+            })
             .collect();
         if lists.iter().any(Vec::is_empty) {
             return points;
@@ -927,6 +1012,48 @@ fn reads_any(e: &Expression<Op>, names: &BTreeSet<&str>) -> bool {
             a.binds.iter().any(|b| names.contains(b.as_str())) || reads_any(&a.body, names)
         }),
     }
+}
+
+/// How many numbers `range` holds, when that fits.
+fn size_of_range(range: &Range) -> Option<usize> {
+    let k: BigInt = &range.high - &range.low + 1;
+    usize::try_from(k).ok().filter(|k| *k > 0)
+}
+
+/// The numbers of `range`, from its low end up.
+fn num_iter(range: &Range) -> impl Iterator<Item = BigInt> + '_ {
+    let mut next = range.low.clone();
+    std::iter::from_fn(move || {
+        (next <= range.high).then(|| {
+            let n = next.clone();
+            next += 1;
+            n
+        })
+    })
+}
+
+/// `a && b && …`; `None` for none.
+fn conjunction(all: impl Iterator<Item = Expression<Op>>) -> Option<Expression<Op>> {
+    all.reduce(|a, b| Expression::Apply(Op::And, vec![plain(a), plain(b)]))
+}
+
+/// `low <= n && n <= high`.
+fn in_range(n: &str, range: &Range) -> Expression<Op> {
+    let int = |v: &BigInt| Expression::Apply(Op::Int(v.clone()), vec![]);
+    let name = || Expression::Name(n.to_string());
+    Expression::Apply(
+        Op::And,
+        vec![
+            plain(Expression::Apply(
+                Op::AtMost,
+                vec![plain(int(&range.low)), plain(name())],
+            )),
+            plain(Expression::Apply(
+                Op::AtMost,
+                vec![plain(name()), plain(int(&range.high))],
+            )),
+        ],
+    )
 }
 
 fn plain(body: Expression<Op>) -> Arg<Op> {

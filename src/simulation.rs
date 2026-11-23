@@ -92,6 +92,15 @@ impl Rational {
     fn ceil(&self) -> Rational {
         Rational(self.0.ceil())
     }
+    /// The whole number nearest zero of those between zero and this one:
+    /// Rust's rounding of `/` on integers.
+    fn toward_zero(&self) -> Rational {
+        Rational(self.0.trunc())
+    }
+    /// This one, when whole.
+    fn to_integer(&self) -> Option<BigInt> {
+        self.is_integer().then(|| self.0.to_integer())
+    }
     pub fn abs(&self) -> Rational {
         Rational(self.0.abs())
     }
@@ -211,6 +220,62 @@ pub enum Undefined {
     Unknown(String),
     /// A budget was reached before the value was: what it was, and where.
     Budget(String),
+    /// A value outside the range of its type, at a call: what, and where.
+    Outside(String),
+}
+
+/// Whole numbers from `low` to `high`, both in: the type `0..=9`, an
+/// `Int` that is checked (finding 11). Rust writes the same range of
+/// numbers `0..=9`; as a type it is Ada's `range 0 .. 9`.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Range {
+    pub low: BigInt,
+    pub high: BigInt,
+}
+
+impl Range {
+    /// `value` is a whole number in the range.
+    pub fn holds(&self, value: &Value) -> bool {
+        matches!(value, Value::Int(n) if &self.low <= n && n <= &self.high)
+    }
+    /// The bounds of its numbers; `None` when it has none.
+    pub fn bounds(&self) -> Option<Bounds> {
+        Bounds::between(
+            Numbers::Int,
+            Rational::integer(self.low.clone()),
+            Rational::integer(self.high.clone()),
+        )
+    }
+    /// `b` cut to the range: `None` when no number of `b` is in it; and
+    /// whether some of `b` is outside it.
+    fn cut(&self, b: &Bounds) -> Option<(Bounds, bool)> {
+        let Span::Number(Numbers::Int, low, high) = &b.span else {
+            return Some((b.clone(), true));
+        };
+        let (rl, rh) = (
+            Rational::integer(self.low.clone()),
+            Rational::integer(self.high.clone()),
+        );
+        let outside = End::low(low) < End::At(rl.clone()) || End::At(rh.clone()) < End::high(high);
+        let low = low.clone().map_or(rl.clone(), |l| l.max(rl));
+        let high = high.clone().map_or(rh.clone(), |h| h.min(rh));
+        (low <= high).then(|| {
+            let span = Span::Number(Numbers::Int, Some(low), Some(high));
+            (
+                Bounds {
+                    span,
+                    may_fault: b.may_fault,
+                },
+                outside,
+            )
+        })
+    }
+}
+
+impl std::fmt::Display for Range {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}..={}", self.low, self.high)
+    }
 }
 
 /// How far one computation through calls may go, each a setting: the
@@ -320,8 +385,12 @@ pub enum Op {
     Add,
     Sub,
     Mul,
-    /// `a / b` on two `Real`. No value when `b` is zero.
+    /// `a / b` on two `Int`, rounded toward zero as Rust does (`-7 / 2`
+    /// is -3), or on two `Real`, exactly. No value when `b` is zero.
     Div,
+    /// `a % b` on two `Int`: what `a / b` leaves, of the sign of `a`, as
+    /// Rust does (`-7 % 2` is -1). No value when `b` is zero.
+    Rem,
     /// `a < b`, `a <= b` on two `Int` or two `Real`.
     Less,
     AtMost,
@@ -361,6 +430,17 @@ pub struct Callee {
     pub gives: Type,
     pub body: Option<Expression<Op>>,
     pub rows: Vec<(Vec<Value>, Value)>,
+    /// The ranges of what it takes and gives: a call with a value
+    /// outside one has none.
+    pub ranges: Ranged,
+}
+
+/// The ranges of a function's types: of what it takes, by name, and of
+/// what it gives, with its name.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Ranged {
+    pub takes: BTreeMap<String, Range>,
+    pub gives: Option<(String, Range)>,
 }
 
 /// What a function with no body promises: its claims, each by its path,
@@ -614,6 +694,7 @@ impl Standard for Simulation {
             (Op::Not, [Truth]) | (Op::And | Op::Or, [Truth, Truth]) => Truth,
             (Op::Add | Op::Sub | Op::Mul, [a, b]) if number(a) && a == b => a.clone(),
             (Op::Div, [Real, Real]) => Real,
+            (Op::Div | Op::Rem, [Int, Int]) => Int,
             (Op::Less | Op::AtMost, [a, b]) if number(a) && a == b => Truth,
             (Op::Equal, [a, b]) if a == b => Truth,
             (Op::Within, [a, b, c]) if number(a) && a == b && b == c => Truth,
@@ -655,7 +736,41 @@ impl Exact {
         if args.len() != callee.takes.len() {
             return Err(Fault::Stuck);
         }
+        for ((n, _), v) in callee.takes.iter().zip(args) {
+            match callee.ranges.takes.get(n) {
+                Some(range) if !range.holds(v) => {
+                    return Err(Fault::Op(Undefined::Outside(format!(
+                        "`{f}` takes `{n}` in {range}, given {}",
+                        crate::print::value(v)
+                    ))))
+                }
+                _ => {}
+            }
+        }
         if let Some(body) = &callee.body {
+            let gives = self.body(f, callee, body, args);
+            return match (&gives, &callee.ranges.gives) {
+                (Ok(v), Some((q, range))) if !range.holds(v) => {
+                    Err(Fault::Op(Undefined::Outside(format!(
+                        "`{f}` gives `{q}` in {range}, and its body gives {}",
+                        crate::print::value(v)
+                    ))))
+                }
+                _ => gives,
+            };
+        }
+        let given = self.calls.given.get(f).into_iter().flatten();
+        if let Some((_, gives)) = given.into_iter().find(|(at, _)| at.as_slice() == args) {
+            return Ok(gives.clone());
+        }
+        match callee.rows.iter().find(|(at, _)| at.as_slice() == args) {
+            Some((_, gives)) => Ok(gives.clone()),
+            None => Err(Fault::Op(Undefined::Unknown(f.to_string()))),
+        }
+    }
+    /// A call's body read at `args`, remembered.
+    fn body(&self, f: &str, callee: &Callee, body: &Expression<Op>, args: &[Value]) -> Exactly {
+        {
             let key = (f.to_string(), args.to_vec());
             let memo = &self.calls.memo.exact;
             if let Some(known) = memo.lock().unwrap_or_else(|e| e.into_inner()).get(&key) {
@@ -671,15 +786,7 @@ impl Exact {
                     .unwrap_or_else(|e| e.into_inner())
                     .insert(key, gives.clone());
             }
-            return gives;
-        }
-        let given = self.calls.given.get(f).into_iter().flatten();
-        if let Some((_, gives)) = given.into_iter().find(|(at, _)| at.as_slice() == args) {
-            return Ok(gives.clone());
-        }
-        match callee.rows.iter().find(|(at, _)| at.as_slice() == args) {
-            Some((_, gives)) => Ok(gives.clone()),
-            None => Err(Fault::Op(Undefined::Unknown(f.to_string()))),
+            gives
         }
     }
 }
@@ -800,6 +907,13 @@ impl Exact {
                 Some(q) => Real(q),
                 None => return Err(Fault::Op(Undefined::DivisionByZero)),
             },
+            // `BigInt` rounds toward zero, and its remainder takes the
+            // sign of `a`: as Rust's `i64`.
+            (Op::Div | Op::Rem, [Int(_), Int(b)]) if b.is_zero() => {
+                return Err(Fault::Op(Undefined::DivisionByZero))
+            }
+            (Op::Div, [Int(a), Int(b)]) => Int(a / b),
+            (Op::Rem, [Int(a), Int(b)]) => Int(a % b),
             (Op::Less, [Int(a), Int(b)]) => Truth(a < b),
             (Op::Less, [Real(a), Real(b)]) => Truth(a < b),
             (Op::AtMost, [Int(a), Int(b)]) => Truth(a <= b),
@@ -848,15 +962,22 @@ pub struct Bounds {
     pub may_fault: bool,
 }
 
+/// The numbers a span holds: `/` rounds on one and not the other.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Numbers {
+    Int,
+    Real,
+}
+
 /// Where a value lies.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Span {
     /// The truths it may be: at least one.
     Truth { yes: bool, no: bool },
-    /// A number from the low end to the high end, both in. An end that
-    /// is `None` is no end: the number may be as low, or as high, as its
-    /// type goes. For an `Int`, each end is whole.
-    Number(Option<Rational>, Option<Rational>),
+    /// A number of one type from the low end to the high end, both in.
+    /// An end that is `None` is no end: the number may be as low, or as
+    /// high, as its type goes. For an `Int`, each end is whole.
+    Number(Numbers, Option<Rational>, Option<Rational>),
     /// A record, each field in its span.
     Record(Record, Vec<Span>),
 }
@@ -868,10 +989,10 @@ pub fn lies_in(value: &Value, span: &Span) -> bool {
             true => *yes,
             false => *no,
         },
-        (Value::Int(n), Span::Number(low, high)) => {
+        (Value::Int(n), Span::Number(Numbers::Int, low, high)) => {
             inside(&Rational::integer(n.clone()), low, high)
         }
-        (Value::Real(q), Span::Number(low, high)) => inside(q, low, high),
+        (Value::Real(q), Span::Number(Numbers::Real, low, high)) => inside(q, low, high),
         (Value::Record(r, values), Span::Record(s, spans)) => {
             r == s
                 && values.len() == spans.len()
@@ -901,8 +1022,8 @@ impl Bounds {
         fn span(v: &Value) -> Span {
             match v {
                 Value::Truth(b) => Span::Truth { yes: *b, no: !*b },
-                Value::Int(n) => point(Rational::integer(n.clone())),
-                Value::Real(q) => point(q.clone()),
+                Value::Int(n) => point(Numbers::Int, Rational::integer(n.clone())),
+                Value::Real(q) => point(Numbers::Real, q.clone()),
                 Value::Record(r, values) => {
                     Span::Record(r.clone(), values.iter().map(span).collect())
                 }
@@ -922,7 +1043,8 @@ impl Bounds {
                     no: true,
                 },
                 // No value is of a parameter: its span is never read.
-                Type::Int | Type::Real | Type::Param { .. } => Span::Number(None, None),
+                Type::Int => Span::Number(Numbers::Int, None, None),
+                Type::Real | Type::Param { .. } => Span::Number(Numbers::Real, None, None),
                 Type::Record(r) => {
                     Span::Record(r.clone(), r.fields.iter().map(|(_, f)| span(f)).collect())
                 }
@@ -934,9 +1056,9 @@ impl Bounds {
         }
     }
     /// A number from `low` to `high`. `None` when `low` is above `high`.
-    pub fn between(low: Rational, high: Rational) -> Option<Bounds> {
+    pub fn between(of: Numbers, low: Rational, high: Rational) -> Option<Bounds> {
         (low <= high).then_some(Bounds {
-            span: Span::Number(Some(low), Some(high)),
+            span: Span::Number(of, Some(low), Some(high)),
             may_fault: false,
         })
     }
@@ -950,8 +1072,8 @@ impl Bounds {
     }
 }
 
-fn point(q: Rational) -> Span {
-    Span::Number(Some(q.clone()), Some(q))
+fn point(of: Numbers, q: Rational) -> Span {
+    Span::Number(of, Some(q.clone()), Some(q))
 }
 
 /// `q` is from `low` to `high`, a missing end no end.
@@ -1013,9 +1135,13 @@ impl End {
 fn fits(span: &Span, of: &Type) -> bool {
     match (span, of) {
         (Span::Truth { yes, no }, Type::Truth) => *yes || *no,
-        (Span::Number(low, high), Type::Int | Type::Real) => {
+        (Span::Number(numbers, low, high), Type::Int | Type::Real) => {
             let whole = |e: &Option<Rational>| e.as_ref().is_none_or(|q| q.is_integer());
-            End::low(low) <= End::high(high) && (of == &Type::Real || (whole(low) && whole(high)))
+            End::low(low) <= End::high(high)
+                && match numbers {
+                    Numbers::Int => of == &Type::Int && whole(low) && whole(high),
+                    Numbers::Real => of == &Type::Real,
+                }
         }
         (Span::Record(r, spans), Type::Record(t)) => r == t && fits_fields(spans, t, fits),
         _ => false,
@@ -1037,6 +1163,26 @@ impl Ranges {
         if args.len() != callee.takes.len() {
             return Err(Fault::Stuck);
         }
+        // What it takes, cut to its ranges: outside, no value.
+        let mut outside = false;
+        let mut cut = Vec::with_capacity(args.len());
+        for ((n, _), b) in callee.takes.iter().zip(args) {
+            match callee.ranges.takes.get(n) {
+                Some(range) => match range.cut(b) {
+                    Some((b, out)) => {
+                        outside |= out;
+                        cut.push(b);
+                    }
+                    None => {
+                        return Err(Fault::Op(Undefined::Outside(format!(
+                            "`{f}` takes `{n}` in {range}, given none of it"
+                        ))))
+                    }
+                },
+                None => cut.push(b.clone()),
+            }
+        }
+        let args = cut.as_slice();
         let gives = match &callee.body {
             Some(body) => {
                 let memo = &self.calls.memo.ranges;
@@ -1071,7 +1217,22 @@ impl Ranges {
             // The world gives a value: not knowing it is no fault.
             None => Ok(self.promised(f, callee, args)),
         };
-        let may_fault = args.iter().any(|b| b.may_fault);
+        // What it gives, cut to its range: by its body, outside is no
+        // value; the world's value is in it (check and evidence say so).
+        let gives = match (gives, &callee.ranges.gives) {
+            (Ok(b), Some((_, range))) => match range.cut(&b) {
+                Some((cut, out)) => Ok(Bounds {
+                    may_fault: cut.may_fault || (out && callee.body.is_some()),
+                    ..cut
+                }),
+                None if callee.body.is_some() => Err(Fault::Op(Undefined::Outside(format!(
+                    "`{f}` gives in {range}, and its body gives none of it"
+                )))),
+                None => Ok(range.bounds().unwrap_or(b)),
+            },
+            (gives, _) => gives,
+        };
+        let may_fault = outside || args.iter().any(|b| b.may_fault);
         gives.map(|b| Bounds {
             may_fault: b.may_fault || may_fault,
             ..b
@@ -1088,7 +1249,8 @@ fn hull(a: &Span, b: &Span) -> Option<Span> {
             yes: *a || *c,
             no: *b || *d,
         },
-        (Span::Number(al, ah), Span::Number(bl, bh)) => Span::Number(
+        (Span::Number(a, al, ah), Span::Number(b, bl, bh)) if a == b => Span::Number(
+            *a,
             End::low(al).min(End::low(bl)).finite(),
             End::high(ah).max(End::high(bh)).finite(),
         ),
@@ -1158,20 +1320,28 @@ fn ends(low: &Option<Rational>, high: &Option<Rational>) -> (End, End) {
 
 /// `+`, `-`, `*` on two ranges: the least and the most of what the ends
 /// give. An end that is no end gives none.
-fn arith(op: &Op, a: &Ends, b: &Ends) -> Span {
+fn arith(op: &Op, of: Numbers, a: &Ends, b: &Ends) -> Span {
     let ((al, ah), (bl, bh)) = (ends(&a.0, &a.1), ends(&b.0, &b.1));
     let at = |x: &End, y: &End, f: fn(&Rational, &Rational) -> Rational| match (x, y) {
         (End::At(x), End::At(y)) => Some(f(x, y)),
         _ => None,
     };
     match op {
-        Op::Add => Span::Number(at(&al, &bl, Rational::plus), at(&ah, &bh, Rational::plus)),
-        Op::Sub => Span::Number(at(&al, &bh, Rational::minus), at(&ah, &bl, Rational::minus)),
+        Op::Add => Span::Number(
+            of,
+            at(&al, &bl, Rational::plus),
+            at(&ah, &bh, Rational::plus),
+        ),
+        Op::Sub => Span::Number(
+            of,
+            at(&al, &bh, Rational::minus),
+            at(&ah, &bl, Rational::minus),
+        ),
         _ => {
             let all = [al.times(&bl), al.times(&bh), ah.times(&bl), ah.times(&bh)];
             let low = all.iter().min().cloned().and_then(End::finite);
             let high = all.iter().max().cloned().and_then(End::finite);
-            Span::Number(low, high)
+            Span::Number(of, low, high)
         }
     }
 }
@@ -1180,7 +1350,7 @@ fn arith(op: &Op, a: &Ends, b: &Ends) -> Span {
 /// possible fault, when `b` may be zero; else the least and the most of
 /// what the ends give: a finite number over no end is near zero, and no
 /// end over no end any number.
-fn divide(a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
+fn divide(of: Numbers, a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
     let zero = End::At(Rational::integer(0));
     let ((al, ah), (bl, bh)) = (ends(&a.0, &a.1), ends(&b.0, &b.1));
     if bl == zero && bh == zero {
@@ -1188,7 +1358,7 @@ fn divide(a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
     }
     if !(zero < bl || bh < zero) {
         return Ok(Bounds {
-            span: Span::Number(None, None),
+            span: Span::Number(of, None, None),
             may_fault: true,
         });
     }
@@ -1209,14 +1379,76 @@ fn divide(a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
         over(&ah, &bl),
         over(&ah, &bh),
     ];
-    let span = match all.into_iter().collect::<Option<Vec<End>>>() {
-        Some(all) => Span::Number(
+    let (low, high) = match all.into_iter().collect::<Option<Vec<End>>>() {
+        Some(all) => (
             all.iter().min().cloned().and_then(End::finite),
             all.iter().max().cloned().and_then(End::finite),
         ),
-        None => Span::Number(None, None),
+        None => (None, None),
     };
-    Ok(Bounds { span, may_fault })
+    // On `Int`, the quotient rounded toward zero: rounding keeps order,
+    // so the ends rounded are the ends.
+    let (low, high) = match of {
+        Numbers::Int => (low.map(|q| q.toward_zero()), high.map(|q| q.toward_zero())),
+        Numbers::Real => (low, high),
+    };
+    Ok(Bounds {
+        span: Span::Number(of, low, high),
+        may_fault,
+    })
+}
+
+/// `a % b` on two ranges of `Int`: a fault when `b` is zero; else of the
+/// sign of `a`, no farther from zero than `a`, and nearer than `b`. A
+/// possible fault when `b` may be zero.
+fn remainder(a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
+    let zero = Rational::integer(0);
+    let one = Rational::integer(1);
+    let is = |e: &Option<Rational>, q: &Rational| e.as_ref() == Some(q);
+    if is(&b.0, &zero) && is(&b.1, &zero) {
+        return Err(Fault::Op(Undefined::DivisionByZero));
+    }
+    let may_be_zero =
+        End::low(&b.0) <= End::At(zero.clone()) && End::At(zero.clone()) <= End::high(&b.1);
+    // At two points, the remainder itself.
+    if let ((Some(al), Some(ah)), (Some(bl), Some(bh))) = (a, b) {
+        if al == ah && bl == bh {
+            let r = al.to_integer().zip(bl.to_integer()).map(|(x, y)| x % y);
+            if let Some(r) = r {
+                return Ok(Bounds {
+                    span: point(Numbers::Int, Rational::integer(r)),
+                    may_fault,
+                });
+            }
+        }
+    }
+    // The most |b| - 1 may be: none when b has no end.
+    let most = match b {
+        (Some(l), Some(h)) => Some(l.abs().max(h.abs()).minus(&one)),
+        _ => None,
+    };
+    let low = match &a.0 {
+        Some(l) if *l >= zero => Some(zero.clone()),
+        l => match (l, &most) {
+            (Some(l), Some(m)) => Some(l.clone().max(zero.minus(m))),
+            (Some(l), None) => Some(l.clone()),
+            (None, Some(m)) => Some(zero.minus(m)),
+            (None, None) => None,
+        },
+    };
+    let high = match &a.1 {
+        Some(h) if *h <= zero => Some(zero.clone()),
+        h => match (h, &most) {
+            (Some(h), Some(m)) => Some(h.clone().min(m.clone())),
+            (Some(h), None) => Some(h.clone()),
+            (None, Some(m)) => Some(m.clone()),
+            (None, None) => None,
+        },
+    };
+    Ok(Bounds {
+        span: Span::Number(Numbers::Int, low, high),
+        may_fault: may_fault || may_be_zero,
+    })
 }
 
 /// `a < b`, or `a <= b` when `or_equal`: whether it may be true, and
@@ -1237,7 +1469,7 @@ fn compare(a: &Span, b: &Span) -> Option<(bool, bool)> {
         (Span::Truth { yes: ay, no: an }, Span::Truth { yes: by, no: bn }) => {
             ((*ay && *by) || (*an && *bn), (*ay && *bn) || (*an && *by))
         }
-        (Span::Number(al, ah), Span::Number(bl, bh)) => {
+        (Span::Number(a, al, ah), Span::Number(b, bl, bh)) if a == b => {
             let ((al, ah), (bl, bh)) = (ends(al, ah), ends(bl, bh));
             let one = |l: &End, h: &End| matches!(l, End::At(_)) && l == h;
             (
@@ -1261,7 +1493,7 @@ fn compare(a: &Span, b: &Span) -> Option<(bool, bool)> {
 /// `|a - b| <= tol`: whether it may be true, and may be false.
 fn within(a: &Ends, b: &Ends, tol: &Ends) -> Span {
     let zero = End::At(Rational::integer(0));
-    let Span::Number(low, high) = arith(&Op::Sub, a, b) else {
+    let Span::Number(_, low, high) = arith(&Op::Sub, Numbers::Real, a, b) else {
         return Span::Truth {
             yes: true,
             no: true,
@@ -1415,16 +1647,17 @@ impl Ranges {
             // `n < x` cuts n's high end, `x < n` its low end.
             for (name, other, n_low) in [(a, b, false), (b, a, true)] {
                 let Expression::Name(n) = name else { continue };
-                let whole = over.iter().any(|(m, t)| m == n && t == &Type::Int);
                 let Some(Bounds {
-                    span: Span::Number(low, high),
+                    span: Span::Number(numbers, low, high),
                     may_fault,
                 }) = kept.get(n).cloned()
                 else {
                     continue;
                 };
+                let whole =
+                    numbers == Numbers::Int || over.iter().any(|(m, t)| m == n && t == &Type::Int);
                 let Ok(Bounds {
-                    span: Span::Number(ol, oh),
+                    span: Span::Number(_, ol, oh),
                     ..
                 }) = eval(self, &kept, other)
                 else {
@@ -1462,7 +1695,7 @@ impl Ranges {
                 kept.insert(
                     n.clone(),
                     Bounds {
-                        span: Span::Number(low, high),
+                        span: Span::Number(numbers, low, high),
                         may_fault,
                     },
                 );
@@ -1492,15 +1725,18 @@ impl Ranges {
         let may_fault = args.iter().any(|b| b.may_fault);
         let spans: Vec<&Span> = args.iter().map(|b| &b.span).collect();
         let n = |s: &Span| match s {
-            Span::Number(low, high) => Some((low.clone(), high.clone())),
+            Span::Number(of, low, high) => Some((*of, (low.clone(), high.clone()))),
             _ => None,
         };
-        let numbers: Vec<Ends> = spans.iter().filter_map(|s| n(s)).collect();
-        let numbers = if numbers.len() == spans.len() {
-            numbers
-        } else {
-            vec![]
-        };
+        let typed: Vec<(Numbers, Ends)> = spans.iter().filter_map(|s| n(s)).collect();
+        // Numbers of one type only, as the types say.
+        let of = typed.first().map_or(Numbers::Real, |(of, _)| *of);
+        let numbers: Vec<Ends> =
+            if typed.len() == spans.len() && typed.iter().all(|(o, _)| *o == of) {
+                typed.into_iter().map(|(_, e)| e).collect()
+            } else {
+                vec![]
+            };
         let span = match (op, spans.as_slice()) {
             (Op::Truth(_) | Op::Int(_) | Op::Real(_), []) => {
                 let exact = Exact::default().apply(op, &[])?;
@@ -1508,10 +1744,13 @@ impl Ranges {
             }
             (Op::Not, [Span::Truth { yes, no }]) => Span::Truth { yes: *no, no: *yes },
             (Op::Add | Op::Sub | Op::Mul, [_, _]) if numbers.len() == 2 => {
-                arith(op, &numbers[0], &numbers[1])
+                arith(op, of, &numbers[0], &numbers[1])
             }
             (Op::Div, [_, _]) if numbers.len() == 2 => {
-                return divide(&numbers[0], &numbers[1], may_fault)
+                return divide(of, &numbers[0], &numbers[1], may_fault)
+            }
+            (Op::Rem, [_, _]) if numbers.len() == 2 && of == Numbers::Int => {
+                return remainder(&numbers[0], &numbers[1], may_fault)
             }
             (Op::Less, [_, _]) if numbers.len() == 2 => less(&numbers[0], &numbers[1], false),
             (Op::AtMost, [_, _]) if numbers.len() == 2 => less(&numbers[0], &numbers[1], true),
@@ -1548,12 +1787,12 @@ fn all(lo: &Bounded, hi: &Bounded, run: &mut dyn FnMut(usize, &[Bounded]) -> Bou
         (Err(fault), _) | (_, Err(fault)) => return Err(fault.clone()),
     };
     let gives = match (&lo.span, &hi.span) {
-        (Span::Number(Some(ll), Some(lh)), Span::Number(Some(hl), Some(hh)))
+        (Span::Number(_, Some(ll), Some(lh)), Span::Number(_, Some(hl), Some(hh)))
             if ll == lh && hl == hh =>
         {
             all_points(ll, hl, run)
         }
-        (Span::Number(ll, lh), Span::Number(hl, hh)) => {
+        (Span::Number(_, ll, lh), Span::Number(_, hl, hh)) => {
             all_once(&(ll.clone(), lh.clone()), &(hl.clone(), hh.clone()), run)
         }
         _ => Err(Fault::Stuck),
@@ -1596,7 +1835,7 @@ fn and_at(
     x: &Rational,
     run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded,
 ) -> Bounded {
-    let p = read_at(point(x.clone()), run);
+    let p = read_at(point(Numbers::Int, x.clone()), run);
     choose(&so_far, p, said(false))
 }
 
@@ -1626,7 +1865,7 @@ fn all_once(low: &Ends, high: &Ends, run: &mut dyn FnMut(usize, &[Bounded]) -> B
         (Some(lh), Some(hl)) => lh >= hl,
         _ => true,
     };
-    match read_at(Span::Number(low.0.clone(), top), run) {
+    match read_at(Span::Number(Numbers::Int, low.0.clone(), top), run) {
         Ok(Bounds {
             span: Span::Truth { yes, no },
             may_fault,

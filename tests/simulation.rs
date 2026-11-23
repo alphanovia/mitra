@@ -9,8 +9,8 @@ use mitra_core::expression::{
     check, eval, fits, substitute, Arg, Expression, Fault, Outcome, Reading, Standard,
 };
 use mitra_core::simulation::{
-    covers, lies_in, Bound, Bounds, Callee, Calls, Exact, Op, Ranges, Rational, Record, Simulation,
-    Span, Type, Undefined, Value,
+    covers, lies_in, Bound, Bounds, Callee, Calls, Exact, Numbers, Op, Ranges, Rational, Record,
+    Simulation, Span, Type, Undefined, Value,
 };
 use num_bigint::BigInt;
 use num_traits::{Signed, Zero};
@@ -137,6 +137,7 @@ impl Gen {
                 gives,
                 body,
                 rows,
+                ranges: Default::default(),
             };
             callees.insert(format!("lib::f{i}"), callee);
         }
@@ -348,10 +349,11 @@ impl Gen {
                 }
             },
             Type::Int | Type::Real => {
-                let ops = [Op::Add, Op::Sub, Op::Mul, Op::Div];
+                // `/` on both, `%` on `Int` only (finding 11).
+                let ops = [Op::Add, Op::Sub, Op::Mul, Op::Div, Op::Rem];
                 let op = self
                     .rng
-                    .pick(&ops[..if t == &Type::Real { 4 } else { 3 }])
+                    .pick(&ops[..if t == &Type::Real { 4 } else { 5 }])
                     .clone();
                 let (a, b) = (self.expr(t, d), self.expr(t, d));
                 apply(op, vec![a, b])
@@ -396,7 +398,9 @@ impl Gen {
                 let (yes, no) = *self.rng.pick(&[(true, false), (false, true), (true, true)]);
                 Span::Truth { yes, no }
             }
-            Type::Int | Type::Real if self.rng.below(5) == 0 => Span::Number(None, None),
+            Type::Int | Type::Real if self.rng.below(5) == 0 => {
+                Span::Number(numbers(t), None, None)
+            }
             // A half-line: one end, the other side open.
             Type::Int | Type::Real if self.rng.below(4) == 0 => {
                 let end = match t {
@@ -404,8 +408,8 @@ impl Gen {
                     _ => self.rational(),
                 };
                 match self.rng.coin() {
-                    true => Span::Number(Some(end), None),
-                    false => Span::Number(None, Some(end)),
+                    true => Span::Number(numbers(t), Some(end), None),
+                    false => Span::Number(numbers(t), None, Some(end)),
                 }
             }
             Type::Int => {
@@ -415,7 +419,11 @@ impl Gen {
                     false => self.int().abs(),
                 };
                 let high = &low + wide;
-                Span::Number(Some(Rational::integer(low)), Some(Rational::integer(high)))
+                Span::Number(
+                    Numbers::Int,
+                    Some(Rational::integer(low)),
+                    Some(Rational::integer(high)),
+                )
             }
             Type::Real => {
                 let low = self.rational();
@@ -424,7 +432,7 @@ impl Gen {
                     _ => self.rational().abs(),
                 };
                 let high = low.plus(&wide);
-                Span::Number(Some(low), Some(high))
+                Span::Number(Numbers::Real, Some(low), Some(high))
             }
             Type::Record(r) => Span::Record(
                 r.clone(),
@@ -440,11 +448,11 @@ impl Gen {
                 (true, true) => self.rng.coin(),
                 (yes, _) => *yes,
             }),
-            (Span::Number(None, None), t) if self.rng.below(3) > 0 => self.value(t),
-            (Span::Number(None, None), Type::Int) => Value::Int(BigInt::zero()),
-            (Span::Number(None, None), _) => Value::Real(Rational::integer(0)),
+            (Span::Number(_, None, None), t) if self.rng.below(3) > 0 => self.value(t),
+            (Span::Number(_, None, None), Type::Int) => Value::Int(BigInt::zero()),
+            (Span::Number(_, None, None), _) => Value::Real(Rational::integer(0)),
             // A half-line: its end, or a step past it on its open side.
-            (Span::Number(low, high), t) if low.is_none() || high.is_none() => {
+            (Span::Number(_, low, high), t) if low.is_none() || high.is_none() => {
                 let end = low.clone().or(high.clone()).unwrap();
                 let up = low.is_some();
                 let zero = Rational::integer(0);
@@ -471,7 +479,7 @@ impl Gen {
                 }
             }
             // Zero, where it lies in the span, is where faults are: take it often.
-            (Span::Number(Some(low), Some(high)), t)
+            (Span::Number(_, Some(low), Some(high)), t)
                 if low <= &Rational::integer(0)
                     && &Rational::integer(0) <= high
                     && self.rng.coin() =>
@@ -481,7 +489,7 @@ impl Gen {
                     _ => Value::Real(Rational::integer(0)),
                 }
             }
-            (Span::Number(Some(low), Some(high)), Type::Int) => {
+            (Span::Number(_, Some(low), Some(high)), Type::Int) => {
                 let (low, high) = (low.numer().clone(), high.numer().clone());
                 let wide: BigInt = &high - &low + 1;
                 let n = match self.rng.below(3) {
@@ -491,7 +499,7 @@ impl Gen {
                 };
                 Value::Int(n)
             }
-            (Span::Number(Some(low), Some(high)), _) => {
+            (Span::Number(_, Some(low), Some(high)), _) => {
                 let m = self.rng.below(7) as i64 + 1;
                 let k = self.rng.below(m as usize + 1) as i64;
                 let step = high.minus(low).times(&Rational::new(k, m).unwrap());
@@ -558,6 +566,7 @@ impl Gen {
             Op::Sub,
             Op::Mul,
             Op::Div,
+            Op::Rem,
             Op::Less,
             Op::AtMost,
             Op::Equal,
@@ -629,6 +638,7 @@ impl Gen {
                 no: false,
             },
             1 => Span::Number(
+                Numbers::Real,
                 Some(Rational::integer(2)),
                 Some(Rational::new(1, 2).unwrap()),
             ),
@@ -793,7 +803,7 @@ proptest! {
         for end in ["lo", "hi"] {
             let low = g.rng.below(5) as i64 - 2;
             let high = low + g.rng.below(3) as i64;
-            let mut b = Bounds::between(Rational::integer(low), Rational::integer(high)).unwrap();
+            let mut b = Bounds::between(Numbers::Int, Rational::integer(low), Rational::integer(high)).unwrap();
             b.may_fault = g.rng.below(4) == 0;
             exact.insert(end.to_string(), Value::Int(BigInt::from(low + g.rng.below((high - low + 1) as usize) as i64)));
             bounds.insert(end.to_string(), b);
@@ -863,7 +873,10 @@ fn a_sum_of_small_reals_is_exact() {
         Ok(Value::Real(sum.clone()))
     );
     let b = eval(&Ranges::default(), &BTreeMap::new(), &e).unwrap();
-    assert_eq!(b.span, Span::Number(Some(sum.clone()), Some(sum)));
+    assert_eq!(
+        b.span,
+        Span::Number(Numbers::Real, Some(sum.clone()), Some(sum))
+    );
     assert!(!b.may_fault);
 }
 
@@ -953,7 +966,7 @@ fn branches_not_taken_are_not_read() {
     // (it may divide near 0), and both are sound.
     let around = BTreeMap::from([(
         "x".to_string(),
-        Bounds::between(Rational::integer(-1), Rational::integer(1)).unwrap(),
+        Bounds::between(Numbers::Real, Rational::integer(-1), Rational::integer(1)).unwrap(),
     )]);
     assert!(
         eval(&Ranges::default(), &around, &unguarded)
@@ -973,7 +986,7 @@ fn branches_not_taken_are_not_read() {
 fn a_claim_holds_over_a_domain() {
     let h = BTreeMap::from([(
         "h".to_string(),
-        Bounds::between(Rational::integer(0), Rational::integer(20)).unwrap(),
+        Bounds::between(Numbers::Real, Rational::integer(0), Rational::integer(20)).unwrap(),
     )]);
     let product = apply(
         Op::Mul,
@@ -1019,10 +1032,18 @@ fn the_first_field_of_a_name() {
 #[test]
 fn gamma_is_typed() {
     let half = Rational::new(1, 2).unwrap();
-    let unit = Ok(Bounds::between(Rational::integer(0), Rational::integer(1)).unwrap());
-    assert!(covers(&Type::Int, &unit, &Ok(Value::Int(BigInt::from(1)))));
-    assert!(!covers(&Type::Int, &unit, &Ok(Value::Real(half.clone()))));
-    assert!(covers(&Type::Real, &unit, &Ok(Value::Real(half.clone()))));
+    let unit = |of| Ok(Bounds::between(of, Rational::integer(0), Rational::integer(1)).unwrap());
+    let (ints, reals) = (unit(Numbers::Int), unit(Numbers::Real));
+    assert!(covers(&Type::Int, &ints, &Ok(Value::Int(BigInt::from(1)))));
+    assert!(!covers(&Type::Int, &ints, &Ok(Value::Real(half.clone()))));
+    assert!(covers(&Type::Real, &reals, &Ok(Value::Real(half.clone()))));
+    // Since finding 11 a span says its numbers: a whole number is in no
+    // span of reals, nor a real in a span of whole numbers.
+    assert!(!covers(&Type::Real, &ints, &Ok(Value::Real(half.clone()))));
+    assert!(!lies_in(
+        &Value::Int(BigInt::from(1)),
+        &reals.as_ref().unwrap().span
+    ));
     let r = record("R", &[("f", Type::Int)]);
     let wrong = Value::Record(r.clone(), vec![Value::Truth(true)]);
     let span = Span::Record(
@@ -1044,7 +1065,7 @@ fn gamma_is_typed() {
     });
     let empty = Value::Record(r.clone(), vec![]);
     assert!(!covers(&Type::Record(r.clone()), &none, &Ok(empty)));
-    let fractional = Bounds::between(half, Rational::new(3, 2).unwrap()).unwrap();
+    let fractional = Bounds::between(Numbers::Real, half, Rational::new(3, 2).unwrap()).unwrap();
     assert!(!Ranges::default().has_type(&fractional, &Type::Int));
     assert!(Ranges::default().has_type(&fractional, &Type::Real));
     let x = BTreeMap::from([("x".to_string(), Type::Int)]);
@@ -1079,7 +1100,7 @@ fn a_shared_division() {
     assert_eq!(value(2), Ok(Value::Real(Rational::new(1, 2).unwrap())));
     let around = BTreeMap::from([(
         "x".to_string(),
-        Bounds::between(Rational::integer(-1), Rational::integer(1)).unwrap(),
+        Bounds::between(Numbers::Real, Rational::integer(-1), Rational::integer(1)).unwrap(),
     )]);
     assert!(eval(&Ranges::default(), &around, &e).unwrap().may_fault);
 }
@@ -1338,6 +1359,7 @@ fn callee(takes: &[(&str, Type)], gives: Type, body: Option<E>) -> Callee {
         gives,
         body,
         rows: vec![],
+        ranges: Default::default(),
     }
 }
 fn library(callees: Vec<(&str, Callee)>) -> Result<Calls, std::collections::BTreeSet<String>> {
@@ -1414,8 +1436,9 @@ fn calls_walked_through() {
     let reals = typed(&[("r", Type::Real)]);
     let at_a = |n: i64| at(&[("a", Value::Int(n.into()))]);
     let int_value = |n: i64| Ok(Value::Int(n.into()));
-    let between =
-        |lo: i64, hi: i64| Bounds::between(Rational::integer(lo), Rational::integer(hi)).unwrap();
+    let between = |lo: i64, hi: i64| {
+        Bounds::between(Numbers::Int, Rational::integer(lo), Rational::integer(hi)).unwrap()
+    };
 
     // A body, through another call.
     let e = call("lib::quad", vec![input("a")]);
@@ -1459,7 +1482,7 @@ fn calls_walked_through() {
     assert_eq!(eval(&exact, &r, &e), int_value(1));
     let b = BTreeMap::from([(
         "r".to_string(),
-        Bounds::between(Rational::integer(-1), Rational::integer(1)).unwrap(),
+        Bounds::between(Numbers::Real, Rational::integer(-1), Rational::integer(1)).unwrap(),
     )]);
     let got = eval(&ranges, &b, &e).unwrap();
     assert_eq!((got.span, got.may_fault), (between(1, 1).span, true));
@@ -1631,6 +1654,7 @@ fn type_parameters() {
     let within = apply(Op::Within, vec![input("x"), input("y"), input("x")]);
     assert_eq!(typed_as(&within), Some(Type::Truth));
     assert_eq!(typed_as(&two(Op::Div, "x", "y")), None);
+    assert_eq!(typed_as(&two(Op::Rem, "x", "y")), None);
     assert_eq!(typed_as(&apply(Op::Add, vec![input("x"), int(1)])), None);
     assert_eq!(
         typed_as(&apply(Op::Add, vec![input("x"), real(1, 1)])),
@@ -1754,6 +1778,14 @@ proptest! {
     }
 }
 
+/// The numbers of a span of type `t`.
+fn numbers(t: &Type) -> Numbers {
+    match t {
+        Type::Int => Numbers::Int,
+        _ => Numbers::Real,
+    }
+}
+
 fn q(n: i64) -> Option<Rational> {
     Some(Rational::integer(n))
 }
@@ -1773,10 +1805,10 @@ fn on(op: Op, spans: &[Span]) -> Span {
 
 #[test]
 fn half_lines_by_hand() {
-    let below_zero = Span::Number(None, q(0));
-    let above_zero = Span::Number(q(0), None);
-    let above_one = Span::Number(q(1), None);
-    let any = Span::Number(None, None);
+    let below_zero = Span::Number(Numbers::Real, None, q(0));
+    let above_zero = Span::Number(Numbers::Real, q(0), None);
+    let above_one = Span::Number(Numbers::Real, q(1), None);
+    let any = Span::Number(Numbers::Real, None, None);
     // A product of two of one sign is never negative.
     assert_eq!(
         on(Op::Mul, &[below_zero.clone(), below_zero.clone()]),
@@ -1792,8 +1824,11 @@ fn half_lines_by_hand() {
     );
     assert_eq!(on(Op::Mul, &[any.clone(), any.clone()]), any);
     assert_eq!(
-        on(Op::Mul, &[Span::Number(q(0), q(0)), any.clone()]),
-        Span::Number(q(0), q(0))
+        on(
+            Op::Mul,
+            &[Span::Number(Numbers::Real, q(0), q(0)), any.clone()]
+        ),
+        Span::Number(Numbers::Real, q(0), q(0))
     );
     // Sums keep the ends both have.
     assert_eq!(
@@ -1802,7 +1837,7 @@ fn half_lines_by_hand() {
     );
     assert_eq!(on(Op::Sub, &[above_one.clone(), above_zero.clone()]), any);
     // `q >= 1` is never below 0, and may be above it.
-    let zero = Span::Number(q(0), q(0));
+    let zero = Span::Number(Numbers::Real, q(0), q(0));
     let truth = |yes, no| Span::Truth { yes, no };
     assert_eq!(
         on(Op::Less, &[above_one.clone(), zero.clone()]),
@@ -1813,8 +1848,11 @@ fn half_lines_by_hand() {
         truth(true, false)
     );
     // A finite number over one with no end: from 0 to the number.
-    let two = Span::Number(q(2), q(2));
-    assert_eq!(on(Op::Div, &[two, above_one]), Span::Number(q(0), q(2)));
+    let two = Span::Number(Numbers::Real, q(2), q(2));
+    assert_eq!(
+        on(Op::Div, &[two, above_one]),
+        Span::Number(Numbers::Real, q(0), q(2))
+    );
 }
 
 // ------------------------------------------------- remembered calls (A8)

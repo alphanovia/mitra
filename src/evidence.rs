@@ -9,7 +9,7 @@
 //! `check(model, ledger)` gives every error of suit `V`, each at the
 //! measurement or review to fix: `measurements::3`, `reviews::0`.
 
-use crate::catalogue::{Error, V001, V002, V003, V004, V005, V006, V007};
+use crate::catalogue::{Error, V001, V002, V003, V004, V005, V006, V007, V008};
 use crate::expression::Reading;
 use crate::model::{Function, Index, Item, Model, Path};
 use crate::simulation::{Exact, Type, Value};
@@ -166,6 +166,18 @@ pub fn check(model: &Model, ledger: &Ledger) -> Vec<Error> {
                 } else if !crate::check::value_made(&index, v) {
                     let message = format!("the value of `{p}` makes a record other than as declared: no value of an opaque record is written");
                     errors.push(error(V003, message));
+                }
+                let name = p.names.last().map(String::as_str).unwrap_or_default();
+                let range = match &port.function.ranges.gives {
+                    Some((q, range)) if q == name => Some(range),
+                    _ => port.function.ranges.takes.get(name),
+                };
+                if let Some(range) = range.filter(|r| matches!(v, Value::Int(_)) && !r.holds(v)) {
+                    let message = format!(
+                        "`{p}` = {}, outside its range {range}: the model says nothing there",
+                        crate::print::value(v)
+                    );
+                    errors.push(error(V008, message));
                 }
                 if side == "input" {
                     given.insert(p.clone());

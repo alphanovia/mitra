@@ -53,8 +53,9 @@ subject stone {
 | `at "a/b/c"` after a name, `at "x", "y"` for two | `Tie` | your choice: in the block |
 | `tie a::b at "x";` at the end | a tie to what has no block | flagged |
 | `bool`, `Int`, `Real`, `(Int, bool)`, `(Real,)`, `()`, `R` | `Type` | Rust, but `Int`/`Real` flagged |
+| `fn f(a: 0..=9) -> q: 0..=9` | `Function.ranges`: an `Int` that is checked | Rust's range form; as a type Ada's `range 0 .. 9`, flagged |
 | `true`, `3`, `-3`, `9.81`, `1/3` | constants | Rust, but `1/3` flagged |
-| `! && \|\| + - * / < <= == within(a, b, tol)` | the operations | Rust (`within` is a call) |
+| `! && \|\| + - * / % < <= == within(a, b, tol)` | the operations | Rust (`within` is a call); `/` on two `Int` rounds toward zero, `%` on `Int` only |
 | `a > b`, `a >= b`, `a != b` | `b < a`, `b <= a`, `!(a == b)` | Rust, read only as that |
 | `if c { a } else { b }`, `else if` | `If` | Rust |
 | `R { x: 1.0, y: 2.0 }`, `(a, b)`, `r.x`, `t.0` | `Make`, `Field` | Rust |

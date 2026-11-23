@@ -132,6 +132,8 @@ and each code its page in `docs/reference`, with an example and the fix.
 | M022 | Each value of an example of the model is of its type, and every argument of a function it reads the output of is given. |
 | M023 | A proposition written in a rule is `correct(f, point)` of a function of its part, or an all, an any or a `!` of those, with points and sets that fit what `f` takes. |
 | M024 | Two examples of a function at one point give the same value. |
+| M025 | Every range type holds a number: `0..=9`, not `9..=0`. |
+| M026 | Every example, of a function or of the model, lies in the range types of what it names. |
 
 ## Errors and the catalogue
 

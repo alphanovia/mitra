@@ -195,6 +195,9 @@ pub struct Function {
     pub examples: Vec<Example>,
     pub claims: Vec<Claim>,
     pub rules: Vec<Rule>,
+    /// The range types among what it takes and gives (`a: 0..=9`): each
+    /// an `Int` that is checked (finding 11).
+    pub ranges: simulation::Ranged,
 }
 
 /// A row of a function's examples, `(6, 2) -> 3`: at what it takes, in
@@ -672,6 +675,7 @@ pub fn calls(model: &Model) -> Result<Calls, BTreeSet<String>> {
                 gives: f.gives.1.clone(),
                 body: f.body.clone(),
                 rows: rows.collect(),
+                ranges: f.ranges.clone(),
             };
             let path = Path::to(&[&part.name, &f.name]).to_string();
             callees.entry(path).or_insert(callee);
@@ -714,6 +718,7 @@ fn bare(takes: &[(String, Type)], gives: &Type) -> Callee {
         gives: gives.clone(),
         body: None,
         rows: vec![],
+        ranges: simulation::Ranged::default(),
     }
 }
 

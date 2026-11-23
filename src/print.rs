@@ -380,14 +380,20 @@ impl Writer<'_> {
         let takes: Vec<String> = f
             .takes
             .iter()
-            .map(|(n, t)| format!("{n}: {}", type_(t)))
+            .map(|(n, t)| match f.ranges.takes.get(n) {
+                Some(range) => format!("{n}: {range}"),
+                None => format!("{n}: {}", type_(t)),
+            })
             .collect();
+        let gives = match &f.ranges.gives {
+            Some((_, range)) => range.to_string(),
+            None => type_(&f.gives.1),
+        };
         let mut s = format!(
-            "    fn {}({}) -> {}: {}{ties}",
+            "    fn {}({}) -> {}: {gives}{ties}",
             f.name,
             takes.join(", "),
             f.gives.0,
-            type_(&f.gives.1)
         );
         if let Some(body) = &f.body {
             s.push_str(&format!(" {{ {} }}", sim_in(&self.cx(), body)));
@@ -902,6 +908,7 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
         (Op::Sub, 2, _) => binary("-", SUM, SUM, SUM + 1),
         (Op::Mul, 2, _) => binary("*", PRODUCT, PRODUCT, PRODUCT + 1),
         (Op::Div, 2, _) => binary("/", PRODUCT, PRODUCT, PRODUCT + 1),
+        (Op::Rem, 2, _) => binary("%", PRODUCT, PRODUCT, PRODUCT + 1),
         (Op::Within, 3, _) => (
             format!(
                 "within({}, {}, {})",

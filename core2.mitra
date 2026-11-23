@@ -86,6 +86,8 @@ subject simulation {
     ensure remembered = "a reading that remembers calls, and computes only the side of if, && and || it takes, gives what one that does neither gives";
     ensure budgeted = "a computation past its budget of steps or depth gives no value, Undefined::Budget, and never aborts";
     ensure kept_sound = "a value at which the comparisons an expression joins by && all hold lies in the bounds Ranges::kept gives, and Ranges::kept gives none only when no value does";
+    ensure whole_division = "/ and % on Int give what Rust's i64 gives, and none at zero; by bounds, they hold every value Exact gives";
+    ensure ranges_checked = "a call with a value outside the range type of what it takes, or a body giving one outside the range of what it gives, has no value; by bounds, such a call may fault";
     ensure promised = "where the claims of a function with no body hold, a call of it lies in the bounds Ranges reads from them; inside its own claims, a call of it is only its type" from (kept_sound);
 }
 
@@ -165,6 +167,7 @@ subject check {
     ensure sound = "a model check gives no error for has every path resolved, every type agreed, no support cycle, every proof checked by type and by one run, and one value for each function at each point of its examples"
         from (codes, one_value);
     ensure one_value = "two examples of a function at one point that give different values are the error M024";
+    ensure in_ranges = "a range type that holds no number is the error M025, an example outside one M026";
     ensure type_explained = "a type error (M005, M006) shows the expression, underlines its innermost part with no type and the type of each argument, says what that operation takes, and converts no number";
 }
 
@@ -193,7 +196,7 @@ subject evidence {
         inputs: Ports, outputs: Ports, seen: bool, count: Int, voice: String
     }
     record Review at "src/evidence.rs/Review" { prop: Path, holds: bool, voice: String }
-    ensure fits = "a ledger evidence accepts measures only tied functions of the model, with every input and an output, and reviews only what a review can name"
+    ensure fits = "a ledger evidence accepts measures only tied functions of the model, with every input and an output, each in the range of its type, and reviews only what a review can name"
         from (checked);
 }
 
@@ -212,6 +215,7 @@ subject agree {
     require ranges = simulation::ranges_sound;
     require kept = simulation::kept_sound;
     require promised = simulation::promised;
+    require ranges_checked = simulation::ranges_checked;
     // Each limit a setting, none fixed in the code.
     require stops = simulation::budgeted;
     use simulation::Budget;
@@ -221,6 +225,7 @@ subject agree {
     }
     ensure no_false_holds = "agree says Holds only when what the model says twice agrees at every point where the claims of functions with no body hold"
         from (checked, exact, ranges, kept, given, promised);
+    ensure within_ranges = "agree reads a claim only where the ranges of what its function takes hold, checks that the body keeps the range of what it gives, and tries every point of the ranges when they hold at most `points`" from (ranges_checked);
     ensure given_named = "a comparison that holds by the claims of a function with no body names them: hint A010, and `given` on each finding" from (promised);
     ensure no_false_none = "agree says no value keeps a function's claims (A004) only when none does"
         from (checked, exact, ranges, kept);

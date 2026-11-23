@@ -88,6 +88,13 @@ computation calls for, or what that function takes. Any other is A009.
   (a setting, 4) below zero and above it, so `0 <= x * x` holds and
   `0 < q && q < 0` keeps nothing. A cut elsewhere, or bisection, would
   decide `!(h <= 20) || v2 < 400`; today it is unknown.
+- **Range types are read as premises.** `fn f(a: 0..=9)` reads each
+  claim as `!(0 <= a && a <= 9) || claim`, and the range of what it
+  gives as one more comparison, `its range \`q: 0..=9\``: a body that
+  leaves it is A001. When the ranges hold at most `points` numbers
+  together, every one is tried: main's `div(a: 0..=9, b: 0..=9)` needs
+  100 points, more than the default 64, so it is unknown (A007)
+  until `points` is raised.
 - **A function with no body gives what its claims promise.** By bounds,
   its call is any value its claims keep (`200.0 <= w`: `[200, ∞)`), and no
   fault: the world gives a value. A comparison that holds so is given those
