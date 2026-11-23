@@ -386,6 +386,51 @@ fn each_finding_is_given() {
         vec!["X006"]
     );
     given.insert("X006".to_string());
+    // A value known in part, read where it is not known (finding 2).
+    let text = "environment std { record String; }
+subject location {
+    use std::String;
+    record Location { first: String, depth: Int }
+    fn first_is(l: Location, m: Location) -> same: bool at \"src/location.rs/first_is\" { l.first == m.first }
+    fn depth(l: Location) -> d: Int at \"src/location.rs/depth\" { l.depth }
+}";
+    let model = parse(text).unwrap();
+    let known = |n: i64| {
+        let store = format!("measure location::depth (Location {{ depth: {n}, .. }}) -> {n} by \"test:depth\";\nmeasure location::first_is (Location {{ depth: {n}, .. }}, Location {{ depth: {n}, .. }}) -> true by \"test:first\";");
+        mitra_core::reader::read_store("s", &store, &model, &model.ties)
+            .unwrap()
+            .0
+    };
+    let e = explain(&model, &known(3), &Settings::default());
+    let shown: Vec<String> = e.findings.iter().map(|f| f.to_string()).collect();
+    assert_eq!(
+        shown,
+        ["finding[X010]: at (Location { depth: 3, .. }, Location { depth: 3, .. }), `location::first_is` reads `Location::first`, which this measurement does not know\n --> measurements::1"]
+    );
+    // What reads only the known field is explained.
+    assert!(
+        e.verdicts.iter().any(|v| v.verdict == Verdict::Explained
+            && format!("{:?}", v.prop).contains("location::depth")),
+        "{:?}",
+        e.verdicts
+    );
+    // A value the model gives, known in part, as the measured one.
+    let keep = text.replace(
+        "    fn depth(",
+        "    fn keep(l: Location) -> m: Location at \"src/location.rs/keep\" { l }\n    fn depth(",
+    );
+    let model = parse(&keep).unwrap();
+    let store = "measure location::keep (Location { depth: 1, .. }) -> Location { depth: 1, .. } by \"test:keep\";";
+    let ledger = mitra_core::reader::read_store("s", store, &model, &model.ties)
+        .unwrap()
+        .0;
+    let e = explain(&model, &ledger, &Settings::default());
+    let shown: Vec<String> = e.findings.iter().map(|f| f.to_string()).collect();
+    assert_eq!(
+        shown,
+        ["finding[X010]: at (Location { depth: 1, .. }), `location::keep::m = Location { depth: 1, .. }` is known in part: only `Location::first`, not known, could tell it from what the model gives, Location { depth: 1, .. }\n --> measurements::0"]
+    );
+    given.insert("X010".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Explain && !e.retired);

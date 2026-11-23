@@ -109,6 +109,7 @@ layer's (corroboration).
 | X007 | hint: an opaque function measured the same each time |
 | X008 | two measurements that say one thing, by one voice and count |
 | X009 | a budget of steps or depth reached |
+| X010 | a value known in part, where only what is not known could tell |
 
 A hint is below a finding: something that may help.
 

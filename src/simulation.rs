@@ -209,6 +209,73 @@ pub enum Value {
     Real(Rational),
     /// A record and the value of each field, in order.
     Record(Record, Vec<Value>),
+    /// A record known in part, `Location { depth: 2, .. }`: each field's
+    /// value, `None` where it is not known, at least one. Made by
+    /// `Value::partial`. Reading a field not known has no value
+    /// (`Undefined::Unknown`), nor has `==` that only it decides.
+    Partial(Record, Vec<Option<Value>>),
+}
+
+impl Value {
+    /// A record of these fields: known in part when one is `None`.
+    pub fn partial(r: Record, fields: Vec<Option<Value>>) -> Value {
+        match fields.iter().all(Option::is_some) {
+            true => Value::Record(r, fields.into_iter().flatten().collect()),
+            false => Value::Partial(r, fields),
+        }
+    }
+}
+
+/// A call of `f` at `args`, each bound to a name of its own: a value
+/// known in part has no expression that gives it.
+pub fn call_at(f: &str, args: &[Value]) -> (Expression<Op>, BTreeMap<String, Value>) {
+    let names: Vec<String> = (0..args.len()).map(|i| format!("#{i}")).collect();
+    let call = Expression::Apply(
+        Op::Call(f.to_string()),
+        names
+            .iter()
+            .map(|n| crate::expression::Arg {
+                binds: vec![],
+                body: Expression::Name(n.clone()),
+            })
+            .collect(),
+    );
+    (call, names.into_iter().zip(args.iter().cloned()).collect())
+}
+
+/// Whether `a` and `b` are one value: `Err` with the path of a field not
+/// known, `R::f`, when only fields not known could tell; false when a
+/// known field differs, whatever the others.
+pub fn same(a: &Value, b: &Value) -> Result<bool, String> {
+    let fields = |v: &Value| -> Option<(Record, Vec<Option<Value>>)> {
+        match v {
+            Value::Record(r, vs) => Some((r.clone(), vs.iter().cloned().map(Some).collect())),
+            Value::Partial(r, vs) => Some((r.clone(), vs.clone())),
+            _ => None,
+        }
+    };
+    let (Some((r, xs)), Some((t, ys))) = (fields(a), fields(b)) else {
+        return Ok(a == b);
+    };
+    if r != t || xs.len() != ys.len() {
+        return Ok(false);
+    }
+    let mut unknown = None;
+    for (i, (x, y)) in xs.iter().zip(&ys).enumerate() {
+        let field = || format!("{}::{}", r.name, r.fields[i].0);
+        match (x, y) {
+            (Some(x), Some(y)) => match same(x, y) {
+                Ok(true) => {}
+                Ok(false) => return Ok(false),
+                Err(g) => _ = unknown.get_or_insert(g),
+            },
+            _ => _ = unknown.get_or_insert_with(field),
+        }
+    }
+    match unknown {
+        Some(g) => Err(g),
+        None => Ok(true),
+    }
 }
 
 /// Why an operation has no value.
@@ -820,6 +887,14 @@ impl Reading for Exact {
             (Value::Record(r, values), Type::Record(t)) => {
                 r == t && fits_fields(values, t, |v, f| self.has_type(v, f))
             }
+            // Known in part: each field it knows of its type, one not.
+            (Value::Partial(r, values), Type::Record(t)) => {
+                r == t
+                    && values.iter().any(Option::is_none)
+                    && fits_fields(values, t, |v, f| {
+                        v.as_ref().is_none_or(|v| self.has_type(v, f))
+                    })
+            }
             _ => false,
         }
     }
@@ -918,7 +993,10 @@ impl Exact {
             (Op::Less, [Real(a), Real(b)]) => Truth(a < b),
             (Op::AtMost, [Int(a), Int(b)]) => Truth(a <= b),
             (Op::AtMost, [Real(a), Real(b)]) => Truth(a <= b),
-            (Op::Equal, [a, b]) => Truth(a == b),
+            (Op::Equal, [a, b]) => match same(a, b) {
+                Ok(yes) => Truth(yes),
+                Err(g) => return Err(Fault::Op(Undefined::Unknown(g))),
+            },
             (Op::Within, [Int(a), Int(b), Int(tol)]) => Truth((a - b).abs() <= *tol),
             (Op::Within, [Real(a), Real(b), Real(tol)]) => Truth(a.minus(b).abs() <= *tol),
             (Op::Make(r), fields) if fits_fields(fields, r, |v, f| self.has_type(v, f)) => {
@@ -927,6 +1005,15 @@ impl Exact {
             (Op::Field(name), [Value::Record(r, values)]) => {
                 match r.field(name).and_then(|(place, _)| values.get(place)) {
                     Some(v) => v.clone(),
+                    None => return Err(Fault::Stuck),
+                }
+            }
+            (Op::Field(name), [Value::Partial(r, values)]) => {
+                match r.field(name).and_then(|(place, _)| values.get(place)) {
+                    Some(Some(v)) => v.clone(),
+                    Some(None) => {
+                        return Err(Fault::Op(Undefined::Unknown(format!("{}::{name}", r.name))))
+                    }
                     None => return Err(Fault::Stuck),
                 }
             }
@@ -998,6 +1085,14 @@ pub fn lies_in(value: &Value, span: &Span) -> bool {
                 && values.len() == spans.len()
                 && values.iter().zip(spans).all(|(v, s)| lies_in(v, s))
         }
+        (Value::Partial(r, values), Span::Record(s, spans)) => {
+            r == s
+                && values.len() == spans.len()
+                && values
+                    .iter()
+                    .zip(spans)
+                    .all(|(v, s)| v.as_ref().is_none_or(|v| lies_in(v, s)))
+        }
         _ => false,
     }
 }
@@ -1027,6 +1122,18 @@ impl Bounds {
                 Value::Record(r, values) => {
                     Span::Record(r.clone(), values.iter().map(span).collect())
                 }
+                // A field not known: any value of its type.
+                Value::Partial(r, values) => Span::Record(
+                    r.clone(),
+                    values
+                        .iter()
+                        .zip(&r.fields)
+                        .map(|(v, (_, t))| match v {
+                            Some(v) => span(v),
+                            None => Bounds::any(t).span,
+                        })
+                        .collect(),
+                ),
             }
         }
         Bounds {

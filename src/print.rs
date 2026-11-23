@@ -750,6 +750,17 @@ pub fn value(v: &Value) -> String {
                 .collect();
             format!("{} {{ {} }}", r.name, fields.join(", "))
         }
+        // Rust's struct pattern: the fields not known left to `..`.
+        Value::Partial(r, vs) => {
+            let mut fields: Vec<String> = r
+                .fields
+                .iter()
+                .zip(vs)
+                .filter_map(|((n, _), v)| v.as_ref().map(|v| format!("{n}: {}", value(v))))
+                .collect();
+            fields.push("..".to_string());
+            format!("{} {{ {} }}", r.name, fields.join(", "))
+        }
     }
 }
 

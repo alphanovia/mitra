@@ -86,6 +86,7 @@ subject simulation {
     ensure remembered = "a reading that remembers calls, and computes only the side of if, && and || it takes, gives what one that does neither gives";
     ensure budgeted = "a computation past its budget of steps or depth gives no value, Undefined::Budget, and never aborts";
     ensure kept_sound = "a value at which the comparisons an expression joins by && all hold lies in the bounds Ranges::kept gives, and Ranges::kept gives none only when no value does";
+    ensure known_in_part = "what Exact gives of a record known in part, it gives of every record that fills in the fields not known; else Undefined::Unknown; its bounds hold every such record";
     ensure whole_division = "/ and % on Int give what Rust's i64 gives, and none at zero; by bounds, they hold every value Exact gives";
     ensure ranges_checked = "a call with a value outside the range type of what it takes, or a body giving one outside the range of what it gives, has no value; by bounds, such a call may fault";
     ensure promised = "where the claims of a function with no body hold, a call of it lies in the bounds Ranges reads from them; inside its own claims, a call of it is only its type" from (kept_sound);
@@ -233,6 +234,7 @@ subject agree {
 }
 
 subject explain {
+    require in_part = simulation::known_in_part;
     require checked = check::sound;
     // What a measurement saw an opaque function give is read first.
     require given = simulation::given_first;
@@ -245,6 +247,7 @@ subject explain {
     fn explain_defaults() -> s: ExplainSettings at "src/explain.rs/Settings/default" {
         ExplainSettings { rounds: 64, cases: 1024, rests: 1024, budget: Budget { steps: 1000000, depth: 1000 } }
     }
+    ensure only_known = "a measurement known in part is a taking only where what it knows decides; elsewhere X010 says which field" from (in_part);
     ensure verdicts = "each proposition is explained, contradicted or unsupported, as judgement gives it from the model and the ledger"
         from (checked, fits, kernel, read, given);
 }

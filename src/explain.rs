@@ -21,13 +21,13 @@
 //! false from some, and unsupported otherwise. Nothing given is dropped
 //! quietly: what explain cannot read is a finding (suit `X`).
 
-use crate::catalogue::{Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008, X009};
+use crate::catalogue::{Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008, X009, X010};
 use crate::evidence::{self, port, Ledger, Measurement};
 use crate::expression::{eval, Arg, Expression, Fault};
 use crate::judgement::{self, Definition, Judgement, Opinion, Point, Prop, Rests, Taking, Term};
 use crate::model::{self, Function, Index, Item, Kind, Model, Path};
 use crate::print;
-use crate::simulation::{Calls, Exact, Op, Undefined, Value};
+use crate::simulation::{call_at, same, Calls, Exact, Op, Undefined, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -503,17 +503,23 @@ impl Given<'_, '_> {
                 }
             }
             // What the model expects: the value it computes.
-            let call = Expression::Apply(
-                Op::Call(path.clone()),
-                x.iter().map(|v| plain(literal(v))).collect(),
-            );
-            let expected = eval(&exact, &BTreeMap::new(), &call);
+            let (call, args) = call_at(&path, &x);
+            let expected = eval(&exact, &args, &call);
             let shown = |v: &Value| format!("`{o} = {}`", print::value(v));
             let mut correct: Option<bool> = None;
             let mut opaque = false;
             match &expected {
-                Ok(v) if m.seen => correct = Some(v == y),
-                Ok(v) if v == y => correct = Some(false),
+                Ok(v) if same(v, y).is_err() => {
+                    let g = same(v, y).unwrap_err();
+                    let message = format!(
+                        "at {point}, {} is known in part: only `{g}`, not known, could tell it from what the model gives, {}",
+                        shown(y),
+                        print::value(v)
+                    );
+                    self.finding(X010, &at, message);
+                }
+                Ok(v) if m.seen => correct = Some(same(v, y) == Ok(true)),
+                Ok(v) if same(v, y) == Ok(true) => correct = Some(false),
                 Ok(v) => {
                     let message = format!(
                         "the test expected {} at {point}, the model gives {}: the system did not give the first, and whether it gave the second is not known",
@@ -523,6 +529,14 @@ impl Given<'_, '_> {
                     self.finding(X002, &at, message);
                 }
                 Err(Fault::Op(Undefined::Unknown(g))) if g == &path => opaque = true,
+                Err(Fault::Op(Undefined::Unknown(g)))
+                    if !self.index.functions.contains_key(g.as_str()) =>
+                {
+                    let message = format!(
+                        "at {point}, `{path}` reads `{g}`, which this measurement does not know"
+                    );
+                    self.finding(X010, &at, message);
+                }
                 Err(Fault::Op(Undefined::Budget(why))) => {
                     self.finding(X009, &at, format!("at {point}, `{path}`: {why}"));
                 }
@@ -556,6 +570,16 @@ impl Given<'_, '_> {
                 for c in &function.claims {
                     match eval(&exact, &values, &c.holds) {
                         Ok(Value::Truth(b)) => held.push((c, b)),
+                        Err(Fault::Op(Undefined::Unknown(g)))
+                            if !self.index.functions.contains_key(g.as_str()) =>
+                        {
+                            undecided = true;
+                            let message = format!(
+                                "claim `{}` at {point}: it reads `{g}`, which this measurement does not know",
+                                c.name
+                            );
+                            self.finding(X010, &at, message);
+                        }
                         Err(Fault::Op(Undefined::Unknown(g))) => {
                             undecided = true;
                             let message = format!(
@@ -1059,27 +1083,4 @@ impl Judge {
         self.alike.extend(alike);
         Some(o)
     }
-}
-
-fn plain(body: Expression<Op>) -> Arg<Op> {
-    Arg {
-        binds: vec![],
-        body,
-    }
-}
-
-/// An expression that gives `v`.
-fn literal(v: &Value) -> Expression<Op> {
-    let op = match v {
-        Value::Truth(b) => Op::Truth(*b),
-        Value::Int(n) => Op::Int(n.clone()),
-        Value::Real(q) => Op::Real(q.clone()),
-        Value::Record(r, values) => {
-            return Expression::Apply(
-                Op::Make(r.clone()),
-                values.iter().map(|v| plain(literal(v))).collect(),
-            )
-        }
-    };
-    Expression::Apply(op, vec![])
 }

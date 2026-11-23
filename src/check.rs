@@ -416,6 +416,13 @@ pub(crate) fn value_made(index: &Index, v: &Value) -> bool {
             let known = r.name.is_empty() || declared.is_some_and(|d| d.fields.is_some());
             known && values.iter().all(|v| value_made(index, v))
         }
+        // Known in part: a declared record, of its fields; one not known
+        // may be of an opaque record (finding 2).
+        Value::Partial(r, values) => {
+            let declared = index.records.get(r.name.as_str());
+            declared.is_some_and(|d| d.fields.is_some())
+                && values.iter().flatten().all(|v| value_made(index, v))
+        }
         Value::Truth(_) | Value::Int(_) | Value::Real(_) => true,
     }
 }

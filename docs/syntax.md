@@ -55,6 +55,7 @@ subject stone {
 | `bool`, `Int`, `Real`, `(Int, bool)`, `(Real,)`, `()`, `R` | `Type` | Rust, but `Int`/`Real` flagged |
 | `fn f(a: 0..=9) -> q: 0..=9` | `Function.ranges`: an `Int` that is checked | Rust's range form; as a type Ada's `range 0 .. 9`, flagged |
 | `true`, `3`, `-3`, `9.81`, `1/3` | constants | Rust, but `1/3` flagged |
+| `Location { depth: 2, .. }` in a row | a value known in part (`Value::Partial`) | Rust's struct pattern, used for a value, flagged |
 | `! && \|\| + - * / % < <= == within(a, b, tol)` | the operations | Rust (`within` is a call); `/` on two `Int` rounds toward zero, `%` on `Int` only |
 | `a > b`, `a >= b`, `a != b` | `b < a`, `b <= a`, `!(a == b)` | Rust, read only as that |
 | `if c { a } else { b }`, `else if` | `If` | Rust |

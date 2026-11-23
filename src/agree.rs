@@ -22,8 +22,8 @@ use crate::expression::{eval, Arg, Expression, Fault};
 use crate::model::{calls, contract_claims, Function, Index, Model, ModelExample, Path};
 use crate::print;
 use crate::simulation::{
-    Bounds, Budget, Calls, Exact, Numbers, Op, Range, Ranges, Rational, Span, Type, Undefined,
-    Value,
+    call_at, same, Bounds, Budget, Calls, Exact, Numbers, Op, Range, Ranges, Rational, Span, Type,
+    Undefined, Value,
 };
 use num_bigint::BigInt;
 use std::collections::{BTreeMap, BTreeSet};
@@ -237,10 +237,15 @@ impl<'m> Reading<'m> {
             // Each example: the body at its point.
             for (i, (e, row)) in f.examples.iter().zip(&rows).enumerate() {
                 let agreement = match eval(&self.exact, &row.iter().cloned().collect(), body) {
-                    Ok(v) if v == e.gives => Agreement::Holds,
-                    Ok(v) => Agreement::Fails {
-                        at: row.clone(),
-                        gives: Some(v),
+                    Ok(v) => match same(&v, &e.gives) {
+                        Ok(true) => Agreement::Holds,
+                        Ok(false) => Agreement::Fails {
+                            at: row.clone(),
+                            gives: Some(v),
+                        },
+                        Err(g) => Agreement::Unknown {
+                            why: format!("`{g}` is not known, and only it could tell"),
+                        },
                     },
                     Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
                         why: format!("no value for `{g}` here"),
@@ -327,7 +332,7 @@ impl<'m> Reading<'m> {
             None if bounded => format!(
                 "not decided by bounds over all of what it reads, nor at {tried} points"
             ),
-            None => format!("it reads an opaque record, which bounds cannot tell apart, and no value of which is written: not decided at {tried} points"),
+            None => format!("it reads an opaque record, which bounds cannot tell apart, and whose values are tried known in part, its opaque fields not known: not decided at {tried} points"),
         };
         Agreement::Unknown { why }
     }
@@ -806,17 +811,22 @@ impl<'m> Reading<'m> {
             }
             Type::Record(r) if self.opaque.contains(r.name.as_str()) => {}
             Type::Record(r) => {
-                let fields: Vec<Vec<Value>> = r
+                // A field of which no value is written (an opaque record)
+                // is not known: the record is known in part (finding 2).
+                let fields: Vec<Vec<Option<Value>>> = r
                     .fields
                     .iter()
-                    .map(|(_, t)| self.values_of(t, constants))
+                    .map(|(_, t)| {
+                        let values = self.values_of(t, constants);
+                        match values.is_empty() {
+                            true => vec![None],
+                            false => values.into_iter().map(Some).collect(),
+                        }
+                    })
                     .collect();
-                if fields.iter().any(Vec::is_empty) {
-                    return out;
-                }
                 if self.size_of(t).is_some_and(|k| k <= self.settings.points) {
                     for values in product(&fields) {
-                        add(Value::Record(r.clone(), values));
+                        add(Value::partial(r.clone(), values));
                     }
                 } else {
                     let most = fields.iter().map(Vec::len).max().unwrap_or(1).max(1);
@@ -825,7 +835,7 @@ impl<'m> Reading<'m> {
                             .iter()
                             .map(|f| f[i.min(f.len() - 1)].clone())
                             .collect();
-                        add(Value::Record(r.clone(), values));
+                        add(Value::partial(r.clone(), values));
                     }
                 }
             }
@@ -870,11 +880,14 @@ impl<'m> Reading<'m> {
                 if e.takes != args {
                     continue;
                 }
-                let agreement = match e.gives == *v {
-                    true => Agreement::Holds,
-                    false => Agreement::Fails {
+                let agreement = match same(&e.gives, v) {
+                    Ok(true) => Agreement::Holds,
+                    Ok(false) => Agreement::Fails {
                         at: named(&port.function.takes, &args),
                         gives: Some(e.gives.clone()),
+                    },
+                    Err(g) => Agreement::Unknown {
+                        why: format!("`{g}` is not known, and only it could tell"),
                     },
                 };
                 agreed.push(Agreed {
@@ -898,15 +911,17 @@ impl<'m> Reading<'m> {
                 continue;
             };
             let point = named(&port.function.takes, &args);
-            let call = Expression::Apply(
-                Op::Call(port.at.to_string()),
-                args.iter().map(|v| plain(literal(v))).collect(),
-            );
-            let agreement = match eval(&exact, &BTreeMap::new(), &call) {
-                Ok(v) if &v == expected => Agreement::Holds,
-                Ok(v) => Agreement::Fails {
-                    at: point,
-                    gives: Some(v),
+            let (call, bound) = call_at(&port.at.to_string(), &args);
+            let agreement = match eval(&exact, &bound, &call) {
+                Ok(v) => match same(&v, expected) {
+                    Ok(true) => Agreement::Holds,
+                    Ok(false) => Agreement::Fails {
+                        at: point,
+                        gives: Some(v),
+                    },
+                    Err(g) => Agreement::Unknown {
+                        why: format!("`{g}` is not known, and only it could tell"),
+                    },
                 },
                 Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
                     why: format!("no value for `{g}` here"),
@@ -979,10 +994,10 @@ fn named(takes: &[(String, Type)], values: &[Value]) -> Vec<(String, Value)> {
 }
 
 /// Every way to take one value of each list, the first list slowest.
-fn product(lists: &[Vec<Value>]) -> Vec<Vec<Value>> {
+fn product<V: Clone>(lists: &[Vec<V>]) -> Vec<Vec<V>> {
     lists.iter().fold(vec![vec![]], |ways, list| {
         ways.into_iter()
-            .flat_map(|way: Vec<Value>| {
+            .flat_map(|way: Vec<V>| {
                 list.iter()
                     .map(move |v| [way.clone(), vec![v.clone()]].concat())
             })
@@ -1061,22 +1076,6 @@ fn plain(body: Expression<Op>) -> Arg<Op> {
         binds: vec![],
         body,
     }
-}
-
-/// An expression that gives `v`.
-fn literal(v: &Value) -> Expression<Op> {
-    let op = match v {
-        Value::Truth(b) => Op::Truth(*b),
-        Value::Int(n) => Op::Int(n.clone()),
-        Value::Real(q) => Op::Real(q.clone()),
-        Value::Record(r, values) => {
-            return Expression::Apply(
-                Op::Make(r.clone()),
-                values.iter().map(|v| plain(literal(v))).collect(),
-            )
-        }
-    };
-    Expression::Apply(op, vec![])
 }
 
 /// The finding of a comparison that does not hold.

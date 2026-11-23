@@ -501,7 +501,7 @@ pub(crate) fn type_of(v: &Value) -> Type {
         Value::Truth(_) => Type::Truth,
         Value::Int(_) => Type::Int,
         Value::Real(_) => Type::Real,
-        Value::Record(r, _) => Type::Record(r.clone()),
+        Value::Record(r, _) | Value::Partial(r, _) => Type::Record(r.clone()),
     }
 }
 
@@ -1274,16 +1274,68 @@ impl<'c> Parser<'c> {
             Tok::Word(_) => {
                 let name = self.name()?;
                 self.expect("{")?;
-                let fields = self.list("}", |p| {
-                    let n = p.name()?;
-                    p.expect(":")?;
-                    Ok((n, p.value()?))
-                })?;
+                // Its fields, and `..` last when the others are not known:
+                // Rust's struct pattern.
+                let (mut fields, mut rest) = (vec![], false);
+                while !self.eat("}") {
+                    if self.eat("..") {
+                        rest = true;
+                        self.expect("}")?;
+                        break;
+                    }
+                    let n = self.name()?;
+                    self.expect(":")?;
+                    fields.push((n, self.value()?));
+                    if !self.eat(",") {
+                        self.expect("}")?;
+                        break;
+                    }
+                }
+                if rest {
+                    return self.known_in_part(&name, fields, at);
+                }
                 let (record, values) = self.made(&name, fields, |v| Some(type_of(v)), at)?;
                 Ok(Value::Record(record, values))
             }
             _ => self.expected("a value"),
         }
+    }
+
+    /// `R { f: v, .. }`: the declared record `R`, known in its fields
+    /// `fields`, the others not.
+    fn known_in_part(&self, name: &str, fields: Vec<(String, Value)>, at: Pos) -> Result<Value> {
+        let Some(context) = self.context else {
+            // The first reading: a stand-in, read again with the records.
+            let mut known: Vec<(String, Type)> = fields
+                .iter()
+                .map(|(n, _)| (n.clone(), Type::Truth))
+                .collect();
+            known.push(("..".to_string(), Type::Truth));
+            let r = simulation::Record {
+                name: name.to_string(),
+                fields: known,
+            };
+            let mut values: Vec<Option<Value>> = fields.into_iter().map(|(_, v)| Some(v)).collect();
+            values.push(None);
+            return Ok(Value::Partial(r, values));
+        };
+        let Some(declared) = context.declared.get(name).cloned().flatten() else {
+            let message = format!(
+                "`{name} {{ .. }}` is known in part: `{name}` must be a record of the model with its fields declared"
+            );
+            return Err(error(P004, at, message));
+        };
+        let mut by_name: BTreeMap<String, Value> = BTreeMap::new();
+        for (n, v) in fields {
+            if !declared.contains(&n) {
+                return Err(error(P004, at, format!("`{name}` has no field `{n}`")));
+            }
+            if by_name.insert(n.clone(), v).is_some() {
+                return Err(error(P004, at, format!("field `{n}` is given twice")));
+            }
+        }
+        let values = declared.iter().map(|n| by_name.remove(n)).collect();
+        Ok(Value::partial(self.record_type(name), values))
     }
 
     /// A record made with `fields`, as written. When they are its
