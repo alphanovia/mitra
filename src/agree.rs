@@ -141,6 +141,10 @@ struct Reading<'m> {
     /// The ranges of the names of the function read now: points are
     /// tried in them only, every one when they are few enough.
     domains: std::cell::RefCell<BTreeMap<String, Range>>,
+    /// The budget a reading by bounds reached since the last claim began,
+    /// said in what agree says of it (finding 24): never a silent fall
+    /// back to points.
+    bounds_budget: std::cell::RefCell<Option<String>>,
 }
 
 impl<'m> Reading<'m> {
@@ -180,6 +184,7 @@ impl<'m> Reading<'m> {
             settings,
             last_given: Default::default(),
             domains: Default::default(),
+            bounds_budget: Default::default(),
         }
     }
 
@@ -297,6 +302,7 @@ impl<'m> Reading<'m> {
     ) -> Agreement {
         let bounded = self.bounded(over, holds);
         self.given();
+        self.bounds_budget.borrow_mut().take();
         if bounded && self.surely_given(over, holds) == Some(true) {
             return Agreement::Holds;
         }
@@ -327,12 +333,16 @@ impl<'m> Reading<'m> {
         if self.size(over) == Some(tried) && unknown.is_empty() {
             return Agreement::Holds;
         }
-        let why = match unknown.first() {
-            Some(g) => format!("no value for `{g}` at some of the {tried} points tried"),
-            None if bounded => format!(
+        let budget = self.bounds_budget.borrow_mut().take();
+        let why = match (unknown.first(), budget) {
+            (Some(g), _) => format!("no value for `{g}` at some of the {tried} points tried"),
+            (None, Some(why)) if bounded => format!(
+                "not decided by bounds, which stopped at {why}, nor at {tried} points"
+            ),
+            (None, None) if bounded => format!(
                 "not decided by bounds over all of what it reads, nor at {tried} points"
             ),
-            None => format!("it reads an opaque record, which bounds cannot tell apart, and whose values are tried known in part, its opaque fields not known: not decided at {tried} points"),
+            (None, _) => format!("it reads an opaque record, which bounds cannot tell apart, and whose values are tried known in part, its opaque fields not known: not decided at {tried} points"),
         };
         Agreement::Unknown { why }
     }
@@ -346,6 +356,7 @@ impl<'m> Reading<'m> {
         if f.claims.is_empty() {
             return Agreement::Holds;
         }
+        self.bounds_budget.borrow_mut().take();
         // Its ranges first: a value that keeps the claims is in them.
         let ranges = f
             .ranges
@@ -415,12 +426,16 @@ impl<'m> Reading<'m> {
                 gives: None,
             };
         }
-        let why = match unknown.first() {
-            Some(g) => format!("no value for `{g}` at some of the {tried} points tried"),
-            None if bounded => format!(
+        let budget = self.bounds_budget.borrow_mut().take();
+        let why = match (unknown.first(), budget) {
+            (Some(g), _) => format!("no value for `{g}` at some of the {tried} points tried"),
+            (None, Some(why)) if bounded => format!(
+                "not false by bounds, which stopped at {why}, and none of {tried} points keeps them all"
+            ),
+            (None, None) if bounded => format!(
                 "not false by bounds, and none of {tried} points keeps them all"
             ),
-            None => format!("it reads an opaque record, which bounds cannot tell apart, and no value of which is written: none of {tried} points keeps them all"),
+            (None, _) => format!("it reads an opaque record, which bounds cannot tell apart, and no value of which is written: none of {tried} points keeps them all"),
         };
         Agreement::Unknown { why }
     }
@@ -471,7 +486,7 @@ impl<'m> Reading<'m> {
         for bounds in readings {
             let here = match self.ranges.kept(over, &bounds, e) {
                 None => Some(false),
-                Some(_) => eval(&self.ranges, &bounds, e).ok().and_then(|b| b.surely()),
+                Some(_) => self.by_bounds(&bounds, e).and_then(|b| b.surely()),
             };
             let here = match here {
                 Some(true) => here,
@@ -559,7 +574,7 @@ impl<'m> Reading<'m> {
                 .fold(inner, |body, (n, v)| let_in(n, v, &body))
         };
         // No fault in `bounds`: each premise, read wherever `e` is.
-        let safe_in = |b: &BTreeMap<String, Bounds>, x: Expression<Op>| matches!(eval(&self.ranges, b, &x), Ok(b) if !b.may_fault);
+        let safe_in = |b: &BTreeMap<String, Bounds>, x: Expression<Op>| matches!(self.by_bounds(b, &x), Some(b) if !b.may_fault);
         if !premises.iter().all(|p| safe_in(bounds, p.clone())) {
             return false;
         }
@@ -582,10 +597,20 @@ impl<'m> Reading<'m> {
             return false;
         }
         let read = around(conclusion, lets.len());
-        eval(&self.ranges, &kept, &read)
-            .ok()
-            .and_then(|b| b.surely())
-            == Some(true)
+        self.by_bounds(&kept, &read).and_then(|b| b.surely()) == Some(true)
+    }
+
+    /// `e` read by bounds, none on a fault; a budget reached is kept to
+    /// be said (`bounds_budget`).
+    fn by_bounds(&self, bounds: &BTreeMap<String, Bounds>, e: &Expression<Op>) -> Option<Bounds> {
+        match eval(&self.ranges, bounds, e) {
+            Ok(b) => Some(b),
+            Err(Fault::Op(Undefined::Budget(why))) => {
+                self.bounds_budget.borrow_mut().get_or_insert(why);
+                None
+            }
+            Err(_) => None,
+        }
     }
 
     /// Whether bounds may be read of `e` over `over`: no value of an

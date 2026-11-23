@@ -511,6 +511,10 @@ impl World {
             }
             if q == x {
                 ways.extend(vec![(Op::Cases { q: q.clone() }, None); 6]);
+            }
+            // An intro only over a point `q` does not already write
+            // (choice 26; finding 22, the seeds of finding 24).
+            if q == x && q.arbitrary_point().is_some() {
                 ways.extend(vec![(Op::Intro { q: q.clone() }, None); 8]);
             }
         }
@@ -874,6 +878,119 @@ fn opinion(v: Result<Value, Fault<std::convert::Infallible>>) -> Opinion {
     }
 }
 
+/// The body of `judging_preserves_progresses_and_is_determined`.
+fn judging_case(seed: u64, depth: u32) -> Result<(), TestCaseError> {
+    let mut w = World::new(seed);
+    let (t, e) = w.typed(depth);
+    let j = w.judgement.clone();
+    prop_assert_eq!(check(&j, &w.inputs, &e), Some(t.clone()));
+    prop_assert!(fits(&j, &w.inputs, &w.values));
+    let out = eval(&j, &w.values, &e);
+    prop_assert!(
+        matches!(&out, Ok(v) if j.has_type(v, &t)),
+        "{:?} gave {:?}",
+        e,
+        out
+    );
+    prop_assert_eq!(out, eval(&j, &w.values, &e));
+    Ok(())
+}
+
+/// The body of `rests_are_the_smallest_and_all`.
+fn rests_case(seed: u64, depth: u32) -> Result<(), TestCaseError> {
+    let mut w = World::new(seed);
+    let x = w.prop();
+    let e = w.opinion(&x, depth);
+    let j = w.judgement.clone();
+    let written = inline(&e, &is_let);
+    for sub in subexpressions(&written) {
+        if let Ok(Value::Opinion(o)) = eval(&j, &w.values, sub) {
+            for rests in [o.rests_for(), o.rests_against()] {
+                let held = rests
+                    .iter()
+                    .any(|s| rests.iter().any(|r| r != s && r.is_subset(s)));
+                prop_assert!(!held, "a rest holds another: {:?}\nfrom {:?}", o, sub);
+            }
+        }
+    }
+    let whole = opinion(eval(&j, &w.values, &e));
+    let takings: Vec<Taking> = w
+        .values
+        .values()
+        .flat_map(|v| match v {
+            Value::Opinion(o) => o
+                .rests_for()
+                .iter()
+                .chain(o.rests_against())
+                .flatten()
+                .cloned()
+                .collect(),
+            Value::State(_) | Value::Point(_) => vec![],
+        })
+        .collect();
+    let reductio = |s: &&E| matches!(s, Expression::Apply(Op::Reductio { .. }, _));
+    let exact = !subexpressions(&written).iter().any(reductio);
+    let nested = subexpressions(&written).iter().any(|s| match s {
+        Expression::Apply(Op::Reductio { .. }, args) => args
+            .iter()
+            .any(|a| subexpressions(&a.body).iter().any(reductio)),
+        _ => false,
+    });
+    for _ in 0..8 {
+        let kept: BTreeSet<Taking> = takings.iter().filter(|_| w.rng.coin()).cloned().collect();
+        let values: BTreeMap<String, Value> = w
+            .values
+            .iter()
+            .map(|(name, v)| {
+                (
+                    name.clone(),
+                    match v {
+                        Value::Opinion(o) => {
+                            let left = kept
+                                .iter()
+                                .filter(|t| &t.prop == o.about())
+                                .cloned()
+                                .collect();
+                            Value::Opinion(Opinion::taken(o.about().clone(), left).unwrap())
+                        }
+                        state => state.clone(),
+                    },
+                )
+            })
+            .collect();
+        let part = opinion(eval(&j, &values, &e));
+        for (some, all) in [
+            (part.rests_for(), whole.rests_for()),
+            (part.rests_against(), whole.rests_against()),
+        ] {
+            let within = all.iter().any(|r| r.is_subset(&kept));
+            prop_assert!(
+                nested || some.is_empty() || within,
+                "follows from {:?} but no rest of {:?} lies in it\nderivation {:?}\npart {:?}",
+                kept,
+                all,
+                e,
+                part
+            );
+            prop_assert!(
+                !exact || !within || !some.is_empty(),
+                "a rest of {:?} lies in {:?}, yet nothing follows",
+                all,
+                kept
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Finding 24: the two cases that failed once, from before the round of
+/// findings, kept as tests of their own.
+#[test]
+fn the_seeds_of_finding_24() {
+    judging_case(9823687932709690933, 5).unwrap();
+    rests_case(15742839078531287353, 5).unwrap();
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(3000))]
 
@@ -881,14 +998,7 @@ proptest! {
     /// stuck, and the same each time. Judgement has no fault.
     #[test]
     fn judging_preserves_progresses_and_is_determined(seed in any::<u64>(), depth in 1u32..6) {
-        let mut w = World::new(seed);
-        let (t, e) = w.typed(depth);
-        let j = w.judgement.clone();
-        prop_assert_eq!(check(&j, &w.inputs, &e), Some(t.clone()));
-        prop_assert!(fits(&j, &w.inputs, &w.values));
-        let out = eval(&j, &w.values, &e);
-        prop_assert!(matches!(&out, Ok(v) if j.has_type(v, &t)), "{:?} gave {:?}", e, out);
-        prop_assert_eq!(out, eval(&j, &w.values, &e));
+        judging_case(seed, depth)?;
     }
 
     /// J1: every set every opinion rests on, in every step of a random
@@ -939,46 +1049,7 @@ proptest! {
     /// finds wrong, which its derivation still reads.
     #[test]
     fn rests_are_the_smallest_and_all(seed in any::<u64>(), depth in 1u32..6) {
-        let mut w = World::new(seed);
-        let x = w.prop();
-        let e = w.opinion(&x, depth);
-        let j = w.judgement.clone();
-        let written = inline(&e, &is_let);
-        for sub in subexpressions(&written) {
-            if let Ok(Value::Opinion(o)) = eval(&j, &w.values, sub) {
-                for rests in [o.rests_for(), o.rests_against()] {
-                    let held = rests.iter().any(|s| rests.iter().any(|r| r != s && r.is_subset(s)));
-                    prop_assert!(!held, "a rest holds another: {:?}\nfrom {:?}", o, sub);
-                }
-            }
-        }
-        let whole = opinion(eval(&j, &w.values, &e));
-        let takings: Vec<Taking> = w.values.values().flat_map(|v| match v {
-            Value::Opinion(o) => o.rests_for().iter().chain(o.rests_against()).flatten().cloned().collect(),
-            Value::State(_) | Value::Point(_) => vec![],
-        }).collect();
-        let reductio = |s: &&E| matches!(s, Expression::Apply(Op::Reductio { .. }, _));
-        let exact = !subexpressions(&written).iter().any(reductio);
-        let nested = subexpressions(&written).iter().any(|s| match s {
-            Expression::Apply(Op::Reductio { .. }, args) => args.iter().any(|a| subexpressions(&a.body).iter().any(reductio)),
-            _ => false,
-        });
-        for _ in 0..8 {
-            let kept: BTreeSet<Taking> = takings.iter().filter(|_| w.rng.coin()).cloned().collect();
-            let values: BTreeMap<String, Value> = w.values.iter().map(|(name, v)| (name.clone(), match v {
-                Value::Opinion(o) => {
-                    let left = kept.iter().filter(|t| &t.prop == o.about()).cloned().collect();
-                    Value::Opinion(Opinion::taken(o.about().clone(), left).unwrap())
-                }
-                state => state.clone(),
-            })).collect();
-            let part = opinion(eval(&j, &values, &e));
-            for (some, all) in [(part.rests_for(), whole.rests_for()), (part.rests_against(), whole.rests_against())] {
-                let within = all.iter().any(|r| r.is_subset(&kept));
-                prop_assert!(nested || some.is_empty() || within, "follows from {:?} but no rest of {:?} lies in it\nderivation {:?}\npart {:?}", kept, all, e, part);
-                prop_assert!(!exact || !within || !some.is_empty(), "a rest of {:?} lies in {:?}, yet nothing follows", all, kept);
-            }
-        }
+        rests_case(seed, depth)?;
     }
 
     /// S6: a let shares. Judging gives what the derivation with every let

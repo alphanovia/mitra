@@ -218,3 +218,4 @@ error[P003]: expected `;`, found `}`
 - An operation applied to other arguments than it takes, printed
   `__malformed__`, which does not read back.
 - A location with a `/` inside one of its names.
+- A text nested deeper than `parse::Settings::depth` levels (P011).

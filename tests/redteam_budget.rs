@@ -137,3 +137,91 @@ fn the_step_budget_is_a_setting() {
         .iter()
         .all(|a| !matches!(a.agreement, Agreement::Fails { .. })));
 }
+
+/// A chain of `n` calls, each at another argument (no call is
+/// remembered), read only where `x * x == 2`, which no whole
+/// number keeps but bounds cannot tell: by bounds the chain is read, and
+/// past 1,000 levels it reaches the depth budget; exactly, never.
+fn guarded(n: usize) -> String {
+    let mut out = vec![
+        "subject s {".to_string(),
+        "    fn g0(x: Int) -> y: Int { x }".to_string(),
+    ];
+    for i in 1..=n {
+        out.push(format!(
+            "    fn g{i}(x: Int) -> y: Int {{ g{}(x + 1) }}",
+            i - 1
+        ));
+    }
+    out.push(format!(
+        "    fn top(x: Int) -> y: Int {{ if x * x == 2 {{ g{n}(x) }} else {{ x }} }} where {{ claim c: y == x; }}"
+    ));
+    out.push("}".to_string());
+    out.join("\n")
+}
+
+/// Finding 24: a budget reached by bounds is said, not left for points
+/// to cover in silence.
+#[test]
+fn a_budget_reached_by_bounds_is_said() {
+    let (agreed, findings) = on_a_thread(|| {
+        let model = parse(&guarded(1_100)).unwrap();
+        assert_eq!(check(&model), vec![]);
+        agree(&model, &Settings::default())
+    });
+    let why = agreed.iter().find_map(|a| match &a.agreement {
+        Agreement::Unknown { why } if a.against.contains("`c`") => Some(why.clone()),
+        _ => None,
+    });
+    let why = why.unwrap_or_else(|| panic!("{agreed:?}"));
+    assert!(
+        why.starts_with("not decided by bounds, which stopped at the depth budget, 1000 levels of bodies through calls"),
+        "{why}"
+    );
+    assert!(findings
+        .iter()
+        .any(|f| f.code.to_string() == "A007" && f.message.contains("which stopped at")));
+}
+
+/// Finding 24: a text deeper than the parser's budget is P011, never a
+/// stack that overflows; the budget is a setting.
+#[test]
+fn a_deep_text_is_p011() {
+    use mitra_core::parse::{parse_with, Settings as ParseSettings};
+    let nested = |n: usize| {
+        let mut body = "x".to_string();
+        for _ in 0..n {
+            body = format!("({body} + 1)");
+        }
+        format!("subject s {{ fn f(x: Int) -> y: Int {{ {body} }} }}")
+    };
+    let e = on_a_thread(move || parse(&nested(100_000)).unwrap_err());
+    assert_eq!(e.code.to_string(), "P011");
+    assert!(
+        e.message.contains("deeper than 2000 levels"),
+        "{}",
+        e.message
+    );
+    let small = ParseSettings { depth: 10 };
+    assert!(parse_with(&nested(8), &small).is_ok());
+    assert_eq!(
+        parse_with(&nested(10), &small)
+            .unwrap_err()
+            .code
+            .to_string(),
+        "P011"
+    );
+    let nots = format!(
+        "subject s {{ fn f(x: bool) -> y: bool {{ {}x }} }}",
+        "!".repeat(20)
+    );
+    assert_eq!(
+        parse_with(&nots, &small).unwrap_err().code.to_string(),
+        "P011"
+    );
+    let types = "subject s { fn f(x: ((((((((((Int,),),),),),),),),),)) -> y: Int { 0 } }";
+    assert_eq!(
+        parse_with(types, &small).unwrap_err().code.to_string(),
+        "P011"
+    );
+}

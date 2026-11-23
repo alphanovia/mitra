@@ -116,6 +116,8 @@ review agree::agree_defaults holds by "agent:anthropic/opus-5.5/dogfood";
 review explain::explain_defaults holds by "agent:anthropic/opus-5.5/dogfood";
 review simulation::budget_defaults holds by "agent:anthropic/opus-5.5/dogfood";
 review blame::blame_defaults holds by "agent:anthropic/opus-5.5/dogfood";
+review parse::ParseSettings holds by "agent:anthropic/opus-5.5/dogfood";
+review parse::parse_defaults holds by "agent:anthropic/opus-5.5/dogfood";
 
 // 10a (M024): what a library refuses and reads, and what check gives.
 review simulation::one_value holds by "test:rows_are_read_only_without_a_body";
@@ -123,3 +125,8 @@ review simulation::given_first holds by "test:rows_are_read_only_without_a_body"
 review check::one_value holds by "test:each_error_is_found";
 review check::type_explained holds by "test:every_type_error_shows_and_underlines";
 review simulation::Calls holds by "agent:anthropic/opus-5.5/dogfood";
+
+// 24: budgets said, never silent.
+review parse::deep holds by "test:a_deep_text_is_p011";
+review simulation::budgeted holds by "test:a_budget_reached_by_bounds_is_said";
+review agree::ends holds by "test:a_budget_reached_by_bounds_is_said";

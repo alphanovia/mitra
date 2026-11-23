@@ -51,7 +51,18 @@ const USAGE: &str = "usage:
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match run(&args) {
+    // On a thread of 256 MiB: a model as deep as the budgets allow
+    // (`parse::Settings::depth`, `simulation::Budget::depth`) fits.
+    let ran = std::thread::Builder::new()
+        .stack_size(256 << 20)
+        .spawn(move || run(&args))
+        .map_err(|e| format!("cannot start: {e}"))
+        .and_then(|t| {
+            t.join()
+                .map_err(|_| "stopped by a fault of mitra".to_string())
+        })
+        .and_then(|r| r);
+    match ran {
         Ok(code) => code,
         Err(message) => {
             eprintln!("{message}\n\n{USAGE}");
@@ -137,7 +148,7 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
         .map(Path::to_path_buf)
         .unwrap_or_default();
     let read_part = |file: &str| std::fs::read_to_string(beside.join(file)).ok();
-    let model = match parse::load(&source, &read_part) {
+    let model = match parse::load(&source, &read_part, &parse::Settings::default()) {
         Ok(m) => m,
         Err(l) => {
             let (file, text) = match l.file.is_empty() {

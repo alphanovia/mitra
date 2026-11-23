@@ -12,7 +12,7 @@
 //! catalogue (suit `P`) and where it is: line and column, as rustc
 //! writes them. Only the first is given.
 
-use crate::catalogue::{Code, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010};
+use crate::catalogue::{Code, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010, P011};
 use crate::expression::{check as typed, Arg, Expression};
 use crate::judgement::{self, Prop, Set};
 use crate::location::Location;
@@ -91,7 +91,12 @@ fn error(code: Code, at: Pos, message: impl Into<String>) -> ParseError {
 /// A `use std::…` reads Mitra's own standard model; a part no file
 /// declares is left to `check` (`load` reads files).
 pub fn parse(source: &str) -> Result<Model> {
-    files(source, None).map_err(|l| l.error)
+    parse_with(source, &Settings::default())
+}
+
+/// `parse`, with these settings.
+pub fn parse_with(source: &str, settings: &Settings) -> Result<Model> {
+    files(source, None, settings).map_err(|l| l.error)
 }
 
 /// A proposition from its text, its paths whole (`stone::drop::falls`),
@@ -764,6 +769,9 @@ pub(crate) struct Parser<'c> {
     params: Vec<(String, simulation::Bound)>,
     /// Each part a `use` reads, whether through `std::`, and where.
     reads: Vec<Read>,
+    /// How deep the text nests here, and how deep it may (P011).
+    depth: usize,
+    budget: usize,
 }
 
 impl<'c> Parser<'c> {
@@ -778,7 +786,31 @@ impl<'c> Parser<'c> {
             contract: None,
             params: vec![],
             reads: vec![],
+            depth: 0,
+            budget: Settings::default().depth,
         }
+    }
+
+    /// This parser, nesting at most `depth` levels.
+    fn budget(mut self, depth: usize) -> Parser<'c> {
+        self.budget = depth;
+        self
+    }
+
+    /// `f`, one level deeper: past the budget, P011 instead, never a
+    /// stack that overflows.
+    fn deeper<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+        if self.depth >= self.budget {
+            let message = format!(
+                "the text nests deeper than {} levels here, the parser's depth budget (`parse::Settings::depth`)",
+                self.budget
+            );
+            return Err(error(P011, self.pos(), message));
+        }
+        self.depth += 1;
+        let r = f(self);
+        self.depth -= 1;
+        r
     }
 
     // ------------------------------------------------ tokens
@@ -1501,6 +1533,9 @@ impl<'c> Parser<'c> {
         Ok((Type::Int, Some(simulation::Range { low, high })))
     }
     fn type_(&mut self) -> Result<Type> {
+        self.deeper(|p| p.type_at())
+    }
+    fn type_at(&mut self) -> Result<Type> {
         if self.eat("(") {
             let mut types = vec![];
             let mut comma = false;
@@ -1677,6 +1712,9 @@ impl<'c> Parser<'c> {
 
     /// `3`, `-0.5`, `1/3`, `true`, `(1, 2.0)`, `Drop { h: 1.0, v: 0.0 }`.
     pub(crate) fn value(&mut self) -> Result<Value> {
+        self.deeper(|p| p.value_at())
+    }
+    fn value_at(&mut self) -> Result<Value> {
         let at = self.pos();
         if self.eat("-") {
             return match self.bump() {
@@ -1926,6 +1964,9 @@ impl<'c> Parser<'c> {
 
     /// `let x = a in b`, or an expression with no `let` around it.
     pub(crate) fn expr(&mut self, env: &mut Env) -> Result<E> {
+        self.deeper(|p| p.expr_at(env))
+    }
+    fn expr_at(&mut self, env: &mut Env) -> Result<E> {
         if self.eat_word("let") {
             let x = self.name()?;
             self.expect("=")?;
@@ -2009,7 +2050,7 @@ impl<'c> Parser<'c> {
     fn unary(&mut self, env: &mut Env) -> Result<E> {
         let at = self.pos();
         if self.eat("!") {
-            return Ok(apply(Op::Not, vec![self.unary(env)?]));
+            return Ok(apply(Op::Not, vec![self.deeper(|p| p.unary(env))?]));
         }
         if self.eat("-") {
             // Only a number: there is no negation of an expression.
@@ -2748,10 +2789,10 @@ impl<'c> Parser<'c> {
         if self.eat_word("let") {
             let x = self.name()?;
             self.expect("=")?;
-            let a = self.proof(bound)?;
+            let a = self.deeper(|p| p.proof(bound))?;
             self.expect_word("in")?;
             bound.push(x.clone());
-            let b = self.proof(bound);
+            let b = self.deeper(|p| p.proof(bound));
             bound.pop();
             let args = vec![
                 Arg {
@@ -2773,7 +2814,10 @@ impl<'c> Parser<'c> {
     }
     fn proof_unary(&mut self, bound: &mut Vec<String>) -> Result<J> {
         if self.eat("!") {
-            return Ok(apply(judgement::Op::Not, vec![self.proof_unary(bound)?]));
+            return Ok(apply(
+                judgement::Op::Not,
+                vec![self.deeper(|p| p.proof_unary(bound))?],
+            ));
         }
         let at = self.pos();
         match self.peek().clone() {
@@ -2903,6 +2947,9 @@ impl<'c> Parser<'c> {
     /// `all x in (a: 0..10) where b != 0: p`, `any …`, `!p`,
     /// `{p, q} s {r}`, `correct(f, (6, 2))`, `correct(f, x)`, a path.
     pub(crate) fn prop(&mut self) -> Result<Prop> {
+        self.deeper(|p| p.prop_at())
+    }
+    fn prop_at(&mut self) -> Result<Prop> {
         if self.is_word("all") || self.is_word("any") {
             let all = self.is_word("all");
             self.bump();
@@ -3004,6 +3051,26 @@ pub fn location(text: &str) -> Location {
 /// Nothing in it is built into the language (finding 3).
 pub const STD: &[(&str, &str)] = &[("core", include_str!("../std/core.mitra"))];
 
+/// What the parser may do: how deep a text may nest, in levels of
+/// expressions, types, values and propositions inside each other. Past
+/// it, P011, not a stack that overflows: a level takes a few KiB of
+/// stack, more in a debug build (the CLI reads on a thread of 256 MiB).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Settings {
+    pub depth: usize,
+}
+
+impl Default for Settings {
+    /// Twice as deep as the core computes through calls
+    /// (`simulation::Budget::depth`, 1,000): a body of 1,000 levels and
+    /// what holds it parse.
+    fn default() -> Settings {
+        Settings {
+            depth: 2 * crate::simulation::Budget::default().depth,
+        }
+    }
+}
+
 /// A part a `use` reads, whether through `std::`, and where.
 type Read = (String, bool, Pos);
 
@@ -3031,13 +3098,21 @@ pub struct Loaded {
 /// names that no file read so far declares is read from `<part>.mitra`
 /// by `read` (beside the model, for the CLI), and each `use std::…`
 /// from Mitra's own standard model. A part no file declares is P010.
-pub fn load(source: &str, read: ReadFile) -> std::result::Result<Model, Loaded> {
-    files(source, Some(read))
+pub fn load(
+    source: &str,
+    read: ReadFile,
+    settings: &Settings,
+) -> std::result::Result<Model, Loaded> {
+    files(source, Some(read), settings)
 }
 
 /// `load`, with `files` a reader of `<part>.mitra`, or none (`parse`):
 /// then a part no file declares is left to `check`.
-fn files(source: &str, read: Option<ReadFile>) -> std::result::Result<Model, Loaded> {
+fn files(
+    source: &str,
+    read: Option<ReadFile>,
+    settings: &Settings,
+) -> std::result::Result<Model, Loaded> {
     // Each file: its name (`None` for the model itself), its text, its
     // tokens and its first reading.
     struct File {
@@ -3056,6 +3131,7 @@ fn files(source: &str, read: Option<ReadFile>) -> std::result::Result<Model, Loa
     while let Some((name, text, wanted)) = todo.pop() {
         let tokens = lex(&text).map_err(|e| failed(&name, &text, e))?;
         let (first, reads) = Parser::new(tokens.clone(), None)
+            .budget(settings.depth)
             .model_reads()
             .map_err(|e| failed(&name, &text, e))?;
         // A file read for a part declares it.
@@ -3141,6 +3217,7 @@ fn files(source: &str, read: Option<ReadFile>) -> std::result::Result<Model, Loa
     model.ties.clear();
     for f in done {
         let read = Parser::new(f.tokens, Some(&context))
+            .budget(settings.depth)
             .model()
             .map_err(|e| failed(&f.name, &f.source, e))?;
         let mut parts = read.parts;

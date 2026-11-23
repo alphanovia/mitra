@@ -1270,6 +1270,8 @@ pub fn lies_in(value: &Value, span: &Span) -> bool {
 /// a fault is allowed where the bounds may fault, or are a fault.
 pub fn covers(of: &Type, bounds: &Outcome<Bounds, Undefined>, exact: &Exactly) -> bool {
     match (bounds, exact) {
+        // Bounds read past a budget say nothing, and claim nothing.
+        (Err(Fault::Op(Undefined::Budget(_))), _) => true,
         (Err(Fault::Op(_)), Err(Fault::Op(_))) => true,
         // A value of the world `Exact` does not know: any bounds hold it.
         (Ok(_), Err(Fault::Op(Undefined::Unknown(_)))) => true,
@@ -1581,6 +1583,10 @@ fn hull(a: &Span, b: &Span) -> Option<Span> {
 fn join(a: Bounded, b: Bounded) -> Bounded {
     match (a, b) {
         (Err(Fault::Stuck), _) | (_, Err(Fault::Stuck)) => Err(Fault::Stuck),
+        // A side read past its budget tells nothing of what it gives:
+        // said, not taken for a fault (finding 24).
+        (Err(Fault::Op(Undefined::Budget(why))), _)
+        | (_, Err(Fault::Op(Undefined::Budget(why)))) => Err(Fault::Op(Undefined::Budget(why))),
         (Err(fault), Err(_)) => Err(fault),
         (Err(_), Ok(b)) | (Ok(b), Err(_)) => Ok(Bounds {
             may_fault: true,

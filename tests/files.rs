@@ -22,7 +22,11 @@ fn folder(model: &str, files: &[(&str, &str)]) -> Result<mitra_core::model::Mode
         .iter()
         .map(|(n, t)| (n.to_string(), t.to_string()))
         .collect();
-    load(model, &|name: &str| files.get(name).cloned())
+    load(
+        model,
+        &|name: &str| files.get(name).cloned(),
+        &Default::default(),
+    )
 }
 
 #[test]

@@ -180,6 +180,12 @@ fn dogfood_agree_defaults() {
     assert_eq!((s.budget.steps, s.budget.depth), (1_000_000, 1_000));
 }
 
+// mitra: measures parse::parse_defaults () -> ParseSettings { depth: 2000 }
+#[test]
+fn dogfood_parse_defaults() {
+    assert_eq!(mitra_core::parse::Settings::default().depth, 2000);
+}
+
 // mitra: measures explain::explain_defaults () -> ExplainSettings { rounds: 64, cases: 1024, rests: 1024, budget: Budget { steps: 1000000, depth: 1000 } }
 #[test]
 fn dogfood_explain_defaults() {
