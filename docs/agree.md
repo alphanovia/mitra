@@ -64,6 +64,7 @@ computation calls for, or what that function takes. Any other is A009.
 | A007 | a comparison not decided: nothing is dropped quietly |
 | A008 | retired: two examples at one point that differ are now the error M024 |
 | A009 | an input of a model example no output reads |
+| A010 | hint: a comparison that holds given the claims of a function with no body |
 
 ## Your choices, flagged (say no to undo)
 
@@ -87,6 +88,11 @@ computation calls for, or what that function takes. Any other is A009.
   (a setting, 4) below zero and above it, so `0 <= x * x` holds and
   `0 < q && q < 0` keeps nothing. A cut elsewhere, or bisection, would
   decide `!(h <= 20) || v2 < 400`; today it is unknown.
+- **A function with no body gives what its claims promise.** By bounds,
+  its call is any value its claims keep (`200.0 <= w`: `[200, ∞)`), and no
+  fault: the world gives a value. A comparison that holds so is given those
+  claims: A010 says which. `!p || c` reads `c` where `p` keeps its names,
+  so `!(1.0 <= h) || 200.0 <= h * light()` holds, given `bright`.
 - **Comparisons read together one name at a time.** Among the claims
   joined by `&&`, each comparison of a name with what bounds give of the
   other side cuts that name (`5 < q && q < 3` keeps nothing). Relations

@@ -231,6 +231,9 @@ fn findings_out(findings: &[Finding]) {
 fn check_out(model: &Model) -> ExitCode {
     let (agreed, findings) = agree::agree(model, &agree::Settings::default());
     findings_out(&findings);
+    for h in agree::hints(&agreed) {
+        out!("{h}\n");
+    }
     let holds = agreed
         .iter()
         .filter(|a| a.agreement == agree::Agreement::Holds)

@@ -16,7 +16,7 @@
 //!
 //! It reads a model `check` accepts: on another, it compares nothing.
 
-use crate::catalogue::{Code, Finding, A001, A002, A003, A004, A005, A006, A007, A009};
+use crate::catalogue::{Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010};
 use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
 use crate::model::{calls, contract_claims, Function, Index, Model, ModelExample, Path};
@@ -80,6 +80,10 @@ pub struct Agreed {
     pub at: Path,
     pub against: String,
     pub agreement: Agreement,
+    /// What the outcome is given: the claims of functions with no body
+    /// that bounds read as bounds on what they give, by path. Empty for
+    /// an outcome that needs none.
+    pub given: Vec<String>,
 }
 
 /// Every comparison of the model, and a finding for each that does not
@@ -104,6 +108,7 @@ pub fn agree(model: &Model, settings: &Settings) -> (Vec<Agreed>, Vec<Finding>) 
             at: c.at,
             against: "every value of what it reads".to_string(),
             agreement,
+            given: reading.given(),
         });
     }
     let mut findings = Vec::new();
@@ -129,9 +134,27 @@ struct Reading<'m> {
     opaque: BTreeSet<&'m str>,
     functions: BTreeMap<String, &'m Function>,
     settings: Settings,
+    /// What the last outcome decided by bounds was given.
+    last_given: std::cell::RefCell<Vec<String>>,
 }
 
 impl<'m> Reading<'m> {
+    /// What the last outcome was given, taken: empty when it needed none.
+    fn given(&self) -> Vec<String> {
+        std::mem::take(&mut *self.last_given.borrow_mut())
+    }
+
+    /// `surely`, keeping what the bounds read was given when sure.
+    fn surely_given(&self, over: &[(String, Type)], e: &Expression<Op>) -> Option<bool> {
+        self.library.read();
+        let sure = self.surely(over, e);
+        let read = self.library.read();
+        if sure.is_some() {
+            *self.last_given.borrow_mut() = read.into_iter().collect();
+        }
+        sure
+    }
+
     fn new(index: &Index<'m>, library: Arc<Calls>, settings: Settings) -> Reading<'m> {
         let opaque = index
             .records
@@ -150,6 +173,7 @@ impl<'m> Reading<'m> {
             opaque,
             functions: index.functions.clone(),
             settings,
+            last_given: Default::default(),
         }
     }
 
@@ -165,6 +189,7 @@ impl<'m> Reading<'m> {
                 at: at.clone(),
                 against,
                 agreement,
+                given: self.given(),
             })
         };
         if let Some(body) = &f.body {
@@ -231,9 +256,11 @@ impl<'m> Reading<'m> {
         first: &[Vec<(String, Value)>],
     ) -> Agreement {
         let bounded = self.bounded(over, holds);
-        if bounded && self.surely(over, holds) == Some(true) {
+        self.given();
+        if bounded && self.surely_given(over, holds) == Some(true) {
             return Agreement::Holds;
         }
+        self.given();
         let (mut tried, mut unknown) = (0, BTreeSet::new());
         for point in self.candidates(over, holds, first) {
             tried += 1;
@@ -285,12 +312,14 @@ impl<'m> Reading<'m> {
             return Agreement::Holds;
         };
         let bounded = self.bounded(&over, &all);
-        if bounded && self.surely(&over, &all) == Some(false) {
+        self.given();
+        if bounded && self.surely_given(&over, &all) == Some(false) {
             return Agreement::Fails {
                 at: vec![],
                 gives: None,
             };
         }
+        self.given();
         let gives = |point: &[(String, Value)], v: &Value| {
             let mut point = point.to_vec();
             point.push((f.gives.0.clone(), v.clone()));
@@ -389,6 +418,11 @@ impl<'m> Reading<'m> {
                 None => Some(false),
                 Some(_) => eval(&self.ranges, &bounds, e).ok().and_then(|b| b.surely()),
             };
+            let here = match here {
+                Some(true) => here,
+                _ if self.implied(over, &bounds, e) => Some(true),
+                _ => here,
+            };
             match (here, sure) {
                 (None, _) => return None,
                 (Some(h), Some(s)) if h != s => return None,
@@ -396,6 +430,97 @@ impl<'m> Reading<'m> {
             }
         }
         sure
+    }
+
+    /// Whether `e`, read as `let`s around `!p || … || c || …`, is true
+    /// everywhere in `bounds`: each `c` read where the premises `p` keep
+    /// their names (`Ranges::kept`), and true wherever a premise is false.
+    /// Only premises that read no name a `let` binds, and only when no
+    /// `let` value nor premise may fault in `bounds`, for a fault there
+    /// would be what `e` gives: nor any conclusion, which may be read
+    /// before a premise.
+    fn implied(
+        &self,
+        over: &[(String, Type)],
+        bounds: &BTreeMap<String, Bounds>,
+        e: &Expression<Op>,
+    ) -> bool {
+        let mut lets: Vec<(String, Expression<Op>)> = Vec::new();
+        let mut body = e;
+        while let Expression::Apply(Op::Let, args) = body {
+            match args.as_slice() {
+                [value, then] if value.binds.is_empty() && then.binds.len() == 1 => {
+                    lets.push((then.binds[0].clone(), value.body.clone()));
+                    body = &then.body;
+                }
+                _ => return false,
+            }
+        }
+        let mut disjuncts = Vec::new();
+        let mut todo = vec![body];
+        while let Some(d) = todo.pop() {
+            match d {
+                Expression::Apply(Op::Or, args)
+                    if args.iter().all(|a| a.binds.is_empty()) && args.len() == 2 =>
+                {
+                    todo.push(&args[1].body);
+                    todo.push(&args[0].body);
+                }
+                _ => disjuncts.push(d),
+            }
+        }
+        let bound: BTreeSet<&str> = lets.iter().map(|(n, _)| n.as_str()).collect();
+        let (mut premises, mut conclusions) = (Vec::new(), Vec::new());
+        for d in disjuncts {
+            match d {
+                Expression::Apply(Op::Not, args)
+                    if args.len() == 1
+                        && args[0].binds.is_empty()
+                        && !reads_any(&args[0].body, &bound) =>
+                {
+                    premises.push(args[0].body.clone())
+                }
+                _ => conclusions.push(d.clone()),
+            }
+        }
+        let (Some(premise), Some(conclusion)) = (
+            premises
+                .iter()
+                .cloned()
+                .reduce(|a, b| Expression::Apply(Op::And, vec![plain(a), plain(b)])),
+            conclusions
+                .into_iter()
+                .reduce(|a, b| Expression::Apply(Op::Or, vec![plain(a), plain(b)])),
+        ) else {
+            return false;
+        };
+        let around = |inner: Expression<Op>, upto: usize| {
+            lets[..upto]
+                .iter()
+                .rev()
+                .fold(inner, |body, (n, v)| let_in(n, v, &body))
+        };
+        // No fault in `bounds`: each let value, each premise.
+        let safe =
+            |x: Expression<Op>| matches!(eval(&self.ranges, bounds, &x), Ok(b) if !b.may_fault);
+        // A conclusion before a false premise is read first: none may
+        // fault either, anywhere in `bounds`.
+        if !(0..lets.len()).all(|i| safe(around(lets[i].1.clone(), i)))
+            || !premises.iter().all(|p| safe(p.clone()))
+            || !safe(around(conclusion.clone(), lets.len()))
+        {
+            return false;
+        }
+        match self.ranges.kept(over, bounds, &premise) {
+            None => true,
+            Some(kept) => {
+                let read = around(conclusion, lets.len());
+                eval(&self.ranges, &kept, &read)
+                    .ok()
+                    .and_then(|b| b.surely())
+                    == Some(true)
+            }
+        }
     }
 
     /// Whether bounds may be read of `e` over `over`: no value of an
@@ -671,6 +796,7 @@ impl<'m> Reading<'m> {
                     at: at.clone(),
                     against: format!("`{p}` against example {j} of `{}`", port.at),
                     agreement,
+                    given: vec![],
                 });
             }
             // Refused only for a value of another type, which M022 refuses.
@@ -710,6 +836,7 @@ impl<'m> Reading<'m> {
                 at: at.clone(),
                 against: format!("`{p}`"),
                 agreement,
+                given: vec![],
             });
         }
         (agreed, self.unread(index, &at, example))
@@ -792,6 +919,16 @@ fn let_in(name: &str, value: &Expression<Op>, body: &Expression<Op>) -> Expressi
     )
 }
 
+/// Whether `e` reads any of `names`, bound there or not.
+fn reads_any(e: &Expression<Op>, names: &BTreeSet<&str>) -> bool {
+    match e {
+        Expression::Name(n) => names.contains(n.as_str()),
+        Expression::Apply(_, args) => args.iter().any(|a| {
+            a.binds.iter().any(|b| names.contains(b.as_str())) || reads_any(&a.body, names)
+        }),
+    }
+}
+
 fn plain(body: Expression<Op>) -> Arg<Op> {
     Arg {
         binds: vec![],
@@ -816,6 +953,32 @@ fn literal(v: &Value) -> Expression<Op> {
 }
 
 /// The finding of a comparison that does not hold.
+/// `, given `sun::light::bright``: what a result by bounds assumed.
+fn given(paths: &[String]) -> String {
+    match paths.is_empty() {
+        true => String::new(),
+        false => {
+            let each: Vec<String> = paths.iter().map(|p| format!("`{p}`")).collect();
+            format!(", given {}", each.join(", "))
+        }
+    }
+}
+
+/// A hint for each comparison that holds given what a function with no
+/// body promises (A010): nothing checked those claims, so the result
+/// rests on them, and says so.
+pub fn hints(agreed: &[Agreed]) -> Vec<Hint> {
+    agreed
+        .iter()
+        .filter(|a| a.agreement == Agreement::Holds && !a.given.is_empty())
+        .map(|a| Hint {
+            code: A010,
+            at: a.at.clone(),
+            message: format!("{} holds{}", a.against, given(&a.given)),
+        })
+        .collect()
+}
+
 fn finding(a: &Agreed) -> Option<Finding> {
     let point = |at: &[(String, Value)]| {
         let shown: Vec<String> = at
@@ -874,6 +1037,6 @@ fn finding(a: &Agreed) -> Option<Finding> {
     Some(Finding {
         code,
         at: a.at.clone(),
-        message,
+        message: format!("{message}{}", given(&a.given)),
     })
 }

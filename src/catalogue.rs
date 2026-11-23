@@ -117,6 +117,7 @@ pub const A006: Code = agree(6);
 pub const A007: Code = agree(7);
 pub const A008: Code = agree(8);
 pub const A009: Code = agree(9);
+pub const A010: Code = agree(10);
 
 const fn evidence(number: u16) -> Code {
     Code {
@@ -256,6 +257,10 @@ pub const CATALOGUE: &[Entry] = &[
     // Now M024: a model with it is not well formed.
     retired(A008, "two examples at one point that differ"),
     entry(A009, "an input of a model example no output reads"),
+    entry(
+        A010,
+        "a comparison that holds given the claims of a function with no body",
+    ),
     entry(V001, "a measurement that names no input or output"),
     entry(V002, "a measurement through no tie"),
     entry(

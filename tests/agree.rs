@@ -73,13 +73,12 @@ fn the_fall_agrees_where_it_can_tell() {
     let (agreed, findings) = agree(&fall, &Settings::default());
     let shown: Vec<String> = findings.iter().map(|f| f.to_string()).collect();
     // `slow` reads the sun's light, which has no value but in an example
-    // of the model; `small` holds for h up to 20 only by splitting, which
-    // bounds over all the reals cannot do. Both unknown, and said.
+    // of the model, and no claim bounds: unknown, and said. `small` holds
+    // since finding 8: its conclusion read where h is from 0 to 20.
     assert_eq!(
         shown,
         [
             "finding[A007]: claim `slow`: unknown, no value for `sun::light` at some of the 16 points tried\n --> stone::speed",
-            "finding[A007]: claim `small`: unknown, not decided by bounds over all of what it reads, nor at 13 points\n --> stone::square",
         ]
     );
     // `flips` at both of its points; the example against the body and
@@ -92,6 +91,7 @@ fn the_fall_agrees_where_it_can_tell() {
         .collect();
     let expected = [
         "stone::speed its claims together",
+        "stone::square claim `small`",
         "stone::square example 0",
         "stone::square example 0 against claim `small`",
         "stone::square its claims together",
@@ -121,8 +121,7 @@ fn each_finding_is_given() {
         ),
         (changed("(6, 2) -> 3", "(6, 2) -> 4"), "A003 at calc::div"),
         (
-            // By bounds, only a claim false whatever the values: `0 < q`
-            // with `q < 0` is not seen.
+            // A claim false whatever the values.
             changed("claim bounded = b == 0 || q <= a;", "claim never = 1 < 0;"),
             "A004 at calc::div",
         ),
@@ -157,6 +156,26 @@ fn each_finding_is_given() {
         );
         given.insert(expected[..4].to_string());
     }
+    // A hint: what holds given an environment's claim.
+    let text = FALL
+        .replace(
+            "fn light() -> w: Real;",
+            "fn light() -> w: Real where { claim bright = 0.0 <= w; }",
+        )
+        .replace(
+            "claim slow = !(h <= 20.0) || v2 < 400.0;",
+            "claim slow = !(0.0 <= h) || 0.0 <= v2;",
+        );
+    let (agreed, _) = agree(&model(&text), &Settings::default());
+    let hints: Vec<String> = mitra_core::agree::hints(&agreed)
+        .iter()
+        .map(|h| h.to_string())
+        .collect();
+    assert_eq!(
+        hints,
+        ["hint[A010]: claim `slow` holds, given `sun::light::bright`\n --> stone::speed"]
+    );
+    given.insert("A010".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Agree && !e.retired);

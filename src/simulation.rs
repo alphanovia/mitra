@@ -247,6 +247,11 @@ struct Memo {
     heights: std::sync::Mutex<BTreeMap<String, usize>>,
     depth: std::sync::atomic::AtomicUsize,
     steps: std::sync::atomic::AtomicUsize,
+    /// The promises `Ranges` read since `Calls::read` last took them.
+    read: std::sync::Mutex<BTreeSet<String>>,
+    /// The functions whose promises `Ranges` is reading now: a call of
+    /// one of them inside its own promise is only its type.
+    promising: std::sync::Mutex<BTreeSet<String>>,
 }
 
 impl Clone for Memo {
@@ -266,6 +271,13 @@ impl Eq for Memo {}
 impl std::fmt::Debug for Memo {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str("Memo")
+    }
+}
+
+fn plain_arg(body: Expression<Op>) -> crate::expression::Arg<Op> {
+    crate::expression::Arg {
+        binds: vec![],
+        body,
     }
 }
 
@@ -342,10 +354,21 @@ pub enum Op {
 /// points (its examples, observations). With neither it is opaque.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Callee {
+    /// With no body: what its claims promise of what it gives, read by
+    /// bounds as bounds on it. `None` for none.
+    pub promises: Option<Promises>,
     pub takes: Vec<(String, Type)>,
     pub gives: Type,
     pub body: Option<Expression<Op>>,
     pub rows: Vec<(Vec<Value>, Value)>,
+}
+
+/// What a function with no body promises: its claims, each by its path,
+/// over what it takes and `gives`, the name of what it gives.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Promises {
+    pub gives: String,
+    pub claims: Vec<(String, Expression<Op>)>,
 }
 
 /// The functions calls can name, each by its path. Only `with` makes
@@ -368,6 +391,11 @@ impl Calls {
         self.budget = budget;
         self.memo = Box::default();
         self
+    }
+    /// The promises `Ranges` read as bounds since this was last asked,
+    /// by path: what a result by bounds is given.
+    pub fn read(&self) -> BTreeSet<String> {
+        std::mem::take(&mut *self.memo.read.lock().unwrap_or_else(|e| e.into_inner()))
     }
     /// Enter a call of `f`: `Err` when it would pass the budget. The
     /// first call from outside starts the count of steps.
@@ -859,6 +887,8 @@ pub fn lies_in(value: &Value, span: &Span) -> bool {
 pub fn covers(of: &Type, bounds: &Outcome<Bounds, Undefined>, exact: &Exactly) -> bool {
     match (bounds, exact) {
         (Err(Fault::Op(_)), Err(Fault::Op(_))) => true,
+        // A value of the world `Exact` does not know: any bounds hold it.
+        (Ok(_), Err(Fault::Op(Undefined::Unknown(_)))) => true,
         (Ok(b), Err(Fault::Op(_))) => b.may_fault,
         (Ok(b), Ok(v)) => Exact::default().has_type(v, of) && lies_in(v, &b.span),
         _ => false,
@@ -1038,10 +1068,8 @@ impl Ranges {
                 }
             }
             None if callee.gives.open() => Err(Fault::Op(Undefined::Unknown(f.to_string()))),
-            None => Ok(Bounds {
-                may_fault: true,
-                ..Bounds::any(&callee.gives)
-            }),
+            // The world gives a value: not knowing it is no fault.
+            None => Ok(self.promised(f, callee, args)),
         };
         let may_fault = args.iter().any(|b| b.may_fault);
         gives.map(|b| Bounds {
@@ -1287,6 +1315,74 @@ impl Reading for Ranges {
 }
 
 impl Ranges {
+    /// What a function with no body gives, by bounds: any value of its
+    /// type, cut by what its claims promise, read at these arguments.
+    /// Promises that keep nothing cut nothing (agree says so, A004).
+    fn promised(&self, f: &str, callee: &Callee, args: &[Bounds]) -> Bounds {
+        let any = Bounds::any(&callee.gives);
+        let Some(p) = callee.promises.as_ref().filter(|p| !p.claims.is_empty()) else {
+            return any;
+        };
+        // A promise may call the function again: there, only its type.
+        let promising = || {
+            self.calls
+                .memo
+                .promising
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+        };
+        if !promising().insert(f.to_string()) {
+            return any;
+        }
+        let gives = self.promised_by(f, callee, p, args, any);
+        promising().remove(f);
+        gives
+    }
+
+    fn promised_by(
+        &self,
+        f: &str,
+        callee: &Callee,
+        p: &Promises,
+        args: &[Bounds],
+        any: Bounds,
+    ) -> Bounds {
+        let Ok(_active) = self.calls.enter(f) else {
+            return any;
+        };
+        let mut over = callee.takes.clone();
+        over.push((p.gives.clone(), callee.gives.clone()));
+        let mut bounds: BTreeMap<String, Bounds> = callee
+            .takes
+            .iter()
+            .map(|(n, _)| n.clone())
+            .zip(args.iter().cloned())
+            .collect();
+        bounds.insert(p.gives.clone(), any.clone());
+        let all = p
+            .claims
+            .iter()
+            .map(|(_, c)| c.clone())
+            .reduce(|a, b| Expression::Apply(Op::And, vec![plain_arg(a), plain_arg(b)]))
+            .expect("not empty");
+        match self.kept(&over, &bounds, &all) {
+            Some(kept) => {
+                let gives = kept.get(&p.gives).cloned().unwrap_or(any);
+                if gives != Bounds::any(&callee.gives) {
+                    let mut read = self
+                        .calls
+                        .memo
+                        .read
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    read.extend(p.claims.iter().map(|(path, _)| path.clone()));
+                }
+                gives
+            }
+            None => any,
+        }
+    }
+
     /// The bounds of each name in `over` that `e` keeps, when `e` is
     /// true: each comparison of a name with what bounds give of the other
     /// side, among the `&&` at the top of `e`, cuts that name's span, one

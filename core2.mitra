@@ -86,6 +86,7 @@ subject simulation {
     ensure remembered = "a reading that remembers calls, and computes only the side of if, && and || it takes, gives what one that does neither gives";
     ensure budgeted = "a computation past its budget of steps or depth gives no value, Undefined::Budget, and never aborts";
     ensure kept_sound = "a value at which the comparisons an expression joins by && all hold lies in the bounds Ranges::kept gives, and Ranges::kept gives none only when no value does";
+    ensure promised = "where the claims of a function with no body hold, a call of it lies in the bounds Ranges reads from them; inside its own claims, a call of it is only its type" from (kept_sound);
 }
 
 subject judgement {
@@ -210,6 +211,7 @@ subject agree {
     require exact = simulation::exact_right;
     require ranges = simulation::ranges_sound;
     require kept = simulation::kept_sound;
+    require promised = simulation::promised;
     // Each limit a setting, none fixed in the code.
     require stops = simulation::budgeted;
     use simulation::Budget;
@@ -217,8 +219,9 @@ subject agree {
     fn agree_defaults() -> s: AgreeSettings at "src/agree.rs/Settings/default" {
         AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 } }
     }
-    ensure no_false_holds = "agree says Holds only when what the model says twice agrees at every point"
-        from (checked, exact, ranges, kept, given);
+    ensure no_false_holds = "agree says Holds only when what the model says twice agrees at every point where the claims of functions with no body hold"
+        from (checked, exact, ranges, kept, given, promised);
+    ensure given_named = "a comparison that holds by the claims of a function with no body names them: hint A010, and `given` on each finding" from (promised);
     ensure no_false_none = "agree says no value keeps a function's claims (A004) only when none does"
         from (checked, exact, ranges, kept);
     ensure ends = "agree ends on every well-formed model: a budget reached is unknown (A007), with the budget it reached" from (stops);

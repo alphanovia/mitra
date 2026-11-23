@@ -132,6 +132,7 @@ impl Gen {
                 _ => (None, vec![]),
             };
             let callee = Callee {
+                promises: None,
                 takes,
                 gives,
                 body,
@@ -1204,7 +1205,13 @@ fn a_thousand_levels_of_calls() {
             };
             (name(i), callee(&[("a", Type::Int)], Type::Int, Some(body)))
         });
-        let calls = Arc::new(Calls::with(chain.collect()).unwrap());
+        // Past the default depth budget in release: this test is of the
+        // stack, not of the budget.
+        let budget = mitra_core::simulation::Budget {
+            depth: levels + 1,
+            ..mitra_core::simulation::Budget::default()
+        };
+        let calls = Arc::new(Calls::with(chain.collect()).unwrap().budget(budget));
         let e = call(&name(0), vec![int(7)]);
         let seven = Value::Int(BigInt::from(7));
         let got = std::thread::Builder::new()
@@ -1262,10 +1269,12 @@ fn rows_are_read_only_without_a_body() {
     let n = |k: i64| Value::Int(k.into());
     let plus_one = Some(apply(Op::Add, vec![input("a"), int(1)]));
     let both = Callee {
+        promises: None,
         rows: vec![(vec![n(1)], n(5))],
         ..callee(&[("a", Type::Int)], Type::Int, plus_one)
     };
     let twice = Callee {
+        promises: None,
         rows: vec![(vec![n(1)], n(2)), (vec![n(1)], n(3))],
         ..callee(&[("a", Type::Int)], Type::Int, None)
     };
@@ -1273,6 +1282,7 @@ fn rows_are_read_only_without_a_body() {
     // not check is. The same row twice is one value.
     assert_eq!(library(vec![("g", twice)]), Err(names(&["g"])));
     let same = Callee {
+        promises: None,
         rows: vec![(vec![n(1)], n(2)), (vec![n(1)], n(2))],
         ..callee(&[("a", Type::Int)], Type::Int, None)
     };
@@ -1285,6 +1295,7 @@ fn rows_are_read_only_without_a_body() {
     // no body; a body, a value of another type or an unknown function
     // takes none.
     let opaque = Callee {
+        promises: None,
         rows: vec![(vec![n(1)], n(2))],
         ..callee(&[("a", Type::Int)], Type::Int, None)
     };
@@ -1319,6 +1330,7 @@ fn call(f: &str, args: Vec<E>) -> E {
 }
 fn callee(takes: &[(&str, Type)], gives: Type, body: Option<E>) -> Callee {
     Callee {
+        promises: None,
         takes: takes
             .iter()
             .map(|(n, t)| (n.to_string(), t.clone()))
@@ -1365,10 +1377,12 @@ fn calls_walked_through() {
         )),
     );
     let light = Callee {
+        promises: None,
         rows: vec![(vec![], Value::Int(850.into()))],
         ..callee(&[], Type::Int, None)
     };
     let square = Callee {
+        promises: None,
         rows: vec![(vec![Value::Int(2.into())], Value::Int(4.into()))],
         ..callee(&[("a", Type::Int)], Type::Int, None)
     };
@@ -1418,11 +1432,9 @@ fn calls_walked_through() {
     let e = call("lib::square", vec![input("a")]);
     assert_eq!(eval(&exact, &at_a(2), &e), int_value(4));
     assert_eq!(eval(&exact, &at_a(3), &e), unknown("lib::square"));
-    // By bounds, a function with no body may give any value, or none.
-    let any_int = Ok(Bounds {
-        may_fault: true,
-        ..Bounds::any(&Type::Int)
-    });
+    // By bounds, a function with no body gives a value of the world:
+    // any, and not knowing it is no fault (finding 8).
+    let any_int = Ok(Bounds::any(&Type::Int));
     let b = BTreeMap::from([("a".to_string(), between(2, 2))]);
     assert_eq!(eval(&ranges, &b, &e), any_int);
 
@@ -1432,11 +1444,7 @@ fn calls_walked_through() {
     let r = at(&[("r", Value::Real(Rational::integer(1)))]);
     assert_eq!(eval(&exact, &r, &e), unknown("lib::half"));
     let b = BTreeMap::from([("r".to_string(), Bounds::exactly(&r["r"]))]);
-    let any_real = Bounds {
-        may_fault: true,
-        ..Bounds::any(&Type::Real)
-    };
-    assert_eq!(eval(&ranges, &b, &e), Ok(any_real));
+    assert_eq!(eval(&ranges, &b, &e), Ok(Bounds::any(&Type::Real)));
 
     // Strict, as Rust: a fault in an argument is the call's, read or not.
     let e = call(
@@ -1540,6 +1548,7 @@ fn calls_go_nowhere_round() {
     let twice = || callee(&[("a", Type::Int), ("a", Type::Int)], Type::Int, None);
     let one = || Value::Int(1.into());
     let rows = Callee {
+        promises: None,
         rows: vec![(vec![one(), one()], one())],
         ..twice()
     };
@@ -1547,6 +1556,7 @@ fn calls_go_nowhere_round() {
     assert_eq!(library(vec![("f", twice())]), Err(names(&["f"])));
     // Rows of the wrong count or type.
     let row = |at: Vec<Value>, gives: Value| Callee {
+        promises: None,
         rows: vec![(at, gives)],
         ..callee(&[("a", Type::Int)], Type::Int, None)
     };
@@ -1562,6 +1572,7 @@ fn calls_go_nowhere_round() {
     // A parameter: only bare, its contract says the rest.
     let t = param("T", Bound::Any);
     let open = |body: Option<E>, rows: Vec<(Vec<Value>, Value)>| Callee {
+        promises: None,
         rows,
         ..callee(&[("x", t.clone())], t.clone(), body)
     };
@@ -1573,6 +1584,7 @@ fn calls_go_nowhere_round() {
     assert_eq!(library(vec![("f", takes_open)]), Err(names(&["f"])));
     let point = record("P", &[("x", t.clone())]);
     let half_open = Callee {
+        promises: None,
         rows: vec![(vec![one()], one())],
         ..callee(&[("a", Type::Int)], Type::Record(point), None)
     };

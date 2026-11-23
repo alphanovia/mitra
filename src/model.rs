@@ -656,7 +656,18 @@ pub fn calls(model: &Model) -> Result<Calls, BTreeSet<String>> {
                 .examples
                 .iter()
                 .map(|e| (e.takes.clone(), e.gives.clone()));
+            let path = Path::to(&[&part.name, &f.name]);
+            // With no body, its claims promise what it gives.
+            let promises = f.body.is_none().then(|| simulation::Promises {
+                gives: f.gives.0.clone(),
+                claims: f
+                    .claims
+                    .iter()
+                    .map(|c| (path.then(&c.name).to_string(), c.holds.clone()))
+                    .collect(),
+            });
             let callee = Callee {
+                promises,
                 takes: f.takes.clone(),
                 gives: f.gives.1.clone(),
                 body: f.body.clone(),
@@ -698,6 +709,7 @@ pub(crate) fn contract_calls(contract: &Contract) -> Calls {
 
 fn bare(takes: &[(String, Type)], gives: &Type) -> Callee {
     Callee {
+        promises: None,
         takes: takes.to_vec(),
         gives: gives.clone(),
         body: None,
