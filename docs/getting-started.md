@@ -24,6 +24,8 @@ examples/div/
   model.mitra       the model: what div should do
   src/lib.rs        the code, tied to the model, and three tests
   evidence.mitra    evidence written by hand: a review, a measurement
+  tied.mitra        the same model, with the tie written in the model
+  mitra.toml        marks the project's root (empty: default settings)
   Cargo.toml
 ```
 
