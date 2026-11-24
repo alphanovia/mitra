@@ -1,6 +1,6 @@
 //! The rows the macros print, and the values as Mitra writes them.
 
-use mitra::{check, check_eq, row, Observe};
+use mitra::{check, check_eq, given, row, Observe};
 
 #[derive(Debug, PartialEq, Observe)]
 struct Point {
@@ -83,4 +83,30 @@ fn check_says_the_row_when_it_fails() {
 #[should_panic(expected = "mitra: row geo::add (1, 2) -> 3")]
 fn check_eq_says_the_row_when_it_fails() {
     check_eq!(geo::add(1, 2), 4);
+}
+
+/// A fake environment: what it answers is printed as a given, then the
+/// row it was read in.
+struct Sun {
+    light: i64,
+}
+impl Sun {
+    fn light(&self) -> i64 {
+        given!(Sun::light(), self.light)
+    }
+    fn hour(&self, day: i64) -> i64 {
+        given!(Sun::hour(day), 6 + day % 2)
+    }
+}
+const SUN: Sun = Sun { light: 2 };
+fn heat(h: i64) -> i64 {
+    h * SUN.light() + SUN.hour(3)
+}
+
+/// The givens print before the row their run is read in, and the fake
+/// gives its values back: 5 * 2 + 7. Each is followed by its row, so
+/// the dogfood reads none alone (R014).
+#[test]
+fn a_given_is_what_the_environment_gave_and_is_given_back() {
+    check_eq!(heat(5), 17);
 }

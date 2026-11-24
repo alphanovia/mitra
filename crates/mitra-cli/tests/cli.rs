@@ -350,14 +350,17 @@ fn rows_and_reviews_seeing_a_test() {
         "examples/heater/evidence.mitra",
     ]);
     assert_eq!(code, 0, "{out}");
-    assert!(out.contains("examples/heater: 3 tests, 3 passed"), "{out}");
+    assert!(out.contains("examples/heater: 4 tests, 4 passed"), "{out}");
     assert!(!out.contains("finding[R"), "{out}");
     assert!(
-        out.contains("evidence: 3 measurements, 3 reviews, 2 ties"),
+        out.contains("evidence: 4 measurements, 3 reviews, 4 ties"),
         "{out}"
     );
     assert!(out.contains("explained    correct(Heater::decide, (Heater { target: 20, on: false }, 18)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::heats_below_the_target)"), "{out}");
     assert!(out.ends_with(", 0 reviews asked\n"), "{out}");
+    // What the fake room gave its test, `mitra::given!`: the world of the
+    // row (finding 16).
+    assert!(out.contains("explained    correct(Heater::tick, (Heater { target: 20, on: false }) given Room::temperature() -> 18) 0.67"), "{out}");
     // A copy whose test of `steady` fails.
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
     let dir = std::env::temp_dir().join(format!("mitra-heater-{}", std::process::id()));
@@ -388,12 +391,12 @@ fn rows_and_reviews_seeing_a_test() {
         .unwrap();
     let out = String::from_utf8(out.stdout).unwrap();
     assert!(
-        out.contains(": 3 tests, 2 passed, 1 failed, 0 ignored"),
+        out.contains(": 4 tests, 3 passed, 1 failed, 0 ignored"),
         "{out}"
     );
     assert!(out.contains("finding[R008]: the test `tests::decides_the_same_twice` failed: the review of `Heater::steady` by `human:ana` counts only while it passes"), "{out}");
     assert!(
-        out.contains("evidence: 3 measurements, 2 reviews, 2 ties"),
+        out.contains("evidence: 4 measurements, 2 reviews, 4 ties"),
         "{out}"
     );
     assert!(

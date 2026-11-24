@@ -220,6 +220,7 @@ pub const R010: Code = reader(10);
 pub const R011: Code = reader(11);
 pub const R012: Code = reader(12);
 pub const R013: Code = reader(13);
+pub const R014: Code = reader(14);
 
 const fn entry(code: Code, title: &'static str) -> Entry {
     Entry {
@@ -411,6 +412,7 @@ pub const CATALOGUE: &[Entry] = &[
         "a field whose Rust type holds values its model type does not",
     ),
     entry(R013, "a Rust form Mitra cannot write yet"),
+    entry(R014, "a given no row follows"),
 ];
 
 /// The entry of `code`, `None` when the catalogue has none.

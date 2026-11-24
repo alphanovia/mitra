@@ -551,3 +551,96 @@ test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
         "{found:?}"
     );
 }
+
+/// What `mitra::given!` printed since the test's last row is the world
+/// of its next row (finding 16); a given no row follows is R014.
+#[test]
+fn givens_are_the_world_of_the_next_row() {
+    let model = parse(
+        "environment sun {\n    fn light() -> w: integer;\n    fn hour(d: integer) -> h: integer;\n}\nsubject calc {\n    use sun::light;\n    fn heat(a: integer) -> q: integer { a * light() }\n    fn label(s: [~char]) -> n: integer { s.len() * light() }\n}",
+    )
+    .unwrap();
+    let ties = vec![
+        Tie {
+            item: path("calc::heat"),
+            at: Location::at(&["src/lib.rs", "heat"]),
+        },
+        Tie {
+            item: path("calc::label"),
+            at: Location::at(&["src/lib.rs", "label"]),
+        },
+    ];
+    let report = "running 2 tests
+mitra: given sun::light () -> 9
+
+successes:
+
+---- tests::warm stdout ----
+mitra: given sun::light () -> 2
+mitra: row heat (5) -> 10
+mitra: row heat (5) -> 15
+mitra: given sun::light () -> 4
+mitra: row cool (5) -> 15
+mitra: given sun::hour (\"(\") -> 3
+mitra: given sun::light
+---- tests::cold stdout ----
+mitra: given sun::light () -> 0
+mitra: row heat (5) -> 0
+mitra: given sun::light () -> 1
+mitra: row label (\"a)\\\"(b\") -> 5
+mitra: given sun::light () -> 6
+
+successes:
+mitra: row heat (1) -> 2
+---- tests::last stdout ----
+mitra: given sun::light () -> 7
+";
+    let (found, findings) = mitra_rust::reader::rows(&model, &ties, "report", report);
+    let found: Vec<String> = found
+        .iter()
+        .map(|m| {
+            let inputs: Vec<String> = m
+                .inputs
+                .iter()
+                .map(|(p, v)| format!("{p} = {}", mitra_lang::print::value(v)))
+                .collect();
+            format!("{} {}", inputs.join(", "), m.by)
+        })
+        .collect();
+    let findings: Vec<String> = findings.iter().map(|f| f.to_string()).collect();
+    assert_eq!(
+        found,
+        [
+            "calc::heat::a = 5, sun::light::w = 2 test:tests::warm",
+            "calc::heat::a = 5 test:tests::warm",
+            "calc::heat::a = 5, sun::light::w = 0 test:tests::cold",
+            "calc::label::s = \"a)\\\"(b\", sun::light::w = 1 test:tests::cold",
+        ],
+        "{findings:?}"
+    );
+    let starts = [
+        ("finding[R001]: a given under no test's output", "report:2"),
+        (
+            "finding[R007]: the row's `cool` is no function tied",
+            "report:11",
+        ),
+        ("finding[R001]: `sun::light` is no given", "report:13"),
+        (
+            "finding[R014]: `sun::hour(\"(\") -> 3` is given and no row",
+            "report:12",
+        ),
+        (
+            "finding[R014]: `sun::light() -> 6` is given and no row",
+            "report:19",
+        ),
+        ("finding[R001]: a row under no test's output", "report:22"),
+        (
+            "finding[R014]: `sun::light() -> 7` is given and no row",
+            "report:24",
+        ),
+    ];
+    assert_eq!(findings.len(), starts.len(), "{findings:?}");
+    for (f, (start, at)) in findings.iter().zip(starts) {
+        assert!(f.starts_with(start) && f.contains(at), "{f}");
+    }
+}

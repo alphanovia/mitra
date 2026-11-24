@@ -18,7 +18,7 @@
 //! The text of a store and of rows is `mitra_lang::store`, re-exported
 //! here; nothing given is dropped quietly.
 
-use mitra_lang::catalogue::{R001, R002, R003, R004, R005, R007, R009, R010};
+use mitra_lang::catalogue::{R001, R002, R003, R004, R005, R007, R009, R010, R014};
 use mitra_lang::location::Location;
 use mitra_lang::model::{Model, Path, Tie};
 use mitra_lang::parse::ParseError;
@@ -396,6 +396,11 @@ pub fn unread(file: &str, report: &str) -> Vec<ReaderFinding> {
 /// path is the model's function through its tie: the tie whose place
 /// ends with most of the path, `geo::flip` at `src/geo.rs/flip`. A row
 /// through no tie is R007; one the reader cannot read or place, R001.
+///
+/// What `mitra::given!` printed under the test since its last row,
+/// `mitra: given Sun::light () -> 2.0`, is the world of its next row:
+/// `measure given Sun::light() -> 2.0 when f(a) then got` (finding 16).
+/// A given no row of its test follows is R014.
 pub fn rows(
     model: &Model,
     ties: &[Tie],
@@ -404,6 +409,16 @@ pub fn rows(
 ) -> (Vec<Measurement>, Vec<ReaderFinding>) {
     let (mut found, mut findings) = (vec![], vec![]);
     let mut test: Option<String> = None;
+    // The givens since the test's last row: line, and `path(args) -> v`.
+    let mut given: Vec<(usize, String)> = vec![];
+    let unread = |given: &mut Vec<(usize, String)>, findings: &mut Vec<ReaderFinding>| {
+        for (line, g) in given.drain(..) {
+            let message = format!(
+                "`{g}` is given and no row of its test follows: write the row its run gave with `mitra::check_eq!` after it"
+            );
+            findings.push(finding(R014, file, line, message));
+        }
+    };
     for (i, line) in report.lines().enumerate() {
         let line_no = i + 1;
         let trimmed = line.trim();
@@ -411,16 +426,39 @@ pub fn rows(
             .strip_prefix("---- ")
             .and_then(|r| r.strip_suffix(" stdout ----"))
         {
+            unread(&mut given, &mut findings);
             test = Some(name.to_string());
             continue;
         }
         if ["successes:", "failures:"].contains(&trimmed) || trimmed.starts_with("test result: ") {
+            unread(&mut given, &mut findings);
             test = None;
+            continue;
+        }
+        if let Some(g) = trimmed.strip_prefix("mitra: given ") {
+            match (&test, g.split_once(' ')) {
+                (None, _) => {
+                    let message = "a given under no test's output: run `cargo test -- --show-output`, not `--nocapture`, so each given is under its test".to_string();
+                    findings.push(finding(R001, file, line_no, message));
+                }
+                (Some(_), Some((path, rest))) if rest.starts_with('(') => {
+                    given.push((line_no, format!("{path}{rest}")));
+                }
+                (Some(_), _) => findings.push(finding(
+                    R001,
+                    file,
+                    line_no,
+                    format!("`{g}` is no given: `path (inputs) -> output`"),
+                )),
+            }
             continue;
         }
         let Some(row) = trimmed.strip_prefix("mitra: row ") else {
             continue;
         };
+        // The world of this row, whether it reads or not: a row it cannot
+        // place says so itself.
+        let world: Vec<String> = given.drain(..).map(|(_, g)| g).collect();
         let Some(test) = &test else {
             let message = "a row under no test's output: run `cargo test -- --show-output`, not `--nocapture`, so each row is under its test".to_string();
             findings.push(finding(R001, file, line_no, message));
@@ -442,7 +480,13 @@ pub fn rows(
                 continue;
             }
         };
-        let text = format!("measure {item} {values} by \"test:{test}\";");
+        let text = match (world.is_empty(), split_row(values)) {
+            (false, Some((inputs, output))) => format!(
+                "measure given {} when {item}{inputs} then {output} by \"test:{test}\";",
+                world.join(", ")
+            ),
+            _ => format!("measure {item} {values} by \"test:{test}\";"),
+        };
         match read_printed(file, &text, model, ties) {
             Ok((ledger, more)) => {
                 found.extend(ledger.measurements);
@@ -457,7 +501,37 @@ pub fn rows(
             }
         }
     }
+    unread(&mut given, &mut findings);
     (found, findings)
+}
+
+/// `(a, b) -> got` as its inputs `(a, b)` and its output `got`: the
+/// parenthesis that closes the first, outside texts and chars.
+fn split_row(values: &str) -> Option<(&str, &str)> {
+    let mut depth = 0usize;
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+    for (k, c) in values.char_indices() {
+        match quote {
+            Some(_) if escaped => escaped = false,
+            Some(_) if c == '\\' => escaped = true,
+            Some(q) if c == q => quote = None,
+            Some(_) => {}
+            None => match c {
+                '"' | '\'' => quote = Some(c),
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => {
+                    depth = depth.checked_sub(1)?;
+                    if depth == 0 {
+                        let (inputs, rest) = values.split_at(k + 1);
+                        return Some((inputs, rest.trim_start().strip_prefix("->")?.trim_start()));
+                    }
+                }
+                _ => {}
+            },
+        }
+    }
+    None
 }
 
 /// The model's function a Rust call path names through a tie on it:

@@ -86,6 +86,7 @@ example, and the fix. The letter says which step found it.
 - [R011](R011.md): a field or variant on one side of a tie only
 - [R012](R012.md): a field whose Rust type holds values its model type does not
 - [R013](R013.md): a Rust form Mitra cannot write yet
+- [R014](R014.md): a given no row follows
 - [README](README.md): # Codes
 
 ## V (evidence): measurements and reviews

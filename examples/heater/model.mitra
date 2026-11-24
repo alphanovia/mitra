@@ -3,6 +3,7 @@
 // reads it through the tie on the Rust function.
 
 subject Heater {
+    use Room::temperature;
     record { target: integer, on: bool }
 
     // On below the target, off at or above it.
@@ -13,8 +14,17 @@ subject Heater {
         claim on_below: h.on == (t < self.target);
     }
 
+    // On what the room's thermometer reads now.
+    fn tick(self) -> h: Heater { self.decide(temperature()) }
+
     // Words only: no function says it, a test shows it.
     ensure steady: "deciding twice at one temperature decides the same";
     ensure follows: "on below the target, off at or above it"
         from (decide::keeps_target, decide::on_below);
+}
+
+// What the room is at: the world gives it, a test's fake says what it
+// gave with `mitra::given!`.
+environment Room {
+    fn temperature() -> t: integer;
 }

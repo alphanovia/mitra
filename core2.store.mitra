@@ -159,6 +159,7 @@ review evidence::links holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:
 review evidence::no_test_reviews holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_test_is_no_reviewer", "test:after_a_voice_is_of_a_kind";
 review cargo::binaries holds by "agent:anthropic/opus-5.5/dogfood";
 review reader::rows_read holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:rows_are_measurements_through_ties", "test:rows_and_reviews_seeing_a_test";
+review reader::givens_read holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:givens_are_the_world_of_the_next_row", "test:rows_and_reviews_seeing_a_test";
 review reader::seeing holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_review_seeing_a_test_counts_while_it_passes", "test:a_review_seeing_tests_counts_while_all_pass";
 review reader::stopped holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_test_binary_that_stopped_is_a_finding";
 review cargo::kinds holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_test_binary_is_named_and_read";
@@ -168,6 +169,7 @@ review reader::shapes holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:s
 review explain::asks holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_asks_for_each_link_no_voice_reviewed", "test:a_review_of_a_link_answers_its_ask";
 review cli::runs_tests holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_runs_cargo_test_when_no_report_is_given";
 review checks::prints_rows holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_row_is_the_call_as_written_and_what_it_gave", "test:check_eq_says_the_row_when_it_fails", "test:check_says_the_row_when_it_fails";
+review checks::prints_givens holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_given_is_what_the_environment_gave_and_is_given_back";
 review checks::observed holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:values_are_written_as_mitra_writes_them";
 review judgement::set_definitions holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_set_without_its_definitions_fails_closed", "test:some_points_decided_are_not_every_point", "test:every_budget_is_sound";
 review explain::worlds holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:two_worlds_are_two_points", "test:one_world_wrong_is_a_witness", "test:the_kernel_reads_a_world_as_an_instance_never_a_case";

@@ -16,6 +16,33 @@ impl Heater {
             ..self
         }
     }
+
+    /// Decides on what the room's thermometer reads now.
+    // mitra: implements Heater::tick
+    pub fn tick(self) -> Heater {
+        let t = room::temperature();
+        self.decide(t)
+    }
+}
+
+/// The room's thermometer: the world gives what it reads. In tests, a
+/// fake that says what it gave with `mitra::given!`.
+mod room {
+    // mitra: implements Room::temperature
+    #[cfg(not(test))]
+    pub fn temperature() -> i64 {
+        19
+    }
+
+    #[cfg(test)]
+    thread_local! {
+        pub static NOW: std::cell::Cell<i64> = const { std::cell::Cell::new(0) };
+    }
+
+    #[cfg(test)]
+    pub fn temperature() -> i64 {
+        mitra::given!(Room::temperature(), NOW.get())
+    }
 }
 
 #[cfg(test)]
@@ -60,5 +87,21 @@ mod tests {
         };
         let once = h.clone().decide(18);
         mitra::check_eq!(Heater::decide(once.clone(), 18), once);
+    }
+
+    #[test]
+    fn ticks_on_what_the_room_reads() {
+        room::NOW.set(18);
+        let cold = Heater {
+            target: 20,
+            on: false,
+        };
+        mitra::check_eq!(
+            Heater::tick(cold),
+            Heater {
+                target: 20,
+                on: true
+            }
+        );
     }
 }

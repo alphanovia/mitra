@@ -10,6 +10,13 @@
 //! not; the test's own verdict is the assert. A row through no tie is
 //! R007.
 //!
+//! `given!(Sun::light(), v)` gives `v`, and prints what the environment
+//! gave the run, `mitra: given Sun::light () -> v`: write it where a
+//! test's fake environment answers. The path is the model's function with
+//! no body, as written (it is never called). The givens a test printed
+//! since its last row are the world of its next row, which `mitra
+//! explain` reads as `measure given … when f(a, b) then got`.
+//!
 //! Values are written as Mitra writes them, by `Observe`: derive it for
 //! your types (`#[cfg_attr(test, derive(mitra::Observe))]`). The call is
 //! by path, `f(…)`, `geo::flip(…)` or `Heater::decide(h, 18)` for a
@@ -181,5 +188,29 @@ macro_rules! check {
         let got: bool = $crate::Apply::apply(args, $($f)::+);
         let line = $crate::row(stringify!($($f)::+), &inputs, &got);
         assert!(got, "{}", line);
+    }};
+}
+
+/// The line `mitra explain` reads: `mitra: given Sun::light () -> v`.
+/// The path as written in the call, spaces taken out.
+#[doc(hidden)]
+pub fn given(path: &str, inputs: &str, gave: &dyn Observe) -> String {
+    let path: String = path.split_whitespace().collect();
+    let line = format!("mitra: given {path} {inputs} -> {}", gave.observe());
+    println!("{line}");
+    line
+}
+
+/// `given!(Sun::light(), v)`: print what the environment gave the run,
+/// `mitra: given Sun::light () -> v`, and give `v`. The path is the
+/// model's function with no body; it is never called. The arguments are
+/// what the environment was called with: `given!(Clock::hour(day), 7)`.
+#[macro_export]
+macro_rules! given {
+    ($($f:ident)::+ ( $($a:expr),* $(,)? ), $gave:expr $(,)?) => {{
+        let inputs = $crate::Inputs::inputs(&($(&$a,)*));
+        let gave = $gave;
+        $crate::given(stringify!($($f)::+), &inputs, &gave);
+        gave
     }};
 }

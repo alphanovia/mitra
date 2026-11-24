@@ -140,6 +140,31 @@ written as Mitra writes them by the `Observe` trait: derive it,
 fields or an enum. A row the reader cannot place is R001; through no
 tie, R007.
 
+### What the environment gave a test
+
+A function that reads the environment is tested with a fake of it. The
+fake says what it gave with `given!`, which prints it and gives the
+value back. From [examples/heater/src/lib.rs](../../examples/heater/src/lib.rs):
+
+```rust
+    #[cfg(test)]
+    pub fn temperature() -> i64 {
+        mitra::given!(Room::temperature(), NOW.get())
+    }
+```
+
+The path is the model's function with no body (`environment Room`), as
+written; it is never called. The arguments, if any, are what the
+environment was called with: `given!(Clock::hour(day), 7)`. It prints
+`mitra: given Room::temperature () -> 18`. The givens a test printed
+since its last row are the world of its next row, so the test
+`ticks_on_what_the_room_reads` is read as
+`measure given Room::temperature() -> 18 when Heater::tick(Heater { target: 20, on: false }) then Heater { target: 20, on: true }`,
+and explains `correct(Heater::tick, (Heater { target: 20, on: false }) given Room::temperature() -> 18)`.
+Like any measurement, the environment's function needs a tie, here on
+the real thermometer (`// mitra: implements Room::temperature`). A
+given no row of its test follows is R014.
+
 ## The store: evidence by hand
 
 Not all evidence comes from tests. A store is a file of measurements
