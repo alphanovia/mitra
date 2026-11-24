@@ -1,7 +1,0 @@
-// Two claims on the same hour that cannot both be true, each with its
-// own passing test. One test was reviewed, the other was not.
-subject clock {
-    fn next(h: 0..=23) -> 0..=23;
-    claim wraps() { next(23) == 0 }
-    claim stops() { next(23) == 23 }
-}

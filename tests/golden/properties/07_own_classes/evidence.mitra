@@ -1,9 +1,0 @@
-evidence e { for sign given x = -7 gives -1 }
-evidence e { for half given x = -7 gives -3 }
-evidence e { for sign given x = 0 gives 0 }
-evidence e { for half given x = 0 gives 0 }
-evidence e { for sign given x = 8 gives 1 }
-evidence e { for half given x = 8 gives 4 }
-evidence e { for same_sign_uniform holds }
-evidence e { for half_uniform holds }
-evidence e { for sign_uniform holds }

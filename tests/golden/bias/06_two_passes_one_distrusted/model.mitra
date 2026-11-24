@@ -1,5 +1,0 @@
-import std::claims::{uniform};
-subject fn div(a: Int, b: Int) -> Int;
-fn div_class(a: Int, b: Int) -> {"zero", "rest"} { if b == 0 { "zero" } else { "rest" } }
-claim div_small(a: 0..=1, b: 1..=2) { correct(div(a, b)) }
-claim div_uniform = uniform(div, div_class);

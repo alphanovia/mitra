@@ -1,5 +1,0 @@
-[bias]
-test = 1
-
-[policy]
-holds = 0.9

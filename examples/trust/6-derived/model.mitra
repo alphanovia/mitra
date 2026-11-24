@@ -1,8 +1,0 @@
-// Two tests on the function, at single hours. The claims are derived
-// from what they observed, and the promise from the claims.
-subject clock {
-    ensure midnight = "After 23 comes 0.";
-    fn next(h: 0..=23) -> 0..=23;
-    claim wraps() { next(23) == 0 }
-    claim twice() { next(next(22)) == 0 }
-}

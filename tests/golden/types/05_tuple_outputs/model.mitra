@@ -1,4 +1,0 @@
-subject fn divmod(a: Int, b: Int) -> (Int, Int);
-fn dm(a: Int, b: 1..) -> (Int, Int) { (a - b, b) }
-claim divmod_is(a: 2..=3, b: 1..=1) { divmod(a, b) == dm(a, b) }
-claim first(a: 2..=3, b: 1..=1) { divmod(a, b) == (dm(a, b).0, 1) }

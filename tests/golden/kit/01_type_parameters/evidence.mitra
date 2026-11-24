@@ -1,2 +1,0 @@
-evidence e { for swap given p = Pair(1, "a") gives Pair("a", 1) }
-evidence e { for ints given p = Pair(1, "a") holds }

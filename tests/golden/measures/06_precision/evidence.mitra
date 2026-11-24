@@ -1,7 +1,0 @@
-evidence e { for is_spam given mail = 1 gives true }
-evidence e { for is_spam given mail = 2 gives true }
-evidence e { for is_spam given mail = 3 gives false }
-evidence e { for is_spam given mail = 4 gives false }
-evidence e { for is_spam given mail = 1 holds }
-evidence e { for is_spam given mail = 2 fails trust 0.8 }
-evidence e { for is_spam given mail in 3..=4 holds }

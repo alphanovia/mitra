@@ -1,3 +1,0 @@
-evidence e { for sub given a = 5, b = 3 gives Ok(2) }
-evidence e { for sub given a = 3, b = 5 gives Err("underflow") }
-evidence e { for sub_uniform holds }

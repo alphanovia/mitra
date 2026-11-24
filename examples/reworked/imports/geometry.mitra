@@ -1,4 +1,0 @@
-// A module: one file. Another file takes from it what it names.
-record Point { x: 0..=2, y: 0..=2 }
-fn origin() -> Point { Point(0, 0) }
-fn unused() -> Int { 0 }

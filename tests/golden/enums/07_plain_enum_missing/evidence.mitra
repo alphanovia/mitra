@@ -1,3 +1,0 @@
-evidence e { for warm given c = Red gives true }
-evidence e { for pick given c = Some(Green) gives Green }
-evidence e { for pick given c = None holds }

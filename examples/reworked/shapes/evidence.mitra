@@ -1,6 +1,0 @@
-evidence t0 { for add given a = 0, b = 1 gives 1 }
-evidence t1 { for add given a = 1, b = 0 gives 1 }
-evidence t2 { for add given a = 0, b = 0 gives 0 }
-evidence t3 { for add given a = 1, b = 0 gives 1 }
-evidence t4 { for add given a = 2, b = 0 gives 2 }
-evidence t5 { for mul given a = 1, b = 0 gives 1 }

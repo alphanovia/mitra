@@ -1,5 +1,0 @@
-import std::claims::{uniform};
-subject fn abs(x: Int) -> Int;
-fn sign(x: Int) -> {"neg", "zero", "pos"} { if x < 0 { "neg" } else { if x == 0 { "zero" } else { "pos" } } }
-claim abs_even(x: -3..=3) { abs(x) == abs(-x) }
-claim abs_uniform = uniform(abs, sign);

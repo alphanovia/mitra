@@ -1,2 +1,0 @@
-evidence e { for adapts gives rate = 0.8 trust 0.7 }
-evidence e { for ever gives rate = 0.9 trust 0.5 }

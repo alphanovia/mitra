@@ -1,3 +1,0 @@
-// A bug report trusted at 0.8: the claim fails, and the code is wrong
-// with belief 0.8; the report is wrong with plausibility 0.2.
-evidence e { for div given a = 4, b = 2 fails trust 0.8 source "bug:42" }

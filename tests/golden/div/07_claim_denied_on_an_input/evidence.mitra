@@ -1,4 +1,0 @@
-// `not div_correct 4 2` is a failure on that input, like `not correct`.
-evidence e { for div_uniform holds }
-evidence e { for div given a = 6, b = 3 holds }
-evidence e { for div_correct given a = 4, b = 2 fails }

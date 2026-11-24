@@ -1,5 +1,0 @@
-// A pass and a failure in one class: the uniformity, the pass and the
-// failure cannot all be true. The uniformity fails, and stands for nothing.
-evidence e { for div_uniform holds }
-evidence e { for div given a = 6, b = 3 holds }
-evidence e { for div given a = 4, b = 2 fails }

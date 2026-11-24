@@ -1,2 +1,0 @@
-// One string out of infinitely many weighs nothing.
-evidence e { for id given x = "a" holds }

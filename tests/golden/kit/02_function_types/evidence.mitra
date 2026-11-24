@@ -1,4 +1,0 @@
-evidence e { for apply given f = double, x = 3 gives 6 }
-evidence e { for apply given f = negate, x = 3 gives 3 }
-evidence e { for parse given s = "1" gives 1 }
-evidence e { for parse given s = "2" gives 2 }

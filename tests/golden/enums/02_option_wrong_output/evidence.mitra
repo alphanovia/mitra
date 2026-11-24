@@ -1,3 +1,0 @@
-evidence e { for get given o = None gives 0 }
-evidence e { for get given o = Some(4) gives 5 }
-evidence e { for get_uniform holds }

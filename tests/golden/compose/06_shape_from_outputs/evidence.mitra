@@ -1,4 +1,0 @@
-evidence e { for flip given a = true gives false }
-evidence e { for flip given a = false gives true }
-evidence e { for flip_not given a = true gives true }
-evidence e { for flip_not given a = false gives false }

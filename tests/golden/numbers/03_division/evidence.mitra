@@ -1,4 +1,0 @@
-evidence e { for half given x = -3 gives -4 }
-evidence e { for half given x = 3 gives 4 }
-evidence e { for half given x = 1 gives 1 }
-evidence e { for ratio given a = 1.0, b = 4.0 gives -0.75 }

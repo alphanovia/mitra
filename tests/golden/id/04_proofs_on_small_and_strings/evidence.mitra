@@ -1,2 +1,0 @@
-evidence e { for id given x in 0..=100 holds }
-evidence e { for id given x in String holds }

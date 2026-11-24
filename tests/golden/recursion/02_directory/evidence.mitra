@@ -1,4 +1,0 @@
-evidence e { for disk_usage given d = Dir("a", 1, [Dir("b", 2, []), Dir("c", 3, [])]) gives 6 }
-evidence e { for disk_usage given d = Dir("a", 1, [Dir("b", 2, [Dir("d", 4, [])])]) gives 7 }
-evidence e { for empty_children given d = Dir("a", 1, [Dir("b", 0, []), Dir("c", 3, [])]) gives ["b"] }
-evidence e { for usage_uniform holds source "review" }

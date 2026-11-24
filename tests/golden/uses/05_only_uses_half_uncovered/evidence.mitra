@@ -1,4 +1,0 @@
-// Vouched, but `half` is only tested on 0: the fault may hide there.
-evidence e { for quarter::uses holds }
-evidence e { for half given x = 0 holds }
-evidence e { for quarter given x = 1 fails }

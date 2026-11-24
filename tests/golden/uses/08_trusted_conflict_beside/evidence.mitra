@@ -1,8 +1,0 @@
-// The conflict in the class can't be ranked: all three pieces are at 1.
-// It must not take the ranking away from the two failures beside it,
-// which share the code of `half`. `half` fails on trusted evidence, so
-// its code is wrong for sure, and `quarter` may be wrong too or not.
-evidence e { for half given x = 0 fails }
-evidence e { for quarter_uniform holds }
-evidence e { for quarter given x = 0 holds }
-evidence e { for quarter given x = 1 fails }

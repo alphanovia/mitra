@@ -1,6 +1,0 @@
-// `half` and `quarter` fail: `quarter` uses `half`, and `eighth` uses it
-// through `quarter`. A `uses` clause is taken as declared.
-evidence e { for half given x = 1 fails }
-evidence e { for quarter given x = 1 fails }
-evidence e { for eighth given x = 0 holds }
-evidence e { for eighth given x = 1 holds }

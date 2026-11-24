@@ -1,7 +1,0 @@
-# The words of cold agents on this store (increment 77): `scripts/cold.sh` records them.
-# review <promise> <voice>: a cold review of the promise against the code.
-# tie <test> <promise> <voice>: a cold review that the test is evidence for the promise.
-review commands::conform::correct agent:anthropic/fable-5.2/cold-r-cli
-review commands::conform::correct agent:anthropic/opus/cold-r-cli
-review commands::check_rev::deterministic agent:anthropic/fable-5.2/cold-r-cli
-review commands::check_rev::deterministic agent:anthropic/opus/cold-r-cli

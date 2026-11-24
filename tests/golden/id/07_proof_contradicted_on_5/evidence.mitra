@@ -1,3 +1,0 @@
-// A test contradicts the proof on 5: 5 counts on neither side.
-evidence e { for id given x in 0..=100 holds }
-evidence e { for id given x = 5 fails }

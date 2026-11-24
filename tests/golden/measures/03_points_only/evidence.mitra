@@ -1,3 +1,0 @@
-evidence e { for goal_met given team = "payments", sprint = 1 gives true }
-evidence e { for goal_met given team = "payments", sprint = 2 gives false }
-evidence e { for goal_met given team = "payments", sprint = 11 gives true }

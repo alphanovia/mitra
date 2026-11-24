@@ -1,6 +1,0 @@
-// The same failing run recorded twice counts once: belief 0.8 that the
-// code is wrong, not 1 - 0.2 * 0.2 = 0.96. A second, different report
-// does add up: with both, 1 - 0.2 * 0.5 = 0.90.
-evidence e { for div given a = 4, b = 2 fails trust 0.8 source "bug:42" }
-evidence e { for div given a = 4, b = 2 fails trust 0.8 source "bug:42" }
-evidence e { for div given a = 4, b = 2 fails trust 0.5 source "bug:43" }

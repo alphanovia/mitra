@@ -1,4 +1,0 @@
-// The bias never changes a verdict: evidence at 0 counts like any other.
-// It only says what to doubt first when there is an error.
-evidence e { for flip given a = true holds trust 0 }
-evidence e { for flip given a = false fails trust 0 }

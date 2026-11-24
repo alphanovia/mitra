@@ -1,3 +1,0 @@
-evidence e { for add_uniform holds }
-evidence e { for add given left = 1, right = 2 gives 3 }
-evidence e { for add given left = 2, right = 1 gives 3 }

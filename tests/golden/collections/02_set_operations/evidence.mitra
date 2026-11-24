@@ -1,3 +1,0 @@
-evidence e { for tags given xs = ["b", "a", "b"] gives {"b", "a", "a"} }
-evidence e { for tags given xs = [] gives {} }
-evidence e { for tags_uniform holds }

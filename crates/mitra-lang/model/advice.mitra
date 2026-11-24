@@ -1,9 +1,0 @@
-// What to do next (src/report/plan.rs, src/report/next.rs).
-
-subject advice {
-    require judged = verdicts::one_each;
-
-    ensure owed = "For each claim that does not hold yet, the evidence that would settle it is listed.";
-
-    fn plan(model: model::Model, report: verdicts::Report) -> String;
-}

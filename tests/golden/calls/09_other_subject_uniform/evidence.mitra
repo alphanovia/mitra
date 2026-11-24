@@ -1,2 +1,0 @@
-evidence e { for f_uniform holds }
-evidence e { for f_g given x = 1 holds }

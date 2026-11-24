@@ -1,8 +1,0 @@
-// Types most languages have, for the model of any code.
-//
-//     import std::core::{Option, Result};
-//
-// Nothing here is part of the language.
-
-enum Option<T> { None, Some(value: T) }
-enum Result<T, E> { Ok(value: T), Err(error: E) }

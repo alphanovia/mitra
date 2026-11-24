@@ -1,5 +1,0 @@
-// A review vouches that `quarter` only uses `half`, and `half` holds.
-evidence e { for quarter::uses holds }
-evidence e { for half given x = 0 holds }
-evidence e { for half given x = 1 holds }
-evidence e { for quarter given x = 1 fails }

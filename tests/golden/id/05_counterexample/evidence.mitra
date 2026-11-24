@@ -1,2 +1,0 @@
-evidence e { for id given x = 1 holds }
-evidence e { for id given x = 7 fails }

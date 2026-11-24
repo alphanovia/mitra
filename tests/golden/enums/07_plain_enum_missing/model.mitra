@@ -1,8 +1,0 @@
-enum Color { Red, Green, Blue }
-enum Option<T> { None, Some(value: T) }
-subject fn warm(c: Color) -> Bool;
-subject fn pick(c: Option<Color>) -> Color;
-fn is_warm(c: Color) -> Bool { match c { Red => true, _ => false } }
-claim warm_is(c) { warm(c) == is_warm(c) }
-claim pick_red() { pick(None) == Red }
-claim pick_ok(c) { correct(pick(c)) }

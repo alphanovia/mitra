@@ -1,5 +1,0 @@
-evidence e { for warm given c = Red gives true }
-evidence e { for warm given c = Green gives false }
-evidence e { for warm given c = Blue gives false }
-evidence e { for pick given c = None gives Red }
-evidence e { for pick given c in Option<Color> holds }

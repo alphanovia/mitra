@@ -1,5 +1,0 @@
-// The claims hold; nobody vouched yet that they say what the text says.
-evidence a { for register given email = "a@x" gives "created" }
-evidence b { for register given email = "b@x" gives "refused" }
-evidence c { for send given to = "a@x" gives "sent" }
-evidence d { for register holds }

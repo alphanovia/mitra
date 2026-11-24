@@ -1,5 +1,0 @@
-evidence e { for sort_uniform holds }
-evidence e { for sort given xs = [] holds }
-evidence e { for sort given xs = [3, 1, 2] holds }
-evidence e { for sort given xs = [7] gives [7] }
-evidence e { for total given ns = [Number(1, "m"), Number(2, "m")] holds }

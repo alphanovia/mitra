@@ -1,4 +1,0 @@
-// Evidence on `div_small` speaks of its four inputs only: class "zero"
-// stays untested, although `div_small` names every `a` and `b` it has.
-evidence e { for div_uniform holds }
-evidence e { for div_small holds }

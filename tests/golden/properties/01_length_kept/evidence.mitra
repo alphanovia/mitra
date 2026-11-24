@@ -1,4 +1,0 @@
-evidence e { for sort given xs = [] gives [] }
-evidence e { for sort given xs = [5] gives [5] }
-evidence e { for sort given xs = [3, 1, 2] gives [1, 2, 3] }
-evidence e { for sort_uniform holds }

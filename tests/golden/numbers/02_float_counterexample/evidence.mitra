@@ -1,5 +1,0 @@
-// half rounds -3.0 the wrong way: a counterexample.
-evidence e { for half given x = 1.0 gives 0.5 }
-evidence e { for half given x = -3.0 gives -1.0 }
-// A failure over a range, which its author does not trust: it counts.
-evidence e { for inc given x in -5..0 fails trust 0 }

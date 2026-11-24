@@ -1,3 +1,0 @@
-// Evidence at 0 counts for the verdicts like any other.
-evidence e { for id holds trust 0 }
-evidence e { for id given x = 7 fails trust 0 }

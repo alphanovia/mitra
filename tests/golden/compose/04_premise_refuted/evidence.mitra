@@ -1,4 +1,0 @@
-// flip(true) should be false: the claim above it fails on that input too.
-evidence e { for flip given a = true gives true }
-evidence e { for flip given a = false gives true }
-evidence e { for flip_not_shape holds }

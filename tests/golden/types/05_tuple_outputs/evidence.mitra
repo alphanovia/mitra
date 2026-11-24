@@ -1,2 +1,0 @@
-evidence e { for divmod given a = 2, b = 1 gives (1, 1) }
-evidence e { for divmod given a = 3, b = 1 gives (2, 0) }

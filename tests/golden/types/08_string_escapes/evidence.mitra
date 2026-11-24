@@ -1,4 +1,0 @@
-evidence e { for lines given text = "a\nb" holds }
-evidence e { for lines given text = "a\nb" gives ["a", "b"] }
-evidence e { for lines given text = "say \"hi\"" holds }
-evidence e { for lines given text = "c:\\dir" fails }

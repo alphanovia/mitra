@@ -1,8 +1,0 @@
-// A vouched property passes observations on: `add(1, 0)` was never run,
-// but a reviewer vouches that `add` commutes and `add(0, 1)` was.
-subject calc {
-    fn add(a: 0..=2, b: 0..=2) -> 0..=4;
-    claim add_commutes(a: 0..=2, b: 0..=2) { add(a, b) == add(b, a) }
-    claim one_more(a: 0..=1) { add(a, 1) == a + 1 }
-    claim more_one(a: 0..=1) { add(1, a) == a + 1 }
-}

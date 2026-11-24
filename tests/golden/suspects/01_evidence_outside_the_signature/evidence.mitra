@@ -1,3 +1,0 @@
-evidence e { for half given n = 4 holds source "test:t" }
-evidence e { for half given n = 5 gives 3 trust 0.9 source "trace:run_7" }
-evidence e { for half given n = 9 holds source "trace:run_8" }

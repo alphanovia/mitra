@@ -1,7 +1,0 @@
-import std::claims::{uniform};
-record Number { value: Int, unit: String }
-subject fn add(left: Number, right: Number) -> Number;
-fn add_spec(left: Number, right: Number) -> Number { Number(left.value + right.value, left.unit) }
-claim add_is(left: {Number(0, "m"), Number(1, "m")}, right: {Number(0, "m"), Number(1, "m")}) { add(left, right) == add_spec(left, right) }
-claim add_ok(left, right) { correct(add(left, right)) }
-claim add_uniform = uniform(add);

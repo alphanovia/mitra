@@ -1,5 +1,0 @@
-[bias]
-test = 0.5      # a passing test nobody reviewed
-
-[policy]
-holds = 0.9     # what a claim needs to hold

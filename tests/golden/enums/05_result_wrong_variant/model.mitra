@@ -1,7 +1,0 @@
-import std::claims::{uniform};
-enum Result<T, E> { Ok(value: T), Err(error: E) }
-subject fn sub(a: 0..=9, b: 0..=9) -> Result<0..=9, String>;
-fn sub_spec(a: 0..=9, b: 0..=9) -> Result<0..=9, String> { if a < b { Err("underflow") } else { Ok(a - b) } }
-fn sub_class(a: 0..=9, b: 0..=9) -> Bool { a < b }
-claim sub_is(a, b) { sub(a, b) == sub_spec(a, b) }
-claim sub_uniform = uniform(sub, sub_class);

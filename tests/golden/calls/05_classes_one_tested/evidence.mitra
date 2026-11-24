@@ -1,2 +1,0 @@
-evidence e { for abs_uniform holds }
-evidence e { for abs_even given x = 2 holds }

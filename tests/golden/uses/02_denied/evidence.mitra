@@ -1,5 +1,0 @@
-// Evidence denies that `quarter` uses `half`, which the model declares:
-// the two contradict each other, and the clause still names a suspect.
-evidence e { for quarter::uses fails }
-evidence e { for half given x = 1 fails }
-evidence e { for quarter given x = 1 fails }

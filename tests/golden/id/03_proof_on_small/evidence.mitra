@@ -1,2 +1,0 @@
-// A proof covers a whole interval.
-evidence e { for id given x in 0..=100 holds }

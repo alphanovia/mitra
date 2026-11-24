@@ -1,4 +1,0 @@
-evidence e { for alarm given readings = {"door": High}, muted = {} gives true }
-evidence e { for alarm given readings = {"door": High, "window": Low}, muted = {"window"} gives true }
-evidence e { for alarm given readings = {:}, muted = {"door"} gives false }
-evidence e { for alarm given readings = {"door": High}, muted = {"door"} gives true }

@@ -1,7 +1,0 @@
-// `half` fails on an input no claim covers: `quarter` is not named as
-// the root cause.
-evidence e { for quarter::uses holds }
-evidence e { for half given x = 0 holds }
-evidence e { for half given x = 1 holds }
-evidence e { for quarter given x = 1 fails }
-evidence e { for half given x = 7 fails }

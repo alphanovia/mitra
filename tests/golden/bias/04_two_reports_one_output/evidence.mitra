@@ -1,5 +1,0 @@
-// Two sources saw the same wrong output. The code is right only if both
-// are wrong: 0.1 * 0.9 = 0.09, so it is wrong with belief 0.91. Each
-// report can be wrong by 1 minus its bias, whatever their order.
-evidence e { for f given x = 0 gives 2 trust 0.9 source "a" }
-evidence e { for f given x = 0 gives 2 trust 0.1 source "b" }

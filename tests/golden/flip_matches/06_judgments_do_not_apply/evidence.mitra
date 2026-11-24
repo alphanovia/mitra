@@ -1,2 +1,0 @@
-// `correct` and `wrong` are for `correct` claims; a `matches` claim judges outputs.
-evidence e { for flip holds }

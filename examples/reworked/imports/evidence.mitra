@@ -1,2 +1,0 @@
-evidence t0 { for plane::add given a = Point(0, 0), b = Point(1, 2) gives Point(1, 2) }
-evidence t1 { for plane::add given a = Point(1, 2), b = Point(0, 0) gives Point(1, 2) }

@@ -1,1 +1,0 @@
-evidence e { for add given left = Number(1, "m"), right = Number(1, "m") gives Number(2, "km") trust 0.9 }

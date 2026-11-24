@@ -1,5 +1,0 @@
-// `/`: towards zero on integers, IEEE 754 on floats, as tight as `*`.
-subject fn half(x: Int) -> Int;
-subject fn ratio(a: Float64, b: Float64) -> Float64;
-claim half_is(x: -3..=3) { half(x) == 6 / 2 * x / 2 }
-claim ratio_is(a: {1.0}, b: {4.0, 0.0}) { ratio(a, b) == a / b - 1.0 }

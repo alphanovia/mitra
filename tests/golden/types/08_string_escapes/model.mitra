@@ -1,3 +1,0 @@
-// Escapes in strings: a line break, a tab, a quote, a backslash.
-subject fn lines(text: String) -> List<String>;
-claim lines_correct(text: {"a\nb", "say \"hi\"", "a\tb", "c:\\dir"}) { correct(lines(text)) }

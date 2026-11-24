@@ -1,3 +1,0 @@
-// A failure alone: under the uniformity, its whole class is wrong.
-evidence e { for div_uniform holds }
-evidence e { for div given a = 4, b = 2 fails }

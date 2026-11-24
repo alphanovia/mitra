@@ -1,6 +1,0 @@
-import std::claims::{uniform};
-subject fn f(x: Int) -> Int;
-subject fn g(x: Int) -> Int;
-claim f_g(x) { f(x) == g(x) }
-claim f_uniform = uniform(f);
-claim g_uniform = uniform(g);

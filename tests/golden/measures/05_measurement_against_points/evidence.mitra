@@ -1,4 +1,0 @@
-evidence e { for goal_met given team = "payments", sprint = 1 gives true }
-evidence e { for goal_met given team = "payments", sprint = 2 gives true trust 0.9 }
-evidence e { for goal_met given team = "payments", sprint = 3 gives true }
-evidence e { for steady gives rate = 0.25 trust 0.6 }

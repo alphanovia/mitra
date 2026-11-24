@@ -1,9 +1,0 @@
-import std::claims::{uniform};
-// Sets as values: no order, no repeats.
-subject fn tags(xs: List<String>) -> Set<String>;
-fn tags_class(xs: List<String>) -> {"none", "some"} { if len(xs) == 0 { "none" } else { "some" } }
-claim tags_uniform = uniform(tags, tags_class);
-claim tags_small(xs) { len(tags(xs)) <= len(xs) }
-claim tags_from_list(xs) { len(xs) == 0 || xs[0] in tags(xs) }
-claim algebra() { {1, 2} | {2, 3} == {3, 2, 1} && {1, 2} & {2, 3} == {2} && {1, 2} \ {2} == {1}
-  && !(4 in {1, 2}) && 2 in [1, 2] && len({1, 1, 1}) == 1 && len({:}) == 0 }

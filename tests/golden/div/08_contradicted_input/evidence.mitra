@@ -1,6 +1,0 @@
-// `div 6 3` both passes and fails: the two can't both be true. Its class
-// is not relied on, even though `div 4 2` passes in it.
-evidence e { for div_uniform holds }
-evidence e { for div given a = 6, b = 3 holds }
-evidence e { for div given a = 6, b = 3 fails }
-evidence e { for div given a = 4, b = 2 holds }

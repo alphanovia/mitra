@@ -1,3 +1,0 @@
-evidence e { for inc given x in 0..=99 holds }
-evidence e { for half given x = 1.0 gives 0.5 }
-evidence e { for half given x = -3.0 gives -1.5 }

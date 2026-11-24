@@ -1,7 +1,0 @@
-// `quarter` only uses `half`: when `quarter` fails and `half` does not,
-// the fault is in `quarter` itself.
-subject fn half(x: Int) -> Int;
-subject fn quarter(x: Int) -> Int uses only half;
-
-claim half_correct(x: 0..=1) { correct(half(x)) }
-claim quarter_correct(x: 0..=1) { correct(quarter(x)) }

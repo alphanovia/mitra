@@ -1,5 +1,0 @@
-// A failure somewhere in a set too large to sort into classes: no class
-// can be relied on, so nothing is assumed.
-evidence e { for div_uniform holds }
-evidence e { for div given a = 6, b = 3 holds }
-evidence e { for div given a in 10.., b in 10.. fails }

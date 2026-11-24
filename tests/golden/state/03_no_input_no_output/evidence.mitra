@@ -1,3 +1,0 @@
-evidence e { for open_account gives Account(0, true) }
-evidence e { for open_account holds }
-evidence e { for log given message = "started" gives () }

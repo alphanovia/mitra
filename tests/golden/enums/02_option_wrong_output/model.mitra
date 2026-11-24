@@ -1,7 +1,0 @@
-import std::claims::{uniform};
-enum Option<T> { None, Some(value: T) }
-subject fn get(o: Option<Int>) -> Int;
-fn or_zero(o: Option<Int>) -> Int { match o { None => 0, Some(v) => v } }
-fn kind(o: Option<Int>) -> {"none", "some"} { match o { None => "none", Some(v) => "some" } }
-claim get_is(o) { get(o) == or_zero(o) }
-claim get_uniform = uniform(get, kind);

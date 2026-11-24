@@ -1,2 +1,0 @@
-evidence e { for flip given a = true holds }
-evidence e { for flip given a = false fails }

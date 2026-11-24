@@ -1,4 +1,0 @@
-evidence e { for sprint given squad = "payments", n = 1 gives Sprint(5, 5, true) }
-evidence e { for healthy given squad = "payments", n = 1 gives true }
-evidence e { for sprint given squad = "payments", n = 3 gives Sprint(5, 3, false) trust 0.7 }
-evidence e { for healthy given squad = "payments", n = 3 gives true }

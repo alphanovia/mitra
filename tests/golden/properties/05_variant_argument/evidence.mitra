@@ -1,4 +1,0 @@
-evidence e { for pick given c = Some(Red) gives Red }
-evidence e { for pick given c = Some(Green) gives Green }
-evidence e { for pick given c = Some(Blue) gives Blue }
-evidence e { for pick given c = None gives Green }
