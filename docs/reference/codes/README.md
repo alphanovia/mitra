@@ -19,6 +19,7 @@ example, and the fix. The letter says which step found it.
 - [P012](P012.md): a part reopened as another kind
 - [P013](P013.md): a method call on a value whose part has no such method
 - [P014](P014.md): a part a `use` names that two folders declare
+- [P015](P015.md): a `mitra.toml` Mitra cannot read
 
 ## M (model): names, types and structure (`check`, before agree)
 

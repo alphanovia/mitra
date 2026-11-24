@@ -352,6 +352,14 @@ subject numbers {
         from (opinion::sums_to_one, opinion::in_unit, near);
 }
 
+subject record Settings at "src/settings.rs/Settings" {
+    parse: ParseSettings, agree: AgreeSettings, explain: ExplainSettings, numbers: NumbersSettings, blame: BlameSettings
+}
+subject settings {
+    fn read(text: [~char]) -> s: Settings at "src/settings.rs/read";
+    ensure sections: "mitra.toml gives each layer's settings a section by the code's names, one `[budget]` for agree and explain, parse's depth twice budget's when not said; an empty file changes nothing";
+    ensure nothing_unread: "a section, a key or a value Mitra does not take is P015 where it is: a count a whole number, a weight written with its point, no number made another";
+}
 subject cli {
     require checked: check::sound;
     require agreed: agree::no_false_holds;
@@ -359,6 +367,7 @@ subject cli {
     require blamed: blame::minimal;
     require numbered: numbers::in_unit;
     require parsed: parse::first_error;
+    require set: settings::nothing_unread;
     ensure answers: "check, explain and blame each answer their question; the exit code is 1 on a malformed model or evidence, 2 on a wrong command line, else 0"
-        from (checked, agreed, explained, blamed, numbered, parsed);
+        from (checked, agreed, explained, blamed, numbered, parsed, set);
 }

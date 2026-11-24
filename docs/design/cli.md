@@ -68,6 +68,6 @@ explain read as one together: `measurements::0 and 4`.
 
 ## Not in this round
 
-- No `--json`; no colours; no other settings on the command line
-  (each layer's defaults).
+- No `--json`; no colours; no other settings on the command line:
+  they are in `mitra.toml` (`docs/reference/8-commands.md`).
 - `check` runs agree; `explain` and `blame` do not run agree again.

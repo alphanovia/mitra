@@ -22,8 +22,8 @@ use mitra_core::evidence;
 use mitra_core::explain::{self, Explanation, Source, Verdict, MODEL};
 use mitra_core::judgement::Taking;
 use mitra_core::model::Model;
-use mitra_core::numbers::{self, Numbers};
-use mitra_core::{agree, parse, print, reader};
+use mitra_core::numbers::Numbers;
+use mitra_core::{agree, parse, print, reader, settings};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -144,7 +144,23 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     // project's files that declare it.
     let root = project_root();
     let project = project_of(&root, &given.model);
-    let model = match parse::load(&source, &project, &parse::Settings::default()) {
+    // Each layer's settings, from `mitra.toml` when the root has one.
+    let toml = root.join("mitra.toml");
+    let settings = match toml.exists() {
+        false => settings::Settings::default(),
+        true => match settings::read(&read(&toml)?) {
+            Ok(s) => s,
+            Err(e) => {
+                out!(
+                    "{}",
+                    e.render(&toml.display().to_string(), &read(&toml)?)
+                        .trim_end()
+                );
+                return Ok(ExitCode::from(1));
+            }
+        },
+    };
+    let model = match parse::load(&source, &project, &settings.parse) {
         Ok(m) => m,
         Err(l) => {
             let (file, text) = match l.file.is_empty() {
@@ -168,11 +184,11 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
         return Ok(ExitCode::from(1));
     }
     if given.command == "check" {
-        let mut settings = agree::Settings::default();
+        let mut agree = settings.agree;
         if let Some(n) = given.points {
-            settings.points = n;
+            agree.points = n;
         }
-        return Ok(check_out(&model, &settings));
+        return Ok(check_out(&model, &agree));
     }
     // Paths from the model's folder, however both are spelled.
     let whole = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
@@ -222,8 +238,8 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     }
     let refused = evidence::check(&model, &ledger);
     errors_out(&refused);
-    let e = explain::explain(&model, &ledger, &explain::Settings::default());
-    let n = Numbers::of(&e, &numbers::Settings::default());
+    let e = explain::explain(&model, &ledger, &settings.explain);
+    let n = Numbers::of(&e, &settings.numbers);
     out!(
         "evidence: {} measurements, {} reviews, {} ties",
         ledger.measurements.len(),
@@ -232,7 +248,7 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     );
     match given.command.as_str() {
         "explain" => explain_out(&e, &n),
-        _ => blame_out(&model, &ledger, &e, &n),
+        _ => blame_out(&model, &ledger, &e, &n, &settings.blame),
     }
     Ok(match refused.is_empty() {
         true => ExitCode::SUCCESS,
@@ -409,8 +425,14 @@ fn suspect_text(ledger: &evidence::Ledger, e: &Explanation, s: &Suspect) -> Stri
 }
 
 /// Question 3.
-fn blame_out(model: &Model, ledger: &evidence::Ledger, e: &Explanation, n: &Numbers) {
-    let b = blame::blame(model, e, &blame::Settings::default());
+fn blame_out(
+    model: &Model,
+    ledger: &evidence::Ledger,
+    e: &Explanation,
+    n: &Numbers,
+    settings: &blame::Settings,
+) {
+    let b = blame::blame(model, e, settings);
     if b.conflicts.is_empty() {
         out!("blame: nothing conflicts, nothing to blame");
         findings_out(&b.findings);

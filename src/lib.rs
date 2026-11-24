@@ -28,5 +28,6 @@ pub mod numbers;
 pub mod parse;
 pub mod print;
 pub mod reader;
+pub mod settings;
 pub mod simulation;
 pub mod tactic;

@@ -202,3 +202,43 @@ fn a_part_is_read_from_the_project() {
     assert_eq!(code, 0, "{out}");
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// `mitra.toml` at the root gives each layer its settings: here agree's
+/// points, which `--points` still overrides; what it cannot take stops
+/// with P015, in the file, exit 1.
+#[test]
+fn mitra_toml_sets_the_settings() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-toml-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("div.mitra"),
+        "subject calc {
+    fn div(a: 0..=9, b: 0..=9) -> q: 0..=9 { if b == 0 { 0 } else { a / b } } where {
+        claim spec: if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
+    }
+}",
+    )
+    .unwrap();
+    std::fs::write(dir.join("mitra.toml"), "[agree]\npoints = 100\n").unwrap();
+    let (code, out) = mitra_in(&dir, &["check", "div.mitra"]);
+    assert_eq!(code, 0, "{out}");
+    assert!(out.contains("3 comparisons, 3 hold, 0 findings"), "{out}");
+    let (code, out) = mitra_in(&dir, &["check", "div.mitra", "--points", "99"]);
+    assert_eq!(code, 0, "{out}");
+    assert!(out.contains("finding[A007]"), "{out}");
+    // What a statement is expected to be with no evidence: explain's numbers.
+    let (_, out) = mitra_in(&dir, &["explain", "div.mitra"]);
+    assert!(out.contains("unsupported  calc::div::spec 0.50 "), "{out}");
+    std::fs::write(dir.join("mitra.toml"), "[numbers]\nbase_rate = 0.25\n").unwrap();
+    let (_, out) = mitra_in(&dir, &["explain", "div.mitra"]);
+    assert!(out.contains("unsupported  calc::div::spec 0.25 "), "{out}");
+    std::fs::write(dir.join("mitra.toml"), "[agree]\npionts = 100\n").unwrap();
+    let (code, out) = mitra_in(&dir, &["check", "div.mitra"]);
+    assert_eq!(code, 1, "{out}");
+    assert!(
+        out.contains("error[P015]: no setting `pionts` in `[agree]`"),
+        "{out}"
+    );
+    assert!(out.contains("mitra.toml:2:1"), "{out}");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
