@@ -15,7 +15,16 @@ pub fn div(a: u32, b: u32) -> u32 {
 ```
 
 The tie's place is the file, then the `mod` and `impl` around the item,
-then its name: `src/lib.rs/div`.
+then its name: `src/lib.rs/div`. The file is read from the project's
+root (the folder of `mitra.toml`), wherever the model sits.
+
+## Where the model lives
+
+A model file can sit anywhere in the project. The habit Mitra suggests
+is beside the code it models: `src/check.mitra` next to `src/check.rs`.
+Mitra's own code is modelled that way: each `src/<module>.mitra` holds
+one module's part, and `src/bin/mitra.mitra` is the whole, reading the
+others with `use` ([chapter 7](7-contracts-and-use.md#use)).
 
 A tie can also be written in the model, after a name, with `at`. From
 [examples/fall/fall.mitra](../../examples/fall/fall.mitra), a tie to something that is
