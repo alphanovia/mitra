@@ -2863,9 +2863,8 @@ fn ways_within_counts_the_smallest() {
         count: 1,
         by: "test:t".to_string(),
     };
-    let side = |names: &[&str]| -> Rests {
-        names.iter().map(|n| BTreeSet::from([taking(n)])).collect()
-    };
+    let side =
+        |names: &[&str]| -> Rests { names.iter().map(|n| BTreeSet::from([taking(n)])).collect() };
     // Three premises resting on the same three tests: 27 ways, 3
     // smallest, and no step builds more than 9.
     let shared = side(&["a", "b", "c"]);

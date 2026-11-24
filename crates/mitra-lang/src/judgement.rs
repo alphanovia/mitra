@@ -776,7 +776,10 @@ fn all_of(sides: &[&Rests]) -> Rests {
 /// counts says, or, past it, by working them out: no step builds more
 /// than `most` ways before keeping the smallest, or the answer is no.
 pub fn ways_within(sides: &[&Rests], most: usize) -> bool {
-    let product = sides.iter().map(|s| s.len()).fold(1usize, usize::saturating_mul);
+    let product = sides
+        .iter()
+        .map(|s| s.len())
+        .fold(1usize, usize::saturating_mul);
     product <= most || all_of_within(sides, most).is_some_and(|ways| ways.len() <= most)
 }
 

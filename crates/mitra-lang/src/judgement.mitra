@@ -58,4 +58,5 @@ subject judgement {
     ensure sound: "a proposition judged true follows from its rests by the rules of judgement"
         from (holds);
     ensure taken_only: "every rest is a set of takings, and nothing is true without one";
+    ensure set_definitions: "a set's condition reads the model's functions with a body as their definition, within the budget; a point not read to its end is not listed, so no proof by cases, instance or witness rests on it";
 }

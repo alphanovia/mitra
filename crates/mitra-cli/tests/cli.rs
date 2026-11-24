@@ -402,3 +402,34 @@ fn rows_and_reviews_seeing_a_test() {
     );
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// The budget of `mitra.toml` reads a set's condition too (finding 12b):
+/// one step is too few to call `f` at any point.
+#[test]
+fn the_budget_reaches_a_set_condition() {
+    let dir = std::env::temp_dir().join(format!("mitra-cli-sets-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("sets.mitra"),
+        "subject s {
+    fn k(a: integer) -> b: integer { a * a }
+    fn f(a: integer) -> b: integer { k(a) + 1 }
+    fn g(a: integer) -> b: integer { a } where {
+        claim c: 0 <= b;
+        rule r: g::c |- all p in (a: 0..10) where f(a) < 5: correct(g, p);
+    }
+}
+",
+    )
+    .unwrap();
+    std::fs::write(dir.join("mitra.toml"), "").unwrap();
+    let (_, out) = mitra_in(&dir, &["explain", "sets.mitra", "--no-test"]);
+    assert!(!out.contains("X009"), "{out}");
+    std::fs::write(dir.join("mitra.toml"), "[budget]\nsteps = 1\n").unwrap();
+    let (_, out) = mitra_in(&dir, &["explain", "sets.mitra", "--no-test"]);
+    assert!(
+        out.contains("finding[X009]") && out.contains("not read to its end at (0)"),
+        "{out}"
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}

@@ -295,7 +295,6 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     for f in &reader_findings {
         out!("{f}\n");
     }
-    let mut model = model;
     model.ties = Vec::new();
     for t in ties {
         if !model.ties.contains(&t) {
