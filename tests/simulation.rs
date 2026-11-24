@@ -201,7 +201,29 @@ impl Gen {
         // Sequences: of numbers, and of an enum (finding 3, step 2).
         all.push(Type::Seq(Box::new(Type::Int)));
         all.push(Type::Seq(Box::new(Type::Enum(self.enums[0].clone()))));
+        // Text, and its bytes (finding 3, step 3).
+        all.push(Type::Encoded(Box::new(Type::Char)));
+        all.push(Type::Byte);
         self.rng.pick(&all).clone()
+    }
+    /// A short text: ASCII, a letter of two bytes, one of four, and what
+    /// a string escapes.
+    fn text(&mut self) -> String {
+        let pieces = ["a", "b", "é", "𝄞", "\"", "\\", "\n", "ab"];
+        (0..self.length())
+            .map(|_| *self.rng.pick(&pieces))
+            .collect()
+    }
+    /// A text of `n` bytes.
+    fn text_of(&mut self, n: usize) -> String {
+        let mut s = String::new();
+        while s.len() < n {
+            s.push_str(match n - s.len() >= 2 && self.rng.coin() {
+                true => "é",
+                false => "a",
+            });
+        }
+        s
     }
     /// A short length, `[]` often.
     fn length(&mut self) -> usize {
@@ -259,6 +281,9 @@ impl Gen {
                 let k = self.length();
                 Value::Seq((**t).clone(), (0..k).map(|_| self.value(t)).collect())
             }
+            Type::Encoded(_) => Value::Text(self.text()),
+            Type::Byte => Value::Byte(self.rng.below(256) as u8),
+            Type::Char => unreachable!("no value of a letter is written yet"),
         }
     }
     fn constant(&mut self, t: &Type) -> E {
@@ -281,6 +306,13 @@ impl Gen {
                 let holds = (0..k).map(|_| self.constant(t)).collect();
                 apply(Op::Seq((**t).clone()), holds)
             }
+            Type::Encoded(_) => apply(Op::Text(self.text()), vec![]),
+            // No byte is written: a place of a text, which may be none.
+            Type::Byte => {
+                let s = apply(Op::Text(self.text()), vec![]);
+                apply(Op::Index, vec![s, int(self.rng.below(3) as i64)])
+            }
+            Type::Char => unreachable!("no value of a letter is written yet"),
         }
     }
     fn leaf(&mut self, t: &Type) -> E {
@@ -392,9 +424,26 @@ impl Gen {
                 return apply(Op::Index, vec![xs, i]);
             }
             8 if t == &Type::Int => {
-                let u = self.ty();
-                let xs = self.expr(&Type::Seq(Box::new(u)), d);
+                let u = match self.rng.coin() {
+                    true => Type::Seq(Box::new(self.ty())),
+                    false => Type::Encoded(Box::new(Type::Char)),
+                };
+                let xs = self.expr(&u, d);
                 return apply(Op::Len, vec![xs]);
+            }
+            // `s[i]` of a text.
+            8 if t == &Type::Byte => {
+                let s = self.expr(&Type::Encoded(Box::new(Type::Char)), d);
+                let i = match self.rng.coin() {
+                    true => int(self.rng.below(5) as i64 - 1),
+                    false => self.expr(&Type::Int, d),
+                };
+                return apply(Op::Index, vec![s, i]);
+            }
+            // `xs.decoded()`: itself.
+            9 if matches!(t, Type::Seq(_)) => {
+                let xs = self.expr(t, d);
+                return apply(Op::Decoded, vec![xs]);
             }
             // A call of a function that gives `t`.
             4 | 5 => {
@@ -433,10 +482,24 @@ impl Gen {
                     let (a, b) = (self.expr(&n, d), self.expr(&n, d));
                     apply(op, vec![a, b])
                 }
-                4 | 5 => {
+                4 => {
                     let u = self.ty();
                     let (a, b) = (self.expr(&u, d), self.expr(&u, d));
                     apply(Op::Equal, vec![a, b])
+                }
+                // On text or a sequence: `starts_with`; on text, `<`.
+                5 => {
+                    let u = match self.rng.coin() {
+                        true => Type::Encoded(Box::new(Type::Char)),
+                        false => Type::Seq(Box::new(self.ty())),
+                    };
+                    let (a, b) = (self.expr(&u, d), self.expr(&u, d));
+                    let op = match (self.rng.below(3), &u) {
+                        (0, Type::Encoded(_)) => Op::Less,
+                        (1, Type::Encoded(_)) => Op::AtMost,
+                        _ => Op::StartsWith,
+                    };
+                    apply(op, vec![a, b])
                 }
                 _ => {
                     let n = self.number_type();
@@ -464,11 +527,17 @@ impl Gen {
                 let holds = e.variants[i].1.iter().map(|t| self.expr(t, d)).collect();
                 apply(Op::Variant(e.clone(), i), holds)
             }
+            Type::Seq(_) | Type::Encoded(_) if self.rng.below(3) == 0 => {
+                let (a, b) = (self.expr(t, d), self.expr(t, d));
+                apply(Op::Join, vec![a, b])
+            }
             Type::Seq(u) => {
                 let k = self.length();
                 let holds = (0..k).map(|_| self.expr(u, d)).collect();
                 apply(Op::Seq((**u).clone()), holds)
             }
+            Type::Encoded(_) | Type::Byte => self.leaf(t),
+            Type::Char => unreachable!("no value of a letter is written yet"),
         }
     }
     /// An end of a range: a small number, or one of two others by a test
@@ -583,6 +652,38 @@ impl Gen {
                     first,
                 )
             }
+            // Text known, or of a length only.
+            Type::Encoded(_) if self.rng.coin() => {
+                let s = self.text();
+                Span::Text(
+                    Box::new(Span::Number(
+                        Numbers::Int,
+                        Some(Rational::integer(s.len() as i64)),
+                        Some(Rational::integer(s.len() as i64)),
+                    )),
+                    Some(s),
+                )
+            }
+            Type::Encoded(_) => {
+                let low = self.rng.below(3) as i64;
+                let high = match self.rng.below(3) {
+                    0 => None,
+                    _ => Some(Rational::integer(low + self.rng.below(3) as i64)),
+                };
+                Span::Text(
+                    Box::new(Span::Number(
+                        Numbers::Int,
+                        Some(Rational::integer(low)),
+                        high,
+                    )),
+                    None,
+                )
+            }
+            Type::Byte => Span::Byte(match self.rng.coin() {
+                true => Some(self.rng.below(256) as u8),
+                false => None,
+            }),
+            Type::Char => Span::Char,
         }
     }
     /// A value in `span`: γ, sampled.
@@ -676,6 +777,16 @@ impl Gen {
                 };
                 Value::Seq(u.clone(), (0..k).map(|_| self.member(each, u)).collect())
             }
+            (Span::Text(_, Some(s)), _) => Value::Text(s.clone()),
+            (Span::Text(length, None), _) => {
+                let k = match self.member(length, &Type::Int) {
+                    Value::Int(k) => usize::try_from(k.min(BigInt::from(4))).unwrap_or(0),
+                    _ => 0,
+                };
+                Value::Text(self.text_of(k))
+            }
+            (Span::Byte(Some(b)), _) => Value::Byte(*b),
+            (Span::Byte(None), _) => Value::Byte(self.rng.below(256) as u8),
             _ => unreachable!("a span of another type"),
         }
     }
@@ -746,6 +857,10 @@ impl Gen {
             Op::Seq(self.ty()),
             Op::Len,
             Op::Index,
+            Op::Text("é\"".to_string()),
+            Op::Join,
+            Op::StartsWith,
+            Op::Decoded,
         ];
         self.rng.pick(&all).clone()
     }

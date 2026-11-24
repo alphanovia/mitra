@@ -56,6 +56,28 @@ fn dogfood_abs() {
     assert_eq!(q(0, 1).abs(), q(0, 1));
 }
 
+// --------------------------------------------------------------- location
+
+fn at(names: &[&str]) -> mitra_core::location::Location {
+    mitra_core::location::Location {
+        path: names.iter().map(|n| n.to_string()).collect(),
+    }
+}
+
+// Text now has a value (finding 3, step 3): `within` is measured.
+// mitra: measures location::within (Location { path: ["lab", "tower"] }, Location { path: ["lab"] }) -> true
+// mitra: measures location::within (Location { path: ["lab"] }, Location { path: ["lab", "tower"] }) -> false
+// mitra: measures location::within (Location { path: ["été"] }, Location { path: ["ét"] }) -> false
+// mitra: measures location::within (Location { path: [] }, Location { path: [] }) -> true
+#[test]
+fn dogfood_within() {
+    use mitra_core::location::within;
+    assert!(within(&at(&["lab", "tower"]), &at(&["lab"])));
+    assert!(!within(&at(&["lab"]), &at(&["lab", "tower"])));
+    assert!(!within(&at(&["été"]), &at(&["ét"])));
+    assert!(within(&at(&[]), &at(&[])));
+}
+
 // -------------------------------------------------------------- judgement
 
 // mitra: measures judgement::told (true, false) -> State { t: true, f: false }

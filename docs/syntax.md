@@ -59,6 +59,9 @@ subject stone {
 | `bool`, `Int`, `Real`, `(Int, bool)`, `(Real,)`, `()`, `R` | `Type` | Rust, but `Int`/`Real` flagged |
 | `[Int]`, `[[Real]]`, `[Option<Int>]` | `Type::Seq`: a sequence, its length its own, never changed | Rust's slice form `[T]`, not `Vec<T>` |
 | `[1, 2, 3]`, `[]`, `xs.len()`, `xs[i]`, `xs == ys` | `Op::Seq`, `Len`, `Index`, `Equal` | Rust; `xs[i]` out of range has no value, as Rust's panics |
+| `[~char]`, `char`, `byte` | `Type::Encoded(Char)`: text, an encoded sequence of letters; `Type::Char`, `Type::Byte` | `[~T]` flagged; only `[~char]` today |
+| `"abc"`, `s.len()`, `s[i]`, `s.decoded()` | `Op::Text`, `Len` and `Index` in bytes, `Decoded` | Rust's `str`: length and places in bytes |
+| `a ++ b`, `a.starts_with(b)` | `Op::Join`, `Op::StartsWith`, on two texts or two sequences | `starts_with` Rust's; `++` flagged (Haskell's) |
 | `fn f(a: 0..=9) -> q: 0..=9` | `Function.ranges`: an `Int` that is checked | Rust's range form; as a type Ada's `range 0 .. 9`, flagged |
 | `true`, `3`, `-3`, `9.81`, `1/3` | constants | Rust, but `1/3` flagged |
 | `Location { depth: 2, .. }` in a row | a value known in part (`Value::Partial`) | Rust's struct pattern, used for a value, flagged |
@@ -213,6 +216,28 @@ one value, two or three to compare). The name is Rust's slice form, not
 `Vec<T>`: a sequence is never changed, so a real `Vec` can be modelled
 later. *Elsewhere*: Rust's `&[T]`, Haskell's and OCaml's lists, Lean's
 `List`, Dafny's `seq<T>`.
+
+**16. Text, `[~char]`** (finding 3, step 3; your "go"). *What*: `[~T]` is
+an encoded sequence: a sequence of `T` kept as bytes. Text is
+`[~char]`, written `"abc"`; a `char` is one letter as a reader sees it
+(a grapheme), with no number. As Rust's `str`, `s.len()` counts bytes
+and `s[i]` is the byte at place `i` (a `byte`, which has `==` only);
+past the bytes it has no value. `a == b` is the same bytes, `a < b` and
+`a <= b` compare byte by byte, which is the order of the letters' code
+points. `a ++ b` joins and `a.starts_with(b)` reads a prefix, on two
+texts or on two sequences of one type. `s.decoded()` gives the letters
+as a `[char]`; on text it waits for the grapheme decoder, and today it
+is check's error (M005, with a note); on a sequence `[T]` it is the
+sequence itself. *Gain*: a name, a title, a path are said as text, with
+the length a test sees; the model writes no `String` of its own. *Cost*:
+no letter or byte is written yet (`'é'` later), no `type String =
+[~char];`, no decoder (UAX #29, its Unicode version a setting), no
+`from_bytes` nor `as_bytes`. Agree tries `""`, the texts the model
+writes, each two joined, and their prefixes. `++` is Haskell's join
+(`+` adds numbers only: `+` on two texts says to write `++`); `[~T]` is
+ours. *Elsewhere*: Rust's `str` (bytes, `chars()`), Swift's `String`
+(graphemes, `utf8` view), Lean's `String` (a list of `Char`), Dafny's
+`string = seq<char>`.
 
 ## Errors
 

@@ -48,6 +48,12 @@ pub struct Settings {
     pub length: usize,
 }
 
+/// What the expressions write, worth trying as points.
+struct Constants {
+    numbers: Vec<Rational>,
+    texts: Vec<String>,
+}
+
 /// 64 points per comparison: every example row, and for one or two
 /// arguments the small numbers and constants of a typical claim. 4
 /// numbers cut at zero: 16 readings by bounds, enough for the squares and
@@ -645,8 +651,10 @@ impl<'m> Reading<'m> {
                 .variants
                 .iter()
                 .any(|(_, ts)| ts.iter().any(|t| self.opaque_in(t))),
-            Type::Seq(t) => self.opaque_in(t),
+            Type::Seq(t) | Type::Encoded(t) => self.opaque_in(t),
+            // Bounds hold any letter or byte.
             Type::Truth | Type::Int | Type::Real | Type::Param { .. } => false,
+            Type::Char | Type::Byte => false,
         }
     }
 
@@ -675,9 +683,9 @@ impl<'m> Reading<'m> {
         found
     }
 
-    /// The numbers `e` writes, and those of the functions it calls,
-    /// however far.
-    fn constants(&self, e: &Expression<Op>) -> Vec<Rational> {
+    /// The numbers and texts `e` writes, and those of the functions it
+    /// calls, however far.
+    fn constants(&self, e: &Expression<Op>) -> Constants {
         let mut todo = vec![e];
         for f in self.called(e, true) {
             if let Some(function) = self.functions.get(&f) {
@@ -685,18 +693,22 @@ impl<'m> Reading<'m> {
                 todo.extend(function.claims.iter().map(|c| &c.holds));
             }
         }
-        let mut found = BTreeSet::new();
+        let (mut found, mut texts) = (BTreeSet::new(), BTreeSet::new());
         while let Some(e) = todo.pop() {
             if let Expression::Apply(op, args) = e {
                 match op {
                     Op::Int(n) => _ = found.insert(Rational::integer(n.clone())),
                     Op::Real(q) => _ = found.insert(q.clone()),
+                    Op::Text(s) => _ = texts.insert(s.clone()),
                     _ => {}
                 }
                 todo.extend(args.iter().map(|a| &a.body));
             }
         }
-        found.into_iter().collect()
+        Constants {
+            numbers: found.into_iter().collect(),
+            texts: texts.into_iter().collect(),
+        }
     }
 
     /// How many values `over` has together, when few enough to list.
@@ -732,6 +744,7 @@ impl<'m> Reading<'m> {
                 .try_fold(0usize, |n, k| n.checked_add(k?)),
             // Sequences of every length: too many to list.
             Type::Int | Type::Real | Type::Seq(_) | Type::Param { .. } => None,
+            Type::Encoded(_) | Type::Char | Type::Byte => None,
         }
     }
 
@@ -819,7 +832,7 @@ impl<'m> Reading<'m> {
     /// neighbours, in that order, each once. Of a record, every value
     /// when they are at most `Settings::points`, else the i-th value of
     /// each field together; of an opaque record, none.
-    fn values_of(&self, t: &Type, constants: &[Rational]) -> Vec<Value> {
+    fn values_of(&self, t: &Type, constants: &Constants) -> Vec<Value> {
         let small = [0i64, 1, -1, 2, -2];
         let mut out: Vec<Value> = Vec::new();
         let mut add = |v: Value| {
@@ -836,7 +849,7 @@ impl<'m> Reading<'m> {
                 for n in small {
                     add(Value::Int(n.into()));
                 }
-                for c in constants.iter().filter(|c| c.is_integer()) {
+                for c in constants.numbers.iter().filter(|c| c.is_integer()) {
                     let n = c.numer().clone();
                     for d in [0i64, -1, 1] {
                         add(Value::Int(&n + d));
@@ -848,7 +861,7 @@ impl<'m> Reading<'m> {
                     add(Value::Real(Rational::integer(n)));
                 }
                 add(Value::Real(Rational::new(1, 2).expect("2 is not 0")));
-                for c in constants {
+                for c in &constants.numbers {
                     for d in [0i64, -1, 1] {
                         add(Value::Real(c.plus(&Rational::integer(d))));
                     }
@@ -934,7 +947,26 @@ impl<'m> Reading<'m> {
                     }
                 }
             }
-            Type::Param { .. } => {}
+            // Text: the empty one, the texts the model writes, each two
+            // of them joined, and their prefixes (finding 3, step 3).
+            Type::Encoded(_) => {
+                add(Value::Text(String::new()));
+                for s in &constants.texts {
+                    add(Value::Text(s.clone()));
+                }
+                for a in &constants.texts {
+                    for b in &constants.texts {
+                        add(Value::Text(format!("{a}{b}")));
+                    }
+                }
+                for s in &constants.texts {
+                    for (k, _) in s.char_indices().skip(1) {
+                        add(Value::Text(s[..k].to_string()));
+                    }
+                }
+            }
+            // No value of a letter or a byte is written yet.
+            Type::Char | Type::Byte | Type::Param { .. } => {}
         }
         out
     }

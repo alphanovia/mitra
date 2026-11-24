@@ -729,6 +729,9 @@ pub fn type_(t: &Type) -> String {
         Type::Record(r) => generic(&r.name, &r.args),
         Type::Enum(e) => generic(&e.name, &e.args),
         Type::Seq(t) => format!("[{}]", type_(t)),
+        Type::Encoded(t) => format!("[~{}]", type_(t)),
+        Type::Char => "char".to_string(),
+        Type::Byte => "byte".to_string(),
         Type::Param { name, .. } => name.clone(),
     }
 }
@@ -827,6 +830,10 @@ pub fn value(v: &Value) -> String {
             let holds: Vec<String> = holds.iter().map(value).collect();
             format!("[{}]", holds.join(", "))
         }
+        Value::Text(s) => string(s),
+        // Rust's byte literal, `b'A'`, `b'\xff'`: shown only, none is
+        // written in a model yet.
+        Value::Byte(b) => format!("b'{}'", std::ascii::escape_default(*b)),
         Value::Variant(e, i, holds) => {
             let name = e.variants.get(*i).map(|(n, _)| n.as_str()).unwrap_or("?");
             match holds.is_empty() {
@@ -997,6 +1004,7 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
         }
         (Op::Truth(b), 0, _) => (b.to_string(), ATOM),
         (Op::Int(n), 0, _) => (n.to_string(), if n.is_negative() { UNARY } else { ATOM }),
+        (Op::Text(s), 0, _) => (string(s), ATOM),
         (Op::Real(r), 0, _) => (real(r), if r.numer().is_negative() { UNARY } else { ATOM }),
         (Op::Not, 1, _) => match body(0) {
             Expression::Apply(Op::Equal, inner)
@@ -1021,6 +1029,7 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
         (Op::AtMost, 2, _) => binary("<=", CMP, CMP + 1, CMP + 1),
         (Op::Add, 2, _) => binary("+", SUM, SUM, SUM + 1),
         (Op::Sub, 2, _) => binary("-", SUM, SUM, SUM + 1),
+        (Op::Join, 2, _) => binary("++", SUM, SUM, SUM + 1),
         (Op::Mul, 2, _) => binary("*", PRODUCT, PRODUCT, PRODUCT + 1),
         (Op::Div, 2, _) => binary("/", PRODUCT, PRODUCT, PRODUCT + 1),
         (Op::Rem, 2, _) => binary("%", PRODUCT, PRODUCT, PRODUCT + 1),
@@ -1087,6 +1096,19 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
                 wrap(sim_at(cx, body(0)), POSTFIX),
                 sim_in(cx, body(1))
             ),
+            POSTFIX,
+        ),
+        // `s.starts_with(b)`, `s.decoded()`.
+        (Op::StartsWith, 2, _) => (
+            format!(
+                "{}.starts_with({})",
+                wrap(sim_at(cx, body(0)), POSTFIX),
+                sim_in(cx, body(1))
+            ),
+            POSTFIX,
+        ),
+        (Op::Decoded, 1, _) => (
+            format!("{}.decoded()", wrap(sim_at(cx, body(0)), POSTFIX)),
             POSTFIX,
         ),
         _ => bad,

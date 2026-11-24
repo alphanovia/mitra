@@ -176,7 +176,7 @@ pub(crate) enum Tok {
 /// Longest first.
 const SYMBOLS: &[&str] = &[
     "::", "->", "=>", "|-", "==", "!=", "<=", ">=", "&&", "||", "..", "{", "}", "(", ")", "[", "]",
-    ",", ";", ":", "=", "<", ">", "+", "-", "*", "/", "%", "!", ".", "|",
+    "++", ",", ";", ":", "=", "<", ">", "+", "-", "*", "/", "%", "!", ".", "|", "~",
 ];
 
 fn describe(t: &Tok) -> String {
@@ -751,6 +751,8 @@ pub(crate) fn type_of(v: &Value) -> Type {
         Value::Record(r, _) | Value::Partial(r, _) => Type::Record(r.clone()),
         Value::Variant(e, _, _) => Type::Enum(e.clone()),
         Value::Seq(t, _) => Type::Seq(Box::new(t.clone())),
+        Value::Text(_) => Type::Encoded(Box::new(Type::Char)),
+        Value::Byte(_) => Type::Byte,
     }
 }
 
@@ -1556,6 +1558,21 @@ impl<'c> Parser<'c> {
     fn type_at(&mut self) -> Result<Type> {
         // `[T]`, a sequence: Rust's slice form (finding 3, step 2).
         if self.eat("[") {
+            // `[~T]`, an encoded sequence (flagged, finding 3, step 3):
+            // only text, `[~char]`, today.
+            if self.eat("~") {
+                let at = self.pos();
+                let t = self.type_()?;
+                if t != Type::Char {
+                    let message = format!(
+                        "only `[~char]` has an encoding today, not `[~{}]`",
+                        crate::print::type_(&t)
+                    );
+                    return Err(error(P008, at, message));
+                }
+                self.expect("]")?;
+                return Ok(Type::Encoded(Box::new(t)));
+            }
             let t = self.type_()?;
             self.expect("]")?;
             return Ok(Type::Seq(Box::new(t)));
@@ -1590,12 +1607,14 @@ impl<'c> Parser<'c> {
             false => vec![],
         };
         Ok(match name.as_str() {
-            "bool" | "Int" | "Real" if !args.is_empty() => {
+            "bool" | "Int" | "Real" | "char" | "byte" if !args.is_empty() => {
                 return Err(error(P008, at, format!("`{name}` takes no type arguments")))
             }
             "bool" => Type::Truth,
             "Int" => Type::Int,
             "Real" => Type::Real,
+            "char" => Type::Char,
+            "byte" => Type::Byte,
             _ => self.instance(&name, args, at)?,
         })
     }
@@ -1759,6 +1778,10 @@ impl<'c> Parser<'c> {
             Tok::Word(w) if w == "true" || w == "false" => {
                 self.bump();
                 Ok(Value::Truth(w == "true"))
+            }
+            Tok::Str(s) => {
+                self.bump();
+                Ok(Value::Text(s))
             }
             // `[1, 2]`, `[]`: of the type of its first value whose type is
             // told, else settled by where it goes (P009).
@@ -2065,6 +2088,7 @@ impl<'c> Parser<'c> {
             let op = match self.peek() {
                 Tok::Sym("+") => Op::Add,
                 Tok::Sym("-") => Op::Sub,
+                Tok::Sym("++") => Op::Join,
                 _ => return Ok(e),
             };
             self.bump();
@@ -2119,13 +2143,26 @@ impl<'c> Parser<'c> {
                 break;
             }
             self.bump();
-            if matches!(self.peek(), Tok::Word(w) if w == "len")
+            if matches!(self.peek(), Tok::Word(w) if w == "len" || w == "decoded")
+                && *self.peek_at(1) == Tok::Sym("(")
+            {
+                let op = match self.bump() {
+                    Tok::Word(w) if w == "len" => Op::Len,
+                    _ => Op::Decoded,
+                };
+                self.bump();
+                self.expect(")")?;
+                e = apply(op, vec![e]);
+                continue;
+            }
+            if matches!(self.peek(), Tok::Word(w) if w == "starts_with")
                 && *self.peek_at(1) == Tok::Sym("(")
             {
                 self.bump();
                 self.bump();
+                let b = self.inner(env)?;
                 self.expect(")")?;
-                e = apply(Op::Len, vec![e]);
+                e = apply(Op::StartsWith, vec![e, b]);
                 continue;
             }
             let field = match self.bump() {
@@ -2143,6 +2180,11 @@ impl<'c> Parser<'c> {
     fn primary(&mut self, env: &mut Env) -> Result<E> {
         let at = self.pos();
         match self.peek().clone() {
+            // `"abc"`: a text, `[~char]` (finding 3, step 3).
+            Tok::Str(s) => {
+                self.bump();
+                Ok(apply(Op::Text(s), vec![]))
+            }
             Tok::Int(n) => {
                 self.bump();
                 Ok(apply(Op::Int(n), vec![]))
@@ -2586,8 +2628,17 @@ impl<'c> Parser<'c> {
             | Op::Mul
             | Op::Div
             | Op::Rem
-            | Op::Within => {
+            | Op::Within
+            | Op::StartsWith => {
                 let args = alike(self, args, env);
+                Expression::Apply(op, args)
+            }
+            // `a ++ b`: both of the type wanted, else of one type.
+            Op::Join => {
+                let args = match want {
+                    Some(_) => each(self, args, &[want.cloned(), want.cloned()], env),
+                    None => alike(self, args, env),
+                };
                 Expression::Apply(op, args)
             }
             Op::Not | Op::And | Op::Or => {

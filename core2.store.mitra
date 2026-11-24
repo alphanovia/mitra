@@ -137,4 +137,7 @@ review parse::usable holds by "test:a_proof_writes_no_state";
 // Sequences, [T] (finding 3, step 2).
 review simulation::indexed holds by "test:a_place_out_of_range_has_no_value";
 review simulation::indexed holds by "test:exact_lies_in_ranges";
+review simulation::encoded holds by "test:length_and_places_are_bytes";
+review simulation::encoded holds by "test:texts_are_equal_and_ordered_byte_by_byte";
+review simulation::encoded holds by "test:exact_lies_in_ranges";
 review agree::lengths holds by "test:every_length_is_tried_up_to_the_setting";

@@ -173,6 +173,16 @@ pub enum Type {
     /// A sequence of values of one type, `[T]`: Rust's slice form. Its
     /// length is its own; it is not changed, only read (finding 3, step 2).
     Seq(Box<Type>),
+    /// An encoded sequence, `[~T]`: its storage is bytes, which decode
+    /// to values of `T`. Text is `[~char]` (UTF-8). Its length counts
+    /// bytes, a place is a `byte`; `.decoded()` gives the `[T]`
+    /// (finding 3, step 3; your "go", 2026-11-24).
+    Encoded(Box<Type>),
+    /// One grapheme, what a reader sees as one letter: opaque, with `==`
+    /// and `<` in the order of its bytes. No value is written yet.
+    Char,
+    /// One byte of an encoded sequence: opaque, `==` only.
+    Byte,
     /// A type a contract, a record or an enum names but does not fix, with its bound: `T`, or
     /// `T: Number`, a whole number or a real. No value is of it.
     Param {
@@ -226,6 +236,7 @@ impl Type {
                     .collect(),
             }),
             Type::Seq(t) => Type::Seq(Box::new(t.given(given))),
+            Type::Encoded(t) => Type::Encoded(Box::new(t.given(given))),
             _ => self.clone(),
         }
     }
@@ -235,7 +246,7 @@ impl Type {
             Type::Param { .. } => true,
             Type::Record(r) => r.fields.iter().any(|(_, t)| t.open()),
             Type::Enum(e) => e.variants.iter().any(|(_, ts)| ts.iter().any(Type::open)),
-            Type::Seq(t) => t.open(),
+            Type::Seq(t) | Type::Encoded(t) => t.open(),
             _ => false,
         }
     }
@@ -272,7 +283,9 @@ impl Type {
                                 && xs.iter().zip(ys).all(|(x, y)| x.learn(y, learnt))
                         })
             }
-            (Type::Seq(a), Type::Seq(b)) => a.learn(b, learnt),
+            (Type::Seq(a), Type::Seq(b)) | (Type::Encoded(a), Type::Encoded(b)) => {
+                a.learn(b, learnt)
+            }
             (a, b) => a == b,
         }
     }
@@ -296,6 +309,10 @@ pub enum Value {
     Variant(Enum, usize, Vec<Value>),
     /// A sequence: the type of what it holds, and each value in order.
     Seq(Type, Vec<Value>),
+    /// Text, `[~char]`: its bytes, UTF-8.
+    Text(String),
+    /// One byte of an encoded sequence.
+    Byte(u8),
 }
 
 impl Value {
@@ -606,7 +623,18 @@ pub enum Op {
     Len,
     /// `xs[i]`: the value at place `i` of a sequence, from 0. No value
     /// below 0, or at its length or past it, as Rust's `xs[i]` panics.
+    /// Of text, the byte at place `i`.
     Index,
+    /// `"abc"`: text, encoded.
+    Text(String),
+    /// `a ++ b`: the values of `a`, then those of `b`; of text, its bytes.
+    Join,
+    /// `a.starts_with(b)`: the first values of `a` are those of `b`; of
+    /// text, its first bytes.
+    StartsWith,
+    /// `xs.decoded()`: the sequence an encoded one decodes to; a plain
+    /// one is its own. Text waits for the grapheme decoder.
+    Decoded,
 }
 
 /// A function a call can name: what it takes, each by name, what it
@@ -854,6 +882,11 @@ pub struct Simulation {
     pub calls: Arc<Calls>,
 }
 
+/// Text and letters: ordered by their bytes, as Rust orders `str`.
+fn ordered(t: &Type) -> bool {
+    matches!(t, Type::Char) || matches!(t, Type::Encoded(c) if **c == Type::Char)
+}
+
 fn number(t: &Type) -> bool {
     matches!(
         t,
@@ -917,8 +950,14 @@ impl Standard for Simulation {
                 arms[0].clone()
             }
             (Op::Seq(t), holds) if holds.iter().all(|h| h == t) => Type::Seq(Box::new(t.clone())),
-            (Op::Len, [Type::Seq(_)]) => Int,
+            (Op::Len, [Type::Seq(_) | Type::Encoded(_)]) => Int,
             (Op::Index, [Type::Seq(t), Int]) => (**t).clone(),
+            (Op::Index, [Type::Encoded(_), Int]) => Type::Byte,
+            (Op::Text(_), []) => Type::Encoded(Box::new(Type::Char)),
+            (Op::Join, [a @ (Type::Seq(_) | Type::Encoded(_)), b]) if a == b => a.clone(),
+            (Op::StartsWith, [Type::Seq(_) | Type::Encoded(_), _]) if takes[0] == takes[1] => Truth,
+            (Op::Decoded, [a @ Type::Seq(_)]) => a.clone(),
+            (Op::Less | Op::AtMost, [a, b]) if ordered(a) && a == b => Truth,
             (Op::Call(f), takes) => {
                 let callee = self.calls.get(f)?;
                 let fits = takes.len() == callee.takes.len()
@@ -1052,6 +1091,8 @@ impl Reading for Exact {
             (Value::Seq(t, holds), Type::Seq(u)) => {
                 t == &**u && holds.iter().all(|v| self.has_type(v, t))
             }
+            (Value::Text(_), Type::Encoded(t)) => **t == Type::Char,
+            (Value::Byte(_), Type::Byte) => true,
             _ => false,
         }
     }
@@ -1193,6 +1234,46 @@ impl Exact {
                 Value::Seq(t.clone(), holds.to_vec())
             }
             (Op::Len, [Value::Seq(_, holds)]) => Int(BigInt::from(holds.len())),
+            // Text: its bytes, as Rust's `str`.
+            (Op::Text(s), []) => Value::Text(s.clone()),
+            (Op::Len, [Value::Text(s)]) => Int(BigInt::from(s.len())),
+            (Op::Index, [Value::Text(s), Int(i)]) => {
+                match usize::try_from(i).ok().and_then(|k| s.as_bytes().get(k)) {
+                    Some(b) => Value::Byte(*b),
+                    None => {
+                        return Err(Fault::Op(Undefined::Index(format!(
+                            "the index is {i}, and the text holds {} bytes",
+                            s.len()
+                        ))))
+                    }
+                }
+            }
+            (Op::Join, [Value::Text(a), Value::Text(b)]) => Value::Text(format!("{a}{b}")),
+            (Op::Join, [Value::Seq(t, a), Value::Seq(u, b)]) if t == u => {
+                Value::Seq(t.clone(), [a.clone(), b.clone()].concat())
+            }
+            (Op::StartsWith, [Value::Text(a), Value::Text(b)]) => Truth(a.starts_with(b.as_str())),
+            (Op::StartsWith, [Value::Seq(t, a), Value::Seq(u, b)]) if t == u => {
+                if b.len() > a.len() {
+                    Truth(false)
+                } else {
+                    let mut all = true;
+                    for (x, y) in a.iter().zip(b) {
+                        match same(x, y) {
+                            Ok(true) => {}
+                            Ok(false) => {
+                                all = false;
+                                break;
+                            }
+                            Err(g) => return Err(Fault::Op(Undefined::Unknown(g))),
+                        }
+                    }
+                    Truth(all)
+                }
+            }
+            (Op::Decoded, [v @ Value::Seq(..)]) => v.clone(),
+            (Op::Less, [Value::Text(a), Value::Text(b)]) => Truth(a.as_bytes() < b.as_bytes()),
+            (Op::AtMost, [Value::Text(a), Value::Text(b)]) => Truth(a.as_bytes() <= b.as_bytes()),
             (Op::Index, [Value::Seq(_, holds), Int(i)]) => {
                 match usize::try_from(i).ok().and_then(|k| holds.get(k)) {
                     Some(v) => v.clone(),
@@ -1278,6 +1359,13 @@ pub enum Span {
     /// least length), so that a sequence known at a point is known
     /// exactly.
     Seq(Type, Box<Span>, Box<Span>, Vec<Span>),
+    /// Text: the span of its length in bytes, and the text itself when
+    /// it is known.
+    Text(Box<Span>, Option<String>),
+    /// A byte, when it is known.
+    Byte(Option<u8>),
+    /// A letter: no value of it is written yet, so any.
+    Char,
 }
 
 /// γ: `value` lies in `span`.
@@ -1313,6 +1401,11 @@ pub fn lies_in(value: &Value, span: &Span) -> bool {
                     })
                 })
         }
+        (Value::Text(s), Span::Text(length, known)) => {
+            lies_in(&Value::Int(BigInt::from(s.len())), length)
+                && known.as_ref().is_none_or(|k| k == s)
+        }
+        (Value::Byte(b), Span::Byte(known)) => known.is_none_or(|k| k == *b),
         (Value::Seq(t, holds), Span::Seq(u, length, each, first)) => {
             t == u
                 && lies_in(&Value::Int(BigInt::from(holds.len())), length)
@@ -1357,6 +1450,14 @@ impl Bounds {
                         .map(|k| (k == *i).then(|| holds.iter().map(span).collect()))
                         .collect(),
                 ),
+                Value::Text(s) => Span::Text(
+                    Box::new(point(
+                        Numbers::Int,
+                        Rational::integer(BigInt::from(s.len())),
+                    )),
+                    Some(s.clone()),
+                ),
+                Value::Byte(b) => Span::Byte(Some(*b)),
                 Value::Seq(t, holds) => held(t, holds.iter().map(span).collect())
                     .unwrap_or_else(|| Bounds::any(&Type::Seq(Box::new(t.clone()))).span),
                 // A field not known: any value of its type.
@@ -1405,6 +1506,12 @@ impl Bounds {
                     Box::new(span(t)),
                     vec![],
                 ),
+                Type::Encoded(_) => Span::Text(
+                    Box::new(Span::Number(Numbers::Int, Some(Rational::integer(0)), None)),
+                    None,
+                ),
+                Type::Byte => Span::Byte(None),
+                Type::Char => Span::Char,
             }
         }
         Bounds {
@@ -1511,6 +1618,15 @@ fn fits(span: &Span, of: &Type) -> bool {
                     })
                 })
         }
+        (Span::Text(length, known), Type::Encoded(c)) => {
+            **c == Type::Char
+                && fits(length, &Type::Int)
+                && matches!(&**length, Span::Number(_, Some(low), _) if low >= &Rational::integer(0))
+                && known
+                    .as_ref()
+                    .is_none_or(|k| lies_in(&Value::Int(BigInt::from(k.len())), length))
+        }
+        (Span::Byte(_), Type::Byte) | (Span::Char, Type::Char) => true,
         (Span::Seq(t, length, each, first), Type::Seq(u)) => {
             t == &**u
                 && fits(length, &Type::Int)
@@ -1650,6 +1766,11 @@ fn hull(a: &Span, b: &Span) -> Option<Span> {
             }
             Span::Variant(e.clone(), may)
         }
+        (Span::Text(al, a), Span::Text(bl, b)) => {
+            Span::Text(Box::new(hull(al, bl)?), a.clone().filter(|_| a == b))
+        }
+        (Span::Byte(a), Span::Byte(b)) => Span::Byte(a.filter(|_| a == b)),
+        (Span::Char, Span::Char) => Span::Char,
         // The first places both surely hold, each joined.
         (Span::Seq(t, al, ae, af), Span::Seq(u, bl, be, bf)) if t == u => Span::Seq(
             t.clone(),
@@ -1946,6 +2067,17 @@ fn compare(a: &Span, b: &Span) -> Option<(bool, bool)> {
             }
             (equal, differ)
         }
+        // Text: decided when both are known; else equal only at one
+        // length both may have.
+        (Span::Text(al, a), Span::Text(bl, b)) => match (a, b) {
+            (Some(a), Some(b)) => (a == b, a != b),
+            _ => (compare(al, bl)?.0, true),
+        },
+        (Span::Byte(a), Span::Byte(b)) => match (a, b) {
+            (Some(a), Some(b)) => (a == b, a != b),
+            _ => (true, true),
+        },
+        (Span::Char, Span::Char) => (true, true),
         // Equal only at one length both may have, each value equal; they
         // differ in length, or in a value, unless both surely hold none.
         // Two of one length, each place known: place by place.
@@ -2012,6 +2144,7 @@ fn index(
     first: &[Span],
     at: (&Option<Rational>, &Option<Rational>),
     may_fault: bool,
+    text: bool,
 ) -> Bounded {
     let Span::Number(_, low, high) = length else {
         return Err(Fault::Stuck);
@@ -2032,11 +2165,18 @@ fn index(
     if ih < zero || il > top {
         // At one index and one length, said as `Exact` says it.
         let why = match (&il, &ih, &ll, &lh) {
-            (End::At(i), End::At(j), End::At(n), End::At(m)) if i == j && n == m => format!(
-                "the index is {}, and the sequence holds {}",
-                i.numer(),
-                n.numer()
-            ),
+            (End::At(i), End::At(j), End::At(n), End::At(m)) if i == j && n == m => match text {
+                true => format!(
+                    "the index is {}, and the text holds {} bytes",
+                    i.numer(),
+                    n.numer()
+                ),
+                false => format!(
+                    "the index is {}, and the sequence holds {}",
+                    i.numer(),
+                    n.numer()
+                ),
+            },
             _ => "the index lies outside every place the sequence may have".to_string(),
         };
         return Err(Fault::Op(Undefined::Index(why)));
@@ -2054,6 +2194,33 @@ fn index(
         span,
         may_fault: may_fault || il < zero || ih > surely_held,
     })
+}
+
+/// The length of a join: the two lengths added.
+fn join_lengths(a: &Span, b: &Span) -> Result<Span, Fault<Undefined>> {
+    match (a, b) {
+        (Span::Number(Numbers::Int, al, ah), Span::Number(Numbers::Int, bl, bh)) => Ok(arith(
+            &Op::Add,
+            Numbers::Int,
+            &(al.clone(), ah.clone()),
+            &(bl.clone(), bh.clone()),
+        )),
+        _ => Err(Fault::Stuck),
+    }
+}
+
+/// A truth, said.
+fn said_span(b: bool) -> Span {
+    Span::Truth { yes: b, no: !b }
+}
+
+/// The prefix's length may be at most the whole's: else it surely does
+/// not start the whole.
+fn compare_lengths_may_fit(whole: &Span, prefix: &Span) -> bool {
+    match (whole, prefix) {
+        (Span::Number(_, _, wh), Span::Number(_, pl, _)) => End::low(pl) <= End::high(wh),
+        _ => true,
+    }
 }
 
 /// A sequence holding values in these spans, each place known: of one
@@ -2381,7 +2548,89 @@ impl Ranges {
             (
                 Op::Index,
                 [Span::Seq(_, length, each, first), Span::Number(Numbers::Int, il, ih)],
-            ) => return index(length, each, first, (il, ih), may_fault),
+            ) => return index(length, each, first, (il, ih), may_fault, false),
+            // Text: what is known of it; its bytes when it is known.
+            (Op::Text(_), []) => {
+                let exact = Exact::default().apply(op, &[])?;
+                Bounds::exactly(&exact).span
+            }
+            (Op::Len, [Span::Text(length, _)]) => (**length).clone(),
+            (Op::Index, [Span::Text(length, known), Span::Number(Numbers::Int, il, ih)]) => {
+                let bytes: Vec<Span> = known
+                    .iter()
+                    .flat_map(|k| k.bytes().map(|b| Span::Byte(Some(b))))
+                    .collect();
+                return index(length, &Span::Byte(None), &bytes, (il, ih), may_fault, true);
+            }
+            (Op::Join, [Span::Text(al, a), Span::Text(bl, b)]) => {
+                let length = join_lengths(al, bl)?;
+                let known = match (a, b) {
+                    (Some(a), Some(b)) => Some(format!("{a}{b}")),
+                    _ => None,
+                };
+                Span::Text(Box::new(length), known)
+            }
+            (Op::Join, [Span::Seq(t, al, ae, af), Span::Seq(u, bl, be, bf)]) if t == u => {
+                let length = join_lengths(al, bl)?;
+                // The places surely held: all of `a`'s, then `b`'s when
+                // `a` is of one length.
+                let first = match one_length(al) {
+                    Some(n) if n == af.len() => [af.clone(), bf.clone()].concat(),
+                    _ => af.clone(),
+                };
+                // An empty side adds nothing to what each place may be.
+                let each = match (one_length(al), one_length(bl)) {
+                    (Some(0), _) => (**be).clone(),
+                    (_, Some(0)) => (**ae).clone(),
+                    _ => hull(ae, be).ok_or(Fault::Stuck)?,
+                };
+                Span::Seq(t.clone(), Box::new(length), Box::new(each), first)
+            }
+            (Op::StartsWith, [Span::Text(al, a), Span::Text(bl, b)]) => match (a, b) {
+                (Some(a), Some(b)) => said_span(a.starts_with(b.as_str())),
+                (_, Some(b)) if b.is_empty() => said_span(true),
+                _ => Span::Truth {
+                    yes: compare_lengths_may_fit(al, bl),
+                    no: true,
+                },
+            },
+            (Op::StartsWith, [Span::Seq(t, al, _, af), Span::Seq(u, bl, _, bf)]) if t == u => {
+                match (one_length(al), one_length(bl)) {
+                    (_, Some(0)) => said_span(true),
+                    (Some(n), Some(m)) if n == af.len() && m == bf.len() => {
+                        if m > n {
+                            said_span(false)
+                        } else {
+                            let (mut yes, mut no) = (true, false);
+                            for (x, y) in af.iter().zip(bf) {
+                                let (e, d) = compare(x, y).ok_or(Fault::Stuck)?;
+                                yes &= e;
+                                no |= d;
+                            }
+                            Span::Truth { yes, no }
+                        }
+                    }
+                    _ => Span::Truth {
+                        yes: compare_lengths_may_fit(al, bl),
+                        no: true,
+                    },
+                }
+            }
+            (Op::Less | Op::AtMost, [Span::Text(_, a), Span::Text(_, b)]) => match (a, b) {
+                (Some(a), Some(b)) => said_span(match op {
+                    Op::Less => a.as_bytes() < b.as_bytes(),
+                    _ => a.as_bytes() <= b.as_bytes(),
+                }),
+                _ => Span::Truth {
+                    yes: true,
+                    no: true,
+                },
+            },
+            (Op::Less | Op::AtMost, [Span::Char, Span::Char]) => Span::Truth {
+                yes: true,
+                no: true,
+            },
+            (Op::Decoded, [s @ Span::Seq(..)]) => (*s).clone(),
             _ => return Err(Fault::Stuck),
         };
         Ok(Bounds { span, may_fault })

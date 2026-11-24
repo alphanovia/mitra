@@ -94,6 +94,11 @@ computation calls for, or what that function takes. Any other is A009.
   bounds, a sequence keeps its length and one span for all it holds, and
   the span of each place it surely holds: `p[0] < p[1]` of `[a, a + 1]`
   is read place by place only at a point.
+- **Text is tried from what the model writes**: `""`, each text the
+  expressions write, each two joined, and their prefixes (finding 3,
+  step 3). A claim false only on another text is unknown (A007). By
+  bounds, a text keeps its length in bytes, and the text itself when
+  it is known.
 - **Range types are read as premises.** `fn f(a: 0..=9)` reads each
   claim as `!(0 <= a && a <= 9) || claim`, and the range of what it
   gives as one more comparison, `its range \`q: 0..=9\``: a body that

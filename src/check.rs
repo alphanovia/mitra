@@ -323,7 +323,7 @@ fn names_param(t: &Type, p: &str) -> bool {
             .chain(r.fields.iter().map(|(_, t)| t))
             .any(|t| names_param(t, p)),
         Type::Enum(e) => e.args.iter().any(|t| names_param(t, p)),
-        Type::Seq(t) => names_param(t, p),
+        Type::Seq(t) | Type::Encoded(t) => names_param(t, p),
         _ => false,
     }
 }
@@ -348,7 +348,7 @@ fn named_in(t: &Type) -> Vec<&str> {
             }
             found
         }
-        Type::Seq(t) => named_in(t),
+        Type::Seq(t) | Type::Encoded(t) => named_in(t),
         _ => vec![],
     }
 }
@@ -517,7 +517,7 @@ fn std_named(t: &Type) -> Option<(&'static str, String)> {
     let name = match t {
         Type::Record(r) => r.name.clone(),
         Type::Enum(e) => e.name.clone(),
-        Type::Seq(t) => return std_named(t),
+        Type::Seq(t) | Type::Encoded(t) => return std_named(t),
         _ => return None,
     };
     let declares = |text: &str| {
@@ -541,8 +541,8 @@ fn known(index: &Index, t: &Type) -> bool {
 /// `known`, or a parameter declared so in a contract with `params`.
 fn known_in(index: &Index, t: &Type, params: &[(String, Bound)]) -> bool {
     match t {
-        Type::Truth | Type::Int | Type::Real => true,
-        Type::Seq(t) => known_in(index, t, params),
+        Type::Truth | Type::Int | Type::Real | Type::Char | Type::Byte => true,
+        Type::Seq(t) | Type::Encoded(t) => known_in(index, t, params),
         Type::Param { name, bound } => params.iter().any(|(n, b)| n == name && b == bound),
         // A tuple: a record with no name, its fields `0`, `1`, ….
         Type::Record(r) if r.name.is_empty() => {
@@ -581,7 +581,7 @@ fn holds_itself(t: &Type, name: &str, here: bool) -> bool {
             .flat_map(|(_, ts)| ts)
             .any(|t| holds_itself(t, name, true)),
         // A sequence of itself is a tree: not in this round (finding 3).
-        Type::Seq(t) => holds_itself(t, name, here),
+        Type::Seq(t) | Type::Encoded(t) => holds_itself(t, name, here),
         _ => false,
     }
 }
@@ -661,7 +661,7 @@ pub(crate) fn value_made(index: &Index, v: &Value) -> bool {
         Value::Seq(t, holds) => {
             (untold(t) || known(index, t)) && holds.iter().all(|v| value_made(index, v))
         }
-        Value::Truth(_) | Value::Int(_) | Value::Real(_) => true,
+        Value::Truth(_) | Value::Int(_) | Value::Real(_) | Value::Text(_) | Value::Byte(_) => true,
     }
 }
 
@@ -671,7 +671,7 @@ fn untold(t: &Type) -> bool {
         Type::Param { name, .. } => name.starts_with('?'),
         Type::Record(r) => r.args.iter().any(untold),
         Type::Enum(e) => e.args.iter().any(untold),
-        Type::Seq(t) => untold(t),
+        Type::Seq(t) | Type::Encoded(t) => untold(t),
         _ => false,
     }
 }
@@ -921,7 +921,7 @@ fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error>
             }
             todo.extend(e.variants.iter().flat_map(|(_, ts)| ts));
         }
-        if let Type::Seq(t) = t {
+        if let Type::Seq(t) | Type::Encoded(t) = t {
             todo.push(t);
         }
     }
@@ -1506,6 +1506,14 @@ impl Mistyped<'_> {
             Op::Mul => format!("`*` takes two numbers {SAME}"),
             Op::Div => "`/` takes two Int or two Real".to_string(),
             Op::Rem => "`%` takes two Int".to_string(),
+            Op::Less | Op::AtMost
+                if takes
+                    .iter()
+                    .any(|t| matches!(t, Type::Encoded(_) | Type::Char | Type::Byte)) =>
+            {
+                let symbol = if *op == Op::Less { "<" } else { "<=" };
+                format!("`{symbol}` compares two texts byte by byte, or two `char`; a byte has `==` only")
+            }
             Op::Less => format!("`<` compares two numbers {SAME}"),
             Op::AtMost => format!("`<=` compares two numbers {SAME}"),
             Op::Equal => "`==` compares two values of one type".to_string(),
@@ -1515,7 +1523,9 @@ impl Mistyped<'_> {
             Op::Or => "`||` takes two bool".to_string(),
             Op::If => "`if` takes a bool, then two branches of one type".to_string(),
             Op::All => "`all` takes two Int bounds and a bool".to_string(),
-            Op::Field(name) if name == "len" && matches!(takes.first(), Some(Type::Seq(_))) => {
+            Op::Field(name)
+                if name == "len" && matches!(takes.first(), Some(Type::Seq(_) | Type::Encoded(_))) =>
+            {
                 "`.len` reads a field of a record that has one: the length of a sequence is `.len()`".to_string()
             }
             Op::Field(name) => format!("`.{name}` reads a field of a record that has one"),
@@ -1557,9 +1567,21 @@ impl Mistyped<'_> {
                 "`[…]` holds values of one type, here `{}`",
                 crate::print::type_(t)
             ),
-            Op::Len => "`.len()` reads a sequence".to_string(),
-            Op::Index => "`xs[i]` reads a sequence `xs` at an Int `i`".to_string(),
-            Op::Let | Op::Truth(_) | Op::Int(_) | Op::Real(_) => return Vec::new(),
+            Op::Len => "`.len()` reads a sequence, or a text in bytes".to_string(),
+            Op::Index => {
+                "`xs[i]` reads a sequence `xs` at an Int `i`; on a text, a byte".to_string()
+            }
+            Op::Join => "`++` joins two sequences of one type, or two texts".to_string(),
+            Op::StartsWith => {
+                "`a.starts_with(b)` takes two sequences of one type, or two texts".to_string()
+            }
+            Op::Decoded if matches!(takes.first(), Some(Type::Encoded(_))) => {
+                "`.decoded()` on a text `[~char]` gives its letters, and waits for the grapheme decoder: not built yet".to_string()
+            }
+            Op::Decoded => "`.decoded()` reads a sequence".to_string(),
+            Op::Let | Op::Truth(_) | Op::Int(_) | Op::Real(_) | Op::Text(_) => {
+                return Vec::new()
+            }
         };
         let mut notes = vec![format!("note: {takes_what}")];
         // What each argument meets: the type the call or record wants
@@ -1586,6 +1608,14 @@ impl Mistyped<'_> {
                     "help: Mitra converts no number; a {name} comes from a function that gives one, declared beside the others"
                 ));
             }
+        }
+        // `+` on two texts or two sequences: they are joined with `++`.
+        if *op == Op::Add
+            && takes.len() == 2
+            && takes[0] == takes[1]
+            && matches!(takes[0], Type::Seq(_) | Type::Encoded(_))
+        {
+            helps.insert("help: two texts or two sequences are joined with `++`".to_string());
         }
         notes.extend(helps);
         notes
