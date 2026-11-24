@@ -56,6 +56,7 @@ example, and the fix. The letter says which step found it.
 - [M031](M031.md): a claim `by induction` on what is not an input that is a tree
 - [M032](M032.md): a proof written as its step alone that no proof, or two, fill in
 - [M033](M033.md): a claim `by invariant` of what is not a loop's function
+- [M034](M034.md): a set of a rule whose range holds no point
 
 ## A (agree): the model compared with itself (`check`)
 
@@ -112,6 +113,7 @@ example, and the fix. The letter says which step found it.
 - [X010](X010.md): a value known in part, where only what is not known could tell
 - [X011](X011.md): a measured value outside the range of its type
 - [X012](X012.md): a link, or a piece said only in words, no voice reviewed
+- [X013](X013.md): an all or an any over a set no point is in
 
 ## B (blame): diagnoses
 

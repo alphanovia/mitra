@@ -15,6 +15,7 @@ subject check {
         from (codes, one_value);
     ensure one_value: "two examples of a function at one point that give different values are the error M024";
     ensure in_ranges: "a range type that holds no number is the error M025, an example outside one M026";
+    ensure empty_sets: "a range of a rule's set whose low end is at or above its high end holds no point and is the error M034, with the range it likely meant";
     ensure declared: "an enum with no variant, a type parameter nothing it holds uses, an enum that holds itself in every variant, or a record that holds itself, is the error M027";
     ensure recursion: "a function calls itself only on parts of one of its inputs a `match` takes apart, the same for every call (M019 otherwise); a claim `by induction t` names such an input that is a tree (M031 otherwise)";
     ensure short_proofs: "a rule's proof written as its step alone, `by tollens`, shows the rule only when exactly one proof of that step from the rule's premises, each as it is or negated, shows it; none, or two listed as they are written in full, is M032";

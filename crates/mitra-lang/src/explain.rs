@@ -23,6 +23,7 @@
 
 use crate::catalogue::{
     Ask, Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008, X009, X010, X011, X012,
+    X013,
 };
 use crate::evidence::{self, port, Ledger, Measurement};
 use crate::expression::{eval, Arg, Expression, Fault};
@@ -251,6 +252,26 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         .into_iter()
         .collect();
     for q in &quantified {
+        if none_in(q, settings) {
+            let at = props.iter().find(|(_, p)| p == q).map(|(at, _)| at.clone());
+            let (Prop::All { over, .. } | Prop::Any { over, .. }) = q else {
+                continue;
+            };
+            let (said, value) = match q {
+                Prop::All { .. } => ("all", "true"),
+                _ => ("any", "false"),
+            };
+            findings.push(Finding {
+                code: X013,
+                at: at.unwrap_or_else(|| Path::to(&["explain"])),
+                message: format!(
+                    "`{}`: no point is in the set {}: the {said} would be {value} with no point to read, so it is given nothing from its points",
+                    print::print_prop(q),
+                    print::print_set(over)
+                ),
+            });
+            continue;
+        }
         if let Some(o) = judge.cases(q, &evidence, settings) {
             judge.add(o);
         }
@@ -863,6 +884,25 @@ fn observations(model: &Model, observed: Observed, findings: &mut Vec<Finding>) 
 /// Judgement at work: an opinion of each proposition, joined as rules
 /// give more. A negation is kept with what it negates: an opinion of
 /// `!p` is one of `p`, its sides swapped, so that `p` and `!p` meet.
+/// An all or an any whose set is listed, few enough points in its
+/// ranges, and no point is in it: its condition false at each (X013).
+fn none_in(q: &Prop, settings: &Settings) -> bool {
+    let (Prop::All { over, .. } | Prop::Any { over, .. }) = q else {
+        return false;
+    };
+    let mut size = num_bigint::BigInt::from(1);
+    for (_, lo, hi) in &over.ranges {
+        let (Value::Int(lo), Value::Int(hi)) = (lo, hi) else {
+            return false;
+        };
+        size *= (hi - lo).max(num_bigint::BigInt::from(0));
+    }
+    size <= num_bigint::BigInt::from(settings.cases)
+        && over
+            .points()
+            .is_some_and(|mut points| points.next().is_none())
+}
+
 struct Judge {
     judgement: Judgement,
     opinions: BTreeMap<Prop, Opinion>,

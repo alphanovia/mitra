@@ -826,6 +826,17 @@ fn takes(ts: &[(String, Type)]) -> String {
         .join(", ")
 }
 
+/// `(a: 0..10) where a > 5`, as written.
+pub fn print_set(s: &Set) -> String {
+    let calling = Calling::default();
+    let cx = Cx {
+        calling: &calling,
+        part: None,
+        contract: None,
+    };
+    set(&cx, s)
+}
+
 fn set(cx: &Cx, s: &Set) -> String {
     let ranges: Vec<String> = s
         .ranges

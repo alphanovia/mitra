@@ -727,6 +727,16 @@ fn each_error_is_found() {
         ]
     );
     given.extend(["M025".to_string(), "M026".to_string(), "M027".to_string()]);
+    // A set of a rule whose range holds no point (M034), as Clippy's
+    // `reversed_empty_ranges`.
+    assert_eq!(
+        digits("subject d {\n    fn f(a: integer) -> b: integer { a } where {\n        claim c: b == a;\n        rule r: f::c |- all x in (a: 1..0): correct(f, x);\n        rule s: f::c |- any x in (a: 3..3): correct(f, x);\n    }\n}"),
+        [
+            "error[M034]: the conclusion: `a: 1..0` holds no point: a range is written low end first: did you mean `a: 0..1`?\n --> d::f::r",
+            "error[M034]: the conclusion: `a: 3..3` holds no point: a range leaves its high end out, as in Rust: did you mean `a: 3..4`, the one point 3?\n --> d::f::s",
+        ]
+    );
+    let empty = "M034".to_string();
     // Parts holding parts (M028, M029) and methods (M030).
     assert_eq!(
         digits("subject A {\n    fn f(x: integer) -> y: integer { x }\n    subject B { ensure e: \"e\"; }\n}"),
@@ -765,6 +775,7 @@ fn each_error_is_found() {
         ["error[M033]: the body of `f` is no loop: `by invariant` is on a function whose body is `xs.fold(…) { … }` or `until(…) { … }`\n --> T::f::c"]
     );
     given.push("M033".to_string());
+    given.push(empty);
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Model && !e.retired);
@@ -1771,8 +1782,8 @@ fn model_examples_name_inputs_and_outputs() {
 /// whichever rule writes it.
 #[test]
 fn rules_write_where_functions_are_correct() {
-    let set = |kind: Value| judgement::Set {
-        ranges: vec![("h".to_string(), kind.clone(), kind)],
+    let set = |lo: Value, hi: Value| judgement::Set {
+        ranges: vec![("h".to_string(), lo, hi)],
         such: None,
     };
     let everywhere = |over: judgement::Set, body: Prop| Prop::All {
@@ -1787,11 +1798,14 @@ fn rules_write_where_functions_are_correct() {
             m.parts[1].functions[1].rules.push(r);
         })
     };
-    let fine = everywhere(set(number(0)), correct("stone::speed", None));
+    let fine = everywhere(set(number(0), number(1)), correct("stone::speed", None));
     assert_eq!(with(fine.clone()), Vec::<String>::new());
     let at_point = correct("stone::speed", Some(vec![number(5)]));
     assert_eq!(with(at_point), Vec::<String>::new());
-    let ints = everywhere(set(Value::Int(0.into())), correct("stone::speed", None));
+    let ints = everywhere(
+        set(Value::Int(0.into()), Value::Int(1.into())),
+        correct("stone::speed", None),
+    );
     assert_eq!(with(ints), ["M023 at stone::speed::everywhere"]);
     let free = correct("stone::speed", None);
     assert_eq!(with(free), ["M023 at stone::speed::everywhere"]);

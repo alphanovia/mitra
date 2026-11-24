@@ -6,7 +6,7 @@
 use crate::catalogue::{
     Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013,
     M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024, M025, M026, M027, M028, M029,
-    M030, M031, M032, M033,
+    M030, M031, M032, M033, M034,
 };
 use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
@@ -1598,6 +1598,7 @@ fn correct_wrong(index: &Index, at: &Path, place: &str, p: &Prop) -> Vec<Error> 
         match p {
             Prop::Not(x) => todo.push((x, bound)),
             Prop::All { name, over, body } | Prop::Any { name, over, body } => {
+                errors.extend(empty_set(at, place, over));
                 let mut bound = bound.clone();
                 bound.push((name, over));
                 todo.push((body, bound));
@@ -1654,6 +1655,39 @@ fn correct_wrong(index: &Index, at: &Path, place: &str, p: &Prop) -> Vec<Error> 
                 ));
             }
         }
+    }
+    errors
+}
+
+/// M034: a range of a set whose ends leave no number between them,
+/// `1..0` or `3..3`, as Clippy's `reversed_empty_ranges` says: the all
+/// over it would hold of nothing, and the any be false of nothing.
+fn empty_set(at: &Path, place: &str, over: &judgement::Set) -> Vec<Error> {
+    use crate::print::value;
+    use simulation::Value as V;
+    let mut errors = Vec::new();
+    for (n, lo, hi) in &over.ranges {
+        let written = format!("{n}: {}..{}", value(lo), value(hi));
+        let why = match (lo, hi) {
+            _ if lo == hi => match lo {
+                V::Int(l) => format!(
+                    "a range leaves its high end out, as in Rust: did you mean `{n}: {l}..{}`, the one point {l}?",
+                    l + 1
+                ),
+                _ => "a range leaves its high end out, as in Rust".to_string(),
+            },
+            (V::Int(l), V::Int(h)) if l > h => format!(
+                "a range is written low end first: did you mean `{n}: {h}..{l}`?"
+            ),
+            (V::Real(l), V::Real(h)) if l > h => format!(
+                "a range is written low end first: did you mean `{n}: {}..{}`?",
+                value(hi),
+                value(lo)
+            ),
+            _ => continue,
+        };
+        let message = format!("{place}: `{written}` holds no point: {why}");
+        errors.push(error(M034, at, message));
     }
     errors
 }

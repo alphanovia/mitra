@@ -56,6 +56,8 @@ review simulation::known_in_part holds by "agent:anthropic/opus-5.5/dogfood" see
 review explain::only_known holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:tests/explain.rs::each_finding_is_given";
 review explain::drift holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:an_input_outside_its_range_counts_against_the_model";
 review check::in_ranges holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:tests/model.rs::each_error_is_found";
+review check::empty_sets holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_backwards_range_is_an_error", "test:empty_is_said_once_and_never_explained";
+review explain::no_points holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_condition_no_point_meets_is_a_finding", "test:empty_is_said_once_and_never_explained";
 review Budget::Budget holds by "agent:anthropic/opus-5.5/dogfood";
 review explain::verdicts holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_hundred_tests_explain_div_everywhere";
 review blame::minimal holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:held_blame_diagnoses_are_hitting_sets";

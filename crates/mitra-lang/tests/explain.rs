@@ -460,6 +460,15 @@ subject location {
         .all(|a| a.to_string().starts_with("ask[X012]: ")));
     assert!(!e.asks.is_empty());
     given.insert("X012".to_string());
+    // X013: an all over a set no point is in, in tests/empty_sets.rs too.
+    let none = parse("subject s {\n    fn f(a: integer) -> b: integer { a } where {\n        claim c: b == a;\n        rule r: f::c |- all x in (a: 0..3) where a > 5: correct(f, x);\n    }\n}").unwrap();
+    let e = explain(&none, &Ledger::default(), &Settings::default());
+    let shown: Vec<String> = e.findings.iter().map(|f| f.to_string()).collect();
+    assert_eq!(
+        shown,
+        ["finding[X013]: `all x in (a: 0..3) where 5 < a: correct(s::f, x)`: no point is in the set (a: 0..3) where 5 < a: the all would be true with no point to read, so it is given nothing from its points\n --> s::f::r"]
+    );
+    given.insert("X013".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Explain && !e.retired);

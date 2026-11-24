@@ -109,6 +109,7 @@ pub const M030: Code = model(30);
 pub const M031: Code = model(31);
 pub const M032: Code = model(32);
 pub const M033: Code = model(33);
+pub const M034: Code = model(34);
 
 const fn agree(number: u16) -> Code {
     Code {
@@ -163,6 +164,7 @@ pub const X009: Code = explain(9);
 pub const X010: Code = explain(10);
 pub const X011: Code = explain(11);
 pub const X012: Code = explain(12);
+pub const X013: Code = explain(13);
 
 const fn blame(number: u16) -> Code {
     Code {
@@ -309,6 +311,7 @@ pub const CATALOGUE: &[Entry] = &[
         M033,
         "a claim `by invariant` of what is not a loop's function",
     ),
+    entry(M034, "a set of a rule whose range holds no point"),
     entry(A001, "a body that breaks a claim"),
     entry(A002, "a body that disagrees with an example"),
     entry(A003, "an example that breaks a claim"),
@@ -364,6 +367,7 @@ pub const CATALOGUE: &[Entry] = &[
         X012,
         "a link, or a piece said only in words, no voice reviewed",
     ),
+    entry(X013, "an all or an any over a set no point is in"),
     entry(B001, "a conflict the model's claims alone hold"),
     entry(B002, "more diagnoses than blame looked for"),
     entry(B003, "a diagnosis a proof by cases may outlive"),
