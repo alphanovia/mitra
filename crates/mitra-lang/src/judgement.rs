@@ -617,6 +617,20 @@ fn smallest(sets: impl IntoIterator<Item = BTreeSet<Taking>>) -> Rests {
 /// Every way to have all of `sides`: one set of each, together. Sides
 /// with no taking in common already give only the smallest.
 fn all_of(sides: &[&Rests]) -> Rests {
+    all_of_within(sides, usize::MAX).unwrap_or_default()
+}
+
+/// Whether every way to have all of `sides` comes to at most `most`
+/// sets, once only the smallest are kept: what the product of their
+/// counts says, or, past it, by working them out: no step builds more
+/// than `most` ways before keeping the smallest, or the answer is no.
+pub fn ways_within(sides: &[&Rests], most: usize) -> bool {
+    let product = sides.iter().map(|s| s.len()).fold(1usize, usize::saturating_mul);
+    product <= most || all_of_within(sides, most).is_some_and(|ways| ways.len() <= most)
+}
+
+/// `all_of`, or `None` when a step would build more than `most` ways.
+fn all_of_within(sides: &[&Rests], most: usize) -> Option<Rests> {
     // Sides with fewest sets first: a side that holds the others' takings
     // then keeps the ways few.
     let mut sides = sides.to_vec();
@@ -624,6 +638,9 @@ fn all_of(sides: &[&Rests]) -> Rests {
     let mut ways: Vec<BTreeSet<Taking>> = vec![BTreeSet::new()];
     let mut seen: BTreeSet<&Taking> = BTreeSet::new();
     for side in sides {
+        if ways.len().saturating_mul(side.len()) > most {
+            return None;
+        }
         let takings: BTreeSet<&Taking> = side.iter().flatten().collect();
         let shared = takings.iter().any(|t| seen.contains(t));
         ways = match side.first() {
@@ -645,7 +662,7 @@ fn all_of(sides: &[&Rests]) -> Rests {
         }
         seen.extend(takings);
     }
-    ways.into_iter().collect()
+    Some(ways.into_iter().collect())
 }
 
 /// The types: a state, an opinion of a proposition, or a point, the

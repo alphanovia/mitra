@@ -53,8 +53,9 @@ pub struct Settings {
     /// A rule is applied only when the sets of takings its premises rest
     /// on, taken together, number at most this many: each way to have
     /// every premise is one more set its conclusion rests on, and
-    /// judgement keeps the smallest by comparing each with each. Default
-    /// 1,024. A finding names each rule left out.
+    /// judgement keeps the smallest by comparing each with each. Counted
+    /// once only the smallest are kept, not by multiplying the premises'
+    /// counts. Default 1,024. A finding names each rule left out.
     pub rests: usize,
     /// How far one computation through calls may go: past it, X009, and
     /// nothing is decided there.
@@ -1066,11 +1067,6 @@ impl Judge {
         Some(judgement::Value::Opinion(o))
     }
 
-    /// How many sets these opinions rest on together, each on one side.
-    fn ways(sides: impl IntoIterator<Item = usize>) -> usize {
-        sides.into_iter().fold(1usize, usize::saturating_mul)
-    }
-
     /// Every rule, forward and back, and every all and any by the
     /// points opinions are about, until nothing changes: whether it got
     /// there within the rounds. A rule is read again only when the side
@@ -1103,11 +1099,14 @@ impl Judge {
                     false => None,
                 };
                 if let Some(all) = all {
-                    let ways = Self::ways(all.iter().map(|v| match v {
-                        judgement::Value::Opinion(o) => o.rests_for().len(),
-                        _ => 1,
-                    }));
-                    if ways > settings.rests {
+                    let sides: Vec<&Rests> = all
+                        .iter()
+                        .filter_map(|v| match v {
+                            judgement::Value::Opinion(o) => Some(o.rests_for()),
+                            _ => None,
+                        })
+                        .collect();
+                    if !judgement::ways_within(&sides, settings.rests) {
                         self.stopped.insert(t.clone());
                     } else {
                         for post in 0..posts.len() {
@@ -1134,14 +1133,13 @@ impl Judge {
                             .map(|(_, p)| self.told_true(p))
                             .collect();
                         let Some(others) = others else { continue };
-                        let ways =
-                            Self::ways(std::iter::once(false_q.rests_against().len()).chain(
-                                others.iter().map(|v| match v {
-                                    judgement::Value::Opinion(o) => o.rests_for().len(),
-                                    _ => 1,
-                                }),
-                            ));
-                        if ways > settings.rests {
+                        let sides: Vec<&Rests> = std::iter::once(false_q.rests_against())
+                            .chain(others.iter().filter_map(|v| match v {
+                                judgement::Value::Opinion(o) => Some(o.rests_for()),
+                                _ => None,
+                            }))
+                            .collect();
+                        if !judgement::ways_within(&sides, settings.rests) {
                             self.stopped.insert(t.clone());
                             continue;
                         }

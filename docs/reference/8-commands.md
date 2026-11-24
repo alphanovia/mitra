@@ -70,7 +70,7 @@ depth = 1000
 [explain]
 rounds = 64            # rounds of judging
 cases = 1024           # the most points an `all` or `any` is decided on
-rests = 1024           # the most sets of evidence a rule combines
+rests = 1024           # the most sets of evidence a rule combines, duplicates removed
 [numbers]
 base_rate = 0.5        # what a statement is expected to be with no evidence
 prior_weight = 2.0     # how many runs uncertainty weighs as

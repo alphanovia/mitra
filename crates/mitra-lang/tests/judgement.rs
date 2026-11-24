@@ -2838,3 +2838,28 @@ fn the_generator_builds_intros_over_points() {
         "own {own}, other {other}, accepted {accepted}"
     );
 }
+
+/// The rests cap counts the sets once only the smallest are kept, not the
+/// product of the premises' counts (finding 25).
+#[test]
+fn ways_within_counts_the_smallest() {
+    use mitra_lang::judgement::{ways_within, Rests, Taking};
+    let taking = |name: &str| Taking {
+        prop: Prop::named(name),
+        value: true,
+        count: 1,
+        by: "test:t".to_string(),
+    };
+    let side = |names: &[&str]| -> Rests {
+        names.iter().map(|n| BTreeSet::from([taking(n)])).collect()
+    };
+    // Three premises resting on the same three tests: 27 ways, 3
+    // smallest, and no step builds more than 9.
+    let shared = side(&["a", "b", "c"]);
+    assert!(ways_within(&[&shared, &shared, &shared], 9));
+    assert!(!ways_within(&[&shared, &shared, &shared], 8));
+    // Nothing in common: 27 ways, all smallest.
+    let (x, y) = (side(&["x", "y", "z"]), side(&["u", "v", "w"]));
+    assert!(!ways_within(&[&shared, &x, &y], 26));
+    assert!(ways_within(&[&shared, &x, &y], 27));
+}

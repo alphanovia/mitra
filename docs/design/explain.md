@@ -72,7 +72,10 @@ all false, an any true). Until nothing changes, within `Settings::rounds`.
   together is left out** (flagged), with X006 naming it: each way to
   have every premise is one more set the conclusion rests on, and
   judgement keeps the smallest by comparing each with each. An ensure
-  from 7 claims, each reviewed by 3 voices, rests on 4⁷ sets.
+  from 7 claims, each reviewed by 3 voices, rests on 4⁷ sets. The sets
+  are counted once only the smallest are kept (premises sharing evidence
+  give far fewer than the product of their counts); no step of working
+  them out builds more than `rests` sets, so memory stays as before.
 
 An all is true, or an any false, by its cases when its ranges hold at
 most `Settings::cases` points (its condition is read after: a few points
