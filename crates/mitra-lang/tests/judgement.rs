@@ -159,7 +159,7 @@ fn over_points(rng: &mut Rng, sets: &[(Set, Vec<i64>)], depth: u32) -> Prop {
             false => any_in("x", over, body),
         }
     };
-    let body = match (depth, rng.below(5)) {
+    let body = match (depth, rng.below(6)) {
         (0, _) | (_, 0) => correct("f", var("x")),
         (_, 1) => Prop::Not(Box::new(correct("f", var("x")))),
         (_, 2) => Prop::Implies {
@@ -170,6 +170,27 @@ fn over_points(rng: &mut Rng, sets: &[(Set, Vec<i64>)], depth: u32) -> Prop {
         (_, 3) => {
             // An inner all or any binding `x` again, which hides the outer.
             over_points(rng, sets, depth - 1)
+        }
+        (_, 5) => {
+            // The names the other way: an outer `y`, an inner `x` of it.
+            // Its instance at the point an intro binds for an `x` of the
+            // same set writes that point inside an all or any binding
+            // `x`: an intro over it would take its own point (round 7,
+            // finding 22).
+            let inner = Prop::Implies {
+                pre: vec![correct("f", var("y"))],
+                subject: "k".to_string(),
+                post: vec![correct("f", var("x"))],
+            };
+            let inner = match rng.coin() {
+                true => all_in("x", &rng.pick(sets).0, inner),
+                false => any_in("x", &rng.pick(sets).0, inner),
+            };
+            let over = &rng.pick(sets).0;
+            return match rng.coin() {
+                true => all_in("y", over, inner),
+                false => any_in("y", over, inner),
+            };
         }
         _ => {
             // An inner one binding `y`, its body still of the outer `x`.
@@ -238,6 +259,9 @@ struct World {
     /// What an `intro` in scope makes known at the point it binds: the
     /// instances there of each all and any around it, and theirs.
     scope: Vec<Prop>,
+    /// Intros over a proposition that writes its own point too, which
+    /// the kernel must refuse (finding 22).
+    invalid: bool,
 }
 
 impl World {
@@ -327,6 +351,7 @@ impl World {
             values: BTreeMap::new(),
             bound: Vec::new(),
             scope: Vec::new(),
+            invalid: false,
         };
         for (i, prop) in props.iter().enumerate() {
             let name = format!("o{i}");
@@ -449,10 +474,35 @@ impl World {
         // Inside an intro, a let of what holds around it, a third of the
         // time: so that the point is a witness there too.
         let around = !self.points().is_empty() && self.rng.below(3) == 0;
+        // With intros over their own point: half the time inside an intro,
+        // a let of an all or any it makes known that writes its point.
+        let own: Vec<Prop> = match self.invalid {
+            true => self
+                .scope
+                .iter()
+                .filter(|p| matches!(p, Prop::All { .. } | Prop::Any { .. }))
+                .filter(|p| p.arbitrary_point().is_none())
+                .cloned()
+                .collect(),
+            false => vec![],
+        };
+        if !own.is_empty() && self.rng.coin() {
+            let y = self.rng.pick(&own).clone();
+            let x = x.clone();
+            return self.let_in(
+                Type::Opinion(y.clone()),
+                |w| w.opinion(&y, d),
+                |w| w.opinion(&x, d),
+            );
+        }
         if around || self.rng.below(6) == 0 {
+            // With intros over their own point, those an intro in scope
+            // makes known too, which may write that point (finding 22).
+            let extra = if self.invalid { &self.scope[..] } else { &[] };
             let quantified: Vec<Prop> = self
                 .props
                 .iter()
+                .chain(extra)
                 .filter(|p| matches!(p, Prop::All { .. } | Prop::Any { .. }))
                 .cloned()
                 .collect();
@@ -514,7 +564,7 @@ impl World {
             }
             // An intro only over a point `q` does not already write
             // (choice 26; finding 22, the seeds of finding 24).
-            if q == x && q.arbitrary_point().is_some() {
+            if q == x && (q.arbitrary_point().is_some() || self.invalid) {
                 ways.extend(vec![(Op::Intro { q: q.clone() }, None); 8]);
             }
         }
@@ -2673,4 +2723,118 @@ fn intro_of_a_proposition_that_names_its_own_point() {
     // which the lawful world f0, g0, !f1, !g1, {f0}k{g0}, {f1}k{g1},
     // !{f0}k{g1} refutes: both takings hold there and g is wrong at 1.
     assert_eq!(got, None, "J1");
+}
+
+// ------------------------------------- intros over their own point (finding 22)
+
+/// The points `p` writes, arbitrary ones only.
+fn arbitrary_points(p: &Prop, out: &mut Vec<Term>) {
+    match p {
+        Prop::Named(_) => {}
+        Prop::Not(x) => arbitrary_points(x, out),
+        Prop::Implies { pre, post, .. } => pre
+            .iter()
+            .chain(post)
+            .for_each(|q| arbitrary_points(q, out)),
+        Prop::Correct { at, .. } => {
+            if matches!(at, Term::Arbitrary { .. }) && !out.contains(at) {
+                out.push(at.clone());
+            }
+        }
+        Prop::All { body, .. } | Prop::Any { body, .. } => arbitrary_points(body, out),
+    }
+}
+
+/// Each intro of `e`: whether its proposition writes its own point, and
+/// whether it writes another bound point.
+fn intros(e: &E, out: &mut Vec<(bool, bool)>) {
+    let Expression::Apply(op, args) = e else {
+        return;
+    };
+    if let Op::Intro { q } = op {
+        let mut written = vec![];
+        arbitrary_points(q, &mut written);
+        let own = arbitrary(q);
+        out.push((written.contains(&own), written.iter().any(|t| *t != own)));
+    }
+    for a in args {
+        intros(&a.body, out);
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(2000))]
+
+    /// J1 with intros over a proposition that writes its own point: the
+    /// kernel refuses each derivation holding one, as written and when
+    /// run; every other derivation checks, and is sound (finding 22).
+    #[test]
+    fn an_intro_over_its_own_point_is_refused(seed in any::<u64>(), depth in 1u32..5) {
+        let mut w = World::over_points(seed);
+        w.invalid = true;
+        let x = w.prop();
+        let e = w.opinion(&x, depth);
+        let j = w.judgement.clone();
+        let mut found = vec![];
+        intros(&e, &mut found);
+        if found.iter().any(|(own, _)| *own) {
+            prop_assert_eq!(check(&j, &w.inputs, &e), None, "accepted: {:?}", e);
+            // Run anyway: no such intro gives an opinion, and whatever
+            // does is sound. (A `let` whose value is never read is not
+            // run: the whole may still give one, which rests on nothing
+            // the refused intro says.)
+            let meaning = Meaning::of(&w.props, &w.defined, &w.sets);
+            for sub in subexpressions(&inline(&e, &is_let)) {
+                let run = eval(&j, &w.values, sub);
+                let mut here = vec![];
+                if let Expression::Apply(Op::Intro { .. }, _) = sub {
+                    intros(&Expression::Apply(match sub { Expression::Apply(op, _) => op.clone(), _ => unreachable!() }, vec![]), &mut here);
+                }
+                if here.first().is_some_and(|(own, _)| *own) {
+                    prop_assert!(!matches!(run, Ok(Value::Opinion(_))), "ran: {:?}\nfrom {:?}", run, sub);
+                }
+                if let Ok(Value::Opinion(o)) = run {
+                    prop_assert!(meaning.sound(&o), "unsound: {:?}\nfrom {:?}", o, sub);
+                }
+            }
+        } else {
+            prop_assert_eq!(check(&j, &w.inputs, &e), Some(Type::Opinion(x.clone())));
+            let meaning = Meaning::of(&w.props, &w.defined, &w.sets);
+            for sub in subexpressions(&inline(&e, &is_let)) {
+                if let Ok(Value::Opinion(o)) = eval(&j, &w.values, sub) {
+                    prop_assert!(meaning.sound(&o), "unsound: {:?}\nfrom {:?}", o, sub);
+                }
+            }
+        }
+    }
+}
+
+/// The generator reaches both shapes: intros over their own point (to be
+/// refused) and intros over a proposition writing another bound point,
+/// which the kernel accepts (`quantifiers_preserve_truth` checks them).
+#[test]
+fn the_generator_builds_intros_over_points() {
+    let (mut own, mut other, mut accepted) = (0, 0, 0);
+    for seed in 0..3000u64 {
+        let mut w = World::over_points(seed);
+        w.invalid = seed % 2 == 0;
+        let x = w.prop();
+        let e = w.opinion(&x, 4);
+        let mut found = vec![];
+        intros(&e, &mut found);
+        own += found.iter().filter(|(o, _)| *o).count();
+        let near = found.iter().filter(|(o, t)| !*o && *t).count();
+        other += near;
+        if near > 0
+            && !found.iter().any(|(o, _)| *o)
+            && check(&w.judgement, &w.inputs, &e).is_some()
+        {
+            accepted += 1;
+        }
+    }
+    println!("own {own}, other {other}, accepted {accepted}");
+    assert!(
+        own > 0 && other > 0 && accepted > 0,
+        "own {own}, other {other}, accepted {accepted}"
+    );
 }
