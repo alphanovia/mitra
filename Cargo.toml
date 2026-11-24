@@ -1,0 +1,18 @@
+[package]
+name = "mitra-core"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+description = "Mitra, what is frozen."
+
+[[bin]]
+name = "mitra"
+path = "src/bin/mitra.rs"
+
+[dependencies]
+num-bigint = "0.4"
+num-rational = "0.4"
+num-traits = "0.2"
+
+[dev-dependencies]
+proptest = "1"

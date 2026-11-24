@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc a1717eab6ec4c28e832f56c3b06974b3d4a6f5f5c6fcd3cea6877cb6b742bfbf # shrinks to body = None, claims = ["x <= 3 && 2 < x"]
+cc c0d55607afa48b2f5f620f56149547cf3a4e22543432e40d1cd27fa9afbe78bd # shrinks to body = None, claims = ["(0 * x) == x * x"]

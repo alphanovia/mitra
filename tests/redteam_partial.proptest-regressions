@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc b189122a41199b83cd3b117a5157ed5992d314ab6200443d869261f60e4a07b8 # shrinks to e = Apply(Field("a"), [Arg { binds: [], body: Name("x") }]), (px, fx) = (Partial(Record { name: "R", fields: [("a", Int), ("b", Int), ("c", Int)] }, [None, None, None]), Record(Record { name: "R", fields: [("a", Int), ("b", Int), ("c", Int)] }, [Int(0), Int(0), Int(0)])), (py, fy) = (Partial(Record { name: "R", fields: [("a", Int), ("b", Int), ("c", Int)] }, [None, None, Some(Int(0))]), Record(Record { name: "R", fields: [("a", Int), ("b", Int), ("c", Int)] }, [Int(0), Int(-1), Int(0)]))
+cc 3d4d3a2820d7217e6c4b6e89809bdb510c6cebf0ca5c2b19f37356963ec749fb # shrinks to e = Apply(Equal, [Arg { binds: [], body: Apply(Field("b"), [Arg { binds: [], body: Name("x") }]) }, Arg { binds: [], body: Apply(Int(0), []) }]), (px, fx) = (Partial(Record { name: "R", fields: [("a", Int), ("b", Int), ("c", Int)] }, [None, None, None]), Record(Record { name: "R", fields: [("a", Int), ("b", Int), ("c", Int)] }, [Int(0), Int(1), Int(0)])), (py, fy) = (Partial(Record { name: "R", fields: [("a", Int), ("b", Int), ("c", Int)] }, [None, None, None]), Record(Record { name: "R", fields: [("a", Int), ("b", Int), ("c", Int)] }, [Int(0), Int(0), Int(0)]))
