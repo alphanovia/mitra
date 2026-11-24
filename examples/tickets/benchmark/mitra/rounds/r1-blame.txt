@@ -1,0 +1,29 @@
+ran `cargo test --no-fail-fast -- --show-output` in <run folder>: 49 tests, 49 passed, 0 failed, 0 ignored
+
+finding[R004]: the test `tests::every_cut_of_every_line_is_cut` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `tests::render_prints_as_the_brief_says` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `a_failed_write_is_not_acknowledged` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `concurrent_adds_get_unique_ids` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `add_done_list_show` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `failures_print_nothing` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `a_cut_last_line_is_ignored` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `an_acknowledged_change_is_on_disk` measures nothing the reader knows
+ --> cargo test:0
+
+evidence: 41 measurements, 0 reviews, 12 ties
+blame: nothing conflicts, nothing to blame
+exit 0

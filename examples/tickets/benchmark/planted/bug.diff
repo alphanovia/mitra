@@ -1,0 +1,17 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -331,13 +331,7 @@
+     /// Acknowledge a change only once the disk has it.
+     pub fn answer(s: &Step, written: bool) -> Outcome {
+         match s {
+-            Step::Write(_, r) => {
+-                if written {
+-                    Outcome::Printed(r.clone())
+-                } else {
+-                    Outcome::Failed(Failure::Storage)
+-                }
+-            }
++            Step::Write(_, r) => Outcome::Printed(r.clone()),
+             Step::Read(r) => Outcome::Printed(r.clone()),
+             Step::Fail(f) => Outcome::Failed(*f),
+         }

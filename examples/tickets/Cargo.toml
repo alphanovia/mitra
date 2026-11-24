@@ -1,0 +1,12 @@
+[package]
+name = "tickets"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "tickets"
+path = "src/main.rs"
+
+[dependencies]
+
+[workspace]

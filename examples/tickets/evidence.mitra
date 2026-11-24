@@ -1,0 +1,39 @@
+// Reviews by the agent that wrote the code, each of what it checked itself.
+// What each review rests on is written in log.md.
+
+// The links: each ensure from what it names.
+review Board::increasing from holds by "agent:claude-opus-5-5";
+review Board::skips from holds by "agent:claude-opus-5-5";
+review Board::sticky from holds by "agent:claude-opus-5-5";
+review Cli::acks from holds by "agent:claude-opus-5-5";
+review Codec::whole from holds by "agent:claude-opus-5-5";
+review Tickets::unique from holds by "agent:claude-opus-5-5";
+review Tickets::sticky from holds by "agent:claude-opus-5-5";
+review Tickets::honest from holds by "agent:claude-opus-5-5";
+review Tickets::keeps from holds by "agent:claude-opus-5-5" seeing "test:concurrent_adds_get_unique_ids";
+
+// The disk, said only in words.
+review Disk::durable holds by "agent:claude-opus-5-5" seeing "test:an_acknowledged_change_is_on_disk";
+review Disk::cuts_last holds by "agent:claude-opus-5-5" seeing "test:a_cut_last_line_is_ignored";
+
+// The claims, over every input.
+review Board::apply::grows holds by "agent:claude-opus-5-5";
+review Board::apply::sticky holds by "agent:claude-opus-5-5";
+review Board::replay::increasing holds by "agent:claude-opus-5-5";
+review Board::replay::skips holds by "agent:claude-opus-5-5";
+review Cli::answer::acks holds by "agent:claude-opus-5-5";
+review Codec::reads::holds holds by "agent:claude-opus-5-5" seeing "test:tests::every_cut_of_every_line_is_cut";
+
+// The ties: each Rust function read against the model's function.
+review Disk::read holds by "agent:claude-opus-5-5" seeing "test:a_cut_last_line_is_ignored";
+review Disk::append holds by "agent:claude-opus-5-5" seeing "test:a_cut_last_line_is_ignored", "test:a_failed_write_is_not_acknowledged";
+review Codec::encode holds by "agent:claude-opus-5-5" seeing "test:tests::every_cut_of_every_line_is_cut";
+review Codec::decode holds by "agent:claude-opus-5-5" seeing "test:tests::every_cut_of_every_line_is_cut";
+review Codec::reads holds by "agent:claude-opus-5-5";
+review Board::apply holds by "agent:claude-opus-5-5";
+review Board::replay holds by "agent:claude-opus-5-5";
+review Board::is_done holds by "agent:claude-opus-5-5";
+review Board::has holds by "agent:claude-opus-5-5";
+review Cli::read holds by "agent:claude-opus-5-5";
+review Cli::plan holds by "agent:claude-opus-5-5";
+review Cli::answer holds by "agent:claude-opus-5-5";

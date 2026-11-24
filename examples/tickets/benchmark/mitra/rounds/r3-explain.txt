@@ -1,0 +1,162 @@
+ran `cargo test --no-fail-fast -- --show-output` in <run folder>: 51 tests, 51 passed, 0 failed, 0 ignored
+
+finding[R004]: the test `tests::no_id_is_left_after_the_largest` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `tests::every_cut_of_every_line_is_cut` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `tests::read_list_takes_nothing_more` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `tests::read_nothing` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `tests::render_prints_as_the_brief_says` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `tests::the_largest_id` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `a_failed_write_is_not_acknowledged` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `concurrent_adds_get_unique_ids` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `add_done_list_show` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `failures_print_nothing` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `a_cut_last_line_is_ignored` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `an_acknowledged_change_is_on_disk` measures nothing the reader knows
+ --> cargo test:0
+
+evidence: 39 measurements, 29 reviews, 12 ties
+explained    Board::apply::grows 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Board::apply::sticky 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Board::increasing 0.63 (b 0.26, d 0.00, u 0.74: 2 for, 0 against, agent:claude-opus-5-5)
+explained    {Board::replay::increasing} Board::increasing {Board::increasing} 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Board::replay::increasing 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Board::replay::skips 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Board::skips 0.63 (b 0.26, d 0.00, u 0.74: 2 for, 0 against, agent:claude-opus-5-5)
+explained    {Board::replay::skips} Board::skips {Board::skips} 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Board::sticky 0.63 (b 0.26, d 0.00, u 0.74: 2 for, 0 against, agent:claude-opus-5-5)
+explained    {Board::apply::sticky} Board::sticky {Board::sticky} 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Cli::acks 0.63 (b 0.26, d 0.00, u 0.74: 2 for, 0 against, agent:claude-opus-5-5)
+explained    {Cli::answer::acks} Cli::acks {Cli::acks} 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Cli::answer::acks 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Codec::reads::holds 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Codec::whole 0.63 (b 0.26, d 0.00, u 0.74: 2 for, 0 against, agent:claude-opus-5-5)
+explained    {Codec::reads::holds} Codec::whole {Codec::whole} 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Disk::cuts_last 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Disk::durable 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Tickets::honest 0.54 (b 0.07, d 0.00, u 0.93: 6 for, 0 against, agent:claude-opus-5-5)
+explained    {Disk::cuts_last, Codec::whole, Board::skips} Tickets::honest {Tickets::honest} 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Tickets::keeps 0.54 (b 0.07, d 0.00, u 0.93: 6 for, 0 against, agent:claude-opus-5-5)
+explained    {Disk::durable, Cli::acks, Board::skips} Tickets::keeps {Tickets::keeps} 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Tickets::sticky 0.60 (b 0.20, d 0.00, u 0.80: 3 for, 0 against, agent:claude-opus-5-5)
+explained    {Board::sticky} Tickets::sticky {Tickets::sticky} 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Tickets::unique 0.60 (b 0.20, d 0.00, u 0.80: 3 for, 0 against, agent:claude-opus-5-5)
+explained    {Board::increasing} Tickets::unique {Tickets::unique} 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Disk::read at src/lib.rs/Disk/read 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Disk::append at src/lib.rs/Disk/append 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Codec::encode at src/lib.rs/Codec/encode 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Codec::decode at src/lib.rs/Codec/decode 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Codec::reads at src/lib.rs/Codec/reads 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Board::apply at src/lib.rs/Board/apply 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Board::replay at src/lib.rs/Board/replay 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Board::is_done at src/lib.rs/Board/is_done 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Board::has at src/lib.rs/Board/has 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Cli::read at src/lib.rs/Cli/read 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Cli::plan at src/lib.rs/Cli/plan 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Cli::answer at src/lib.rs/Cli/answer 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, agent:claude-opus-5-5)
+explained    Codec::reads::holds at (Added(1, "fix login"), "added 1 fix") 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Codec::reads::holds at (Added(1, "fix login"), "added 1 fix login$") 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Codec::reads::holds at (Done(3), "done 3") 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Codec::reads::holds at (Done(12), "done 1") 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Codec::reads::holds at (Added(2, "a$b"), "") 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Codec::reads::holds at (Added(7, "x"), "something else") 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Board::apply, (Board { tickets: [], next: 1 }, Added(1, "fix login"))) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    Board::apply::grows at (Board { tickets: [], next: 1 }, Added(1, "fix login")) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Board::apply::sticky at (Board { tickets: [], next: 1 }, Added(1, "fix login")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::apply_adds_a_ticket)
+explained    correct(Board::apply, (Board { tickets: [Ticket { id: 1, title: "a", done: true }], next: 2 }, Done(1))) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    Board::apply::grows at (Board { tickets: [Ticket { id: 1, title: "a", done: true }], next: 2 }, Done(1)) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Board::apply::sticky at (Board { tickets: [Ticket { id: 1, title: "a", done: true }], next: 2 }, Done(1)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::apply_done_twice_stays_done)
+explained    correct(Board::apply, (Board { tickets: [Ticket { id: 1, title: "a", done: false }], next: 2 }, Added(1, "b"))) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    Board::apply::grows at (Board { tickets: [Ticket { id: 1, title: "a", done: false }], next: 2 }, Added(1, "b")) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Board::apply::sticky at (Board { tickets: [Ticket { id: 1, title: "a", done: false }], next: 2 }, Added(1, "b")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::apply_ignores_an_old_id)
+explained    correct(Board::apply, (Board { tickets: [Ticket { id: 1, title: "a", done: false }, Ticket { id: 2, title: "b", done: false }], next: 3 }, Done(2))) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    Board::apply::grows at (Board { tickets: [Ticket { id: 1, title: "a", done: false }, Ticket { id: 2, title: "b", done: false }], next: 3 }, Done(2)) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Board::apply::sticky at (Board { tickets: [Ticket { id: 1, title: "a", done: false }, Ticket { id: 2, title: "b", done: false }], next: 3 }, Done(2)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::apply_done_marks_only_its_ticket)
+explained    correct(Board::apply, (Board { tickets: [Ticket { id: 1, title: "a", done: false }], next: 2 }, Added(5, "e"))) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    Board::apply::grows at (Board { tickets: [Ticket { id: 1, title: "a", done: false }], next: 2 }, Added(5, "e")) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Board::apply::sticky at (Board { tickets: [Ticket { id: 1, title: "a", done: false }], next: 2 }, Added(5, "e")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::apply_jumps_to_a_higher_id)
+explained    correct(Board::apply, (Board { tickets: [], next: 1 }, Done(4))) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    Board::apply::grows at (Board { tickets: [], next: 1 }, Done(4)) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Board::apply::sticky at (Board { tickets: [], next: 1 }, Done(4)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::apply_done_of_no_ticket_changes_nothing)
+explained    correct(Board::replay, ([Whole(Added(1, "a")), Cut])) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Board::replay::skips at ([Whole(Added(1, "a")), Cut]) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::replay_skips_a_cut_last_line)
+explained    Board::replay::increasing at ([Whole(Added(1, "a")), Cut]) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Board::replay, ([])) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Board::replay::skips at ([]) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::replay_of_nothing_is_empty)
+explained    Board::replay::increasing at ([]) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Board::replay, ([Whole(Added(1, "a")), Whole(Added(2, "b")), Whole(Done(1)), Whole(Added(2, "again"))])) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Board::replay::skips at ([Whole(Added(1, "a")), Whole(Added(2, "b")), Whole(Done(1)), Whole(Added(2, "again"))]) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::replay_builds_the_board)
+explained    Board::replay::increasing at ([Whole(Added(1, "a")), Whole(Added(2, "b")), Whole(Done(1)), Whole(Added(2, "again"))]) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Board::replay, ([Cut, Whole(Added(1, "a")), Cut, Whole(Done(1))])) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    Board::replay::skips at ([Cut, Whole(Added(1, "a")), Cut, Whole(Done(1))]) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::replay_skips_cut_lines_anywhere)
+explained    Board::replay::increasing at ([Cut, Whole(Added(1, "a")), Cut, Whole(Done(1))]) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Board::is_done, (Board { tickets: [Ticket { id: 1, title: "a", done: true }, Ticket { id: 2, title: "b", done: false }], next: 3 }, 1)) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    correct(Board::is_done, (Board { tickets: [Ticket { id: 1, title: "a", done: true }, Ticket { id: 2, title: "b", done: false }], next: 3 }, 2)) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    correct(Board::has, (Board { tickets: [Ticket { id: 1, title: "a", done: false }], next: 2 }, 1)) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    correct(Board::has, (Board { tickets: [Ticket { id: 1, title: "a", done: false }], next: 2 }, 2)) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    correct(Cli::read, (["add", "fix login"])) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    correct(Cli::read, (["done", "3"])) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    correct(Cli::read, (["list"])) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    correct(Cli::read, (["show", "3"])) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    correct(Cli::read, (["done", "three"])) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    correct(Cli::read, (["add"])) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    correct(Cli::plan, (Add("fix login"), Board { tickets: [], next: 3 })) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::plan, (Finish(9), Board { tickets: [], next: 3 })) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::plan, (Add(""), Board { tickets: [], next: 1 })) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::plan, (Finish(1), Board { tickets: [Ticket { id: 1, title: "a", done: false }], next: 2 })) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::plan, (List, Board { tickets: [Ticket { id: 1, title: "a", done: true }], next: 2 })) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::plan, (Show(2), Board { tickets: [Ticket { id: 1, title: "a", done: false }, Ticket { id: 2, title: "b", done: true }], next: 3 })) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::plan, (Show(5), Board { tickets: [Ticket { id: 1, title: "a", done: false }], next: 2 })) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::plan, (Unknown, Board { tickets: [], next: 1 })) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::answer, (Write(Added(3, "a"), Id(3)), true)) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    Cli::answer::acks at (Write(Added(3, "a"), Id(3)), true) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::answer, (Write(Added(3, "a"), Id(3)), false)) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    Cli::answer::acks at (Write(Added(3, "a"), Id(3)), false) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::answer, (Write(Done(1), Nothing), false)) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    Cli::answer::acks at (Write(Done(1), Nothing), false) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::answer, (Read(Nothing), false)) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    Cli::answer::acks at (Read(Nothing), false) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+explained    correct(Cli::answer, (Fail(Usage), true)) 0.78 (b 0.55, d 0.00, u 0.45: 2 for, 0 against, machine:mitra-check, agent:claude-opus-5-5)
+explained    Cli::answer::acks at (Fail(Usage), true) 0.68 (b 0.36, d 0.00, u 0.64: 3 for, 0 against, agent:claude-opus-5-5, machine:mitra-check)
+
+finding[X004]: at (Added(1, "fix login"), "added 1 fix"), `Codec::reads` needs what `Codec::encode` gave, which nothing gives: measure it as an input
+ --> measurements::0
+
+finding[X004]: at (Added(1, "fix login"), "added 1 fix login$"), `Codec::reads` needs what `Codec::encode` gave, which nothing gives: measure it as an input
+ --> measurements::1
+
+finding[X004]: at (Done(3), "done 3"), `Codec::reads` needs what `Codec::encode` gave, which nothing gives: measure it as an input
+ --> measurements::2
+
+finding[X004]: at (Done(12), "done 1"), `Codec::reads` needs what `Codec::encode` gave, which nothing gives: measure it as an input
+ --> measurements::3
+
+finding[X004]: at (Added(2, "a$b"), ""), `Codec::reads` needs what `Codec::encode` gave, which nothing gives: measure it as an input
+ --> measurements::4
+
+finding[X004]: at (Added(7, "x"), "something else"), `Codec::reads` needs what `Codec::encode` gave, which nothing gives: measure it as an input
+ --> measurements::5
+
+explain: 102 propositions, 102 explained, 0 contradicted, 0 unsupported; 6 findings, 0 hints, 0 reviews asked
+exit 0

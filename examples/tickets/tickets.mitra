@@ -1,0 +1,128 @@
+// tickets: a to-do list on the command line, kept in a log file.
+//
+//   tickets add "fix login"    prints #3
+//   tickets done 3 / list / show 3
+//
+// Every change is one event appended to the log; the board is rebuilt by
+// replaying the log. How events are written as text, and the files, are
+// left to the code: the model says what must hold whatever the format.
+
+subject record Ticket { id: integer, title: [~char], done: bool }
+subject enum Event { Added(integer, [~char]), Done(integer) }
+subject enum Line { Whole(Event), Cut }
+subject enum Command { Add([~char]), Finish(integer), List, Show(integer), Unknown }
+subject enum Reply { Id(integer), All([Ticket]), One(Ticket), Nothing }
+subject enum Failure { Usage, EmptyTitle, NoSuchTicket, Storage }
+subject enum Step { Write(Event, Reply), Read(Reply), Fail(Failure) }
+subject enum Outcome { Printed(Reply), Failed(Failure) }
+
+subject Tickets {
+    ensure keeps: "a change the tool acknowledged survives a crash" from (Disk::durable, Cli::acks, Board::skips);
+    ensure unique: "ids are unique and increasing" from (Board::increasing);
+    ensure sticky: "a done ticket stays done" from (Board::sticky);
+    ensure honest: "a cut last line is ignored, never misread" from (Disk::cuts_last, Codec::whole, Board::skips);
+
+    // The disk: it may fail a write, and a crash may cut the last line.
+    environment Disk {
+        fn append(line: [~char]) -> ok: bool;
+        fn read() -> lines: [[~char]];
+        ensure durable: "once append gives true, the line is read back whole, even after a crash";
+        ensure cuts_last: "a crash cuts at most the last line";
+    }
+
+    // Events as lines of text. The format is the code's.
+    subject Codec {
+        fn encode(e: Event) -> t: [~char];
+        fn decode(t: [~char]) -> l: Line;
+        // A line reads back as its event; any cut of it reads as Cut.
+        fn reads(e: Event, cut: [~char]) -> ok: bool {
+            decode(encode(e)) == Line::Whole(e)
+                && (!encode(e).starts_with(cut) || cut == encode(e) || decode(cut) == Line::Cut)
+        } where { claim holds: ok; }
+        ensure whole: "every event reads back, and no cut of a line reads as an event" from (reads::holds);
+    }
+
+    // The tickets, rebuilt from the log.
+    subject Board {
+        record { tickets: [Ticket], next: integer }
+
+        fn apply(self, e: Event) -> b: Board {
+            match e {
+                // An id below the next one is not new: the event is ignored.
+                Added(id, t) => if id < self.next { self }
+                    else { Board { tickets: self.tickets ++ [Ticket { id: id, title: t, done: false }], next: id + 1 } },
+                Done(id) => Board { tickets: self.tickets.fold(ts: []) { t -> ts ++ [Ticket { done: t.done || t.id == id, ..t }] }, ..self }
+            }
+        } where {
+            claim grows: b.next >= self.next && b.tickets.len() >= self.tickets.len();
+            claim sticky: self.tickets.fold(ok: true) { t -> ok && (!t.done || b.is_done(t.id)) };
+            examples {
+                (Board { tickets: [], next: 1 }, Event::Added(1, "fix login"))
+                    -> Board { tickets: [Ticket { id: 1, title: "fix login", done: false }], next: 2 },
+                (Board { tickets: [Ticket { id: 1, title: "a", done: true }], next: 2 }, Event::Done(1))
+                    -> Board { tickets: [Ticket { id: 1, title: "a", done: true }], next: 2 }
+            }
+        }
+
+        fn replay(lines: [Line]) -> b: Board {
+            lines.fold(b: Board { tickets: [], next: 1 }) { l -> match l { Whole(e) => apply(b, e), Cut => b } }
+        } where {
+            claim skips: replay(lines ++ [Line::Cut]) == b;
+            claim increasing: b.tickets.fold((ok: true, last: 0)) { t -> (ok && t.id > last, t.id) }.ok
+                && b.tickets.fold(ok: true) { t -> ok && t.id < b.next };
+            examples { ([Line::Whole(Event::Added(1, "a")), Line::Cut]) -> Board { tickets: [Ticket { id: 1, title: "a", done: false }], next: 2 } }
+        }
+
+        fn is_done(self, id: integer) -> d: bool { self.tickets.fold(d: false) { t -> d || (t.id == id && t.done) } }
+        fn has(self, id: integer) -> h: bool { self.tickets.fold(h: false) { t -> h || t.id == id } }
+
+        ensure increasing: "ids rise, and the next id is above them all" from (replay::increasing);
+        ensure sticky: "applying an event never undoes a done" from (apply::sticky);
+        ensure skips: "a cut line changes nothing" from (replay::skips);
+    }
+
+    // The command line: read the arguments, plan the step, answer.
+    subject Cli {
+        fn read(args: [[~char]]) -> c: Command where {
+            examples {
+                (["add", "fix login"]) -> Command::Add("fix login"),
+                (["done", "3"]) -> Command::Finish(3),
+                (["list"]) -> Command::List,
+                (["show", "3"]) -> Command::Show(3),
+                (["done", "three"]) -> Command::Unknown,
+                (["add"]) -> Command::Unknown
+            }
+        }
+
+        fn plan(c: Command, b: Board) -> s: Step {
+            match c {
+                Add(t) => if t.len() == 0 { Step::Fail(Failure::EmptyTitle) }
+                    else { Step::Write(Event::Added(b.next, t), Reply::Id(b.next)) },
+                Finish(id) => if b.has(id) { Step::Write(Event::Done(id), Reply::Nothing) }
+                    else { Step::Fail(Failure::NoSuchTicket) },
+                List => Step::Read(Reply::All(b.tickets)),
+                Show(id) => b.tickets.fold(s: Step::Fail(Failure::NoSuchTicket)) { t -> if t.id == id { Step::Read(Reply::One(t)) } else { s } },
+                Unknown => Step::Fail(Failure::Usage)
+            }
+        } where {
+            examples {
+                (Command::Add("fix login"), Board { tickets: [], next: 3 })
+                    -> Step::Write(Event::Added(3, "fix login"), Reply::Id(3)),
+                (Command::Finish(9), Board { tickets: [], next: 3 }) -> Step::Fail(Failure::NoSuchTicket)
+            }
+        }
+
+        // Acknowledge a change only once the disk has it.
+        fn answer(s: Step, written: bool) -> o: Outcome {
+            match s {
+                Write(e, r) => if written { Outcome::Printed(r) } else { Outcome::Failed(Failure::Storage) },
+                Read(r) => Outcome::Printed(r),
+                Fail(f) => Outcome::Failed(f)
+            }
+        } where {
+            claim acks: match s { Write(e, r) => written || o == Outcome::Failed(Failure::Storage), Read(r) => true, Fail(f) => true };
+        }
+
+        ensure acks: "a change is acknowledged only once it is written" from (answer::acks);
+    }
+}

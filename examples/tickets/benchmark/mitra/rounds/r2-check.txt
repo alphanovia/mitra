@@ -1,0 +1,20 @@
+finding[A007]: claim `grows`: unknown, not decided by bounds over all of what it reads, nor at 64 points
+ --> Board::apply
+
+finding[A007]: claim `sticky`: unknown, not decided by bounds over all of what it reads, nor at 64 points
+ --> Board::apply
+
+finding[A007]: claim `increasing`: unknown, not decided by bounds over all of what it reads, nor at 57 points
+ --> Board::replay
+
+finding[A007]: claim `skips`: unknown, not decided by bounds over all of what it reads, nor at 57 points
+ --> Board::replay
+
+finding[A007]: claim `acks`: unknown, not decided by bounds over all of what it reads, nor at 64 points
+ --> Cli::answer
+
+finding[A007]: claim `holds`: unknown, no value for `Codec::encode` at some of the 10 points tried
+ --> Codec::reads
+
+check: well formed; agree: 21 comparisons, 15 hold, 6 findings
+exit 0
