@@ -332,3 +332,192 @@ impl<'e> Numbers<'e> {
         ranked.into_iter().map(|(_, d, x)| (d, x)).collect()
     }
 }
+
+/// Dry run (exp/rests-bnb): what a search over ways found.
+#[derive(Clone, Debug, Default)]
+pub struct Searched {
+    /// The strongest smallest sets found, strongest first, with their
+    /// strength (`Numbers::rest`).
+    pub best: Vec<(BTreeSet<Taking>, f64)>,
+    /// Nodes the search visited.
+    pub nodes: u64,
+    /// Complete ways it reached.
+    pub leaves: u64,
+}
+
+impl Numbers<'_> {
+    /// The expected value of a taking: `b + a·u`. Subjective Logic's
+    /// multiplication multiplies these exactly, and a belief is never
+    /// above its expected value, so a product of them bounds a rest.
+    fn expected_of(&self, t: &Taking) -> f64 {
+        let s = self.said(t);
+        s.b + s.a * s.u
+    }
+
+    /// Dry run (exp/rests-bnb): the `k` strongest of every way to take
+    /// one set of each side, kept only when smallest (as `all_of`
+    /// keeps), found by branch and bound without listing every way.
+    /// With `groups`, sides that share no taking are searched apart and
+    /// their strongest put together (exact only for a product).
+    pub fn strongest_ways(&self, sides: &[&Rests], k: usize, groups: bool) -> Searched {
+        if groups {
+            let parts = independent(sides);
+            if parts.len() > 1 {
+                let mut out = Searched::default();
+                let mut union = BTreeSet::new();
+                for part in parts {
+                    let part_sides: Vec<&Rests> = part.iter().map(|&i| sides[i]).collect();
+                    let s = self.strongest_ways(&part_sides, 1, false);
+                    out.nodes += s.nodes;
+                    out.leaves += s.leaves;
+                    match s.best.into_iter().next() {
+                        Some((r, _)) => union.extend(r),
+                        None => return out,
+                    }
+                }
+                let b = self.rest(&union);
+                out.best = vec![(union, b)];
+                return out;
+            }
+        }
+        let mut order: Vec<Vec<(&BTreeSet<Taking>, f64)>> = sides
+            .iter()
+            .map(|side| {
+                let mut v: Vec<_> = side
+                    .iter()
+                    .map(|r| (r, r.iter().map(|t| self.expected_of(t)).product::<f64>()))
+                    .collect();
+                v.sort_by(|a, b| b.1.total_cmp(&a.1));
+                v
+            })
+            .collect();
+        order.sort_by_key(Vec::len);
+        let mut search = Search {
+            numbers: self,
+            sides,
+            order: &order,
+            k: k.max(1),
+            out: Searched::default(),
+        };
+        let mut cur: BTreeMap<&Taking, usize> = BTreeMap::new();
+        search.go(0, &mut cur, 1.0);
+        search.out
+    }
+}
+
+/// Sides in groups that share no taking, by index.
+fn independent(sides: &[&Rests]) -> Vec<Vec<usize>> {
+    let n = sides.len();
+    let mut parent: Vec<usize> = (0..n).collect();
+    fn find(p: &mut Vec<usize>, x: usize) -> usize {
+        let mut r = x;
+        while p[r] != r {
+            r = p[r];
+        }
+        p[x] = r;
+        r
+    }
+    let mut owner: BTreeMap<&Taking, usize> = BTreeMap::new();
+    for (i, side) in sides.iter().enumerate() {
+        for t in side.iter().flatten() {
+            match owner.get(t) {
+                Some(&j) => {
+                    let (a, b) = (find(&mut parent, i), find(&mut parent, j));
+                    parent[a] = b;
+                }
+                None => {
+                    owner.insert(t, i);
+                }
+            }
+        }
+    }
+    let mut groups: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for i in 0..n {
+        let r = find(&mut parent, i);
+        groups.entry(r).or_default().push(i);
+    }
+    groups.into_values().collect()
+}
+
+struct Search<'a, 'e> {
+    numbers: &'a Numbers<'e>,
+    sides: &'a [&'a Rests],
+    order: &'a [Vec<(&'a BTreeSet<Taking>, f64)>],
+    k: usize,
+    out: Searched,
+}
+
+impl<'a> Search<'a, '_> {
+    fn threshold(&self) -> f64 {
+        match self.out.best.len() >= self.k {
+            true => self.out.best[self.k - 1].1,
+            false => f64::NEG_INFINITY,
+        }
+    }
+
+    fn go(&mut self, i: usize, cur: &mut BTreeMap<&'a Taking, usize>, cur_e: f64) {
+        self.out.nodes += 1;
+        // Bound: what is taken, times the best each side left could add,
+        // what is already taken counting 1.
+        let mut bound = cur_e;
+        for side in &self.order[i..] {
+            let best = side
+                .iter()
+                .map(|(r, _)| {
+                    r.iter()
+                        .filter(|t| !cur.contains_key(t))
+                        .map(|t| self.numbers.expected_of(t))
+                        .product::<f64>()
+                })
+                .fold(0.0, f64::max);
+            bound *= best;
+        }
+        if bound <= self.threshold() {
+            return;
+        }
+        if i == self.order.len() {
+            self.out.leaves += 1;
+            let u: BTreeSet<Taking> = cur.keys().map(|t| (*t).clone()).collect();
+            if (std::env::var("MITRA_NO_MIN").is_err() && !self.smallest(&u)) || self.out.best.iter().any(|(r, _)| r == &u) {
+                return;
+            }
+            let b = self.numbers.rest(&u);
+            if b > self.threshold() || self.out.best.len() < self.k {
+                self.out.best.push((u, b));
+                self.out.best.sort_by(|a, b| b.1.total_cmp(&a.1));
+                self.out.best.truncate(self.k);
+            }
+            return;
+        }
+        let order = self.order;
+        for (r, _) in &order[i] {
+            let mut e = cur_e;
+            for t in r.iter() {
+                let c = cur.entry(t).or_insert(0);
+                if *c == 0 {
+                    e *= self.numbers.expected_of(t);
+                }
+                *c += 1;
+            }
+            self.go(i + 1, cur, e);
+            for t in r.iter() {
+                let c = cur.get_mut(t).expect("taken");
+                *c -= 1;
+                if *c == 0 {
+                    cur.remove(t);
+                }
+            }
+        }
+    }
+
+    /// No way's union lies strictly within `u`: for each taking of `u`,
+    /// some side has no set within `u` without it.
+    fn smallest(&self, u: &BTreeSet<Taking>) -> bool {
+        u.iter().all(|t| {
+            !self
+                .sides
+                .iter()
+                .all(|side| side.iter().any(|r| !r.contains(t) && r.is_subset(u)))
+        })
+    }
+}

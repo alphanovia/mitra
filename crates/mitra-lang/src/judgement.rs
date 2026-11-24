@@ -614,6 +614,37 @@ fn smallest(sets: impl IntoIterator<Item = BTreeSet<Taking>>) -> Rests {
         .collect()
 }
 
+/// Dry run (exp/rests-bnb): `all_of`, open to the dry run.
+pub fn all_of_pub(sides: &[&Rests]) -> Rests {
+    all_of(sides)
+}
+
+/// Dry run (exp/rests-bnb): how many smallest sets `all_of` really
+/// gives, when no step of it holds more than `work` ways before it keeps
+/// the smallest; `None` past that.
+pub fn real_ways(sides: &[&Rests], work: usize) -> Option<usize> {
+    let mut sides = sides.to_vec();
+    sides.sort_by_key(|side| side.len());
+    let mut ways: Vec<BTreeSet<Taking>> = vec![BTreeSet::new()];
+    let mut seen: BTreeSet<&Taking> = BTreeSet::new();
+    for side in sides {
+        if ways.len().saturating_mul(side.len()) > work {
+            return None;
+        }
+        let takings: BTreeSet<&Taking> = side.iter().flatten().collect();
+        let shared = takings.iter().any(|t| seen.contains(t));
+        ways = ways
+            .iter()
+            .flat_map(|way| side.iter().map(move |s| way.union(s).cloned().collect()))
+            .collect();
+        if shared {
+            ways = smallest(ways).into_iter().collect();
+        }
+        seen.extend(takings);
+    }
+    Some(ways.len())
+}
+
 /// Every way to have all of `sides`: one set of each, together. Sides
 /// with no taking in common already give only the smallest.
 fn all_of(sides: &[&Rests]) -> Rests {

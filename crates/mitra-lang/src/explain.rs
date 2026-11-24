@@ -106,6 +106,18 @@ pub enum Source {
     Written,
 }
 
+/// Dry run (exp/rests-bnb): one forward application of a rule.
+#[derive(Clone, Debug)]
+pub struct WaysLog {
+    pub rule: Prop,
+    pub posts: Vec<Prop>,
+    pub sides: Vec<Rests>,
+    /// The count today's code compares with `Settings::rests`.
+    pub estimate: usize,
+    /// Left out (X006).
+    pub capped: bool,
+}
+
 /// What explain gives.
 #[derive(Clone, Debug, Default)]
 pub struct Explanation {
@@ -116,6 +128,9 @@ pub struct Explanation {
     pub opinions: BTreeMap<Prop, Opinion>,
     /// Where each taking comes from.
     pub sources: BTreeMap<Taking, Source>,
+    /// Dry run (exp/rests-bnb): each rule applied forward, with the
+    /// sets its premises rest on; only with `MITRA_DRYRUN` set.
+    pub ways_log: Vec<WaysLog>,
     /// Measurements that say the same, by the same voice, read as one,
     /// their counts added: by the first one's place, all of theirs.
     pub same: BTreeMap<usize, Vec<usize>>,
@@ -232,6 +247,7 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         opinions: BTreeMap::new(),
         changed: Changed::default(),
         stopped: BTreeSet::new(),
+        log: std::env::var("MITRA_DRYRUN").ok().map(|_| Vec::new()),
         alike: BTreeMap::new(),
     };
     for (p, ts) in grouped {
@@ -294,6 +310,7 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         verdicts,
         opinions: judge.opinions,
         sources,
+        ways_log: judge.log.unwrap_or_default(),
         same,
         alike: judge.alike,
         findings,
@@ -871,6 +888,8 @@ struct Judge {
     changed: Changed,
     /// The rules left out: their premises rest on too many sets.
     stopped: BTreeSet<Prop>,
+    /// Dry run: forward applications, logged.
+    log: Option<Vec<WaysLog>>,
     /// Each taking a proof by cases read at a point, with the others
     /// that say the same there.
     alike: BTreeMap<Taking, Vec<Taking>>,
@@ -1067,7 +1086,32 @@ impl Judge {
                         judgement::Value::Opinion(o) => o.rests_for().len(),
                         _ => 1,
                     }));
-                    if ways > settings.rests {
+                    let sides: Vec<Rests> = all
+                        .iter()
+                        .map(|v| match v {
+                            judgement::Value::Opinion(o) => o.rests_for().clone(),
+                            _ => Rests::from([BTreeSet::new()]),
+                        })
+                        .collect();
+                    // Dry run: with MITRA_REAL_COUNT, the cap reads how
+                    // many sets there really are, not the product.
+                    let capped = ways > settings.rests
+                        && !(std::env::var("MITRA_REAL_COUNT").is_ok()
+                            && crate::judgement::real_ways(
+                                &sides.iter().collect::<Vec<_>>(),
+                                settings.rests.saturating_mul(16),
+                            )
+                            .is_some_and(|n| n <= settings.rests));
+                    if let Some(log) = &mut self.log {
+                        log.push(WaysLog {
+                            rule: t.clone(),
+                            posts: posts.clone(),
+                            sides,
+                            estimate: ways,
+                            capped,
+                        });
+                    }
+                    if capped {
                         self.stopped.insert(t.clone());
                     } else {
                         for post in 0..posts.len() {

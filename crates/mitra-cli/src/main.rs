@@ -303,6 +303,9 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     errors_out(&refused);
     let e = explain::explain(&model, &ledger, &settings.explain);
     let n = Numbers::of(&e, &settings.numbers);
+    if std::env::var("MITRA_DRYRUN").is_ok() {
+        dryrun(&e, &n);
+    }
     out!(
         "evidence: {} measurements, {} reviews, {} ties",
         ledger.measurements.len(),
@@ -504,4 +507,54 @@ fn blame_out(
         false => format!("the first {} diagnoses", ranked.len()),
     };
     out!("blame: {} conflicts, {which}", b.conflicts.len());
+}
+
+/// Dry run (exp/rests-bnb): each forward rule application, the strongest
+/// way by listing them all (today) and by branch and bound.
+fn dryrun(e: &Explanation, n: &Numbers) {
+    use std::time::Instant;
+    let brute_limit: usize = std::env::var("MITRA_BRUTE_LIMIT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(20_000);
+    eprintln!("DRY\trule\tsizes\testimate\tcapped\treal\tbrute_b\tbrute_us\tbnb_b\tbnb_us\tnodes\tleaves\tgroups_b\tgroups_us\tngroups\ttop3_brute\ttop3_bnb\tevidence_only\tpost_now");
+    for w in &e.ways_log {
+        let sides: Vec<&mitra_lang::judgement::Rests> = w.sides.iter().collect();
+        let sizes: Vec<usize> = sides.iter().map(|s| s.len()).collect();
+        let (mut real, mut brute_b, mut brute_us, mut top3b) = (String::from("-"), String::from("-"), String::from("-"), String::from("-"));
+        if w.estimate <= brute_limit {
+            let t0 = Instant::now();
+            let all = mitra_lang::judgement::all_of_pub(&sides);
+            let mut bs: Vec<f64> = all.iter().map(|r| n.rest(r)).collect();
+            bs.sort_by(|a, b| b.total_cmp(a));
+            brute_us = format!("{}", t0.elapsed().as_micros());
+            real = format!("{}", all.len());
+            brute_b = bs.first().map_or("none".into(), |b| format!("{b:.12}"));
+            top3b = bs.iter().take(3).map(|b| format!("{b:.9}")).collect::<Vec<_>>().join(",");
+        }
+        let t0 = Instant::now();
+        let s = n.strongest_ways(&sides, 1, false);
+        let bnb_us = t0.elapsed().as_micros();
+        let s3 = n.strongest_ways(&sides, 3, false);
+        let top3 = s3.best.iter().map(|(_, b)| format!("{b:.9}")).collect::<Vec<_>>().join(",");
+        let t0 = Instant::now();
+        let g = n.strongest_ways(&sides, 1, true);
+        let g_us = t0.elapsed().as_micros();
+        let ngroups = {
+            let mut owner: std::collections::BTreeMap<&Taking, usize> = Default::default();
+            let mut p: Vec<usize> = (0..sides.len()).collect();
+            fn f(p: &mut Vec<usize>, x: usize) -> usize { let mut r = x; while p[r] != r { r = p[r]; } r }
+            for (i, side) in sides.iter().enumerate() { for t in side.iter().flatten() { if let Some(&j) = owner.get(t) { let (a, b) = (f(&mut p, i), f(&mut p, j)); p[a] = b; } else { owner.insert(t, i); } } }
+            (0..sides.len()).filter(|&i| f(&mut p, i) == i).count()
+        };
+        let evidence_only = sides.iter().all(|side| side.iter().any(|r| r.iter().all(|t| t.by != MODEL)));
+        let post_now: Vec<String> = w.posts.iter().map(|q| format!("{:.12}", n.prop(q).belief)).collect();
+        eprintln!(
+            "DRY\t{}\t{:?}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            print::print_prop(&w.rule), sizes, w.estimate, w.capped, real, brute_b, brute_us,
+            s.best.first().map_or("none".into(), |(_, b)| format!("{b:.12}")), bnb_us, s.nodes, s.leaves,
+            g.best.first().map_or("none".into(), |(_, b)| format!("{b:.12}")), g_us, ngroups,
+            top3b, top3, evidence_only, post_now.join(",")
+        );
+    }
 }
