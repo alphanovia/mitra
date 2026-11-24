@@ -15,7 +15,7 @@ use mitra_core::simulation::Value;
 use std::collections::BTreeSet;
 
 fn div() -> Model {
-    let path = format!("{}/models/div.mitra", env!("CARGO_MANIFEST_DIR"));
+    let path = format!("{}/examples/div/tied.mitra", env!("CARGO_MANIFEST_DIR"));
     let model = parse(&std::fs::read_to_string(path).unwrap()).unwrap();
     assert_eq!(check(&model), vec![]);
     model

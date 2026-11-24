@@ -18,7 +18,7 @@ The tie's place is the file, then the `mod` and `impl` around the item,
 then its name: `src/lib.rs/div`.
 
 A tie can also be written in the model, after a name, with `at`. From
-[models/fall.mitra](../../models/fall.mitra), a tie to something that is
+[examples/fall/fall.mitra](../../examples/fall/fall.mitra), a tie to something that is
 not code, the drop in a lab tower:
 
 ```mitra

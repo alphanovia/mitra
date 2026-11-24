@@ -2,8 +2,8 @@
 
 `src/parse.rs` reads it, `src/print.rs` writes it, and `parse(print(m))`
 is `m`, ties aside (below). It is the data of `docs/design/model.md`, written
-down: nothing here adds to the model. The models of `models/` are in it:
-`fall.mitra` (the stone and the sun) and `div.mitra` (main's div).
+down: nothing here adds to the model. The models of `examples/` are in it:
+`fall/fall.mitra` (the stone and the sun) and `div/tied.mitra` (main's div).
 
 Spellings follow Rust. Where a choice is not Rust's, or Rust has no
 form for it, it is **flagged**: a proposal, yours to change.

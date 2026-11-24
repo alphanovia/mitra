@@ -365,13 +365,9 @@ fn accepted_models_are_read_without_a_panic() {
             }
         }
     }
-    for name in ["fall", "div"] {
+    for file in ["examples/fall/fall.mitra", "examples/div/tied.mitra"] {
         corpus.push(
-            std::fs::read_to_string(format!(
-                "{}/models/{name}.mitra",
-                env!("CARGO_MANIFEST_DIR")
-            ))
-            .unwrap(),
+            std::fs::read_to_string(format!("{}/{file}", env!("CARGO_MANIFEST_DIR"))).unwrap(),
         );
     }
     let words: Vec<String> = corpus

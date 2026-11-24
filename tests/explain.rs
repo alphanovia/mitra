@@ -13,7 +13,11 @@ use mitra_core::parse::{parse, parse_prop};
 use mitra_core::simulation::{Rational, Value};
 
 fn read(name: &str) -> Model {
-    let path = format!("{}/models/{name}.mitra", env!("CARGO_MANIFEST_DIR"));
+    let file = match name {
+        "div" => "examples/div/tied.mitra".to_string(),
+        n => format!("examples/{n}/{n}.mitra"),
+    };
+    let path = format!("{}/{file}", env!("CARGO_MANIFEST_DIR"));
     let model = parse(&std::fs::read_to_string(path).unwrap()).unwrap();
     assert_eq!(check(&model), vec![]);
     model

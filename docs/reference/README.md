@@ -1,9 +1,8 @@
 # The Mitra language reference
 
 Read it in order: each chapter starts from what the one before taught.
-Every example is taken from a file in [examples/](../../examples) or
-[models/](../../models), and a test checks that those files pass
-`mitra check`.
+Every example is taken from a file in [examples/](../../examples), and
+a test checks that those files pass `mitra check`.
 
 1. [The ideas](1-ideas.md): model, system, evidence; the three
    questions; verdicts and trust numbers.

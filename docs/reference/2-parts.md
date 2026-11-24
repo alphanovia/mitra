@@ -9,7 +9,7 @@ name, what it needs, and what it promises.
 - An **environment** is the world around it: you rely on it, you cannot
   change it.
 
-From [models/fall.mitra](../../models/fall.mitra), a stone dropped from
+From [examples/fall/fall.mitra](../../examples/fall/fall.mitra), a stone dropped from
 a tower, in the light of the sun:
 
 ```mitra

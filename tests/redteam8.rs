@@ -29,7 +29,7 @@ fn model(src: &str) -> Model {
     m
 }
 fn div() -> Model {
-    let p = format!("{}/models/div.mitra", env!("CARGO_MANIFEST_DIR"));
+    let p = format!("{}/examples/div/tied.mitra", env!("CARGO_MANIFEST_DIR"));
     model(&std::fs::read_to_string(p).unwrap())
 }
 fn path(p: &str) -> Path {

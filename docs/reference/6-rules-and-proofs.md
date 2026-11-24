@@ -8,7 +8,7 @@ A **rule** says that some statements give another:
 rule name: premise, premise |- conclusion;
 ```
 
-Read `|-` as "gives". From [models/fall.mitra](../../models/fall.mitra):
+Read `|-` as "gives". From [examples/fall/fall.mitra](../../examples/fall/fall.mitra):
 
 ```mitra
         rule slows: drop::falls, speed::slow |- drop::slow;

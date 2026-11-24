@@ -20,7 +20,7 @@ A link follows the repository; a copy must be made again after a change.
 Or as a package: `npx @vscode/vsce package` in this folder, then
 "Extensions: Install from VSIX…" with the `.vsix` it writes.
 
-Open `models/fall.mitra` to see it.
+Open `examples/fall/fall.mitra` to see it.
 
 ## Keeping it in step
 

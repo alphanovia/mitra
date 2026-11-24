@@ -1,5 +1,5 @@
 //! The text of a model (`docs/design/syntax.md`): `parse` reads what `print`
-//! writes. The fall and div of `models/` parse, check, and come back the
+//! writes. The fall and div of `examples/` parse, check, and come back the
 //! same; every form of the language comes back the same; random
 //! expressions come back the same; errors say where, as rustc does.
 
@@ -189,10 +189,10 @@ fn fall() -> Model {
     }
 }
 
-// ---------------------------------------------------------------- the models of `models/`
+// ---------------------------------------------------- the models of `examples/`
 
 fn file(name: &str) -> String {
-    let path = format!("{}/models/{name}", env!("CARGO_MANIFEST_DIR"));
+    let path = format!("{}/examples/{name}", env!("CARGO_MANIFEST_DIR"));
     std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("no {path}"))
 }
 
@@ -210,7 +210,7 @@ fn round_trip(m: &Model) {
 
 #[test]
 fn the_fall_reads_as_built_by_hand() {
-    let m = read(&file("fall.mitra"));
+    let m = read(&file("fall/fall.mitra"));
     assert_eq!(m, fall());
     assert_eq!(check(&m), vec![]);
     round_trip(&m);
@@ -218,7 +218,7 @@ fn the_fall_reads_as_built_by_hand() {
 
 #[test]
 fn div_reads_checks_and_comes_back() {
-    let m = read(&file("div.mitra"));
+    let m = read(&file("div/tied.mitra"));
     assert_eq!(check(&m), vec![]);
     round_trip(&m);
     let div = &m.parts[0].functions[0];
@@ -660,7 +660,7 @@ fn numbers_read_and_print_exactly() {
 
 #[test]
 fn a_proposition_reads_alone() {
-    let m = read(&file("div.mitra"));
+    let m = read(&file("div/tied.mitra"));
     let text = "all x in (a: 0..10, b: 0..10) where b != 0: correct(calc::div, x)";
     let p = parse_prop(text, &m).unwrap();
     let Prop::All { name, over, body } = &p else {

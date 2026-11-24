@@ -1,3 +1,5 @@
+// Main's div with its tie in the model (`at "src/lib.rs/div"`), where
+// model.mitra has it in the code: the same project, two ways to tie.
 // Main's div (README of main): `fn div(a: 0..=9, b: 0..=9) -> 0..=9
 // { if b == 0 { 0 } else { a / b } }`, written on core2. Two things of
 // main cannot be written yet, both findings of the overnight report:

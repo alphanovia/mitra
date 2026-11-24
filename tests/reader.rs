@@ -12,11 +12,11 @@ use mitra_core::reader::{
 use mitra_core::simulation::Value;
 
 fn div() -> Model {
-    let path = format!("{}/models/div.mitra", env!("CARGO_MANIFEST_DIR"));
+    let path = format!("{}/examples/div/tied.mitra", env!("CARGO_MANIFEST_DIR"));
     parse(&std::fs::read_to_string(path).unwrap()).unwrap()
 }
 fn fall() -> Model {
-    let path = format!("{}/models/fall.mitra", env!("CARGO_MANIFEST_DIR"));
+    let path = format!("{}/examples/fall/fall.mitra", env!("CARGO_MANIFEST_DIR"));
     parse(&std::fs::read_to_string(path).unwrap()).unwrap()
 }
 fn path(p: &str) -> Path {

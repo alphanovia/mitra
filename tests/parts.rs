@@ -7,7 +7,7 @@ use mitra_core::check::check;
 use mitra_core::parse::parse;
 use mitra_core::print::print;
 
-pub const ASSISTANT: &str = include_str!("../models/assistant.mitra");
+pub const ASSISTANT: &str = include_str!("../examples/assistant/assistant.mitra");
 
 fn errors(text: &str) -> Vec<String> {
     check(&parse(text).unwrap_or_else(|e| panic!("{e}")))

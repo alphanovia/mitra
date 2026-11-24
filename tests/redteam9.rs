@@ -214,8 +214,11 @@ examples {
 /// that count.
 #[test]
 fn d7_every_comparison_of_the_table_is_counted() {
-    let text = std::fs::read_to_string(format!("{}/models/div.mitra", env!("CARGO_MANIFEST_DIR")))
-        .unwrap();
+    let text = std::fs::read_to_string(format!(
+        "{}/examples/div/tied.mitra",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap();
     let (agreed, _) = agreed(&text);
     let together = agreed.iter().any(|a| a.against == "its claims together");
     assert!(
@@ -266,7 +269,7 @@ fn n1_a_use_names_something_once() {
 // ------------------------------------------------------------ evidence
 
 fn div() -> Model {
-    let path = format!("{}/models/div.mitra", env!("CARGO_MANIFEST_DIR"));
+    let path = format!("{}/examples/div/tied.mitra", env!("CARGO_MANIFEST_DIR"));
     model(&std::fs::read_to_string(path).unwrap())
 }
 fn int(n: i64) -> Value {

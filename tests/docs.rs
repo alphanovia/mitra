@@ -1,6 +1,6 @@
 //! The public docs show only Mitra that checks. Each ```mitra block of
 //! README.md, docs/getting-started.md and docs/reference/*.md is either
-//! lines of an example file (examples/, models/), in order and together,
+//! lines of an example file (examples/), in order and together,
 //! comments and blank lines aside, or a whole model on its own. Every
 //! file a block is taken from passes `mitra check` (exit 0: well formed;
 //! the findings it shows on purpose are allowed), and every block on its
@@ -92,7 +92,6 @@ fn every_example_in_the_docs_checks() {
     files(&root.join("docs/reference"), "md", &mut docs);
     let mut models = Vec::new();
     files(&root.join("examples"), "mitra", &mut models);
-    files(&root.join("models"), "mitra", &mut models);
     let models: Vec<(PathBuf, Vec<String>)> = models
         .into_iter()
         .map(|p| {
