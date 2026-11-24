@@ -1,0 +1,1 @@
+ignore-interior-mutability = ["mitra_lang::judgement::Definitions", "mitra_lang::simulation::Calls"]
