@@ -1,6 +1,6 @@
 # The reader on core2
 
-`src/reader.rs` reads what comes from outside the model, and gives the
+`crates/mitra-rust/src/reader.rs` reads what comes from outside the model, and gives the
 ledger: what was measured and what was reviewed. Nothing given is
 dropped quietly: what it cannot use is a finding of suit `R` (flagged),
 written as rustc writes, `finding[R004]: … --> file:line`.
@@ -67,4 +67,4 @@ ensure or tied item holds or fails, as one voice. A voice is
 file's path and text, the `cargo test` report, the store's path and
 text. It gives every tie (the model's and the code's), the `Ledger`,
 and the findings. `Measurement`, `Review` and `Ledger` are the shapes
-the evidence layer fixes; they move to `src/evidence.rs` when it lands.
+the evidence layer fixes; they move to `crates/mitra-lang/src/evidence.rs` when it lands.

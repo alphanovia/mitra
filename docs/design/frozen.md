@@ -17,4 +17,4 @@ every location is within itself.
 
 **Purpose.** The tether between the model and the real system.
 
-**Code.** `src/location.rs`. **Test.** `tests/location.rs`.
+**Code.** `crates/mitra-lang/src/location.rs`. **Test.** `crates/mitra-lang/tests/location.rs`.

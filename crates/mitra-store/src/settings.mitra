@@ -1,0 +1,21 @@
+// The dogfood model of `src/settings.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+subject record Settings at "crates/mitra-store/src/settings.rs/Settings" {
+    parse: ParseSettings, agree: AgreeSettings, explain: ExplainSettings, numbers: NumbersSettings, blame: BlameSettings, test: TestSettings
+}
+
+// The program run, and its arguments.
+subject record TestSettings at "crates/mitra-store/src/settings.rs/Test" { command: [[~char]] }
+
+subject settings {
+    use AgreeSettings from "agree";
+    use BlameSettings from "blame";
+    use ExplainSettings from "explain";
+    use NumbersSettings from "numbers";
+    use ParseSettings from "parse";
+    fn read(text: [~char]) -> s: Settings at "crates/mitra-store/src/settings.rs/read";
+    ensure sections: "mitra.toml gives each layer's settings a section by the code's names, one `[budget]` for agree and explain, parse's depth twice budget's when not said, `[test] command` what explain runs with no report; an empty file changes nothing";
+    ensure nothing_unread: "a section, a key or a value Mitra does not take is P015 where it is: a count a whole number, a weight written with its point, no number made another";
+}

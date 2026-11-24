@@ -1,6 +1,6 @@
 # Numbers on core2
 
-`src/numbers.rs` says how much the evidence says, after judging and
+`crates/mitra-lang/src/numbers.rs` says how much the evidence says, after judging and
 never in it: judgement and its verdicts do not change. Subjective Logic
 (Jøsang, 2016) on counts.
 

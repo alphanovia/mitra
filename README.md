@@ -121,4 +121,10 @@ cargo build --release
 target/release/mitra check examples/div/model.mitra
 ```
 
+The workspace: `crates/mitra-lang` (the language; reads no file, knows
+no code language), `crates/mitra-store` (the disk: the project, its
+`mitra.toml`), `crates/mitra-rust` (Rust code and `cargo test`),
+`crates/mitra-cli` (the `mitra` command), and `crates/mitra` with
+`crates/mitra-derive` (the test macros, a dev-dependency of yours).
+
 MIT licence.

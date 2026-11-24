@@ -1,6 +1,6 @@
 # The text of a model on core2
 
-`src/parse.rs` reads it, `src/print.rs` writes it, and `parse(print(m))`
+`crates/mitra-lang/src/parse.rs` reads it, `crates/mitra-lang/src/print.rs` writes it, and `parse(print(m))`
 is `m`, ties aside (below). It is the data of `docs/design/model.md`, written
 down: nothing here adds to the model. The models of `examples/` are in it:
 `fall/fall.mitra` (the stone and the sun) and `div/tied.mitra` (main's div).
@@ -9,7 +9,7 @@ Spellings follow Rust. Where a choice is not Rust's, or Rust has no
 form for it, it is **flagged**: a proposal, yours to change.
 
 A keyword added to or taken from the parser changes the VS Code grammar
-in the same commit (`editors/vscode/README.md`); `tests/editor_grammar.rs`
+in the same commit (`editors/vscode/README.md`); `crates/mitra-lang/tests/editor_grammar.rs`
 fails when they drift.
 
 ## A whole model

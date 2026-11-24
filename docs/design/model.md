@@ -1,20 +1,20 @@
 # The model layer on core2
 
-`src/model.rs` is what you write about a system, as Rust data. It has no
+`crates/mitra-lang/src/model.rs` is what you write about a system, as Rust data. It has no
 syntax yet: the language is decided later. It checks that a model is well
 formed and reads three things from it: how far each item is specified,
 the propositions judgement reasons about, and which of them only a taking
 can hold. It runs nothing, but each rule's proof, once (choice 5).
 
-`src/expression.rs` did not change for it (`git diff eca4b67 --
-src/expression.rs` is empty). `src/simulation.rs` gained one helper,
+`crates/mitra-lang/src/expression.rs` did not change for it (`git diff eca4b67 --
+crates/mitra-lang/src/expression.rs` is empty). `crates/mitra-lang/src/simulation.rs` gained one helper,
 `tuple`, then calls by path and type parameters (`docs/design/core2.md`, choices
-12 and 13). `src/judgement.rs` renamed `Piece` to `Prop`, and now knows
+12 and 13). `crates/mitra-lang/src/judgement.rs` renamed `Piece` to `Prop`, and now knows
 rules by name (choice 9).
 
 ## The fall
 
-The test model is `tests/model.rs`. Here it is in an illustrative syntax, not
+The test model is `crates/mitra-lang/tests/model.rs`. Here it is in an illustrative syntax, not
 a proposal, with paths shortened inside a part. A rule is written
 `name: premises |- conclusion`, the turnstile you are trying:
 
@@ -93,7 +93,7 @@ struct Path { names: Vec<String> }                                 // stone::dro
 `levels(model)`, `props(model)`, `judgement(model)` and `leaves(model)`
 read the model. `calls(model)` gives its functions as simulation calls
 them, and `contract_claims(model)` each contract's claim read of the
-functions that fit it. `check(model) -> Vec<Error>`, in `src/check.rs`, says
+functions that fit it. `check(model) -> Vec<Error>`, in `crates/mitra-lang/src/check.rs`, says
 where it is not well formed: each error has a code of the catalogue, the
 path of the declaration to fix, and a message (below).
 
@@ -138,7 +138,7 @@ and each code its page in `docs/reference/codes`, with an example and the fix.
 
 ## Errors and the catalogue
 
-`src/catalogue.rs` is one list of codes for every layer. A code is a suit,
+`crates/mitra-lang/src/catalogue.rs` is one list of codes for every layer. A code is a suit,
 the layer that gives it, and a number: `M005`. The suits are `E` for the
 expression core (none yet), `M` for the model as written (`check`), `A`
 for the model against itself (agree), `V` for evidence, `X` for
@@ -429,7 +429,7 @@ tests: inputs and expected outputs of a whole program.
 ## Red team (round 4)
 
 A fresh agent attacked the first version (326388c). Each finding has a test
-in `tests/model.rs`:
+in `crates/mitra-lang/tests/model.rs`:
 
 | Found | Now | Test |
 |---|---|---|

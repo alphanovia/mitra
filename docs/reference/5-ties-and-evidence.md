@@ -21,10 +21,10 @@ root (the folder of `mitra.toml`), wherever the model sits.
 ## Where the model lives
 
 A model file can sit anywhere in the project. The habit Mitra suggests
-is beside the code it models: `src/check.mitra` next to `src/check.rs`.
-Mitra's own code is modelled that way: each `src/<module>.mitra` holds
-one module's part, and `src/bin/mitra.mitra` is the whole, reading the
-others with `use` ([chapter 7](7-contracts-and-use.md#use)).
+is beside the code it models: `check.mitra` next to `check.rs`. Mitra's
+own code is modelled that way: each `crates/<crate>/src/<module>.mitra`
+holds one module's part, and `crates/mitra-cli/src/main.mitra` is the
+whole, reading the others with `use` ([chapter 7](7-contracts-and-use.md#use)).
 
 A tie can also be written in the model, after a name, with `at`. From
 [examples/fall/fall.mitra](../../examples/fall/fall.mitra), a tie to something that is

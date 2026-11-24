@@ -1,6 +1,6 @@
 # Agree on core2
 
-`src/agree.rs` answers the first question with no evidence: is the model
+`crates/mitra-lang/src/agree.rs` answers the first question with no evidence: is the model
 sound on itself, and if not, where? It reads a model `check` accepts and
 compares what the model says twice.
 

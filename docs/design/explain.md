@@ -1,6 +1,6 @@
 # Explain on core2
 
-`src/explain.rs` answers the second question: does the model explain
+`crates/mitra-lang/src/explain.rs` answers the second question: does the model explain
 the system, assuming the evidence, and if not, where? It reads a model
 `check` accepts and a ledger (`docs/design/evidence.md`); what `evidence::check`
 refuses is left out, and reported there.

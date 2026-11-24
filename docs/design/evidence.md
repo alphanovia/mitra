@@ -1,8 +1,8 @@
 # Evidence on core2
 
-`src/evidence.rs` holds what was measured and reviewed of the real
+`crates/mitra-lang/src/evidence.rs` holds what was measured and reviewed of the real
 system, one set at one time, and checks it against a model. The reader
-(`src/reader.rs`, `docs/design/reader.md`) builds it from Rust tests, a
+(`crates/mitra-rust/src/reader.rs`, `docs/design/reader.md`) builds it from Rust tests, a
 `cargo test` report and a store written by hand. Staleness and the
 management of a ledger over time are not in this round.
 

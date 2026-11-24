@@ -1,0 +1,9 @@
+[package]
+name = "mitra-rust"
+description = "Mitra's reader of Rust and cargo: ties and tests in Rust code, what cargo test printed, running the tests."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mitra-lang = { path = "../mitra-lang" }

@@ -176,13 +176,52 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
-name = "mitra-core"
+name = "mitra"
+version = "0.0.0"
+dependencies = [
+ "mitra-derive",
+]
+
+[[package]]
+name = "mitra-cli"
+version = "0.0.0"
+dependencies = [
+ "mitra-lang",
+ "mitra-rust",
+ "mitra-store",
+]
+
+[[package]]
+name = "mitra-derive"
+version = "0.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "mitra-lang"
 version = "0.0.0"
 dependencies = [
  "num-bigint",
  "num-rational",
  "num-traits",
  "proptest",
+]
+
+[[package]]
+name = "mitra-rust"
+version = "0.0.0"
+dependencies = [
+ "mitra-lang",
+]
+
+[[package]]
+name = "mitra-store"
+version = "0.0.0"
+dependencies = [
+ "mitra-lang",
  "toml",
 ]
 

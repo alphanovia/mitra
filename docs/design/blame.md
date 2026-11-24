@@ -1,6 +1,6 @@
 # Blame on core2
 
-`src/blame.rs` answers the third question: which evidence is wrong,
+`crates/mitra-lang/src/blame.rs` answers the third question: which evidence is wrong,
 given the model explains the system? It reads what explain gives
 (`docs/design/explain.md`).
 

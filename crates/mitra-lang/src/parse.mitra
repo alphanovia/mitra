@@ -1,0 +1,21 @@
+// The dogfood model of `src/parse.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+subject record ParseSettings at "crates/mitra-lang/src/parse.rs/Settings" { depth: integer }
+
+subject parse {
+    use print from "print";
+    require printed: print::reads_back;
+    use simulation::budget_defaults from "simulation";
+    fn parse_defaults() -> s: ParseSettings at "crates/mitra-lang/src/parse.rs/Settings/default" {
+        ParseSettings { depth: 2 * budget_defaults().depth }
+    }
+    ensure round_trip: "parse(print(m)) is m, ties aside" from (printed);
+    ensure first_error: "a text that is not a model gives its first error, at its line and column, suit P";
+    ensure files: "a part used and not declared is read from every file of the one folder of the project that declares it, Mitra's standard model the folder `std` in the binary; `from` keeps the paths ending with it, by whole names; one found nowhere is P010, one two folders declare P014, at the use";
+    ensure usable: "a proof's text writes only operations that give an opinion: `state(…)` and `&&` on states are no text";
+    ensure parts: "a part given twice is one part, merged, and P012 when the kinds differ; `x.f(a)` calls the method `f` of x's part, P013 when it has none";
+    ensure deep: "a text nested deeper than `parse::Settings::depth` levels is P011, at the place the parser stopped, never a crash";
+    ensure exhaustive: "a match gives each variant of its enum one arm, or `_` for the rest (P006); a value whose type nothing around it tells is P009, never a guess";
+}

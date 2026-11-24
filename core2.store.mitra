@@ -155,5 +155,5 @@ review reader::seeing holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a
 review reader::stopped holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_test_binary_that_stopped_is_a_finding";
 review explain::asks holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_asks_for_each_link_no_voice_reviewed", "test:a_review_of_a_link_answers_its_ask";
 review cli::runs_tests holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_runs_cargo_test_when_no_report_is_given";
-review checks::prints_rows holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:the_mitra_test_crate_passes_its_tests";
-review checks::observed holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:the_mitra_test_crate_passes_its_tests";
+review checks::prints_rows holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_row_is_the_call_as_written_and_what_it_gave", "test:check_eq_says_the_row_when_it_fails", "test:check_says_the_row_when_it_fails";
+review checks::observed holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:values_are_written_as_mitra_writes_them";

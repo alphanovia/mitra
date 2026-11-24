@@ -1,0 +1,10 @@
+[package]
+name = "mitra-store"
+description = "Everything Mitra keeps on a disk: the project's root and files, mitra.toml, the store."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mitra-lang = { path = "../mitra-lang" }
+toml = { version = "1.2.2", default-features = false, features = ["parse"] }

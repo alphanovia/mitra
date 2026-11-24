@@ -1,0 +1,19 @@
+[package]
+name = "mitra-cli"
+description = "The `mitra` command: check, explain, blame."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "mitra"
+path = "src/main.rs"
+
+[dependencies]
+mitra-lang = { path = "../mitra-lang" }
+mitra-store = { path = "../mitra-store" }
+mitra-rust = { path = "../mitra-rust" }
+
+[dev-dependencies]
+mitra-lang = { path = "../mitra-lang" }
+mitra-rust = { path = "../mitra-rust" }

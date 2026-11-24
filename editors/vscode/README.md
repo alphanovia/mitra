@@ -25,11 +25,11 @@ Open `examples/fall/fall.mitra` to see it.
 ## Keeping it in step
 
 - `syntaxes/mitra.tmLanguage.json` lists the parser's keywords in its
-  `"keyword-…"` entries. They must match `KEYWORDS` in `src/parse.rs`,
-  changed in the same commit; `tests/editor_grammar.rs` fails when they
+  `"keyword-…"` entries. They must match `KEYWORDS` in `crates/mitra-lang/src/parse.rs`,
+  changed in the same commit; `crates/mitra-lang/tests/editor_grammar.rs` fails when they
   drift.
 - Not tested, so by hand: primitive type names (`"type"`), proof
-  operations (`"proof-op"`, `PROOF_OPS` in `src/parse.rs`), symbols
+  operations (`"proof-op"`, `PROOF_OPS` in `crates/mitra-lang/src/parse.rs`), symbols
   (`"operator"`, `SYMBOLS`).
 - `"self-and-loops"` colours `self` and the loops `until(…)` and
   `.fold(…)`, which the parser reads as names, not keywords.

@@ -1,0 +1,16 @@
+// The dogfood model of `src/model.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+// A model holds parts, contracts, examples and ties: lists, opaque.
+subject record Model at "crates/mitra-lang/src/model.rs/Model";
+
+// A path is a list of names: opaque.
+subject record Path at "crates/mitra-lang/src/model.rs/Path";
+
+subject model {
+    use judgement from "judgement";
+    require kernel: judgement::sound;
+    ensure props: "props gives every proposition the model names, and only those";
+    ensure leaves: "leaves gives the propositions no rule concludes, each a suspect";
+}
