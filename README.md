@@ -103,13 +103,13 @@ Mitra is early. What works today:
 
 - the language of [the reference](docs/reference/README.md): parts,
   functions, claims, examples, rules and proofs, records, enums,
-  sequences, text, loops, contracts;
+  sequences, text, loops, contracts, and `use … from` across the
+  project's folders;
 - ties to Rust code, and evidence from `cargo test` and from a file of
   reviews and measurements written by hand;
 - the three commands, with error messages in the style of `rustc`.
 
-Not yet: imports across folders, trees, other
-languages than Rust, colours and JSON output. Each lands in the
+Not yet: trees, other languages than Rust, colours and JSON output. Each lands in the
 reference when it lands in the code.
 
 A VS Code grammar is in [editors/vscode](editors/vscode).

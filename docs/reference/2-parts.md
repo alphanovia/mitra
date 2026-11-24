@@ -107,6 +107,10 @@ subject enum Shape { Dot(Point), Square(rational) }
 
 `subject record Point { … }` is the same as `subject Point { record { … } }`.
 
+Every named type is a data part: a part never declares a named record
+or enum inside it. A data part is read anywhere, with no `use`. In a
+tie or a store, its path is `Point::Point`: the part, then its type.
+
 ## Reopening a part
 
 A part can be reopened, here or in another file, to add to it: same

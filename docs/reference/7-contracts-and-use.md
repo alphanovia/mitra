@@ -38,7 +38,7 @@ subject Shop {
 ```
 
 `use Prices::{with_tax, or_zero};` names several, `use Prices::*;` all,
-`use Price;` the whole part. A part needs no `use` for its own names, nor
+`use Prices;` the whole part. A part needs no `use` for its own names, nor
 for a part's type. Without a `use`, a name from another part is written
 whole: `Prices::with_tax(a)`.
 
