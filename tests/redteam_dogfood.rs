@@ -1,4 +1,4 @@
-//! Red team of the dogfood model (`core2.mitra`): rows that say what
+//! Red team of the dogfood model (`src/*.mitra`): rows that say what
 //! the CODE gives, where the model says otherwise, and probes of the
 //! reader on its own repository. Every test here passes; each `// mitra:
 //! measures` row is what the code does, so a contradiction in `mitra

@@ -6,8 +6,8 @@ mitra explain MODEL [--code DIR]... [--report FILE] [--store FILE]
 mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
 ```
 
-- `MODEL`: the `.mitra` file at the root of the project. Paths in ties
-  (`src/lib.rs/div`) are read from its folder.
+- `MODEL`: a `.mitra` file of the project. Paths in ties
+  (`src/lib.rs/div`) are read from the project's root.
 - `--code DIR`: Rust code to read for ties and measuring tests. Give it
   more than once for several folders.
 - `--report FILE`: what `cargo test` printed (`cargo test > report.txt 2>&1`).
@@ -46,8 +46,8 @@ diagnosis 1 (doubt 0.33): drop measurements::3 (human:ana, saw calc::div::q = 4)
 
 ## mitra.toml
 
-The project's root is the folder of `mitra.toml`, up from where `mitra`
-runs. The file holds each layer's settings, a section each; an empty
+The project's root is the folder of `mitra.toml`, up from the model's
+folder (else the git work tree, else the model's folder). The file holds each layer's settings, a section each; an empty
 file only marks the root. Every key is optional, here at its default:
 
 ```toml

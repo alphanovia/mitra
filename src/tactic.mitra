@@ -1,0 +1,10 @@
+// The dogfood model of `src/tactic.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+subject tactic {
+    use judgement from "judgement";
+    require kernel: judgement::sound;
+    ensure checked: "cases and intro write proofs that judgement checks; they add nothing it trusts"
+        from (kernel);
+}

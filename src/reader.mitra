@@ -1,0 +1,14 @@
+// The dogfood model of `src/reader.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+environment cargo {
+    ensure reports: "`cargo test` prints one line `test NAME ... ok`, `FAILED` or `ignored` for each test it runs";
+}
+
+subject reader {
+    require report: cargo::reports;
+    ensure nothing_dropped: "whatever the reader is given and cannot use is a finding of suit R";
+    ensure ties_read: "a `// mitra: implements` comment above a fn, struct or enum ties that item, at file/mods/name"
+        from (report);
+}

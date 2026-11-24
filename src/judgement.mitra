@@ -1,0 +1,45 @@
+// The dogfood model of `src/judgement.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+// A proposition is a tree: opaque.
+subject record Prop at "src/judgement.rs/Prop";
+
+// A voice takes a proposition as true or false, count times (`by`
+// is a keyword of the model: `voice` here).
+subject record Taking at "src/judgement.rs/Taking" { prop: Prop, value: bool, count: integer, voice: [~char] }
+
+// Belnap's four states, as their two sides: told true, told false.
+subject record State at "src/judgement.rs/State" { t: bool, f: bool }
+
+subject judgement {
+    use simulation from "simulation";
+    require holds: simulation::exact_right;
+
+    fn told(t: bool, f: bool) -> s: State at "src/judgement.rs/State/told" {
+        State { t: t, f: f }
+    }
+    fn sides(s: State) -> p: (bool, bool) at "src/judgement.rs/State/sides" { (s.t, s.f) }
+    fn and(x: State, y: State) -> z: State at "src/judgement.rs/State/and" {
+        told(x.t && y.t, x.f || y.f)
+    } where {
+        // Told false when either is; told true only when both are.
+        claim false_wins: (x.f || y.f) == z.f;
+        claim true_needs_both: !z.t || (x.t && y.t);
+    }
+    fn join(x: State, y: State) -> z: State at "src/judgement.rs/State/join" {
+        told(x.t || y.t, x.f || y.f)
+    } where {
+        // Join forgets nothing either tells.
+        claim keeps: (!x.t || z.t) && (!x.f || z.f) && (!y.t || z.t) && (!y.f || z.f);
+    }
+    fn negate(x: State) -> z: State at "src/judgement.rs/State/not" {
+        told(x.f, x.t)
+    } where {
+        claim swaps: z.t == x.f && z.f == x.t;
+    }
+
+    ensure sound: "a proposition judged true follows from its rests by the rules of judgement"
+        from (holds);
+    ensure taken_only: "every rest is a set of takings, and nothing is true without one";
+}

@@ -703,6 +703,8 @@ fn project(name: &str) -> std::path::PathBuf {
             "fn div(a: integer, b: integer) -> q: integer at \"src/lib.rs/div\" where {",
         );
     std::fs::write(dir.join("proj/model.mitra"), text).unwrap();
+    // The project's root: tie paths are read from it.
+    std::fs::write(dir.join("proj/mitra.toml"), "").unwrap();
     std::fs::write(
         dir.join("proj/store.mitra"),
         "measure calc::div (7, 2) -> 4 by \"human:ana\";\n",

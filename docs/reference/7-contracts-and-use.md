@@ -44,7 +44,7 @@ whole: `Prices::with_tax(a)`.
 
 A part used and not declared in the model's file is read from the files
 of the project that declare it. The project is every `.mitra` file under
-its root: the folder of `mitra.toml`, up from where `mitra` runs, else
+its root: the folder of `mitra.toml`, up from the model's folder, else
 the root of the git work tree, else that folder; what the root's
 `.gitignore` leaves out is not read. A folder is a name space: its files
 may each hold a piece of one part. When two folders declare a part,

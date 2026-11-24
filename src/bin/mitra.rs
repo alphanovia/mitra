@@ -43,7 +43,7 @@ const USAGE: &str = "usage:
   mitra explain MODEL [--code DIR]... [--report FILE] [--store FILE]
   mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
 
-  MODEL     the model, a .mitra file at the root of the project
+  MODEL     the model, a .mitra file of the project
   --code    a folder of Rust files, read for ties and measuring tests
   --report  the output of `cargo test`
   --store   measurements and reviews written by hand
@@ -142,7 +142,7 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     let shown = given.model.display().to_string();
     // A part the model uses and does not declare is read from the
     // project's files that declare it.
-    let root = project_root();
+    let root = project_root(&given.model);
     let project = project_of(&root, &given.model);
     // Each layer's settings, from `mitra.toml` when the root has one.
     let toml = root.join("mitra.toml");
@@ -192,8 +192,7 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     }
     // Paths from the model's folder, however both are spelled.
     let whole = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
-    let parent = given.model.parent().filter(|p| !p.as_os_str().is_empty());
-    let root = whole(parent.unwrap_or(Path::new(".")));
+    let root = whole(&root);
     let mut files = Vec::new();
     for dir in &given.code {
         rust_files(dir, &mut files)?;
@@ -460,10 +459,15 @@ fn blame_out(
     out!("blame: {} conflicts, {which}", b.conflicts.len());
 }
 
-/// The project's root: the nearest folder up from here holding
-/// `mitra.toml`, else the root of its git work tree, else here.
-fn project_root() -> PathBuf {
-    let here = std::env::current_dir().unwrap_or_default();
+/// The project's root: the nearest folder up from the model's holding
+/// `mitra.toml`, else the root of its git work tree, else the model's
+/// folder (the user's choice, 12:21).
+fn project_root(model: &Path) -> PathBuf {
+    let full = std::fs::canonicalize(model).unwrap_or_else(|_| model.to_path_buf());
+    let here = full
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
     let up = |marker: &str| {
         here.ancestors()
             .find(|d| d.join(marker).exists())

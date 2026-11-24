@@ -1,5 +1,6 @@
 //! The dogfood: tests that measure core2 against its own model,
-//! `core2.mitra` at the root. Each `// mitra: measures` comment is a row
+//! the dogfood model, `src/*.mitra` beside the code (`src/bin/mitra.mitra`
+//! the whole). Each `// mitra: measures` comment is a row
 //! of the model; the test checks every value of it. Rows are exact, the
 //! code's f64 is compared within `NEAR`.
 
@@ -168,7 +169,7 @@ fn dogfood_fused_no_prior() {
 
 // ------------------------------------------- judgement, every point
 
-/// The claims of `judgement::and`, `join` and `negate` in core2.mitra,
+/// The claims of `judgement::and`, `join` and `negate` in src/judgement.mitra,
 /// at every one of the 16 (or 4) points: the store reviews each claim
 /// by this test's voice.
 #[test]

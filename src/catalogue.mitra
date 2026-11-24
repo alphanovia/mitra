@@ -1,0 +1,15 @@
+// The dogfood model of `src/catalogue.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+// The suit is an enum of seven letters: opaque.
+subject record Suit at "src/catalogue.rs/Suit";
+
+subject record Code at "src/catalogue.rs/Code" { suit: Suit, number: integer }
+
+subject record Entry at "src/catalogue.rs/Entry" { code: Code, title: [~char], retired: bool }
+
+subject catalogue {
+    ensure never_reused: "a code is given to one meaning, never reused: a code no longer given is kept, retired";
+    ensure documented: "every code has an entry and a page in docs/reference/codes";
+}

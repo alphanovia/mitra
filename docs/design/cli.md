@@ -9,8 +9,8 @@ mitra explain MODEL [--code DIR]... [--report FILE] [--store FILE]
 mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
 ```
 
-- `MODEL`: the `.mitra` file at the root of the project. Paths of Rust
-  files are read from its folder, as ties write them: `src/lib.rs/div`,
+- `MODEL`: a `.mitra` file of the project. Paths of Rust files are read
+  from the project's root, as ties write them: `src/lib.rs/div`,
   however the folders are spelled (`./`, absolute).
 - `--code`: a folder (or a file) of Rust code: its `// mitra:
   implements` ties and `// mitra: measures` tests (`docs/design/reader.md`).
@@ -28,7 +28,7 @@ mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
 
 A part the model uses and does not declare is read from the project's
 files that declare it: every `.mitra` file under the root (the folder of
-`mitra.toml`, up from where `mitra` runs, else the git work tree, else
+`mitra.toml`, up from the model's folder, else the git work tree, else
 there), less what the root's `.gitignore` leaves out, and Mitra's own
 standard model, the folder `std`, in the binary (P010 when none has it,
 P014 when two folders do and no `from` says which).

@@ -188,6 +188,10 @@ fn a_part_is_read_from_the_project() {
     let (code, out) = mitra_in(&src, &["check", "calc.mitra"]);
     assert_eq!(code, 0, "{out}");
     assert!(out.contains("check: well formed"), "{out}");
+    // The root is found up from the model, wherever `mitra` runs.
+    let calc = src.join("calc.mitra");
+    let (code, out) = mitra_in(&std::env::temp_dir(), &["check", calc.to_str().unwrap()]);
+    assert_eq!(code, 0, "{out}");
     // A folder `.gitignore` leaves out is no part of the project: with
     // no `from`, `Point` is still of one folder.
     std::fs::write(
@@ -241,4 +245,30 @@ fn mitra_toml_sets_the_settings() {
     );
     assert!(out.contains("mitra.toml:2:1"), "{out}");
     std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The dogfood model, beside the code it models, from the root's
+/// `mitra.toml`: every module's file is read through `use … from`.
+#[test]
+fn the_dogfood_model_is_whole_and_checks() {
+    let (code, out) = mitra(&["check", "src/bin/mitra.mitra"]);
+    assert_eq!(code, 0, "{out}");
+    assert!(
+        out.contains("check: well formed; agree: 24 comparisons, 16 hold, 8 findings"),
+        "{out}"
+    ); // Its ties (`src/simulation.rs/…`) are read from the root, not from
+       // `src/bin/`: each once, none twice by two spellings.
+    let (code, out) = mitra(&[
+        "explain",
+        "src/bin/mitra.mitra",
+        "--code",
+        "src",
+        "--store",
+        "core2.store.mitra",
+    ]);
+    assert_eq!(code, 0, "{out}");
+    assert!(
+        out.contains("evidence: 0 measurements, 128 reviews, 46 ties"),
+        "{out}"
+    );
 }

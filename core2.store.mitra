@@ -1,4 +1,4 @@
-// The dogfood store: reviews of core2.mitra (flagged choice, see the
+// The dogfood store: reviews of the dogfood model (src/*.mitra; flagged
 // dogfood report). An ensure in words is reviewed by the voice of the
 // test that checks it (`test:name`), written here by hand because a
 // test can only measure rows (finding F6); this store does not read the

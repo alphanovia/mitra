@@ -1,0 +1,60 @@
+// The dogfood model of `src/simulation.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+environment num {
+    // num-rational's BigRational, which simulation's Rational wraps.
+    ensure exact: "BigRational adds, subtracts, multiplies and divides exactly";
+}
+
+subject record Rational at "src/simulation.rs/Rational";
+
+// A library of functions (`Calls`): what a call reads, and in which
+// order.
+subject record Calls at "src/simulation.rs/Calls";
+
+// How far a computation through calls may go: a setting.
+subject record Budget at "src/simulation.rs/Budget" { steps: integer, depth: integer }
+
+subject simulation {
+    use expression from "expression";
+    require exact_numbers: num::exact;
+    require trees: expression::binding;
+
+    use Option from "std";
+    fn plus(x: rational, y: rational) -> z: rational at "src/simulation.rs/Rational/plus" { x + y }
+    fn minus(x: rational, y: rational) -> z: rational at "src/simulation.rs/Rational/minus" { x - y }
+    fn times(x: rational, y: rational) -> z: rational at "src/simulation.rs/Rational/times" { x * y }
+    fn over(x: rational, y: rational) -> z: Option<rational> at "src/simulation.rs/Rational/over" {
+        if y == 0.0 { None } else { Some(x / y) }
+    } where {
+        claim back: match z { Some(q) => q * y == x, None => y == 0.0 };
+    }
+    fn abs(x: rational) -> z: rational at "src/simulation.rs/Rational/abs" {
+        if x < 0.0 { 0.0 - x } else { x }
+    } where {
+        claim positive: 0.0 <= z;
+        claim same: z == x || z == 0.0 - x;
+    }
+
+    ensure exact_right: "Exact gives the value an expression means, or a fault"
+        from (exact_numbers, trees);
+    ensure ranges_sound: "every value Exact gives lies in the bounds Ranges gives"
+        from (exact_numbers, trees);
+    ensure one_value: "Calls::with refuses a function two of whose rows at one point give different values";
+    ensure given_first: "a call reads the body; with none, what the reading was given at its point, else the row there";
+    fn budget_defaults() -> b: Budget at "src/simulation.rs/Budget/default" {
+        Budget { steps: 1000000, depth: 1000 }
+    }
+    ensure remembered: "a reading that remembers calls, and computes only the side of if, && and || it takes, gives what one that does neither gives";
+    ensure budgeted: "a computation past its budget of steps or depth gives no value, Undefined::Budget, and never aborts; by bounds too, never read as a value that may fault";
+    ensure encoded: "a text is its UTF-8 bytes, as Rust's str: its length and places in bytes, `==` and `<` byte by byte, `++` joins; by bounds a text keeps its length, and itself when known";
+    ensure indexed: "xs[i] has no value below 0 or at the length of xs or past it, Undefined::Index; by bounds a sequence keeps its length, a span of all it holds and the span of each place it surely holds";
+    ensure variants: "a match computes the arm of its value's variant only; by bounds, it joins the arms of each variant that may be";
+    ensure kept_sound: "a value at which the comparisons an expression joins by && all hold lies in the bounds Ranges::kept gives, and Ranges::kept gives none only when no value does";
+    ensure known_in_part: "what Exact gives of a record known in part, it gives of every record that fills in the fields not known; else Undefined::Unknown; its bounds hold every such record";
+    ensure whole_division: "/ and % on integer give what Rust's i64 gives, and none at zero; by bounds, they hold every value Exact gives";
+    ensure ranges_checked: "a call with a value outside the range type of what it takes, or a body giving one outside the range of what it gives, has no value; by bounds, such a call may fault";
+    ensure promised: "where the claims of a function with no body hold, a call of it lies in the bounds Ranges reads from them; inside its own claims, a call of it is only its type" from (kept_sound);
+    ensure loops: "`fold` carries its values through each value of the sequence in turn; `until` gives the first carried where `done` holds, its block never run then, and past the step budget it has no value and says so (A007)";
+}

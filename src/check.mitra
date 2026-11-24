@@ -1,0 +1,21 @@
+// The dogfood model of `src/check.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+// What check gives is a list of errors: opaque.
+subject record Errors;
+
+subject check {
+    use Model from "model";
+    use catalogue from "catalogue";
+    require codes: catalogue::never_reused;
+
+    fn check(m: Model) -> errors: Errors at "src/check.rs/check";
+    ensure sound: "a model check gives no error for has every path resolved, every type agreed, no support cycle, every proof checked by type and by one run, and one value for each function at each point of its examples"
+        from (codes, one_value);
+    ensure one_value: "two examples of a function at one point that give different values are the error M024";
+    ensure in_ranges: "a range type that holds no number is the error M025, an example outside one M026";
+    ensure declared: "an enum with no variant, a type parameter nothing it holds uses, or a record or enum that holds itself is the error M027";
+    ensure nested: "a part holding parts that holds more than parts, requires, ensures and examples is M028, one of its ensures resting on more than its inner parts' ensures and its own requires M029, a `self` not first or in a part with no record M030";
+    ensure type_explained: "a type error (M005, M006) shows the expression, underlines its innermost part with no type and the type of each argument, says what that operation takes, and converts no number";
+}

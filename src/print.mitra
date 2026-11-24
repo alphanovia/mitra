@@ -1,0 +1,7 @@
+// The dogfood model of `src/print.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+subject print {
+    ensure reads_back: "what print writes, parse reads back";
+}

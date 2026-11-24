@@ -1,0 +1,15 @@
+// The dogfood model of `src/location.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+subject record Location at "src/location.rs/Location" { path: [[~char]] }
+
+subject location {
+    // Rust's `a.path.starts_with(&b.path)`.
+    fn within(a: Location, b: Location) -> inside: bool at "src/location.rs/within" {
+        a.path.starts_with(b.path)
+    } where {
+        claim root: b.path.len() != 0 || inside;
+    }
+    ensure prefix: "within(a, b) holds when b's names begin a's names";
+}

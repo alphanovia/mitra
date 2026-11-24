@@ -1,0 +1,33 @@
+// The dogfood model of `src/agree.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+subject record AgreeSettings at "src/agree.rs/Settings" { points: integer, splits: integer, budget: Budget, length: integer }
+
+subject agree {
+    use Budget from "simulation";
+    use check from "check";
+    use simulation from "simulation";
+    require checked: check::sound;
+    // A value of the world an example of the model gives is read first.
+    require given: simulation::given_first;
+    require exact: simulation::exact_right;
+    require ranges: simulation::ranges_sound;
+    require kept: simulation::kept_sound;
+    require promised: simulation::promised;
+    require ranges_checked: simulation::ranges_checked;
+    // Each limit a setting, none fixed in the code.
+    require stops: simulation::budgeted;
+
+    fn agree_defaults() -> s: AgreeSettings at "src/agree.rs/Settings/default" {
+        AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 }, length: 3 }
+    }
+    ensure no_false_holds: "agree says Holds only when what the model says twice agrees at every point where the claims of functions with no body hold"
+        from (checked, exact, ranges, kept, given, promised);
+    ensure within_ranges: "agree reads a claim only where the ranges of what its function takes hold, checks that the body keeps the range of what it gives, and tries every point of the ranges when they hold at most `points`" from (ranges_checked);
+    ensure given_named: "a comparison that holds by the claims of a function with no body names them: hint A010, and `given` on each finding" from (promised);
+    ensure no_false_none: "agree says no value keeps a function's claims (A004) only when none does"
+        from (checked, exact, ranges, kept);
+    ensure lengths: "agree tries sequences from `[]` up to `Settings::length` long, of the values worth trying of what they hold";
+    ensure ends: "agree ends on every well-formed model: a budget reached, by bounds or at points, is unknown (A007), with the budget it reached" from (stops);
+}

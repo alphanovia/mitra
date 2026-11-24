@@ -1,0 +1,25 @@
+// The dogfood model of `src/evidence.rs`: core2 modelled in its own
+// language, beside the code it models (the parts it uses are read by
+// `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
+
+subject record Ledger at "src/evidence.rs/Ledger" { measurements: [Measurement], reviews: [Review] }
+
+subject record Measurement at "src/evidence.rs/Measurement" {
+    inputs: Ports, outputs: Ports, seen: bool, count: integer, voice: [~char]
+}
+
+subject record Review at "src/evidence.rs/Review" { prop: Path, holds: bool, voice: [~char] }
+
+// `by` is a keyword of the model: the field `by` is `voice` here.
+// A list of (path, value) pairs: opaque, as a value of the model is
+// not a record of it.
+subject record Ports;
+
+subject evidence {
+    use Path from "model";
+    use check from "check";
+    require checked: check::sound;
+
+    ensure fits: "a ledger evidence accepts measures only tied functions of the model, with every input and an output, and reviews only what a review can name"
+        from (checked);
+}
