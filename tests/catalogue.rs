@@ -48,7 +48,13 @@ fn every_code_is_documented() {
     let listed: BTreeSet<String> = CATALOGUE.iter().map(|e| format!("{}.md", e.code)).collect();
     for file in std::fs::read_dir(dir).unwrap() {
         let name = file.unwrap().file_name().into_string().unwrap();
-        assert!(listed.contains(&name), "{name} is no code of the catalogue");
+        assert!(name == "README.md" || listed.contains(&name), "{name} is no code of the catalogue");
+    }
+    // The index lists every code, with its title, as the docs' outer layer.
+    let index = std::fs::read_to_string(format!("{dir}/README.md")).expect("no codes/README.md");
+    for entry in CATALOGUE {
+        let line = format!("- [{0}]({0}.md): {1}", entry.code, entry.title);
+        assert!(index.contains(&line), "codes/README.md does not list {}", entry.code);
     }
 }
 

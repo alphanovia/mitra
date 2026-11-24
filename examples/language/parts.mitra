@@ -1,0 +1,40 @@
+// Parts: what is ours (subject) and what we only rely on (environment).
+// A part is also a type: its one `record { … }` is its data.
+
+subject Home {
+    // An outer part holds only parts, requires, ensures and examples.
+    require power: "the house has power";
+    ensure comfortable: "the heater keeps the room near its target"
+        from (Heater::follows, Sensor::accurate);
+
+    // The world outside: we cannot change it, only rely on what it ensures.
+    environment Sensor {
+        fn read() -> t: integer;                // opaque: no body
+        ensure accurate: "reads the room within 1 degree";
+    }
+
+    subject Heater {
+        record { target: integer, on: bool }
+
+        // A method: its first parameter is `self`; called `h.decide(t)`.
+        fn decide(self, t: integer) -> h: Heater {
+            Heater { on: t < self.target, ..self }
+        } where {
+            claim keeps_target: h.target == self.target;
+            examples { (Heater { target: 20, on: false }, 18) -> Heater { target: 20, on: true } }
+        }
+
+        // A static function: no `self`; called `Heater::off(20)`.
+        fn off(target: integer) -> h: Heater { Heater { target: target, on: false } }
+
+        require reads: Sensor::accurate;
+        ensure follows: "on below the target, off at or above it" from (decide::keeps_target, reads);
+    }
+}
+
+// Extension: the same part reopened, here or in another file.
+subject Home::Heater {
+    fn toggled(self) -> h: Heater { Heater { on: !self.on, ..self } } where {
+        examples { (Heater { target: 20, on: true }) -> Heater { target: 20, on: false } }
+    }
+}

@@ -1,0 +1,41 @@
+// Values: the types and expressions a model writes.
+// Every function here has a body, so `mitra check` runs it on its claims.
+
+// A data part: a record with a name of its own.
+subject record Point { x: rational, y: rational }
+
+// A data part that is one of its variants.
+subject enum Shape { Dot(Point), Square(rational) }
+
+subject Shapes {
+    fn area(s: Shape) -> a: rational {
+        match s { Dot(p) => 0.0, Square(side) => side * side }
+    } where {
+        examples { (Shape::Square(3.0)) -> 9.0 }
+    }
+
+    // `let … in` names a value inside one expression.
+    fn far(p: Point) -> d: rational {
+        let dx = p.x in let dy = p.y in dx * dx + dy * dy
+    } where {
+        examples { (Point { x: 3.0, y: 4.0 }) -> 25.0 }
+    }
+
+    // A range type: an integer that is checked to stay in 0..=9.
+    fn digit(n: 0..=49) -> d: 0..=9 { n % 10 } where {
+        claim at_most: d <= n;
+        examples { (42) -> 2 }
+    }
+
+    // A sequence and its length; reading past its end has no value.
+    fn first_or(xs: [integer], other: integer) -> y: integer {
+        if xs.len() == 0 { other } else { xs[0] }
+    } where {
+        examples { ([7, 8], 0) -> 7, ([], 5) -> 5 }
+    }
+
+    // Text is `[~char]`: its length is in bytes, as in Rust.
+    fn greet(name: [~char]) -> g: [~char] { "hello " ++ name } where {
+        examples { ("ana") -> "hello ana" }
+    }
+}

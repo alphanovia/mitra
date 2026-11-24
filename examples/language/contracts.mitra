@@ -1,0 +1,33 @@
+// Contracts say what several functions promise alike, as Rust's traits.
+// `use` reads names from another part; `std` is Mitra's own standard model.
+
+contract Monotone<T: Number> {
+    fn f(x: T) -> y: T;
+    // Said once, here, and then of every function that fits it.
+    claim rises(a: T, b: T): !(a <= b) || f(a) <= f(b);
+}
+
+subject Prices {
+    use std::core::Option;
+
+    fn with_tax(p: rational) -> q: rational { p * 1.2 } where {
+        examples { (10.0) -> 12.0 }
+    }
+    // `with_tax` fits Monotone over rationals: it rises with its input.
+    impl Monotone<rational> for with_tax;
+
+    // Option comes from std: a price that may be missing.
+    fn or_zero(p: Option<rational>) -> q: rational {
+        match p { Some(x) => x, None => 0.0 }
+    } where {
+        examples { (Some(3.0)) -> 3.0, (None) -> 0.0 }
+    }
+}
+
+subject Shop {
+    use Prices::with_tax;
+
+    fn total(a: rational, b: rational) -> t: rational { with_tax(a) + with_tax(b) } where {
+        examples { (10.0, 5.0) -> 18.0 }
+    }
+}
