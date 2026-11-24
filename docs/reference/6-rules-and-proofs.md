@@ -103,11 +103,21 @@ leaves no point is a finding (X013): the `all` or `any` then learns
 nothing from its points.
 
 A condition may call the model's functions that have a body: the
-model's function is the definition of the set, whatever the code does.
+model's function is the definition of the set, whatever the code does
+(`examples/language/sets.mitra`).
 
 ```mitra
+subject Sets {
     fn f(a: integer) -> b: integer { a + 1 }
-    rule small: g::c |- all p in (a: 0..10) where f(a) < 5: correct(g, p);   // the points 0 to 3
+    fn g(a: 0..=9) -> b: 0..=9 { a } where {
+        claim c: 0 <= b;
+        // The points 0 to 3: those where f(a) < 5.
+        rule small: g::c |- all p in (a: 0..10) where f(a) < 5: correct(g, p);
+        // Proved by its four points, which check lists through f.
+        rule listed: correct(g, (0)), correct(g, (1)), correct(g, (2)), correct(g, (3))
+            |- all p in (a: 0..10) where f(a) < 5: correct(g, p) by cases;
+    }
+}
 ```
 
 A function with no body, or one that calls such, is M023: write the
