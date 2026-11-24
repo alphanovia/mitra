@@ -72,10 +72,12 @@ exactly which. From [examples/fall/fall.mitra](../../examples/fall/fall.mitra):
 `ponens(r, p, q)` applies rule `r` to premises `p` and `q`. Every full
 form is in the [design notes](../design/syntax.md).
 
-### Proofs on trees, and none at all
+### Proofs on trees and loops, and none at all
 
 A claim of a function over a tree can be shown with
-`claim c: … by induction t;`: see [Trees](4-values.md#trees).
+`claim c: … by induction t;` (see [Trees](4-values.md#trees)), and a
+claim of a function whose body is a loop with `by invariant` (see
+[Claims kept by a loop](4-values.md#claims-kept-by-a-loop)).
 
 A proof is never required. A model where every rule is assumed is a
 fine model: its rules are hypotheses the evidence will test.

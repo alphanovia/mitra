@@ -180,7 +180,7 @@ at the end, so this claim says `c == xs.len()`:
         claim counted: c == n by invariant n;
 ```
 
-`n` is the claim's own name, like `i` in Dafny's `xs[..i]`. Only a
+`n` is the claim's own name for the loop's counter, the `i` of a `for` loop. Only a
 `fold` has it: an `until` has no count to end at. A claim `by invariant`
 of a function whose body is no loop is M033. What the start and a turn
 do not decide stays unknown (A007), and the finding says which one.
