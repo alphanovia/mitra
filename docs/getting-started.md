@@ -126,7 +126,10 @@ Blame doubts Ana's measurement first.
 
 ## 7. Your first model
 
-Make a folder, and a file `model.mitra` in it:
+Make a folder with an empty `mitra.toml` in it: it marks the root of
+your project, where Mitra looks for `.mitra` files and its settings
+([chapter 8](reference/8-commands.md#mitratoml)). Then a file
+`model.mitra`:
 
 ```mitra
 subject temperature {

@@ -69,7 +69,9 @@ explained correct(calc::div, (6, 2)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 agai
   test, `human:…`, `agent:…`, `machine:…` for the others.
 
 One passing test gives 0.67; ten give 0.92. A proof weighs as a
-thousand runs. This is Subjective Logic (Jøsang, 2016) on counts.
+thousand runs. The base rate (0.5), the prior weight (2), the weight of
+a proof and of each voice are settings of `mitra.toml`
+([chapter 8](8-commands.md#mitratoml)). This is Subjective Logic (Jøsang, 2016) on counts.
 
 ## Findings are not errors
 
