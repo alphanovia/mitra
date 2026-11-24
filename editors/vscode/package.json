@@ -1,0 +1,28 @@
+{
+  "name": "mitra",
+  "displayName": "Mitra",
+  "description": "Syntax colouring for Mitra models (.mitra)",
+  "version": "0.0.1",
+  "publisher": "alphanovia",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/alphanovia/mitra" },
+  "engines": { "vscode": "^1.60.0" },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "mitra",
+        "aliases": ["Mitra", "mitra"],
+        "extensions": [".mitra"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mitra",
+        "scopeName": "source.mitra",
+        "path": "./syntaxes/mitra.tmLanguage.json"
+      }
+    ]
+  }
+}

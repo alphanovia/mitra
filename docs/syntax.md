@@ -8,6 +8,10 @@ down: nothing here adds to the model. The models of `models/` are in it:
 Spellings follow Rust. Where a choice is not Rust's, or Rust has no
 form for it, it is **flagged**: a proposal, yours to change.
 
+A keyword added to or taken from the parser changes the VS Code grammar
+in the same commit (`editors/vscode/README.md`); `tests/editor_grammar.rs`
+fails when they drift.
+
 ## A whole model
 
 ```text

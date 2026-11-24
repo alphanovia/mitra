@@ -1,0 +1,145 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Mitra",
+  "scopeName": "source.mitra",
+  "fileTypes": ["mitra"],
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#declaration" },
+    { "include": "#named" },
+    { "include": "#proof-form" },
+    { "include": "#keyword-declaration" },
+    { "include": "#keyword-clause" },
+    { "include": "#keyword-control" },
+    { "include": "#keyword-constant" },
+    { "include": "#queued" },
+    { "include": "#proof-op" },
+    { "include": "#builtin" },
+    { "include": "#type" },
+    { "include": "#call" },
+    { "include": "#number" },
+    { "include": "#operator" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.double-slash.mitra",
+      "match": "//.*$"
+    },
+    "string": {
+      "name": "string.quoted.double.mitra",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.mitra", "match": "\\\\[nt\"\\\\]" },
+        { "name": "invalid.illegal.escape.mitra", "match": "\\\\." }
+      ]
+    },
+    "declaration": {
+      "patterns": [
+        {
+          "match": "\\b(fn)\\s+([A-Za-z_]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mitra" },
+            "2": { "name": "entity.name.function.mitra" }
+          }
+        },
+        {
+          "match": "\\b(record|enum|contract)\\s+([A-Za-z_]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mitra" },
+            "2": { "name": "entity.name.type.mitra" }
+          }
+        },
+        {
+          "match": "\\b(subject|environment)\\s+(?!record\\b|enum\\b)([A-Za-z_]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mitra" },
+            "2": { "name": "entity.name.type.part.mitra" }
+          }
+        }
+      ]
+    },
+    "named": {
+      "match": "\\b(claim|require|ensure|rule)\\s+([A-Za-z_]\\w*)",
+      "captures": {
+        "1": { "name": "keyword.other.clause.mitra" },
+        "2": { "name": "entity.name.function.claim.mitra" }
+      }
+    },
+    "proof-form": {
+      "match": "\\b(by)\\s+(induction|invariant)\\b",
+      "captures": {
+        "1": { "name": "keyword.other.clause.mitra" },
+        "2": { "name": "support.function.proof.mitra" }
+      }
+    },
+    "keyword-declaration": {
+      "name": "keyword.declaration.mitra",
+      "match": "\\b(subject|environment|record|enum|fn|contract|impl|use|tie|crate)\\b"
+    },
+    "keyword-clause": {
+      "name": "keyword.other.clause.mitra",
+      "match": "\\b(require|ensure|claim|rule|examples|where|at|from|by|all|any)\\b"
+    },
+    "keyword-control": {
+      "name": "keyword.control.mitra",
+      "match": "\\b(let|in|if|else|match|for)\\b"
+    },
+    "keyword-constant": {
+      "name": "constant.language.boolean.mitra",
+      "match": "\\b(true|false)\\b"
+    },
+    "queued": {
+      "patterns": [
+        { "name": "variable.language.self.mitra", "match": "\\bself\\b" },
+        { "name": "keyword.control.loop.mitra", "match": "\\buntil\\b" }
+      ]
+    },
+    "proof-op": {
+      "name": "support.function.proof.mitra",
+      "match": "\\b(join|ponens|tollens|reductio|instance|witness|cases|intro|point)(?=\\s*[(\\[])"
+    },
+    "builtin": {
+      "name": "support.function.builtin.mitra",
+      "match": "\\b(correct|within)(?=\\s*\\()"
+    },
+    "type": {
+      "patterns": [
+        {
+          "name": "support.type.primitive.mitra",
+          "match": "\\b(bool|char|byte|integer|rational|real|Int|Real|u8|u16|u32|u64|u128|usize|i8|i16|i32|i64|i128|isize|f32|f64)\\b"
+        },
+        { "name": "entity.name.type.mitra", "match": "\\b[A-Z]\\w*\\b" }
+      ]
+    },
+    "call": {
+      "name": "entity.name.function.call.mitra",
+      "match": "\\b[a-z_]\\w*(?=\\s*\\()"
+    },
+    "number": {
+      "patterns": [
+        { "name": "constant.numeric.rational.mitra", "match": "\\b\\d+/\\d+\\b" },
+        { "name": "constant.numeric.decimal.mitra", "match": "\\b\\d+\\.\\d+\\b" },
+        { "name": "constant.numeric.integer.mitra", "match": "\\b\\d+\\b" }
+      ]
+    },
+    "operator": {
+      "patterns": [
+        { "name": "keyword.operator.turnstile.mitra", "match": "\\|-" },
+        { "name": "keyword.operator.arrow.mitra", "match": "->|=>" },
+        { "name": "punctuation.separator.namespace.mitra", "match": "::" },
+        { "name": "keyword.operator.range.mitra", "match": "\\.\\.=?" },
+        { "name": "keyword.operator.concat.mitra", "match": "\\+\\+" },
+        {
+          "match": "\\[(~)",
+          "captures": { "1": { "name": "storage.modifier.encoded.mitra" } }
+        },
+        { "name": "keyword.operator.comparison.mitra", "match": "==|!=|<=|>=|<|>" },
+        { "name": "keyword.operator.logical.mitra", "match": "&&|\\|\\||!" },
+        { "name": "keyword.operator.arithmetic.mitra", "match": "[+\\-*/%]" },
+        { "name": "keyword.operator.assignment.mitra", "match": "=" }
+      ]
+    }
+  }
+}
