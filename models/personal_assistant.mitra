@@ -23,7 +23,7 @@ subject Assistant {
     require stops: "the model, in the end, asks for no tool, or inference fails";
 
     ensure answers: "the user gets the final answer, or the failure"
-        from (Harness::run::ends, stops);
+        from (Harness::answers, stops);
 
     // End to end, from the user's message. The environment's values are
     // fixed as inputs.
@@ -84,11 +84,15 @@ subject Assistant {
     environment record Answer { text: [~char], calls: [Call] }
 
     // The harness's data. A failed tool is told to the model in its outcome.
-    subject record Outcome { call: Call, output: Result<[~char], ToolFailure> }
+    subject Outcome {
+        use std::core::Result;
+        record { call: Call, output: Result<[~char], ToolFailure> }
+    }
     subject enum Turn { User([~char]), Model(Answer), Results([Outcome]) }
 
     // What is sent to the model each turn: all of it, the model keeps nothing.
     subject Conversation {
+        use std::core::Result;
         record { turns: [Turn] }
         // How it is written for the model (e.g. JSON): not known yet.
         fn encode(self) -> request: [~char] where {
@@ -111,10 +115,13 @@ subject Assistant {
 
     subject Harness {
         use std::core::Result;
+        use User::message;
+
+        ensure answers: "the user gets the final answer, or the failure" from (run::ends);
 
         // What the user sends goes to the loop.
         fn serve(llm: Llm, tools: [Tool]) -> r: Result<Answer, HarnessFailure> {
-            run(llm, User::message(), tools)
+            run(llm, message(), tools)
         }
 
         // When the loop stops: a final answer, or a failure.
