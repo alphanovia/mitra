@@ -28,6 +28,7 @@ fn grid(such: Option<Sim>) -> Set {
     Set {
         ranges: vec![("a".into(), int(0), int(10)), ("b".into(), int(0), int(10))],
         such,
+        defs: Default::default(),
     }
 }
 /// `b == 0`.
@@ -106,7 +107,7 @@ impl Ledger {
 fn every_point_tested() {
     let q = everywhere(grid(None));
     let mut ledger = Ledger::default();
-    for p in grid(None).points().unwrap() {
+    for p in grid(None).points().unwrap().flatten() {
         let at = correct(Term::Point(p.clone()));
         ledger.take(&test_at(&p), &at, vec![take(&at, true, "machine:test")]);
     }
@@ -248,7 +249,7 @@ fn a_failing_test_refutes_its_class() {
 fn a_tactic_is_trusted_with_nothing() {
     let q = everywhere(grid(None));
     let mut ledger = Ledger::default();
-    for p in grid(None).points().unwrap() {
+    for p in grid(None).points().unwrap().flatten() {
         let at = correct(Term::Point(p.clone()));
         ledger.take(&test_at(&p), &at, vec![take(&at, true, "machine:test")]);
     }
@@ -264,6 +265,7 @@ fn a_tactic_is_trusted_with_nothing() {
     let reals = Set {
         ranges: vec![("v".into(), V::Real(one.minus(&one)), V::Real(one))],
         such: None,
+        defs: Default::default(),
     };
     assert!(cases(&everywhere(reals), |_, _| name("t0_0")).is_none());
     assert!(cases(&correct(Term::Point(point(0, 0))), |_, _| name("t0_0")).is_none());
@@ -279,6 +281,7 @@ fn a_large_set_is_taken_or_refuted() {
             ("b".into(), int(1), int(1 << 40)),
         ],
         such: None,
+        defs: Default::default(),
     };
     let q = everywhere(big);
     let (at, fail_at) = (point(123_456_789, 42), point(5, 7));
@@ -329,6 +332,7 @@ fn one_proof_for_every_point() {
             ("b".into(), int(b_from), int(1 << 40)),
         ],
         such: None,
+        defs: Default::default(),
     };
     let x = || Term::Var("x".to_string());
     let quot = |at: Term| Prop::Correct {

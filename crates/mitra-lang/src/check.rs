@@ -1586,6 +1586,20 @@ fn model_example(index: &Index, i: usize, example: &crate::model::ModelExample) 
 fn correct_wrong(index: &Index, at: &Path, place: &str, p: &Prop) -> Vec<Error> {
     let mut errors = Vec::new();
     let wrong = |why: String| error(M023, at, format!("{place}: {why}"));
+    // A set's condition calls only functions with a body, and they only
+    // such (finding 12b): the model's function is the definition.
+    for over in sets_of(p) {
+        if let Some((called, missing)) = over.such.as_ref().and_then(|e| bodiless(index, e)) {
+            let how = match called == missing {
+                true => format!("`{called}` has no body"),
+                false => format!("`{called}` calls `{missing}`, which has no body"),
+            };
+            errors.push(wrong(format!(
+                "the condition of a set calls only functions with a body, read as their definition: {how}; write the bound by hand, or give it a body"
+            )));
+            return errors;
+        }
+    }
     if !p.well_formed() {
         errors.push(wrong(
             "a name no all or any binds, or a set that is not well formed".to_string(),
@@ -1657,6 +1671,61 @@ fn correct_wrong(index: &Index, at: &Path, place: &str, p: &Prop) -> Vec<Error> 
         }
     }
     errors
+}
+
+/// Every set a proposition names: of each all and any, and of each
+/// point an intro binds.
+fn sets_of(p: &Prop) -> Vec<&judgement::Set> {
+    let mut sets = Vec::new();
+    let mut todo = vec![p];
+    while let Some(p) = todo.pop() {
+        match p {
+            Prop::Named(_) => {}
+            Prop::Not(x) => todo.push(x),
+            Prop::Implies { pre, post, .. } => todo.extend(pre.iter().chain(post)),
+            Prop::Correct { at, .. } => {
+                if let judgement::Term::Arbitrary { over, .. } = at {
+                    sets.push(over);
+                }
+            }
+            Prop::All { over, body, .. } | Prop::Any { over, body, .. } => {
+                sets.push(over);
+                todo.push(body);
+            }
+        }
+    }
+    sets
+}
+
+/// The first function `e` calls, and the one with no body it reaches
+/// through calls, if any: the same when it has none itself.
+fn bodiless(index: &Index, e: &Expression<simulation::Op>) -> Option<(String, String)> {
+    fn calls(e: &Expression<simulation::Op>, out: &mut Vec<String>) {
+        if let Expression::Apply(op, args) = e {
+            if let simulation::Op::Call(f) = op {
+                out.push(f.clone());
+            }
+            for a in args {
+                calls(&a.body, out);
+            }
+        }
+    }
+    let mut first = Vec::new();
+    calls(e, &mut first);
+    for called in first {
+        let mut seen = BTreeSet::new();
+        let mut todo = vec![called.clone()];
+        while let Some(f) = todo.pop() {
+            if !seen.insert(f.clone()) {
+                continue;
+            }
+            match index.functions.get(&f).and_then(|g| g.body.as_ref()) {
+                Some(body) => calls(body, &mut todo),
+                None => return Some((called, f)),
+            }
+        }
+    }
+    None
 }
 
 /// M034: a range of a set whose ends leave no number between them,

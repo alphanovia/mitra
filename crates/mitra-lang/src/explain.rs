@@ -252,6 +252,23 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         .into_iter()
         .collect();
     for q in &quantified {
+        if let Some(point) = undecided(q, settings) {
+            let at = props.iter().find(|(_, p)| p == q).map(|(at, _)| at.clone());
+            let (Prop::All { over, .. } | Prop::Any { over, .. }) = q else {
+                continue;
+            };
+            findings.push(Finding {
+                code: X009,
+                at: at.unwrap_or_else(|| Path::to(&["explain"])),
+                message: format!(
+                    "`{}`: the condition of the set {} was not read to its end at {} (a budget reached, or a call with no value there): whether that point is in it is not known, so it is given nothing from its points",
+                    print::print_prop(q),
+                    print::print_set(over),
+                    print::values(&point)
+                ),
+            });
+            continue;
+        }
         if none_in(q, settings) {
             let at = props.iter().find(|(_, p)| p == q).map(|(at, _)| at.clone());
             let (Prop::All { over, .. } | Prop::Any { over, .. }) = q else {
@@ -884,6 +901,25 @@ fn observations(model: &Model, observed: Observed, findings: &mut Vec<Finding>) 
 /// Judgement at work: an opinion of each proposition, joined as rules
 /// give more. A negation is kept with what it negates: an opinion of
 /// `!p` is one of `p`, its sides swapped, so that `p` and `!p` meet.
+/// The first point of the set of an all or an any, listed as `cases`
+/// lists it, whose condition was not read to its end.
+fn undecided(q: &Prop, settings: &Settings) -> Option<Vec<Value>> {
+    let (Prop::All { over, .. } | Prop::Any { over, .. }) = q else {
+        return None;
+    };
+    let mut size = num_bigint::BigInt::from(1);
+    for (_, lo, hi) in &over.ranges {
+        let (Value::Int(lo), Value::Int(hi)) = (lo, hi) else {
+            return None;
+        };
+        size *= (hi - lo).max(num_bigint::BigInt::from(0));
+    }
+    if size > num_bigint::BigInt::from(settings.cases) {
+        return None;
+    }
+    over.undecided()
+}
+
 /// An all or an any whose set is listed, few enough points in its
 /// ranges, and no point is in it: its condition false at each (X013).
 fn none_in(q: &Prop, settings: &Settings) -> bool {
@@ -1245,7 +1281,7 @@ impl Judge {
         if size > num_bigint::BigInt::from(settings.cases) {
             return None;
         }
-        let listed: Vec<Vec<Value>> = over.points()?.collect();
+        let listed: Vec<Vec<Value>> = over.points()?.collect::<Option<_>>()?;
         let mut alike = Vec::new();
         let mut cases = Vec::with_capacity(listed.len());
         for x in &listed {

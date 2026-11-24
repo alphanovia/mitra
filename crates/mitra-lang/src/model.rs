@@ -1098,6 +1098,33 @@ pub fn calls(model: &Model) -> Result<Calls, BTreeSet<String>> {
     Calls::with(callees)
 }
 
+/// The model's functions as a set's condition reads them (finding 12b):
+/// by their bodies, as simulation calls them. None when `calls` refuses
+/// them: `check` says why.
+pub fn definitions(model: &Model) -> judgement::Definitions {
+    judgement::Definitions(calls(model).ok().map(std::sync::Arc::new))
+}
+
+/// Each set of each rule of the model, and of its proof, read by the
+/// model's `definitions`: once the whole model is read.
+pub fn define_sets(model: &mut Model) {
+    let defs = definitions(model);
+    for part in &mut model.parts {
+        for f in &mut part.functions {
+            for r in &mut f.rules {
+                for t in r.premises.iter_mut().chain([&mut r.conclusion]) {
+                    if let Term::Prop(p) = t {
+                        p.define(&defs);
+                    }
+                }
+                if let Some(proof) = &mut r.proof {
+                    judgement::define_proof(proof, &defs);
+                }
+            }
+        }
+    }
+}
+
 /// For each claim shown `by induction`, by its path: the model's
 /// functions where its own has no body and promises that claim only,
 /// read on its parts (trees, the user's go 12:33).
