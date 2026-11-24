@@ -14,6 +14,12 @@
 //
 // Uses text [~char] and ++, fold and until, parts as types, and
 // `by invariant n` (each claim below the loop that keeps it), all on main.
+//
+// What it shows: the request grows with no bound. Each turn of the loop
+// adds two turns to the conversation and takes none out (replay::grows);
+// each turn takes a byte of the request at least (framed); a model
+// refuses a request over its capacity (capped). So any model refuses the
+// loop in the end: the conversation must be compacted (needs_compaction).
 
 // What it does, end to end: only parts, requires, ensures and examples.
 subject Assistant {
@@ -24,17 +30,30 @@ subject Assistant {
     ensure answers: "the user gets the final answer, or the failure"
         from (Harness::answers, stops);
 
-    // End to end, from the user's message. The environment's values are
-    // fixed as inputs.
+    // A finding of the model: the loop needs compaction.
+    ensure needs_compaction: "a long enough loop is refused by any model: the conversation must be compacted"
+        from (Harness::unbounded);
+
+    // End to end, from the user's message. What the environment and the
+    // opaque encoding give is fixed as inputs, at the point they are
+    // called: "hello" encoded as itself, sent to a model of capacity 100.
     examples {
         // Inference answers at once: the user gets the answer.
         (User::message::prompt = "hello",
          Harness::serve::llm = Llm { capacity: 100 }, Harness::serve::tools = [],
+         Conversation::encode::self = Conversation { turns: [Turn::User("hello")] },
+         Conversation::encode::request = "hello",
+         Llm::inference::self = Llm { capacity: 100 }, Llm::inference::request = "hello",
+         Llm::inference::tools = [],
          Llm::inference::a = Ok(Answer { text: "hi", calls: [] }))
             -> Harness::serve::r = Ok(Answer { text: "hi", calls: [] }),
         // Inference can't reach the model: the user gets the failure.
         (User::message::prompt = "hello",
          Harness::serve::llm = Llm { capacity: 100 }, Harness::serve::tools = [],
+         Conversation::encode::self = Conversation { turns: [Turn::User("hello")] },
+         Conversation::encode::request = "hello",
+         Llm::inference::self = Llm { capacity: 100 }, Llm::inference::request = "hello",
+         Llm::inference::tools = [],
          Llm::inference::a = Err(LlmFailure::Unreachable))
             -> Harness::serve::r = Err(HarnessFailure::Llm(LlmFailure::Unreachable)),
         // An empty message: refused, inference is never called.
@@ -44,7 +63,11 @@ subject Assistant {
         // A model too small for the request: refused, by its claim `capped`.
         // "hello" is 5 bytes, and the request holds it (Conversation::encode::holds_all).
         (User::message::prompt = "hello",
-         Harness::serve::llm = Llm { capacity: 1 }, Harness::serve::tools = [])
+         Harness::serve::llm = Llm { capacity: 1 }, Harness::serve::tools = [],
+         Conversation::encode::self = Conversation { turns: [Turn::User("hello")] },
+         Conversation::encode::request = "hello",
+         Llm::inference::self = Llm { capacity: 1 }, Llm::inference::request = "hello",
+         Llm::inference::tools = [], Llm::inference::a = Err(LlmFailure::TooLong))
             -> Harness::serve::r = Err(HarnessFailure::Llm(LlmFailure::TooLong))
     }
 
@@ -62,12 +85,13 @@ subject Assistant {
         fn inference(self, request: [~char], tools: [Tool]) -> a: Result<Answer, LlmFailure> where {
             claim capped: request.len() <= self.capacity || a == Err(LlmFailure::TooLong);
         }
+        ensure refuses_long: "a request over the model's capacity is refused" from (inference::capped);
     }
 
     // How each side fails. The harness's wraps the others; handling
     // them (retry, guidance) comes later.
     environment enum LlmFailure { TooLong, Unreachable }
-    subject enum ToolFailure { Failed }                                // [Q6]
+    subject enum ToolFailure { Failed }
     subject enum HarnessFailure { EmptyPrompt, Llm(LlmFailure), Tool(ToolFailure) }
 
     // A tool: a toolbox (which tools are loaded, the call policy) comes later.
@@ -98,7 +122,11 @@ subject Assistant {
             // The request holds every text of the conversation, so it is at
             // least as long as they are together, in bytes.
             claim holds_all: self.texts() <= request.len();
+            // Each turn is framed in the request (a JSON object, a role):
+            // at least one byte each, even with no text.
+            claim framed: self.turns.len() <= request.len();
         }
+        ensure framed: "each turn takes at least one byte of the request" from (encode::framed);
 
         // The bytes of every text the conversation holds.
         fn texts(self) -> n: integer {
@@ -108,13 +136,19 @@ subject Assistant {
                 Turn::Results(rs) => rs.fold(m: 0) { o -> m + match o.output { Ok(s) => s.len(), Err(_) => 0 } }
             } }
         } where {
-            examples { (Conversation { turns: [Turn::User("hello")] }) -> 5 }
+            examples {
+                (Conversation { turns: [Turn::User("hello")] }) -> 5,
+                (Conversation { turns: [Turn::User("hi"), Turn::Model(Answer { text: "ok", calls: [] }), Turn::Results([])] }) -> 4
+            }
         }
     }
 
     subject Harness {
         use Result from "std";
         use User::message;
+
+        require framed: Conversation::framed;
+        require refuses_long: Llm::refuses_long;
 
         ensure answers: "the user gets the final answer, or the failure" from (run::ends);
 
@@ -141,6 +175,39 @@ subject Assistant {
             examples { ([]) -> [] }
         }
 
+        // The conversation after the model gave each answer of `turns`
+        // and the tools gave its outcomes, built as run builds it: one
+        // answer and its outcomes added a turn, nothing ever taken out.
+        fn replay(prompt: [~char], turns: [(answer: Answer, outcomes: [Outcome])]) -> c: Conversation {
+            turns.fold(c: Conversation { turns: [Turn::User(prompt)] }) { t ->
+                Conversation { turns: c.turns ++ [Turn::Model(t.answer), Turn::Results(t.outcomes)] }
+            }
+        } where {
+            // Proved: two turns more each turn of the loop, with no bound.
+            claim grows: c.turns.len() == 1 + 2 * n by invariant n;
+            examples {
+                ("hi", []) -> Conversation { turns: [Turn::User("hi")] },
+                ("hi", [(answer: Answer { text: "ok", calls: [] }, outcomes: [])])
+                    -> Conversation { turns: [Turn::User("hi"), Turn::Model(Answer { text: "ok", calls: [] }), Turn::Results([])] }
+            }
+        }
+
+        // What the model says to the request after those turns.
+        fn after(llm: Llm, prompt: [~char], turns: [(answer: Answer, outcomes: [Outcome])], tools: [Tool])
+            -> a: Result<Answer, LlmFailure> {
+            llm.inference(replay(prompt, turns).encode(), tools)
+        } where {
+            // Any model refuses the request once the turns pass its capacity.
+            claim refused: 1 + 2 * turns.len() <= llm.capacity || a == Err(LlmFailure::TooLong);
+            // Arithmetic, which no step of judgement does: assumed. The
+            // request has at least 1 + 2n turns (grows), each of a byte at
+            // least (framed); over capacity, the model refuses (capped).
+            rule overflows: replay::grows, framed, refuses_long |- after::refused;
+        }
+
+        ensure unbounded: "with no compaction, the request grows by two turns each turn of the loop, and any model refuses it in the end"
+            from (replay::grows, after::overflows);
+
         // The agent loop: a final answer, or a failure.
         fn run(llm: Llm, prompt: [~char], tools: [Tool]) -> r: Result<Answer, HarnessFailure> {
             if prompt == "" { Err(HarnessFailure::EmptyPrompt) } else {
@@ -148,9 +215,8 @@ subject Assistant {
                 let last = until((c: start, got: llm.inference(start.encode(), tools)), finished(got)) {
                     match got {
                         Ok(a) => let next = Conversation {
-                                turns: c.turns ++ [Model(a), Results(perform_all(a.calls))]
-                            } in
-                            (next, llm.inference(next.encode(), tools)),
+                                turns: c.turns ++ [Turn::Model(a), Turn::Results(perform_all(a.calls))]
+                            } in (next, llm.inference(next.encode(), tools)),
                         // Never reached: an Err is finished. `match` needs the arm.
                         Err(_) => (c, got)
                     }
