@@ -25,53 +25,57 @@ suspect. That is how `blame` finds a culprit.
 
 ## Proofs
 
-`by …` gives a proof. Mitra's checker runs it once, and if it shows the
-rule, the rule is held by the checker, the strongest evidence there
-is:
+`by …` after a rule gives its proof. Mitra's checker runs it once, and
+if it shows the rule, the rule is held by the checker, the strongest
+evidence there is. Most often you only name the step, and Mitra finds
+its arguments among the premises. From
+[examples/language/proofs.mitra](../../examples/language/proofs.mitra):
+
+```mitra
+        rule up: correct(half, (4)) |- correct(half, (5));
+        rule five: half::up, correct(half, (4)) |- correct(half, (5)) by ponens;
+```
+
+`up` is assumed: "where `half` is right at 4, it is right at 5". `five`
+is shown: `up` applied to its premise, which is modus ponens.
+
+| Step | Shows | Example in proofs.mitra |
+|---|---|---|
+| `ponens` | a rule applied to its premises | `five` |
+| `tollens` | a premise false, from a conclusion seen false | `four` |
+| `cases` | an `all`, one case per point | `low` |
+| `instance` | an `all` at one of its points | `three` |
+| `witness` | an `any`, from one point | |
+| `intro` | an `all`, from any point | |
+| `reductio` | by contradiction | |
+
+```mitra
+        rule four: half::up, !correct(half, (5)) |- !correct(half, (4)) by tollens;
+```
+
+When no proof fits, or two different ones do, it is an error (M032)
+that lists them; a proof that does not show its rule is M012.
+
+Lean's tactics `apply`, `cases` and `exact` are the same idea: name the
+step, the tool finds the arguments. Rust has no proofs.
+
+### In full
+
+A step can also be written with its arguments, when you want to say
+exactly which. From [examples/fall/fall.mitra](../../examples/fall/fall.mitra):
 
 ```mitra
         rule lands: drop::slows, drop::falls, speed::slow |- drop::slow
             by ponens(drop::slows, drop::falls, speed::slow);
 ```
 
-`ponens(r, p, q)` is modus ponens: rule `r` applied to premises `p` and
-`q`. A proof that does not show its rule is an error (M012).
+`ponens(r, p, q)` applies rule `r` to premises `p` and `q`. Every full
+form is in the [design notes](../design/syntax.md).
 
-The other proof steps, for reference, each with its classical name:
-`tollens` (from a false conclusion, a false premise), `reductio` (by
-contradiction), `cases` (an all, one case per point), `instance` (an all
-at one point), `witness` (an any from one point), `intro` (an all from
-any point). Their forms are in the
-[design notes](../design/syntax.md).
+### Proofs on trees, and none at all
 
-A claim of a function over a tree can also be shown, with
+A claim of a function over a tree can be shown with
 `claim c: … by induction t;`: see [Trees](4-values.md#trees).
-
-### Short proofs
-
-A proof of one step can name the step alone. Mitra puts the rule's
-premises where they fit, and keeps the proof the checker takes. From
-[examples/language/proofs.mitra](../../examples/language/proofs.mitra):
-
-```mitra
-        rule five: half::up, correct(half, (4)) |- correct(half, (5)) by ponens;
-        // Modus tollens: wrong at 5, so wrong at 4 too, or `up` is false.
-        rule four: half::up, !correct(half, (5)) |- !correct(half, (4)) by tollens;
-        // In full, the same proof.
-        rule four_full: half::up, !correct(half, (5)) |- !correct(half, (4))
-            by !tollens[half::up, 0, 1](!1, half::up);
-```
-
-`by ponens`, `by tollens`, `by cases`, `by instance`, `by witness`,
-`by intro` and `by reductio` each take no argument. Mitra tries each
-premise, as it is and negated, in each place the step takes, and the
-points the rule writes for `instance` and `witness`. When no proof
-fits, or two different ones do, it is an error (M032) that lists them:
-write the one you mean in full. A premise written in place is read by
-its place, `0`, `1`, …, as in `!1` above.
-
-Rust has no proofs; Lean's tactics `apply`, `cases` and `exact` are the
-same idea: name the step, the tool finds the arguments.
 
 A proof is never required. A model where every rule is assumed is a
 fine model: its rules are hypotheses the evidence will test.
