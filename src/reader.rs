@@ -19,12 +19,13 @@
 //! The ledger types are `Measurement`, `Review` and `Ledger`, of the
 //! evidence layer (`src/evidence.rs`).
 
-use crate::catalogue::{Code, R001, R002, R003, R004, R005, R006, R007};
+use crate::catalogue::{Code, R001, R002, R003, R004, R005, R006, R007, R008, R009};
 use crate::location::Location;
 use crate::model::{Function, Model, Path, Tie};
 use crate::parse::{lex, type_of, ParseError, Parser, Pos};
 use crate::print;
 use crate::simulation::Value;
+use std::collections::BTreeSet;
 
 // ---------------------------------------------------------------- the ledger
 
@@ -333,6 +334,9 @@ pub enum Outcome {
 pub struct TestRun {
     pub name: String,
     pub outcome: Outcome,
+    /// The binary it ran in, by its `Running` line: `tests/model.rs`,
+    /// `src/lib.rs` for unit tests; empty when the report says none.
+    pub binary: String,
 }
 
 /// Each `test name ... ok`, `... FAILED` and `... ignored` line of a
@@ -340,7 +344,13 @@ pub struct TestRun {
 /// came between the name and the result is not read.
 pub fn read_cargo_test(report: &str) -> Vec<TestRun> {
     let mut runs = vec![];
+    let mut binary = String::new();
     for line in report.lines() {
+        if let Some(name) = line.trim().strip_prefix("Running ") {
+            let name = name.trim_start_matches("unittests ");
+            binary = name.split(" (").next().unwrap_or(name).to_string();
+            continue;
+        }
         let Some(rest) = line.trim_end().strip_prefix("test ") else {
             continue;
         };
@@ -356,9 +366,148 @@ pub fn read_cargo_test(report: &str) -> Vec<TestRun> {
         runs.push(TestRun {
             name: name.to_string(),
             outcome,
+            binary: binary.clone(),
         });
     }
     runs
+}
+
+/// The rows tests printed with `mitra::check_eq!` and `mitra::check!`,
+/// `mitra: row geo::flip (p) -> q`, each a measurement by the test it
+/// is under (`---- name stdout ----`, as `--show-output` prints it): of
+/// what the system gave, seen, whether the test passed or not. The Rust
+/// path is the model's function through its tie: the tie whose place
+/// ends with most of the path, `geo::flip` at `src/geo.rs/flip`. A row
+/// through no tie is R007; one the reader cannot read or place, R001.
+pub fn rows(
+    model: &Model,
+    ties: &[Tie],
+    file: &str,
+    report: &str,
+) -> (Vec<Measurement>, Vec<ReaderFinding>) {
+    let (mut found, mut findings) = (vec![], vec![]);
+    let mut test: Option<String> = None;
+    for (i, line) in report.lines().enumerate() {
+        let line_no = i + 1;
+        let trimmed = line.trim();
+        if let Some(name) = trimmed
+            .strip_prefix("---- ")
+            .and_then(|r| r.strip_suffix(" stdout ----"))
+        {
+            test = Some(name.to_string());
+            continue;
+        }
+        if ["successes:", "failures:"].contains(&trimmed) || trimmed.starts_with("test result: ") {
+            test = None;
+            continue;
+        }
+        let Some(row) = trimmed.strip_prefix("mitra: row ") else {
+            continue;
+        };
+        let Some(test) = &test else {
+            let message = "a row under no test's output: run `cargo test -- --show-output`, not `--nocapture`, so each row is under its test".to_string();
+            findings.push(finding(R001, file, line_no, message));
+            continue;
+        };
+        let Some((rust, values)) = row.split_once(' ') else {
+            findings.push(finding(
+                R001,
+                file,
+                line_no,
+                format!("`{row}` is no row: `path (inputs) -> output`"),
+            ));
+            continue;
+        };
+        let item = match tied_function(model, ties, rust) {
+            Ok(item) => item,
+            Err(message) => {
+                findings.push(finding(R007, file, line_no, message));
+                continue;
+            }
+        };
+        let text = format!("measure {item} {values} by \"test:{test}\";");
+        match read_store(file, &text, model, ties) {
+            Ok((ledger, more)) => {
+                found.extend(ledger.measurements);
+                findings.extend(
+                    more.into_iter()
+                        .map(|f| ReaderFinding { line: line_no, ..f }),
+                );
+            }
+            Err(e) => {
+                let message = format!("`{values}` is no row of Mitra values: {}", e.message);
+                findings.push(finding(R001, file, line_no, message));
+            }
+        }
+    }
+    (found, findings)
+}
+
+/// The model's function a Rust call path names through a tie on it:
+/// the ties whose place ends with the longest end of the path, one.
+fn tied_function(model: &Model, ties: &[Tie], rust: &str) -> Result<Path, String> {
+    let names: Vec<&str> = rust.split("::").collect();
+    let index = crate::model::Index::of(model);
+    let functions: Vec<&Tie> = ties
+        .iter()
+        .filter(|t| index.functions.contains_key(&t.item.to_string()))
+        .collect();
+    for k in (1..=names.len()).rev() {
+        let end = &names[names.len() - k..];
+        let mut at: Vec<&Tie> = functions
+            .iter()
+            .copied()
+            .filter(|t| t.at.path.len() >= k && t.at.path[t.at.path.len() - k..] == *end)
+            .collect();
+        at.dedup_by(|a, b| a.item == b.item);
+        match at[..] {
+            [] => continue,
+            [one] => return Ok(one.item.clone()),
+            _ => {
+                let items: Vec<String> = at.iter().map(|t| format!("`{}`", t.item)).collect();
+                return Err(format!(
+                    "the row's `{rust}` is tied to {}: name it whole in the call",
+                    items.join(" and ")
+                ));
+            }
+        }
+    }
+    Err(format!(
+        "the row's `{rust}` is no function tied to the model: a measurement is always through a tie (`// mitra: implements …` above it)"
+    ))
+}
+
+/// Each test binary of a `cargo test` report that began and gave no
+/// result line: it stopped, crashed or aborted, and what it ran after
+/// its last test line is not known (R009). By its `Running …` or
+/// `Doc-tests …` line in `file`.
+pub fn stopped(file: &str, report: &str) -> Vec<ReaderFinding> {
+    let mut found = vec![];
+    let mut running: Option<(usize, String)> = None;
+    let mut stop = |running: &mut Option<(usize, String)>| {
+        if let Some((line, name)) = running.take() {
+            let message = format!(
+                "the test binary `{name}` stopped before its result: its tests after the last one reported did not run, or ran unseen"
+            );
+            found.push(finding(R009, file, line, message));
+        }
+    };
+    for (i, line) in report.lines().enumerate() {
+        let line = line.trim();
+        let name = line
+            .strip_prefix("Running ")
+            .or_else(|| line.strip_prefix("Doc-tests "));
+        if let Some(name) = name {
+            stop(&mut running);
+            let name = name.trim_start_matches("unittests ");
+            let name = name.split(" (").next().unwrap_or(name);
+            running = Some((i + 1, name.to_string()));
+        } else if line.starts_with("test result: ") {
+            running = None;
+        }
+    }
+    stop(&mut running);
+    found
 }
 
 /// What the tests measured, from what ran. A test that passed saw its
@@ -543,10 +692,24 @@ pub fn read_store(
     model: &Model,
     ties: &[Tie],
 ) -> Result<(Ledger, Vec<ReaderFinding>), ParseError> {
+    read_store_seeing(file, source, model, ties, None)
+}
+
+/// `read_store`, each review that sees a test kept only where `runs`
+/// say it passed: one that failed, was ignored or did not run is
+/// dropped, and R008 says so. `None` reads no test.
+pub fn read_store_seeing(
+    file: &str,
+    source: &str,
+    model: &Model,
+    ties: &[Tie],
+    runs: Option<&[TestRun]>,
+) -> Result<(Ledger, Vec<ReaderFinding>), ParseError> {
     let context = crate::parse::Context::of(model);
     let mut p = Parser::new(lex(source)?, Some(&context));
     let (mut ledger, mut findings) = (Ledger::default(), vec![]);
     let items = items(model, ties);
+    let index = crate::model::Index::of(model);
     loop {
         let Pos { line, .. } = p.pos();
         if p.eat_word("measure") {
@@ -570,6 +733,16 @@ pub fn read_store(
             let prop = Path {
                 names: p.raw_path()?,
             };
+            // `from`, alone or with the list it is from.
+            let from = match p.eat_word("from") {
+                false => None,
+                true if p.eat("(") => Some(Some(p.list(")", |p| {
+                    Ok(Path {
+                        names: p.raw_path()?,
+                    })
+                })?)),
+                true => Some(None),
+            };
             let holds = match (p.eat_word("holds"), p.eat_word("fails")) {
                 (true, _) => true,
                 (_, true) => false,
@@ -577,15 +750,24 @@ pub fn read_store(
             };
             p.expect_word("by")?;
             let by = p.string()?;
-            p.expect(";")?;
-            match items.contains(&prop) {
-                true => ledger.reviews.push(Review { prop, holds, by }),
-                false => {
-                    let message = format!(
-                        "`{prop}` is no claim, rule, require, ensure or tied item of the model"
-                    );
-                    findings.push(finding(R006, file, line, message));
+            let mut seeing = vec![];
+            if p.eat_word("seeing") {
+                seeing.push(p.string()?);
+                while p.eat(",") {
+                    seeing.push(p.string()?);
                 }
+            }
+            p.expect(";")?;
+            let review = Review {
+                prop,
+                from: None,
+                holds,
+                by,
+                seeing,
+            };
+            match reviewed(&index, &items, review, from).and_then(|r| seen(r, runs)) {
+                Ok(r) => ledger.reviews.push(r),
+                Err((code, message)) => findings.push(finding(code, file, line, message)),
             }
         } else {
             p.end()
@@ -594,6 +776,110 @@ pub fn read_store(
         }
     }
     Ok((ledger, findings))
+}
+
+/// The review read, made whole, or why it is of nothing: its piece, and
+/// the link it names, `from` alone where the piece has one link.
+fn reviewed(
+    index: &crate::model::Index,
+    items: &[Path],
+    mut review: Review,
+    from: Option<Option<Vec<Path>>>,
+) -> Result<Review, (Code, String)> {
+    let prop = &review.prop;
+    if !items.contains(prop) {
+        let message =
+            format!("`{prop}` is no claim, rule, require, ensure or tied item of the model");
+        return Err((R006, message));
+    }
+    let links = crate::evidence::links(index, prop);
+    let shown = |list: &[Path]| {
+        let list: Vec<String> = list.iter().map(|p| p.to_string()).collect();
+        format!("({})", list.join(", "))
+    };
+    review.from = match from {
+        None => None,
+        Some(None) => match &links[..] {
+            [one] => Some(one.clone()),
+            [] => return Err((R006, format!("`{prop}` is from nothing: no link to review"))),
+            more => {
+                let lists: Vec<String> = more.iter().map(|l| shown(l)).collect();
+                let message = format!(
+                    "`{prop}` is from {}: name the one reviewed, `from {}`",
+                    lists.join(" | "),
+                    lists[0]
+                );
+                return Err((R006, message));
+            }
+        },
+        Some(Some(list)) if links.contains(&list) => Some(list),
+        Some(Some(list)) => {
+            let message = match links.is_empty() {
+                true => format!("`{prop}` is from nothing: no link to review"),
+                false => {
+                    let lists: Vec<String> = links.iter().map(|l| shown(l)).collect();
+                    format!(
+                        "`{prop}` is not from {}: it is from {}",
+                        shown(&list),
+                        lists.join(" | ")
+                    )
+                }
+            };
+            return Err((R006, message));
+        }
+    };
+    for test in &review.seeing {
+        if !test.strip_prefix("test:").is_some_and(|n| !n.is_empty()) {
+            let message = format!("`{test}` is no test: a review sees `test:name`");
+            return Err((R008, message));
+        }
+    }
+    Ok(review)
+}
+
+/// The review, where each test it sees passed in `runs`; why not, if not.
+fn seen(review: Review, runs: Option<&[TestRun]>) -> Result<Review, (Code, String)> {
+    let Some(runs) = runs else {
+        return Ok(review);
+    };
+    for test in &review.seeing {
+        let name = test.trim_start_matches("test:");
+        // `tests/model.rs::name`: the test of that binary.
+        let (binary, name) = match name.split_once(".rs::") {
+            Some((b, n)) => (Some(format!("{b}.rs")), n),
+            None => (None, name),
+        };
+        let matching: Vec<&TestRun> = runs
+            .iter()
+            .filter(|r| r.name == name || r.name.ends_with(&format!("::{name}")))
+            .filter(|r| binary.as_ref().is_none_or(|b| &r.binary == b))
+            .collect();
+        let why = match matching[..] {
+            [] => format!("the test `{name}` is not in the report"),
+            [run] => match run.outcome {
+                Outcome::Passed => continue,
+                Outcome::Failed => format!("the test `{}` failed", run.name),
+                Outcome::Ignored => format!("the test `{}` was ignored", run.name),
+            },
+            _ => {
+                let names: Vec<String> = matching
+                    .iter()
+                    .map(|r| format!("`{}::{}`", r.binary, r.name))
+                    .collect();
+                format!(
+                    "the test `{name}` is any of {}: name its binary",
+                    names.join(", ")
+                )
+            }
+        };
+        let message = format!(
+            "{why}: the review of `{}` by `{}` counts only while it passes",
+            review.said(),
+            review.by
+        );
+        return Err((R008, message));
+    }
+    Ok(review)
 }
 
 /// What a review can be of: a claim, rule, require or ensure, or a tied item.
@@ -644,18 +930,28 @@ pub fn print_store(ledger: &Ledger) -> String {
     }
     for r in &ledger.reviews {
         let said = if r.holds { "holds" } else { "fails" };
-        out.push_str(&format!("review {} {said} by {:?};\n", r.prop, r.by));
+        let seeing: Vec<String> = r.seeing.iter().map(|t| format!("{t:?}")).collect();
+        let seeing = match seeing.is_empty() {
+            true => String::new(),
+            false => format!(" seeing {}", seeing.join(", ")),
+        };
+        out.push_str(&format!(
+            "review {} {said} by {:?}{seeing};\n",
+            r.said(),
+            r.by
+        ));
     }
     out
 }
 
 /// The ledger of a project, read whole: the ties of its Rust files, the
-/// tests they measure, the results of `cargo test`, and the store.
+/// tests they measure, the results of `cargo test` (its name and text)
+/// with the rows its tests printed, and the store.
 /// `files` are each Rust file's path and text.
 pub fn ledger(
     model: &Model,
     files: &[(String, String)],
-    report: Option<&str>,
+    report: Option<(&str, &str)>,
     store: Option<(&str, &str)>,
 ) -> Result<(Vec<Tie>, Ledger, Vec<ReaderFinding>), ParseError> {
     let (mut ties, mut points, mut findings) = (model.ties.clone(), vec![], vec![]);
@@ -666,13 +962,28 @@ pub fn ledger(
         findings.extend(reading.findings);
     }
     let mut ledger = Ledger::default();
-    if let Some(report) = report {
-        let (found, more) = measurements(model, &ties, &points, &read_cargo_test(report));
+    let runs = report.map(|(_, r)| read_cargo_test(r)).unwrap_or_default();
+    if let Some((report_file, report)) = report {
+        let (found, more) = measurements(model, &ties, &points, &runs);
+        ledger.measurements.extend(found);
+        findings.extend(more);
+        let (found, more) = rows(model, &ties, report_file, report);
+        // A test that printed a row measured: no R004 for it.
+        let rowed: BTreeSet<String> = found
+            .iter()
+            .map(|m| {
+                format!(
+                    "the test `{}` measures nothing the reader knows",
+                    m.by.trim_start_matches("test:")
+                )
+            })
+            .collect();
+        findings.retain(|f| !(f.code == R004 && rowed.contains(&f.message)));
         ledger.measurements.extend(found);
         findings.extend(more);
     }
     if let Some((file, source)) = store {
-        let (read, more) = read_store(file, source, model, &ties)?;
+        let (read, more) = read_store_seeing(file, source, model, &ties, Some(&runs))?;
         ledger.measurements.extend(read.measurements);
         ledger.reviews.extend(read.reviews);
         findings.extend(more);

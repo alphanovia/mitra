@@ -41,6 +41,8 @@ checker = 10.0
 [blame]
 diagnoses = 3
 tries = 7
+[test]
+command = [\"cargo\", \"test\", \"--release\"]
 ",
     )
     .unwrap();
@@ -67,6 +69,25 @@ tries = 7
     );
     assert_eq!(s.numbers.voices["human:ana"], 2.5);
     assert_eq!((s.blame.diagnoses, s.blame.tries), (3, 7));
+    assert_eq!(s.test.command, ["cargo", "test", "--release"]);
+}
+
+/// The tests run are a program and its arguments, texts in a list.
+#[test]
+fn the_test_command_is_a_list_of_texts() {
+    for wrong in [
+        "command = \"cargo test\"",
+        "command = []",
+        "command = [\"cargo\", 1]",
+    ] {
+        let found = fails(&format!("[test]\n{wrong}\n"));
+        assert!(
+            found.starts_with(
+                "error[P015]: `test.command` is the program and its arguments, texts in a list"
+            ),
+            "{wrong}: {found}"
+        );
+    }
 }
 
 #[test]
@@ -89,7 +110,7 @@ fn what_mitra_does_not_take_is_p015_where_it_is() {
 "
     );
     let out = fails("[check]\npoints = 3\n");
-    assert!(out.contains("no section `check`: mitra.toml has `parse`, `agree`, `budget`, `explain`, `numbers` and `blame`"), "{out}");
+    assert!(out.contains("no section `check`: mitra.toml has `parse`, `agree`, `budget`, `explain`, `numbers`, `blame` and `test`"), "{out}");
     assert!(out.contains("mitra.toml:1:2"), "{out}");
     let out = fails("points = 3\n");
     assert!(out.contains("no section `points`"), "{out}");

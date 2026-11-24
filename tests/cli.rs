@@ -46,7 +46,7 @@ fn explain_gives_a_verdict_on_each_proposition() {
     );
     assert!(out.contains("explained    correct(calc::div, (6, 2)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::div_by_two)"), "{out}");
     assert!(out.contains("contradicted calc::div::spec "), "{out}");
-    assert!(out.contains("explain: 20 propositions, 10 explained, 6 contradicted, 4 unsupported; 0 findings, 0 hints"), "{out}");
+    assert!(out.contains("explain: 20 propositions, 10 explained, 6 contradicted, 4 unsupported; 0 findings, 0 hints, 1 reviews asked"), "{out}");
 }
 
 #[test]
@@ -265,10 +265,140 @@ fn the_dogfood_model_is_whole_and_checks() {
         "src",
         "--store",
         "core2.store.mitra",
+        "--no-test",
     ]);
     assert_eq!(code, 0, "{out}");
     assert!(
-        out.lines().any(|l| l.starts_with("evidence: 0 measurements,") && l.ends_with(" reviews, 46 ties")),
+        out.lines().any(|l| l.starts_with("evidence: 0 measurements,") && l.ends_with(" reviews, 47 ties")),
         "{out}"
     );
+}
+
+/// With no `--report`, explain runs `cargo test` at the project's root,
+/// says so, and reads what it printed: `examples/div`'s three tests.
+/// `--no-test` runs none; with `--report`, it is a mistake.
+#[test]
+fn explain_runs_cargo_test_when_no_report_is_given() {
+    let (code, out) = mitra(&[
+        "explain",
+        "examples/div/model.mitra",
+        "--code",
+        "examples/div/src",
+        "--store",
+        "examples/div/evidence.mitra",
+    ]);
+    assert_eq!(code, 0, "{out}");
+    assert!(
+        out.contains("ran `cargo test --no-fail-fast -- --show-output` in ")
+            && out.contains("examples/div: 3 tests, 3 passed, 0 failed, 0 ignored"),
+        "{out}"
+    );
+    assert!(
+        out.contains("evidence: 4 measurements, 1 reviews, 1 ties"),
+        "{out}"
+    );
+    let (_, out) = mitra(&[
+        "explain",
+        "examples/div/model.mitra",
+        "--code",
+        "examples/div/src",
+        "--no-test",
+    ]);
+    assert!(
+        out.starts_with("`--no-test`: the tests in the code that measure ran in no report"),
+        "{out}"
+    );
+    let (code, out) = mitra(&[
+        "explain",
+        "examples/div/model.mitra",
+        "--no-test",
+        "--report",
+        "examples/div/report.txt",
+    ]);
+    assert_eq!(code, 2, "{out}");
+    assert!(out.contains("`--no-test` and `--report` together"), "{out}");
+    // A report whose binary stopped says so.
+    let report = std::env::temp_dir().join(format!("mitra-stopped-{}.txt", std::process::id()));
+    std::fs::write(&report, "     Running unittests src/lib.rs (target/debug/deps/div-1)\n\nrunning 3 tests\ntest tests::div_by_two ... ok\n").unwrap();
+    let (_, out) = mitra(&[
+        "explain",
+        "examples/div/model.mitra",
+        "--code",
+        "examples/div/src",
+        "--report",
+        report.to_str().unwrap(),
+    ]);
+    assert!(
+        out.contains("finding[R009]: the test binary `src/lib.rs` stopped before its result"),
+        "{out}"
+    );
+    std::fs::remove_file(&report).unwrap();
+}
+
+/// `examples/heater`: tests that print rows with `mitra::check_eq!`,
+/// read through the tie, and reviews of a link and of words a test
+/// shows. Its test failing, the review that sees it is dropped (R008)
+/// and asked for again; the row still measures what the system gave.
+#[test]
+fn rows_and_reviews_seeing_a_test() {
+    let (code, out) = mitra(&[
+        "explain",
+        "examples/heater/model.mitra",
+        "--code",
+        "examples/heater/src",
+        "--store",
+        "examples/heater/evidence.mitra",
+    ]);
+    assert_eq!(code, 0, "{out}");
+    assert!(out.contains("examples/heater: 3 tests, 3 passed"), "{out}");
+    assert!(!out.contains("finding[R"), "{out}");
+    assert!(
+        out.contains("evidence: 3 measurements, 2 reviews, 1 ties"),
+        "{out}"
+    );
+    assert!(out.contains("explained    correct(Heater::decide, (Heater { target: 20, on: false }, 18)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::heats_below_the_target)"), "{out}");
+    assert!(out.ends_with(", 0 reviews asked\n"), "{out}");
+    // A copy whose test of `steady` fails.
+    let root = env!("CARGO_MANIFEST_DIR");
+    let dir = std::env::temp_dir().join(format!("mitra-heater-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    for f in ["model.mitra", "evidence.mitra", "mitra.toml", "src/lib.rs"] {
+        std::fs::copy(format!("{root}/examples/heater/{f}"), dir.join(f)).unwrap();
+    }
+    let cargo = std::fs::read_to_string(format!("{root}/examples/heater/Cargo.toml"))
+        .unwrap()
+        .replace("../../crates/mitra", &format!("{root}/crates/mitra"));
+    std::fs::write(dir.join("Cargo.toml"), cargo).unwrap();
+    let lib = std::fs::read_to_string(dir.join("src/lib.rs"))
+        .unwrap()
+        .replace("18), once);", "18), Heater { target: 21, ..once });");
+    std::fs::write(dir.join("src/lib.rs"), lib).unwrap();
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_mitra"))
+        .current_dir(&dir)
+        .env("CARGO_TARGET_DIR", format!("{root}/target/heater-copy"))
+        .args([
+            "explain",
+            "model.mitra",
+            "--code",
+            "src",
+            "--store",
+            "evidence.mitra",
+        ])
+        .output()
+        .unwrap();
+    let out = String::from_utf8(out.stdout).unwrap();
+    assert!(
+        out.contains(": 3 tests, 2 passed, 1 failed, 0 ignored"),
+        "{out}"
+    );
+    assert!(out.contains("finding[R008]: the test `tests::decides_the_same_twice` failed: the review of `Heater::steady` by `human:ana` counts only while it passes"), "{out}");
+    assert!(
+        out.contains("evidence: 3 measurements, 1 reviews, 1 ties"),
+        "{out}"
+    );
+    assert!(
+        out.contains("ask[X012]: only words say `Heater::steady`"),
+        "{out}"
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
 }

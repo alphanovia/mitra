@@ -1,0 +1,4 @@
+# What explain runs with no --report: release, since debug overflows the
+# stack in tests/simulation.rs (finding 31).
+[test]
+command = ["cargo", "test", "--release", "--no-fail-fast", "--", "--show-output"]

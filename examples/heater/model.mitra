@@ -1,0 +1,20 @@
+// The heater, measured by tests that write what they saw: each
+// `mitra::check_eq!` in src/lib.rs prints a row, and `mitra explain`
+// reads it through the tie on the Rust function.
+
+subject Heater {
+    record { target: integer, on: bool }
+
+    // On below the target, off at or above it.
+    fn decide(self, t: integer) -> h: Heater {
+        Heater { on: t < self.target, ..self }
+    } where {
+        claim keeps_target: h.target == self.target;
+        claim on_below: h.on == (t < self.target);
+    }
+
+    // Words only: no function says it, a test shows it.
+    ensure steady: "deciding twice at one temperature decides the same";
+    ensure follows: "on below the target, off at or above it"
+        from (decide::keeps_target, decide::on_below);
+}

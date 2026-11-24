@@ -569,6 +569,14 @@ pub fn leaves(model: &Model) -> Vec<(Path, Prop)> {
         .collect()
 }
 
+/// The link of the piece at `at` from the pieces `from`, as judgement
+/// reads it: `{from} at {at}`, as `props` gives it.
+pub(crate) fn link(index: &Index, at: &Path, from: &[Path]) -> Option<Prop> {
+    let pre: Option<Vec<Prop>> = from.iter().map(|p| index.prop_at(p)).collect();
+    let pre = pre.filter(|pre| !pre.is_empty())?;
+    Some(implies(pre, at, Prop::Named(at.to_string())))
+}
+
 /// `{pre} at {post}`.
 fn implies(pre: Vec<Prop>, at: &Path, post: Prop) -> Prop {
     Prop::Implies {

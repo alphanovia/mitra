@@ -1,0 +1,7 @@
+// The model of `crates/mitra`, the test macros: beside the code, read by
+// the dogfood through `use checks from "crates/mitra/src"`.
+
+subject checks {
+    ensure prints_rows: "`check_eq!(f(a, b), want)` and `check!(f(a, b))` print `mitra: row f (a, b) -> got` before they assert";
+    ensure observed: "`Observe` writes a value as Mitra writes it: numbers, truths, chars and texts, sequences, Some and None, Ok and Err, tuples of two and up, records by name and fields, variants by name and values";
+}

@@ -139,6 +139,7 @@ fn the_report_reads() {
     let run = |n: &str, outcome| TestRun {
         name: n.to_string(),
         outcome,
+        binary: String::new(),
     };
     assert_eq!(
         runs,
@@ -230,16 +231,22 @@ fn the_store_reads_and_comes_back() {
         ledger.reviews,
         vec![
             Review {
+                from: None,
+                seeing: vec![],
                 prop: path("calc::div::spec"),
                 holds: true,
                 by: "human:ana".to_string()
             },
             Review {
+                from: None,
+                seeing: vec![],
                 prop: path("calc::inputs"),
                 holds: false,
                 by: "human:bo".to_string()
             },
             Review {
+                from: None,
+                seeing: vec![],
                 prop: path("calc::div"),
                 holds: true,
                 by: "human:ana".to_string()
@@ -281,7 +288,7 @@ fn the_whole_ledger() {
     let (ties, ledger, findings) = ledger(
         &model,
         &files,
-        Some("test at_five ... ok\n"),
+        Some(("report", "test at_five ... ok\n")),
         Some(("evidence.mitra", store)),
     )
     .unwrap();
@@ -289,4 +296,115 @@ fn the_whole_ledger() {
     assert_eq!(ledger.measurements.len(), 2);
     assert_eq!(ledger.reviews.len(), 1);
     assert_eq!(findings, vec![]);
+}
+
+/// A test binary that began and gave no result stopped: R009, by its
+/// `Running` line. One that gave its result, failed or not, did not.
+#[test]
+fn a_test_binary_that_stopped_is_a_finding() {
+    let report = "     Running tests/a.rs (target/debug/deps/a-1)
+
+running 1 test
+test one ... FAILED
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
+     Running tests/b.rs (target/debug/deps/b-2)
+
+running 2 tests
+test two ... ok
+
+thread 'three' has overflowed its stack
+error: test failed, to rerun pass `--test b`
+   Doc-tests div
+
+running 0 tests
+";
+    let found: Vec<String> = mitra_core::reader::stopped("cargo test", report)
+        .iter()
+        .map(|f| f.to_string())
+        .collect();
+    assert_eq!(found.len(), 2, "{found:?}");
+    assert!(
+        found[0]
+            .starts_with("finding[R009]: the test binary `tests/b.rs` stopped before its result"),
+        "{found:?}"
+    );
+    assert!(found[0].contains("cargo test:7"), "{found:?}");
+    assert!(found[1].contains("`div` stopped"), "{found:?}");
+}
+
+/// The rows `mitra::check_eq!` prints, each a measurement by the test
+/// it is under, of the model's function through the tie on the Rust one.
+#[test]
+fn rows_are_measurements_through_ties() {
+    let model = parse(
+        "subject calc {\n    fn div(a: integer, b: integer) -> q: integer;\n    fn half(a: integer) -> h: integer;\n}\nsubject geo {\n    fn half(a: integer) -> h: integer;\n}",
+    )
+    .unwrap();
+    let ties = vec![
+        Tie {
+            item: path("calc::div"),
+            at: Location::at(&["src/lib.rs", "div"]),
+        },
+        Tie {
+            item: path("calc::half"),
+            at: Location::at(&["src/lib.rs", "calc", "half"]),
+        },
+        Tie {
+            item: path("geo::half"),
+            at: Location::at(&["src/lib.rs", "geo", "half"]),
+        },
+    ];
+    let report = "running 2 tests
+mitra: row div (1, 1) -> 1
+test tests::two ... ok
+
+successes:
+
+---- tests::two stdout ----
+mitra: row crate::div (6, 2) -> 3
+mitra: row calc::half (6) -> 3
+mitra: row half (6) -> 3
+mitra: row mul (6, 2) -> 12
+mitra: row div (6, true) -> 3
+mitra: row div
+
+successes:
+    tests::two
+mitra: row div (2, 1) -> 2
+";
+    let (found, findings) = mitra_core::reader::rows(&model, &ties, "report", report);
+    let found: Vec<(String, String)> = found
+        .iter()
+        .map(|m| (m.outputs[0].0.to_string(), m.by.clone()))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("calc::div::q".to_string(), "test:tests::two".to_string()),
+            ("calc::half::h".to_string(), "test:tests::two".to_string()),
+        ]
+    );
+    let findings: Vec<String> = findings.iter().map(|f| f.to_string()).collect();
+    let starts = [
+        ("finding[R001]: a row under no test's output", "report:2"),
+        (
+            "finding[R007]: the row's `half` is tied to `calc::half` and `geo::half`",
+            "report:10",
+        ),
+        (
+            "finding[R007]: the row's `mul` is no function tied to the model",
+            "report:11",
+        ),
+        (
+            "finding[R006]: `(6, true) -> 3` is not of `calc::div`",
+            "report:12",
+        ),
+        ("finding[R001]: `div` is no row", "report:13"),
+        ("finding[R001]: a row under no test's output", "report:17"),
+    ];
+    assert_eq!(findings.len(), starts.len(), "{findings:?}");
+    for (f, (start, at)) in findings.iter().zip(starts) {
+        assert!(f.starts_with(start) && f.contains(at), "{f}");
+    }
 }

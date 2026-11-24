@@ -4,11 +4,20 @@
 
 environment cargo {
     ensure reports: "`cargo test` prints one line `test NAME ... ok`, `FAILED` or `ignored` for each test it runs";
+    ensure binaries: "`cargo test` prints `Running FILE` before each test binary and `test result:` after it, and with `--show-output` each test's output under `---- NAME stdout ----`";
 }
 
 subject reader {
+    use checks from "crates/mitra/src";
     require report: cargo::reports;
     ensure nothing_dropped: "whatever the reader is given and cannot use is a finding of suit R";
     ensure ties_read: "a `// mitra: implements` comment above a fn, struct or enum ties that item, at file/mods/name"
         from (report);
+    require printed: checks::prints_rows;
+    require listed: cargo::binaries;
+    ensure rows_read: "each `mitra: row` printed under a test's output is a measurement by that test, of the model's function tied to the Rust path; a row it cannot read or place is R001, one through no tie R007"
+        from (printed, listed, ties_read);
+    ensure seeing: "a review seeing tests is kept only where the report says each passed; otherwise R008 says which, and why"
+        from (report, listed);
+    ensure stopped: "a test binary that began and gave no result is R009" from (listed);
 }

@@ -1,0 +1,10 @@
+[package]
+name = "heater"
+version = "0.0.0"
+edition = "2021"
+
+[dev-dependencies]
+mitra = { path = "../../crates/mitra" }
+
+# Not part of Mitra's own build: an example project of its own.
+[workspace]

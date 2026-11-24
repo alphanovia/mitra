@@ -3,9 +3,13 @@
 //! - `mitra check MODEL [--points N]`: is the model sound on itself,
 //!   and if not, where? Its errors (`check`), then what agree finds,
 //!   trying at most `N` points per comparison (agree's `points`).
-//! - `mitra explain MODEL [--code DIR]... [--report FILE] [--store FILE]`:
+//! - `mitra explain MODEL [--code DIR]... [--report FILE | --no-test] [--store FILE]`:
 //!   does the model explain the system, assuming the evidence? A verdict
-//!   on each proposition, with its numbers, then the findings.
+//!   on each proposition, with its numbers, then the findings, then the
+//!   reviews the model asks for. With no `--report`, it runs `cargo test
+//!   --no-fail-fast -- --show-output` at the project's root, when the
+//!   root has a `Cargo.toml`, and reads what it prints; `--no-test` runs
+//!   none.
 //! - `mitra blame MODEL [...]`: which evidence is wrong, given the model
 //!   explains the system? The diagnoses, the most doubtful first.
 //!
@@ -40,13 +44,14 @@ macro_rules! out {
 
 const USAGE: &str = "usage:
   mitra check MODEL [--points N]
-  mitra explain MODEL [--code DIR]... [--report FILE] [--store FILE]
-  mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
+  mitra explain MODEL [--code DIR]... [--report FILE | --no-test] [--store FILE]
+  mitra blame MODEL [--code DIR]... [--report FILE | --no-test] [--store FILE]
 
-  MODEL     the model, a .mitra file of the project
-  --code    a folder of Rust files, read for ties and measuring tests
-  --report  the output of `cargo test`
-  --store   measurements and reviews written by hand
+  MODEL      the model, a .mitra file of the project
+  --code     a folder of Rust files, read for ties and measuring tests
+  --report   the output of `cargo test`, read instead of running it
+  --no-test  run no `cargo test`, read no report
+  --store    measurements and reviews written by hand
   --points  the most points agree tries per comparison (default 64)";
 
 fn main() -> ExitCode {
@@ -79,6 +84,7 @@ struct Given {
     report: Option<PathBuf>,
     store: Option<PathBuf>,
     points: Option<usize>,
+    no_test: bool,
 }
 
 fn arguments(args: &[String]) -> Result<Given, String> {
@@ -95,8 +101,15 @@ fn arguments(args: &[String]) -> Result<Given, String> {
         report: None,
         store: None,
         points: None,
+        no_test: false,
     };
     while let Some(flag) = it.next() {
+        if flag == "--no-test" {
+            if std::mem::replace(&mut given.no_test, true) {
+                return Err("`--no-test` is given twice".to_string());
+            }
+            continue;
+        }
         if flag == "--points" {
             let v = it.next().ok_or("`--points` needs a value")?;
             let n: usize = v.parse().ok().filter(|n| *n > 0).ok_or(format!(
@@ -124,8 +137,16 @@ fn arguments(args: &[String]) -> Result<Given, String> {
     if given.command != "check" && given.points.is_some() {
         return Err("`--points` is for `check`: only it compares".to_string());
     }
+    if given.no_test && given.report.is_some() {
+        return Err(
+            "`--no-test` and `--report` together: a report is of tests that ran".to_string(),
+        );
+    }
     if given.command == "check"
-        && (given.report.is_some() || given.store.is_some() || !given.code.is_empty())
+        && (given.report.is_some()
+            || given.store.is_some()
+            || !given.code.is_empty()
+            || given.no_test)
     {
         return Err("`check` reads the model only".to_string());
     }
@@ -203,27 +224,68 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
         let relative = full.strip_prefix(&root).unwrap_or(&full);
         code.push((relative.display().to_string().replace('\\', "/"), read(f)?));
     }
+    // The report given, or `cargo test` run at the root, or none.
+    let cargo = root.join("Cargo.toml").exists() && !given.no_test;
+    let (report_name, report) = match &given.report {
+        Some(r) => (r.display().to_string(), Some(read(r)?)),
+        None if cargo => (
+            settings.test.command.join(" "),
+            Some(cargo_test(&root, &settings.test.command)?),
+        ),
+        None => (String::new(), None),
+    };
+    if let Some(text) = &report {
+        let runs = reader::read_cargo_test(text);
+        let passed = runs
+            .iter()
+            .filter(|r| r.outcome == reader::Outcome::Passed)
+            .count();
+        let failed = runs
+            .iter()
+            .filter(|r| r.outcome == reader::Outcome::Failed)
+            .count();
+        let ran = match given.report {
+            Some(_) => format!("read {report_name}"),
+            None => format!("ran `{report_name}` in {}", root.display()),
+        };
+        out!(
+            "{ran}: {} tests, {passed} passed, {failed} failed, {} ignored\n",
+            runs.len(),
+            runs.len() - passed - failed
+        );
+    }
     // Code read with no report: its tests ran in none, and say so.
-    let unreported = given.report.is_none() && !files.is_empty();
-    let report = match &given.report {
-        Some(r) => Some(read(r)?),
+    let unreported = report.is_none() && !files.is_empty();
+    let report = match report {
         None if unreported => Some(String::new()),
-        None => None,
+        r => r,
     };
     let store_text = given.store.as_deref().map(read).transpose()?;
     let store_name = given.store.as_ref().map(|p| p.display().to_string());
     let store = store_name.as_deref().zip(store_text.as_deref());
-    let (ties, ledger, reader_findings) =
-        match reader::ledger(&model, &code, report.as_deref(), store) {
-            Ok(read) => read,
-            Err(e) => {
-                let (name, text) = store.unwrap_or(("store", ""));
-                out!("{}", e.render(name, text).trim_end());
-                return Ok(ExitCode::from(1));
-            }
-        };
+    let (ties, ledger, reader_findings) = match reader::ledger(
+        &model,
+        &code,
+        report.as_deref().map(|r| (report_name.as_str(), r)),
+        store,
+    ) {
+        Ok(read) => read,
+        Err(e) => {
+            let (name, text) = store.unwrap_or(("store", ""));
+            out!("{}", e.render(name, text).trim_end());
+            return Ok(ExitCode::from(1));
+        }
+    };
     if unreported && reader_findings.iter().any(|f| f.code == R005) {
-        out!("no `--report`: the tests in the code that measure ran in no report, and measured nothing\n");
+        let why = match given.no_test {
+            true => "`--no-test`",
+            false => "no `--report`, and no `Cargo.toml` at the root to run `cargo test` in",
+        };
+        out!("{why}: the tests in the code that measure ran in no report, and measured nothing\n");
+    }
+    let mut reader_findings = reader_findings;
+    if let Some(text) = &report {
+        reader_findings.splice(0..0, reader::stopped(&report_name, text));
     }
     for f in &reader_findings {
         out!("{f}\n");
@@ -253,6 +315,40 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
         true => ExitCode::SUCCESS,
         false => ExitCode::from(1),
     })
+}
+
+/// The tests run at `root` by `command` (`[test] command`, `cargo test`
+/// unless said), all it prints, its own lines and the tests' in the
+/// order printed. A run that built no test binary is an error: cargo's
+/// last lines say why.
+fn cargo_test(root: &Path, command: &[String]) -> Result<String, String> {
+    let shown = command.join(" ");
+    let file = std::env::temp_dir().join(format!("mitra-cargo-test-{}.txt", std::process::id()));
+    let out = std::fs::File::create(&file)
+        .map_err(|e| format!("cannot write {}: {e}", file.display()))?;
+    let err = out
+        .try_clone()
+        .map_err(|e| format!("cannot write {}: {e}", file.display()))?;
+    let status = std::process::Command::new(&command[0])
+        .args(&command[1..])
+        .current_dir(root)
+        .stdout(out)
+        .stderr(err)
+        .status()
+        .map_err(|e| format!("cannot run `{shown}`: {e}"))?;
+    let text = read(&file)?;
+    let _ = std::fs::remove_file(&file);
+    let ran = text.lines().any(|l| l.trim_start().starts_with("Running "));
+    if !status.success() && !ran {
+        let last: Vec<&str> = text.lines().rev().take(20).collect();
+        let last: Vec<&str> = last.into_iter().rev().collect();
+        return Err(format!(
+            "`{shown}` in {} built no test: {status}\n{}",
+            root.display(),
+            last.join("\n")
+        ));
+    }
+    Ok(text)
 }
 
 /// Every `.rs` file under `dir`, in order.
@@ -375,11 +471,15 @@ fn explain_out(e: &Explanation, n: &Numbers) {
     for h in &e.hints {
         out!("{h}\n");
     }
+    for a in &e.asks {
+        out!("{a}\n");
+    }
     out!(
-        "explain: {} propositions, {explained} explained, {contradicted} contradicted, {unsupported} unsupported; {} findings, {} hints",
+        "explain: {} propositions, {explained} explained, {contradicted} contradicted, {unsupported} unsupported; {} findings, {} hints, {} reviews asked",
         e.verdicts.len(),
         e.findings.len(),
-        e.hints.len()
+        e.hints.len(),
+        e.asks.len()
     );
 }
 
@@ -409,7 +509,7 @@ fn suspect_text(ledger: &evidence::Ledger, e: &Explanation, s: &Suspect) -> Stri
         Suspect::Review(i) => {
             let r = &ledger.reviews[*i];
             let says = if r.holds { "holds" } else { "fails" };
-            format!("reviews::{i} ({}: {} {says})", r.by, r.prop)
+            format!("reviews::{i} ({}: {} {says})", r.by, r.said())
         }
         Suspect::Taking(t) => {
             let source = match e.sources.get(t) {

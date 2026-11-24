@@ -22,7 +22,7 @@
 //! quietly: what explain cannot read is a finding (suit `X`).
 
 use crate::catalogue::{
-    Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008, X009, X010, X011,
+    Ask, Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008, X009, X010, X011, X012,
 };
 use crate::evidence::{self, port, Ledger, Measurement};
 use crate::expression::{eval, Arg, Expression, Fault};
@@ -124,6 +124,9 @@ pub struct Explanation {
     pub alike: BTreeMap<Taking, Vec<Taking>>,
     pub findings: Vec<Finding>,
     pub hints: Vec<Hint>,
+    /// The reviews the model needs and no voice gave: of each link, and
+    /// of each ensure said only in words.
+    pub asks: Vec<Ask>,
 }
 
 /// Explain the system: the model, assuming the evidence.
@@ -169,9 +172,10 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         if refused.contains(&Path::to(&["reviews", &i.to_string()])) {
             continue;
         }
-        let props = match index.prop_at(&r.prop) {
-            Some(p) => vec![p],
-            None => model
+        let props = match (&r.from, index.prop_at(&r.prop)) {
+            (Some(from), _) => model::link(&index, &r.prop, from).into_iter().collect(),
+            (None, Some(p)) => vec![p],
+            (None, None) => model
                 .ties
                 .iter()
                 .filter(|t| t.item == r.prop)
@@ -285,6 +289,7 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
     }
     findings.sort();
     findings.dedup();
+    let asks = asks(model, ledger, &refused);
     Explanation {
         verdicts,
         opinions: judge.opinions,
@@ -293,7 +298,72 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         alike: judge.alike,
         findings,
         hints,
+        asks,
     }
+}
+
+/// The reviews the model needs and the ledger does not give (X012).
+/// A link, an ensure from a list, is only the model's word until a
+/// voice reviews it; an ensure said only in words, with nothing below
+/// it, likewise. A require from an ensure is that ensure, named: it is
+/// not asked for. A review that holds or fails
+/// answers it: someone looked. A refused one does not.
+pub fn asks(model: &Model, ledger: &Ledger, refused: &BTreeSet<Path>) -> Vec<Ask> {
+    let index = Index::of(model);
+    let reviewed: BTreeSet<(&Path, &Option<Vec<Path>>)> = ledger
+        .reviews
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !refused.contains(&Path::to(&["reviews", &i.to_string()])))
+        .map(|(_, r)| (&r.prop, &r.from))
+        .collect();
+    let mut asks = Vec::new();
+    for (at, item) in &index.items {
+        // A require from an ensure is that ensure, named: no words of
+        // its own, so its link is not asked for (a review may still
+        // name it).
+        let links = match item {
+            Item::Ensure(_) => evidence::links(&index, at),
+            _ => vec![],
+        };
+        for list in &links {
+            let from = Some(list.clone());
+            if reviewed.contains(&(at, &from)) || model::link(&index, at, list).is_none() {
+                continue;
+            }
+            let names: Vec<String> = list.iter().map(|p| p.to_string()).collect();
+            let names = names.join(", ");
+            let written = match links.len() {
+                1 => "from".to_string(),
+                _ => format!("from ({names})"),
+            };
+            let what = match list.len() {
+                1 => format!("that `{names}` gives `{at}`"),
+                _ => format!("that ({names}) together give `{at}`"),
+            };
+            asks.push(Ask {
+                code: X012,
+                at: at.clone(),
+                from,
+                message: format!("only the model says {what}: review the link"),
+                line: format!("review {at} {written} holds by \"human:<name>\";"),
+            });
+        }
+        if let Item::Ensure(e) = item {
+            if e.from.is_empty() && !reviewed.contains(&(at, &None)) {
+                asks.push(Ask {
+                    code: X012,
+                    at: at.clone(),
+                    from: None,
+                    message: format!(
+                        "only words say `{at}`, and nothing below gives it: review it, seeing the test that shows it if one does"
+                    ),
+                    line: format!("review {at} holds by \"human:<name>\" seeing \"test:<name>\";"),
+                });
+            }
+        }
+    }
+    asks
 }
 
 /// Two measurements that say the same, by the same voice, whatever

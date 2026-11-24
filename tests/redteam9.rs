@@ -292,6 +292,8 @@ fn d9_a_voice_of_mitra_is_no_voice_of_evidence() {
         let ledger = Ledger {
             measurements: vec![],
             reviews: vec![Review {
+                from: None,
+                seeing: vec![],
                 prop: path("calc::div::spec"),
                 holds: true,
                 by: by.to_string(),
@@ -592,7 +594,8 @@ subject s {
 }
 
 /// D9, the other half: a voice is of a kind, `human:`, `agent:`,
-/// `machine:` or `test:`, with a name.
+/// `machine:` or `test:`, with a name; and a test measures, never
+/// reviews (2026-11-24).
 #[test]
 fn after_a_voice_is_of_a_kind() {
     let model = div();
@@ -603,11 +606,13 @@ fn after_a_voice_is_of_a_kind() {
         ("human:ana", false),
         ("agent:claude", false),
         ("machine:verus", false),
-        ("test:tests::div_by_two", false),
+        ("test:tests::div_by_two", true),
     ] {
         let ledger = Ledger {
             measurements: vec![],
             reviews: vec![Review {
+                from: None,
+                seeing: vec![],
                 prop: path("calc::div::spec"),
                 holds: true,
                 by: by.to_string(),

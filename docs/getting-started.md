@@ -56,12 +56,11 @@ check again. Mitra finds that the example breaks the claim `spec`
 
 ## 4. Explain the tests
 
-Run the tests and keep what `cargo test` printed, then ask Mitra
-whether the model explains it:
+Ask Mitra whether the model explains the tests. It runs them
+(`cargo test`) and reads what they printed:
 
 ```text
-cargo test > report.txt 2>&1
-mitra explain model.mitra --code src --report report.txt
+mitra explain model.mitra --code src
 ```
 
 Each line is a verdict on one thing the model says:
@@ -70,7 +69,7 @@ Each line is a verdict on one thing the model says:
 explained    correct(calc::div, (6, 2)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::div_by_two)
 unsupported  calc::div::bounded 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
 …
-explain: 17 propositions, 9 explained, 0 contradicted, 8 unsupported; 0 findings, 0 hints
+explain: 17 propositions, 9 explained, 0 contradicted, 8 unsupported; 0 findings, 0 hints, 1 reviews asked
 ```
 
 - **explained**: the evidence supports it. Here, one passing test says
@@ -86,13 +85,11 @@ brackets are explained in [the reference](reference/1-ideas.md#trust-numbers).
 
 ## 5. Break the code, and blame
 
-Change `a / b` to `a / b + 1` in `src/lib.rs`, run the tests again,
-and ask Mitra:
+Change `a / b` to `a / b + 1` in `src/lib.rs`, and ask Mitra again:
 
 ```text
-cargo test > report.txt 2>&1
-mitra explain model.mitra --code src --report report.txt
-mitra blame model.mitra --code src --report report.txt
+mitra explain model.mitra --code src
+mitra blame model.mitra --code src
 ```
 
 Two tests fail. `explain` now says `contradicted` for the tie and the
@@ -121,7 +118,7 @@ review calc::div::spec holds by "human:bo";
 ```
 
 ```text
-mitra blame model.mitra --code src --report report.txt --store evidence.mitra
+mitra blame model.mitra --code src --store evidence.mitra
 ```
 
 Blame doubts Ana's measurement first.

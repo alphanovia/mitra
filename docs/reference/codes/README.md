@@ -79,6 +79,8 @@ example, and the fix. The letter says which step found it.
 - [R005](R005.md): a measuring test that did not run
 - [R006](R006.md): what names nothing of the model, or is not of its types
 - [R007](R007.md): a measurement through no tie
+- [R008](R008.md): a review seeing a test that did not pass
+- [R009](R009.md): a test binary that stopped before its result
 - [README](README.md): # Codes
 
 ## V (evidence): measurements and reviews
@@ -105,6 +107,7 @@ example, and the fix. The letter says which step found it.
 - [X009](X009.md): a budget of steps or depth reached
 - [X010](X010.md): a value known in part, where only what is not known could tell
 - [X011](X011.md): a measured value outside the range of its type
+- [X012](X012.md): a link, or a piece said only in words, no voice reviewed
 
 ## B (blame): diagnoses
 

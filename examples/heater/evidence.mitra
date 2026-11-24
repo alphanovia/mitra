@@ -1,0 +1,3 @@
+// Reviews written by hand: a link, and words a test shows.
+review Heater::follows from holds by "human:ana";
+review Heater::steady holds by "human:ana" seeing "test:decides_the_same_twice";

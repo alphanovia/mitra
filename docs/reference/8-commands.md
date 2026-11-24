@@ -2,15 +2,19 @@
 
 ```text
 mitra check MODEL [--points N]
-mitra explain MODEL [--code DIR]... [--report FILE] [--store FILE]
-mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
+mitra explain MODEL [--code DIR]... [--report FILE | --no-test] [--store FILE]
+mitra blame MODEL [--code DIR]... [--report FILE | --no-test] [--store FILE]
 ```
 
 - `MODEL`: a `.mitra` file of the project. Paths in ties
   (`src/lib.rs/div`) are read from the project's root.
 - `--code DIR`: Rust code to read for ties and measuring tests. Give it
   more than once for several folders.
-- `--report FILE`: what `cargo test` printed (`cargo test > report.txt 2>&1`).
+- `--report FILE`: what the tests printed, read instead of running them
+  (`cargo test --no-fail-fast -- --show-output > report.txt 2>&1`), for CI.
+  Without it, `explain` and `blame` run `[test] command` at the root
+  when it has a `Cargo.toml`, and say how many tests ran and passed.
+- `--no-test`: run no tests and read no report.
 - `--store FILE`: measurements and reviews written by hand.
 - `--points N`: the most points `check` tries per comparison (default 64).
 
@@ -31,8 +35,10 @@ Reads the evidence and gives each statement of the model a verdict,
 with its numbers ([chapter 1](1-ideas.md#verdicts)), then a summary:
 
 ```text
-explain: 20 propositions, 10 explained, 6 contradicted, 4 unsupported; 0 findings, 0 hints
+explain: 20 propositions, 10 explained, 6 contradicted, 4 unsupported; 0 findings, 0 hints, 1 reviews asked
 ```
+
+Before the summary, the reviews the model asks for ([chapter 5](5-ties-and-evidence.md#what-explain-asks-you-to-review)).
 
 ## blame
 
@@ -74,6 +80,8 @@ checker = 1000.0       # how many runs one check by Mitra is
 [blame]
 diagnoses = 10         # the most diagnoses given
 tries = 100000         # the most sets of suspects tried
+[test]                 # what explain and blame run when no --report is given
+command = ["cargo", "test", "--no-fail-fast", "--", "--show-output"]
 ```
 
 A count is a whole number, a weight is written with its point (`2.0`).

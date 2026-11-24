@@ -1006,7 +1006,7 @@ impl<'c> Parser<'c> {
         }
     }
     /// `a, b, c` up to `close`, a comma after the last allowed.
-    fn list<T>(
+    pub(crate) fn list<T>(
         &mut self,
         close: &str,
         mut item: impl FnMut(&mut Self) -> Result<T>,

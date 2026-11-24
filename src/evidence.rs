@@ -33,11 +33,46 @@ pub struct Measurement {
 
 /// Someone says the claim, rule, require, ensure or tied item at `prop`
 /// holds, or not. Of a tied item, it is said of each of its ties.
+///
+/// With `from`, it is said of a link instead: that what `prop` is from
+/// gives it. Of an ensure, one of its `from` lists; of a require, the
+/// ensure it is from. With `seeing`, the voice says it seeing those
+/// tests pass: the review counts only while every one passes
+/// (`reader::ledger` drops it otherwise, and says so). A test is never
+/// the voice of a review: it measures; someone reviews, seeing it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Review {
     pub prop: Path,
+    pub from: Option<Vec<Path>>,
     pub holds: bool,
     pub by: String,
+    pub seeing: Vec<String>,
+}
+
+/// The links of the piece at `at` that a review can name, each the list
+/// it is from: an ensure's `from` lists, a require's ensure.
+pub(crate) fn links(index: &Index, at: &Path) -> Vec<Vec<Path>> {
+    match index.items.get(at) {
+        Some(Item::Ensure(e)) => e.from.clone(),
+        Some(Item::Require(r)) => match &r.from {
+            crate::model::Source::Ensure(e) => vec![vec![e.clone()]],
+            crate::model::Source::Prose(_) => vec![],
+        },
+        _ => vec![],
+    }
+}
+
+impl Review {
+    /// What it says holds or fails: `a::e`, or `a::e from (b::c, b::d)`.
+    pub fn said(&self) -> String {
+        match &self.from {
+            None => self.prop.to_string(),
+            Some(from) => {
+                let list: Vec<String> = from.iter().map(|p| p.to_string()).collect();
+                format!("{} from ({})", self.prop, list.join(", "))
+            }
+        }
+    }
 }
 
 /// The evidence, one set at one time.
@@ -217,7 +252,17 @@ pub fn check(model: &Model, ledger: &Ledger) -> Vec<Error> {
             index.items.get(&r.prop),
             Some(Item::Claim | Item::Rule(_) | Item::Require(_) | Item::Ensure(_))
         );
-        if !prop && !tied.contains(&r.prop) {
+        if let Some(from) = &r.from {
+            if !links(&index, &r.prop).contains(from) {
+                let list: Vec<String> = from.iter().map(|p| p.to_string()).collect();
+                let message = format!(
+                    "`{}` is not from ({}): a link reviewed is an ensure's `from` list, or a require's ensure",
+                    r.prop,
+                    list.join(", ")
+                );
+                errors.push(error(V005, message));
+            }
+        } else if !prop && !tied.contains(&r.prop) {
             let message = format!(
                 "`{}` is no claim, rule, require, ensure or tied item",
                 r.prop
@@ -226,8 +271,14 @@ pub fn check(model: &Model, ledger: &Ledger) -> Vec<Error> {
         }
         if let Some(message) = voice_error(&r.by) {
             errors.push(error(V007, message));
-        } else if !said.insert((&r.prop, &r.by)) {
-            let message = format!("`{}` reviews `{}` twice", r.by, r.prop);
+        } else if r.by.starts_with("test:") {
+            let message = format!(
+                "`{}` is a test, and a test is no reviewer: it measures; write who reviewed, `seeing \"{}\"`",
+                r.by, r.by
+            );
+            errors.push(error(V007, message));
+        } else if !said.insert((&r.prop, &r.from, &r.by)) {
+            let message = format!("`{}` reviews `{}` twice", r.by, r.said());
             errors.push(error(V007, message));
         }
     }

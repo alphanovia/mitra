@@ -8,7 +8,11 @@ subject record Measurement at "src/evidence.rs/Measurement" {
     inputs: Ports, outputs: Ports, seen: bool, count: integer, voice: [~char]
 }
 
-subject record Review at "src/evidence.rs/Review" { prop: Path, holds: bool, voice: [~char] }
+// `from` and `seeing` are words of the model: the link reviewed is
+// `link` here, none when the piece itself is; the tests seen, `tests`.
+subject record Review at "src/evidence.rs/Review" {
+    prop: Path, link: [Path], holds: bool, voice: [~char], tests: [[~char]]
+}
 
 // `by` is a keyword of the model: the field `by` is `voice` here.
 // A list of (path, value) pairs: opaque, as a value of the model is
@@ -22,4 +26,7 @@ subject evidence {
 
     ensure fits: "a ledger evidence accepts measures only tied functions of the model, with every input and an output, and reviews only what a review can name"
         from (checked);
+    ensure links: "a review of a link names one of its piece's links, an ensure's from list or a require's ensure, and each voice reviews a piece or a link once"
+        from (checked);
+    ensure no_test_reviews: "a review by a test's voice is refused, V007: a test measures, someone reviews seeing it";
 }

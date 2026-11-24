@@ -20,6 +20,7 @@ subject explain {
     require fits: evidence::fits;
     require kernel: judgement::sound;
     require read: reader::nothing_dropped;
+    require linked: evidence::links;
 
     fn explain_defaults() -> s: ExplainSettings at "src/explain.rs/Settings/default" {
         ExplainSettings { rounds: 64, cases: 1024, rests: 1024, budget: Budget { steps: 1000000, depth: 1000 } }
@@ -28,4 +29,6 @@ subject explain {
     ensure only_known: "a measurement known in part is a taking only where what it knows decides; elsewhere X010 says which field" from (in_part);
     ensure verdicts: "each proposition is explained, contradicted or unsupported, as judgement gives it from the model and the ledger"
         from (checked, fits, kernel, read, given);
+    ensure asks: "each link, an ensure's from list or a require's ensure, and each ensure said only in words, that no review counted names is asked for, X012, with the store line to write"
+        from (linked);
 }

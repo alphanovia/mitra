@@ -162,6 +162,7 @@ pub const X008: Code = explain(8);
 pub const X009: Code = explain(9);
 pub const X010: Code = explain(10);
 pub const X011: Code = explain(11);
+pub const X012: Code = explain(12);
 
 const fn blame(number: u16) -> Code {
     Code {
@@ -211,6 +212,8 @@ pub const R004: Code = reader(4);
 pub const R005: Code = reader(5);
 pub const R006: Code = reader(6);
 pub const R007: Code = reader(7);
+pub const R008: Code = reader(8);
+pub const R009: Code = reader(9);
 
 const fn entry(code: Code, title: &'static str) -> Entry {
     Entry {
@@ -353,6 +356,10 @@ pub const CATALOGUE: &[Entry] = &[
         "a value known in part, where only what is not known could tell",
     ),
     entry(X011, "a measured value outside the range of its type"),
+    entry(
+        X012,
+        "a link, or a piece said only in words, no voice reviewed",
+    ),
     entry(B001, "a conflict the model's claims alone hold"),
     entry(B002, "more diagnoses than blame looked for"),
     entry(B003, "a diagnosis a proof by cases may outlive"),
@@ -387,6 +394,8 @@ pub const CATALOGUE: &[Entry] = &[
         "what names nothing of the model, or is not of its types",
     ),
     entry(R007, "a measurement through no tie"),
+    entry(R008, "a review seeing a test that did not pass"),
+    entry(R009, "a test binary that stopped before its result"),
 ];
 
 /// The entry of `code`, `None` when the catalogue has none.
@@ -416,6 +425,27 @@ pub struct Hint {
     pub code: Code,
     pub at: Path,
     pub message: String,
+}
+
+/// A review a reading asks for: of the piece at `at`, or of its link
+/// from `from`. `line` is what to write in the store to answer it.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Ask {
+    pub code: Code,
+    pub at: Path,
+    pub from: Option<Vec<Path>>,
+    pub message: String,
+    pub line: String,
+}
+
+impl std::fmt::Display for Ask {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "ask[{}]: {}\n --> {}\n  = help: once reviewed, write in the store `{}`",
+            self.code, self.message, self.at, self.line
+        )
+    }
 }
 
 impl std::fmt::Display for Hint {

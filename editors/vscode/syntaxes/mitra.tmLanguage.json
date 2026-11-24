@@ -9,6 +9,7 @@
     { "include": "#declaration" },
     { "include": "#named" },
     { "include": "#proof-form" },
+    { "include": "#store" },
     { "include": "#keyword-declaration" },
     { "include": "#keyword-clause" },
     { "include": "#keyword-control" },
@@ -73,6 +74,13 @@
         "1": { "name": "keyword.other.clause.mitra" },
         "2": { "name": "support.function.proof.mitra" }
       }
+    },
+    "store": {
+      "comment": "A store's lines (core2.store.mitra): words of the store only, not of the model.",
+      "patterns": [
+        { "name": "keyword.other.store.mitra", "match": "^\\s*(measure|review)\\b" },
+        { "name": "keyword.other.store.mitra", "match": "\\b(holds|fails|failed)(?=\\s+by\\b)|\\b(seeing)(?=\\s*\")|\\b(count)(?=\\s+\\d)" }
+      ]
     },
     "keyword-declaration": {
       "name": "keyword.declaration.mitra",

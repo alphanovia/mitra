@@ -41,6 +41,10 @@ subject cli {
     require numbered: numbers::in_unit;
     require parsed: parse::first_error;
     require set: settings::nothing_unread;
+    use cargo from "reader";
+    require ran: cargo::reports;
     ensure answers: "check, explain and blame each answer their question; the exit code is 1 on a malformed model or evidence, 2 on a wrong command line, else 0"
         from (checked, agreed, explained, blamed, numbered, parsed, set);
+    ensure runs_tests: "with no --report and no --no-test, explain and blame run `cargo test --no-fail-fast -- --show-output` at the root when it has a Cargo.toml, and say how many tests ran, passed, failed and were ignored"
+        from (ran);
 }

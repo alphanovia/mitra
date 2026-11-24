@@ -39,6 +39,8 @@ fn divided(a: i64, b: i64, q: i64) -> Measurement {
 }
 fn review(p: &str, by: &str) -> Review {
     Review {
+        from: None,
+        seeing: vec![],
         prop: path(p),
         holds: true,
         by: by.to_string(),

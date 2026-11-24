@@ -197,6 +197,8 @@ fn a_test_that_failed_where_the_model_gives_its_value() {
 fn reviews_are_takings() {
     let model = read("div");
     let review = |p: &str, holds: bool| Review {
+        from: None,
+        seeing: vec![],
         prop: path(p),
         holds,
         by: "human:ana".to_string(),
@@ -449,6 +451,15 @@ subject location {
         ["finding[X011]: at (12, 2), `a` = 12 lies outside its range 0..=9: the system and the model disagree there, a drift between them or a measurement taken wrong\n --> measurements::0"]
     );
     given.insert("X011".to_string());
+    // X012: an ask, in tests/reviews.rs too.
+    let fall = read("fall");
+    let e = explain(&fall, &Ledger::default(), &Settings::default());
+    assert!(e
+        .asks
+        .iter()
+        .all(|a| a.to_string().starts_with("ask[X012]: ")));
+    assert!(!e.asks.is_empty());
+    given.insert("X012".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Explain && !e.retired);

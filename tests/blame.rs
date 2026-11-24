@@ -124,6 +124,8 @@ fn a_review_against_a_claim() {
     let ledger = Ledger {
         measurements: vec![],
         reviews: vec![Review {
+            from: None,
+            seeing: vec![],
             prop: path("calc::div::spec"),
             holds: false,
             by: "human:ana".to_string(),
@@ -193,6 +195,8 @@ subject calc {
     let ledger = Ledger {
         measurements: vec![divided(0, 1, 0), divided(1, 1, 1), again],
         reviews: vec![Review {
+            from: None,
+            seeing: vec![],
             prop: path("calc::div::bounded"),
             holds: false,
             by: "human:zoe".to_string(),

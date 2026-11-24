@@ -1,0 +1,9 @@
+[package]
+name = "mitra"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+description = "Tests that write what they saw: `check_eq!` prints each row for `mitra explain` to read, then asserts."
+
+[dependencies]
+mitra-derive = { path = "../mitra-derive" }

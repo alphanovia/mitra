@@ -1,81 +1,69 @@
 // The dogfood store: reviews of the dogfood model (src/*.mitra; flagged
-// dogfood report). An ensure in words is reviewed by the voice of the
-// test that checks it (`test:name`), written here by hand because a
-// test can only measure rows (finding F6); this store does not read the
-// cargo report, so a failing test does not undo its review. Two tests
-// are named `each_finding_is_given`/`each_error_is_found` in several
-// files (F5): here `each_error_is_found` is the one of tests/model.rs
-// for check, of tests/evidence.rs for evidence. A tie, and
-// a claim shown by hand, is reviewed by the agent that checked it.
+// dogfood report). A test measures and never reviews (the user's rule,
+// 2026-11-24): an ensure in words is reviewed by the agent that read
+// it, seeing the tests that show it; `mitra explain` runs `cargo test`
+// and drops a review whose test did not pass (R008). A name two test
+// files share is written with its file, `tests/model.rs::each_error_is_found`.
+// A tie, and a claim shown by hand, is reviewed by the agent that
+// checked it.
 
-// Ensures, each by the passing test that checks it.
-review num::exact holds by "test:a_sum_of_small_reals_is_exact";
-review float::near holds by "test:dogfood_fused";
-review location::prefix holds by "test:a_place_is_within_what_its_path_goes_on_from";
-review expression::binding holds by "test:binding";
-review expression::substitution holds by "test:substitution";
-review simulation::exact_right holds by "test:exact_preserves_progresses_and_is_determined";
-review simulation::ranges_sound holds by "test:exact_lies_in_ranges";
-review simulation::variants holds by "test:every_variant_is_tried";
-review check::declared holds by "test:declarations_no_value_fits_are_m027";
-review parse::exhaustive holds by "test:a_match_gives_each_variant_one_arm";
-review parse::files holds by "test:a_part_is_read_from_the_file_that_declares_it";
-review parse::files holds by "test:a_folder_is_a_name_space";
-review parse::files holds by "test:a_part_is_read_from_the_project";
-review parse::files holds by "test:only_a_file_that_declares_a_used_part_is_read";
-review settings::sections holds by "test:each_section_sets_its_layer";
-review settings::sections holds by "test:parse_depth_follows_the_budget_when_not_said";
-review settings::nothing_unread holds by "test:what_mitra_does_not_take_is_p015_where_it_is";
-review settings::nothing_unread holds by "test:a_value_is_of_its_kind_no_number_becomes_another";
-review parse::exhaustive holds by "test:the_type_of_none_is_told_from_where_it_goes";
-review judgement::sound holds by "test:every_rule_preserves_truth";
-review judgement::taken_only holds by "test:a_leaf_is_its_own_takings";
-review tactic::checked holds by "test:a_tactic_is_trusted_with_nothing";
-review model::props holds by "test:props_are_given_once_of_what_is_there";
-review model::leaves holds by "test:leaves_are_what_only_a_taking_holds";
-review catalogue::never_reused holds by "test:every_code_is_listed_once_and_kept";
-review catalogue::documented holds by "test:every_code_is_documented";
-review check::sound holds by "test:each_error_is_found";
-review print::reads_back holds by "test:the_fall_prints_as_written";
-review parse::round_trip holds by "test:every_form_comes_back";
-review parse::first_error holds by "test:errors_say_where";
-review evidence::fits holds by "test:each_error_is_found";
-review reader::ties_read holds by "test:ties_come_from_comments";
-review agree::no_false_holds holds by "test:div_agrees_with_itself";
-review agree::heights holds by "test:small_trees_are_tried_as_points";
-review agree::induction holds by "test:a_claim_by_induction_holds_by_bounds_on_each_variant";
-review agree::invariant holds by "test:a_claim_kept_by_its_loop_holds";
-review agree::invariant holds by "test:linear_facts_decide_only_what_follows";
-review check::recursion holds by "test:a_function_calls_itself_only_on_a_part_of_its_input";
-review check::recursion holds by "test:induction_is_on_a_tree_input_every_call_takes_apart";
-review check::short_proofs holds by "test:each_step_alone_shows_its_rule";
-review check::invariants holds by "test:by_invariant_is_of_a_loop";
-review check::short_proofs holds by "test:a_step_two_proofs_fill_in_is_an_error";
-review check::declared holds by "test:a_tree_is_an_enum_with_a_variant_that_does_not_hold_it";
-review agree::no_false_holds holds by "test:what_agree_decides_by_bounds_is_true_at_points";
-review agree::no_false_none holds by "test:what_agree_decides_by_bounds_is_true_at_points";
-review simulation::kept_sound holds by "test:what_agree_decides_by_bounds_is_true_at_points";
-review simulation::remembered holds by "test:remembered_calls_change_no_answer";
-review simulation::budgeted holds by "test:deep_bodies_through_calls_stop_at_the_depth_budget";
-review agree::ends holds by "test:deep_bodies_through_calls_stop_at_the_depth_budget";
-review simulation::promised holds by "test:bounded_promises_are_read_soundly";
-review agree::given_named holds by "test:the_example_of_finding_8_holds_given_bright";
-review simulation::whole_division holds by "test:bounds_hold_what_exact_gives";
-review simulation::ranges_checked holds by "test:a_call_by_bounds_holds_what_exact_gives";
-review agree::within_ranges holds by "test:agree_is_right_within_the_ranges";
-review simulation::known_in_part holds by "test:what_is_known_in_part_holds_of_every_record_that_fills_it_in";
-review explain::only_known holds by "test:each_finding_is_given";
-review explain::drift holds by "test:an_input_outside_its_range_counts_against_the_model";
-review check::in_ranges holds by "test:each_error_is_found";
+// Ensures, each seeing the passing tests that check it.
+review num::exact holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_sum_of_small_reals_is_exact";
+review float::near holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:dogfood_fused";
+review location::prefix holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_place_is_within_what_its_path_goes_on_from";
+review expression::binding holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:binding";
+review expression::substitution holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:substitution";
+review simulation::exact_right holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:exact_preserves_progresses_and_is_determined";
+review simulation::ranges_sound holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:exact_lies_in_ranges";
+review simulation::variants holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_variant_is_tried";
+review check::declared holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:declarations_no_value_fits_are_m027", "test:a_tree_is_an_enum_with_a_variant_that_does_not_hold_it";
+review parse::exhaustive holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_match_gives_each_variant_one_arm", "test:the_type_of_none_is_told_from_where_it_goes";
+review parse::files holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_part_is_read_from_the_file_that_declares_it", "test:a_folder_is_a_name_space", "test:a_part_is_read_from_the_project", "test:only_a_file_that_declares_a_used_part_is_read";
+review settings::sections holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:each_section_sets_its_layer", "test:parse_depth_follows_the_budget_when_not_said";
+review settings::nothing_unread holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:what_mitra_does_not_take_is_p015_where_it_is", "test:a_value_is_of_its_kind_no_number_becomes_another";
+review judgement::sound holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_rule_preserves_truth";
+review judgement::taken_only holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_leaf_is_its_own_takings";
+review tactic::checked holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_tactic_is_trusted_with_nothing";
+review model::props holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:props_are_given_once_of_what_is_there";
+review model::leaves holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:leaves_are_what_only_a_taking_holds";
+review catalogue::never_reused holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_code_is_listed_once_and_kept";
+review catalogue::documented holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_code_is_documented";
+review check::sound holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:tests/model.rs::each_error_is_found";
+review print::reads_back holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:the_fall_prints_as_written";
+review parse::round_trip holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_form_comes_back";
+review parse::first_error holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:errors_say_where";
+review evidence::fits holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:tests/evidence.rs::each_error_is_found";
+review reader::ties_read holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:ties_come_from_comments";
+review agree::no_false_holds holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:div_agrees_with_itself", "test:what_agree_decides_by_bounds_is_true_at_points";
+review agree::heights holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:small_trees_are_tried_as_points";
+review agree::induction holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_claim_by_induction_holds_by_bounds_on_each_variant";
+review agree::invariant holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_claim_kept_by_its_loop_holds", "test:linear_facts_decide_only_what_follows";
+review check::recursion holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_function_calls_itself_only_on_a_part_of_its_input", "test:induction_is_on_a_tree_input_every_call_takes_apart";
+review check::short_proofs holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:each_step_alone_shows_its_rule", "test:a_step_two_proofs_fill_in_is_an_error";
+review check::invariants holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:by_invariant_is_of_a_loop";
+review agree::no_false_none holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:what_agree_decides_by_bounds_is_true_at_points";
+review simulation::kept_sound holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:what_agree_decides_by_bounds_is_true_at_points";
+review simulation::remembered holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:remembered_calls_change_no_answer";
+review simulation::budgeted holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:deep_bodies_through_calls_stop_at_the_depth_budget", "test:a_budget_reached_by_bounds_is_said";
+review agree::ends holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:deep_bodies_through_calls_stop_at_the_depth_budget", "test:a_budget_reached_by_bounds_is_said";
+review simulation::promised holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:bounded_promises_are_read_soundly";
+review agree::given_named holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:the_example_of_finding_8_holds_given_bright";
+review simulation::whole_division holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:bounds_hold_what_exact_gives";
+review simulation::ranges_checked holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_call_by_bounds_holds_what_exact_gives";
+review agree::within_ranges holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:agree_is_right_within_the_ranges";
+review simulation::known_in_part holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:what_is_known_in_part_holds_of_every_record_that_fills_it_in";
+review explain::only_known holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:tests/explain.rs::each_finding_is_given";
+review explain::drift holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:an_input_outside_its_range_counts_against_the_model";
+review check::in_ranges holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:tests/model.rs::each_error_is_found";
 review Budget::Budget holds by "agent:anthropic/opus-5.5/dogfood";
-review explain::verdicts holds by "test:a_hundred_tests_explain_div_everywhere";
-review blame::minimal holds by "test:held_blame_diagnoses_are_hitting_sets";
-review numbers::in_unit holds by "test:held_numbers_invariants";
-review cli::answers holds by "test:explain_gives_a_verdict_on_each_proposition";
-review judgement::and::false_wins holds by "test:dogfood_state_claims_everywhere";
-review judgement::and::true_needs_both holds by "test:dogfood_state_claims_everywhere";
-review judgement::join::keeps holds by "test:dogfood_state_claims_everywhere";
-review judgement::negate::swaps holds by "test:dogfood_state_claims_everywhere";
+review explain::verdicts holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_hundred_tests_explain_div_everywhere";
+review blame::minimal holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:held_blame_diagnoses_are_hitting_sets";
+review numbers::in_unit holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:held_numbers_invariants";
+review cli::answers holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_gives_a_verdict_on_each_proposition";
+review judgement::and::false_wins holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:dogfood_state_claims_everywhere";
+review judgement::and::true_needs_both holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:dogfood_state_claims_everywhere";
+review judgement::join::keeps holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:dogfood_state_claims_everywhere";
+review judgement::negate::swaps holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:dogfood_state_claims_everywhere";
 
 // The red team found rows the reader takes from inside a string and
 // from a one-line test, with no finding (F1, F2): this ensure fails.
@@ -137,29 +125,35 @@ review parse::parse_defaults holds by "agent:anthropic/opus-5.5/dogfood";
 review Settings::Settings holds by "agent:anthropic/opus-5.5/dogfood";
 
 // 10a (M024): what a library refuses and reads, and what check gives.
-review simulation::one_value holds by "test:rows_are_read_only_without_a_body";
-review simulation::given_first holds by "test:rows_are_read_only_without_a_body";
-review check::one_value holds by "test:each_error_is_found";
-review check::type_explained holds by "test:every_type_error_shows_and_underlines";
+review simulation::one_value holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:rows_are_read_only_without_a_body";
+review simulation::given_first holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:rows_are_read_only_without_a_body";
+review check::one_value holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:tests/model.rs::each_error_is_found";
+review check::type_explained holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_type_error_shows_and_underlines";
 review Calls::Calls holds by "agent:anthropic/opus-5.5/dogfood";
 
 // 24: budgets said, never silent.
-review parse::deep holds by "test:a_deep_text_is_p011";
-review simulation::budgeted holds by "test:a_budget_reached_by_bounds_is_said";
-review agree::ends holds by "test:a_budget_reached_by_bounds_is_said";
+review parse::deep holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_deep_text_is_p011";
 
 // 27: a proof writes no state.
-review parse::usable holds by "test:a_proof_writes_no_state";
+review parse::usable holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_proof_writes_no_state";
 
 // Sequences, [T] (finding 3, step 2).
-review simulation::indexed holds by "test:a_place_out_of_range_has_no_value";
-review simulation::indexed holds by "test:exact_lies_in_ranges";
-review simulation::encoded holds by "test:length_and_places_are_bytes";
-review simulation::encoded holds by "test:texts_are_equal_and_ordered_byte_by_byte";
-review simulation::encoded holds by "test:exact_lies_in_ranges";
-review agree::lengths holds by "test:every_length_is_tried_up_to_the_setting";
-review check::nested holds by "test:each_error_is_found";
-review parse::parts holds by "test:a_part_is_reopened_of_its_kind";
-review simulation::loops holds by "test:a_loop_reads_back_and_its_examples_hold";
-review simulation::loops holds by "test:until_stops_before_its_block_when_done_holds";
-review simulation::loops holds by "test:a_loop_past_the_step_budget_says_so";
+review simulation::indexed holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_place_out_of_range_has_no_value", "test:exact_lies_in_ranges";
+review simulation::encoded holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:length_and_places_are_bytes", "test:texts_are_equal_and_ordered_byte_by_byte", "test:exact_lies_in_ranges";
+review agree::lengths holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_length_is_tried_up_to_the_setting";
+review check::nested holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:tests/model.rs::each_error_is_found";
+review parse::parts holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_part_is_reopened_of_its_kind";
+review simulation::loops holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_loop_reads_back_and_its_examples_hold", "test:until_stops_before_its_block_when_done_holds", "test:a_loop_past_the_step_budget_says_so";
+
+// The evidence set (user's go, 17:22): reviews of links, `seeing`, asks,
+// rows, and cargo test run by explain.
+review evidence::links holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:the_evidence_checks_links", "test:a_link_the_piece_does_not_have_is_a_finding";
+review evidence::no_test_reviews holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_test_is_no_reviewer", "test:after_a_voice_is_of_a_kind";
+review cargo::binaries holds by "agent:anthropic/opus-5.5/dogfood";
+review reader::rows_read holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:rows_are_measurements_through_ties", "test:rows_and_reviews_seeing_a_test";
+review reader::seeing holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_review_seeing_a_test_counts_while_it_passes", "test:a_review_seeing_tests_counts_while_all_pass";
+review reader::stopped holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_test_binary_that_stopped_is_a_finding";
+review explain::asks holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_asks_for_each_link_no_voice_reviewed", "test:a_review_of_a_link_answers_its_ask";
+review cli::runs_tests holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_runs_cargo_test_when_no_report_is_given";
+review checks::prints_rows holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:the_mitra_test_crate_passes_its_tests";
+review checks::observed holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:the_mitra_test_crate_passes_its_tests";

@@ -26,6 +26,8 @@
 //! [blame]
 //! diagnoses = 10
 //! tries = 100000
+//! [test]                  # what explain and blame run with no --report
+//! command = ["cargo", "test", "--no-fail-fast", "--", "--show-output"]
 //! ```
 //!
 //! Nothing given is left unread: a section, a key or a value Mitra does
@@ -46,6 +48,24 @@ pub struct Settings {
     pub explain: crate::explain::Settings,
     pub numbers: crate::numbers::Settings,
     pub blame: crate::blame::Settings,
+    pub test: Test,
+}
+
+/// What `mitra explain` and `mitra blame` run at the root when no
+/// report is given: the program, then its arguments. `--show-output` is
+/// what prints the rows of the tests that pass.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Test {
+    pub command: Vec<String>,
+}
+
+impl Default for Test {
+    fn default() -> Test {
+        let command = ["cargo", "test", "--no-fail-fast", "--", "--show-output"];
+        Test {
+            command: command.iter().map(|a| a.to_string()).collect(),
+        }
+    }
 }
 
 /// The sections, and their keys.
@@ -59,6 +79,7 @@ const SECTIONS: &[(&str, &[&str])] = &[
         &["base_rate", "prior_weight", "checker", "voices"],
     ),
     ("blame", &["diagnoses", "tries"]),
+    ("test", &["command"]),
 ];
 
 type Result<T> = std::result::Result<T, ParseError>;
@@ -139,6 +160,28 @@ pub fn read(text: &str) -> Result<Settings> {
                         let w = weight(v, &at, false, &fail)?;
                         s.numbers.voices.insert(voice.get_ref().to_string(), w);
                     }
+                }
+                ("test", _) => {
+                    let words = match value.get_ref() {
+                        DeValue::Array(words) => words
+                            .iter()
+                            .map(|w| match w.get_ref() {
+                                DeValue::String(w) => Some(w.to_string()),
+                                _ => None,
+                            })
+                            .collect::<Option<Vec<String>>>()
+                            .filter(|w| !w.is_empty()),
+                        _ => None,
+                    };
+                    s.test.command = words.ok_or_else(|| {
+                        fail(
+                            value.span(),
+                            format!(
+                                "`test.command` is the program and its arguments, texts in a list: `[\"cargo\", \"test\"]`, not `{}`",
+                                shown(value)
+                            ),
+                        )
+                    })?;
                 }
                 ("blame", "diagnoses") => s.blame.diagnoses = count(0)?,
                 _ => s.blame.tries = count(0)?,

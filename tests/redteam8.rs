@@ -384,6 +384,8 @@ subject calc {
             divided(0, 1, 0, "test:c"),
         ],
         reviews: vec![Review {
+            from: None,
+            seeing: vec![],
             prop: path("calc::div::bounded"),
             holds: false,
             by: "human:z".to_string(),
@@ -919,6 +921,8 @@ fn seeded(seed: u64) -> Ledger {
     }
     if next() % 2 == 0 {
         given.reviews.push(Review {
+            from: None,
+            seeing: vec![],
             prop: path("calc::div::spec"),
             holds: next() % 2 == 0,
             by: "human:r".into(),
@@ -1006,6 +1010,8 @@ fn cost_ensure_from_reviewed_claims() {
     for i in 0..n {
         for k in 0..r {
             given.reviews.push(Review {
+                from: None,
+                seeing: vec![],
                 prop: path(&format!("s::f{i}::c")),
                 holds: true,
                 by: format!("human:r{k}"),
@@ -1013,6 +1019,8 @@ fn cost_ensure_from_reviewed_claims() {
         }
     }
     given.reviews.push(Review {
+        from: None,
+        seeing: vec![],
         prop: path("s::ok"),
         holds: false,
         by: "human:z".to_string(),
