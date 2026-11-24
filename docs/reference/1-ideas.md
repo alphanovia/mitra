@@ -17,7 +17,7 @@ weighs what each says against the others.
 | Command | Question | Reads |
 |---|---|---|
 | `mitra check` | Is the model coherent on its own? | the model |
-| `mitra explain` | Does the model explain what the evidence saw? | model, code, test report, store |
+| `mitra explain` | Does the model explain what the evidence saw? | model, code, the tests it runs, store |
 | `mitra blame` | If not, which piece is most likely wrong? | the same |
 
 `check` needs no code at all: you can settle a spec before writing a
@@ -78,5 +78,8 @@ a proof and of each voice are settings of `mitra.toml`
 `mitra check` stops on an **error** (`error[M005]`): the model is not
 well formed. A **finding** (`finding[A007]`) is something it saw and
 reports, never silently drops: a claim it could not decide, a test it
-could not use. The exit code stays 0. Every code has a page in
+could not use. An **ask** (`ask[X012]`) is a statement only a person
+can settle, such as a link between an ensure and what it rests on:
+`explain` lists each one and the review line to write. The exit code
+stays 0. Every code has a page in
 [codes/](codes/README.md).

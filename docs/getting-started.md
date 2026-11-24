@@ -69,6 +69,10 @@ Each line is a verdict on one thing the model says:
 explained    correct(calc::div, (6, 2)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::div_by_two)
 unsupported  calc::div::bounded 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
 …
+ask[X012]: only the model says that (calc::div::spec, calc::inputs) together give `calc::divides`: review the link
+ --> calc::divides
+  = help: once reviewed, write in the store `review calc::divides from holds by "human:<name>";`
+
 explain: 17 propositions, 9 explained, 0 contradicted, 8 unsupported; 0 findings, 0 hints, 1 reviews asked
 ```
 
@@ -78,6 +82,11 @@ explain: 17 propositions, 9 explained, 0 contradicted, 8 unsupported; 0 findings
   the claim `bounded` yet. That is not an error, it is a place where
   trust is missing.
 - **contradicted**: the evidence goes against it.
+
+The `ask[X012]` line before the summary is a statement only a person
+can settle: that `div::spec` and `inputs` together really give the
+ensure `divides`. It shows the review line to write in the store once
+you have checked it.
 
 The number after the verdict is how much to trust it, from 0 to 1. One
 test gives 0.67; more tests at the same point raise it. The numbers in

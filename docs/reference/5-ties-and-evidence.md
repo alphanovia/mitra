@@ -127,7 +127,7 @@ once.
 
 ## What explain asks you to review
 
-A link, and an ensure said only in words, is only the model's word
+A link, or an ensure said only in words, is only the model's word
 until someone reviews it. `mitra explain` ends with each one no review
 answers (X012), and the line to write once you have:
 
