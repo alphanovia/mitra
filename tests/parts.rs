@@ -260,3 +260,37 @@ fn self_comes_first_in_a_part_with_a_record() {
 fn show() {
     println!("{}", print(&parse(ASSISTANT).unwrap()));
 }
+
+#[test]
+fn a_part_holds_no_named_type() {
+    // Every type is a part: a record or an enum is one, written short.
+    let out = refused("subject P {\n    record R { a: integer }\n}");
+    assert!(
+        out.contains("error[P003]: expected `{`, `;` or `where`, found `R`"),
+        "{out}"
+    );
+    let out = refused("subject P {\n    enum E { A }\n}");
+    assert!(out.contains("error[P003]: expected `use`, `require`, `ensure`, `record`, `fn`, `impl`, a part, `examples` or `}`, found `enum`"), "{out}");
+}
+
+#[test]
+fn a_use_names_a_whole_part_by_its_path() {
+    let text = "subject A {
+    ensure e: \"e\" from (B::b);
+    subject B {
+        ensure b: \"b\";
+        fn f(x: integer) -> y: integer { x }
+    }
+}
+subject C {
+    use A::B;
+    fn g(x: integer) -> y: integer { B::f(x) }
+}";
+    let model = parse(text).unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(check(&model), vec![]);
+    let c = model.parts.iter().find(|p| p.name == "C").unwrap();
+    assert_eq!(c.uses[0].part(), "B");
+    let printed = print(&model);
+    assert!(printed.contains("    use B;\n"), "{printed}");
+    assert_eq!(parse(&printed).unwrap(), model);
+}

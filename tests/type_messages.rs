@@ -83,8 +83,8 @@ fn the_innermost_part_is_underlined() {
 
 #[test]
 fn a_call_and_a_record_name_what_does_not_fit() {
-    let text = "subject s {
-    record P { x: integer, y: rational }
+    let text = "subject record P { x: integer, y: rational }
+subject s {
     fn g(x: integer) -> y: rational { 1.0 } where {
         claim e: g(1.0) == y;
         claim h: P { x: 1, y: 2 }.y == y;

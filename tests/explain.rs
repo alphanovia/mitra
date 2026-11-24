@@ -387,10 +387,11 @@ fn each_finding_is_given() {
     );
     given.insert("X006".to_string());
     // A value known in part, read where it is not known (finding 2).
-    let text = "environment std { record String; }
+    let text = "environment record String;
+environment std { }
+subject record Location { first: String, depth: integer }
 subject location {
-    use std::String;
-    record Location { first: String, depth: integer }
+
     fn first_is(l: Location, m: Location) -> same: bool at \"src/location.rs/first_is\" { l.first == m.first }
     fn depth(l: Location) -> d: integer at \"src/location.rs/depth\" { l.depth }
 }";

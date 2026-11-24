@@ -13,7 +13,7 @@
 //! writes them. Only the first is given.
 
 use crate::catalogue::{
-    Code, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010, P011, P012, P013,
+    Code, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010, P011, P012, P013, P014,
 };
 use crate::expression::{check as typed, Arg, Expression};
 use crate::judgement::{self, Prop, Set};
@@ -1286,50 +1286,61 @@ impl<'c> Parser<'c> {
         })
     }
 
-    /// `use sun::{light, Ray};`, `use sun::light;` or `use sun::*;`.
-    /// `use std::core::Option;` reads the part `core` of Mitra's own
-    /// standard model (`std/core.mitra`): three names, the first `std`.
+    /// `use Store::get;`, `use Store::{get, put};`, `use Store::*;` or
+    /// `use Reply;` (the whole part), each perhaps `from "memory/store"`:
+    /// the file or folder, from the project's root, whose part it is.
+    /// `use Assistant::Harness::run;` names a nested part by its path.
     fn use_(&mut self) -> Result<Use> {
         self.expect_word("use")?;
         let at = self.pos();
-        let mut part = self.name()?;
-        self.expect("::")?;
-        let std = part == "std"
-            && matches!(self.peek(), Tok::Word(_))
-            && *self.peek_at(1) == Tok::Sym("::");
-        if std {
-            part = self.name()?;
-            self.expect("::")?;
-        }
-        // `use Assistant::Harness::run;`: a nested part, by its path.
-        while matches!(self.peek(), Tok::Word(_)) && *self.peek_at(1) == Tok::Sym("::") {
-            let at = self.pos();
-            let inner = self.name()?;
-            self.expect("::")?;
-            if let Some(context) = self.context {
-                if context.outer.get(&inner) != Some(&part) {
-                    let message = format!("`{inner}` is no part inside `{part}`");
-                    return Err(error(P003, at, message));
+        let outer = self.name()?;
+        let mut part = outer.clone();
+        let mut names = None;
+        let mut glob = false;
+        while self.eat("::") {
+            if self.eat("*") {
+                glob = true;
+                break;
+            }
+            if self.eat("{") {
+                names = Some(self.list("}", |p| p.name())?);
+                break;
+            }
+            let here = self.pos();
+            let next = self.name()?;
+            let nested = self.context.map(|c| c.outer.get(&next) == Some(&part));
+            match (self.is("::"), nested) {
+                // `A::B::…`: `B` is a part inside `A`.
+                (true, Some(false)) => {
+                    let message = format!("`{next}` is no part inside `{part}`");
+                    return Err(error(P003, here, message));
                 }
+                (true, _) => part = next,
+                // `use A::B;`: the part `B` inside `A`, whole.
+                (false, Some(true)) => part = next,
+                (false, _) => names = Some(vec![next]),
             }
-            part = inner;
         }
-        self.reads.push((part.clone(), std, at));
-        let u = if self.eat("*") {
-            Use::Glob { part }
-        } else if self.eat("{") {
-            Use::Names {
-                part,
-                names: self.list("}", |p| p.name())?,
-            }
-        } else {
-            Use::Names {
-                part,
-                names: vec![self.name()?],
-            }
+        let from = match self.eat_word("from") {
+            true => match self.bump() {
+                Tok::Str(path) => Some(path),
+                _ => {
+                    self.i -= 1;
+                    return self.expected("a path in quotes: `from \"memory/store\"`");
+                }
+            },
+            false => None,
         };
         self.expect(";")?;
-        Ok(u)
+        self.reads.push((outer, from.clone(), at));
+        Ok(match glob {
+            true => Use::Glob { part, from },
+            false => Use::Names {
+                names: names.unwrap_or_else(|| vec![part.clone()]),
+                part,
+                from,
+            },
+        })
     }
 
     /// `impl Monotone<Real> for speed;`, `impl Pair<Real> for (f, g);`.
@@ -1448,22 +1459,18 @@ impl<'c> Parser<'c> {
                 Tok::Word(w) if w == "require" => part.requires.push(self.require()?),
                 Tok::Word(w) if w == "ensure" => part.ensures.push(self.ensure()?),
                 // The part's own record: its name is the part's.
-                Tok::Word(w)
-                    if w == "record"
-                        && matches!(self.peek_at(1), Tok::Sym("{") | Tok::Sym(";"))
-                        || w == "record" && matches!(self.peek_at(1), Tok::Word(x) if x == "where" || x == "at") =>
-                {
+                Tok::Word(w) if w == "record" => {
                     let at = self.pos();
                     self.bump();
                     if part.records.iter().any(|r| r.name == part.name) {
-                        let message = format!("`{}` holds one record of its own, given twice", part.name);
+                        let message =
+                            format!("`{}` holds one record of its own, given twice", part.name);
                         return Err(error(P003, at, message));
                     }
                     self.ties_of(&here.then(&part.name))?;
-                    part.records.push(self.record_body(part.name.clone(), vec![])?);
+                    part.records
+                        .push(self.record_body(part.name.clone(), vec![])?);
                 }
-                Tok::Word(w) if w == "record" => part.records.push(self.record(here)?),
-                Tok::Word(w) if w == "enum" => part.enums.push(self.enum_(here)?),
                 Tok::Word(w) if w == "fn" => part.functions.push(self.function(here)?),
                 Tok::Word(w) if w == "use" => part.uses.push(self.use_()?),
                 Tok::Word(w) if w == "impl" => part.implements.push(self.implements()?),
@@ -1482,11 +1489,9 @@ impl<'c> Parser<'c> {
                     let rows = self.list("}", |p| p.model_example())?;
                     self.examples.extend(rows);
                 }
-                _ => {
-                    return self.expected(
-                        "`use`, `require`, `ensure`, `record`, `enum`, `fn`, `impl`, a part, `examples` or `}`",
-                    )
-                }
+                _ => return self.expected(
+                    "`use`, `require`, `ensure`, `record`, `fn`, `impl`, a part, `examples` or `}`",
+                ),
             }
         }
         Ok((part, nested))
@@ -1551,6 +1556,9 @@ impl<'c> Parser<'c> {
         };
         if self.eat(";") {
             return Ok(record);
+        }
+        if *self.peek() != Tok::Sym("{") && !self.is_word("where") {
+            return self.expected("`{`, `;` or `where`");
         }
         if self.eat("{") {
             record.fields = Some(self.list("}", |p| {
@@ -3684,7 +3692,10 @@ pub fn location(text: &str) -> Location {
 
 /// Mitra's own standard model, shipped in the binary: each part by name.
 /// Nothing in it is built into the language (finding 3).
-pub const STD: &[(&str, &str)] = &[("core", include_str!("../std/core.mitra"))];
+pub const STD: &[(&str, &str)] = &[
+    ("std/option.mitra", include_str!("../std/option.mitra")),
+    ("std/result.mitra", include_str!("../std/result.mitra")),
+];
 
 /// What the parser may do: how deep a text may nest, in levels of
 /// expressions, types, values and propositions inside each other. Past
@@ -3706,19 +3717,22 @@ impl Default for Settings {
     }
 }
 
-/// A part a `use` reads, whether through `std::`, and where.
-type Read = (String, bool, Pos);
+/// A part a `use` reads, the path its `from` names, and where.
+type Read = (String, Option<String>, Pos);
 
-/// What reads the file `<part>.mitra` beside a model, if it is there.
-pub type ReadFile<'a> = &'a dyn Fn(&str) -> Option<String>;
+/// The `.mitra` files of a project, each by its path from the project's
+/// root (`memory/store.mitra`), with its text. Mitra's standard model is
+/// one more folder of it, `std`, shipped in the binary.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Project {
+    pub files: Vec<(String, String)>,
+    /// The model's own path, from the root, when it is in the project:
+    /// `from` may name it too.
+    pub model: Option<String>,
+}
 
-/// A file still to read: its name (`None` for the model's own), its
-/// text, and the part it was read for, where, and by which file.
-type ToRead = (
-    Option<String>,
-    String,
-    Option<(String, Pos, Option<String>)>,
-);
+/// A file still to read: its path (`None` for the model's own) and text.
+type ToRead = (Option<String>, String);
 
 /// A parse error in one of the files of a model: which, and its text,
 /// to render it (`ParseError::render`).
@@ -3729,26 +3743,59 @@ pub struct Loaded {
     pub error: ParseError,
 }
 
-/// A model from its text and the files it reads: each part a `use`
-/// names that no file read so far declares is read from `<part>.mitra`
-/// by `read` (beside the model, for the CLI), and each `use std::…`
-/// from Mitra's own standard model. A part no file declares is P010.
+/// A model from its text and the files of its project: each part a `use`
+/// names that no file read so far declares is read from the files of the
+/// project that declare it, all of them, in one folder: a folder is a name
+/// space. `from "memory/store"` keeps the files and folders whose path
+/// ends with it, by whole names. A part no file declares is P010; one
+/// declared in two folders, with no `from` to tell them apart, P014.
 pub fn load(
     source: &str,
-    read: ReadFile,
+    project: &Project,
     settings: &Settings,
 ) -> std::result::Result<Model, Loaded> {
-    files(source, Some(read), settings)
+    files(source, Some(project), settings)
 }
 
-/// `load`, with `files` a reader of `<part>.mitra`, or none (`parse`):
-/// then a part no file declares is left to `check`.
+/// The names of a path from the root, without `.mitra`: `memory/store`
+/// is `["memory", "store"]`.
+fn names_of(path: &str) -> Vec<&str> {
+    path.trim_end_matches(".mitra")
+        .split('/')
+        .filter(|n| !n.is_empty())
+        .collect()
+}
+
+/// `from` names this file, or its folder: their names end with its own.
+fn named_by(path: &str, from: &str) -> bool {
+    let file = names_of(path);
+    let want = names_of(from);
+    let folder = &file[..file.len().saturating_sub(1)];
+    !want.is_empty() && (file.ends_with(&want) || folder.ends_with(&want))
+}
+
+/// The folder of a path from the root.
+fn folder_of(path: &str) -> &str {
+    path.rsplit_once('/').map_or("", |(f, _)| f)
+}
+
+/// The parts a text declares, nested ones too, by a first reading.
+fn declared_in(text: &str, settings: &Settings) -> Result<BTreeSet<String>> {
+    let (first, _) = Parser::new(lex(text)?, None)
+        .budget(settings.depth)
+        .model_reads()?;
+    Ok(first.parts.into_iter().map(|p| p.name).collect())
+}
+
+/// `load`, with the files of a project, or none (`parse`): then only
+/// Mitra's standard model is read, and a part no file declares is left
+/// to `check`.
 fn files(
     source: &str,
-    read: Option<ReadFile>,
+    project: Option<&Project>,
     settings: &Settings,
 ) -> std::result::Result<Model, Loaded> {
-    // Each file: its name (`None` for the model itself), its text, its
+    // Each file: its path (`None` for the model itself), its text, its
     // tokens and its first reading.
     struct File {
         name: Option<String>,
@@ -3761,72 +3808,103 @@ fn files(
         source: source.to_string(),
         error,
     };
+    let mut index: Vec<(String, String)> = STD
+        .iter()
+        .map(|(p, t)| (p.to_string(), t.to_string()))
+        .collect();
+    let model_path = project.and_then(|p| p.model.clone());
+    if let Some(project) = project {
+        let others = project
+            .files
+            .iter()
+            .filter(|(p, _)| Some(p) != model_path.as_ref());
+        index.extend(others.cloned());
+    }
+    // What each file of the index declares, read once, when first needed.
+    let mut declares: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut done: Vec<File> = Vec::new();
-    let mut todo: Vec<ToRead> = vec![(None, source.to_string(), None)];
-    while let Some((name, text, wanted)) = todo.pop() {
+    let mut todo: Vec<ToRead> = vec![(None, source.to_string())];
+    while let Some((name, text)) = todo.pop() {
         let tokens = lex(&text).map_err(|e| failed(&name, &text, e))?;
         let (first, reads) = Parser::new(tokens.clone(), None)
             .budget(settings.depth)
             .model_reads()
             .map_err(|e| failed(&name, &text, e))?;
-        // A file read for a part declares it.
-        if let Some((part, at, by)) = wanted {
-            if !first.parts.iter().any(|p| p.name == part) {
-                let message = format!(
-                    "`{}` declares no part `{part}`: a part read from a file is declared in it",
-                    name.clone().unwrap_or_default()
-                );
-                let by_text = done
-                    .iter()
-                    .find(|f| f.name == by)
-                    .map(|f| f.source.clone())
-                    .unwrap_or_default();
-                return Err(failed(&by, &by_text, error(P010, at, message)));
-            }
-        }
         done.push(File {
             name: name.clone(),
             source: text.clone(),
             tokens,
             first,
         });
-        for (part, std, at) in reads {
-            let declared = |files: &[File]| {
-                files
-                    .iter()
-                    .any(|f| f.first.parts.iter().any(|p| p.name == part))
+        for (part, from, at) in reads {
+            let ok = |path: &Option<String>| match (&from, path.as_ref().or(model_path.as_ref())) {
+                (None, _) => true,
+                (Some(f), Some(p)) => named_by(p, f),
+                (Some(_), None) => false,
             };
+            let declared = done
+                .iter()
+                .any(|f| ok(&f.name) && f.first.parts.iter().any(|p| p.name == part));
             let queued = todo
                 .iter()
-                .any(|(_, _, w)| w.as_ref().is_some_and(|(p, _, _)| *p == part));
-            if declared(&done) || queued {
+                .any(|(n, t)| ok(n) && declared_in(t, settings).is_ok_and(|d| d.contains(&part)));
+            if declared || queued {
                 continue;
             }
-            let found = match std {
-                true => STD
+            // The files that declare it, of the folders `from` keeps.
+            let mut found: Vec<(String, String)> = vec![];
+            for (path, t) in &index {
+                if done
                     .iter()
-                    .find(|(n, _)| *n == part)
-                    .map(|(n, t)| (format!("std/{n}.mitra"), t.to_string())),
-                false => match read {
-                    Some(read) => {
-                        read(&format!("{part}.mitra")).map(|t| (format!("{part}.mitra"), t))
-                    }
-                    None => continue,
-                },
+                    .any(|f| f.name.as_deref() == Some(path.as_str()))
+                {
+                    continue;
+                }
+                if from.as_ref().is_some_and(|f| !named_by(path, f)) || !t.contains(part.as_str()) {
+                    continue;
+                }
+                if !declares.contains_key(path) {
+                    let d =
+                        declared_in(t, settings).map_err(|e| failed(&Some(path.clone()), t, e))?;
+                    declares.insert(path.clone(), d);
+                }
+                if declares[path].contains(&part) {
+                    found.push((path.clone(), t.clone()));
+                }
+            }
+            let folders: BTreeSet<&str> = found.iter().map(|(p, _)| folder_of(p)).collect();
+            let wanted = match &from {
+                Some(f) => format!("`{part}` from \"{f}\""),
+                None => format!("`{part}`"),
             };
-            match found {
-                Some((file, t)) => todo.push((Some(file), t, Some((part, at, name.clone())))),
-                None => {
-                    let message = match std {
-                        true => format!(
-                            "no part `std::{part}`: Mitra's standard model has {}",
-                            STD.iter().map(|(n, _)| format!("`std::{n}`")).collect::<Vec<_>>().join(", ")
-                        ),
-                        false => format!(
-                            "no part `{part}`: no file of the model declares it, and there is no `{part}.mitra` beside it"
-                        ),
+            match folders.len() {
+                0 if project.is_none() => continue,
+                0 => {
+                    let message = match &from {
+                        Some(f) => format!("no part {wanted}: no file or folder of the project whose path ends with \"{f}\" declares it"),
+                        None => format!("no part {wanted}: no file of the project declares it"),
                     };
                     return Err(failed(&name, &text, error(P010, at, message)));
+                }
+                1 => {
+                    for (path, t) in found {
+                        if !todo
+                            .iter()
+                            .any(|(n, _)| n.as_deref() == Some(path.as_str()))
+                        {
+                            todo.push((Some(path), t));
+                        }
+                    }
+                }
+                _ => {
+                    let paths: Vec<String> = found.iter().map(|(p, _)| p.clone()).collect();
+                    let first = paths[0].trim_end_matches(".mitra");
+                    let message = format!(
+                        "{wanted} is declared in {} folders: {}; name the one you mean: `use {part} from \"{first}\";`",
+                        folders.len(),
+                        paths.join(", ")
+                    );
+                    return Err(failed(&name, &text, error(P014, at, message)));
                 }
             }
         }
@@ -3838,8 +3916,19 @@ fn files(
         examples: vec![],
         ties: vec![],
     };
+    // Where a file declares a part: for P012 on a piece of it.
+    let declared_at = |tokens: &[(Tok, Pos)], name: &str| {
+        tokens
+            .windows(2)
+            .find(|w| matches!((&w[0].0, &w[1].0), (Tok::Word(k), Tok::Word(n)) if (k == "subject" || k == "environment") && n == name))
+            .map_or(Pos { line: 1, column: 1 }, |w| w[0].1)
+    };
+    // A part reopened in another file is one part, its pieces merged.
     for f in &done {
-        all.parts.extend(f.first.parts.iter().cloned());
+        for p in &f.first.parts {
+            add_part(&mut all.parts, p.clone(), declared_at(&f.tokens, &p.name))
+                .map_err(|e| failed(&f.name, &f.source, e))?;
+        }
         all.contracts.extend(f.first.contracts.iter().cloned());
         all.examples.extend(f.first.examples.iter().cloned());
         all.ties.extend(f.first.ties.iter().cloned());
@@ -3851,15 +3940,15 @@ fn files(
     model.examples.clear();
     model.ties.clear();
     for f in done {
-        let read = Parser::new(f.tokens, Some(&context))
+        let read = Parser::new(f.tokens.clone(), Some(&context))
             .budget(settings.depth)
             .model()
             .map_err(|e| failed(&f.name, &f.source, e))?;
-        let mut parts = read.parts;
-        for p in parts.iter_mut() {
+        for mut p in read.parts {
             p.file = f.name.clone();
+            let at = declared_at(&f.tokens, &p.name);
+            add_part(&mut model.parts, p, at).map_err(|e| failed(&f.name, &f.source, e))?;
         }
-        model.parts.extend(parts);
         model.contracts.extend(read.contracts);
         model.examples.extend(read.examples);
         model.ties.extend(read.ties);

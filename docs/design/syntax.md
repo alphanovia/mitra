@@ -20,12 +20,13 @@ environment sun {
     ensure shines: "at least 200 W/m² at noon";
 }
 
+subject record Drop at "src/drop.rs/Drop" { h: rational, v: rational } where {
+    claim up: 0.0 <= self.h;
+}
+
 subject stone {
     require light: sun::shines;                           // from an ensure
     require air: "still air";                             // in words
-    record Drop at "src/drop.rs/Drop" { h: rational, v: rational } where {
-        claim up: 0.0 <= self.h;
-    }
     fn drop(h: rational) -> v: rational at "lab/tower/stone" where {
         claim falls: within(v * v, 2.0 * 9.81 * h, 2.0);
         rule slows: drop::falls, speed::slow |- drop::slow;
@@ -78,8 +79,8 @@ subject stone {
 | `ponens(r, p, q)`, `ponens[t, 1](…)`, `tollens[t, 0, 2](…)`, `reductio[p](…)`, `cases[q](…)`, `instance[q](o, point(3, 4))`, `witness[q](o, p)`, `intro[q](|p| …)`, `point(3, 4)`, `join(a, b)`, `!a`, `let x = a in b` | a proof, `judgement::Op` | flagged |
 | `all x in (a: 0..10, b: 0..10) where b != 0: p`, `any …`, `!p`, `{p, q} s {r}`, `correct(f, (6, 2))`, `correct(f, x)`, `correct(f, x in (a: 0..10))` | `Prop` | flagged |
 | `use sun::{light, Ray};`, `use sun::light;`, `use sun::*;` in a part | `Use` | Rust |
-| `use std::core::Option;`: Mitra's standard model (`std/core.mitra`, in the binary: `Option<T>`, `Result<T, E>`) | `Use` of the part `core`, `Part.file` | Rust's path; a std file holds one part (flagged) |
-| a part used and not declared: read from `<part>.mitra` beside the model | `Part.file` | Rust's `mod` file rule, without `mod` (flagged) |
+| `use Option from "std";`: Mitra's standard model (`std/option.mitra`, `std/result.mitra`, in the binary) | `Use { from }`, `Part.file` | Rust's path, TypeScript's `from` (flagged) |
+| a part used and not declared: read from the project's files that declare it, one folder | `parse::Project`, `Part.file` | Go's package folder (flagged) |
 | `light(h)`, `sun::light(h)` | `Op::Call("sun::light")` | Rust |
 | `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T): …; }` | `Contract`, `Law` | Rust's trait, keyword and `Number` flagged |
 | `impl Monotone<rational> for speed;`, `impl Pair<rational> for (f, g);` | `Implements` | Rust's form, `for (f, g)` flagged |
@@ -306,6 +307,33 @@ is an expression with a value, so claims and examples read it as any
 other. *Cost*: no early exit, no mutation. *Elsewhere*: Rust's
 `Iterator::fold` (Mitra's start is labelled), Kotlin's trailing block
 (flagged), Swift's labelled tuples (flagged), Lean's `List.foldl`.
+
+**21. `use … from "path"`, a folder a name space** (your design,
+11:05-11:19). *What*: models sit beside the code, so the project is
+every `.mitra` file under its root (`mitra.toml`, else git, else where
+`mitra` runs; `.gitignore` read), with Mitra's `std` as one more folder.
+`use Store::get;` reads `Store` from the one folder that declares it;
+`from "memory"` or `from "memory/store"` keeps the files and folders
+whose path ends with it, by whole names. Two folders: P014. A folder is
+a name space: a part may be reopened in its files.
+```text
+use Store::get from "memory/store";
+use Reply;                     // a whole part
+use Option from "std";
+```
+*Gain*: a model's file is anywhere beside its code; a name says where
+it comes from only when it must. *Cost*: two parts of one name in two
+folders cannot yet be in one model (one name space per model, P012 or a
+merge). *Elsewhere*: Go (`import "memory/store"`), TypeScript (`from`),
+Swift (a module, extensions across files).
+
+**22. Every type is a part** (step 2 of choice 19). *What*: a part
+holds no named `record` or `enum`: a type is a part, written short
+when it only holds data, `subject record Drop { … }`. Mitra's std holds
+`subject enum Option<T>` and `subject enum Result<T, E>`. *Gain*: one
+rule for every type. *Cost*: a data type is no longer kept inside the
+part that uses it; nesting (`subject A { subject record R { … } }`)
+holds it there.
 ## Errors
 
 A problem in the text is `error[P…]`, suit `P` of the catalogue

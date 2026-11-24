@@ -525,8 +525,8 @@ fn typed_in<'a>(
         let message = match t.open() && params.is_empty() {
             true => format!("the type of `{name}` is a type parameter: only a contract, a record or an enum names one"),
             false => match std_named(t) {
-                Some((part, n)) => format!(
-                    "the type of `{name}` names `{n}`, which no part of the model declares: it is in Mitra's standard model, `use std::{part}::{n};`"
+                Some(n) => format!(
+                    "the type of `{name}` names `{n}`, which no part of the model declares: it is in Mitra's standard model, `use {n} from \"std\";`"
                 ),
                 None => format!(
                     "the type of `{name}` names no record or enum of the model as declared"
@@ -539,9 +539,8 @@ fn typed_in<'a>(
     all
 }
 
-/// The first record or enum `t` names that a part of Mitra's standard
-/// model declares, with that part: for a message.
-fn std_named(t: &Type) -> Option<(&'static str, String)> {
+/// The first part of Mitra's standard model `t` names: for a message.
+fn std_named(t: &Type) -> Option<String> {
     let name = match t {
         Type::Record(r) => r.name.clone(),
         Type::Enum(e) => e.name.clone(),
@@ -549,15 +548,12 @@ fn std_named(t: &Type) -> Option<(&'static str, String)> {
         _ => return None,
     };
     let declares = |text: &str| {
-        crate::parse::parse(text).is_ok_and(|m| {
-            let mut parts = m.parts.iter();
-            parts.any(|p| {
-                p.enums.iter().any(|e| e.name == name) || p.records.iter().any(|r| r.name == name)
-            })
-        })
+        crate::parse::parse(text).is_ok_and(|m| m.parts.iter().any(|p| p.name == name))
     };
-    let found = crate::parse::STD.iter().find(|(_, text)| declares(text));
-    found.map(|(part, _)| (*part, name))
+    crate::parse::STD
+        .iter()
+        .any(|(_, text)| declares(text))
+        .then_some(name)
 }
 
 /// `t` is a type: a truth, a number, a tuple of types, or the type of a
@@ -946,6 +942,14 @@ fn uses(index: &Index, part: &Part) -> Vec<Error> {
             continue;
         }
         if let Use::Names { names, .. } = u {
+            // `use Reply;`: the whole part.
+            if names.len() == 1 && names[0] == of {
+                if !used.insert((of, of)) {
+                    let message = format!("`{of}` is used twice");
+                    errors.push(error(M016, &at, message));
+                }
+                continue;
+            }
             if names.is_empty() {
                 let message = format!("`use {of}::{{}}` names nothing of `{of}`");
                 errors.push(error(M016, &at, message));
@@ -971,14 +975,6 @@ fn visible(part: &Part, of: &str, name: &str) -> bool {
     of == part.name || part.uses.iter().any(|u| u.reads(of, name))
 }
 
-/// `std::` before a part of Mitra's standard model, in a `use` to write.
-fn std_(index: &Index, part: &str) -> &'static str {
-    match index.std.contains(part) {
-        true => "std::",
-        false => "",
-    }
-}
-
 /// M018 for each record a type names that is of another part, not used,
 /// read at `at`.
 fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error> {
@@ -994,10 +990,8 @@ fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error>
             {
                 if !visible(part, of, &r.name) {
                     let message = format!(
-                        "`{of}::{}` is of another part: `use {}{of}::{};`",
-                        r.name,
-                        std_(index, of),
-                        r.name
+                        "`{of}::{}` is of another part: `use {of}::{};`",
+                        r.name, r.name
                     );
                     errors.push(error(M018, at, message));
                 }
@@ -1012,10 +1006,8 @@ fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error>
             {
                 if !visible(part, of, &e.name) {
                     let message = format!(
-                        "`{of}::{}` is of another part: `use {}{of}::{};`",
-                        e.name,
-                        std_(index, of),
-                        e.name
+                        "`{of}::{}` is of another part: `use {of}::{};`",
+                        e.name, e.name
                     );
                     errors.push(error(M018, at, message));
                 }

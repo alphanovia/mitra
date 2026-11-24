@@ -326,7 +326,7 @@ impl Writer<'_> {
         }
         out.push_str(&format!("{kind} {}{} {{\n", part.name, tied(&here, placed)));
         let mut blocks: Vec<String> = vec![];
-        let uses: String = part.uses.iter().map(|u| use_(u, model)).collect();
+        let uses: String = part.uses.iter().map(use_).collect();
         if !uses.is_empty() {
             blocks.push(uses);
         }
@@ -728,20 +728,22 @@ fn enum_(e: &crate::model::Enum, ties: &str) -> String {
     )
 }
 
-/// A use, `std::` before a part of Mitra's standard model.
-fn use_(u: &Use, model: &Model) -> String {
-    let std = model
-        .parts
-        .iter()
-        .any(|p| p.name == u.part() && p.file.as_ref().is_some_and(|f| f.starts_with("std/")));
-    let from = if std { "std::" } else { "" };
+/// A use, with the path its `from` names as written.
+fn use_(u: &Use) -> String {
+    let from = match u.from() {
+        Some(path) => format!(" from {}", string(path)),
+        None => String::new(),
+    };
     match u {
-        Use::Glob { part } => format!("    use {from}{part}::*;\n"),
-        Use::Names { part, names } if names.len() == 1 => {
-            format!("    use {from}{part}::{};\n", names[0])
+        Use::Glob { part, .. } => format!("    use {part}::*{from};\n"),
+        Use::Names { part, names, .. } if names.len() == 1 && names[0] == *part => {
+            format!("    use {part}{from};\n")
         }
-        Use::Names { part, names } => {
-            format!("    use {from}{part}::{{{}}};\n", names.join(", "))
+        Use::Names { part, names, .. } if names.len() == 1 => {
+            format!("    use {part}::{}{from};\n", names[0])
+        }
+        Use::Names { part, names, .. } => {
+            format!("    use {part}::{{{}}}{from};\n", names.join(", "))
         }
     }
 }

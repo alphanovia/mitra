@@ -713,13 +713,13 @@ fn each_error_is_found() {
     );
     // Enums and records no value fits (M027), and no M003 beside them.
     assert_eq!(
-        digits("subject d {\n    enum Never {}\n    record Box<T> { n: integer }\n    enum List { Nil, Cons(integer, List) }\n    record R { s: S }\n    record S { r: R }\n    fn f(a: List, b: R, c: Box<integer>) -> e: integer { 0 }\n}"),
+        digits("subject enum Never {}\nsubject record Box<T> { n: integer }\nsubject enum List { Nil, Cons(integer, List) }\nsubject record R { s: S }\nsubject record S { r: R }\nsubject d {\n    fn f(a: List, b: R, c: Box<integer>) -> e: integer { 0 }\n}"),
         [
-            "error[M027]: the type parameter `T` is used by nothing it holds: Rust's E0392\n --> d::Box",
-            "error[M027]: `List` holds itself: a value of it would never end (trees come later, finding 3)\n --> d::List",
-            "error[M027]: `Never` has no variant: no value is of it\n --> d::Never",
-            "error[M027]: `R` holds itself: a value of it would never end (trees come later, finding 3)\n --> d::R",
-            "error[M027]: `S` holds itself: a value of it would never end (trees come later, finding 3)\n --> d::S",
+            "error[M027]: the type parameter `T` is used by nothing it holds: Rust's E0392\n --> Box::Box",
+            "error[M027]: `List` holds itself: a value of it would never end (trees come later, finding 3)\n --> List::List",
+            "error[M027]: `Never` has no variant: no value is of it\n --> Never::Never",
+            "error[M027]: `R` holds itself: a value of it would never end (trees come later, finding 3)\n --> R::R",
+            "error[M027]: `S` holds itself: a value of it would never end (trees come later, finding 3)\n --> S::S",
         ]
     );
     given.extend(["M025".to_string(), "M026".to_string(), "M027".to_string()]);
@@ -1336,6 +1336,7 @@ fn uses(part: &str, names: &[&str]) -> Use {
     Use::Names {
         part: part.to_string(),
         names: names.iter().map(|n| n.to_string()).collect(),
+        from: None,
     }
 }
 /// 2·g·h times what `f` gives.
@@ -1421,6 +1422,7 @@ fn parts_read_each_other_through_uses() {
         lit(m);
         m.parts[1].uses.push(Use::Glob {
             part: "sun".to_string(),
+            from: None,
         });
     });
     assert_eq!(glob, Vec::<String>::new());
@@ -1433,12 +1435,14 @@ fn parts_read_each_other_through_uses() {
     let own = changed(|m| {
         m.parts[1].uses.push(Use::Glob {
             part: "stone".to_string(),
+            from: None,
         })
     });
     assert_eq!(own, ["M016 at stone"]);
     let nowhere = changed(|m| {
         m.parts[1].uses.push(Use::Glob {
             part: "moon".to_string(),
+            from: None,
         })
     });
     assert_eq!(nowhere, ["M016 at stone"]);

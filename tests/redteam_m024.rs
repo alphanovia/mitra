@@ -37,8 +37,8 @@ fn model(text: &str) -> Model {
 #[test]
 fn held_equal_values_written_differently_are_one_value() {
     let same = r#"
+subject record P { x: rational, y: rational }
 subject s {
-    record P { x: rational, y: rational }
     fn f(h: rational) -> a: rational where { examples { (0.5) -> 1/4, (1/2) -> 0.25 } }
     fn g(p: P) -> a: rational where {
         examples { (P { x: 1.0, y: 2.0 }) -> 3.0, (P { y: 2.0, x: 1.0 }) -> 3.0 }

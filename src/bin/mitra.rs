@@ -140,15 +140,11 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     let given = arguments(args)?;
     let source = read(&given.model)?;
     let shown = given.model.display().to_string();
-    // A part the model uses and does not declare is read from
-    // `<part>.mitra` beside it.
-    let beside = given
-        .model
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_default();
-    let read_part = |file: &str| std::fs::read_to_string(beside.join(file)).ok();
-    let model = match parse::load(&source, &read_part, &parse::Settings::default()) {
+    // A part the model uses and does not declare is read from the
+    // project's files that declare it.
+    let root = project_root();
+    let project = project_of(&root, &given.model);
+    let model = match parse::load(&source, &project, &parse::Settings::default()) {
         Ok(m) => m,
         Err(l) => {
             let (file, text) = match l.file.is_empty() {
@@ -156,7 +152,7 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
                 false => {
                     let file = match l.file.starts_with("std/") {
                         true => l.file.clone(),
-                        false => beside.join(&l.file).display().to_string(),
+                        false => root.join(&l.file).display().to_string(),
                     };
                     (file, l.source.clone())
                 }
@@ -440,4 +436,111 @@ fn blame_out(model: &Model, ledger: &evidence::Ledger, e: &Explanation, n: &Numb
         false => format!("the first {} diagnoses", ranked.len()),
     };
     out!("blame: {} conflicts, {which}", b.conflicts.len());
+}
+
+/// The project's root: the nearest folder up from here holding
+/// `mitra.toml`, else the root of its git work tree, else here.
+fn project_root() -> PathBuf {
+    let here = std::env::current_dir().unwrap_or_default();
+    let up = |marker: &str| {
+        here.ancestors()
+            .find(|d| d.join(marker).exists())
+            .map(Path::to_path_buf)
+    };
+    up("mitra.toml")
+        .or_else(|| up(".git"))
+        .unwrap_or(here.clone())
+}
+
+/// Every `.mitra` file under `root`, by its path from it, but what the
+/// root's `.gitignore` leaves out and hidden folders; and the model's
+/// own path, when it is under the root.
+fn project_of(root: &Path, model: &Path) -> parse::Project {
+    let ignored = ignored(root);
+    let mut files = vec![];
+    let mut todo = vec![root.to_path_buf()];
+    while let Some(dir) = todo.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        let mut entries: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
+        entries.sort();
+        for path in entries {
+            let Ok(rel) = path.strip_prefix(root) else {
+                continue;
+            };
+            let rel = rel.to_string_lossy().replace('\\', "/");
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            if name.starts_with('.') || ignored.iter().any(|p| p.ignores(&rel, &name)) {
+                continue;
+            }
+            if path.is_dir() {
+                todo.push(path);
+            } else if name.ends_with(".mitra") {
+                if let Ok(text) = std::fs::read_to_string(&path) {
+                    files.push((rel, text));
+                }
+            }
+        }
+    }
+    let model = std::fs::canonicalize(model).ok().and_then(|m| {
+        let root = std::fs::canonicalize(root).ok()?;
+        let rel = m.strip_prefix(root).ok()?;
+        Some(rel.to_string_lossy().replace('\\', "/"))
+    });
+    parse::Project { files, model }
+}
+
+/// A line of `.gitignore`, as far as Mitra reads one: a name (`target`),
+/// a path from the root (`/build`, `docs/out`), each with `*` for any
+/// letters; a trailing `/` is dropped. Negation (`!`) and `**` are not
+/// read: such a line ignores nothing.
+struct Ignore {
+    pattern: String,
+    rooted: bool,
+}
+
+impl Ignore {
+    fn ignores(&self, rel: &str, name: &str) -> bool {
+        match self.rooted {
+            true => glob(&self.pattern, rel),
+            false => glob(&self.pattern, name),
+        }
+    }
+}
+
+fn ignored(root: &Path) -> Vec<Ignore> {
+    let text = std::fs::read_to_string(root.join(".gitignore")).unwrap_or_default();
+    text.lines()
+        .map(str::trim)
+        .filter(|l| {
+            !l.is_empty() && !l.starts_with('#') && !l.starts_with('!') && !l.contains("**")
+        })
+        .map(|l| {
+            let l = l.trim_end_matches('/');
+            let rooted = l.contains('/');
+            Ignore {
+                pattern: l.trim_start_matches('/').to_string(),
+                rooted,
+            }
+        })
+        .collect()
+}
+
+/// `text` is matched by `pattern`, where `*` stands for any letters but `/`.
+fn glob(pattern: &str, text: &str) -> bool {
+    match pattern.split_once('*') {
+        None => pattern == text,
+        Some((head, tail)) => {
+            let Some(rest) = text.strip_prefix(head) else {
+                return false;
+            };
+            (0..=rest.len())
+                .filter(|i| rest.is_char_boundary(*i) && !rest[..*i].contains('/'))
+                .any(|i| glob(tail, &rest[i..]))
+        }
+    }
 }

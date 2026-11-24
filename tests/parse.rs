@@ -291,28 +291,29 @@ contract Same<T, U> {
     claim keeps(a: T, b: U): g(a) == a && Same::h(b) == b;
 }
 
+environment record Photon;
+environment record Beam where {
+    claim lit: true;
+}
 environment lab at "lab", "lab/annex" {
-    record Photon;
-    record Beam where {
-        claim lit: true;
-    }
     fn clock() -> t: integer;
+    fn dim() -> d: integer;
     fn shine(t: integer) -> w: rational;
     ensure lit: "the lamp is on" from ();
 }
 
+subject record Point at "src/geo.rs/Point" { x: rational, y: rational } where {
+    claim right: 0.0 <= self.x && self.y >= -1/3;
+    rule upper: Point::right, { self.x < 10.0 } |- Point::right;
+}
+subject record Empty {}
+subject record Pair { p: Point, n: (integer, bool) }
 subject geo at "src/geo.rs" {
-    use lab::{clock, Photon};
+    use lab::{clock, dim};
     use lab::*;
     use lab::shine;
     require lamp: lab::lit;
     require geo: "a require named as its part";
-    record Point at "src/geo.rs/Point" { x: rational, y: rational } where {
-        claim right: 0.0 <= self.x && self.y >= -1/3;
-        rule upper: Point::right, { self.x < 10.0 } |- Point::right;
-    }
-    record Empty {}
-    record Pair { p: Point, n: (integer, bool) }
     fn flip(p: Point) -> q: Point { Point { y: p.x, x: p.y } } where {
         claim back: q.x == p.y && q.y != p.x;
         claim pair: (p.x, 1, true).0 == p.x;
@@ -383,8 +384,8 @@ fn every_form_comes_back() {
         [
             "lab at lab",
             "lab at lab/annex",
+            "Point::Point at src/geo.rs/Point",
             "geo at src/geo.rs",
-            "geo::Point at src/geo.rs/Point",
             "geo::flip::back at src/geo.rs/flip_back",
             "nowhere at ",
         ]
@@ -394,7 +395,7 @@ fn every_form_comes_back() {
 #[test]
 fn short_paths_are_from_their_part() {
     let m = read(EVERY_FORM);
-    let geo = &m.parts[1];
+    let geo = m.parts.iter().find(|p| p.name == "geo").unwrap();
     assert_eq!(geo.requires[0].from, Source::Ensure(path("lab::lit")));
     // `crate::geo` is whole: a part, not geo's own require `geo`.
     assert_eq!(geo.requires[1].name, "geo");
@@ -434,7 +435,7 @@ fn short_paths_are_from_their_part() {
     };
     assert_eq!(read[1].body, Expression::Name("2".to_string()));
     // A record's type is as declared, a tuple's what it holds.
-    let pair = &geo.records[2];
+    let pair = &m.parts.iter().find(|p| p.name == "Pair").unwrap().records[0];
     let point = simulation::Record {
         args: vec![],
         name: "Point".to_string(),
@@ -481,20 +482,23 @@ fn the_text_keeps_what_check_finds() {
 fn uses_calls_and_contracts() {
     use mitra_core::model::{Implements, ModelExample, Use};
     let m = read(EVERY_FORM);
-    let geo = &m.parts[1];
+    let geo = m.parts.iter().find(|p| p.name == "geo").unwrap();
     assert_eq!(
         geo.uses,
         vec![
             Use::Names {
                 part: "lab".to_string(),
-                names: vec!["clock".to_string(), "Photon".to_string()]
+                names: vec!["clock".to_string(), "dim".to_string()],
+                from: None,
             },
             Use::Glob {
-                part: "lab".to_string()
+                part: "lab".to_string(),
+                from: None,
             },
             Use::Names {
                 part: "lab".to_string(),
-                names: vec!["shine".to_string()]
+                names: vec!["shine".to_string()],
+                from: None,
             },
         ]
     );
@@ -578,7 +582,7 @@ fn uses_calls_and_contracts() {
 #[test]
 fn intro_binds_its_point() {
     let m = read(EVERY_FORM);
-    let rule = m.parts[1].functions[0]
+    let rule = m.parts.iter().find(|p| p.name == "geo").unwrap().functions[0]
         .rules
         .iter()
         .find(|r| r.name == "any_point")
@@ -727,7 +731,7 @@ fn errors_say_where() {
         P003.to_string()
     );
     assert_eq!(
-        fails("subject s { record R where { examples { () -> 1 } } }").0,
+        fails("subject record R where { examples { () -> 1 } }\nsubject s { }").0,
         P003.to_string()
     );
     assert_eq!(fails("subject fn { }").3, "expected a name, found `fn`");
@@ -740,7 +744,7 @@ fn names_take_a_colon() {
     for text in [
         "subject s { require a = \"open\"; }",
         "subject s { ensure e = \"open\"; }",
-        "subject s { record R { x: integer } where { claim c = true; } }",
+        "subject record R { x: integer } where { claim c = true; }\nsubject s { }",
         "subject s { fn f(x: integer) -> y: integer { x } where { claim c = true; } }",
         "contract C<T> { fn f(x: T) -> y: T; claim c(a: T) = f(a) == f(a); }",
     ] {

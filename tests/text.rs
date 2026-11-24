@@ -210,8 +210,8 @@ fn only_text_has_an_encoding() {
 
 #[test]
 fn a_model_of_text_reads_back_as_printed() {
-    let text = "subject s {
-    record Entry { title: [~char], bytes: [byte], tags: [[~char]] }
+    let text = "subject record Entry { title: [~char], bytes: [byte], tags: [[~char]] }
+subject s {
     fn f(e: Entry, c: char) -> b: bool {
         e.title ++ (e.title ++ \"\\n\\\"q\\\"\") == \"x\" && e.title.starts_with(\"a\") && e.bytes[0] == e.title[0] && e.tags[0] < \"é\" && c == c && e.tags.decoded() == e.tags
     } where {

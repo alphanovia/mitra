@@ -14,10 +14,11 @@ example, and the fix. The letter says which step found it.
 - [P007](P007.md): an unknown variant, or one given the wrong number of values
 - [P008](P008.md): a type given the wrong type arguments
 - [P009](P009.md): a value whose type cannot be told here
-- [P010](P010.md): a part no file of the model declares
+- [P010](P010.md): a part no file of the project declares
 - [P011](P011.md): a text nested past the parser's depth budget
 - [P012](P012.md): a part reopened as another kind
 - [P013](P013.md): a method call on a value whose part has no such method
+- [P014](P014.md): a part a `use` names that two folders declare
 
 ## M (model): names, types and structure (`check`, before agree)
 

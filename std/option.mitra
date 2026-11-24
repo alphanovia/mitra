@@ -1,0 +1,4 @@
+// Mitra's standard model, shipped in the binary: `use Option from "std";`.
+// An ordinary enum, as in Rust's core library: nothing here is built into
+// the language.
+subject enum Option<T> { None, Some(T) }

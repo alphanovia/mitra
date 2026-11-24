@@ -12,7 +12,9 @@ use std::process::Command;
 const ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
 fn files(dir: &Path, ext: &str, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries {
         let path = entry.unwrap().path();
         if path.is_dir() {
@@ -69,12 +71,17 @@ fn blocks(text: &str) -> Vec<String> {
 }
 
 fn checks(path: &Path, clean: bool) -> Result<(), String> {
-    let out = Command::new(env!("CARGO_BIN_EXE_mitra")).arg("check").arg(path).output().unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_mitra"))
+        .arg("check")
+        .arg(path)
+        .output()
+        .unwrap();
     let said = String::from_utf8_lossy(&out.stdout);
     if out.status.success() && (!clean || said.contains(", 0 findings")) {
         Ok(())
     } else {
-        Err(String::from_utf8_lossy(&out.stdout).to_string() + &String::from_utf8_lossy(&out.stderr))
+        Err(String::from_utf8_lossy(&out.stdout).to_string()
+            + &String::from_utf8_lossy(&out.stderr))
     }
 }
 
@@ -104,7 +111,9 @@ fn every_example_in_the_docs_checks() {
             count += 1;
             let wanted = lines(&block);
             assert!(!wanted.is_empty(), "{}: block {i} is empty", doc.display());
-            let from = models.iter().find(|(_, have)| have.windows(wanted.len()).any(|w| w == wanted.as_slice()));
+            let from = models
+                .iter()
+                .find(|(_, have)| have.windows(wanted.len()).any(|w| w == wanted.as_slice()));
             match from {
                 Some((path, _)) => {
                     if !used.contains(path) {
@@ -126,8 +135,14 @@ fn every_example_in_the_docs_checks() {
     }
     for path in &used {
         if let Err(e) = checks(path, false) {
-            panic!("{} is shown in the docs and does not check:\n{e}", path.display());
+            panic!(
+                "{} is shown in the docs and does not check:\n{e}",
+                path.display()
+            );
         }
     }
-    assert!(count > 20, "only {count} blocks found: is the fence still ```mitra?");
+    assert!(
+        count > 20,
+        "only {count} blocks found: is the fence still ```mitra?"
+    );
 }

@@ -3,7 +3,7 @@
 /// An address in the real system: a file, then what is in it, or an
 /// object, then a physical part of it. It is not right or wrong. What
 /// it promises is that an actor can verify that what it names exists.
-// mitra: implements location::Location
+// mitra: implements Location::Location
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Location {
     pub path: Vec<String>,

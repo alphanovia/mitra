@@ -191,6 +191,7 @@ pub const P010: Code = parse(10);
 pub const P011: Code = parse(11);
 pub const P012: Code = parse(12);
 pub const P013: Code = parse(13);
+pub const P014: Code = parse(14);
 
 const fn reader(number: u16) -> Code {
     Code {
@@ -348,13 +349,14 @@ pub const CATALOGUE: &[Entry] = &[
     ),
     entry(P008, "a type given the wrong type arguments"),
     entry(P009, "a value whose type cannot be told here"),
-    entry(P010, "a part no file of the model declares"),
+    entry(P010, "a part no file of the project declares"),
     entry(P011, "a text nested past the parser's depth budget"),
     entry(P012, "a part reopened as another kind"),
     entry(
         P013,
         "a method call on a value whose part has no such method",
     ),
+    entry(P014, "a part a `use` names that two folders declare"),
     entry(R001, "a `mitra:` comment the reader cannot read"),
     entry(R002, "a tie comment on no item, or to nothing of the model"),
     entry(R003, "a `measures` comment on no test"),

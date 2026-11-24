@@ -37,25 +37,38 @@ subject Shop {
     use Prices::with_tax;
 ```
 
-`use Prices::{with_tax, or_zero};` names several, `use Prices::*;` all.
-A part needs no `use` for its own names. Without a `use`, a name from
-another part is written whole: `Prices::with_tax(a)`.
+`use Prices::{with_tax, or_zero};` names several, `use Prices::*;` all,
+`use Price;` the whole part. A part needs no `use` for its own names, nor
+for a part's type. Without a `use`, a name from another part is written
+whole: `Prices::with_tax(a)`.
 
-A part used and not declared in the model's file is read from
-`<part>.mitra` beside it (P010 when no file has it).
+A part used and not declared in the model's file is read from the files
+of the project that declare it. The project is every `.mitra` file under
+its root: the folder of `mitra.toml`, up from where `mitra` runs, else
+the root of the git work tree, else that folder; what the root's
+`.gitignore` leaves out is not read. A folder is a name space: its files
+may each hold a piece of one part. When two folders declare a part,
+`from` names the one meant, by the end of its path, whole names only:
+
+```text
+    use Store::get from "memory";        // memory/store.mitra
+    use Store::get from "memory/store";  // the same file
+```
+
+None found is P010; two folders and no `from`, P014.
 
 ## The standard model
 
-`std` is Mitra's own small model, shipped in the binary. Today it holds
-two enums, as in Rust's core library:
+`std` is Mitra's own small model, shipped in the binary, one more folder
+of the project. Today it holds two data parts, as in Rust's core library:
 
 ```text
-enum Option<T> { None, Some(T) }
-enum Result<T, E> { Ok(T), Err(E) }
+subject enum Option<T> { None, Some(T) }
+subject enum Result<T, E> { Ok(T), Err(E) }
 ```
 
 ```mitra
-    use std::core::Option;
+    use Option from "std";
 ```
 
 ```mitra

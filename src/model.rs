@@ -93,7 +93,7 @@ pub struct Part {
     /// them, requires, ensures and examples of the model (M028).
     pub inner: Vec<String>,
     /// The file it was read from, when not the model's own:
-    /// `std/core.mitra`, or `geometry.mitra` beside the model.
+    /// `std/option.mitra`, or `shapes/point.mitra` from the project's root.
     pub file: Option<String>,
 }
 
@@ -102,24 +102,37 @@ pub struct Part {
 /// `sun::light`, in `simulation::Op::Call`.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Use {
-    /// `use sun::{light, Ray};`
-    Names { part: String, names: Vec<String> },
-    /// `use sun::*;`: all its functions and records.
-    Glob { part: String },
+    /// `use Sun::{light, shine};`, `use Ray;` (the whole part, its name
+    /// its one name), `use Store::get from "memory/store";`.
+    Names {
+        part: String,
+        names: Vec<String>,
+        from: Option<String>,
+    },
+    /// `use Sun::*;`: all its functions.
+    Glob { part: String, from: Option<String> },
 }
 
 impl Use {
     /// The part it reads.
     pub fn part(&self) -> &str {
         match self {
-            Use::Names { part, .. } | Use::Glob { part } => part,
+            Use::Names { part, .. } | Use::Glob { part, .. } => part,
+        }
+    }
+    /// The path its `from` names, if any.
+    pub fn from(&self) -> Option<&str> {
+        match self {
+            Use::Names { from, .. } | Use::Glob { from, .. } => from.as_deref(),
         }
     }
     /// It lets its part read `name` of `part`.
     pub fn reads(&self, part: &str, name: &str) -> bool {
         match self {
-            Use::Names { part: p, names } => p == part && names.iter().any(|n| n == name),
-            Use::Glob { part: p } => p == part,
+            // `use Reply;`: the whole part, each of its names.
+            Use::Names { part: p, names, .. } if names.len() == 1 && names[0] == *p => p == part,
+            Use::Names { part: p, names, .. } => p == part && names.iter().any(|n| n == name),
+            Use::Glob { part: p, .. } => p == part,
         }
     }
 }
@@ -525,8 +538,6 @@ pub(crate) struct Index<'m> {
     unknown: BTreeSet<String>,
     /// What a call by a name alone names, for messages.
     pub(crate) calling: crate::parse::Calling,
-    /// The parts read from Mitra's standard model (`use std::…`).
-    pub(crate) std: BTreeSet<&'m str>,
 }
 
 impl<'m> Index<'m> {
@@ -544,12 +555,6 @@ impl<'m> Index<'m> {
             cyclic: BTreeSet::new(),
             unknown: BTreeSet::new(),
             calling: crate::parse::Calling::of(model),
-            std: model
-                .parts
-                .iter()
-                .filter(|p| p.file.as_ref().is_some_and(|f| f.starts_with("std/")))
-                .map(|p| p.name.as_str())
-                .collect(),
         };
         for c in &model.contracts {
             index.contracts.entry(&c.name).or_insert(c);

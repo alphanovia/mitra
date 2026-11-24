@@ -8,7 +8,7 @@ contract Monotone<T: Number> {
 }
 
 subject Prices {
-    use std::core::Option;
+    use Option from "std";
 
     fn with_tax(p: rational) -> q: rational { p * 1.2 } where {
         examples { (10.0) -> 12.0 }

@@ -90,8 +90,8 @@ subject s {
 #[test]
 fn d2_an_opaque_record_is_not_one_value() {
     let text = r#"
+subject record Key;
 subject s {
-    record Key;
     fn same(a: Key, b: Key) -> r: bool { a == b } where {
         claim always: r;
     }
@@ -227,9 +227,8 @@ fn d7_every_comparison_of_the_table_is_counted() {
 
 // ------------------------------------------------------------ check
 
-/// D8. M018: "a part ... names another part's record (in a type ...)
-/// only through a use". `impl C<Ray> for up;` names the sun's record in
-/// a type, with no use; agree then makes values of it.
+/// D8. A part is a type, seen everywhere with no use (M018 is for
+/// functions): `impl C<Ray> for up;` names the part `Ray` in a type.
 #[test]
 fn d8_a_record_named_by_an_impl_is_used() {
     let text = r#"
@@ -237,7 +236,8 @@ contract C<T> {
     fn f(x: rational) -> y: rational;
     claim c(a: T, b: T): a == b || f(1.0) <= f(2.0);
 }
-environment sun { record Ray { w: rational } }
+environment record Ray { w: rational }
+environment sun { }
 subject stone {
     fn up(x: rational) -> y: rational { x + 1.0 }
     impl C<Ray> for up;
@@ -247,7 +247,7 @@ subject stone {
         .iter()
         .map(|e| e.code.to_string())
         .collect();
-    assert!(errors.contains(&"M018".to_string()), "{errors:?}");
+    assert!(!errors.contains(&"M018".to_string()), "{errors:?}");
 }
 
 /// N1. M016: "A use names another part, and functions or records of it."
@@ -348,8 +348,8 @@ fn n2_a_port_is_an_input_or_an_output() {
 #[test]
 fn n3_no_value_of_an_opaque_record_is_measured() {
     let text = r#"
+subject record Key;
 subject s {
-    record Key;
     fn mk(n: integer) -> k: Key at "src/lib.rs/mk";
 }
 "#;
@@ -407,8 +407,8 @@ subject s {
 #[test]
 fn after_an_opaque_record_through_a_call_is_not_one_value() {
     let text = r#"
+subject record Key;
 subject s {
-    record Key;
     fn mk(n: integer) -> k: Key;
     fn g(n: integer) -> r: bool { mk(n) == mk(n + 1) } where {
         claim c: r;
@@ -444,6 +444,7 @@ subject s {
 #[test]
 fn after_claims_together_hold_fail_or_say_why() {
     let text = r#"
+subject record Key;
 subject s {
     fn lit(on: bool) -> off: bool { !on } where {
         claim flips: off != on;
@@ -452,7 +453,6 @@ subject s {
         claim a: off;
         claim b: !off;
     }
-    record Key;
     fn keys(a: Key) -> r: bool where {
         claim c: r;
     }
@@ -573,8 +573,8 @@ subject stone {
 #[test]
 fn after_a_rule_point_makes_no_opaque_record() {
     let text = r#"
+subject record Key;
 subject s {
-    record Key;
     fn has(k: Key) -> r: bool where {
         claim c: r;
         rule r1: has::c |- correct(has, (Key {}));

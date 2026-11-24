@@ -158,7 +158,7 @@ fn equal_sequences_are_equal_place_by_place() {
 fn the_type_of_an_empty_sequence_is_told_from_where_it_goes() {
     let f = |body: &str| {
         refused(&format!(
-            "subject s {{ enum Option<T> {{ None, Some(T) }} fn g(xs: [integer]) -> b: bool {{ true }} fn f(x: integer) -> y: bool {{ {body} }} }}"
+            "subject enum Option<T> {{ None, Some(T) }} subject s {{ fn g(xs: [integer]) -> b: bool {{ true }} fn f(x: integer) -> y: bool {{ {body} }} }}"
         ))
     };
     assert!(
@@ -179,7 +179,7 @@ fn the_type_of_an_empty_sequence_is_told_from_where_it_goes() {
     // a type not told; `None` likewise.
     for row in ["([]) -> 0", "(None) -> 0"] {
         let text = format!(
-            "subject s {{ enum Option<T> {{ None, Some(T) }} fn f(x: integer) -> y: integer {{ x }} where {{ examples {{ {row} }} }} }}"
+            "subject enum Option<T> {{ None, Some(T) }} subject s {{ fn f(x: integer) -> y: integer {{ x }} where {{ examples {{ {row} }} }} }}"
         );
         let out = errors(&text);
         assert_eq!(out.len(), 1, "{out:?}");
@@ -215,9 +215,9 @@ fn a_sequence_holds_values_of_one_type() {
 
 #[test]
 fn a_model_of_sequences_reads_back_as_printed() {
-    let text = "subject s {
-    enum Option<T> { None, Some(T) }
-    record P { x: integer, ys: [rational] }
+    let text = "subject enum Option<T> { None, Some(T) }
+subject record P { x: integer, ys: [rational] }
+subject s {
     fn f(p: P, xss: [[integer]], o: [Option<integer>]) -> b: bool {
         p.ys.len() == xss[0].len() && xss[1][0] == 3 && o == [None, Some(p.x)] && [] == p.ys
     } where {

@@ -56,7 +56,7 @@ subject Assistant {
 
     // The model behind inference: stateless, how it answers is not known.
     environment Llm {
-        use std::core::Result;
+        use Result from "std";
         // Each model has its own capacity: the bytes one request may hold
         // (len counts bytes; tokens later, through a tokenizer part).
         record { capacity: integer }
@@ -73,7 +73,7 @@ subject Assistant {
 
     // A tool: a toolbox (which tools are loaded, the call policy) comes later.
     subject Tool {
-        use std::core::Result;
+        use Result from "std";
         // What inference is told of a tool (the memory side will prove on it).
         record { name: [~char], description: [~char] }
         fn call(self, input: [~char]) -> out: Result<[~char], ToolFailure>;
@@ -85,14 +85,14 @@ subject Assistant {
 
     // The harness's data. A failed tool is told to the model in its outcome.
     subject Outcome {
-        use std::core::Result;
+        use Result from "std";
         record { call: Call, output: Result<[~char], ToolFailure> }
     }
     subject enum Turn { User([~char]), Model(Answer), Results([Outcome]) }
 
     // What is sent to the model each turn: all of it, the model keeps nothing.
     subject Conversation {
-        use std::core::Result;
+        use Result from "std";
         record { turns: [Turn] }
         // How it is written for the model (e.g. JSON): not known yet.
         fn encode(self) -> request: [~char] where {
@@ -114,7 +114,7 @@ subject Assistant {
     }
 
     subject Harness {
-        use std::core::Result;
+        use Result from "std";
         use User::message;
 
         ensure answers: "the user gets the final answer, or the failure" from (run::ends);

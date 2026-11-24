@@ -137,35 +137,68 @@ fn points_decide_main_s_div_on_every_pair() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// `mitra` run in `dir`.
+fn mitra_in(dir: &std::path::Path, args: &[&str]) -> (i32, String) {
+    let out = Command::new(env!("CARGO_BIN_EXE_mitra"))
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .unwrap();
+    let text = String::from_utf8(out.stdout).unwrap() + &String::from_utf8(out.stderr).unwrap();
+    (out.status.code().unwrap_or(-1), text)
+}
+
+/// The project is the folder of `mitra.toml`, up from where `mitra` runs:
+/// a part is read from any file of it, here in another folder.
 #[test]
-fn a_part_is_read_from_the_file_beside_the_model() {
+fn a_part_is_read_from_the_project() {
     let dir = std::env::temp_dir().join(format!("mitra-cli-files-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let model = dir.join("calc.mitra");
+    let src = dir.join("src");
+    let shapes = dir.join("shapes");
+    std::fs::create_dir_all(&src).unwrap();
+    std::fs::create_dir_all(&shapes).unwrap();
+    std::fs::create_dir_all(dir.join("target")).unwrap();
+    std::fs::write(dir.join("mitra.toml"), "").unwrap();
+    std::fs::write(dir.join(".gitignore"), "target/\n").unwrap();
     std::fs::write(
-        &model,
-        "subject calc {\n    use geometry::Point;\n    use std::core::Option;\n    fn mid(p: Point) -> m: Option<rational> { Some((p.x + p.y) / 2.0) }\n}\n",
+        src.join("calc.mitra"),
+        "subject Calc {\n    use Point from \"shapes\";\n    use Option from \"std\";\n    fn mid(p: Point) -> m: Option<rational> { Some((p.x + p.y) / 2.0) }\n}\n",
     )
     .unwrap();
-    let (code, out) = mitra(&["check", model.to_str().unwrap()]);
+    let (code, out) = mitra_in(&src, &["check", "calc.mitra"]);
     assert_eq!(code, 1, "{out}");
-    assert!(out.contains("error[P010]: no part `geometry`"), "{out}");
+    assert!(
+        out.contains("error[P010]: no part `Point` from \"shapes\""),
+        "{out}"
+    );
     assert!(out.contains("calc.mitra:2:9"), "{out}");
     std::fs::write(
-        dir.join("geometry.mitra"),
-        "subject geometry {\n    record Point { x: rational, y: }\n}\n",
+        shapes.join("point.mitra"),
+        "subject record Point { x: rational, y: }\n",
     )
     .unwrap();
-    let (code, out) = mitra(&["check", model.to_str().unwrap()]);
+    let (code, out) = mitra_in(&src, &["check", "calc.mitra"]);
     assert_eq!(code, 1, "{out}");
-    assert!(out.contains("geometry.mitra:2:"), "{out}");
+    assert!(out.contains("shapes/point.mitra:1:"), "{out}");
     std::fs::write(
-        dir.join("geometry.mitra"),
-        "subject geometry {\n    record Point { x: rational, y: rational }\n}\n",
+        shapes.join("point.mitra"),
+        "subject record Point { x: rational, y: rational }\n",
     )
     .unwrap();
-    let (code, out) = mitra(&["check", model.to_str().unwrap()]);
+    let (code, out) = mitra_in(&src, &["check", "calc.mitra"]);
     assert_eq!(code, 0, "{out}");
     assert!(out.contains("check: well formed"), "{out}");
+    // A folder `.gitignore` leaves out is no part of the project: with
+    // no `from`, `Point` is still of one folder.
+    std::fs::write(
+        dir.join("target/point.mitra"),
+        "subject record Point { z: rational }\n",
+    )
+    .unwrap();
+    let calc = std::fs::read_to_string(src.join("calc.mitra")).unwrap();
+    let calc = calc.replace("use Point from \"shapes\";", "use Point;");
+    std::fs::write(src.join("calc.mitra"), calc).unwrap();
+    let (code, out) = mitra_in(&src, &["check", "calc.mitra"]);
+    assert_eq!(code, 0, "{out}");
     std::fs::remove_dir_all(&dir).unwrap();
 }

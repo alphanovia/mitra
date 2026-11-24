@@ -26,9 +26,12 @@ mitra blame MODEL [--code DIR]... [--report FILE] [--store FILE]
 
 `--report`, `--store` and `--points` are given once each.
 
-A part the model uses and does not declare is read from `<part>.mitra`
-beside the model file, and `use std::core::…` from Mitra's own standard
-model, in the binary (P010 when neither has it).
+A part the model uses and does not declare is read from the project's
+files that declare it: every `.mitra` file under the root (the folder of
+`mitra.toml`, up from where `mitra` runs, else the git work tree, else
+there), less what the root's `.gitignore` leaves out, and Mitra's own
+standard model, the folder `std`, in the binary (P010 when none has it,
+P014 when two folders do and no `from` says which).
 
 | Command | Question | Says |
 |---|---|---|

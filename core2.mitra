@@ -12,7 +12,7 @@
 //
 // Modelling choices, flagged for review (none is a new concept of the
 // language):
-// - `judgement::State` is an enum in Rust; here it is a record of its
+// - `State` is an enum in Rust; here it is a record of its
 //   two sides, as `State::sides` gives them.
 // - `numbers::fused` takes takings in Rust; here it takes what they add
 //   up to: weighted runs for and against, with the prior weight and the
@@ -34,8 +34,8 @@ environment float {
     ensure near: "f64 arithmetic on the numbers of numbers.rs is within 1e-12 of the exact result";
 }
 
+subject record Location at "src/location.rs/Location" { path: [[~char]] }
 subject location {
-    record Location at "src/location.rs/Location" { path: [[~char]] }
     // Rust's `a.path.starts_with(&b.path)`.
     fn within(a: Location, b: Location) -> inside: bool at "src/location.rs/within" {
         a.path.starts_with(b.path)
@@ -45,18 +45,23 @@ subject location {
     ensure prefix: "within(a, b) holds when b's names begin a's names";
 }
 
+subject record Expression at "src/expression.rs/Expression";
 subject expression {
-    record Expression at "src/expression.rs/Expression";
     ensure binding: "an expression is a binding tree: each name is bound once, an argument is read at most once, a fault is lazy";
     ensure substitution: "substitute replaces free names only, and never captures";
 }
 
+subject record Rational at "src/simulation.rs/Rational";
+// A library of functions (`Calls`): what a call reads, and in which
+// order.
+subject record Calls at "src/simulation.rs/Calls";
+// How far a computation through calls may go: a setting.
+subject record Budget at "src/simulation.rs/Budget" { steps: integer, depth: integer }
 subject simulation {
     require exact_numbers: num::exact;
     require trees: expression::binding;
 
-    use std::core::Option;
-    record Rational at "src/simulation.rs/Rational";
+    use Option from "std";
     fn plus(x: rational, y: rational) -> z: rational at "src/simulation.rs/Rational/plus" { x + y }
     fn minus(x: rational, y: rational) -> z: rational at "src/simulation.rs/Rational/minus" { x - y }
     fn times(x: rational, y: rational) -> z: rational at "src/simulation.rs/Rational/times" { x * y }
@@ -76,13 +81,8 @@ subject simulation {
         from (exact_numbers, trees);
     ensure ranges_sound: "every value Exact gives lies in the bounds Ranges gives"
         from (exact_numbers, trees);
-    // A library of functions (`Calls`): what a call reads, and in which
-    // order.
-    record Calls at "src/simulation.rs/Calls";
     ensure one_value: "Calls::with refuses a function two of whose rows at one point give different values";
     ensure given_first: "a call reads the body; with none, what the reading was given at its point, else the row there";
-    // How far a computation through calls may go: a setting.
-    record Budget at "src/simulation.rs/Budget" { steps: integer, depth: integer }
     fn budget_defaults() -> b: Budget at "src/simulation.rs/Budget/default" {
         Budget { steps: 1000000, depth: 1000 }
     }
@@ -99,17 +99,15 @@ subject simulation {
     ensure loops: "`fold` carries its values through each value of the sequence in turn; `until` gives the first carried where `done` holds, its block never run then, and past the step budget it has no value and says so (A007)";
 }
 
+// A proposition is a tree: opaque.
+subject record Prop at "src/judgement.rs/Prop";
+// A voice takes a proposition as true or false, count times (`by`
+// is a keyword of the model: `voice` here).
+subject record Taking at "src/judgement.rs/Taking" { prop: Prop, value: bool, count: integer, voice: [~char] }
+// Belnap's four states, as their two sides: told true, told false.
+subject record State at "src/judgement.rs/State" { t: bool, f: bool }
 subject judgement {
     require holds: simulation::exact_right;
-
-    // A proposition is a tree: opaque.
-    record Prop at "src/judgement.rs/Prop";
-    // A voice takes a proposition as true or false, count times (`by`
-    // is a keyword of the model: `voice` here).
-    record Taking at "src/judgement.rs/Taking" { prop: Prop, value: bool, count: integer, voice: [~char] }
-
-    // Belnap's four states, as their two sides: told true, told false.
-    record State at "src/judgement.rs/State" { t: bool, f: bool }
 
     fn told(t: bool, f: bool) -> s: State at "src/judgement.rs/State/told" {
         State { t: t, f: f }
@@ -145,30 +143,30 @@ subject tactic {
         from (kernel);
 }
 
+// A model holds parts, contracts, examples and ties: lists, opaque.
+subject record Model at "src/model.rs/Model";
+// A path is a list of names: opaque.
+subject record Path at "src/model.rs/Path";
 subject model {
     require kernel: judgement::sound;
-    // A model holds parts, contracts, examples and ties: lists, opaque.
-    record Model at "src/model.rs/Model";
-    // A path is a list of names: opaque.
-    record Path at "src/model.rs/Path";
     ensure props: "props gives every proposition the model names, and only those";
     ensure leaves: "leaves gives the propositions no rule concludes, each a suspect";
 }
 
+// The suit is an enum of seven letters: opaque.
+subject record Suit at "src/catalogue.rs/Suit";
+subject record Code at "src/catalogue.rs/Code" { suit: Suit, number: integer }
+subject record Entry at "src/catalogue.rs/Entry" { code: Code, title: [~char], retired: bool }
 subject catalogue {
-    // The suit is an enum of seven letters: opaque.
-    record Suit at "src/catalogue.rs/Suit";
-    record Code at "src/catalogue.rs/Code" { suit: Suit, number: integer }
-    record Entry at "src/catalogue.rs/Entry" { code: Code, title: [~char], retired: bool }
     ensure never_reused: "a code is given to one meaning, never reused: a code no longer given is kept, retired";
     ensure documented: "every code has an entry and a page in docs/reference/codes";
 }
 
+// What check gives is a list of errors: opaque.
+subject record Errors;
 subject check {
     require codes: catalogue::never_reused;
-    use model::Model;
-    // What check gives is a list of errors: opaque.
-    record Errors;
+
     fn check(m: Model) -> errors: Errors at "src/check.rs/check";
     ensure sound: "a model check gives no error for has every path resolved, every type agreed, no support cycle, every proof checked by type and by one run, and one value for each function at each point of its examples"
         from (codes, one_value);
@@ -183,34 +181,34 @@ subject print {
     ensure reads_back: "what print writes, parse reads back";
 }
 
+subject record ParseSettings at "src/parse.rs/Settings" { depth: integer }
 subject parse {
     require printed: print::reads_back;
     use simulation::budget_defaults;
-    record ParseSettings at "src/parse.rs/Settings" { depth: integer }
     fn parse_defaults() -> s: ParseSettings at "src/parse.rs/Settings/default" {
         ParseSettings { depth: 2 * budget_defaults().depth }
     }
     ensure round_trip: "parse(print(m)) is m, ties aside" from (printed);
     ensure first_error: "a text that is not a model gives its first error, at its line and column, suit P";
-    ensure files: "a part used and not declared is read from `<part>.mitra` beside the model, `use std::…` from Mitra's standard model in the binary; one found nowhere is P010, at the use";
+    ensure files: "a part used and not declared is read from every file of the one folder of the project that declares it, Mitra's standard model the folder `std` in the binary; `from` keeps the paths ending with it, by whole names; one found nowhere is P010, one two folders declare P014, at the use";
     ensure usable: "a proof's text writes only operations that give an opinion: `state(…)` and `&&` on states are no text";
     ensure parts: "a part given twice is one part, merged, and P012 when the kinds differ; `x.f(a)` calls the method `f` of x's part, P013 when it has none";
     ensure deep: "a text nested deeper than `parse::Settings::depth` levels is P011, at the place the parser stopped, never a crash";
     ensure exhaustive: "a match gives each variant of its enum one arm, or `_` for the rest (P006); a value whose type nothing around it tells is P009, never a guess";
 }
 
+// `by` is a keyword of the model: the field `by` is `voice` here.
+// A list of (path, value) pairs: opaque, as a value of the model is
+// not a record of it.
+subject record Ports;
+subject record Ledger at "src/evidence.rs/Ledger" { measurements: [Measurement], reviews: [Review] }
+subject record Measurement at "src/evidence.rs/Measurement" {
+    inputs: Ports, outputs: Ports, seen: bool, count: integer, voice: [~char]
+}
+subject record Review at "src/evidence.rs/Review" { prop: Path, holds: bool, voice: [~char] }
 subject evidence {
     require checked: check::sound;
-    use model::Path;
-    // `by` is a keyword of the model: the field `by` is `voice` here.
-    // A list of (path, value) pairs: opaque, as a value of the model is
-    // not a record of it.
-    record Ports;
-    record Ledger at "src/evidence.rs/Ledger" { measurements: [Measurement], reviews: [Review] }
-    record Measurement at "src/evidence.rs/Measurement" {
-        inputs: Ports, outputs: Ports, seen: bool, count: integer, voice: [~char]
-    }
-    record Review at "src/evidence.rs/Review" { prop: Path, holds: bool, voice: [~char] }
+
     ensure fits: "a ledger evidence accepts measures only tied functions of the model, with every input and an output, and reviews only what a review can name"
         from (checked);
 }
@@ -222,6 +220,7 @@ subject reader {
         from (report);
 }
 
+subject record AgreeSettings at "src/agree.rs/Settings" { points: integer, splits: integer, budget: Budget, length: integer }
 subject agree {
     require checked: check::sound;
     // A value of the world an example of the model gives is read first.
@@ -233,8 +232,7 @@ subject agree {
     require ranges_checked: simulation::ranges_checked;
     // Each limit a setting, none fixed in the code.
     require stops: simulation::budgeted;
-    use simulation::Budget;
-    record AgreeSettings at "src/agree.rs/Settings" { points: integer, splits: integer, budget: Budget, length: integer }
+
     fn agree_defaults() -> s: AgreeSettings at "src/agree.rs/Settings/default" {
         AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 }, length: 3 }
     }
@@ -248,6 +246,8 @@ subject agree {
     ensure ends: "agree ends on every well-formed model: a budget reached, by bounds or at points, is unknown (A007), with the budget it reached" from (stops);
 }
 
+subject record Explanation at "src/explain.rs/Explanation";
+subject record ExplainSettings at "src/explain.rs/Settings" { rounds: integer, cases: integer, rests: integer, budget: Budget }
 subject explain {
     require in_part: simulation::known_in_part;
     require checked: check::sound;
@@ -256,9 +256,7 @@ subject explain {
     require fits: evidence::fits;
     require kernel: judgement::sound;
     require read: reader::nothing_dropped;
-    record Explanation at "src/explain.rs/Explanation";
-    use simulation::Budget;
-    record ExplainSettings at "src/explain.rs/Settings" { rounds: integer, cases: integer, rests: integer, budget: Budget }
+
     fn explain_defaults() -> s: ExplainSettings at "src/explain.rs/Settings/default" {
         ExplainSettings { rounds: 64, cases: 1024, rests: 1024, budget: Budget { steps: 1000000, depth: 1000 } }
     }
@@ -268,9 +266,9 @@ subject explain {
         from (checked, fits, kernel, read, given);
 }
 
+subject record BlameSettings at "src/blame.rs/Settings" { diagnoses: integer, tries: integer }
 subject blame {
     require explained: explain::verdicts;
-    record BlameSettings at "src/blame.rs/Settings" { diagnoses: integer, tries: integer }
     fn blame_defaults() -> s: BlameSettings at "src/blame.rs/Settings/default" {
         BlameSettings { diagnoses: 10, tries: 100000 }
     }
@@ -278,22 +276,20 @@ subject blame {
         from (explained);
 }
 
+// The voices' weights are a map: opaque.
+subject record Voices;
+subject record NumbersSettings at "src/numbers.rs/Settings" {
+    base_rate: rational, prior_weight: rational, checker: rational, voices: Voices
+}
+// An opinion in numbers.
+subject record Belief at "src/numbers.rs/Belief" {
+    belief: rational, disbelief: rational, uncertainty: rational, expected: rational
+}
+// An opinion with its base rate, as multiplication reads it.
+subject record Said at "src/numbers.rs/Said" { b: rational, d: rational, u: rational, a: rational }
 subject numbers {
     require explained: explain::verdicts;
     require near: float::near;
-
-    // The voices' weights are a map: opaque.
-    record Voices;
-    record NumbersSettings at "src/numbers.rs/Settings" {
-        base_rate: rational, prior_weight: rational, checker: rational, voices: Voices
-    }
-
-    // An opinion in numbers.
-    record Belief at "src/numbers.rs/Belief" {
-        belief: rational, disbelief: rational, uncertainty: rational, expected: rational
-    }
-    // An opinion with its base rate, as multiplication reads it.
-    record Said at "src/numbers.rs/Said" { b: rational, d: rational, u: rational, a: rational }
 
     // From a belief and a disbelief, with base rate a: a conflict (more
     // than 1 together) is read in proportion, with no uncertainty.
