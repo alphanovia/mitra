@@ -145,7 +145,7 @@ fn an_opaque_value_outside_its_range_counts_against_it() {
     fn read() -> v: 0..=100 at \"src/sensor.rs/read\";
 }
 subject calc {
-    fn half(x: Int) -> y: Int at \"src/lib.rs/half\" { x / 2 }
+    fn half(x: integer) -> y: integer at \"src/lib.rs/half\" { x / 2 }
 }";
     let (model, e, shown) = run(text, "measure sensor::read () -> 140 by \"test:hot\";");
     assert_eq!(shown.len(), 1, "{shown:?}");
@@ -168,7 +168,7 @@ fn an_opaque_row_outside_its_range_is_not_read_by_its_caller() {
 }
 subject calc {
     use sensor::read;
-    fn twice() -> y: Int at \"src/lib.rs/twice\" { read() * 2 }
+    fn twice() -> y: integer at \"src/lib.rs/twice\" { read() * 2 }
 }";
     let model = parse(text).unwrap();
     assert_eq!(check_model(&model), vec![]);

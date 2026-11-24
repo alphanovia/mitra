@@ -16,23 +16,23 @@ fails when they drift.
 
 ```text
 environment sun {
-    fn light() -> w: Real;                                 // opaque
+    fn light() -> w: rational;                                 // opaque
     ensure shines: "at least 200 W/m² at noon";
 }
 
 subject stone {
     require light: sun::shines;                           // from an ensure
     require air: "still air";                             // in words
-    record Drop at "src/drop.rs/Drop" { h: Real, v: Real } where {
+    record Drop at "src/drop.rs/Drop" { h: rational, v: rational } where {
         claim up: 0.0 <= self.h;
     }
-    fn drop(h: Real) -> v: Real at "lab/tower/stone" where {
+    fn drop(h: rational) -> v: rational at "lab/tower/stone" where {
         claim falls: within(v * v, 2.0 * 9.81 * h, 2.0);
         rule slows: drop::falls, speed::slow |- drop::slow;
         rule lands: drop::slows, drop::falls, speed::slow |- drop::slow
             by ponens(drop::slows, drop::falls, speed::slow);
     }
-    fn speed(h: Real) -> v2: Real { 2.0 * 9.81 * h } where {
+    fn speed(h: rational) -> v2: rational { 2.0 * 9.81 * h } where {
         claim slow: !(h <= 20.0) || v2 < 400.0;
         examples { (5.0) -> 98.1 }
     }
@@ -47,12 +47,12 @@ subject stone {
 | `subject s { … }`, `environment e { … }` | `Part`, `Kind` | flagged (Rust has `mod`) |
 | `require q: sun::shines;` / `require q: "words";` | `Require`, `Source` | flagged |
 | `ensure e: "words" from (a, b) \| (c);` | `Ensure`, its lists | flagged |
-| `record R;` opaque, `record R { x: Real }`, `record R {}` | `Record` | Rust's `struct` form, keyword flagged |
+| `record R;` opaque, `record R { x: rational }`, `record R {}` | `Record` | Rust's `struct` form, keyword flagged |
 | `record Pair<T> { a: T, b: T }`, `enum Light { Red, Amber, Green }`, `enum Option<T> { None, Some(T) }` | `Record.params`, `Enum` | Rust's `struct` and `enum`; `T: Number` flagged |
-| `Option<Int>`, `Pair<Real>` | a type given its parameters | Rust |
+| `Option<integer>`, `Pair<rational>` | a type given its parameters | Rust |
 | `Some(x)`, `None`, `Light::Red`, `Option::Some(x)` | `Op::Variant` | Rust; a variant alone when one enum the part reads has it |
 | `match o { Some(x) => x, None => 0 }`, `_ => …` for the rest | `Op::Match`, one arm per variant | Rust; no guards, no nested patterns, no `\|` in a pattern |
-| `fn f(x: Real) -> y: Real;` opaque, `… { body }` | `Function` | Rust, but the named result is flagged |
+| `fn f(x: rational) -> y: rational;` opaque, `… { body }` | `Function` | Rust, but the named result is flagged |
 | `where { claim …; rule …; examples { … } }` after the signature or body | claims, rules, examples | flagged |
 | `claim c: expression;` | `Claim` | flagged: every naming form reads `name: …` (claim, require, ensure, rule, contract claim); `=` stays for `let x = e`, which binds a value, and for a port `path = value` in a model example row, which gives one |
 | `rule r: p, q \|- c by proof;` | `Rule` | your spelling |
@@ -60,16 +60,16 @@ subject stone {
 | `examples { (6, 2) -> 3, (7, 0) -> 0 }` | `Example` rows | flagged |
 | `at "a/b/c"` after a name, `at "x", "y"` for two | `Tie` | your choice: in the block |
 | `tie a::b at "x";` at the end | a tie to what has no block | flagged |
-| `bool`, `Int`, `Real`, `(Int, bool)`, `(Real,)`, `()`, `R` | `Type` | Rust, but `Int`/`Real` flagged |
-| `[Int]`, `[[Real]]`, `[Option<Int>]` | `Type::Seq`: a sequence, its length its own, never changed | Rust's slice form `[T]`, not `Vec<T>` |
+| `bool`, `integer`, `rational`, `(integer, bool)`, `(rational,)`, `()`, `R` | `Type` | Rust, but `integer`/`rational` flagged (Haskell's `Integer`, `Rational`): built-in primitives lowercase, parts and data types CamelCase; machine types later with Rust's names (`i64`, `u8`, `f64`) |
+| `[integer]`, `[[rational]]`, `[Option<integer>]` | `Type::Seq`: a sequence, its length its own, never changed | Rust's slice form `[T]`, not `Vec<T>` |
 | `[1, 2, 3]`, `[]`, `xs.len()`, `xs[i]`, `xs == ys` | `Op::Seq`, `Len`, `Index`, `Equal` | Rust; `xs[i]` out of range has no value, as Rust's panics |
 | `[~char]`, `char`, `byte` | `Type::Encoded(Char)`: text, an encoded sequence of letters; `Type::Char`, `Type::Byte` | `[~T]` flagged; only `[~char]` today |
 | `"abc"`, `s.len()`, `s[i]`, `s.decoded()` | `Op::Text`, `Len` and `Index` in bytes, `Decoded` | Rust's `str`: length and places in bytes |
 | `a ++ b`, `a.starts_with(b)` | `Op::Join`, `Op::StartsWith`, on two texts or two sequences | `starts_with` Rust's; `++` flagged (Haskell's) |
-| `fn f(a: 0..=9) -> q: 0..=9` | `Function.ranges`: an `Int` that is checked | Rust's range form; as a type Ada's `range 0 .. 9`, flagged |
+| `fn f(a: 0..=9) -> q: 0..=9` | `Function.ranges`: an `integer` that is checked | Rust's range form; as a type Ada's `range 0 .. 9`, flagged |
 | `true`, `3`, `-3`, `9.81`, `1/3` | constants | Rust, but `1/3` flagged |
 | `Location { depth: 2, .. }` in a row | a value known in part (`Value::Partial`) | Rust's struct pattern, used for a value, flagged |
-| `! && \|\| + - * / % < <= == within(a, b, tol)` | the operations | Rust (`within` is a call); `/` on two `Int` rounds toward zero, `%` on `Int` only |
+| `! && \|\| + - * / % < <= == within(a, b, tol)` | the operations | Rust (`within` is a call); `/` on two `integer` rounds toward zero, `%` on `integer` only |
 | `a > b`, `a >= b`, `a != b` | `b < a`, `b <= a`, `!(a == b)` | Rust, read only as that |
 | `if c { a } else { b }`, `else if` | `If` | Rust |
 | `R { x: 1.0, y: 2.0 }`, `(a, b)`, `r.x`, `t.0` | `Make`, `Field` | Rust |
@@ -82,7 +82,7 @@ subject stone {
 | a part used and not declared: read from `<part>.mitra` beside the model | `Part.file` | Rust's `mod` file rule, without `mod` (flagged) |
 | `light(h)`, `sun::light(h)` | `Op::Call("sun::light")` | Rust |
 | `contract Monotone<T: Number> { fn f(x: T) -> y: T; claim rises(a: T, b: T): …; }` | `Contract`, `Law` | Rust's trait, keyword and `Number` flagged |
-| `impl Monotone<Real> for speed;`, `impl Pair<Real> for (f, g);` | `Implements` | Rust's form, `for (f, g)` flagged |
+| `impl Monotone<rational> for speed;`, `impl Pair<rational> for (f, g);` | `Implements` | Rust's form, `for (f, g)` flagged |
 | `examples { (sun::light::w = 850.0, stone::speed::h = 5.0) -> stone::speed::v2 = 98.1 }` at the top | `ModelExample` | flagged |
 | a rule term `all …`, `any …`, `!p`, `correct(f, …)`, `(p)` | `Term::Prop` | flagged |
 | `// …` | nothing: comments are not kept | Rust |
@@ -97,14 +97,14 @@ reader meets a new word. *Elsewhere*: OCaml, Haskell and F# write `let … in`.
 
 **2. A tie in the block of what it ties** (your choice). *What*: `at
 "place"` after the name of a part, record or function. *Example*: `fn
-drop(h: Real) -> v: Real at "lab/tower/stone" where { … }`. *Gain*: you
+drop(h: rational) -> v: rational at "lab/tower/stone" where { … }`. *Gain*: you
 read where a function is next to what it says. *Cost*: a tie to
 something with no block (a claim, a name of nothing) goes at the end,
 `tie a::b at "x";`; and ties come back in the order of the blocks, not
 as written (flagged). *Elsewhere*: Rust's `#[path = "…"]` on a module,
 Java annotations.
 
-**3. A named result, `-> v: Real`** (flagged). *What*: what a function
+**3. A named result, `-> v: rational`** (flagged). *What*: what a function
 gives has a name. *Example*: `claim falls: within(v * v, …)` reads `v`.
 *Gain*: claims read the result by name, as the model needs (`gives:
 (String, Type)`). *Cost*: not Rust, where the result has no name.
@@ -113,7 +113,7 @@ Dafny (`returns (v: real)`).
 
 **4. `where { … }` for what is said of a record or function**
 (flagged). *What*: claims, rules and examples, in a block after the
-signature, or after the body. *Example*: `fn speed(h: Real) -> v2: Real
+signature, or after the body. *Example*: `fn speed(h: rational) -> v2: rational
 { 2.0 * 9.81 * h } where { claim slow: …; }`. *Gain*: the body stays
 what Rust writes, and what is said of it is apart. *Cost*: Rust's
 `where` is for bounds on types, before the body. *Elsewhere*: Haskell's
@@ -142,9 +142,9 @@ whatever the arity; a tuple argument is `((1, 2)) -> 3`. *Cost*: `(5.0)`
 is not a tuple here, unlike everywhere else. *Elsewhere*: test tables
 in Go and pytest's `parametrize` are rows of the same shape.
 
-**8. `Int`, `Real` and `1/3`** (flagged). *What*: core2's numbers are
+**8. `integer`, `rational` and `1/3`** (flagged). *What*: core2's numbers are
 exact, so the types are named for maths, not for machines; `2` is an
-Int and `2.0` a Real, as in Rust. A real no decimal writes is printed
+integer and `2.0` a rational, as in Rust. A real no decimal writes is printed
 `1/3`, no spaces: a constant, not a division (`1.0 / 3.0` is one).
 *Gain*: every number comes back exactly. *Cost*: `1/3` and `1 / 3` mean
 different things. *Elsewhere*: Lisp and Scheme write exact fractions
@@ -172,7 +172,7 @@ store of reviews today: a rule cannot name one until the model has it.
 **11. Calls, uses and contracts** (calls and `use` Rust's). *What*: a
 call names a function whole, `sun::light(h)`, or by its name alone,
 `light(h)`, when the part has it or one `use` reads it; in a contract,
-its own functions by name. `impl C<Real> for f;` says `f` fits `C`; with
+its own functions by name. `impl C<rational> for f;` says `f` fits `C`; with
 several functions, `for (f, g)`, in the contract's order (flagged: Rust
 implements a trait for one type). *Gain*: what Rust writes. *Cost*: a
 name two uses read must be written whole. *Elsewhere*: Rust, Python's
@@ -194,7 +194,7 @@ expression in core2. `a > b` is read as `b < a` and printed so.
 variants, each holding what it lists; `match o { Some(x) => x, None => 0
 }` reads which one, an arm for each variant or `_` for the rest (P006).
 `record Pair<T> { a: T, b: T }` names a type its fields use, given at
-each use: `Pair<Real>`. `None` alone tells no `T`: Mitra reads it from
+each use: `Pair<rational>`. `None` alone tells no `T`: Mitra reads it from
 where it goes, a result, a field, an argument or the other side of `==`,
 and never guesses (P009). *Gain*: a value that may be missing, or one of
 a few cases, is said as Rust says it. *Cost*: no guards, no nested
@@ -206,7 +206,7 @@ holds types in order, `Some(T)`, not named fields `Some(value: T)`; a
 `enum`.
 
 **15. Sequences, `[T]`** (finding 3, step 2; your "ok", 20:24). *What*:
-`[Int]` is a sequence of `Int`, of some length, written `[1, 2, 3]`;
+`[integer]` is a sequence of `integer`, of some length, written `[1, 2, 3]`;
 `xs.len()` is its length, `xs[i]` the value at place `i` from 0, `xs ==
 ys` compares place by place. `xs[i]` below 0 or at its length has no
 value, as division by zero has none (Rust panics). `[]` alone tells no
@@ -243,6 +243,16 @@ ours. *Elsewhere*: Rust's `str` (bytes, `chars()`), Swift's `String`
 (graphemes, `utf8` view), Lean's `String` (a list of `Char`), Dafny's
 `string = seq<char>`.
 
+**17. Lowercase primitives: `integer`, `rational`** (your "go", 10:21).
+*What*: the built-in primitives are lowercase, `bool`, `char`, `byte`,
+`integer` (a whole number of any size, was `Int`) and `rational` (an
+exact fraction, was `Real`); a part or a data type is CamelCase. *Gain*:
+a primitive reads apart from a type of the model, and the names say
+what the numbers are: exact, not a machine's. *Cost*: two words to
+write in full. A real number (`real`) and machine types (`i64`, `u8`,
+`f64`, Rust's names) come later. *Elsewhere*: Haskell's `Integer` and
+`Rational`, Lean's `Int` and `Rat`, Rust's lowercase primitives.
+
 ## Errors
 
 A problem in the text is `error[P…]`, suit `P` of the catalogue
@@ -253,7 +263,7 @@ given. `check` then finds what is wrong with the model read.
 error[P003]: expected `;`, found `}`
  --> sun.mitra:2:27
   |
-2 |     fn light() -> w: Real }
+2 |     fn light() -> w: rational }
   |                           ^
 ```
 

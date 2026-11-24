@@ -713,12 +713,12 @@ fn set(cx: &Cx, s: &Set) -> String {
 
 // ---------------------------------------------------------------- types and values
 
-/// `bool`, `Int`, `Real`, `(A, B)`, or a record's name.
+/// `bool`, `integer`, `rational`, `(A, B)`, or a record's name.
 pub fn type_(t: &Type) -> String {
     match t {
         Type::Truth => "bool".to_string(),
-        Type::Int => "Int".to_string(),
-        Type::Real => "Real".to_string(),
+        Type::Int => "integer".to_string(),
+        Type::Real => "rational".to_string(),
         Type::Record(r) if r.name.is_empty() => {
             let types: Vec<String> = r.fields.iter().map(|(_, t)| type_(t)).collect();
             match types.len() {

@@ -52,7 +52,7 @@ fn agreed(text: &str) -> Vec<String> {
 
 const HALF: &str = "subject calc {
     enum Option<T> { None, Some(T) }
-    fn half(n: 0..=9) -> h: Option<Int> { if n % 2 == 0 { Some(n / 2) } else { None } } where {
+    fn half(n: 0..=9) -> h: Option<integer> { if n % 2 == 0 { Some(n / 2) } else { None } } where {
         claim back: match h { Some(q) => q * 2 == n, None => n % 2 == 1 };
         examples { (4) -> Some(2), (3) -> None }
     }
@@ -134,7 +134,7 @@ fn a_match_gives_each_variant_one_arm() {
 fn variants_are_named_and_given_what_they_hold() {
     let f = |body: &str| {
         refused(&format!(
-            "subject s {{ enum Option<T> {{ None, Some(T) }} enum Shape {{ None, Dot(Real) }} fn f(x: Int) -> y: Option<Int> {{ {body} }} }}"
+            "subject s {{ enum Option<T> {{ None, Some(T) }} enum Shape {{ None, Dot(rational) }} fn f(x: integer) -> y: Option<integer> {{ {body} }} }}"
         ))
     };
     assert!(
@@ -144,7 +144,7 @@ fn variants_are_named_and_given_what_they_hold() {
     );
     assert!(f("Some").contains("error[P007]"), "{}", f("Some"));
     // No such variant: read as a call of a function the model lacks.
-    let text = "subject s { enum Option<T> { None, Some(T) } fn f(x: Int) -> y: Option<Int> { Nothing(x) } }";
+    let text = "subject s { enum Option<T> { None, Some(T) } fn f(x: integer) -> y: Option<integer> { Nothing(x) } }";
     assert!(
         errors(text).iter().any(|e| e.starts_with("error[M")),
         "{:?}",
@@ -155,9 +155,9 @@ fn variants_are_named_and_given_what_they_hold() {
     assert_eq!(f("Option::None"), "parsed");
     assert_eq!(f("Option::Some(x)"), "parsed");
     // `Some(true)` is an `Option<bool>`: check says the body is of another type.
-    let text = "subject s { enum Option<T> { None, Some(T) } fn f(x: Int) -> y: Option<Int> { Some(true) } }";
+    let text = "subject s { enum Option<T> { None, Some(T) } fn f(x: integer) -> y: Option<integer> { Some(true) } }";
     assert!(
-        errors(text)[0].contains("it should be Option<Int>"),
+        errors(text)[0].contains("it should be Option<integer>"),
         "{:?}",
         errors(text)
     );
@@ -167,22 +167,24 @@ fn variants_are_named_and_given_what_they_hold() {
 fn types_are_given_their_arguments() {
     let f = |ty: &str| {
         refused(&format!(
-            "subject s {{ enum Option<T> {{ None, Some(T) }} record N<T: Number> {{ v: T }} fn f(x: {ty}) -> y: Int {{ 0 }} }}"
+            "subject s {{ enum Option<T> {{ None, Some(T) }} record N<T: Number> {{ v: T }} fn f(x: {ty}) -> y: integer {{ 0 }} }}"
         ))
     };
     assert!(f("Option").contains("error[P008]"));
-    assert!(f("Option<Int, Int>").contains("error[P008]"));
+    assert!(f("Option<integer, integer>").contains("error[P008]"));
     assert!(f("N<bool>").contains("error[P008]"), "{}", f("N<bool>"));
-    assert!(f("Int<Int>").contains("error[P008]") || f("Int<Int>").contains("error"));
-    assert_eq!(f("N<Real>"), "parsed");
-    assert_eq!(f("Option<N<Int>>"), "parsed");
+    assert!(
+        f("integer<integer>").contains("error[P008]") || f("integer<integer>").contains("error")
+    );
+    assert_eq!(f("N<rational>"), "parsed");
+    assert_eq!(f("Option<N<integer>>"), "parsed");
 }
 
 #[test]
 fn the_type_of_none_is_told_from_where_it_goes() {
     let f = |body: &str| {
         refused(&format!(
-            "subject s {{ enum Option<T> {{ None, Some(T) }} fn g(o: Option<Int>) -> b: bool {{ true }} fn f(x: Int) -> y: bool {{ {body} }} }}"
+            "subject s {{ enum Option<T> {{ None, Some(T) }} fn g(o: Option<integer>) -> b: bool {{ true }} fn f(x: integer) -> y: bool {{ {body} }} }}"
         ))
     };
     assert!(f("None == None").contains("error[P009]: the type of `None` cannot be told here"));
@@ -194,7 +196,7 @@ fn the_type_of_none_is_told_from_where_it_goes() {
     // A generic record told by its fields, or not.
     let r = |body: &str| {
         refused(&format!(
-            "subject s {{ enum Option<T> {{ None, Some(T) }} record Box<T> {{ v: Option<T> }} fn f(x: Int) -> y: bool {{ {body} }} }}"
+            "subject s {{ enum Option<T> {{ None, Some(T) }} record Box<T> {{ v: Option<T> }} fn f(x: integer) -> y: bool {{ {body} }} }}"
         ))
     };
     assert!(r("Box { v: None } == Box { v: None }").contains("error[P009]"));
@@ -206,9 +208,9 @@ fn declarations_no_value_fits_are_m027() {
     let out = errors(
         "subject d {
     enum Never {}
-    record Box<T> { n: Int }
-    enum Tree { Leaf, Node(Tree, Int, Tree) }
-    fn f(t: Tree, b: Box<Int>) -> e: Int { 0 }
+    record Box<T> { n: integer }
+    enum Tree { Leaf, Node(Tree, integer, Tree) }
+    fn f(t: Tree, b: Box<integer>) -> e: integer { 0 }
 }",
     );
     assert_eq!(out.len(), 3, "{out:?}");
@@ -221,7 +223,7 @@ fn a_model_reads_back_as_printed() {
     enum Option<T> { None, Some(T) }
     enum Light { Red, Amber, Green }
     record Pair<T> { a: T, b: T }
-    fn f(p: Pair<Int>, l: Light) -> o: Option<Int> {
+    fn f(p: Pair<integer>, l: Light) -> o: Option<integer> {
         match l { Red => None, Amber => Some(p.a), _ => Some(p.b) }
     } where {
         claim c: match o { Some(v) => v == p.a || v == p.b, None => l == Light::Red };
@@ -243,7 +245,7 @@ fn a_model_reads_back_as_printed() {
 fn a_measured_variant_is_evidence() {
     let text = "subject calc {
     enum Option<T> { None, Some(T) }
-    fn half(n: 0..=9) -> h: Option<Int> at \"src/lib.rs/half\" { if n % 2 == 0 { Some(n / 2) } else { None } }
+    fn half(n: 0..=9) -> h: Option<integer> at \"src/lib.rs/half\" { if n % 2 == 0 { Some(n / 2) } else { None } }
 }";
     let model = parse(text).unwrap();
     assert_eq!(check(&model), vec![]);

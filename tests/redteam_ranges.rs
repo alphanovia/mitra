@@ -60,7 +60,7 @@ proptest! {
         ra in range(), rb in range(), rq in prop::option::of(range()),
         body in term(), c in term(), k in small(), op in 0..3usize,
     ) {
-        let gives = rq.map_or("Int".to_string(), shown);
+        let gives = rq.map_or("integer".to_string(), shown);
         let cmp = ["<", "<=", "=="][op];
         let text = format!(
             "subject s {{\n    fn f(a: {}, b: {}) -> q: {gives} {{ {body} }} where {{ claim c: {c} {cmp} q + {k}; }}\n}}\n",
@@ -118,7 +118,7 @@ proptest! {
         xl in -6i64..6, xw in 0i64..6, open in 0..4usize,
     ) {
         let body = body.replace('b', "a");
-        let gives = rq.map_or("Int".to_string(), shown);
+        let gives = rq.map_or("integer".to_string(), shown);
         let text = format!("subject s {{\n    fn f(a: {}) -> q: {gives} {{ {body} }}\n}}\n", shown(ra));
         let Ok(model) = parse(&text) else { return Ok(()) };
         let library = Arc::new(calls(&model).unwrap());
@@ -167,8 +167,8 @@ fn main_s_div_in_full() {
 #[test]
 fn a_caller_outside_the_range_has_no_value_and_agree_says_where() {
     let text = "subject calc {
-    fn digit(a: 0..=9) -> q: Int { a }
-    fn next(x: Int) -> y: Int { digit(x + 1) } where {
+    fn digit(a: 0..=9) -> q: integer { a }
+    fn next(x: integer) -> y: integer { digit(x + 1) } where {
         claim c: y == x + 1;
     }
 }";
@@ -183,7 +183,7 @@ fn a_caller_outside_the_range_has_no_value_and_agree_says_where() {
     // Inside its range, by bounds alone: a claim bounds decide holds, the
     // call never out of range.
     let inside = text
-        .replace("fn next(x: Int)", "fn next(x: 0..=8)")
+        .replace("fn next(x: integer)", "fn next(x: 0..=8)")
         .replace("claim c: y == x + 1;", "claim c: 1 <= y && y <= 9;");
     let (agreed, _) = agree(
         &parse(&inside).unwrap(),
@@ -213,7 +213,7 @@ fn a_caller_outside_the_range_has_no_value_and_agree_says_where() {
 #[test]
 fn a_conclusion_read_first_must_not_fault_anywhere() {
     let text = "subject s {
-    fn f(x: Real) -> y: Real { 1.0 / x } where {
+    fn f(x: rational) -> y: rational { 1.0 / x } where {
         claim first: !(1.0 <= x) || y <= 1.0;
         claim last: y <= 1.0 || !(1.0 <= x);
         claim never: y <= 1.0 || !(1.0 <= x && x <= 0.0);

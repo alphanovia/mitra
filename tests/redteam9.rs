@@ -120,13 +120,13 @@ subject s {
 fn d3_a_function_of_nothing_is_tried_at_its_one_point() {
     let text = r#"
 subject s {
-    fn light() -> w: Real where {
+    fn light() -> w: rational where {
         examples { () -> -5.0 }
     }
-    fn g() -> y: Real { light() } where {
+    fn g() -> y: rational { light() } where {
         claim pos: 0.0 < y;
     }
-    fn z() -> y: Real { 1.0 / 0.0 } where {
+    fn z() -> y: rational { 1.0 / 0.0 } where {
         claim pos: 0.0 < y;
     }
 }
@@ -142,7 +142,7 @@ subject s {
 fn d4_one_claim_no_value_keeps_is_found() {
     let text = r#"
 subject s {
-    fn drop(h: Real) -> v: Real where {
+    fn drop(h: rational) -> v: rational where {
         claim never: 1.0 < 0.0;
     }
 }
@@ -164,8 +164,8 @@ contract Bad<T: Number> {
     claim never(a: T, b: T): a < b && b < a;
 }
 subject s {
-    impl Bad<Real> for ();
-    impl Bad<Real> for ();
+    impl Bad<rational> for ();
+    impl Bad<rational> for ();
 }
 "#;
     let parsed = parse(text).unwrap();
@@ -191,7 +191,7 @@ subject s {
 fn d6_an_example_of_the_model_states_an_output() {
     let text = r#"
 subject stone {
-    fn speed(h: Real) -> v2: Real { 2.0 * h }
+    fn speed(h: rational) -> v2: rational { 2.0 * h }
 }
 examples {
     (stone::speed::h = 5.0) -> ()
@@ -234,12 +234,12 @@ fn d7_every_comparison_of_the_table_is_counted() {
 fn d8_a_record_named_by_an_impl_is_used() {
     let text = r#"
 contract C<T> {
-    fn f(x: Real) -> y: Real;
+    fn f(x: rational) -> y: rational;
     claim c(a: T, b: T): a == b || f(1.0) <= f(2.0);
 }
-environment sun { record Ray { w: Real } }
+environment sun { record Ray { w: rational } }
 subject stone {
-    fn up(x: Real) -> y: Real { x + 1.0 }
+    fn up(x: rational) -> y: rational { x + 1.0 }
     impl C<Ray> for up;
 }
 "#;
@@ -256,7 +256,7 @@ subject stone {
 fn n1_a_use_names_something_once() {
     for u in ["use sun::{};", "use sun::{light, light};"] {
         let text = format!(
-            "environment sun {{ fn light() -> w: Real; }}\nsubject stone {{ {u} fn f(h: Real) -> v: Real {{ h }} }}"
+            "environment sun {{ fn light() -> w: rational; }}\nsubject stone {{ {u} fn f(h: rational) -> v: rational {{ h }} }}"
         );
         let errors = check(&parse(&text).unwrap());
         assert!(!errors.is_empty(), "{u} accepted");
@@ -350,7 +350,7 @@ fn n3_no_value_of_an_opaque_record_is_measured() {
     let text = r#"
 subject s {
     record Key;
-    fn mk(n: Int) -> k: Key at "src/lib.rs/mk";
+    fn mk(n: integer) -> k: Key at "src/lib.rs/mk";
 }
 "#;
     let model = model(text);
@@ -372,8 +372,8 @@ subject s {
     assert!(!evidence::check(&model, &ledger).is_empty());
     // The same value as an example of the model is refused.
     let example = text.replace(
-        "fn mk(n: Int) -> k: Key at \"src/lib.rs/mk\";",
-        "fn mk(n: Int) -> k: Key at \"src/lib.rs/mk\" where { examples { (1) -> Key {} } }",
+        "fn mk(n: integer) -> k: Key at \"src/lib.rs/mk\";",
+        "fn mk(n: integer) -> k: Key at \"src/lib.rs/mk\" where { examples { (1) -> Key {} } }",
     );
     let errors: Vec<String> = check(&parse(&example).unwrap())
         .iter()
@@ -409,8 +409,8 @@ fn after_an_opaque_record_through_a_call_is_not_one_value() {
     let text = r#"
 subject s {
     record Key;
-    fn mk(n: Int) -> k: Key;
-    fn g(n: Int) -> r: bool { mk(n) == mk(n + 1) } where {
+    fn mk(n: integer) -> k: Key;
+    fn g(n: integer) -> r: bool { mk(n) == mk(n + 1) } where {
         claim c: r;
     }
 }
@@ -425,7 +425,7 @@ subject s {
 fn after_a_point_of_nothing_prints() {
     let text = r#"
 subject s {
-    fn z() -> y: Real { 1.0 / 0.0 } where {
+    fn z() -> y: rational { 1.0 / 0.0 } where {
         claim pos: 0.0 < y;
     }
 }
@@ -484,10 +484,10 @@ contract Monotone<T: Number> {
     claim rises(a: T, b: T): !(a <= b) || f(a) <= f(b);
 }
 subject s {
-    fn g(x: Real) -> y: Real { if x < 7.5 { x } else { 0.0 } }
-    impl Monotone<Real> for g;
-    fn inv(x: Real) -> y: Real { 1.0 / x }
-    impl Monotone<Real> for inv;
+    fn g(x: rational) -> y: rational { if x < 7.5 { x } else { 0.0 } }
+    impl Monotone<rational> for g;
+    fn inv(x: rational) -> y: rational { 1.0 / x }
+    impl Monotone<rational> for inv;
 }
 "#;
     let (_, findings) = agreed(text);
@@ -511,15 +511,15 @@ subject s {
 fn after_an_input_nothing_reads_is_said() {
     let text = r#"
 environment sun {
-    fn light() -> w: Real where {
+    fn light() -> w: rational where {
         examples { () -> 850.0 }
     }
 }
 subject stone {
     use sun::light;
-    fn speed(h: Real) -> v: Real { h * light() }
-    fn half(h: Real) -> v: Real { speed(5.0) / 2.0 }
-    fn other(h: Real) -> v: Real { h }
+    fn speed(h: rational) -> v: rational { h * light() }
+    fn half(h: rational) -> v: rational { speed(5.0) / 2.0 }
+    fn other(h: rational) -> v: rational { h }
 }
 examples {
     (sun::light::w = 900.0, stone::half::h = 1.0, stone::speed::h = 1.0, stone::other::h = 2.0) -> stone::half::v = 2250.0
@@ -550,12 +550,12 @@ examples {
 #[test]
 fn after_an_ambiguous_call_says_which() {
     let text = r#"
-environment sun { fn light() -> w: Real; }
-environment moon { fn light() -> w: Real; }
+environment sun { fn light() -> w: rational; }
+environment moon { fn light() -> w: rational; }
 subject stone {
     use sun::*;
     use moon::*;
-    fn speed(h: Real) -> v: Real { h * light() }
+    fn speed(h: rational) -> v: rational { h * light() }
 }
 "#;
     let errors: Vec<String> = check(&parse(text).unwrap())
@@ -638,7 +638,7 @@ fn c1_a_chain_through_if_doubles_at_each_level() {
                 ),
             };
             out.push(format!(
-                "fn f{i}(x: Real, y: Real) -> r: Real {{ {body} }} where {{ \
+                "fn f{i}(x: rational, y: rational) -> r: rational {{ {body} }} where {{ \
                  claim a: !(0.0 <= x) || !(0.0 <= y) || 0.0 <= r; \
                  claim b: !(x == 0.0 && y == 0.0) || r <= 1000000.0; \
                  claim c: r == r; }}"
@@ -670,7 +670,7 @@ fn c1_a_chain_through_if_doubles_at_each_level() {
 fn held_a_guarded_division_and_a_failure_with_no_value() {
     let text = r#"
 subject s {
-    fn inv(x: Real) -> y: Real { 1.0 / x } where {
+    fn inv(x: rational) -> y: rational { 1.0 / x } where {
         claim back: x == 0.0 || x * y == 1.0;
         claim pos: !(0.0 < x) || 0.0 < y;
         claim never: !(x == 0.0) || 0.0 < y;

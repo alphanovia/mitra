@@ -20,20 +20,20 @@ a proposal, with paths shortened inside a part. A rule is written
 
 ```text
 environment sun {
-    fn light() -> w: Real;                            // opaque: how is not known
+    fn light() -> w: rational;                            // opaque: how is not known
     ensure shines: "at least 200 W/m² at noon";      // only a taking holds it
 }
 subject stone {
     require light: sun::shines;                      // the sun's ensure gives it
     require air: "still air";                        // a hypothesis
-    fn drop(h: Real) -> v: Real {                     // opaque: nature does it
+    fn drop(h: rational) -> v: rational {                     // opaque: nature does it
         claim falls: within(v * v, 2 * 9.81 * h, 2);
         claim slow: !(h <= 20) || v < 21;
         rule slows: drop::falls, speed::slow |- drop::slow;                // assumed
         rule lands: drop::slows, drop::falls, speed::slow |- drop::slow    // a rule as premise
             by ponens(drop::slows, drop::falls, speed::slow);              // shown: the checker takes it
     }
-    fn speed(h: Real) -> v2: Real = 2 * 9.81 * h {    // total: it has a body
+    fn speed(h: rational) -> v2: rational = 2 * 9.81 * h {    // total: it has a body
         claim slow: !(h <= 20) || v2 < 400;
         examples { 5.0 -> 98.1 }                      // what it gives at 5 m
     }
@@ -72,7 +72,7 @@ enum Use { Names { part, names: Vec<String> } /* use sun::{light, Ray}; */, Glob
 struct Contract { name, params: Vec<(String, Bound)> /* T, T: Number */, functions: Vec<Signature>, claims: Vec<Law> }
 struct Signature { name, takes: Vec<(String, Type)>, gives: (String, Type) }
 struct Law { name, over: Vec<(String, Type)>, holds: Expression<simulation::Op> }   // true at every value of `over`
-struct Implements { contract, types: Vec<Type>, functions: Vec<String> }            // impl Monotone<Real> for speed;
+struct Implements { contract, types: Vec<Type>, functions: Vec<String> }            // impl Monotone<rational> for speed;
 struct ModelExample { inputs: Vec<(Path, Value)>, outputs: Vec<(Path, Value)> }    // stone::speed::h = 5.0 -> stone::speed::v2 = 98.1
 struct Record { name, params: Vec<(String, Bound)> /* Pair<T> */, fields: Option<Vec<(String, Type)>> /* None: opaque */, claims, rules }
 struct Enum { name, params: Vec<(String, Bound)>, variants: Vec<(String, Vec<Type>)> }   // enum Option<T> { None, Some(T) }
@@ -392,10 +392,10 @@ fits it.** As a Rust trait with a bound: `contract Monotone<T: Number> {
 fn f(x: T) -> y: T; claim rises(a: T, b: T): !(a <= b) || f(a) <= f(b);
 }`. The contract is checked once, with `T` named but not fixed: its types,
 and that each claim is a truth calling only the contract's functions
-(`Monotone::f`). `impl Monotone<Real> for speed;` only checks that `speed`
-fits: `Real` is a number, and `speed` takes and gives a `Real`. The claim
+(`Monotone::f`). `impl Monotone<rational> for speed;` only checks that `speed`
+fits: `rational` is a number, and `speed` takes and gives a `rational`. The claim
 then becomes one about `speed`, `stone::speed::Monotone::rises`, read with
-`speed` for `f` and `Real` for `T`, which agree checks like any claim.
+`speed` for `f` and `rational` for `T`, which agree checks like any claim.
 Explain does not read it yet: measurements of `speed` leave it
 unsupported, with no finding (a finding for you). An impl names one
 function at least (M020, flagged).

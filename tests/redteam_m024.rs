@@ -38,12 +38,12 @@ fn model(text: &str) -> Model {
 fn held_equal_values_written_differently_are_one_value() {
     let same = r#"
 subject s {
-    record P { x: Real, y: Real }
-    fn f(h: Real) -> a: Real where { examples { (0.5) -> 1/4, (1/2) -> 0.25 } }
-    fn g(p: P) -> a: Real where {
+    record P { x: rational, y: rational }
+    fn f(h: rational) -> a: rational where { examples { (0.5) -> 1/4, (1/2) -> 0.25 } }
+    fn g(p: P) -> a: rational where {
         examples { (P { x: 1.0, y: 2.0 }) -> 3.0, (P { y: 2.0, x: 1.0 }) -> 3.0 }
     }
-    fn k(h: Real) -> a: Real where { examples { (-0.0) -> 1.0, (0.0) -> 1.0 } }
+    fn k(h: rational) -> a: rational where { examples { (-0.0) -> 1.0, (0.0) -> 1.0 } }
 }
 "#;
     assert_eq!(codes(same), Vec::<String>::new());
@@ -62,7 +62,7 @@ subject s {
 #[test]
 fn held_int_against_real_is_m015_only() {
     let text = r#"
-subject s { fn f(h: Real) -> a: Real where { examples { (2.0) -> 4.0, (2.0) -> 4 } } }
+subject s { fn f(h: rational) -> a: rational where { examples { (2.0) -> 4.0, (2.0) -> 4 } } }
 "#;
     assert_eq!(codes(text), ["M015 at s::f"]);
 }
@@ -92,7 +92,7 @@ fn held_check_accepts_exactly_what_the_library_takes() {
         }
         let body = if round % 2 == 0 { "" } else { "{ a }" };
         let text = format!(
-            "subject s {{ fn f(a: Int, b: Real) -> q: Int {body} where {{ examples {{ {} }} }} }}",
+            "subject s {{ fn f(a: integer, b: rational) -> q: integer {body} where {{ examples {{ {} }} }} }}",
             rows.join(", ")
         );
         let Ok(m) = parse(&text) else { continue };
@@ -111,10 +111,10 @@ fn held_check_accepts_exactly_what_the_library_takes() {
 #[test]
 fn held_a_model_example_against_the_functions_own_example() {
     let text = r#"
-environment sun { fn light() -> w: Real where { examples { () -> 3.0 } } }
+environment sun { fn light() -> w: rational where { examples { () -> 3.0 } } }
 subject stone {
     use sun::light;
-    fn speed(h: Real) -> v2: Real { 2.0 * h * light() }
+    fn speed(h: rational) -> v2: rational { 2.0 * h * light() }
 }
 examples { (sun::light::w = 2.0, stone::speed::h = 5.0) -> stone::speed::v2 = 20.0 }
 "#;
@@ -209,6 +209,6 @@ fn held_given_is_type_checked() {
     let got = eval(&Exact { calls }, &BTreeMap::new(), &e);
     assert!(
         !matches!(got, Ok(Value::Truth(_))),
-        "an Int function gave {got:?}"
+        "an integer function gave {got:?}"
     );
 }

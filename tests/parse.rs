@@ -246,7 +246,7 @@ fn div_reads_checks_and_comes_back() {
 #[test]
 fn the_fall_prints_as_written() {
     let expected = r#"environment sun {
-    fn light() -> w: Real;
+    fn light() -> w: rational;
 
     ensure shines: "at least 200 W/m² at noon";
 }
@@ -255,7 +255,7 @@ subject stone {
     require light: sun::shines;
     require air: "still air";
 
-    fn drop(h: Real) -> v: Real at "lab/tower/stone" where {
+    fn drop(h: rational) -> v: rational at "lab/tower/stone" where {
         claim falls: within(v * v, 2.0 * 9.81 * h, 2.0);
         claim slow: !(h <= 20.0) || v < 21.0;
         rule slows: drop::falls, speed::slow |- drop::slow;
@@ -263,7 +263,7 @@ subject stone {
             by ponens(drop::slows, drop::falls, speed::slow);
     }
 
-    fn speed(h: Real) -> v2: Real { 2.0 * 9.81 * h } where {
+    fn speed(h: rational) -> v2: rational { 2.0 * 9.81 * h } where {
         claim slow: !(h <= 20.0) || v2 < 400.0;
         examples { (5.0) -> 98.1 }
     }
@@ -294,8 +294,8 @@ environment lab at "lab", "lab/annex" {
     record Beam where {
         claim lit: true;
     }
-    fn clock() -> t: Int;
-    fn shine(t: Int) -> w: Real;
+    fn clock() -> t: integer;
+    fn shine(t: integer) -> w: rational;
     ensure lit: "the lamp is on" from ();
 }
 
@@ -305,12 +305,12 @@ subject geo at "src/geo.rs" {
     use lab::shine;
     require lamp: lab::lit;
     require geo: "a require named as its part";
-    record Point at "src/geo.rs/Point" { x: Real, y: Real } where {
+    record Point at "src/geo.rs/Point" { x: rational, y: rational } where {
         claim right: 0.0 <= self.x && self.y >= -1/3;
         rule upper: Point::right, { self.x < 10.0 } |- Point::right;
     }
     record Empty {}
-    record Pair { p: Point, n: (Int, bool) }
+    record Pair { p: Point, n: (integer, bool) }
     fn flip(p: Point) -> q: Point { Point { y: p.x, x: p.y } } where {
         claim back: q.x == p.y && q.y != p.x;
         claim pair: (p.x, 1, true).0 == p.x;
@@ -342,18 +342,18 @@ subject geo at "src/geo.rs" {
             (Point { x: 0.0, y: 0.0 }) -> Point { x: 0.0, y: 0.0 },
         }
     }
-    fn pair(a: Int, b: (Int, bool)) -> c: Pair;
-    fn constant() -> c: (Real,) { (1.5,) }
-    fn later(d: Int) -> t: Int { clock() + d } where {
+    fn pair(a: integer, b: (integer, bool)) -> c: Pair;
+    fn constant() -> c: (rational,) { (1.5,) }
+    fn later(d: integer) -> t: integer { clock() + d } where {
         claim after: t == lab::clock() + d && shine(t) <= shine(t + 1) && (later(d), 1).0 == t;
         rule everywhere: later::after |- all x in (d: 0..3): correct(later, x);
         rule here: (later::after), !later::after, ({later::after} later {later::after}) |- correct(later, (1));
         rule any_: later::after |- any x in (d: 0..3) where d != 1: !correct(crate::lab::clock, x);
     }
-    fn rise(h: Real) -> v: Real { geo::rise2(h) * 2.0 }
-    fn rise2(h: Real) -> v: Real { h }
-    impl Monotone<Real> for rise;
-    impl Same<Int, Real> for (later, rise);
+    fn rise(h: rational) -> v: rational { geo::rise2(h) * 2.0 }
+    fn rise2(h: rational) -> v: rational { h }
+    impl Monotone<rational> for rise;
+    impl Same<integer, rational> for (later, rise);
     ensure ok: "flip flips" from (flip::back, flip::pair) | (lamp) | (crate::geo);
 }
 
@@ -606,7 +606,7 @@ fn intro_binds_its_point() {
 #[test]
 fn sugar_reads_as_rust_writes_it() {
     // `a > b` is `b < a`, `a >= b` is `b <= a`, `a != b` is `!(a == b)`.
-    let m = read("subject s { fn f(a: Int, b: Int) -> c: bool where { claim g: a > b && a >= b && a != b; } }");
+    let m = read("subject s { fn f(a: integer, b: integer) -> c: bool where { claim g: a > b && a >= b && a != b; } }");
     let holds = &m.parts[0].functions[0].claims[0].holds;
     let (a, b) = (
         Expression::Name("a".to_string()),
@@ -688,18 +688,19 @@ fn fails(text: &str) -> (String, usize, usize, String) {
 
 #[test]
 fn errors_say_where() {
-    let (code, line, column, message) = fails("environment sun {\n    fn light() -> w: Real }\n");
-    assert_eq!((code.as_str(), line, column), ("P003", 2, 27));
+    let (code, line, column, message) =
+        fails("environment sun {\n    fn light() -> w: rational }\n");
+    assert_eq!((code.as_str(), line, column), ("P003", 2, 31));
     assert_eq!(message, "expected `;`, found `}`");
-    let text = "environment sun {\n    fn light() -> w: Real }\n";
+    let text = "environment sun {\n    fn light() -> w: rational }\n";
     let e = parse(text).unwrap_err();
     assert_eq!(
         e.render("sun.mitra", text),
-        "error[P003]: expected `;`, found `}`\n --> sun.mitra:2:27\n  |\n2 |     fn light() -> w: Real }\n  |                           ^\n"
+        "error[P003]: expected `;`, found `}`\n --> sun.mitra:2:31\n  |\n2 |     fn light() -> w: rational }\n  |                               ^\n"
     );
     assert_eq!(
         e.to_string(),
-        "error[P003]: expected `;`, found `}`\n --> 2:27"
+        "error[P003]: expected `;`, found `}`\n --> 2:31"
     );
     assert_eq!(fails("subject s { # }").0, P001.to_string());
     assert_eq!(
@@ -707,19 +708,19 @@ fn errors_say_where() {
         P002.to_string()
     );
     assert_eq!(
-        fails("subject s { fn f(x: Int) -> y: Int where { claim c: (x, zz).0 == x; } }").0,
+        fails("subject s { fn f(x: integer) -> y: integer where { claim c: (x, zz).0 == x; } }").0,
         P004.to_string()
     );
     assert_eq!(
-        fails("subject s { fn f() -> y: Real { 1/0 } }").0,
+        fails("subject s { fn f() -> y: rational { 1/0 } }").0,
         P005.to_string()
     );
     assert_eq!(
-        fails("subject s { fn f(x: Int) -> y: Int where { claim c: -x == 0; } }").0,
+        fails("subject s { fn f(x: integer) -> y: integer where { claim c: -x == 0; } }").0,
         P003.to_string()
     );
     assert_eq!(
-        fails("subject s { fn f(x: Int) -> y: Int where { claim c: x < 1 < 2; } }").0,
+        fails("subject s { fn f(x: integer) -> y: integer where { claim c: x < 1 < 2; } }").0,
         P003.to_string()
     );
     assert_eq!(
@@ -736,8 +737,8 @@ fn names_take_a_colon() {
     for text in [
         "subject s { require a = \"open\"; }",
         "subject s { ensure e = \"open\"; }",
-        "subject s { record R { x: Int } where { claim c = true; } }",
-        "subject s { fn f(x: Int) -> y: Int { x } where { claim c = true; } }",
+        "subject s { record R { x: integer } where { claim c = true; } }",
+        "subject s { fn f(x: integer) -> y: integer { x } where { claim c = true; } }",
         "contract C<T> { fn f(x: T) -> y: T; claim c(a: T) = f(a) == f(a); }",
     ] {
         let (code, _, _, message) = fails(text);
@@ -759,7 +760,7 @@ fn a_proof_writes_no_state() {
     // proof could give an opinion through them, so the text has neither,
     // and no hint speaks of them.
     let rule = |by: &str| {
-        format!("subject s {{ fn f(x: Int) -> y: bool {{ x < 3 }} where {{ claim c: y; rule r: s::f::c |- s::f::c by {by}; }} }}")
+        format!("subject s {{ fn f(x: integer) -> y: bool {{ x < 3 }} where {{ claim c: y; rule r: s::f::c |- s::f::c by {by}; }} }}")
     };
     let (code, _, _, message) = fails(&rule("state(s::f::c)"));
     assert_eq!(

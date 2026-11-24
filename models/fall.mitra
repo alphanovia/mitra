@@ -4,7 +4,7 @@
 
 environment sun {
     // How the sun gives light is not known: the function is opaque.
-    fn light() -> w: Real;
+    fn light() -> w: rational;
 
     // No list: only someone taking it holds it.
     ensure shines: "at least 200 W/m² at noon";
@@ -17,7 +17,7 @@ subject stone {
 
     // How the stone falls: nature does it, how is not known. Tied to
     // the drop in the tower.
-    fn drop(h: Real) -> v: Real at "lab/tower/stone" where {
+    fn drop(h: rational) -> v: rational at "lab/tower/stone" where {
         // v² = 2·g·h, within 2 m²/s².
         claim falls: within(v * v, 2.0 * 9.81 * h, 2.0);
         // From 20 m or less, under 21 m/s.
@@ -30,7 +30,7 @@ subject stone {
     }
 
     // The model's own square of the speed: it has a body.
-    fn speed(h: Real) -> v2: Real { 2.0 * 9.81 * h } where {
+    fn speed(h: rational) -> v2: rational { 2.0 * 9.81 * h } where {
         claim slow: !(h <= 20.0) || v2 < 400.0;
         // What it gives at 5 m: 2 · 9.81 · 5.
         examples { (5.0) -> 98.1 }

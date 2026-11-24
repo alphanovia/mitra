@@ -16,7 +16,7 @@ fn model(text: &str) -> Model {
 
 const DIV: &str = r#"
 subject calc {
-    fn div(a: Int, b: Int) -> q: Int where {
+    fn div(a: integer, b: integer) -> q: integer where {
         claim spec: if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
         claim bounded: b == 0 || q <= a;
         examples { (6, 2) -> 3, (7, 2) -> 3, (9, 3) -> 3, (5, 0) -> 0 }
@@ -26,14 +26,14 @@ subject calc {
 
 const FALL: &str = r#"
 environment sun {
-    fn light() -> w: Real;
+    fn light() -> w: rational;
 }
 subject stone {
     use sun::light;
-    fn speed(h: Real) -> v2: Real { 2.0 * 9.81 * h * light() } where {
+    fn speed(h: rational) -> v2: rational { 2.0 * 9.81 * h * light() } where {
         claim slow: !(h <= 20.0) || v2 < 400.0;
     }
-    fn square(h: Real) -> s: Real { h * h } where {
+    fn square(h: rational) -> s: rational { h * h } where {
         claim small: !(h <= 20.0) || !(0.0 <= h) || s <= 400.0;
         examples { (5.0) -> 25.0 }
     }
@@ -128,7 +128,7 @@ fn each_finding_is_given() {
         (
             changed(
                 "    fn lit(",
-                "    impl Monotone<Real> for square;\n    fn lit(",
+                "    impl Monotone<rational> for square;\n    fn lit(",
             ),
             "A005 at stone::square::Monotone::rises",
         ),
@@ -159,8 +159,8 @@ fn each_finding_is_given() {
     // A hint: what holds given an environment's claim.
     let text = FALL
         .replace(
-            "fn light() -> w: Real;",
-            "fn light() -> w: Real where { claim bright: 0.0 <= w; }",
+            "fn light() -> w: rational;",
+            "fn light() -> w: rational where { claim bright: 0.0 <= w; }",
         )
         .replace(
             "claim slow: !(h <= 20.0) || v2 < 400.0;",

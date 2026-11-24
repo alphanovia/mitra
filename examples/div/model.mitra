@@ -4,7 +4,7 @@
 subject calc {
     require inputs: "a and b are whole numbers from 0 to 9";
 
-    fn div(a: Int, b: Int) -> q: Int where {
+    fn div(a: integer, b: integer) -> q: integer where {
         // a / b rounded down, for a and b from 0; and 0 when b is 0.
         claim spec: if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
         claim bounded: b == 0 || q <= a;

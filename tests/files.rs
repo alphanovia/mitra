@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 
 const OVER: &str = "subject calc {
     use std::core::Option;
-    fn over(x: Real, y: Real) -> z: Option<Real> {
+    fn over(x: rational, y: rational) -> z: Option<rational> {
         if y == 0.0 { None } else { Some(x / y) }
     }
 }";
@@ -74,12 +74,12 @@ fn std_has_only_its_parts() {
 fn a_part_is_read_from_its_file() {
     let model = "subject calc {
     use geometry::Point;
-    fn mid(p: Point) -> m: Real { (p.x + p.y) / 2.0 }
+    fn mid(p: Point) -> m: rational { (p.x + p.y) / 2.0 }
 }";
     let geometry = "subject geometry {
     use std::core::Option;
-    record Point { x: Real, y: Real }
-    fn first(p: Point) -> o: Option<Real> { Some(p.x) }
+    record Point { x: rational, y: rational }
+    fn first(p: Point) -> o: Option<rational> { Some(p.x) }
 }";
     let m = folder(model, &[("geometry.mitra", geometry)]).unwrap();
     assert_eq!(check(&m), vec![]);
@@ -130,8 +130,8 @@ fn a_part_is_read_from_its_file() {
 
 #[test]
 fn files_that_use_each_other_are_read_once() {
-    let a = "subject a { use b::g; fn f(x: Int) -> y: Int { g(x) } }";
-    let b = "subject b { use a::f; fn g(x: Int) -> y: Int { x } fn h(x: Int) -> y: Int { f(x) } }";
+    let a = "subject a { use b::g; fn f(x: integer) -> y: integer { g(x) } }";
+    let b = "subject b { use a::f; fn g(x: integer) -> y: integer { x } fn h(x: integer) -> y: integer { f(x) } }";
     let m = folder(a, &[("b.mitra", b)]).unwrap();
     assert_eq!(m.parts.len(), 2);
 }
@@ -148,11 +148,11 @@ fn a_part_from_another_file_is_printed_there() {
 /// Mitra's standard model by three, `use std::core::Option;`.
 #[test]
 fn a_part_named_std_stays_the_model_s() {
-    let text = "environment std { fn clock() -> t: Int; }
+    let text = "environment std { fn clock() -> t: integer; }
 subject s {
     use std::clock;
     use std::core::Option;
-    fn f(x: Int) -> y: Option<Int> { Some(clock() + x) }
+    fn f(x: integer) -> y: Option<integer> { Some(clock() + x) }
 }";
     let m = parse(text).unwrap();
     assert_eq!(check(&m), vec![]);

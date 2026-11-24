@@ -115,29 +115,32 @@ fn errors(text: &str) -> Vec<String> {
 fn whole_numbers_divide_and_types_stay_apart() {
     // Main's first example, in full.
     let div = "subject calc {
-    fn div(a: Int, b: Int) -> q: Int { if b == 0 { 0 } else { a / b } }
+    fn div(a: integer, b: integer) -> q: integer { if b == 0 { 0 } else { a / b } }
 }";
     assert_eq!(errors(div), Vec::<String>::new());
     // `/` on two Real stays exact; `%` on Int only; no mix.
     let ok = "subject s {
-    fn f(x: Real) -> y: Real { x / 2.0 }
-    fn g(x: Int) -> y: Int { x % 3 }
+    fn f(x: rational) -> y: rational { x / 2.0 }
+    fn g(x: integer) -> y: integer { x % 3 }
 }";
     assert_eq!(errors(ok), Vec::<String>::new());
     let mixed = "subject s {
-    fn f(x: Int) -> y: Int { x / 2.0 }
+    fn f(x: integer) -> y: integer { x / 2.0 }
 }";
     let e = errors(mixed);
-    assert!(e[0].contains("`x` is Int and `2.0` is Real"), "{e:?}");
     assert!(
-        e[0].contains("= note: `/` takes two Int or two Real"),
+        e[0].contains("`x` is integer and `2.0` is rational"),
+        "{e:?}"
+    );
+    assert!(
+        e[0].contains("= note: `/` takes two integer or two rational"),
         "{e:?}"
     );
     let real_rem = "subject s {
-    fn f(x: Real) -> y: Real { x % 2.0 }
+    fn f(x: rational) -> y: rational { x % 2.0 }
 }";
     let e = errors(real_rem);
-    assert!(e[0].contains("= note: `%` takes two Int"), "{e:?}");
+    assert!(e[0].contains("= note: `%` takes two integer"), "{e:?}");
 }
 
 #[test]
@@ -145,7 +148,7 @@ fn agree_reads_whole_division() {
     use mitra_core::agree::{agree, Agreement, Settings};
     // True of Rust's `/` and `%`: a == q * b + r, at every point.
     let text = "subject s {
-    fn f(a: Int, b: Int) -> r: Int { if b == 0 { 0 } else { a % b } } where {
+    fn f(a: integer, b: integer) -> r: integer { if b == 0 { 0 } else { a % b } } where {
         claim parts: b == 0 || a == (a / b) * b + r;
         claim smaller: !(0 < b) || r < b;
     }

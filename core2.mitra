@@ -17,7 +17,7 @@
 // - `numbers::fused` takes takings in Rust; here it takes what they add
 //   up to: weighted runs for and against, with the prior weight and the
 //   base rate of the settings.
-// - f64 in Rust, Real (exact) here: a measuring test compares within
+// - f64 in Rust, rational (exact) here: a measuring test compares within
 //   1e-12, the row is exact.
 
 environment num {
@@ -57,15 +57,15 @@ subject simulation {
 
     use std::core::Option;
     record Rational at "src/simulation.rs/Rational";
-    fn plus(x: Real, y: Real) -> z: Real at "src/simulation.rs/Rational/plus" { x + y }
-    fn minus(x: Real, y: Real) -> z: Real at "src/simulation.rs/Rational/minus" { x - y }
-    fn times(x: Real, y: Real) -> z: Real at "src/simulation.rs/Rational/times" { x * y }
-    fn over(x: Real, y: Real) -> z: Option<Real> at "src/simulation.rs/Rational/over" {
+    fn plus(x: rational, y: rational) -> z: rational at "src/simulation.rs/Rational/plus" { x + y }
+    fn minus(x: rational, y: rational) -> z: rational at "src/simulation.rs/Rational/minus" { x - y }
+    fn times(x: rational, y: rational) -> z: rational at "src/simulation.rs/Rational/times" { x * y }
+    fn over(x: rational, y: rational) -> z: Option<rational> at "src/simulation.rs/Rational/over" {
         if y == 0.0 { None } else { Some(x / y) }
     } where {
         claim back: match z { Some(q) => q * y == x, None => y == 0.0 };
     }
-    fn abs(x: Real) -> z: Real at "src/simulation.rs/Rational/abs" {
+    fn abs(x: rational) -> z: rational at "src/simulation.rs/Rational/abs" {
         if x < 0.0 { 0.0 - x } else { x }
     } where {
         claim positive: 0.0 <= z;
@@ -82,7 +82,7 @@ subject simulation {
     ensure one_value: "Calls::with refuses a function two of whose rows at one point give different values";
     ensure given_first: "a call reads the body; with none, what the reading was given at its point, else the row there";
     // How far a computation through calls may go: a setting.
-    record Budget at "src/simulation.rs/Budget" { steps: Int, depth: Int }
+    record Budget at "src/simulation.rs/Budget" { steps: integer, depth: integer }
     fn budget_defaults() -> b: Budget at "src/simulation.rs/Budget/default" {
         Budget { steps: 1000000, depth: 1000 }
     }
@@ -93,7 +93,7 @@ subject simulation {
     ensure variants: "a match computes the arm of its value's variant only; by bounds, it joins the arms of each variant that may be";
     ensure kept_sound: "a value at which the comparisons an expression joins by && all hold lies in the bounds Ranges::kept gives, and Ranges::kept gives none only when no value does";
     ensure known_in_part: "what Exact gives of a record known in part, it gives of every record that fills in the fields not known; else Undefined::Unknown; its bounds hold every such record";
-    ensure whole_division: "/ and % on Int give what Rust's i64 gives, and none at zero; by bounds, they hold every value Exact gives";
+    ensure whole_division: "/ and % on integer give what Rust's i64 gives, and none at zero; by bounds, they hold every value Exact gives";
     ensure ranges_checked: "a call with a value outside the range type of what it takes, or a body giving one outside the range of what it gives, has no value; by bounds, such a call may fault";
     ensure promised: "where the claims of a function with no body hold, a call of it lies in the bounds Ranges reads from them; inside its own claims, a call of it is only its type" from (kept_sound);
 }
@@ -105,7 +105,7 @@ subject judgement {
     record Prop at "src/judgement.rs/Prop";
     // A voice takes a proposition as true or false, count times (`by`
     // is a keyword of the model: `voice` here).
-    record Taking at "src/judgement.rs/Taking" { prop: Prop, value: bool, count: Int, voice: [~char] }
+    record Taking at "src/judgement.rs/Taking" { prop: Prop, value: bool, count: integer, voice: [~char] }
 
     // Belnap's four states, as their two sides: told true, told false.
     record State at "src/judgement.rs/State" { t: bool, f: bool }
@@ -157,7 +157,7 @@ subject model {
 subject catalogue {
     // The suit is an enum of seven letters: opaque.
     record Suit at "src/catalogue.rs/Suit";
-    record Code at "src/catalogue.rs/Code" { suit: Suit, number: Int }
+    record Code at "src/catalogue.rs/Code" { suit: Suit, number: integer }
     record Entry at "src/catalogue.rs/Entry" { code: Code, title: [~char], retired: bool }
     ensure never_reused: "a code is given to one meaning, never reused: a code no longer given is kept, retired";
     ensure documented: "every code has an entry and a page in docs/reference";
@@ -184,7 +184,7 @@ subject print {
 subject parse {
     require printed: print::reads_back;
     use simulation::budget_defaults;
-    record ParseSettings at "src/parse.rs/Settings" { depth: Int }
+    record ParseSettings at "src/parse.rs/Settings" { depth: integer }
     fn parse_defaults() -> s: ParseSettings at "src/parse.rs/Settings/default" {
         ParseSettings { depth: 2 * budget_defaults().depth }
     }
@@ -205,7 +205,7 @@ subject evidence {
     record Ports;
     record Ledger at "src/evidence.rs/Ledger" { measurements: [Measurement], reviews: [Review] }
     record Measurement at "src/evidence.rs/Measurement" {
-        inputs: Ports, outputs: Ports, seen: bool, count: Int, voice: [~char]
+        inputs: Ports, outputs: Ports, seen: bool, count: integer, voice: [~char]
     }
     record Review at "src/evidence.rs/Review" { prop: Path, holds: bool, voice: [~char] }
     ensure fits: "a ledger evidence accepts measures only tied functions of the model, with every input and an output, and reviews only what a review can name"
@@ -231,7 +231,7 @@ subject agree {
     // Each limit a setting, none fixed in the code.
     require stops: simulation::budgeted;
     use simulation::Budget;
-    record AgreeSettings at "src/agree.rs/Settings" { points: Int, splits: Int, budget: Budget, length: Int }
+    record AgreeSettings at "src/agree.rs/Settings" { points: integer, splits: integer, budget: Budget, length: integer }
     fn agree_defaults() -> s: AgreeSettings at "src/agree.rs/Settings/default" {
         AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 }, length: 3 }
     }
@@ -255,7 +255,7 @@ subject explain {
     require read: reader::nothing_dropped;
     record Explanation at "src/explain.rs/Explanation";
     use simulation::Budget;
-    record ExplainSettings at "src/explain.rs/Settings" { rounds: Int, cases: Int, rests: Int, budget: Budget }
+    record ExplainSettings at "src/explain.rs/Settings" { rounds: integer, cases: integer, rests: integer, budget: Budget }
     fn explain_defaults() -> s: ExplainSettings at "src/explain.rs/Settings/default" {
         ExplainSettings { rounds: 64, cases: 1024, rests: 1024, budget: Budget { steps: 1000000, depth: 1000 } }
     }
@@ -267,7 +267,7 @@ subject explain {
 
 subject blame {
     require explained: explain::verdicts;
-    record BlameSettings at "src/blame.rs/Settings" { diagnoses: Int, tries: Int }
+    record BlameSettings at "src/blame.rs/Settings" { diagnoses: integer, tries: integer }
     fn blame_defaults() -> s: BlameSettings at "src/blame.rs/Settings/default" {
         BlameSettings { diagnoses: 10, tries: 100000 }
     }
@@ -282,19 +282,19 @@ subject numbers {
     // The voices' weights are a map: opaque.
     record Voices;
     record NumbersSettings at "src/numbers.rs/Settings" {
-        base_rate: Real, prior_weight: Real, checker: Real, voices: Voices
+        base_rate: rational, prior_weight: rational, checker: rational, voices: Voices
     }
 
     // An opinion in numbers.
     record Belief at "src/numbers.rs/Belief" {
-        belief: Real, disbelief: Real, uncertainty: Real, expected: Real
+        belief: rational, disbelief: rational, uncertainty: rational, expected: rational
     }
     // An opinion with its base rate, as multiplication reads it.
-    record Said at "src/numbers.rs/Said" { b: Real, d: Real, u: Real, a: Real }
+    record Said at "src/numbers.rs/Said" { b: rational, d: rational, u: rational, a: rational }
 
     // From a belief and a disbelief, with base rate a: a conflict (more
     // than 1 together) is read in proportion, with no uncertainty.
-    fn opinion(belief: Real, disbelief: Real, a: Real) -> o: Belief
+    fn opinion(belief: rational, disbelief: rational, a: rational) -> o: Belief
         at "src/numbers.rs/Belief/of"
     {
         let total = belief + disbelief in
@@ -312,7 +312,7 @@ subject numbers {
     // rate a. As Settings::sane does, a weight below 0 is read as 0 and
     // the base rate is clamped into [0, 1]. (Weights are also capped at
     // 1e300 and NaN read as 0 or 1/2: neither can be written here.)
-    fn fused(r: Real, s: Real, w: Real, a: Real) -> o: Belief at "src/numbers.rs/fused" {
+    fn fused(r: rational, s: rational, w: rational, a: rational) -> o: Belief at "src/numbers.rs/fused" {
         let r0 = if r < 0.0 { 0.0 } else { r } in
         let s0 = if s < 0.0 { 0.0 } else { s } in
         let w0 = if w < 0.0 { 0.0 } else { w } in

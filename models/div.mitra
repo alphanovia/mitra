@@ -1,9 +1,9 @@
 // Main's div (README of main): `fn div(a: 0..=9, b: 0..=9) -> 0..=9
 // { if b == 0 { 0 } else { a / b } }`, written on core2. Two things of
 // main cannot be written yet, both findings of the overnight report:
-// - a type `0..=9`: core2's types are bool, Int, Real, tuples and
+// - a type `0..=9`: core2's types are bool, integer, rational, tuples and
 //   records, so the range of the inputs is a require, in words;
-// - a division of whole numbers: `/` is on Real only, so the body
+// - a division of whole numbers: `/` is on rational only, so the body
 //   cannot be written, and what div gives is said by a claim and
 //   examples instead.
 
@@ -11,7 +11,7 @@ subject calc {
     require inputs: "a and b are whole numbers from 0 to 9";
 
     // The code, src/lib.rs, `pub fn div`.
-    fn div(a: Int, b: Int) -> q: Int at "src/lib.rs/div" where {
+    fn div(a: integer, b: integer) -> q: integer at "src/lib.rs/div" where {
         // a / b rounded down, for a and b from 0; and 0 when b is 0.
         claim spec: if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
         claim bounded: b == 0 || q <= a;

@@ -115,7 +115,7 @@ computation calls for, or what that function takes. Any other is A009.
   joined by `&&`, each comparison of a name with what bounds give of the
   other side cuts that name (`5 < q && q < 3` keeps nothing). Relations
   between two names (`x < z && z < x`) are not kept: no octagons. On
-  `Real` a strict end stays in: `1.0 < q && q < 1.0` is unknown.
+  `rational` a strict end stays in: `1.0 < q && q < 1.0` is unknown.
 - **No solver**, by your choice: points are tried, not found.
 - Record claims are not compared: a record has no body.
 - A proposition written in a rule's `{ … }` term is read as a claim by

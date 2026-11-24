@@ -1528,7 +1528,7 @@ impl<'c> Parser<'c> {
 
     // ------------------------------------------------ types and values
 
-    /// `bool`, `Int`, `Real`, `(A, B)`, `()`, or a record's name.
+    /// `bool`, `integer`, `rational`, `(A, B)`, `()`, or a record's name.
     /// A type, or a range of whole numbers, `0..=9`, both ends in: an
     /// `Int` that is checked. Rust's form of a range; as a type, Ada's.
     fn type_or_range(&mut self) -> Result<(Type, Option<simulation::Range>)> {
@@ -1607,12 +1607,12 @@ impl<'c> Parser<'c> {
             false => vec![],
         };
         Ok(match name.as_str() {
-            "bool" | "Int" | "Real" | "char" | "byte" if !args.is_empty() => {
+            "bool" | "integer" | "rational" | "char" | "byte" if !args.is_empty() => {
                 return Err(error(P008, at, format!("`{name}` takes no type arguments")))
             }
             "bool" => Type::Truth,
-            "Int" => Type::Int,
-            "Real" => Type::Real,
+            "integer" => Type::Int,
+            "rational" => Type::Real,
             "char" => Type::Char,
             "byte" => Type::Byte,
             _ => self.instance(&name, args, at)?,

@@ -162,7 +162,7 @@ impl Record {
 }
 
 /// What a value of the simulation can be. A record is not a name: a
-/// record named "Real" is not `Real`.
+/// record named "rational" is not `rational`.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
     Truth,

@@ -55,13 +55,13 @@ fn record(name: &str, fields: &[(&str, Type)]) -> Record {
     }
 }
 
-/// The records the generators use: a record named "Real", one nested,
+/// The records the generators use: a record named "rational", one nested,
 /// one empty, and one with two fields of one name.
 fn records() -> Vec<Record> {
     let point = record("Point", &[("x", Type::Real), ("y", Type::Real)]);
     vec![
         point.clone(),
-        record("Real", &[("n", Type::Int), ("d", Type::Int)]),
+        record("rational", &[("n", Type::Int), ("d", Type::Int)]),
         record(
             "Nest",
             &[
@@ -1188,10 +1188,10 @@ fn a_sum_of_small_reals_is_exact() {
 }
 
 /// foundation2: a truth was accepted as an Int, and a record named
-/// "Real" could pass for a real. Value typing reads the value.
+/// "rational" could pass for a real. Value typing reads the value.
 #[test]
 fn a_value_is_of_its_type_only() {
-    let fake = record("Real", &[("n", Type::Int), ("d", Type::Int)]);
+    let fake = record("rational", &[("n", Type::Int), ("d", Type::Int)]);
     let half = Value::Record(
         fake.clone(),
         vec![Value::Int(1.into()), Value::Int(2.into())],

@@ -178,7 +178,7 @@ fn each_finding_is_given() {
     let cased = parse(
         r#"
 subject calc {
-    fn div(a: Int, b: Int) -> q: Int at "src/lib.rs/div" where {
+    fn div(a: integer, b: integer) -> q: integer at "src/lib.rs/div" where {
         claim spec: if b == 0 { q == 0 } else { q * b <= a && a < (q + 1) * b };
         claim bounded: b == 0 || q <= a;
         rule r: all x in (a: 0..2, b: 1..2): correct(div, x) |- div::bounded;

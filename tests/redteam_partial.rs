@@ -131,8 +131,8 @@ fn a_value_known_in_part_reads_back_as_printed() {
 }
 subject location {
     use std::String;
-    record Location { first: String, depth: Int }
-    fn depth(l: Location) -> d: Int { l.depth } where {
+    record Location { first: String, depth: integer }
+    fn depth(l: Location) -> d: integer { l.depth } where {
         examples { (Location { depth: 3, .. }) -> 3 }
     }
 }
@@ -148,9 +148,9 @@ subject location {
 #[test]
 fn known_in_part_is_written_only_of_a_declared_record() {
     let refused = [
-        ("subject s {\n    fn f(x: Int) -> y: Int where { examples { (Q { a: 1, .. }) -> 1 } }\n}", "must be a record of the model"),
-        ("subject s {\n    record P { a: Int }\n    fn f(p: P) -> y: Int where { examples { (P { z: 1, .. }) -> 1 } }\n}", "`P` has no field `z`"),
-        ("subject s {\n    record P { a: Int, b: Int }\n    fn f(p: P) -> y: Int where { examples { (P { a: 1, a: 2, .. }) -> 1 } }\n}", "field `a` is given twice"),
+        ("subject s {\n    fn f(x: integer) -> y: integer where { examples { (Q { a: 1, .. }) -> 1 } }\n}", "must be a record of the model"),
+        ("subject s {\n    record P { a: integer }\n    fn f(p: P) -> y: integer where { examples { (P { z: 1, .. }) -> 1 } }\n}", "`P` has no field `z`"),
+        ("subject s {\n    record P { a: integer, b: integer }\n    fn f(p: P) -> y: integer where { examples { (P { a: 1, a: 2, .. }) -> 1 } }\n}", "field `a` is given twice"),
     ];
     for (text, says) in refused {
         let e = parse(text).unwrap_err();
@@ -168,8 +168,8 @@ fn agree_compares_only_what_is_known() {
     let text = "environment std { record String; }
 subject location {
     use std::String;
-    record Location { first: String, depth: Int }
-    fn depth(l: Location) -> d: Int { l.depth } where {
+    record Location { first: String, depth: integer }
+    fn depth(l: Location) -> d: integer { l.depth } where {
         examples { (Location { depth: 3, .. }) -> 3 }
     }
     fn first_is(l: Location, m: Location) -> same: bool { l.first == m.first } where {

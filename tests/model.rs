@@ -695,7 +695,7 @@ fn each_error_is_found() {
         check(&model).iter().map(|e| e.to_string()).collect()
     };
     assert_eq!(
-        digits("subject d {\n    fn f(a: 9..=0) -> b: Int { a }\n}"),
+        digits("subject d {\n    fn f(a: 9..=0) -> b: integer { a }\n}"),
         ["error[M025]: `a: 9..=0` holds no number: a range is written low end first, `0..=9`\n --> d::f"]
     );
     assert_eq!(
@@ -706,12 +706,12 @@ fn each_error_is_found() {
         ]
     );
     assert_eq!(
-        digits("subject d {\n    fn f(a: 0..=9) -> b: Int { a }\n}\nexamples { (d::f::a = 10) -> d::f::b = 10 }"),
+        digits("subject d {\n    fn f(a: 0..=9) -> b: integer { a }\n}\nexamples { (d::f::a = 10) -> d::f::b = 10 }"),
         ["error[M026]: `d::f::a` = 10, outside its range 0..=9\n --> examples::0"]
     );
     // Enums and records no value fits (M027), and no M003 beside them.
     assert_eq!(
-        digits("subject d {\n    enum Never {}\n    record Box<T> { n: Int }\n    enum List { Nil, Cons(Int, List) }\n    record R { s: S }\n    record S { r: R }\n    fn f(a: List, b: R, c: Box<Int>) -> e: Int { 0 }\n}"),
+        digits("subject d {\n    enum Never {}\n    record Box<T> { n: integer }\n    enum List { Nil, Cons(integer, List) }\n    record R { s: S }\n    record S { r: R }\n    fn f(a: List, b: R, c: Box<integer>) -> e: integer { 0 }\n}"),
         [
             "error[M027]: the type parameter `T` is used by nothing it holds: Rust's E0392\n --> d::Box",
             "error[M027]: `List` holds itself: a value of it would never end (trees come later, finding 3)\n --> d::List",

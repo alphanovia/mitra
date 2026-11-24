@@ -86,7 +86,7 @@ proptest! {
         claims in prop::collection::vec(claim(), 1..3),
     ) {
         let body_text = body.as_ref().map_or(";".to_string(), |b| format!(" {{ {b} }}"));
-        let mut text = format!("subject s {{\n    fn f(x: Int, z: Int) -> y: Int{body_text}");
+        let mut text = format!("subject s {{\n    fn f(x: integer, z: integer) -> y: integer{body_text}");
         text = text.trim_end_matches(';').to_string();
         text.push_str(" where {\n");
         for (i, c) in claims.iter().enumerate() {
@@ -136,11 +136,11 @@ proptest! {
 #[test]
 fn the_two_examples_of_finding_7() {
     let text = "subject s {
-    fn f(x: Int) -> q: Int where {
+    fn f(x: integer) -> q: integer where {
         claim pos: 0 < q;
         claim neg: q < 0;
     }
-    fn sq(x: Real) -> y: Real { x * x } where {
+    fn sq(x: rational) -> y: rational { x * x } where {
         claim never_negative: 0.0 <= y;
     }
 }";
@@ -161,7 +161,7 @@ fn a_real_strict_bound_stays_open_to_its_end() {
     // 1 in, so they cannot tell, and agree says unknown, not A004. (At 0
     // the cut at zero tells: `0.0 < q && q < 0.0` is A004.)
     let text = "subject s {
-    fn f(x: Real) -> q: Real where {
+    fn f(x: rational) -> q: rational where {
         claim pos: 1.0 < q;
         claim neg: q < 1.0;
     }
@@ -176,7 +176,7 @@ fn cuts_away_from_zero() {
     // `5 < q && q < 3`: the cut at zero does not decide it; the
     // comparisons read together do.
     let text = "subject s {
-    fn f(x: Int) -> q: Int where {
+    fn f(x: integer) -> q: integer where {
         claim a: 5 < q;
         claim b: q < 3;
     }

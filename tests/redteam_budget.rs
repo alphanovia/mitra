@@ -11,11 +11,11 @@ use mitra_core::simulation::Budget;
 fn chain(n: usize) -> String {
     let mut out = vec![
         "subject s {".to_string(),
-        "    fn f0(x: Int) -> y: Int { x + 1 }".to_string(),
+        "    fn f0(x: integer) -> y: integer { x + 1 }".to_string(),
     ];
     for i in 1..=n {
         out.push(format!(
-            "    fn f{i}(x: Int) -> y: Int {{ if x < 0 {{ f{0}(x) }} else {{ f{0}(x) + 1 }} }} where {{ claim c: 0 <= y || x < 0; }}",
+            "    fn f{i}(x: integer) -> y: integer {{ if x < 0 {{ f{0}(x) }} else {{ f{0}(x) + 1 }} }} where {{ claim c: 0 <= y || x < 0; }}",
             i - 1
         ));
     }
@@ -35,7 +35,7 @@ fn deep(n: usize, depth: usize) -> String {
             body = format!("({body} + 1)");
         }
         out.push(format!(
-            "    fn f{i}(x: Int) -> y: Int {{ {body} }} where {{ claim c: x < y; }}"
+            "    fn f{i}(x: integer) -> y: integer {{ {body} }} where {{ claim c: x < y; }}"
         ));
     }
     out.push("}".to_string());
@@ -145,16 +145,16 @@ fn the_step_budget_is_a_setting() {
 fn guarded(n: usize) -> String {
     let mut out = vec![
         "subject s {".to_string(),
-        "    fn g0(x: Int) -> y: Int { x }".to_string(),
+        "    fn g0(x: integer) -> y: integer { x }".to_string(),
     ];
     for i in 1..=n {
         out.push(format!(
-            "    fn g{i}(x: Int) -> y: Int {{ g{}(x + 1) }}",
+            "    fn g{i}(x: integer) -> y: integer {{ g{}(x + 1) }}",
             i - 1
         ));
     }
     out.push(format!(
-        "    fn top(x: Int) -> y: Int {{ if x * x == 2 {{ g{n}(x) }} else {{ x }} }} where {{ claim c: y == x; }}"
+        "    fn top(x: integer) -> y: integer {{ if x * x == 2 {{ g{n}(x) }} else {{ x }} }} where {{ claim c: y == x; }}"
     ));
     out.push("}".to_string());
     out.join("\n")
@@ -193,7 +193,7 @@ fn a_deep_text_is_p011() {
         for _ in 0..n {
             body = format!("({body} + 1)");
         }
-        format!("subject s {{ fn f(x: Int) -> y: Int {{ {body} }} }}")
+        format!("subject s {{ fn f(x: integer) -> y: integer {{ {body} }} }}")
     };
     let e = on_a_thread(move || parse(&nested(100_000)).unwrap_err());
     assert_eq!(e.code.to_string(), "P011");
@@ -219,7 +219,7 @@ fn a_deep_text_is_p011() {
         parse_with(&nots, &small).unwrap_err().code.to_string(),
         "P011"
     );
-    let types = "subject s { fn f(x: ((((((((((Int,),),),),),),),),),)) -> y: Int { 0 } }";
+    let types = "subject s { fn f(x: ((((((((((integer,),),),),),),),),),)) -> y: integer { 0 } }";
     assert_eq!(
         parse_with(types, &small).unwrap_err().code.to_string(),
         "P011"

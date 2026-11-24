@@ -1499,13 +1499,13 @@ impl Mistyped<'_> {
         takes: &[Type],
     ) -> Vec<String> {
         use simulation::Op;
-        const SAME: &str = "of one type: Int, Real, or one `T: Number`";
+        const SAME: &str = "of one type: integer, rational, or one `T: Number`";
         let takes_what = match op {
             Op::Add => format!("`+` takes two numbers {SAME}"),
             Op::Sub => format!("`-` takes two numbers {SAME}"),
             Op::Mul => format!("`*` takes two numbers {SAME}"),
-            Op::Div => "`/` takes two Int or two Real".to_string(),
-            Op::Rem => "`%` takes two Int".to_string(),
+            Op::Div => "`/` takes two integer or two rational".to_string(),
+            Op::Rem => "`%` takes two integer".to_string(),
             Op::Less | Op::AtMost
                 if takes
                     .iter()
@@ -1522,7 +1522,7 @@ impl Mistyped<'_> {
             Op::And => "`&&` takes two bool".to_string(),
             Op::Or => "`||` takes two bool".to_string(),
             Op::If => "`if` takes a bool, then two branches of one type".to_string(),
-            Op::All => "`all` takes two Int bounds and a bool".to_string(),
+            Op::All => "`all` takes two integer bounds and a bool".to_string(),
             Op::Field(name)
                 if name == "len" && matches!(takes.first(), Some(Type::Seq(_) | Type::Encoded(_))) =>
             {
@@ -1569,7 +1569,7 @@ impl Mistyped<'_> {
             ),
             Op::Len => "`.len()` reads a sequence, or a text in bytes".to_string(),
             Op::Index => {
-                "`xs[i]` reads a sequence `xs` at an Int `i`; on a text, a byte".to_string()
+                "`xs[i]` reads a sequence `xs` at an integer `i`; on a text, a byte".to_string()
             }
             Op::Join => "`++` joins two sequences of one type, or two texts".to_string(),
             Op::StartsWith => {
@@ -1600,7 +1600,7 @@ impl Mistyped<'_> {
             }
             if meets.contains(&Type::Real) {
                 helps.insert(format!(
-                    "help: Mitra converts no number; write `{n}.0` for a Real"
+                    "help: Mitra converts no number; write `{n}.0` for a rational"
                 ));
             }
             if let Some(Type::Param { name, .. }) = meets.iter().find(|t| t.open()) {

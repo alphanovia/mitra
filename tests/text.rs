@@ -81,7 +81,8 @@ fn claims_on_text_are_decided() {
 #[test]
 fn length_and_places_are_bytes() {
     // `é` is two bytes in UTF-8, as Rust's `str::len` counts it.
-    let text = "subject s { fn f(x: Int) -> n: Int { \"é\".len() } where { claim two: n == 2; } }";
+    let text =
+        "subject s { fn f(x: integer) -> n: integer { \"é\".len() } where { claim two: n == 2; } }";
     let out = agreed(text);
     assert!(out.iter().all(|o| o.ends_with("holds")), "{out:?}");
     let wrong = text.replace("n == 2", "n == 1");
@@ -89,7 +90,7 @@ fn length_and_places_are_bytes() {
     assert!(out.iter().any(|o| o.contains("fails")), "{out:?}");
     // A place past the bytes has no value.
     let text =
-        "subject s { fn f(x: Int) -> b: bool { \"ab\"[2] == \"ab\"[0] } where { claim c: b; } }";
+        "subject s { fn f(x: integer) -> b: bool { \"ab\"[2] == \"ab\"[0] } where { claim c: b; } }";
     let out = agreed(text);
     assert!(out.iter().any(|o| o.contains("fails at x = ")), "{out:?}");
     // `s[i]` is a byte, not a text, nor a letter.
@@ -101,10 +102,10 @@ fn length_and_places_are_bytes() {
 #[test]
 fn texts_are_equal_and_ordered_byte_by_byte() {
     let text = "subject s {
-    fn order(x: Int) -> b: bool { \"a\" < \"b\" && \"ab\" < \"b\" && \"\" < \"a\" && \"a\" <= \"a\" && !(\"é\" < \"z\") } where {
+    fn order(x: integer) -> b: bool { \"a\" < \"b\" && \"ab\" < \"b\" && \"\" < \"a\" && \"a\" <= \"a\" && !(\"é\" < \"z\") } where {
         claim c: b;
     }
-    fn same(x: Int) -> b: bool { \"ab\" == \"a\" ++ \"b\" } where {
+    fn same(x: integer) -> b: bool { \"ab\" == \"a\" ++ \"b\" } where {
         claim c: b;
     }
 }";
@@ -129,7 +130,7 @@ fn every_text_starts_with_the_empty_one() {
 
 #[test]
 fn decoding_text_waits_for_the_decoder() {
-    let text = "subject s { fn f(s: [~char]) -> n: Int { s.decoded().len() } }";
+    let text = "subject s { fn f(s: [~char]) -> n: integer { s.decoded().len() } }";
     let out = errors(text);
     assert!(
         out.iter()
@@ -138,7 +139,7 @@ fn decoding_text_waits_for_the_decoder() {
     );
     // A plain sequence decodes to itself.
     let text =
-        "subject s { fn f(xs: [Int]) -> b: bool { xs.decoded() == xs } where { claim c: b; } }";
+        "subject s { fn f(xs: [integer]) -> b: bool { xs.decoded() == xs } where { claim c: b; } }";
     let out = agreed(text);
     assert!(out.iter().all(|o| !o.contains("fails")), "{out:?}");
     let wrong = text.replace("xs.decoded() == xs", "xs.decoded() == [1]");
@@ -152,7 +153,7 @@ fn decoding_text_waits_for_the_decoder() {
 #[test]
 fn sequences_join_and_start_alike() {
     let text = "subject s {
-    fn f(xs: [Int], ys: [Int]) -> zs: [Int] { xs ++ ys } where {
+    fn f(xs: [integer], ys: [integer]) -> zs: [integer] { xs ++ ys } where {
         claim long: zs.len() == xs.len() + ys.len();
         claim start: zs.starts_with(xs);
         claim empty: zs.starts_with([]);
@@ -175,13 +176,13 @@ fn sequences_join_and_start_alike() {
 
 #[test]
 fn only_text_has_an_encoding() {
-    let out = refused("subject s { fn f(x: [~Int]) -> y: Int { 0 } }");
+    let out = refused("subject s { fn f(x: [~integer]) -> y: integer { 0 } }");
     assert!(
-        out.contains("error[P008]: only `[~char]` has an encoding today, not `[~Int]`"),
+        out.contains("error[P008]: only `[~char]` has an encoding today, not `[~integer]`"),
         "{out}"
     );
     // A text and a sequence are not joined, nor a letter compared to text.
-    let out = errors("subject s { fn f(s: [~char], xs: [Int]) -> y: bool { s ++ xs == s } }");
+    let out = errors("subject s { fn f(s: [~char], xs: [integer]) -> y: bool { s ++ xs == s } }");
     assert!(out.iter().any(|e| e.contains("`++` joins")), "{out:?}");
     let out = errors("subject s { fn f(s: [~char]) -> y: [~char] { s + s } }");
     assert!(
@@ -189,7 +190,7 @@ fn only_text_has_an_encoding() {
             .any(|e| e.contains("help: two texts or two sequences are joined with `++`")),
         "{out:?}"
     );
-    let out = errors("subject s { fn f(s: [~char]) -> y: Int { s.len } }");
+    let out = errors("subject s { fn f(s: [~char]) -> y: integer { s.len } }");
     assert!(
         out.iter()
             .any(|e| e.contains("the length of a sequence is `.len()`")),

@@ -69,11 +69,15 @@ fn a_model_not_well_formed_stops_with_its_errors() {
     let dir = std::env::temp_dir().join(format!("mitra-cli-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let bad = dir.join("bad.mitra");
-    std::fs::write(&bad, "subject s { fn f(a: Int) -> b: Int { true } }").unwrap();
+    std::fs::write(
+        &bad,
+        "subject s { fn f(a: integer) -> b: integer { true } }",
+    )
+    .unwrap();
     let (code, out) = mitra(&["check", bad.to_str().unwrap()]);
     assert_eq!(code, 1, "{out}");
     assert!(out.contains("error[M005]"), "{out}");
-    std::fs::write(&bad, "subject s { fn f(a: Int) -> b: Int }").unwrap();
+    std::fs::write(&bad, "subject s { fn f(a: integer) -> b: integer }").unwrap();
     let (code, out) = mitra(&["check", bad.to_str().unwrap()]);
     assert_eq!(code, 1, "{out}");
     assert!(out.contains("error[P003]"), "{out}");
@@ -140,7 +144,7 @@ fn a_part_is_read_from_the_file_beside_the_model() {
     let model = dir.join("calc.mitra");
     std::fs::write(
         &model,
-        "subject calc {\n    use geometry::Point;\n    use std::core::Option;\n    fn mid(p: Point) -> m: Option<Real> { Some((p.x + p.y) / 2.0) }\n}\n",
+        "subject calc {\n    use geometry::Point;\n    use std::core::Option;\n    fn mid(p: Point) -> m: Option<rational> { Some((p.x + p.y) / 2.0) }\n}\n",
     )
     .unwrap();
     let (code, out) = mitra(&["check", model.to_str().unwrap()]);
@@ -149,7 +153,7 @@ fn a_part_is_read_from_the_file_beside_the_model() {
     assert!(out.contains("calc.mitra:2:9"), "{out}");
     std::fs::write(
         dir.join("geometry.mitra"),
-        "subject geometry {\n    record Point { x: Real, y: }\n}\n",
+        "subject geometry {\n    record Point { x: rational, y: }\n}\n",
     )
     .unwrap();
     let (code, out) = mitra(&["check", model.to_str().unwrap()]);
@@ -157,7 +161,7 @@ fn a_part_is_read_from_the_file_beside_the_model() {
     assert!(out.contains("geometry.mitra:2:"), "{out}");
     std::fs::write(
         dir.join("geometry.mitra"),
-        "subject geometry {\n    record Point { x: Real, y: Real }\n}\n",
+        "subject geometry {\n    record Point { x: rational, y: rational }\n}\n",
     )
     .unwrap();
     let (code, out) = mitra(&["check", model.to_str().unwrap()]);

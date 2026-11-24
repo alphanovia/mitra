@@ -212,18 +212,18 @@ fn reviews_are_takings() {
 /// Each code of suit `X`, given.
 const WORLD: &str = r#"
 environment sun {
-    fn light() -> w: Real at "sky/sun";
+    fn light() -> w: rational at "sky/sun";
 }
 subject stone {
     use sun::light;
-    fn speed(h: Real) -> v2: Real at "src/stone.rs/speed" { 2.0 * 9.81 * h * light() } where {
+    fn speed(h: rational) -> v2: rational at "src/stone.rs/speed" { 2.0 * 9.81 * h * light() } where {
         claim slow: !(h <= 20.0) || v2 < 400.0;
     }
-    fn lit(h: Real) -> l: Real at "src/stone.rs/lit" where {
+    fn lit(h: rational) -> l: rational at "src/stone.rs/lit" where {
         claim bright: l <= light();
     }
-    fn noise(a: Int) -> n: Int at "src/stone.rs/noise";
-    fn square(h: Real) -> s: Real at "src/stone.rs/square" { h * h }
+    fn noise(a: integer) -> n: integer at "src/stone.rs/noise";
+    fn square(h: rational) -> s: rational at "src/stone.rs/square" { h * h }
 }
 "#;
 
@@ -390,9 +390,9 @@ fn each_finding_is_given() {
     let text = "environment std { record String; }
 subject location {
     use std::String;
-    record Location { first: String, depth: Int }
+    record Location { first: String, depth: integer }
     fn first_is(l: Location, m: Location) -> same: bool at \"src/location.rs/first_is\" { l.first == m.first }
-    fn depth(l: Location) -> d: Int at \"src/location.rs/depth\" { l.depth }
+    fn depth(l: Location) -> d: integer at \"src/location.rs/depth\" { l.depth }
 }";
     let model = parse(text).unwrap();
     let known = |n: i64| {

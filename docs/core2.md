@@ -84,14 +84,14 @@ are ordinary operations, not special forms: both branches are computed (choice
 
 ## simulation.rs
 
-- Types `Truth | Int | Real | Record { name, fields }`. Records are types of
-  their own, so a record named "Real" is not `Real`.
+- Types `Truth | integer | rational | Record { name, fields }`. Records are types of
+  their own, so a record named "rational" is not `rational`.
 - Values `Truth(bool) | Int(ℤ) | Real(ℚ) | Record(record, values)`. `Rational`
   is always in lowest terms, so equality is exact.
-- Operations, in Rust's form: literals, `! && ||`, `+ - *` on two `Int` or two
-  `Real`, `/` on `Real` (no value at 0), `< <=`, `==` on any one type,
+- Operations, in Rust's form: literals, `! && ||`, `+ - *` on two `integer` or two
+  `rational`, `/` on `rational` (no value at 0), `< <=`, `==` on any one type,
   `within(a, b, tol)`, `if`, `R { .. }`, `r.x`, and two that bind a name:
-  `let x = a; b`, and `(lo..hi).all(|x| p)` on two `Int` and a truth, `hi`
+  `let x = a; b`, and `(lo..hi).all(|x| p)` on two `integer` and a truth, `hi`
   left out, which reads `p` at each number in turn as `&&` does.
 - Readings: `Exact`, which computes only the side of `if`, `&&` and `||`
   it takes, and `Ranges`, which works on bounds: a truth may be
@@ -146,7 +146,7 @@ are ordinary operations, not special forms: both branches are computed (choice
   whole numbers lists its points, in Rust's order of tuples; one of reals
   only says whether a point is in it.
 - Well formed: each name a term uses is bound by an all or an any around
-  it, and each set is (names distinct, each range two `Int` or two `Real`,
+  it, and each set is (names distinct, each range two `integer` or two `rational`,
   `such` a truth). Judgement reasons about no other: `Opinion::taken`
   refuses one, and no rule gives one. `not`, `join`, `state` and
   `reductio` may name one in the type of what they take, which no value
@@ -250,7 +250,7 @@ up, and what other languages do.
 **1. A standard is the language.** It lists the types and the operations,
 and for each operation the type it gives from the types it takes, and the
 names it binds. The core knows none of them.
-*Example*: in simulation, `+` takes two `Int` and gives an `Int`; `let x =
+*Example*: in simulation, `+` takes two `integer` and gives an `integer`; `let x =
 e₁; e₂` binds `x` in `e₂`, with the type of `e₁`.
 *Gain*: one core and one checker for every language Mitra needs (simulation,
 judgement, others later). A new operation is a few lines in a standard.
@@ -449,8 +449,8 @@ every evaluation ends and its cost is known.
 with `==` only, or `T: Number`, a whole number or a real, with `+ - *` and
 `<`. It is checked once with the parameter; each use fixes it.
 *Example*: `contract Monotone<T: Number> { fn f(x: T) -> T; x <= y implies
-f(x) <= f(y) }` is checked once; `impl Monotone<Real> for speed` checks only
-that `speed` fits (takes and gives a `Real`), and the claim becomes one
+f(x) <= f(y) }` is checked once; `impl Monotone<rational> for speed` checks only
+that `speed` fits (takes and gives a `rational`), and the claim becomes one
 about `speed`.
 *Gain*: one property written once for every function that has it; an error
 is reported at the contract, not at each use.
@@ -471,15 +471,15 @@ ranges and `Iterator::all`; `sun::light()` for a call by path; `T` and
 Rust would write `(a - b).abs() <= tol`. Unlike Rust, a fault in what a `let`
 binds counts only where it is read (5), and `&&`, `||` and `if` compute the
 side they drop (8): the outcome is Rust's, the time is not. No
-conversion is implicit: `Int` and `Real` never mix, and a conversion would
+conversion is implicit: `integer` and `rational` never mix, and a conversion would
 be an operation.
 
 ## Beyond what was named (going ahead; say no to undo)
 
 1. Core: a **Standard / Reading** split, with constants as operations that take nothing. This lets one expression be read exactly and by bounds without copying it.
 2. Core: **`Fault::Op` vs `Fault::Stuck`**, and operations see their arguments' faults, so `if` is not special.
-3. **Int = ℤ, Real = ℚ, unbounded** (num-bigint). Nothing overflows. Machine numbers (i64, Int8) are not in this round.
-4. **`/` on Real**, the one fault.
+3. **integer = ℤ, rational = ℚ, unbounded** (num-bigint). Nothing overflows. Machine numbers (i64, Int8) are not in this round.
+4. **`/` on rational**, the one fault.
 5. **`Prop::Not`**, with `not` on opinions (`!x`). There is no `and` on opinions, because a step's pre is already a conjunction.
 6. **Taking `{ prop, value, count, by }`**. An opinion carries its proposition (`about`), so its value says what it is about.
 7. Removed after the red team: **bias**, and **`yes` / `no`** (the least count to give up). No rule reads either, and the least count is a smallest hitting set: exponential, and it crashed on 20,000 takings. Numbers come back when the logic is settled.
@@ -504,14 +504,14 @@ be an operation.
 26. **An intro's point is fresh**: an intro of a proposition that already writes the point it would bind is refused (red team round 7 caught the diagonal taken for the square).
 27. **A function gives one value at a point**: `Calls::with` refuses two rows at one point that differ (check says M024). Beside a body, rows are kept and never read: `agree` compares them with the body (A002). What a reading is given (`Calls::given`) is read before the rows, never before a body.
 28. **Half-lines** (finding 6): a span of numbers has a low end and a high end, either of which may be missing; zero times no end is zero.
-29. **Comparisons read together, numbers cut at zero** (finding 7): `Ranges::kept` cuts each name by the comparisons joined by `&&`, one name at a time, strict on `Int` only; agree reads its first `splits` numbers (a setting, 4) below and above zero.
+29. **Comparisons read together, numbers cut at zero** (finding 7): `Ranges::kept` cuts each name by the comparisons joined by `&&`, one name at a time, strict on `integer` only; agree reads its first `splits` numbers (a setting, 4) below and above zero.
 30. **Calls remembered, `if` lazy, budgets** (finding 9): `Exact` and `Ranges` remember a call's outcome at its arguments; `Exact` computes only the side of `if`, `&&`, `||` it takes (`Reading::needed`, in `expression`); a computation past `Budget { steps, depth }` (settings, a million calls and 1,000 levels) gives `Undefined::Budget`: agree says unknown (A007), explain X009.
 33. **Values known in part** (finding 2): `Location { depth: 2, .. }`, Rust's struct pattern (flagged: a pattern stands for a value here), written in rows, examples and measurements of a declared record; a field not known may be of an opaque record. Reading it, or an `==` only it decides, gives `Undefined::Unknown("Location::first")`; bounds read it as any value of its type. Agree tries records whose opaque fields are not known, and says unknown where only they could tell; explain takes nothing there and says X010.
-32. **Whole division and range types** (finding 11): `/` on two `Int` rounds toward zero and `%` takes the sign of its left side, as Rust's `i64`; no value at zero; `/` on two `Real` stays exact; no mix. A span says its numbers (`Numbers::Int` or `Real`). A range type `a: 0..=9` is an `Int` that is checked (your option 1): a call outside a range of what it takes, or a body giving outside the range it gives, has no value (`Undefined::Outside`); agree reads a claim as `!(in ranges) || claim`, checks the body keeps its gives range (A001, `its range`), and tries every point when the ranges hold at most `points` of them; check refuses an empty range (M025) and an example outside one (M026); a measured value outside one was refused (V008), now evidence against (choice 34). `implied` reads a conclusion, and the lets it reads, only where the premises hold when every premise is read first.
+32. **Whole division and range types** (finding 11): `/` on two `integer` rounds toward zero and `%` takes the sign of its left side, as Rust's `i64`; no value at zero; `/` on two `rational` stays exact; no mix. A span says its numbers (`Numbers::Int` or `rational`). A range type `a: 0..=9` is an `integer` that is checked (your option 1): a call outside a range of what it takes, or a body giving outside the range it gives, has no value (`Undefined::Outside`); agree reads a claim as `!(in ranges) || claim`, checks the body keeps its gives range (A001, `its range`), and tries every point when the ranges hold at most `points` of them; check refuses an empty range (M025) and an example outside one (M026); a measured value outside one was refused (V008), now evidence against (choice 34). `implied` reads a conclusion, and the lets it reads, only where the premises hold when every premise is read first.
 31. **A function with no body gives what its claims promise** (finding 8): `Callee.promises` holds its claims; by bounds, a call of it is what `Ranges::kept` keeps of its gives name under them, and never a fault (the world gives a value); a call of it inside its own claims is only its type. `covers` lets in any bounds for a value `Exact` does not know (`Undefined::Unknown`). Agree reads `!p || c` as `c` where `p` keeps its names, after lets; every let, premise and conclusion must be fault-free by bounds. A result read so names the claims it rests on (`Agreed.given`, hint A010).
 34. **A measured value outside its range** (your answer, 18:05): evidence of a drift between the model and the code, not an error. Explain says X011 and takes `correct(f, x)` false by that measurement, through f's ties, so blame lists the measurement and the ties; the caller of an opaque value outside its range does not read it as a row. A test that expected such a value and failed takes nothing. V008 is retired; an example row outside a range stays M026 (the model contradicting itself).
 
-35. **Enums and generic records** (your "ok", 19:56): `simulation::Enum { name, args, variants }`, `Type::Enum`, `Value::Variant(enum, index, values)`; `Op::Variant(enum, i)` makes one, `Op::Match(enum)` reads one, its arguments the value then one arm per variant in the enum's order, each arm binding what its variant holds. Exact computes only the arm taken; by bounds a span of an enum is a span per variant that may be there (`Span::Variant`), and an arm is read only where its variant may be. A `Record` and an `Enum` carry their type arguments (`args`); `Type::learn` reads them from a value. Agree tries every variant. Check refuses an enum with no variant, a parameter nothing uses, and a type that holds itself (M027); the parser follows a record or enum inside itself once, then leaves it empty (a cut at the first repeat, not at a depth: `Node(Tree, Int, Tree)` would double at each level). The type of a variant or a generic record its values do not tell (`None`, `Box { v: None }`) is a hole the parser fills from where it goes: a result, a field, a call's argument (by the callee's signature), the other side of `==` or of an `if`; one still open is P009. Settling reads an argument twice only when a hole is still in it (reading all twice doubled the time at each level of parentheses).
+35. **Enums and generic records** (your "ok", 19:56): `simulation::Enum { name, args, variants }`, `Type::Enum`, `Value::Variant(enum, index, values)`; `Op::Variant(enum, i)` makes one, `Op::Match(enum)` reads one, its arguments the value then one arm per variant in the enum's order, each arm binding what its variant holds. Exact computes only the arm taken; by bounds a span of an enum is a span per variant that may be there (`Span::Variant`), and an arm is read only where its variant may be. A `Record` and an `Enum` carry their type arguments (`args`); `Type::learn` reads them from a value. Agree tries every variant. Check refuses an enum with no variant, a parameter nothing uses, and a type that holds itself (M027); the parser follows a record or enum inside itself once, then leaves it empty (a cut at the first repeat, not at a depth: `Node(Tree, integer, Tree)` would double at each level). The type of a variant or a generic record its values do not tell (`None`, `Box { v: None }`) is a hole the parser fills from where it goes: a result, a field, a call's argument (by the callee's signature), the other side of `==` or of an `if`; one still open is P009. Settling reads an argument twice only when a hole is still in it (reading all twice doubled the time at each level of parentheses).
 
 36. **Files and Mitra's standard model** (your "ok", 19:56): `use std::core::Option;` reads the part `core` of `std/core.mitra`, shipped in the binary (`parse::STD`), with `Option<T>` and `Result<T, E>` as ordinary enums; nothing in it is built in. A part a file uses and does not declare is read from `<part>.mitra` beside the model (`parse::load`, the CLI), once, whichever file uses it; a part found nowhere is P010, at the `use`, and an error in a file read is given with that file. `parse` reads `std::` only. Each part keeps the file it came from (`Part.file`); `print` writes the model's own file, its uses of std as `use std::…`. A type of std named with no `use` is M003, which says the `use` to write. Names of types stay global (finding 13).
 
@@ -519,8 +519,10 @@ be an operation.
 
 38. **A proof writes no state** (finding 27, your "option 1"): `state(…)` and `&&` on states left the proof text, the parser and print. They stay in judgement (`Op::StateOf`, `Op::And`), where explain, numbers and the verdicts read what is known of an opinion; no proof can give an opinion through them, so `check` refused every proof that wrote them (M012). Built from Rust, they print as `__malformed__`, as an operation on other arguments does. `!` on an opinion stays; `|-` stays for rules.
 
-39. **Sequences, `[T]`, the minimal set** (finding 3, step 2; your "ok", 20:24): `Type::Seq`, `Value::Seq(T, values)`, `Op::Seq(T)` for `[a, b]`, `Op::Len` for `xs.len()`, `Op::Index` for `xs[i]`, and `==` place by place. `xs[i]` with no place `i` is a fault, `Undefined::Index`, as division by zero ("the index is 2, and the sequence holds 2"). By bounds, `Span::Seq` keeps its length (an `Int` span from 0), a span every value lies in, and the span of each first place it surely holds, so that a sequence known at a point is known exactly (S3, "points are exact"). `[]` is told from where it goes, as `None` (P009). Agree tries sequences up to `Settings::length` long (a setting, 3). A record holding a sequence of itself stays M027 until trees.
+39. **Sequences, `[T]`, the minimal set** (finding 3, step 2; your "ok", 20:24): `Type::Seq`, `Value::Seq(T, values)`, `Op::Seq(T)` for `[a, b]`, `Op::Len` for `xs.len()`, `Op::Index` for `xs[i]`, and `==` place by place. `xs[i]` with no place `i` is a fault, `Undefined::Index`, as division by zero ("the index is 2, and the sequence holds 2"). By bounds, `Span::Seq` keeps its length (an `integer` span from 0), a span every value lies in, and the span of each first place it surely holds, so that a sequence known at a point is known exactly (S3, "points are exact"). `[]` is told from where it goes, as `None` (P009). Agree tries sequences up to `Settings::length` long (a setting, 3). A record holding a sequence of itself stays M027 until trees.
 
 40. **Text, `[~char]`** (finding 3, step 3; your "go"): `Type::Encoded(T)` (only `Encoded(Char)` parses, else P008), `Type::Char`, `Type::Byte`; `Value::Text(String)` (UTF-8, as Rust's `str`) and `Value::Byte(u8)`; `Op::Text` for `"abc"`, `Op::Join` for `++`, `Op::StartsWith`, `Op::Decoded`. `Len` and `Index` read text in bytes ("the index is 3, and the text holds 2 bytes"). `++` and `starts_with` take two texts or two sequences of one type; `<` and `<=` take two texts or two `char` (byte order); `byte` has `==` only. `.decoded()` types on `[T]` only (itself): on text, check says it waits for the grapheme decoder. By bounds, `Span::Text(length, known)`, `Span::Byte(known)`, `Span::Char`; a join adds lengths and keeps the places surely held. Agree tries `""`, the model's texts, their joins and prefixes; `char` and `byte` have no value written, so none is tried. A byte prints as Rust's byte literal, `b'A'`, shown only. The dogfood's `std::String` is gone: String is `[~char]`.
 
-Not in this round: `Int → Real` conversion, units, diagnosis, streams, recursion, functions as values, and an all or an any written in the model (next, in `model.rs`).
+41. **`integer` and `rational`** (your "go", 10:21): the names `Int` and `Real` are gone from the text, the printer and every message; `Type::Int` and `Type::Real` keep their names inside. The old names are now names of nothing (M003), with no hint (no refusal hints for retired forms).
+
+Not in this round: `integer → rational` conversion, units, diagnosis, streams, recursion, functions as values, and an all or an any written in the model (next, in `model.rs`).

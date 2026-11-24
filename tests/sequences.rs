@@ -50,11 +50,11 @@ fn agreed(text: &str, settings: &Settings) -> Vec<String> {
 }
 
 const FIRST: &str = "subject list {
-    fn first(xs: [Int]) -> f: Int { if xs.len() == 0 { 0 } else { xs[0] } } where {
+    fn first(xs: [integer]) -> f: integer { if xs.len() == 0 { 0 } else { xs[0] } } where {
         claim head: xs.len() == 0 || f == xs[0];
         examples { ([]) -> 0, ([3, 4]) -> 3 }
     }
-    fn pair(a: 0..=3) -> p: [Int] { [a, a + 1] } where {
+    fn pair(a: 0..=3) -> p: [integer] { [a, a + 1] } where {
         claim two: p.len() == 2;
         claim up: p[0] < p[1];
     }
@@ -108,7 +108,8 @@ fn a_place_out_of_range_has_no_value() {
         "{out:?}"
     );
     // A place past every length is no value at all, at the first point.
-    let text = "subject s { fn f(a: 0..=3) -> b: Int { [a, a][2] } where { claim c: b == 0; } }";
+    let text =
+        "subject s { fn f(a: 0..=3) -> b: integer { [a, a][2] } where { claim c: b == 0; } }";
     let out = agreed(text, &Settings::default());
     assert!(
         out.iter().any(|o| o.contains("claim `c`: fails at a = 0")),
@@ -121,7 +122,7 @@ fn every_length_is_tried_up_to_the_setting() {
     // A claim false only on three values: found with the default length 3,
     // unknown with length 2.
     let text =
-        "subject s { fn f(xs: [bool]) -> n: Int { xs.len() } where { claim short: n < 3; } }";
+        "subject s { fn f(xs: [bool]) -> n: integer { xs.len() } where { claim short: n < 3; } }";
     let out = agreed(text, &Settings::default());
     assert!(out.iter().any(|o| o.contains("fails at xs = [")), "{out:?}");
     let short = Settings {
@@ -157,7 +158,7 @@ fn equal_sequences_are_equal_place_by_place() {
 fn the_type_of_an_empty_sequence_is_told_from_where_it_goes() {
     let f = |body: &str| {
         refused(&format!(
-            "subject s {{ enum Option<T> {{ None, Some(T) }} fn g(xs: [Int]) -> b: bool {{ true }} fn f(x: Int) -> y: bool {{ {body} }} }}"
+            "subject s {{ enum Option<T> {{ None, Some(T) }} fn g(xs: [integer]) -> b: bool {{ true }} fn f(x: integer) -> y: bool {{ {body} }} }}"
         ))
     };
     assert!(
@@ -172,13 +173,13 @@ fn the_type_of_an_empty_sequence_is_told_from_where_it_goes() {
     assert!(f("[None] == [None]").contains("error[P009]"));
     // A row: `[]` from the type the function takes.
     let text =
-        "subject s { fn f(xs: [Int]) -> n: Int { xs.len() } where { examples { ([]) -> 0 } } }";
+        "subject s { fn f(xs: [integer]) -> n: integer { xs.len() } where { examples { ([]) -> 0 } } }";
     assert_eq!(check(&parse(text).unwrap()), vec![]);
     // Given where no sequence goes, it is of the wrong type (M015), not of
     // a type not told; `None` likewise.
     for row in ["([]) -> 0", "(None) -> 0"] {
         let text = format!(
-            "subject s {{ enum Option<T> {{ None, Some(T) }} fn f(x: Int) -> y: Int {{ x }} where {{ examples {{ {row} }} }} }}"
+            "subject s {{ enum Option<T> {{ None, Some(T) }} fn f(x: integer) -> y: integer {{ x }} where {{ examples {{ {row} }} }} }}"
         );
         let out = errors(&text);
         assert_eq!(out.len(), 1, "{out:?}");
@@ -188,23 +189,23 @@ fn the_type_of_an_empty_sequence_is_told_from_where_it_goes() {
 
 #[test]
 fn a_sequence_holds_values_of_one_type() {
-    let text = "subject s { fn f(x: Int) -> y: [Int] { [x, true] } }";
+    let text = "subject s { fn f(x: integer) -> y: [integer] { [x, true] } }";
     let out = errors(text);
     assert!(out.iter().any(|e| e.starts_with("error[M005]")), "{out:?}");
-    let text = "subject s { fn f(x: Int) -> y: Int { x.len() } }";
+    let text = "subject s { fn f(x: integer) -> y: integer { x.len() } }";
     let out = errors(text);
     assert!(
         out.iter().any(|e| e.contains("`.len()` reads a sequence")),
         "{out:?}"
     );
-    let text = "subject s { fn f(xs: [Int]) -> y: Int { xs.len } }";
+    let text = "subject s { fn f(xs: [integer]) -> y: integer { xs.len } }";
     let out = errors(text);
     assert!(
         out.iter()
             .any(|e| e.contains("the length of a sequence is `.len()`")),
         "{out:?}"
     );
-    let text = "subject s { fn f(xs: [Int]) -> y: Int { xs[true] } }";
+    let text = "subject s { fn f(xs: [integer]) -> y: integer { xs[true] } }";
     let out = errors(text);
     assert!(
         out.iter().any(|e| e.contains("`xs[i]` reads a sequence")),
@@ -216,8 +217,8 @@ fn a_sequence_holds_values_of_one_type() {
 fn a_model_of_sequences_reads_back_as_printed() {
     let text = "subject s {
     enum Option<T> { None, Some(T) }
-    record P { x: Int, ys: [Real] }
-    fn f(p: P, xss: [[Int]], o: [Option<Int>]) -> b: bool {
+    record P { x: integer, ys: [rational] }
+    fn f(p: P, xss: [[integer]], o: [Option<integer>]) -> b: bool {
         p.ys.len() == xss[0].len() && xss[1][0] == 3 && o == [None, Some(p.x)] && [] == p.ys
     } where {
         examples { (P { x: 1, ys: [] }, [[], [3]], [None, Some(1)]) -> true }
@@ -236,7 +237,7 @@ fn a_model_of_sequences_reads_back_as_printed() {
 #[test]
 fn a_measured_sequence_is_evidence() {
     let text = "subject list {
-    fn first(xs: [Int]) -> f: Int at \"src/lib.rs/first\" { if xs.len() == 0 { 0 } else { xs[0] } }
+    fn first(xs: [integer]) -> f: integer at \"src/lib.rs/first\" { if xs.len() == 0 { 0 } else { xs[0] } }
 }";
     let model = parse(text).unwrap();
     assert_eq!(check(&model), vec![]);
