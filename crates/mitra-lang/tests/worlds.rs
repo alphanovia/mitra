@@ -489,3 +489,27 @@ examples {
         Vec::<String>::new()
     );
 }
+
+/// One answer for each call in a row: two for the same arguments are
+/// M022, in a function's examples and in the model's.
+#[test]
+fn a_call_given_twice_in_a_row() {
+    let (errors, _) =
+        whole("given sun::light() -> 2.0, sun::light() -> 3.0 when stone::heat(5.0) then 10.0");
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.starts_with("error[M022]: `sun::light()` is given twice in one row")),
+        "{errors:?}"
+    );
+    let (errors, _) = whole("given sun::hour(_) -> 1, sun::hour(_) -> 2, sun::light() -> 2.0 when stone::heat(5.0) then 20.0");
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.starts_with("error[M022]: `sun::hour(_)` is given twice in one row")),
+        "{errors:?}"
+    );
+    // Two arguments, two calls: no error.
+    let (errors, _) = whole("given sun::hour(1) -> 1, sun::hour(2) -> 2, sun::hour(_) -> 3, sun::light() -> 2.0 when stone::heat(5.0) then 20.0");
+    assert!(!errors.iter().any(|e| e.contains("twice")), "{errors:?}");
+}

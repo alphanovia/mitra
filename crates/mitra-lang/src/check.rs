@@ -1777,7 +1777,23 @@ fn bodiless(index: &Index, e: &Expression<simulation::Op>) -> Option<(String, St
 /// model gives, by its whole path, as it takes and gives.
 fn given_wrong(index: &Index, given: &crate::model::Given) -> Vec<String> {
     let mut wrong = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
     for (g, args, v) in &given.0 {
+        // One answer for each call: a second for the same arguments
+        // would leave which one the run read to the order.
+        if !seen.insert((g, args)) {
+            let row = crate::print::givens(&crate::model::Given(vec![(
+                g.clone(),
+                args.clone(),
+                v.clone(),
+            )]));
+            let row = row.trim_start().trim_start_matches("given ");
+            let call = row.split(" -> ").next().unwrap_or(row);
+            wrong.push(format!(
+                "`{call}` is given twice in one row: a run reads one answer for each call"
+            ));
+            continue;
+        }
         let fits = index.functions.get(g.as_str()).is_some_and(|g| {
             g.body.is_none()
                 && args.len() == g.takes.len()
