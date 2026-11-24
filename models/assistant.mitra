@@ -1,0 +1,76 @@
+// Parts as types, nesting, methods, data shorthand
+// (user 2026-11-24 09:18-10:08). Every type is a part; part names are CamelCase.
+// An outer part holds only parts, requires, ensures and end-to-end examples.
+// Only the llm and the user are environments; the harness and tools are Mitra's subject.
+subject Assistant {
+    // What it does, end to end: rests only on the inner parts' ensures.
+    ensure answers: "the assistant answers every prompt" from (Harness::loops_end, Llm::answers);
+    require reachable: "the harness's machine reaches the llm's machine";
+
+    // Integration examples: ports by their whole path.
+    examples {
+        (
+            Harness::run::self = Harness { llm: Llm { name: "m" }, tools: [], budget: 10 },
+            Harness::run::prompt = "2 + 2?",
+            Llm::inference::self = Llm { name: "m" },
+            Llm::inference::prompt = "2 + 2?",
+            Llm::inference::r = Reply { text: "4", stop: true },
+        ) -> Harness::run::answer = "4"
+    }
+
+    subject Harness {
+        // Its data: one record, no name. A field may be of a part's type.
+        record { llm: Llm, tools: [Tool], budget: integer }
+
+        // A method: first parameter `self`, no type written.
+        fn run(self, prompt: [~char]) -> answer: [~char] {
+            let r = self.llm.inference(prompt) in
+            if r.stop || self.tools.len() == 0 { r.text } else { self.tools[0].call(r.text) }
+        }
+
+        // Rust's update form: a new Reply, the other fields from `r`.
+        fn stopped(r: Reply) -> s: Reply { Reply { stop: true, ..r } } where {
+            claim same_text: s.text == r.text;
+        }
+
+        // A static function: no `self`, called `Harness::fresh(l, t)`.
+        fn fresh(l: Llm, t: [Tool]) -> h: Harness { Harness { llm: l, tools: t, budget: 10 } }
+
+        require served: Llm::answers;
+        ensure loops_end: "run calls the llm at most budget times" from (served);
+    }
+
+    // The atomic piece is a tool; a toolbox (which tools are loaded, the
+    // call policy) comes later. A subject: Mitra's side, like the harness.
+    subject Tool {
+        record { name: [~char], description: [~char] }
+        fn call(self, input: [~char]) -> out: [~char];
+        impl Callable;              // this part fulfils the contract with its self functions
+        ensure sandboxed: "a tool call changes nothing outside its sandbox";
+    }
+
+    // The shorthand covers enums too: a data part that is one of its variants.
+    subject enum Step { Answer([~char]), Call(Tool, [~char]) }
+
+    environment Llm {
+        record { name: [~char] }
+        fn inference(self, prompt: [~char]) -> r: Reply;
+        ensure answers: "the model answers every prompt within 60 s";
+    }
+
+    // A data part, the shorthand: same as `environment Reply { record { … } }`.
+    // It gets field reads `r.text`, `Reply { … }`, `Reply { stop: true, ..r }`
+    // (a new value, Rust's update form) and `==` field by field; nothing
+    // else until it is reopened with functions.
+    environment record Reply { text: [~char], stop: bool }
+}
+
+// EXTENSION: the same part reopened, here or in another file.
+// Same kind, at most one record in all, no name defined twice.
+subject Assistant::Tool {
+    fn describe(self) -> d: [~char] { self.name ++ ": " ++ self.description }
+}
+
+contract Callable {
+    fn call(self, input: [~char]) -> out: [~char];
+}

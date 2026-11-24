@@ -42,7 +42,12 @@ pub fn print(model: &Model) -> String {
         blocks.push(w.contract(c));
     }
     let mut seen_parts = BTreeSet::new();
+    let nested: BTreeSet<&String> = model.parts.iter().flat_map(|p| &p.inner).collect();
     for part in &model.parts {
+        // A nested part is written inside the part that holds it.
+        if nested.contains(&part.name) {
+            continue;
+        }
         let first = seen_parts.insert(part.name.clone());
         let w = Writer {
             part: Some(&part.name),
@@ -57,14 +62,19 @@ pub fn print(model: &Model) -> String {
             blocks.push(out);
         }
     }
-    if !model.examples.is_empty() {
+    let loose: Vec<&ModelExample> = model
+        .examples
+        .iter()
+        .filter(|e| e.within.is_none())
+        .collect();
+    if !loose.is_empty() {
         let w = Writer {
             part: None,
             items: &items,
             calling: &calling,
             contract: None,
         };
-        let rows: Vec<String> = model.examples.iter().map(|e| w.model_example(e)).collect();
+        let rows: Vec<String> = loose.iter().map(|e| w.model_example(e)).collect();
         blocks.push(format!(
             "examples {{\n{}}}\n",
             rows.iter()
@@ -184,6 +194,7 @@ impl Writer<'_> {
         let params: Vec<String> = c
             .params
             .iter()
+            .filter(|(n, _)| n != "Self")
             .map(|(n, b)| match b {
                 Bound::Any => n.clone(),
                 Bound::Number => format!("{n}: Number"),
@@ -291,6 +302,28 @@ impl Writer<'_> {
             true => self.ties(item, model, placed),
             false => String::new(),
         };
+        // A part that is its data only: `subject record Reply { … }`.
+        let data_only = part.uses.is_empty()
+            && part.functions.is_empty()
+            && part.implements.is_empty()
+            && part.requires.is_empty()
+            && part.ensures.is_empty()
+            && part.inner.is_empty()
+            && model.ties.iter().all(|t| t.item != here);
+        match (&part.records[..], &part.enums[..]) {
+            ([r], []) if data_only && r.name == part.name => {
+                let ties = tied(&here.then(&r.name), placed);
+                let s = self.record(r, &ties, false);
+                out.push_str(&format!("{kind} {}", s.trim_start()));
+                return;
+            }
+            ([], [e]) if data_only && e.name == part.name => {
+                let ties = tied(&here.then(&e.name), placed);
+                out.push_str(&format!("{kind} {}", enum_(e, &ties).trim_start()));
+                return;
+            }
+            _ => {}
+        }
         out.push_str(&format!("{kind} {}{} {{\n", part.name, tied(&here, placed)));
         let mut blocks: Vec<String> = vec![];
         let uses: String = part.uses.iter().map(|u| use_(u, model)).collect();
@@ -307,7 +340,8 @@ impl Writer<'_> {
                 true => tied(&here.then(&r.name), placed),
                 false => String::new(),
             };
-            blocks.push(self.record(r, &ties));
+            let own = r.name == part.name && r.params.is_empty();
+            blocks.push(self.record(r, &ties, own));
         }
         for e in &part.enums {
             let ties = match seen.insert(e.name.clone()) {
@@ -323,13 +357,45 @@ impl Writer<'_> {
             };
             blocks.push(self.function(f, &ties));
         }
-        let impls: String = part.implements.iter().map(implements).collect();
+        let impls: String = part
+            .implements
+            .iter()
+            .map(|i| implements(i, part, model))
+            .collect();
         if !impls.is_empty() {
             blocks.push(impls);
         }
         let ensures: String = part.ensures.iter().map(|e| self.ensure(e)).collect();
         if !ensures.is_empty() {
             blocks.push(ensures);
+        }
+        // Its examples of the whole, then its parts, one level in.
+        let rows: Vec<String> = model
+            .examples
+            .iter()
+            .filter(|e| e.within.as_deref() == Some(part.name.as_str()))
+            .map(|e| format!("        {},\n", self.model_example(e)))
+            .collect();
+        if !rows.is_empty() {
+            blocks.push(format!("    examples {{\n{}    }}\n", rows.concat()));
+        }
+        for name in &part.inner {
+            if let Some(inner) = model.parts.iter().find(|p| &p.name == name) {
+                let w = Writer {
+                    part: Some(&inner.name),
+                    ..*self
+                };
+                let mut s = String::new();
+                w.part(inner, model, placed, first, &mut s);
+                let indented: String = s
+                    .lines()
+                    .map(|l| match l.is_empty() {
+                        true => "\n".to_string(),
+                        false => format!("    {l}\n"),
+                    })
+                    .collect();
+                blocks.push(indented);
+            }
         }
         out.push_str(&blocks.join("\n"));
         out.push_str("}\n");
@@ -365,8 +431,12 @@ impl Writer<'_> {
         s
     }
 
-    fn record(&self, r: &Record, ties: &str) -> String {
-        let mut s = format!("    record {}{}{ties}", r.name, params(&r.params));
+    fn record(&self, r: &Record, ties: &str, own: bool) -> String {
+        // The part's own record has no name of its own.
+        let mut s = match own {
+            true => format!("    record{ties}"),
+            false => format!("    record {}{}{ties}", r.name, params(&r.params)),
+        };
         if let Some(fields) = &r.fields {
             let fields: Vec<String> = fields
                 .iter()
@@ -390,7 +460,9 @@ impl Writer<'_> {
         let takes: Vec<String> = f
             .takes
             .iter()
-            .map(|(n, t)| match f.ranges.takes.get(n) {
+            .enumerate()
+            .map(|(k, (n, t))| match f.ranges.takes.get(n) {
+                _ if k == 0 && n == "self" => "self".to_string(),
                 Some(range) => format!("{n}: {range}"),
                 None => format!("{n}: {}", type_(t)),
             })
@@ -675,7 +747,30 @@ fn use_(u: &Use, model: &Model) -> String {
 }
 
 /// `impl Monotone<Real> for speed;`, `impl Pair<Real> for (f, g);`.
-fn implements(i: &Implements) -> String {
+fn implements(i: &Implements, part: &Part, model: &Model) -> String {
+    // `impl Callable;`: the part is `Self`, its functions the contract's.
+    let own = model
+        .contracts
+        .iter()
+        .find(|c| c.name == i.contract)
+        .is_some_and(|c| {
+            c.params.first().is_some_and(|(n, _)| n == "Self")
+                && i.types
+                    .first()
+                    .is_some_and(|t| matches!(t, Type::Record(r) if r.name == part.name))
+                && c.functions.iter().map(|f| &f.name).eq(i.functions.iter())
+        });
+    if own {
+        let rest = &i.types[1..];
+        let types = match rest.is_empty() {
+            true => String::new(),
+            false => format!(
+                "<{}>",
+                rest.iter().map(type_).collect::<Vec<_>>().join(", ")
+            ),
+        };
+        return format!("    impl {}{types};\n", i.contract);
+    }
     let types = match i.types.is_empty() {
         true => String::new(),
         false => format!(
@@ -693,7 +788,11 @@ fn implements(i: &Implements) -> String {
 /// `x: Real, y: Int`.
 fn takes(ts: &[(String, Type)]) -> String {
     ts.iter()
-        .map(|(n, t)| format!("{n}: {}", type_(t)))
+        .enumerate()
+        .map(|(k, (n, t))| match (k, n.as_str()) {
+            (0, "self") => "self".to_string(),
+            _ => format!("{n}: {}", type_(t)),
+        })
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -990,6 +1089,19 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
                     (format!("{name}({})", items.join(", ")), POSTFIX)
                 }
             }
+        }
+        // `t.call(x)`: a method.
+        (Op::Call(f), n, true) if n > 0 && cx.calling.methods.contains(f) => {
+            let name = f.rsplit_once("::").map_or(f.as_str(), |(_, n)| n);
+            let rest: Vec<String> = args[1..].iter().map(|a| sim_in(cx, &a.body)).collect();
+            (
+                format!(
+                    "{}.{name}({})",
+                    wrap(sim_at(cx, body(0)), POSTFIX),
+                    rest.join(", ")
+                ),
+                POSTFIX,
+            )
         }
         // `light(h)`, `sun::light(h)`.
         (Op::Call(f), _, _) => {

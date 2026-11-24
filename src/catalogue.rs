@@ -103,6 +103,9 @@ pub const M024: Code = model(24);
 pub const M025: Code = model(25);
 pub const M026: Code = model(26);
 pub const M027: Code = model(27);
+pub const M028: Code = model(28);
+pub const M029: Code = model(29);
+pub const M030: Code = model(30);
 
 const fn agree(number: u16) -> Code {
     Code {
@@ -186,6 +189,8 @@ pub const P008: Code = parse(8);
 pub const P009: Code = parse(9);
 pub const P010: Code = parse(10);
 pub const P011: Code = parse(11);
+pub const P012: Code = parse(12);
+pub const P013: Code = parse(13);
 
 const fn reader(number: u16) -> Code {
     Code {
@@ -265,6 +270,18 @@ pub const CATALOGUE: &[Entry] = &[
         M027,
         "an enum or a record declared so that no value fits it",
     ),
+    entry(
+        M028,
+        "a part holding parts that holds more than parts, requires, ensures and examples",
+    ),
+    entry(
+        M029,
+        "an ensure of a part holding parts that rests on what is not its parts' ensures",
+    ),
+    entry(
+        M030,
+        "a `self` that is not the first of a method of a part with a record",
+    ),
     entry(A001, "a body that breaks a claim"),
     entry(A002, "a body that disagrees with an example"),
     entry(A003, "an example that breaks a claim"),
@@ -333,6 +350,11 @@ pub const CATALOGUE: &[Entry] = &[
     entry(P009, "a value whose type cannot be told here"),
     entry(P010, "a part no file of the model declares"),
     entry(P011, "a text nested past the parser's depth budget"),
+    entry(P012, "a part reopened as another kind"),
+    entry(
+        P013,
+        "a method call on a value whose part has no such method",
+    ),
     entry(R001, "a `mitra:` comment the reader cannot read"),
     entry(R002, "a tie comment on no item, or to nothing of the model"),
     entry(R003, "a `measures` comment on no test"),

@@ -12,7 +12,9 @@
 //! catalogue (suit `P`) and where it is: line and column, as rustc
 //! writes them. Only the first is given.
 
-use crate::catalogue::{Code, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010, P011};
+use crate::catalogue::{
+    Code, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010, P011, P012, P013,
+};
 use crate::expression::{check as typed, Arg, Expression};
 use crate::judgement::{self, Prop, Set};
 use crate::location::Location;
@@ -360,6 +362,10 @@ pub(crate) struct Context {
     simulation: Simulation,
     /// Each contract's functions, to type its claims' calls.
     contracts: BTreeMap<String, Simulation>,
+    /// The functions of each contract, in its order: `impl C;` in a part.
+    contract_functions: BTreeMap<String, Vec<String>>,
+    /// The part each nested part is in.
+    outer: BTreeMap<String, String>,
 }
 
 /// What a call written by a name alone, `light(h)`, names: the
@@ -369,6 +375,8 @@ pub(crate) struct Calling {
     pub(crate) functions: BTreeMap<String, BTreeSet<String>>,
     pub(crate) uses: BTreeMap<String, Vec<Use>>,
     pub(crate) contracts: BTreeMap<String, BTreeSet<String>>,
+    /// The methods, by path: functions taking `self` first.
+    pub(crate) methods: BTreeSet<String>,
 }
 
 impl Calling {
@@ -377,6 +385,12 @@ impl Calling {
         for part in &model.parts {
             let fns = calling.functions.entry(part.name.clone()).or_default();
             fns.extend(part.functions.iter().map(|f| f.name.clone()));
+            calling.methods.extend(
+                part.functions
+                    .iter()
+                    .filter(|f| f.takes.first().is_some_and(|(n, _)| n == "self"))
+                    .map(|f| format!("{}::{}", part.name, f.name)),
+            );
             let uses = calling.uses.entry(part.name.clone()).or_default();
             uses.extend(part.uses.iter().cloned());
         }
@@ -497,6 +511,21 @@ impl Context {
                 (c.name.clone(), Simulation { calls })
             })
             .collect();
+        let contract_functions = model
+            .contracts
+            .iter()
+            .map(|c| {
+                (
+                    c.name.clone(),
+                    c.functions.iter().map(|f| f.name.clone()).collect(),
+                )
+            })
+            .collect();
+        let outer = model
+            .parts
+            .iter()
+            .flat_map(|p| p.inner.iter().map(|i| (i.clone(), p.name.clone())))
+            .collect();
         Context {
             records,
             enums,
@@ -507,8 +536,45 @@ impl Context {
             calling: Calling::of(model),
             simulation,
             contracts,
+            contract_functions,
+            outer,
         }
     }
+}
+
+/// `part` added to `parts`: a part already there is reopened (an
+/// extension, as Swift's): of the same kind, its items joined.
+fn add_part(parts: &mut Vec<Part>, part: Part, at: Pos) -> Result<()> {
+    let Some(was) = parts.iter_mut().find(|p| p.name == part.name) else {
+        parts.push(part);
+        return Ok(());
+    };
+    if was.kind != part.kind {
+        let kind = |k: &Kind| match k {
+            Kind::Subject => "a subject",
+            Kind::Environment => "an environment",
+        };
+        let message = format!(
+            "`{}` is {}, reopened here as {}: a part keeps its kind",
+            part.name,
+            kind(&was.kind),
+            kind(&part.kind)
+        );
+        return Err(error(P012, at, message));
+    }
+    was.uses.extend(part.uses);
+    was.records.extend(part.records);
+    was.enums.extend(part.enums);
+    was.functions.extend(part.functions);
+    was.implements.extend(part.implements);
+    was.requires.extend(part.requires);
+    was.ensures.extend(part.ensures);
+    for i in part.inner {
+        if !was.inner.contains(&i) {
+            was.inner.push(i);
+        }
+    }
+    Ok(())
 }
 
 /// The records and enums being followed, outermost first: one met again
@@ -792,6 +858,8 @@ pub(crate) struct Parser<'c> {
     /// How deep the text nests here, and how deep it may (P011).
     depth: usize,
     budget: usize,
+    /// Examples of the model written in a part that holds parts.
+    examples: Vec<ModelExample>,
 }
 
 impl<'c> Parser<'c> {
@@ -808,6 +876,7 @@ impl<'c> Parser<'c> {
             reads: vec![],
             depth: 0,
             budget: Settings::default().depth,
+            examples: vec![],
         }
     }
 
@@ -947,6 +1016,13 @@ impl<'c> Parser<'c> {
         if names == ["crate"] {
             return self.expected("`::`");
         }
+        // `Assistant::Harness::run` is `Harness::run`: a part's name is
+        // one in the model, nested or not.
+        if let Some(context) = self.context {
+            while names.len() > 2 && context.outer.get(&names[1]) == Some(&names[0]) {
+                names.remove(0);
+            }
+        }
         Ok(names)
     }
     /// A path as written, made whole: in a part, a path whose first
@@ -1002,7 +1078,11 @@ impl<'c> Parser<'c> {
                     self.expect("{")?;
                     examples.extend(self.list("}", |p| p.model_example())?);
                 }
-                Tok::Word(w) if w == "subject" || w == "environment" => parts.push(self.part_()?),
+                Tok::Word(w) if w == "subject" || w == "environment" => {
+                    for (part, at) in self.part_()? {
+                        add_part(&mut parts, part, at)?;
+                    }
+                }
                 Tok::Word(w) if w == "tie" => {
                     self.bump();
                     let item = self.path()?;
@@ -1017,6 +1097,7 @@ impl<'c> Parser<'c> {
                 }
             }
         }
+        examples.append(&mut self.examples);
         let model = Model {
             parts,
             contracts,
@@ -1126,6 +1207,15 @@ impl<'c> Parser<'c> {
                 return self.expected("`fn`, `claim` or `}`");
             }
         }
+        // A contract with methods takes the part that fulfils it first,
+        // `Self`: `impl Callable;` in a part gives it.
+        let mut params = params;
+        if functions
+            .iter()
+            .any(|f| f.takes.first().is_some_and(|(n, _)| n == "self"))
+        {
+            params.insert(0, ("Self".to_string(), simulation::Bound::Any));
+        }
         Ok(Contract {
             name,
             params,
@@ -1138,9 +1228,24 @@ impl<'c> Parser<'c> {
         self.expect("(")?;
         self.list(")", |p| {
             let n = p.name()?;
+            if n == "self" && !p.is(":") {
+                return Ok((n, p.self_type()));
+            }
             p.expect(":")?;
             Ok((n, p.type_()?))
         })
+    }
+    /// The type `self` names, written with no type: in a contract, the
+    /// part that fulfils it, `Self`; in a part, the part's own record.
+    fn self_type(&self) -> Type {
+        match (&self.contract, &self.part) {
+            (Some(_), _) => Type::Param {
+                name: "Self".to_string(),
+                bound: simulation::Bound::Any,
+            },
+            (None, Some(part)) => Type::Record(self.record_type(part)),
+            (None, None) => Type::Truth,
+        }
     }
 
     /// `(sun::light::w = 850.0, stone::speed::h = 5.0) -> stone::speed::v2 = 98.1`;
@@ -1174,7 +1279,11 @@ impl<'c> Parser<'c> {
             true => self.list(")", port)?,
             false => vec![port(self)?],
         };
-        Ok(ModelExample { inputs, outputs })
+        Ok(ModelExample {
+            inputs,
+            outputs,
+            within: self.part.clone(),
+        })
     }
 
     /// `use sun::{light, Ray};`, `use sun::light;` or `use sun::*;`.
@@ -1191,6 +1300,19 @@ impl<'c> Parser<'c> {
         if std {
             part = self.name()?;
             self.expect("::")?;
+        }
+        // `use Assistant::Harness::run;`: a nested part, by its path.
+        while matches!(self.peek(), Tok::Word(_)) && *self.peek_at(1) == Tok::Sym("::") {
+            let at = self.pos();
+            let inner = self.name()?;
+            self.expect("::")?;
+            if let Some(context) = self.context {
+                if context.outer.get(&inner) != Some(&part) {
+                    let message = format!("`{inner}` is no part inside `{part}`");
+                    return Err(error(P003, at, message));
+                }
+            }
+            part = inner;
         }
         self.reads.push((part.clone(), std, at));
         let u = if self.eat("*") {
@@ -1217,6 +1339,23 @@ impl<'c> Parser<'c> {
         let mut types = vec![];
         if self.eat("<") {
             types = self.list(">", |p| p.type_())?;
+        }
+        // `impl Callable;` in a part: the part fulfils it, its functions
+        // of the contract's names; the part is `Self`.
+        if self.eat(";") {
+            if let Some(part) = self.part.clone() {
+                types.insert(0, Type::Record(self.record_type(&part)));
+            }
+            let functions = self
+                .context
+                .and_then(|c| c.contract_functions.get(&contract))
+                .cloned()
+                .unwrap_or_default();
+            return Ok(Implements {
+                contract,
+                types,
+                functions,
+            });
         }
         self.expect_word("for")?;
         let functions = match self.eat("(") {
@@ -1248,17 +1387,17 @@ impl<'c> Parser<'c> {
         Ok(())
     }
 
-    fn part_(&mut self) -> Result<Part> {
+    /// `subject Harness { … }`, then each part nested in it, each with
+    /// where it starts. `subject record Reply { … }` and `subject enum
+    /// Step { … }` are a part holding only its data (the shorthand).
+    /// `subject Assistant::Tool { … }` reopens `Tool`.
+    fn part_(&mut self) -> Result<Vec<(Part, Pos)>> {
+        let at = self.pos();
         let kind = match self.bump() {
             Tok::Word(w) if w == "subject" => Kind::Subject,
             _ => Kind::Environment,
         };
-        let name = self.name()?;
-        self.part = Some(name.clone());
-        let here = Path::to(&[&name]);
-        self.ties_of(&here)?;
-        self.expect("{")?;
-        let mut part = Part {
+        let empty = |name: String| Part {
             name,
             kind,
             uses: vec![],
@@ -1268,26 +1407,89 @@ impl<'c> Parser<'c> {
             implements: vec![],
             requires: vec![],
             ensures: vec![],
+            inner: vec![],
             file: None,
         };
+        // The shorthand: the part is its data.
+        if self.is_word("record") || self.is_word("enum") {
+            let Tok::Word(name) = self.peek_at(1).clone() else {
+                self.bump();
+                return self.expected("a name");
+            };
+            let was = self.part.replace(name.clone());
+            let here = Path::to(&[&name]);
+            let mut part = empty(name);
+            let read = match self.is_word("record") {
+                true => self.record(&here).map(|r| part.records.push(r)),
+                false => self.enum_(&here).map(|e| part.enums.push(e)),
+            };
+            self.part = was;
+            read?;
+            return Ok(vec![(part, at)]);
+        }
+        let mut name = self.name()?;
+        while self.eat("::") {
+            name = self.name()?;
+        }
+        let was = self.part.replace(name.clone());
+        let here = Path::to(&[&name]);
+        let read = self.part_body(empty(name), &here);
+        self.part = was;
+        let (part, mut nested) = read?;
+        nested.insert(0, (part, at));
+        Ok(nested)
+    }
+    fn part_body(&mut self, mut part: Part, here: &Path) -> Result<(Part, Vec<(Part, Pos)>)> {
+        self.ties_of(here)?;
+        self.expect("{")?;
+        let mut nested = vec![];
         while !self.eat("}") {
             match self.peek() {
                 Tok::Word(w) if w == "require" => part.requires.push(self.require()?),
                 Tok::Word(w) if w == "ensure" => part.ensures.push(self.ensure()?),
-                Tok::Word(w) if w == "record" => part.records.push(self.record(&here)?),
-                Tok::Word(w) if w == "enum" => part.enums.push(self.enum_(&here)?),
-                Tok::Word(w) if w == "fn" => part.functions.push(self.function(&here)?),
+                // The part's own record: its name is the part's.
+                Tok::Word(w)
+                    if w == "record"
+                        && matches!(self.peek_at(1), Tok::Sym("{") | Tok::Sym(";"))
+                        || w == "record" && matches!(self.peek_at(1), Tok::Word(x) if x == "where" || x == "at") =>
+                {
+                    let at = self.pos();
+                    self.bump();
+                    if part.records.iter().any(|r| r.name == part.name) {
+                        let message = format!("`{}` holds one record of its own, given twice", part.name);
+                        return Err(error(P003, at, message));
+                    }
+                    self.ties_of(&here.then(&part.name))?;
+                    part.records.push(self.record_body(part.name.clone(), vec![])?);
+                }
+                Tok::Word(w) if w == "record" => part.records.push(self.record(here)?),
+                Tok::Word(w) if w == "enum" => part.enums.push(self.enum_(here)?),
+                Tok::Word(w) if w == "fn" => part.functions.push(self.function(here)?),
                 Tok::Word(w) if w == "use" => part.uses.push(self.use_()?),
                 Tok::Word(w) if w == "impl" => part.implements.push(self.implements()?),
+                Tok::Word(w) if w == "subject" || w == "environment" => {
+                    let inner = self.deeper(|p| p.part_())?;
+                    if let Some((first, _)) = inner.first() {
+                        if !part.inner.contains(&first.name) {
+                            part.inner.push(first.name.clone());
+                        }
+                    }
+                    nested.extend(inner);
+                }
+                Tok::Word(w) if w == "examples" => {
+                    self.bump();
+                    self.expect("{")?;
+                    let rows = self.list("}", |p| p.model_example())?;
+                    self.examples.extend(rows);
+                }
                 _ => {
                     return self.expected(
-                        "`use`, `require`, `ensure`, `record`, `enum`, `fn`, `impl` or `}`",
+                        "`use`, `require`, `ensure`, `record`, `enum`, `fn`, `impl`, a part, `examples` or `}`",
                     )
                 }
             }
         }
-        self.part = None;
-        Ok(part)
+        Ok((part, nested))
     }
 
     /// `require light: sun::shines;` or `require air: "still air";`.
@@ -1390,6 +1592,10 @@ impl<'c> Parser<'c> {
         let mut ranges = simulation::Ranged::default();
         let takes = self.list(")", |p| {
             let n = p.name()?;
+            // A method: `self`, the part's own record, no type written.
+            if n == "self" && !p.is(":") {
+                return Ok((n, p.self_type()));
+            }
             p.expect(":")?;
             let (t, range) = p.type_or_range()?;
             if let Some(range) = range {
@@ -2163,6 +2369,44 @@ impl<'c> Parser<'c> {
                 e = apply(Op::StartsWith, vec![e, b]);
                 continue;
             }
+            // `t.call(x)`: a method, the function of `t`'s part that
+            // takes `self` first.
+            if let (Tok::Word(name), Tok::Sym("(")) = (self.peek().clone(), self.peek_at(1).clone())
+            {
+                let at = self.pos();
+                self.bump();
+                self.bump();
+                let mut args = vec![e];
+                args.extend(self.list(")", |p| p.inner(&mut env.clone()))?);
+                let Some(context) = self.context else {
+                    e = apply(Op::Call(format!("?::{name}")), args);
+                    continue;
+                };
+                let of = self.type_in(env, &args[0].clone());
+                let path = match &of {
+                    Some(Type::Record(r)) => Some(format!("{}::{name}", r.name)),
+                    _ => None,
+                };
+                let method = path.as_ref().filter(|p| {
+                    context
+                        .simulation
+                        .calls
+                        .get(p.as_str())
+                        .is_some_and(|c| c.takes.first().is_some_and(|(n, _)| n == "self"))
+                });
+                let Some(path) = method else {
+                    let what = match &of {
+                        Some(t) => format!("`{}`", crate::print::type_(t)),
+                        None => "a value whose type cannot be told here".to_string(),
+                    };
+                    let message = format!(
+                        "`.{name}(…)` calls a method, and {what} has no method `{name}`: a method is a function of the value's part taking `self` first"
+                    );
+                    return Err(error(P013, at, message));
+                };
+                e = apply(Op::Call(path.clone()), args);
+                continue;
+            }
             let field = match self.bump() {
                 Tok::Word(w) => w,
                 Tok::Int(n) => n.to_string(),
@@ -2334,11 +2578,36 @@ impl<'c> Parser<'c> {
                 let name = self.name()?;
                 if self.is("{") && !self.no_record {
                     self.bump();
-                    let fields = self.list("}", |p| {
-                        let n = p.name()?;
-                        p.expect(":")?;
-                        Ok((n, p.inner(&mut env.clone())?))
-                    })?;
+                    // Fields, then perhaps `..r`: each other field read
+                    // from `r` (Rust's update form), a new value.
+                    let (mut fields, mut base) = (vec![], None);
+                    while !self.eat("}") {
+                        if self.eat("..") {
+                            base = Some(self.inner(&mut env.clone())?);
+                            self.expect("}")?;
+                            break;
+                        }
+                        let n = self.name()?;
+                        self.expect(":")?;
+                        fields.push((n, self.inner(&mut env.clone())?));
+                        if !self.eat(",") {
+                            self.expect("}")?;
+                            break;
+                        }
+                    }
+                    if let Some(base) = base {
+                        let declared: Vec<String> =
+                            match self.context.and_then(|c| c.records.get(&name)) {
+                                Some(r) => r.fields.iter().map(|(n, _)| n.clone()).collect(),
+                                None => vec![],
+                            };
+                        for f in declared {
+                            if !fields.iter().any(|(n, _)| *n == f) {
+                                let read = apply(Op::Field(f.clone()), vec![base.clone()]);
+                                fields.push((f, read));
+                            }
+                        }
+                    }
                     let (record, args) =
                         self.made(&name, fields, |e| self.type_or_any(env, e), at)?;
                     return Ok(apply(Op::Make(record), args));

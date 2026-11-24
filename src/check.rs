@@ -5,7 +5,8 @@
 
 use crate::catalogue::{
     Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013,
-    M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024, M025, M026, M027,
+    M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024, M025, M026, M027, M028, M029,
+    M030,
 };
 use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
@@ -197,6 +198,7 @@ pub fn check(model: &Model) -> Vec<Error> {
                 }
             }
         }
+        errors.extend(nesting(part, &at));
         for ensure in &part.ensures {
             let here = at.then(&ensure.name);
             for list in &ensure.from {
@@ -204,6 +206,27 @@ pub fn check(model: &Model) -> Vec<Error> {
                     errors.push(error(M011, &here, "a list is empty"));
                 }
                 for names in list {
+                    // A part holding parts rests on its parts' ensures
+                    // and its own requires only (M029).
+                    if !part.inner.is_empty() && index.prop_at(names).is_some() {
+                        let first = names.names.first().map(String::as_str).unwrap_or("");
+                        let item = index.items.get(names);
+                        let fits = match first == part.name {
+                            true => matches!(item, Some(Item::Require(_))),
+                            false => {
+                                part.inner.iter().any(|i| i == first)
+                                    && matches!(item, Some(Item::Ensure(_)))
+                            }
+                        };
+                        if !fits {
+                            let message = format!(
+                                "`{names}`: `{}` holds parts, and its ensures rest only on its parts' ensures and its own requires",
+                                part.name
+                            );
+                            errors.push(error(M029, &here, message));
+                        }
+                        continue;
+                    }
                     errors.extend(names_wrong(&index, &here, names));
                 }
             }
@@ -494,6 +517,11 @@ fn typed_in<'a>(
 ) -> bool {
     let mut all = true;
     for (name, t) in names.filter(|(_, t)| !known_in(index, t, params)) {
+        // `self` of a part with no record: M030 says it.
+        if name == "self" && params.is_empty() {
+            all = false;
+            continue;
+        }
         let message = match t.open() && params.is_empty() {
             true => format!("the type of `{name}` is a type parameter: only a contract, a record or an enum names one"),
             false => match std_named(t) {
@@ -697,6 +725,60 @@ fn record_type(r: &Record) -> Type {
     r.type_()
 }
 
+/// M028 for a part holding parts that holds more than parts, requires,
+/// ensures and examples; M030 for each `self` that is not the first of a
+/// method of a part with its own record.
+fn nesting(part: &Part, at: &Path) -> Vec<Error> {
+    let mut errors = vec![];
+    if !part.inner.is_empty() {
+        let mut held = vec![];
+        if !part.records.is_empty() {
+            held.push("a record");
+        }
+        if !part.enums.is_empty() {
+            held.push("an enum");
+        }
+        if !part.functions.is_empty() {
+            held.push("a function");
+        }
+        if !part.uses.is_empty() {
+            held.push("a `use`");
+        }
+        if !part.implements.is_empty() {
+            held.push("an `impl`");
+        }
+        if !held.is_empty() {
+            let message = format!(
+                "`{}` holds parts, and also {}: a part holding parts holds only them, requires, ensures and examples; move the rest into one of its parts",
+                part.name,
+                held.join(", ")
+            );
+            errors.push(error(M028, at, message));
+        }
+    }
+    let own = part.records.iter().any(|r| r.name == part.name);
+    for f in &part.functions {
+        for (k, (n, _)) in f.takes.iter().enumerate() {
+            if n != "self" {
+                continue;
+            }
+            let why = match (k, own) {
+                (0, true) => continue,
+                (0, false) => format!(
+                    "`{}` takes `self`, and `{}` has no record of its own: write `record {{ … }}` in it",
+                    f.name, part.name
+                ),
+                _ => format!(
+                    "`self` is taken by `{}` in place {k}: a method takes `self` first, and nothing else is so named",
+                    f.name
+                ),
+            };
+            errors.push(error(M030, &at.then(&f.name), why));
+        }
+    }
+    errors
+}
+
 /// M007 or M008 when `names`, in a rule or list of the declaration at
 /// `at`, names no proposition of its part.
 fn names_wrong(index: &Index, at: &Path, names: &Path) -> Option<Error> {
@@ -894,7 +976,12 @@ fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error>
     let mut todo = vec![t];
     while let Some(t) = todo.pop() {
         if let Type::Record(r) = t {
-            if let Some(of) = index.record_parts.get(r.name.as_str()) {
+            // A part's own type is named by the part: seen everywhere.
+            if let Some(of) = index
+                .record_parts
+                .get(r.name.as_str())
+                .filter(|of| **of != r.name)
+            {
                 if !visible(part, of, &r.name) {
                     let message = format!(
                         "`{of}::{}` is of another part: `use {}{of}::{};`",
@@ -908,7 +995,11 @@ fn unused_records(index: &Index, part: &Part, at: &Path, t: &Type) -> Vec<Error>
             todo.extend(r.fields.iter().map(|(_, t)| t));
         }
         if let Type::Enum(e) = t {
-            if let Some(of) = index.enum_parts.get(e.name.as_str()) {
+            if let Some(of) = index
+                .enum_parts
+                .get(e.name.as_str())
+                .filter(|of| **of != e.name)
+            {
                 if !visible(part, of, &e.name) {
                     let message = format!(
                         "`{of}::{}` is of another part: `use {}{of}::{};`",
@@ -941,9 +1032,11 @@ fn reads(index: &Index, part: &Part, at: &Path, e: &Expression<simulation::Op>) 
         match op {
             simulation::Op::Call(f) => match index.functions.get(f) {
                 None => errors.push(error(M017, at, no_function(index, part, f))),
-                Some(_) => {
+                Some(function) => {
                     let (of, name) = f.split_once("::").unwrap_or_default();
-                    if !visible(part, of, name) {
+                    // A method is seen wherever its part's type is.
+                    let method = function.takes.first().is_some_and(|(n, _)| n == "self");
+                    if !method && !visible(part, of, name) {
                         let message = format!("`{f}` is of another part: `use {f};`");
                         errors.push(error(M018, at, message));
                     }

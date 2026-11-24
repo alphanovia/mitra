@@ -81,6 +81,7 @@ fn sun() -> Part {
     let mut light = function("light", "", ("w", Type::Real));
     light.takes.clear();
     Part {
+        inner: vec![],
         file: None,
         enums: vec![],
         name: "sun".to_string(),
@@ -148,6 +149,7 @@ fn stone() -> Part {
         gives: real(981, 10),
     }];
     Part {
+        inner: vec![],
         file: None,
         enums: vec![],
         name: "stone".to_string(),
@@ -721,6 +723,23 @@ fn each_error_is_found() {
         ]
     );
     given.extend(["M025".to_string(), "M026".to_string(), "M027".to_string()]);
+    // Parts holding parts (M028, M029) and methods (M030).
+    assert_eq!(
+        digits("subject A {\n    fn f(x: integer) -> y: integer { x }\n    subject B { ensure e: \"e\"; }\n}"),
+        ["error[M028]: `A` holds parts, and also a function: a part holding parts holds only them, requires, ensures and examples; move the rest into one of its parts\n --> A"]
+    );
+    assert_eq!(
+        digits("subject C { ensure c: \"c\"; }\nsubject A {\n    ensure a: \"a\" from (C::c);\n    subject B { ensure e: \"e\"; }\n}"),
+        ["error[M029]: `C::c`: `A` holds parts, and its ensures rest only on its parts' ensures and its own requires\n --> A::a"]
+    );
+    assert_eq!(
+        digits("subject T {\n    fn f(self) -> y: integer { 0 }\n    fn g(x: integer, self) -> y: integer { x }\n}"),
+        [
+            "error[M030]: `f` takes `self`, and `T` has no record of its own: write `record { … }` in it\n --> T::f",
+            "error[M030]: `self` is taken by `g` in place 1: a method takes `self` first, and nothing else is so named\n --> T::g",
+        ]
+    );
+    given.extend(["M028".to_string(), "M029".to_string(), "M030".to_string()]);
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Model && !e.retired);
@@ -1336,6 +1355,7 @@ fn number(n: i64) -> Value {
 fn example(inputs: &[(&str, i64)], outputs: &[(&str, i64)]) -> ModelExample {
     let side = |ports: &[(&str, i64)]| ports.iter().map(|(p, n)| (path(p), number(*n))).collect();
     ModelExample {
+        within: None,
         inputs: side(inputs),
         outputs: side(outputs),
     }
@@ -1707,6 +1727,7 @@ fn model_examples_name_inputs_and_outputs() {
     }
     let typed = changed(|m| {
         m.examples.push(ModelExample {
+            within: None,
             inputs: vec![(path("stone::speed::h"), Value::Truth(true))],
             outputs: vec![(path("sun::light::w"), number(2))],
         });

@@ -182,10 +182,7 @@ fn numbers_are_integer_and_rational() {
     let text = "subject s { fn f(x: integer, y: rational) -> z: (integer, rational) { (x, y) } }";
     let model = mitra_core::parse::parse(text).unwrap();
     assert_eq!(mitra_core::check::check(&model), vec![]);
-    assert_eq!(
-        mitra_core::print::print(&model).contains("x: integer, y: rational"),
-        true
-    );
+    assert!(mitra_core::print::print(&model).contains("x: integer, y: rational"));
     for old in ["Int", "Real"] {
         let text = format!("subject s {{ fn f(x: {old}) -> y: bool {{ true }} }}");
         let out: Vec<String> = mitra_core::check::check(&mitra_core::parse::parse(&text).unwrap())

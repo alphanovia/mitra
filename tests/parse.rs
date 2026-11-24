@@ -81,6 +81,7 @@ fn sun() -> Part {
     let mut light = function("light", "", ("w", Type::Real));
     light.takes.clear();
     Part {
+        inner: vec![],
         file: None,
         enums: vec![],
         name: "sun".to_string(),
@@ -148,6 +149,7 @@ fn stone() -> Part {
         gives: real(981, 10),
     }];
     Part {
+        inner: vec![],
         file: None,
         enums: vec![],
         name: "stone".to_string(),
@@ -536,6 +538,7 @@ fn uses_calls_and_contracts() {
     assert_eq!(
         m.examples[0],
         ModelExample {
+            within: None,
             inputs: vec![
                 (path("geo::later::d"), int(1)),
                 (path("lab::clock::t"), int(5))
@@ -878,6 +881,7 @@ fn in_a_model(holds: E) -> Model {
     };
     Model {
         parts: vec![Part {
+            inner: vec![],
             file: None,
             enums: vec![],
             name: "s".to_string(),

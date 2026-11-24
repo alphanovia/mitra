@@ -174,6 +174,7 @@ subject check {
     ensure one_value: "two examples of a function at one point that give different values are the error M024";
     ensure in_ranges: "a range type that holds no number is the error M025, an example outside one M026";
     ensure declared: "an enum with no variant, a type parameter nothing it holds uses, or a record or enum that holds itself is the error M027";
+    ensure nested: "a part holding parts that holds more than parts, requires, ensures and examples is M028, one of its ensures resting on more than its inner parts' ensures and its own requires M029, a `self` not first or in a part with no record M030";
     ensure type_explained: "a type error (M005, M006) shows the expression, underlines its innermost part with no type and the type of each argument, says what that operation takes, and converts no number";
 }
 
@@ -192,6 +193,7 @@ subject parse {
     ensure first_error: "a text that is not a model gives its first error, at its line and column, suit P";
     ensure files: "a part used and not declared is read from `<part>.mitra` beside the model, `use std::…` from Mitra's standard model in the binary; one found nowhere is P010, at the use";
     ensure usable: "a proof's text writes only operations that give an opinion: `state(…)` and `&&` on states are no text";
+    ensure parts: "a part given twice is one part, merged, and P012 when the kinds differ; `x.f(a)` calls the method `f` of x's part, P013 when it has none";
     ensure deep: "a text nested deeper than `parse::Settings::depth` levels is P011, at the place the parser stopped, never a crash";
     ensure exhaustive: "a match gives each variant of its enum one arm, or `_` for the rest (P006); a value whose type nothing around it tells is P009, never a guess";
 }

@@ -141,3 +141,5 @@ review simulation::encoded holds by "test:length_and_places_are_bytes";
 review simulation::encoded holds by "test:texts_are_equal_and_ordered_byte_by_byte";
 review simulation::encoded holds by "test:exact_lies_in_ranges";
 review agree::lengths holds by "test:every_length_is_tried_up_to_the_setting";
+review check::nested holds by "test:each_error_is_found";
+review parse::parts holds by "test:a_part_is_reopened_of_its_kind";

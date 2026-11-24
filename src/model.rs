@@ -89,6 +89,9 @@ pub struct Part {
     pub implements: Vec<Implements>,
     pub requires: Vec<Require>,
     pub ensures: Vec<Ensure>,
+    /// The parts nested in it, by name: a part holding parts holds only
+    /// them, requires, ensures and examples of the model (M028).
+    pub inner: Vec<String>,
     /// The file it was read from, when not the model's own:
     /// `std/core.mitra`, or `geometry.mitra` beside the model.
     pub file: Option<String>,
@@ -174,6 +177,9 @@ pub struct Implements {
 pub struct ModelExample {
     pub inputs: Vec<(Path, Value)>,
     pub outputs: Vec<(Path, Value)>,
+    /// The part holding parts it is written in, if any: it is written
+    /// there again.
+    pub within: Option<String>,
 }
 
 /// Data. `fields` is `None` when they are not known: the record is

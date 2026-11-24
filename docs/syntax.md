@@ -260,6 +260,34 @@ bare. *Gain*: one reading of parentheses everywhere. *Cost*: none we
 use. *Elsewhere*: Swift and Haskell (no 1-tuple); Rust and Python have
 `(x,)` (flagged).
 
+**19. A part is a type** (your design, 09:18-10:08). *What*: a part
+holds one nameless `record { … }`, which is the part's own type, named
+as the part. A function whose first parameter is a bare `self` is a
+method, called `t.call(x)`; the others are static, called
+`Tool::named(x)`. `impl Named;` inside a part says the part fulfils
+the contract `Named`, through its methods.
+```text
+subject Tool {
+    record { name: [~char] }
+    fn call(self, input: [~char]) -> out: [~char] { self.name ++ input }
+    fn named(n: [~char]) -> t: Tool { Tool { name: n } }
+    impl Named;
+}
+```
+A part is reopened elsewhere to add to it (`subject Tool { … }` again,
+or `subject Assistant::Tool { … }` by its path): one record, the same
+kind (P012), no name given twice. A part may hold parts: then it holds
+only parts, requires, ensures and `examples` (M028), and its ensures
+rest on its inner parts' ensures or its own requires (M029). A part
+that only holds data is written short: `environment record Reply { … }`,
+`subject enum Step { … }`. `Reply { stop: true, ..r }` is `r` with
+`stop` changed. A part's name is one in the model: `Assistant::Harness::run`
+is `Harness::run`. *Gain*: what a piece is and what it does read in one
+place, as Rust's `struct` and `impl` together. *Cost*: a method is
+written `fn f(self, …)`, Rust's form without `&`; files are not parts.
+*Elsewhere*: Rust (`impl` blocks, `Self`, `..base`), Swift (types
+reopened by `extension`, nested types), Kotlin (`data class`).
+
 ## Errors
 
 A problem in the text is `error[P…]`, suit `P` of the catalogue
