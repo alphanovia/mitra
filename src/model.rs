@@ -296,14 +296,58 @@ pub struct Claim {
 }
 
 /// Its premises give its conclusion. `proof` is `None` when nothing
-/// shows it: the rule is assumed. A proof reads the premises as
-/// opinions, and gives one of the conclusion.
+/// shows it: the rule is assumed, unless `short` names the one step
+/// that shows it, `by tollens`, its arguments the premises: Mitra finds
+/// the proof (`Index::fills`). A proof reads the premises as opinions,
+/// and gives one of the conclusion.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
     pub name: String,
     pub premises: Vec<Term>,
     pub conclusion: Term,
     pub proof: Option<Expression<judgement::Op>>,
+    pub short: Option<Step>,
+}
+
+/// A step of a proof written alone, `by ponens`: what it is about and
+/// its arguments are the rule's premises, put where they fit.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Step {
+    Ponens,
+    Tollens,
+    Cases,
+    Intro,
+    Reductio,
+    Instance,
+    Witness,
+}
+
+impl Step {
+    pub const ALL: [Step; 7] = [
+        Step::Ponens,
+        Step::Tollens,
+        Step::Cases,
+        Step::Intro,
+        Step::Reductio,
+        Step::Instance,
+        Step::Witness,
+    ];
+    /// The word that writes it.
+    pub fn word(self) -> &'static str {
+        match self {
+            Step::Ponens => "ponens",
+            Step::Tollens => "tollens",
+            Step::Cases => "cases",
+            Step::Intro => "intro",
+            Step::Reductio => "reductio",
+            Step::Instance => "instance",
+            Step::Witness => "witness",
+        }
+    }
+    /// The step `word` writes.
+    pub fn of(word: &str) -> Option<Step> {
+        Step::ALL.into_iter().find(|s| s.word() == word)
+    }
 }
 
 /// A term of a rule: a proposition as the rule writes it. The claim,
@@ -685,6 +729,9 @@ impl<'m> Index<'m> {
     /// names no proposition, or the proof applies a rule of the model
     /// judgement does not know: a problem found where it is.
     pub(crate) fn shows(&self, at: &Path, rule: &Rule) -> Option<bool> {
+        if let (None, Some(_)) = (&rule.proof, rule.short) {
+            return Some(self.fills(at, rule)?.len() == 1);
+        }
         let proof = rule.proof.as_ref()?;
         let conclusion = self.prop(at, "then", &rule.conclusion)?;
         let mut reads = BTreeMap::new();
@@ -721,6 +768,225 @@ impl<'m> Index<'m> {
         let given = eval(&self.judgement, &values, proof);
         Some(matches!(given, Ok(judgement::Value::Opinion(o)) if o.state() == State::True))
     }
+}
+
+type J = Expression<judgement::Op>;
+
+impl Index<'_> {
+    /// The proofs the short form of the rule at `at` may stand for that
+    /// show it, each once: its step, about a premise, the conclusion, or a
+    /// point either writes, its arguments the premises, each read as it
+    /// is or as its negation (`!p`), in every place it fits. A tollens
+    /// argues against what it blames, and a reductio against what it is
+    /// of, so each is read negated: `!reductio[!c](…)` for the
+    /// conclusion `c`, from a premise, a ponens of premises, or two of
+    /// those joined, that conflict where `!c` is taken. `None` when there is no short
+    /// form, or a term names no proposition.
+    pub(crate) fn fills(&self, at: &Path, rule: &Rule) -> Option<Vec<J>> {
+        use judgement::Op as O;
+        let step = rule.short?;
+        let conclusion = self.prop(at, "then", &rule.conclusion)?;
+        // Each premise as it is and negated, by the name `shows` reads.
+        let mut atoms: Vec<(J, Prop)> = Vec::new();
+        for (i, p) in rule.premises.iter().enumerate() {
+            let name = match p {
+                Term::At(path) => path.to_string(),
+                Term::Holds(_) | Term::Prop(_) => i.to_string(),
+            };
+            let prop = self.prop(at, &i.to_string(), p)?;
+            atoms.push((Expression::Name(name.clone()), prop.clone()));
+            atoms.push((one(O::Not, vec![Expression::Name(name)]), prop.not()));
+        }
+        let mut found: Vec<J> = Vec::new();
+        match step {
+            Step::Ponens => {
+                for (_, t) in &atoms {
+                    let (Some(premises), Some(posts)) =
+                        (self.judgement.premises(t), self.judgement.posts(t))
+                    else {
+                        continue;
+                    };
+                    for post in 0..posts.len() {
+                        let op = O::Ponens { t: t.clone(), post };
+                        found.extend(fill(&op, &premises, &atoms));
+                    }
+                }
+            }
+            Step::Tollens => {
+                for (_, t) in &atoms {
+                    let (Some(premises), Some(posts)) =
+                        (self.judgement.premises(t), self.judgement.posts(t))
+                    else {
+                        continue;
+                    };
+                    for (post, q) in posts.iter().enumerate() {
+                        for blame in 0..premises.len() {
+                            if premises[blame].not() != conclusion {
+                                continue;
+                            }
+                            let mut takes = premises.clone();
+                            takes.remove(blame);
+                            let takes = [vec![q.clone()], takes].concat();
+                            let op = O::Tollens {
+                                t: t.clone(),
+                                post,
+                                blame,
+                            };
+                            let steps = fill(&op, &takes, &atoms);
+                            found.extend(steps.into_iter().map(|e| one(O::Not, vec![e])));
+                        }
+                    }
+                }
+            }
+            Step::Cases => {
+                // No more points than premises: each case is one.
+                if let Some(bodies) = conclusion.case_bodies(rule.premises.len()) {
+                    let op = O::Cases {
+                        q: conclusion.clone(),
+                    };
+                    found.extend(fill(&op, &bodies, &atoms));
+                }
+            }
+            Step::Instance => {
+                for (e, q) in atoms.iter().filter(|(_, q)| quantified(q)) {
+                    for point in conclusion.points_in() {
+                        let at = one(O::Point(point), vec![]);
+                        found.push(one(O::Instance { q: q.clone() }, vec![e.clone(), at]));
+                    }
+                }
+            }
+            Step::Witness => {
+                if quantified(&conclusion) {
+                    for (e, p) in &atoms {
+                        for point in p.points_in() {
+                            let at = one(O::Point(point), vec![]);
+                            let op = O::Witness {
+                                q: conclusion.clone(),
+                            };
+                            found.push(one(op, vec![e.clone(), at]));
+                        }
+                    }
+                }
+            }
+            Step::Intro => {
+                let (Prop::All { name, .. } | Prop::Any { name, .. }) = &conclusion else {
+                    return Some(vec![]);
+                };
+                // The body: a premise, or one's instance at the point.
+                let x = Expression::Name(name.clone());
+                let mut bodies: Vec<J> = atoms.iter().map(|(e, _)| e.clone()).collect();
+                for (e, q) in atoms.iter().filter(|(_, q)| quantified(q)) {
+                    bodies.push(one(
+                        O::Instance { q: q.clone() },
+                        vec![e.clone(), x.clone()],
+                    ));
+                }
+                for body in bodies {
+                    let arg = Arg {
+                        binds: vec![name.clone()],
+                        body,
+                    };
+                    found.push(Expression::Apply(
+                        O::Intro {
+                            q: conclusion.clone(),
+                        },
+                        vec![arg],
+                    ));
+                }
+            }
+            Step::Reductio => {
+                // What it reads: a premise, a ponens of premises, or two
+                // of those about one proposition, joined.
+                let mut read: Vec<(J, Prop)> = atoms.clone();
+                for (_, t) in &atoms {
+                    let (Some(premises), Some(posts)) =
+                        (self.judgement.premises(t), self.judgement.posts(t))
+                    else {
+                        continue;
+                    };
+                    for (post, gives) in posts.iter().enumerate() {
+                        let op = O::Ponens { t: t.clone(), post };
+                        let steps = fill(&op, &premises, &atoms);
+                        read.extend(steps.into_iter().map(|e| (e, gives.clone())));
+                    }
+                }
+                let n = read.len();
+                for i in 0..n {
+                    for j in i + 1..n {
+                        if read[i].1 == read[j].1 {
+                            let joined = one(O::Join, vec![read[i].0.clone(), read[j].0.clone()]);
+                            read.push((joined, read[i].1.clone()));
+                        }
+                    }
+                }
+                for (e, _) in &read {
+                    let against = one(
+                        O::Reductio {
+                            of: conclusion.not(),
+                        },
+                        vec![e.clone()],
+                    );
+                    found.push(one(O::Not, vec![against]));
+                }
+            }
+        }
+        let mut shown: Vec<J> = Vec::new();
+        for proof in found {
+            if shown.contains(&proof) {
+                continue;
+            }
+            let mut tried = rule.clone();
+            (tried.proof, tried.short) = (Some(proof.clone()), None);
+            if self.shows(at, &tried) == Some(true) {
+                shown.push(proof);
+            }
+        }
+        Some(shown)
+    }
+}
+
+/// `op` on `args`, none binding.
+fn one(op: judgement::Op, args: Vec<J>) -> J {
+    let args = args.into_iter().map(|body| Arg {
+        binds: vec![],
+        body,
+    });
+    Expression::Apply(op, args.collect())
+}
+
+/// An all or an any.
+fn quantified(p: &Prop) -> bool {
+    matches!(p, Prop::All { .. } | Prop::Any { .. })
+}
+
+/// `op` on arguments of `takes`, in order, each an opinion of its
+/// proposition among `atoms`: the first that fits each, then for each
+/// place one other that fits there, so that two ways to fill it are
+/// seen without trying every mix. None when a place has none.
+fn fill(op: &judgement::Op, takes: &[Prop], atoms: &[(J, Prop)]) -> Vec<J> {
+    let fits: Vec<Vec<&J>> = takes
+        .iter()
+        .map(|p| {
+            atoms
+                .iter()
+                .filter(|(_, q)| q == p)
+                .map(|(e, _)| e)
+                .collect()
+        })
+        .collect();
+    if fits.iter().any(Vec::is_empty) {
+        return vec![];
+    }
+    let first: Vec<J> = fits.iter().map(|f| f[0].clone()).collect();
+    let mut all = vec![one(op.clone(), first.clone())];
+    for (i, f) in fits.iter().enumerate() {
+        for other in f.iter().skip(1) {
+            let mut args = first.clone();
+            args[i] = (*other).clone();
+            all.push(one(op.clone(), args));
+        }
+    }
+    all
 }
 
 /// The rules a proof applies, by modus ponens or tollens.

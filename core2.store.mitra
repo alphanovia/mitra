@@ -46,6 +46,8 @@ review agree::heights holds by "test:small_trees_are_tried_as_points";
 review agree::induction holds by "test:a_claim_by_induction_holds_by_bounds_on_each_variant";
 review check::recursion holds by "test:a_function_calls_itself_only_on_a_part_of_its_input";
 review check::recursion holds by "test:induction_is_on_a_tree_input_every_call_takes_apart";
+review check::short_proofs holds by "test:each_step_alone_shows_its_rule";
+review check::short_proofs holds by "test:a_step_two_proofs_fill_in_is_an_error";
 review check::declared holds by "test:a_tree_is_an_enum_with_a_variant_that_does_not_hold_it";
 review agree::no_false_holds holds by "test:what_agree_decides_by_bounds_is_true_at_points";
 review agree::no_false_none holds by "test:what_agree_decides_by_bounds_is_true_at_points";

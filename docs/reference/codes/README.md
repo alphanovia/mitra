@@ -54,6 +54,7 @@ example, and the fix. The letter says which step found it.
 - [M029](M029.md): an ensure of a part holding parts that rests on what is not its parts' ensures
 - [M030](M030.md): a `self` that is not the first of a method of a part with a record
 - [M031](M031.md): a claim `by induction` on what is not an input that is a tree
+- [M032](M032.md): a proof written as its step alone that no proof, or two, fill in
 
 ## A (agree): the model compared with itself (`check`)
 

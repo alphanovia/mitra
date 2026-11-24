@@ -6,7 +6,7 @@
 use crate::catalogue::{
     Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013,
     M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024, M025, M026, M027, M028, M029,
-    M030, M031,
+    M030, M031, M032,
 };
 use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
@@ -14,7 +14,7 @@ use crate::graph::components;
 use crate::judgement::{self, Prop};
 use crate::model::{
     contract_calls, signatures, Claim, Contract, Function, Implements, Index, Item, Model, Part,
-    Path, Record, Rule, Source, Term, Use,
+    Path, Record, Rule, Source, Step, Term, Use,
 };
 use crate::simulation::{self, Bound, Exact, Simulation, Type, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -898,11 +898,49 @@ fn said(
                 Term::Prop(p) => errors.extend(correct_wrong(index, &here, &place, p)),
             }
         }
-        if index.shows(&here, rule) == Some(false) {
+        if let (None, Some(step)) = (&rule.proof, rule.short) {
+            errors.extend(short_wrong(index, &here, rule, step));
+        } else if index.shows(&here, rule) == Some(false) {
             let message = format!("the proof does not show `{}`", rule.name);
             errors.push(error(M012, &here, message));
         }
     }
+}
+
+/// M032 when the step a rule's proof writes alone, `by tollens`, is
+/// filled in by no proof of its premises, or by two.
+fn short_wrong(index: &Index, here: &Path, rule: &Rule, step: Step) -> Option<Error> {
+    let fills = index.fills(here, rule)?;
+    let w = step.word();
+    let full = match step {
+        Step::Ponens => "`by ponens[rule, post](…)`",
+        Step::Tollens => "`by !tollens[rule, post, blame](…)`",
+        Step::Cases => "`by cases[all x in …: p](…)`",
+        Step::Intro => "`by intro[all x in …: p](|x| …)`",
+        Step::Reductio => "`by reductio[p](…)`",
+        Step::Instance => "`by instance[all x in …: p](…, point(…))`",
+        Step::Witness => "`by witness[any x in …: p](…, point(…))`",
+    };
+    let message = match fills.as_slice() {
+        [_] => return None,
+        [] => format!(
+            "no `{w}` of the premises shows `{}`: write the proof in full, {full}",
+            rule.name
+        ),
+        [..] => {
+            let ways: Vec<String> = fills
+                .iter()
+                .map(|p| format!("`by {}`", crate::print::print_proof(p)))
+                .collect();
+            format!(
+                "`by {w}` shows `{}` {} ways: {}; write the one you mean",
+                rule.name,
+                ways.len(),
+                ways.join(", ")
+            )
+        }
+    };
+    Some(error(M032, here, message))
 }
 
 /// M013 for each declaration on a cycle of what rests on what: a rule's

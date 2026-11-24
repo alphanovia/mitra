@@ -115,6 +115,20 @@ pub fn print_prop(prop: &Prop) -> String {
     .prop(prop)
 }
 
+/// A proof, its paths whole, as an error that lists proofs writes it.
+pub fn print_proof(proof: &crate::expression::Expression<judgement::Op>) -> String {
+    let items = BTreeMap::new();
+    let calling = Calling::default();
+    Writer {
+        part: None,
+        items: &items,
+        calling: &calling,
+        contract: None,
+    }
+    .proof(proof, &mut vec![])
+    .0
+}
+
 /// A row, `(6, 2) -> 3`.
 pub fn print_row(takes: &[Value], gives: &Value) -> String {
     format!("{} -> {}", values(takes), value(gives))
@@ -555,6 +569,8 @@ impl Writer<'_> {
                 "\n            by {}",
                 self.proof(proof, &mut vec![]).0
             ));
+        } else if let Some(step) = r.short {
+            s.push_str(&format!(" by {}", step.word()));
         }
         s.push_str(";\n");
         s

@@ -115,6 +115,7 @@ fn stone() -> Part {
         premises: vec![at("stone::drop::falls"), at("stone::speed::slow")],
         conclusion: at("stone::drop::slow"),
         proof: None,
+        short: None,
     };
     // The same, shown: from `slows` and its premises, the conclusion,
     // by modus ponens.
@@ -138,6 +139,7 @@ fn stone() -> Part {
                 .map(|n| Expression::Name(n.to_string()))
                 .collect(),
         )),
+        short: None,
     };
     drop.rules = vec![assumed, lands];
     let mut speed = function("speed", "h", ("v2", Type::Real));
@@ -747,6 +749,15 @@ fn each_error_is_found() {
         ["error[M031]: `x` is integer, not a tree: `by induction` is on an input whose enum holds itself\n --> T::f::c"]
     );
     given.push("M031".to_string());
+    // A proof written as its step alone that no proof fills in (M032).
+    assert_eq!(
+        digits("subject T {\n    fn f(x: integer) -> y: integer { x } where { claim c: 0 <= y; rule r: f::c |- f::c by ponens; }\n}")
+            .iter()
+            .filter(|e| e.contains("M032"))
+            .collect::<Vec<_>>(),
+        ["error[M032]: no `ponens` of the premises shows `r`: write the proof in full, `by ponens[rule, post](…)`\n --> T::f::r"]
+    );
+    given.push("M032".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Model && !e.retired);
@@ -798,6 +809,7 @@ fn rule(name: &str, premises: &[&str], conclusion: &str) -> Rule {
         premises: premises.iter().map(|p| at(p)).collect(),
         conclusion: at(conclusion),
         proof: None,
+        short: None,
     }
 }
 
@@ -861,6 +873,7 @@ fn a_proof_argues_for_its_conclusion() {
             premises: vec![low()],
             conclusion: low(),
             proof: Some(proof),
+            short: None,
         });
         assert_eq!(errors(&model), ["M012 at stone::speed::same"]);
     }

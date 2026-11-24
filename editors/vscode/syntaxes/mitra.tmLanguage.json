@@ -98,7 +98,7 @@
     },
     "proof-op": {
       "name": "support.function.proof.mitra",
-      "match": "\\b(join|ponens|tollens|reductio|instance|witness|cases|intro|point)(?=\\s*[(\\[])"
+      "match": "\\b(join|ponens|tollens|reductio|instance|witness|cases|intro|point)(?=\\s*[(\\[])|(?<=\\bby\\s)(ponens|tollens|reductio|instance|witness|cases|intro)(?=\\s*;)"
     },
     "builtin": {
       "name": "support.function.builtin.mitra",

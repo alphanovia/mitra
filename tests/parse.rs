@@ -115,6 +115,7 @@ fn stone() -> Part {
         premises: vec![at("stone::drop::falls"), at("stone::speed::slow")],
         conclusion: at("stone::drop::slow"),
         proof: None,
+        short: None,
     };
     // The same, shown: from `slows` and its premises, the conclusion,
     // by modus ponens.
@@ -138,6 +139,7 @@ fn stone() -> Part {
                 .map(|n| Expression::Name(n.to_string()))
                 .collect(),
         )),
+        short: None,
     };
     drop.rules = vec![assumed, lands];
     let mut speed = function("speed", "h", ("v2", Type::Real));

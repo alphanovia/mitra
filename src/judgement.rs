@@ -429,6 +429,39 @@ impl Prop {
             .collect();
         (bodies.len() == n).then_some(bodies)
     }
+    /// The bodies a proof by cases of `self`, an all or an any, reads,
+    /// one a point of its set, when it has at most `most` points.
+    pub fn case_bodies(&self, most: usize) -> Option<Vec<Prop>> {
+        let (Prop::All { name, over, body } | Prop::Any { name, over, body }) = self else {
+            return None;
+        };
+        let points = over.points()?.take(most.saturating_add(1));
+        let bodies: Vec<Prop> = points
+            .map(|point| body.put(name, &Term::Point(point)))
+            .collect();
+        (bodies.len() <= most).then_some(bodies)
+    }
+    /// The points `self` writes, in `correct(f, (6, 2))`, each once.
+    pub fn points_in(&self) -> Vec<Vec<simulation::Value>> {
+        let (mut found, mut todo) = (Vec::new(), vec![self]);
+        while let Some(p) = todo.pop() {
+            match p {
+                Prop::Named(_) => {}
+                Prop::Not(x) => todo.push(x),
+                Prop::Implies { pre, post, .. } => todo.extend(pre.iter().chain(post)),
+                Prop::Correct {
+                    at: Term::Point(v), ..
+                } => {
+                    if !found.contains(v) {
+                        found.push(v.clone());
+                    }
+                }
+                Prop::Correct { .. } => {}
+                Prop::All { body, .. } | Prop::Any { body, .. } => todo.push(body),
+            }
+        }
+        found
+    }
 }
 
 /// What a rule known by its name says: when every proposition of `pre`

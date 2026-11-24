@@ -1738,16 +1738,28 @@ impl<'c> Parser<'c> {
         }
         self.expect("|-")?;
         let conclusion = self.term(env)?;
-        let proof = match self.eat_word("by") {
-            true => Some(self.proof(&mut vec![])?),
-            false => None,
-        };
+        let (mut proof, mut short) = (None, None);
+        if self.eat_word("by") {
+            // `by tollens;`: the step alone, Mitra fills in the rest.
+            let step = match self.peek() {
+                Tok::Word(w) if *self.peek_at(1) == Tok::Sym(";") => crate::model::Step::of(w),
+                _ => None,
+            };
+            match step {
+                Some(step) => {
+                    self.bump();
+                    short = Some(step);
+                }
+                None => proof = Some(self.proof(&mut vec![])?),
+            }
+        }
         self.expect(";")?;
         Ok(Rule {
             name,
             premises,
             conclusion,
             proof,
+            short,
         })
     }
 

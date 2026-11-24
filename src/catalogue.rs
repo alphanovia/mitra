@@ -107,6 +107,7 @@ pub const M028: Code = model(28);
 pub const M029: Code = model(29);
 pub const M030: Code = model(30);
 pub const M031: Code = model(31);
+pub const M032: Code = model(32);
 
 const fn agree(number: u16) -> Code {
     Code {
@@ -291,6 +292,10 @@ pub const CATALOGUE: &[Entry] = &[
     entry(
         M031,
         "a claim `by induction` on what is not an input that is a tree",
+    ),
+    entry(
+        M032,
+        "a proof written as its step alone that no proof, or two, fill in",
     ),
     entry(A001, "a body that breaks a claim"),
     entry(A002, "a body that disagrees with an example"),

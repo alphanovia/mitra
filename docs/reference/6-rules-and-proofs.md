@@ -47,6 +47,32 @@ any point). Their forms are in the
 A claim of a function over a tree can also be shown, with
 `claim c: … by induction t;`: see [Trees](4-values.md#trees).
 
+### Short proofs
+
+A proof of one step can name the step alone. Mitra puts the rule's
+premises where they fit, and keeps the proof the checker takes. From
+[examples/language/proofs.mitra](../../examples/language/proofs.mitra):
+
+```mitra
+        rule five: half::up, correct(half, (4)) |- correct(half, (5)) by ponens;
+        // Modus tollens: wrong at 5, so wrong at 4 too, or `up` is false.
+        rule four: half::up, !correct(half, (5)) |- !correct(half, (4)) by tollens;
+        // In full, the same proof.
+        rule four_full: half::up, !correct(half, (5)) |- !correct(half, (4))
+            by !tollens[half::up, 0, 1](!1, half::up);
+```
+
+`by ponens`, `by tollens`, `by cases`, `by instance`, `by witness`,
+`by intro` and `by reductio` each take no argument. Mitra tries each
+premise, as it is and negated, in each place the step takes, and the
+points the rule writes for `instance` and `witness`. When no proof
+fits, or two different ones do, it is an error (M032) that lists them:
+write the one you mean in full. A premise written in place is read by
+its place, `0`, `1`, …, as in `!1` above.
+
+Rust has no proofs; Lean's tactics `apply`, `cases` and `exact` are the
+same idea: name the step, the tool finds the arguments.
+
 A proof is never required. A model where every rule is assumed is a
 fine model: its rules are hypotheses the evidence will test.
 

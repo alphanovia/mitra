@@ -1,0 +1,23 @@
+// Short proofs: a rule's proof written as its step alone. Mitra puts the
+// rule's premises where they fit, and keeps the one proof the checker
+// takes.
+
+subject calc {
+    fn half(n: 0..=9) -> h: 0..=9 { n / 2 } where {
+        claim floor: h * 2 <= n && n < h * 2 + 2;
+        // Assumed: where `half` is right at 4, it is right at 5.
+        rule up: correct(half, (4)) |- correct(half, (5));
+
+        // Modus ponens: `up`, applied to its premise.
+        rule five: half::up, correct(half, (4)) |- correct(half, (5)) by ponens;
+        // Modus tollens: wrong at 5, so wrong at 4 too, or `up` is false.
+        rule four: half::up, !correct(half, (5)) |- !correct(half, (4)) by tollens;
+        // In full, the same proof.
+        rule four_full: half::up, !correct(half, (5)) |- !correct(half, (4))
+            by !tollens[half::up, 0, 1](!1, half::up);
+        // An all, one case per point.
+        rule low: correct(half, (0)), correct(half, (1)) |- all x in (n: 0..2): correct(half, x) by cases;
+        // An all at one of its points.
+        rule three: all x in (n: 0..10): correct(half, x) |- correct(half, (3)) by instance;
+    }
+}

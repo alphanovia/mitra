@@ -17,6 +17,7 @@ subject check {
     ensure in_ranges: "a range type that holds no number is the error M025, an example outside one M026";
     ensure declared: "an enum with no variant, a type parameter nothing it holds uses, an enum that holds itself in every variant, or a record that holds itself, is the error M027";
     ensure recursion: "a function calls itself only on parts of one of its inputs a `match` takes apart, the same for every call (M019 otherwise); a claim `by induction t` names such an input that is a tree (M031 otherwise)";
+    ensure short_proofs: "a rule's proof written as its step alone, `by tollens`, shows the rule only when exactly one proof of that step from the rule's premises, each as it is or negated, shows it; none, or two listed as they are written in full, is M032";
     ensure nested: "a part holding parts that holds more than parts, requires, ensures and examples is M028, one of its ensures resting on more than its inner parts' ensures and its own requires M029, a `self` not first or in a part with no record M030";
     ensure type_explained: "a type error (M005, M006) shows the expression, underlines its innermost part with no type and the type of each argument, says what that operation takes, and converts no number";
 }
