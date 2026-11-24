@@ -12,9 +12,8 @@
 // and bounded: each turn the harness sends it the whole conversation,
 // encoded, and a request over the model's capacity is refused.
 //
-// Written as if the queue were built: text [~char] and ++ (TEXT), fold
-// and until (LOOPS), `by invariant` (PROOF FORMS). Parts as types are on
-// main (4f73b8b).
+// Uses text [~char] and ++, fold and until, parts as types, and
+// `by invariant n` (each claim below the loop that keeps it), all on main.
 
 // What it does, end to end: only parts, requires, ensures and examples.
 subject Assistant {
@@ -138,7 +137,7 @@ subject Assistant {
         fn perform_all(calls: [Call]) -> rs: [Outcome] {
             calls.fold(rs: []) { c -> rs ++ [Outcome { call: c, output: c.tool.call(c.input) }] }
         } where {
-            claim each: rs.len() == calls.len() by invariant;
+            claim each: rs.len() == n by invariant n;
             examples { ([]) -> [] }
         }
 

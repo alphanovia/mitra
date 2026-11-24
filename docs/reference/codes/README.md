@@ -55,6 +55,7 @@ example, and the fix. The letter says which step found it.
 - [M030](M030.md): a `self` that is not the first of a method of a part with a record
 - [M031](M031.md): a claim `by induction` on what is not an input that is a tree
 - [M032](M032.md): a proof written as its step alone that no proof, or two, fill in
+- [M033](M033.md): a claim `by invariant` of what is not a loop's function
 
 ## A (agree): the model compared with itself (`check`)
 

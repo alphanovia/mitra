@@ -108,6 +108,7 @@ pub const M029: Code = model(29);
 pub const M030: Code = model(30);
 pub const M031: Code = model(31);
 pub const M032: Code = model(32);
+pub const M033: Code = model(33);
 
 const fn agree(number: u16) -> Code {
     Code {
@@ -296,6 +297,10 @@ pub const CATALOGUE: &[Entry] = &[
     entry(
         M032,
         "a proof written as its step alone that no proof, or two, fill in",
+    ),
+    entry(
+        M033,
+        "a claim `by invariant` of what is not a loop's function",
     ),
     entry(A001, "a body that breaks a claim"),
     entry(A002, "a body that disagrees with an example"),

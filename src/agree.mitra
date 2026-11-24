@@ -30,6 +30,7 @@ subject agree {
         from (checked, exact, ranges, kept);
     ensure lengths: "agree tries sequences from `[]` up to `Settings::length` long, of the values worth trying of what they hold";
     ensure heights: "agree tries trees up to `Settings::height` levels in themselves, of the values worth trying of what they hold";
+    ensure invariant: "a claim `by invariant` holds when it holds at its loop's start and each turn keeps it: by bounds, what the loop carries any value that keeps the claim, or as linear facts, each equality put in place; under `by invariant n`, `n` is 0 at the start, one more each turn, the length folded at the end" from (ranges, promised);
     ensure induction: "a claim `by induction t` holds by bounds only when it holds where each call of its function on a part of `t` gives what the claim says there; a part of a tree is any tree to bounds, never none" from (ranges, promised);
     ensure ends: "agree ends on every well-formed model: a budget reached, by bounds or at points, is unknown (A007), with the budget it reached" from (stops);
 }

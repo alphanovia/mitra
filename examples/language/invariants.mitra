@@ -1,0 +1,29 @@
+// Claims kept by a loop: `by invariant`. The claim holds where the loop
+// starts, and each turn keeps it, so it holds at the end.
+
+subject Loops {
+    // The claim itself is the invariant: 0 at the start, and a sum of
+    // squares only grows.
+    fn squares(xs: [integer]) -> s: integer {
+        xs.fold(s: 0) { x -> s + x * x }
+    } where {
+        claim positive: 0 <= s by invariant;
+        examples { ([1, 2]) -> 5 }
+    }
+
+    // `n` counts the turns: 0 at the start, one more each turn, and
+    // `xs.len()` at the end. So the claim says `c == xs.len()`.
+    fn count(xs: [integer]) -> c: integer {
+        xs.fold(c: 0) { x -> c + 1 }
+    } where {
+        claim counted: c == n by invariant n;
+        examples { ([4, 5]) -> 2 }
+    }
+
+    // An `until` has no count to end at: its claim is its invariant.
+    fn halve(a: integer) -> b: integer {
+        until(b: a * a, b <= 1) { b / 2 }
+    } where {
+        claim kept: 0 <= b by invariant;
+    }
+}

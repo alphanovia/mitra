@@ -195,7 +195,10 @@ fn induction_is_on_a_tree_input_every_call_takes_apart() {
         "    fn f(t: Tree) -> n: integer { 0 } where { claim c: 0 <= n by t; }",
     ))
     .unwrap_err();
-    assert_eq!(e.message, "expected `induction`, found `t`");
+    assert_eq!(
+        e.message,
+        "expected `induction t` or `invariant`, found `t`"
+    );
 }
 
 /// What bounds read of a part of a tree: any tree, which a `match`

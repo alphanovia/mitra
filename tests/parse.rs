@@ -44,6 +44,7 @@ fn claim(name: &str, holds: E) -> Claim {
         name: name.to_string(),
         holds,
         induction: None,
+        invariant: None,
     }
 }
 fn function(name: &str, takes: &str, gives: (&str, Type)) -> Function {

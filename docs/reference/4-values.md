@@ -154,6 +154,39 @@ A loop that never ends is stopped by Mitra's step budget (1,000,000
 turns): `check` then says so in an A007 finding. A block of the wrong
 type is M005, with a note on what the loop carries.
 
+### Claims kept by a loop
+
+A claim of a function whose body is a loop can be shown `by invariant`:
+it holds where the loop starts, and each turn keeps it, so it holds at
+the end. From
+[examples/language/invariants.mitra](../../examples/language/invariants.mitra):
+
+```mitra
+    fn squares(xs: [integer]) -> s: integer {
+        xs.fold(s: 0) { x -> s + x * x }
+    } where {
+        claim positive: 0 <= s by invariant;
+```
+
+Many claims are not true at the start: `c == xs.len()` is false while
+`c` is 0 and nothing is counted. `by invariant n` names the turns: `n`
+is 0 at the start, one more each turn, and the length of the sequence
+at the end, so this claim says `c == xs.len()`:
+
+```mitra
+    fn count(xs: [integer]) -> c: integer {
+        xs.fold(c: 0) { x -> c + 1 }
+    } where {
+        claim counted: c == n by invariant n;
+```
+
+`n` is the claim's own name, like `i` in Dafny's `xs[..i]`. Only a
+`fold` has it: an `until` has no count to end at. A claim `by invariant`
+of a function whose body is no loop is M033. What the start and a turn
+do not decide stays unknown (A007), and the finding says which one.
+
+Rust has no invariants; Dafny writes them with `invariant` on the loop.
+
 ## Text
 
 Text is `[~char]`: a sequence of letters, kept as bytes, like Rust's

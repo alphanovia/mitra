@@ -6,7 +6,7 @@
 use crate::catalogue::{
     Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013,
     M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024, M025, M026, M027, M028, M029,
-    M030, M031, M032,
+    M030, M031, M032, M033,
 };
 use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
@@ -247,6 +247,7 @@ pub fn check(model: &Model) -> Vec<Error> {
     }
     errors.extend(calls_itself(model));
     errors.extend(inductions(model));
+    errors.extend(invariants(model));
     errors.extend(declared_wrong(model));
     errors.extend(rests_on_itself(&index));
     for at in index.items.keys() {
@@ -880,6 +881,14 @@ fn said(
         errors.extend(read);
     };
     for c in claims {
+        // `by invariant n` of no `fold`: `n` has no last value (M033).
+        let turns = matches!(
+            &c.invariant,
+            Some(crate::model::Invariant { turns: Some(_) })
+        );
+        if turns && std::ptr::eq(c.kept(), &c.holds) {
+            continue;
+        }
         claim(
             &at.then(&c.name),
             &c.holds,
@@ -1202,6 +1211,54 @@ fn inductions(model: &Model) -> Vec<Error> {
                     ),
                 };
                 errors.push(error(M031, &at, message));
+            }
+        }
+    }
+    errors
+}
+
+/// M033 for each claim `by invariant` of a function whose body is no
+/// loop, `by invariant n` of an `until`, which has no count to end at,
+/// or with `n` a name the function or its loop already has.
+fn invariants(model: &Model) -> Vec<Error> {
+    let mut errors = Vec::new();
+    for part in &model.parts {
+        for r in &part.records {
+            for c in r.claims.iter().filter(|c| c.invariant.is_some()) {
+                let at = Path::to(&[&part.name, &r.name, &c.name]);
+                let message = "a claim of a record is not shown `by invariant`: only a function's whose body is a loop".to_string();
+                errors.push(error(M033, &at, message));
+            }
+        }
+        for f in &part.functions {
+            for c in &f.claims {
+                let Some(invariant) = &c.invariant else {
+                    continue;
+                };
+                let at = Path::to(&[&part.name, &f.name, &c.name]);
+                let (fold, binds) = match &f.body {
+                    Some(Expression::Apply(simulation::Op::Fold, args)) => (true, &args[2].binds),
+                    Some(Expression::Apply(simulation::Op::Until, args)) => (false, &args[2].binds),
+                    _ => {
+                        let message = format!(
+                            "the body of `{}` is no loop: `by invariant` is on a function whose body is `xs.fold(…) {{ … }}` or `until(…) {{ … }}`",
+                            f.name
+                        );
+                        errors.push(error(M033, &at, message));
+                        continue;
+                    }
+                };
+                let Some(n) = &invariant.turns else { continue };
+                let message = if !fold {
+                    format!("`by invariant {n}` counts the turns of a `fold`; an `until` has no count to end at: write `by invariant`")
+                } else if f.takes.iter().chain([&f.gives]).any(|(name, _)| name == n)
+                    || binds.contains(n)
+                {
+                    format!("`{n}` is already a name of `{}` or of its loop: the turns take a name of their own", f.name)
+                } else {
+                    continue;
+                };
+                errors.push(error(M033, &at, message));
             }
         }
     }

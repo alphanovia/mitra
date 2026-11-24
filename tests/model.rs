@@ -44,6 +44,7 @@ fn claim(name: &str, holds: E) -> Claim {
         name: name.to_string(),
         holds,
         induction: None,
+        invariant: None,
     }
 }
 fn function(name: &str, takes: &str, gives: (&str, Type)) -> Function {
@@ -758,6 +759,12 @@ fn each_error_is_found() {
         ["error[M032]: no `ponens` of the premises shows `r`: write the proof in full, `by ponens[rule, post](…)`\n --> T::f::r"]
     );
     given.push("M032".to_string());
+    // A claim `by invariant` of a function whose body is no loop (M033).
+    assert_eq!(
+        digits("subject T {\n    fn f(x: integer) -> y: integer { x } where { claim c: y == x by invariant; }\n}"),
+        ["error[M033]: the body of `f` is no loop: `by invariant` is on a function whose body is `xs.fold(…) { … }` or `until(…) { … }`\n --> T::f::c"]
+    );
+    given.push("M033".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Model && !e.retired);

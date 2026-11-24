@@ -22,6 +22,7 @@ pub mod explain;
 pub mod expression;
 mod graph;
 pub mod judgement;
+pub mod linear;
 pub mod location;
 pub mod model;
 pub mod numbers;

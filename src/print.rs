@@ -511,14 +511,18 @@ impl Writer<'_> {
     fn where_(&self, claims: &[crate::model::Claim], rules: &[Rule], rows: &[String]) -> String {
         let mut s = String::from(" where {\n");
         for c in claims {
-            let by = match &c.induction {
-                Some(t) => format!(" by induction {t}"),
-                None => String::new(),
+            let by = match (&c.induction, &c.invariant) {
+                (Some(t), _) => format!(" by induction {t}"),
+                (None, Some(crate::model::Invariant { turns: Some(n) })) => {
+                    format!(" by invariant {n}")
+                }
+                (None, Some(_)) => " by invariant".to_string(),
+                (None, None) => String::new(),
             };
             s.push_str(&format!(
                 "        claim {}: {}{by};\n",
                 c.name,
-                sim_in(&self.cx(), &c.holds)
+                sim_in(&self.cx(), c.kept())
             ));
         }
         for r in rules {

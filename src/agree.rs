@@ -117,6 +117,11 @@ pub fn agree(model: &Model, settings: &Settings) -> (Vec<Agreed>, Vec<Finding>) 
             .induction
             .insert(claim, Arc::new(calls.budget(settings.budget)));
     }
+    for (claim, calls) in crate::model::invariants(model) {
+        reading
+            .invariant
+            .insert(claim, Arc::new(calls.budget(settings.budget)));
+    }
     let mut agreed = Vec::new();
     for part in &model.parts {
         for f in &part.functions {
@@ -155,6 +160,9 @@ struct Reading<'m> {
     /// the library where its function has no body and promises it: the
     /// hypothesis on its parts (trees, the user's go 12:33).
     induction: BTreeMap<String, Arc<Calls>>,
+    /// For each claim `by invariant`, the library where one more
+    /// function gives any value its loop carries that keeps the claim.
+    invariant: BTreeMap<String, Arc<Calls>>,
     library: Arc<Calls>,
     /// The records no value of which is written. Simulation reads one as
     /// a record of no field, a single value, so bounds would find any two
@@ -205,6 +213,7 @@ impl<'m> Reading<'m> {
                 calls: library.clone(),
             }),
             induction: BTreeMap::new(),
+            invariant: BTreeMap::new(),
             library,
             opaque,
             functions: index.functions.clone(),
@@ -257,9 +266,43 @@ impl<'m> Reading<'m> {
             // Each claim, with the body read in place of what it gives.
             for c in &f.claims {
                 let with_body = let_in(&f.gives.0, body, &read_in(c.holds.clone()));
+                // `by invariant`: its start and a turn, each as a claim.
+                let kept =
+                    c.invariant
+                        .as_ref()
+                        .map(|_| match loop_claims(at, f, c, &self.library) {
+                            Some(Loop {
+                                start,
+                                turn,
+                                linear,
+                            }) => {
+                                // By bounds and points, else as linear facts.
+                                let mut start_kept =
+                                    self.claim(&start.0, &read_in(start.1.clone()), &rows);
+                                if crate::linear::holds(&[], &start.1) {
+                                    start_kept = Agreement::Holds;
+                                }
+                                let mut turn_kept =
+                                    self.by_carrier(&at.then(&c.name), &turn.0, &read_in(turn.1));
+                                if crate::linear::holds(&linear.0, &linear.1) {
+                                    turn_kept = Agreement::Holds;
+                                }
+                                kept(start_kept, turn_kept)
+                            }
+                            None => {
+                                Err("its loop's values are named as the function's inputs"
+                                    .to_string())
+                            }
+                        });
                 let agreement = match self.by_induction(&at.then(&c.name), &f.takes, &with_body) {
                     true => Agreement::Holds,
-                    false => self.claim(&f.takes, &with_body, &rows),
+                    false if matches!(kept, Some(Ok(()))) => Agreement::Holds,
+                    false => match (self.claim(&f.takes, &with_body, &rows), kept) {
+                        (Agreement::Unknown { why }, Some(Err(not))) => Agreement::Unknown {
+                            why: format!("{why}; `by invariant`: {not}"),
+                        },
+                        (agreement, _) => agreement,
+                    },
                 };
                 push(format!("claim `{}`", c.name), agreement);
             }
@@ -392,6 +435,36 @@ impl<'m> Reading<'m> {
         let sure = self.bounded(over, e) && self.surely_given(over, e) == Some(true);
         self.ranges.replace(before);
         sure
+    }
+
+    /// A turn of a loop `by invariant` true by bounds, through the
+    /// library where what it carries is any value that keeps the claim
+    /// (`model::invariants`). Points cannot tell: that value has none.
+    fn by_carrier(&self, claim: &Path, over: &[(String, Type)], e: &Expression<Op>) -> Agreement {
+        let Some(calls) = self.invariant.get(&claim.to_string()) else {
+            return Agreement::Unknown {
+                why: "its loop is not read".to_string(),
+            };
+        };
+        let library = Ranges {
+            calls: calls.clone(),
+        };
+        let before = self.ranges.replace(library);
+        self.given();
+        self.bounds_budget.borrow_mut().take();
+        let sure = self.bounded(over, e) && self.surely_given(over, e) == Some(true);
+        self.ranges.replace(before);
+        self.given();
+        match (sure, self.bounds_budget.borrow_mut().take()) {
+            (true, _) => Agreement::Holds,
+            (false, Some(why)) => Agreement::Unknown {
+                why: format!("not decided by bounds, which stopped at {why}"),
+            },
+            (false, None) => Agreement::Unknown {
+                why: "not decided by bounds over any value it carries that keeps the claim"
+                    .to_string(),
+            },
+        }
     }
 
     /// Whether some value keeps all the claims of `f` together. False by
@@ -1265,6 +1338,189 @@ fn in_range(n: &str, range: &Range) -> Expression<Op> {
             )),
         ],
     )
+}
+
+/// What `by invariant` reads of a loop: two claims, each with what it
+/// reads, and the turn as `linear` reads it, what is carried a name.
+struct Loop {
+    start: (Vec<(String, Type)>, Expression<Op>),
+    turn: (Vec<(String, Type)>, Expression<Op>),
+    linear: (Vec<Expression<Op>>, Expression<Op>),
+}
+
+/// The two claims `by invariant` reads of the loop that is `f`'s body,
+/// at `at`, each with what it reads. At the start: the claim of what the
+/// loop starts from, `n` 0. On a turn: from what the loop carries, any
+/// value that keeps the claim, `carrier` called (`model::invariants`),
+/// with `0 <= n < xs.len()` under `by invariant n`, an `until` not yet
+/// done: the claim of what it carries next, `n + 1`. Both true, every
+/// turn keeps it to the end, where the loop gives what `f` gives (`n`
+/// then `xs.len()`). `None` when a value the loop names is named as one
+/// of `f`'s inputs.
+fn loop_claims(
+    at: &Path,
+    f: &Function,
+    c: &crate::model::Claim,
+    library: &Arc<Calls>,
+) -> Option<Loop> {
+    let (q, gives) = (&f.gives.0, &f.gives.1);
+    let claim = c.kept();
+    let turns = c.invariant.as_ref()?.turns.as_ref();
+    let name = |n: &str| Expression::Name(n.to_string());
+    let int = |i: i64| Expression::Apply(Op::Int(BigInt::from(i)), vec![]);
+    let apply = |op: Op, args: Vec<Expression<Op>>| {
+        Expression::Apply(op, args.into_iter().map(plain).collect())
+    };
+    let types: BTreeMap<String, Type> = f.takes.iter().cloned().collect();
+    let simulation = crate::simulation::Simulation {
+        calls: library.clone(),
+    };
+    let (start, next, mut names, mut before) = match f.body.as_ref()? {
+        Expression::Apply(Op::Fold, args) => {
+            let (xs, start, next) = (&args[0].body, &args[1].body, &args[2]);
+            let each = match crate::expression::check(&simulation, &types, xs)? {
+                Type::Seq(t) | Type::Encoded(t) => *t,
+                _ => return None,
+            };
+            let names = vec![(next.binds.first()?.clone(), each)];
+            let mut before = vec![];
+            if let Some(n) = turns {
+                let length = apply(Op::Len, vec![xs.clone()]);
+                before.push(apply(Op::AtMost, vec![int(0), name(n)]));
+                before.push(apply(Op::Less, vec![name(n), length]));
+            }
+            (start, next, names, before)
+        }
+        Expression::Apply(Op::Until, args) => {
+            let (start, done, next) = (&args[0].body, &args[1], &args[2]);
+            if done.binds != next.binds {
+                return None;
+            }
+            let not_done = apply(Op::Not, vec![done.body.clone()]);
+            (start, next, vec![], vec![not_done])
+        }
+        _ => return None,
+    };
+    // What the loop carries, by the names its block binds.
+    let labels = next.binds[names.len()..].to_vec();
+    let carried_types = crate::simulation::carried(gives);
+    if carried_types.len() != labels.len() {
+        return None;
+    }
+    names.extend(labels.iter().cloned().zip(carried_types));
+    let mut over = f.takes.clone();
+    // The loop's value, the turns, and what it carries, under the call.
+    over.push(names[0].clone());
+    if let Some(n) = turns {
+        over.push((n.clone(), Type::Int));
+    }
+    let clash = |n: &String| types.contains_key(n) || turns == Some(n) || n == "__next";
+    if names.iter().any(|(n, _)| clash(n)) {
+        return None;
+    }
+    // Any value it carries that keeps the claim.
+    let mut args: Vec<Expression<Op>> = f.takes.iter().map(|(n, _)| name(n)).collect();
+    args.extend(turns.map(|n| name(n)));
+    let path = format!(
+        "{}::{}",
+        at.names[0],
+        crate::model::carrier(&f.name, &c.name)
+    );
+    let carried = apply(Op::Call(path), args);
+    // The block's values, under the labels of what it carries.
+    let next_given = match (gives, labels.as_slice()) {
+        (_, [_]) => next.body.clone(),
+        (Type::Record(r), _) => {
+            let mut inner: BTreeMap<String, Type> = types.clone();
+            inner.extend(names.iter().cloned());
+            let Type::Record(tuple) = crate::expression::check(&simulation, &inner, &next.body)?
+            else {
+                return None;
+            };
+            let fields = tuple
+                .fields
+                .iter()
+                .map(|(field, _)| apply(Op::Field(field.clone()), vec![name("__next")]))
+                .collect();
+            let_in("__next", &next.body, &apply(Op::Make(r.clone()), fields))
+        }
+        _ => return None,
+    };
+    let at_turns = |count: Expression<Op>, holds: Expression<Op>| match turns {
+        Some(n) => let_in(n, &count, &holds),
+        None => holds,
+    };
+    let at_start = at_turns(int(0), let_in(q, start, claim));
+    let one_more = turns.map(|n| apply(Op::Add, vec![name(n), int(1)]));
+    let after = let_in(
+        q,
+        &next_given,
+        &match one_more {
+            Some(count) => at_turns(count, claim.clone()),
+            None => claim.clone(),
+        },
+    );
+    // For `linear`: the claim of what is carried, a value of each label.
+    let labelled = match (gives, labels.as_slice()) {
+        (_, [one]) => name(one),
+        (Type::Record(r), _) => apply(
+            Op::Make(r.clone()),
+            labels.iter().map(|l| name(l)).collect(),
+        ),
+        _ => return None,
+    };
+    let mut hypotheses = before.clone();
+    hypotheses.push(at_turns(
+        turns.map_or_else(|| int(0), |n| name(n)),
+        let_in(q, &labelled, claim),
+    ));
+    let linear = (hypotheses, after.clone());
+    let mut turn = match before.is_empty() {
+        true => after,
+        false => {
+            let before = std::mem::take(&mut before)
+                .into_iter()
+                .reduce(|a, b| apply(Op::And, vec![a, b]))?;
+            apply(Op::Or, vec![apply(Op::Not, vec![before]), after])
+        }
+    };
+    // Each label, from the value carried.
+    let one = labels.len() == 1;
+    for label in labels.iter().rev() {
+        let value = match one {
+            true => name("__carried"),
+            false => apply(Op::Field(label.clone()), vec![name("__carried")]),
+        };
+        turn = let_in(label, &value, &turn);
+    }
+    let turn = let_in("__carried", &carried, &turn);
+    Some(Loop {
+        start: (f.takes.clone(), at_start),
+        turn: (over, turn),
+        linear,
+    })
+}
+
+/// `by invariant` shown, or why not: from its start and a turn.
+fn kept(start: Agreement, turn: Agreement) -> Result<(), String> {
+    let at = |at: &[(String, Value)]| {
+        let shown: Vec<String> = at
+            .iter()
+            .map(|(n, v)| format!("{n} = {}", print::value(v)))
+            .collect();
+        shown.join(", ")
+    };
+    match (start, turn) {
+        (Agreement::Holds, Agreement::Holds) => Ok(()),
+        (Agreement::Fails { at: p, .. }, _) => {
+            Err(format!("false at the loop's start, at {}", at(&p)))
+        }
+        (_, Agreement::Fails { at: p, .. }) => {
+            Err(format!("a turn does not keep it, from {}", at(&p)))
+        }
+        (Agreement::Unknown { why }, _) => Err(format!("its start is not decided: {why}")),
+        (_, Agreement::Unknown { why }) => Err(format!("a turn is not decided: {why}")),
+    }
 }
 
 fn plain(body: Expression<Op>) -> Arg<Op> {

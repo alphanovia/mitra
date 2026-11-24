@@ -19,8 +19,8 @@ use crate::expression::{check as typed, Arg, Expression};
 use crate::judgement::{self, Prop, Set};
 use crate::location::Location;
 use crate::model::{
-    Claim, Contract, Ensure, Example, Function, Implements, Kind, Law, Model, ModelExample, Part,
-    Path, Record, Require, Rule, Signature, Source, Term, Tie, Use,
+    Claim, Contract, Ensure, Example, Function, Implements, Invariant, Kind, Law, Model,
+    ModelExample, Part, Path, Record, Require, Rule, Signature, Source, Term, Tie, Use,
 };
 use crate::simulation::{self, Op, Rational, Simulation, Type, Value};
 use num_bigint::BigInt;
@@ -1661,7 +1661,32 @@ impl<'c> Parser<'c> {
             ranges,
         };
         if self.is_word("where") {
-            let (claims, rules, examples) = self.where_(&env)?;
+            let (mut claims, rules, examples) = self.where_(&env)?;
+            // `by invariant n`: of what the function gives, `n` is the
+            // length of what the body folds. Any other body: check says
+            // why (M033).
+            for c in &mut claims {
+                let Some(Invariant { turns: Some(n) }) = &c.invariant else {
+                    continue;
+                };
+                if let Some(Expression::Apply(Op::Fold, args)) = &function.body {
+                    let length = apply(Op::Len, vec![args[0].body.clone()]);
+                    let holds = std::mem::replace(&mut c.holds, Expression::Name(String::new()));
+                    c.holds = Expression::Apply(
+                        Op::Let,
+                        vec![
+                            Arg {
+                                binds: vec![],
+                                body: length,
+                            },
+                            Arg {
+                                binds: vec![n.clone()],
+                                body: holds,
+                            },
+                        ],
+                    );
+                }
+            }
             function.claims = claims;
             function.rules = rules;
             let mut rows = vec![];
@@ -1691,21 +1716,36 @@ impl<'c> Parser<'c> {
                 let name = self.name()?;
                 self.expect(":")?;
                 let at = self.pos();
+                // `by invariant n` at its end: `n`, the turns, is a name of
+                // the claim, a whole number.
+                let mut env = env.clone();
+                if let Some(n) = self.turns_ahead() {
+                    env.push((n, Some(Type::Int)));
+                }
                 let holds = self.expr(&mut env.clone())?;
-                let holds = self.settled(holds, Some(&Type::Truth), env, at)?;
+                let holds = self.settled(holds, Some(&Type::Truth), &env, at)?;
                 // `by induction t`: shown on each variant of the tree `t`.
-                let induction = match self.eat_word("by") {
-                    true => {
-                        self.expect_word("induction")?;
-                        Some(self.name()?)
+                // `by invariant`: kept by each turn of the loop.
+                let (mut induction, mut invariant) = (None, None);
+                if self.eat_word("by") {
+                    if self.eat_word("invariant") {
+                        let turns = match self.is(";") {
+                            true => None,
+                            false => Some(self.name()?),
+                        };
+                        invariant = Some(Invariant { turns });
+                    } else if self.eat_word("induction") {
+                        induction = Some(self.name()?);
+                    } else {
+                        return self.expected("`induction t` or `invariant`");
                     }
-                    false => None,
-                };
+                }
                 self.expect(";")?;
                 claims.push(Claim {
                     name,
                     holds,
                     induction,
+                    invariant,
                 });
             } else if self.eat_word("rule") {
                 rules.push(self.rule(env)?);
@@ -1723,6 +1763,35 @@ impl<'c> Parser<'c> {
             }
         }
         Ok((claims, rules, examples))
+    }
+
+    /// The name `by invariant n` gives, when the claim from here ends so,
+    /// before `;` and outside any bracket.
+    fn turns_ahead(&self) -> Option<String> {
+        let mut depth = 0usize;
+        for k in 0.. {
+            match self.peek_at(k) {
+                Tok::Sym("(" | "[" | "{") => depth += 1,
+                Tok::Sym(")" | "]" | "}") if depth == 0 => return None,
+                Tok::Sym(")" | "]" | "}") => depth -= 1,
+                Tok::Sym(";") if depth == 0 => return None,
+                Tok::Word(w) if depth == 0 && w == "by" => {
+                    return match (
+                        self.peek_at(k + 1),
+                        self.peek_at(k + 2),
+                        self.peek_at(k + 3),
+                    ) {
+                        (Tok::Word(i), Tok::Word(n), Tok::Sym(";")) if i == "invariant" => {
+                            Some(n.clone())
+                        }
+                        _ => None,
+                    };
+                }
+                Tok::End => return None,
+                _ => {}
+            }
+        }
+        None
     }
 
     /// `slows: drop::falls, { v < 21.0 } |- drop::slow by …;`, after `rule`.

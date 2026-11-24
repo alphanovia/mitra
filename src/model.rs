@@ -293,6 +293,33 @@ pub struct Claim {
     /// `by induction t`: shown on each variant of the input `t`, a tree,
     /// what the function gives on its parts kept by the claim.
     pub induction: Option<String>,
+    /// `by invariant`: the body is a loop, and the claim, read of what it
+    /// carries, holds at its start and is kept by each turn.
+    pub invariant: Option<Invariant>,
+}
+
+/// `by invariant`, or `by invariant n`: `n` the turns a `fold` has made,
+/// 0 at its start, one more each turn. Read of what the function gives,
+/// `n` is the length of the sequence folded: `holds` is then
+/// `let n = xs.len() in …`, and `Claim::kept` what is written.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Invariant {
+    pub turns: Option<String>,
+}
+
+impl Claim {
+    /// The claim as written: under `by invariant n`, without the `let`
+    /// that gives `n` its last value.
+    pub fn kept(&self) -> &Expression<simulation::Op> {
+        match (&self.invariant, &self.holds) {
+            (Some(Invariant { turns: Some(n) }), Expression::Apply(simulation::Op::Let, args))
+                if args.len() == 2 && args[1].binds == [n.clone()] =>
+            {
+                &args[1].body
+            }
+            _ => &self.holds,
+        }
+    }
 }
 
 /// Its premises give its conclusion. `proof` is `None` when nothing
@@ -1061,6 +1088,54 @@ pub fn hypotheses(model: &Model) -> Vec<(String, Calls)> {
                 g.examples = vec![];
                 if let Ok(calls) = calls(&hypothesis) {
                     out.push((path.then(&c.name).to_string(), calls));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The name, in its part, of the function `invariants` adds for the claim
+/// `c` of `f`.
+pub fn carrier(f: &str, c: &str) -> String {
+    format!("__{f}__{c}")
+}
+
+/// For each claim `by invariant` (`Function::Claim`'s path), the library
+/// with one more function in the part, `carrier(f, c)`: what `f` takes,
+/// and the turns `n` under `by invariant n`, giving what `f` gives, with
+/// no body, promising only the claim. It stands for any value the loop
+/// carries that keeps the claim: a turn from there must keep it.
+pub fn invariants(model: &Model) -> Vec<(String, Calls)> {
+    let mut out = Vec::new();
+    for (i, part) in model.parts.iter().enumerate() {
+        for f in &part.functions {
+            for c in &f.claims {
+                let Some(invariant) = &c.invariant else {
+                    continue;
+                };
+                let mut takes = f.takes.clone();
+                takes.extend(invariant.turns.iter().map(|n| (n.clone(), Type::Int)));
+                let carrier = Function {
+                    name: carrier(&f.name, &c.name),
+                    takes,
+                    gives: f.gives.clone(),
+                    body: None,
+                    claims: vec![Claim {
+                        name: c.name.clone(),
+                        holds: c.kept().clone(),
+                        induction: None,
+                        invariant: None,
+                    }],
+                    rules: vec![],
+                    examples: vec![],
+                    ranges: f.ranges.clone(),
+                };
+                let mut hypothesis = model.clone();
+                hypothesis.parts[i].functions.push(carrier);
+                if let Ok(calls) = calls(&hypothesis) {
+                    let at = Path::to(&[&part.name, &f.name, &c.name]);
+                    out.push((at.to_string(), calls));
                 }
             }
         }
