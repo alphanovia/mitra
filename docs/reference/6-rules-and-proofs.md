@@ -102,9 +102,10 @@ it, such as `3..3`, is an error (M034). A condition narrows a set:
 leaves no point is a finding (X013): the `all` or `any` then learns
 nothing from its points.
 
-A condition may call the model's functions that have a body: the
-model's function is the definition of the set, whatever the code does
-(`examples/language/sets.mitra`).
+A condition may call a model function that has a body. The set is then
+defined by the model's body, not by what the tied code does. From
+[examples/language/sets.mitra](../../examples/language/sets.mitra),
+where `f(a) < 5` keeps the points 0 to 3:
 
 ```mitra
 subject Sets {
