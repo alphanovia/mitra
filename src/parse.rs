@@ -435,6 +435,26 @@ impl Calling {
 }
 
 impl Context {
+    /// `e`, its variants written where a tree cut it (it holds itself
+    /// there), its parameters given what `e` gives them.
+    pub(crate) fn opened(&self, e: simulation::Enum) -> simulation::Enum {
+        let Some(whole) = self.enums.get(&e.name).filter(|_| e.cut()) else {
+            return e;
+        };
+        let given: BTreeMap<String, Type> = self
+            .params
+            .get(&e.name)
+            .into_iter()
+            .flatten()
+            .map(|(n, _)| n.clone())
+            .zip(e.args.iter().cloned())
+            .collect();
+        match Type::Enum(whole.clone()).given(&given) {
+            Type::Enum(opened) => opened,
+            _ => e,
+        }
+    }
+
     pub(crate) fn of(model: &Model) -> Context {
         let mut declared = BTreeMap::new();
         let mut fields = BTreeMap::new();
@@ -1673,8 +1693,20 @@ impl<'c> Parser<'c> {
                 let at = self.pos();
                 let holds = self.expr(&mut env.clone())?;
                 let holds = self.settled(holds, Some(&Type::Truth), env, at)?;
+                // `by induction t`: shown on each variant of the tree `t`.
+                let induction = match self.eat_word("by") {
+                    true => {
+                        self.expect_word("induction")?;
+                        Some(self.name()?)
+                    }
+                    false => None,
+                };
                 self.expect(";")?;
-                claims.push(Claim { name, holds });
+                claims.push(Claim {
+                    name,
+                    holds,
+                    induction,
+                });
             } else if self.eat_word("rule") {
                 rules.push(self.rule(env)?);
             } else if self.is_word("examples") {
@@ -2775,7 +2807,7 @@ impl<'c> Parser<'c> {
         let scrutinee = scrutinee?;
         let en = match (self.context, self.type_in(env, &scrutinee)) {
             (None, _) => None,
-            (Some(_), Some(Type::Enum(e))) if !holed(&Type::Enum(e.clone())) => Some(e),
+            (Some(cx), Some(Type::Enum(e))) if !holed(&Type::Enum(e.clone())) => Some(cx.opened(e)),
             (Some(_), Some(t)) => {
                 let message = format!(
                     "`match` reads an enum, and this is `{}`",

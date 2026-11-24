@@ -41,7 +41,7 @@ example, and the fix. The letter says which step found it.
 - [M016](M016.md): a use that names nothing of another part, or a name twice
 - [M017](M017.md): a call of no function
 - [M018](M018.md): a function or record of another part, not used
-- [M019](M019.md): a function that calls itself
+- [M019](M019.md): a function that calls itself, not on a part of its input
 - [M020](M020.md): an impl that does not fit its contract, or names no function
 - [M021](M021.md): a model example that names no input or output, or states no output
 - [M022](M022.md): a model example not of its types, or missing an input
@@ -53,6 +53,7 @@ example, and the fix. The letter says which step found it.
 - [M028](M028.md): a part holding parts that holds more than parts, requires, ensures and examples
 - [M029](M029.md): an ensure of a part holding parts that rests on what is not its parts' ensures
 - [M030](M030.md): a `self` that is not the first of a method of a part with a record
+- [M031](M031.md): a claim `by induction` on what is not an input that is a tree
 
 ## A (agree): the model compared with itself (`check`)
 

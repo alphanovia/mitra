@@ -208,12 +208,17 @@ fn declarations_no_value_fits_are_m027() {
     let out = errors(
         "subject enum Never {}
 subject record Box<T> { n: integer }
-subject enum Tree { Leaf, Node(Tree, integer, Tree) }
+subject enum Loop { More(integer, Loop) }
 subject d {
-    fn f(t: Tree, b: Box<integer>) -> e: integer { 0 }
+    fn f(t: Loop, b: Box<integer>) -> e: integer { 0 }
 }",
     );
     assert_eq!(out.len(), 3, "{out:?}");
+    assert!(
+        out.iter()
+            .any(|e| e.contains("`Loop` holds itself in every variant")),
+        "{out:?}"
+    );
     assert!(out.iter().all(|e| e.starts_with("error[M027]")), "{out:?}");
 }
 

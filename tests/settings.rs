@@ -24,6 +24,7 @@ depth = 50
 points = 100
 splits = 2
 length = 5
+height = 2
 [budget]
 steps = 1_000
 depth = 20
@@ -48,6 +49,7 @@ tries = 7
         (s.agree.points, s.agree.splits, s.agree.length),
         (100, 2, 5)
     );
+    assert_eq!(s.agree.height, 2);
     assert_eq!((s.agree.budget.steps, s.agree.budget.depth), (1000, 20));
     // One budget, agree's and explain's.
     assert_eq!(s.explain.budget, s.agree.budget);
@@ -79,7 +81,7 @@ fn parse_depth_follows_the_budget_when_not_said() {
 fn what_mitra_does_not_take_is_p015_where_it_is() {
     assert_eq!(
         fails("[agree]\npoints = 64\npionts = 3\n"),
-        "error[P015]: no setting `pionts` in `[agree]`: it has `points`, `splits` and `length`
+        "error[P015]: no setting `pionts` in `[agree]`: it has `points`, `splits`, `length` and `height`
  --> mitra.toml:3:1
   |
 3 | pionts = 3

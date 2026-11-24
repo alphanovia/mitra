@@ -57,6 +57,7 @@ depth = 2000           # how deep a text may nest; twice budget's depth when not
 points = 64            # the most points tried per comparison (`--points` overrides it)
 splits = 4             # the most numbers bounds cut at zero
 length = 3             # the longest sequence tried as a point
+height = 3             # the tallest tree tried as a point
 [budget]               # how far one computation goes, in agree and explain
 steps = 1000000
 depth = 1000

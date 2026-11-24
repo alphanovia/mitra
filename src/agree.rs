@@ -46,6 +46,9 @@ pub struct Settings {
     /// The longest sequence tried as a point: from `[]` up to this
     /// length (finding 3, step 2).
     pub length: usize,
+    /// The tallest tree tried as a point: a tree in itself at most this
+    /// many levels deep (trees, the user's go 12:33).
+    pub height: usize,
 }
 
 /// What the expressions write, worth trying as points.
@@ -66,6 +69,7 @@ impl Default for Settings {
             splits: 4,
             budget: Budget::default(),
             length: 3,
+            height: 3,
         }
     }
 }
@@ -107,7 +111,12 @@ pub fn agree(model: &Model, settings: &Settings) -> (Vec<Agreed>, Vec<Finding>) 
     };
     let index = Index::of(model);
     let library = library.budget(settings.budget);
-    let reading = Reading::new(&index, Arc::new(library), *settings);
+    let mut reading = Reading::new(&index, Arc::new(library), *settings);
+    for (claim, calls) in crate::model::hypotheses(model) {
+        reading
+            .induction
+            .insert(claim, Arc::new(calls.budget(settings.budget)));
+    }
     let mut agreed = Vec::new();
     for part in &model.parts {
         for f in &part.functions {
@@ -139,7 +148,13 @@ pub fn agree(model: &Model, settings: &Settings) -> (Vec<Agreed>, Vec<Finding>) 
 /// knowing its opaque records and what each function says.
 struct Reading<'m> {
     exact: Exact,
-    ranges: Ranges,
+    /// Bounds: through the library, or, for a claim shown by induction,
+    /// through the library where the function says only that claim.
+    ranges: std::cell::RefCell<Ranges>,
+    /// For each claim shown `by induction` (`Function::Claim`'s path),
+    /// the library where its function has no body and promises it: the
+    /// hypothesis on its parts (trees, the user's go 12:33).
+    induction: BTreeMap<String, Arc<Calls>>,
     library: Arc<Calls>,
     /// The records no value of which is written. Simulation reads one as
     /// a record of no field, a single value, so bounds would find any two
@@ -186,9 +201,10 @@ impl<'m> Reading<'m> {
             exact: Exact {
                 calls: library.clone(),
             },
-            ranges: Ranges {
+            ranges: std::cell::RefCell::new(Ranges {
                 calls: library.clone(),
-            },
+            }),
+            induction: BTreeMap::new(),
             library,
             opaque,
             functions: index.functions.clone(),
@@ -241,7 +257,10 @@ impl<'m> Reading<'m> {
             // Each claim, with the body read in place of what it gives.
             for c in &f.claims {
                 let with_body = let_in(&f.gives.0, body, &read_in(c.holds.clone()));
-                let agreement = self.claim(&f.takes, &with_body, &rows);
+                let agreement = match self.by_induction(&at.then(&c.name), &f.takes, &with_body) {
+                    true => Agreement::Holds,
+                    false => self.claim(&f.takes, &with_body, &rows),
+                };
                 push(format!("claim `{}`", c.name), agreement);
             }
             // The range of what it gives, as a claim the body keeps.
@@ -356,6 +375,23 @@ impl<'m> Reading<'m> {
             (None, _) => format!("it reads an opaque record, which bounds cannot tell apart, and whose values are tried known in part, its opaque fields not known: not decided at {tried} points"),
         };
         Agreement::Unknown { why }
+    }
+
+    /// A claim `by induction` true by bounds where each call of its
+    /// function on a part of its input gives what the claim says there:
+    /// the step, every variant at once, the leaves among them.
+    fn by_induction(&self, claim: &Path, over: &[(String, Type)], e: &Expression<Op>) -> bool {
+        let Some(calls) = self.induction.get(&claim.to_string()) else {
+            return false;
+        };
+        let library = Ranges {
+            calls: calls.clone(),
+        };
+        let before = self.ranges.replace(library);
+        self.given();
+        let sure = self.bounded(over, e) && self.surely_given(over, e) == Some(true);
+        self.ranges.replace(before);
+        sure
     }
 
     /// Whether some value keeps all the claims of `f` together. False by
@@ -495,7 +531,7 @@ impl<'m> Reading<'m> {
         }
         let mut sure = None;
         for bounds in readings {
-            let here = match self.ranges.kept(over, &bounds, e) {
+            let here = match self.ranges.borrow().kept(over, &bounds, e) {
                 None => Some(false),
                 Some(_) => self.by_bounds(&bounds, e).and_then(|b| b.surely()),
             };
@@ -589,7 +625,7 @@ impl<'m> Reading<'m> {
         if !premises.iter().all(|p| safe_in(bounds, p.clone())) {
             return false;
         }
-        let Some(kept) = self.ranges.kept(over, bounds, &premise) else {
+        let Some(kept) = self.ranges.borrow().kept(over, bounds, &premise) else {
             // No value keeps the premises: a premise is false, and `e`
             // true, wherever the premises are all read first.
             return premises_first || {
@@ -614,7 +650,7 @@ impl<'m> Reading<'m> {
     /// `e` read by bounds, none on a fault; a budget reached is kept to
     /// be said (`bounds_budget`).
     fn by_bounds(&self, bounds: &BTreeMap<String, Bounds>, e: &Expression<Op>) -> Option<Bounds> {
-        match eval(&self.ranges, bounds, e) {
+        match eval(&*self.ranges.borrow(), bounds, e) {
             Ok(b) => Some(b),
             Err(Fault::Op(Undefined::Budget(why))) => {
                 self.bounds_budget.borrow_mut().get_or_insert(why);
@@ -733,6 +769,8 @@ impl<'m> Reading<'m> {
                 .iter()
                 .map(|(_, t)| self.size_of(t))
                 .try_fold(1usize, |n, k| n.checked_mul(k?)),
+            // A tree: as many values as it is tall, too many to list.
+            Type::Enum(e) if e.cut() => None,
             Type::Enum(e) => e
                 .variants
                 .iter()
@@ -833,6 +871,18 @@ impl<'m> Reading<'m> {
     /// when they are at most `Settings::points`, else the i-th value of
     /// each field together; of an opaque record, none.
     fn values_of(&self, t: &Type, constants: &Constants) -> Vec<Value> {
+        self.values_in(t, constants, &[], self.settings.height)
+    }
+
+    /// `values_of`, inside the enums `around`; a tree no taller than
+    /// `height` levels more (`Settings::height`).
+    fn values_in(
+        &self,
+        t: &Type,
+        constants: &Constants,
+        around: &[&crate::simulation::Enum],
+        height: usize,
+    ) -> Vec<Value> {
         let small = [0i64, 1, -1, 2, -2];
         let mut out: Vec<Value> = Vec::new();
         let mut add = |v: Value| {
@@ -875,7 +925,7 @@ impl<'m> Reading<'m> {
                     .fields
                     .iter()
                     .map(|(_, t)| {
-                        let values = self.values_of(t, constants);
+                        let values = self.values_in(t, constants, around, height);
                         match values.is_empty() {
                             true => vec![None],
                             false => values.into_iter().map(Some).collect(),
@@ -900,12 +950,31 @@ impl<'m> Reading<'m> {
             // Each variant: what it holds, every value together when few
             // enough, else the i-th of each; none when what it holds has
             // no value written (an opaque record).
+            // Where a tree holds itself: the tree around it, one level
+            // lower; none past the tallest.
+            Type::Enum(e) if e.cut() => {
+                let full = around.iter().rev().find(|a| a.name == e.name);
+                if let (Some(full), Some(lower)) = (full, height.checked_sub(1)) {
+                    let full = Type::Enum((*full).clone());
+                    for v in self.values_in(&full, constants, around, lower) {
+                        add(v);
+                    }
+                }
+            }
             Type::Enum(e) => {
+                let around: Vec<&crate::simulation::Enum> =
+                    around.iter().copied().chain([e]).collect();
+                let around = around.as_slice();
                 let few = self.size_of(t).is_some_and(|k| k <= self.settings.points);
                 for (i, (_, ts)) in e.variants.iter().enumerate() {
                     let holds: Vec<Vec<Option<Value>>> = ts
                         .iter()
-                        .map(|t| self.values_of(t, constants).into_iter().map(Some).collect())
+                        .map(|t| {
+                            self.values_in(t, constants, around, height)
+                                .into_iter()
+                                .map(Some)
+                                .collect()
+                        })
                         .collect();
                     if holds.iter().any(Vec::is_empty) {
                         continue;
@@ -937,7 +1006,7 @@ impl<'m> Reading<'m> {
             // for each length, from each value of its type on, the next
             // ones in turn, and that value repeated.
             Type::Seq(t) => {
-                let each = self.values_of(t, constants);
+                let each = self.values_in(t, constants, around, height);
                 add(Value::Seq((**t).clone(), vec![]));
                 for k in 1..=self.settings.length {
                     for i in 0..each.len() {

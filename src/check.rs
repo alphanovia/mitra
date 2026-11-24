@@ -6,7 +6,7 @@
 use crate::catalogue::{
     Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013,
     M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024, M025, M026, M027, M028, M029,
-    M030,
+    M030, M031,
 };
 use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
@@ -246,6 +246,7 @@ pub fn check(model: &Model) -> Vec<Error> {
         errors.extend(model_example(&index, i, example));
     }
     errors.extend(calls_itself(model));
+    errors.extend(inductions(model));
     errors.extend(declared_wrong(model));
     errors.extend(rests_on_itself(&index));
     for at in index.items.keys() {
@@ -280,6 +281,7 @@ fn declared_wrong(model: &Model) -> Vec<Error> {
     let mut errors = Vec::new();
     // What each record and enum holds, by name.
     let mut holds: BTreeMap<&str, Vec<&Type>> = BTreeMap::new();
+    let mut by_variant: BTreeMap<&str, Vec<Vec<&Type>>> = BTreeMap::new();
     let mut at: BTreeMap<&str, Path> = BTreeMap::new();
     // Each record and enum, its parameters, and the types it holds.
     type Declared<'a> = (Path, &'a [(String, Bound)], Vec<&'a Type>);
@@ -294,6 +296,12 @@ fn declared_wrong(model: &Model) -> Vec<Error> {
             }
             params.push((here.then(&e.name), &e.params, types.clone()));
             holds.entry(&e.name).or_insert(types);
+            by_variant.entry(&e.name).or_insert(
+                e.variants
+                    .iter()
+                    .map(|(_, ts)| ts.iter().collect())
+                    .collect(),
+            );
             at.entry(&e.name).or_insert(here.then(&e.name));
         }
         for r in &part.records {
@@ -312,6 +320,8 @@ fn declared_wrong(model: &Model) -> Vec<Error> {
             }
         }
     }
+    let ending = ends(&holds, &by_variant);
+    let enums: BTreeSet<&str> = by_variant.keys().copied().collect();
     // A name it holds, however deep, by what each holds.
     for (name, here) in &at {
         let mut seen: BTreeSet<&str> = BTreeSet::new();
@@ -326,14 +336,51 @@ fn declared_wrong(model: &Model) -> Vec<Error> {
                 }
             }
         }
-        if itself {
-            let message = format!(
-                "`{name}` holds itself: a value of it would never end (trees come later, finding 3)"
-            );
+        if itself && !ending.contains(name) {
+            let message = match enums.contains(name) {
+                true => format!(
+                    "`{name}` holds itself in every variant: no value of it ends; give it a variant that does not hold it, as a tree's `Leaf`"
+                ),
+                false => format!(
+                    "`{name}` holds itself: no value of it ends; a tree is an enum with a variant that does not hold it"
+                ),
+            };
             errors.push(error(M027, here, message));
         }
     }
     errors
+}
+
+/// The records and enums of which a value ends: an enum with a variant
+/// all it holds ends, a record all its fields end (trees, 12:33).
+fn ends<'m>(
+    holds: &BTreeMap<&'m str, Vec<&'m Type>>,
+    variants: &BTreeMap<&'m str, Vec<Vec<&'m Type>>>,
+) -> BTreeSet<&'m str> {
+    fn ok(t: &Type, ending: &BTreeSet<&str>) -> bool {
+        match t {
+            Type::Record(r) if r.name.is_empty() => r.fields.iter().all(|(_, t)| ok(t, ending)),
+            Type::Record(r) => ending.contains(r.name.as_str()),
+            Type::Enum(e) => ending.contains(e.name.as_str()),
+            _ => true,
+        }
+    }
+    let mut ending: BTreeSet<&str> = BTreeSet::new();
+    loop {
+        let before = ending.len();
+        for (name, types) in holds {
+            let ends = match variants.get(name) {
+                Some(vs) => vs.iter().any(|ts| ts.iter().all(|t| ok(t, &ending))),
+                None => types.iter().all(|t| ok(t, &ending)),
+            };
+            if ends {
+                ending.insert(name);
+            }
+        }
+        if ending.len() == before {
+            return ending;
+        }
+    }
 }
 
 /// `t` names the parameter `p`.
@@ -1080,14 +1127,59 @@ fn no_function(index: &Index, part: &Part, f: &str) -> String {
     }
 }
 
+/// M031 for each claim `by induction` on a name that is not an input of
+/// its function that is a tree: an enum that holds itself.
+fn inductions(model: &Model) -> Vec<Error> {
+    let mut errors = Vec::new();
+    for part in &model.parts {
+        for r in &part.records {
+            for c in r.claims.iter().filter(|c| c.induction.is_some()) {
+                let at = Path::to(&[&part.name, &r.name, &c.name]);
+                let message = "a claim of a record is not shown `by induction`: only a function's, on an input that is a tree".to_string();
+                errors.push(error(M031, &at, message));
+            }
+        }
+        for f in &part.functions {
+            for c in &f.claims {
+                let Some(t) = &c.induction else { continue };
+                let at = Path::to(&[&part.name, &f.name, &c.name]);
+                let tree = f.takes.iter().find(|(n, _)| n == t).map(|(_, ty)| ty);
+                let place = f.takes.iter().position(|(n, _)| n == t);
+                let path = Path::to(&[&part.name, &f.name]).to_string();
+                let on = |k: usize| {
+                    f.body
+                        .as_ref()
+                        .is_none_or(|b| simulation::decreasing(&f.takes, b, &path).contains(&k))
+                };
+                let message = match tree {
+                    None => format!("`{t}` is no input of `{}`: `by induction` names the input the claim is shown on", f.name),
+                    Some(ty @ Type::Enum(e)) if holds_itself(ty, &e.name, false) && place.is_some_and(on) => continue,
+                    Some(Type::Enum(e)) if holds_itself(&Type::Enum(e.clone()), &e.name, false) => format!(
+                        "`{}` calls itself on what is not a part of `{t}`: the claim is shown on the input every call takes apart",
+                        f.name
+                    ),
+                    Some(ty) => format!(
+                        "`{t}` is {}, not a tree: `by induction` is on an input whose enum holds itself",
+                        crate::print::type_(ty)
+                    ),
+                };
+                errors.push(error(M031, &at, message));
+            }
+        }
+    }
+    errors
+}
+
 /// M019 for each function on a cycle of calls, through bodies.
 fn calls_itself(model: &Model) -> Vec<Error> {
     let mut paths: Vec<Path> = Vec::new();
     let mut bodies = Vec::new();
+    let mut functions = Vec::new();
     for part in &model.parts {
         for f in &part.functions {
             paths.push(Path::to(&[&part.name, &f.name]));
             bodies.push(f.body.as_ref());
+            functions.push(f);
         }
     }
     let number: BTreeMap<String, usize> = paths
@@ -1112,12 +1204,19 @@ fn calls_itself(model: &Model) -> Vec<Error> {
     let mut errors = Vec::new();
     for (i, at) in paths.iter().enumerate() {
         let shared = component.iter().filter(|&&c| c == component[i]).count() > 1;
-        if shared || out[i].contains(&i) {
-            errors.push(error(
-                M019,
-                at,
-                format!("`{at}` calls itself, through its body"),
-            ));
+        let own = out[i].contains(&i)
+            && !functions[i]
+                .body
+                .as_ref()
+                .is_some_and(|b| simulation::structural(&functions[i].takes, b, &at.to_string()));
+        if shared || own {
+            let message = match shared {
+                true => format!("`{at}` calls itself, through its body"),
+                false => format!(
+                    "`{at}` calls itself on what is not a part of its input taken apart by a `match`: a call on `l` of `match t {{ Node(l, …) => … }}` ends, another may not"
+                ),
+            };
+            errors.push(error(M019, at, message));
         }
     }
     errors

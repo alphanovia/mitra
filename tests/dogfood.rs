@@ -195,11 +195,11 @@ fn dogfood_state_claims_everywhere() {
 
 // ---------------------------------------------- settings, their defaults
 
-// mitra: measures agree::agree_defaults () -> AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 }, length: 3 }
+// mitra: measures agree::agree_defaults () -> AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 }, length: 3, height: 3 }
 #[test]
 fn dogfood_agree_defaults() {
     let s = mitra_core::agree::Settings::default();
-    assert_eq!((s.points, s.splits, s.length), (64, 4, 3));
+    assert_eq!((s.points, s.splits, s.length, s.height), (64, 4, 3, 3));
     assert_eq!((s.budget.steps, s.budget.depth), (1_000_000, 1_000));
 }
 

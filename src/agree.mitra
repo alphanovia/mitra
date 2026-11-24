@@ -2,7 +2,7 @@
 // language, beside the code it models (the parts it uses are read by
 // `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
 
-subject record AgreeSettings at "src/agree.rs/Settings" { points: integer, splits: integer, budget: Budget, length: integer }
+subject record AgreeSettings at "src/agree.rs/Settings" { points: integer, splits: integer, budget: Budget, length: integer, height: integer }
 
 subject agree {
     use Budget from "simulation";
@@ -20,7 +20,7 @@ subject agree {
     require stops: simulation::budgeted;
 
     fn agree_defaults() -> s: AgreeSettings at "src/agree.rs/Settings/default" {
-        AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 }, length: 3 }
+        AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 }, length: 3, height: 3 }
     }
     ensure no_false_holds: "agree says Holds only when what the model says twice agrees at every point where the claims of functions with no body hold"
         from (checked, exact, ranges, kept, given, promised);
@@ -29,5 +29,7 @@ subject agree {
     ensure no_false_none: "agree says no value keeps a function's claims (A004) only when none does"
         from (checked, exact, ranges, kept);
     ensure lengths: "agree tries sequences from `[]` up to `Settings::length` long, of the values worth trying of what they hold";
+    ensure heights: "agree tries trees up to `Settings::height` levels in themselves, of the values worth trying of what they hold";
+    ensure induction: "a claim `by induction t` holds by bounds only when it holds where each call of its function on a part of `t` gives what the claim says there; a part of a tree is any tree to bounds, never none" from (ranges, promised);
     ensure ends: "agree ends on every well-formed model: a budget reached, by bounds or at points, is unknown (A007), with the budget it reached" from (stops);
 }

@@ -43,6 +43,7 @@ fn claim(name: &str, holds: E) -> Claim {
     Claim {
         name: name.to_string(),
         holds,
+        induction: None,
     }
 }
 fn function(name: &str, takes: &str, gives: (&str, Type)) -> Function {
@@ -713,13 +714,13 @@ fn each_error_is_found() {
     );
     // Enums and records no value fits (M027), and no M003 beside them.
     assert_eq!(
-        digits("subject enum Never {}\nsubject record Box<T> { n: integer }\nsubject enum List { Nil, Cons(integer, List) }\nsubject record R { s: S }\nsubject record S { r: R }\nsubject d {\n    fn f(a: List, b: R, c: Box<integer>) -> e: integer { 0 }\n}"),
+        digits("subject enum Never {}\nsubject record Box<T> { n: integer }\nsubject enum List { Cons(integer, List) }\nsubject record R { s: S }\nsubject record S { r: R }\nsubject d {\n    fn f(a: List, b: R, c: Box<integer>) -> e: integer { 0 }\n}"),
         [
             "error[M027]: the type parameter `T` is used by nothing it holds: Rust's E0392\n --> Box::Box",
-            "error[M027]: `List` holds itself: a value of it would never end (trees come later, finding 3)\n --> List::List",
+            "error[M027]: `List` holds itself in every variant: no value of it ends; give it a variant that does not hold it, as a tree's `Leaf`\n --> List::List",
             "error[M027]: `Never` has no variant: no value is of it\n --> Never::Never",
-            "error[M027]: `R` holds itself: a value of it would never end (trees come later, finding 3)\n --> R::R",
-            "error[M027]: `S` holds itself: a value of it would never end (trees come later, finding 3)\n --> S::S",
+            "error[M027]: `R` holds itself: no value of it ends; a tree is an enum with a variant that does not hold it\n --> R::R",
+            "error[M027]: `S` holds itself: no value of it ends; a tree is an enum with a variant that does not hold it\n --> S::S",
         ]
     );
     given.extend(["M025".to_string(), "M026".to_string(), "M027".to_string()]);
@@ -740,6 +741,12 @@ fn each_error_is_found() {
         ]
     );
     given.extend(["M028".to_string(), "M029".to_string(), "M030".to_string()]);
+    // A claim by induction on what is not a tree input (M031).
+    assert_eq!(
+        digits("subject T {\n    fn f(x: integer) -> y: integer { x } where { claim c: 0 <= y by induction x; }\n}"),
+        ["error[M031]: `x` is integer, not a tree: `by induction` is on an input whose enum holds itself\n --> T::f::c"]
+    );
+    given.push("M031".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Model && !e.retired);

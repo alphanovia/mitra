@@ -106,6 +106,7 @@ pub const M027: Code = model(27);
 pub const M028: Code = model(28);
 pub const M029: Code = model(29);
 pub const M030: Code = model(30);
+pub const M031: Code = model(31);
 
 const fn agree(number: u16) -> Code {
     Code {
@@ -251,7 +252,10 @@ pub const CATALOGUE: &[Entry] = &[
     ),
     entry(M017, "a call of no function"),
     entry(M018, "a function or record of another part, not used"),
-    entry(M019, "a function that calls itself"),
+    entry(
+        M019,
+        "a function that calls itself, not on a part of its input",
+    ),
     entry(
         M020,
         "an impl that does not fit its contract, or names no function",
@@ -283,6 +287,10 @@ pub const CATALOGUE: &[Entry] = &[
     entry(
         M030,
         "a `self` that is not the first of a method of a part with a record",
+    ),
+    entry(
+        M031,
+        "a claim `by induction` on what is not an input that is a tree",
     ),
     entry(A001, "a body that breaks a claim"),
     entry(A002, "a body that disagrees with an example"),

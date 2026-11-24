@@ -1,0 +1,20 @@
+// Trees: an enum that holds itself, with a variant that does not.
+
+subject enum Tree { Leaf, Node(Tree, integer, Tree) }
+
+subject Trees {
+    // `size` calls itself on `l` and `r`, the parts `match` takes apart
+    // from `t`: each call is on a smaller tree, so it ends.
+    fn size(t: Tree) -> n: integer {
+        match t { Leaf => 0, Node(l, _, r) => size(l) + 1 + size(r) }
+    } where {
+        claim counted: 0 <= n by induction t;
+        examples { (Leaf) -> 0, (Node(Leaf, 5, Node(Leaf, 6, Leaf))) -> 2 }
+    }
+
+    fn sum(t: Tree) -> s: integer {
+        match t { Leaf => 0, Node(l, x, r) => sum(l) + x + sum(r) }
+    } where {
+        examples { (Node(Node(Leaf, 1, Leaf), 2, Leaf)) -> 3 }
+    }
+}

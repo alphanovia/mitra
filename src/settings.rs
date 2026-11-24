@@ -9,6 +9,7 @@
 //! points = 64
 //! splits = 4
 //! length = 3
+//! height = 3
 //! [budget]                # agree's and explain's
 //! steps = 1000000
 //! depth = 1000
@@ -50,7 +51,7 @@ pub struct Settings {
 /// The sections, and their keys.
 const SECTIONS: &[(&str, &[&str])] = &[
     ("parse", &["depth"]),
-    ("agree", &["points", "splits", "length"]),
+    ("agree", &["points", "splits", "length", "height"]),
     ("budget", &["steps", "depth"]),
     ("explain", &["rounds", "cases", "rests"]),
     (
@@ -113,6 +114,7 @@ pub fn read(text: &str) -> Result<Settings> {
                 ("agree", "points") => s.agree.points = count(1)?,
                 ("agree", "splits") => s.agree.splits = count(0)?,
                 ("agree", "length") => s.agree.length = count(0)?,
+                ("agree", "height") => s.agree.height = count(0)?,
                 ("budget", "steps") => s.agree.budget.steps = count(0)?,
                 ("budget", _) => s.agree.budget.depth = count(0)?,
                 ("explain", "rounds") => s.explain.rounds = count(0)?,

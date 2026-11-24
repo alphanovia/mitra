@@ -121,9 +121,12 @@ pub struct Record {
 }
 
 /// An enum, Rust's: a value that is one of its variants, each with the
-/// values it holds, `enum Option<T> { None, Some(T) }`. Known by all of
-/// it, as a record: `Option<Int>` and `Option<Real>` are two types.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// values it holds, `enum Option<T> { None, Some(T) }`. Known by its
+/// name and the types its parameters are given: `Option<Int>` and
+/// `Option<Real>` are two types. One that holds itself (a tree) is cut
+/// where it holds itself: there it has no variant written, and is the
+/// same type, by name (trees, the user's go 12:33).
+#[derive(Clone, Debug)]
 pub struct Enum {
     pub name: String,
     /// The types its parameters are given, already written in its
@@ -133,7 +136,40 @@ pub struct Enum {
     pub variants: Vec<(String, Vec<Type>)>,
 }
 
+impl PartialEq for Enum {
+    fn eq(&self, other: &Enum) -> bool {
+        self.name == other.name && self.args == other.args
+    }
+}
+
+impl Eq for Enum {}
+
+impl PartialOrd for Enum {
+    fn partial_cmp(&self, other: &Enum) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Enum {
+    fn cmp(&self, other: &Enum) -> std::cmp::Ordering {
+        (&self.name, &self.args).cmp(&(&other.name, &other.args))
+    }
+}
+
+impl std::hash::Hash for Enum {
+    fn hash<H: std::hash::Hasher>(&self, h: &mut H) {
+        self.name.hash(h);
+        self.args.hash(h);
+    }
+}
+
 impl Enum {
+    /// Cut where it holds itself: no variant written here; read it from
+    /// the enum of that name around it.
+    pub fn cut(&self) -> bool {
+        self.variants.is_empty()
+    }
+
     /// The place of the variant named `name`.
     pub fn variant(&self, name: &str) -> Option<usize> {
         self.variants.iter().position(|(n, _)| n == name)
@@ -545,6 +581,11 @@ struct Memo {
     /// The functions whose promises `Ranges` is reading now: a call of
     /// one of them inside its own promise is only its type.
     promising: std::sync::Mutex<BTreeSet<String>>,
+    /// The calls `Ranges` is reading now, by function and bounds: one
+    /// of them again inside itself (a tree's part read as any tree)
+    /// gives any value, which may fault, not a computation that only a
+    /// budget ends.
+    reading: std::sync::Mutex<Vec<(String, Vec<Bounds>)>>,
 }
 
 impl Clone for Memo {
@@ -731,6 +772,75 @@ pub struct Calls {
     memo: Box<Memo>,
 }
 
+/// The inputs every call the body of the function at `path` makes to
+/// itself takes a part of, at that input's place, taken apart by a
+/// `match`: structural recursion on any of them ends (trees, the user's
+/// go 12:33). Lean and Coq take recursion on this guard, one input for
+/// all the calls. Every input when it calls itself nowhere.
+pub fn decreasing(takes: &[(String, Type)], body: &Expression<Op>, path: &str) -> BTreeSet<usize> {
+    /// A name in scope: an input at its place, a part of one, or other.
+    #[derive(Clone, Copy, PartialEq)]
+    enum Is {
+        Input(usize),
+        Part(usize),
+        Other,
+    }
+    type Scope = Vec<(String, Is)>;
+    fn is(scope: &Scope, e: &Expression<Op>) -> Is {
+        match e {
+            Expression::Name(n) => scope
+                .iter()
+                .rev()
+                .find(|(m, _)| m == n)
+                .map_or(Is::Other, |(_, k)| *k),
+            _ => Is::Other,
+        }
+    }
+    fn walk(e: &Expression<Op>, scope: &mut Scope, path: &str, left: &mut BTreeSet<usize>) {
+        let Expression::Apply(op, args) = e else {
+            return;
+        };
+        if matches!(op, Op::Call(g) if g == path) {
+            left.retain(|&k| {
+                args.get(k)
+                    .is_some_and(|a| a.binds.is_empty() && is(scope, &a.body) == Is::Part(k))
+            });
+        }
+        // What a match takes apart from an input, or from a part of
+        // one, is a part of that input.
+        let taken = match (op, args.first()) {
+            (Op::Match(_), Some(a)) => match is(scope, &a.body) {
+                Is::Input(k) | Is::Part(k) => Is::Part(k),
+                Is::Other => Is::Other,
+            },
+            _ => Is::Other,
+        };
+        for (i, a) in args.iter().enumerate() {
+            let depth = scope.len();
+            let bound = match (op, i) {
+                (Op::Match(_), i) if i >= 1 => taken,
+                _ => Is::Other,
+            };
+            scope.extend(a.binds.iter().map(|b| (b.clone(), bound)));
+            walk(&a.body, scope, path, left);
+            scope.truncate(depth);
+        }
+    }
+    let mut scope: Scope = takes
+        .iter()
+        .enumerate()
+        .map(|(k, (n, _))| (n.clone(), Is::Input(k)))
+        .collect();
+    let mut left: BTreeSet<usize> = (0..takes.len()).collect();
+    walk(body, &mut scope, path, &mut left);
+    left
+}
+
+/// Its calls to itself all end: structural recursion on one input.
+pub fn structural(takes: &[(String, Type)], body: &Expression<Op>, path: &str) -> bool {
+    !decreasing(takes, body, path).is_empty()
+}
+
 impl Calls {
     /// These functions, with this budget.
     pub fn budget(mut self, budget: Budget) -> Calls {
@@ -807,7 +917,13 @@ impl Calls {
             size[c] += 1;
         }
         for (i, name) in names.iter().enumerate() {
-            if size[component[i]] > 1 || out[i].contains(&i) {
+            let callee = &callees[*name];
+            let own = out[i].contains(&i)
+                && !callee
+                    .body
+                    .as_ref()
+                    .is_some_and(|b| structural(&callee.takes, b, name));
+            if size[component[i]] > 1 || own {
                 refused.insert((*name).clone());
             }
         }
@@ -1201,6 +1317,8 @@ impl Reading for Exact {
                     })
             }
             (Value::Variant(e, i, holds), Type::Enum(t)) => {
+                // Where a tree holds itself, the value's own variants.
+                let t = if t.cut() { e } else { t };
                 e == t
                     && t.variants.get(*i).is_some_and(|(_, ts)| {
                         ts.len() == holds.len()
@@ -1543,6 +1661,8 @@ pub fn lies_in(value: &Value, span: &Span) -> bool {
                     .zip(spans)
                     .all(|(v, s)| v.as_ref().is_none_or(|v| lies_in(v, s)))
         }
+        // Any tree where a tree holds itself.
+        (Value::Variant(e, _, _), Span::Variant(f, _)) if f.cut() => e == f,
         (Value::Variant(e, i, holds), Span::Variant(f, may)) => {
             e == f
                 && may.get(*i).is_some_and(|m| {
@@ -1759,7 +1879,9 @@ fn fits(span: &Span, of: &Type) -> bool {
                 }
         }
         (Span::Record(r, spans), Type::Record(t)) => r == t && fits_fields(spans, t, fits),
+        (Span::Variant(e, _), Type::Enum(t)) if e.cut() => e == t,
         (Span::Variant(e, may), Type::Enum(t)) => {
+            let t = if t.cut() { e } else { t };
             e == t
                 && may.len() == t.variants.len()
                 && may.iter().any(Option::is_some)
@@ -1837,12 +1959,28 @@ impl Ranges {
                             .find(|(at, _)| at.as_slice() == args)
                             .map(|(_, g)| g.clone())
                     });
+                let reading = || {
+                    self.calls
+                        .memo
+                        .reading
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                };
+                let again = reading()
+                    .iter()
+                    .any(|(g, at)| g == f && at.as_slice() == args);
                 match known {
                     Some(gives) => gives,
+                    None if again => Ok(Bounds {
+                        may_fault: true,
+                        ..Bounds::any(&callee.gives)
+                    }),
                     None => {
                         let active = self.calls.enter(f)?;
+                        reading().push((f.to_string(), args.to_vec()));
                         let names = callee.takes.iter().map(|(n, _)| n.clone());
                         let gives = eval(self, &names.zip(args.iter().cloned()).collect(), body);
+                        reading().pop();
                         drop(active);
                         if !matches!(gives, Err(Fault::Op(Undefined::Budget(_)))) {
                             memo.lock()
@@ -1899,6 +2037,10 @@ fn hull(a: &Span, b: &Span) -> Option<Span> {
         (Span::Record(r, xs), Span::Record(s, ys)) if r == s && xs.len() == ys.len() => {
             let fields = xs.iter().zip(ys).map(|(x, y)| hull(x, y));
             Span::Record(r.clone(), fields.collect::<Option<_>>()?)
+        }
+        // Any tree, joined with a tree, is any tree.
+        (Span::Variant(e, _), Span::Variant(f, _)) if e == f && (e.cut() || f.cut()) => {
+            Span::Variant(if e.cut() { e.clone() } else { f.clone() }, vec![])
         }
         (Span::Variant(e, xs), Span::Variant(f, ys)) if e == f && xs.len() == ys.len() => {
             let mut may = Vec::with_capacity(xs.len());
@@ -1961,8 +2103,21 @@ fn join(a: Bounded, b: Bounded) -> Bounded {
 
 /// What a `match` on `scrutinee` may give: what the arm of each variant
 /// it may be gives, joined, and a fault if it may fault.
-fn arms(scrutinee: &Bounded, arm: &mut dyn FnMut(usize, &[Span]) -> Bounded) -> Bounded {
+fn arms(
+    whole: &Enum,
+    scrutinee: &Bounded,
+    arm: &mut dyn FnMut(usize, &[Span]) -> Bounded,
+) -> Bounded {
     let (may, may_fault) = match scrutinee {
+        // Any tree where a tree holds itself: any variant of the enum the
+        // `match` reads.
+        Ok(Bounds {
+            span: Span::Variant(e, _),
+            may_fault,
+        }) if e.cut() => match Bounds::any(&Type::Enum(whole.clone())).span {
+            Span::Variant(_, may) => (may, *may_fault),
+            _ => return Err(Fault::Stuck),
+        },
         Ok(Bounds {
             span: Span::Variant(_, may),
             may_fault,
@@ -2197,6 +2352,10 @@ fn compare(a: &Span, b: &Span) -> Option<(bool, bool)> {
         }
         // Equal only in one variant both may be, each value it holds
         // equal; different in two variants, or in what one holds.
+        // Any tree may be equal to a tree, or not.
+        (Span::Variant(e, _), Span::Variant(f, _)) if e == f && (e.cut() || f.cut()) => {
+            (true, true)
+        }
         (Span::Variant(e, xs), Span::Variant(f, ys)) if e == f && xs.len() == ys.len() => {
             let may: Vec<usize> = (0..xs.len()).filter(|k| xs[*k].is_some()).collect();
             let other: Vec<usize> = (0..ys.len()).filter(|k| ys[*k].is_some()).collect();
@@ -2434,7 +2593,7 @@ impl Reading for Ranges {
             // value (a fault inside, or the budget).
             (Op::Fold, [xs, start, _]) => loop_bounds(Some(xs), start),
             (Op::Until, [start, _, _]) => loop_bounds(None, start),
-            (Op::Match(_), [scrutinee, ..]) => match_bounds(scrutinee, run),
+            (Op::Match(whole), [scrutinee, ..]) => match_bounds(whole, scrutinee, run),
             _ => Err(Fault::Stuck),
         }
     }
@@ -2443,7 +2602,11 @@ impl Reading for Ranges {
 /// `match` by bounds, in a frame of its own: `bind` is on the path of
 /// every level.
 #[inline(never)]
-fn match_bounds(scrutinee: &Bounded, run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded) -> Bounded {
+fn match_bounds(
+    whole: &Enum,
+    scrutinee: &Bounded,
+    run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded,
+) -> Bounded {
     let mut arm = |k: usize, holds: &[Span]| {
         let holds: Vec<Bounded> = holds
             .iter()
@@ -2456,7 +2619,7 @@ fn match_bounds(scrutinee: &Bounded, run: &mut dyn FnMut(usize, &[Bounded]) -> B
             .collect();
         run(1 + k, &holds)
     };
-    arms(scrutinee, &mut arm)
+    arms(whole, scrutinee, &mut arm)
 }
 
 impl Ranges {
@@ -2632,8 +2795,8 @@ impl Ranges {
             }
             (Op::And, [a, b]) => return choose(a, b.clone(), said(false)),
             // Arms that bind nothing: each computed, the possible joined.
-            (Op::Match(_), [scrutinee, given @ ..]) => {
-                return arms(scrutinee, &mut |k, _| {
+            (Op::Match(whole), [scrutinee, given @ ..]) => {
+                return arms(whole, scrutinee, &mut |k, _| {
                     given.get(k).cloned().unwrap_or(Err(Fault::Stuck))
                 })
             }

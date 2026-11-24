@@ -69,6 +69,37 @@ A `match` has an arm for every variant, or `_` for the rest (P006). No
 guards and no nested patterns yet. `Option<T>` and `Result<T, E>` come
 from the standard model ([chapter 7](7-contracts-and-use.md)).
 
+## Trees
+
+An enum may hold itself, as long as one variant does not: that one
+ends a value. Unlike Rust, no `Box` is needed, for a model has no
+memory layout (as in Haskell, OCaml or Lean).
+
+```mitra
+subject enum Tree { Leaf, Node(Tree, integer, Tree) }
+```
+
+A function may call itself on a part a `match` takes apart from one of
+its inputs, the same input for every call: each call is on a smaller
+tree, so it ends (M019 for any other call to itself). A claim on such a
+function can be shown `by induction` on that input:
+
+```mitra
+    fn size(t: Tree) -> n: integer {
+        match t { Leaf => 0, Node(l, _, r) => size(l) + 1 + size(r) }
+    } where {
+        claim counted: 0 <= n by induction t;
+        examples { (Leaf) -> 0, (Node(Leaf, 5, Node(Leaf, 6, Leaf))) -> 2 }
+    }
+```
+
+`mitra check` then reads `size(l)` and `size(r)` as numbers the claim
+already holds of (each `0 <= …`), and decides the claim for every
+variant at once by bounds: `Leaf` gives 0, `Node` gives a sum of
+numbers at 0 or more, plus 1. A claim it cannot decide this way is
+unknown (A007), never held. It also tries small trees as points, up to
+`[agree] height` levels (3 by default; [chapter 8](8-commands.md#mitratoml)).
+
 ## Sequences
 
 `[integer]` is a sequence of integers, written `[7, 8]`. `xs.len()` is

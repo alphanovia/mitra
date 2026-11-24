@@ -290,6 +290,9 @@ pub struct Example {
 pub struct Claim {
     pub name: String,
     pub holds: Expression<simulation::Op>,
+    /// `by induction t`: shown on each variant of the input `t`, a tree,
+    /// what the function gives on its parts kept by the claim.
+    pub induction: Option<String>,
 }
 
 /// Its premises give its conclusion. `proof` is `None` when nothing
@@ -769,6 +772,34 @@ pub fn calls(model: &Model) -> Result<Calls, BTreeSet<String>> {
         }
     }
     Calls::with(callees)
+}
+
+/// For each claim shown `by induction`, by its path: the model's
+/// functions where its own has no body and promises that claim only,
+/// read on its parts (trees, the user's go 12:33).
+pub fn hypotheses(model: &Model) -> Vec<(String, Calls)> {
+    let mut out = Vec::new();
+    for part in &model.parts {
+        for f in &part.functions {
+            let path = Path::to(&[&part.name, &f.name]);
+            for c in f.claims.iter().filter(|c| c.induction.is_some()) {
+                let mut hypothesis = model.clone();
+                let g = hypothesis
+                    .parts
+                    .iter_mut()
+                    .find(|p| p.name == part.name)
+                    .and_then(|p| p.functions.iter_mut().find(|g| g.name == f.name))
+                    .expect("there");
+                g.body = None;
+                g.claims = vec![c.clone()];
+                g.examples = vec![];
+                if let Ok(calls) = calls(&hypothesis) {
+                    out.push((path.then(&c.name).to_string(), calls));
+                }
+            }
+        }
+    }
+    out
 }
 
 /// The model's functions by what they take and give only, each by its
