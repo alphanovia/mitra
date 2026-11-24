@@ -47,9 +47,13 @@ the result.
 
 One input is still written in parentheses: `(5.0) -> 98.1`.
 
-A function that reads what the environment gives takes the row as BDD
-says it: `given` what the world gave, `when` the inputs, `then` the
-result. Two worlds may give two values at one point. From
+### Examples in a world
+
+A function that calls the environment gives a result that depends on
+what the world gave it: the same input can give two results on two
+days. Its rows say the world too, in the form of behaviour-driven
+testing (BDD): `given` what the world gave, `when` the inputs, `then`
+the result. From
 [examples/language/worlds.mitra](../../examples/language/worlds.mitra):
 
 ```mitra
@@ -59,10 +63,10 @@ result. Two worlds may give two values at one point. From
         }
 ```
 
-`(6, 2) -> 3` is short for `when (6, 2) then 3`. Each row of `given` is
-a function with no body, by its path (or its name, when one function
-has it), what it was called with, and what it gave; a function is given
-once a run.
+`(6, 2) -> 3` is short for `when (6, 2) then 3`. After `given` comes a
+function with no body (by its path, or its name when only one function
+has it), what it was called with, and what it gave. Each such function
+is given at most once a row.
 
 ## What `mitra check` does with them
 
