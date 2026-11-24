@@ -12,7 +12,7 @@ Every example is taken from a file in [examples/](../../examples) or
 3. [Functions and claims](3-functions.md): opaque functions and bodies,
    claims, examples, ranges.
 4. [Values](4-values.md): numbers, records, enums and `match`,
-   sequences, text, `let` and `if`.
+   sequences, text, loops, `let` and `if`.
 5. [Ties and evidence](5-ties-and-evidence.md): tying the model to code,
    tests that measure, reviews and measurements by hand.
 6. [Rules and proofs](6-rules-and-proofs.md): `p, q |- c`, proofs,

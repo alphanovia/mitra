@@ -21,8 +21,10 @@ later; for now a model speaks of exact numbers.
 
 ## Tuples and records
 
-`(a, b)` is a tuple, read with `t.0`, `t.1`. There is no tuple of one
-value: `(x)` is just `x`.
+`(a, b)` is a tuple, read with `t.0`, `t.1`. Its places may have
+labels: `(sum: 3, n: 2)`, of type `(sum: integer, n: integer)`, read
+with `t.sum` or `t.0`. There is no tuple of one value: `(x)` is just
+`x`.
 
 A record has named fields:
 
@@ -81,7 +83,45 @@ the end has no value, as Rust would panic.
     }
 ```
 
-A sequence never changes. Loops over sequences (`fold`) are coming.
+A sequence never changes.
+
+## Loops
+
+A loop carries values from one turn to the next, and gives them back
+at the end. There are two loops.
+
+`xs.fold(start) { x -> next }` goes over a sequence: for each `x`, the
+block gives the next carried values. Carrying one value, it is named
+and given back bare:
+
+```mitra
+    fn total(xs: [integer]) -> t: integer { xs.fold(sum: 0) { x -> sum + x } } where {
+        examples { ([1, 2, 3]) -> 6, ([]) -> 0 }
+    }
+```
+
+Carrying more, they are a tuple with labels, and the block gives the
+next tuple in the same order:
+
+```mitra
+    fn mean(xs: [integer]) -> m: integer {
+        let c = xs.fold((sum: 0, n: 0)) { x -> (sum + x, n + 1) } in
+        if c.n == 0 { 0 } else { c.sum / c.n }
+    } where {
+```
+
+`until(start, done) { next }` is the while loop: it stops at the first
+carried values where `done` holds.
+
+```mitra
+    fn halvings(n: integer) -> s: integer {
+        until((k: n, steps: 0), k <= 1) { (k / 2, steps + 1) }.steps
+    } where {
+```
+
+A loop that never ends is stopped by Mitra's step budget (1,000,000
+turns): `check` then says so in an A007 finding. A block of the wrong
+type is M005, with a note on what the loop carries.
 
 ## Text
 

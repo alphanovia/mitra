@@ -103,12 +103,12 @@ Mitra is early. What works today:
 
 - the language of [the reference](docs/reference/README.md): parts,
   functions, claims, examples, rules and proofs, records, enums,
-  sequences, text, contracts;
+  sequences, text, loops, contracts;
 - ties to Rust code, and evidence from `cargo test` and from a file of
   reviews and measurements written by hand;
 - the three commands, with error messages in the style of `rustc`.
 
-Not yet: loops over sequences, imports across folders, trees, other
+Not yet: imports across folders, trees, other
 languages than Rust, colours and JSON output. Each lands in the
 reference when it lands in the code.
 

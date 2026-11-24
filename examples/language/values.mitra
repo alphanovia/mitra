@@ -38,4 +38,24 @@ subject Shapes {
     fn greet(name: [~char]) -> g: [~char] { "hello " ++ name } where {
         examples { ("ana") -> "hello ana" }
     }
+
+    // A loop over a sequence: `fold` carries one value, given back bare.
+    fn total(xs: [integer]) -> t: integer { xs.fold(sum: 0) { x -> sum + x } } where {
+        examples { ([1, 2, 3]) -> 6, ([]) -> 0 }
+    }
+
+    // Two values carried: a tuple with labels, read `.sum` or `.0`.
+    fn mean(xs: [integer]) -> m: integer {
+        let c = xs.fold((sum: 0, n: 0)) { x -> (sum + x, n + 1) } in
+        if c.n == 0 { 0 } else { c.sum / c.n }
+    } where {
+        examples { ([2, 4, 9]) -> 5, ([]) -> 0 }
+    }
+
+    // A while loop: `until` stops at the first carried value where `k <= 1`.
+    fn halvings(n: integer) -> s: integer {
+        until((k: n, steps: 0), k <= 1) { (k / 2, steps + 1) }.steps
+    } where {
+        examples { (8) -> 3, (1) -> 0 }
+    }
 }
