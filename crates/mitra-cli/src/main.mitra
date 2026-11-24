@@ -12,8 +12,6 @@
 //
 // Modelling choices, flagged for review (none is a new concept of the
 // language):
-// - `State` is an enum in Rust; here it is a record of its
-//   two sides, as `State::sides` gives them.
 // - `numbers::fused` takes takings in Rust; here it takes what they add
 //   up to: weighted runs for and against, with the prior weight and the
 //   base rate of the settings.

@@ -65,6 +65,7 @@ review judgement::and::false_wins holds by "agent:anthropic/opus-5.5/dogfood" se
 review judgement::and::true_needs_both holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:dogfood_state_claims_everywhere";
 review judgement::join::keeps holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:dogfood_state_claims_everywhere";
 review judgement::negate::swaps holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:dogfood_state_claims_everywhere";
+review judgement::told::back holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:dogfood_told";
 
 // The red team found rows the reader takes from inside a string and
 // from a one-line test, with no finding (F1, F2): this ensure fails.
@@ -90,6 +91,9 @@ review simulation::minus holds by "agent:anthropic/opus-5.5/dogfood";
 review simulation::times holds by "agent:anthropic/opus-5.5/dogfood";
 review simulation::over holds by "agent:anthropic/opus-5.5/dogfood";
 review simulation::abs holds by "agent:anthropic/opus-5.5/dogfood";
+// State: this review was given when the model said a record `{ t, f }`
+// and Rust an enum, so it was wrong (finding 38). Given again for the
+// enum, as the reader checks it (2026-11-24, the user's go 20:06).
 review State::State holds by "agent:anthropic/opus-5.5/dogfood";
 review judgement::told holds by "agent:anthropic/opus-5.5/dogfood";
 review judgement::sides holds by "agent:anthropic/opus-5.5/dogfood";

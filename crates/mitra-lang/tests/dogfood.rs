@@ -81,35 +81,35 @@ fn dogfood_within() {
 
 // -------------------------------------------------------------- judgement
 
-// mitra: measures judgement::told (true, false) -> State { t: true, f: false }
-// mitra: measures judgement::told (true, true) -> State { t: true, f: true }
+// mitra: measures judgement::told (true, false) -> True
+// mitra: measures judgement::told (true, true) -> Conflict
 #[test]
 fn dogfood_told() {
     assert_eq!(State::told(true, false), State::True);
     assert_eq!(State::told(true, true), State::Conflict);
 }
 
-// mitra: measures judgement::sides (State { t: false, f: true }) -> (false, true)
+// mitra: measures judgement::sides (False) -> (false, true)
 #[test]
 fn dogfood_sides() {
     assert_eq!(State::False.sides(), (false, true));
 }
 
-// mitra: measures judgement::and (State { t: true, f: false }, State { t: true, f: true }) -> State { t: true, f: true }
-// mitra: measures judgement::and (State { t: true, f: false }, State { t: false, f: false }) -> State { t: false, f: false }
+// mitra: measures judgement::and (True, Conflict) -> Conflict
+// mitra: measures judgement::and (True, Unknown) -> Unknown
 #[test]
 fn dogfood_and() {
     assert_eq!(state(true, false).and(state(true, true)), State::Conflict);
     assert_eq!(state(true, false).and(state(false, false)), State::Unknown);
 }
 
-// mitra: measures judgement::join (State { t: true, f: false }, State { t: false, f: true }) -> State { t: true, f: true }
+// mitra: measures judgement::join (True, False) -> Conflict
 #[test]
 fn dogfood_join() {
     assert_eq!(State::True.join(State::False), State::Conflict);
 }
 
-// mitra: measures judgement::negate (State { t: true, f: false }) -> State { t: false, f: true }
+// mitra: measures judgement::negate (True) -> False
 #[test]
 fn dogfood_negate() {
     assert_eq!(!State::True, State::False);

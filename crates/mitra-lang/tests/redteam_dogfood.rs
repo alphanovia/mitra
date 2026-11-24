@@ -128,7 +128,7 @@ fn rt_over_zero_unmeasurable() {
 // A test in a `mod`: cargo names it `inner::rt_in_mod`, as the reader does.
 mod inner {
     use mitra_lang::judgement::State;
-    // mitra: measures judgement::sides (State { t: true, f: true }) -> (true, true)
+    // mitra: measures judgement::sides (Conflict) -> (true, true)
     #[test]
     fn rt_in_mod() {
         assert_eq!(State::Conflict.sides(), (true, true));
@@ -136,7 +136,7 @@ mod inner {
 }
 
 // An ignored test that measures: R005 expected.
-// mitra: measures judgement::told (false, false) -> State { t: false, f: false }
+// mitra: measures judgement::told (false, false) -> Unknown
 #[test]
 #[ignore]
 fn rt_ignored() {
@@ -146,7 +146,7 @@ fn rt_ignored() {
 // A one-line `#[test] fn`: the reader skips the whole line as an
 // attribute, so this row is credited to the NEXT test, which measures
 // something else entirely.
-// mitra: measures judgement::join (State { t: false, f: false }, State { t: false, f: false }) -> State { t: false, f: false }
+// mitra: measures judgement::join (Unknown, Unknown) -> Unknown
 #[rustfmt::skip]
 #[test] fn rt_one_line() { assert_eq!(State::Unknown.join(State::Unknown), State::Unknown); }
 
@@ -160,7 +160,7 @@ fn rt_after_one_line() {
 // attribute: the reader takes the row and credits it to the next test.
 #[allow(dead_code)]
 const NOT_A_ROW: &str = r"
-// mitra: measures judgement::negate (State { t: false, f: false }) -> State { t: false, f: false }
+// mitra: measures judgement::negate (Unknown) -> Unknown
 #[just text in a string]";
 
 #[test]

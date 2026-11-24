@@ -9,34 +9,50 @@ subject record Prop at "crates/mitra-lang/src/judgement.rs/Prop";
 // voice, is a keyword of the model: it is in `..`).
 subject record Taking at "crates/mitra-lang/src/judgement.rs/Taking" { prop: Prop, value: bool, count: integer, .. }
 
-// Belnap's four states, as their two sides: told true, told false.
-subject record State at "crates/mitra-lang/src/judgement.rs/State" { t: bool, f: bool }
+// Belnap's four states, as in Rust: nothing told, told true, told
+// false, told both.
+subject enum State at "crates/mitra-lang/src/judgement.rs/State" { Unknown, True, False, Conflict }
 
 subject judgement {
     use simulation from "simulation";
     require holds: simulation::exact_right;
 
     fn told(t: bool, f: bool) -> s: State at "crates/mitra-lang/src/judgement.rs/State/told" {
-        State { t: t, f: f }
+        if t { if f { Conflict } else { True } } else { if f { False } else { Unknown } }
+    } where {
+        claim back: sides(s) == (t, f);
     }
-    fn sides(s: State) -> p: (bool, bool) at "crates/mitra-lang/src/judgement.rs/State/sides" { (s.t, s.f) }
+    // Told true, told false.
+    fn sides(s: State) -> p: (bool, bool) at "crates/mitra-lang/src/judgement.rs/State/sides" {
+        match s { Unknown => (false, false), True => (true, false), False => (false, true), Conflict => (true, true) }
+    }
     fn and(x: State, y: State) -> z: State at "crates/mitra-lang/src/judgement.rs/State/and" {
-        told(x.t && y.t, x.f || y.f)
+        match x {
+            Unknown => match y { False => False, Conflict => False, _ => Unknown },
+            True => y,
+            False => False,
+            Conflict => match y { True => Conflict, Conflict => Conflict, _ => False },
+        }
     } where {
         // Told false when either is; told true only when both are.
-        claim false_wins: (x.f || y.f) == z.f;
-        claim true_needs_both: !z.t || (x.t && y.t);
+        claim false_wins: (sides(x).1 || sides(y).1) == sides(z).1;
+        claim true_needs_both: !sides(z).0 || (sides(x).0 && sides(y).0);
     }
     fn join(x: State, y: State) -> z: State at "crates/mitra-lang/src/judgement.rs/State/join" {
-        told(x.t || y.t, x.f || y.f)
+        match x {
+            Unknown => y,
+            True => match y { False => Conflict, Conflict => Conflict, _ => True },
+            False => match y { True => Conflict, Conflict => Conflict, _ => False },
+            Conflict => Conflict,
+        }
     } where {
         // Join forgets nothing either tells.
-        claim keeps: (!x.t || z.t) && (!x.f || z.f) && (!y.t || z.t) && (!y.f || z.f);
+        claim keeps: (!sides(x).0 || sides(z).0) && (!sides(x).1 || sides(z).1) && (!sides(y).0 || sides(z).0) && (!sides(y).1 || sides(z).1);
     }
     fn negate(x: State) -> z: State at "crates/mitra-lang/src/judgement.rs/State/not" {
-        told(x.f, x.t)
+        match x { Unknown => Unknown, True => False, False => True, Conflict => Conflict }
     } where {
-        claim swaps: z.t == x.f && z.f == x.t;
+        claim swaps: sides(z).0 == sides(x).1 && sides(z).1 == sides(x).0;
     }
 
     ensure sound: "a proposition judged true follows from its rests by the rules of judgement"
