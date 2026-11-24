@@ -96,8 +96,11 @@ a set. From [examples/div/model.mitra](../../examples/div/model.mitra):
   points.
 - `any x in (…): p`: at one of them at least.
 
-Ranges leave out the end, as Rust's `0..10`. A condition narrows a set:
-`all x in (a: 0..10, b: 0..10) where b != 0: …`.
+Ranges leave out the end, as Rust's `0..10`; a range with no number in
+it, such as `3..3`, is an error (M034). A condition narrows a set:
+`all x in (a: 0..10, b: 0..10) where b != 0: …`. A condition that
+leaves no point is a finding (X013): the `all` or `any` then learns
+nothing from its points.
 
 A term of a rule can also be a `bool` expression written in place, in
 braces: `{ v < 21.0 }`.
