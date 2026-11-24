@@ -102,5 +102,18 @@ it, such as `3..3`, is an error (M034). A condition narrows a set:
 leaves no point is a finding (X013): the `all` or `any` then learns
 nothing from its points.
 
+A condition may call the model's functions that have a body: the
+model's function is the definition of the set, whatever the code does.
+
+```mitra
+    fn f(a: integer) -> b: integer { a + 1 }
+    rule small: g::c |- all p in (a: 0..10) where f(a) < 5: correct(g, p);   // the points 0 to 3
+```
+
+A function with no body, or one that calls such, is M023: write the
+bound by hand, `(a: 0..4)`. Each point is read within the budget
+(`[budget]` in `mitra.toml`); a point not read to its end is X009, and
+the `all` or `any` then learns nothing from its points.
+
 A term of a rule can also be a `bool` expression written in place, in
 braces: `{ v < 21.0 }`.

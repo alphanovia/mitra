@@ -86,6 +86,22 @@ pub enum Term {
 }
 
 impl Prop {
+    /// The definitions of its first set that carries some.
+    pub fn defs(&self) -> Option<Definitions> {
+        match self {
+            Prop::Named(_) => None,
+            Prop::Not(x) => x.defs(),
+            Prop::Implies { pre, post, .. } => pre.iter().chain(post).find_map(Prop::defs),
+            Prop::Correct { at, .. } => match at {
+                Term::Arbitrary { over, .. } if over.defs.0.is_some() => Some(over.defs.clone()),
+                _ => None,
+            },
+            Prop::All { over, body, .. } | Prop::Any { over, body, .. } => match over.defs.0 {
+                Some(_) => Some(over.defs.clone()),
+                None => body.defs(),
+            },
+        }
+    }
     /// Each set in it read by `defs` (finding 12b): the model's
     /// functions, by their bodies, that its conditions call.
     pub fn define(&mut self, defs: &Definitions) {

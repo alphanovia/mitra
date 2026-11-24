@@ -109,7 +109,7 @@ pub fn parse_prop(source: &str, model: &Model) -> Result<Prop> {
     let mut p = Parser::new(lex(source)?, Some(&context));
     let mut prop = p.prop()?;
     p.end()?;
-    prop.define(&crate::model::definitions(model));
+    prop.define(&crate::model::defs_of(model));
     Ok(prop)
 }
 
@@ -4135,6 +4135,6 @@ fn files(
         model.examples.extend(read.examples);
         model.ties.extend(read.ties);
     }
-    crate::model::define_sets(&mut model);
+    crate::model::define_sets(&mut model, crate::simulation::Budget::default());
     Ok(model)
 }

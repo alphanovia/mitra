@@ -1101,14 +1101,39 @@ pub fn calls(model: &Model) -> Result<Calls, BTreeSet<String>> {
 /// The model's functions as a set's condition reads them (finding 12b):
 /// by their bodies, as simulation calls them. None when `calls` refuses
 /// them: `check` says why.
-pub fn definitions(model: &Model) -> judgement::Definitions {
-    judgement::Definitions(calls(model).ok().map(std::sync::Arc::new))
+pub fn definitions(model: &Model, budget: simulation::Budget) -> judgement::Definitions {
+    judgement::Definitions(
+        calls(model)
+            .ok()
+            .map(|c| std::sync::Arc::new(c.budget(budget))),
+    )
+}
+
+/// The definitions the sets of the model's rules carry: the first set
+/// that carries some, else the model's `definitions` by the default
+/// budget. A proposition read later (a store's) reads its sets by the
+/// same ones as the model's.
+pub fn defs_of(model: &Model) -> judgement::Definitions {
+    let mut found = None;
+    for part in &model.parts {
+        for f in &part.functions {
+            for r in &f.rules {
+                for t in r.premises.iter().chain([&r.conclusion]) {
+                    if let (Term::Prop(p), None) = (t, &found) {
+                        found = p.defs();
+                    }
+                }
+            }
+        }
+    }
+    found.unwrap_or_else(|| definitions(model, simulation::Budget::default()))
 }
 
 /// Each set of each rule of the model, and of its proof, read by the
-/// model's `definitions`: once the whole model is read.
-pub fn define_sets(model: &mut Model) {
-    let defs = definitions(model);
+/// model's `definitions` within `budget`: once the whole model is read,
+/// and again when the settings give another budget.
+pub fn define_sets(model: &mut Model, budget: simulation::Budget) {
+    let defs = definitions(model, budget);
     for part in &mut model.parts {
         for f in &mut part.functions {
             for r in &mut f.rules {

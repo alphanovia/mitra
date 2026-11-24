@@ -181,7 +181,7 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
             }
         },
     };
-    let model = match parse::load(&source, &project, &settings.parse) {
+    let mut model = match parse::load(&source, &project, &settings.parse) {
         Ok(m) => m,
         Err(l) => {
             let (file, text) = match l.file.is_empty() {
@@ -198,6 +198,9 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
             return Ok(ExitCode::from(1));
         }
     };
+    // A set's condition reads the model's functions within the budget
+    // the settings give (finding 12b).
+    mitra_lang::model::define_sets(&mut model, settings.explain.budget);
     let errors = check(&model);
     if !errors.is_empty() {
         errors_out(&errors);
