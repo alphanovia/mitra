@@ -442,7 +442,7 @@ running 1 test
 test opinion ... ok
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
-     Running examples/demo.rs (target/release/examples/demo-1234567890abcdef)
+     Running unittests examples/demo.rs (target/release/examples/demo-1234567890abcdef)
 running 1 test
 test opinion ... ok
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
@@ -493,7 +493,12 @@ fn a_unit_test_in_src_measures_by_its_crate_and_module() {
         let (found, findings) = measurements(&model, &model.ties, &test(file), &runs);
         assert_eq!(found.len(), 1, "{file}: {findings:?}");
         assert_eq!(found[0].seen, seen, "{file}");
-        assert_eq!(found[0].by, "test:numbers::tests::opinion");
+        // A name two binaries share is said with its binary's.
+        let krate = if seen { "mitra_lang" } else { "mitra_store" };
+        assert_eq!(
+            found[0].by,
+            format!("test:{krate}/src/lib.rs::numbers::tests::opinion")
+        );
     }
     // A test in `tests/model.rs` and one in an example, both `opinion`.
     for file in [
@@ -508,6 +513,8 @@ fn a_unit_test_in_src_measures_by_its_crate_and_module() {
             (1, true),
             "{file}: {findings:?}"
         );
+        let binary = file.trim_start_matches("crates/mitra-lang/");
+        assert_eq!(found[0].by, format!("test:{binary}::opinion"));
         assert!(
             findings.iter().all(|f| f.code.to_string() == "R004"),
             "{findings:?}"

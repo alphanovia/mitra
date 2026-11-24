@@ -273,8 +273,10 @@ fn binary_of(line: &str) -> Option<String> {
         Some((f, d)) => (f, Some(d.trim_end_matches(')'))),
         None => (name, None),
     };
+    // Only a library's or binary's unit tests bear the crate's name; an
+    // example's or bench's bear their own.
     let krate = deps
-        .filter(|_| unit)
+        .filter(|_| unit && file.starts_with("src/"))
         .and_then(|d| d.rsplit(['/', '\\']).next())
         .and_then(|d| d.rsplit_once('-').map(|(k, _)| k));
     Some(match krate {
@@ -661,7 +663,12 @@ pub fn measurements(
                 continue;
             }
         };
-        let by = format!("test:{}", runs[run].name);
+        // A name two binaries share is said with its binary's.
+        let shared = runs.iter().filter(|r| r.name == runs[run].name).count() > 1;
+        let by = match shared {
+            true => format!("test:{}::{}", runs[run].binary, runs[run].name),
+            false => format!("test:{}", runs[run].name),
+        };
         match measured(
             model,
             ties,
