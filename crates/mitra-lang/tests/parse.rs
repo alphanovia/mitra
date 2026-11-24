@@ -948,6 +948,7 @@ fn ties_come_back_in_their_blocks() {
         Set {
             ranges: vec![],
             such: None,
+            defs: Default::default(),
         },
         Record {
             params: vec![],

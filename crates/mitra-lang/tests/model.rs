@@ -1785,6 +1785,7 @@ fn rules_write_where_functions_are_correct() {
     let set = |lo: Value, hi: Value| judgement::Set {
         ranges: vec![("h".to_string(), lo, hi)],
         such: None,
+        defs: Default::default(),
     };
     let everywhere = |over: judgement::Set, body: Prop| Prop::All {
         name: "x".to_string(),

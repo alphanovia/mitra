@@ -32,6 +32,7 @@ fn set(name: &str, lo: i64, hi: i64, such: Option<Sim>) -> Set {
     Set {
         ranges: vec![(name.to_string(), int(lo), int(hi))],
         such,
+        defs: Default::default(),
     }
 }
 fn correct(f: &str, at: Term) -> Prop {
@@ -2038,9 +2039,10 @@ fn a_set_and_its_points() {
     let s = Set {
         ranges: vec![("a".into(), int(0), int(3)), ("b".into(), int(0), int(2))],
         such: Some(differ),
+        defs: Default::default(),
     };
     assert!(s.well_formed());
-    let points: Vec<Vec<simulation::Value>> = s.points().unwrap().collect();
+    let points: Vec<Vec<simulation::Value>> = s.points().unwrap().flatten().collect();
     let expected = [[0, 1], [1, 0], [2, 0], [2, 1]].map(|p| p.map(int).to_vec());
     assert_eq!(points, expected);
     assert!(s.contains(&[int(2), int(1)]));
@@ -2058,6 +2060,7 @@ fn a_set_and_its_points() {
     let r = Set {
         ranges: vec![("v".into(), real(0, 1), real(1, 1))],
         such: None,
+        defs: Default::default(),
     };
     assert!(r.well_formed() && r.contains(&[real(1, 2)]));
     assert!(!r.contains(&[real(1, 1)]) && !r.contains(&[int(0)]));
@@ -2069,16 +2072,21 @@ fn a_set_and_its_points() {
     let r = Set {
         ranges: vec![("v".into(), real(-1, 1), real(1, 1))],
         such: Some(inverse),
+        defs: Default::default(),
     };
     assert!(r.well_formed() && r.contains(&[real(1, 2)]) && !r.contains(&[real(0, 1)]));
     // No point in an empty range; one point, of no number, with no range.
-    assert_eq!(set("n", 3, 3, None).points().unwrap().count(), 0);
-    assert_eq!(set("n", 5, 2, None).points().unwrap().count(), 0);
+    assert_eq!(set("n", 3, 3, None).points().unwrap().flatten().count(), 0);
+    assert_eq!(set("n", 5, 2, None).points().unwrap().flatten().count(), 0);
     let none = Set {
         ranges: vec![],
         such: None,
+        defs: Default::default(),
     };
-    assert_eq!(none.points().unwrap().collect::<Vec<_>>(), [vec![]]);
+    assert_eq!(
+        none.points().unwrap().flatten().collect::<Vec<_>>(),
+        [vec![]]
+    );
     // Not well formed: a range of two kinds, or of truths, a name twice,
     // `such` not a truth, or naming what is no range.
     let (yes, no) = (
@@ -2093,6 +2101,7 @@ fn a_set_and_its_points() {
         let bad = Set {
             ranges: bad,
             such: None,
+            defs: Default::default(),
         };
         assert!(!bad.well_formed(), "{bad:?}");
     }
@@ -2334,6 +2343,7 @@ fn intro_walked_through() {
     let bad = Set {
         ranges: vec![("n".into(), int(0), simulation::Value::Truth(true))],
         such: None,
+        defs: Default::default(),
     };
     let nowhere = Term::Arbitrary {
         name: "x".into(),
@@ -2385,6 +2395,7 @@ fn only_well_formed_propositions() {
     let twice = Set {
         ranges: vec![("a".into(), int(0), int(1)), ("a".into(), int(0), int(1))],
         such: None,
+        defs: Default::default(),
     };
     assert!(!all_in("x", &twice, Prop::named("a")).well_formed());
     // Bound by an all around another.
@@ -2495,6 +2506,7 @@ proptest! {
                 0 => None,
                 _ => Some(such(&mut rng, 2)),
             },
+            defs: Default::default(),
         };
         let three = [make(), make(), make()];
         let hash = |x: &Set| {
@@ -2542,6 +2554,7 @@ fn an_ill_formed_quantifier_is_refused_by_every_rule() {
     let twice = Set {
         ranges: vec![("a".into(), int(0), int(1)), ("a".into(), int(0), int(1))],
         such: None,
+        defs: Default::default(),
     };
     let q = any_in("x", &twice, correct("f", var("x")));
     let at = vec![int(0), int(0)];

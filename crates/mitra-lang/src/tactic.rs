@@ -22,6 +22,7 @@ pub fn cases(
     };
     let mut args = Vec::new();
     for point in over.points()? {
+        let point = point?;
         let goal = q.at(&point)?;
         let body = case(&goal, &point);
         args.push(Arg {

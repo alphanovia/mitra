@@ -107,8 +107,9 @@ pub fn parse_with(source: &str, settings: &Settings) -> Result<Model> {
 pub fn parse_prop(source: &str, model: &Model) -> Result<Prop> {
     let context = Context::of(model);
     let mut p = Parser::new(lex(source)?, Some(&context));
-    let prop = p.prop()?;
+    let mut prop = p.prop()?;
     p.end()?;
+    prop.define(&crate::model::definitions(model));
     Ok(prop)
 }
 
@@ -3828,7 +3829,11 @@ impl<'c> Parser<'c> {
             }
             false => None,
         };
-        Ok(Set { ranges, such })
+        Ok(Set {
+            ranges,
+            such,
+            defs: Default::default(),
+        })
     }
 }
 
@@ -4130,5 +4135,6 @@ fn files(
         model.examples.extend(read.examples);
         model.ties.extend(read.ties);
     }
+    crate::model::define_sets(&mut model);
     Ok(model)
 }

@@ -140,7 +140,11 @@ fn int_set(rng: &mut Rng) -> Set {
         0 => None,
         _ => Some(such(rng, 3)),
     };
-    Set { ranges, such }
+    Set {
+        ranges,
+        such,
+        defs: Default::default(),
+    }
 }
 
 /// Every point of the box of `s`, by an odometer of the test's own, and
@@ -191,7 +195,7 @@ proptest! {
     fn points_are_what_contains_holds(seed in any::<u64>()) {
         let mut rng = Rng::new(seed);
         let s = int_set(&mut rng);
-        let listed: Vec<Vec<V>> = s.points().unwrap().collect();
+        let listed: Vec<Vec<V>> = s.points().unwrap().flatten().collect();
         prop_assert_eq!(&listed, &brute(&s), "{:?}", s);
         for w in listed.windows(2) {
             prop_assert!(w[0] < w[1]);
@@ -221,7 +225,11 @@ fn any_set(rng: &mut Rng) -> Set {
         0 => None,
         _ => Some(such(rng, 2)),
     };
-    Set { ranges, such }
+    Set {
+        ranges,
+        such,
+        defs: Default::default(),
+    }
 }
 
 fn any_prop(rng: &mut Rng, sets: &[Set], depth: u32) -> Prop {
@@ -376,7 +384,7 @@ proptest! {
             let q = any_prop(&mut rng, &good, 2);
             pool.push(q.clone());
             let listed: Vec<Vec<V>> = match &q {
-                Prop::All { over, .. } | Prop::Any { over, .. } => over.points().map(|ps| ps.take(6).collect()).unwrap_or_default(),
+                Prop::All { over, .. } | Prop::Any { over, .. } => over.points().map(|ps| ps.take(6).flatten().collect()).unwrap_or_default(),
                 _ => vec![],
             };
             for p in listed {

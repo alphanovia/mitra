@@ -85,6 +85,46 @@ pub enum Term {
     Arbitrary { name: String, over: Set },
 }
 
+impl Prop {
+    /// Each set in it read by `defs` (finding 12b): the model's
+    /// functions, by their bodies, that its conditions call.
+    pub fn define(&mut self, defs: &Definitions) {
+        match self {
+            Prop::Named(_) => {}
+            Prop::Not(x) => x.define(defs),
+            Prop::Implies { pre, post, .. } => {
+                pre.iter_mut().chain(post).for_each(|p| p.define(defs))
+            }
+            Prop::Correct { at, .. } => {
+                if let Term::Arbitrary { over, .. } = at {
+                    over.defs = defs.clone();
+                }
+            }
+            Prop::All { over, body, .. } | Prop::Any { over, body, .. } => {
+                over.defs = defs.clone();
+                body.define(defs);
+            }
+        }
+    }
+}
+
+/// Each set of each proposition a proof names read by `defs`.
+pub fn define_proof(proof: &mut Expression<Op>, defs: &Definitions) {
+    if let Expression::Apply(op, args) = proof {
+        match op {
+            Op::Ponens { t, .. } | Op::Tollens { t, .. } => t.define(defs),
+            Op::Reductio { of } => of.define(defs),
+            Op::Instance { q } | Op::Witness { q } | Op::Cases { q } | Op::Intro { q } => {
+                q.define(defs)
+            }
+            _ => {}
+        }
+        for a in args {
+            define_proof(&mut a.body, defs);
+        }
+    }
+}
+
 impl Term {
     /// A point of `set`: a value in it, or the point an `intro` binds,
     /// of a set within it.
@@ -101,10 +141,44 @@ impl Term {
 /// `hi` left out as in Rust, such that `such`, when there is one, is
 /// true at the point, by `Exact`, each number read by the name of its
 /// range. A fault is not true. A set names nothing outside itself.
+///
+/// `such` may call the model's functions that have a body (finding 12b):
+/// it is read by `defs`, the model's functions as definitions, the same
+/// for every set of one model. They are not part of what a set is: two
+/// sets of the same ranges and condition are equal, whatever they carry.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Set {
     pub ranges: Vec<(String, simulation::Value, simulation::Value)>,
     pub such: Option<Expression<simulation::Op>>,
+    pub defs: Definitions,
+}
+
+/// The model's functions, by their bodies, that a set's condition calls:
+/// none, by default. Equal to any other: one model has one.
+#[derive(Clone, Default)]
+pub struct Definitions(pub Option<std::sync::Arc<simulation::Calls>>);
+
+impl PartialEq for Definitions {
+    fn eq(&self, _: &Definitions) -> bool {
+        true
+    }
+}
+
+impl Eq for Definitions {}
+
+impl std::fmt::Debug for Definitions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Definitions")
+    }
+}
+
+/// Whether a point is in a set: its condition read true, false, or not
+/// read to its end (a budget reached, a call with no value there).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Member {
+    In,
+    Out,
+    Undecided,
 }
 
 impl Set {
@@ -126,7 +200,7 @@ impl Set {
         }
         self.such
             .as_ref()
-            .is_none_or(|such| check(&Simulation::default(), &inputs, such) == Some(T::Truth))
+            .is_none_or(|such| check(&self.simulation(), &inputs, such) == Some(T::Truth))
     }
     /// `point` is in the set: one value per range, each in its range,
     /// and `such` true there.
@@ -139,7 +213,13 @@ impl Set {
         };
         point.len() == self.ranges.len()
             && self.ranges.iter().zip(point).all(inside)
-            && self.such_at(point)
+            && self.such_at(point) == Member::In
+    }
+    /// The definitions a condition is typed by.
+    fn simulation(&self) -> Simulation {
+        Simulation {
+            calls: self.defs.0.clone().unwrap_or_default(),
+        }
     }
     /// Every point of `self` is in `other`, as written: as many ranges,
     /// each within the other's, of the same kind, and the other's `such`
@@ -170,20 +250,69 @@ impl Set {
             && such
     }
     /// `such` is true at `point`, or there is none.
-    fn such_at(&self, point: &[simulation::Value]) -> bool {
+    fn such_at(&self, point: &[simulation::Value]) -> Member {
+        use simulation::Undefined;
         let Some(such) = &self.such else {
-            return true;
+            return Member::In;
         };
         let values = self.ranges.iter().zip(point);
         let values = values
             .map(|((name, _, _), v)| (name.clone(), v.clone()))
             .collect();
-        eval(&Exact::default(), &values, such) == Ok(simulation::Value::Truth(true))
+        let exact = Exact {
+            calls: self.defs.0.clone().unwrap_or_default(),
+        };
+        match eval(&exact, &values, such) {
+            Ok(simulation::Value::Truth(true)) => Member::In,
+            Err(Fault::Op(Undefined::Budget(_) | Undefined::Unknown(_))) | Err(Fault::Stuck) => {
+                Member::Undecided
+            }
+            _ => Member::Out,
+        }
+    }
+    /// The first point of its ranges whose condition was not read to
+    /// its end, if any: `points` lists it as `None`. Of whole numbers.
+    pub fn undecided(&self) -> Option<Vec<simulation::Value>> {
+        use simulation::Value as V;
+        self.such.as_ref()?;
+        let ends: Option<Vec<(BigInt, BigInt)>> = self
+            .ranges
+            .iter()
+            .map(|(_, lo, hi)| match (lo, hi) {
+                (V::Int(lo), V::Int(hi)) => Some((lo.clone(), hi.clone())),
+                _ => None,
+            })
+            .collect();
+        let ends = ends?;
+        if ends.iter().any(|(lo, hi)| lo >= hi) {
+            return None;
+        }
+        let mut point: Vec<BigInt> = ends.iter().map(|(lo, _)| lo.clone()).collect();
+        loop {
+            let values: Vec<V> = point.iter().cloned().map(V::Int).collect();
+            if self.such_at(&values) == Member::Undecided {
+                return Some(values);
+            }
+            let mut i = point.len();
+            loop {
+                if i == 0 {
+                    return None;
+                }
+                i -= 1;
+                point[i] += 1;
+                if point[i] < ends[i].1 {
+                    break;
+                }
+                point[i] = ends[i].0.clone();
+            }
+        }
     }
     /// Every point of the set, in increasing order, the first number
     /// first, as Rust orders tuples. `None` when a range is not of whole
-    /// numbers. It reads every point of the ranges, in the set or not.
-    pub fn points(&self) -> Option<impl Iterator<Item = Vec<simulation::Value>> + '_> {
+    /// numbers. It reads every point of the ranges, in the set or not:
+    /// `Some(point)` for one in it, `None` for one whose condition was not
+    /// read to its end, so that a listing that meets one is not whole.
+    pub fn points(&self) -> Option<impl Iterator<Item = Option<Vec<simulation::Value>>> + '_> {
         use simulation::Value as V;
         let mut ends: Vec<(BigInt, BigInt)> = Vec::with_capacity(self.ranges.len());
         for (_, lo, hi) in &self.ranges {
@@ -209,7 +338,11 @@ impl Set {
             }
             Some(point.into_iter().map(V::Int).collect::<Vec<_>>())
         });
-        Some(every.filter(move |point| self.such_at(point)))
+        Some(every.filter_map(move |point| match self.such_at(&point) {
+            Member::In => Some(Some(point)),
+            Member::Out => None,
+            Member::Undecided => Some(None),
+        }))
     }
 }
 
@@ -423,8 +556,9 @@ impl Prop {
         let (Prop::All { name, over, body } | Prop::Any { name, over, body }) = self else {
             return None;
         };
-        let points = over.points()?.take(n.saturating_add(1));
-        let bodies: Vec<Prop> = points
+        let points: Option<Vec<_>> = over.points()?.take(n.saturating_add(1)).collect();
+        let bodies: Vec<Prop> = points?
+            .into_iter()
             .map(|point| body.put(name, &Term::Point(point)))
             .collect();
         (bodies.len() == n).then_some(bodies)
@@ -435,8 +569,9 @@ impl Prop {
         let (Prop::All { name, over, body } | Prop::Any { name, over, body }) = self else {
             return None;
         };
-        let points = over.points()?.take(most.saturating_add(1));
-        let bodies: Vec<Prop> = points
+        let points: Option<Vec<_>> = over.points()?.take(most.saturating_add(1)).collect();
+        let bodies: Vec<Prop> = points?
+            .into_iter()
             .map(|point| body.put(name, &Term::Point(point)))
             .collect();
         (bodies.len() <= most).then_some(bodies)
