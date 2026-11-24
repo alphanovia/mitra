@@ -44,6 +44,9 @@ at one point), `witness` (an any from one point), `intro` (an all from
 any point). Their forms are in the
 [design notes](../design/syntax.md).
 
+A claim of a function over a tree can also be shown, with
+`claim c: … by induction t;`: see [Trees](4-values.md#trees).
+
 A proof is never required. A model where every rule is assumed is a
 fine model: its rules are hypotheses the evidence will test.
 
