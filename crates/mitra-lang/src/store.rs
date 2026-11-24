@@ -194,6 +194,103 @@ pub fn measured(
     })
 }
 
+/// `m`, with what the environment gave the run (finding 16): each row
+/// of `world` a function with no body, its arguments and what it gave,
+/// added to the inputs as its ports (`sun::light::w = 2.0`), as an
+/// end-to-end measurement gives the world's values. One row a function:
+/// a function given twice in one run is not read yet.
+pub fn with_world(
+    model: &Model,
+    mut m: Measurement,
+    world: &crate::judgement::World,
+) -> Result<Measurement, (Code, String)> {
+    let mut seen: Vec<Path> = Vec::new();
+    for (g, args, v) in &world.0 {
+        let path = Path {
+            names: g.split("::").map(str::to_string).collect(),
+        };
+        let Some((at, f)) = function_at(model, &path) else {
+            return Err((
+                R006,
+                format!("`{g}` in `given` is no function of the model, or names several"),
+            ));
+        };
+        if f.body.is_some() {
+            return Err((
+                R006,
+                format!("`{at}` in `given` has a body: `given` says what the environment gave, a function with no body"),
+            ));
+        }
+        if seen.contains(&at) {
+            return Err((
+                R006,
+                format!("`{at}` is given twice: one row a function in a run, for now (two calls read in order are not read yet)"),
+            ));
+        }
+        let args: Vec<Value> = args
+            .iter()
+            .zip(&f.takes)
+            .map(|(v, (_, t))| crate::parse::settle_value(v.clone(), t))
+            .collect();
+        let v = crate::parse::settle_value(v.clone(), &f.gives.1);
+        let fits = args.len() == f.takes.len()
+            && args
+                .iter()
+                .zip(&f.takes)
+                .all(|(v, (_, t))| type_of(v) == *t)
+            && type_of(&v) == f.gives.1;
+        if !fits {
+            let types: Vec<String> = f.takes.iter().map(|(_, t)| print::type_(t)).collect();
+            return Err((
+                R006,
+                format!(
+                    "`{g}{} -> {}` is not of `{at}`, which takes ({}) and gives {}",
+                    print::values(&args),
+                    print::value(&v),
+                    types.join(", "),
+                    print::type_(&f.gives.1)
+                ),
+            ));
+        }
+        for ((n, _), a) in f.takes.iter().zip(args) {
+            m.inputs.push((at.then(n), a));
+        }
+        m.inputs.push((at.then(&f.gives.0), v));
+        seen.push(at);
+    }
+    Ok(m)
+}
+
+/// The rows of the world a measurement was given: the inputs that are
+/// not of the function it measures, each function's arguments then
+/// what it gave, as `with_world` wrote them.
+fn world_of(m: &Measurement, function: &str) -> (Vec<Value>, Vec<String>) {
+    let mut takes = Vec::new();
+    let mut rows: Vec<(String, Vec<Value>)> = Vec::new();
+    for (p, v) in &m.inputs {
+        let f = Path {
+            names: p.names[..p.names.len().saturating_sub(1)].to_vec(),
+        }
+        .to_string();
+        if f == function {
+            takes.push(v.clone());
+            continue;
+        }
+        match rows.last_mut() {
+            Some((g, vs)) if *g == f => vs.push(v.clone()),
+            _ => rows.push((f, vec![v.clone()])),
+        }
+    }
+    let rows = rows
+        .into_iter()
+        .map(|(g, mut vs)| {
+            let v = vs.pop().unwrap_or(Value::Truth(true));
+            format!("{g}{} -> {}", print::values(&vs), print::value(&v))
+        })
+        .collect();
+    (takes, rows)
+}
+
 // ---------------------------------------------------------------- the store
 
 /// A store of what people measured and reviewed, written by hand
@@ -260,10 +357,24 @@ fn read_with(
     loop {
         let Pos { line, .. } = p.pos();
         if p.eat_word("measure") {
+            // `given … when f(x) then y` (finding 16), or `f (x) -> y`.
+            let world = match p.is_word("given") {
+                true => p.world()?,
+                false => crate::judgement::World::default(),
+            };
+            let bdd = p.eat_word("when");
             let path = Path {
                 names: p.raw_path()?,
             };
-            let (takes, gives) = p.row()?;
+            let (takes, gives) = match bdd {
+                true => {
+                    let takes = p.values()?;
+                    p.expect_word("then")?;
+                    (takes, p.value()?)
+                }
+                false if !world.0.is_empty() => return p.expected("`when`"),
+                false => p.row()?,
+            };
             let count = match p.eat_word("count") {
                 true => p.number()? as u64,
                 false => 1,
@@ -272,7 +383,9 @@ fn read_with(
             p.expect_word("by")?;
             let by = p.string()?;
             p.expect(";")?;
-            match measured(model, ties, &path, &takes, &gives, seen, count, by) {
+            let m = measured(model, ties, &path, &takes, &gives, seen, count, by)
+                .and_then(|m| with_world(model, m, &world));
+            match m {
                 Ok(m) => ledger.measurements.push(m),
                 Err((code, message)) => findings.push(finding(code, file, line, message)),
             }
@@ -468,11 +581,11 @@ fn items(model: &Model, ties: &[Tie]) -> Vec<Path> {
 pub fn print_store(ledger: &Ledger) -> String {
     let mut out = String::new();
     for m in &ledger.measurements {
-        let function = m.inputs.first().or(m.outputs.first()).map(|(p, _)| Path {
+        let function = m.outputs.first().or(m.inputs.first()).map(|(p, _)| Path {
             names: p.names[..p.names.len().saturating_sub(1)].to_vec(),
         });
         let function = function.map(|p| p.to_string()).unwrap_or_default();
-        let takes: Vec<Value> = m.inputs.iter().map(|(_, v)| v.clone()).collect();
+        let (takes, world) = world_of(m, &function);
         let gives = m
             .outputs
             .first()
@@ -483,11 +596,22 @@ pub fn print_store(ledger: &Ledger) -> String {
             n => format!(" count {n}"),
         };
         let failed = if m.seen { "" } else { " failed" };
-        let row = print::print_row(&takes, &gives);
-        out.push_str(&format!(
-            "measure {function} {row}{count}{failed} by {:?};\n",
-            m.by
-        ));
+        match world.is_empty() {
+            true => {
+                let row = print::print_row(&takes, &gives);
+                out.push_str(&format!(
+                    "measure {function} {row}{count}{failed} by {:?};\n",
+                    m.by
+                ));
+            }
+            false => out.push_str(&format!(
+                "measure given {} when {function}{} then {}{count}{failed} by {:?};\n",
+                world.join(", "),
+                print::values(&takes),
+                print::value(&gives),
+                m.by
+            )),
+        }
     }
     for r in &ledger.reviews {
         let said = if r.holds { "holds" } else { "fails" };

@@ -151,6 +151,7 @@ fn stone() -> Part {
     speed.examples = vec![Example {
         takes: vec![real(5, 1)],
         gives: real(981, 10),
+        given: Default::default(),
     }];
     Part {
         inner: vec![],
@@ -239,7 +240,8 @@ fn div_reads_checks_and_comes_back() {
         div.examples[0],
         Example {
             takes: vec![int(6), int(2)],
-            gives: int(3)
+            gives: int(3),
+            given: Default::default(),
         }
     );
     assert_eq!(

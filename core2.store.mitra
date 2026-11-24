@@ -170,3 +170,4 @@ review cli::runs_tests holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:
 review checks::prints_rows holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_row_is_the_call_as_written_and_what_it_gave", "test:check_eq_says_the_row_when_it_fails", "test:check_says_the_row_when_it_fails";
 review checks::observed holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:values_are_written_as_mitra_writes_them";
 review judgement::set_definitions holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_set_without_its_definitions_fails_closed", "test:some_points_decided_are_not_every_point", "test:every_budget_is_sound";
+review explain::worlds holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:two_worlds_are_two_points", "test:one_world_wrong_is_a_witness", "test:the_kernel_reads_a_world_as_an_instance_never_a_case";

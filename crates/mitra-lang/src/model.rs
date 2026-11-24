@@ -305,6 +305,9 @@ pub struct Function {
 pub struct Example {
     pub takes: Vec<simulation::Value>,
     pub gives: simulation::Value,
+    /// What the environment gave (finding 16): `given sun::light() ->
+    /// 2.0 when (5.0) then 10.0`. None, for a row `(5.0) -> 10.0`.
+    pub given: judgement::World,
 }
 
 /// A proposition written as an expression: true of its record, read as
@@ -1069,9 +1072,11 @@ pub fn calls(model: &Model) -> Result<Calls, BTreeSet<String>> {
     let mut callees = BTreeMap::new();
     for part in &model.parts {
         for f in &part.functions {
+            // A row in a world is what it gave there only.
             let rows = f
                 .examples
                 .iter()
+                .filter(|e| e.given.0.is_empty())
                 .map(|e| (e.takes.clone(), e.gives.clone()));
             let path = Path::to(&[&part.name, &f.name]);
             // With no body, its claims promise what it gives.
@@ -1127,6 +1132,32 @@ pub fn defs_of(model: &Model) -> judgement::Definitions {
         }
     }
     found.unwrap_or_else(|| definitions(model, simulation::Budget::default()))
+}
+
+/// Each function a world of an example names by its name alone, `light`,
+/// by its whole path, `sun::light`, when one function of the model has
+/// that name (finding 16): check says the rest.
+pub fn settle_worlds(model: &mut Model) {
+    let mut paths: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for part in &model.parts {
+        for f in &part.functions {
+            paths
+                .entry(f.name.clone())
+                .or_default()
+                .push(format!("{}::{}", part.name, f.name));
+        }
+    }
+    for part in &mut model.parts {
+        for f in &mut part.functions {
+            for e in &mut f.examples {
+                for (g, _, _) in &mut e.given.0 {
+                    if let Some([one]) = paths.get(g.as_str()).map(Vec::as_slice) {
+                        *g = one.clone();
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Each set of each rule of the model, and of its proof, read by the

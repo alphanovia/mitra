@@ -78,12 +78,32 @@ pub enum Prop {
 /// or an any around it binds to each point of its set; or at the point
 /// an `intro` binds, any point of a set, known by the name of the all or
 /// the any it proves and by that set.
+///
+/// A point may be in a world (finding 16): `(5.0) given sun::light() ->
+/// 2.0`, what the environment gave the run. A set ranges over what a
+/// function takes, in every world: an all at a point holds in each of its
+/// worlds, and one world at a point says nothing of the others, so a
+/// point in a world is an instance or a witness of an all or an any, and
+/// never a case of a proof by cases.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Term {
     Point(Vec<simulation::Value>),
     Var(String),
-    Arbitrary { name: String, over: Set },
+    Arbitrary {
+        name: String,
+        over: Set,
+    },
+    Given {
+        point: Vec<simulation::Value>,
+        world: World,
+    },
 }
+
+/// What the environment gave a run, in order: each a function with no
+/// body by its path, what it was called with, and what it gave. A call
+/// made twice is read in order.
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct World(pub Vec<(String, Vec<simulation::Value>, simulation::Value)>);
 
 impl Prop {
     /// The definitions of its first set that carries some.
@@ -146,7 +166,7 @@ impl Term {
     /// of a set within it.
     fn within(&self, set: &Set) -> bool {
         match self {
-            Term::Point(point) => set.contains(point),
+            Term::Point(point) | Term::Given { point, .. } => set.contains(point),
             Term::Arbitrary { over, .. } => over.within(set),
             Term::Var(_) => false,
         }
@@ -451,7 +471,7 @@ impl Prop {
             Prop::Not(x) => x.closed(bound),
             Prop::Implies { pre, post, .. } => pre.iter().chain(post).all(|p| p.closed(bound)),
             Prop::Correct { at, .. } => match at {
-                Term::Point(_) => true,
+                Term::Point(_) | Term::Given { .. } => true,
                 Term::Var(x) => bound.contains(&x.as_str()),
                 Term::Arbitrary { over, .. } => over.well_formed(),
             },
@@ -482,7 +502,7 @@ impl Prop {
     }
     /// The body of an all or an any at `at`, a point of its set, or the
     /// point an `intro` binds, of a set within it.
-    fn at_term(&self, at: &Term) -> Option<Prop> {
+    pub fn at_term(&self, at: &Term) -> Option<Prop> {
         match self {
             Prop::All { name, over, body } | Prop::Any { name, over, body } if at.within(over) => {
                 Some(body.put(name, at))
@@ -849,6 +869,25 @@ impl Point {
     pub fn of(values: Vec<simulation::Value>) -> Point {
         Point(Term::Point(values))
     }
+    /// The point of these values in this world: what the environment
+    /// gave the run (finding 16).
+    pub fn given(values: Vec<simulation::Value>, world: World) -> Point {
+        match world.0.is_empty() {
+            true => Point(Term::Point(values)),
+            false => Point(Term::Given {
+                point: values,
+                world,
+            }),
+        }
+    }
+    /// A point written in place: of values, or of values in a world. Not
+    /// a name, nor the point an `intro` binds.
+    pub fn written(term: &Term) -> Option<Point> {
+        match term {
+            Term::Point(_) | Term::Given { .. } => Some(Point(term.clone())),
+            _ => None,
+        }
+    }
     /// The point as a proposition writes it.
     pub fn term(&self) -> &Term {
         &self.0
@@ -882,6 +921,8 @@ pub enum Op {
     Let,
     /// A point: the values of a function's arguments, in order.
     Point(Vec<simulation::Value>),
+    /// A point in a world: what the environment gave the run.
+    Given(Vec<simulation::Value>, World),
     /// From an opinion of `q`, an all or an any, then a point of its set,
     /// an opinion of its body at the point: an all true makes it true,
     /// an any false makes it false.
@@ -1019,6 +1060,10 @@ impl Standard for Judgement {
         use Type::{Opinion, Point, State};
         match (op, takes) {
             (Op::Point(at), []) => Some(Point(Term::Point(at.clone()))),
+            (Op::Given(at, world), []) => Some(Point(Term::Given {
+                point: at.clone(),
+                world: world.clone(),
+            })),
             (Op::Instance { .. } | Op::Witness { .. }, [Opinion(x), Point(at)]) => {
                 let (from, gives) = self.rule(op, 1, Some(at))?;
                 (x == &from[0]).then_some(Opinion(gives))
@@ -1066,6 +1111,12 @@ impl Reading for Judgement {
         use Value::{Opinion as O, Point as P, State as S};
         let opinion = match (op, args.as_slice()) {
             (Op::Point(at), []) => return Ok(P(Point::of(at.clone()))),
+            (Op::Given(at, world), []) => {
+                return Ok(P(Point(Term::Given {
+                    point: at.clone(),
+                    world: world.clone(),
+                })))
+            }
             (Op::Instance { q } | Op::Witness { q }, [O(x), P(at)]) => {
                 let (from, gives) = self.rule(op, 1, Some(&at.0)).ok_or(Fault::Stuck)?;
                 if x.about != from[0] {

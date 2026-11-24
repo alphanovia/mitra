@@ -668,6 +668,28 @@ impl Given<'_, '_> {
                     read.insert(p);
                 }
             }
+            // The world the run read: what each function with no body it
+            // reaches gave, in the point it is judged at (finding 16).
+            let mut world = judgement::World::default();
+            for (g, p) in &rows {
+                if !reached.contains(g) || g == &path {
+                    continue;
+                }
+                let Some(row) = self::port(index, p) else {
+                    continue;
+                };
+                if let (Some(args), Some(v)) = (args_of(&row.at, row.function), given.get(p)) {
+                    world.0.push((g.clone(), args, (*v).clone()));
+                }
+            }
+            let at_point = match world.0.is_empty() {
+                true => Term::Point(x.clone()),
+                false => Term::Given {
+                    point: x.clone(),
+                    world: world.clone(),
+                },
+            };
+            let point = format!("{point}{}", print::world(&world));
             // What the model expects: the value it computes.
             let (call, args) = call_at(&path, &x);
             let expected = eval(&exact, &args, &call);
@@ -811,7 +833,7 @@ impl Given<'_, '_> {
             if let Some(value) = correct {
                 let prop = Prop::Correct {
                     function: path.clone(),
-                    at: Term::Point(x.clone()),
+                    at: at_point.clone(),
                 };
                 self.take(prop.clone(), value, m.count, &m.by, Source::Measurement(i));
                 self.write(
@@ -1204,31 +1226,27 @@ impl Judge {
     /// (an instance), and up from each (a witness: an all false, an any
     /// true). Only where something changed, after the first round.
     fn points(&mut self, q: &Prop, first: bool, changed: &Changed) {
-        let mut points: BTreeSet<Vec<Value>> = BTreeSet::new();
-        for p in self.opinions.keys() {
-            if let Prop::Correct {
-                at: Term::Point(x), ..
-            } = p
-            {
-                points.insert(x.clone());
-            }
-        }
+        // A point, or a point in a world (finding 16): an instance and a
+        // witness read both, a proof by cases only the first.
+        let written = |p: &Prop| match p {
+            Prop::Correct { at, .. } => Point::written(at).map(|_| at.clone()),
+            _ => None,
+        };
+        let points: BTreeSet<Term> = self.opinions.keys().filter_map(written).collect();
         let q_changed = first || changed.either(q);
-        let fresh_points: BTreeSet<&Vec<Value>> = changed
+        let fresh_points: BTreeSet<Term> = changed
             .for_
             .iter()
             .chain(&changed.against)
-            .filter_map(|p| match p {
-                Prop::Correct {
-                    at: Term::Point(y), ..
-                } => Some(y),
-                _ => None,
-            })
+            .filter_map(written)
             .collect();
         for x in points {
-            let Some(body) = q.at(&x) else { continue };
+            let Some(body) = q.at_term(&x) else { continue };
             let fresh = fresh_points.contains(&x);
-            let point = || judgement::Value::Point(Point::of(x.clone()));
+            let Some(at) = Point::written(&x) else {
+                continue;
+            };
+            let point = || judgement::Value::Point(at.clone());
             if q_changed || fresh {
                 if let Some(of_q) = self.opinions.get(q).cloned() {
                     let op = judgement::Op::Instance { q: q.clone() };

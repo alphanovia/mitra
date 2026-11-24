@@ -252,11 +252,20 @@ fn x4_x005_on_the_arguments_of_an_input_row() {
         "test:t",
     );
     let e = explained(&model, &ledger(vec![m]));
-    // The row was read: beam is explained from it.
-    assert_eq!(
-        of(&e, &correct("stone::beam", &[int(1)])),
-        Verdict::Explained
-    );
+    // The row was read: beam is explained from it, at its point in the
+    // world the run read (finding 16).
+    let at = Prop::Correct {
+        function: "stone::beam".to_string(),
+        at: Term::Given {
+            point: vec![int(1)],
+            world: mitra_lang::judgement::World(vec![(
+                "sun::ray".to_string(),
+                vec![int(1)],
+                real(3),
+            )]),
+        },
+    };
+    assert_eq!(of(&e, &at), Verdict::Explained);
     assert_eq!(codes(&e), Vec::<String>::new(), "{:?}", e.findings);
 }
 

@@ -501,7 +501,15 @@ impl Writer<'_> {
         let rows: Vec<String> = f
             .examples
             .iter()
-            .map(|e| print_row(&e.takes, &e.gives))
+            .map(|e| match e.given.0.is_empty() {
+                true => print_row(&e.takes, &e.gives),
+                false => format!(
+                    "{} when {} then {}",
+                    world(&e.given).trim_start(),
+                    values(&e.takes),
+                    value(&e.gives)
+                ),
+            })
             .collect();
         match (said, f.body.is_some()) {
             (false, true) => s.push('\n'),
@@ -666,7 +674,10 @@ impl Writer<'_> {
                 ATOM,
             ),
             O::Point(at) if args.is_empty() => (format!("point{}", values(at)), ATOM),
-            O::Point(_) | O::Intro { .. } => (MALFORMED.to_string(), ATOM),
+            O::Given(at, w) if args.is_empty() => {
+                (format!("point{}{}", values(at), world(w)), ATOM)
+            }
+            O::Point(_) | O::Given(..) | O::Intro { .. } => (MALFORMED.to_string(), ATOM),
             O::Cases { q } => (
                 format!("cases[{}]({})", self.prop(q), each(LET).join(", ")),
                 ATOM,
@@ -703,6 +714,9 @@ impl Writer<'_> {
             Prop::Correct { function, at } => {
                 let at = match at {
                     judgement::Term::Point(vs) => values(vs),
+                    judgement::Term::Given { point, world: w } => {
+                        format!("{}{}", values(point), world(w))
+                    }
                     judgement::Term::Var(x) => x.clone(),
                     judgement::Term::Arbitrary { name, over } => {
                         format!("{name} in {}", set(&self.cx(), over))
@@ -824,6 +838,19 @@ fn takes(ts: &[(String, Type)]) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// ` given sun::light() -> 2.0, …`: what the environment gave, in
+/// order; nothing when it gave nothing.
+pub fn world(w: &judgement::World) -> String {
+    if w.0.is_empty() {
+        return String::new();
+    }
+    let rows: Vec<String> =
+        w.0.iter()
+            .map(|(f, args, v)| format!("{f}{} -> {}", values(args), value(v)))
+            .collect();
+    format!(" given {}", rows.join(", "))
 }
 
 /// `(a: 0..10) where a > 5`, as written.

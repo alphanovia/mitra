@@ -153,6 +153,16 @@ review calc::div::spec holds by "human:bo";
 - `measure f (inputs) -> result by "voice";` is one run seen by hand.
   `count 4` says it was seen four times; `failed` that the function gave
   something else.
+- `measure given sun::light() -> 2.0 when stone::heat(5.0) then 10.0 by "voice";`
+  is one run in a world: what the environment gave it, then the call,
+  then the result. The world is part of the point judged:
+  `correct(stone::heat, (5.0) given sun::light() -> 2.0)`. Monday's
+  light and Tuesday's are two points, each explained or contradicted on
+  its own. An all over what a function takes holds in every world, so
+  one world is an instance or a witness of it, never a case of a proof
+  by cases. `when f(x) then y` alone is `f (x) -> y`. A given the store
+  cannot read (a function with a body, none of the model, given twice,
+  or not of its types) is R006.
 - `review path holds by "voice";` (or `fails`) is one voice's judgement
   of a claim, rule, require, ensure, or tied item.
 - `review path from holds by "voice";` reviews a **link** instead: that

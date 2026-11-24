@@ -1,0 +1,18 @@
+// What the environment gave a run, in a function's examples: a row as
+// BDD says it, given what the world gave, when the function is called
+// with these inputs, then what it gives. Two worlds may give two values
+// at one point.
+
+environment Sun {
+    fn light() -> w: rational;
+}
+
+subject Stone {
+    use Sun::light;
+    fn heat(h: rational) -> e: rational { h * light() } where {
+        examples {
+            given Sun::light() -> 2.0 when (5.0) then 10.0,
+            given Sun::light() -> 3.0 when (5.0) then 15.0
+        }
+    }
+}

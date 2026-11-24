@@ -151,6 +151,7 @@ fn stone() -> Part {
     speed.examples = vec![Example {
         takes: vec![real(5, 1)],
         gives: real(981, 10),
+        given: Default::default(),
     }];
     Part {
         inner: vec![],
@@ -633,6 +634,7 @@ fn each_error_is_found() {
                 let row = Example {
                     takes: vec![Value::Truth(true)],
                     gives: Value::Real(Rational::integer(0)),
+                    given: Default::default(),
                 };
                 m.parts[1].functions[1].examples.push(row);
             }),
@@ -686,6 +688,7 @@ fn each_error_is_found() {
                 m.parts[1].functions[1].examples.push(Example {
                     takes: at,
                     gives: Value::Real(Rational::integer(99)),
+                    given: Default::default(),
                 })
             }),
         ),
@@ -1212,7 +1215,11 @@ fn rules_sharing_rules_stay_small() {
 #[test]
 fn examples_are_of_their_function() {
     let real = |n: i64, d: i64| Value::Real(Rational::new(n, d).unwrap());
-    let row = |takes: Vec<Value>, gives: Value| Example { takes, gives };
+    let row = |takes: Vec<Value>, gives: Value| Example {
+        takes,
+        gives,
+        given: Default::default(),
+    };
     let mut model = fall();
     model.parts[0].functions[0]
         .examples
@@ -1566,6 +1573,7 @@ fn no_function_calls_itself() {
     model.parts[0].functions[0].examples.push(Example {
         takes: vec![],
         gives: number(2),
+        given: Default::default(),
     });
     let library = Arc::new(calls(&model).unwrap());
     let exact = Exact { calls: library };

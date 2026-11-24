@@ -226,6 +226,23 @@ impl<'m> Reading<'m> {
         }
     }
 
+    /// The model's functions, with what the environment gave in `world`
+    /// read first (finding 16); as they are, in none.
+    fn in_world(&self, world: &crate::judgement::World) -> Exact {
+        if world.0.is_empty() {
+            return self.exact.clone();
+        }
+        let mut calls = (*self.exact.calls).clone();
+        for (g, args, v) in &world.0 {
+            calls = calls
+                .given(g, args.clone(), v.clone())
+                .unwrap_or_else(|same| same);
+        }
+        Exact {
+            calls: std::sync::Arc::new(calls),
+        }
+    }
+
     /// The comparisons of one function.
     fn function(&self, at: &Path, f: &Function, agreed: &mut Vec<Agreed>) {
         let ranges = f
@@ -316,7 +333,8 @@ impl<'m> Reading<'m> {
             }
             // Each example: the body at its point.
             for (i, (e, row)) in f.examples.iter().zip(&rows).enumerate() {
-                let agreement = match eval(&self.exact, &row.iter().cloned().collect(), body) {
+                let exact = self.in_world(&e.given);
+                let agreement = match eval(&exact, &row.iter().cloned().collect(), body) {
                     Ok(v) => match matches(&v, &e.gives) {
                         Ok(true) => Agreement::Holds,
                         Ok(false) => Agreement::Fails {
@@ -345,7 +363,7 @@ impl<'m> Reading<'m> {
             for c in &f.claims {
                 let mut values: BTreeMap<String, Value> = row.iter().cloned().collect();
                 values.insert(f.gives.0.clone(), e.gives.clone());
-                let agreement = match eval(&self.exact, &values, &c.holds) {
+                let agreement = match eval(&self.in_world(&e.given), &values, &c.holds) {
                     Ok(Value::Truth(true)) => Agreement::Holds,
                     Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
                         why: format!("no value for {} here", unstated(&g)),
@@ -1150,7 +1168,7 @@ impl<'m> Reading<'m> {
             };
             // What the function's own examples say there.
             for (j, e) in port.function.examples.iter().enumerate() {
-                if e.takes != args {
+                if e.takes != args || !e.given.0.is_empty() {
                     continue;
                 }
                 let agreement = match matches(v, &e.gives) {

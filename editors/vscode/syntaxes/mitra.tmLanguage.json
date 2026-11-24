@@ -76,10 +76,11 @@
       }
     },
     "store": {
-      "comment": "A store's lines (core2.store.mitra): words of the store only, not of the model.",
+      "comment": "A store's lines (core2.store.mitra), and BDD rows of a store or of examples (given, when, then): words the parser reads in place, not keywords.",
       "patterns": [
         { "name": "keyword.other.store.mitra", "match": "^\\s*(measure|review)\\b" },
-        { "name": "keyword.other.store.mitra", "match": "\\b(holds|fails|failed)(?=\\s+by\\b)|\\b(seeing)(?=\\s*\")|\\b(count)(?=\\s+\\d)" }
+        { "name": "keyword.other.store.mitra", "match": "\\b(holds|fails|failed)(?=\\s+by\\b)|\\b(seeing)(?=\\s*\")|\\b(count)(?=\\s+\\d)" },
+        { "name": "keyword.other.bdd.mitra", "match": "\\b(given)(?=\\s+[A-Za-z_][A-Za-z0-9_:]*\\s*\\()|\\b(when)(?=\\s*[A-Za-z_(])|(?<=\\))\\s*\\b(then)\\b" }
       ]
     },
     "keyword-declaration": {

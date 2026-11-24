@@ -152,12 +152,37 @@ pub fn check(model: &Model) -> Vec<Error> {
                 // A function gives one value at a point (of examples of
                 // its types: M015 says the rest).
                 // Each later one against the first at its point.
+                // Each row of its world, what a function with no body gave,
+                // as it takes and gives (finding 16).
+                for (g, args, v) in &example.given.0 {
+                    let fits = index.functions.get(g.as_str()).is_some_and(|g| {
+                        g.body.is_none()
+                            && args.len() == g.takes.len()
+                            && args
+                                .iter()
+                                .zip(&g.takes)
+                                .all(|(a, (_, t))| Exact::default().has_type(a, t))
+                            && Exact::default().has_type(v, &g.gives.1)
+                    });
+                    if !fits {
+                        let message = format!(
+                            "example {i}: `{g}{} -> {}` in `given` is not what a function with no body of the model gives, by its whole path, as it takes and gives",
+                            crate::print::values(args),
+                            crate::print::value(v)
+                        );
+                        errors.push(error(M022, &here, message));
+                    }
+                }
+                // In one world: two worlds may give two values.
                 let first = function.examples[..i]
                     .iter()
-                    .all(|e| e.takes != example.takes);
+                    .all(|e| e.takes != example.takes || e.given != example.given);
                 let others = function.examples.iter().enumerate().skip(i + 1);
                 for (j, other) in others.filter(|(_, o)| first && fits && of_types(o)) {
-                    if other.takes == example.takes && other.gives != example.gives {
+                    if other.takes == example.takes
+                        && other.given == example.given
+                        && other.gives != example.gives
+                    {
                         let message = format!(
                             "examples {i} and {j} are both at {}, giving {} and {}",
                             crate::print::values(&example.takes),
@@ -1630,15 +1655,38 @@ fn correct_wrong(index: &Index, at: &Path, place: &str, p: &Prop) -> Vec<Error> 
                     );
                     errors.push(error(M008, at, message));
                 }
-                if let judgement::Term::Point(values) = term {
+                if let judgement::Term::Point(values)
+                | judgement::Term::Given { point: values, .. } = term
+                {
                     if !values.iter().all(|v| value_made(index, v)) {
                         let message =
                             format!("{place}: a point makes a record other than as declared");
                         errors.push(error(M004, at, message));
                     }
                 }
+                // A world: what functions with no body of the model gave,
+                // each called as it takes.
+                if let judgement::Term::Given { world, .. } = term {
+                    for (g, args, v) in &world.0 {
+                        let fits = index.functions.get(g.as_str()).is_some_and(|g| {
+                            g.body.is_none()
+                                && args.len() == g.takes.len()
+                                && args
+                                    .iter()
+                                    .zip(&g.takes)
+                                    .all(|(a, (_, t))| Exact::default().has_type(a, t))
+                                && Exact::default().has_type(v, &g.gives.1)
+                        });
+                        if !fits {
+                            errors.push(wrong(format!(
+                                "`{g}` in the world of a point is no function with no body of the model, called and giving as it takes and gives"
+                            )));
+                        }
+                    }
+                }
                 let fits = match term {
-                    judgement::Term::Point(values) => {
+                    judgement::Term::Point(values)
+                    | judgement::Term::Given { point: values, .. } => {
                         values.len() == f.takes.len()
                             && values
                                 .iter()

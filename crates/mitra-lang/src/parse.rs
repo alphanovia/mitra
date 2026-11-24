@@ -1716,7 +1716,11 @@ impl<'c> Parser<'c> {
                     takes.push(self.settled_value(v, t, at)?);
                 }
                 let gives = self.settled_value(e.gives, &function.gives.1, at)?;
-                rows.push(Example { takes, gives });
+                rows.push(Example {
+                    takes,
+                    gives,
+                    given: e.given,
+                });
             }
             function.examples = rows;
         } else if function.body.is_none() {
@@ -1773,11 +1777,8 @@ impl<'c> Parser<'c> {
                 let at = self.pos();
                 self.bump();
                 self.expect("{")?;
-                let rows = self.list("}", |p| p.row())?;
-                examples.extend(
-                    rows.into_iter()
-                        .map(|(takes, gives)| (Example { takes, gives }, at)),
-                );
+                let rows = self.list("}", |p| p.example_row())?;
+                examples.extend(rows.into_iter().map(|e| (e, at)));
             } else {
                 return self.expected("`claim`, `rule`, `examples` or `}`");
             }
@@ -2111,10 +2112,69 @@ impl<'c> Parser<'c> {
         self.expect("->")?;
         Ok((takes, self.value()?))
     }
+    /// A row of a function's examples: `(6, 2) -> 3`, or as BDD says it
+    /// (finding 16), `given sun::light() -> 2.0 when (5.0) then 10.0`,
+    /// `given` left out when the environment gave nothing.
+    fn example_row(&mut self) -> Result<Example> {
+        let given = match self.is_word("given") {
+            true => self.world()?,
+            false => judgement::World::default(),
+        };
+        if self.eat_word("when") {
+            let takes = self.values()?;
+            self.expect_word("then")?;
+            let gives = self.value()?;
+            return Ok(Example {
+                takes,
+                gives,
+                given,
+            });
+        }
+        if !given.0.is_empty() {
+            return self.expected("`when`");
+        }
+        let (takes, gives) = self.row()?;
+        Ok(Example {
+            takes,
+            gives,
+            given,
+        })
+    }
     /// `(a, b, …)`: a list of values, in parentheses.
-    fn values(&mut self) -> Result<Vec<Value>> {
+    pub(crate) fn values(&mut self) -> Result<Vec<Value>> {
         self.expect("(")?;
         self.list(")", |p| p.value())
+    }
+
+    /// `given sun::light() -> 2.0, db::get(1) -> "a"`: what the
+    /// environment gave a run, in order, each function by its whole path
+    /// (finding 16).
+    pub(crate) fn world(&mut self) -> Result<judgement::World> {
+        self.expect_word("given")?;
+        let mut rows = Vec::new();
+        loop {
+            let path = self.raw_path()?.join("::");
+            let args = self.values()?;
+            self.expect("->")?;
+            let v = self.value()?;
+            rows.push((path, args, v));
+            if !(self.is(",") && self.comma_row()) {
+                break;
+            }
+            self.bump();
+        }
+        Ok(judgement::World(rows))
+    }
+    /// After a `,`, another row of a world: a path, then `(`.
+    fn comma_row(&self) -> bool {
+        let mut i = 1;
+        loop {
+            match (self.peek_at(i), self.peek_at(i + 1)) {
+                (Tok::Word(_), Tok::Sym("::")) => i += 2,
+                (Tok::Word(_), Tok::Sym("(")) => return true,
+                _ => return false,
+            }
+        }
     }
 
     /// `3`, `-0.5`, `1/3`, `true`, `(1, 2.0)`, `Drop { h: 1.0, v: 0.0 }`.
@@ -3645,7 +3705,11 @@ impl<'c> Parser<'c> {
         use judgement::Op as O;
         // `point(6, 2)`: a point, its values in order.
         if w == "point" {
-            return Ok(apply(O::Point(self.values()?), vec![]));
+            let at = self.values()?;
+            return Ok(match self.is_word("given") {
+                true => apply(O::Given(at, self.world()?), vec![]),
+                false => apply(O::Point(at), vec![]),
+            });
         }
         let params = self.eat("[");
         // `intro[q](|x| p)`: the argument binds the point.
@@ -3787,7 +3851,16 @@ impl<'c> Parser<'c> {
             let function = self.proof_name(&[])?;
             self.expect(",")?;
             let at = match self.is("(") {
-                true => judgement::Term::Point(self.values()?),
+                true => {
+                    let point = self.values()?;
+                    match self.is_word("given") {
+                        true => judgement::Term::Given {
+                            point,
+                            world: self.world()?,
+                        },
+                        false => judgement::Term::Point(point),
+                    }
+                }
                 false => {
                     // `x in (a: 0..10)`: the point an intro binds, any of the set.
                     let name = self.name()?;
@@ -4135,6 +4208,7 @@ fn files(
         model.examples.extend(read.examples);
         model.ties.extend(read.ties);
     }
+    crate::model::settle_worlds(&mut model);
     crate::model::define_sets(&mut model, crate::simulation::Budget::default());
     Ok(model)
 }
