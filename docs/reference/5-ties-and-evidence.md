@@ -63,6 +63,15 @@ yourself and give what they printed, `--report report.txt`; `--no-test`
 runs none. A test binary that crashed before its result is listed
 (R009): its tests after the crash measured nothing.
 
+Every test counts, wherever it is: a `#[cfg(test)]` module in `src/`,
+`tests/`, examples, benches and doc tests, in every crate of a
+workspace. A unit test is matched by its crate and module: `opinion`
+in `crates/mitra-lang/src/numbers.rs` is the run
+`numbers::tests::opinion` of `mitra_lang/src/lib.rs`, not the one of
+the same name in another crate. A test line Mitra cannot read, or a
+binary whose `test result:` counts more tests than Mitra read, is
+listed (R010).
+
 A test that passed saw its row. One that failed saw something else at
 those inputs. A test that ran and measures nothing Mitra knows is
 listed (R004), never dropped silently.
@@ -118,7 +127,10 @@ review calc::div::spec holds by "human:bo";
 - `… seeing "test:name";` says the voice saw that test pass. The review
   counts only while it passes: when it fails, or does not run, it is
   dropped (R008). Several tests: `seeing "test:a", "test:b"`. A name two
-  test files share takes its file: `"test:tests/model.rs::each_error_is_found"`.
+  test files share takes its file: `"test:tests/model.rs::each_error_is_found"`,
+  and a unit test its crate's: `"test:mitra-lang/src/lib.rs::numbers::tests::opinion"`.
+  A doc test is named as the report names it, with or without its line:
+  `"test:src/lib.rs - numbers::of"`.
 
 A **voice** says who: `human:name`, `agent:vendor/model/session`,
 `machine:tool`. Tests are `test:name`, and only measure: a review by a

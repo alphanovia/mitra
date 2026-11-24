@@ -5,6 +5,7 @@
 environment cargo {
     ensure reports: "`cargo test` prints one line `test NAME ... ok`, `FAILED` or `ignored` for each test it runs";
     ensure binaries: "`cargo test` prints `Running FILE` before each test binary and `test result:` after it, and with `--show-output` each test's output under `---- NAME stdout ----`";
+    ensure kinds: "`cargo test` runs unit tests in `src/` as `Running unittests FILE (…/deps/CRATE-HASH)`, `tests/`, examples and benches as `Running FILE`, doc tests after `Doc-tests CRATE`, and its `test result:` counts the tests it ran";
 }
 
 subject reader {
@@ -20,4 +21,9 @@ subject reader {
     ensure seeing: "a review seeing tests is kept only where the report says each passed; otherwise R008 says which, and why"
         from (report, listed);
     ensure stopped: "a test binary that began and gave no result is R009" from (listed);
+    require kinds: cargo::kinds;
+    ensure every_test: "every test the report gives counts, of any kind and place: a unit test is the run of its own crate and module, a doc test is named as the report names it"
+        from (report, kinds);
+    ensure unread: "a test line the reader cannot read, or a binary whose `test result:` counts more tests than it read, is R010"
+        from (kinds);
 }

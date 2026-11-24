@@ -285,7 +285,9 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     }
     let mut reader_findings = reader_findings;
     if let Some(text) = &report {
-        reader_findings.splice(0..0, reader::stopped(&report_name, text));
+        let mut first = reader::stopped(&report_name, text);
+        first.extend(reader::unread(&report_name, text));
+        reader_findings.splice(0..0, first);
     }
     for f in &reader_findings {
         out!("{f}\n");

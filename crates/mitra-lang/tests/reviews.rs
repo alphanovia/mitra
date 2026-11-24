@@ -326,3 +326,46 @@ fn a_test_is_no_reviewer() {
         ["error[V007]: `test:sunny` is a test, and a test is no reviewer: it measures; write who reviewed, `seeing \"test:sunny\"`\n --> reviews::0"]
     );
 }
+
+/// Any test counts (finding 15): a unit test is named by its crate's
+/// binary, a doc test as the report names it, with or without its line.
+#[test]
+fn a_review_sees_unit_and_doc_tests() {
+    let m = model();
+    let run = |binary: &str, name: &str, outcome| TestRun {
+        name: name.to_string(),
+        outcome,
+        binary: binary.to_string(),
+    };
+    let runs = [
+        run(
+            "sun_core/src/lib.rs",
+            "light::tests::sunny",
+            Outcome::Passed,
+        ),
+        run(
+            "sun_cli/src/main.rs",
+            "light::tests::sunny",
+            Outcome::Failed,
+        ),
+        run(
+            "sun_core/doc",
+            "src/lib.rs - light::shine (line 12)",
+            Outcome::Passed,
+        ),
+    ];
+    for seeing in [
+        "test:sun-core/src/lib.rs::light::tests::sunny",
+        "test:src/lib.rs - light::shine",
+        "test:src/lib.rs - light::shine (line 12)",
+    ] {
+        let line = format!(r#"review sun::shines holds by "human:ana" seeing "{seeing}";"#);
+        let (ledger, findings) = read_store_seeing("s", &line, &m, &m.ties, Some(&runs)).unwrap();
+        assert_eq!((ledger.reviews.len(), findings), (1, vec![]), "{seeing}");
+    }
+    let line =
+        r#"review sun::shines holds by "human:ana" seeing "test:sun-cli/src/main.rs::sunny";"#;
+    let (ledger, findings) = read_store_seeing("s", line, &m, &m.ties, Some(&runs)).unwrap();
+    assert_eq!(ledger.reviews, vec![]);
+    assert!(findings[0].to_string().contains("failed"), "{findings:?}");
+}

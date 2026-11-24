@@ -329,7 +329,7 @@ fn explain_runs_cargo_test_when_no_report_is_given() {
         report.to_str().unwrap(),
     ]);
     assert!(
-        out.contains("finding[R009]: the test binary `src/lib.rs` stopped before its result"),
+        out.contains("finding[R009]: the test binary `div/src/lib.rs` stopped before its result"),
         "{out}"
     );
     std::fs::remove_file(&report).unwrap();

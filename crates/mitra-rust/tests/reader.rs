@@ -336,7 +336,7 @@ running 0 tests
         "{found:?}"
     );
     assert!(found[0].contains("cargo test:7"), "{found:?}");
-    assert!(found[1].contains("`div` stopped"), "{found:?}");
+    assert!(found[1].contains("`div/doc` stopped"), "{found:?}");
 }
 
 /// The rows `mitra::check_eq!` prints, each a measurement by the test
@@ -422,4 +422,125 @@ fn a_should_panic_test_is_read_by_its_name() {
     let runs = read_cargo_test("test fails_loudly - should panic ... ok\n");
     assert_eq!(runs[0].name, "fails_loudly");
     assert_eq!(runs[0].outcome, Outcome::Passed);
+}
+
+// Any kind and place of test counts (finding 15): unit tests in `src/`
+// of every crate, `tests/`, examples, benches and doc tests.
+const WORKSPACE_REPORT: &str = "
+     Running unittests src/lib.rs (target/release/deps/mitra_lang-52858b2b966162b3)
+running 1 test
+test numbers::tests::opinion ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/mitra_store-0a1b2c3d4e5f6789)
+running 1 test
+test numbers::tests::opinion ... FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/model.rs (target/release/deps/model-dd1fb30afd57462c)
+running 1 test
+test opinion ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running examples/demo.rs (target/release/examples/demo-1234567890abcdef)
+running 1 test
+test opinion ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests mitra_lang
+running 1 test
+test crates/mitra-lang/src/lib.rs - numbers::of (line 12) ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+";
+
+#[test]
+fn every_test_binary_is_named_and_read() {
+    let runs = read_cargo_test(WORKSPACE_REPORT);
+    let named: Vec<(&str, &str)> = runs
+        .iter()
+        .map(|r| (r.binary.as_str(), r.name.as_str()))
+        .collect();
+    assert_eq!(
+        named,
+        [
+            ("mitra_lang/src/lib.rs", "numbers::tests::opinion"),
+            ("mitra_store/src/lib.rs", "numbers::tests::opinion"),
+            ("tests/model.rs", "opinion"),
+            ("examples/demo.rs", "opinion"),
+            (
+                "mitra_lang/doc",
+                "crates/mitra-lang/src/lib.rs - numbers::of (line 12)"
+            ),
+        ]
+    );
+    assert!(mitra_rust::reader::unread("cargo test", WORKSPACE_REPORT).is_empty());
+    assert!(mitra_rust::reader::stopped("cargo test", WORKSPACE_REPORT).is_empty());
+}
+
+#[test]
+fn a_unit_test_in_src_measures_by_its_crate_and_module() {
+    let model = div();
+    let test = |file: &str| {
+        let source = "#[cfg(test)]\nmod tests {\n    // mitra: measures calc::div (6, 2) -> 3\n    #[test]\n    fn opinion() {}\n}\n";
+        read_rust(file, source, &model).points
+    };
+    let runs = read_cargo_test(WORKSPACE_REPORT);
+    // Same module path in two crates: each crate's own run.
+    for (file, seen) in [
+        ("crates/mitra-lang/src/numbers.rs", true),
+        ("crates/mitra-store/src/numbers.rs", false),
+    ] {
+        let (found, findings) = measurements(&model, &model.ties, &test(file), &runs);
+        assert_eq!(found.len(), 1, "{file}: {findings:?}");
+        assert_eq!(found[0].seen, seen, "{file}");
+        assert_eq!(found[0].by, "test:numbers::tests::opinion");
+    }
+    // A test in `tests/model.rs` and one in an example, both `opinion`.
+    for file in [
+        "crates/mitra-lang/tests/model.rs",
+        "crates/mitra-lang/examples/demo.rs",
+    ] {
+        let source = "// mitra: measures calc::div (6, 2) -> 3\n#[test]\nfn opinion() {}\n";
+        let points = read_rust(file, source, &model).points;
+        let (found, findings) = measurements(&model, &model.ties, &points, &runs);
+        assert_eq!(
+            (found.len(), found[0].seen),
+            (1, true),
+            "{file}: {findings:?}"
+        );
+        assert!(
+            findings.iter().all(|f| f.code.to_string() == "R004"),
+            "{findings:?}"
+        );
+    }
+}
+
+#[test]
+fn a_test_mitra_cannot_read_is_a_finding() {
+    let report = "
+     Running tests/b.rs (target/debug/deps/b-1a2b)
+running 2 tests
+test one ... ok
+test two ... hello from two
+ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+";
+    let found: Vec<String> = mitra_rust::reader::unread("cargo test", report)
+        .iter()
+        .map(|f| f.to_string())
+        .collect();
+    assert_eq!(found.len(), 2, "{found:?}");
+    assert!(
+        found[0].starts_with(
+            "finding[R010]: `test two ... hello from two` is a test line Mitra cannot read"
+        ),
+        "{found:?}"
+    );
+    assert!(found[0].contains("cargo test:5"), "{found:?}");
+    assert!(
+        found[1].starts_with(
+            "finding[R010]: the test binary `tests/b.rs` ran 2 tests and Mitra read 1"
+        ),
+        "{found:?}"
+    );
 }

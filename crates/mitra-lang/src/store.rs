@@ -367,15 +367,29 @@ fn seen(review: Review, runs: Option<&[TestRun]>) -> Result<Review, (Code, Strin
     };
     for test in &review.seeing {
         let name = test.trim_start_matches("test:");
-        // `tests/model.rs::name`: the test of that binary.
+        // `tests/model.rs::name`, `mitra-lang/src/lib.rs::name`: the
+        // test of that binary, named by its end.
         let (binary, name) = match name.split_once(".rs::") {
-            Some((b, n)) => (Some(format!("{b}.rs")), n),
+            Some((b, n)) => (Some(format!("{b}.rs").replace('-', "_")), n),
             None => (None, name),
+        };
+        // A doc test, `src/lib.rs - geo::flip (line 12)`, by its name
+        // with or without its line.
+        let undated = |n: &str| match n.rsplit_once(" (line ") {
+            Some((n, _)) => n.to_string(),
+            None => n.to_string(),
         };
         let matching: Vec<&TestRun> = runs
             .iter()
-            .filter(|r| r.name == name || r.name.ends_with(&format!("::{name}")))
-            .filter(|r| binary.as_ref().is_none_or(|b| &r.binary == b))
+            .filter(|r| {
+                r.name == name || r.name.ends_with(&format!("::{name}")) || undated(&r.name) == name
+            })
+            .filter(|r| {
+                binary.as_ref().is_none_or(|b| {
+                    let run = r.binary.replace('-', "_");
+                    &run == b || run.ends_with(&format!("/{b}"))
+                })
+            })
             .collect();
         let why = match matching[..] {
             [] => format!("the test `{name}` is not in the report"),

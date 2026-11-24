@@ -214,6 +214,7 @@ pub const R006: Code = reader(6);
 pub const R007: Code = reader(7);
 pub const R008: Code = reader(8);
 pub const R009: Code = reader(9);
+pub const R010: Code = reader(10);
 
 const fn entry(code: Code, title: &'static str) -> Entry {
     Entry {
@@ -396,6 +397,7 @@ pub const CATALOGUE: &[Entry] = &[
     entry(R007, "a measurement through no tie"),
     entry(R008, "a review seeing a test that did not pass"),
     entry(R009, "a test binary that stopped before its result"),
+    entry(R010, "a test Mitra could not read in the report"),
 ];
 
 /// The entry of `code`, `None` when the catalogue has none.

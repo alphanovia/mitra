@@ -81,6 +81,7 @@ example, and the fix. The letter says which step found it.
 - [R007](R007.md): a measurement through no tie
 - [R008](R008.md): a review seeing a test that did not pass
 - [R009](R009.md): a test binary that stopped before its result
+- [R010](R010.md): a test Mitra could not read in the report
 - [README](README.md): # Codes
 
 ## V (evidence): measurements and reviews
