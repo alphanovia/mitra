@@ -22,7 +22,7 @@ ignored, never misread.
 
 ```text
 examples/tickets/
-  tickets.mitra         the spec, written before any code
+  tickets.mitra         the spec, improved by what the first run found
   src/, tests/          the tool, written by a cold agent from the spec
   evidence.mitra        that agent's reviews, each saying what it checked
   Cargo.toml
@@ -30,6 +30,7 @@ examples/tickets/
   README.md             this file
   benchmark/
     RESULTS.md          the first run of the benchmark
+    spec.mitra          the spec as the runs got it, kept so a rerun is the same
     control/            run 1: the task in words, no spec, no Mitra
     mitra/              run 2: log.md, every round and what Mitra printed
     planted/            run 3: one bug planted in run 2's code, and blame
@@ -79,7 +80,8 @@ the number of lines of code and of tests.
 
 ### Run 2: cold, with the spec and Mitra
 
-Copy `tickets.mitra` into the empty folder first. Replace `MITRA` below
+Copy `benchmark/spec.mitra` into the empty folder first, as
+`tickets.mitra`: it is the spec as the first run had it. Replace `MITRA` below
 with the path of your clone.
 
 ```text

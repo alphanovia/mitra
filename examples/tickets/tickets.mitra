@@ -17,7 +17,10 @@ subject enum Step { Write(Event, Reply), Read(Reply), Fail(Failure) }
 subject enum Outcome { Printed(Reply), Failed(Failure) }
 
 subject Tickets {
-    ensure keeps: "a change the tool acknowledged survives a crash" from (Disk::durable, Cli::acks, Board::skips);
+    // Two runs that interleave could plan the same id and both be
+    // acknowledged; replay then drops one. Found by the first benchmark.
+    require alone: "one command runs at a time, from reading the log to its answer";
+    ensure keeps: "a change the tool acknowledged survives a crash" from (Disk::durable, Cli::acks, Board::skips, alone);
     ensure unique: "ids are unique and increasing" from (Board::increasing);
     ensure sticky: "a done ticket stays done" from (Board::sticky);
     ensure honest: "a cut last line is ignored, never misread" from (Disk::cuts_last, Codec::whole, Board::skips);

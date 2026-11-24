@@ -106,6 +106,20 @@ of `Cli::answer` shields it, as in semver (finding F6 there).
   (`reads` makes only a strict cut `Cut`). The row now accepts either.
   The Mitra run kept such a line; the control dropped it.
 
+## The spec, after
+
+The runs got [spec.mitra](spec.mitra), kept as it was so a rerun is the
+same benchmark. [../tickets.mitra](../tickets.mitra) now says what the
+run found missing:
+
+```mitra
+    require alone: "one command runs at a time, from reading the log to its answer";
+    ensure keeps: "a change the tool acknowledged survives a crash" from (Disk::durable, Cli::acks, Board::skips, alone);
+```
+
+With it, explain shows `Tickets::alone` unsupported: a hypothesis in
+words, until someone reviews the code's lock.
+
 ## Findings: what Mitra could not do
 
 | # | Finding |
