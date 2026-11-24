@@ -1579,17 +1579,16 @@ impl<'c> Parser<'c> {
         }
         if self.eat("(") {
             let mut types = vec![];
-            let mut comma = false;
             while !self.is(")") {
                 types.push(self.type_()?);
-                comma = self.eat(",");
-                if !comma {
+                if !self.eat(",") {
                     break;
                 }
             }
             self.expect(")")?;
-            // `(T)` is `T`, as in Rust; `(T,)` is a tuple of one.
-            if types.len() == 1 && !comma {
+            // `(T)` and `(T,)` are `T`: there is no tuple of one value
+            // (Swift's rule, flagged: Rust has `(T,)`).
+            if types.len() == 1 {
                 return Ok(types.pop().unwrap_or(Type::Truth));
             }
             return Ok(simulation::tuple(types));
@@ -1799,16 +1798,15 @@ impl<'c> Parser<'c> {
             Tok::Sym("(") => {
                 self.bump();
                 let mut values = vec![];
-                let mut comma = false;
                 while !self.is(")") {
                     values.push(self.value()?);
-                    comma = self.eat(",");
-                    if !comma {
+                    if !self.eat(",") {
                         break;
                     }
                 }
                 self.expect(")")?;
-                if values.len() == 1 && !comma {
+                // `(v)` and `(v,)` are `v`: no tuple of one value.
+                if values.len() == 1 {
                     return Ok(values.pop().unwrap_or(Value::Truth(true)));
                 }
                 let Type::Record(r) = simulation::tuple(values.iter().map(type_of).collect())
@@ -2293,6 +2291,10 @@ impl<'c> Parser<'c> {
                     }
                 }
                 self.expect(")")?;
+                // `(x,)` is `x`: no tuple of one value.
+                if items.len() == 1 {
+                    return Ok(items.pop().expect("one"));
+                }
                 self.tuple(items, env, at)
             }
             Tok::Word(w)

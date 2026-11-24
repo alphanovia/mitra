@@ -721,10 +721,7 @@ pub fn type_(t: &Type) -> String {
         Type::Real => "rational".to_string(),
         Type::Record(r) if r.name.is_empty() => {
             let types: Vec<String> = r.fields.iter().map(|(_, t)| type_(t)).collect();
-            match types.len() {
-                1 => format!("({},)", types[0]),
-                _ => format!("({})", types.join(", ")),
-            }
+            format!("({})", types.join(", "))
         }
         Type::Record(r) => generic(&r.name, &r.args),
         Type::Enum(e) => generic(&e.name, &e.args),
@@ -802,10 +799,7 @@ pub fn value(v: &Value) -> String {
         Value::Truth(b) => b.to_string(),
         Value::Int(n) => n.to_string(),
         Value::Real(r) => real(r),
-        Value::Record(r, vs) if r.name.is_empty() => match vs.len() {
-            1 => format!("({},)", value(&vs[0])),
-            _ => values(vs),
-        },
+        Value::Record(r, vs) if r.name.is_empty() => values(vs),
         Value::Record(r, vs) => {
             let fields: Vec<String> = r
                 .fields
@@ -1064,7 +1058,6 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
         (Op::Make(r), n, _) if n == r.fields.len() => {
             let items: Vec<String> = (0..n).map(|i| sim_in(cx, body(i))).collect();
             match (r.name.is_empty(), n) {
-                (true, 1) => (format!("({},)", items[0]), ATOM),
                 (true, _) => (format!("({})", items.join(", ")), ATOM),
                 (false, _) => {
                     let fields: Vec<String> = r

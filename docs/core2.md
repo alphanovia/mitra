@@ -525,4 +525,6 @@ be an operation.
 
 41. **`integer` and `rational`** (your "go", 10:21): the names `Int` and `Real` are gone from the text, the printer and every message; `Type::Int` and `Type::Real` keep their names inside. The old names are now names of nothing (M003), with no hint (no refusal hints for retired forms).
 
+42. **No tuple of one value** (your rule, 10:22-10:24): the parser reads `(T,)`, `(v,)` and `(e,)` as `T`, `v` and `e`; print never writes a tuple of one. `simulation::tuple` still builds any length for Rust callers; a model never holds one.
+
 Not in this round: `integer → rational` conversion, units, diagnosis, streams, recursion, functions as values, and an all or an any written in the model (next, in `model.rs`).

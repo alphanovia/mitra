@@ -198,3 +198,16 @@ fn numbers_are_integer_and_rational() {
         );
     }
 }
+
+/// No tuple of one value (your rule, 10:22): `(x,)` is `x` as a type, a
+/// value and an expression.
+#[test]
+fn a_tuple_of_one_is_its_value() {
+    let text = "subject s { fn f(x: (integer,)) -> y: (integer,) { (x,) } where { examples { ((3,)) -> 3 } } }";
+    let model = parse(text).unwrap();
+    assert_eq!(check(&model), vec![]);
+    let plain =
+        parse("subject s { fn f(x: integer) -> y: integer { x } where { examples { (3) -> 3 } } }")
+            .unwrap();
+    assert_eq!(model, plain);
+}

@@ -17,8 +17,13 @@ fn grammar_keywords() -> BTreeSet<String> {
         if line.starts_with("\"keyword-") && line.ends_with('{') {
             entry = true;
         } else if entry && line.starts_with("\"match\"") {
-            let open = line.find("\\\\b(").expect("a keyword match is \\\\b(a|b)\\\\b") + 4;
-            let close = line.rfind(")\\\\b").expect("a keyword match is \\\\b(a|b)\\\\b");
+            let open = line
+                .find("\\\\b(")
+                .expect("a keyword match is \\\\b(a|b)\\\\b")
+                + 4;
+            let close = line
+                .rfind(")\\\\b")
+                .expect("a keyword match is \\\\b(a|b)\\\\b");
             words.extend(line[open..close].split('|').map(str::to_string));
             entry = false;
         }
@@ -30,7 +35,10 @@ fn grammar_keywords() -> BTreeSet<String> {
 fn the_grammar_colours_the_parser_keywords() {
     let parser: BTreeSet<String> = KEYWORDS.iter().map(|k| k.to_string()).collect();
     let grammar = grammar_keywords();
-    assert!(!grammar.is_empty(), "no \"keyword-…\" entry read in the grammar");
+    assert!(
+        !grammar.is_empty(),
+        "no \"keyword-…\" entry read in the grammar"
+    );
     let missing: Vec<_> = parser.difference(&grammar).collect();
     let extra: Vec<_> = grammar.difference(&parser).collect();
     assert!(

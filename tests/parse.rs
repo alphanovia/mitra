@@ -314,7 +314,7 @@ subject geo at "src/geo.rs" {
     fn flip(p: Point) -> q: Point { Point { y: p.x, x: p.y } } where {
         claim back: q.x == p.y && q.y != p.x;
         claim pair: (p.x, 1, true).0 == p.x;
-        claim one: (3,).0 > 2;
+        claim one: (3,) > 2;
         claim unit: () == ();
         claim cond: if (Point { x: 0.0, y: 0.0 }) == p { true } else { q.x - -2.5 <= 1/7 };
         claim let_: let d = q.x - p.y in let e = d * d in e == 0.0 || e / 2.0 < 1.0;
@@ -343,7 +343,7 @@ subject geo at "src/geo.rs" {
         }
     }
     fn pair(a: integer, b: (integer, bool)) -> c: Pair;
-    fn constant() -> c: (rational,) { (1.5,) }
+    fn constant() -> c: rational { (1.5,) }
     fn later(d: integer) -> t: integer { clock() + d } where {
         claim after: t == lab::clock() + d && shine(t) <= shine(t + 1) && (later(d), 1).0 == t;
         rule everywhere: later::after |- all x in (d: 0..3): correct(later, x);

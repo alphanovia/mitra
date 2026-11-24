@@ -60,7 +60,7 @@ subject stone {
 | `examples { (6, 2) -> 3, (7, 0) -> 0 }` | `Example` rows | flagged |
 | `at "a/b/c"` after a name, `at "x", "y"` for two | `Tie` | your choice: in the block |
 | `tie a::b at "x";` at the end | a tie to what has no block | flagged |
-| `bool`, `integer`, `rational`, `(integer, bool)`, `(rational,)`, `()`, `R` | `Type` | Rust, but `integer`/`rational` flagged (Haskell's `Integer`, `Rational`): built-in primitives lowercase, parts and data types CamelCase; machine types later with Rust's names (`i64`, `u8`, `f64`) |
+| `bool`, `integer`, `rational`, `(integer, bool)`, `()`, `R` (`(T)` and `(T,)` are `T`: no tuple of one value, Swift's rule, flagged) | `Type` | Rust, but `integer`/`rational` flagged (Haskell's `Integer`, `Rational`): built-in primitives lowercase, parts and data types CamelCase; machine types later with Rust's names (`i64`, `u8`, `f64`) |
 | `[integer]`, `[[rational]]`, `[Option<integer>]` | `Type::Seq`: a sequence, its length its own, never changed | Rust's slice form `[T]`, not `Vec<T>` |
 | `[1, 2, 3]`, `[]`, `xs.len()`, `xs[i]`, `xs == ys` | `Op::Seq`, `Len`, `Index`, `Equal` | Rust; `xs[i]` out of range has no value, as Rust's panics |
 | `[~char]`, `char`, `byte` | `Type::Encoded(Char)`: text, an encoded sequence of letters; `Type::Char`, `Type::Byte` | `[~T]` flagged; only `[~char]` today |
@@ -252,6 +252,13 @@ what the numbers are: exact, not a machine's. *Cost*: two words to
 write in full. A real number (`real`) and machine types (`i64`, `u8`,
 `f64`, Rust's names) come later. *Elsewhere*: Haskell's `Integer` and
 `Rational`, Lean's `Int` and `Rat`, Rust's lowercase primitives.
+
+**18. No tuple of one value** (your rule, 10:22-10:24). *What*: `(x)`
+and `(x,)` are `x`, as a type, a value or an expression; a tuple holds
+none or two values or more. A loop carrying one value gives it back
+bare. *Gain*: one reading of parentheses everywhere. *Cost*: none we
+use. *Elsewhere*: Swift and Haskell (no 1-tuple); Rust and Python have
+`(x,)` (flagged).
 
 ## Errors
 
