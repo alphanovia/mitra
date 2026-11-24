@@ -65,8 +65,8 @@ the result. From
 
 `(6, 2) -> 3` is short for `when (6, 2) then 3`. After `given` comes a
 function with no body (by its path, or its name when only one function
-has it), what it was called with, and what it gave. Each such function
-is given at most once a row for each list of arguments.
+has it), what it was called with, and what it gave. A call is given at
+most once a row, for each list of arguments (M022).
 
 `_` is any argument, as in a Rust pattern. A row with written arguments
 wins where it fits, whatever the order:
