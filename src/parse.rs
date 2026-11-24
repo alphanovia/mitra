@@ -1785,7 +1785,13 @@ impl<'c> Parser<'c> {
         }
         if self.eat("(") {
             let mut types = vec![];
+            let mut labels = vec![];
             while !self.is(")") {
+                // `(sum: integer, n: integer)`: a tuple with labels.
+                if matches!(self.peek(), Tok::Word(_)) && *self.peek_at(1) == Tok::Sym(":") {
+                    labels.push(self.name()?);
+                    self.bump();
+                }
                 types.push(self.type_()?);
                 if !self.eat(",") {
                     break;
@@ -1797,7 +1803,19 @@ impl<'c> Parser<'c> {
             if types.len() == 1 {
                 return Ok(types.pop().unwrap_or(Type::Truth));
             }
-            return Ok(simulation::tuple(types));
+            if !labels.is_empty() && labels.len() != types.len() {
+                return self.expected("a label for each value, or none");
+            }
+            let tuple = simulation::tuple(types);
+            return Ok(match tuple {
+                Type::Record(mut r) if !labels.is_empty() => {
+                    for ((name, _), label) in r.fields.iter_mut().zip(labels) {
+                        *name = label;
+                    }
+                    Type::Record(r)
+                }
+                t => t,
+            });
         }
         let at = self.pos();
         let name = self.name()?;
@@ -2004,7 +2022,13 @@ impl<'c> Parser<'c> {
             Tok::Sym("(") => {
                 self.bump();
                 let mut values = vec![];
+                let mut labels = vec![];
                 while !self.is(")") {
+                    // `(sum: 3, n: 2)`: a tuple with labels.
+                    if matches!(self.peek(), Tok::Word(_)) && *self.peek_at(1) == Tok::Sym(":") {
+                        labels.push(self.name()?);
+                        self.bump();
+                    }
                     values.push(self.value()?);
                     if !self.eat(",") {
                         break;
@@ -2015,10 +2039,18 @@ impl<'c> Parser<'c> {
                 if values.len() == 1 {
                     return Ok(values.pop().unwrap_or(Value::Truth(true)));
                 }
-                let Type::Record(r) = simulation::tuple(values.iter().map(type_of).collect())
+                if !labels.is_empty() && labels.len() != values.len() {
+                    return self.expected("a label for each value, or none");
+                }
+                let Type::Record(mut r) = simulation::tuple(values.iter().map(type_of).collect())
                 else {
                     unreachable!("a tuple is a record")
                 };
+                if !labels.is_empty() {
+                    for ((name, _), label) in r.fields.iter_mut().zip(labels) {
+                        *name = label;
+                    }
+                }
                 Ok(Value::Record(r, values))
             }
             Tok::Word(_) => {
@@ -2359,6 +2391,47 @@ impl<'c> Parser<'c> {
                 e = apply(op, vec![e]);
                 continue;
             }
+            // `xs.fold(sum: 0) { x -> sum + x }`, `xs.fold((sum: 0, n: 0))
+            // { x -> (sum + x, n + 1) }`: a loop over `xs`.
+            if matches!(self.peek(), Tok::Word(w) if w == "fold")
+                && *self.peek_at(1) == Tok::Sym("(")
+            {
+                self.bump();
+                self.bump();
+                let (labels, start) = self.carried(env)?;
+                self.expect(")")?;
+                self.expect("{")?;
+                let x = self.name()?;
+                self.expect("->")?;
+                let of = match self.type_in(env, &e) {
+                    Some(Type::Seq(t)) => Some(*t),
+                    _ => None,
+                };
+                let types = self.carried_types(env, &start, labels.len());
+                let depth = env.len();
+                env.push((x.clone(), of));
+                env.extend(labels.iter().cloned().zip(types));
+                let next = self.inner(env);
+                env.truncate(depth);
+                let next = next?;
+                self.expect("}")?;
+                let binds = [vec![x], labels].concat();
+                e = Expression::Apply(
+                    Op::Fold,
+                    vec![
+                        Arg {
+                            binds: vec![],
+                            body: e,
+                        },
+                        Arg {
+                            binds: vec![],
+                            body: start,
+                        },
+                        Arg { binds, body: next },
+                    ],
+                );
+                continue;
+            }
             if matches!(self.peek(), Tok::Word(w) if w == "starts_with")
                 && *self.peek_at(1) == Tok::Sym("(")
             {
@@ -2464,6 +2537,44 @@ impl<'c> Parser<'c> {
                 self.bump();
                 self.match_(env, at)
             }
+            // `until((h: s, got: g), done) { (h2, g2) }`, `until(r: g, r.stop)
+            // { next(r) }`: a loop while `done` does not hold.
+            Tok::Word(w) if w == "until" && *self.peek_at(1) == Tok::Sym("(") => {
+                self.bump();
+                self.bump();
+                let (labels, start) = self.carried(env)?;
+                self.expect(",")?;
+                let types = self.carried_types(env, &start, labels.len());
+                let depth = env.len();
+                env.extend(labels.iter().cloned().zip(types));
+                let read = (|| {
+                    let done = self.inner(env)?;
+                    self.expect(")")?;
+                    self.expect("{")?;
+                    let next = self.inner(env)?;
+                    self.expect("}")?;
+                    Ok((done, next))
+                })();
+                env.truncate(depth);
+                let (done, next) = read?;
+                Ok(Expression::Apply(
+                    Op::Until,
+                    vec![
+                        Arg {
+                            binds: vec![],
+                            body: start,
+                        },
+                        Arg {
+                            binds: labels.clone(),
+                            body: done,
+                        },
+                        Arg {
+                            binds: labels,
+                            body: next,
+                        },
+                    ],
+                ))
+            }
             Tok::Word(w) if w == "within" && *self.peek_at(1) == Tok::Sym("(") => {
                 self.bump();
                 self.bump();
@@ -2488,6 +2599,11 @@ impl<'c> Parser<'c> {
                 Ok(apply(Op::Seq(t), holds))
             }
             Tok::Sym("(") => {
+                // `(sum: 0, n: 0)`: a tuple whose values have labels.
+                if matches!(self.peek_at(1), Tok::Word(_)) && *self.peek_at(2) == Tok::Sym(":") {
+                    let (_, e) = self.carried(env)?;
+                    return Ok(e);
+                }
                 self.bump();
                 if self.eat(")") {
                     return self.tuple(vec![], env, at);
@@ -3113,6 +3229,41 @@ impl<'c> Parser<'c> {
                 let args = each(self, args, &wants, env);
                 Expression::Apply(op, args)
             }
+            // A loop: what it starts from, then its blocks, with the
+            // names they bind typed.
+            Op::Fold | Op::Until => {
+                let first = match op {
+                    Op::Fold => 2,
+                    _ => 1,
+                };
+                let mut args = args;
+                let blocks = args.split_off(first.min(args.len()));
+                let args = each(self, args, &[None, want.cloned()], env);
+                let before: Vec<Type> = args
+                    .iter()
+                    .map(|a| typed(self, env, &a.body).unwrap_or_else(|| hole("T")))
+                    .collect();
+                let mut settled = args;
+                for (k, b) in blocks.into_iter().enumerate() {
+                    use crate::expression::Standard as _;
+                    let types = simulation::Simulation::default().binds(&op, first + k, &before);
+                    let depth = env.len();
+                    for (k, x) in b.binds.iter().enumerate() {
+                        env.push((x.clone(), types.get(k).cloned()));
+                    }
+                    let wanted = match (&op, k) {
+                        (Op::Until, 0) => truth.clone(),
+                        _ => None,
+                    };
+                    let body = self.settle(b.body, wanted.as_ref(), env);
+                    env.truncate(depth);
+                    settled.push(Arg {
+                        binds: b.binds,
+                        body,
+                    });
+                }
+                Expression::Apply(op, settled)
+            }
             op => {
                 let args = each(self, args, &[], env);
                 Expression::Apply(op, args)
@@ -3204,6 +3355,68 @@ impl<'c> Parser<'c> {
             unreachable!("a tuple is a record")
         };
         Ok(apply(Op::Make(r), items))
+    }
+
+    /// What a loop carries: `sum: 0`, one value, its label; or `(sum: 0,
+    /// n: 0)`, a tuple whose values have labels (`(sum: 0)` is `sum: 0`:
+    /// no tuple of one value).
+    fn carried(&mut self, env: &mut Env) -> Result<(Vec<String>, E)> {
+        let at = self.pos();
+        if !self.eat("(") {
+            let label = self.name()?;
+            self.expect(":")?;
+            return Ok((vec![label], self.inner(env)?));
+        }
+        let mut items = vec![];
+        while !self.eat(")") {
+            let label = self.name()?;
+            self.expect(":")?;
+            items.push((label, self.inner(env)?));
+            if !self.eat(",") {
+                self.expect(")")?;
+                break;
+            }
+        }
+        if items.is_empty() {
+            return self.expected("a label: `(sum: 0, n: 0)`");
+        }
+        let labels: Vec<String> = items.iter().map(|(l, _)| l.clone()).collect();
+        let values: Vec<E> = items.into_iter().map(|(_, e)| e).collect();
+        if labels.len() == 1 {
+            return Ok((labels, values.into_iter().next().expect("one")));
+        }
+        if let Some(twice) = labels
+            .iter()
+            .enumerate()
+            .find_map(|(i, l)| labels[..i].contains(l).then_some(l))
+        {
+            return Err(error(
+                P003,
+                at,
+                format!("the label `{twice}` is given twice"),
+            ));
+        }
+        let Expression::Apply(Op::Make(mut r), values) = self.tuple(values, env, at)? else {
+            unreachable!("a tuple is made")
+        };
+        for ((name, _), label) in r.fields.iter_mut().zip(&labels) {
+            *name = label.clone();
+        }
+        Ok((labels, Expression::Apply(Op::Make(r), values)))
+    }
+    /// The types of the names a loop's labels bind: on the first reading,
+    /// none known.
+    fn carried_types(&self, env: &Env, start: &E, labels: usize) -> Vec<Option<Type>> {
+        match self.type_in(env, start) {
+            Some(t) => {
+                let ts = simulation::carried(&t);
+                match ts.len() == labels {
+                    true => ts.into_iter().map(Some).collect(),
+                    false => vec![Some(t)],
+                }
+            }
+            None => vec![None; labels],
+        }
     }
 
     // ------------------------------------------------ proofs

@@ -572,10 +572,20 @@ fn known_in(index: &Index, t: &Type, params: &[(String, Bound)]) -> bool {
         Type::Truth | Type::Int | Type::Real | Type::Char | Type::Byte => true,
         Type::Seq(t) | Type::Encoded(t) => known_in(index, t, params),
         Type::Param { name, bound } => params.iter().any(|(n, b)| n == name && b == bound),
-        // A tuple: a record with no name, its fields `0`, `1`, ….
+        // A tuple: a record with no name, its fields `0`, `1`, …, or
+        // each a label, no two alike: `(sum: integer, n: integer)`.
         Type::Record(r) if r.name.is_empty() => {
             let mut fields = r.fields.iter().enumerate();
-            fields.all(|(i, (name, t))| *name == i.to_string() && known_in(index, t, params))
+            let labels: BTreeSet<&String> = r.fields.iter().map(|(n, _)| n).collect();
+            match r.labelled() {
+                true => {
+                    labels.len() == r.fields.len()
+                        && r.fields.len() > 1
+                        && r.fields.iter().all(|(_, t)| known_in(index, t, params))
+                }
+                false => fields
+                    .all(|(i, (name, t))| *name == i.to_string() && known_in(index, t, params)),
+            }
         }
         // One that holds itself is M027's, not M003's.
         Type::Record(r) if holds_itself(t, &r.name, false) => true,
@@ -1672,6 +1682,20 @@ impl Mistyped<'_> {
                 "`.decoded()` on a text `[~char]` gives its letters, and waits for the grapheme decoder: not built yet".to_string()
             }
             Op::Decoded => "`.decoded()` reads a sequence".to_string(),
+            Op::Fold => match takes.get(1) {
+                Some(start) => format!(
+                    "`xs.fold(start) {{ x -> next }}` reads a sequence `xs`, and its block gives the next values of what it carries, of the types `{}`, in place",
+                    carried_types(start)
+                ),
+                None => "`xs.fold(start) { x -> next }` reads a sequence".to_string(),
+            },
+            Op::Until => match takes.first() {
+                Some(start) => format!(
+                    "`until(start, done) {{ next }}`: `done` is a bool, and the block gives the next values of what it carries, of the types `{}`, in place",
+                    carried_types(start)
+                ),
+                None => "`until(start, done) { next }`: `done` is a bool".to_string(),
+            },
             Op::Let | Op::Truth(_) | Op::Int(_) | Op::Real(_) | Op::Text(_) => {
                 return Vec::new()
             }
@@ -1713,4 +1737,13 @@ impl Mistyped<'_> {
         notes.extend(helps);
         notes
     }
+}
+
+/// The types a loop carries, as written: `integer, bool`.
+fn carried_types(start: &Type) -> String {
+    simulation::carried(start)
+        .iter()
+        .map(crate::print::type_)
+        .collect::<Vec<_>>()
+        .join(", ")
 }

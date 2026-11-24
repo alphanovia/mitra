@@ -31,6 +31,8 @@ Open `models/fall.mitra` to see it.
 - Not tested, so by hand: primitive type names (`"type"`), proof
   operations (`"proof-op"`, `PROOF_OPS` in `src/parse.rs`), symbols
   (`"operator"`, `SYMBOLS`).
-- `"queued"` and `"proof-form"` colour settled forms the parser does not
-  read yet (`self`, `until`, `by induction`, `by invariant`). When one
-  becomes a parser keyword, move it to a `"keyword-…"` entry.
+- `"self-and-loops"` colours `self` and the loops `until(…)` and
+  `.fold(…)`, which the parser reads as names, not keywords.
+- `"proof-form"` colours settled forms the parser does not read yet
+  (`by induction`, `by invariant`). When one becomes a parser keyword,
+  move it to a `"keyword-…"` entry.

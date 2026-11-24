@@ -96,6 +96,7 @@ subject simulation {
     ensure whole_division: "/ and % on integer give what Rust's i64 gives, and none at zero; by bounds, they hold every value Exact gives";
     ensure ranges_checked: "a call with a value outside the range type of what it takes, or a body giving one outside the range of what it gives, has no value; by bounds, such a call may fault";
     ensure promised: "where the claims of a function with no body hold, a call of it lies in the bounds Ranges reads from them; inside its own claims, a call of it is only its type" from (kept_sound);
+    ensure loops: "`fold` carries its values through each value of the sequence in turn; `until` gives the first carried where `done` holds, its block never run then, and past the step budget it has no value and says so (A007)";
 }
 
 subject judgement {

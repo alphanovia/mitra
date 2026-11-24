@@ -288,6 +288,24 @@ written `fn f(self, …)`, Rust's form without `&`; files are not parts.
 *Elsewhere*: Rust (`impl` blocks, `Self`, `..base`), Swift (types
 reopened by `extension`, nested types), Kotlin (`data class`).
 
+
+**20. Loops: `fold` and `until`** (your design, 07:49-10:11; one value
+bare, 11:18). *What*: a loop is a call with a block, no statement.
+`xs.fold(start) { x -> next }` goes through each value `x` of `xs`;
+`until(start, done) { next }` goes on while `done` does not hold. What
+the loop carries is named by labels: one value, `sum: 0`, given back
+bare; or a tuple with labels, `(sum: 0, n: 0)`, read `.sum` or `.0`.
+The block gives the next values, in place.
+```text
+xs.fold(sum: 0) { x -> sum + x }                                 // the `for`
+xs.fold((sum: 0, n: 0)) { x -> (sum + x, n + 1) }.sum
+until((k: n, steps: 0), k <= 1) { (k / 2, steps + 1) }.steps   // the `while`
+```
+`until` stops after `Budget::steps` turns, and says so. *Gain*: a loop
+is an expression with a value, so claims and examples read it as any
+other. *Cost*: no early exit, no mutation. *Elsewhere*: Rust's
+`Iterator::fold` (Mitra's start is labelled), Kotlin's trailing block
+(flagged), Swift's labelled tuples (flagged), Lean's `List.foldl`.
 ## Errors
 
 A problem in the text is `error[P…]`, suit `P` of the catalogue

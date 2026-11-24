@@ -156,8 +156,44 @@ pub fn tuple(of: Vec<Type>) -> Type {
 impl Record {
     /// The place and type of the first field named `name`.
     pub fn field(&self, name: &str) -> Option<(usize, &Type)> {
-        let place = self.fields.iter().position(|(n, _)| n == name)?;
+        let place = self.fields.iter().position(|(n, _)| n == name);
+        // `.1` of a labelled tuple: by place.
+        let place = match place {
+            Some(p) => p,
+            None if self.name.is_empty() => name.parse().ok().filter(|p| *p < self.fields.len())?,
+            None => return None,
+        };
         Some((place, &self.fields[place].1))
+    }
+    /// A tuple whose values have labels, `(sum: integer, n: integer)`.
+    pub fn labelled(&self) -> bool {
+        self.name.is_empty()
+            && !self.fields.is_empty()
+            && self.fields.iter().all(|(n, _)| n.parse::<usize>().is_err())
+    }
+}
+
+/// What a loop carries, as the names its block binds: each value of a
+/// labelled tuple, else the one value.
+pub fn carried(start: &Type) -> Vec<Type> {
+    match start {
+        Type::Record(r) if r.labelled() => r.fields.iter().map(|(_, t)| t.clone()).collect(),
+        t => vec![t.clone()],
+    }
+}
+
+/// The next values a loop's block gives fit what it carries: the same
+/// type, or the values of a labelled tuple, by place, in a plain one.
+pub fn next_fits(start: &Type, next: &Type) -> bool {
+    match (start, next) {
+        (Type::Record(r), Type::Record(n)) if r.labelled() && n.name.is_empty() => {
+            r.fields.len() == n.fields.len()
+                && r.fields
+                    .iter()
+                    .zip(&n.fields)
+                    .all(|((_, a), (_, b))| a == b)
+        }
+        _ => start == next,
     }
 }
 
@@ -635,6 +671,17 @@ pub enum Op {
     /// `xs.decoded()`: the sequence an encoded one decodes to; a plain
     /// one is its own. Text waits for the grapheme decoder.
     Decoded,
+    /// `xs.fold((sum: 0, n: 0)) { x -> (sum + x, n + 1) }`: the values
+    /// carried, from the second argument, through each value of the
+    /// sequence `xs` in turn. The third argument binds the value, then
+    /// each label of the carried tuple (or the one value carried), and
+    /// gives the next values, by place. Gives the last carried.
+    Fold,
+    /// `until((h: s, got: g), done) { (h2, g2) }`: from the first
+    /// argument, the next values while `done` does not hold. The second
+    /// and third arguments bind the labels. Gives the first carried
+    /// where `done` holds; each turn is a step of the budget.
+    Until,
 }
 
 /// A function a call can name: what it takes, each by name, what it
@@ -906,6 +953,14 @@ impl Standard for Simulation {
         match (op, i, before) {
             (Op::Let, 1, [t]) => vec![t.clone()],
             (Op::All, 2, _) => vec![Type::Int],
+            // Of a text too, so that its block types and check says
+            // where the loop goes wrong: `gives` takes a sequence only.
+            (Op::Fold, 2, [Type::Seq(t) | Type::Encoded(t), start]) => {
+                let mut binds = vec![(**t).clone()];
+                binds.extend(carried(start));
+                binds
+            }
+            (Op::Until, 1 | 2, [start, ..]) => carried(start),
             (Op::Match(e), i, _) if i >= 1 => e
                 .variants
                 .get(i - 1)
@@ -957,6 +1012,8 @@ impl Standard for Simulation {
             (Op::Join, [a @ (Type::Seq(_) | Type::Encoded(_)), b]) if a == b => a.clone(),
             (Op::StartsWith, [Type::Seq(_) | Type::Encoded(_), _]) if takes[0] == takes[1] => Truth,
             (Op::Decoded, [a @ Type::Seq(_)]) => a.clone(),
+            (Op::Fold, [Type::Seq(_), start, next]) if next_fits(start, next) => start.clone(),
+            (Op::Until, [start, Truth, next]) if next_fits(start, next) => start.clone(),
             (Op::Less | Op::AtMost, [a, b]) if ordered(a) && a == b => Truth,
             (Op::Call(f), takes) => {
                 let callee = self.calls.get(f)?;
@@ -1055,6 +1112,68 @@ fn decides(test: &Exactly) -> Result<bool, Fault<Undefined>> {
     }
 }
 
+/// `xs.fold(start) { x -> next }`, exactly.
+#[inline(never)]
+fn fold_exactly(
+    xs: &Exactly,
+    start: &Exactly,
+    run: &mut dyn FnMut(usize, &[Exactly]) -> Exactly,
+) -> Exactly {
+    let Value::Seq(_, holds) = xs.clone()? else {
+        return Err(Fault::Stuck);
+    };
+    let mut carried = start.clone()?;
+    for x in holds {
+        let mut binds = vec![Ok(x)];
+        binds.extend(unpack(&carried));
+        carried = repack(&carried, run(2, &binds)?);
+    }
+    Ok(carried)
+}
+
+/// `until(start, done) { next }`, exactly, at most `steps` turns.
+#[inline(never)]
+fn until_exactly(
+    start: &Exactly,
+    steps: usize,
+    run: &mut dyn FnMut(usize, &[Exactly]) -> Exactly,
+) -> Exactly {
+    let mut carried = start.clone()?;
+    let mut turns = 0;
+    loop {
+        if decides(&run(1, &unpack(&carried)))? {
+            return Ok(carried);
+        }
+        turns += 1;
+        if turns > steps {
+            return Err(Fault::Op(Undefined::Budget(format!(
+                "the step budget, {steps} turns of `until`, reached"
+            ))));
+        }
+        carried = repack(&carried, run(2, &unpack(&carried))?);
+    }
+}
+
+/// The values a loop's block is given: each of a labelled tuple, else
+/// the one value carried.
+fn unpack(carried: &Value) -> Vec<Exactly> {
+    match carried {
+        Value::Record(r, values) if r.labelled() => values.iter().cloned().map(Ok).collect(),
+        v => vec![Ok(v.clone())],
+    }
+}
+
+/// What a loop carries next: the block's values, by place, under the
+/// labels of what it carried.
+fn repack(carried: &Value, next: Value) -> Value {
+    match (carried, next) {
+        (Value::Record(r, _), Value::Record(n, values)) if r.labelled() && n.name.is_empty() => {
+            Value::Record(r.clone(), values)
+        }
+        (_, next) => next,
+    }
+}
+
 /// `then`, when it is a truth.
 fn truth(then: &Exactly) -> Exactly {
     decides(then).map(Value::Truth)
@@ -1115,6 +1234,10 @@ impl Reading for Exact {
         match (op, args) {
             (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
             (Op::All, [lo, hi, _]) => all_exactly(lo, hi, run),
+            // Loops in frames of their own: this one is on the path of
+            // every level.
+            (Op::Fold, [xs, start, _]) => fold_exactly(xs, start, run),
+            (Op::Until, [start, _, _]) => until_exactly(start, self.calls.budget.steps, run),
             (Op::Match(_), [scrutinee, ..]) => match scrutinee {
                 Ok(Value::Variant(_, i, holds)) => {
                     let holds: Vec<Exactly> = holds.iter().cloned().map(Ok).collect();
@@ -1366,6 +1489,34 @@ pub enum Span {
     Byte(Option<u8>),
     /// A letter: no value of it is written yet, so any.
     Char,
+}
+
+/// A loop by bounds: any value of what it carries, perhaps none.
+#[inline(never)]
+fn loop_bounds(xs: Option<&Bounded>, start: &Bounded) -> Bounded {
+    if let Some(xs) = xs {
+        xs.clone()?;
+    }
+    let start = start.clone()?;
+    Ok(Bounds {
+        may_fault: true,
+        ..Bounds::any(&type_of(&start.span))
+    })
+}
+
+/// The type of the values a span holds.
+fn type_of(span: &Span) -> Type {
+    match span {
+        Span::Truth { .. } => Type::Truth,
+        Span::Number(Numbers::Int, ..) => Type::Int,
+        Span::Number(Numbers::Real, ..) => Type::Real,
+        Span::Record(r, _) => Type::Record(r.clone()),
+        Span::Variant(e, _) => Type::Enum(e.clone()),
+        Span::Seq(t, ..) => Type::Seq(Box::new(t.clone())),
+        Span::Text(..) => Type::Encoded(Box::new(Type::Char)),
+        Span::Byte(_) => Type::Byte,
+        Span::Char => Type::Char,
+    }
 }
 
 /// γ: `value` lies in `span`.
@@ -2279,24 +2430,33 @@ impl Reading for Ranges {
         match (op, args) {
             (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
             (Op::All, [lo, hi, _]) => all(lo, hi, run),
-            (Op::Match(_), [scrutinee, ..]) => {
-                let mut arm = |k: usize, holds: &[Span]| {
-                    let holds: Vec<Bounded> = holds
-                        .iter()
-                        .map(|s| {
-                            Ok(Bounds {
-                                span: s.clone(),
-                                may_fault: false,
-                            })
-                        })
-                        .collect();
-                    run(1 + k, &holds)
-                };
-                arms(scrutinee, &mut arm)
-            }
+            // A loop by bounds: any value of what it carries, perhaps no
+            // value (a fault inside, or the budget).
+            (Op::Fold, [xs, start, _]) => loop_bounds(Some(xs), start),
+            (Op::Until, [start, _, _]) => loop_bounds(None, start),
+            (Op::Match(_), [scrutinee, ..]) => match_bounds(scrutinee, run),
             _ => Err(Fault::Stuck),
         }
     }
+}
+
+/// `match` by bounds, in a frame of its own: `bind` is on the path of
+/// every level.
+#[inline(never)]
+fn match_bounds(scrutinee: &Bounded, run: &mut dyn FnMut(usize, &[Bounded]) -> Bounded) -> Bounded {
+    let mut arm = |k: usize, holds: &[Span]| {
+        let holds: Vec<Bounded> = holds
+            .iter()
+            .map(|s| {
+                Ok(Bounds {
+                    span: s.clone(),
+                    may_fault: false,
+                })
+            })
+            .collect();
+        run(1 + k, &holds)
+    };
+    arms(scrutinee, &mut arm)
 }
 
 impl Ranges {

@@ -13,7 +13,7 @@
     { "include": "#keyword-clause" },
     { "include": "#keyword-control" },
     { "include": "#keyword-constant" },
-    { "include": "#queued" },
+    { "include": "#self-and-loops" },
     { "include": "#proof-op" },
     { "include": "#builtin" },
     { "include": "#type" },
@@ -90,10 +90,10 @@
       "name": "constant.language.boolean.mitra",
       "match": "\\b(true|false)\\b"
     },
-    "queued": {
+    "self-and-loops": {
       "patterns": [
         { "name": "variable.language.self.mitra", "match": "\\bself\\b" },
-        { "name": "keyword.control.loop.mitra", "match": "\\buntil\\b" }
+        { "name": "keyword.control.loop.mitra", "match": "\\buntil(?=\\s*\\()|(?<=\\.)fold(?=\\s*\\()" }
       ]
     },
     "proof-op": {

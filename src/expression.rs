@@ -79,7 +79,7 @@
 //! They recurse once per level of the expression, as do `substitute` and
 //! the derived `Clone`, `PartialEq` and drop, and an argument that binds
 //! names runs inside its reading's `bind`. So depth is bounded by the
-//! stack: on a thread of 2 MiB, 1,000 levels in a debug build and 2,000
+//! stack: on a thread of 2 MiB, 1,000 levels in a debug build and 1,800
 //! in a release build hold for all of them, for the standards here, where
 //! a simulation `all` counts as three. Time and memory are not bounded by
 //! the size of an expression: an operation may run an argument many

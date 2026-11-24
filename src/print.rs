@@ -818,6 +818,14 @@ pub fn type_(t: &Type) -> String {
         Type::Truth => "bool".to_string(),
         Type::Int => "integer".to_string(),
         Type::Real => "rational".to_string(),
+        Type::Record(r) if r.labelled() => {
+            let types: Vec<String> = r
+                .fields
+                .iter()
+                .map(|(n, t)| format!("{n}: {}", type_(t)))
+                .collect();
+            format!("({})", types.join(", "))
+        }
         Type::Record(r) if r.name.is_empty() => {
             let types: Vec<String> = r.fields.iter().map(|(_, t)| type_(t)).collect();
             format!("({})", types.join(", "))
@@ -898,6 +906,15 @@ pub fn value(v: &Value) -> String {
         Value::Truth(b) => b.to_string(),
         Value::Int(n) => n.to_string(),
         Value::Real(r) => real(r),
+        Value::Record(r, vs) if r.labelled() => {
+            let fields: Vec<String> = r
+                .fields
+                .iter()
+                .zip(vs)
+                .map(|((n, _), v)| format!("{n}: {}", value(v)))
+                .collect();
+            format!("({})", fields.join(", "))
+        }
         Value::Record(r, vs) if r.name.is_empty() => values(vs),
         Value::Record(r, vs) => {
             let fields: Vec<String> = r
@@ -1016,6 +1033,20 @@ fn makes_record(e: &Expression<Op>) -> bool {
     }
 }
 
+/// What a loop starts from, as written: `sum: 0` for one value, else
+/// the labelled tuple, its labels those the loop binds.
+fn carried(cx: &Cx, labels: &[String], start: &Expression<Op>) -> Option<String> {
+    match (labels, start) {
+        ([label], _) => Some(format!("{label}: {}", sim_in(cx, start))),
+        (_, Expression::Apply(Op::Make(r), _))
+            if r.labelled() && r.fields.iter().map(|(f, _)| f).eq(labels.iter()) =>
+        {
+            Some(sim_in(cx, start))
+        }
+        _ => None,
+    }
+}
+
 fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
     let (op, args) = match e {
         Expression::Name(n) => return (n.clone(), ATOM),
@@ -1044,6 +1075,40 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
                 ),
                 LET,
             ),
+            _ => bad,
+        },
+        // `xs.fold(sum: 0) { x -> sum + x }`, `xs.fold((sum: 0, n: 0)) { … }`.
+        (Op::Fold, 3, _) => match (&args[0].binds[..], &args[1].binds[..], &args[2].binds[..]) {
+            ([], [], [x, labels @ ..]) if !labels.is_empty() => {
+                let Some(start) = carried(cx, labels, body(1)) else {
+                    return bad;
+                };
+                (
+                    format!(
+                        "{}.fold({start}) {{ {x} -> {} }}",
+                        wrap(sim_at(cx, body(0)), POSTFIX),
+                        sim_in(cx, body(2))
+                    ),
+                    POSTFIX,
+                )
+            }
+            _ => bad,
+        },
+        // `until(r: g, r.stop) { next(r) }`.
+        (Op::Until, 3, _) => match (&args[0].binds[..], &args[1].binds[..], &args[2].binds[..]) {
+            ([], labels, again) if !labels.is_empty() && labels == again => {
+                let Some(start) = carried(cx, labels, body(0)) else {
+                    return bad;
+                };
+                (
+                    format!(
+                        "until({start}, {}) {{ {} }}",
+                        sim_in(cx, body(1)),
+                        sim_in(cx, body(2))
+                    ),
+                    ATOM,
+                )
+            }
             _ => bad,
         },
         (Op::All, 3, _) => match (&args[0].binds[..], &args[1].binds[..], &args[2].binds[..]) {
@@ -1170,6 +1235,15 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
         (Op::Make(r), n, _) if n == r.fields.len() => {
             let items: Vec<String> = (0..n).map(|i| sim_in(cx, body(i))).collect();
             match (r.name.is_empty(), n) {
+                (true, _) if r.labelled() => {
+                    let fields: Vec<String> = r
+                        .fields
+                        .iter()
+                        .zip(&items)
+                        .map(|((f, _), x)| format!("{f}: {x}"))
+                        .collect();
+                    (format!("({})", fields.join(", ")), ATOM)
+                }
                 (true, _) => (format!("({})", items.join(", ")), ATOM),
                 (false, _) => {
                     let fields: Vec<String> = r
