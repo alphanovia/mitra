@@ -1,4 +1,4 @@
-//! Explain (`docs/explain.md`): does the model explain the system,
+//! Explain (`docs/design/explain.md`): does the model explain the system,
 //! assuming the evidence, and if not, where? The second question.
 //!
 //! Explain reads a model `check` accepts and a ledger. It writes what

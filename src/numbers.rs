@@ -1,4 +1,4 @@
-//! Numbers (`docs/numbers.md`): how much the evidence says, read after
+//! Numbers (`docs/design/numbers.md`): how much the evidence says, read after
 //! judging, never in it. Subjective Logic (Jøsang, 2016) on counts.
 //!
 //! The takings of one proposition, each voice weighted, add up to `r`

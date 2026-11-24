@@ -1,4 +1,4 @@
-//! The simulation standard (`docs/core2.md`): truths, whole numbers,
+//! The simulation standard (`docs/design/core2.md`): truths, whole numbers,
 //! reals and records, read two ways. `Exact` runs the model on inputs
 //! and gives values. `Ranges` runs it on bounds of the inputs and gives
 //! bounds every exact value lies in (Cousot and Cousot, 1977).

@@ -1,4 +1,4 @@
-//! An address in the real system (`docs/frozen.md`).
+//! An address in the real system (`docs/design/frozen.md`).
 
 /// An address in the real system: a file, then what is in it, or an
 /// object, then a physical part of it. It is not right or wrong. What

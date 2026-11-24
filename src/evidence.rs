@@ -1,4 +1,4 @@
-//! Evidence (`docs/evidence.md`): what was measured and reviewed of the
+//! Evidence (`docs/design/evidence.md`): what was measured and reviewed of the
 //! real system, one set at one time, and whether it reads against a
 //! model. A measurement is always through a tie: of the real thing, not
 //! of the model (examples are the model's spec, simulation the model

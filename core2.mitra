@@ -160,7 +160,7 @@ subject catalogue {
     record Code at "src/catalogue.rs/Code" { suit: Suit, number: integer }
     record Entry at "src/catalogue.rs/Entry" { code: Code, title: [~char], retired: bool }
     ensure never_reused: "a code is given to one meaning, never reused: a code no longer given is kept, retired";
-    ensure documented: "every code has an entry and a page in docs/reference";
+    ensure documented: "every code has an entry and a page in docs/reference/codes";
 }
 
 subject check {

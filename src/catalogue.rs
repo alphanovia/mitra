@@ -1,7 +1,7 @@
 //! The catalogue: one list of codes for every layer, so that each thing
 //! Mitra reports is known by a code that never changes. A code is a
 //! suit, the layer that gives it, and a number in that suit: `M005`. Each
-//! code has a page, `docs/reference/M005.md`, with an example and the fix.
+//! code has a page, `docs/reference/codes/M005.md`, with an example and the fix.
 //!
 //! An `Error` says that the model is not well formed: it must be fixed
 //! before anything reads it. A `Finding` says what a reading found in a

@@ -1,4 +1,4 @@
-//! The core (`docs/core2.md`) on two tiny standards. Counting: numbers
+//! The core (`docs/design/core2.md`) on two tiny standards. Counting: numbers
 //! where `pred` of zero has no value, `if_zero` reads only the branch it
 //! takes, and two binders, `let` and a `let` of a pair. Picking: numbers
 //! where `choose(a, b)` is `a` or `b`, read as the set of what may come

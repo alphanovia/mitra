@@ -1,4 +1,4 @@
-//! Text to model (`docs/syntax.md`): what `src/print.rs` writes, read
+//! Text to model (`docs/design/syntax.md`): what `src/print.rs` writes, read
 //! back. `parse(print(m))` is `m`, but for the order of its ties, which
 //! the text writes in the block of what they tie.
 //!

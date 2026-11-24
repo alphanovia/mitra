@@ -1,4 +1,4 @@
-//! Tactics write proofs and judgement checks them (`docs/core2.md`).
+//! Tactics write proofs and judgement checks them (`docs/design/core2.md`).
 //! The measure of power, on `div(a, b)` with `a` and `b` in `0..10`:
 //! how many takings it needs to reach "div is correct everywhere".
 

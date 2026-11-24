@@ -1,4 +1,4 @@
-//! The reader (`docs/reader.md`): ties and tests from Rust code, the
+//! The reader (`docs/design/reader.md`): ties and tests from Rust code, the
 //! results of `cargo test`, a store written by hand; and every piece it
 //! cannot use is a finding.
 

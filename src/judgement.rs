@@ -1,4 +1,4 @@
-//! The judgement standard (`docs/core2.md`): what is believed of
+//! The judgement standard (`docs/design/core2.md`): what is believed of
 //! propositions, and the rules that pass it on. Judging runs the model on
 //! takings and gives states.
 //!

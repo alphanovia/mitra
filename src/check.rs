@@ -1,5 +1,5 @@
 //! Is the model well formed? `check` gives every error, each with its
-//! code (`src/catalogue.rs`, `docs/reference`) and the declaration to
+//! code (`src/catalogue.rs`, `docs/reference/codes`) and the declaration to
 //! fix. It runs nothing but each rule's proof, once, on what the proof
 //! reads taken true.
 

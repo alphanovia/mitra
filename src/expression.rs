@@ -1,4 +1,4 @@
-//! Typed expressions with no built-in type (`docs/core2.md`).
+//! Typed expressions with no built-in type (`docs/design/core2.md`).
 //!
 //! A *standard* is a language: its types, its operations, the names each
 //! argument of an operation binds, and the type each operation gives. A
@@ -73,7 +73,7 @@
 //! checks to `T₂` in `Γ`. On every reading, when `eval(r, values, e₁) ==
 //! Ok(v)`, `eval(r, values + x = v, e₂)` is `eval(r, values,
 //! substitute(e₂, x, e₁))`. Whether a standard's `let` gives what writing
-//! out its value gives is up to the standard (`docs/core2.md`, S6).
+//! out its value gives is up to the standard (`docs/design/core2.md`, S6).
 //!
 //! `check` and `eval` never panic, on any expression and any values.
 //! They recurse once per level of the expression, as do `substitute` and

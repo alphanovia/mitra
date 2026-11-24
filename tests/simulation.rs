@@ -1,4 +1,4 @@
-//! The simulation standard (`docs/core2.md`): S1 to S5 on random
+//! The simulation standard (`docs/design/core2.md`): S1 to S5 on random
 //! expressions, and the faults found in foundation2's reading, each as a
 //! case.
 

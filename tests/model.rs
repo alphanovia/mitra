@@ -1,4 +1,4 @@
-//! The model on the fall (`docs/model.md`). The stone, in the system,
+//! The model on the fall (`docs/design/model.md`). The stone, in the system,
 //! falls; the sun, outside it, gives light. The model is checked, read
 //! for its levels, propositions and leaves, judged on takings, and its claims
 //! run in simulation, all on `expression` as it is.

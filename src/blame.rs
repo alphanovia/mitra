@@ -1,4 +1,4 @@
-//! Blame (`docs/blame.md`): which evidence is wrong, given the model
+//! Blame (`docs/design/blame.md`): which evidence is wrong, given the model
 //! explains the system? The third question.
 //!
 //! Where explain finds a proposition both true and false, the takings of

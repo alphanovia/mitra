@@ -1,4 +1,4 @@
-//! Tactics: functions that write proofs (`docs/core2.md`). A tactic is
+//! Tactics: functions that write proofs (`docs/design/core2.md`). A tactic is
 //! trusted with nothing: what it writes is a proof like any other, and
 //! judgement checks it, as Lean's kernel checks what its tactics write.
 //! A checked proof is a taking by the checker, whatever wrote it.

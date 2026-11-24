@@ -1,6 +1,6 @@
 //! The catalogue (`src/catalogue.rs`): every code listed once, and
 //! numbered in its suit with no gap, so that none is taken out. Each has
-//! its page in `docs/reference`, which names it as listed, with an example
+//! its page in `docs/reference/codes`, which names it as listed, with an example
 //! and the fix, and every page there is of a listed code.
 
 use mitra_core::catalogue::{entry_of, Code, Error, Finding, Suit, CATALOGUE, M002, M005};
@@ -35,7 +35,7 @@ fn every_code_is_listed_once_and_kept() {
 
 #[test]
 fn every_code_is_documented() {
-    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/docs/reference");
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/docs/reference/codes");
     for entry in CATALOGUE {
         let file = format!("{dir}/{}.md", entry.code);
         let page = std::fs::read_to_string(&file).unwrap_or_else(|_| panic!("no page {file}"));

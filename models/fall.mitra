@@ -1,4 +1,4 @@
-// The fall (docs/model.md): the stone, in the system, falls from a
+// The fall (docs/design/model.md): the stone, in the system, falls from a
 // tower; the sun, outside it, gives light. The same model as the one
 // tests/model.rs builds by hand.
 

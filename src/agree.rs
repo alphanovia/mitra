@@ -1,4 +1,4 @@
-//! Agree (`docs/agree.md`): is the model sound on itself? With no
+//! Agree (`docs/design/agree.md`): is the model sound on itself? With no
 //! evidence, it compares what the model says twice: each function's
 //! body with its claims and its examples, its examples with its claims
 //! and with each other, its claims together, each contract's claim read

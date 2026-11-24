@@ -1,4 +1,4 @@
-//! What comes from outside the model (`docs/reader.md`): ties and tests
+//! What comes from outside the model (`docs/design/reader.md`): ties and tests
 //! read from Rust code, the results of `cargo test`, and a store of what
 //! people measured and reviewed, written by hand. Together, the ledger.
 //!
@@ -525,7 +525,7 @@ fn measured(
 // ---------------------------------------------------------------- the store
 
 /// A store of what people measured and reviewed, written by hand
-/// (`docs/reader.md`):
+/// (`docs/design/reader.md`):
 ///
 /// ```text
 /// measure calc::div (6, 2) -> 3 by "human:ana";

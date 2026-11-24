@@ -1,4 +1,4 @@
-//! Model to text (`docs/syntax.md`): what `src/parse.rs` reads.
+//! Model to text (`docs/design/syntax.md`): what `src/parse.rs` reads.
 //!
 //! One way to write each model: four spaces a level, a part's requires,
 //! then records, functions and ensures, each tie in the block of what it

@@ -1,4 +1,4 @@
-//! The model (`docs/model.md`): what you write about a system, as data.
+//! The model (`docs/design/model.md`): what you write about a system, as data.
 //!
 //! A model is parts, contracts, examples of the whole and ties. A part is
 //! in the system (a subject) or outside it (an environment). It has

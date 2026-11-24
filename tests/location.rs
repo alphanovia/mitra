@@ -1,4 +1,4 @@
-//! Location (`docs/frozen.md`): within is a path prefix.
+//! Location (`docs/design/frozen.md`): within is a path prefix.
 
 use mitra_core::location::{within, Location};
 

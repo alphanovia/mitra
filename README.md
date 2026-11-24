@@ -11,7 +11,7 @@ The old `main` stays frozen as it is.
 
 ## Frozen
 
-Each item is in [docs/frozen.md](docs/frozen.md).
+Each item is in [docs/design/frozen.md](docs/design/frozen.md).
 
 | Item | Purpose | Code |
 |---|---|---|

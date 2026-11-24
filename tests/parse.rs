@@ -1,4 +1,4 @@
-//! The text of a model (`docs/syntax.md`): `parse` reads what `print`
+//! The text of a model (`docs/design/syntax.md`): `parse` reads what `print`
 //! writes. The fall and div of `models/` parse, check, and come back the
 //! same; every form of the language comes back the same; random
 //! expressions come back the same; errors say where, as rustc does.

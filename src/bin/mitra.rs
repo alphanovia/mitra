@@ -1,4 +1,4 @@
-//! `mitra`: one command per question (`docs/cli.md`).
+//! `mitra`: one command per question (`docs/design/cli.md`).
 //!
 //! - `mitra check MODEL [--points N]`: is the model sound on itself,
 //!   and if not, where? Its errors (`check`), then what agree finds,

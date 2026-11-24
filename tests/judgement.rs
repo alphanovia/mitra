@@ -1,4 +1,4 @@
-//! The judgement standard (`docs/core2.md`): S2 to S4, J1 (every rule
+//! The judgement standard (`docs/design/core2.md`): S2 to S4, J1 (every rule
 //! preserves truth, checked on every valuation), J2 (states are read
 //! from rests) and J3 (rests are the smallest, and all) on random
 //! derivations, half of them over points, and the proposition walked
