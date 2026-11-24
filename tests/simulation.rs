@@ -1456,8 +1456,10 @@ fn all_stops_once_its_outcome_is_fixed() {
 
 #[test]
 fn a_thousand_levels() {
-    // S3: 1,000 levels in a debug build, 2,000 in a release build.
-    let levels = if cfg!(debug_assertions) { 1000 } else { 2000 };
+    // S3: 1,000 levels in a debug build, 1,800 in a release build: the
+    // promise is the depth budget, 1,000 (finding 31: 2,000 overflowed
+    // when unrelated code moved the layout; the user's choice, 11:16).
+    let levels = if cfg!(debug_assertions) { 1000 } else { 1800 };
     let deep = |start: E, shape: fn(usize, E) -> E, levels: usize, of: Type, gives: Value| {
         std::thread::Builder::new()
             .stack_size(2 << 20)
