@@ -62,7 +62,8 @@ subject Home {
 ```
 
 An outer part holds only parts, requires, ensures and end-to-end
-examples (M028); its own work is done by its inner parts. Its ensures
+examples (M028; their rows are in
+[chapter 3](3-functions.md#examples-in-a-world)); its own work is done by its inner parts. Its ensures
 rest on its inner parts' ensures, or its own requires (M029).
 
 A part's name is one in the whole model: `Home::Heater` is also just
