@@ -15,7 +15,8 @@ subject Semver {
     subject enum Failure { Usage, UnknownLevel, BadVersion }
 
     subject Version {
-        use std::core::{Option, Result};
+        use Option from "std";
+        use Result from "std";
         record { major: integer, minor: integer, patch: integer, pre: Option<[~char]> }
 
         // The bumped version: one more at the level, 0 below it, no pre-release.
@@ -83,7 +84,8 @@ subject Semver {
     }
 
     subject Cli {
-        use std::core::{Option, Result};
+        use Option from "std";
+        use Result from "std";
         use Version::parse;
 
         // The level named on the command line.

@@ -22,6 +22,7 @@ review parse::exhaustive holds by "test:a_match_gives_each_variant_one_arm";
 review parse::files holds by "test:a_part_is_read_from_the_file_that_declares_it";
 review parse::files holds by "test:a_folder_is_a_name_space";
 review parse::files holds by "test:a_part_is_read_from_the_project";
+review parse::files holds by "test:only_a_file_that_declares_a_used_part_is_read";
 review parse::exhaustive holds by "test:the_type_of_none_is_told_from_where_it_goes";
 review judgement::sound holds by "test:every_rule_preserves_truth";
 review judgement::taken_only holds by "test:a_leaf_is_its_own_takings";

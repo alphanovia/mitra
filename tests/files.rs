@@ -205,6 +205,51 @@ fn with_no_project_a_part_not_found_is_left_to_check() {
 }
 
 #[test]
+fn only_a_file_that_declares_a_used_part_is_read() {
+    // A draft that does not parse and a store sit in the project; they
+    // declare nothing the model uses, so they are not read.
+    let model =
+        "subject Calc { use Geometry::first; fn f(x: rational) -> y: rational { first(x) } }";
+    let geometry = "subject Geometry { fn first(x: rational) -> y: rational { x } }";
+    let draft = "subject Draft { use Geometry::first; fn g( }";
+    let store = "review 1 { by: \"human:ana\" }";
+    let m = project(
+        model,
+        &[
+            ("drafts/draft.mitra", draft),
+            ("evidence.mitra", store),
+            ("shapes/geometry.mitra", geometry),
+        ],
+    )
+    .unwrap();
+    assert_eq!(check(&m), vec![]);
+    assert_eq!(m.parts.len(), 2);
+    // An environment, and a data part, are found by their words too.
+    let model = "subject Calc { use Clock::now; use Tick; fn f(t: Tick) -> y: integer { now() } }";
+    let clock =
+        "environment Clock { fn now() -> t: integer; }\nenvironment record Tick { n: integer }";
+    let m = project(
+        model,
+        &[("drafts/draft.mitra", draft), ("io/clock.mitra", clock)],
+    )
+    .unwrap();
+    assert_eq!(check(&m), vec![]);
+    let model =
+        "subject Calc { use Geometry::first; fn f(x: rational) -> y: rational { first(x) } }";
+    // The draft is read, and its error given, once it declares the part.
+    let draft = "subject Geometry { fn g( }";
+    let e = project(
+        model,
+        &[
+            ("drafts/draft.mitra", draft),
+            ("shapes/geometry.mitra", geometry),
+        ],
+    )
+    .unwrap_err();
+    assert_eq!(e.error.code.to_string(), "P014");
+}
+
+#[test]
 fn files_that_use_each_other_are_read_once() {
     let a = "subject A { use B::g; fn f(x: integer) -> y: integer { g(x) } }";
     let b = "subject B { use A::f; fn g(x: integer) -> y: integer { x } fn h(x: integer) -> y: integer { f(x) } }";

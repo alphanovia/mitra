@@ -3779,12 +3779,31 @@ fn folder_of(path: &str) -> &str {
     path.rsplit_once('/').map_or("", |(f, _)| f)
 }
 
-/// The parts a text declares, nested ones too, by a first reading.
-fn declared_in(text: &str, settings: &Settings) -> Result<BTreeSet<String>> {
-    let (first, _) = Parser::new(lex(text)?, None)
-        .budget(settings.depth)
-        .model_reads()?;
-    Ok(first.parts.into_iter().map(|p| p.name).collect())
+/// The parts a text declares, nested ones too, by its words alone:
+/// `subject` or `environment`, then `record` or `enum` for a data
+/// part, then its name. Only a file that declares a part a `use` names
+/// is read whole, so a draft that does not parse, or a store, stays out
+/// of a model that does not use it.
+fn declared_in(text: &str) -> Result<BTreeSet<String>> {
+    let tokens = lex(text)?;
+    let word = |i: usize| match tokens.get(i) {
+        Some((Tok::Word(w), _)) => Some(w.as_str()),
+        _ => None,
+    };
+    let mut names = BTreeSet::new();
+    for i in 0..tokens.len() {
+        if !matches!(word(i), Some("subject" | "environment")) {
+            continue;
+        }
+        let at = match word(i + 1) {
+            Some("record" | "enum") => i + 2,
+            _ => i + 1,
+        };
+        if let Some(name) = word(at) {
+            names.insert(name.to_string());
+        }
+    }
+    Ok(names)
 }
 
 /// `load`, with the files of a project, or none (`parse`): then only
@@ -3847,7 +3866,7 @@ fn files(
                 .any(|f| ok(&f.name) && f.first.parts.iter().any(|p| p.name == part));
             let queued = todo
                 .iter()
-                .any(|(n, t)| ok(n) && declared_in(t, settings).is_ok_and(|d| d.contains(&part)));
+                .any(|(n, t)| ok(n) && declared_in(t).is_ok_and(|d| d.contains(&part)));
             if declared || queued {
                 continue;
             }
@@ -3864,8 +3883,7 @@ fn files(
                     continue;
                 }
                 if !declares.contains_key(path) {
-                    let d =
-                        declared_in(t, settings).map_err(|e| failed(&Some(path.clone()), t, e))?;
+                    let d = declared_in(t).map_err(|e| failed(&Some(path.clone()), t, e))?;
                     declares.insert(path.clone(), d);
                 }
                 if declares[path].contains(&part) {
