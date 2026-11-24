@@ -1,0 +1,161 @@
+// The personal assistant agent loop, an example model grown with Mitra.
+//
+// The personal assistant: a wearable captures sound and video and
+// sends it to a server, where a harness, a memory, skills and
+// inference answer. This first piece is the agent loop only: the
+// user's message goes to inference with the tools it may use; the
+// model answers, maybe asking for tool calls; the harness performs them
+// all and sends the results back; the final answer is one that asks for
+// no tool. A tool that fails is told to inference, to work around it;
+// an inference that fails ends the loop, and the user gets the failure.
+// An empty message is refused before inference. The model is stateless
+// and bounded: each turn the harness sends it the whole conversation,
+// encoded, and a request over the model's capacity is refused.
+//
+// Written as if the queue were built: text [~char] and ++ (TEXT), fold
+// and until (LOOPS), `by invariant` (PROOF FORMS). Parts as types are on
+// main (4f73b8b).
+
+// What it does, end to end: only parts, requires, ensures and examples.
+subject Assistant {
+
+    // The loop ends, a leaf in words: nothing in the model shows it.
+    require stops: "the model, in the end, asks for no tool, or inference fails";
+
+    ensure answers: "the user gets the final answer, or the failure"
+        from (Harness::run::ends, stops);
+
+    // End to end, from the user's message. The environment's values are
+    // fixed as inputs.
+    examples {
+        // Inference answers at once: the user gets the answer.
+        (User::message::prompt = "hello",
+         Harness::serve::llm = Llm { capacity: 100 }, Harness::serve::tools = [],
+         Llm::inference::a = Ok(Answer { text: "hi", calls: [] }))
+            -> Harness::serve::r = Ok(Answer { text: "hi", calls: [] }),
+        // Inference can't reach the model: the user gets the failure.
+        (User::message::prompt = "hello",
+         Harness::serve::llm = Llm { capacity: 100 }, Harness::serve::tools = [],
+         Llm::inference::a = Err(LlmFailure::Unreachable))
+            -> Harness::serve::r = Err(HarnessFailure::Llm(LlmFailure::Unreachable)),
+        // An empty message: refused, inference is never called.
+        (User::message::prompt = "",
+         Harness::serve::llm = Llm { capacity: 100 }, Harness::serve::tools = [])
+            -> Harness::serve::r = Err(HarnessFailure::EmptyPrompt),
+        // A model too small for the request: refused, by its claim `capped`.
+        // "hello" is 5 bytes, and the request holds it (Conversation::encode::holds_all).
+        (User::message::prompt = "hello",
+         Harness::serve::llm = Llm { capacity: 1 }, Harness::serve::tools = [])
+            -> Harness::serve::r = Err(HarnessFailure::Llm(LlmFailure::TooLong))
+    }
+
+    // The person using the assistant: what they send is not known.
+    environment User {
+        fn message() -> prompt: [~char];
+    }
+
+    // The model behind inference: stateless, how it answers is not known.
+    environment Llm {
+        use std::core::Result;
+        // Each model has its own capacity: the bytes one request may hold
+        // (len counts bytes; tokens later, through a tokenizer part).
+        record { capacity: integer }
+        fn inference(self, request: [~char], tools: [Tool]) -> a: Result<Answer, LlmFailure> where {
+            claim capped: request.len() <= self.capacity || a == Err(LlmFailure::TooLong);
+        }
+    }
+
+    // How each side fails. The harness's wraps the others; handling
+    // them (retry, guidance) comes later.
+    environment enum LlmFailure { TooLong, Unreachable }
+    subject enum ToolFailure { Failed }                                // [Q6]
+    subject enum HarnessFailure { EmptyPrompt, Llm(LlmFailure), Tool(ToolFailure) }
+
+    // A tool: a toolbox (which tools are loaded, the call policy) comes later.
+    subject Tool {
+        use std::core::Result;
+        // What inference is told of a tool (the memory side will prove on it).
+        record { name: [~char], description: [~char] }
+        fn call(self, input: [~char]) -> out: Result<[~char], ToolFailure>;
+    }
+
+    // The model's data, as it gives it.
+    environment record Call { tool: Tool, input: [~char] }
+    environment record Answer { text: [~char], calls: [Call] }
+
+    // The harness's data. A failed tool is told to the model in its outcome.
+    subject record Outcome { call: Call, output: Result<[~char], ToolFailure> }
+    subject enum Turn { User([~char]), Model(Answer), Results([Outcome]) }
+
+    // What is sent to the model each turn: all of it, the model keeps nothing.
+    subject Conversation {
+        record { turns: [Turn] }
+        // How it is written for the model (e.g. JSON): not known yet.
+        fn encode(self) -> request: [~char] where {
+            // The request holds every text of the conversation, so it is at
+            // least as long as they are together, in bytes.
+            claim holds_all: self.texts() <= request.len();
+        }
+
+        // The bytes of every text the conversation holds.
+        fn texts(self) -> n: integer {
+            self.turns.fold(n: 0) { t -> n + match t {
+                Turn::User(p) => p.len(),
+                Turn::Model(a) => a.text.len(),
+                Turn::Results(rs) => rs.fold(m: 0) { o -> m + match o.output { Ok(s) => s.len(), Err(_) => 0 } }
+            } }
+        } where {
+            examples { (Conversation { turns: [Turn::User("hello")] }) -> 5 }
+        }
+    }
+
+    subject Harness {
+        use std::core::Result;
+
+        // What the user sends goes to the loop.
+        fn serve(llm: Llm, tools: [Tool]) -> r: Result<Answer, HarnessFailure> {
+            run(llm, User::message(), tools)
+        }
+
+        // When the loop stops: a final answer, or a failure.
+        fn finished(got: Result<Answer, LlmFailure>) -> f: bool {
+            match got { Ok(a) => a.calls.len() == 0, Err(_) => true }
+        } where {
+            examples {
+                (Ok(Answer { text: "hi", calls: [] })) -> true,
+                (Err(LlmFailure::Unreachable)) -> true
+            }
+        }
+
+        // Every call, in order, each with what its tool gave or how it failed.
+        fn perform_all(calls: [Call]) -> rs: [Outcome] {
+            calls.fold(rs: []) { c -> rs ++ [Outcome { call: c, output: c.tool.call(c.input) }] }
+        } where {
+            claim each: rs.len() == calls.len() by invariant;
+            examples { ([]) -> [] }
+        }
+
+        // The agent loop: a final answer, or a failure.
+        fn run(llm: Llm, prompt: [~char], tools: [Tool]) -> r: Result<Answer, HarnessFailure> {
+            if prompt == "" { Err(HarnessFailure::EmptyPrompt) } else {
+                let start = Conversation { turns: [Turn::User(prompt)] } in
+                let last = until((c: start, got: llm.inference(start.encode(), tools)), finished(got)) {
+                    match got {
+                        Ok(a) => let next = Conversation {
+                                turns: c.turns ++ [Model(a), Results(perform_all(a.calls))]
+                            } in
+                            (next, llm.inference(next.encode(), tools)),
+                        // Never reached: an Err is finished. `match` needs the arm.
+                        Err(_) => (c, got)
+                    }
+                }.got in
+                match last { Ok(a) => Ok(a), Err(e) => Err(HarnessFailure::Llm(e)) }
+            }
+        } where {
+            // What until means: it stops at a final answer or a failure.
+            claim ends: match r { Ok(a) => a.calls.len() == 0, Err(_) => true };
+            // An empty message is refused.
+            claim refused: prompt != "" || r == Err(HarnessFailure::EmptyPrompt);
+        }
+    }
+}
