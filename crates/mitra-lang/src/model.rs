@@ -190,6 +190,12 @@ pub struct Implements {
 pub struct ModelExample {
     pub inputs: Vec<(Path, Value)>,
     pub outputs: Vec<(Path, Value)>,
+    /// What the environment gave, as BDD says it (finding 30): read
+    /// first, `_` any argument.
+    pub given: Given,
+    /// `when Harness::serve(…) then …`, as written, until the model is
+    /// read whole: then its inputs and its output (`settle_worlds`).
+    pub when: Option<(Path, Vec<Value>, Value)>,
     /// The part holding parts it is written in, if any: it is written
     /// there again.
     pub within: Option<String>,
@@ -307,8 +313,14 @@ pub struct Example {
     pub gives: simulation::Value,
     /// What the environment gave (finding 16): `given sun::light() ->
     /// 2.0 when (5.0) then 10.0`. None, for a row `(5.0) -> 10.0`.
-    pub given: judgement::World,
+    pub given: Given,
 }
+
+/// What the environment gave, as an example says it (findings 16, 30):
+/// each a function with no body by its path, what it was called with,
+/// an argument `None` standing for any value (`_`), and what it gave.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Given(pub Vec<(String, Vec<Option<Value>>, Value)>);
 
 /// A proposition written as an expression: true of its record, read as
 /// `self`, or of its function, read with what it takes and gives.
@@ -1147,16 +1159,66 @@ pub fn settle_worlds(model: &mut Model) {
                 .push(format!("{}::{}", part.name, f.name));
         }
     }
-    for part in &mut model.parts {
-        for f in &mut part.functions {
-            for e in &mut f.examples {
-                for (g, _, _) in &mut e.given.0 {
-                    if let Some([one]) = paths.get(g.as_str()).map(Vec::as_slice) {
-                        *g = one.clone();
+    // Each function of the model, by its whole path: what it takes and gives.
+    type Signature = (Vec<(String, Type)>, (String, Type));
+    let functions: BTreeMap<String, Signature> = model
+        .parts
+        .iter()
+        .flat_map(|p| {
+            p.functions.iter().map(move |f| {
+                (
+                    format!("{}::{}", p.name, f.name),
+                    (f.takes.clone(), f.gives.clone()),
+                )
+            })
+        })
+        .collect();
+    // Each row `given g(args) -> v`: `g` by its whole path, and its
+    // arguments and value read by the types `g` takes and gives, as an
+    // input of `g` would be (`Ok(..)` of its `Result`, a bare variant).
+    let settle = |given: &mut Given| {
+        for (g, args, v) in &mut given.0 {
+            if let Some([one]) = paths.get(g.as_str()).map(Vec::as_slice) {
+                *g = one.clone();
+            }
+            let Some((takes, out)) = functions.get(g.as_str()) else {
+                continue;
+            };
+            if takes.len() == args.len() {
+                for (a, (_, t)) in args.iter_mut().zip(takes) {
+                    if let Some(a) = a {
+                        *a = crate::parse::settle_value(a.clone(), t);
                     }
                 }
             }
+            *v = crate::parse::settle_value(v.clone(), &out.1);
         }
+    };
+    for part in &mut model.parts {
+        for f in &mut part.functions {
+            f.examples.iter_mut().for_each(|e| settle(&mut e.given));
+        }
+    }
+    // A row `when f(x) then y` of the model: the inputs of `f` and its
+    // output, as ports. One that names no function stays: check says so.
+    for e in &mut model.examples {
+        settle(&mut e.given);
+        let Some((f, args, gives)) = &e.when else {
+            continue;
+        };
+        let Some((takes, out)) = functions.get(&f.to_string()) else {
+            continue;
+        };
+        if takes.len() != args.len() {
+            continue;
+        }
+        for ((n, t), v) in takes.iter().zip(args) {
+            let v = crate::parse::settle_value(v.clone(), t);
+            e.inputs.push((f.then(n), v));
+        }
+        let v = crate::parse::settle_value(gives.clone(), &out.1);
+        e.outputs.push((f.then(&out.0), v));
+        e.when = None;
     }
 }
 

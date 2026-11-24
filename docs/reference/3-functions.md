@@ -66,7 +66,31 @@ the result. From
 `(6, 2) -> 3` is short for `when (6, 2) then 3`. After `given` comes a
 function with no body (by its path, or its name when only one function
 has it), what it was called with, and what it gave. Each such function
-is given at most once a row.
+is given at most once a row for each list of arguments.
+
+`_` is any argument, as in a Rust pattern. A row with written arguments
+wins where it fits, whatever the order:
+
+```mitra
+        examples {
+            given Sun::hour(_) -> 6 when (1, 3) then 0,
+            given Sun::hour(_) -> 6, Sun::hour(2) -> 7 when (1, 2) then 1
+        }
+```
+
+A row of the whole model, end to end, names the function `when` calls:
+
+```mitra
+examples {
+    given Sun::light() -> 2.0 when Stone::heat(5.0) then 10.0
+}
+```
+
+It is the same row as `(Stone::heat::h = 5.0) -> Stone::heat::e = 10.0`
+in the world given; `given` may stand in front of that form too. A
+`given` that is not what a function with no body takes and gives is an
+error (M022), a `when` naming no function of the model too (M021), and a
+`given` no run reads is a finding (A009).
 
 ## What `mitra check` does with them
 

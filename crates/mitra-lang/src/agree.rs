@@ -228,14 +228,14 @@ impl<'m> Reading<'m> {
 
     /// The model's functions, with what the environment gave in `world`
     /// read first (finding 16); as they are, in none.
-    fn in_world(&self, world: &crate::judgement::World) -> Exact {
+    fn in_world(&self, world: &crate::model::Given) -> Exact {
         if world.0.is_empty() {
             return self.exact.clone();
         }
         let mut calls = (*self.exact.calls).clone();
         for (g, args, v) in &world.0 {
             calls = calls
-                .given(g, args.clone(), v.clone())
+                .given_any(g, args.clone(), v.clone())
                 .unwrap_or_else(|same| same);
         }
         Exact {
@@ -1193,6 +1193,12 @@ impl<'m> Reading<'m> {
                 .given(&port.at.to_string(), args, v.clone())
                 .unwrap_or_else(|same| same);
         }
+        // What the environment gave, as BDD says it: `_` any argument.
+        for (g, args, v) in &example.given.0 {
+            library = library
+                .given_any(g, args.clone(), v.clone())
+                .unwrap_or_else(|same| same);
+        }
         let exact = Exact {
             calls: Arc::new(library),
         };
@@ -1251,6 +1257,15 @@ impl<'m> Reading<'m> {
         }
         let given: BTreeSet<&Path> = example.inputs.iter().map(|(p, _)| p).collect();
         let mut findings = Vec::new();
+        for (g, _, _) in &example.given.0 {
+            if !reached.contains(g) {
+                findings.push(Finding {
+                    code: A009,
+                    at: at.clone(),
+                    message: format!("`{g}` is given and no output reads it: no output calls it"),
+                });
+            }
+        }
         for (p, _) in &example.inputs {
             let Some(port) = port(index, p) else { continue };
             let f = port.at.to_string();

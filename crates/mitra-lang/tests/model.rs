@@ -1401,6 +1401,8 @@ fn number(n: i64) -> Value {
 fn example(inputs: &[(&str, i64)], outputs: &[(&str, i64)]) -> ModelExample {
     let side = |ports: &[(&str, i64)]| ports.iter().map(|(p, n)| (path(p), number(*n))).collect();
     ModelExample {
+        given: Default::default(),
+        when: None,
         within: None,
         inputs: side(inputs),
         outputs: side(outputs),
@@ -1777,6 +1779,8 @@ fn model_examples_name_inputs_and_outputs() {
     }
     let typed = changed(|m| {
         m.examples.push(ModelExample {
+            given: Default::default(),
+            when: None,
             within: None,
             inputs: vec![(path("stone::speed::h"), Value::Truth(true))],
             outputs: vec![(path("sun::light::w"), number(2))],

@@ -249,7 +249,19 @@ impl Writer<'_> {
             1 => outputs[0].clone(),
             _ => format!("({})", outputs.join(", ")),
         };
-        format!("({}) -> {outputs}", inputs.join(", "))
+        let given = match e.given.0.is_empty() {
+            true => String::new(),
+            false => format!("{} ", givens(&e.given).trim_start()),
+        };
+        match &e.when {
+            Some((f, args, gives)) => format!(
+                "{given}when {}{} then {}",
+                self.path_of(f),
+                values(args),
+                value(gives)
+            ),
+            None => format!("{given}({}) -> {outputs}", inputs.join(", ")),
+        }
     }
 
     fn local(&self, name: &str) -> bool {
@@ -505,7 +517,7 @@ impl Writer<'_> {
                 true => print_row(&e.takes, &e.gives),
                 false => format!(
                     "{} when {} then {}",
-                    world(&e.given).trim_start(),
+                    givens(&e.given).trim_start(),
                     values(&e.takes),
                     value(&e.gives)
                 ),
@@ -849,6 +861,25 @@ pub fn world(w: &judgement::World) -> String {
     let rows: Vec<String> =
         w.0.iter()
             .map(|(f, args, v)| format!("{f}{} -> {}", values(args), value(v)))
+            .collect();
+    format!(" given {}", rows.join(", "))
+}
+
+/// ` given llm::inference(_) -> "hello", …`: what the environment gave,
+/// as an example says it; nothing when it gave nothing.
+pub fn givens(w: &crate::model::Given) -> String {
+    if w.0.is_empty() {
+        return String::new();
+    }
+    let rows: Vec<String> =
+        w.0.iter()
+            .map(|(f, args, v)| {
+                let args: Vec<String> = args
+                    .iter()
+                    .map(|a| a.as_ref().map_or("_".to_string(), value))
+                    .collect();
+                format!("{f}({}) -> {}", args.join(", "), value(v))
+            })
             .collect();
     format!(" given {}", rows.join(", "))
 }

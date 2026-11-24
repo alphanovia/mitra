@@ -154,24 +154,8 @@ pub fn check(model: &Model) -> Vec<Error> {
                 // Each later one against the first at its point.
                 // Each row of its world, what a function with no body gave,
                 // as it takes and gives (finding 16).
-                for (g, args, v) in &example.given.0 {
-                    let fits = index.functions.get(g.as_str()).is_some_and(|g| {
-                        g.body.is_none()
-                            && args.len() == g.takes.len()
-                            && args
-                                .iter()
-                                .zip(&g.takes)
-                                .all(|(a, (_, t))| Exact::default().has_type(a, t))
-                            && Exact::default().has_type(v, &g.gives.1)
-                    });
-                    if !fits {
-                        let message = format!(
-                            "example {i}: `{g}{} -> {}` in `given` is not what a function with no body of the model gives, by its whole path, as it takes and gives",
-                            crate::print::values(args),
-                            crate::print::value(v)
-                        );
-                        errors.push(error(M022, &here, message));
-                    }
+                for message in given_wrong(&index, &example.given) {
+                    errors.push(error(M022, &here, format!("example {i}: {message}")));
                 }
                 // In one world: two worlds may give two values.
                 let first = function.examples[..i]
@@ -1499,6 +1483,19 @@ fn empty_ranges(f: &Function, here: &Path) -> Vec<Error> {
 fn model_example(index: &Index, i: usize, example: &crate::model::ModelExample) -> Vec<Error> {
     let at = Path::to(&["examples", &i.to_string()]);
     let mut errors = Vec::new();
+    // `when f(x)` left as written: `f` is no function taking as many.
+    if let Some((f, args, _)) = &example.when {
+        let message = format!(
+            "`when {f}{}`: `{f}` is no function of the model taking {} arguments",
+            crate::print::values(args),
+            args.len()
+        );
+        errors.push(error(M021, &at, message));
+        return errors;
+    }
+    for message in given_wrong(index, &example.given) {
+        errors.push(error(M022, &at, message));
+    }
     // The function of a port, and the type of the port; whether it is
     // what the function gives.
     let port = |p: &Path| -> Option<(&Function, Path, Type, bool)> {
@@ -1774,6 +1771,35 @@ fn bodiless(index: &Index, e: &Expression<simulation::Op>) -> Option<(String, St
         }
     }
     None
+}
+
+/// Each row of a `given` that is not what a function with no body of the
+/// model gives, by its whole path, as it takes and gives.
+fn given_wrong(index: &Index, given: &crate::model::Given) -> Vec<String> {
+    let mut wrong = Vec::new();
+    for (g, args, v) in &given.0 {
+        let fits = index.functions.get(g.as_str()).is_some_and(|g| {
+            g.body.is_none()
+                && args.len() == g.takes.len()
+                && args
+                    .iter()
+                    .zip(&g.takes)
+                    .all(|(a, (_, t))| a.as_ref().is_none_or(|a| Exact::default().has_type(a, t)))
+                && Exact::default().has_type(v, &g.gives.1)
+        });
+        if !fits {
+            let row = crate::print::givens(&crate::model::Given(vec![(
+                g.clone(),
+                args.clone(),
+                v.clone(),
+            )]));
+            wrong.push(format!(
+                "`{}` in `given` is not what a function with no body of the model gives, by its whole path, as it takes and gives",
+                row.trim_start().trim_start_matches("given ")
+            ));
+        }
+    }
+    wrong
 }
 
 /// M034: a range of a set whose ends leave no number between them,

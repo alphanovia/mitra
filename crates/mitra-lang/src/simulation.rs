@@ -773,6 +773,9 @@ pub struct Promises {
     pub claims: Vec<(String, Expression<Op>)>,
 }
 
+/// A row `given f(args) -> v`: each argument written, or `None` for `_`.
+type GivenRow = (Vec<Option<Value>>, Value);
+
 /// The functions calls can name, each by its path. Only `with` makes
 /// one with functions, and it checks them.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -781,7 +784,8 @@ pub struct Calls {
     /// What a reading is given, by path, at points: a value of the world
     /// a measurement or an example of the model saw, of a function with
     /// no body. Read before its rows, and never compared with them here.
-    given: BTreeMap<String, Vec<(Vec<Value>, Value)>>,
+    /// An argument `None` is any value (`_`, finding 30).
+    given: BTreeMap<String, Vec<GivenRow>>,
     /// How far a computation through calls may go.
     budget: Budget,
     memo: Box<Memo>,
@@ -1006,7 +1010,18 @@ impl Calls {
     /// value so, of its types (none of them a parameter): else `Err`,
     /// with the functions as they were. A body is what the function
     /// gives, and `Ranges` reads it, not what was given.
-    pub fn given(mut self, path: &str, at: Vec<Value>, gives: Value) -> Result<Calls, Calls> {
+    pub fn given(self, path: &str, at: Vec<Value>, gives: Value) -> Result<Calls, Calls> {
+        self.given_any(path, at.into_iter().map(Some).collect(), gives)
+    }
+    /// `given`, an argument `None` standing for any value (`_`): a call
+    /// at arguments some row gives with each written is read first, then
+    /// one with `_`, the latest given first.
+    pub fn given_any(
+        mut self,
+        path: &str,
+        at: Vec<Option<Value>>,
+        gives: Value,
+    ) -> Result<Calls, Calls> {
         let exact = Exact::default();
         let fits = self.callees.get(path).is_some_and(|c| {
             c.body.is_none()
@@ -1016,7 +1031,7 @@ impl Calls {
                 && at
                     .iter()
                     .zip(&c.takes)
-                    .all(|(v, (_, t))| exact.has_type(v, t))
+                    .all(|(v, (_, t))| v.as_ref().is_none_or(|v| exact.has_type(v, t)))
                 && exact.has_type(&gives, &c.gives)
         });
         if !fits {
@@ -1200,8 +1215,19 @@ impl Exact {
                 _ => gives,
             };
         }
-        let given = self.calls.given.get(f).into_iter().flatten();
-        if let Some((_, gives)) = given.into_iter().find(|(at, _)| at.as_slice() == args) {
+        let given: Vec<_> = self.calls.given.get(f).into_iter().flatten().collect();
+        let written = |at: &[Option<Value>]| {
+            at.len() == args.len() && at.iter().zip(args).all(|(a, v)| a.as_ref() == Some(v))
+        };
+        let any = |at: &[Option<Value>]| {
+            at.len() == args.len()
+                && at
+                    .iter()
+                    .zip(args)
+                    .all(|(a, v)| a.as_ref().is_none_or(|a| a == v))
+        };
+        let found = given.iter().find(|(at, _)| written(at));
+        if let Some((_, gives)) = found.or_else(|| given.iter().find(|(at, _)| any(at))) {
             return Ok(gives.clone());
         }
         match callee.rows.iter().find(|(at, _)| at.as_slice() == args) {

@@ -551,6 +551,8 @@ fn uses_calls_and_contracts() {
     assert_eq!(
         m.examples[0],
         ModelExample {
+            given: Default::default(),
+            when: None,
             within: None,
             inputs: vec![
                 (path("geo::later::d"), int(1)),

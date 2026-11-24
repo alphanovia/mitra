@@ -1274,8 +1274,34 @@ impl<'c> Parser<'c> {
     }
 
     /// `(sun::light::w = 850.0, stone::speed::h = 5.0) -> stone::speed::v2 = 98.1`;
-    /// several outputs in parentheses.
+    /// several outputs in parentheses. Or as BDD says it (finding 30):
+    /// `given User::message() -> "hi", Llm::inference(_, _) -> "hello"
+    /// when Harness::serve(…) then …`; `given` before the ports form too.
     fn model_example(&mut self) -> Result<ModelExample> {
+        let given = match self.is_word("given") {
+            true => self.givens()?,
+            false => crate::model::Given::default(),
+        };
+        if self.eat_word("when") {
+            let f = Path {
+                names: self.raw_path()?,
+            };
+            let args = self.values()?;
+            self.expect_word("then")?;
+            let gives = self.value()?;
+            return Ok(ModelExample {
+                inputs: vec![],
+                outputs: vec![],
+                given,
+                when: Some((f, args, gives)),
+                within: self.part.clone(),
+            });
+        }
+        let mut e = self.port_example()?;
+        e.given = given;
+        Ok(e)
+    }
+    fn port_example(&mut self) -> Result<ModelExample> {
         let port = |p: &mut Self| -> Result<(Path, Value)> {
             let path = p.path()?;
             p.expect("=")?;
@@ -1307,6 +1333,8 @@ impl<'c> Parser<'c> {
         Ok(ModelExample {
             inputs,
             outputs,
+            given: crate::model::Given::default(),
+            when: None,
             within: self.part.clone(),
         })
     }
@@ -2117,8 +2145,8 @@ impl<'c> Parser<'c> {
     /// `given` left out when the environment gave nothing.
     fn example_row(&mut self) -> Result<Example> {
         let given = match self.is_word("given") {
-            true => self.world()?,
-            false => judgement::World::default(),
+            true => self.givens()?,
+            false => crate::model::Given::default(),
         };
         if self.eat_word("when") {
             let takes = self.values()?;
@@ -2164,6 +2192,28 @@ impl<'c> Parser<'c> {
             self.bump();
         }
         Ok(judgement::World(rows))
+    }
+    /// `given llm::inference(_, "hi") -> "hello", …`: what the environment
+    /// gave, as an example says it, `_` any argument (finding 30).
+    fn givens(&mut self) -> Result<crate::model::Given> {
+        self.expect_word("given")?;
+        let mut rows = Vec::new();
+        loop {
+            let path = self.raw_path()?.join("::");
+            self.expect("(")?;
+            let args = self.list(")", |p| match p.eat_word("_") {
+                true => Ok(None),
+                false => p.value().map(Some),
+            })?;
+            self.expect("->")?;
+            let v = self.value()?;
+            rows.push((path, args, v));
+            if !(self.is(",") && self.comma_row()) {
+                break;
+            }
+            self.bump();
+        }
+        Ok(crate::model::Given(rows))
     }
     /// After a `,`, another row of a world: a path, then `(`.
     fn comma_row(&self) -> bool {

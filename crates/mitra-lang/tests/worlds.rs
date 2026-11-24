@@ -21,6 +21,7 @@ const MODEL: &str = "environment sun {
 }
 subject stone {
     use sun::light;
+    use sun::hour;
     fn heat(h: rational) -> e: rational at \"src/lib.rs/heat\" { h * light() } where {
         claim c: 0.0 <= h * h;
         rule r: heat::c |- all x in (h: 0.0..10.0): correct(heat, x);
@@ -334,5 +335,157 @@ fn an_example_in_a_world_is_no_row() {
     assert!(
         !shown.iter().any(|f| f.starts_with("finding[A002]")),
         "{shown:?}"
+    );
+}
+
+/// `_` for any arguments (finding 30): one row answers every call of the
+/// function, a row with written arguments wins where it fits.
+#[test]
+fn any_arguments() {
+    let with = |rows: &str| -> (Vec<String>, Vec<String>) {
+        let text = MODEL.replace(
+            "fn cool(h: rational) -> e: rational at \"src/lib.rs/cool\" { h }",
+            &format!("fn cool(h: rational) -> e: rational at \"src/lib.rs/cool\" {{ h }}\n    fn warm(h: integer) -> e: integer {{ h * hour(1) + hour(2) }} where {{\n        examples {{ {rows} }}\n    }}"),
+        );
+        let m = parse(&text).unwrap();
+        let errors = check(&m).iter().map(|e| e.to_string()).collect();
+        let agreed = mitra_lang::agree::agree(&m, &Default::default());
+        (errors, agreed.1.iter().map(|f| f.to_string()).collect())
+    };
+    // Any hour is 3: 5 * 3 + 3.
+    assert_eq!(
+        with("given sun::hour(_) -> 3 when (5) then 18"),
+        (vec![], vec![])
+    );
+    // A written row wins: hour(2) is 4, any other 3: 5 * 3 + 4.
+    assert_eq!(
+        with("given sun::hour(_) -> 3, sun::hour(2) -> 4 when (5) then 19"),
+        (vec![], vec![])
+    );
+    // And whatever the order it is written in.
+    assert_eq!(
+        with("given sun::hour(2) -> 4, sun::hour(_) -> 3 when (5) then 19"),
+        (vec![], vec![])
+    );
+    let (_, findings) = with("given sun::hour(_) -> 3 when (5) then 19");
+    assert!(
+        findings
+            .iter()
+            .any(|f| f.starts_with("finding[A002]: example 0")),
+        "{findings:?}"
+    );
+    // `_` still takes the count of arguments, and a written one its type.
+    let (errors, _) = with("given sun::hour(_, _) -> 3 when (5) then 18");
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.starts_with("error[M022]: example 0: `sun::hour(_, _) -> 3`")),
+        "{errors:?}"
+    );
+    let (errors, _) = with("given sun::hour(true) -> 3 when (5) then 18");
+    assert!(
+        errors.iter().any(|e| e.starts_with("error[M022]")),
+        "{errors:?}"
+    );
+    // Printed as written, read back.
+    let text = MODEL.replace("{ h }", "{ h }\n    fn warm(h: integer) -> e: integer { h * hour(1) } where {\n        examples { given sun::hour(_) -> 3 when (5) then 15 }\n    }");
+    let m = parse(&text).unwrap();
+    assert!(print(&m).contains("given sun::hour(_) -> 3 when (5) then 15"));
+    assert_eq!(parse(&print(&m)).unwrap(), m);
+}
+
+const WHOLE: &str = "environment sun {
+    fn light() -> w: rational;
+    fn hour(d: integer) -> h: integer;
+}
+subject stone {
+    use sun::light;
+    fn heat(h: rational) -> e: rational { h * light() + h * light() }
+}";
+
+fn whole(rows: &str) -> (Vec<String>, Vec<String>) {
+    let m = parse(&format!("{WHOLE}\nexamples {{ {rows} }}")).unwrap();
+    let errors = check(&m).iter().map(|e| e.to_string()).collect();
+    let agreed = mitra_lang::agree::agree(&m, &Default::default());
+    (errors, agreed.1.iter().map(|f| f.to_string()).collect())
+}
+
+/// A row of the model, end to end: `given` the environment, `when` a
+/// function of the model is called, `then` what it gives.
+#[test]
+fn rows_of_the_model() {
+    assert_eq!(
+        whole("given sun::light() -> 2.0 when stone::heat(5.0) then 20.0"),
+        (vec![], vec![])
+    );
+    // A bare name is the one function of that name.
+    assert_eq!(
+        whole("given light() -> 2.0 when stone::heat(5.0) then 20.0"),
+        (vec![], vec![])
+    );
+    let (_, findings) = whole("given sun::light() -> 2.0 when stone::heat(5.0) then 21.0");
+    assert!(
+        findings
+            .iter()
+            .any(|f| f.starts_with("finding[A006]: `stone::heat::e`")),
+        "{findings:?}"
+    );
+    // `given` in front of the ports form too.
+    assert_eq!(
+        whole("given sun::light() -> 2.0 (stone::heat::h = 5.0) -> stone::heat::e = 20.0"),
+        (vec![], vec![])
+    );
+    // A `when` that names no function of the model.
+    let (errors, _) = whole("when stone::boil(5.0) then 20.0");
+    assert!(
+        errors.iter().any(|e| e.starts_with("error[M021]")),
+        "{errors:?}"
+    );
+    // A `given` that is not what the environment gives.
+    let (errors, _) = whole("given sun::light() -> true when stone::heat(5.0) then 20.0");
+    assert!(
+        errors.iter().any(|e| e.starts_with("error[M022]")),
+        "{errors:?}"
+    );
+    // A given row no run reads.
+    let (_, findings) =
+        whole("given sun::light() -> 2.0, sun::hour(_) -> 3 when stone::heat(5.0) then 20.0");
+    assert!(
+        findings.iter().any(|f| f.starts_with("finding[A009]")),
+        "{findings:?}"
+    );
+    // Printed as written, read back.
+    let m = parse(&format!(
+        "{WHOLE}\nexamples {{ given sun::hour(_) -> 3, sun::light() -> 2.0 when stone::heat(5.0) then 20.0 }}"
+    ))
+    .unwrap();
+    let printed = print(&m);
+    assert_eq!(parse(&printed).unwrap(), m, "{printed}");
+}
+
+/// A given value is read by the type its function gives: a bare variant
+/// of its enum, as an input of that type would be.
+#[test]
+fn a_given_value_is_read_by_its_type() {
+    let m = parse(
+        "environment enum Weather { Sun, Rain }
+environment sky {
+    fn now() -> w: Weather;
+}
+subject walk {
+    use sky::now;
+    fn go(n: integer) -> g: bool { match now() { Weather::Sun => true, Weather::Rain => false } }
+}
+examples {
+    given sky::now() -> Rain when walk::go(1) then false,
+    given now() -> Sun when walk::go(2) then true
+}",
+    )
+    .unwrap();
+    assert_eq!(check(&m), vec![]);
+    let (_, findings) = mitra_lang::agree::agree(&m, &Default::default());
+    assert_eq!(
+        findings.iter().map(|f| f.to_string()).collect::<Vec<_>>(),
+        Vec::<String>::new()
     );
 }

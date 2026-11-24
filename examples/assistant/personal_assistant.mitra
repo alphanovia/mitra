@@ -34,41 +34,30 @@ subject Assistant {
     ensure needs_compaction: "a long enough loop is refused by any model: the conversation must be compacted"
         from (Harness::unbounded);
 
-    // End to end, from the user's message. What the environment and the
-    // opaque encoding give is fixed as inputs, at the point they are
-    // called: "hello" encoded as itself, sent to a model of capacity 100.
+    // End to end, from the user's message, as BDD rows: `given` what the
+    // environment and the opaque encoding answer (`_` for any arguments),
+    // `when` the harness serves, `then` what the user gets.
     examples {
         // Inference answers at once: the user gets the answer.
-        (User::message::prompt = "hello",
-         Harness::serve::llm = Llm { capacity: 100 }, Harness::serve::tools = [],
-         Conversation::encode::self = Conversation { turns: [Turn::User("hello")] },
-         Conversation::encode::request = "hello",
-         Llm::inference::self = Llm { capacity: 100 }, Llm::inference::request = "hello",
-         Llm::inference::tools = [],
-         Llm::inference::a = Ok(Answer { text: "hi", calls: [] }))
-            -> Harness::serve::r = Ok(Answer { text: "hi", calls: [] }),
+        given User::message() -> "hello", Conversation::encode(_) -> "hello",
+              Llm::inference(_, _, _) -> Ok(Answer { text: "hi", calls: [] })
+            when Harness::serve(Llm { capacity: 100 }, [])
+            then Ok(Answer { text: "hi", calls: [] }),
         // Inference can't reach the model: the user gets the failure.
-        (User::message::prompt = "hello",
-         Harness::serve::llm = Llm { capacity: 100 }, Harness::serve::tools = [],
-         Conversation::encode::self = Conversation { turns: [Turn::User("hello")] },
-         Conversation::encode::request = "hello",
-         Llm::inference::self = Llm { capacity: 100 }, Llm::inference::request = "hello",
-         Llm::inference::tools = [],
-         Llm::inference::a = Err(LlmFailure::Unreachable))
-            -> Harness::serve::r = Err(HarnessFailure::Llm(LlmFailure::Unreachable)),
+        given User::message() -> "hello", Conversation::encode(_) -> "hello",
+              Llm::inference(_, _, _) -> Err(LlmFailure::Unreachable)
+            when Harness::serve(Llm { capacity: 100 }, [])
+            then Err(HarnessFailure::Llm(LlmFailure::Unreachable)),
         // An empty message: refused, inference is never called.
-        (User::message::prompt = "",
-         Harness::serve::llm = Llm { capacity: 100 }, Harness::serve::tools = [])
-            -> Harness::serve::r = Err(HarnessFailure::EmptyPrompt),
+        given User::message() -> ""
+            when Harness::serve(Llm { capacity: 100 }, [])
+            then Err(HarnessFailure::EmptyPrompt),
         // A model too small for the request: refused, by its claim `capped`.
         // "hello" is 5 bytes, and the request holds it (Conversation::encode::holds_all).
-        (User::message::prompt = "hello",
-         Harness::serve::llm = Llm { capacity: 1 }, Harness::serve::tools = [],
-         Conversation::encode::self = Conversation { turns: [Turn::User("hello")] },
-         Conversation::encode::request = "hello",
-         Llm::inference::self = Llm { capacity: 1 }, Llm::inference::request = "hello",
-         Llm::inference::tools = [], Llm::inference::a = Err(LlmFailure::TooLong))
-            -> Harness::serve::r = Err(HarnessFailure::Llm(LlmFailure::TooLong))
+        given User::message() -> "hello", Conversation::encode(_) -> "hello",
+              Llm::inference(_, _, _) -> Err(LlmFailure::TooLong)
+            when Harness::serve(Llm { capacity: 1 }, [])
+            then Err(HarnessFailure::Llm(LlmFailure::TooLong))
     }
 
     // The person using the assistant: what they send is not known.

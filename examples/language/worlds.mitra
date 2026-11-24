@@ -5,14 +5,30 @@
 
 environment Sun {
     fn light() -> w: rational;
+    fn hour(day: integer) -> h: integer;
 }
 
 subject Stone {
     use Sun::light;
+    use Sun::hour;
     fn heat(h: rational) -> e: rational { h * light() } where {
         examples {
             given Sun::light() -> 2.0 when (5.0) then 10.0,
             given Sun::light() -> 3.0 when (5.0) then 15.0
         }
     }
+
+    // `_` is any argument: every day the sun rises at 6, except day 2.
+    fn dawns(a: integer, b: integer) -> d: integer { hour(b) - hour(a) } where {
+        examples {
+            given Sun::hour(_) -> 6 when (1, 3) then 0,
+            given Sun::hour(_) -> 6, Sun::hour(2) -> 7 when (1, 2) then 1
+        }
+    }
+}
+
+// A row of the whole model, end to end: given the environment, when a
+// function of the model is called, then what it gives.
+examples {
+    given Sun::light() -> 2.0 when Stone::heat(5.0) then 10.0
 }

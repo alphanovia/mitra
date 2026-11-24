@@ -433,3 +433,33 @@ fn the_budget_reaches_a_set_condition() {
     );
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// The personal assistant's end-to-end rows (finding 30): `given` what the
+/// environment gives with `_` arguments and `Ok(..)` of a `Result` from
+/// std, `when Harness::serve(..)`, `then` what the user gets. Each row is
+/// compared: a wrong `then` is a finding.
+#[test]
+fn the_assistant_rows_end_to_end() {
+    let path = "examples/assistant/personal_assistant.mitra";
+    let (code, out) = mitra(&["check", path]);
+    assert_eq!(code, 0, "{out}");
+    assert!(
+        out.contains("check: well formed; agree: 25 comparisons, 21 hold, 4 findings"),
+        "{out}"
+    );
+    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+    let text = std::fs::read_to_string(format!("{root}/{path}")).unwrap();
+    let wrong = text.replacen(
+        "then Ok(Answer { text: \"hi\"",
+        "then Ok(Answer { text: \"ho\"",
+        1,
+    );
+    assert_ne!(wrong, text);
+    let dir = std::env::temp_dir().join(format!("mitra-assistant-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("mitra.toml"), "").unwrap();
+    std::fs::write(dir.join("a.mitra"), wrong).unwrap();
+    let (_, out) = mitra(&["check", dir.join("a.mitra").to_str().unwrap()]);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert!(out.contains("finding[A006]: `Harness::serve::r`"), "{out}");
+}
