@@ -1,0 +1,16 @@
+$ cargo test > report.txt 2>&1    # stops at the first failing test binary
+$ mitra blame semver.mitra --code src --code tests --report report.txt --store evidence.mitra
+finding[R005]: the test `prints_bumped_version` is not in the report
+finding[R005]: the test `usage_prints_nothing_and_fails` is not in the report
+finding[R005]: the test `bad_version_prints_nothing_and_fails` is not in the report
+diagnosis 1 (doubt 0.11): drop measurements::0 (test:tests::bump_minor, did not see Version::bump::w = Version { major: 1, minor: 5, patch: 0, pre: None }); measurements::19 (test:tests::run_minor, did not see Cli::run::out = Ok("1.5.0"))
+diagnosis 2 (doubt 0.11): drop reviews::7 (agent:anthropic/claude-opus-5-5: Version::bump holds); Version::bump at src/lib.rs/Version/bump (only the model says it)
+diagnosis 3 (doubt 0.04): drop measurements::0 (test:tests::bump_minor, did not see Version::bump::w = Version { major: 1, minor: 5, patch: 0, pre: None }); reviews::8 (agent:anthropic/claude-opus-5-5: Version::parse holds); Version::parse at src/lib.rs/Version/parse (only the model says it)
+diagnosis 4 (doubt 0.04): drop measurements::0 (test:tests::bump_minor, did not see Version::bump::w = Version { major: 1, minor: 5, patch: 0, pre: None }); reviews::10 (agent:anthropic/claude-opus-5-5: Cli::level holds); Cli::level at src/lib.rs/level (only the model says it)
+diagnosis 5 (doubt 0.04): drop measurements::0 (test:tests::bump_minor, did not see Version::bump::w = Version { major: 1, minor: 5, patch: 0, pre: None }); reviews::11 (agent:anthropic/claude-opus-5-5: Cli::run holds); Cli::run at src/lib.rs/run (only the model says it)
+diagnosis 6 (doubt 0.00): drop measurements::0 (test:tests::bump_minor, did not see Version::bump::w = Version { major: 1, minor: 5, patch: 0, pre: None }); Cli::run at (["bump", "minor", "1.4.2"]), by its ties (a rule explain wrote, the checker took)
+diagnosis 7 (doubt 0.00): drop measurements::19 (test:tests::run_minor, did not see Cli::run::out = Ok("1.5.0")); Version::bump at (Version { major: 1, minor: 4, patch: 2, pre: None }, Minor), by its ties (a rule explain wrote, the checker took)
+diagnosis 8 (doubt 0.00): drop reviews::10 (agent:anthropic/claude-opus-5-5: Cli::level holds); Cli::level at src/lib.rs/level (only the model says it); Version::bump at (Version { major: 1, minor: 4, patch: 2, pre: None }, Minor), by its ties (a rule explain wrote, the checker took)
+diagnosis 9 (doubt 0.00): drop reviews::11 (agent:anthropic/claude-opus-5-5: Cli::run holds); Cli::run at src/lib.rs/run (only the model says it); Version::bump at (Version { major: 1, minor: 4, patch: 2, pre: None }, Minor), by its ties (a rule explain wrote, the checker took)
+diagnosis 10 (doubt 0.00): drop Cli::run at (["bump", "minor", "1.4.2"]), by its ties (a rule explain wrote, the checker took); Version::bump at (Version { major: 1, minor: 4, patch: 2, pre: None }, Minor), by its ties (a rule explain wrote, the checker took)
+blame: 34 conflicts, the first 10 diagnoses

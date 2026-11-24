@@ -1,0 +1,11 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -86,7 +86,7 @@
+     pub fn bump(&self, l: Level) -> Option<Version> {
+         Some(match l {
+             Level::Major => Version { major: self.major.checked_add(1)?, minor: 0, patch: 0, pre: None },
+-            Level::Minor => Version { minor: self.minor.checked_add(1)?, patch: 0, pre: None, ..self.clone() },
++            Level::Minor => Version { minor: self.minor.checked_add(1)?, pre: None, ..self.clone() },
+             Level::Patch => Version { patch: self.patch.checked_add(1)?, pre: None, ..self.clone() },
+         })
+     }

@@ -1,0 +1,10 @@
+[package]
+name = "semver"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "semver"
+path = "src/main.rs"
+
+[workspace]

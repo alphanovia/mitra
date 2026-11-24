@@ -1,0 +1,43 @@
+// Reviews by the agent that wrote src/ and tests/, of what it checked itself.
+//
+// bump::drops_pre, grows, one_step: read Version::bump (every arm sets pre to
+// None and adds one at its level, zeroing below), and the test
+// tests::bump_claims_hold checks all three over 241 versions x 3 levels.
+// The code's bump gives no version at u64::MAX (the run fails instead).
+review Version::bump::drops_pre holds by "agent:anthropic/claude-opus-5-5";
+review Version::bump::grows holds by "agent:anthropic/claude-opus-5-5";
+review Version::bump::one_step holds by "agent:anthropic/claude-opus-5-5";
+
+// parse::empty: an empty text splits into one part, not three: BadVersion.
+// Tested by tests::parse_empty and tests::parse_refuses_near_misses.
+review Version::parse::empty holds by "agent:anthropic/claude-opus-5-5";
+
+// render::round_trip: Version::new refuses an empty pre-release or one with
+// `+`, so every Version renders to a text parse reads back; checked over
+// 241 versions by tests::render_round_trips.
+review Version::render::round_trip holds by "agent:anthropic/claude-opus-5-5";
+
+// run::usage: run checks args.len() != 3 first; tests::run_usage_claim_holds
+// tries 0 to 4 words.
+review Cli::run::usage holds by "agent:anthropic/claude-opus-5-5";
+
+// args: src/main.rs skips the program name (std::env::args().skip(1)).
+review Semver::args holds by "agent:anthropic/claude-opus-5-5";
+
+// The ties: each tied Rust function was read against the model's body.
+review Version::bump holds by "agent:anthropic/claude-opus-5-5";
+review Version::parse holds by "agent:anthropic/claude-opus-5-5";
+review Version::render holds by "agent:anthropic/claude-opus-5-5";
+review Cli::level holds by "agent:anthropic/claude-opus-5-5";
+review Cli::run holds by "agent:anthropic/claude-opus-5-5";
+
+// The ensures, read against the code as a whole.
+// Version::bumps: bump_claims_hold checks the three claims it rests on, at once.
+review Version::bumps holds by "agent:anthropic/claude-opus-5-5";
+// Version::reads: render_round_trips and parse_refuses_near_misses.
+review Version::reads holds by "agent:anthropic/claude-opus-5-5";
+// Cli::answers: src/main.rs prints run's text and exits 0, or prints nothing
+// on stdout, a message on stderr, and exits 2, 3 or 4 by the Failure.
+review Cli::answers holds by "agent:anthropic/claude-opus-5-5";
+// Semver::bumps: tests/cli.rs runs the binary for a bump and two failures.
+review Semver::bumps holds by "agent:anthropic/claude-opus-5-5";

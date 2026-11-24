@@ -1,0 +1,129 @@
+// semver: a command line tool that bumps a version.
+//
+//   semver bump minor 1.4.2      prints 1.5.0
+//
+// A bump adds one to its level and sets the lower levels to 0. A
+// pre-release tag (`-rc.1`) is dropped. Bad input is an error, never a
+// guess.
+
+subject Semver {
+    require args: "the command line is given as texts, without the program name";
+    ensure bumps: "semver bump <major|minor|patch> <version> prints the bumped version, or fails with a Failure"
+        from (Cli::answers, Version::bumps, Version::reads);
+
+    subject enum Level { Major, Minor, Patch }
+    subject enum Failure { Usage, UnknownLevel, BadVersion }
+
+    subject Version {
+        use std::core::{Option, Result};
+        record { major: integer, minor: integer, patch: integer, pre: Option<[~char]> }
+
+        // The bumped version: one more at the level, 0 below it, no pre-release.
+        fn bump(self, l: Level) -> w: Version {
+            match l {
+                Major => Version { major: self.major + 1, minor: 0, patch: 0, pre: None },
+                Minor => Version { minor: self.minor + 1, patch: 0, pre: None, ..self },
+                Patch => Version { patch: self.patch + 1, pre: None, ..self }
+            }
+        } where {
+            claim drops_pre: w.pre == None;
+            claim grows: w.major > self.major
+                || (w.major == self.major && w.minor > self.minor)
+                || (w.major == self.major && w.minor == self.minor && w.patch > self.patch);
+            claim one_step: w.major - self.major + w.minor - self.minor <= 1 || w.minor == 0;
+            examples {
+                (Version { major: 1, minor: 4, patch: 2, pre: None }, Level::Minor)
+                    -> Version { major: 1, minor: 5, patch: 0, pre: None },
+                (Version { major: 1, minor: 4, patch: 2, pre: Some("rc.1") }, Level::Major)
+                    -> Version { major: 2, minor: 0, patch: 0, pre: None },
+                (Version { major: 0, minor: 9, patch: 9, pre: None }, Level::Patch)
+                    -> Version { major: 0, minor: 9, patch: 10, pre: None }
+            }
+        }
+
+        // Read `MAJOR.MINOR.PATCH` or `MAJOR.MINOR.PATCH-PRE`: three whole
+        // numbers in decimal, no sign, no leading zero (but `0` itself), and
+        // a pre-release that is not empty. No build metadata (`+build`).
+        fn parse(s: [~char]) -> r: Result<Version, Failure> where {
+            claim empty: s.len() > 0 || r == Err(Failure::BadVersion);
+            examples {
+                ("1.4.2") -> Ok(Version { major: 1, minor: 4, patch: 2, pre: None }),
+                ("1.4.9") -> Ok(Version { major: 1, minor: 4, patch: 9, pre: None }),
+                ("1.5.0") -> Ok(Version { major: 1, minor: 5, patch: 0, pre: None }),
+                ("2.0.0") -> Ok(Version { major: 2, minor: 0, patch: 0, pre: None }),
+                ("1.4.10") -> Ok(Version { major: 1, minor: 4, patch: 10, pre: None }),
+                ("0.0.0") -> Ok(Version { major: 0, minor: 0, patch: 0, pre: None }),
+                ("1.4.2-rc.1") -> Ok(Version { major: 1, minor: 4, patch: 2, pre: Some("rc.1") }),
+                ("1.2.3-rc.1") -> Ok(Version { major: 1, minor: 2, patch: 3, pre: Some("rc.1") }),
+                ("") -> Err(Failure::BadVersion),
+                ("1.4") -> Err(Failure::BadVersion),
+                ("1.4.2.0") -> Err(Failure::BadVersion),
+                ("01.4.2") -> Err(Failure::BadVersion),
+                ("1.x.2") -> Err(Failure::BadVersion),
+                ("-1.4.2") -> Err(Failure::BadVersion),
+                ("1.4.2-") -> Err(Failure::BadVersion),
+                ("1.4.2+build") -> Err(Failure::BadVersion)
+            }
+        }
+
+        // Write a version back as text.
+        fn render(self) -> s: [~char] where {
+            claim round_trip: Version::parse(s) == Ok(self);
+            examples {
+                (Version { major: 1, minor: 5, patch: 0, pre: None }) -> "1.5.0",
+                (Version { major: 2, minor: 0, patch: 0, pre: None }) -> "2.0.0",
+                (Version { major: 1, minor: 4, patch: 10, pre: None }) -> "1.4.10",
+                (Version { major: 1, minor: 2, patch: 3, pre: Some("rc.1") }) -> "1.2.3-rc.1"
+            }
+        }
+
+        ensure bumps: "a bump goes up by one step and drops the pre-release"
+            from (bump::grows, bump::one_step, bump::drops_pre);
+        ensure reads: "what is written reads back the same" from (render::round_trip, parse::empty);
+    }
+
+    subject Cli {
+        use std::core::{Option, Result};
+        use Version::parse;
+
+        // The level named on the command line.
+        fn level(t: [~char]) -> r: Result<Level, Failure> {
+            if t == "major" { Ok(Level::Major) }
+            else if t == "minor" { Ok(Level::Minor) }
+            else if t == "patch" { Ok(Level::Patch) }
+            else { Err(Failure::UnknownLevel) }
+        } where {
+            examples { ("minor") -> Ok(Level::Minor), ("Minor") -> Err(Failure::UnknownLevel) }
+        }
+
+        // What `semver` prints, or why it fails. Checked in this order:
+        // the shape of the command, the level, then the version.
+        fn run(args: [[~char]]) -> out: Result<[~char], Failure> {
+            if args.len() != 3 { Err(Failure::Usage) }
+            else if args[0] != "bump" { Err(Failure::Usage) }
+            else {
+                match level(args[1]) {
+                    Err(e) => Err(e),
+                    Ok(l) => match parse(args[2]) {
+                        Err(e) => Err(e),
+                        Ok(v) => Ok(v.bump(l).render())
+                    }
+                }
+            }
+        } where {
+            claim usage: args.len() == 3 || out == Err(Failure::Usage);
+            examples {
+                (["bump", "minor", "1.4.2"]) -> Ok("1.5.0"),
+                (["bump", "major", "1.4.2-rc.1"]) -> Ok("2.0.0"),
+                (["bump", "patch", "1.4.9"]) -> Ok("1.4.10"),
+                (["bump", "minor"]) -> Err(Failure::Usage),
+                (["grow", "minor", "1.4.2"]) -> Err(Failure::Usage),
+                (["bump", "huge", "1.4.2"]) -> Err(Failure::UnknownLevel),
+                (["bump", "huge", "1.4"]) -> Err(Failure::UnknownLevel),
+                (["bump", "minor", "1.4"]) -> Err(Failure::BadVersion)
+            }
+        }
+
+        ensure answers: "the command prints a version or names its failure" from (run::usage);
+    }
+}

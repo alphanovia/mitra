@@ -1,0 +1,109 @@
+$ mitra check semver.mitra
+finding[A007]: claim `usage`: unknown, not decided by bounds over all of what it reads, nor at 64 points
+ --> Cli::run
+
+finding[A007]: claim `grows`: unknown, not decided by bounds over all of what it reads, nor at 18 points
+ --> Version::bump
+
+finding[A007]: claim `one_step`: unknown, not decided by bounds over all of what it reads, nor at 18 points
+ --> Version::bump
+
+check: well formed; agree: 58 comparisons, 55 hold, 3 findings
+$ cargo test > report.txt 2>&1
+$ mitra explain semver.mitra --code src --code tests --report report.txt
+finding[R004]: the test `tests::bump_overflow_is_none` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `overflow_prints_nothing_and_fails` measures nothing the reader knows
+ --> cargo test:0
+
+evidence: 30 measurements, 0 reviews, 5 ties
+unsupported  Cli::answers 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 2 only the model says)
+unsupported  {Cli::run::usage} Cli::answers {Cli::answers} 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Cli::run::usage 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Semver::args 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Semver::bumps 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 10 only the model says)
+unsupported  {Cli::answers, Version::bumps, Version::reads} Semver::bumps {Semver::bumps} 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Version::bump::drops_pre 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Version::bump::grows 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Version::bump::one_step 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Version::bumps 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 4 only the model says)
+unsupported  {Version::bump::grows, Version::bump::one_step, Version::bump::drops_pre} Version::bumps {Version::bumps} 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Version::parse::empty 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Version::reads 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 3 only the model says)
+unsupported  {Version::render::round_trip, Version::parse::empty} Version::reads {Version::reads} 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Version::render::round_trip 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Version::bump at src/lib.rs/Version/bump 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Version::parse at src/lib.rs/Version/parse 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Version::render at src/lib.rs/Version/render 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Cli::level at src/lib.rs/level 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+unsupported  Cli::run at src/lib.rs/run 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+explained    correct(Version::bump, (Version { major: 1, minor: 4, patch: 2, pre: None }, Minor)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_minor)
+explained    Version::bump::drops_pre at (Version { major: 1, minor: 4, patch: 2, pre: None }, Minor) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_minor)
+explained    Version::bump::grows at (Version { major: 1, minor: 4, patch: 2, pre: None }, Minor) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_minor)
+explained    Version::bump::one_step at (Version { major: 1, minor: 4, patch: 2, pre: None }, Minor) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_minor)
+explained    correct(Version::bump, (Version { major: 1, minor: 4, patch: 2, pre: Some("rc.1") }, Major)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_major_drops_pre)
+explained    Version::bump::drops_pre at (Version { major: 1, minor: 4, patch: 2, pre: Some("rc.1") }, Major) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_major_drops_pre)
+explained    Version::bump::grows at (Version { major: 1, minor: 4, patch: 2, pre: Some("rc.1") }, Major) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_major_drops_pre)
+explained    Version::bump::one_step at (Version { major: 1, minor: 4, patch: 2, pre: Some("rc.1") }, Major) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_major_drops_pre)
+explained    correct(Version::bump, (Version { major: 0, minor: 9, patch: 9, pre: None }, Patch)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_patch)
+explained    Version::bump::drops_pre at (Version { major: 0, minor: 9, patch: 9, pre: None }, Patch) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_patch)
+explained    Version::bump::grows at (Version { major: 0, minor: 9, patch: 9, pre: None }, Patch) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_patch)
+explained    Version::bump::one_step at (Version { major: 0, minor: 9, patch: 9, pre: None }, Patch) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::bump_patch)
+explained    correct(Version::parse, ("1.4.2")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_plain)
+explained    Version::parse::empty at ("1.4.2") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_plain)
+explained    correct(Version::parse, ("1.4.10")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_two_digits)
+explained    Version::parse::empty at ("1.4.10") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_two_digits)
+explained    correct(Version::parse, ("0.0.0")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_zeros)
+explained    Version::parse::empty at ("0.0.0") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_zeros)
+explained    correct(Version::parse, ("1.4.2-rc.1")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_pre)
+explained    Version::parse::empty at ("1.4.2-rc.1") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_pre)
+explained    correct(Version::parse, ("")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_empty)
+explained    Version::parse::empty at ("") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_empty)
+explained    correct(Version::parse, ("1.4")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_two_parts)
+explained    Version::parse::empty at ("1.4") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_two_parts)
+explained    correct(Version::parse, ("1.4.2.0")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_four_parts)
+explained    Version::parse::empty at ("1.4.2.0") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_four_parts)
+explained    correct(Version::parse, ("01.4.2")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_leading_zero)
+explained    Version::parse::empty at ("01.4.2") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_leading_zero)
+explained    correct(Version::parse, ("1.x.2")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_letter)
+explained    Version::parse::empty at ("1.x.2") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_letter)
+explained    correct(Version::parse, ("-1.4.2")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_sign)
+explained    Version::parse::empty at ("-1.4.2") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_sign)
+explained    correct(Version::parse, ("1.4.2-")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_empty_pre)
+explained    Version::parse::empty at ("1.4.2-") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_empty_pre)
+explained    correct(Version::parse, ("1.4.2+build")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_build)
+explained    Version::parse::empty at ("1.4.2+build") 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::parse_build)
+explained    correct(Version::render, (Version { major: 1, minor: 5, patch: 0, pre: None })) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::render_plain)
+explained    Version::render::round_trip at (Version { major: 1, minor: 5, patch: 0, pre: None }) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::render_plain)
+explained    correct(Version::render, (Version { major: 1, minor: 2, patch: 3, pre: Some("rc.1") })) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::render_pre)
+explained    Version::render::round_trip at (Version { major: 1, minor: 2, patch: 3, pre: Some("rc.1") }) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::render_pre)
+explained    correct(Cli::level, ("minor")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::level_minor)
+explained    correct(Cli::level, ("Minor")) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::level_case_matters)
+explained    correct(Cli::run, (["bump", "minor", "1.4.2"])) 0.75 (b 0.50, d 0.00, u 0.50: 1 for, 0 against, test:tests::run_minor)
+explained    Cli::run::usage at (["bump", "minor", "1.4.2"]) 0.75 (b 0.50, d 0.00, u 0.50: 1 for, 0 against, test:tests::run_minor)
+explained    correct(Cli::run, (["bump", "major", "1.4.2-rc.1"])) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::run_major_pre)
+explained    Cli::run::usage at (["bump", "major", "1.4.2-rc.1"]) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::run_major_pre)
+explained    correct(Cli::run, (["bump", "patch", "1.4.9"])) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::run_patch)
+explained    Cli::run::usage at (["bump", "patch", "1.4.9"]) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::run_patch)
+explained    correct(Cli::run, (["bump", "minor"])) 0.75 (b 0.50, d 0.00, u 0.50: 1 for, 0 against, test:usage_prints_nothing_and_fails)
+explained    Cli::run::usage at (["bump", "minor"]) 0.75 (b 0.50, d 0.00, u 0.50: 1 for, 0 against, test:usage_prints_nothing_and_fails)
+explained    correct(Cli::run, (["grow", "minor", "1.4.2"])) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::run_not_bump)
+explained    Cli::run::usage at (["grow", "minor", "1.4.2"]) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::run_not_bump)
+explained    correct(Cli::run, (["bump", "huge", "1.4.2"])) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::run_unknown_level)
+explained    Cli::run::usage at (["bump", "huge", "1.4.2"]) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::run_unknown_level)
+explained    correct(Cli::run, (["bump", "huge", "1.4"])) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::run_level_before_version)
+explained    Cli::run::usage at (["bump", "huge", "1.4"]) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::run_level_before_version)
+explained    correct(Cli::run, (["bump", "minor", "1.4"])) 0.75 (b 0.50, d 0.00, u 0.50: 1 for, 0 against, test:tests::run_bad_version)
+explained    Cli::run::usage at (["bump", "minor", "1.4"]) 0.75 (b 0.50, d 0.00, u 0.50: 1 for, 0 against, test:tests::run_bad_version)
+
+explain: 78 propositions, 58 explained, 0 contradicted, 20 unsupported; 0 findings, 0 hints
+$ mitra blame semver.mitra --code src --code tests --report report.txt
+finding[R004]: the test `tests::bump_overflow_is_none` measures nothing the reader knows
+ --> cargo test:0
+
+finding[R004]: the test `overflow_prints_nothing_and_fails` measures nothing the reader knows
+ --> cargo test:0
+
+evidence: 30 measurements, 0 reviews, 5 ties
+blame: nothing conflicts, nothing to blame
