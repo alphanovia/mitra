@@ -5,3 +5,4 @@
 
 pub mod reader;
 pub mod run;
+pub mod shape;

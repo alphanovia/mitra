@@ -17,6 +17,7 @@ review simulation::exact_right holds by "agent:anthropic/opus-5.5/dogfood" seein
 review simulation::ranges_sound holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:exact_lies_in_ranges";
 review simulation::variants holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_variant_is_tried";
 review check::declared holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:declarations_no_value_fits_are_m027", "test:a_tree_is_an_enum_with_a_variant_that_does_not_hold_it";
+review parse::rest holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:no_whole_value_of_a_record_with_rest_is_written", "test:a_row_of_a_record_with_rest_is_read_in_part";
 review parse::exhaustive holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_match_gives_each_variant_one_arm", "test:the_type_of_none_is_told_from_where_it_goes";
 review parse::files holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_part_is_read_from_the_file_that_declares_it", "test:a_folder_is_a_name_space", "test:a_part_is_read_from_the_project", "test:only_a_file_that_declares_a_used_part_is_read";
 review settings::sections holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:each_section_sets_its_layer", "test:parse_depth_follows_the_budget_when_not_said";
@@ -97,6 +98,7 @@ review judgement::join holds by "agent:anthropic/opus-5.5/dogfood";
 review judgement::negate holds by "agent:anthropic/opus-5.5/dogfood";
 review Model::Model holds by "agent:anthropic/opus-5.5/dogfood";
 review Path::Path holds by "agent:anthropic/opus-5.5/dogfood";
+review Value::Value holds by "agent:anthropic/opus-5.5/dogfood";
 review Code::Code holds by "agent:anthropic/opus-5.5/dogfood";
 review Ledger::Ledger holds by "agent:anthropic/opus-5.5/dogfood";
 review Measurement::Measurement holds by "agent:anthropic/opus-5.5/dogfood";
@@ -156,6 +158,7 @@ review reader::stopped holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:
 review cargo::kinds holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_test_binary_is_named_and_read";
 review reader::every_test holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_unit_test_in_src_measures_by_its_crate_and_module", "test:a_review_sees_unit_and_doc_tests";
 review reader::unread holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_test_mitra_cannot_read_is_a_finding";
+review reader::shapes holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:shapes_that_agree_are_reviewed_as_holding", "test:a_field_on_one_side_is_r011_unless_the_record_has_rest", "test:a_type_that_holds_other_values_is_r012", "test:a_form_mitra_cannot_write_is_r013_and_no_review";
 review explain::asks holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_asks_for_each_link_no_voice_reviewed", "test:a_review_of_a_link_answers_its_ask";
 review cli::runs_tests holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_runs_cargo_test_when_no_report_is_given";
 review checks::prints_rows holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_row_is_the_call_as_written_and_what_it_gave", "test:check_eq_says_the_row_when_it_fails", "test:check_says_the_row_when_it_fails";

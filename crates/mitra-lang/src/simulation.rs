@@ -418,6 +418,18 @@ pub fn call_at(f: &str, args: &[Value]) -> (Expression<Op>, BTreeMap<String, Val
 /// known, `R::f`, when only fields not known could tell; false when a
 /// known field differs, whatever the others.
 pub fn same(a: &Value, b: &Value) -> Result<bool, String> {
+    alike(a, b, false)
+}
+
+/// `same`, of a value and what an example or a measurement says of it:
+/// the fields a record with `..` does not state are not compared, since
+/// the model says nothing of them (finding 19).
+pub fn matches(got: &Value, said: &Value) -> Result<bool, String> {
+    alike(got, said, true)
+}
+
+fn alike(a: &Value, b: &Value, rest_free: bool) -> Result<bool, String> {
+    let same = |x: &Value, y: &Value| alike(x, y, rest_free);
     let fields = |v: &Value| -> Option<(Record, Vec<Option<Value>>)> {
         match v {
             Value::Record(r, vs) => Some((r.clone(), vs.iter().cloned().map(Some).collect())),
@@ -458,6 +470,9 @@ pub fn same(a: &Value, b: &Value) -> Result<bool, String> {
     let mut unknown = None;
     for (i, (x, y)) in xs.iter().zip(&ys).enumerate() {
         let field = || format!("{}::{}", r.name, r.fields[i].0);
+        if rest_free && r.fields[i].0 == crate::model::REST {
+            continue;
+        }
         match (x, y) {
             (Some(x), Some(y)) => match same(x, y) {
                 Ok(true) => {}
@@ -1402,6 +1417,27 @@ impl Exact {
                     false => otherwise.clone(),
                 }
             }
+            // A record with `..` made from another known in part, `R { a:
+            // 1, ..r }`: its `..` not known, it is known in part too.
+            (Op::Make(r), fields)
+                if fields.len() == r.fields.len()
+                    && fields.iter().zip(&r.fields).any(|(f, _)| f.is_err())
+                    && fields.iter().zip(&r.fields).all(|(f, (n, _))| match f {
+                        Ok(_) => true,
+                        Err(Fault::Op(Undefined::Unknown(_))) => n == crate::model::REST,
+                        Err(_) => false,
+                    }) =>
+            {
+                let values: Vec<Option<Value>> = fields.iter().map(|f| f.clone().ok()).collect();
+                let typed = values
+                    .iter()
+                    .zip(&r.fields)
+                    .all(|(v, (_, t))| v.as_ref().is_none_or(|v| self.has_type(v, t)));
+                return match typed {
+                    true => Ok(Value::partial(r.clone(), values)),
+                    false => Err(Fault::Stuck),
+                };
+            }
             // Arms that bind nothing: the one of its variant was computed.
             (Op::Match(_), [scrutinee, arms @ ..]) => {
                 return match scrutinee {
@@ -1607,6 +1643,9 @@ pub enum Span {
     Byte(Option<u8>),
     /// A letter: no value of it is written yet, so any.
     Char,
+    /// The fields a record with `..` does not state: any, never equal
+    /// or different surely.
+    Rest,
 }
 
 /// A loop by bounds: any value of what it carries, perhaps none.
@@ -1634,6 +1673,7 @@ fn type_of(span: &Span) -> Type {
         Span::Text(..) => Type::Encoded(Box::new(Type::Char)),
         Span::Byte(_) => Type::Byte,
         Span::Char => Type::Char,
+        Span::Rest => crate::model::rest_type(),
     }
 }
 
@@ -1761,6 +1801,7 @@ impl Bounds {
                 // No value is of a parameter: its span is never read.
                 Type::Int => Span::Number(Numbers::Int, None, None),
                 Type::Real | Type::Param { .. } => Span::Number(Numbers::Real, None, None),
+                Type::Record(r) if r.name == crate::model::REST => Span::Rest,
                 Type::Record(r) => {
                     Span::Record(r.clone(), r.fields.iter().map(|(_, f)| span(f)).collect())
                 }
@@ -1900,6 +1941,7 @@ fn fits(span: &Span, of: &Type) -> bool {
                     .is_none_or(|k| lies_in(&Value::Int(BigInt::from(k.len())), length))
         }
         (Span::Byte(_), Type::Byte) | (Span::Char, Type::Char) => true,
+        (Span::Rest, Type::Record(r)) => r.name == crate::model::REST,
         (Span::Seq(t, length, each, first), Type::Seq(u)) => {
             t == &**u
                 && fits(length, &Type::Int)
@@ -2064,6 +2106,7 @@ fn hull(a: &Span, b: &Span) -> Option<Span> {
         }
         (Span::Byte(a), Span::Byte(b)) => Span::Byte(a.filter(|_| a == b)),
         (Span::Char, Span::Char) => Span::Char,
+        (Span::Rest, Span::Rest) => Span::Rest,
         // The first places both surely hold, each joined.
         (Span::Seq(t, al, ae, af), Span::Seq(u, bl, be, bf)) if t == u => Span::Seq(
             t.clone(),
@@ -2387,7 +2430,7 @@ fn compare(a: &Span, b: &Span) -> Option<(bool, bool)> {
             (Some(a), Some(b)) => (a == b, a != b),
             _ => (true, true),
         },
-        (Span::Char, Span::Char) => (true, true),
+        (Span::Char, Span::Char) | (Span::Rest, Span::Rest) => (true, true),
         // Equal only at one length both may have, each value equal; they
         // differ in length, or in a value, unless both surely hold none.
         // Two of one length, each place known: place by place.

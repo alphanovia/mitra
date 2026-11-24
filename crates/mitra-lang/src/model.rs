@@ -209,6 +209,29 @@ pub struct Record {
     pub rules: Vec<Rule>,
 }
 
+/// The last field of a record with `..`, `record { a: T, .. }`: the
+/// fields the model does not state. No value of it is written, so a
+/// value of the record is only ever known in part, `R { a: 1, .. }`.
+pub const REST: &str = "..";
+
+/// The type of `REST`: an opaque record no model can name.
+pub fn rest_type() -> Type {
+    Type::Record(crate::simulation::Record {
+        name: REST.to_string(),
+        args: vec![],
+        fields: vec![],
+    })
+}
+
+impl Record {
+    /// It says `..`: the code may hold fields the model does not state.
+    pub fn open(&self) -> bool {
+        self.fields
+            .as_ref()
+            .is_some_and(|f| f.last().is_some_and(|(n, _)| n == REST))
+    }
+}
+
 /// A value that is one of its variants, Rust's `enum`: `enum Option<T>
 /// { None, Some(T) }`. Each variant holds values of the types it lists,
 /// none for `None`. Its name is a type's, unique among records and

@@ -1,4 +1,5 @@
 /// A heater: a target temperature, and whether it heats.
+// mitra: implements Heater
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(test, derive(mitra::Observe))]
 pub struct Heater {

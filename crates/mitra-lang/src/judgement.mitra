@@ -5,9 +5,9 @@
 // A proposition is a tree: opaque.
 subject record Prop at "crates/mitra-lang/src/judgement.rs/Prop";
 
-// A voice takes a proposition as true or false, count times (`by`
-// is a keyword of the model: `voice` here).
-subject record Taking at "crates/mitra-lang/src/judgement.rs/Taking" { prop: Prop, value: bool, count: integer, voice: [~char] }
+// A voice takes a proposition as true or false, count times (`by`, the
+// voice, is a keyword of the model: it is in `..`).
+subject record Taking at "crates/mitra-lang/src/judgement.rs/Taking" { prop: Prop, value: bool, count: integer, .. }
 
 // Belnap's four states, as their two sides: told true, told false.
 subject record State at "crates/mitra-lang/src/judgement.rs/State" { t: bool, f: bool }

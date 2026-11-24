@@ -35,6 +35,29 @@ subject record Point { x: rational, y: rational }
 Built with `Point { x: 3.0, y: 4.0 }`, read with `p.x`, changed into a
 new value with `Point { x: 0.0, ..p }`.
 
+A record that ends with `..` has fields the model does not state: the
+code holds more than the model says (a cache, a file handle).
+
+```mitra
+subject Thermostat {
+    record { target: integer, on: bool, .. }
+
+    fn heats(self) -> b: bool { self.on } where {
+        examples { (Thermostat { target: 20, on: true, .. }) -> true }
+    }
+}
+```
+
+- No whole value of it is written: only one known in part, `Thermostat
+  { target: 20, on: true, .. }`, in an example, a row or the store. A
+  function that makes one has no body, or makes it from another,
+  `Thermostat { on: false, ..t }`, which keeps the rest.
+- Its stated fields are read as usual. `a == b` of two is not known:
+  the fields not stated may differ.
+- An example or a measurement is compared on the fields it states.
+- `..` comes last. It is Rust's struct pattern, `Point { x, .. }`, used
+  in a type.
+
 ## `let` and `if`
 
 ```mitra

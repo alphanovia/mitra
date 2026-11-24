@@ -522,7 +522,8 @@ fn said_at(here: &Path, claims: &[Claim], rules: &[Rule]) -> Vec<Path> {
 fn misnamed(at: &Path) -> Option<Error> {
     let name = at.names.last().map(String::as_str).unwrap_or_default();
     let message = format!("`{name}` is not a word");
-    (!word(name)).then(|| error(M001, at, message))
+    // `..`, the fields a record does not state, is no name.
+    (!word(name) && name != crate::model::REST).then(|| error(M001, at, message))
 }
 
 fn twice(at: &Path) -> Error {
@@ -634,6 +635,8 @@ fn known_in(index: &Index, t: &Type, params: &[(String, Bound)]) -> bool {
         // One that holds itself is M027's, not M003's.
         Type::Record(r) if holds_itself(t, &r.name, false) => true,
         Type::Enum(e) if holds_itself(t, &e.name, false) => true,
+        // The fields a record with `..` does not state.
+        Type::Record(r) if r.name == crate::model::REST => true,
         Type::Record(r) => {
             let declared = index.records.get(r.name.as_str());
             declared.is_some_and(|d| instance_of(&d.type_(), &d.params, &r.args, t, params))

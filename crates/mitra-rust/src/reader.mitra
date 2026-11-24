@@ -26,4 +26,6 @@ subject reader {
         from (report, kinds);
     ensure unread: "a test line the reader cannot read, or a binary whose `test result:` counts more tests than it read, is R010"
         from (kinds);
+    ensure shapes: "a record or enum tied to a Rust struct or enum is checked field by field and variant by variant: a field on one side only is R011 (none past `..`), a Rust type holding values the model's does not R012, a form with no Mitra form yet R013; each tie checked is reviewed by `machine:mitra/reader`"
+        from (ties_read);
 }

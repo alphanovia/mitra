@@ -443,7 +443,7 @@ pub fn rows(
             }
         };
         let text = format!("measure {item} {values} by \"test:{test}\";");
-        match read_store(file, &text, model, ties) {
+        match read_printed(file, &text, model, ties) {
             Ok((ledger, more)) => {
                 found.extend(ledger.measurements);
                 findings.extend(
@@ -710,6 +710,10 @@ pub fn ledger(
         findings.extend(reading.findings);
     }
     let mut ledger = Ledger::default();
+    // Each tied record or enum, against its struct or enum.
+    let (reviews, more) = crate::shape::shapes(model, &ties, files);
+    ledger.reviews.extend(reviews);
+    findings.extend(more);
     let runs = report.map(|(_, r)| read_cargo_test(r)).unwrap_or_default();
     if let Some((report_file, report)) = report {
         let (found, more) = measurements(model, &ties, &points, &runs);

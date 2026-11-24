@@ -82,6 +82,9 @@ example, and the fix. The letter says which step found it.
 - [R008](R008.md): a review seeing a test that did not pass
 - [R009](R009.md): a test binary that stopped before its result
 - [R010](R010.md): a test Mitra could not read in the report
+- [R011](R011.md): a field or variant on one side of a tie only
+- [R012](R012.md): a field whose Rust type holds values its model type does not
+- [R013](R013.md): a Rust form Mitra cannot write yet
 - [README](README.md): # Codes
 
 ## V (evidence): measurements and reviews

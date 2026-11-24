@@ -29,7 +29,7 @@ use crate::expression::{eval, Arg, Expression, Fault};
 use crate::judgement::{self, Definition, Judgement, Opinion, Point, Prop, Rests, Taking, Term};
 use crate::model::{self, Function, Index, Item, Kind, Model, Path};
 use crate::print;
-use crate::simulation::{call_at, same, Calls, Exact, Op, Undefined, Value};
+use crate::simulation::{call_at, matches, Calls, Exact, Op, Undefined, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -636,8 +636,8 @@ impl Given<'_, '_> {
             let mut correct: Option<bool> = None;
             let mut opaque = false;
             match &expected {
-                Ok(v) if same(v, y).is_err() => {
-                    let g = same(v, y).unwrap_err();
+                Ok(v) if matches(v, y).is_err() => {
+                    let g = matches(v, y).unwrap_err();
                     let message = format!(
                         "at {point}, {} is known in part: only `{g}`, not known, could tell it from what the model gives, {}",
                         shown(y),
@@ -645,8 +645,8 @@ impl Given<'_, '_> {
                     );
                     self.finding(X010, &at, message);
                 }
-                Ok(v) if m.seen => correct = Some(same(v, y) == Ok(true)),
-                Ok(v) if same(v, y) == Ok(true) => correct = Some(false),
+                Ok(v) if m.seen => correct = Some(matches(v, y) == Ok(true)),
+                Ok(v) if matches(v, y) == Ok(true) => correct = Some(false),
                 Ok(v) => {
                     let message = format!(
                         "the test expected {} at {point}, the model gives {}: the system did not give the first, and whether it gave the second is not known",

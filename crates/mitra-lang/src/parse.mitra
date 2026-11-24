@@ -18,4 +18,5 @@ subject parse {
     ensure parts: "a part given twice is one part, merged, and P012 when the kinds differ; `x.f(a)` calls the method `f` of x's part, P013 when it has none";
     ensure deep: "a text nested deeper than `parse::Settings::depth` levels is P011, at the place the parser stopped, never a crash";
     ensure exhaustive: "a match gives each variant of its enum one arm, or `_` for the rest (P006); a value whose type nothing around it tells is P009, never a guess";
+    ensure rest: "a record that ends with `..` has fields the model does not state: a whole value of it written is P004, one known in part is read; what the code printed of it is read known in its stated fields";
 }

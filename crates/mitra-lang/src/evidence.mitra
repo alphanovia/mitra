@@ -4,20 +4,19 @@
 
 subject record Ledger at "crates/mitra-lang/src/evidence.rs/Ledger" { measurements: [Measurement], reviews: [Review] }
 
+// `by` and `from` are keywords of the model: the fields so named in
+// Rust are in `..`, the fields the model does not state (raw names,
+// finding 12c, would let the model name them).
 subject record Measurement at "crates/mitra-lang/src/evidence.rs/Measurement" {
-    inputs: Ports, outputs: Ports, seen: bool, count: integer, voice: [~char]
+    inputs: [(Path, Value)], outputs: [(Path, Value)], seen: bool, count: integer, ..
 }
 
-// `from` and `seeing` are words of the model: the link reviewed is
-// `link` here, none when the piece itself is; the tests seen, `tests`.
 subject record Review at "crates/mitra-lang/src/evidence.rs/Review" {
-    prop: Path, link: [Path], holds: bool, voice: [~char], tests: [[~char]]
+    prop: Path, holds: bool, seeing: [[~char]], ..
 }
 
-// `by` is a keyword of the model: the field `by` is `voice` here.
-// A list of (path, value) pairs: opaque, as a value of the model is
-// not a record of it.
-subject record Ports;
+// A value of the model: opaque here.
+subject record Value at "crates/mitra-lang/src/simulation.rs/Value";
 
 subject evidence {
     use Path from "model";

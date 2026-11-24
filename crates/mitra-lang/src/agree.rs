@@ -22,8 +22,8 @@ use crate::expression::{eval, Arg, Expression, Fault};
 use crate::model::{calls, contract_claims, Function, Index, Model, ModelExample, Path};
 use crate::print;
 use crate::simulation::{
-    call_at, same, Bounds, Budget, Calls, Exact, Numbers, Op, Range, Ranges, Rational, Span, Type,
-    Undefined, Value,
+    call_at, matches, Bounds, Budget, Calls, Exact, Numbers, Op, Range, Ranges, Rational, Span,
+    Type, Undefined, Value,
 };
 use num_bigint::BigInt;
 use std::collections::{BTreeMap, BTreeSet};
@@ -204,6 +204,8 @@ impl<'m> Reading<'m> {
             .iter()
             .filter(|(_, r)| r.fields.is_none())
             .map(|(name, _)| *name)
+            // The fields a record with `..` does not state: no value.
+            .chain([crate::model::REST])
             .collect();
         Reading {
             exact: Exact {
@@ -315,7 +317,7 @@ impl<'m> Reading<'m> {
             // Each example: the body at its point.
             for (i, (e, row)) in f.examples.iter().zip(&rows).enumerate() {
                 let agreement = match eval(&self.exact, &row.iter().cloned().collect(), body) {
-                    Ok(v) => match same(&v, &e.gives) {
+                    Ok(v) => match matches(&v, &e.gives) {
                         Ok(true) => Agreement::Holds,
                         Ok(false) => Agreement::Fails {
                             at: row.clone(),
@@ -326,7 +328,7 @@ impl<'m> Reading<'m> {
                         },
                     },
                     Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
-                        why: format!("no value for `{g}` here"),
+                        why: format!("no value for {} here", unstated(&g)),
                     },
                     Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
                     Err(_) => Agreement::Fails {
@@ -346,7 +348,7 @@ impl<'m> Reading<'m> {
                 let agreement = match eval(&self.exact, &values, &c.holds) {
                     Ok(Value::Truth(true)) => Agreement::Holds,
                     Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
-                        why: format!("no value for `{g}` here"),
+                        why: format!("no value for {} here", unstated(&g)),
                     },
                     Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
                     // False, or no value: a claim with none does not hold.
@@ -408,7 +410,7 @@ impl<'m> Reading<'m> {
         }
         let budget = self.bounds_budget.borrow_mut().take();
         let why = match (unknown.first(), budget) {
-            (Some(g), _) => format!("no value for `{g}` at some of the {tried} points tried"),
+            (Some(g), _) => format!("no value for {} at some of the {tried} points tried", unstated(&g)),
             (None, Some(why)) if bounded => format!(
                 "not decided by bounds, which stopped at {why}, nor at {tried} points"
             ),
@@ -548,7 +550,7 @@ impl<'m> Reading<'m> {
         }
         let budget = self.bounds_budget.borrow_mut().take();
         let why = match (unknown.first(), budget) {
-            (Some(g), _) => format!("no value for `{g}` at some of the {tried} points tried"),
+            (Some(g), _) => format!("no value for {} at some of the {tried} points tried", unstated(&g)),
             (None, Some(why)) if bounded => format!(
                 "not false by bounds, which stopped at {why}, and none of {tried} points keeps them all"
             ),
@@ -752,6 +754,8 @@ impl<'m> Reading<'m> {
     /// Whether a value of `t` holds a value of an opaque record.
     fn opaque_in(&self, t: &Type) -> bool {
         match t {
+            // Bounds hold the fields a record with `..` does not state.
+            Type::Record(r) if r.name == crate::model::REST => false,
             Type::Record(r) => {
                 self.opaque.contains(r.name.as_str())
                     || r.fields.iter().any(|(_, t)| self.opaque_in(t))
@@ -1149,7 +1153,7 @@ impl<'m> Reading<'m> {
                 if e.takes != args {
                     continue;
                 }
-                let agreement = match same(&e.gives, v) {
+                let agreement = match matches(v, &e.gives) {
                     Ok(true) => Agreement::Holds,
                     Ok(false) => Agreement::Fails {
                         at: named(&port.function.takes, &args),
@@ -1182,7 +1186,7 @@ impl<'m> Reading<'m> {
             let point = named(&port.function.takes, &args);
             let (call, bound) = call_at(&port.at.to_string(), &args);
             let agreement = match eval(&exact, &bound, &call) {
-                Ok(v) => match same(&v, expected) {
+                Ok(v) => match matches(&v, expected) {
                     Ok(true) => Agreement::Holds,
                     Ok(false) => Agreement::Fails {
                         at: point,
@@ -1193,7 +1197,7 @@ impl<'m> Reading<'m> {
                     },
                 },
                 Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
-                    why: format!("no value for `{g}` here"),
+                    why: format!("no value for {} here", unstated(&g)),
                 },
                 Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
                 Err(_) => Agreement::Fails {
@@ -1617,4 +1621,14 @@ fn finding(a: &Agreed) -> Option<Finding> {
         at: a.at.clone(),
         message: format!("{message}{}", given(&a.given)),
     })
+}
+
+/// What has no value, for messages: `` `a::b` ``, or for a record's
+/// `..`, the fields its model does not state.
+fn unstated(g: &impl std::fmt::Display) -> String {
+    let g = g.to_string();
+    match g.strip_suffix(&format!("::{}", crate::model::REST)) {
+        Some(r) => format!("the fields of `{r}` the model does not state (`..`)"),
+        None => format!("`{g}`"),
+    }
 }

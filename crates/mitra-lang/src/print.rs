@@ -454,7 +454,10 @@ impl Writer<'_> {
         if let Some(fields) = &r.fields {
             let fields: Vec<String> = fields
                 .iter()
-                .map(|(n, t)| format!("{n}: {}", type_(t)))
+                .map(|(n, t)| match n == crate::model::REST {
+                    true => n.clone(),
+                    false => format!("{n}: {}", type_(t)),
+                })
                 .collect();
             match fields.is_empty() {
                 true => s.push_str(" {}"),
@@ -1272,11 +1275,24 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
                 }
                 (true, _) => (format!("({})", items.join(", ")), ATOM),
                 (false, _) => {
+                    // The fields a record with `..` does not state come
+                    // from another, `..base`, last.
                     let fields: Vec<String> = r
                         .fields
                         .iter()
+                        .enumerate()
                         .zip(&items)
-                        .map(|((f, _), x)| format!("{f}: {x}"))
+                        .map(
+                            |((i, (f, _)), x)| match (f == crate::model::REST, body(i)) {
+                                (true, Expression::Apply(Op::Field(g), base))
+                                    if g == crate::model::REST =>
+                                {
+                                    format!("..{}", wrap(sim_at(cx, &base[0].body), POSTFIX))
+                                }
+                                (true, _) => MALFORMED.to_string(),
+                                (false, _) => format!("{f}: {x}"),
+                            },
+                        )
                         .collect();
                     (format!("{} {{ {} }}", r.name, fields.join(", ")), ATOM)
                 }

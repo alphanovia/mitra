@@ -137,6 +137,7 @@
         { "name": "keyword.operator.turnstile.mitra", "match": "\\|-" },
         { "name": "keyword.operator.arrow.mitra", "match": "->|=>" },
         { "name": "punctuation.separator.namespace.mitra", "match": "::" },
+        { "name": "keyword.other.rest.mitra", "match": "\\.\\.(?=\\s*\\})" },
         { "name": "keyword.operator.range.mitra", "match": "\\.\\.=?" },
         { "name": "keyword.operator.concat.mitra", "match": "\\+\\+" },
         {

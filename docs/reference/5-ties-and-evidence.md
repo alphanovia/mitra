@@ -37,6 +37,40 @@ not code, the drop in a lab tower:
 A tie is itself a statement: "this code is that function". It can be
 wrong, and `blame` will say so when it probably is.
 
+## Records tied to structs
+
+A record tied to a Rust struct, or an enum to a Rust enum, is checked
+against it each time the code is read. From
+[examples/heater/src/lib.rs](../../examples/heater/src/lib.rs), tied to
+the part's `record { target: integer, on: bool }`:
+
+```rust
+// mitra: implements Heater
+pub struct Heater {
+    pub target: i64,
+    pub on: bool,
+}
+```
+
+- Fields match by name, in any order; private fields count. A field on
+  one side only is R011, unless the record ends with `..`: then the
+  struct may hold fields the model does not state.
+- Types are checked, never converted: every value of the Rust field
+  must be one of the model's type (R012). `i8` to `u128` and `BigInt`
+  fit `integer`; `u8` also `byte`; `String` and `&str` fit `[~char]`;
+  `Vec<T>` and `[T; N]` fit `[T]`; `Option` and `Result` std's; a
+  tuple a tuple; `Box`, `Rc`, `Arc` and `&` what they hold; a struct
+  tied to a record, that record.
+- Variants of an enum match by name, and what each holds by order and
+  type.
+- A form the model has none of yet is R013, and the tie is not checked:
+  a generic struct, a tuple struct, a variant with named fields, `f32`
+  or `f64`, a map or a set, a field named by a keyword of Mitra.
+
+The reader reviews each tie it checks, by the voice
+`machine:mitra/reader`: holding when the shapes agree, failing when
+they do not, so `blame` sees a wrong tie.
+
 ## Tests that measure
 
 A test says what it measures with a comment, a row as the model's

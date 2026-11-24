@@ -228,8 +228,32 @@ pub fn read_store_seeing(
     ties: &[Tie],
     runs: Option<&[TestRun]>,
 ) -> Result<(Ledger, Vec<ReaderFinding>), ParseError> {
+    read_with(file, source, model, ties, runs, false)
+}
+
+/// `read_store`, of what the code printed (`mitra: row`): a value of a
+/// record with `..` is printed whole, every field of the struct, and is
+/// read known in part, its fields the model states, the others its `..`.
+pub fn read_printed(
+    file: &str,
+    source: &str,
+    model: &Model,
+    ties: &[Tie],
+) -> Result<(Ledger, Vec<ReaderFinding>), ParseError> {
+    read_with(file, source, model, ties, None, true)
+}
+
+fn read_with(
+    file: &str,
+    source: &str,
+    model: &Model,
+    ties: &[Tie],
+    runs: Option<&[TestRun]>,
+    printed: bool,
+) -> Result<(Ledger, Vec<ReaderFinding>), ParseError> {
     let context = crate::parse::Context::of(model);
     let mut p = Parser::new(lex(source)?, Some(&context));
+    p.printed = printed;
     let (mut ledger, mut findings) = (Ledger::default(), vec![]);
     let items = items(model, ties);
     let index = crate::model::Index::of(model);

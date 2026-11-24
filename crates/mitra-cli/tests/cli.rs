@@ -269,7 +269,7 @@ fn the_dogfood_model_is_whole_and_checks() {
     ]);
     assert_eq!(code, 0, "{out}");
     assert!(
-        out.lines().any(|l| l.starts_with("evidence: 0 measurements,") && l.ends_with(" reviews, 47 ties")),
+        out.lines().any(|l| l.starts_with("evidence: 0 measurements,") && l.ends_with(" reviews, 48 ties")),
         "{out}"
     );
 }
@@ -353,7 +353,7 @@ fn rows_and_reviews_seeing_a_test() {
     assert!(out.contains("examples/heater: 3 tests, 3 passed"), "{out}");
     assert!(!out.contains("finding[R"), "{out}");
     assert!(
-        out.contains("evidence: 3 measurements, 2 reviews, 1 ties"),
+        out.contains("evidence: 3 measurements, 3 reviews, 2 ties"),
         "{out}"
     );
     assert!(out.contains("explained    correct(Heater::decide, (Heater { target: 20, on: false }, 18)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::heats_below_the_target)"), "{out}");
@@ -393,7 +393,7 @@ fn rows_and_reviews_seeing_a_test() {
     );
     assert!(out.contains("finding[R008]: the test `tests::decides_the_same_twice` failed: the review of `Heater::steady` by `human:ana` counts only while it passes"), "{out}");
     assert!(
-        out.contains("evidence: 3 measurements, 1 reviews, 1 ties"),
+        out.contains("evidence: 3 measurements, 2 reviews, 2 ties"),
         "{out}"
     );
     assert!(

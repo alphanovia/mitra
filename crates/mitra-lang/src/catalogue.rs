@@ -215,6 +215,9 @@ pub const R007: Code = reader(7);
 pub const R008: Code = reader(8);
 pub const R009: Code = reader(9);
 pub const R010: Code = reader(10);
+pub const R011: Code = reader(11);
+pub const R012: Code = reader(12);
+pub const R013: Code = reader(13);
 
 const fn entry(code: Code, title: &'static str) -> Entry {
     Entry {
@@ -398,6 +401,12 @@ pub const CATALOGUE: &[Entry] = &[
     entry(R008, "a review seeing a test that did not pass"),
     entry(R009, "a test binary that stopped before its result"),
     entry(R010, "a test Mitra could not read in the report"),
+    entry(R011, "a field or variant on one side of a tie only"),
+    entry(
+        R012,
+        "a field whose Rust type holds values its model type does not",
+    ),
+    entry(R013, "a Rust form Mitra cannot write yet"),
 ];
 
 /// The entry of `code`, `None` when the catalogue has none.

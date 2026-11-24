@@ -19,8 +19,8 @@ use crate::expression::{check as typed, Arg, Expression};
 use crate::judgement::{self, Prop, Set};
 use crate::location::Location;
 use crate::model::{
-    Claim, Contract, Ensure, Example, Function, Implements, Invariant, Kind, Law, Model,
-    ModelExample, Part, Path, Record, Require, Rule, Signature, Source, Term, Tie, Use,
+    rest_type, Claim, Contract, Ensure, Example, Function, Implements, Invariant, Kind, Law, Model,
+    ModelExample, Part, Path, Record, Require, Rule, Signature, Source, Term, Tie, Use, REST,
 };
 use crate::simulation::{self, Op, Rational, Simulation, Type, Value};
 use num_bigint::BigInt;
@@ -880,6 +880,9 @@ pub(crate) struct Parser<'c> {
     budget: usize,
     /// Examples of the model written in a part that holds parts.
     examples: Vec<ModelExample>,
+    /// Reading what the code printed (`mitra: row`): a record with `..`
+    /// is printed whole, and read known in part.
+    pub(crate) printed: bool,
 }
 
 impl<'c> Parser<'c> {
@@ -897,6 +900,7 @@ impl<'c> Parser<'c> {
             depth: 0,
             budget: Settings::default().depth,
             examples: vec![],
+            printed: false,
         }
     }
 
@@ -1581,11 +1585,26 @@ impl<'c> Parser<'c> {
             return self.expected("`{`, `;` or `where`");
         }
         if self.eat("{") {
-            record.fields = Some(self.list("}", |p| {
+            // `record { a: T, .. }`: it has fields the model does not
+            // state, held in a last field `..` of no value written.
+            let fields = self.list("}", |p| {
+                if p.is("..") {
+                    let at = p.pos();
+                    p.expect("..")?;
+                    if !p.is("}") {
+                        return Err(error(
+                            P003,
+                            at,
+                            "`..` comes last in a record: the fields the model does not state",
+                        ));
+                    }
+                    return Ok((REST.to_string(), rest_type()));
+                }
                 let n = p.name()?;
                 p.expect(":")?;
                 Ok((n, p.type_()?))
-            })?);
+            })?;
+            record.fields = Some(fields);
         }
         if self.is_word("where") || record.fields.is_none() {
             let self_type = match self.context.and_then(|c| c.records.get(&name)) {
@@ -2206,6 +2225,19 @@ impl<'c> Parser<'c> {
                         break;
                     }
                 }
+                // Printed by the code: a record with `..` is known in the
+                // fields the model states; the struct's others are its `..`.
+                let open = self
+                    .context
+                    .and_then(|c| c.declared.get(&name).cloned().flatten())
+                    .filter(|d| d.last().is_some_and(|n| n == REST));
+                if let (true, Some(declared)) = (self.printed && !rest, open) {
+                    let stated = fields
+                        .into_iter()
+                        .filter(|(n, _)| declared.contains(n))
+                        .collect();
+                    return self.known_in_part(&name, stated, at);
+                }
                 if rest {
                     return self.known_in_part(&name, fields, at);
                 }
@@ -2308,6 +2340,14 @@ impl<'c> Parser<'c> {
         if let Some(Some(declared)) = context.declared.get(name) {
             let written: BTreeSet<&String> = fields.iter().map(|(n, _)| n).collect();
             let wanted: BTreeSet<&String> = declared.iter().collect();
+            if declared.last().is_some_and(|n| n == REST) && !written.contains(&REST.to_string()) {
+                let shown: Vec<String> = fields.iter().map(|(n, _)| format!("{n}: …")).collect();
+                let message = format!(
+                    "`{name}` has `..`, fields the model does not state, so no whole value of it is written: write one known in part, `{name} {{ {}, .. }}`, in an example or a row; a function that makes one has no body",
+                    shown.join(", ")
+                );
+                return Err(error(P004, at, message));
+            }
             if written == wanted && written.len() == fields.len() {
                 let mut by_name: BTreeMap<String, X> = fields.into_iter().collect();
                 let xs: Vec<X> = declared.iter().filter_map(|n| by_name.remove(n)).collect();
