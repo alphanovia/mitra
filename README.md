@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/mitra-logo.png" alt="Mitra: a yellow M with a green check mark" width="480"></p>
+
 # Mitra
 
 **Model as code, trust by evidence.**
