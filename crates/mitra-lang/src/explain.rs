@@ -10,9 +10,10 @@
 //! that the function is correct there, and that each of its claims
 //! holds there, when the model says what to expect: its body or an
 //! example gives a value, or its claims decide. Each of those it links
-//! to the model by a rule it writes, which the checker takes: the ties
-//! of what the measurement went through, with a claim for a claim's
-//! instance, give it.
+//! to the model by a rule it writes, which the checker takes: what the
+//! run gave there (taken by the test) and the ties of what the
+//! measurement went through, with a claim for a claim's instance, give
+//! it.
 //!
 //! Then judgement applies every rule it can, forward (ponens) and back
 //! (tollens), and alls and anys by their points, until nothing changes.
@@ -935,6 +936,15 @@ impl Given<'_, '_> {
             };
             through.insert(path.clone());
             let ties = self.ties(&through);
+            // What the run gave there, as the test saw it: a premise of
+            // each rule written from it, so that what the rule gives
+            // weighs what the test weighs, and the checker's weight
+            // stays its own (finding 18).
+            let ran = Prop::Named(format!("{at} gave {path} at {point}"));
+            if correct.is_some() || !held.is_empty() {
+                self.take(ran.clone(), true, m.count, &m.by, Source::Measurement(i));
+            }
+            let ties = [vec![ran.clone()], ties].concat();
             if let Some(value) = correct {
                 let prop = Prop::Correct {
                     function: path.clone(),
@@ -960,7 +970,11 @@ impl Given<'_, '_> {
                 );
                 let mut through = self.reach([&c.holds]);
                 through.insert(path.clone());
-                let pre = [vec![Prop::Named(claim.to_string())], self.ties(&through)].concat();
+                let pre = [
+                    vec![ran.clone(), Prop::Named(claim.to_string())],
+                    self.ties(&through),
+                ]
+                .concat();
                 self.write(
                     format!("{claim} at {point}, by its ties"),
                     pre,

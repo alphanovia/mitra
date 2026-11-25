@@ -43,12 +43,20 @@ point, by one voice and count, are one taking, read once: X008.
 Each is taken by the checker, `machine:mitra-check`, count 1, and can be
 blamed like any taking:
 
-- `f at x, by its ties`: the ties of `f` and of every function its body
-  calls, however far (a function's own tie or its part's), give
-  `correct(f, x)`. With no value to compare, its claims decided: the
-  ties of what they call instead.
-- `f::c at x, by its ties`: the claim `c` and the ties of `f` and of what
-  `c` calls give `f::c at x`.
+- `f at x, by its ties`: what the run gave there
+  (`measurements::i gave f at x`, taken by the test with its count),
+  and the ties of `f` and of every function its body calls, however far
+  (a function's own tie or its part's), give `correct(f, x)`. With no
+  value to compare, its claims decided: the ties of what they call
+  instead.
+- `f::c at x, by its ties`: what the run gave, the claim `c`, and the
+  ties of `f` and of what `c` calls give `f::c at x`.
+
+What the run gave is a premise of both (finding 18, 2026-11-25): what
+the rule gives then weighs what the test weighs, and the checker's
+weight (1,000 runs) does not lift a point above the test that measured
+it. The test is on the line, and in blame it is one suspect with what
+it saw.
 
 So a failed test makes its tie, the claim that breaks there, and the
 rule explain wrote all suspects, through modus tollens.
