@@ -236,4 +236,5 @@ for numbers), and `a.starts_with(b)` reads a prefix.
 `! && || + - * / % == != < <= > >=`, as Rust. `/` on two integers
 rounds toward zero, `%` is on integers only, and division by zero has
 no value (a claim with no value does not hold). `a < b < c` is refused.
-`within(a, b, tol)` is true when `a` and `b` differ by at most `tol`.
+`within(a, b, tol)` is true when `a` and `b` differ by at most `tol`. A
+model function named `within` comes first ([chapter 2](2-parts.md#kinds-of-names)).

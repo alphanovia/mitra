@@ -31,6 +31,12 @@ Open `examples/fall/fall.mitra` to see it.
   `"keyword-…"` entries. They must match `KEYWORDS` in `crates/mitra-lang/src/parse.rs`,
   changed in the same commit; `crates/mitra-lang/tests/editor_grammar.rs` fails when they
   drift.
+- A word in `RESERVED` is never a name: its entry colours it everywhere.
+  Any other keyword is a name outside its place, so its entry leaves it
+  plain after `.`, `::` or `r#` and before `:`, `::`, `}`, `)`, `,` or
+  `;` (a field `by: integer`, `t.from`). Elsewhere it is still coloured,
+  a name in an expression too: the grammar cannot tell the parser's
+  place. The test checks which entries guard. `r#name` is a name.
 - Not tested, so by hand: primitive type names (`"type"`), proof
   operations (`"proof-op"`, `PROOF_OPS` in `crates/mitra-lang/src/parse.rs`), symbols
   (`"operator"`, `SYMBOLS`).

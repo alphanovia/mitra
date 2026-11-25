@@ -10,6 +10,8 @@
     { "include": "#named" },
     { "include": "#proof-form" },
     { "include": "#store" },
+    { "include": "#raw-name" },
+    { "include": "#keyword-reserved" },
     { "include": "#keyword-declaration" },
     { "include": "#keyword-clause" },
     { "include": "#keyword-control" },
@@ -84,20 +86,30 @@
       ]
     },
     "keyword-declaration": {
+      "comment": "Contextual words (parse::KEYWORDS less parse::RESERVED) are names elsewhere: not coloured after `.`, `::` or `r#`, nor before `:`, `::`, `}`, `)`, `,` or `;`.",
       "name": "keyword.declaration.mitra",
-      "match": "\\b(subject|environment|record|enum|fn|contract|impl|use|tie|crate)\\b"
+      "match": "(?<!\\.)(?<!::)(?<!r#)\\b(subject|environment|record|enum|fn|contract|impl|use|tie)\\b(?!\\s*:(?!:))(?!::)(?!\\s*[}),;])"
     },
     "keyword-clause": {
       "name": "keyword.other.clause.mitra",
-      "match": "\\b(require|ensure|claim|rule|examples|where|at|from|by|all|any)\\b"
+      "match": "(?<!\\.)(?<!::)(?<!r#)\\b(require|ensure|claim|rule|examples|where|at|from|by)\\b(?!\\s*:(?!:))(?!::)(?!\\s*[}),;])"
     },
     "keyword-control": {
       "name": "keyword.control.mitra",
-      "match": "\\b(let|in|if|else|match|for)\\b"
+      "match": "(?<!\\.)(?<!::)(?<!r#)\\b(in|for)\\b(?!\\s*:(?!:))(?!::)(?!\\s*[}),;])"
+    },
+    "keyword-reserved": {
+      "comment": "parse::RESERVED: never names, coloured everywhere (a raw name `r#match` is a name).",
+      "name": "keyword.control.reserved.mitra",
+      "match": "(?<!r#)\\b(let|if|else|match|all|any|crate)\\b"
+    },
+    "raw-name": {
+      "name": "variable.other.raw.mitra",
+      "match": "\\br#[A-Za-z_][A-Za-z0-9_]*"
     },
     "keyword-constant": {
       "name": "constant.language.boolean.mitra",
-      "match": "\\b(true|false)\\b"
+      "match": "(?<!r#)\\b(true|false)\\b"
     },
     "self-and-loops": {
       "patterns": [
