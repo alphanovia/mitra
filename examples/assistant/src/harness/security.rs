@@ -88,6 +88,7 @@ mod tests {
         }
     }
 
+    // mitra: supports Commands::help_words
     #[test]
     fn help_words_are_exact() {
         mitra::check_eq!(Commands::alarm(msg("Help")), true);
@@ -95,6 +96,7 @@ mod tests {
         mitra::check_eq!(Commands::alarm(msg("help me with my email")), false);
     }
 
+    // mitra: supports Commands::read_only
     #[test]
     fn plain_code_tells_the_time() {
         mitra::check_eq!(

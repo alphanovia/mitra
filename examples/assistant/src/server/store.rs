@@ -278,6 +278,7 @@ mod tests {
         );
     }
 
+    // mitra: supports Confirmations::guessing_fails
     #[test]
     fn a_code_works_once() {
         let call = Call {

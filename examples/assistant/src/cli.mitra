@@ -110,7 +110,7 @@ subject Cli {
     fn working(self) -> on: bool { Network::typing(self.token) }
 
     ensure sends_once: "what persona 1 types or says reaches the assistant once, even when the CLI has to send it again"
-        from (carried, retry_safe);
+        from (carried, retry_safe, made::moves_on);
     ensure unsent_told: "a message that could not be sent is shown as not sent, never as sent"
         from (status::honest);
     ensure shows: "each reply meant for this computer is shown once, in order, and played aloud when the question was spoken"

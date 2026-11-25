@@ -80,6 +80,7 @@ impl Confirmations {
 mod tests {
     use super::*;
 
+    // mitra: supports Worker::yes_by_code
     #[test]
     fn a_yes_is_read_by_plain_code() {
         mitra::check_eq!(Confirmations::code(s("yes 123456")), Some(123456));

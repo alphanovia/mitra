@@ -54,6 +54,7 @@ subject Assistant {
     require role_bound: Policy::role_bound;
     require confirms: Policy::confirms;
     require data_only: ToolGuard::data_only;
+    require owner_yes: Confirmations::owner_only;
     require failure_told: Reporter::explains_failure;
     require reaches: Helpline::reaches;
     require by_voice: Tuning::by_voice;
@@ -73,7 +74,7 @@ subject Assistant {
 
     // Caution.
     ensure safe: "nothing of consequence is done beyond the sender's role, for a malicious message, or on a tool's word"
-        from (spots_malice, benign_only, read_only, role_bound, confirms, data_only, guarded, fails_closed);
+        from (spots_malice, benign_only, read_only, role_bound, confirms, owner_yes, data_only, guarded, fails_closed);
     ensure help: "whoever calls for help is heard, and someone who can help is alerted"
         from (help_words, help_first, helps, reaches);
     ensure inclusive: "a real message of the user is rarely lost, and never without telling them"
@@ -124,6 +125,7 @@ subject Assistant {
     use Conversation from "conversation";
     use Models from "models";
     use Llm from "models";
+    use Confirmations from "server/confirm";
     use Harness::{serve, perform_all} from "harness/harness";
     use Identity::who from "security";
     use Commands::{answer, alarm} from "security";

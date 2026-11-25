@@ -197,6 +197,7 @@ mod tests {
         }
     }
 
+    // mitra: supports Worker::in_order
     #[test]
     fn one_at_a_time_oldest_first() {
         let store = ConversationStore {

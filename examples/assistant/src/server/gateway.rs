@@ -198,6 +198,7 @@ mod tests {
         );
     }
 
+    // mitra: supports Gateway::sized
     #[test]
     fn a_text_over_the_limit_is_refused() {
         fake::reset();

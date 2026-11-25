@@ -61,8 +61,10 @@ subject Confirmations {
     ensure owner_only: "a held call runs only on the owner's yes, from a device that vouches for the owner"
         from (allowed::owner_only, allowed::vouched, identified);
     ensure once: "a yes works once: the call it allowed is no longer held";   // shown by the scenario tests
-    ensure guessing_fails: "a yes with a code that names no held call runs nothing"
-        from (unguessable);
+    // Not from `unguessable` (it was): a wrong code runs nothing because
+    // the store holds no call under it; how hard a code is to guess
+    // matters only to the owner, the one voice whose yes counts.
+    ensure guessing_fails: "a yes with a code that names no held call runs nothing";   // shown by the tests
 
     // Names from the other files.
     use Result from "std";

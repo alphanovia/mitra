@@ -20,6 +20,7 @@ fn door() -> Call {
     }
 }
 
+// mitra: supports Gateway::delivers
 #[test]
 fn hello_is_answered() {
     let mut l = server();
@@ -28,6 +29,8 @@ fn hello_is_answered() {
     assert!(!l.typing("cli"));
 }
 
+// mitra: supports Commands::plain_first
+// mitra: supports Harness::machine_first
 #[test]
 fn plain_code_answers_before_any_model() {
     let mut l = server();
@@ -36,6 +39,7 @@ fn plain_code_answers_before_any_model() {
     assert!(fake::sent(Machine::Local).is_empty() && fake::sent(Machine::Cloud).is_empty());
 }
 
+// mitra: supports Harness::machine_first
 #[test]
 fn an_easy_ask_stays_on_our_model_a_hard_one_goes_to_the_cloud() {
     let mut l = server();
@@ -56,6 +60,7 @@ fn an_easy_ask_stays_on_our_model_a_hard_one_goes_to_the_cloud() {
     );
 }
 
+// mitra: supports Reporter::explains_failure
 #[test]
 fn the_cloud_down_is_told_and_not_handed_down() {
     let mut l = server();
@@ -74,6 +79,8 @@ fn the_cloud_down_is_told_and_not_handed_down() {
     );
 }
 
+// mitra: supports Harness::fails_closed
+// mitra: supports Commands::help_words
 #[test]
 fn our_model_down_fails_closed_but_help_still_works() {
     let mut l = server();
@@ -89,6 +96,7 @@ fn our_model_down_fails_closed_but_help_still_works() {
     assert!(fake::performed().is_empty());
 }
 
+// mitra: supports Harness::benign_only
 #[test]
 fn a_malicious_message_goes_no_further_than_a_reply() {
     let mut l = server();
@@ -104,6 +112,7 @@ fn unclear_voice_is_noise() {
     assert_eq!(l.last_text("wearable"), "I didn't catch that.");
 }
 
+// mitra: supports Harness::asks_first
 #[test]
 fn an_unclear_ask_is_asked_back() {
     let mut l = server();
@@ -131,6 +140,8 @@ fn the_owner_reads_and_acts_when_usual() {
     );
 }
 
+// mitra: supports Worker::owner_told
+// mitra: supports Policy::confirms
 #[test]
 fn a_member_door_waits_for_the_owner_yes() {
     let mut l = server();
@@ -147,6 +158,7 @@ fn a_member_door_waits_for_the_owner_yes() {
     assert!(l.last_text("owner-phone").starts_with("Done: door open"));
 }
 
+// mitra: supports Confirmations::owner_only
 #[test]
 fn a_yes_from_anyone_but_the_owner_runs_nothing() {
     let mut l = server();
@@ -162,6 +174,7 @@ fn a_yes_from_anyone_but_the_owner_runs_nothing() {
     );
 }
 
+// mitra: supports Confirmations::once
 #[test]
 fn a_yes_works_once() {
     let mut l = server();
@@ -172,6 +185,7 @@ fn a_yes_works_once() {
     assert_eq!(fake::performed(), vec![door()]);
 }
 
+// mitra: supports Gateway::own_household
 #[test]
 fn a_yes_of_another_household_runs_nothing() {
     let mut l = server();
@@ -181,6 +195,7 @@ fn a_yes_of_another_household_runs_nothing() {
     assert!(fake::performed().is_empty());
 }
 
+// mitra: supports Policy::role_bound
 #[test]
 fn a_stranger_voice_cannot_act() {
     let mut l = server();
@@ -193,6 +208,7 @@ fn a_stranger_voice_cannot_act() {
     );
 }
 
+// mitra: supports ToolGuard::data_only
 #[test]
 fn a_tool_output_cannot_call_a_tool() {
     let mut l = server();
@@ -215,6 +231,7 @@ fn a_typed_line_cannot_pass_for_a_call() {
     assert!(!fake::performed().iter().any(|c| c.tool == "bank"));
 }
 
+// mitra: supports Harness::guarded
 #[test]
 fn a_tool_the_assistant_lacks_runs_nothing() {
     let mut l = server();
@@ -232,6 +249,7 @@ fn a_tool_the_assistant_lacks_runs_nothing() {
     assert!(fake::performed().is_empty());
 }
 
+// mitra: supports Harness::bounded
 #[test]
 fn the_loop_gives_up_after_the_turns_allowed() {
     let mut l = server();
@@ -252,6 +270,9 @@ fn the_loop_gives_up_after_the_turns_allowed() {
     assert_eq!(fake::sent(Machine::Cloud).len(), 8);
 }
 
+// mitra: supports Worker::recovers
+// mitra: supports Worker::takes_up
+// mitra: supports Gateway::shows_work
 #[test]
 fn a_crash_is_answered_as_interrupted_and_never_run_twice() {
     let mut l = server();
@@ -276,6 +297,7 @@ fn two_phones_have_their_own_ids() {
     assert_eq!(l.replies("second-phone").len(), 1);
 }
 
+// mitra: supports Gateway::one_meaning
 #[test]
 fn the_same_id_with_other_words_is_refused() {
     let mut l = server();
@@ -289,12 +311,15 @@ fn the_same_id_with_other_words_is_refused() {
     assert_eq!(l.post("cli", forged), Err(NetFailure::Refused));
 }
 
+// mitra: supports Gateway::sized
 #[test]
 fn a_message_over_the_limit_is_refused() {
     let mut l = server();
     assert_eq!(l.say("cli", &"x".repeat(5000)), Err(NetFailure::Refused));
 }
 
+// mitra: supports Gateway::paired_only
+// mitra: supports Gateway::own_household
 #[test]
 fn a_device_cannot_post_as_another_nor_read_another_household() {
     let mut l = server();
@@ -311,6 +336,7 @@ fn a_device_cannot_post_as_another_nor_read_another_household() {
     assert_eq!(l.say("nobody", "hello"), Err(NetFailure::Refused));
 }
 
+// mitra: supports Harness::scored
 #[test]
 fn a_stranger_does_not_tune_the_assistant() {
     let mut l = server();
@@ -318,6 +344,7 @@ fn a_stranger_does_not_tune_the_assistant() {
     assert_eq!(l.last_text("wearable"), "I won't act on that.");
 }
 
+// mitra: supports Harness::benign_only
 #[test]
 fn history_holds_only_the_requests_of_the_same_device() {
     let mut l = server();
@@ -335,6 +362,7 @@ fn history_holds_only_the_requests_of_the_same_device() {
     );
 }
 
+// mitra: supports Gateway::delivers
 #[test]
 fn a_client_starting_again_shows_what_it_has_not_got() {
     let mut l = server();
@@ -348,4 +376,37 @@ fn a_client_starting_again_shows_what_it_has_not_got() {
     let told = l.fetch("owner-phone", 0);
     l.ack("owner-phone", told[0].id);
     assert_eq!(l.last_delivered("owner-phone"), told[0].id.n);
+}
+
+// mitra: supports Harness::noted
+// mitra: supports Worker::traced
+#[test]
+fn each_step_notes_what_it_decided() {
+    let mut l = server();
+    l.say("cli", "please open the door").unwrap();
+    let by: Vec<Step> = l.notes_of_last("cli").iter().map(|a| a.by).collect();
+    assert_eq!(
+        by,
+        vec![
+            Step::Worker,
+            Step::Identity,
+            Step::Gate,
+            Step::Purpose,
+            Step::Policy,
+            Step::Policy,
+            Step::Worker
+        ],
+        "taken up, sender, verdict, ask, the call, its hold, answered"
+    );
+}
+
+// mitra: supports Worker::speaks_back
+#[test]
+fn a_spoken_question_gets_a_spoken_reply() {
+    let mut l = server();
+    l.speak("wearable", "tell me a joke").unwrap();
+    let reply = l.fetch("wearable", 0).pop().unwrap();
+    assert!(reply.speech().is_some());
+    l.say("cli", "tell me a joke").unwrap();
+    assert!(l.fetch("cli", 0).pop().unwrap().speech().is_none());
 }

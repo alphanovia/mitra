@@ -90,6 +90,7 @@ mod tests {
         );
     }
 
+    // mitra: supports ToolGuard::data_only
     #[test]
     fn an_output_is_marked_line_by_line() {
         mitra::check_eq!(
