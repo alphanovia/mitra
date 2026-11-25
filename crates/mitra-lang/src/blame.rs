@@ -91,8 +91,8 @@ pub fn kind(explanation: &Explanation, s: &Suspect) -> u8 {
         Suspect::Measurement(_) => 1,
         Suspect::Review(_) => 2,
         Suspect::Taking(t) => match explanation.sources.get(t) {
-            Some(Source::Model | Source::Link | Source::Path(_)) | None => 0,
-            Some(Source::Measurement(_)) => 1,
+            Some(Source::Model | Source::Link | Source::Path(_) | Source::Shows) | None => 0,
+            Some(Source::Measurement(_) | Source::Support(_)) => 1,
             Some(Source::Review(_)) => 2,
             Some(Source::Written) => 3,
             Some(Source::Proof | Source::Named) => 4,

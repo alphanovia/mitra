@@ -287,6 +287,7 @@ fn a_nested_part_is_explained_and_blamed_by_its_whole_path() {
     let ledger = Ledger {
         measurements: vec![divided(7, 2, 4), divided(6, 2, 3)],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&m, &ledger, &Settings::default());
     let tie = Prop::Named("home::calc at src/lib.rs".to_string());

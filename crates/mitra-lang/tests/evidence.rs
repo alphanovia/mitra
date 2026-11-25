@@ -63,6 +63,7 @@ fn ledger() -> Ledger {
             review("calc::inputs", "human:ana"),
             review("calc::div", "agent:reviewer"),
         ],
+        supports: vec![],
     }
 }
 /// The errors of div's ledger with one change, each as its code and where.
@@ -114,6 +115,16 @@ fn each_error_is_found() {
             "V007 at reviews::1",
             Box::new(|l| l.reviews[1].prop = path("calc::div::spec")),
         ),
+        (
+            "V009 at supports::0",
+            Box::new(|l| {
+                l.supports.push(mitra_lang::evidence::Support {
+                    prop: path("calc::div::spec"),
+                    by: "test:t".to_string(),
+                    passed: true,
+                })
+            }),
+        ),
     ];
     let mut given = Vec::new();
     for (expected, change) in cases {
@@ -147,6 +158,7 @@ fn a_measurement_is_through_a_tie() {
         let ledger = Ledger {
             measurements: vec![m],
             reviews: vec![],
+            supports: vec![],
         };
         let errors = check(model, &ledger).into_iter();
         errors
@@ -181,6 +193,7 @@ fn a_measurement_is_through_a_tie() {
             review("stone::drop", "human:ana"),
             review("stone::speed", "human:ana"),
         ],
+        supports: vec![],
     };
     let errors: Vec<String> = check(&fall(), &ledger)
         .into_iter()
@@ -207,6 +220,7 @@ fn a_measured_value_outside_its_range() {
     let ledger = Ledger {
         measurements: vec![divided(12, 2, 6), divided(6, 2, 3)],
         reviews: vec![],
+        supports: vec![],
     };
     assert_eq!(check(&model, &ledger), vec![]);
 }

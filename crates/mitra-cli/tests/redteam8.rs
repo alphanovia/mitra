@@ -104,6 +104,7 @@ fn ledger(measurements: Vec<Measurement>) -> Ledger {
     Ledger {
         measurements,
         reviews: vec![],
+        supports: vec![],
     }
 }
 fn explained(model: &Model, ledger: &Ledger) -> Explanation {
@@ -403,6 +404,7 @@ subject calc {
             holds: false,
             by: "human:z".to_string(),
         }],
+        supports: vec![],
     };
     let e = explained(&model, &given);
     let b = blame(&model, &e, &BSettings::default());

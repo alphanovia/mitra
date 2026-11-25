@@ -301,6 +301,7 @@ fn d9_a_voice_of_mitra_is_no_voice_of_evidence() {
                 holds: true,
                 by: by.to_string(),
             }],
+            supports: vec![],
         };
         let errors = evidence::check(&model, &ledger);
         let e = explain(&model, &ledger, &Default::default());
@@ -347,6 +348,7 @@ fn n2_a_port_is_an_input_or_an_output() {
             effects: Default::default(),
         }],
         reviews: vec![],
+        supports: vec![],
     };
     assert!(!evidence::check(&model, &ledger).is_empty());
 }
@@ -378,6 +380,7 @@ subject s {
             effects: Default::default(),
         }],
         reviews: vec![],
+        supports: vec![],
     };
     assert!(!evidence::check(&model, &ledger).is_empty());
     // The same value as an example of the model is refused.
@@ -620,6 +623,7 @@ fn after_a_voice_is_of_a_kind() {
                 holds: true,
                 by: by.to_string(),
             }],
+            supports: vec![],
         };
         let errors = evidence::check(&model, &ledger);
         assert_eq!(!errors.is_empty(), refused, "{by}: {errors:?}");

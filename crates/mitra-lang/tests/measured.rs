@@ -74,6 +74,7 @@ fn the_test_is_in_what_the_check_gives() {
     let ledger = Ledger {
         measurements: vec![divided(6, 2, 3, 1)],
         reviews: vec![tie_reviewed()],
+        supports: vec![],
     };
     let e = explain(&m, &ledger, &Settings::default());
     let p = correct(6, 2);
@@ -108,6 +109,7 @@ fn what_the_run_gave_is_the_tests() {
     let ledger = Ledger {
         measurements: vec![divided(6, 2, 3, 3)],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&m, &ledger, &Settings::default());
     let gave = Prop::Named("measurements::0 gave calc::div at (6, 2)".to_string());
@@ -157,6 +159,7 @@ fn claims_alone_take_what_the_run_gave() {
             effects: Default::default(),
         }],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&m, &ledger, &Settings::default());
     let gave = Prop::Named("measurements::0 gave s::f at (1)".to_string());
@@ -199,6 +202,7 @@ fn a_claim_undecided_still_takes_what_the_run_gave() {
             effects: Default::default(),
         }],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&m, &ledger, &Settings::default());
     assert!(!e.findings.is_empty());

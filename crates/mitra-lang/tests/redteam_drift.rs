@@ -183,6 +183,7 @@ subject calc {
             effects: Default::default(),
         }],
         reviews: vec![],
+        supports: vec![],
     };
     assert_eq!(check_evidence(&model, &ledger), vec![]);
     let e = explain(&model, &ledger, &Settings::default());

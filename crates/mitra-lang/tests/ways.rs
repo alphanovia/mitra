@@ -46,6 +46,7 @@ fn ledger(ms: Vec<Measurement>) -> Ledger {
     Ledger {
         measurements: ms,
         reviews: vec![],
+        supports: vec![],
     }
 }
 fn of(e: &Explanation, prop: &str) -> Option<Verdict> {
@@ -117,6 +118,7 @@ fn a_callee_claim_the_run_keeps_is_assumed() {
             links: vec![],
             requires: vec![],
             paths: vec![Prop::Named(at.to_string())],
+            tests: vec![],
         })
     );
     // The claim itself is not lifted by one way.
@@ -207,6 +209,7 @@ fn the_path_voice_is_mitras_own() {
             by: PATH.to_string(),
             seeing: vec![],
         }],
+        supports: vec![],
     };
     let errors = evidence::check(&m, &l);
     assert!(

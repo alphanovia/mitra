@@ -128,6 +128,7 @@ fn a_failed_test_contradicts_what_it_went_through() {
     let ledger = Ledger {
         measurements: vec![divided(7, 2, 4, true), divided(6, 2, 3, true)],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&model, &ledger, &Settings::default());
     assert_eq!(e.findings, vec![]);
@@ -186,6 +187,7 @@ fn a_test_that_failed_where_the_model_gives_its_value() {
     let ledger = Ledger {
         measurements: vec![divided(7, 2, 3, false)],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&model, &ledger, &Settings::default());
     assert!(matches!(
@@ -213,6 +215,7 @@ fn reviews_are_takings() {
     let ledger = Ledger {
         measurements: vec![],
         reviews: vec![review("calc::div::spec", true), review("calc::div", false)],
+        supports: vec![],
     };
     let e = explain(&model, &ledger, &Settings::default());
     assert_eq!(of(&e, &named("calc::div::spec")), Verdict::Explained);
@@ -230,6 +233,7 @@ fn reviews_are_takings() {
             links: vec![link],
             requires: vec![named("calc::inputs")],
             paths: vec![],
+            tests: vec![],
         }
     );
 }
@@ -348,6 +352,7 @@ fn each_finding_is_given() {
         let ledger = Ledger {
             measurements,
             reviews: vec![],
+            supports: vec![],
         };
         let e = explain(&model, &ledger, &Settings::default());
         let got: Vec<String> = e
@@ -384,6 +389,7 @@ fn each_finding_is_given() {
             true,
         )],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&model, &ledger, &shallow);
     let budget: Vec<String> = e
@@ -503,6 +509,7 @@ subject location {
             true,
         )],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&span, &ledger, &Settings::default());
     let shown: Vec<String> = e.findings.iter().map(|f| f.to_string()).collect();
@@ -511,6 +518,8 @@ subject location {
         ["finding[X014]: the test gave `S::lo::s` holding S { lo: 3, hi: 1 }, which breaks record claim `S::ordered`: the test, or the claim, is wrong\n --> measurements::0"]
     );
     given.insert("X014".to_string());
+    // X015, a tied test that failed: crates/mitra-rust/tests/supports.rs.
+    given.insert("X015".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Explain && !e.retired);

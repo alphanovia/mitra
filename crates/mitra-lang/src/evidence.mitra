@@ -2,18 +2,22 @@
 // language, beside the code it models (the parts it uses are read by
 // `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
 
-subject record Ledger at "crates/mitra-lang/src/evidence.rs/Ledger" { measurements: [Measurement], reviews: [Review] }
+subject record Ledger at "crates/mitra-lang/src/evidence.rs/Ledger" {
+    measurements: [Measurement], reviews: [Review], supports: [Support]
+}
 
-// `by` and `from` are keywords of the model: the fields so named in
-// Rust are in `..`, the fields the model does not state (raw names,
-// finding 12c, would let the model name them).
+// `by` and `from` are names like any (finding 12c). What the system
+// did to the world, `effects`, is in `..`.
 subject record Measurement at "crates/mitra-lang/src/evidence.rs/Measurement" {
-    inputs: [(Path, Value)], outputs: [(Path, Value)], seen: bool, count: integer, ..
+    inputs: [(Path, Value)], outputs: [(Path, Value)], seen: bool, count: integer, by: [~char], ..
 }
 
 subject record Review at "crates/mitra-lang/src/evidence.rs/Review" {
-    prop: Path, holds: bool, seeing: [[~char]], ..
+    prop: Path, from: Option<[Path]>, holds: bool, by: [~char], seeing: [[~char]]
 }
+
+// A test tied to an ensure (finding 1).
+subject record Support at "crates/mitra-lang/src/evidence.rs/Support" { prop: Path, by: [~char], passed: bool }
 
 // A value of the model: opaque here.
 subject record Value at "crates/mitra-lang/src/simulation.rs/Value";

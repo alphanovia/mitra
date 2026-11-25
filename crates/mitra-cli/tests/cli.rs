@@ -274,7 +274,7 @@ fn the_dogfood_model_is_whole_and_checks() {
     ]);
     assert_eq!(code, 0, "{out}");
     assert!(
-        out.lines().any(|l| l.starts_with("evidence: 0 measurements,") && l.ends_with(" reviews, 48 ties")),
+        out.lines().any(|l| l.starts_with("evidence: 0 measurements,") && l.ends_with(" reviews, 49 ties")),
         "{out}"
     );
 }
@@ -470,7 +470,10 @@ fn the_assistant_rows_end_to_end() {
     std::fs::write(&system, wrong).unwrap();
     let (_, out) = mitra(&["check", system.to_str().unwrap()]);
     std::fs::remove_dir_all(&dir).unwrap();
-    assert!(out.contains("finding[A006]: `Harness::serve::out`"), "{out}");
+    assert!(
+        out.contains("finding[A006]: `Harness::serve::out`"),
+        "{out}"
+    );
 }
 
 fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
@@ -506,5 +509,58 @@ fn a_used_function_comes_before_a_built_in() {
     let (code, out) = mitra_in(&dir, &["check", "s.mitra"]);
     assert_eq!(code, 0, "{out}");
     assert!(out.contains("1 hold"), "{out}");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A test tied to an ensure (finding 1): the line names the assumption,
+/// and the summary waits on its review; failing, it is a finding.
+#[test]
+fn a_tied_test_is_said_on_its_line() {
+    let dir = std::env::temp_dir().join(format!("mitra-supports-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    std::fs::write(dir.join("mitra.toml"), "").unwrap();
+    std::fs::write(
+        dir.join("model.mitra"),
+        "subject codes at \"src/lib.rs\" {\n    ensure documented: \"every code has a page that explains it\";\n}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("src/lib.rs"),
+        "#[cfg(test)]\nmod tests {\n    // mitra: supports codes::documented\n    #[test]\n    fn every_code_has_a_page() {}\n}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("ok.txt"),
+        "test tests::every_code_has_a_page ... ok\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("ko.txt"),
+        "test tests::every_code_has_a_page ... FAILED\n",
+    )
+    .unwrap();
+    let args = |report| {
+        [
+            "explain",
+            "model.mitra",
+            "--code",
+            "src",
+            "--report",
+            report,
+        ]
+    };
+    let (code, out) = mitra_in(&dir, &args("ok.txt"));
+    assert_eq!(code, 0, "{out}");
+    assert!(out.contains("assumed      codes::documented "), "{out}");
+    assert!(
+        out.contains("assuming 1 test shows what it is tied to"),
+        "{out}"
+    );
+    assert!(out.contains("1 assumed (1 waiting on a review)"), "{out}");
+    assert!(!out.contains("R004"), "{out}");
+    let (_, out) = mitra_in(&dir, &args("ko.txt"));
+    assert!(out.contains("contradicted codes::documented "), "{out}");
+    assert!(out.contains("finding[X015]"), "{out}");
+    assert!(out.contains("1 contradicted"), "{out}");
     std::fs::remove_dir_all(&dir).unwrap();
 }

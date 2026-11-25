@@ -243,6 +243,7 @@ fn the_evidence_checks_links() {
             review("calc::halves", Some("calc::half::small")),
             review("calc::halves", Some("calc::half::small")),
         ],
+        supports: vec![],
     };
     let errors: Vec<String> = check_ledger(&model(), &ledger)
         .iter()

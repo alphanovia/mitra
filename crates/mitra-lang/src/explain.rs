@@ -24,7 +24,7 @@
 
 use crate::catalogue::{
     Ask, Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008, X009, X010, X011, X012,
-    X013, X014,
+    X013, X014, X015,
 };
 use crate::evidence::{self, port, Ledger, Measurement};
 use crate::expression::{eval, Arg, Expression, Fault};
@@ -50,6 +50,11 @@ pub const LINK: &str = "assumed:link";
 /// so that the code went that way, as the model does, is assumed
 /// (finding 14, the user's choice of the reading by the model).
 pub const PATH: &str = "assumed:path";
+/// The voice of a test tied to an ensure that no one reviewed: the
+/// ensure is said in words, so nothing checks that the test shows it;
+/// that it does is assumed (finding 1, the user's decision), until a
+/// review of the ensure, seeing the test, answers it.
+pub const SHOWS: &str = "assumed:test";
 
 /// How far explain goes.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -101,6 +106,9 @@ pub enum Verdict {
         /// the point the model's run called it (`PATH`): the way the
         /// code went is assumed to be the model's (finding 14).
         paths: Vec<Prop>,
+        /// That a test shows the ensure it is tied to (`SHOWS`): the
+        /// sentence is words, so it is assumed until reviewed (finding 1).
+        tests: Vec<Prop>,
     },
     /// It follows false from these sets of takings.
     Contradicted { against: Rests },
@@ -137,6 +145,12 @@ pub enum Source {
     /// A claim of a function a measured run went through, at the point
     /// the model's run called it (`PATH`), measurement `usize`'s.
     Path(usize),
+    /// The run of a test tied to an ensure, support `usize` of the
+    /// ledger: it passed, or not, by the test's voice.
+    Support(usize),
+    /// That a test shows the ensure it is tied to, no one reviewed
+    /// (`SHOWS`).
+    Shows,
 }
 
 /// What explain gives.
@@ -234,6 +248,44 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         };
         for p in props {
             given.take(p, r.holds, 1, &r.by, Source::Review(i));
+        }
+    }
+    // Each test tied to an ensure: its run, and that it shows the
+    // ensure, assumed until a review of the ensure seeing it answers.
+    for (i, s) in ledger.supports.iter().enumerate() {
+        let Some(ensure) = index.prop_at(&s.prop) else {
+            continue;
+        };
+        let name = s.by.trim_start_matches("test:");
+        let ran = Prop::Named(format!("the test `{name}` passed"));
+        given.take(ran.clone(), s.passed, 1, &s.by, Source::Support(i));
+        let shows = Prop::Named(format!("the test `{name}` shows {}", s.prop));
+        let review = ledger.reviews.iter().enumerate().find(|(j, r)| {
+            r.from.is_none()
+                && r.prop == s.prop
+                && r.seeing.contains(&s.by)
+                && !refused.contains(&Path::to(&["reviews", &j.to_string()]))
+        });
+        match review {
+            Some((j, r)) => given.take(shows.clone(), r.holds, 1, &r.by, Source::Review(j)),
+            None => given.take(shows.clone(), true, 1, SHOWS, Source::Shows),
+        }
+        given.write(
+            format!("{}, shown by the test `{name}`", s.prop),
+            vec![ran.clone(), shows.clone()],
+            ensure.clone(),
+        );
+        given.write(
+            format!("{}, against the test `{name}`, failed", s.prop),
+            vec![Prop::Not(Box::new(ran)), shows],
+            Prop::Not(Box::new(ensure)),
+        );
+        if !s.passed {
+            let message = format!(
+                "the test `{name}`, tied to `{}`, failed: it counts against it, assuming the test shows what it is tied to",
+                s.prop
+            );
+            given.finding(X015, &s.prop, message);
         }
     }
     // Measurements that say the same, by the same voice, are one, their
@@ -453,8 +505,33 @@ pub fn asks(model: &Model, ledger: &Ledger, refused: &BTreeSet<Path>) -> Vec<Ask
                 line: format!("review {at} {written} holds by \"human:<name>\";"),
             });
         }
+        // A test tied to it: that it shows the sentence, until a
+        // review of the ensure seeing the test says so (finding 1).
+        let mut tied = false;
+        for s in ledger.supports.iter().filter(|s| &s.prop == at) {
+            let seen = ledger.reviews.iter().enumerate().any(|(j, r)| {
+                r.from.is_none()
+                    && &r.prop == at
+                    && r.seeing.contains(&s.by)
+                    && !refused.contains(&Path::to(&["reviews", &j.to_string()]))
+            });
+            tied = true;
+            if seen {
+                continue;
+            }
+            let name = s.by.trim_start_matches("test:");
+            asks.push(Ask {
+                code: X012,
+                at: at.clone(),
+                from: None,
+                message: format!(
+                    "Mitra assumes the test `{name}` shows `{at}`, as its comment ties it, with no review: what rests on it is assumed; review that it does"
+                ),
+                line: format!("review {at} holds by \"human:<name>\" seeing \"{}\";", s.by),
+            });
+        }
         if let Item::Ensure(e) = item {
-            if e.from.is_empty() && !reviewed.contains(&(at, &None)) {
+            if e.from.is_empty() && !tied && !reviewed.contains(&(at, &None)) {
                 asks.push(Ask {
                     code: X012,
                     at: at.clone(),
@@ -508,7 +585,7 @@ fn verdict(opinion: Option<&Opinion>, requires: &BTreeSet<Prop>) -> Verdict {
     }
     let evidenced = |rest: &BTreeSet<Taking>| {
         rest.iter()
-            .all(|t| ![MODEL, LINK, PATH].contains(&t.by.as_str()))
+            .all(|t| ![MODEL, LINK, PATH, SHOWS].contains(&t.by.as_str()))
     };
     if o.rests_for().iter().any(evidenced) {
         return Verdict::Explained;
@@ -519,29 +596,41 @@ fn verdict(opinion: Option<&Opinion>, requires: &BTreeSet<Prop>) -> Verdict {
         let mut links = Vec::new();
         let mut said = Vec::new();
         let mut paths = Vec::new();
+        let mut tests = Vec::new();
         for t in rest {
             match t.by.as_str() {
                 LINK => links.push(t.prop.clone()),
                 PATH => paths.push(t.prop.clone()),
+                SHOWS => tests.push(t.prop.clone()),
                 MODEL if requires.contains(&t.prop) => said.push(t.prop.clone()),
                 MODEL => return None,
                 _ => {}
             }
         }
-        Some((links, said, paths))
+        Some((links, said, paths, tests))
     };
     let fewest = o
         .rests_for()
         .iter()
         .filter_map(assumed)
-        .min_by(|(l, r, p), (m, s, q)| {
-            (l.len(), r.len(), p.len(), l, r, p).cmp(&(m.len(), s.len(), q.len(), m, s, q))
+        .min_by(|(l, r, p, t), (m, s, q, u)| {
+            (l.len(), r.len(), p.len(), t.len(), l, r, p, t).cmp(&(
+                m.len(),
+                s.len(),
+                q.len(),
+                u.len(),
+                m,
+                s,
+                q,
+                u,
+            ))
         });
     match fewest {
-        Some((links, requires, paths)) => Verdict::Assumed {
+        Some((links, requires, paths, tests)) => Verdict::Assumed {
             links,
             requires,
             paths,
+            tests,
         },
         None => Verdict::Unsupported,
     }

@@ -146,6 +146,7 @@ pub const V005: Code = evidence(5);
 pub const V006: Code = evidence(6);
 pub const V007: Code = evidence(7);
 pub const V008: Code = evidence(8);
+pub const V009: Code = evidence(9);
 
 const fn explain(number: u16) -> Code {
     Code {
@@ -168,6 +169,7 @@ pub const X011: Code = explain(11);
 pub const X012: Code = explain(12);
 pub const X013: Code = explain(13);
 pub const X014: Code = explain(14);
+pub const X015: Code = explain(15);
 
 const fn blame(number: u16) -> Code {
     Code {
@@ -354,6 +356,7 @@ pub const CATALOGUE: &[Entry] = &[
         "a voice missing, not of a kind, Mitra's own, or saying twice",
     ),
     retired(V008, "a measured value outside the range of its type"),
+    entry(V009, "a test tied to what is no ensure"),
     entry(
         X001,
         "a measurement nothing in the model says what to expect of",
@@ -386,6 +389,7 @@ pub const CATALOGUE: &[Entry] = &[
         X014,
         "a measured value that breaks, or may break, its record's claims",
     ),
+    entry(X015, "a test tied to an ensure that failed"),
     entry(B001, "a conflict the model's claims alone hold"),
     entry(B002, "more diagnoses than blame looked for"),
     entry(B003, "a diagnosis a proof by cases may outlive"),

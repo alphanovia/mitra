@@ -107,11 +107,41 @@ binary whose `test result:` counts more tests than Mitra read, is
 listed (R010).
 
 A test that passed saw its row. One that failed saw something else at
-those inputs. A test that ran and measures nothing Mitra knows is
-listed (R004), never dropped silently.
+those inputs. A test that ran and measures or shows nothing Mitra knows
+is listed (R004), never dropped silently.
 
 A measurement is always through a tie: a test of a function with no tie
 is reported (R007), since it would say nothing of the real system.
+
+### Tests that show an ensure
+
+Most tests check something no row says: that every code has a page,
+that a file reads back. Such a test is tied to the ensure it shows,
+said in words:
+
+```rust
+// mitra: supports codes::documented
+#[test]
+fn every_code_has_a_page() { … }
+```
+
+The ensure is words, so nothing Mitra can evaluate checks that the
+test shows it: that it does is assumed, by Mitra's own voice
+`assumed:test` (weighed as a link no one reviewed, `[numbers] link`),
+and the ensure is **assumed**:
+
+```text
+assumed      codes::documented … assuming 1 test shows what it is tied to
+ask[X012]: Mitra assumes the test `tests::every_code_has_a_page` shows `codes::documented`, as its comment ties it, with no review: what rests on it is assumed; review that it does
+ --> codes::documented
+  = help: once reviewed, write in the store `review codes::documented holds by "human:<name>" seeing "test:tests::every_code_has_a_page";`
+```
+
+The review the ask gives, of the ensure seeing the test, lifts it: the
+ensure is explained while the test passes. A tied test that fails is
+loud: X015 says so, and it counts against the ensure, which is then
+contradicted, still assuming the test shows what it is tied to. A tie
+to what is no ensure is V009; `supports` above what is no test, R003.
 
 ### The functions a measured run went through
 

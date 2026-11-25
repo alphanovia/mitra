@@ -23,7 +23,7 @@ use mitra_lang::blame::{self, Suspect};
 use mitra_lang::catalogue::{Error, Finding, R005};
 use mitra_lang::check::check;
 use mitra_lang::evidence;
-use mitra_lang::explain::{self, Explanation, Source, Verdict, LINK, MODEL, PATH};
+use mitra_lang::explain::{self, Explanation, Source, Verdict, LINK, MODEL, PATH, SHOWS};
 use mitra_lang::judgement::Taking;
 use mitra_lang::model::Model;
 use mitra_lang::numbers::Numbers;
@@ -366,8 +366,9 @@ fn rest_summary(rest: Option<&std::collections::BTreeSet<Taking>>) -> (u64, Vec<
             assumed += 1;
             continue;
         }
-        // Said on its own: a way the code went, as the model reads it.
-        if t.by == PATH {
+        // Said on its own: a way the code went, as the model reads it,
+        // and a test assumed to show what it is tied to.
+        if t.by == PATH || t.by == SHOWS {
             continue;
         }
         runs += t.count;
@@ -388,9 +389,9 @@ fn explain_out(e: &Explanation, n: &Numbers) {
                 explained += 1;
                 "explained"
             }
-            Verdict::Assumed { links, .. } => {
+            Verdict::Assumed { links, tests, .. } => {
                 assumed_n += 1;
-                if !links.is_empty() {
+                if !links.is_empty() || !tests.is_empty() {
                     waiting += 1;
                 }
                 "assumed"
@@ -429,12 +430,25 @@ fn explain_out(e: &Explanation, n: &Numbers) {
                 "assuming {n} ways the code went as the model reads it"
             )),
         };
+        // A test tied to an ensure, no one reviewed (finding 1).
+        let tests = [r_for, r_against]
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|t| t.by == SHOWS)
+            .count();
+        let tests_said = match tests {
+            0 => None,
+            1 => Some("assuming 1 test shows what it is tied to".to_string()),
+            n => Some(format!("assuming {n} tests show what they are tied to")),
+        };
         match &v.verdict {
             // What it assumes, and what a review would lift.
             Verdict::Assumed {
                 links,
                 requires,
                 paths,
+                ..
             } => {
                 let many = |n: usize, one: &str, more: &str| match n {
                     1 => format!("1 {one}"),
@@ -457,9 +471,11 @@ fn explain_out(e: &Explanation, n: &Numbers) {
                         said.extend(ways_said.clone());
                     }
                 }
+                said.extend(tests_said.clone());
             }
-            _ if ways > 0 => {
+            _ if ways > 0 || tests > 0 => {
                 said.extend(ways_said.clone());
+                said.extend(tests_said.clone());
                 if assumed > 0 {
                     said.push(format!("{assumed} only the model says"));
                 }
@@ -532,6 +548,10 @@ fn suspect_text(ledger: &evidence::Ledger, e: &Explanation, s: &Suspect) -> Stri
                 Some(Source::Path(_)) => {
                     "read where the model's run called it: the code assumed to go that way"
                 }
+                Some(Source::Shows) => {
+                    "a test tied to an ensure, assumed to show it: no one reviewed"
+                }
+                Some(Source::Support(_)) => "the run of a test tied to an ensure",
                 Some(Source::Written) => "a rule explain wrote, the checker took",
                 Some(Source::Measurement(_) | Source::Review(_)) => "evidence",
             };

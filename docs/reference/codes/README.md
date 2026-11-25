@@ -103,6 +103,7 @@ example, and the fix. The letter says which step found it.
 - [V006](V006.md): a measurement missing an input, or with no output
 - [V007](V007.md): a voice missing, not of a kind, Mitra's own, or saying twice
 - [V008](V008.md): a measured value outside the range of its type
+- [V009](V009.md): a test tied to what is no ensure
 
 ## X (explain): the model against the evidence
 
@@ -120,6 +121,7 @@ example, and the fix. The letter says which step found it.
 - [X012](X012.md): a link, or a piece said only in words, no voice reviewed
 - [X013](X013.md): an all or an any over a set no point is in
 - [X014](X014.md): a measured value that breaks, or may break, its record's claims
+- [X015](X015.md): a test tied to an ensure that failed
 
 ## B (blame): diagnoses
 

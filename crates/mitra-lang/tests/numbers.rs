@@ -113,6 +113,7 @@ fn a_contradiction_through_what_the_model_alone_says() {
     let ledger = Ledger {
         measurements: vec![divided(7, 2, 4, 1)],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&model, &ledger, &explain::Settings::default());
     let n = Numbers::of(&e, &Settings::default());
@@ -130,6 +131,7 @@ fn blame_ranked_by_doubt() {
     let ledger = Ledger {
         measurements: vec![divided(7, 2, 4, 1), divided(6, 2, 3, 1)],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&model, &ledger, &explain::Settings::default());
     let b = blame(&model, &e, &mitra_lang::blame::Settings::default());
@@ -147,6 +149,7 @@ fn blame_ranked_by_doubt() {
     let ledger = Ledger {
         measurements: vec![divided(7, 2, 4, 1), many],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&model, &ledger, &explain::Settings::default());
     let b = blame(&model, &e, &mitra_lang::blame::Settings::default());

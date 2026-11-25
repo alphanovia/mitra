@@ -21,7 +21,7 @@
 //! suspects'.
 
 use crate::blame::{Blame, Diagnosis, Suspect};
-use crate::explain::{Explanation, Source, CHECK, LINK, PATH};
+use crate::explain::{Explanation, Source, CHECK, LINK, PATH, SHOWS};
 use crate::judgement::{Prop, Rests, Taking};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -148,7 +148,7 @@ fn weight(t: &Taking, settings: &Settings) -> f64 {
     let w = match settings.voices.get(&t.by) {
         Some(w) => *w,
         None if t.by == CHECK => settings.checker,
-        None if t.by == LINK || t.by == PATH => settings.link,
+        None if t.by == LINK || t.by == PATH || t.by == SHOWS => settings.link,
         None => 1.0,
     };
     (w * t.count as f64).min(HEAVIEST)

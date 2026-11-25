@@ -302,6 +302,7 @@ fn a_measured_value_is_checked() {
             ),
         ],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explain(&m, &ledger, &Explaining::default());
     assert_eq!(mitra_lang::evidence::check(&m, &ledger), vec![]);

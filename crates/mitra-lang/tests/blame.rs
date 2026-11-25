@@ -73,6 +73,7 @@ fn a_failed_test_is_blamed_first() {
     let ledger = Ledger {
         measurements: vec![divided(7, 2, 4), divided(6, 2, 3)],
         reviews: vec![],
+        supports: vec![],
     };
     let e = explained(&model, &ledger);
     let b = blame(&model, &e, &Settings::default());
@@ -113,6 +114,7 @@ fn where_nothing_conflicts_nothing_is_blamed() {
     let ledger = Ledger {
         measurements: vec![divided(7, 2, 3), divided(6, 2, 3)],
         reviews: vec![],
+        supports: vec![],
     };
     let b = blame(&model, &explained(&model, &ledger), &Settings::default());
     assert_eq!(
@@ -134,6 +136,7 @@ fn a_review_against_a_claim() {
             holds: false,
             by: "human:ana".to_string(),
         }],
+        supports: vec![],
     };
     let b = blame(&model, &explained(&model, &ledger), &Settings::default());
     let first: Vec<_> = b.diagnoses[0].suspects.iter().collect();
@@ -148,6 +151,7 @@ fn each_finding_is_given() {
     let ledger = Ledger {
         measurements: vec![divided(7, 2, 4), divided(9, 3, 4)],
         reviews: vec![],
+        supports: vec![],
     };
     let tight = Settings {
         diagnoses: 1,
@@ -205,6 +209,7 @@ subject calc {
             holds: false,
             by: "human:zoe".to_string(),
         }],
+        supports: vec![],
     };
     let b = blame(&cased, &explained(&cased, &ledger), &Settings::default());
     let codes: Vec<String> = b.findings.iter().map(|f| f.code.to_string()).collect();

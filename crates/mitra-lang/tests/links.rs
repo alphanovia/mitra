@@ -105,6 +105,7 @@ fn what_rests_on_a_link_is_assumed() {
             links: vec![link(&["high::named"], "high::uses")],
             requires: vec![],
             paths: vec![],
+            tests: vec![],
         }
     );
     assert_eq!(
@@ -113,6 +114,7 @@ fn what_rests_on_a_link_is_assumed() {
             links: vec![link(&["high::named", "high::world"], "high::needs")],
             requires: vec![named("high::world")],
             paths: vec![],
+            tests: vec![],
         }
     );
     // Of two lists, the one that assumes the least.
@@ -122,6 +124,7 @@ fn what_rests_on_a_link_is_assumed() {
             links: vec![link(&["high::named"], "high::both")],
             requires: vec![],
             paths: vec![],
+            tests: vec![],
         }
     );
     // Fewest links first, then fewest requires: a review is what the
@@ -132,6 +135,7 @@ fn what_rests_on_a_link_is_assumed() {
             links: vec![link(&["high::named", "high::world"], "high::either")],
             requires: vec![named("high::world")],
             paths: vec![],
+            tests: vec![],
         }
     );
     // Through two links, both named.
@@ -150,6 +154,7 @@ fn what_rests_on_a_link_is_assumed() {
             links: vec![],
             requires: vec![named("high::world")],
             paths: vec![],
+            tests: vec![],
         }
     );
     // An ensure said only in words is no assumption: unsupported.

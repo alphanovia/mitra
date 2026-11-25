@@ -9,7 +9,7 @@
 //! `check(model, ledger)` gives every error of suit `V`, each at the
 //! measurement or review to fix: `measurements::3`, `reviews::0`.
 
-use crate::catalogue::{Error, V001, V002, V003, V004, V005, V006, V007};
+use crate::catalogue::{Error, V001, V002, V003, V004, V005, V006, V007, V009};
 use crate::expression::Reading;
 use crate::model::{Function, Index, Item, Model, Path};
 use crate::simulation::{Exact, Type, Value};
@@ -79,11 +79,26 @@ impl Review {
     }
 }
 
+/// A test tied to an ensure (`// mitra: supports a::e` above it, finding
+/// 1): it ran, and passed or not. The ensure is said in words, so the
+/// test measures nothing the model can evaluate: that it shows the
+/// sentence is assumed until someone reviews it, seeing the test.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Support {
+    /// The ensure the test is tied to.
+    pub prop: Path,
+    /// The test's voice, `test:name`.
+    pub by: String,
+    pub passed: bool,
+}
+
 /// The evidence, one set at one time.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Ledger {
     pub measurements: Vec<Measurement>,
     pub reviews: Vec<Review>,
+    /// The tests tied to an ensure, as the report gave them.
+    pub supports: Vec<Support>,
 }
 
 /// What a port names: the function, its path, the port's type, and
@@ -139,6 +154,7 @@ fn voice_error(by: &str) -> Option<String> {
         crate::explain::CHECK,
         crate::explain::LINK,
         crate::explain::PATH,
+        crate::explain::SHOWS,
     ]
     .contains(&by)
     {
@@ -250,6 +266,26 @@ pub fn check(model: &Model, ledger: &Ledger) -> Vec<Error> {
                     errors.push(error(V006, format!("`{f}::{name}` is not given")));
                 }
             }
+        }
+    }
+    for (i, s) in ledger.supports.iter().enumerate() {
+        let at = Path::to(&["supports", &i.to_string()]);
+        if !matches!(index.items.get(&s.prop), Some(Item::Ensure(_))) {
+            errors.push(Error {
+                code: V009,
+                at: at.clone(),
+                message: format!(
+                    "`{}` is no ensure: a test is tied to an ensure, what it shows in words",
+                    s.prop
+                ),
+            });
+        }
+        if !s.by.starts_with("test:") || voice_error(&s.by).is_some() {
+            errors.push(Error {
+                code: V007,
+                at,
+                message: format!("`{}` is no test: `test:name`", s.by),
+            });
         }
     }
     let mut said = BTreeSet::new();

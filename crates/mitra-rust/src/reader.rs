@@ -19,6 +19,7 @@
 //! here; nothing given is dropped quietly.
 
 use mitra_lang::catalogue::{R001, R002, R003, R004, R005, R007, R009, R010, R014};
+use mitra_lang::evidence::Support;
 use mitra_lang::location::Location;
 use mitra_lang::model::{Model, Path, Tie};
 use mitra_lang::parse::ParseError;
@@ -40,11 +41,22 @@ pub struct TestPoint {
     pub gives: Value,
 }
 
+/// A test tied to an ensure: `// mitra: supports a::e` above it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TestSupport {
+    /// The test, from its file's root: `tests::every_code_is_documented`.
+    pub test: String,
+    pub file: String,
+    pub line: usize,
+    pub prop: Path,
+}
+
 /// What one Rust file says.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct RustReading {
     pub ties: Vec<Tie>,
     pub points: Vec<TestPoint>,
+    pub supports: Vec<TestSupport>,
     pub findings: Vec<ReaderFinding>,
 }
 
@@ -111,6 +123,17 @@ pub fn read_rust(file: &str, source: &str, model: &Model) -> RustReading {
                                 format!("`measures` is above `fn {name}`, which is no `#[test]`");
                             reading.findings.push(finding(R003, file, at, message));
                         }
+                        Pending::Supports(prop) if test => reading.supports.push(TestSupport {
+                            test: names.join("::"),
+                            file: file.to_string(),
+                            line: at,
+                            prop,
+                        }),
+                        Pending::Supports(_) => {
+                            let message =
+                                format!("`supports` is above `fn {name}`, which is no `#[test]`");
+                            reading.findings.push(finding(R003, file, at, message));
+                        }
                     }
                 }
             }
@@ -125,6 +148,10 @@ pub fn read_rust(file: &str, source: &str, model: &Model) -> RustReading {
                             let message = format!("`measures` is above `{name}`, which is no test");
                             reading.findings.push(finding(R003, file, at, message));
                         }
+                        Pending::Supports(..) => {
+                            let message = format!("`supports` is above `{name}`, which is no test");
+                            reading.findings.push(finding(R003, file, at, message));
+                        }
                     }
                 }
             }
@@ -133,6 +160,7 @@ pub fn read_rust(file: &str, source: &str, model: &Model) -> RustReading {
                     let (code, what) = match p {
                         Pending::Implements(_) => (R002, "`implements`"),
                         Pending::Measures(..) => (R003, "`measures`"),
+                        Pending::Supports(..) => (R003, "`supports`"),
                     };
                     let message =
                         format!("{what} is above no `fn`, `struct` or `enum`: `{trimmed}`");
@@ -157,6 +185,7 @@ pub fn read_rust(file: &str, source: &str, model: &Model) -> RustReading {
         let what = match p {
             Pending::Implements(_) => (R002, "`implements`"),
             Pending::Measures(..) => (R003, "`measures`"),
+            Pending::Supports(..) => (R003, "`supports`"),
         };
         reading.findings.push(finding(
             what.0,
@@ -638,15 +667,18 @@ fn place_of(file: &str) -> (Option<&str>, String, String) {
 /// several do, the one of its module, binary and crate, as far as the
 /// report says them. More than one left is for the caller to say.
 fn runs_of(point: &TestPoint, runs: &[TestRun]) -> Vec<usize> {
+    runs_named(&point.test, &point.file, runs)
+}
+
+/// The runs of the test `test` written in `file`.
+fn runs_named(test: &str, file: &str, runs: &[TestRun]) -> Vec<usize> {
     let mut matching: Vec<usize> = (0..runs.len())
-        .filter(|&i| {
-            runs[i].name == point.test || runs[i].name.ends_with(&format!("::{}", point.test))
-        })
+        .filter(|&i| runs[i].name == test || runs[i].name.ends_with(&format!("::{}", test)))
         .collect();
-    let (krate, binary, module) = place_of(&point.file);
+    let (krate, binary, module) = place_of(file);
     let full = match module.as_str() {
-        "" => point.test.clone(),
-        m => format!("{m}::{}", point.test),
+        "" => test.to_string(),
+        m => format!("{m}::{}", test),
     };
     let norm = |s: &str| s.replace('-', "_");
     let file_of = |b: &str| -> String {
@@ -766,6 +798,61 @@ pub fn measurements(
     (found, findings)
 }
 
+/// Each test tied to an ensure, as the report ran it: passed or not.
+/// One not in the report, or ignored, is R005: it showed nothing.
+pub fn supports(tied: &[TestSupport], runs: &[TestRun]) -> (Vec<Support>, Vec<ReaderFinding>) {
+    supports_used(tied, runs).0
+}
+
+/// `supports`, and the name of each run it used.
+fn supports_used(
+    tied: &[TestSupport],
+    runs: &[TestRun],
+) -> ((Vec<Support>, Vec<ReaderFinding>), BTreeSet<String>) {
+    let (mut found, mut findings, mut used) = (vec![], vec![], BTreeSet::new());
+    for s in tied {
+        let matching = runs_named(&s.test, &s.file, runs);
+        let run = match matching[..] {
+            [i] => i,
+            [] => {
+                let message = format!("the test `{}` is not in the report", s.test);
+                findings.push(finding(R005, &s.file, s.line, message));
+                continue;
+            }
+            _ => {
+                let names: Vec<&str> = matching.iter().map(|&i| runs[i].name.as_str()).collect();
+                let message = format!("the test `{}` is any of {}", s.test, names.join(", "));
+                findings.push(finding(R005, &s.file, s.line, message));
+                continue;
+            }
+        };
+        let passed = match runs[run].outcome {
+            Outcome::Passed => true,
+            Outcome::Failed => false,
+            Outcome::Ignored => {
+                let message = format!(
+                    "the test `{}` was ignored: it showed nothing of `{}`",
+                    runs[run].name, s.prop
+                );
+                findings.push(finding(R005, &s.file, s.line, message));
+                continue;
+            }
+        };
+        let shared = runs.iter().filter(|r| r.name == runs[run].name).count() > 1;
+        let by = match shared {
+            true => format!("test:{}::{}", runs[run].binary, runs[run].name),
+            false => format!("test:{}", runs[run].name),
+        };
+        used.insert(runs[run].name.clone());
+        found.push(Support {
+            prop: s.prop.clone(),
+            by,
+            passed,
+        });
+    }
+    ((found, findings), used)
+}
+
 /// The ledger of a project, read whole: the ties of its Rust files, the
 /// tests they measure, the results of `cargo test` (its name and text)
 /// with the rows its tests printed, and the store.
@@ -777,10 +864,12 @@ pub fn ledger(
     store: Option<(&str, &str)>,
 ) -> Result<(Vec<Tie>, Ledger, Vec<ReaderFinding>), ParseError> {
     let (mut ties, mut points, mut findings) = (model.ties.clone(), vec![], vec![]);
+    let mut tied = vec![];
     for (file, source) in files {
         let reading = read_rust(file, source, model);
         ties.extend(reading.ties);
         points.extend(reading.points);
+        tied.extend(reading.supports);
         findings.extend(reading.findings);
     }
     let mut ledger = Ledger::default();
@@ -806,6 +895,15 @@ pub fn ledger(
             .collect();
         findings.retain(|f| !(f.code == R004 && rowed.contains(&f.message)));
         ledger.measurements.extend(found);
+        findings.extend(more);
+        let ((found, more), used) = supports_used(&tied, &runs);
+        // A test tied to an ensure is used: no R004 for it.
+        let used: BTreeSet<String> = used
+            .iter()
+            .map(|name| format!("the test `{name}` measures nothing the reader knows"))
+            .collect();
+        findings.retain(|f| !(f.code == R004 && used.contains(&f.message)));
+        ledger.supports.extend(found);
         findings.extend(more);
     }
     if let Some((file, source)) = store {

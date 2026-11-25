@@ -51,6 +51,8 @@ pub fn finding(code: Code, file: &str, line: usize, message: impl Into<String>) 
 pub enum Comment {
     Implements(Path),
     Measures(Path, Vec<Value>, Value),
+    /// `supports a::e`: the test under it shows the ensure `a::e`.
+    Supports(Path),
 }
 
 /// `implements a::b` or `measures a::f (6, 2) -> 3`, after `// mitra:`.
@@ -72,6 +74,13 @@ pub fn read_comment(said: &str, model: &Model) -> Result<Comment, String> {
         p.end().map_err(shown)?;
         return Ok(Comment::Implements(path));
     }
+    if p.eat_word("supports") {
+        let path = Path {
+            names: p.raw_path().map_err(shown)?,
+        };
+        p.end().map_err(shown)?;
+        return Ok(Comment::Supports(path));
+    }
     if p.eat_word("measures") {
         let path = Path {
             names: p.raw_path().map_err(shown)?,
@@ -80,7 +89,7 @@ pub fn read_comment(said: &str, model: &Model) -> Result<Comment, String> {
         p.end().map_err(shown)?;
         return Ok(Comment::Measures(path, takes, gives));
     }
-    Err(format!("`mitra: {said}` is no comment the reader knows: `implements a::b` or `measures a::f (6, 2) -> 3`"))
+    Err(format!("`mitra: {said}` is no comment the reader knows: `implements a::b`, `measures a::f (6, 2) -> 3` or `supports a::e`"))
 }
 
 // ---------------------------------------------------------------- tests run

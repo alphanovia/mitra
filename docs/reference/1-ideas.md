@@ -54,7 +54,9 @@ claims live on tests and reviews.
   which a review lifts), or a require said in words (what the world
   must give, which no review of the model lifts), or the way a measured
   run went through the functions it calls, as the model reads it
-  (`assumed:path`, [chapter 5](5-ties-and-evidence.md#the-functions-a-measured-run-went-through)). The line says which;
+  (`assumed:path`, [chapter 5](5-ties-and-evidence.md#the-functions-a-measured-run-went-through)),
+  or that a test tied to an ensure shows it (`assumed:test`, which a
+  review seeing the test lifts, [chapter 5](5-ties-and-evidence.md#tests-that-show-an-ensure)). The line says which;
 - **contradicted**: evidence goes against it;
 - **unsupported**: only the model says it.
 
