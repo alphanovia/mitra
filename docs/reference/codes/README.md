@@ -73,6 +73,7 @@ example, and the fix. The letter says which step found it.
 - [A009](A009.md): an input of a model example no output reads
 - [A010](A010.md): a comparison that holds given the claims of a function with no body
 - [A011](A011.md): a call a row's `then` lists that the run does not make
+- [A012](A012.md): a value written in a row that breaks its record's claims
 
 ## R (reader): `mitra:` comments in code and the test report
 
@@ -118,6 +119,7 @@ example, and the fix. The letter says which step found it.
 - [X011](X011.md): a measured value outside the range of its type
 - [X012](X012.md): a link, or a piece said only in words, no voice reviewed
 - [X013](X013.md): an all or an any over a set no point is in
+- [X014](X014.md): a measured value that breaks, or may break, its record's claims
 
 ## B (blame): diagnoses
 

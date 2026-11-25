@@ -10,7 +10,7 @@ use mitra_lang::explain::{explain, Explanation, Settings, Verdict, CHECK, MODEL}
 use mitra_lang::judgement::{Prop, Term};
 use mitra_lang::model::{Model, Path};
 use mitra_lang::parse::{parse, parse_prop};
-use mitra_lang::simulation::{Rational, Value};
+use mitra_lang::simulation::{Rational, Type, Value};
 
 fn read(name: &str) -> Model {
     let file = match name {
@@ -488,6 +488,28 @@ subject location {
         ["finding[X013]: `all x in (a: 0..3) where 5 < a: correct(s::f, x)`: no point is in the set (a: 0..3) where 5 < a: the all would be true with no point to read, so it is given nothing from its points\n --> s::f::r"]
     );
     given.insert("X013".to_string());
+    // X014: a measured value that breaks its record's claims, in
+    // tests/record_claims.rs too.
+    let span = parse("subject S at \"src/s.rs\" {\n    record { lo: integer, hi: integer } where { claim ordered: self.lo <= self.hi; }\n    fn lo(s: S) -> l: integer { s.lo }\n}").unwrap();
+    let Type::Record(r) = &span.parts[0].functions[0].takes[0].1 else {
+        panic!()
+    };
+    let bad = Value::Record(r.clone(), vec![int(3), int(1)]);
+    let ledger = Ledger {
+        measurements: vec![measured(
+            &[("S::lo::s", bad)],
+            &[("S::lo::l", int(3))],
+            true,
+        )],
+        reviews: vec![],
+    };
+    let e = explain(&span, &ledger, &Settings::default());
+    let shown: Vec<String> = e.findings.iter().map(|f| f.to_string()).collect();
+    assert_eq!(
+        shown,
+        ["finding[X014]: the test gave `S::lo::s` holding S { lo: 3, hi: 1 }, which breaks record claim `S::ordered`: the test, or the claim, is wrong\n --> measurements::0"]
+    );
+    given.insert("X014".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Explain && !e.retired);

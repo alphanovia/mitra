@@ -133,6 +133,38 @@ a type, named like the part.
 - `Heater { on: …, ..self }` is a new `Heater` with `on` changed and the
   rest from `self`, as in Rust.
 
+### Claims of a record
+
+A record may say, in `where`, what each of its values holds, with
+`self` the value:
+
+```mitra
+subject Span {
+    record { lo: integer, hi: integer } where {
+        claim ordered: self.lo <= self.hi;
+    }
+    fn width(self) -> w: integer { self.hi - self.lo } where {
+        claim positive: w >= 0;
+    }
+}
+```
+
+Mitra checks such a claim wherever a value of the record enters the
+model:
+
+- what a function with a body gives (A001 when the body breaks it,
+  A007 when it cannot tell);
+- each value written in a row: an example's inputs and output, what
+  `given` says the environment gave, the arguments of `when` and of the
+  calls `then` lists (A012);
+- each value a measurement holds: what the world gave, what a test gave
+  or expected, what the system gave (X014).
+
+A record inside another, in a sequence or in a variant, is checked as
+well. Since every value is checked where it enters, a function that
+takes a record counts on its claims: `positive` above holds because
+`ordered` does.
+
 ## Data parts, written short
 
 A part that only holds data is written in one line:

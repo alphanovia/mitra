@@ -507,10 +507,8 @@ subject s {
         .collect();
     assert_eq!(
         shown,
-        [
-            "A005 at s::g::Monotone::rises: false at a = 1.0, b = 7.5",
-            "A005 at s::inv::Monotone::rises: no value at a = 0.0, b = 0.0",
-        ]
+        // Both impls break it: said once, at the contract (finding 10b).
+        ["A005 at Monotone::rises: every impl of `Monotone` breaks it: `s::g` false at a = 1.0, b = 7.5; `s::inv` no value at a = 0.0, b = 0.0; the claim, or every impl, is to look at"]
     );
 }
 

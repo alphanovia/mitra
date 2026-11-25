@@ -17,7 +17,7 @@
 //! It reads a model `check` accepts: on another, it compares nothing.
 
 use crate::catalogue::{
-    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011,
+    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011, A012,
 };
 use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
@@ -138,11 +138,44 @@ pub fn agree(model: &Model, settings: &Settings) -> (Vec<Agreed>, Vec<Finding>) 
             reading.function(&at, f, &mut agreed);
         }
     }
+    // Each value written in a row, against the claims of each record
+    // in it (finding 10b): a row is where the world's values enter.
+    for part in &model.parts {
+        for f in &part.functions {
+            let at = Path::to(&[&part.name, &f.name]);
+            for (i, e) in f.examples.iter().enumerate() {
+                let named = f.takes.iter().map(|(n, _)| n.clone()).zip(e.takes.iter());
+                let gives = e.gives.iter().map(|v| (f.gives.0.clone(), v));
+                let mut values: Vec<(String, &Value)> = named.chain(gives).collect();
+                values.extend(world_values(&e.given, &e.effects));
+                for (what, v) in values {
+                    reading.row_value(&at, &format!("example {i}: `{what}`"), v, &mut agreed);
+                }
+            }
+        }
+    }
+    for (i, e) in model.examples.iter().enumerate() {
+        let at = Path::to(&["examples", &i.to_string()]);
+        let ports = e
+            .inputs
+            .iter()
+            .chain(&e.outputs)
+            .map(|(p, v)| (p.to_string(), v));
+        let mut values: Vec<(String, &Value)> = ports.collect();
+        values.extend(world_values(&e.given, &e.effects));
+        if let Some((f, args, gives)) = &e.when {
+            values.extend(args.iter().map(|v| (format!("{f}(…)"), v)));
+            values.extend(gives.iter().map(|v| (format!("{f}"), v)));
+        }
+        for (what, v) in values {
+            reading.row_value(&at, &format!("`{what}`"), v, &mut agreed);
+        }
+    }
     for c in contract_claims(model) {
         let agreement = reading.claim(&c.over, &c.holds, &[]);
         agreed.push(Agreed {
             at: c.at,
-            against: "every value of what it reads".to_string(),
+            against: CONTRACT.to_string(),
             agreement,
             given: reading.given(),
         });
@@ -153,7 +186,13 @@ pub fn agree(model: &Model, settings: &Settings) -> (Vec<Agreed>, Vec<Finding>) 
         agreed.extend(compared);
         findings.extend(unread);
     }
-    findings.extend(agreed.iter().filter_map(finding));
+    findings.extend(laws_broken_everywhere(&agreed));
+    findings.extend(
+        agreed
+            .iter()
+            .filter(|a| !everywhere_broken(&agreed, a))
+            .filter_map(finding),
+    );
     findings.sort_by(|a, b| (&a.at, a.code, &a.message).cmp(&(&b.at, b.code, &b.message)));
     (agreed, findings)
 }
@@ -178,6 +217,9 @@ struct Reading<'m> {
     /// equal: agree reads no bounds over one, and makes none of its values.
     opaque: BTreeSet<&'m str>,
     functions: BTreeMap<String, &'m Function>,
+    /// The records of the model, by name: their claims hold of each
+    /// value a function of the model gives (finding 10b).
+    records: BTreeMap<&'m str, &'m crate::model::Record>,
     settings: Settings,
     /// What the last outcome decided by bounds was given.
     last_given: std::cell::RefCell<Vec<String>>,
@@ -229,6 +271,7 @@ impl<'m> Reading<'m> {
             library,
             opaque,
             functions: index.functions.clone(),
+            records: index.records.clone(),
             settings,
             last_given: Default::default(),
             domains: Default::default(),
@@ -281,7 +324,30 @@ impl<'m> Reading<'m> {
             })
         };
         // Its ranges of what it takes: a claim is read where they hold.
-        let takes_in = conjunction(f.ranges.takes.iter().map(|(n, r)| in_range(n, r)));
+        // And the claims of each record it takes, of what it is given
+        // (finding 10b): every value of a record enters the model where
+        // they are read, so what takes one may count on them.
+        let mut promised: Vec<Expression<Op>> = Vec::new();
+        for (n, t) in &f.takes {
+            self.promises(&Expression::Name(n.clone()), t, 0, &mut promised);
+        }
+        // Bounds read one value at a time: what relates two fields is
+        // decided, where it can be, as linear facts.
+        let linear = |agreement: Agreement, holds: &Expression<Op>| match agreement {
+            Agreement::Unknown { .. }
+                if !promised.is_empty() && crate::linear::holds(&promised, holds) =>
+            {
+                Agreement::Holds
+            }
+            agreement => agreement,
+        };
+        let takes_in = conjunction(
+            f.ranges
+                .takes
+                .iter()
+                .map(|(n, r)| in_range(n, r))
+                .chain(promised.iter().cloned()),
+        );
         let read_in = |holds: Expression<Op>| match &takes_in {
             Some(r) => Expression::Apply(
                 Op::Or,
@@ -331,10 +397,28 @@ impl<'m> Reading<'m> {
                         (Agreement::Unknown { why }, Some(Err(not))) => Agreement::Unknown {
                             why: format!("{why}; `by invariant`: {not}"),
                         },
-                        (agreement, _) => agreement,
+                        (agreement, _) => linear(agreement, &with_body),
                     },
                 };
                 push(format!("claim `{}`", c.name), agreement);
+            }
+            // The claims of the record it gives, of the value it gives
+            // (finding 10b): what the model makes keeps them.
+            if let Type::Record(r) = &f.gives.1 {
+                // No claim of a record is by induction or invariant
+                // (M031, M033).
+                let claims = self.records.get(r.name.as_str()).map(|r| &r.claims);
+                for c in claims.into_iter().flatten() {
+                    // Its ranges and promises read outside: `self` in
+                    // them is what it takes, here what it gives.
+                    let with_body = read_in(let_in("self", body, &c.holds));
+                    let agreement = self.claim(&f.takes, &with_body, &rows);
+                    let agreement = linear(agreement, &with_body);
+                    push(
+                        format!("claim `{}::{}` of what it gives", r.name, c.name),
+                        agreement,
+                    );
+                }
             }
             // The range of what it gives, as a claim the body keeps.
             if let Some((q, range)) = &f.ranges.gives {
@@ -409,6 +493,39 @@ impl<'m> Reading<'m> {
         // Some value keeps all its claims.
         if !f.claims.is_empty() {
             push("its claims together".to_string(), self.together(f, &rows));
+        }
+    }
+
+    /// The claims of the record of type `t` that `e` reads, and of each
+    /// record in its fields, a few levels down: what a function that
+    /// takes it counts on (finding 10b).
+    fn promises(&self, e: &Expression<Op>, t: &Type, depth: usize, out: &mut Vec<Expression<Op>>) {
+        let Type::Record(r) = t else { return };
+        if depth > 3 {
+            return;
+        }
+        if let Some(record) = self.records.get(r.name.as_str()) {
+            out.extend(record.claims.iter().map(|c| let_in("self", e, &c.holds)));
+        }
+        for (name, ft) in &r.fields {
+            let field = Expression::Apply(Op::Field(name.clone()), vec![plain(e.clone())]);
+            self.promises(&field, ft, depth + 1, out);
+        }
+    }
+
+    /// `v`, written in a row as `what`, against the claims of each record
+    /// in it, at any depth: one comparison each.
+    fn row_value(&self, at: &Path, what: &str, v: &Value, agreed: &mut Vec<Agreed>) {
+        for (claim, w, agreement) in record_claims(&self.records, &self.exact, v) {
+            agreed.push(Agreed {
+                at: at.clone(),
+                against: format!(
+                    "{what} = {} against record claim `{claim}`",
+                    print::value(&w)
+                ),
+                agreement,
+                given: vec![],
+            });
         }
     }
 
@@ -1714,6 +1831,11 @@ fn finding(a: &Agreed) -> Option<Finding> {
                 format!("{}: the run does not make it; {made}", a.against),
             )
         }
+        Agreement::Fails { .. } if a.against.contains(" against record claim `") => (
+            A012,
+            a.against
+                .replace(" against record claim ", " breaks record claim "),
+        ),
         Agreement::Fails { at, gives: g } => {
             let against = &a.against;
             if a.at.names.first().map(String::as_str) == Some("examples") {
@@ -1756,6 +1878,119 @@ fn finding(a: &Agreed) -> Option<Finding> {
         at: a.at.clone(),
         message: format!("{message}{}", given(&a.given)),
     })
+}
+
+/// The contract and law of a comparison of a contract's claim,
+/// `part::f::Contract::law`.
+fn law_of(a: &Agreed) -> Option<(&str, &str)> {
+    match a.at.names.as_slice() {
+        [_, _, contract, law] if a.against == CONTRACT => Some((contract, law)),
+        _ => None,
+    }
+}
+
+/// What agree says a contract's claim is compared against.
+const CONTRACT: &str = "every value of what it reads";
+
+/// The comparisons of the law of `a`'s contract, each impl's, when there
+/// are two or more and every one fails: the law, not each impl, is then
+/// what to look at (finding 10b).
+fn broken_everywhere<'a>(agreed: &'a [Agreed], law: (&str, &str)) -> Option<Vec<&'a Agreed>> {
+    let all: Vec<&Agreed> = agreed.iter().filter(|a| law_of(a) == Some(law)).collect();
+    let fails = all
+        .iter()
+        .all(|a| matches!(a.agreement, Agreement::Fails { .. }));
+    (all.len() >= 2 && fails).then_some(all)
+}
+
+fn everywhere_broken(agreed: &[Agreed], a: &Agreed) -> bool {
+    law_of(a).is_some_and(|law| broken_everywhere(agreed, law).is_some())
+}
+
+/// One A005 for each contract's claim every impl breaks, at the
+/// contract, listing where each breaks it.
+fn laws_broken_everywhere(agreed: &[Agreed]) -> Vec<Finding> {
+    let laws: BTreeSet<(&str, &str)> = agreed.iter().filter_map(law_of).collect();
+    let mut findings = Vec::new();
+    for law in laws {
+        let Some(all) = broken_everywhere(agreed, law) else {
+            continue;
+        };
+        let each: Vec<String> = all
+            .iter()
+            .filter_map(|a| {
+                finding(a).map(|f| format!("`{}::{}` {}", a.at.names[0], a.at.names[1], f.message))
+            })
+            .collect();
+        findings.push(Finding {
+            code: A005,
+            at: Path::to(&[law.0, law.1]),
+            message: format!(
+                "every impl of `{}` breaks it: {}; the claim, or every impl, is to look at",
+                law.0,
+                each.join("; ")
+            ),
+        });
+    }
+    findings
+}
+
+/// Each record in `v`, at any depth, against each of its claims, read
+/// of it as `self`: the claim's path (`Span::ordered`), the record's
+/// value, and whether it holds there (finding 10b).
+pub(crate) fn record_claims(
+    records: &BTreeMap<&str, &crate::model::Record>,
+    exact: &Exact,
+    v: &Value,
+) -> Vec<(String, Value, Agreement)> {
+    let (record, inner): (Option<&str>, Vec<&Value>) = match v {
+        Value::Record(r, fields) => (Some(&r.name), fields.iter().collect()),
+        Value::Partial(r, fields) => (Some(&r.name), fields.iter().flatten().collect()),
+        Value::Variant(_, _, held) => (None, held.iter().collect()),
+        Value::Seq(_, held) => (None, held.iter().collect()),
+        _ => (None, vec![]),
+    };
+    let mut out = Vec::new();
+    let claims = record.and_then(|r| records.get(r).map(|rec| (r, &rec.claims)));
+    if let Some((r, claims)) = claims {
+        for c in claims {
+            let values = BTreeMap::from([("self".to_string(), v.clone())]);
+            let agreement = match eval(exact, &values, &c.holds) {
+                Ok(Value::Truth(true)) => Agreement::Holds,
+                Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
+                    why: format!("no value for {} here", unstated(&g)),
+                },
+                Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
+                // False, or no value: a claim with none does not hold.
+                _ => Agreement::Fails {
+                    at: vec![("self".to_string(), v.clone())],
+                    gives: None,
+                },
+            };
+            out.push((format!("{r}::{}", c.name), v.clone(), agreement));
+        }
+    }
+    for w in inner {
+        out.extend(record_claims(records, exact, w));
+    }
+    out
+}
+
+/// The values a row's world holds: what each function with no body
+/// was given and gave, and the calls its `then` lists.
+fn world_values<'e>(
+    given: &'e crate::model::Given,
+    effects: &'e crate::model::Effects,
+) -> Vec<(String, &'e Value)> {
+    let mut values = Vec::new();
+    for (g, args, v) in &given.0 {
+        values.extend(args.iter().flatten().map(|a| (format!("{g}(…)"), a)));
+        values.push((format!("{g}()"), v));
+    }
+    for (g, args) in &effects.0 {
+        values.extend(args.iter().flatten().map(|a| (format!("{g}(…)"), a)));
+    }
+    values
 }
 
 /// What has no value, for messages: `` `a::b` ``, or for a record's

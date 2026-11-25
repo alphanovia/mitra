@@ -24,7 +24,7 @@
 
 use crate::catalogue::{
     Ask, Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008, X009, X010, X011, X012,
-    X013,
+    X013, X014,
 };
 use crate::evidence::{self, port, Ledger, Measurement};
 use crate::expression::{eval, Arg, Expression, Fault};
@@ -680,6 +680,50 @@ impl Given<'_, '_> {
         self.written.push((f.clone(), prop));
     }
 
+    /// Each value the measurement gives or saw, against the claims of
+    /// each record in it (finding 10b): a value the model says no one
+    /// makes is said, never read as if it were one, by who gave it.
+    fn record_claims(&mut self, m: &Measurement, at: &Path) {
+        let exact = Exact {
+            calls: Arc::new(self.library.clone()),
+            log: Default::default(),
+        };
+        let index = self.index;
+        let sides = m
+            .inputs
+            .iter()
+            .map(|p| (p, true))
+            .chain(m.outputs.iter().map(|p| (p, false)));
+        for ((p, v), input) in sides {
+            let world = port(index, p).is_some_and(|q| q.gives && q.function.body.is_none());
+            let who = match (input, world, m.seen) {
+                (true, true, _) => "the world gave",
+                (true, false, _) => "the test gave",
+                (false, _, true) => "the system gave",
+                (false, _, false) => "the test expected",
+            };
+            let why = match (input, world) {
+                (true, true) => "the environment, or the claim, is wrong",
+                (true, false) => "the test, or the claim, is wrong",
+                (false, _) => "a drift between the model and the code, or the claim is wrong",
+            };
+            for (claim, w, agreement) in crate::agree::record_claims(&index.records, &exact, v) {
+                let message = match agreement {
+                    crate::agree::Agreement::Fails { .. } => format!(
+                        "{who} `{p}` holding {}, which breaks record claim `{claim}`: {why}",
+                        print::value(&w)
+                    ),
+                    crate::agree::Agreement::Unknown { why } => format!(
+                        "{who} `{p}` holding {}: record claim `{claim}` is not decided there, {why}",
+                        print::value(&w)
+                    ),
+                    _ => continue,
+                };
+                self.finding(X014, at, message);
+            }
+        }
+    }
+
     fn measurement(&mut self, i: usize, m: &Measurement) {
         let at = Path::to(&["measurements", &i.to_string()]);
         let index = self.index;
@@ -691,6 +735,7 @@ impl Given<'_, '_> {
                 .map(|(n, _)| given.get(&f.then(n)).map(|v| (*v).clone()));
             args.collect()
         };
+        self.record_claims(m, &at);
         // What a function with no body gave, at its point: read before
         // its examples.
         let mut library = self.library.clone();

@@ -129,6 +129,7 @@ pub const A008: Code = agree(8);
 pub const A009: Code = agree(9);
 pub const A010: Code = agree(10);
 pub const A011: Code = agree(11);
+pub const A012: Code = agree(12);
 
 const fn evidence(number: u16) -> Code {
     Code {
@@ -166,6 +167,7 @@ pub const X010: Code = explain(10);
 pub const X011: Code = explain(11);
 pub const X012: Code = explain(12);
 pub const X013: Code = explain(13);
+pub const X014: Code = explain(14);
 
 const fn blame(number: u16) -> Code {
     Code {
@@ -334,6 +336,10 @@ pub const CATALOGUE: &[Entry] = &[
         A011,
         "a call a row's `then` lists that the run does not make",
     ),
+    entry(
+        A012,
+        "a value written in a row that breaks its record's claims",
+    ),
     entry(V001, "a measurement that names no input or output"),
     entry(V002, "a measurement through no tie"),
     entry(
@@ -376,6 +382,10 @@ pub const CATALOGUE: &[Entry] = &[
         "a link, or a piece said only in words, no voice reviewed",
     ),
     entry(X013, "an all or an any over a set no point is in"),
+    entry(
+        X014,
+        "a measured value that breaks, or may break, its record's claims",
+    ),
     entry(B001, "a conflict the model's claims alone hold"),
     entry(B002, "more diagnoses than blame looked for"),
     entry(B003, "a diagnosis a proof by cases may outlive"),

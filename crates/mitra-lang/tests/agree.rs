@@ -191,6 +191,15 @@ fn each_finding_is_given() {
         "{found:?}"
     );
     given.insert("A011".to_string());
+    // A value written in a row that breaks its record's claims (more in
+    // tests/record_claims.rs).
+    let (_, found) = agree(
+        &model("subject S {\n    record { lo: integer, hi: integer } where { claim ordered: self.lo <= self.hi; }\n    fn lo(s: S) -> l: integer { s.lo } where { examples { (S { lo: 3, hi: 1 }) -> 3 } }\n}"),
+        &Settings::default(),
+    );
+    let found: Vec<String> = found.iter().map(|f| f.to_string()).collect();
+    assert_eq!(found, ["finding[A012]: example 0: `s` = S { lo: 3, hi: 1 } breaks record claim `S::ordered`\n --> S::lo"]);
+    given.insert("A012".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Agree && !e.retired);

@@ -22,7 +22,10 @@ contract Monotone<T: Number> {
 ```
 
 `check` then reads `rises` of `with_tax` (A005 when the function breaks
-it). `T: Number` means `T` is `integer` or `rational`.
+it). When every impl of a contract, two or more, breaks one of its
+claims, A005 is said once, at the contract (`Monotone::rises`), listing
+where each breaks it: the claim is the first thing to look at. `T:
+Number` means `T` is `integer` or `rational`.
 
 A part whose methods fulfil a contract says so with `impl Name;`
 inside it: see [examples/assistant/assistant.mitra](../../examples/assistant/assistant.mitra).
