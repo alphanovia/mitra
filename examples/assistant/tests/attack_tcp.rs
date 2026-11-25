@@ -19,26 +19,37 @@ impl Drop for Server {
 }
 
 fn start() -> Server {
-    let port = TcpListener::bind("127.0.0.1:0")
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port();
-    let addr = format!("127.0.0.1:{port}");
-    let child = Command::new(env!("CARGO_BIN_EXE_assistant-server"))
-        .arg(&addr)
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("server");
-    let t = Instant::now();
-    while TcpStream::connect(&addr).is_err() {
-        assert!(
-            t.elapsed() < Duration::from_secs(10),
-            "server did not start"
-        );
-        std::thread::sleep(Duration::from_millis(20));
+    // A free port can be taken by another test between our probe and the
+    // server's bind: then our server exits, and we try another port. We
+    // use a server only once it is up and still ours (alive).
+    loop {
+        let port = TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let addr = format!("127.0.0.1:{port}");
+        let mut child = Command::new(env!("CARGO_BIN_EXE_assistant-server"))
+            .arg(&addr)
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("server");
+        let t = Instant::now();
+        loop {
+            if child.try_wait().unwrap().is_some() {
+                break; // the bind failed: another port
+            }
+            if TcpStream::connect(&addr).is_ok() {
+                std::thread::sleep(Duration::from_millis(20));
+                if child.try_wait().unwrap().is_none() {
+                    return Server { child, addr };
+                }
+                break;
+            }
+            assert!(t.elapsed() < Duration::from_secs(10), "server did not start");
+            std::thread::sleep(Duration::from_millis(20));
+        }
     }
-    Server { child, addr }
 }
 
 fn ask(addr: &str, line: &[u8]) -> std::io::Result<String> {
@@ -86,4 +97,30 @@ fn k11_a_broken_encoding_is_refused_out_loud() {
     let s = start();
     let got = ask(&s.addr, b"POST cli 1 T caf\xe9\n");
     assert!(matches!(&got, Ok(x) if x.starts_with("ERR")), "{got:?}");
+}
+
+// K14. The read limit is per read, not per call: a client that sends one
+// byte a second keeps its connection, and a thread, for as long as it
+// likes (64 KiB at 2 s a byte is about 36 hours). Threads are not
+// bounded, so enough slow clients wear the server out.
+// mitra: supports Server::reachable
+#[test]
+#[ignore = "OPEN K14: the read time limit is per byte, not per call; slow clients hold threads without bound"]
+fn k14_a_slow_call_is_cut_off_at_the_time_limit() {
+    let s = start();
+    let mut c = TcpStream::connect(&s.addr).unwrap();
+    c.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    let t = Instant::now();
+    for b in b"WHOAMI cli" {
+        c.write_all(&[*b]).unwrap();
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    c.write_all(b"\n").unwrap();
+    let mut out = String::new();
+    let _ = BufReader::new(c).read_line(&mut out);
+    assert!(
+        !out.starts_with("OK"),
+        "a call drip-fed over {:?} was still served: {out:?}",
+        t.elapsed()
+    );
 }
