@@ -1,6 +1,6 @@
 # The assistant, built against its model: report (night of 2026-11-25)
 
-Final, 20:55 UTC. Main at a5001e2.
+Final, 21:12 UTC. Main at 7ecffc3.
 
 ## 1. The work
 
@@ -20,12 +20,12 @@ Final, 20:55 UTC. Main at a5001e2.
 - **Two binaries**, speaking a line protocol over TCP:
   - `cargo run --bin assistant-server`
   - `cargo run --bin assistant-cli -- --token cli "hello"` (tokens: `cli`, `owner-phone`, `wearable`, `other-phone`)
-- **87 tests**:
+- **101 tests**:
   - 32 unit tests, mine, with Mitra rows;
-  - 28 scenarios, mine;
-  - 27 attacks, the challenger's (`tests/attack_*.rs`).
+  - 38 scenarios, mine;
+  - 31 attacks, the challenger's (`tests/attack_*.rs`).
 
-**Commits** (8 on main): 6680f6b, 75e7d1a, 551542a, dce6f68 and 52b2e7e (challenger), c75ae77, 9d15b1d (challenger, round 2), a5001e2.
+**Commits** (8 on main): 6680f6b, 75e7d1a, 551542a, dce6f68 and 52b2e7e (challenger), c75ae77, 9d15b1d (challenger, round 2), a5001e2, dca3fec (this report), 3036a3d (round 3), 98fda7d (challenger, round 3), 7ecffc3 (K15).
 
 ## 2. Metrics
 
@@ -48,6 +48,7 @@ Final, 20:55 UTC. Main at a5001e2.
 | Model only (32ef79a) | 116 | 97 | 19 |
 | Challenger's model holes folded in | 130 | 107 | 23 |
 | After K1–K11, and after K12–K14 | 132 | 109 | 23 |
+| Round 3 (write-ahead, receipts, CLI retry) | 139 | 116 | 23 |
 
 The 4 new unknowns are Mitra gaps of the kinds already listed (L, P). Example: `Gateway::may_post` was decided while `Device` was finite. It takes a `Holder` now, which holds integers.
 
@@ -66,19 +67,37 @@ The 4 new unknowns are Mitra gaps of the kinds already listed (L, P). Example: `
 | 9. K12–K14 closed, before new reviews | 754 | 506 | 31 | 0 | 217 | 49 |
 | 10. Plus reviews of the closed attack tests and new ties, now | 754 | **520** | 22 | **0** | 212 | 37 |
 | 10, without any review (no store) | 754 | 313 | 149 | 0 | 292 | 145 |
+| 11. Round 3: write-ahead, receipts, CLI retry, 6 cheap tests, reviews | 780 | **548** | 27 | **0** | 205 | 35 |
+| 11, without any review (no store) | 780 | 315 | 168 | 0 | 297 | 154 |
+| 12. K15 closed, now | 786 | **552** | 29 | **0** | 205 | 36 |
+| 12, without any review (no store) | 786 | 316 | 172 | 0 | 298 | 160 |
 
-**Read the last two lines together.** 207 of the 520 explained rest on reviews written by the agent that wrote the code and the tests. No human has reviewed anything.
+**Read the last two lines together.** 236 of the 552 explained rest on reviews written by the agent that wrote the code and the tests. No human has reviewed anything.
 
-**The 212 still unsupported** are of three kinds:
-- what the fake plays: the quality of the models and of speech, the identity per device, the codes' randomness;
-- what is not built: the disk, the journal, tuning, the wearable;
-- ties of functions with no body in the model.
+**The 205 still unsupported, by why** (counted from `explain` at 3036a3d):
 
-Under each, a note in `evidence.mitra` says why it is left.
+| Why | Count | What would move it |
+|---|---|---|
+| A require: a link to another part's ensure that is itself unsupported | 90 | moves when its target moves |
+| A function with no body in the model, tied to code the fake plays (models, speech, codes, accounts, the reporter's words, the write-ahead) | 40 | real inference and devices, or bodies in the model |
+| A claim that `check` decides on every case, or that is measured at every point, yet reads unsupported as a whole claim (Y5) | 31 | a Mitra change, or a review of each |
+| A claim `check` cannot decide (integers, `Audio { .. }`: gaps L, P) | 21 | a Mitra change |
+| Needs real inference or a real device: the speech promises, `LocalLlm::serves`, `CloudLlm::serves`, `Gate::spots_malice`, `Gate::few_refused`, `Purpose::judged_easy`, `Purpose::relevant`, `Helpline::reaches`, the personas | 13 | real models and devices |
+| Not built: `Disk::durable`, `Server::hosts`, `Journal::explainable`, tuning (2), experience (2) | 7 | building them |
+| A promise nobody can test as written: `Reporter::clear` (quality), `Limits::set` (no way to read settings), `Assistant::never_too_long` (contradicts `keeps_pin` for an ask longer than the window, W13) | 3 | rewording, or a decision |
+
+Round 3 wrote the cheap tests: `asks_back`, `pinned`, `keeps_pin`, `help_first` and `unsent_told`, plus `Network::carries`, which stays unreviewed because a real network is the world's. All passed on their first run.
 
 ### Tests and attacks
 - Mine: 60 (32 unit, 28 scenarios). All passed on their first run, except one scenario whose expectation was wrong (3.1).
 - Challenger, round 1 on code: 24 attacks. 13 were stopped by the first layer; 11 crossed (K1–K11). All 11 were closed.
+- Round 3, asked by the coordinator to close what was open within the server and CLI:
+  - H13 (write-ahead): each call is written down before its tool runs. After a crash, the sender's reply and a note name the calls that had begun, and the owner's phone is told.
+  - W12 (receipts): a client asks `STATUS` and gets received, read or delivered for its own message.
+  - W11, the CLI part: retrying a lost call is now a decided rule (`Cli::again`), shown by a test with a stub server. Writing the claim showed a mismatch: the model said "retry until sent", the code retried only a lost call. The model now says what the code does.
+  - The codes come from system randomness.
+  - The 32 characters are kept as choice C17, with its reason.
+- Challenger, round 3, against round 3: 4 tried, 3 stopped, 1 crossed (K15: a crash inside the owner's yes left the code valid, so the same yes opened the door again after the restart). Closed in 7ecffc3: a yes cut short is used up, and the owner asks afresh.
 - Challenger, round 2, against the fixes: 3 more crossed (K12–K14). K12: the K1 taint lasted one message, because the stored reply carried the page's words into the next history. K13: a stranger's words entered the owner's history. K14: the read limit was per read, not per call, and connections had no cap. All 3 are closed (a5001e2). I changed three of its tests, each marked in the file; see 3.2.
 - Challenger, before the code, on the model: 21 distinct holes (H1–H21, W1–W14). All were folded into the model before or while coding, except H13 (a tool that ran before a crash leaves no note), which is still open.
 
@@ -88,20 +107,22 @@ Under each, a note in `evidence.mitra` says why it is left.
 | Challenger reading the model (before code) | 21 | 0 |
 | Challenger attacking the code (round 1) | 11 | 0 |
 | Challenger attacking the fixes (round 2) | 3 | 0 |
+| Challenger attacking round 3 | 1 (K15) | 0 |
 | Me, running the two binaries by hand | 1 (the CLI skipped unseen replies after a restart) | 0 |
 | Me, reading the links that Mitra's review asks pointed at | 3 (M17–M19) | 0, but the ask led there |
-| **Total** | **39** | **0 found by Mitra; 3 found because of its asks** |
+| **Total** | **40** | **0 found by Mitra; 3 found because of its asks** |
 
 **Ratio.**
-- Holes Mitra flagged by itself: 0 of 39.
-- Holes it led to through a review ask: 3 of 39 (8%).
-- The observer thread (MITRA-JUDGEMENT.md) counts the model-reading holes as 35 items (H1–H21, W1–W14). I count 21, because several W items repeat an H. Its total would be 53; the ratio is 0 either way.
+- Holes Mitra flagged by itself: 0 of 40.
+- Holes it led to through a review ask: 3 of 40 (8%).
+- The observer thread (MITRA-JUDGEMENT.md) counts the model-reading holes as 35 items (H1–H21, W1–W14). I count 21, because several W items repeat an H. Its total would be 54; the ratio is 0 either way.
 - For comparison, on planted mutations of the routing (the red team before the night), Mitra caught 24 of 26.
 
 ### The challenger's own count (its words, ATTACK.md and log-challenger.md)
 - Model, read before code: 35 items (H1–H21, W1–W14). 26 closed; 3 open (H13; W11, `sends_once` rests on "may retry" and the wearable has no send; W12, read/delivered receipts are never sent); 6 kept as assumptions or decisions (H17, H18, H10/H11/H19, H21).
-- Code: round 1, 24 attacks, 13 stopped, 11 crossed, 11 closed. Round 2, 3 tried, 3 crossed, 3 closed. Round 3, re-read of a5001e2, 0 crossed.
-- In total, 27 attack tests, all green; 14 crossed and 14 closed.
+- Code: round 1, 24 attacks, 13 stopped, 11 crossed, 11 closed. Round 2, 3 tried, 3 crossed, 3 closed. Round 3 (after the write-ahead), 4 tried, 3 stopped, 1 crossed (K15), closed. A last re-read of 7ecffc3: 0 crossed.
+- In total, 31 attack tests over 3 rounds, all green: 16 stopped, 15 crossed, 15 closed. Of the 35 model items, only W11 (the wearable's send, out of scope) is open.
+- Mitra pointed at 0 of the 50 before an attack, and flagged every tied failing test after.
 - How found: all 49 by reading and scripted tests. Mitra pointed at 0 before an attack.
 - By its reading, Mitra could have pointed at W3/W4 (a row with two sends, a long history), W7 (a part requiring a fallible machine whose result has no failure), and the short `from` links (W11, K1, K12).
 - After an attack was tied and run, Mitra flagged 10 of 10 failing tests (X015). K7, which has no ensure, showed as R004: the gap in the model was visible.
@@ -118,11 +139,12 @@ Under each, a note in `evidence.mitra` says why it is left.
   - `Cli::sends_once` missed the count moving on;
   - `Confirmations::guessing_fails` gave the wrong reason.
 - **Decided routing.** After a fix, `check` proves the new routing claims on every case: `data_never_acts` and `strangers_run_nothing` over the 24 inputs of `Policy::decide`, and the `after_gate` claims. A fix now cannot quietly regress them.
+- **A decidable claim showed a mismatch (round 3).** To make "sends once" rest on a CLI that does retry, I wrote `Cli::again` as a small finite function with two claims. Writing it showed that the model said "retry until sent" while the code retried only a lost call. First `check` called the claims unknown, because they read integers (gap L). Rewritten over two booleans, they are decided on every case.
 - **Model errors during edits.** P004, M022, M008 and P013 pointed at the right line every time.
 - **The attack tests show in explain.** Once the challenger tied its open attacks with `supports`, each hole was a contradicted ensure in `explain`. They went back to 0 when closed.
 
 ### 3.2 Where it did not help, or got in the way
-- **It found none of the 36 security holes.** None of them were flagged. The reasons fall into four kinds:
+- **It found none of the 37 security holes.** None of them were flagged. The reasons fall into four kinds:
   - Each was a missing input or a missing promise. For K1, `Policy::decide` didn't know the call came after a tool output; for K3/K4, the history was by device and a read had a model-chosen input. Mitra proves claims of a function that cannot see the risk.
   - Or it was in a function with no body in the model (K2, K6, K7: guard, composer, reporter).
   - Or it was in an opaque type (K8, audio size).
@@ -157,13 +179,14 @@ Under each, a note in `evidence.mitra` says why it is left.
 | Y7 | Nothing in Mitra asks "who can reach this", "what input does this decision lack", or "what follows a tool output"; holes of absence pass `check` and `explain` | an adversary thread |
 | Y8 | A function with no body in the model is free in code; most code holes were there | write bodies for guard/composer-like functions, or claims on them |
 | Y9 | Facts about where a stored turn came from (which sender, after which output) aren't typed; a fold over the store can't be decided, so `check` says nothing about the K12/K13 fixes | scenarios and attack tests, tied with `supports` |
+| Y10 | The mitra crate has no `Observe` for `()`, so `given!` can't report an environment call that gives nothing (`Ahead::mark`) | a local stand-in type that writes `()` |
 | Earlier, met again | L, P (symbolic equality, case split), R (untypable values in tuples), S (`given` only on bodiless), 29 (enums can't `use`) | as before |
 
 ## 5. What remains open
-- **H13:** a tool that ran just before a crash leaves no note. On restart the message is answered "interrupted" and never run twice. But the owner isn't told that the door may already be open. This needs a write-ahead note before the tool runs; it is not built.
-- **Codes come from a linear generator** seeded from the clock (K5 made them differ between starts). They are guessable by anyone who knows the seed. The fake plays them; `Codes::unguessable` stays unreviewed.
-- **The owner's hold shows up to 32 characters of the sender's words.** A short input can still word a misleading request. Longer or non-plain input is hidden.
-- **W11:** `Cli::sends_once` rests on the client being allowed to retry; the wearable has no send at all. **W12:** read and delivered receipts are modelled but never sent.
+- **The wearable has no send (W11): out of tonight's scope.** `Wearable::sends_once` stays a promise about a client that is not built.
+- **The 32 characters (C17), a named residual.** The owner's hold shows the call's input when it is 32 characters or fewer and plain. It is exactly what will run, so the owner can judge it, but a short input can still be worded to mislead.
+- **A cut-short "yes N" closes hold N whoever said it** (challenger's note). It can only withdraw a hold, never run one; the owner then asks afresh.
+- **The write-ahead rests on one message being worked at a time in the whole server** (C14). Two workers would need a list for each message.
 - **What the fake plays isn't tested for real:** model quality, speech, identity per device. The disk, the journal, tuning and the wearable aren't built.
 - **Top promises unreviewed on purpose:** `Assistant::safe` and `Assistant::private`. Their attack tests pass, but the agent that wrote the fixes doesn't vouch for the whole promise.
-- **The challenger's next targets:** H13; two clients of one household at once on the TCP server; a long conversation near the size limits; pairing or revoking mid-work.
+- **The challenger's next targets:** two clients of one household at once on the TCP server; a long conversation near the size limits; pairing or revoking mid-work.
