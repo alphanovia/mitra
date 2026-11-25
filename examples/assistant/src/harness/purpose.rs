@@ -75,6 +75,16 @@ impl Composer {
     }
 }
 
+/// Why a call did not run, in words the model passes on.
+fn why(f: ToolFailure) -> &'static str {
+    match f {
+        ToolFailure::AwaitsYes => "it waits for the owner's yes, and the owner has been asked",
+        ToolFailure::Refused => "it is not allowed for this person",
+        ToolFailure::Unknown => "there is no such tool",
+        ToolFailure::Failed => "the tool failed",
+    }
+}
+
 fn turn(t: &Turn) -> String {
     match t {
         Turn::User(p) => format!("USER: {}\n", p.replace('\n', " ")),
@@ -89,7 +99,7 @@ fn turn(t: &Turn) -> String {
             .iter()
             .map(|o| match &o.output {
                 Ok(out) => format!("RESULT {}:\n{}\n", o.call.tool, out),
-                Err(f) => format!("RESULT {}: not run ({:?})\n", o.call.tool, f),
+                Err(f) => format!("RESULT {}: not run, {}\n", o.call.tool, why(*f)),
             })
             .collect(),
     }

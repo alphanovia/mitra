@@ -334,3 +334,18 @@ fn history_holds_only_the_requests_of_the_same_device() {
         "another device's words are not history"
     );
 }
+
+#[test]
+fn a_client_starting_again_shows_what_it_has_not_got() {
+    let mut l = server();
+    fake::codes(vec![333333]);
+    l.say("cli", "please open the door").unwrap();
+    assert_eq!(
+        l.last_delivered("owner-phone"),
+        0,
+        "the owner's phone has not got the request yet"
+    );
+    let told = l.fetch("owner-phone", 0);
+    l.ack("owner-phone", told[0].id);
+    assert_eq!(l.last_delivered("owner-phone"), told[0].id.n);
+}

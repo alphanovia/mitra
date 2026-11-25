@@ -258,10 +258,16 @@ fn work(request: &str) -> Answer {
             calls,
         };
     }
-    let results: Vec<&str> = lines
-        .iter()
-        .filter_map(|l| l.strip_prefix("RESULT "))
-        .collect();
+    // Each result, with the guarded lines of its output after it.
+    let mut results: Vec<String> = vec![];
+    for l in &lines {
+        if let Some(r) = l.strip_prefix("RESULT ") {
+            results.push(r.to_string());
+        } else if let (Some(out), Some(last)) = (l.strip_prefix("| "), results.last_mut()) {
+            last.push(' ');
+            last.push_str(out);
+        }
+    }
     if results.is_empty() {
         text(&format!("Here is my answer to: {ask}"))
     } else {

@@ -1,6 +1,6 @@
 //! The CLI (see cli.mitra), and the line protocol it speaks with the
 //! server. One request per connection:
-//!   WHOAMI <token>                    -> OK <household> <device> <number> <count> <last reply>
+//!   WHOAMI <token>                    -> OK <household> <device> <number> <count> <last reply got>
 //!   POST <token> <n> <T|V> <text>     -> OK RECEIVED <n> | ERR REFUSED
 //!   GET <token> <after>               -> MSG <n> <text> ... END
 //!   TYPING <token>                    -> OK <true|false>

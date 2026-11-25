@@ -124,9 +124,15 @@ impl Local {
             .unwrap_or(0)
     }
 
-    /// The highest number of a reply to this device.
-    pub fn last_reply(&self, t: &str) -> i64 {
-        self.fetch(t, 0).iter().map(|m| m.id.n).max().unwrap_or(0)
+    /// The highest number of a reply this device said it got: a client
+    /// that starts again shows what it has not shown yet.
+    pub fn last_delivered(&self, t: &str) -> i64 {
+        self.fetch(t, 0)
+            .iter()
+            .filter(|m| m.notes.iter().any(|a| a.note == Note::Delivered))
+            .map(|m| m.id.n)
+            .max()
+            .unwrap_or(0)
     }
 
     pub fn fetch(&self, t: &str, after: i64) -> Vec<Stored> {

@@ -13,6 +13,7 @@ fn main() {
         .unwrap_or_else(|| "127.0.0.1:7878".to_string());
     let listener = TcpListener::bind(&addr).expect("bind");
     eprintln!("assistant-server on {addr}. Tokens: owner-phone, cli, wearable (household 1), other-phone (household 2).");
+    assistant::fake::quiet();
     let mut local = Local::new();
     for stream in listener.incoming() {
         let Ok(mut stream) = stream else { continue };
@@ -37,7 +38,7 @@ fn handle(local: &mut Local, line: &str) -> String {
                 h.device,
                 h.number,
                 local.count(t),
-                local.last_reply(t)
+                local.last_delivered(t)
             ),
             None => "ERR REFUSED\n".to_string(),
         },
