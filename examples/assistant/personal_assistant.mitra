@@ -58,11 +58,84 @@ subject Wearable {
 // ---- Where the assistant runs. Its API sends and receives messages,
 // as a messaging app's does; voice becomes text here (clients may do some
 // of it at the edge, later).
+// The entry (2026-11-25): one API on the server, shaped like a messaging
+// app's (Signal, Matrix: adapters to them would be more clients of it).
+// The first act on a message is to record it in the conversation store;
+// only then does the receipt go back, so a receipt means "stored".
 subject Server {
+    fn receive(store: ConversationStore, e: Envelope) -> out: (store: ConversationStore, receipt: Receipt) {
+        let s = store.keep(e);
+        (store: s, receipt: Receipt::Received(e.id))
+    } where {
+        // The receipt means "stored".
+        claim stored_first: out.store.holds(e.id);
+        // A retry (the same id again) stores nothing new.
+        claim same_twice: !store.holds(e.id) || out.store == store;
+        examples {
+            (ConversationStore { messages: [] },
+             Envelope { id: "m1", device: Device::Phone, body: Body::Text("hello") })
+                -> (store: ConversationStore { messages: [Stored { id: "m1", body: Body::Text("hello"), notes: [] }] },
+                    receipt: Receipt::Received("m1")),
+            (ConversationStore { messages: [Stored { id: "m1", body: Body::Text("hello"), notes: [] }] },
+             Envelope { id: "m1", device: Device::Phone, body: Body::Text("hello") })
+                -> (store: ConversationStore { messages: [Stored { id: "m1", body: Body::Text("hello"), notes: [] }] },
+                    receipt: Receipt::Received("m1"))
+        }
+    }
+    // What is new for a client, after the last one it has.
+    fn fetch(store: ConversationStore, to: Device, after: integer) -> es: [Envelope];
+    // The "thinking" light.
+    fn typing(to: Device) -> on: bool;
+
+    ensure recorded_first: "a message is recorded in the conversation store before its receipt goes back, and a retry is stored once"
+        from (receive::stored_first, receive::same_twice);
     ensure hosts: "the assistant is deployed and running on the server";
     ensure transcribes: "a message of voice is turned into text on the server, and the conversation keeps both";
     ensure messaging: "clients send and receive messages through one API, as a messaging app's";
     ensure reachable: "the clients reach the server, and the server reaches both model machines";
+}
+
+// ---- What goes through the entry, and the conversation store.
+subject enum Device { Phone, Computer, Wearable }
+subject record Audio {}
+// The body never changes: it keeps the original source.
+subject enum Body { Text([~char]), Voice(Audio) }
+// The id is the client's, so a retry is safe.
+subject record Envelope { id: [~char], device: Device, body: Body }
+subject enum Receipt { Received([~char]), Delivered([~char]), Read([~char]) }
+
+// A stored message: the body as received, and notes the steps add later
+// (a transcript, a verdict, an ask). Notes are only added, never changed:
+// each says which step made it, so blame and the journal can point at it.
+// The current value of a kind is its latest note.
+subject enum Step { Server, Gate, Purpose, Experience, Policy, ToolGuard, Reporter }
+subject enum Note { Transcript([~char]), Verdict(Assistant::Verdict), Ask(Assistant::Ask) }
+subject record Annotation { step: Step, note: Note }
+subject Stored {
+    record { id: [~char], body: Body, notes: [Annotation] }
+    fn annotate(self, a: Annotation) -> t: Stored {
+        Stored { notes: self.notes ++ [a], ..self }
+    } where {
+        claim body_kept: t.body == self.body;
+        claim id_kept: t.id == self.id;
+        claim only_grows: t.notes.len() == self.notes.len() + 1;
+        // No earlier note ever changes.
+        claim past_kept: t.notes.starts_with(self.notes);
+    }
+}
+
+subject ConversationStore {
+    record { messages: [Stored] }
+    // Whether a message of this id is stored. A fold: Mitra has no claim
+    // form yet for "some place of the sequence holds it".
+    fn holds(self, id: [~char]) -> h: bool {
+        self.messages.fold(h: false) { m -> h || m.id == id }
+    }
+    // Keeps the message once: a second one of the same id changes nothing.
+    fn keep(self, e: Envelope) -> s: ConversationStore {
+        if self.holds(e.id) { self }
+        else { ConversationStore { messages: self.messages ++ [Stored { id: e.id, body: e.body, notes: [] }] } }
+    }
 }
 
 // ---- The two machines for the model.
@@ -84,11 +157,12 @@ subject Assistant {
     require to_wearable: Wearable::speaks;
     require transcribed: Server::transcribes;
     require messaging: Server::messaging;
+    require recorded: Server::recorded_first;
 
     // The happy system: whichever client a persona uses, their message
     // gets its reply back there.
     ensure round_trip: "each persona's message gets its reply back on the client they used"
-        from (deployed, messaging, transcribed, from_cli, from_wearable, to_cli, to_wearable, Harness::answers, Reporter::never_silent);
+        from (deployed, messaging, recorded, transcribed, from_cli, from_wearable, to_cli, to_wearable, Harness::answers, Reporter::never_silent);
 
     // ---- What the assistant promises, end to end.
 
