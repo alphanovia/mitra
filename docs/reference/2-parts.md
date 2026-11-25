@@ -37,8 +37,11 @@ subject stone {
 ```
 
 An ensure with no `from` (like `sun::shines`) rests on nothing in the
-model: only evidence can hold it. A require in words is the same: Mitra
-reports what each verdict rests on, so a hypothesis is never hidden.
+model: only evidence can hold it. A require in words is a hypothesis:
+what rests on it is **assumed**, and the verdict says so, so a
+hypothesis is never hidden. The `from` of an ensure is a link someone
+should review: until then, what rests on it is assumed too
+([chapter 1](1-ideas.md#verdicts)).
 
 Inside a part, a short path starts from the part: in `stone`,
 `drop::falls` is `stone::drop::falls`. Anything else is written whole:
