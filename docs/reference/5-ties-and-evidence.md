@@ -65,7 +65,7 @@ pub struct Heater {
   type.
 - A form the model has none of yet is R013, and the tie is not checked:
   a generic struct, a tuple struct, a variant with named fields, `f32`
-  or `f64`, a map or a set, a field named by a keyword of Mitra.
+  or `f64`, a map or a set.
 
 The reader reviews each tie it checks, by the voice
 `machine:mitra/reader`: holding when the shapes agree, failing when

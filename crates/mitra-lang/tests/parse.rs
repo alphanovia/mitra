@@ -748,7 +748,10 @@ fn errors_say_where() {
         fails("subject record R where { examples { () -> 1 } }\nsubject s { }").0,
         P003.to_string()
     );
-    assert_eq!(fails("subject fn { }").3, "expected a name, found `fn`");
+    assert_eq!(
+        fails("subject match { }").3,
+        "expected a name, found `match`: `match` is reserved, and a raw name writes it, `r#match`"
+    );
 }
 
 #[test]

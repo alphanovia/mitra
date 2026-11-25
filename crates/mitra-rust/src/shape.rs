@@ -310,14 +310,6 @@ fn compare(
                     .iter()
                     .filter(|(c, _)| !fields.iter().any(|(n, _)| n == c))
                 {
-                    // `by`, `from`: a field no model can name yet (finding 12c).
-                    if mitra_lang::parse::KEYWORDS.contains(&c.as_str()) {
-                        said(
-                            R013,
-                            format!("field `{c}` of struct `{rust}` is named by a keyword of Mitra, so no field of the model can be named so yet: end the record with `..`, the fields the model does not state"),
-                        );
-                        continue;
-                    }
                     said(
                         R011,
                         format!("field `{c}` of struct `{rust}` is not in the model's `{item}`: model it, or end the record with `..`, the fields the model does not state"),

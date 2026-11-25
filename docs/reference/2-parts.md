@@ -209,3 +209,28 @@ parts.
 Part names are `CamelCase` in new models (`Heater`); older models such
 as `fall.mitra` use lowercase, which still reads. Built-in types are
 lowercase (`integer`, `bool`).
+
+A word the grammar uses is a keyword only where it uses it, as in Swift
+and C#: anywhere else it is a name. A Rust struct with a field `by` is
+modelled with a field `by`, and a parameter can be `from`:
+
+```mitra
+subject ledger {
+    subject record Taking { count: integer, by: integer }
+    fn weigh(t: Taking, from: integer) -> at: integer { t.count * t.by + from } where {
+        examples { (Taking { count: 2, by: 3 }, 1) -> 7 }
+    }
+}
+```
+
+Only the words an expression can begin with are never names: `let`,
+`if`, `else`, `match`, `true`, `false`, `all`, `any` and `crate`. A raw
+name writes one anyway, as Rust does: `r#match`. A raw name also
+writes a word where the grammar would read the keyword: after
+`subject`, `record` is the short form of a data part, so a part named
+`record` is `subject r#record { … }`.
+
+A function of the model comes before a built-in of the same name: a
+part with its own `fn within(a, b)`, or one that uses one, calls it with
+`within(a, b)`, and the built-in `within(a, b, tolerance)` is not read
+there.

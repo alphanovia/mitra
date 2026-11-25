@@ -148,6 +148,20 @@ fn items(model: &Model) -> BTreeMap<String, BTreeSet<String>> {
 }
 
 /// `"lab/tower/stone"`, escaped as Rust escapes a string.
+/// A name as the parser reads it back: a reserved word written raw,
+/// `r#match`.
+pub fn raw(name: &str) -> String {
+    match crate::parse::RESERVED.contains(&name) {
+        true => format!("r#{name}"),
+        false => name.to_string(),
+    }
+}
+
+/// Each name of a path, raw where it must be.
+fn raws(names: &[String]) -> String {
+    names.iter().map(|n| raw(n)).collect::<Vec<_>>().join("::")
+}
+
 fn location(at: &Location) -> String {
     string(&at.path.join("/"))
 }
@@ -280,7 +294,7 @@ impl Writer<'_> {
             if names.len() >= 2 && names[0] == part && self.local(&names[1]) {
                 let short = &names[1..];
                 if !(short.len() == 1 && bound.contains(&short[0])) {
-                    return short.join("::");
+                    return raws(short);
                 }
             }
         }
@@ -288,8 +302,8 @@ impl Writer<'_> {
             || names[0] == "crate"
             || (names.len() == 1 && bound.contains(&names[0]));
         match clash {
-            true => format!("crate::{}", names.join("::")),
-            false => names.join("::"),
+            true => format!("crate::{}", raws(names)),
+            false => raws(names),
         }
     }
     fn path_of(&self, p: &Path) -> String {
@@ -298,7 +312,7 @@ impl Writer<'_> {
     /// A name as a proof or proposition writes it, `stone::drop::falls`.
     fn named(&self, name: &str, bound: &[String]) -> String {
         if bound.iter().any(|b| b == name) {
-            return name.to_string();
+            return raw(name);
         }
         let names: Vec<String> = name.split("::").map(str::to_string).collect();
         self.path(&names, bound)
@@ -483,7 +497,7 @@ impl Writer<'_> {
                 .iter()
                 .map(|(n, t)| match n == crate::model::REST {
                     true => n.clone(),
-                    false => format!("{n}: {}", type_(t)),
+                    false => format!("{}: {}", raw(n), type_(t)),
                 })
                 .collect();
             match fields.is_empty() {
@@ -507,8 +521,8 @@ impl Writer<'_> {
             .enumerate()
             .map(|(k, (n, t))| match f.ranges.takes.get(n) {
                 _ if k == 0 && n == "self" => "self".to_string(),
-                Some(range) => format!("{n}: {range}"),
-                None => format!("{n}: {}", type_(t)),
+                Some(range) => format!("{}: {range}", raw(n)),
+                None => format!("{}: {}", raw(n), type_(t)),
             })
             .collect();
         let gives = match &f.ranges.gives {
@@ -517,9 +531,9 @@ impl Writer<'_> {
         };
         let mut s = format!(
             "    fn {}({}) -> {}: {gives}{ties}",
-            f.name,
+            raw(&f.name),
             takes.join(", "),
-            f.gives.0,
+            raw(&f.gives.0),
         );
         if let Some(body) = &f.body {
             s.push_str(&format!(" {{ {} }}", block_in(&self.cx(), body)));
@@ -874,7 +888,7 @@ fn takes(ts: &[(String, Type)]) -> String {
         .enumerate()
         .map(|(k, (n, t))| match (k, n.as_str()) {
             (0, "self") => "self".to_string(),
-            _ => format!("{n}: {}", type_(t)),
+            _ => format!("{}: {}", raw(n), type_(t)),
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -1164,7 +1178,8 @@ fn block_in(cx: &Cx, e: &Expression<Op>) -> String {
         ("_", true) => format!("{};", sim_in(cx, &a.body)),
         ("_", false) => format!("{}; {}", sim_in(cx, &a.body), block_in(cx, &b.body)),
         _ => format!(
-            "let {x} = {}; {}",
+            "let {} = {}; {}",
+            raw(x),
             sim_in(cx, &a.body),
             block_in(cx, &b.body)
         ),
@@ -1189,10 +1204,10 @@ impl Cx<'_> {
                 .as_deref()
                 == Some(full)
             {
-                return last.to_string();
+                return raw(last);
             }
         }
-        full.to_string()
+        raws(&full.split("::").map(str::to_string).collect::<Vec<_>>())
     }
 }
 
@@ -1224,7 +1239,12 @@ fn carried(cx: &Cx, labels: &[String], start: &Expression<Op>) -> Option<String>
 
 fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
     let (op, args) = match e {
-        Expression::Name(n) => return (n.clone(), ATOM),
+        Expression::Name(n) => {
+            return (
+                raws(&n.split("::").map(str::to_string).collect::<Vec<_>>()),
+                ATOM,
+            )
+        }
         Expression::Apply(op, args) => (op, args),
     };
     let bad = (MALFORMED.to_string(), ATOM);
@@ -1325,7 +1345,7 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
         }
         // `t.call(x)`: a method.
         (Op::Call(f), n, true) if n > 0 && cx.calling.methods.contains(f) => {
-            let name = f.rsplit_once("::").map_or(f.as_str(), |(_, n)| n);
+            let name = raw(f.rsplit_once("::").map_or(f.as_str(), |(_, n)| n));
             let rest: Vec<String> = args[1..].iter().map(|a| sim_in(cx, &a.body)).collect();
             (
                 format!(
@@ -1438,7 +1458,7 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
             }
         }
         (Op::Field(f), 1, _) => (
-            format!("{}.{f}", wrap(sim_at(cx, body(0)), POSTFIX)),
+            format!("{}.{}", wrap(sim_at(cx, body(0)), POSTFIX), raw(f)),
             POSTFIX,
         ),
         // `[1, 2]`, `xs.len()`, `xs[i]`.

@@ -485,3 +485,26 @@ fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
         }
     }
 }
+
+/// A built-in named by a function of another file, read through `use`
+/// (finding 12c): the model's function wins on the first reading too.
+#[test]
+fn a_used_function_comes_before_a_built_in() {
+    let dir = std::env::temp_dir().join(format!("mitra-within-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("mitra.toml"), "").unwrap();
+    std::fs::write(
+        dir.join("location.mitra"),
+        "subject location {\n    fn within(a: integer, b: integer) -> yes: bool { a <= b }\n}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("s.mitra"),
+        "subject s {\n    use location::within;\n    fn g(a: integer) -> y: bool { within(a, a - 1) } where {\n        examples { (3) -> false }\n    }\n}\n",
+    )
+    .unwrap();
+    let (code, out) = mitra_in(&dir, &["check", "s.mitra"]);
+    assert_eq!(code, 0, "{out}");
+    assert!(out.contains("1 hold"), "{out}");
+    std::fs::remove_dir_all(&dir).unwrap();
+}

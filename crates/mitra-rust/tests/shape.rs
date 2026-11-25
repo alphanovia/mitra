@@ -241,14 +241,19 @@ fn comments_lifetimes_and_functions_are_read_as_written() {
     let code = GOOD.replace("pub target: i64", "pub target: Box<dyn Fn(i64) -> i64>");
     let (_, findings) = run(&code);
     assert!(findings[0].starts_with("finding[R013]"), "{findings:?}");
-    // A field named `by`: no field of the model can be so named yet.
+    // A field named `by` is a field like any (finding 12c): the model
+    // can name it, so leaving it out is R011.
     let code = GOOD.replace("    on: bool,\n}", "    on: bool,\n    by: String,\n}");
     let (reviews, findings) = run(&code);
     assert!(
-        findings[0].contains("field `by` of struct `Heater` is named by a keyword of Mitra"),
+        findings[0]
+            .starts_with("finding[R011]: field `by` of struct `Heater` is not in the model's"),
         "{findings:?}"
     );
-    assert!(!reviews.iter().any(|(p, _)| p == "Heater"));
+    assert!(
+        reviews.contains(&("Heater".to_string(), false)),
+        "{reviews:?}"
+    );
 }
 
 /// A data part nested in a part with functions (finding 13): its record

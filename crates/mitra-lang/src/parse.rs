@@ -126,7 +126,9 @@ pub fn parse_row(source: &str, model: &Model) -> Result<(Vec<Value>, Value)> {
 
 // ---------------------------------------------------------------- words
 
-/// Words that are never names.
+/// The words the grammar uses. Most are keywords only where it uses
+/// them, and names anywhere else (contextual, as in Swift and C#): a
+/// field `by`, a parameter `from`, a function `record`.
 pub const KEYWORDS: &[&str] = &[
     "subject",
     "environment",
@@ -159,6 +161,13 @@ pub const KEYWORDS: &[&str] = &[
     "match",
 ];
 
+/// The words that are never names, since an expression may begin with
+/// them: `let`, `if`, `match`, a truth, a quantifier, a path from the
+/// crate. A raw name writes one anyway, as Rust does: `r#match`.
+pub const RESERVED: &[&str] = &[
+    "let", "if", "else", "match", "true", "false", "all", "any", "crate",
+];
+
 /// The operations of a proof, by the word that writes them. Each is
 /// an operation only when `(` or `[` follows it.
 const PROOF_OPS: &[&str] = &[
@@ -170,6 +179,8 @@ const PROOF_OPS: &[&str] = &[
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Tok {
     Word(String),
+    /// A raw name, `r#by`: a name, whatever the word.
+    Raw(String),
     Int(BigInt),
     Real(Rational),
     Str(String),
@@ -186,6 +197,7 @@ const SYMBOLS: &[&str] = &[
 fn describe(t: &Tok) -> String {
     match t {
         Tok::Word(w) => format!("`{w}`"),
+        Tok::Raw(w) => format!("`r#{w}`"),
         Tok::Int(n) => format!("`{n}`"),
         Tok::Real(_) => "a number".to_string(),
         Tok::Str(_) => "a string".to_string(),
@@ -228,6 +240,26 @@ pub(crate) fn lex(source: &str) -> Result<Vec<(Tok, Pos)>> {
             while i < chars.len() && chars[i] != '\n' {
                 advance(&mut i, &mut line, &mut column, 1);
             }
+            continue;
+        }
+        // `r#by`: a raw name, as Rust writes one.
+        let raw = c == 'r'
+            && chars.get(i + 1) == Some(&'#')
+            && chars
+                .get(i + 2)
+                .is_some_and(|c| c.is_alphabetic() || *c == '_');
+        if raw {
+            let mut j = i + 2;
+            while chars
+                .get(j)
+                .is_some_and(|c| c.is_alphanumeric() || *c == '_')
+            {
+                j += 1;
+            }
+            let word: String = chars[i + 2..j].iter().collect();
+            let n = j - i;
+            advance(&mut i, &mut line, &mut column, n);
+            tokens.push((Tok::Raw(word), at));
             continue;
         }
         if c.is_alphabetic() || c == '_' {
@@ -884,11 +916,45 @@ pub(crate) struct Parser<'c> {
     /// Reading what the code printed (`mitra: row`): a record with `..`
     /// is printed whole, and read known in part.
     pub(crate) printed: bool,
+    /// The built-ins this text names a function of its own after
+    /// (`fn within`, `use location::within`): there, the model's wins.
+    shadowed: BTreeSet<String>,
+}
+
+/// The functions written as built-ins: `within(a, b, tolerance)` and
+/// `until(start, done) { next }`.
+const BUILT_INS: &[&str] = &["within", "until"];
+
+/// The built-ins a text declares or uses a function of the same name.
+fn shadowed(tokens: &[(Tok, Pos)]) -> BTreeSet<String> {
+    let word = |k: usize| match tokens.get(k).map(|t| &t.0) {
+        Some(Tok::Word(w) | Tok::Raw(w)) => Some(w.as_str()),
+        _ => None,
+    };
+    let mut found = BTreeSet::new();
+    for k in 0..tokens.len() {
+        let Some(w) = word(k) else { continue };
+        if !BUILT_INS.contains(&w) {
+            continue;
+        }
+        let declared = word(k.wrapping_sub(1)) == Some("fn");
+        let used = k >= 2
+            && tokens[k - 1].0 == Tok::Sym("::")
+            && (0..k)
+                .rev()
+                .take_while(|j| tokens[*j].0 != Tok::Sym(";"))
+                .any(|j| word(j) == Some("use"));
+        if declared || used {
+            found.insert(w.to_string());
+        }
+    }
+    found
 }
 
 impl<'c> Parser<'c> {
     pub(crate) fn new(tokens: Vec<(Tok, Pos)>, context: Option<&'c Context>) -> Parser<'c> {
         Parser {
+            shadowed: shadowed(&tokens),
             tokens,
             i: 0,
             context,
@@ -998,12 +1064,25 @@ impl<'c> Parser<'c> {
             _ => self.expected("the end of the text"),
         }
     }
-    /// A name: a word that is no keyword.
+    /// A name: a word that is not reserved, or any word written raw,
+    /// `r#by`.
     pub(crate) fn name(&mut self) -> Result<String> {
         match self.peek().clone() {
-            Tok::Word(w) if !KEYWORDS.contains(&w.as_str()) => {
+            Tok::Raw(w) => {
                 self.bump();
                 Ok(w)
+            }
+            Tok::Word(w) if !RESERVED.contains(&w.as_str()) => {
+                self.bump();
+                Ok(w)
+            }
+            Tok::Word(w) => {
+                let at = self.pos();
+                Err(error(
+                    P003,
+                    at,
+                    format!("expected a name, found `{w}`: `{w}` is reserved, and a raw name writes it, `r#{w}`"),
+                ))
             }
             _ => self.expected("a name"),
         }
@@ -2080,7 +2159,9 @@ impl<'c> Parser<'c> {
             let mut labels = vec![];
             while !self.is(")") {
                 // `(sum: integer, n: integer)`: a tuple with labels.
-                if matches!(self.peek(), Tok::Word(_)) && *self.peek_at(1) == Tok::Sym(":") {
+                if matches!(self.peek(), Tok::Word(_) | Tok::Raw(_))
+                    && *self.peek_at(1) == Tok::Sym(":")
+                {
                     labels.push(self.name()?);
                     self.bump();
                 }
@@ -2346,7 +2427,7 @@ impl<'c> Parser<'c> {
         }
         loop {
             match (self.peek_at(i), self.peek_at(i + 1)) {
-                (Tok::Word(_), Tok::Sym("::")) => i += 2,
+                (Tok::Word(_) | Tok::Raw(_), Tok::Sym("::")) => i += 2,
                 (Tok::Word(w), Tok::Sym("(")) => {
                     return w.starts_with(|c: char| c.is_lowercase() || c == '_')
                 }
@@ -2406,8 +2487,8 @@ impl<'c> Parser<'c> {
         let mut i = 1;
         loop {
             match (self.peek_at(i), self.peek_at(i + 1)) {
-                (Tok::Word(_), Tok::Sym("::")) => i += 2,
-                (Tok::Word(_), Tok::Sym("(")) => return true,
+                (Tok::Word(_) | Tok::Raw(_), Tok::Sym("::")) => i += 2,
+                (Tok::Word(_) | Tok::Raw(_), Tok::Sym("(")) => return true,
                 _ => return false,
             }
         }
@@ -2462,7 +2543,9 @@ impl<'c> Parser<'c> {
                 let mut labels = vec![];
                 while !self.is(")") {
                     // `(sum: 3, n: 2)`: a tuple with labels.
-                    if matches!(self.peek(), Tok::Word(_)) && *self.peek_at(1) == Tok::Sym(":") {
+                    if matches!(self.peek(), Tok::Word(_) | Tok::Raw(_))
+                        && *self.peek_at(1) == Tok::Sym(":")
+                    {
                         labels.push(self.name()?);
                         self.bump();
                     }
@@ -2490,7 +2573,7 @@ impl<'c> Parser<'c> {
                 }
                 Ok(Value::Record(r, values))
             }
-            Tok::Word(_) => {
+            Tok::Word(_) | Tok::Raw(_) => {
                 let names = self.raw_path()?;
                 if !self.is("{") {
                     // A variant: `None`, `Some(1)`, `Option::Some(1)`.
@@ -3056,7 +3139,9 @@ impl<'c> Parser<'c> {
             }
             // `until((h: s, got: g), done) { (h2, g2) }`, `until(r: g, r.stop)
             // { next(r) }`: a loop while `done` does not hold.
-            Tok::Word(w) if w == "until" && *self.peek_at(1) == Tok::Sym("(") => {
+            Tok::Word(w)
+                if w == "until" && *self.peek_at(1) == Tok::Sym("(") && !self.own(&w) =>
+            {
                 self.bump();
                 self.bump();
                 let (labels, start) = self.carried(env)?;
@@ -3091,7 +3176,9 @@ impl<'c> Parser<'c> {
                     ],
                 ))
             }
-            Tok::Word(w) if w == "within" && *self.peek_at(1) == Tok::Sym("(") => {
+            Tok::Word(w)
+                if w == "within" && *self.peek_at(1) == Tok::Sym("(") && !self.own(&w) =>
+            {
                 self.bump();
                 self.bump();
                 let args = self.list(")", |p| p.inner(&mut env.clone()))?;
@@ -3123,7 +3210,7 @@ impl<'c> Parser<'c> {
             }
             Tok::Sym("(") => {
                 // `(sum: 0, n: 0)`: a tuple whose values have labels.
-                if matches!(self.peek_at(1), Tok::Word(_)) && *self.peek_at(2) == Tok::Sym(":") {
+                if matches!(self.peek_at(1), Tok::Word(_) | Tok::Raw(_)) && *self.peek_at(2) == Tok::Sym(":") {
                     let (_, e) = self.carried(env)?;
                     return Ok(e);
                 }
@@ -3180,8 +3267,9 @@ impl<'c> Parser<'c> {
                 }
                 self.tuple(items, env, at)
             }
-            Tok::Word(w)
-                if w == "crate" || matches!(self.peek_at(1), Tok::Sym("::") | Tok::Sym("(")) =>
+            ref t @ (Tok::Word(_) | Tok::Raw(_))
+                if matches!(t, Tok::Word(w) if w == "crate")
+                    || matches!(self.peek_at(1), Tok::Sym("::") | Tok::Sym("(")) =>
             {
                 let names = self.raw_path()?;
                 // `agree::Settings { … }`: a record by its part's path. Once
@@ -3223,7 +3311,7 @@ impl<'c> Parser<'c> {
                 let args = self.list(")", |p| p.inner(&mut env.clone()))?;
                 Ok(apply(Op::Call(self.call_path(names)), args))
             }
-            Tok::Word(_) => {
+            Tok::Word(_) | Tok::Raw(_) => {
                 let name = self.name()?;
                 if self.is("{") && !self.no_record {
                     // A record by its part's name, looked up from here.
@@ -3851,6 +3939,16 @@ impl<'c> Parser<'c> {
     /// The path of the function a call names: whole when written with
     /// `::`, else the one a name alone names (`Calling::resolve`), else
     /// as written, which `check` finds names nothing.
+    /// `name` is a function of the model's, written by a name alone
+    /// here: it comes before a built-in of the same name.
+    fn own(&self, name: &str) -> bool {
+        self.shadowed.contains(name)
+            || self.context.is_some_and(|c| {
+                c.calling
+                    .resolve(self.part.as_deref(), self.contract.as_deref(), name)
+                    .is_some()
+            })
+    }
     fn call_path(&self, mut names: Vec<String>) -> String {
         if names[0] == "crate" {
             names.remove(0);
@@ -4041,7 +4139,7 @@ impl<'c> Parser<'c> {
                 self.bump();
                 self.proof_op(&w, bound, at)
             }
-            Tok::Word(_) => Ok(Expression::Name(self.proof_name(bound)?)),
+            Tok::Word(_) | Tok::Raw(_) => Ok(Expression::Name(self.proof_name(bound)?)),
             _ => self.expected("a proof"),
         }
     }
