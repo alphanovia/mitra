@@ -24,6 +24,16 @@
 // (replay::grows); each turn takes a byte of the request at least
 // (framed); so once the turns pass the window, the request does not fit
 // (after::breaks), and the model refuses it (after::refused).
+//
+// The pipeline around the loop (2026-11-25), requires and ensures only:
+// message -> Identity -> Gate (security) -> Purpose (the ask and its
+// context) -> Experience (habits) -> Composer (the request) -> Llm ->
+// Policy and ToolGuard (tool calls and outputs) -> Reporter (the reply),
+// with Store and Journal (what happened, and why) and Tuning (settings by
+// voice). Every function there is opaque until its part is designed.
+// Each ensure is marked [P] provable, [M] measured only, or [E] assumed of
+// the environment; Identity's requires are what the user manual states.
+// Names of the pipeline are proposals, not confirmed.
 
 // What it does, end to end: only parts, requires, ensures and examples.
 subject Assistant {
@@ -34,14 +44,37 @@ subject Assistant {
     ensure answers: "the user gets the final answer, or the failure"
         from (Harness::answers, stops);
 
-    // The guard: the context window is never filled. Nothing supports it
-    // yet: the loop as written breaks it (Harness::breaks_window).
-    ensure fits_window: "every request, with the reserve for the answer, fits the model's window";
+    // The guard: the context window is never filled. The Composer
+    // promises it; the loop as written does not use it yet, and breaks
+    // it (Harness::breaks_window).
+    ensure fits_window: "every request, with the reserve for the answer, fits the model's window"
+        from (Composer::fits_window);
 
     // What the model shows: with no compaction, a long enough loop breaks
     // fits_window, and the model refuses it.
     ensure breaks_window: "a long enough loop fills the window: the request no longer fits, and the model refuses it"
         from (Harness::breaks_window);
+
+    // What the pipeline promises, for a service used by elderly and
+    // disabled people: cautious, robust, and always telling.
+    ensure safe: "nothing of consequence is done beyond the sender's role, nor for a malicious message, nor on a tool's output"
+        from (Policy::allowed_only, Policy::role_bound, Policy::confirms, Gate::benign_only,
+              ToolGuard::screened, ToolGuard::data_only);
+    ensure on_ask: "the reply answers what the sender asked last, or asks back"
+        from (Gate::signal_only, Purpose::pinned, Purpose::asks_back, Composer::keeps_pin);
+    ensure told: "the sender always hears back: an answer, a question, or why not"
+        from (Reporter::never_silent, Reporter::follows_up, Reporter::clear, Gate::heard);
+    // Inclusive: the tension with `safe`, in sight.
+    ensure inclusive: "a real message of the user is rarely lost, and never silently"
+        from (Gate::few_refused, Gate::heard);
+    ensure prompt: "a first sign reaches the sender within a few steps, before any slow one"
+        from (Reporter::signals);
+    ensure help: "a call for help is heard and acted on, whoever sends it"
+        from (Gate::help_first, Policy::help_allowed);
+    ensure explains: "after the fact, the system can tell the family what it did and why"
+        from (Store::kept, Journal::traced, Journal::explainable);
+    ensure tunable: "the user can tune the assistant to their liking by voice"
+        from (Tuning::by_voice, Tuning::scored);
 
     // End to end, from the user's message, as BDD rows: `given` what the
     // environment and the opaque encoding answer (`_` for any arguments),
@@ -49,23 +82,23 @@ subject Assistant {
     examples {
         // Inference answers at once: the user gets the answer.
         given User::message() -> "hello", Conversation::encode(_) -> "hello",
-              Llm::inference(_, _, _, _) -> Ok(Answer { text: "hi", calls: [] })
-            when Harness::serve(Llm { window: 100 }, [], 10)
+              Llm::inference(_, _, _) -> Ok(Answer { text: "hi", calls: [] })
+            when Harness::serve(Llm { window: 100, reserve: 10 }, [])
             then Ok(Answer { text: "hi", calls: [] }),
         // Inference can't reach the model: the user gets the failure.
         given User::message() -> "hello", Conversation::encode(_) -> "hello",
-              Llm::inference(_, _, _, _) -> Err(LlmFailure::Unreachable)
-            when Harness::serve(Llm { window: 100 }, [], 10)
+              Llm::inference(_, _, _) -> Err(LlmFailure::Unreachable)
+            when Harness::serve(Llm { window: 100, reserve: 10 }, [])
             then Err(HarnessFailure::Llm(LlmFailure::Unreachable)),
         // An empty message: refused, inference is never called.
         given User::message() -> ""
-            when Harness::serve(Llm { window: 100 }, [], 10)
+            when Harness::serve(Llm { window: 100, reserve: 10 }, [])
             then Err(HarnessFailure::EmptyPrompt),
         // No room left for the answer: "hello" is 5 bytes, 5 + 10 > 12, so
         // the request does not fit, and the model refuses it (windowed).
         given User::message() -> "hello", Conversation::encode(_) -> "hello",
-              Llm::inference(Llm { window: 12 }, "hello", [], 10) -> Err(LlmFailure::TooLong)
-            when Harness::serve(Llm { window: 12 }, [], 10)
+              Llm::inference(Llm { window: 12, reserve: 10 }, "hello", []) -> Err(LlmFailure::TooLong)
+            when Harness::serve(Llm { window: 12, reserve: 10 }, [])
             then Err(HarnessFailure::Llm(LlmFailure::TooLong))
     }
 
@@ -80,11 +113,11 @@ subject Assistant {
         // Each model has its own context window: what it reads and what it
         // writes back, together (len counts bytes; tokens later, through a
         // tokenizer part).
-        record { window: integer }
-        // `reserve`: the room the caller keeps for the answer (the API's
-        // max_tokens), out of the same window.
-        fn inference(self, request: [~char], tools: [Tool], reserve: integer) -> a: Result<Answer, LlmFailure> where {
-            claim windowed: request.len() + reserve <= self.window || a == Err(LlmFailure::TooLong);
+        // `reserve`: the room kept for the answer (the API's max_tokens),
+        // out of the same window.
+        record { window: integer, reserve: integer }
+        fn inference(self, request: [~char], tools: [Tool]) -> a: Result<Answer, LlmFailure> where {
+            claim windowed: request.len() + self.reserve <= self.window || a == Err(LlmFailure::TooLong);
         }
         ensure refuses_long: "a request that leaves less than the reserve in the window is refused"
             from (inference::windowed);
@@ -145,6 +178,122 @@ subject Assistant {
         }
     }
 
+    // ---- The pipeline: parts, requires and ensures; functions opaque.
+
+    // What comes in, and from where: identity depends on the channel.
+    environment record Message { channel: Channel, text: [~char] }
+    environment enum Channel { Phone, Computer, Voice }
+
+    // Who sent it. One assumption per channel: these go into the manual.
+    environment Identity {
+        fn who(m: Message) -> p: Person;
+        require phone: "on a phone, the phone's lock tells its owner: the manual asks for a password on it";
+        require computer: "on a computer, the session's login tells its user";
+        require voice: "on the wearable, voice recognition tells the user's voice from others'";
+        ensure identified: "each message is given the person its channel tells, or a stranger"   // [E]
+            from (phone, computer, voice);
+    }
+
+    // Roles, as a service: a family or friends may use it too. A stranger
+    // goes through, with a policy that allows nothing of consequence.
+    subject record Person { role: Role }
+    subject enum Role { Owner, Member, Stranger }
+
+    // Security: is there anything to do, and may it be done.
+    subject enum Verdict { Act, Noise, Malicious, Distress, Meta }
+    subject Gate {
+        fn screen(m: Message, p: Person) -> v: Verdict;
+        require identified: Identity::identified;
+        ensure benign_only: "a message judged malicious goes no further than a reply saying so";   // [P] route, [M] judge
+        ensure signal_only: "noise (a cat on the keyboard, a sound) is never answered as a request"; // [M]
+        ensure help_first: "a call for help goes through, whatever the role or the doubt";         // [P] route, [M] judge
+        // The tension, kept in sight: each refusal is safer and less
+        // inclusive. Both rates are measured on the same judge.
+        ensure few_refused: "a real message of the user is rarely refused or taken for noise";     // [M]
+        ensure heard: "a message refused or taken for noise is told back to its sender, never dropped"; // [P]
+    }
+
+    // Purpose: the last message is the pin; its context is found again,
+    // after a long pause or among interlaced topics.
+    subject record Ask;
+    subject record Context;
+    subject Purpose {
+        fn pin(m: Message, p: Person, history: Conversation) -> a: Ask;
+        fn context(a: Ask, history: Conversation) -> c: Context;
+        require kept: Store::kept;
+        require screened: Gate::benign_only;
+        ensure pinned: "the ask is the last message's";                                  // [P]
+        ensure relevant: "the context holds what the ask needs, and little else";        // [M]
+        ensure asks_back: "an unclear ask becomes a question to the sender, never a guess"; // [P] route, [M] unclear
+    }
+
+    // Experience: behaviour stays near the user's habits, so trust builds.
+    subject record Habits;
+    subject Experience {
+        fn recall(a: Ask, p: Person) -> h: Habits;
+        require kept: Store::kept;
+        ensure near_habit: "an action far from the user's habits is flagged";           // [M]
+    }
+
+    // The request for the model, built by software.
+    subject Composer {
+        fn compose(a: Ask, c: Context, h: Habits, llm: Llm) -> request: [~char];
+        require relevant: Purpose::relevant;
+        ensure keeps_pin: "the request holds the ask whole";                              // [P]
+        ensure fits_window: "the request, with the reserve, fits the model's window";     // [P]
+    }
+
+    // Tool calls: every one is decided, by the sender's role and habits.
+    subject enum Decision { Run, Confirm, Refuse }
+    subject Policy {
+        fn allow(c: Call, a: Ask, p: Person, h: Habits) -> d: Decision;
+        require identified: Identity::identified;
+        require flagged: Experience::near_habit;
+        ensure allowed_only: "every tool call is decided by allow before it runs";        // [P]
+        ensure role_bound: "nothing of consequence runs beyond the sender's role; a stranger's, never"; // [P] route
+        ensure confirms: "an irreversible or unusual call waits for the owner's yes";      // [P] route, [M] unusual
+        ensure help_allowed: "a call for help is allowed, whoever sends it";               // [P]
+    }
+
+    // Tool outputs: every tool may be compromised, for now.
+    subject ToolGuard {
+        fn screen(o: Outcome) -> g: Outcome;
+        ensure screened: "every tool output passes the guard before the model reads it"; // [P]
+        ensure data_only: "a tool's output reaches the model as data, never as instructions"; // [M]
+    }
+
+    // The reply: well formulated, and never silence.
+    subject record Reply;
+    subject Reporter {
+        fn report(r: Result<Answer, HarnessFailure>, a: Ask) -> reply: Reply;
+        fn acknowledge(a: Ask) -> reply: Reply;
+        ensure never_silent: "every outcome, failure and refusal is told";                // [P]
+        ensure clear: "plain words, one point at a time: what was done, and what was not"; // [M]
+        ensure signals: "a first sign (a light, a word) comes within a few steps, before any slow one"; // [P] steps
+        ensure follows_up: "an acknowledgement that promises a report is followed by it"; // [P]
+    }
+
+    // What happened, and why: kept for the user, and for the family
+    // after an accident.
+    subject Store {
+        fn history(p: Person) -> c: Conversation;
+        ensure kept: "every message, reply and tool call is kept, in order, unchanged";   // [P] route, [E] storage
+    }
+    subject Journal {
+        fn why(a: Ask) -> account: [~char];
+        require kept: Store::kept;
+        ensure traced: "every decision (verdict, ask, policy, call, reply) is recorded with what it was decided from"; // [P]
+        ensure explainable: "from the record, the system tells in plain words why it did what it did"; // [M]
+    }
+
+    // Meta messages: the user judging the system, and settings by voice.
+    subject record Preferences;
+    subject Tuning {
+        fn adjust(m: Message, p: Person) -> s: Preferences;
+        ensure by_voice: "each setting the user may change can be changed by voice, and is read back"; // [P] route, [M] understood
+        ensure scored: "a message judging the system is kept as a score to learn from, not answered as a request"; // [P] route
+    }
+
     subject Harness {
         use Result from "std";
         use User::message;
@@ -155,15 +304,15 @@ subject Assistant {
         ensure answers: "the user gets the final answer, or the failure" from (run::ends);
 
         // What the user sends goes to the loop.
-        fn serve(llm: Llm, tools: [Tool], reserve: integer) -> r: Result<Answer, HarnessFailure> {
-            run(llm, message(), tools, reserve)
+        fn serve(llm: Llm, tools: [Tool]) -> r: Result<Answer, HarnessFailure> {
+            run(llm, message(), tools)
         }
 
         // The guard: the request, with the reserve, fits the model's window.
-        fn fits_window(llm: Llm, request: [~char], reserve: integer) -> f: bool {
-            request.len() + reserve <= llm.window
+        fn fits_window(llm: Llm, request: [~char]) -> f: bool {
+            request.len() + llm.reserve <= llm.window
         } where {
-            examples { (Llm { window: 10 }, "hello", 5) -> true, (Llm { window: 10 }, "hello", 6) -> false }
+            examples { (Llm { window: 10, reserve: 5 }, "hello") -> true, (Llm { window: 10, reserve: 6 }, "hello") -> false }
         }
 
         // When the loop stops: a final answer, or a failure.
@@ -202,15 +351,15 @@ subject Assistant {
         }
 
         // The request after those turns, and what the model says to it.
-        fn after(llm: Llm, prompt: [~char], turns: [(answer: Answer, outcomes: [Outcome])], tools: [Tool], reserve: integer)
+        fn after(llm: Llm, prompt: [~char], turns: [(answer: Answer, outcomes: [Outcome])], tools: [Tool])
             -> a: Result<Answer, LlmFailure> {
-            llm.inference(replay(prompt, turns).encode(), tools, reserve)
+            llm.inference(replay(prompt, turns).encode(), tools)
         } where {
             // Once the turns pass the window, the request does not fit.
-            claim breaks: 1 + 2 * turns.len() + reserve <= llm.window
-                || !fits_window(llm, replay(prompt, turns).encode(), reserve);
+            claim breaks: 1 + 2 * turns.len() + llm.reserve <= llm.window
+                || !fits_window(llm, replay(prompt, turns).encode());
             // And the model refuses it.
-            claim refused: 1 + 2 * turns.len() + reserve <= llm.window || a == Err(LlmFailure::TooLong);
+            claim refused: 1 + 2 * turns.len() + llm.reserve <= llm.window || a == Err(LlmFailure::TooLong);
             // Arithmetic, which no step of judgement does: assumed. The
             // request has at least 1 + 2n turns (grows), each of a byte at
             // least (framed); past the window, the model refuses (windowed).
@@ -222,16 +371,16 @@ subject Assistant {
             from (replay::grows, after::overflows, after::refuses);
 
         // The agent loop: a final answer, or a failure.
-        fn run(llm: Llm, prompt: [~char], tools: [Tool], reserve: integer) -> r: Result<Answer, HarnessFailure> {
+        fn run(llm: Llm, prompt: [~char], tools: [Tool]) -> r: Result<Answer, HarnessFailure> {
             if prompt == "" { Err(HarnessFailure::EmptyPrompt) } else {
                 let start = Conversation { turns: [Turn::User(prompt)] };
-                let last = until((c: start, got: llm.inference(start.encode(), tools, reserve)), finished(got)) {
+                let last = until((c: start, got: llm.inference(start.encode(), tools)), finished(got)) {
                     match got {
                         Ok(a) => {
                             let next = Conversation {
                                 turns: c.turns ++ [Turn::Model(a), Turn::Results(perform_all(a.calls))]
                             };
-                            (next, llm.inference(next.encode(), tools, reserve))
+                            (next, llm.inference(next.encode(), tools))
                         },
                         // Never reached: an Err is finished. `match` needs the arm.
                         Err(_) => (c, got)
