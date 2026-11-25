@@ -14,9 +14,11 @@ subject Shapes {
         examples { (Shape::Square(3.0)) -> 9.0 }
     }
 
-    // `let … in` names a value inside one expression.
+    // `let x = …;` names a value in a block, as in Rust.
     fn far(p: Point) -> d: rational {
-        let dx = p.x in let dy = p.y in dx * dx + dy * dy
+        let dx = p.x;
+        let dy = p.y;
+        dx * dx + dy * dy
     } where {
         examples { (Point { x: 3.0, y: 4.0 }) -> 25.0 }
     }
@@ -46,7 +48,7 @@ subject Shapes {
 
     // Two values carried: a tuple with labels, read `.sum` or `.0`.
     fn mean(xs: [integer]) -> m: integer {
-        let c = xs.fold((sum: 0, n: 0)) { x -> (sum + x, n + 1) } in
+        let c = xs.fold((sum: 0, n: 0)) { x -> (sum + x, n + 1) };
         if c.n == 0 { 0 } else { c.sum / c.n }
     } where {
         examples { ([2, 4, 9]) -> 5, ([]) -> 0 }

@@ -70,12 +70,12 @@ fn a_whole_number_beside_a_real() {
 fn the_innermost_part_is_underlined() {
     let text = "contract C<T: Number> {
     fn f(x: T) -> y: T;
-    claim a(x: T): let z = f(x) + 1 in f(x) <= z;
+    claim a(x: T): { let z = f(x) + 1; f(x) <= z };
 }";
     let e = one(text);
     assert!(
         e.contains(
-            "  | let z = f(x) + 1 in f(x) <= z\n  |         ^^^^^^^^ `f(x)` is T and `1` is integer"
+            "  | { let z = f(x) + 1; f(x) <= z }\n  |           ^^^^^^^^ `f(x)` is T and `1` is integer"
         ),
         "{e}"
     );
@@ -139,7 +139,7 @@ fn expr() -> impl Strategy<Value = String> {
             (inner.clone(), inner.clone(), inner.clone())
                 .prop_map(|(c, a, b)| format!("(if {c} {{ {a} }} else {{ {b} }})")),
             inner.clone().prop_map(|a| format!("f({a})")),
-            (inner.clone(), inner).prop_map(|(a, b)| format!("(let z = {a} in {b})")),
+            (inner.clone(), inner).prop_map(|(a, b)| format!("{{ let z = {a}; {b} }}")),
         ]
     })
 }

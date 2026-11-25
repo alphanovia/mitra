@@ -191,7 +191,7 @@ fn the_type_of_none_is_told_from_where_it_goes() {
     assert_eq!(f("None == Some(x)"), "parsed");
     assert_eq!(f("Some(x) == None"), "parsed");
     assert_eq!(f("g(None)"), "parsed");
-    assert_eq!(f("let o = Some(x) in o == None"), "parsed");
+    assert_eq!(f("{ let o = Some(x); o == None }"), "parsed");
     assert_eq!(f("if x < 0 { None == Some(1) } else { true }"), "parsed");
     // A generic record told by its fields, or not.
     let r = |body: &str| {

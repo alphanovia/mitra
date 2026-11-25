@@ -507,7 +507,7 @@ impl Writer<'_> {
             f.gives.0,
         );
         if let Some(body) = &f.body {
-            s.push_str(&format!(" {{ {} }}", sim_in(&self.cx(), body)));
+            s.push_str(&format!(" {{ {} }}", block_in(&self.cx(), body)));
         }
         let said = !f.claims.is_empty() || !f.rules.is_empty() || !f.examples.is_empty();
         let rows: Vec<String> = f
@@ -624,9 +624,15 @@ impl Writer<'_> {
                 {
                     let a = self.proof(a, bound).0;
                     bound.push(b1[0].clone());
+                    let inner = matches!(b, Expression::Apply(O::Let, _));
                     let b = self.proof(b, bound).0;
                     bound.pop();
-                    (format!("let {} = {a} in {b}", b1[0]), LET)
+                    // `{ let x = a; let y = b; c }`: one block, as written.
+                    let b = match inner {
+                        true => b[2..b.len() - 2].to_string(),
+                        false => b,
+                    };
+                    (format!("{{ let {} = {a}; {b} }}", b1[0]), ATOM)
                 }
                 _ => (MALFORMED.to_string(), ATOM),
             };
@@ -1059,7 +1065,7 @@ pub fn values(vs: &[Value]) -> String {
 
 // ---------------------------------------------------------------- simulation
 
-/// An expression of simulation, as Rust writes it, `let x = a in b` aside.
+/// An expression of simulation, as Rust writes it.
 pub fn sim(e: &Expression<Op>) -> String {
     let calling = Calling::default();
     sim_in(
@@ -1092,6 +1098,31 @@ pub(crate) fn sim_from(
 
 fn sim_in(cx: &Cx, e: &Expression<Op>) -> String {
     sim_at(cx, e).0
+}
+
+/// What is inside a block's braces: `let x = a; b`, `e; r`, or `e;`
+/// before a last `()` (a block ending in `;`), else the expression.
+fn block_in(cx: &Cx, e: &Expression<Op>) -> String {
+    let Expression::Apply(Op::Let, args) = e else {
+        return sim_in(cx, e);
+    };
+    let [a, b] = &args[..] else {
+        return sim_in(cx, e);
+    };
+    let ([], [x]) = (&a.binds[..], &b.binds[..]) else {
+        return sim_in(cx, e);
+    };
+    let unit = matches!(&b.body, Expression::Apply(Op::Make(r), items)
+        if items.is_empty() && r.name.is_empty() && r.fields.is_empty());
+    match (x.as_str(), unit) {
+        ("_", true) => format!("{};", sim_in(cx, &a.body)),
+        ("_", false) => format!("{}; {}", sim_in(cx, &a.body), block_in(cx, &b.body)),
+        _ => format!(
+            "let {x} = {}; {}",
+            sim_in(cx, &a.body),
+            block_in(cx, &b.body)
+        ),
+    }
 }
 
 /// What a call reads names from.
@@ -1165,14 +1196,7 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
     };
     match (op, args.len(), plain) {
         (Op::Let, 2, _) => match (&args[0].binds[..], &args[1].binds[..]) {
-            ([], [x]) => (
-                format!(
-                    "let {x} = {} in {}",
-                    sim_in(cx, body(0)),
-                    sim_in(cx, body(1))
-                ),
-                LET,
-            ),
+            ([], [_]) => (format!("{{ {} }}", block_in(cx, e)), ATOM),
             _ => bad,
         },
         // `xs.fold(sum: 0) { x -> sum + x }`, `xs.fold((sum: 0, n: 0)) { … }`.
@@ -1185,7 +1209,7 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
                     format!(
                         "{}.fold({start}) {{ {x} -> {} }}",
                         wrap(sim_at(cx, body(0)), POSTFIX),
-                        sim_in(cx, body(2))
+                        block_in(cx, body(2))
                     ),
                     POSTFIX,
                 )
@@ -1202,7 +1226,7 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
                     format!(
                         "until({start}, {}) {{ {} }}",
                         sim_in(cx, body(1)),
-                        sim_in(cx, body(2))
+                        block_in(cx, body(2))
                     ),
                     ATOM,
                 )
@@ -1323,10 +1347,10 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
                 {
                     sim_in(cx, e)
                 }
-                e => format!("{{ {} }}", sim_in(cx, e)),
+                e => format!("{{ {} }}", block_in(cx, e)),
             };
             (
-                format!("if {c} {{ {} }} else {otherwise}", sim_in(cx, body(1))),
+                format!("if {c} {{ {} }} else {otherwise}", block_in(cx, body(1))),
                 LET,
             )
         }

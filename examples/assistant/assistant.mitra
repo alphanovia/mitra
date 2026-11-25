@@ -24,7 +24,7 @@ subject Assistant {
 
         // A method: first parameter `self`, no type written.
         fn run(self, prompt: [~char]) -> answer: [~char] {
-            let r = self.llm.inference(prompt) in
+            let r = self.llm.inference(prompt);
             if r.stop || self.tools.len() == 0 { r.text } else { self.tools[0].call(r.text) }
         }
 

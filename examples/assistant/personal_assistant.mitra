@@ -200,16 +200,19 @@ subject Assistant {
         // The agent loop: a final answer, or a failure.
         fn run(llm: Llm, prompt: [~char], tools: [Tool]) -> r: Result<Answer, HarnessFailure> {
             if prompt == "" { Err(HarnessFailure::EmptyPrompt) } else {
-                let start = Conversation { turns: [Turn::User(prompt)] } in
+                let start = Conversation { turns: [Turn::User(prompt)] };
                 let last = until((c: start, got: llm.inference(start.encode(), tools)), finished(got)) {
                     match got {
-                        Ok(a) => let next = Conversation {
+                        Ok(a) => {
+                            let next = Conversation {
                                 turns: c.turns ++ [Turn::Model(a), Turn::Results(perform_all(a.calls))]
-                            } in (next, llm.inference(next.encode(), tools)),
+                            };
+                            (next, llm.inference(next.encode(), tools))
+                        },
                         // Never reached: an Err is finished. `match` needs the arm.
                         Err(_) => (c, got)
                     }
-                }.got in
+                }.got;
                 match last { Ok(a) => Ok(a), Err(e) => Err(HarnessFailure::Llm(e)) }
             }
         } where {

@@ -13,7 +13,7 @@
 //! writes them. Only the first is given.
 
 use crate::catalogue::{
-    Code, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010, P011, P012, P013, P014,
+    Code, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010, P011, P012, P013, P014, P016,
 };
 use crate::expression::{check as typed, Arg, Expression};
 use crate::judgement::{self, Prop, Set};
@@ -1693,9 +1693,8 @@ impl<'c> Parser<'c> {
         let mut body = None;
         if self.eat("{") {
             let at = self.pos();
-            let e = self.expr(&mut env)?;
+            let e = self.block(&mut env)?;
             body = Some(self.settled(e, Some(&gives.1), &env, at)?);
-            self.expect("}")?;
         }
         env.push((gives.0.clone(), Some(gives.1.clone())));
         let mut function = Function {
@@ -2530,33 +2529,93 @@ impl<'c> Parser<'c> {
         }
     }
 
-    /// `let x = a in b`, or an expression with no `let` around it.
+    /// An expression. A `let` is written in a block, `{ let x = a; b }`,
+    /// as in Rust.
     pub(crate) fn expr(&mut self, env: &mut Env) -> Result<E> {
         self.deeper(|p| p.expr_at(env))
     }
     fn expr_at(&mut self, env: &mut Env) -> Result<E> {
+        if self.is_word("let") {
+            return Err(error(
+                P003,
+                self.pos(),
+                "a `let` is written in a block, as in Rust: `{ let x = a; b }` (`let x = a in b` is no longer read)",
+            ));
+        }
+        self.or(env)
+    }
+
+    /// What follows `{` in a block, up to and with its `}`: `let x = a;`
+    /// and `e;` before the last expression, as in Rust. `e;` drops what
+    /// `e` gives, which must be `()` (P016): it is written for what it
+    /// does, a call to the environment. A block ending in `;` gives `()`.
+    /// Each is a `Let`: `e; r` binds `_`, which nothing reads.
+    pub(crate) fn block(&mut self, env: &mut Env) -> Result<E> {
+        self.deeper(|p| p.block_at(env))
+    }
+    fn block_at(&mut self, env: &mut Env) -> Result<E> {
+        let let_ = |a: E, x: String, b: E| {
+            Expression::Apply(
+                Op::Let,
+                vec![
+                    Arg {
+                        binds: vec![],
+                        body: a,
+                    },
+                    Arg {
+                        binds: vec![x],
+                        body: b,
+                    },
+                ],
+            )
+        };
+        let at = self.pos();
         if self.eat_word("let") {
             let x = self.name()?;
             self.expect("=")?;
-            let a = self.expr(env)?;
-            self.expect_word("in")?;
+            let a = self.inner(env)?;
+            if self.is_word("in") {
+                return Err(error(
+                    P003,
+                    self.pos(),
+                    format!("`let {x} = … in …` is written in a block, as in Rust: `{{ let {x} = …; … }}`"),
+                ));
+            }
+            self.expect(";")?;
+            if self.is("}") {
+                return self.expected("an expression after `let`, which gives the block's value");
+            }
             let t = self.type_in(env, &a);
             env.push((x.clone(), t));
-            let b = self.expr(env);
+            let b = self.block(env);
             env.pop();
-            let args = vec![
-                Arg {
-                    binds: vec![],
-                    body: a,
-                },
-                Arg {
-                    binds: vec![x],
-                    body: b?,
-                },
-            ];
-            return Ok(Expression::Apply(Op::Let, args));
+            return Ok(let_(a, x, b?));
         }
-        self.or(env)
+        let e = self.inner(env)?;
+        if !self.eat(";") {
+            self.expect("}")?;
+            return Ok(e);
+        }
+        match self.type_in(env, &e) {
+            Some(t) if t != simulation::tuple(vec![]) => {
+                let message = format!(
+                    "`;` drops what this gives, of type `{}`: only `()` is dropped, as a call made for what it does; name it with `let x = …;` to use it",
+                    crate::print::type_(&t)
+                );
+                return Err(error(P016, at, message));
+            }
+            _ => {}
+        }
+        let rest = match self.eat("}") {
+            true => self.tuple(vec![], env, at)?,
+            false => {
+                env.push(("_".to_string(), None));
+                let rest = self.block(env);
+                env.pop();
+                rest?
+            }
+        };
+        Ok(let_(e, "_".to_string(), rest))
     }
     fn or(&mut self, env: &mut Env) -> Result<E> {
         let mut e = self.and(env)?;
@@ -2683,10 +2742,9 @@ impl<'c> Parser<'c> {
                 let depth = env.len();
                 env.push((x.clone(), of));
                 env.extend(labels.iter().cloned().zip(types));
-                let next = self.inner(env);
+                let next = self.block(env);
                 env.truncate(depth);
                 let next = next?;
-                self.expect("}")?;
                 let binds = [vec![x], labels].concat();
                 e = Expression::Apply(
                     Op::Fold,
@@ -2791,16 +2849,13 @@ impl<'c> Parser<'c> {
                 self.no_record = was;
                 let c = c?;
                 self.expect("{")?;
-                let a = self.inner(env)?;
-                self.expect("}")?;
+                let a = self.block(env)?;
                 self.expect_word("else")?;
                 let b = match self.is_word("if") {
                     true => self.primary(env)?,
                     false => {
                         self.expect("{")?;
-                        let b = self.inner(env)?;
-                        self.expect("}")?;
-                        b
+                        self.block(env)?
                     }
                 };
                 Ok(apply(Op::If, vec![c, a, b]))
@@ -2823,8 +2878,7 @@ impl<'c> Parser<'c> {
                     let done = self.inner(env)?;
                     self.expect(")")?;
                     self.expect("{")?;
-                    let next = self.inner(env)?;
-                    self.expect("}")?;
+                    let next = self.block(env)?;
                     Ok((done, next))
                 })();
                 env.truncate(depth);
@@ -2856,8 +2910,15 @@ impl<'c> Parser<'c> {
                 }
                 Ok(apply(Op::Within, args))
             }
-            Tok::Word(w) if w == "let" => {
-                self.expected("an expression: put a `let` in parentheses here")
+            Tok::Word(w) if w == "let" => Err(error(
+                P003,
+                at,
+                "a `let` is written in a block, as in Rust: `{ let x = a; b }` (`let x = a in b` is no longer read)",
+            )),
+            // `{ let x = a; b }`, `{ e; r }`: a block, as in Rust.
+            Tok::Sym("{") => {
+                self.bump();
+                self.block(env)
             }
             // `[a, b]`, `[]`: of the type of its first value whose type is
             // told, else settled by where it goes (P009).
@@ -3693,32 +3754,55 @@ impl<'c> Parser<'c> {
 
     // ------------------------------------------------ proofs
 
-    /// A judgement expression: `let x = a in b`, `!a`,
+    /// A judgement expression: `{ let x = a; b }`, `!a`,
     /// `ponens(r, p, q)`, a premise by its path.
     pub(crate) fn proof(&mut self, bound: &mut Vec<String>) -> Result<J> {
-        if self.eat_word("let") {
-            let x = self.name()?;
-            self.expect("=")?;
-            let a = self.deeper(|p| p.proof(bound))?;
-            self.expect_word("in")?;
-            bound.push(x.clone());
-            let b = self.deeper(|p| p.proof(bound));
-            bound.pop();
-            let args = vec![
-                Arg {
-                    binds: vec![],
-                    body: a,
-                },
-                Arg {
-                    binds: vec![x],
-                    body: b?,
-                },
-            ];
-            return Ok(Expression::Apply(judgement::Op::Let, args));
+        if self.is_word("let") {
+            return Err(error(
+                P003,
+                self.pos(),
+                "a `let` is written in a block, as in Rust: `{ let x = a; b }` (`let x = a in b` is no longer read)",
+            ));
         }
         // `state(…)` and `&&` on states are judgement's own, not text
         // (finding 27): no proof could give an opinion through them.
         self.proof_unary(bound)
+    }
+    /// What follows `{` in a proof's block: `let x = a;` each, then the
+    /// proof, then `}`.
+    fn proof_block(&mut self, bound: &mut Vec<String>) -> Result<J> {
+        if !self.eat_word("let") {
+            let e = self.proof(bound)?;
+            self.expect("}")?;
+            return Ok(e);
+        }
+        let x = self.name()?;
+        self.expect("=")?;
+        let a = self.deeper(|p| p.proof(bound))?;
+        if self.is_word("in") {
+            return Err(error(
+                P003,
+                self.pos(),
+                format!(
+                    "`let {x} = … in …` is written in a block, as in Rust: `{{ let {x} = …; … }}`"
+                ),
+            ));
+        }
+        self.expect(";")?;
+        bound.push(x.clone());
+        let b = self.deeper(|p| p.proof_block(bound));
+        bound.pop();
+        let args = vec![
+            Arg {
+                binds: vec![],
+                body: a,
+            },
+            Arg {
+                binds: vec![x],
+                body: b?,
+            },
+        ];
+        Ok(Expression::Apply(judgement::Op::Let, args))
     }
     fn proof_unary(&mut self, bound: &mut Vec<String>) -> Result<J> {
         if self.eat("!") {
@@ -3734,6 +3818,10 @@ impl<'c> Parser<'c> {
                 let e = self.proof(bound)?;
                 self.expect(")")?;
                 Ok(e)
+            }
+            Tok::Sym("{") => {
+                self.bump();
+                self.deeper(|p| p.proof_block(bound))
             }
             // A premise written in place is read by its place: `0`, `1`, ….
             Tok::Int(n) => {

@@ -32,10 +32,10 @@ subject numbers {
     fn opinion(belief: rational, disbelief: rational, a: rational) -> o: Belief
         at "crates/mitra-lang/src/numbers.rs/Belief/of"
     {
-        let total = belief + disbelief in
-        let b = if 1.0 < total { belief / total } else { belief } in
-        let d = if 1.0 < total { disbelief / total } else { disbelief } in
-        let u = if 1.0 - b - d < 0.0 { 0.0 } else { 1.0 - b - d } in
+        let total = belief + disbelief;
+        let b = if 1.0 < total { belief / total } else { belief };
+        let d = if 1.0 < total { disbelief / total } else { disbelief };
+        let u = if 1.0 - b - d < 0.0 { 0.0 } else { 1.0 - b - d };
         Belief { belief: b, disbelief: d, uncertainty: u, expected: b + a * u }
     } where {
         claim sums_to_one: o.belief + o.disbelief + o.uncertainty == 1.0;
@@ -48,11 +48,11 @@ subject numbers {
     // the base rate is clamped into [0, 1]. (Weights are also capped at
     // 1e300 and NaN read as 0 or 1/2: neither can be written here.)
     fn fused(r: rational, s: rational, w: rational, a: rational) -> o: Belief at "crates/mitra-lang/src/numbers.rs/fused" {
-        let r0 = if r < 0.0 { 0.0 } else { r } in
-        let s0 = if s < 0.0 { 0.0 } else { s } in
-        let w0 = if w < 0.0 { 0.0 } else { w } in
-        let a0 = if a < 0.0 { 0.0 } else { if 1.0 < a { 1.0 } else { a } } in
-        let n = r0 + s0 + w0 in
+        let r0 = if r < 0.0 { 0.0 } else { r };
+        let s0 = if s < 0.0 { 0.0 } else { s };
+        let w0 = if w < 0.0 { 0.0 } else { w };
+        let a0 = if a < 0.0 { 0.0 } else { if 1.0 < a { 1.0 } else { a } };
+        let n = r0 + s0 + w0;
         if 0.0 < n { opinion(r0 / n, s0 / n, a0) } else { opinion(0.0, 0.0, a0) }
     } where {
         claim nothing_known: !(r <= 0.0 && s <= 0.0) || !(0.0 <= a && a <= 1.0) || o.expected == a;
@@ -62,7 +62,7 @@ subject numbers {
 
     // Subjective Logic's binomial multiplication (Jøsang, McAnally).
     fn times(x: Said, y: Said) -> z: Said at "crates/mitra-lang/src/numbers.rs/times" {
-        let k = 1.0 - x.a * y.a in
+        let k = 1.0 - x.a * y.a;
         if 0.0 < k {
             Said {
                 b: x.b * y.b + ((1.0 - x.a) * y.a * x.b * y.u + x.a * (1.0 - y.a) * x.u * y.b) / k,

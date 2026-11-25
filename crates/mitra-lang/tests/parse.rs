@@ -329,7 +329,7 @@ subject geo at "src/geo.rs" {
         claim one: (3,) > 2;
         claim unit: () == ();
         claim cond: if (Point { x: 0.0, y: 0.0 }) == p { true } else { q.x - -2.5 <= 1/7 };
-        claim let_: let d = q.x - p.y in let e = d * d in e == 0.0 || e / 2.0 < 1.0;
+        claim let_: { let d = q.x - p.y; let e = d * d; e == 0.0 || e / 2.0 < 1.0 };
         claim nested: if p.x < 0.0 { false } else if p.y < 0.0 { false } else { true };
         claim sweep: (0..10).all(|i| (i..i + 1).all(|j| j - i == 0));
         claim tol: within(p.x, q.y, 0.001);
@@ -339,7 +339,7 @@ subject geo at "src/geo.rs" {
         rule shown: flip::same, flip::back |- flip::pair
             by ponens[flip::same](flip::same, flip::back);
         rule again: flip::same, flip::back |- flip::pair
-            by let s = flip::same in ponens(s, flip::back);
+            by { let s = flip::same; ponens(s, flip::back) };
         rule against: flip::same, flip::pair, { false } |- flip::back
             by tollens[flip::same, 0, 1](flip::pair, 2);
         rule rest: flip::back |- flip::pair by reductio[!flip::back](flip::back);
@@ -418,7 +418,7 @@ fn short_paths_are_from_their_part() {
     );
     let rules = &geo.functions[0].rules;
     let again = rules[3].proof.as_ref().unwrap();
-    // `let s = … in ponens(s, …)`: `s` is the name the let binds.
+    // `{ let s = …; ponens(s, …) }`: `s` is the name the let binds.
     let Expression::Apply(judgement::Op::Let, args) = again else {
         panic!("{again:?}")
     };
@@ -791,7 +791,7 @@ fn a_proof_writes_no_state() {
         ("P003", "expected `;`, found `&&`")
     );
     // `state` is no word of the language any more: a premise may be named so.
-    let m = read(&rule("let state = s::f::c in state"));
+    let m = read(&rule("{ let state = s::f::c; state }"));
     round_trip(&m);
     // Built from Rust, they print as no text.
     let r = judgement::Op::StateOf;

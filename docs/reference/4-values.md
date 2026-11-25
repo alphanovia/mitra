@@ -58,17 +58,26 @@ subject Thermostat {
 - `..` comes last. It is Rust's struct pattern, `Point { x, .. }`, used
   in a type.
 
-## `let` and `if`
+## Blocks, `let` and `if`
 
 ```mitra
     fn far(p: Point) -> d: rational {
-        let dx = p.x in let dy = p.y in dx * dx + dy * dy
+        let dx = p.x;
+        let dy = p.y;
+        dx * dx + dy * dy
     } where {
 ```
 
-`let x = e in body` names a value inside one expression; what follows
-`in` is its whole scope. This is OCaml's form, not Rust's `let x = e;`,
-because a Mitra body is one expression.
+A block is Rust's: `{ let x = e; … last }`. Each `let x = e;` names a
+value for the rest of the block, and the block gives its last
+expression. A body is a block, and so is each branch of an `if`; any
+other place writes one in braces: `claim c: { let d = v - w; d * d < 1.0 };`.
+
+`e;` drops what `e` gives, which must be `()`: it is written for what it
+does, a call to the environment. Dropping another value is an error
+(P016), where Rust only warns for some types: name it with `let` to use
+it. A block that ends with `;` gives `()`. `let x = e in b` is no longer
+read; the error says how to write it.
 
 `if c { a } else { b }` is Rust's, and always has an `else`.
 
@@ -159,7 +168,7 @@ next tuple in the same order:
 
 ```mitra
     fn mean(xs: [integer]) -> m: integer {
-        let c = xs.fold((sum: 0, n: 0)) { x -> (sum + x, n + 1) } in
+        let c = xs.fold((sum: 0, n: 0)) { x -> (sum + x, n + 1) };
         if c.n == 0 { 0 } else { c.sum / c.n }
     } where {
 ```

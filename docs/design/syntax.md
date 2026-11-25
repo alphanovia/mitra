@@ -74,9 +74,9 @@ subject stone {
 | `a > b`, `a >= b`, `a != b` | `b < a`, `b <= a`, `!(a == b)` | Rust, read only as that |
 | `if c { a } else { b }`, `else if` | `If` | Rust |
 | `R { x: 1.0, y: 2.0 }`, `(a, b)`, `r.x`, `t.0` | `Make`, `Field` | Rust |
-| `let x = a in b` | `Let` | your choice, not Rust's `;` |
+| `{ let x = a; b }`, `{ e; r }` | `Let` (`e; r` binds `_`) | Rust (your choice, 2026-11-25: `let … in` replaced) |
 | `(lo..hi).all(\|x\| p)` | `All` | Rust |
-| `ponens(r, p, q)`, `ponens[t, 1](…)`, `tollens[t, 0, 2](…)`, `reductio[p](…)`, `cases[q](…)`, `instance[q](o, point(3, 4))`, `witness[q](o, p)`, `intro[q](|p| …)`, `point(3, 4)`, `join(a, b)`, `!a`, `let x = a in b` | a proof, `judgement::Op` | flagged |
+| `ponens(r, p, q)`, `ponens[t, 1](…)`, `tollens[t, 0, 2](…)`, `reductio[p](…)`, `cases[q](…)`, `instance[q](o, point(3, 4))`, `witness[q](o, p)`, `intro[q](|p| …)`, `point(3, 4)`, `join(a, b)`, `!a`, `{ let x = a; b }` | a proof, `judgement::Op` | flagged |
 | `all x in (a: 0..10, b: 0..10) where b != 0: p`, `any …`, `!p`, `{p, q} s {r}`, `correct(f, (6, 2))`, `correct(f, x)`, `correct(f, x in (a: 0..10))` | `Prop` | flagged |
 | `use sun::{light, Ray};`, `use sun::light;`, `use sun::*;` in a part | `Use` | Rust |
 | `use Option from "std";`: Mitra's standard model (`std/option.mitra`, `std/result.mitra`, in the binary) | `Use { from }`, `Part.file` | Rust's path, TypeScript's `from` (flagged) |
@@ -90,11 +90,13 @@ subject stone {
 
 ## The choices, in plain words
 
-**1. `let x = a in b`** (your choice). *What*: name a value inside one
-expression. *Example*: `claim c: let d = v - w in d * d < 1.0;`.
-*Gain*: one expression, no statements: what follows `in` is the whole
-scope. *Cost*: Rust writes `{ let d = v - w; d * d < 1.0 }`, so a Rust
-reader meets a new word. *Elsewhere*: OCaml, Haskell and F# write `let … in`.
+**1. Blocks, `{ let x = a; b }`** (your choice, 2026-11-25, replacing
+`let x = a in b`). *What*: name a value for the rest of a block, and run
+a call for what it does, `e; r`. *Example*: `claim c: { let d = v - w;
+d * d < 1.0 };`, `{ Disk::write("a.txt", n); 0 }`. *Gain*: Rust's form,
+one form only, and a place for calls to the environment. *Cost*: `;`
+drops only `()` (P016), stricter than Rust. *Elsewhere*: Rust, Swift;
+OCaml, Haskell and F# write `let … in`.
 
 **2. A tie in the block of what it ties** (your choice). *What*: `at
 "place"` after the name of a part, record or function. *Example*: `fn

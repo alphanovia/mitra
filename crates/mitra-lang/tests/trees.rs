@@ -68,7 +68,7 @@ fn a_function_calls_itself_only_on_a_part_of_its_input() {
     // A name bound again is no part.
     let rebound = model(
         "    fn f(t: Tree) -> n: integer {
-        match t { Leaf => 0, Node(l, _, _) => let l = t in f(l) }
+        match t { Leaf => 0, Node(l, _, _) => { let l = t; f(l) } }
     }",
     );
     assert_eq!(errors(&rebound).len(), 1, "{:?}", errors(&rebound));

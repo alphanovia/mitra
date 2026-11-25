@@ -339,7 +339,7 @@ pub struct Claim {
 /// `by invariant`, or `by invariant n`: `n` the turns a `fold` has made,
 /// 0 at its start, one more each turn. Read of what the function gives,
 /// `n` is the length of the sequence folded: `holds` is then
-/// `let n = xs.len() in …`, and `Claim::kept` what is written.
+/// `{ let n = xs.len(); … }`, and `Claim::kept` what is written.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Invariant {
     pub turns: Option<String>,

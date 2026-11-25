@@ -166,7 +166,7 @@ fn one_value_carried_is_bare() {
 #[test]
 fn a_tuple_with_labels_is_read_by_label_or_place() {
     let text = "subject S {
-    fn f(a: integer) -> b: bool { let p = (x: a, y: true) in p.x == p.0 && p.y == p.1 } where {
+    fn f(a: integer) -> b: bool { let p = (x: a, y: true); p.x == p.0 && p.y == p.1 } where {
         examples { (3) -> true }
     }
 }";

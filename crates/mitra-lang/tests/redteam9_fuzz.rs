@@ -238,7 +238,7 @@ fn num(r: &mut Rng, depth: usize, with_r: bool) -> String {
             num(r, depth - 1, with_r)
         ),
         _ => format!(
-            "(let z = {} in {})",
+            "{{ let z = {}; {} }}",
             num(r, depth - 1, with_r),
             num(r, depth - 1, with_r)
         ),

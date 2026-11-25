@@ -265,7 +265,7 @@ fn a_premise_on_a_name_a_let_binds_is_not_read() {
 fn bounds_alone_keep_out_what_faults_or_shadows() {
     let text = "subject s {
     fn f(x: integer) -> y: integer { x } where {
-        claim c: let x = 0 - x in !(1 <= x) || 1 <= 0 - x;
+        claim c: { let x = 0 - x; !(1 <= x) || 1 <= 0 - x };
     }
     fn g(x: rational) -> y: rational { x } where {
         claim d: !(6.0 / x <= 6.0 && 1.0 <= x) || 1.0 <= x;

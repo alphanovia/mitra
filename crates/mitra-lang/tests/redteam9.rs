@@ -644,7 +644,7 @@ fn c1_a_chain_through_if_doubles_at_each_level() {
                     i - 1
                 ),
                 (_, true) => format!(
-                    "let a = f{}(x, y) in if x < 0.0 {{ a }} else {{ a + 1.0 }}",
+                    "let a = f{}(x, y); if x < 0.0 {{ a }} else {{ a + 1.0 }}",
                     i - 1
                 ),
             };

@@ -20,6 +20,7 @@ example, and the fix. The letter says which step found it.
 - [P013](P013.md): a method call on a value whose part has no such method
 - [P014](P014.md): a part a `use` names that two folders declare
 - [P015](P015.md): a `mitra.toml` Mitra cannot read
+- [P016](P016.md): a value `;` drops that is not `()`
 
 ## M (model): names, types and structure (`check`, before agree)
 
