@@ -10,16 +10,20 @@
 // an inference that fails ends the loop, and the user gets the failure.
 // An empty message is refused before inference. The model is stateless
 // and bounded: each turn the harness sends it the whole conversation,
-// encoded, and a request over the model's capacity is refused.
+// encoded. Its context window holds the request and the answer it
+// generates: a request that leaves less than the reserve for the answer
+// is refused.
 //
 // Uses text [~char] and ++, fold and until, parts as types, and
 // `by invariant n` (each claim below the loop that keeps it), all on main.
 //
-// What it shows: the request grows with no bound. Each turn of the loop
-// adds two turns to the conversation and takes none out (replay::grows);
-// each turn takes a byte of the request at least (framed); a model
-// refuses a request over its capacity (capped). So any model refuses the
-// loop in the end: the conversation must be compacted (needs_compaction).
+// The guard the assistant needs: the context window is never filled,
+// every request with the reserve fits the window (fits_window).
+// What it shows: the loop as written breaks that guard in the end. Each
+// turn of the loop adds two turns to the conversation and takes none out
+// (replay::grows); each turn takes a byte of the request at least
+// (framed); so once the turns pass the window, the request does not fit
+// (after::breaks), and the model refuses it (after::refused).
 
 // What it does, end to end: only parts, requires, ensures and examples.
 subject Assistant {
@@ -30,9 +34,14 @@ subject Assistant {
     ensure answers: "the user gets the final answer, or the failure"
         from (Harness::answers, stops);
 
-    // A finding of the model: the loop needs compaction.
-    ensure needs_compaction: "a long enough loop is refused by any model: the conversation must be compacted"
-        from (Harness::unbounded);
+    // The guard: the context window is never filled. Nothing supports it
+    // yet: the loop as written breaks it (Harness::breaks_window).
+    ensure fits_window: "every request, with the reserve for the answer, fits the model's window";
+
+    // What the model shows: with no compaction, a long enough loop breaks
+    // fits_window, and the model refuses it.
+    ensure breaks_window: "a long enough loop fills the window: the request no longer fits, and the model refuses it"
+        from (Harness::breaks_window);
 
     // End to end, from the user's message, as BDD rows: `given` what the
     // environment and the opaque encoding answer (`_` for any arguments),
@@ -40,23 +49,23 @@ subject Assistant {
     examples {
         // Inference answers at once: the user gets the answer.
         given User::message() -> "hello", Conversation::encode(_) -> "hello",
-              Llm::inference(_, _, _) -> Ok(Answer { text: "hi", calls: [] })
-            when Harness::serve(Llm { capacity: 100 }, [])
+              Llm::inference(_, _, _, _) -> Ok(Answer { text: "hi", calls: [] })
+            when Harness::serve(Llm { window: 100 }, [], 10)
             then Ok(Answer { text: "hi", calls: [] }),
         // Inference can't reach the model: the user gets the failure.
         given User::message() -> "hello", Conversation::encode(_) -> "hello",
-              Llm::inference(_, _, _) -> Err(LlmFailure::Unreachable)
-            when Harness::serve(Llm { capacity: 100 }, [])
+              Llm::inference(_, _, _, _) -> Err(LlmFailure::Unreachable)
+            when Harness::serve(Llm { window: 100 }, [], 10)
             then Err(HarnessFailure::Llm(LlmFailure::Unreachable)),
         // An empty message: refused, inference is never called.
         given User::message() -> ""
-            when Harness::serve(Llm { capacity: 100 }, [])
+            when Harness::serve(Llm { window: 100 }, [], 10)
             then Err(HarnessFailure::EmptyPrompt),
-        // A model too small for the request: refused, by its claim `capped`.
-        // "hello" is 5 bytes, and the request holds it (Conversation::encode::holds_all).
+        // No room left for the answer: "hello" is 5 bytes, 5 + 10 > 12, so
+        // the request does not fit, and the model refuses it (windowed).
         given User::message() -> "hello", Conversation::encode(_) -> "hello",
-              Llm::inference(_, _, _) -> Err(LlmFailure::TooLong)
-            when Harness::serve(Llm { capacity: 1 }, [])
+              Llm::inference(Llm { window: 12 }, "hello", [], 10) -> Err(LlmFailure::TooLong)
+            when Harness::serve(Llm { window: 12 }, [], 10)
             then Err(HarnessFailure::Llm(LlmFailure::TooLong))
     }
 
@@ -68,13 +77,17 @@ subject Assistant {
     // The model behind inference: stateless, how it answers is not known.
     environment Llm {
         use Result from "std";
-        // Each model has its own capacity: the bytes one request may hold
-        // (len counts bytes; tokens later, through a tokenizer part).
-        record { capacity: integer }
-        fn inference(self, request: [~char], tools: [Tool]) -> a: Result<Answer, LlmFailure> where {
-            claim capped: request.len() <= self.capacity || a == Err(LlmFailure::TooLong);
+        // Each model has its own context window: what it reads and what it
+        // writes back, together (len counts bytes; tokens later, through a
+        // tokenizer part).
+        record { window: integer }
+        // `reserve`: the room the caller keeps for the answer (the API's
+        // max_tokens), out of the same window.
+        fn inference(self, request: [~char], tools: [Tool], reserve: integer) -> a: Result<Answer, LlmFailure> where {
+            claim windowed: request.len() + reserve <= self.window || a == Err(LlmFailure::TooLong);
         }
-        ensure refuses_long: "a request over the model's capacity is refused" from (inference::capped);
+        ensure refuses_long: "a request that leaves less than the reserve in the window is refused"
+            from (inference::windowed);
     }
 
     // How each side fails. The harness's wraps the others; handling
@@ -142,8 +155,15 @@ subject Assistant {
         ensure answers: "the user gets the final answer, or the failure" from (run::ends);
 
         // What the user sends goes to the loop.
-        fn serve(llm: Llm, tools: [Tool]) -> r: Result<Answer, HarnessFailure> {
-            run(llm, message(), tools)
+        fn serve(llm: Llm, tools: [Tool], reserve: integer) -> r: Result<Answer, HarnessFailure> {
+            run(llm, message(), tools, reserve)
+        }
+
+        // The guard: the request, with the reserve, fits the model's window.
+        fn fits_window(llm: Llm, request: [~char], reserve: integer) -> f: bool {
+            request.len() + reserve <= llm.window
+        } where {
+            examples { (Llm { window: 10 }, "hello", 5) -> true, (Llm { window: 10 }, "hello", 6) -> false }
         }
 
         // When the loop stops: a final answer, or a failure.
@@ -181,33 +201,37 @@ subject Assistant {
             }
         }
 
-        // What the model says to the request after those turns.
-        fn after(llm: Llm, prompt: [~char], turns: [(answer: Answer, outcomes: [Outcome])], tools: [Tool])
+        // The request after those turns, and what the model says to it.
+        fn after(llm: Llm, prompt: [~char], turns: [(answer: Answer, outcomes: [Outcome])], tools: [Tool], reserve: integer)
             -> a: Result<Answer, LlmFailure> {
-            llm.inference(replay(prompt, turns).encode(), tools)
+            llm.inference(replay(prompt, turns).encode(), tools, reserve)
         } where {
-            // Any model refuses the request once the turns pass its capacity.
-            claim refused: 1 + 2 * turns.len() <= llm.capacity || a == Err(LlmFailure::TooLong);
+            // Once the turns pass the window, the request does not fit.
+            claim breaks: 1 + 2 * turns.len() + reserve <= llm.window
+                || !fits_window(llm, replay(prompt, turns).encode(), reserve);
+            // And the model refuses it.
+            claim refused: 1 + 2 * turns.len() + reserve <= llm.window || a == Err(LlmFailure::TooLong);
             // Arithmetic, which no step of judgement does: assumed. The
             // request has at least 1 + 2n turns (grows), each of a byte at
-            // least (framed); over capacity, the model refuses (capped).
-            rule overflows: replay::grows, framed, refuses_long |- after::refused;
+            // least (framed); past the window, the model refuses (windowed).
+            rule overflows: replay::grows, framed |- after::breaks;
+            rule refuses: after::breaks, refuses_long |- after::refused;
         }
 
-        ensure unbounded: "with no compaction, the request grows by two turns each turn of the loop, and any model refuses it in the end"
-            from (replay::grows, after::overflows);
+        ensure breaks_window: "with no compaction, the request grows by two turns each turn of the loop: in the end it does not fit the window, and the model refuses it"
+            from (replay::grows, after::overflows, after::refuses);
 
         // The agent loop: a final answer, or a failure.
-        fn run(llm: Llm, prompt: [~char], tools: [Tool]) -> r: Result<Answer, HarnessFailure> {
+        fn run(llm: Llm, prompt: [~char], tools: [Tool], reserve: integer) -> r: Result<Answer, HarnessFailure> {
             if prompt == "" { Err(HarnessFailure::EmptyPrompt) } else {
                 let start = Conversation { turns: [Turn::User(prompt)] };
-                let last = until((c: start, got: llm.inference(start.encode(), tools)), finished(got)) {
+                let last = until((c: start, got: llm.inference(start.encode(), tools, reserve)), finished(got)) {
                     match got {
                         Ok(a) => {
                             let next = Conversation {
                                 turns: c.turns ++ [Turn::Model(a), Turn::Results(perform_all(a.calls))]
                             };
-                            (next, llm.inference(next.encode(), tools))
+                            (next, llm.inference(next.encode(), tools, reserve))
                         },
                         // Never reached: an Err is finished. `match` needs the arm.
                         Err(_) => (c, got)
