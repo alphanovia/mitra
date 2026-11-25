@@ -1,0 +1,82 @@
+// The words of the system: what clients, the server and the harness pass
+// to each other. One file, because an enum can only name types declared in
+// its own file (finding 29): every enum here names others.
+//
+// Reading: the entry's words first (what a client sends and gets), then
+// what the steps note on a message, then the harness's own words.
+
+// ---- The entry: what a client sends, and what it gets back.
+
+subject enum Device { Phone, Computer, Wearable }
+// Who wrote a message: a client, or the assistant.
+subject enum Party { Client(Device), Assistant }
+// CHOICE TO CONFIRM (C1): an id is its author and the author's own count,
+// so ids never clash and a retry sends the same id again.
+subject record MessageId { party: Party, n: integer }
+subject record Audio {}
+// What was sent, as it was sent. It never changes.
+subject enum Body { Text([~char]), Voice(Audio) }
+// A message from a client to the server.
+subject record Envelope { id: MessageId, body: Body }
+// What the server tells the sender about their message (C2):
+// Received = stored, Read = the assistant has taken it up,
+// Delivered = a reply reached the client it was for.
+subject enum Receipt { Received(MessageId), Read(MessageId), Delivered(MessageId) }
+// What a persona gives a client: typed text, or recorded voice.
+subject enum Input { Typed([~char]), Spoken(Audio) }
+subject enum NetFailure { Unreachable }
+
+// ---- What the steps find out about a message: notes, only ever added,
+// each signed by the step that made it.
+
+subject enum Step { Gateway, Worker, Speech, Identity, Commands, Gate, Purpose, Policy }
+subject enum Note {
+    Read,                      // the assistant took the message up
+    Transcript([~char]),       // the words of a voice message
+    Sender(Person),            // who sent it, as the channel tells
+    Verdict(Verdict),          // what the gate made of it
+    Ask(Ask),                  // what is asked, and how hard it is
+    Called(Outcome),           // a tool call: decided, run or not, guarded
+    Answered(MessageId),       // the reply to it
+    Speech(Audio),             // a reply, spoken, for a client that speaks
+    Delivered                  // the reply reached its client
+}
+subject record Annotation { step: Step, note: Note }
+
+// ---- The harness's words.
+
+// The message as the harness reads it: its device and its words.
+subject record Message { device: Device, text: [~char] }
+subject record Person { role: Role }
+// CHOICE (earlier, kept): three roles; a stranger goes through, with a
+// policy that allows nothing of consequence (a call for help aside).
+subject enum Role { Owner, Member, Stranger }
+subject enum Verdict { Act, Noise, Malicious, Distress, Meta }
+// CHOICE TO CONFIRM (C5): the local model marks an ask clear or not, and
+// easy or not: an easy ask is answered by the local model, any other by
+// the frontier model.
+subject record Ask { text: [~char], clear: bool, easy: bool }
+subject enum Machine { Local, Cloud }
+subject record Context {}
+subject record Habits {}
+subject record Preferences {}
+
+// What the model may call, and what it answers.
+subject Tool {
+    use Result from "std";
+    record { name: [~char], description: [~char] }
+    fn call(self, input: [~char]) -> got: Result<[~char], ToolFailure>;
+}
+subject record Call { tool: Tool, input: [~char] }
+subject record Answer { text: [~char], calls: [Call] }
+subject enum LlmFailure { TooLong, Unreachable }
+subject enum ToolFailure { Failed, Refused, AwaitsYes }
+subject enum Decision { Run, Confirm, Refuse }
+subject Outcome {
+    use Result from "std";
+    record { call: Call, output: Result<[~char], ToolFailure> }
+}
+subject enum HarnessFailure { EmptyPrompt, Llm(LlmFailure), Tool(ToolFailure) }
+subject record Reply { text: [~char] }
+// One turn of the conversation the harness keeps for the model.
+subject enum Turn { User([~char]), Model(Answer), Results([Outcome]) }

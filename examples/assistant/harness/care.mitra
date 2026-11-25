@@ -1,0 +1,33 @@
+// Care around the assistant: help, tuning by voice, and the account the
+// family can be given after the fact.
+
+// Whoever is called for help: a caregiver, family, an emergency line.
+// CHOICE (earlier, kept): its own environment, called directly.
+environment Helpline {
+    use Person from "vocabulary";
+    use Message from "vocabulary";
+    fn alert(p: Person, m: Message) -> sent: bool;
+    ensure reaches: "an alert reaches someone who can help, or the assistant is told it did not";
+}
+
+// Meta messages: the user judging the system, and settings by voice.
+subject Tuning {
+    use Message from "vocabulary";
+    use Person from "vocabulary";
+    use Preferences from "vocabulary";
+    fn adjust(m: Message, p: Person) -> s: Preferences;
+    ensure by_voice: "each setting the user may change can be changed by voice, and is read back";   // measured
+    ensure scored: "a message judging the assistant is kept as a score to learn from, not run as a request"; // route in Harness::serve
+}
+
+// What happened, and why: read from the notes of the conversation store.
+// CHOICE (earlier, kept): who may read it is the owner's call.
+subject Journal {
+    use MessageId from "vocabulary";
+    use ConversationStore from "store";
+    use Worker from "worker";
+    fn why(store: ConversationStore, id: MessageId) -> account: [~char];
+    require kept: ConversationStore::kept;
+    require traced: Worker::traced;
+    ensure explainable: "from the notes on a message, the assistant tells in plain words what it did and why";   // measured
+}

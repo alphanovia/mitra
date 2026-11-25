@@ -1,0 +1,18 @@
+// The reply: well formulated, and never silence.
+
+subject Reporter {
+    use Result from "std";
+    use Answer from "vocabulary";
+    use HarnessFailure from "vocabulary";
+    use Ask from "vocabulary";
+    use Verdict from "vocabulary";
+    use Reply from "vocabulary";
+    use Preferences from "vocabulary";
+    fn report(r: Result<Answer, HarnessFailure>, a: Ask) -> reply: Reply;
+    fn decline(v: Verdict) -> reply: Reply;
+    fn ask_back(a: Ask) -> reply: Reply;
+    fn helped(sent: bool) -> reply: Reply;
+    fn tuned(s: Preferences) -> reply: Reply;
+    ensure explains_failure: "a failure or a refusal is told as what was not done, and why";   // rule, measured
+    ensure clear: "plain words, one point at a time: what was done, and what was not";       // quality, measured
+}

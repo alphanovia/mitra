@@ -1,0 +1,22 @@
+// The server the assistant runs on, as a whole: what it is and what its
+// parts give together.
+
+subject Server {
+    use Gateway from "gateway";
+    use Worker from "worker";
+    use ConversationStore from "store";
+    require kept: ConversationStore::kept;
+    require recorded_first: Gateway::recorded_first;
+    require retry_safe: Gateway::retry_safe;
+    require delivers: Gateway::delivers;
+    require transcribes: Worker::transcribes;
+    require answers_back: Worker::answers_back;
+    require traced: Worker::traced;
+
+    ensure hosts: "the assistant is deployed and running on the server";                              // assumption of the deployment
+    ensure reachable: "the clients reach the server, and the server reaches both model machines";     // assumption of the network
+    ensure messaging: "clients send and receive messages through one API, as with a messaging app"
+        from (recorded_first, retry_safe, delivers, answers_back);
+    ensure memory: "the server keeps the whole conversation: each message as it came, and what was found out about it"
+        from (kept, transcribes, traced);
+}

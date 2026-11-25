@@ -1,0 +1,51 @@
+// Who sent a message, what code can answer at once, and whether there is
+// anything to do.
+
+// Who sent it. Identity depends on the device: one assumption per device,
+// and each goes into the user manual.
+environment Identity {
+    use Message from "vocabulary";
+    use Person from "vocabulary";
+    fn who(m: Message) -> p: Person;
+    require phone: "on a phone, the phone's lock tells its owner: the manual asks for a password on it";
+    require computer: "on a computer, the session's login tells its user";
+    require voice: "on the wearable, voice recognition tells the user's voice from others'";
+    ensure identified: "each message is given the person its device tells, or a stranger"
+        from (phone, computer, voice);
+}
+
+// Plain code, before any model (decided: a machine answer when it can).
+// CHOICE TO CONFIRM (C8): a short fixed list of read-only commands (the
+// time, "say it again", what a setting is), and a list of help words
+// that call for help even when no model is up.
+subject Commands {
+    use Option from "std";
+    use Message from "vocabulary";
+    use Person from "vocabulary";
+    use Reply from "vocabulary";
+    fn answer(m: Message, p: Person) -> r: Option<Reply>;
+    fn alarm(m: Message) -> help: bool;
+    ensure plain_first: "a request plain code can answer is answered without any model";       // capability, shown by examples
+    ensure read_only: "an answer by plain code only tells; it never acts on anything";        // property: answer has no tools to call
+    ensure help_words: "a call for help in plain words is passed on even when no model is up";  // rule, measured on the word list
+}
+
+// Security, by the local model: is there anything to do?
+subject Gate {
+    use LocalLlm from "models";
+    use Message from "vocabulary";
+    use Person from "vocabulary";
+    use Verdict from "vocabulary";
+    fn screen(m: Message, p: Person) -> v: Verdict where {
+        // Nothing heard is noise: a voice the server could not make out
+        // comes here with no words.
+        claim empty_is_noise: m.text != "" || v == Verdict::Noise;
+    }
+    require identified: Identity::identified;
+    require local: LocalLlm::serves;
+    ensure benign_only: "a message judged malicious goes no further than a reply saying so";      // route in Harness::serve, judge measured
+    ensure signal_only: "noise, a cat on the keyboard or a sound, is never answered as a request" // route, judge measured
+        from (screen::empty_is_noise);
+    ensure help_first: "a call for help is recognised whatever the role or the doubt";             // measured
+    ensure few_refused: "a real message of the user is rarely refused or taken for noise";        // quality, measured
+}

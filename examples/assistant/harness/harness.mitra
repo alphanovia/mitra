@@ -1,0 +1,166 @@
+// The harness: one message through the pipeline, and the agent loop in it.
+//
+//   Identity -> Commands (plain code) -> Gate -> Purpose -> Experience
+//     -> the loop on the chosen model (Composer -> Llm -> Policy -> Tool -> ToolGuard)
+//     -> Reporter
+//
+// with a call for help passed on first, and meta messages to Tuning. The
+// harness returns the reply and the notes its steps made; the server
+// keeps both (see server/worker.mitra).
+
+subject Harness {
+    use Result from "std";
+    use Option from "std";
+    use Message from "vocabulary";
+    use Person from "vocabulary";
+    use Verdict from "vocabulary";
+    use Ask from "vocabulary";
+    use Habits from "vocabulary";
+    use Reply from "vocabulary";
+    use Annotation from "vocabulary";
+    use Note from "vocabulary";
+    use Step from "vocabulary";
+    use Tool from "vocabulary";
+    use Call from "vocabulary";
+    use Answer from "vocabulary";
+    use Outcome from "vocabulary";
+    use Turn from "vocabulary";
+    use Decision from "vocabulary";
+    use Role from "vocabulary";
+    use ToolFailure from "vocabulary";
+    use LlmFailure from "vocabulary";
+    use HarnessFailure from "vocabulary";
+    use Conversation from "conversation";
+    use Identity::who from "security";
+    use Commands::{answer, alarm} from "security";
+    use Gate::screen from "security";
+    use Purpose::{pin, context} from "purpose";
+    use Experience::recall from "purpose";
+    use Composer::compose from "purpose";
+    use Models from "models";
+    use Llm from "models";
+    use Policy::allow from "tools";
+    use ToolGuard::screen from "tools";
+    use Helpline::alert from "care";
+    use Tuning::adjust from "care";
+    use Reporter::{report, decline, ask_back, helped, tuned} from "reply";
+
+    require identified: Identity::identified;
+    require framed: Conversation::framed;
+    require refuses_long: Llm::refuses_long;
+    require fits: Composer::fits_window;
+    // The loop ends: a leaf in words, nothing in the model shows it.
+    require stops: "the model, in the end, asks for no tool, or inference fails";
+
+    // One message, through the pipeline: the reply, and the notes made.
+    fn serve(m: Message, history: Conversation, models: Models, tools: [Tool]) -> out: (reply: Reply, notes: [Annotation]) {
+        let p = Identity::who(m);
+        let seen = [Annotation { step: Step::Identity, note: Note::Sender(p) }];
+        if Commands::alarm(m) {
+            (reply: Reporter::helped(Helpline::alert(p, m)),
+             notes: seen ++ [Annotation { step: Step::Commands, note: Note::Verdict(Verdict::Distress) }])
+        } else {
+            match Commands::answer(m, p) {
+                Option::Some(r) => (reply: r, notes: seen),
+                Option::None => {
+                    let v = Gate::screen(m, p);
+                    let judged = seen ++ [Annotation { step: Step::Gate, note: Note::Verdict(v) }];
+                    match v {
+                        Verdict::Act => {
+                            let a = Purpose::pin(m, p, history);
+                            let asked = judged ++ [Annotation { step: Step::Purpose, note: Note::Ask(a) }];
+                            if a.clear {
+                                let done = run(models.pick(a), a, p, Experience::recall(a, p), history, tools);
+                                (reply: Reporter::report(done.result, a), notes: asked ++ called(done.c.outcomes()))
+                            } else {
+                                (reply: Reporter::ask_back(a), notes: asked)
+                            }
+                        },
+                        Verdict::Distress => (reply: Reporter::helped(Helpline::alert(p, m)), notes: judged),
+                        Verdict::Meta => (reply: Reporter::tuned(Tuning::adjust(m, p)), notes: judged),
+                        Verdict::Noise => (reply: Reporter::decline(Verdict::Noise), notes: judged),
+                        Verdict::Malicious => (reply: Reporter::decline(Verdict::Malicious), notes: judged)
+                    }
+                }
+            }
+        }
+    }
+
+    // Each tool call made, as a note of the policy.
+    fn called(os: [Outcome]) -> ns: [Annotation] {
+        os.fold(ns: []) { o -> ns ++ [Annotation { step: Step::Policy, note: Note::Called(o) }] }
+    } where {
+        claim one_each: ns.len() == n by invariant n;
+    }
+
+    // The agent loop, on one model: the Composer builds each request from
+    // the conversation; tools run as the Policy says, outputs pass the guard.
+    fn run(llm: Llm, a: Ask, p: Person, h: Habits, history: Conversation, tools: [Tool])
+        -> out: (result: Result<Answer, HarnessFailure>, c: Conversation) {
+        if a.text == "" { (result: empty(), c: history) } else {
+            let start = Conversation { turns: history.turns ++ [Turn::User(a.text)] };
+            let first = Composer::compose(a, Purpose::context(a, start), h, llm);
+            let last = until((c: start, got: llm.inference(first, tools)), finished(got)) {
+                match got {
+                    Ok(ans) => {
+                        let next = Conversation {
+                            turns: c.turns ++ [Turn::Model(ans), Turn::Results(perform_all(ans.calls, a, p, h))]
+                        };
+                        (next, llm.inference(Composer::compose(a, Purpose::context(a, next), h, llm), tools))
+                    },
+                    // Never reached: an Err is finished. `match` needs the arm.
+                    Err(_) => (c, got)
+                }
+            };
+            (result: lifted(last.got), c: last.c)
+        }
+    } where {
+        // What until means: it stops at a final answer or a failure (finding D).
+        claim ends: match out.result { Ok(ans) => ans.calls.len() == 0, Err(_) => true };
+        // An empty ask is refused.
+        claim refused: a.text != "" || out.result == Err(HarnessFailure::EmptyPrompt);
+    }
+
+    fn empty() -> r: Result<Answer, HarnessFailure> { Err(HarnessFailure::EmptyPrompt) }
+
+    // The model's failure, as the harness's. Named apart: a `match` in a
+    // tuple cannot be typed (finding R).
+    fn lifted(got: Result<Answer, LlmFailure>) -> r: Result<Answer, HarnessFailure> {
+        match got { Ok(ans) => Ok(ans), Err(e) => Err(HarnessFailure::Llm(e)) }
+    }
+
+    // When the loop stops: a final answer, or a failure.
+    fn finished(got: Result<Answer, LlmFailure>) -> f: bool {
+        match got { Ok(ans) => ans.calls.len() == 0, Err(_) => true }
+    } where {
+        examples {
+            (Ok(Answer { text: "hi", calls: [] })) -> true,
+            (Err(LlmFailure::Unreachable)) -> true
+        }
+    }
+
+    // Every call, in order: run only when allowed, its output guarded.
+    fn perform_all(calls: [Call], a: Ask, p: Person, h: Habits) -> rs: [Outcome] {
+        calls.fold(rs: []) { c -> rs ++ [Outcome { call: c, output: match Policy::allow(c, a, p, h) {
+            Decision::Run => ToolGuard::screen(c.tool.call(c.input)),
+            Decision::Confirm => Err(ToolFailure::AwaitsYes),
+            Decision::Refuse => Err(ToolFailure::Refused)
+        } }] }
+    } where {
+        claim each: rs.len() == n by invariant n;
+        examples { ([], Ask { text: "x", clear: true, easy: true }, Person { role: Role::Owner }, Habits {}) -> [] }
+    }
+
+    // Kept by its bodies; a route property each, until Mitra can state one (finding A).
+    ensure answers: "every message gets a reply: an answer, a question back, or what was not done and why"
+        from (run::ends, stops);
+    ensure machine_first: "plain code answers before any model is asked, and our model judges a message before the frontier one sees it";
+    ensure helps: "a call for help is passed on before any other step, whoever sends it";
+    ensure guarded: "a tool runs only when the policy says so, and its output passes the guard before the model reads it"
+        from (perform_all::each);
+    ensure asks_first: "an unclear ask is asked back before any model works on it"
+        from (run::refused);
+    ensure composed: "every request the loop sends is the composer's, for the model it goes to"
+        from (fits);
+    ensure noted: "each step that decides about a message leaves a note saying what it decided";
+}

@@ -1,0 +1,17 @@
+// Speech, on the server: voice becomes text when a message comes in, and
+// text becomes voice for a reply to a client that spoke. Clients may do
+// some of it at the edge later; tonight the server does both.
+
+environment enum SpeechFailure { Unclear }
+
+// The speech models run on our server: how well they hear is measured.
+subject Speech {
+    use Result from "std";
+    use Audio from "vocabulary";
+    fn transcribe(a: Audio) -> t: Result<[~char], SpeechFailure>;
+    fn speak(t: [~char]) -> a: Audio;
+
+    ensure hears: "a voice message is turned into the words that were said, rarely wrong";                // quality, measured
+    ensure honest: "a voice it cannot make out is reported as unclear, never guessed";                      // rule, measured
+    ensure voiced: "a reply can be spoken in a voice the user understands";                                  // capability, measured
+}

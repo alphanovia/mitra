@@ -444,33 +444,44 @@ fn the_budget_reaches_a_set_condition() {
 
 /// The personal assistant's end-to-end rows (finding 30): `given` what the
 /// environment gives with `_` arguments and `Ok(..)` of a `Result` from
-/// std, `when Harness::serve(..)`, `then` what the user gets. Each row is
-/// compared: a wrong `then` is a finding.
+/// std, `when Harness::serve(..)`, `then` what the user gets. The model is
+/// split in files (examples/assistant/), read from `system.mitra`. Each row
+/// is compared: a wrong `then` is a finding.
 #[test]
 fn the_assistant_rows_end_to_end() {
-    let path = "examples/assistant/personal_assistant.mitra";
+    let path = "examples/assistant/system.mitra";
     let (code, out) = mitra(&["check", path]);
     assert_eq!(code, 0, "{out}");
     assert!(
-        out.contains("check: well formed; agree: 48 comparisons, 36 hold, 12 findings"),
+        out.contains("check: well formed; agree: 94 comparisons, 75 hold, 19 findings"),
         "{out}"
     );
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
-    let text = std::fs::read_to_string(format!("{root}/{path}")).unwrap();
+    let dir = std::env::temp_dir().join(format!("mitra-assistant-{}", std::process::id()));
+    copy_dir(&std::path::Path::new(root).join("examples/assistant"), &dir);
+    let system = dir.join("system.mitra");
+    let text = std::fs::read_to_string(&system).unwrap();
     let wrong = text.replacen(
-        "then Reply { text: \"hi\" }",
-        "then Reply { text: \"ho\" }",
+        "then (reply: Reply { text: \"hi\" }",
+        "then (reply: Reply { text: \"ho\" }",
         1,
     );
     assert_ne!(wrong, text);
-    let dir = std::env::temp_dir().join(format!("mitra-assistant-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("mitra.toml"), "").unwrap();
-    std::fs::write(dir.join("a.mitra"), wrong).unwrap();
-    let (_, out) = mitra(&["check", dir.join("a.mitra").to_str().unwrap()]);
+    std::fs::write(&system, wrong).unwrap();
+    let (_, out) = mitra(&["check", system.to_str().unwrap()]);
     std::fs::remove_dir_all(&dir).unwrap();
-    assert!(
-        out.contains("finding[A006]: `Assistant::Harness::serve::reply`"),
-        "{out}"
-    );
+    assert!(out.contains("finding[A006]: `Harness::serve::out`"), "{out}");
+}
+
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).unwrap();
+        }
+    }
 }

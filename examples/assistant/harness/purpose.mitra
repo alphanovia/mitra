@@ -1,0 +1,48 @@
+// What is asked, and what the user is used to: by the local model.
+
+subject Purpose {
+    use LocalLlm from "models";
+    use ConversationStore from "store";
+    use Conversation from "conversation";
+    use Message from "vocabulary";
+    use Person from "vocabulary";
+    use Ask from "vocabulary";
+    use Context from "vocabulary";
+    fn pin(m: Message, p: Person, history: Conversation) -> a: Ask;
+    fn context(a: Ask, conversation: Conversation) -> c: Context;
+    require local: LocalLlm::serves;
+    require kept: ConversationStore::kept;
+    ensure pinned: "the ask is what the last message asks, read with what came before it";      // measured
+    ensure relevant: "the context holds what the ask needs, and little else";                    // quality, measured
+    ensure asks_back: "an unclear ask is marked so, never guessed";                              // rule, measured
+    // C5: the local model judges what is easy.
+    ensure judged_easy: "an ask is marked easy only when our model can do it as well as the frontier one"; // quality, measured
+}
+
+// Behaviour stays near the user's habits, so trust builds.
+// CHOICE (earlier, kept): a person's habits are read only for their own asks.
+subject Experience {
+    use ConversationStore from "store";
+    use Ask from "vocabulary";
+    use Person from "vocabulary";
+    use Habits from "vocabulary";
+    fn recall(a: Ask, p: Person) -> h: Habits;
+    require kept: ConversationStore::kept;
+    ensure near_habit: "an action far from the sender's habits is flagged";      // measured
+    ensure own_habits: "only the sender's own habits are read";                  // route: recall gets the sender only
+}
+
+// The request, built by software each turn, for the model that will read it.
+subject Composer {
+    use Llm from "models";
+    use Ask from "vocabulary";
+    use Context from "vocabulary";
+    use Habits from "vocabulary";
+    fn compose(a: Ask, c: Context, h: Habits, llm: Llm) -> request: [~char] where {
+        claim fits: request.len() + llm.reserve <= llm.window;
+    }
+    require relevant: Purpose::relevant;
+    ensure keeps_pin: "the request holds the ask whole";                          // measured
+    ensure fits_window: "the request, with room for the answer, fits the window of the model it is for"
+        from (compose::fits);
+}

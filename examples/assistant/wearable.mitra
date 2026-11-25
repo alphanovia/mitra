@@ -1,0 +1,26 @@
+// The wearable: persona 2's client. It records voice and plays the reply;
+// it has little power of its own, so the server does the speech work.
+// Not modelled in detail tonight: it is a client of the same entry as the
+// CLI, with voice only.
+
+environment Persona2 {
+    ensure uses_wearable: "persona 2 speaks to the assistant through the wearable";
+}
+
+subject Wearable {
+    use Gateway from "gateway";
+    use Worker from "worker";
+    use Network from "cli";
+    require persona: Persona2::uses_wearable;
+    require carried: Network::carries;
+    require retry_safe: Gateway::retry_safe;
+    require delivers: Gateway::delivers;
+    require shows_work: Gateway::shows_work;
+    require speaks_back: Worker::speaks_back;
+    ensure sends_once: "what persona 2 says reaches the assistant once, as recorded voice"
+        from (carried, retry_safe);
+    ensure speaks: "the reply is spoken to persona 2"
+        from (delivers, speaks_back);
+    ensure light: "a light shows persona 2 at once that the message arrived, and while the assistant works on it"
+        from (shows_work);
+}

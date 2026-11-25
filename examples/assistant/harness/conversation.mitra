@@ -1,0 +1,38 @@
+// The conversation the harness keeps with the model, turn by turn, and its
+// naive request: the whole conversation written out (e.g. as JSON).
+
+subject Conversation {
+    use Result from "std";
+    use Turn from "vocabulary";
+    use Answer from "vocabulary";
+    use Outcome from "vocabulary";
+    record { turns: [Turn] }
+
+    fn encode(self) -> request: [~char] where {
+        // The request holds every text of the conversation, so it is at
+        // least as long as they are together, in bytes.
+        claim holds_all: self.texts() <= request.len();
+        // Each turn is framed (a JSON object, a role): a byte at least.
+        claim framed: self.turns.len() <= request.len();
+    }
+    ensure framed: "each turn takes at least one byte of the request" from (encode::framed);
+
+    // The bytes of every text the conversation holds.
+    fn texts(self) -> n: integer {
+        self.turns.fold(n: 0) { t -> n + match t {
+            Turn::User(p) => p.len(),
+            Turn::Model(a) => a.text.len(),
+            Turn::Results(rs) => rs.fold(m: 0) { o -> m + match o.output { Ok(s) => s.len(), Err(_) => 0 } }
+        } }
+    } where {
+        examples {
+            (Conversation { turns: [Turn::User("hello")] }) -> 5,
+            (Conversation { turns: [Turn::User("hi"), Turn::Model(Answer { text: "ok", calls: [] }), Turn::Results([])] }) -> 4
+        }
+    }
+
+    // Every tool call made in it, in order: what the journal notes.
+    fn outcomes(self) -> os: [Outcome] {
+        self.turns.fold(os: []) { t -> match t { Turn::Results(rs) => os ++ rs, _ => os } }
+    }
+}

@@ -1,0 +1,128 @@
+// The CLI: persona 1's client, on a computer. Persona 1 types, or speaks
+// into the computer's microphone; the CLI sends the message to the
+// server's entry, shows that it is sent, shows that the assistant is
+// working, and shows (and plays, when spoken) the reply.
+
+environment Persona1 {
+    use Input from "vocabulary";
+    fn input() -> i: Input;
+    ensure uses_cli: "persona 1 types or speaks to the assistant through the CLI on their computer";
+}
+
+// The network between a client and the server: each call reaches the
+// server's entry (Gateway), or fails.
+environment Network {
+    use Result from "std";
+    use Envelope from "vocabulary";
+    use Receipt from "vocabulary";
+    use NetFailure from "vocabulary";
+    use Device from "vocabulary";
+    use MessageId from "vocabulary";
+    use Stored from "store";
+    use Gateway from "gateway";
+    fn post(e: Envelope) -> r: Result<Receipt, NetFailure>;
+    fn get(d: Device, after: integer) -> r: Result<[Stored], NetFailure>;
+    fn typing(d: Device) -> on: bool;
+    fn ack(id: MessageId) -> ok: bool;
+    require entry: Gateway::recorded_first;
+    ensure carries: "a client's call reaches the server's entry and brings back its answer, or the client learns that it failed";
+}
+
+// CHOICE TO CONFIRM (C9): the CLI's own state is its count of messages
+// sent, the last reply it has, and how many times it may send again
+// (a setting).
+subject Cli {
+    use Result from "std";
+    use Option from "std";
+    use Input from "vocabulary";
+    use Envelope from "vocabulary";
+    use MessageId from "vocabulary";
+    use Party from "vocabulary";
+    use Device from "vocabulary";
+    use Body from "vocabulary";
+    use Audio from "vocabulary";
+    use Receipt from "vocabulary";
+    use NetFailure from "vocabulary";
+    use Stored from "store";
+    use Gateway from "gateway";
+    use Worker from "worker";
+    use Network::{post, get, ack};
+    record { count: integer, seen: integer, retries: integer }
+
+    require carried: Network::carries;
+    require retry_safe: Gateway::retry_safe;
+    require delivers: Gateway::delivers;
+    require shows_work: Gateway::shows_work;
+    require speaks_back: Worker::speaks_back;
+
+    // What persona 1 gives, as a message with the next id of this computer.
+    fn envelope(self, i: Input) -> e: Envelope {
+        Envelope { id: MessageId { party: Party::Client(Device::Computer), n: self.count + 1 }, body: body(i) }
+    } where {
+        claim next: e.id.n == self.count + 1;
+        claim ours: e.id.party == Party::Client(Device::Computer);
+        examples {
+            (Cli { count: 0, seen: 0, retries: 3 }, Input::Typed("hello"))
+                -> Envelope { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") }
+        }
+    }
+    fn body(i: Input) -> b: Body {
+        match i { Input::Typed(t) => Body::Text(t), Input::Spoken(a) => Body::Voice(a) }
+    }
+
+    // Sends a message, again with the same id while the network fails, up
+    // to the number of times the settings allow.
+    fn send(self, e: Envelope) -> r: Result<Receipt, NetFailure> {
+        until((k: 0, r: Network::post(e)), sent(r) || k >= self.retries) { (k + 1, Network::post(e)) }.r
+    }
+    fn sent(r: Result<Receipt, NetFailure>) -> s: bool {
+        match r { Ok(_) => true, Err(_) => false }
+    }
+
+    // What the persona sees of a send. The words are placeholders. It
+    // takes only whether it was sent, so Mitra tries both (finding T).
+    fn status(ok: bool) -> line: [~char] {
+        if ok { "sent" } else { "not sent: the assistant cannot be reached, try again later" }
+    } where {
+        claim honest: ok == (line == "sent");
+    }
+
+    // New replies for this computer; the last one seen moves on.
+    fn poll(self) -> out: (cli: Cli, shown: [Stored]) {
+        match Network::get(Device::Computer, self.seen) {
+            Ok(es) => (cli: Cli { count: self.count, seen: last(es, self.seen), retries: self.retries }, shown: es),
+            Err(_) => (cli: self, shown: none())
+        }
+    }
+    fn none() -> es: [Stored] { [] }
+    fn last(es: [Stored], seen: integer) -> n: integer {
+        es.fold(n: seen) { s -> if s.id.n > n { s.id.n } else { n } }
+    } where {
+        claim never_back: n >= seen by invariant;
+    }
+
+    // A reply, shown as text; played too when the server spoke it.
+    fn show(s: Stored) -> t: [~char] {
+        match s.body { Body::Text(x) => x, Body::Voice(_) => "" }
+    }
+    fn play(s: Stored) -> a: Option<Audio> { s.speech() }
+    // The CLI tells the server it got a reply.
+    fn got(s: Stored) -> ok: bool { Network::ack(s.id) }
+
+    ensure sends_once: "what persona 1 types or says reaches the assistant once, even when the CLI has to send it again"
+        from (carried, retry_safe);
+    ensure unsent_told: "a message that could not be sent is shown as not sent, never as sent"
+        from (status::honest);
+    ensure shows: "each reply meant for this computer is shown once, in order, and played aloud when the question was spoken"
+        from (delivers, last::never_back, speaks_back);
+    ensure working_shown: "while the assistant works on a message, the CLI shows that it is working"
+        from (shows_work);
+
+    examples {
+        // Sent at the first try: the persona sees it sent.
+        given Network::post(_) -> Ok(Receipt::Received(MessageId { party: Party::Client(Device::Computer), n: 1 }))
+            when Cli::send(Cli { count: 0, seen: 0, retries: 3 },
+                           Envelope { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
+            then Ok(Receipt::Received(MessageId { party: Party::Client(Device::Computer), n: 1 }))
+    }
+}

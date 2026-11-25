@@ -1,0 +1,143 @@
+// The worker, on the server: it takes a stored message up, makes words of
+// its voice, hands it to the harness, and stores the reply and the notes.
+
+subject Worker {
+    use Result from "std";
+    use MessageId from "vocabulary";
+    use Party from "vocabulary";
+    use Device from "vocabulary";
+    use Body from "vocabulary";
+    use Audio from "vocabulary";
+    use Annotation from "vocabulary";
+    use Note from "vocabulary";
+    use Step from "vocabulary";
+    use Message from "vocabulary";
+    use Reply from "vocabulary";
+    use Tool from "vocabulary";
+    use Person from "vocabulary";
+    use Role from "vocabulary";
+    use Option from "std";
+    use Identity::who from "security";
+    use Commands::{answer, alarm} from "security";
+    use Stored from "store";
+    use ConversationStore from "store";
+    use Speech::{transcribe, speak} from "speech";
+    use Harness::serve from "harness/harness";
+    use Models from "models";
+    use Llm from "models";
+
+    require hears: Speech::hears;
+    require honest: Speech::honest;
+    require append_only: Stored::append_only;
+    require noted: Harness::noted;
+    require answers: Harness::answers;
+
+    // Where a reply goes: back to the client the message came from, with
+    // the assistant's next id. Apart from the rest so that its claim can
+    // be decided (finding O).
+    fn address(store: ConversationStore, m: Stored) -> a: (id: MessageId, to: Party) {
+        (id: store.next_id(), to: m.id.party)
+    } where {
+        claim back: a.to == m.id.party;
+        claim ours: a.id.party == Party::Assistant;
+    }
+
+    // The device a client's message came from. The assistant's own
+    // messages are never worked on; the arm is there for `match`.
+    fn device(p: Party) -> d: Device {
+        match p { Party::Client(x) => x, Party::Assistant => Device::Computer }
+    }
+
+    // The words of a message, and the note that says where they came from.
+    // CHOICE TO CONFIRM (C4): a voice the server cannot make out gives no
+    // words: the gate then takes it for noise, and the user is told so.
+    // Risk: an unclear cry for help is then noise too.
+    fn words(b: Body) -> w: (text: [~char], notes: [Annotation]) {
+        match b {
+            Body::Text(t) => (text: t, notes: no_notes()),
+            Body::Voice(v) => match Speech::transcribe(v) {
+                Ok(t) => (text: t, notes: [Annotation { step: Step::Speech, note: Note::Transcript(t) }]),
+                Err(_) => (text: "", notes: no_notes())
+            }
+        }
+    } where {
+        claim typed_as_is: match b { Body::Text(t) => w.text == t, Body::Voice(_) => true };
+    }
+
+    // No note. `[]` in a tuple cannot be typed (finding R): this names it.
+    fn no_notes() -> ns: [Annotation] { [] }
+
+    // A reply to a spoken message is spoken too (C3).
+    fn voiced(b: Body, text: [~char]) -> ns: [Annotation] {
+        match b {
+            Body::Text(_) => [],
+            Body::Voice(_) => [Annotation { step: Step::Speech, note: Note::Speech(Speech::speak(text)) }]
+        }
+    }
+
+    // One message, from taken up to answered.
+    fn process(store: ConversationStore, m: Stored, models: Models, tools: [Tool])
+        -> out: (store: ConversationStore, reply: Stored) {
+        let taken = store.annotate(m.id, Annotation { step: Step::Worker, note: Note::Read });
+        let w = words(m.body);
+        let d = device(m.id.party);
+        let served = Harness::serve(Message { device: d, text: w.text }, taken.history(d), models, tools);
+        let to = address(taken, m);
+        let reply = Stored { id: to.id, to: to.to, body: Body::Text(served.reply.text), notes: voiced(m.body, served.reply.text) };
+        let noted = taken.annotate_all(m.id, w.notes ++ served.notes ++ [Annotation { step: Step::Worker, note: Note::Answered(to.id) }]);
+        (store: noted.post(reply), reply: reply)
+    }
+
+    ensure takes_up: "a message is marked as taken up before any model works on it";                     // route in process
+    ensure answers_back: "every message taken up gets one reply, stored for the client it came from"
+        from (address::back, address::ours, answers);
+    ensure transcribes: "a voice message becomes text on the server before the assistant reads it, and both are kept"
+        from (words::typed_as_is, hears, honest, append_only);
+    ensure speaks_back: "a reply to a spoken message is given in voice as well";                         // route in process
+    ensure traced: "what each step decided about a message is noted on it, signed by that step"
+        from (noted, append_only);
+
+    // End to end on the server: a typed message that plain code answers.
+    // `given` cannot stand in for the harness, which has a body (finding S):
+    // the rows give its opaque steps instead.
+    examples {
+        given Identity::who(_) -> Person { role: Role::Owner },
+              Commands::alarm(_) -> false,
+              Commands::answer(_, _) -> Option::Some(Reply { text: "hi" })
+        when Worker::process(
+            ConversationStore { messages: [Stored { id: MessageId { party: Party::Client(Device::Computer), n: 1 },
+                                                    to: Party::Assistant, body: Body::Text("hello"), notes: [] }] },
+            Stored { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, to: Party::Assistant, body: Body::Text("hello"), notes: [] },
+            Models { cloud: Llm { window: 1000, reserve: 100 }, local: Llm { window: 100, reserve: 10 } },
+            [])
+        then (store: ConversationStore { messages: [
+                  Stored { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, to: Party::Assistant, body: Body::Text("hello"),
+                           notes: [Annotation { step: Step::Worker, note: Note::Read },
+                                   Annotation { step: Step::Identity, note: Note::Sender(Person { role: Role::Owner }) },
+                                   Annotation { step: Step::Worker, note: Note::Answered(MessageId { party: Party::Assistant, n: 2 }) }] },
+                  Stored { id: MessageId { party: Party::Assistant, n: 2 }, to: Party::Client(Device::Computer), body: Body::Text("hi"), notes: [] } ] },
+              reply: Stored { id: MessageId { party: Party::Assistant, n: 2 }, to: Party::Client(Device::Computer), body: Body::Text("hi"), notes: [] }),
+        // A voice message from the wearable: transcribed, answered, the reply spoken.
+        given Speech::transcribe(_) -> Ok("hello"),
+              Identity::who(_) -> Person { role: Role::Owner },
+              Commands::alarm(_) -> false,
+              Commands::answer(_, _) -> Option::Some(Reply { text: "hi" }),
+              Speech::speak(_) -> Audio {}
+        when Worker::process(
+            ConversationStore { messages: [Stored { id: MessageId { party: Party::Client(Device::Wearable), n: 1 },
+                                                    to: Party::Assistant, body: Body::Voice(Audio {}), notes: [] }] },
+            Stored { id: MessageId { party: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}), notes: [] },
+            Models { cloud: Llm { window: 1000, reserve: 100 }, local: Llm { window: 100, reserve: 10 } },
+            [])
+        then (store: ConversationStore { messages: [
+                  Stored { id: MessageId { party: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}),
+                           notes: [Annotation { step: Step::Worker, note: Note::Read },
+                                   Annotation { step: Step::Speech, note: Note::Transcript("hello") },
+                                   Annotation { step: Step::Identity, note: Note::Sender(Person { role: Role::Owner }) },
+                                   Annotation { step: Step::Worker, note: Note::Answered(MessageId { party: Party::Assistant, n: 2 }) }] },
+                  Stored { id: MessageId { party: Party::Assistant, n: 2 }, to: Party::Client(Device::Wearable), body: Body::Text("hi"),
+                           notes: [Annotation { step: Step::Speech, note: Note::Speech(Audio {}) }] } ] },
+              reply: Stored { id: MessageId { party: Party::Assistant, n: 2 }, to: Party::Client(Device::Wearable), body: Body::Text("hi"),
+                              notes: [Annotation { step: Step::Speech, note: Note::Speech(Audio {}) }] }), Speech::speak("hi")
+    }
+}

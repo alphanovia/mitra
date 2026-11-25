@@ -1,0 +1,85 @@
+// The entry of the server: one API, shaped like a messaging app's
+// (Signal, Matrix). A client sends a message, fetches what is new for it,
+// says what it got, and sees when the assistant is working. Adapters to
+// existing apps would be more clients of this API (the gateway idea).
+
+subject Gateway {
+    use MessageId from "vocabulary";
+    use Envelope from "vocabulary";
+    use Receipt from "vocabulary";
+    use Device from "vocabulary";
+    use Party from "vocabulary";
+    use Body from "vocabulary";
+    use Annotation from "vocabulary";
+    use Note from "vocabulary";
+    use Step from "vocabulary";
+
+    use ConversationStore from "store";
+    use Stored from "store";
+    require kept: ConversationStore::kept;
+    require once: ConversationStore::once;
+
+    // The first act: record the message, then send the receipt. Nothing
+    // slow happens before the receipt: no model, no speech.
+    fn receive(store: ConversationStore, e: Envelope) -> out: (store: ConversationStore, receipt: Receipt) {
+        (store: store.keep(e), receipt: Receipt::Received(e.id))
+    } where {
+        claim stored_first: out.store.holds(e.id);                 // finding E
+        claim same_twice: !store.holds(e.id) || out.store == store; // finding E
+        examples {
+            (ConversationStore { messages: [] },
+             Envelope { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
+                -> (store: ConversationStore { messages: [Stored { id: MessageId { party: Party::Client(Device::Computer), n: 1 },
+                                                                  to: Party::Assistant, body: Body::Text("hello"), notes: [] }] },
+                    receipt: Receipt::Received(MessageId { party: Party::Client(Device::Computer), n: 1 }))
+        }
+    }
+
+    // What is new for a client: its replies past the last one it has.
+    fn fetch(store: ConversationStore, to: Device, after: integer) -> es: [Stored] {
+        store.for_client(to, after)
+    } where {
+        examples {
+            (ConversationStore { messages: [
+                Stored { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, to: Party::Assistant, body: Body::Text("hello"), notes: [] },
+                Stored { id: MessageId { party: Party::Assistant, n: 2 }, to: Party::Client(Device::Computer), body: Body::Text("hi"), notes: [] },
+                Stored { id: MessageId { party: Party::Assistant, n: 3 }, to: Party::Client(Device::Wearable), body: Body::Text("hey"), notes: [] }
+             ] }, Device::Computer, 0)
+                -> [Stored { id: MessageId { party: Party::Assistant, n: 2 }, to: Party::Client(Device::Computer), body: Body::Text("hi"), notes: [] }],
+            // Nothing past what the client already has.
+            (ConversationStore { messages: [
+                Stored { id: MessageId { party: Party::Assistant, n: 2 }, to: Party::Client(Device::Computer), body: Body::Text("hi"), notes: [] }
+             ] }, Device::Computer, 2)
+                -> []
+        }
+    }
+
+    // A client says it got a reply: the reply is noted delivered.
+    fn delivered(store: ConversationStore, id: MessageId) -> s: ConversationStore {
+        store.annotate(id, Annotation { step: Step::Gateway, note: Note::Delivered })
+    }
+
+    // The "thinking" sign for a client: a message of its own that the
+    // assistant has taken up and not answered yet.
+    fn typing(store: ConversationStore, d: Device) -> on: bool {
+        store.messages.fold(on: false) { m -> on || (m.id.party == Party::Client(d) && m.read() && !m.answered()) }
+    } where {
+        examples {
+            (ConversationStore { messages: [
+                Stored { id: MessageId { party: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Text("hello"),
+                         notes: [Annotation { step: Step::Worker, note: Note::Read }] } ] }, Device::Wearable) -> true,
+            (ConversationStore { messages: [
+                Stored { id: MessageId { party: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Text("hello"),
+                         notes: [Annotation { step: Step::Worker, note: Note::Read },
+                                 Annotation { step: Step::Worker, note: Note::Answered(MessageId { party: Party::Assistant, n: 2 }) }] } ] },
+             Device::Wearable) -> false
+        }
+    }
+
+    ensure recorded_first: "a message is stored before its receipt goes back, so a receipt always means it is kept"
+        from (receive::stored_first, kept);
+    ensure retry_safe: "sending the same message again never stores it twice"
+        from (receive::same_twice, once);
+    ensure delivers: "each client can fetch, in order, every reply meant for it that it has not seen yet";   // shown by fetch's examples
+    ensure shows_work: "while the assistant works on a message, the client that sent it can see so";          // shown by typing's examples
+}

@@ -1,0 +1,170 @@
+// The conversation store, on the server. Every message, from a client or
+// from the assistant, is kept here: its body as it came, and the notes the
+// steps add to it. Nothing is taken out, nothing is changed.
+
+// A stored message.
+subject Stored {
+    use Option from "std";
+    use MessageId from "vocabulary";
+    use Party from "vocabulary";
+    use Body from "vocabulary";
+    use Annotation from "vocabulary";
+    use Note from "vocabulary";
+    use Audio from "vocabulary";
+    use Device from "vocabulary";
+    use Step from "vocabulary";
+    record { id: MessageId, to: Party, body: Body, notes: [Annotation] }
+
+    // A note is added, after the others. The record is written out in full:
+    // with `..self`, Mitra loses the fields kept (finding L).
+    fn annotate(self, a: Annotation) -> t: Stored {
+        Stored { id: self.id, to: self.to, body: self.body, notes: self.notes ++ [a] }
+    } where {
+        claim body_kept: t.body == self.body;
+        claim id_kept: t.id == self.id;
+        claim only_grows: t.notes.len() == self.notes.len() + 1;   // finding I
+        claim past_kept: t.notes.starts_with(self.notes);          // finding I
+        examples {
+            (Stored { id: MessageId { party: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}), notes: [] },
+             Annotation { step: Step::Speech, note: Note::Transcript("hello") })
+                -> Stored { id: MessageId { party: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}),
+                            notes: [Annotation { step: Step::Speech, note: Note::Transcript("hello") }] }
+        }
+    }
+
+    // The words of the message: typed, or the latest transcript of its voice.
+    fn text(self) -> t: Option<[~char]> {
+        match self.body {
+            Body::Text(s) => Option::Some(s),
+            Body::Voice(_) => self.notes.fold(w: Option::None) { a -> match a.note { Note::Transcript(s) => Option::Some(s), _ => w } }
+        }
+    } where {
+        examples {
+            (Stored { id: MessageId { party: Party::Assistant, n: 1 }, to: Party::Assistant, body: Body::Text("hi"), notes: [] })
+                -> Option::Some("hi"),
+            (Stored { id: MessageId { party: Party::Assistant, n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}), notes: [] })
+                -> Option::None
+        }
+    }
+
+    // Whether the assistant has taken it up, and whether it has answered.
+    fn read(self) -> r: bool {
+        self.notes.fold(r: false) { a -> r || match a.note { Note::Read => true, _ => false } }
+    }
+    fn answered(self) -> r: bool {
+        self.notes.fold(r: false) { a -> r || match a.note { Note::Answered(_) => true, _ => false } }
+    }
+    // The spoken form of a reply, when the server made one.
+    fn speech(self) -> s: Option<Audio> {
+        self.notes.fold(s: Option::None) { a -> match a.note { Note::Speech(v) => Option::Some(v), _ => s } }
+    }
+
+    ensure fixed_body: "a stored message keeps the body it came with, whatever is noted on it later"
+        from (annotate::body_kept, annotate::id_kept);
+    ensure append_only: "what a step has noted on a message is never changed or taken back"
+        from (annotate::only_grows, annotate::past_kept);
+}
+
+// What a restart must not lose.
+environment Disk {
+    ensure durable: "what the store has written is still there after a restart or a power cut";
+}
+
+subject ConversationStore {
+    use MessageId from "vocabulary";
+    use Party from "vocabulary";
+    use Device from "vocabulary";
+    use Envelope from "vocabulary";
+    use Annotation from "vocabulary";
+    use Body from "vocabulary";
+    use Turn from "vocabulary";
+    use Answer from "vocabulary";
+    use Option from "std";
+    use Conversation from "conversation";
+    record { messages: [Stored] }
+
+    require durable: Disk::durable;
+    require fixed_body: Stored::fixed_body;
+    require append_only: Stored::append_only;
+
+    // Whether a message of this id is stored. A fold: Mitra has no claim
+    // yet for "some place of the sequence holds it" (finding E).
+    fn holds(self, id: MessageId) -> h: bool {
+        self.messages.fold(h: false) { m -> h || m.id == id }
+    }
+
+    // Keeps a client's message once: the same id again changes nothing.
+    fn keep(self, e: Envelope) -> s: ConversationStore {
+        if self.holds(e.id) { self }
+        else { ConversationStore { messages: self.messages ++ [Stored { id: e.id, to: Party::Assistant, body: e.body, notes: [] }] } }
+    } where {
+        claim kept: s.holds(e.id);                          // finding E
+        claim once: !self.holds(e.id) || s == self;         // finding E
+        examples {
+            (ConversationStore { messages: [] },
+             Envelope { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
+                -> ConversationStore { messages: [Stored { id: MessageId { party: Party::Client(Device::Computer), n: 1 },
+                                                           to: Party::Assistant, body: Body::Text("hello"), notes: [] }] },
+            // The same message again: nothing new.
+            (ConversationStore { messages: [Stored { id: MessageId { party: Party::Client(Device::Computer), n: 1 },
+                                                     to: Party::Assistant, body: Body::Text("hello"), notes: [] }] },
+             Envelope { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
+                -> ConversationStore { messages: [Stored { id: MessageId { party: Party::Client(Device::Computer), n: 1 },
+                                                           to: Party::Assistant, body: Body::Text("hello"), notes: [] }] }
+        }
+    }
+
+    // Adds a note to the message of this id; the others are untouched.
+    fn annotate(self, id: MessageId, a: Annotation) -> s: ConversationStore {
+        ConversationStore { messages: self.noted(id, a) }
+    }
+    fn noted(self, id: MessageId, a: Annotation) -> ms: [Stored] {
+        self.messages.fold(ms: []) { m -> ms ++ [if m.id == id { m.annotate(a) } else { m }] }
+    } where {
+        claim same_count: ms.len() == n by invariant n;
+    }
+
+    // Adds notes to the message of this id, in order.
+    fn annotate_all(self, id: MessageId, ns: [Annotation]) -> s: ConversationStore {
+        ns.fold(s: self) { a -> s.annotate(id, a) }
+    }
+
+    // The next id of the assistant's own: one more than all the messages.
+    // CHOICE TO CONFIRM (C1): the assistant counts every stored message, so
+    // its ids rise in the order replies are stored.
+    fn next_id(self) -> id: MessageId {
+        MessageId { party: Party::Assistant, n: self.messages.len() + 1 }
+    }
+
+    // Stores a reply of the assistant.
+    fn post(self, r: Stored) -> s: ConversationStore {
+        ConversationStore { messages: self.messages ++ [r] }
+    }
+
+    // The messages for this client whose count is past `after`, in order:
+    // what a client fetches to see what is new.
+    fn for_client(self, d: Device, after: integer) -> es: [Stored] {
+        self.messages.fold(es: []) { m -> if m.to == Party::Client(d) && m.id.n > after { es ++ [m] } else { es } }
+    }
+
+    // The conversation so far with one client, as the harness reads it:
+    // each message of the client already answered, by its words, and each
+    // reply as the model's answer. The message being worked on is not
+    // answered yet, so it is not in it: the harness adds it.
+    // CHOICE TO CONFIRM (C6): one conversation per device, as one thread
+    // per contact in a messaging app.
+    fn history(self, d: Device) -> c: Conversation {
+        Conversation { turns: self.messages.fold(ts: []) { m ->
+            if m.id.party == Party::Client(d) && m.answered() {
+                match m.text() { Option::Some(t) => ts ++ [Turn::User(t)], Option::None => ts }
+            } else { if m.to == Party::Client(d) {
+                match m.body { Body::Text(t) => ts ++ [Turn::Model(Answer { text: t, calls: [] })], Body::Voice(_) => ts }
+            } else { ts } }
+        } }
+    }
+
+    ensure kept: "every message and every reply is kept, in the order it came, and survives a restart"
+        from (durable, keep::kept, fixed_body, append_only);
+    ensure once: "a message sent twice is kept once"
+        from (keep::once);
+}
