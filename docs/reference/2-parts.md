@@ -66,7 +66,8 @@ subject Home {
 
 An outer part holds only parts, requires, ensures and end-to-end
 examples (M028; their rows are in
-[chapter 3](3-functions.md#examples-in-a-world)); its own work is done by its inner parts. Its ensures
+[chapter 3](3-functions.md#examples-in-a-world)); its own work is done
+by its inner parts. Its ensures
 rest on its inner parts' ensures, or its own requires (M029).
 
 A part whose inner parts are only data (a record or an enum, see
@@ -147,8 +148,10 @@ subject enum Shape { Dot(Point), Square(rational) }
 `subject record Point { … }` is the same as `subject Point { record { … } }`.
 
 Every named type is a data part: a part never declares a named record
-or enum inside it. A data part is read anywhere, with no `use`. In a
-tie or a store, its path is `Point::Point`: the part, then its type.
+or enum inside it. A data part at the top of the model is read
+anywhere, with no `use`; one inside a part is named like any part
+([Names follow the blocks](#names-follow-the-blocks)). In a tie or a
+store, its path is `Point::Point`: the part, then its type.
 
 ## Reopening a part
 
