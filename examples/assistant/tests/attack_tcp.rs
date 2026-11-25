@@ -44,6 +44,7 @@ fn ask(addr: &str, line: &[u8]) -> std::io::Result<String> {
 }
 
 // Tried and answered: a well-formed call works.
+// mitra: supports Server::reachable
 #[test]
 fn a_paired_client_is_answered() {
     let s = start();
@@ -55,6 +56,7 @@ fn a_paired_client_is_answered() {
 // K10. One connection that opens and sends nothing holds the server:
 // it reads one line at a time, with no time limit, before any token is
 // checked. Anyone who can reach the port stops every household.
+// mitra: supports Server::reachable
 #[test]
 #[ignore = "OPEN K10: one silent connection blocks the server for everyone (no read timeout, one at a time)"]
 fn k10_a_silent_connection_does_not_block_others() {
@@ -67,6 +69,7 @@ fn k10_a_silent_connection_does_not_block_others() {
 
 // K11. A line that is not UTF-8 gets no answer at all: the server drops
 // it silently. Nothing silent: it should say the call was refused.
+// mitra: supports Assistant::told
 #[test]
 #[ignore = "OPEN K11: a call that is not UTF-8 is dropped without an answer"]
 fn k11_a_broken_encoding_is_refused_out_loud() {

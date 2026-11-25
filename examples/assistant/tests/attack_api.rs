@@ -25,6 +25,7 @@ fn env(h: Holder, n: i64, t: &str) -> Envelope {
 
 // ---- Tried and stopped.
 
+// mitra: supports Gateway::paired_only
 #[test]
 fn a_token_cannot_post_as_another_device_of_its_household_or_another() {
     let mut l = server();
@@ -40,6 +41,7 @@ fn a_token_cannot_post_as_another_device_of_its_household_or_another() {
     assert!(fake::performed().is_empty());
 }
 
+// mitra: supports Accounts::known
 #[test]
 fn an_unknown_or_revoked_token_is_refused() {
     let mut l = server();
@@ -49,6 +51,7 @@ fn an_unknown_or_revoked_token_is_refused() {
     assert!(l.fetch("cli", 0).is_empty());
 }
 
+// mitra: supports Gateway::own_household
 #[test]
 fn a_reply_meant_for_another_device_cannot_be_acked_or_fetched() {
     let mut l = server();
@@ -62,6 +65,7 @@ fn a_reply_meant_for_another_device_cannot_be_acked_or_fetched() {
     assert!(l.fetch("other-phone", 0).is_empty());
 }
 
+// mitra: supports Worker::recovers
 #[test]
 fn a_retry_during_or_after_work_is_kept_once_and_worked_once() {
     let mut l = server();
@@ -76,6 +80,7 @@ fn a_retry_during_or_after_work_is_kept_once_and_worked_once() {
     assert!(fake::performed().is_empty());
 }
 
+// mitra: supports Gateway::one_meaning
 #[test]
 fn ids_at_the_edges_are_kept_apart() {
     let mut l = server();
@@ -86,6 +91,7 @@ fn ids_at_the_edges_are_kept_apart() {
     assert_eq!(l.replies("cli").len(), 4);
 }
 
+// mitra: supports Gateway::sized
 #[test]
 fn text_at_the_limit_is_taken_and_one_byte_more_refused() {
     let mut l = server();
@@ -100,6 +106,7 @@ fn text_at_the_limit_is_taken_and_one_byte_more_refused() {
 
 // K8. The size limit is on text only: a voice of any size is received,
 // and its transcript is past the limit the windows were sized for.
+// mitra: supports Gateway::sized
 #[test]
 #[ignore = "OPEN K8: a voice message has no size limit; its transcript bypasses the text limit"]
 fn k8_a_voice_over_the_limit_is_refused() {
@@ -111,6 +118,7 @@ fn k8_a_voice_over_the_limit_is_refused() {
 
 // K9. After an id of i64::MAX, the device's next id overflows: in a
 // debug build the server's helper panics, in release it wraps negative.
+// mitra: supports Cli::sends_once
 #[test]
 #[ignore = "OPEN K9: the next id after i64::MAX overflows (panic in debug)"]
 fn k9_a_device_keeps_sending_after_the_largest_id() {
@@ -126,6 +134,7 @@ fn k9_a_device_keeps_sending_after_the_largest_id() {
 // K5. The codes come from a generator with a fixed seed: each start of
 // the server hands out the same codes, in the same order.
 // `Codes::unguessable` says a code "cannot be guessed from the others".
+// mitra: supports Codes::unguessable
 #[test]
 #[ignore = "OPEN K5: codes repeat at each start (fixed seed): Codes::unguessable is false of the fake"]
 fn k5_codes_differ_from_one_start_to_the_next() {
