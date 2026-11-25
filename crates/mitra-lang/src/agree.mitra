@@ -25,7 +25,8 @@ subject agree {
     ensure no_false_holds: "agree says Holds only when what the model says twice agrees at every point where the claims of functions with no body hold"
         from (checked, exact, ranges, kept, given, promised);
     ensure within_ranges: "agree reads a claim only where the ranges of what its function takes hold, checks that the body keeps the range of what it gives, and tries every point of the ranges when they hold at most `points`" from (ranges_checked);
-    ensure given_named: "a comparison that holds by the claims of a function with no body names them: hint A010, and `given` on each finding" from (promised);
+    // Shown by the hint A010 and the `given` of each finding, seen by the tests.
+    ensure given_named: "when an answer of agree relies on the claims of a function with no body, it names them as assumptions" from (promised);
     ensure no_false_none: "agree says no value keeps a function's claims (A004) only when none does"
         from (checked, exact, ranges, kept);
     ensure lengths: "agree tries sequences from `[]` up to `Settings::length` long, of the values worth trying of what they hold";
