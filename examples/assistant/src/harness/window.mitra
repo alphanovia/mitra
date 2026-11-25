@@ -10,7 +10,7 @@ subject NaiveLoop {
     fn fits_window(llm: Llm, request: [~char]) -> f: bool {
         request.len() + llm.reserve <= llm.window
     } where {
-        examples { (Llm { window: 10, reserve: 5 }, "hello") -> true, (Llm { window: 10, reserve: 6 }, "hello") -> false }
+        examples { (Llm { window: 10, reserve: 5, machine: Machine::Local }, "hello") -> true, (Llm { window: 10, reserve: 6, machine: Machine::Local }, "hello") -> false }
     }
 
     // The conversation after the model gave each answer of `turns` and the
@@ -57,4 +57,5 @@ subject NaiveLoop {
     use LlmFailure from "vocabulary";
     use Conversation from "conversation";
     use Llm from "models";
+    use Machine from "vocabulary";
 }

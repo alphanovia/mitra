@@ -7,7 +7,17 @@ subject Reporter {
     fn helped(sent: bool) -> reply: Reply;
     fn tuned(s: Preferences) -> reply: Reply;
     // Our model could not judge the message: nothing was done (C11).
-    fn unchecked() -> reply: Reply;
+    // It says why: the message is too long for our model, or our model
+    // is down (W5).
+    fn unchecked(f: LlmFailure) -> reply: Reply;
+    // The owner said yes: what the held call gave (C16).
+    fn confirmed(o: Outcome) -> reply: Reply;
+    // A yes that names no held call, or from someone who may not give it.
+    // The same words either way, so a guess learns nothing (C16).
+    fn not_allowed() -> reply: Reply;
+    // What the owner's phone is told of a held call: who asks, what, and
+    // the code to answer with (C16).
+    fn ask_owner(h: Hold, from: Holder) -> reply: Reply;
     // The server stopped while working on it: it was not finished (C12).
     fn interrupted() -> reply: Reply;
     ensure explains_failure: "a failure or a refusal is told as what was not done, and why";   // rule, measured
@@ -21,4 +31,8 @@ subject Reporter {
     use Verdict from "vocabulary";
     use Reply from "vocabulary";
     use Preferences from "vocabulary";
+    use LlmFailure from "vocabulary";
+    use Outcome from "vocabulary";
+    use Hold from "vocabulary";
+    use Holder from "vocabulary";
 }

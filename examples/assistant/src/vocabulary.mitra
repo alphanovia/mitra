@@ -8,12 +8,16 @@
 // ---- The entry: what a client sends, and what it gets back.
 
 subject enum Device { Phone, Computer, Wearable }
-// Who wrote a message: a client, or the assistant.
-subject enum Party { Client(Device), Assistant }
+// One paired device: its household, its kind, and its number in the
+// household (two phones are two holders). What a token names.
+subject record Holder { household: integer, device: Device, number: integer }
+// Who wrote a message: a paired device, or the assistant.
+subject enum Party { Client(Holder), Assistant }
 // CHOICE TO CONFIRM (C1): an id is its author and the author's own count,
 // so ids never clash and a retry sends the same id again.
 subject record MessageId { from: Party, n: integer }
-subject record Audio {}
+// Recorded voice. The code holds its bytes; the model states none.
+subject record Audio { .. }
 // What was sent, as it was sent. It never changes.
 subject enum Body { Text([~char]), Voice(Audio) }
 // A message from a client to the server.
@@ -24,19 +28,18 @@ subject record Envelope { id: MessageId, body: Body }
 subject enum Receipt { Received(MessageId), Read(MessageId), Delivered(MessageId) }
 // What a persona gives a client: typed text, or recorded voice.
 subject enum Input { Typed([~char]), Spoken(Audio) }
-// Refused: the entry did not take the call (a token it does not know, or
-// a device posting as another).
+// Refused: the entry did not take the call (a token it does not know, a
+// device posting as another, an id already used for another message, or
+// a text over the size limit).
 subject enum NetFailure { Unreachable, Refused }
 // What a device shows the server on every call: the pairing it got from
-// the household's owner (C10). Opaque: a secret.
-subject record Token {}
-// Who a token is: one device of one household.
-subject record Holder { household: integer, device: Device }
+// the household's owner (C10). A secret: the model states nothing of it.
+subject record Token { .. }
 
 // ---- What the steps find out about a message: notes, only ever added,
 // each signed by the step that made it.
 
-subject enum Step { Gateway, Worker, Speech, Identity, Commands, Gate, Purpose, Policy }
+subject enum Step { Gateway, Worker, Speech, Identity, Commands, Gate, Purpose, Policy, Confirmations }
 subject enum Note {
     Read,                      // the assistant took the message up
     Transcript([~char]),       // the words of a voice message
@@ -46,14 +49,20 @@ subject enum Note {
     Called(Outcome),           // a tool call: decided, run or not, guarded
     Answered(MessageId),       // the reply to it
     Speech(Audio),             // a reply, spoken, for a client that speaks
-    Delivered                  // the reply reached its client
+    Delivered,                 // the reply reached its client
+    Held(Hold),                // a call waits for the owner's yes, under a code
+    Confirmed(integer)         // the owner said yes to this code: it is used up
 }
 subject record Annotation { by: Step, note: Note }
+// A call held for the owner's yes (C16), and the code the owner answers with.
+subject record Hold { code: integer, call: Call }
 
 // ---- The harness's words.
 
-// The message as the harness reads it: its device and its words.
-subject record Message { device: Device, text: [~char] }
+// The message as the harness reads it: who sent it (the token's holder),
+// its words, and whether the speaker is vouched for: always for typed
+// text (the device's login), by speech recognition for a voice (H3).
+subject record Message { holder: Holder, text: [~char], recognised: bool }
 subject record Person { role: Role }
 // CHOICE (earlier, kept): three roles; a stranger goes through, with a
 // policy that allows nothing of consequence (a call for help aside).
@@ -67,26 +76,32 @@ subject enum Machine { Local, Cloud }
 // Where a message goes in the harness. Decided from finite values only,
 // so Mitra tries every case and the routing claims hold.
 subject enum Route { Work, AskBack, Help, Tune, Decline }
-subject record Context {}
+// What the request needs of the conversation: the turns kept for it.
+subject record Context { turns: [Turn] }
 subject record Habits {}
 subject record Preferences {}
 
-// What the model may call, and what it answers.
+// How much a tool can change in the world: it only reads, it acts, or
+// what it does cannot be undone (a door opened, money sent).
+subject enum Level { Reads, Acts, Irreversible }
+// A tool the assistant has. The list is the harness's own (H1).
 subject Tool {
     use Result from "std";
-    record { name: [~char], description: [~char] }
+    record { name: [~char], description: [~char], level: Level }
     fn call(self, input: [~char]) -> got: Result<[~char], ToolFailure>;
 }
-subject record Call { tool: Tool, input: [~char] }
+// What the model asks for: a tool by its name, and an input. The name is
+// looked up in the harness's own list; the model cannot bring a tool.
+subject record Call { tool: [~char], input: [~char] }
 subject record Answer { text: [~char], calls: [Call] }
 subject enum LlmFailure { TooLong, Unreachable }
-subject enum ToolFailure { Failed, Refused, AwaitsYes }
+subject enum ToolFailure { Failed, Refused, AwaitsYes, Unknown }
 subject enum Decision { Run, Confirm, Refuse }
 subject Outcome {
     use Result from "std";
     record { call: Call, output: Result<[~char], ToolFailure> }
 }
-subject enum HarnessFailure { EmptyPrompt, Llm(LlmFailure), Tool(ToolFailure) }
+subject enum HarnessFailure { EmptyPrompt, Llm(LlmFailure), Tool(ToolFailure), TooManyTurns }
 subject record Reply { text: [~char] }
 // One turn of the conversation the harness keeps for the model.
 subject enum Turn { User([~char]), Model(Answer), Results([Outcome]) }

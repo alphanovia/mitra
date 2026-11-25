@@ -1,0 +1,253 @@
+// The worker, on the server: it takes a stored message up, makes words of
+// its voice, hands it to the harness, and stores the reply and the notes.
+
+subject Worker {
+    require durable: Disk::durable;
+    require hears: Speech::hears;
+    require honest: Speech::honest;
+    require append_only: Stored::append_only;
+    require noted: Harness::noted;
+    require answers: Harness::answers;
+    require yes_owner: Confirmations::owner_only;
+
+    // Where a reply goes: back to the client the message came from, with
+    // the assistant's next id. Apart from the rest so that its claim can
+    // be decided (finding O).
+    fn address(store: ConversationStore, m: Stored) -> a: (id: MessageId, to: Party) {
+        (id: store.next_id(), to: m.id.from)
+    } where {
+        claim back: a.to == m.id.from;
+        claim ours: a.id.from == Party::Assistant;
+    }
+
+    // The device a client's message came from. The assistant's own
+    // messages are never worked on; the arm is there for `match`.
+    fn device(p: Party) -> d: Holder {
+        match p { Party::Client(x) => x, Party::Assistant => Holder { household: 0, device: Device::Computer, number: 0 } }
+    }
+
+    // The words of a message, and the note that says where they came from.
+    // CHOICE TO CONFIRM (C4): a voice the server cannot make out gives no
+    // words: the gate then takes it for noise, and the user is told so.
+    // Risk: an unclear cry for help is then noise too.
+    // Typed text is vouched for by the device's login; a voice only when
+    // speech recognises it as an enrolled voice (H3).
+    fn words(b: Body) -> w: (text: [~char], notes: [Annotation], recognised: bool) {
+        match b {
+            Body::Text(t) => (text: t, notes: no_notes(), recognised: true),
+            Body::Voice(v) => match Speech::transcribe(v) {
+                Ok(t) => (text: t, notes: [Annotation { by: Step::Speech, note: Note::Transcript(t) }], recognised: Speech::speaker(v)),
+                Err(_) => (text: "", notes: no_notes(), recognised: false)
+            }
+        }
+    } where {
+        claim typed_as_is: match b { Body::Text(t) => w.text == t, Body::Voice(_) => true };
+    }
+
+    // No note. `[]` in a tuple cannot be typed (finding R): this names it.
+    fn no_notes() -> ns: [Annotation] { [] }
+
+    // CHOICE TO CONFIRM (C3): a reply to a spoken message is spoken too;
+    // the voice is made on the server, and the client plays it.
+    fn voiced(b: Body, text: [~char]) -> ns: [Annotation] {
+        match b {
+            Body::Text(_) => [],
+            Body::Voice(_) => [Annotation { by: Step::Speech, note: Note::Speech(Speech::speak(text)) }]
+        }
+    }
+
+    // CHOICE TO CONFIRM (C14): a device's messages are taken up one at a
+    // time, oldest first: the next is the oldest not yet taken up, and
+    // none is taken while one of the same device is in work.
+    fn next(store: ConversationStore, d: Holder) -> m: Option<Stored> {
+        if busy(store, d) { no_message() } else {
+            store.messages.fold(m: no_message()) { s ->
+                match m { Option::Some(_) => m, Option::None => if s.id.from == Party::Client(d) && !s.read() { Option::Some(s) } else { Option::None } }
+            }
+        }
+    } where {
+        examples {
+            (ConversationStore { household: 1, messages: [
+                Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("one"), notes: [] },
+                Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }), n: 2 }, to: Party::Assistant, body: Body::Text("two"), notes: [] } ] },
+             Holder { household: 1, device: Device::Phone, number: 1 })
+                -> Option::Some(Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("one"), notes: [] }),
+            // The first is in work: the second waits.
+            (ConversationStore { household: 1, messages: [
+                Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("one"),
+                         notes: [Annotation { by: Step::Worker, note: Note::Read }] },
+                Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }), n: 2 }, to: Party::Assistant, body: Body::Text("two"), notes: [] } ] },
+             Holder { household: 1, device: Device::Phone, number: 1 })
+                -> Option::None
+        }
+    }
+    // No message. `Option::None` as a fold's start cannot be typed (finding R).
+    fn no_message() -> m: Option<Stored> { Option::None }
+    // On start, the message of this device cut short by a restart, if any:
+    // the one taken up and not answered. It goes to `resume`, the others
+    // to `process` through `next`.
+    fn cut_short(store: ConversationStore, d: Holder) -> m: Option<Stored> {
+        store.messages.fold(m: no_message()) { s ->
+            if s.id.from == Party::Client(d) && s.read() && !s.answered() { Option::Some(s) } else { m }
+        }
+    }
+    // A message of this device taken up and not answered.
+    fn busy(store: ConversationStore, d: Holder) -> b: bool {
+        store.messages.fold(b: false) { s -> b || (s.id.from == Party::Client(d) && s.read() && !s.answered()) }
+    }
+
+    // After a restart, a message taken up and not answered was cut short.
+    // CHOICE TO CONFIRM (C12): it is not worked on again (a tool might run
+    // twice); it is answered as interrupted, and the user may ask again.
+    // The reply and the notes of a message are written in one store write,
+    // so a message is never answered without its note, nor the reverse.
+    fn resume(store: ConversationStore, m: Stored) -> out: (store: ConversationStore, reply: Stored) {
+        let to = address(store, m);
+        let reply = Stored { id: to.id, to: to.to, body: Body::Text(Reporter::interrupted().text), notes: no_notes() };
+        let noted = store.annotate(m.id, Annotation { by: Step::Worker, note: Note::Answered(to.id) });
+        (store: noted.post(reply), reply: reply)
+    }
+
+    // A message is taken up in a store write of its own, before any model
+    // works on it (W1): a crash after this point leaves it cut short.
+    fn take_up(store: ConversationStore, m: Stored) -> s: ConversationStore {
+        store.annotate(m.id, Annotation { by: Step::Worker, note: Note::Read })
+    }
+
+    // One message taken up, to answered. A yes to a held call is read by
+    // plain code and never reaches a model (C16); any other message goes
+    // to the harness.
+    fn process(taken: ConversationStore, m: Stored, models: Models, tools: [Tool])
+        -> out: (store: ConversationStore, reply: Stored) {
+        let w = words(m.body);
+        let d = device(m.id.from);
+        let served = answer(taken, Message { holder: d, text: w.text, recognised: w.recognised }, models, tools);
+        let to = address(taken, m);
+        let reply = Stored { id: to.id, to: to.to, body: Body::Text(served.reply.text), notes: voiced(m.body, served.reply.text) };
+        let noted = taken.annotate_all(m.id, w.notes ++ served.notes ++ [Annotation { by: Step::Worker, note: Note::Answered(to.id) }]);
+        (store: tell_owner(noted.post(reply), d, served.notes), reply: reply)
+    }
+
+    // Each call held for a yes is told to the owner's phone, with its code.
+    fn tell_owner(store: ConversationStore, from: Holder, ns: [Annotation]) -> s: ConversationStore {
+        ns.fold(s: store) { a -> match a.note {
+            Note::Held(x) => s.post(Stored { id: s.next_id(), to: Party::Client(Accounts::owner(s.household)),
+                                             body: Body::Text(Reporter::ask_owner(x, from).text), notes: [] }),
+            _ => s
+        } }
+    } where {
+        examples { (ConversationStore { household: 1, messages: [] }, Holder { household: 1, device: Device::Computer, number: 1 }, []) -> ConversationStore { household: 1, messages: [] } }
+    }
+
+    fn answer(store: ConversationStore, msg: Message, models: Models, tools: [Tool]) -> out: (reply: Reply, notes: [Annotation]) {
+        match Confirmations::code(msg.text) {
+            Option::Some(c) => Confirmations::confirm(store, c, msg, tools),
+            Option::None => Harness::serve(msg, store.history(msg.holder), models, tools)
+        }
+    }
+
+    ensure in_order: "a device's messages are answered one at a time, oldest first";              // shown by next's examples
+    ensure recovers: "after a restart, a message cut short is answered as interrupted, never worked on twice"
+        from (durable);
+    ensure takes_up: "a message is marked as taken up, and that is written, before any model works on it";   // route: take_up, then process
+    ensure answers_back: "every message taken up gets one reply, stored for the client it came from"
+        from (address::back, address::ours, answers);
+    ensure transcribes: "a voice message becomes text on the server before the assistant reads it, and both are kept"
+        from (words::typed_as_is, hears, honest, append_only);
+    ensure speaks_back: "a reply to a spoken message is given in voice as well";                         // route in process
+    ensure yes_by_code: "a yes to a held call is read by plain code and checked against the store, never by a model"
+        from (yes_owner);
+    ensure owner_told: "the owner's phone is told of each call held for a yes, with the code to answer";   // route in process, shown by the scenario tests
+    ensure traced: "what each step decided about a message is noted on it, signed by that step"
+        from (noted, append_only);
+
+    // End to end on the server: a typed message that plain code answers.
+    // `given` cannot stand in for the harness, which has a body (finding S):
+    // the rows give its opaque steps instead.
+    examples {
+        given Confirmations::code(_) -> Option::None,
+              Identity::who(_) -> Person { role: Role::Owner },
+              Commands::alarm(_) -> false,
+              Commands::answer(_, _) -> Option::Some(Reply { text: "hi" })
+        when Worker::process(
+            ConversationStore { household: 1, messages: [Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 },
+                                                    to: Party::Assistant, body: Body::Text("hello"), notes: [Annotation { by: Step::Worker, note: Note::Read }] }] },
+            Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("hello"), notes: [] },
+            Models { cloud: Llm { window: 1000, reserve: 100, machine: Machine::Cloud }, local: Llm { window: 100, reserve: 10, machine: Machine::Local }, turns: 8 },
+            [])
+        then (store: ConversationStore { household: 1, messages: [
+                  Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("hello"),
+                           notes: [Annotation { by: Step::Worker, note: Note::Read },
+                                   Annotation { by: Step::Identity, note: Note::Sender(Person { role: Role::Owner }) },
+                                   Annotation { by: Step::Worker, note: Note::Answered(MessageId { from: Party::Assistant, n: 2 }) }] },
+                  Stored { id: MessageId { from: Party::Assistant, n: 2 }, to: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), body: Body::Text("hi"), notes: [] } ] },
+              reply: Stored { id: MessageId { from: Party::Assistant, n: 2 }, to: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), body: Body::Text("hi"), notes: [] }),
+        // A voice message from the wearable: transcribed, answered, the reply spoken.
+        given Speech::transcribe(_) -> Ok("hello"),
+              Speech::speaker(_) -> true,
+              Confirmations::code(_) -> Option::None,
+              Identity::who(_) -> Person { role: Role::Owner },
+              Commands::alarm(_) -> false,
+              Commands::answer(_, _) -> Option::Some(Reply { text: "hi" }),
+              Speech::speak(_) -> Audio { .. }
+        when Worker::process(
+            ConversationStore { household: 1, messages: [Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Wearable, number: 1 }), n: 1 },
+                                                    to: Party::Assistant, body: Body::Voice(Audio { .. }), notes: [Annotation { by: Step::Worker, note: Note::Read }] }] },
+            Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Wearable, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio { .. }), notes: [] },
+            Models { cloud: Llm { window: 1000, reserve: 100, machine: Machine::Cloud }, local: Llm { window: 100, reserve: 10, machine: Machine::Local }, turns: 8 },
+            [])
+        then (store: ConversationStore { household: 1, messages: [
+                  Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Wearable, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio { .. }),
+                           notes: [Annotation { by: Step::Worker, note: Note::Read },
+                                   Annotation { by: Step::Speech, note: Note::Transcript("hello") },
+                                   Annotation { by: Step::Identity, note: Note::Sender(Person { role: Role::Owner }) },
+                                   Annotation { by: Step::Worker, note: Note::Answered(MessageId { from: Party::Assistant, n: 2 }) }] },
+                  Stored { id: MessageId { from: Party::Assistant, n: 2 }, to: Party::Client(Holder { household: 1, device: Device::Wearable, number: 1 }), body: Body::Text("hi"),
+                           notes: [Annotation { by: Step::Speech, note: Note::Speech(Audio { .. }) }] } ] },
+              reply: Stored { id: MessageId { from: Party::Assistant, n: 2 }, to: Party::Client(Holder { household: 1, device: Device::Wearable, number: 1 }), body: Body::Text("hi"),
+                              notes: [Annotation { by: Step::Speech, note: Note::Speech(Audio { .. }) }] }), Speech::speak("hi"),
+        // After a restart: the message cut short is answered as interrupted.
+        given Reporter::interrupted() -> Reply { text: "I was interrupted while working on this. Please ask again." }
+        when Worker::resume(ConversationStore { household: 1, messages: [Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("open the door"), notes: [Annotation { by: Step::Worker, note: Note::Read }] }] }, Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("open the door"), notes: [Annotation { by: Step::Worker, note: Note::Read }] })
+        then (store: ConversationStore { household: 1, messages: [
+                  Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("open the door"),
+                           notes: [Annotation { by: Step::Worker, note: Note::Read },
+                                   Annotation { by: Step::Worker, note: Note::Answered(MessageId { from: Party::Assistant, n: 2 }) }] },
+                  Stored { id: MessageId { from: Party::Assistant, n: 2 }, to: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }),
+                           body: Body::Text("I was interrupted while working on this. Please ask again."), notes: [] } ] },
+              reply: Stored { id: MessageId { from: Party::Assistant, n: 2 }, to: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }),
+                              body: Body::Text("I was interrupted while working on this. Please ask again."), notes: [] })
+    }
+
+    // Names from the other files.
+    use Result from "std";
+    use MessageId from "vocabulary";
+    use Party from "vocabulary";
+    use Device from "vocabulary";
+    use Body from "vocabulary";
+    use Audio from "vocabulary";
+    use Annotation from "vocabulary";
+    use Note from "vocabulary";
+    use Step from "vocabulary";
+    use Message from "vocabulary";
+    use Reply from "vocabulary";
+    use Tool from "vocabulary";
+    use Person from "vocabulary";
+    use Role from "vocabulary";
+    use Option from "std";
+    use Identity::who from "security";
+    use Commands::{answer, alarm} from "security";
+    use Stored from "store";
+    use ConversationStore from "store";
+    use Speech::{transcribe, speak} from "speech";
+    use Harness::serve from "harness/harness";
+    use Models from "models";
+    use Llm from "models";
+    use Reporter::interrupted from "reply";
+    use Disk from "store";
+    use Accounts::owner from "gateway";
+    use Reporter::ask_owner from "reply";
+    use Holder from "vocabulary";
+    use Confirmations from "confirm";
+    use Speech::speaker from "speech";
+}

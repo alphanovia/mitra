@@ -19,8 +19,20 @@ environment Identity {
 // time, "say it again", what a setting is), and a list of help words
 // that call for help even when no model is up.
 subject Commands {
-    fn answer(m: Message, p: Person) -> r: Option<Reply>;
-    fn alarm(m: Message) -> help: bool;
+    fn answer(m: Message, p: Person) -> r: Option<Reply> where {
+        examples {
+            (Message { holder: Holder { household: 1, device: Device::Computer, number: 1 }, text: "What time is it?", recognised: true }, Person { role: Role::Owner }) -> Option::Some(Reply { text: "It is ten o'clock." }),
+            (Message { holder: Holder { household: 1, device: Device::Computer, number: 1 }, text: "open the door", recognised: true }, Person { role: Role::Owner }) -> Option::None
+        }
+    }
+    // Exact words, so that "help me with my email" is no alarm.
+    fn alarm(m: Message) -> help: bool where {
+        examples {
+            (Message { holder: Holder { household: 1, device: Device::Computer, number: 1 }, text: "Help", recognised: true }) -> true,
+            (Message { holder: Holder { household: 1, device: Device::Computer, number: 1 }, text: "au secours", recognised: true }) -> true,
+            (Message { holder: Holder { household: 1, device: Device::Computer, number: 1 }, text: "help me with my email", recognised: true }) -> false
+        }
+    }
     ensure plain_first: "a request plain code can answer is answered without any model";       // capability, shown by examples
     ensure read_only: "an answer by plain code only tells, and never acts on anything";        // property: answer has no tools to call
     ensure help_words: "a call for help in plain words is passed on even when no model is up";  // rule, measured on the word list
@@ -30,6 +42,9 @@ subject Commands {
     use Message from "vocabulary";
     use Person from "vocabulary";
     use Reply from "vocabulary";
+    use Holder from "vocabulary";
+    use Device from "vocabulary";
+    use Role from "vocabulary";
 }
 
 // Security, by the local model: is there anything to do?

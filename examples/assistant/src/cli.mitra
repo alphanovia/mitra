@@ -37,7 +37,7 @@ environment Network {
 // messages sent, the last reply it has, and how many times it may send
 // again (a setting).
 subject Cli {
-    record { token: Token, count: integer, seen: integer, retries: integer }
+    record { token: Token, holder: Holder, count: integer, seen: integer, retries: integer }
 
     require persona: Persona1::uses_cli;
     require carried: Network::carries;
@@ -48,14 +48,21 @@ subject Cli {
 
     // What persona 1 gives, as a message with the next id of this computer.
     fn envelope(self, i: Input) -> e: Envelope {
-        Envelope { id: MessageId { from: Party::Client(Device::Computer), n: self.count + 1 }, body: body(i) }
+        Envelope { id: MessageId { from: Party::Client(self.holder), n: self.count + 1 }, body: body(i) }
     } where {
         claim next: e.id.n == self.count + 1;
-        claim ours: e.id.from == Party::Client(Device::Computer);
+        claim ours: e.id.from == Party::Client(self.holder);
         examples {
-            (Cli { token: Token {}, count: 0, seen: 0, retries: 3 }, Input::Typed("hello"))
-                -> Envelope { id: MessageId { from: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") }
+            (Cli { token: Token { .. }, holder: Holder { household: 1, device: Device::Computer, number: 1 }, count: 0, seen: 0, retries: 3 }, Input::Typed("hello"))
+                -> Envelope { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, body: Body::Text("hello") }
         }
+    }
+    // Once a message is made, the count moves on, sent or not: the next
+    // message never reuses its id (W3). A retry resends the same envelope.
+    fn made(self) -> c: Cli {
+        Cli { token: self.token, holder: self.holder, count: self.count + 1, seen: self.seen, retries: self.retries }
+    } where {
+        claim moves_on: c.count == self.count + 1;
     }
     fn body(i: Input) -> b: Body {
         match i { Input::Typed(t) => Body::Text(t), Input::Spoken(a) => Body::Voice(a) }
@@ -81,7 +88,7 @@ subject Cli {
     // New replies for this computer; the last one seen moves on.
     fn poll(self) -> out: (cli: Cli, shown: [Stored]) {
         match Network::get(self.token, self.seen) {
-            Ok(es) => (cli: Cli { token: self.token, count: self.count, seen: last(es, self.seen), retries: self.retries }, shown: es),
+            Ok(es) => (cli: Cli { token: self.token, holder: self.holder, count: self.count, seen: last(es, self.seen), retries: self.retries }, shown: es),
             Err(_) => (cli: self, shown: none())
         }
     }
@@ -113,10 +120,10 @@ subject Cli {
 
     examples {
         // Sent at the first try: the persona sees it sent.
-        given Network::post(_, _) -> Ok(Receipt::Received(MessageId { from: Party::Client(Device::Computer), n: 1 }))
-            when Cli::send(Cli { token: Token {}, count: 0, seen: 0, retries: 3 },
-                           Envelope { id: MessageId { from: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
-            then Ok(Receipt::Received(MessageId { from: Party::Client(Device::Computer), n: 1 }))
+        given Network::post(_, _) -> Ok(Receipt::Received(MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }))
+            when Cli::send(Cli { token: Token { .. }, holder: Holder { household: 1, device: Device::Computer, number: 1 }, count: 0, seen: 0, retries: 3 },
+                           Envelope { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, body: Body::Text("hello") })
+            then Ok(Receipt::Received(MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }))
     }
 
     // Names from the other files.

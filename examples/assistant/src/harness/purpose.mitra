@@ -27,7 +27,10 @@ subject Purpose {
 // Behaviour stays near the user's habits, so trust builds.
 // CHOICE (earlier, kept): a person's habits are read only for their own asks.
 subject Experience {
+    use Call from "vocabulary";
     fn recall(a: Ask, p: Person) -> h: Habits;
+    // Whether a call is near what the sender usually asks for.
+    fn usual(c: Call, h: Habits) -> u: bool;
     require kept: ConversationStore::kept;
     ensure near_habit: "an action far from the sender's habits is flagged";      // measured
     ensure own_habits: "only the sender's own habits are read";                  // route: recall gets the sender only

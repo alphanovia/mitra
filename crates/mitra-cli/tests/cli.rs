@@ -452,21 +452,21 @@ fn the_budget_reaches_a_set_condition() {
 /// The personal assistant's end-to-end rows (finding 30): `given` what the
 /// environment gives with `_` arguments and `Ok(..)` of a `Result` from
 /// std, `when Harness::serve(..)`, `then` what the user gets. The model is
-/// split in files (examples/assistant/), read from `system.mitra`. Each row
+/// split in files (examples/assistant/src/), read from `system.mitra`. Each row
 /// is compared: a wrong `then` is a finding.
 #[test]
 fn the_assistant_rows_end_to_end() {
-    let path = "examples/assistant/system.mitra";
+    let path = "examples/assistant/src/system.mitra";
     let (code, out) = mitra(&["check", path]);
     assert_eq!(code, 0, "{out}");
     assert!(
-        out.contains("check: well formed; agree: 116 comparisons, 97 hold, 19 findings"),
+        out.contains("check: well formed; agree: 131 comparisons, 108 hold, 23 findings"),
         "{out}"
     );
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
     let dir = std::env::temp_dir().join(format!("mitra-assistant-{}", std::process::id()));
     copy_dir(&std::path::Path::new(root).join("examples/assistant"), &dir);
-    let system = dir.join("system.mitra");
+    let system = dir.join("src/system.mitra");
     let text = std::fs::read_to_string(&system).unwrap();
     let wrong = text.replacen(
         "then (reply: Reply { text: \"hi\" }",
@@ -488,6 +488,9 @@ fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
     for entry in std::fs::read_dir(from).unwrap() {
         let entry = entry.unwrap();
         let target = to.join(entry.file_name());
+        if entry.file_name() == "target" {
+            continue;
+        }
         if entry.file_type().unwrap().is_dir() {
             copy_dir(&entry.path(), &target);
         } else {

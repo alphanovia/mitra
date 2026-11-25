@@ -14,7 +14,7 @@ subject Harness {
     require refuses_long: Llm::refuses_long;
     require fits: Composer::fits_window;
     // The loop ends: a leaf in words, nothing in the model shows it.
-    require stops: "the model, in the end, asks for no tool, or inference fails";
+    require stops: "the model, in the end, asks for no tool, or inference fails, within the turns allowed";
 
     // One message, through the pipeline: the reply, and the notes made.
     fn serve(m: Message, history: Conversation, models: Models, tools: [Tool]) -> out: (reply: Reply, notes: [Annotation]) {
@@ -30,17 +30,17 @@ subject Harness {
                     // CHOICE TO CONFIRM (C11): our model cannot judge it, so nothing
                     // is done, and the sender is told; plain code and help words
                     // above still work.
-                    Err(_) => (reply: Reporter::unchecked(), notes: seen),
+                    Err(f) => (reply: Reporter::unchecked(f), notes: seen),
                     Ok(v) => {
                         let judged = seen ++ [Annotation { by: Step::Gate, note: Note::Verdict(v) }];
-                        match after_gate(v) {
+                        match after_gate(v, p.role) {
                             Route::Work => match Purpose::pin(m, p, history) {
-                                Err(_) => (reply: Reporter::unchecked(), notes: judged),
+                                Err(f) => (reply: Reporter::unchecked(f), notes: judged),
                                 Ok(a) => {
                                     let asked = judged ++ [Annotation { by: Step::Purpose, note: Note::Ask(a) }];
                                     match after_ask(a.clear) {
                                         Route::Work => {
-                                            let done = run(models.pick(a), a, p, Experience::recall(a, p), history, tools);
+                                            let done = run(models.pick(a), models.turns, a, p, Experience::recall(a, p), history, tools);
                                             (reply: Reporter::report(done.result, a), notes: asked ++ called(done.c.outcomes()))
                                         },
                                         Route::AskBack => (reply: Reporter::ask_back(a), notes: asked),
@@ -63,12 +63,14 @@ subject Harness {
         }
     }
 
-    // Where a verdict sends a message. Finite: Mitra tries every verdict.
-    fn after_gate(v: Verdict) -> r: Route {
+    // Where a verdict sends a message. Finite: Mitra tries every verdict
+    // and role.
+    fn after_gate(v: Verdict, role: Role) -> r: Route {
         match v {
             Verdict::Act => Route::Work,
             Verdict::Distress => Route::Help,
-            Verdict::Meta => Route::Tune,
+            // A stranger does not tune the assistant (H8).
+            Verdict::Meta => if role == Role::Stranger { Route::Decline } else { Route::Tune },
             Verdict::Noise => Route::Decline,
             Verdict::Malicious => Route::Decline
         }
@@ -81,7 +83,8 @@ subject Harness {
         // A call for help is passed on.
         claim helps: v != Verdict::Distress || r == Route::Help;
         // A judgement of the assistant tunes it, never runs as a request.
-        claim scored: v != Verdict::Meta || r == Route::Tune;
+        claim scored: r != Route::Tune || v == Verdict::Meta;
+        claim strangers_tune_nothing: role != Role::Stranger || r != Route::Tune;
     }
 
     // Where an ask goes: worked on when clear, else asked back.
@@ -93,32 +96,40 @@ subject Harness {
     }
 
     // Each tool call made, as a note of the policy.
+    // A call held for a yes also gets its code (C16).
     fn called(os: [Outcome]) -> ns: [Annotation] {
-        os.fold(ns: []) { o -> ns ++ [Annotation { by: Step::Policy, note: Note::Called(o) }] }
-    } where {
-        claim one_each: ns.len() == n by invariant n;
+        os.fold(ns: []) { o -> ns ++ [Annotation { by: Step::Policy, note: Note::Called(o) }] ++ held(o) }
+    }
+    fn held(o: Outcome) -> ns: [Annotation] {
+        if awaits(o) { [Annotation { by: Step::Policy, note: Note::Held(Hold { code: Codes::fresh(), call: o.call }) }] } else { none() }
+    }
+    fn none() -> ns: [Annotation] { [] }
+    fn awaits(o: Outcome) -> a: bool {
+        match o.output { Ok(_) => false, Err(f) => f == ToolFailure::AwaitsYes }
     }
 
     // The agent loop, on one model: the Composer builds each request from
     // the conversation; tools run as the Policy says, outputs pass the guard.
-    fn run(llm: Llm, a: Ask, p: Person, h: Habits, history: Conversation, tools: [Tool])
+    // It gives up after `turns` answers of the model that still call a
+    // tool (H12).
+    fn run(llm: Llm, turns: integer, a: Ask, p: Person, h: Habits, history: Conversation, tools: [Tool])
         -> out: (result: Result<Answer, HarnessFailure>, c: Conversation) {
         if a.text == "" { (result: empty(), c: history) } else {
             let start = Conversation { turns: history.turns ++ [Turn::User(a.text)] };
             let first = Composer::compose(a, Purpose::context(a, start), h, llm);
-            let last = until((c: start, got: llm.inference(first, tools)), finished(got)) {
+            let last = until((c: start, got: llm.inference(first, tools), k: 1), finished(got) || k >= turns) {
                 match got {
                     Ok(ans) => {
                         let next = Conversation {
-                            turns: c.turns ++ [Turn::Model(ans), Turn::Results(perform_all(ans.calls, a, p, h))]
+                            turns: c.turns ++ [Turn::Model(ans), Turn::Results(perform_all(ans.calls, a, p, h, tools))]
                         };
-                        (next, llm.inference(Composer::compose(a, Purpose::context(a, next), h, llm), tools))
+                        (next, llm.inference(Composer::compose(a, Purpose::context(a, next), h, llm), tools), k + 1)
                     },
                     // Never reached: an Err is finished. `match` needs the arm.
-                    Err(_) => (c, got)
+                    Err(_) => (c, got, k)
                 }
             };
-            (result: lifted(last.got), c: last.c)
+            (result: if finished(last.got) { lifted(last.got) } else { too_many() }, c: last.c)
         }
     } where {
         // What until means: it stops at a final answer or a failure (finding D).
@@ -128,6 +139,7 @@ subject Harness {
     }
 
     fn empty() -> r: Result<Answer, HarnessFailure> { Err(HarnessFailure::EmptyPrompt) }
+    fn too_many() -> r: Result<Answer, HarnessFailure> { Err(HarnessFailure::TooManyTurns) }
 
     // The model's failure, as the harness's. Named apart: a `match` in a
     // tuple cannot be typed (finding R).
@@ -145,16 +157,34 @@ subject Harness {
         }
     }
 
-    // Every call, in order: run only when allowed, its output guarded.
-    fn perform_all(calls: [Call], a: Ask, p: Person, h: Habits) -> rs: [Outcome] {
-        calls.fold(rs: []) { c -> rs ++ [Outcome { call: c, output: {
-            let d = Policy::allow(c, a, p, h);
-            if runs(d) { ToolGuard::screen(c.tool.call(c.input)) } else { Err(withheld(d)) }
+    // Every call, in order: a tool of the harness's own list, run only
+    // when allowed, its output guarded. A name not on the list runs
+    // nothing (H1).
+    fn perform_all(calls: [Call], a: Ask, p: Person, h: Habits, tools: [Tool]) -> rs: [Outcome] {
+        calls.fold(rs: []) { c -> rs ++ [Outcome { call: c, output: match lookup(c.tool, tools) {
+            Option::None => unknown(),
+            Option::Some(t) => {
+                let d = Policy::allow(t, c, a, p, h);
+                if runs(d) { ToolGuard::screen(t.call(c.input)) } else { Err(withheld(d)) }
+            }
         } }] }
     } where {
         claim each: rs.len() == n by invariant n;
-        examples { ([], Ask { text: "x", clear: true, easy: true }, Person { role: Role::Owner }, Habits {}) -> [] }
+        examples { ([], Ask { text: "x", clear: true, easy: true }, Person { role: Role::Owner }, Habits {}, []) -> [] }
     }
+    fn unknown() -> got: Result<[~char], ToolFailure> { Err(ToolFailure::Unknown) }
+
+    // The tool of this name in the harness's list, if any.
+    fn lookup(name: [~char], tools: [Tool]) -> t: Option<Tool> {
+        tools.fold(t: no_tool()) { x -> if x.name == name { Option::Some(x) } else { t } }
+    } where {
+        examples {
+            ("door", [Tool { name: "door", description: "opens the front door", level: Level::Irreversible }])
+                -> Option::Some(Tool { name: "door", description: "opens the front door", level: Level::Irreversible }),
+            ("door", []) -> Option::None
+        }
+    }
+    fn no_tool() -> t: Option<Tool> { Option::None }
 
     // Whether a decision runs the tool, and why not when it does not.
     // Finite: Mitra tries every decision.
@@ -180,8 +210,9 @@ subject Harness {
     ensure scored: "a message judging the assistant tunes it, and is never run as a request"
         from (after_gate::scored);
     ensure fails_closed: "when our model cannot judge a message, nothing is done with it, and the sender is told";   // route in serve (finding A)
-    ensure guarded: "a tool runs only when the policy says so, and its output passes the guard before the model reads it"
-        from (runs::only_run, withheld::waits, perform_all::each);
+    ensure guarded: "only a tool of the assistant's own list runs, only when the policy says so, and its output passes the guard"
+        from (runs::only_run, withheld::waits, perform_all::each);   // the lookup is shown by lookup's examples
+    ensure bounded: "the agent loop gives up after the turns the settings allow, and says so";   // route in run (finding D)
     ensure asks_first: "an unclear ask is asked back before any model works on it"
         from (after_ask::asks_first, run::refused);
     ensure composed: "every request the loop sends is the composer's, for the model it goes to"
@@ -225,4 +256,7 @@ subject Harness {
     use Tuning::adjust from "care";
     use Reporter::{report, decline, ask_back, helped, tuned, unchecked} from "reply";
     use Route from "vocabulary";
+    use Level from "vocabulary";
+    use Hold from "vocabulary";
+    use Codes::fresh from "server/confirm";
 }

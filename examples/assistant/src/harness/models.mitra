@@ -10,8 +10,8 @@
 environment Llm {
     // Its window holds what it reads and what it writes back; `reserve`
     // is the room kept for the answer (the API's max_tokens). Bytes stand
-    // for tokens until a tokenizer part.
-    record { window: integer, reserve: integer }
+    // for tokens until a tokenizer part. `machine` says which one it is.
+    record { window: integer, reserve: integer, machine: Machine }
     fn inference(self, request: [~char], tools: [Tool]) -> a: Result<Answer, LlmFailure> where {
         claim windowed: request.len() + self.reserve <= self.window || a == Err(LlmFailure::TooLong);
     }
@@ -23,6 +23,7 @@ environment Llm {
     use Answer from "vocabulary";
     use LlmFailure from "vocabulary";
     use Tool from "vocabulary";
+    use Machine from "vocabulary";
 }
 
 environment CloudLlm {
@@ -34,10 +35,12 @@ subject LocalLlm {
     ensure serves: "a smaller model, on a machine of ours, answers inference and judges messages";
 }
 
+// The two machines, and how many turns the agent loop may take with one
+// before it gives up (a setting; H12).
 subject Models {
     use Ask from "vocabulary";
     use Machine from "vocabulary";
-    record { cloud: Llm, local: Llm }
+    record { cloud: Llm, local: Llm, turns: integer }
 
     require cloud: CloudLlm::serves;
     require local: LocalLlm::serves;

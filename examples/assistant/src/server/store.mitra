@@ -16,9 +16,9 @@ subject Stored {
         claim only_grows: t.notes.len() == self.notes.len() + 1;   // finding I
         claim past_kept: t.notes.starts_with(self.notes);          // finding I
         examples {
-            (Stored { id: MessageId { from: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}), notes: [] },
+            (Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Wearable, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio { .. }), notes: [] },
              Annotation { by: Step::Speech, note: Note::Transcript("hello") })
-                -> Stored { id: MessageId { from: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}),
+                -> Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Wearable, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio { .. }),
                             notes: [Annotation { by: Step::Speech, note: Note::Transcript("hello") }] }
         }
     }
@@ -33,7 +33,7 @@ subject Stored {
         examples {
             (Stored { id: MessageId { from: Party::Assistant, n: 1 }, to: Party::Assistant, body: Body::Text("hi"), notes: [] })
                 -> Option::Some("hi"),
-            (Stored { id: MessageId { from: Party::Assistant, n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}), notes: [] })
+            (Stored { id: MessageId { from: Party::Assistant, n: 1 }, to: Party::Assistant, body: Body::Voice(Audio { .. }), notes: [] })
                 -> Option::None
         }
     }
@@ -46,6 +46,10 @@ subject Stored {
         self.notes.fold(r: false) { a -> r || match a.note { Note::Answered(_) => true, _ => false } }
     }
     // The spoken form of a reply, when the server made one.
+    // Whether the gate judged it a request (W6: only those are history).
+    fn acted(self) -> r: bool {
+        self.notes.fold(r: false) { a -> r || a.note == Note::Verdict(Verdict::Act) }
+    }
     fn speech(self) -> s: Option<Audio> {
         self.notes.fold(s: Option::None) { a -> match a.note { Note::Speech(v) => Option::Some(v), _ => s } }
     }
@@ -65,6 +69,8 @@ subject Stored {
     use Audio from "vocabulary";
     use Device from "vocabulary";
     use Step from "vocabulary";
+    use Verdict from "vocabulary";
+    use Holder from "vocabulary";
 }
 
 // What a restart must not lose.
@@ -73,7 +79,7 @@ environment Disk {
 }
 
 subject ConversationStore {
-    record { messages: [Stored] }
+    record { household: integer, messages: [Stored] }
 
     require durable: Disk::durable;
     require fixed_body: Stored::fixed_body;
@@ -85,30 +91,53 @@ subject ConversationStore {
         self.messages.fold(h: false) { m -> h || m.id == id }
     }
 
+    // Whether this id is already used for another message (H16): a retry
+    // sends the same body, anything else under that id is refused.
+    fn conflicts(self, e: Envelope) -> c: bool {
+        self.messages.fold(c: false) { m -> c || (m.id == e.id && m.body != e.body) }
+    } where {
+        examples {
+            (ConversationStore { household: 1, messages: [Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("hello"), notes: [] }] },
+             Envelope { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, body: Body::Text("open the door") }) -> true,
+            (ConversationStore { household: 1, messages: [Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("hello"), notes: [] }] },
+             Envelope { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, body: Body::Text("hello") }) -> false
+        }
+    }
+
+    // The call held under this code, while no yes has used it (C16).
+    fn held(self, code: integer) -> c: Option<Call> {
+        self.messages.fold(c: no_call()) { m -> m.notes.fold(k: c) { a -> match a.note {
+            Note::Held(x) => if x.code == code { Option::Some(x.call) } else { k },
+            Note::Confirmed(y) => if y == code { no_call() } else { k },
+            _ => k
+        } } }
+    }
+    fn no_call() -> c: Option<Call> { Option::None }
+
     // Keeps a client's message once: the same id again changes nothing.
     fn record(self, e: Envelope) -> s: ConversationStore {
         if self.holds(e.id) { self }
-        else { ConversationStore { messages: self.messages ++ [Stored { id: e.id, to: Party::Assistant, body: e.body, notes: [] }] } }
+        else { ConversationStore { household: self.household, messages: self.messages ++ [Stored { id: e.id, to: Party::Assistant, body: e.body, notes: [] }] } }
     } where {
         claim kept: s.holds(e.id);                          // finding E
         claim once: !self.holds(e.id) || s == self;         // finding E
         examples {
-            (ConversationStore { messages: [] },
-             Envelope { id: MessageId { from: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
-                -> ConversationStore { messages: [Stored { id: MessageId { from: Party::Client(Device::Computer), n: 1 },
+            (ConversationStore { household: 1, messages: [] },
+             Envelope { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, body: Body::Text("hello") })
+                -> ConversationStore { household: 1, messages: [Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 },
                                                            to: Party::Assistant, body: Body::Text("hello"), notes: [] }] },
             // The same message again: nothing new.
-            (ConversationStore { messages: [Stored { id: MessageId { from: Party::Client(Device::Computer), n: 1 },
+            (ConversationStore { household: 1, messages: [Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 },
                                                      to: Party::Assistant, body: Body::Text("hello"), notes: [] }] },
-             Envelope { id: MessageId { from: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
-                -> ConversationStore { messages: [Stored { id: MessageId { from: Party::Client(Device::Computer), n: 1 },
+             Envelope { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, body: Body::Text("hello") })
+                -> ConversationStore { household: 1, messages: [Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 },
                                                            to: Party::Assistant, body: Body::Text("hello"), notes: [] }] }
         }
     }
 
     // Adds a note to the message of this id; the others are untouched.
     fn annotate(self, id: MessageId, a: Annotation) -> s: ConversationStore {
-        ConversationStore { messages: self.noted(id, a) }
+        ConversationStore { household: self.household, messages: self.noted(id, a) }
     }
     fn noted(self, id: MessageId, a: Annotation) -> ms: [Stored] {
         self.messages.fold(ms: []) { m -> ms ++ [if m.id == id { m.annotate(a) } else { m }] }
@@ -118,8 +147,8 @@ subject ConversationStore {
 
     // Adds a note to the message of this id when it is meant for this
     // client; else changes nothing.
-    fn annotate_for(self, id: MessageId, d: Device, a: Annotation) -> s: ConversationStore {
-        ConversationStore { messages: self.messages.fold(ms: []) { m -> ms ++ [if m.id == id && m.to == Party::Client(d) { m.annotate(a) } else { m }] } }
+    fn annotate_for(self, id: MessageId, h: Holder, a: Annotation) -> s: ConversationStore {
+        ConversationStore { household: self.household, messages: self.messages.fold(ms: []) { m -> ms ++ [if m.id == id && m.to == Party::Client(h) { m.annotate(a) } else { m }] } }
     }
 
     // Adds notes to the message of this id, in order.
@@ -136,13 +165,13 @@ subject ConversationStore {
 
     // Stores a reply of the assistant.
     fn post(self, r: Stored) -> s: ConversationStore {
-        ConversationStore { messages: self.messages ++ [r] }
+        ConversationStore { household: self.household, messages: self.messages ++ [r] }
     }
 
     // The messages for this client whose count is past `after`, in order:
     // what a client fetches to see what is new.
-    fn for_client(self, d: Device, after: integer) -> es: [Stored] {
-        self.messages.fold(es: []) { m -> if m.to == Party::Client(d) && m.id.n > after { es ++ [m] } else { es } }
+    fn for_client(self, h: Holder, after: integer) -> es: [Stored] {
+        self.messages.fold(es: []) { m -> if m.to == Party::Client(h) && m.id.n > after { es ++ [m] } else { es } }
     }
 
     // The conversation so far with one client, as the harness reads it:
@@ -151,11 +180,13 @@ subject ConversationStore {
     // answered yet, so it is not in it: the harness adds it.
     // CHOICE TO CONFIRM (C6): one conversation per device, as one thread
     // per contact in a messaging app.
-    fn history(self, d: Device) -> c: Conversation {
+    // Only what the gate judged a request is kept (W6), and only this
+    // holder's (H7): another speaker's words never reach this history.
+    fn history(self, h: Holder) -> c: Conversation {
         Conversation { turns: self.messages.fold(ts: []) { m ->
-            if m.id.from == Party::Client(d) && m.answered() {
+            if m.id.from == Party::Client(h) && m.answered() && m.acted() {
                 match m.text() { Option::Some(t) => ts ++ [Turn::User(t)], Option::None => ts }
-            } else { if m.to == Party::Client(d) {
+            } else { if m.to == Party::Client(h) {
                 match m.body { Body::Text(t) => ts ++ [Turn::Model(Answer { text: t, calls: [] })], Body::Voice(_) => ts }
             } else { ts } }
         } }
@@ -177,4 +208,6 @@ subject ConversationStore {
     use Answer from "vocabulary";
     use Option from "std";
     use Conversation from "conversation";
+    use Holder from "vocabulary";
+    use Call from "vocabulary";
 }

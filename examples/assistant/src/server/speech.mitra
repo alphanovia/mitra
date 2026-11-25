@@ -10,8 +10,11 @@ subject Speech {
     use Audio from "vocabulary";
     fn transcribe(a: Audio) -> t: Result<[~char], SpeechFailure>;
     fn speak(t: [~char]) -> a: Audio;
+    // Whether the voice is one the household enrolled (H3).
+    fn speaker(a: Audio) -> known: bool;
 
     ensure hears: "a voice message is turned into the words that were said, rarely wrong";                // quality, measured
     ensure honest: "a voice it cannot make out is reported as unclear, never guessed";                      // rule, measured
+    ensure knows_voices: "a voice is vouched for only when it is one of the household's enrolled voices";  // quality, measured
     ensure voiced: "a reply can be spoken in a voice the user understands";                                  // capability, measured
 }
