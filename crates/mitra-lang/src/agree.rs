@@ -420,6 +420,65 @@ impl<'m> Reading<'m> {
                     );
                 }
             }
+            // Each record the body makes on its way, as an argument or
+            // in a `let` (finding 10b): what takes it counts on its
+            // claims, so they are read where it is made.
+            let gives = match &f.gives.1 {
+                Type::Record(r) => Some(r.name.as_str()),
+                _ => None,
+            };
+            let mut made = Vec::new();
+            constructions(body, gives, true, &[], &[], &BTreeSet::new(), &mut made);
+            for m in made {
+                let Some(record) = self.records.get(m.record.name.as_str()) else {
+                    continue;
+                };
+                for c in &record.claims {
+                    let against = format!(
+                        "claim `{}::{}` of the `{}` it makes",
+                        m.record.name, c.name, m.record.name
+                    );
+                    if let Some(name) = &m.bound {
+                        let why = format!("it is made of `{name}`, bound by a `match` or a loop, which agree does not read here");
+                        push(against, Agreement::Unknown { why });
+                        continue;
+                    }
+                    let holds = let_in("self", &m.make, &c.holds);
+                    let holds_alone = holds.clone();
+                    let guarded = match conjunction(m.guards.iter().cloned()) {
+                        Some(g) => Expression::Apply(
+                            Op::Or,
+                            vec![
+                                plain(Expression::Apply(Op::Not, vec![plain(g)])),
+                                plain(holds),
+                            ],
+                        ),
+                        None => holds,
+                    };
+                    let within = m
+                        .lets
+                        .iter()
+                        .rev()
+                        .fold(guarded, |e, (n, v)| let_in(n, v, &e));
+                    let with_body = read_in(within);
+                    // As linear facts: the promises and its `if`s known,
+                    // the claim to show, each under its `let`s.
+                    let wrap = |e: Expression<Op>| {
+                        m.lets.iter().rev().fold(e, |e, (n, v)| let_in(n, v, &e))
+                    };
+                    let mut facts = promised.clone();
+                    facts.extend(m.guards.iter().cloned().map(wrap));
+                    let goal = wrap(holds_alone.clone());
+                    // Its `if`s relate names: as linear facts too.
+                    let agreement = match self.claim(&f.takes, &with_body, &rows) {
+                        Agreement::Unknown { .. } if crate::linear::holds(&facts, &goal) => {
+                            Agreement::Holds
+                        }
+                        agreement => agreement,
+                    };
+                    push(against, agreement);
+                }
+            }
             // The range of what it gives, as a claim the body keeps.
             if let Some((q, range)) = &f.ranges.gives {
                 let with_body = let_in(&f.gives.0, body, &read_in(in_range(q, range)));
@@ -1974,6 +2033,83 @@ pub(crate) fn record_claims(
         out.extend(record_claims(records, exact, w));
     }
     out
+}
+
+/// A record a body makes: its `Make`, the `let`s around it (outermost
+/// first), the conditions of the `if`s it is under, and, when it reads
+/// a name bound otherwise (a `match` arm, a loop), that name.
+struct Made {
+    record: crate::simulation::Record,
+    make: Expression<Op>,
+    lets: Vec<(String, Expression<Op>)>,
+    guards: Vec<Expression<Op>>,
+    bound: Option<String>,
+}
+
+/// Each record `e` makes but does not give: one it gives is read as
+/// what the function gives (`gives`, the record of what it gives, and
+/// `tail`, whether `e` is what it gives).
+fn constructions(
+    e: &Expression<Op>,
+    gives: Option<&str>,
+    tail: bool,
+    lets: &[(String, Expression<Op>)],
+    guards: &[Expression<Op>],
+    bound: &BTreeSet<String>,
+    out: &mut Vec<Made>,
+) {
+    let Expression::Apply(op, args) = e else {
+        return;
+    };
+    let names = |e: &Expression<Op>| -> Option<String> {
+        bound
+            .iter()
+            .find(|n| reads_any(e, &BTreeSet::from([n.as_str()])))
+            .cloned()
+    };
+    match (op, args.as_slice()) {
+        (Op::Make(r), _) => {
+            if !(tail && gives == Some(r.name.as_str())) {
+                out.push(Made {
+                    record: r.clone(),
+                    make: e.clone(),
+                    lets: lets.to_vec(),
+                    guards: guards.to_vec(),
+                    bound: names(e),
+                });
+            }
+            for a in args {
+                constructions(&a.body, gives, false, lets, guards, bound, out);
+            }
+        }
+        (Op::Let, [value, body]) if value.binds.is_empty() && body.binds.len() == 1 => {
+            constructions(&value.body, gives, false, lets, guards, bound, out);
+            let mut inner = lets.to_vec();
+            inner.push((body.binds[0].clone(), value.body.clone()));
+            // A name bound again is the `let`'s, no longer a match's.
+            let mut bound = bound.clone();
+            bound.remove(&body.binds[0]);
+            constructions(&body.body, gives, tail, &inner, guards, &bound, out);
+        }
+        (Op::If, [c, yes, no]) => {
+            constructions(&c.body, gives, false, lets, guards, bound, out);
+            let mut on = guards.to_vec();
+            on.push(c.body.clone());
+            constructions(&yes.body, gives, tail, lets, &on, bound, out);
+            let mut off = guards.to_vec();
+            off.push(Expression::Apply(Op::Not, vec![plain(c.body.clone())]));
+            constructions(&no.body, gives, tail, lets, &off, bound, out);
+        }
+        _ => {
+            for (i, a) in args.iter().enumerate() {
+                let mut bound = bound.clone();
+                bound.extend(a.binds.iter().cloned());
+                // A `match` gives what its arms give.
+                let tail = tail && matches!(op, Op::Match(_)) && i > 0;
+                constructions(&a.body, gives, tail, lets, guards, &bound, out);
+            }
+        }
+    }
 }
 
 /// The values a row's world holds: what each function with no body

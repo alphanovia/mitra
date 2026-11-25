@@ -402,3 +402,97 @@ fn what_a_model_row_expects_is_checked() {
         "{out:?}"
     );
 }
+
+/// A record a body makes and passes on is read where it is made: what
+/// takes it counts on its claims (the coordinator's hole, 13:42).
+#[test]
+fn a_record_made_on_the_way_is_read_where_it_is_made() {
+    let text = "subject Span {
+        use Option from \"std\";
+        record { lo: integer, hi: integer } where { claim ordered: self.lo <= self.hi; }
+        fn width_of(s: Span) -> w: integer { s.hi - s.lo }
+        fn arg(a: integer) -> w: integer { width_of(Span { lo: a, hi: a - 1 }) }
+        fn bound(a: integer) -> w: integer { let b = a + 1; width_of(Span { lo: b, hi: a }) }
+        fn guarded(a: integer, b: integer) -> w: integer { if a <= b { width_of(Span { lo: a, hi: b }) } else { 0 } }
+        fn update(s: Span) -> w: integer { width_of(Span { hi: s.lo - 1, ..s }) }
+        fn arm(o: Option<integer>) -> w: integer { match o { Some(x) => width_of(Span { lo: x, hi: x }), None => 0 } }
+        fn given(a: integer) -> s: Span { if a < 0 { Span { lo: 0, hi: 0 } } else { Span { lo: a, hi: a + 1 } } }
+    }";
+    let (agreed, _) = agree(&model(text), &Settings::default());
+    let of = |f: &str| -> Vec<(String, Agreement)> {
+        agreed
+            .iter()
+            .filter(|a| a.at.to_string() == format!("Span::{f}"))
+            .map(|a| (a.against.clone(), a.agreement.clone()))
+            .collect()
+    };
+    let made = "claim `Span::ordered` of the `Span` it makes".to_string();
+    assert!(
+        matches!(&of("arg")[..], [(m, Agreement::Fails { .. })] if *m == made),
+        "{:?}",
+        of("arg")
+    );
+    assert!(
+        matches!(&of("bound")[..], [(m, Agreement::Fails { .. })] if *m == made),
+        "{:?}",
+        of("bound")
+    );
+    // Under its `if`: only where `a <= b`.
+    assert_eq!(of("guarded"), [(made.clone(), Agreement::Holds)]);
+    assert!(
+        matches!(&of("update")[..], [(m, Agreement::Fails { .. })] if *m == made),
+        "{:?}",
+        of("update")
+    );
+    // Of a name a `match` binds: not read, and said.
+    assert!(
+        matches!(&of("arm")[..], [(m, Agreement::Unknown { why })] if *m == made && why.contains("`x`")),
+        "{:?}",
+        of("arm")
+    );
+    // What it gives is read once, as what it gives.
+    let given = of("given");
+    assert_eq!(given.len(), 1, "{given:?}");
+    assert_eq!(given[0].0, "claim `Span::ordered` of what it gives");
+}
+
+/// Red team: `let`s, the `else` of an `if`, arms and records inside
+/// records, each read where it stands.
+#[test]
+fn where_a_record_is_made_is_read_exactly() {
+    let text = "subject Span {
+        use Option from \"std\";
+        record { lo: integer, hi: integer } where { claim ordered: self.lo <= self.hi; }
+        subject record Pair { a: Span, n: integer }
+        fn width_of(s: Span) -> w: integer { s.hi - s.lo }
+        fn let_holds(a: integer) -> w: integer { let b = a + 1; width_of(Span { lo: a, hi: b }) }
+        fn rebound(o: Option<integer>) -> w: integer { match o { Some(x) => { let x = 1; width_of(Span { lo: x, hi: x }) }, None => 0 } }
+        fn otherwise(a: integer, b: integer) -> w: integer { if b < a { 0 } else { width_of(Span { lo: a, hi: b }) } }
+        fn pick(o: Option<integer>) -> s: Span { match o { Some(x) => Span { lo: x, hi: x }, None => Span { lo: 0, hi: 0 } } }
+        fn named(a: integer) -> s: Span { let b = a; Span { lo: b, hi: b } }
+        fn pair(a: integer) -> p: Pair { Pair { a: Span { lo: a, hi: a - 1 }, n: 0 } }
+    }";
+    let (agreed, _) = agree(&model(text), &Settings::default());
+    let of = |f: &str| -> Vec<(String, Agreement)> {
+        agreed
+            .iter()
+            .filter(|a| a.at.to_string() == format!("Span::{f}"))
+            .map(|a| (a.against.clone(), a.agreement.clone()))
+            .collect()
+    };
+    let made = "claim `Span::ordered` of the `Span` it makes".to_string();
+    assert_eq!(of("let_holds"), [(made.clone(), Agreement::Holds)]);
+    assert_eq!(of("rebound"), [(made.clone(), Agreement::Holds)]);
+    assert_eq!(of("otherwise"), [(made.clone(), Agreement::Holds)]);
+    // What its arms and its `let` give is what it gives: read once.
+    for f in ["pick", "named"] {
+        let said = of(f);
+        assert_eq!(said.len(), 1, "{f}: {said:?}");
+        assert_eq!(said[0].0, "claim `Span::ordered` of what it gives");
+    }
+    assert!(
+        matches!(&of("pair")[..], [(m, Agreement::Fails { .. })] if *m == made),
+        "{:?}",
+        of("pair")
+    );
+}

@@ -152,8 +152,11 @@ subject Span {
 Mitra checks such a claim wherever a value of the record enters the
 model:
 
-- what a function with a body gives (A001 when the body breaks it,
-  A007 when it cannot tell);
+- what a function with a body gives, and each record a body makes on
+  its way, as an argument or in a `let` (`Span { … }` or `Span { …, ..s }`),
+  read under the `let`s and `if`s around it (A001 when the body breaks
+  it, A007 when it cannot tell, or when the record is made of a name a
+  `match` or a loop binds);
 - each value written in a row: an example's inputs and output, what
   `given` says the environment gave, the arguments of `when` and of the
   calls `then` lists (A012);
