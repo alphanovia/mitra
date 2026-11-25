@@ -29,7 +29,7 @@ subject explain {
     ensure no_points: "an all or an any over a set its condition leaves with no point is given nothing from its points, and X013 says so: never explained by no evidence";
     ensure worlds: "what the environment gave a run is part of the point it is judged at: two worlds are two points, and a point in a world is an instance or a witness of an all, never one of its cases";
     ensure only_known: "a measurement known in part is a taking only where what it knows decides; elsewhere X010 says which field" from (in_part);
-    ensure verdicts: "each proposition is explained, contradicted or unsupported, as judgement gives it from the model and the ledger"
+    ensure verdicts: "each proposition is explained, assumed, contradicted or unsupported, as judgement gives it from the model and the ledger; assumed names the links no one reviewed and the requires in words it rests on"
         from (checked, fits, kernel, read, given);
     ensure asks: "each link, an ensure's from list or a require's ensure, and each ensure said only in words, that no review counted names is asked for, X012, with the store line to write"
         from (linked);

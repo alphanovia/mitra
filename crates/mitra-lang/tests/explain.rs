@@ -211,9 +211,20 @@ fn reviews_are_takings() {
     let e = explain(&model, &ledger, &Settings::default());
     assert_eq!(of(&e, &named("calc::div::spec")), Verdict::Explained);
     assert!(matches!(of(&e, &named(TIE)), Verdict::Contradicted { .. }));
-    // The ensure follows from the spec and a require in words, which
-    // only the model says.
-    assert_eq!(of(&e, &named("calc::divides")), Verdict::Unsupported);
+    // The ensure follows from the spec and a require in words, by a
+    // link no one reviewed: assumed, both named.
+    let link = Prop::Implies {
+        pre: vec![named("calc::div::spec"), named("calc::inputs")],
+        subject: "calc::divides".to_string(),
+        post: vec![named("calc::divides")],
+    };
+    assert_eq!(
+        of(&e, &named("calc::divides")),
+        Verdict::Assumed {
+            links: vec![link],
+            requires: vec![named("calc::inputs")]
+        }
+    );
 }
 
 /// Each code of suit `X`, given.
@@ -502,9 +513,18 @@ fn what_the_model_alone_says() {
         .collect();
     assert_eq!(by, vec![(MODEL, 0)]);
     // A proved rule is a check, not evidence of the system: what it
-    // gives rests on the model's own leaves too.
-    assert!(e
+    // gives rests on the model's own leaves too. A require naming an
+    // ensure is that ensure: the checker takes the link.
+    let light = Prop::Implies {
+        pre: vec![named("sun::shines")],
+        subject: "stone::light".to_string(),
+        post: vec![named("stone::light")],
+    };
+    let explained: Vec<&Prop> = e
         .verdicts
         .iter()
-        .all(|v| v.verdict != Verdict::Explained || v.prop == named("stone::drop::lands")));
+        .filter(|v| v.verdict == Verdict::Explained)
+        .map(|v| &v.prop)
+        .collect();
+    assert_eq!(explained, vec![&named("stone::drop::lands"), &light]);
 }

@@ -40,6 +40,10 @@ pub const MODEL: &str = "model";
 /// The voice of what Mitra checked: a rule a proof shows, and each rule
 /// explain writes to link a measurement to the model.
 pub const CHECK: &str = "machine:mitra-check";
+/// The voice of a link no one reviewed: an ensure's `from` list, taken
+/// as written. It weighs little (`numbers::Settings::link`), and what
+/// rests on it is assumed, not explained, until a review answers it.
+pub const LINK: &str = "assumed:link";
 
 /// How far explain goes.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -79,6 +83,15 @@ pub enum Verdict {
     /// It follows true from some set of takings with none by `model`:
     /// evidence and checks alone.
     Explained,
+    /// It follows true from some set of takings that holds, besides
+    /// evidence and checks, only assumptions: links no one reviewed
+    /// (`links`, which a review lifts) and requires said in words
+    /// (`requires`, what the world must give). Of the sets it follows
+    /// from, the one with the fewest links, then the fewest requires.
+    Assumed {
+        links: Vec<Prop>,
+        requires: Vec<Prop>,
+    },
     /// It follows false from these sets of takings.
     Contradicted { against: Rests },
     /// Only what the model alone says holds it, or nothing does.
@@ -106,6 +119,11 @@ pub enum Source {
     Proof,
     /// A rule explain wrote to link a measurement to the model.
     Written,
+    /// A link no one reviewed, taken as written (`LINK`).
+    Link,
+    /// A require that names an ensure: that ensure by another name, so
+    /// the checker takes the link (`CHECK`).
+    Named,
 }
 
 /// What explain gives.
@@ -152,21 +170,37 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         findings: Vec::new(),
         observed: BTreeMap::new(),
     };
-    // What the model alone says: each leaf, taken true once.
+    // The links a review answers: those are not taken as written.
+    let reviewed: BTreeSet<Prop> = ledger
+        .reviews
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !refused.contains(&Path::to(&["reviews", &i.to_string()])))
+        .filter_map(|(_, r)| model::link(&index, &r.prop, r.from.as_ref()?))
+        .collect();
+    // What the model alone says: each leaf, taken true once. A proof the
+    // checker shows, and a require naming an ensure, the checker takes;
+    // a link no one reviewed, `LINK` takes.
     for (at, prop) in model::leaves(model) {
-        let shown = match index.items.get(&at) {
-            Some(Item::Rule(rule)) if prop == Prop::Named(at.to_string()) => {
-                index.shows(&at, rule) == Some(true)
+        let links = evidence::links(&index, &at);
+        let link = links
+            .iter()
+            .any(|list| model::link(&index, &at, list).as_ref() == Some(&prop));
+        let source = match index.items.get(&at) {
+            Some(Item::Rule(rule))
+                if prop == Prop::Named(at.to_string()) && index.shows(&at, rule) == Some(true) =>
+            {
+                Source::Proof
             }
-            _ => false,
+            Some(Item::Require(_)) if link => Source::Named,
+            Some(Item::Ensure(_)) if link && reviewed.contains(&prop) => continue,
+            Some(Item::Ensure(_)) if link => Source::Link,
+            _ => Source::Model,
         };
-        let (by, count) = match shown {
-            true => (CHECK, 1),
-            false => (MODEL, 0),
-        };
-        let source = match shown {
-            true => Source::Proof,
-            false => Source::Model,
+        let (by, count) = match source {
+            Source::Proof | Source::Named => (CHECK, 1),
+            Source::Link => (LINK, 1),
+            _ => (MODEL, 0),
         };
         given.take(prop, true, count, by, source);
     }
@@ -317,18 +351,30 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         });
     }
     // Verdicts.
+    let said = said_in_words(&index);
     let mut verdicts = Vec::new();
     let mut seen = BTreeSet::new();
     for (at, prop) in props.into_iter().chain(written) {
         if !seen.insert(prop.clone()) {
             continue;
         }
-        let verdict = verdict(judge.opinion(&prop).as_ref());
+        let verdict = verdict(judge.opinion(&prop).as_ref(), &said);
         verdicts.push(Verdicted { at, prop, verdict });
     }
     findings.sort();
     findings.dedup();
-    let asks = asks(model, ledger, &refused);
+    // The links to review first are those the most verdicts assume.
+    let mut asks = asks(model, ledger, &refused);
+    let assuming = |link: &Prop| {
+        verdicts
+            .iter()
+            .filter(|v| matches!(&v.verdict, Verdict::Assumed { links, .. } if links.contains(link)))
+            .count()
+    };
+    asks.sort_by_key(|a| {
+        let link = a.from.as_ref().and_then(|from| model::link(&index, &a.at, from));
+        std::cmp::Reverse(link.map_or(0, |l| assuming(&l)))
+    });
     Explanation {
         verdicts,
         opinions: judge.opinions,
@@ -384,7 +430,7 @@ pub fn asks(model: &Model, ledger: &Ledger, refused: &BTreeSet<Path>) -> Vec<Ask
                 code: X012,
                 at: at.clone(),
                 from,
-                message: format!("only the model says {what}: review the link"),
+                message: format!("Mitra takes {what} as written, with no review: what rests on it is assumed; review the link"),
                 line: format!("review {at} {written} holds by \"human:<name>\";"),
             });
         }
@@ -420,8 +466,19 @@ fn alike(a: &Measurement, b: &Measurement) -> bool {
         && a.effects == b.effects
 }
 
-/// The verdict an opinion gives.
-fn verdict(opinion: Option<&Opinion>) -> Verdict {
+/// The requires said in words: what the world must give, which the
+/// model assumes.
+fn said_in_words(index: &Index) -> BTreeSet<Prop> {
+    index
+        .items
+        .iter()
+        .filter(|(_, item)| matches!(item, Item::Require(r) if matches!(r.from, model::Source::Prose(_))))
+        .map(|(at, _)| Prop::Named(at.to_string()))
+        .collect()
+}
+
+/// The verdict an opinion gives, `requires` the requires said in words.
+fn verdict(opinion: Option<&Opinion>, requires: &BTreeSet<Prop>) -> Verdict {
     let Some(o) = opinion else {
         return Verdict::Unsupported;
     };
@@ -430,10 +487,33 @@ fn verdict(opinion: Option<&Opinion>) -> Verdict {
             against: o.rests_against().clone(),
         };
     }
-    let evidenced = |rest: &BTreeSet<Taking>| rest.iter().all(|t| t.by != MODEL);
-    match o.rests_for().iter().any(evidenced) {
-        true => Verdict::Explained,
-        false => Verdict::Unsupported,
+    let evidenced = |rest: &BTreeSet<Taking>| rest.iter().all(|t| t.by != MODEL && t.by != LINK);
+    if o.rests_for().iter().any(evidenced) {
+        return Verdict::Explained;
+    }
+    // A set that holds only evidence, checks and assumptions: its links
+    // and its requires said in words.
+    let assumed = |rest: &BTreeSet<Taking>| {
+        let mut links = Vec::new();
+        let mut said = Vec::new();
+        for t in rest {
+            match t.by.as_str() {
+                LINK => links.push(t.prop.clone()),
+                MODEL if requires.contains(&t.prop) => said.push(t.prop.clone()),
+                MODEL => return None,
+                _ => {}
+            }
+        }
+        Some((links, said))
+    };
+    let fewest = o
+        .rests_for()
+        .iter()
+        .filter_map(assumed)
+        .min_by(|(l, r), (m, s)| (l.len(), r.len(), l, r).cmp(&(m.len(), s.len(), m, s)));
+    match fewest {
+        Some((links, requires)) => Verdict::Assumed { links, requires },
+        None => Verdict::Unsupported,
     }
 }
 

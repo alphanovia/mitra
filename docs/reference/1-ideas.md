@@ -49,8 +49,16 @@ claims live on tests and reviews.
 
 - **explained**: evidence supports it, without resting on anything only
   the model says;
+- **assumed**: evidence supports it, but only together with
+  assumptions: a link no one reviewed yet (an ensure's `from` list,
+  which a review lifts), or a require said in words (what the world
+  must give, which no review of the model lifts). The line says which;
 - **contradicted**: evidence goes against it;
 - **unsupported**: only the model says it.
+
+A require that names another part's ensure (`require checked:
+check::sound;`) is that ensure by another name: Mitra checks the link
+itself, so it is never an assumption.
 
 ## Trust numbers
 

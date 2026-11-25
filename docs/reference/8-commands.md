@@ -35,10 +35,15 @@ Reads the evidence and gives each statement of the model a verdict,
 with its numbers ([chapter 1](1-ideas.md#verdicts)), then a summary:
 
 ```text
-explain: 20 propositions, 10 explained, 6 contradicted, 4 unsupported; 0 findings, 0 hints, 1 reviews asked
+explain: 20 propositions, 10 explained, 3 assumed (2 waiting on a review), 6 contradicted, 1 unsupported; 0 findings, 0 hints, 1 reviews asked
 ```
 
-Before the summary, the reviews the model asks for ([chapter 5](5-ties-and-evidence.md#what-explain-asks-you-to-review)).
+"Waiting on a review" counts the assumed statements that rest on a
+link no one reviewed: reviewing the links asked for turns them into
+explained. The others assume only requires said in words.
+
+Before the summary, the reviews the model asks for, the links that the
+most assumed statements rest on first ([chapter 5](5-ties-and-evidence.md#what-explain-asks-you-to-review)).
 
 ## blame
 
@@ -75,6 +80,7 @@ rests = 1024           # the most sets of evidence a rule combines, duplicates r
 base_rate = 0.5        # what a statement is expected to be with no evidence
 prior_weight = 2.0     # how many runs uncertainty weighs as
 checker = 1000.0       # how many runs one check by Mitra is
+link = 0.5             # how many runs a link no one reviewed is (`assumed:link`)
 [numbers.voices]       # how many runs one count of a voice is (1.0 when not said)
 "human:ana" = 2.0
 [blame]

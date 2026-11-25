@@ -83,7 +83,7 @@ pub fn suspect(explanation: &Explanation, t: &Taking) -> Suspect {
 }
 
 /// The kind of a suspect, in the order blame doubts them: what only the
-/// model says first, then measurements, reviews, the rules explain
+/// model says first, and the links no one reviewed, then measurements, reviews, the rules explain
 /// wrote, and the proofs the checker took last. A diagnosis is ranked by
 /// the most trusted kind it drops, then the next.
 pub fn kind(explanation: &Explanation, s: &Suspect) -> u8 {
@@ -91,11 +91,11 @@ pub fn kind(explanation: &Explanation, s: &Suspect) -> u8 {
         Suspect::Measurement(_) => 1,
         Suspect::Review(_) => 2,
         Suspect::Taking(t) => match explanation.sources.get(t) {
-            Some(Source::Model) | None => 0,
+            Some(Source::Model | Source::Link) | None => 0,
             Some(Source::Measurement(_)) => 1,
             Some(Source::Review(_)) => 2,
             Some(Source::Written) => 3,
-            Some(Source::Proof) => 4,
+            Some(Source::Proof | Source::Named) => 4,
         },
     }
 }

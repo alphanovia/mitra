@@ -122,6 +122,12 @@ A hint is below a finding: something that may help.
 1. **What the model alone says is taken**, by the voice `model`, count 0,
    so that a failed test can blame it (Reiter's "assumed correct"). It
    weighs nothing, and a verdict built on it alone is unsupported.
+   Except two kinds of it (finding 4, 2026-11-25): a link no one
+   reviewed is taken by `assumed:link`, weighing `[numbers] link` runs
+   (0.5), and a require said in words stays `model`; a verdict that
+   rests only on evidence, checks and these is **assumed**, naming
+   them. A review of a link replaces its taking. A require that names
+   an ensure is taken by the checker: no words of its own.
 2. **The ties are premises of what a measurement says of the model**: a
    measurement is through its ties, so they share its blame.
 3. **A failed test at a point where the model gives the value it

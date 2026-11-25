@@ -46,7 +46,11 @@ fn explain_gives_a_verdict_on_each_proposition() {
     );
     assert!(out.contains("explained    correct(calc::div, (6, 2)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::div_by_two)"), "{out}");
     assert!(out.contains("contradicted calc::div::spec "), "{out}");
-    assert!(out.contains("explain: 20 propositions, 10 explained, 6 contradicted, 4 unsupported; 0 findings, 0 hints, 1 reviews asked"), "{out}");
+    // What rests on a link no one reviewed, and on a require said in
+    // words, is assumed: the line says which, and what a review lifts.
+    assert!(out.contains("assumed      calc::divides 0.54 (b 0.09, d 0.00, u 0.91: 1 for, 0 against, assuming 1 link to review and 1 require the world gives, human:bo)"), "{out}");
+    assert!(out.contains("assumed      calc::inputs 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, assuming 1 require the world gives)"), "{out}");
+    assert!(out.contains("explain: 20 propositions, 10 explained, 3 assumed (2 waiting on a review), 6 contradicted, 1 unsupported; 0 findings, 0 hints, 1 reviews asked"), "{out}");
 }
 
 #[test]
@@ -447,14 +451,14 @@ fn the_assistant_rows_end_to_end() {
     let (code, out) = mitra(&["check", path]);
     assert_eq!(code, 0, "{out}");
     assert!(
-        out.contains("check: well formed; agree: 25 comparisons, 21 hold, 4 findings"),
+        out.contains("check: well formed; agree: 34 comparisons, 28 hold, 6 findings"),
         "{out}"
     );
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
     let text = std::fs::read_to_string(format!("{root}/{path}")).unwrap();
     let wrong = text.replacen(
-        "then Ok(Answer { text: \"hi\"",
-        "then Ok(Answer { text: \"ho\"",
+        "then Reply { text: \"hi\" }",
+        "then Reply { text: \"ho\" }",
         1,
     );
     assert_ne!(wrong, text);
@@ -464,5 +468,5 @@ fn the_assistant_rows_end_to_end() {
     std::fs::write(dir.join("a.mitra"), wrong).unwrap();
     let (_, out) = mitra(&["check", dir.join("a.mitra").to_str().unwrap()]);
     std::fs::remove_dir_all(&dir).unwrap();
-    assert!(out.contains("finding[A006]: `Harness::serve::r`"), "{out}");
+    assert!(out.contains("finding[A006]: `Harness::serve::reply`"), "{out}");
 }

@@ -21,7 +21,7 @@
 //! suspects'.
 
 use crate::blame::{Blame, Diagnosis, Suspect};
-use crate::explain::{Explanation, Source, CHECK};
+use crate::explain::{Explanation, Source, CHECK, LINK};
 use crate::judgement::{Prop, Rests, Taking};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -36,6 +36,10 @@ pub struct Settings {
     /// is: 1,000. It finds the same each time it checks, so one check
     /// weighs more than one run of a test, and it stays a suspect.
     pub checker: f64,
+    /// How many runs a link no one reviewed is (`assumed:link`): 0.5.
+    /// Less than one run of a test: it is only the model's word, taken
+    /// so that what rests on it can be said, assumed.
+    pub link: f64,
     /// How many runs one count of a voice is, by voice: 1 when not said.
     pub voices: BTreeMap<String, f64>,
 }
@@ -46,6 +50,7 @@ impl Default for Settings {
             base_rate: 0.5,
             prior_weight: 2.0,
             checker: 1000.0,
+            link: 0.5,
             voices: BTreeMap::new(),
         }
     }
@@ -70,6 +75,7 @@ impl Settings {
             },
             prior_weight: weight(self.prior_weight),
             checker: weight(self.checker),
+            link: weight(self.link),
             voices: self
                 .voices
                 .iter()
@@ -135,12 +141,14 @@ fn times(x: Said, y: Said) -> Said {
     }
 }
 
-/// Counts read by voice: the checker's by `checker`, unless `voices`
+/// Counts read by voice: the checker's by `checker`, a link's by
+/// `link`, unless `voices`
 /// says otherwise.
 fn weight(t: &Taking, settings: &Settings) -> f64 {
     let w = match settings.voices.get(&t.by) {
         Some(w) => *w,
         None if t.by == CHECK => settings.checker,
+        None if t.by == LINK => settings.link,
         None => 1.0,
     };
     (w * t.count as f64).min(HEAVIEST)

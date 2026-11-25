@@ -21,6 +21,7 @@
 //! base_rate = 0.5
 //! prior_weight = 2.0
 //! checker = 1000.0
+//! link = 0.5              # a link no one reviewed
 //! [numbers.voices]
 //! "human:ana" = 2.0
 //! [blame]
@@ -76,7 +77,7 @@ const SECTIONS: &[(&str, &[&str])] = &[
     ("explain", &["rounds", "cases", "rests"]),
     (
         "numbers",
-        &["base_rate", "prior_weight", "checker", "voices"],
+        &["base_rate", "prior_weight", "checker", "link", "voices"],
     ),
     ("blame", &["diagnoses", "tries"]),
     ("test", &["command"]),
@@ -146,6 +147,7 @@ pub fn read(text: &str) -> Result<Settings> {
                     s.numbers.prior_weight = weight(value, &at, false, &fail)?
                 }
                 ("numbers", "checker") => s.numbers.checker = weight(value, &at, false, &fail)?,
+                ("numbers", "link") => s.numbers.link = weight(value, &at, false, &fail)?,
                 ("numbers", _) => {
                     let DeValue::Table(voices) = value.get_ref() else {
                         return Err(fail(

@@ -63,11 +63,11 @@ fn explain_asks_for_each_link_no_voice_reviewed() {
     let first = e.asks[0].to_string();
     assert_eq!(
         first,
-        "ask[X012]: only the model says that `calc::half::small` gives `calc::halves`: review the link\n --> calc::halves\n  = help: once reviewed, write in the store `review calc::halves from holds by \"human:<name>\";`"
+        "ask[X012]: Mitra takes that `calc::half::small` gives `calc::halves` as written, with no review: what rests on it is assumed; review the link\n --> calc::halves\n  = help: once reviewed, write in the store `review calc::halves from holds by \"human:<name>\";`"
     );
     assert_eq!(
         e.asks[1].message,
-        "only the model says that `calc::half::small` gives `calc::twice`: review the link"
+        "Mitra takes that `calc::half::small` gives `calc::twice` as written, with no review: what rests on it is assumed; review the link"
     );
 }
 

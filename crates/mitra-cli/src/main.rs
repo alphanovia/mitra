@@ -23,7 +23,7 @@ use mitra_lang::blame::{self, Suspect};
 use mitra_lang::catalogue::{Error, Finding, R005};
 use mitra_lang::check::check;
 use mitra_lang::evidence;
-use mitra_lang::explain::{self, Explanation, Source, Verdict, MODEL};
+use mitra_lang::explain::{self, Explanation, Source, Verdict, LINK, MODEL};
 use mitra_lang::judgement::Taking;
 use mitra_lang::model::Model;
 use mitra_lang::numbers::Numbers;
@@ -353,7 +353,8 @@ fn check_out(model: &Model, settings: &agree::Settings) -> ExitCode {
 }
 
 /// What a set of takings rests on, for a person: counts for the
-/// ledger's, voices, and how many only the model says.
+/// ledger's, voices, and how many only the model says (a link no one
+/// reviewed among them).
 fn rest_summary(rest: Option<&std::collections::BTreeSet<Taking>>) -> (u64, Vec<String>, usize) {
     let Some(rest) = rest else {
         return (0, vec![], 0);
@@ -361,7 +362,7 @@ fn rest_summary(rest: Option<&std::collections::BTreeSet<Taking>>) -> (u64, Vec<
     let mut voices: Vec<String> = Vec::new();
     let (mut runs, mut assumed) = (0, 0);
     for t in rest {
-        if t.by == MODEL {
+        if t.by == MODEL || t.by == LINK {
             assumed += 1;
             continue;
         }
@@ -376,11 +377,19 @@ fn rest_summary(rest: Option<&std::collections::BTreeSet<Taking>>) -> (u64, Vec<
 /// Question 2.
 fn explain_out(e: &Explanation, n: &Numbers) {
     let (mut explained, mut contradicted, mut unsupported) = (0, 0, 0);
+    let (mut assumed_n, mut waiting) = (0, 0);
     for v in &e.verdicts {
         let word = match &v.verdict {
             Verdict::Explained => {
                 explained += 1;
                 "explained"
+            }
+            Verdict::Assumed { links, .. } => {
+                assumed_n += 1;
+                if !links.is_empty() {
+                    waiting += 1;
+                }
+                "assumed"
             }
             Verdict::Contradicted { .. } => {
                 contradicted += 1;
@@ -401,8 +410,26 @@ fn explain_out(e: &Explanation, n: &Numbers) {
             voices.push(format!("{more} more"));
         }
         let mut said = vec![format!("{runs} for"), format!("{against} against")];
-        if assumed > 0 {
-            said.push(format!("{assumed} only the model says"));
+        match &v.verdict {
+            // What it assumes, and what a review would lift.
+            Verdict::Assumed { links, requires } => {
+                let many = |n: usize, one: &str, more: &str| match n {
+                    1 => format!("1 {one}"),
+                    _ => format!("{n} {more}"),
+                };
+                let mut what = Vec::new();
+                if !links.is_empty() {
+                    let n = many(links.len(), "link", "links");
+                    what.push(format!("{n} to review"));
+                }
+                if !requires.is_empty() {
+                    let n = many(requires.len(), "require", "requires");
+                    what.push(format!("{n} the world gives"));
+                }
+                said.push(format!("assuming {}", what.join(" and ")));
+            }
+            _ if assumed > 0 => said.push(format!("{assumed} only the model says")),
+            _ => {}
         }
         said.extend(voices);
         out!(
@@ -424,7 +451,7 @@ fn explain_out(e: &Explanation, n: &Numbers) {
         out!("{a}\n");
     }
     out!(
-        "explain: {} propositions, {explained} explained, {contradicted} contradicted, {unsupported} unsupported; {} findings, {} hints, {} reviews asked",
+        "explain: {} propositions, {explained} explained, {assumed_n} assumed ({waiting} waiting on a review), {contradicted} contradicted, {unsupported} unsupported; {} findings, {} hints, {} reviews asked",
         e.verdicts.len(),
         e.findings.len(),
         e.hints.len(),
@@ -464,6 +491,8 @@ fn suspect_text(ledger: &evidence::Ledger, e: &Explanation, s: &Suspect) -> Stri
             let source = match e.sources.get(t) {
                 Some(Source::Model) | None => "only the model says it",
                 Some(Source::Proof) => "a proof the checker took",
+                Some(Source::Named) => "a require naming an ensure, the checker took",
+                Some(Source::Link) => "a link no one reviewed, taken as written",
                 Some(Source::Written) => "a rule explain wrote, the checker took",
                 Some(Source::Measurement(_) | Source::Review(_)) => "evidence",
             };

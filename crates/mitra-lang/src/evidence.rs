@@ -127,13 +127,14 @@ pub(crate) fn port<'m>(index: &Index<'m>, p: &Path) -> Option<Port<'m>> {
 pub const KINDS: [&str; 4] = ["human", "agent", "machine", "test"];
 
 /// What is wrong with a voice the ledger gives, if anything: none, one
-/// not of a kind, or one of Mitra's own (`model`, `machine:mitra-check`),
+/// not of a kind, or one of Mitra's own (`model`, `machine:mitra-check`,
+/// `assumed:link`),
 /// which only explain takes with.
 fn voice_error(by: &str) -> Option<String> {
     if by.is_empty() {
         return Some("it says no voice".to_string());
     }
-    if [crate::explain::MODEL, crate::explain::CHECK].contains(&by) {
+    if [crate::explain::MODEL, crate::explain::CHECK, crate::explain::LINK].contains(&by) {
         let message =
             format!("`{by}` is Mitra's own voice: the ledger says who else saw or said it");
         return Some(message);

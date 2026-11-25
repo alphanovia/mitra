@@ -68,12 +68,13 @@ Each line is a verdict on one thing the model says:
 ```text
 explained    correct(calc::div, (6, 2)) 0.67 (b 0.33, d 0.00, u 0.67: 1 for, 0 against, test:tests::div_by_two)
 unsupported  calc::div::bounded 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, 1 only the model says)
+assumed      calc::inputs 0.50 (b 0.00, d 0.00, u 1.00: 0 for, 0 against, assuming 1 require the world gives)
 …
-ask[X012]: only the model says that (calc::div::spec, calc::inputs) together give `calc::divides`: review the link
+ask[X012]: Mitra takes that (calc::div::spec, calc::inputs) together give `calc::divides` as written, with no review: what rests on it is assumed; review the link
  --> calc::divides
   = help: once reviewed, write in the store `review calc::divides from holds by "human:<name>";`
 
-explain: 17 propositions, 9 explained, 0 contradicted, 8 unsupported; 0 findings, 0 hints, 1 reviews asked
+explain: 17 propositions, 9 explained, 2 assumed (1 waiting on a review), 0 contradicted, 6 unsupported; 0 findings, 0 hints, 1 reviews asked
 ```
 
 - **explained**: the evidence supports it. Here, one passing test says
@@ -81,6 +82,9 @@ explain: 17 propositions, 9 explained, 0 contradicted, 8 unsupported; 0 findings
 - **unsupported**: only the model says it. No test or review speaks of
   the claim `bounded` yet. That is not an error, it is a place where
   trust is missing.
+- **assumed**: it holds if what it assumes holds. `inputs` is a
+  require said in words, what the world must give; a link no one
+  reviewed yet is the other assumption, and the line says "to review".
 - **contradicted**: the evidence goes against it.
 
 The `ask[X012]` line before the summary is a statement only a person

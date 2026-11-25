@@ -36,6 +36,7 @@ rests = 32
 base_rate = 0.25
 prior_weight = 4.0
 checker = 10.0
+link = 0.25
 [numbers.voices]
 \"human:ana\" = 2.5
 [blame]
@@ -67,6 +68,7 @@ command = [\"cargo\", \"test\", \"--release\"]
         ),
         (0.25, 4.0, 10.0)
     );
+    assert_eq!(s.numbers.link, 0.25);
     assert_eq!(s.numbers.voices["human:ana"], 2.5);
     assert_eq!((s.blame.diagnoses, s.blame.tries), (3, 7));
     assert_eq!(s.test.command, ["cargo", "test", "--release"]);
