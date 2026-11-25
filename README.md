@@ -83,7 +83,7 @@ Now suppose the code is wrong, `a / b + 1`, and two tests fail.
 `mitra blame` puts the tie between the model and `src/lib.rs` first:
 
 ```text
-contradicted calc::div at src/lib.rs/div 0.22 (b 0.00, d 0.55, u 0.45: 0 for, 2 against, …)
+contradicted calc::div at src/lib.rs/div 0.32 (b 0.00, d 0.36, u 0.64: 0 for, 3 against, …)
 diagnosis 1 (doubt 0.25): drop calc::div at src/lib.rs/div (only the model says it); …
 ```
 
