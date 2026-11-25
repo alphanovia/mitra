@@ -10,6 +10,8 @@ subject blame {
     fn blame_defaults() -> s: Settings at "crates/mitra-lang/src/blame.rs/Settings/default" {
         Settings { diagnoses: 10, tries: 100000 }
     }
-    ensure minimal: "each diagnosis is a smallest set of suspects whose drop leaves nothing contradicted"
+    // Conflicts are built from the rests explain kept: where it kept fewer
+    // (its rests budget), it says so, and a diagnosis may leave more.
+    ensure minimal: "each diagnosis is a smallest set of suspects whose drop leaves nothing contradicted among the reasons explain kept"
         from (explained);
 }

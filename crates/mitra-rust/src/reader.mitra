@@ -8,12 +8,23 @@ environment cargo {
     ensure kinds: "`cargo test` runs unit tests in `src/` as `Running unittests FILE (…/deps/CRATE-HASH)`, `tests/`, examples and benches as `Running FILE`, doc tests after `Doc-tests CRATE`, and its `test result:` counts the tests it ran";
 }
 
+environment rust {
+    // The reader finds the modules around an item by counting braces
+    // line by line: a brace in a string, a character or a comment moves
+    // a tie into the wrong module, with no finding (finding to fix).
+    ensure braces: "in a file with ties, every brace opens or closes a block";
+}
+
 subject reader {
     use checks from "crates/mitra/src";
     require report: cargo::reports;
     ensure nothing_dropped: "whatever the reader is given and cannot use is a finding of suit R";
-    ensure ties_read: "a `// mitra: implements` comment above a fn, struct or enum ties that item, at file/mods/name"
-        from (report);
+    require braces: rust::braces;
+    // Above a fn, struct, enum, trait or type; named file/mods-and-impls/name.
+    // Only a part or what it holds directly can be named so far: an item
+    // of a part inside a part is not found (finding to fix).
+    ensure ties_read: "a comment above an item saying which piece of the model it implements ties that item, named by its file, the modules around it and its name; the piece is a part or what a part holds directly"
+        from (braces);
     require printed: checks::prints_rows;
     require listed: cargo::binaries;
     ensure rows_read: "each `mitra: row` printed under a test's output is a measurement by that test, of the model's function tied to the Rust path; a row it cannot read or place is R001, one through no tie R007"

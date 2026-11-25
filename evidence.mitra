@@ -34,7 +34,6 @@ review print::reads_back holds by "agent:anthropic/opus-5.5/dogfood" seeing "tes
 review parse::round_trip holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_form_comes_back";
 review parse::first_error holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:errors_say_where";
 review evidence::fits holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:tests/evidence.rs::each_error_is_found";
-review reader::ties_read holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:ties_come_from_comments";
 review agree::no_false_holds holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:div_agrees_with_itself", "test:what_agree_decides_by_bounds_is_true_at_points";
 review agree::heights holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:small_trees_are_tried_as_points";
 review agree::induction holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_claim_by_induction_holds_by_bounds_on_each_variant";
@@ -60,8 +59,6 @@ review check::empty_sets holds by "agent:anthropic/opus-5.5/dogfood" seeing "tes
 review explain::no_points holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_condition_no_point_meets_is_a_finding", "test:empty_is_said_once_and_never_explained";
 review Budget::Budget holds by "agent:anthropic/opus-5.5/dogfood";
 review explain::verdicts holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_hundred_tests_explain_div_everywhere";
-review blame::minimal holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:held_blame_diagnoses_are_hitting_sets";
-review numbers::in_unit holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:held_numbers_invariants";
 review cli::answers holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_gives_a_verdict_on_each_proposition";
 review judgement::and::false_wins holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:dogfood_state_claims_everywhere";
 review judgement::and::true_needs_both holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:dogfood_state_claims_everywhere";
@@ -166,8 +163,6 @@ review cargo::kinds holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:eve
 review reader::every_test holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_unit_test_in_src_measures_by_its_crate_and_module", "test:a_review_sees_unit_and_doc_tests";
 review reader::unread holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_test_mitra_cannot_read_is_a_finding";
 review reader::shapes holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:shapes_that_agree_are_reviewed_as_holding", "test:a_field_on_one_side_is_r011_unless_the_record_has_rest", "test:a_type_that_holds_other_values_is_r012", "test:a_form_mitra_cannot_write_is_r013_and_no_review";
-review explain::asks holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_asks_for_each_link_no_voice_reviewed", "test:a_review_of_a_link_answers_its_ask";
-review cli::runs_tests holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:explain_runs_cargo_test_when_no_report_is_given";
 review checks::prints_rows holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_row_is_the_call_as_written_and_what_it_gave", "test:check_eq_says_the_row_when_it_fails", "test:check_says_the_row_when_it_fails";
 review checks::prints_givens holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_given_is_what_the_environment_gave_and_is_given_back";
 review checks::observed holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:values_are_written_as_mitra_writes_them";

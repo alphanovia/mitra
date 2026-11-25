@@ -31,6 +31,6 @@ subject explain {
     ensure only_known: "a measurement known in part is a taking only where what it knows decides; elsewhere X010 says which field" from (in_part);
     ensure verdicts: "each proposition is explained, assumed, contradicted or unsupported, as judgement gives it from the model and the ledger; assumed names the links no one reviewed and the requires in words it rests on"
         from (checked, fits, kernel, read, given);
-    ensure asks: "each link, an ensure's from list or a require's ensure, and each ensure said only in words, that no review counted names is asked for, X012, with the store line to write"
+    ensure asks: "explain asks for a review of each link no review answers, from what an ensure rests on to the ensure, and of each ensure said only in words, with the line to write once reviewed; a require that names an ensure is that ensure, so it is never asked"
         from (linked);
 }

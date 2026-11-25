@@ -79,11 +79,15 @@ subject numbers {
             }
         }
     } where {
+        // Opinions in [0, 1] adding to 1 give one in [0, 1].
+        claim in_unit: !(0.0 <= x.b && 0.0 <= x.d && 0.0 <= x.u && x.b + x.d + x.u == 1.0 && 0.0 <= x.a && x.a <= 1.0
+                         && 0.0 <= y.b && 0.0 <= y.d && 0.0 <= y.u && y.b + y.d + y.u == 1.0 && 0.0 <= y.a && y.a <= 1.0)
+            || (0.0 <= z.b && z.b <= 1.0 && 0.0 <= z.d && z.d <= 1.0 && 0.0 <= z.u && z.u <= 1.0);
         // Certain truth, with base rate 1, is the unit of multiplication.
         examples { (Said { b: 1.0, d: 0.0, u: 0.0, a: 1.0 }, Said { b: 1/2, d: 1/4, u: 1/4, a: 1/2 })
                    -> Said { b: 1/2, d: 1/4, u: 1/4, a: 1/2 } }
     }
 
-    ensure in_unit: "every number given is in [0, 1], and belief, disbelief and uncertainty add to 1"
-        from (opinion::sums_to_one, opinion::in_unit, near);
+    ensure in_unit: "every number given is between 0 and 1, and belief, disbelief and uncertainty add to 1, up to floating point rounding"
+        from (opinion::sums_to_one, opinion::in_unit, fused::clean_rate, times::in_unit, near);
 }

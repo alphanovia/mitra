@@ -258,10 +258,11 @@ fn the_dogfood_model_is_whole_and_checks() {
     let (code, out) = mitra(&["check", "crates/mitra-cli/src/main.mitra"]);
     assert_eq!(code, 0, "{out}");
     assert!(
-        out.contains("check: well formed; agree: 26 comparisons, 18 hold, 8 findings"),
+        out.contains("check: well formed; agree: 29 comparisons, 20 hold, 9 findings"),
         "{out}"
-    ); // Its ties (`src/simulation.rs/…`) are read from the root, not from
-       // `crates/mitra-cli/src/`: each once, none twice by two spellings.
+    );
+    // Its ties (`src/simulation.rs/…`) are read from the root, not from
+    // `crates/mitra-cli/src/`: each once, none twice by two spellings.
     let (code, out) = mitra(&[
         "explain",
         "crates/mitra-cli/src/main.mitra",
