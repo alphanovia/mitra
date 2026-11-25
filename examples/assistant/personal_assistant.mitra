@@ -25,8 +25,64 @@
 //
 // Names of the pipeline are proposals (2026-11-25). The choices taken on
 // open points are marked CHOICE: each is one line to undo.
+//
+// The system around it (2026-11-25, afternoon): two clients, the Cli and
+// the Wearable; the Server the assistant is deployed on; two machines for
+// the model, a cloud frontier model that is not ours and a smaller model
+// on a machine of ours; and two personas, who use the clients. A happy
+// system: parts, requires and ensures, nothing decomposed yet.
+
+// ---- The people: who uses which client.
+environment Persona1 {
+    ensure uses_cli: "persona 1 sends messages to the assistant through the CLI, typed or spoken";
+}
+environment Persona2 {
+    ensure uses_wearable: "persona 2 speaks to the assistant through the wearable";
+}
+
+// ---- The clients: what a persona sends reaches the server, and the
+// reply comes back to them.
+subject Cli {
+    require persona: Persona1::uses_cli;
+    require server: Server::reachable;
+    ensure delivers: "what persona 1 types or says reaches the server as one message";
+    ensure shows: "the reply is shown, or read out, to persona 1";
+}
+subject Wearable {
+    require persona: Persona2::uses_wearable;
+    require server: Server::reachable;
+    ensure delivers: "what persona 2 says reaches the server as one message";
+    ensure speaks: "the reply is spoken to persona 2, and a light shows at once that it is thinking";
+}
+
+// ---- Where the assistant runs.
+subject Server {
+    ensure hosts: "the assistant is deployed and running on the server";
+    ensure reachable: "the clients reach the server, and the server reaches both model machines";
+}
+
+// ---- The two machines for the model.
+environment CloudLlm {
+    ensure serves: "a provider's frontier model, not ours, answers inference over the network";
+}
+subject LocalLlm {
+    require server: Server::reachable;
+    ensure serves: "a smaller model, on a machine of ours, answers inference";
+}
 
 subject Assistant {
+
+    // Deployed, and reached by both clients.
+    require deployed: Server::hosts;
+    require from_cli: Cli::delivers;
+    require from_wearable: Wearable::delivers;
+    require to_cli: Cli::shows;
+    require to_wearable: Wearable::speaks;
+
+    // The happy system: whichever client a persona uses, their message
+    // gets its reply back there.
+    ensure round_trip: "each persona's message gets its reply back on the client they used"
+        from (deployed, from_cli, from_wearable, to_cli, to_wearable, Harness::answers, Reporter::never_silent);
 
     // ---- What the assistant promises, end to end.
 
@@ -157,6 +213,11 @@ subject Assistant {
     // The model behind inference: stateless, how it answers is not known.
     environment Llm {
         use Result from "std";
+        // Two machines serve the model; one is enough to answer.
+        require cloud: CloudLlm::serves;
+        require local: LocalLlm::serves;
+        ensure available: "inference is answered by the cloud's model or by ours"   // [E]
+            from (cloud) | (local);
         // Its context window holds what it reads and what it writes back;
         // `reserve` is the room kept for the answer (the API's max_tokens).
         // Bytes stand for tokens until a tokenizer part.
