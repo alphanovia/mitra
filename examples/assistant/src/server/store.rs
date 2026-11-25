@@ -54,6 +54,26 @@ impl Stored {
             .iter()
             .any(|a| a.note == Note::Verdict(Verdict::Act))
     }
+    // mitra: implements Stored::vouched
+    pub fn vouched(&self) -> bool {
+        self.notes
+            .iter()
+            .any(|a| matches!(a.note, Note::Sender(p) if p.role != Role::Stranger))
+    }
+    // mitra: implements Stored::read_output
+    pub fn read_output(&self) -> bool {
+        self.notes
+            .iter()
+            .any(|a| matches!(&a.note, Note::Called(o) if Stored::ran(o.clone())))
+    }
+    // mitra: implements Stored::ran
+    pub fn ran(o: Outcome) -> bool {
+        o.output.is_ok()
+    }
+    // mitra: implements Stored::answer_is
+    pub fn answer_is(&self, id: MessageId) -> bool {
+        self.notes.iter().any(|a| a.note == Note::Answered(id))
+    }
     // mitra: implements Stored::speech
     pub fn speech(&self) -> Option<Audio> {
         self.notes.iter().rev().find_map(|a| match &a.note {
@@ -189,20 +209,32 @@ impl ConversationStore {
     pub fn history(&self, h: Holder) -> Conversation {
         let mut turns = vec![];
         for m in &self.messages {
-            if m.id.from == Party::Client(h) && m.answered() && m.acted() {
+            if m.id.from == Party::Client(h) && m.answered() && m.acted() && m.vouched() {
                 if let Some(t) = m.clone().text() {
                     turns.push(Turn::User(t));
-                }
-            } else if m.to == Party::Client(h) {
-                if let Body::Text(t) = &m.body {
-                    turns.push(Turn::Model(Answer {
-                        text: t.clone(),
-                        calls: vec![],
-                    }));
+                    turns.extend(self.reply_turns(m.clone()));
                 }
             }
         }
         Conversation { turns }
+    }
+
+    // mitra: implements ConversationStore::reply_turns
+    pub fn reply_turns(&self, m: Stored) -> Vec<Turn> {
+        if m.read_output() {
+            return vec![];
+        }
+        self.messages
+            .iter()
+            .filter(|r| m.answer_is(r.id))
+            .filter_map(|r| match &r.body {
+                Body::Text(t) => Some(Turn::Model(Answer {
+                    text: t.clone(),
+                    calls: vec![],
+                })),
+                Body::Voice(_) => None,
+            })
+            .collect()
     }
 
     /// The client holders that wrote to this store, in order of first message.

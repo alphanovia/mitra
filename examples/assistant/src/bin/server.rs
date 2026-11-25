@@ -4,10 +4,11 @@
 use assistant::cli::{escape, unescape};
 use assistant::server::local::Local;
 use assistant::vocabulary::*;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// The longest call line read, in bytes: past it, the call is refused.
 const LONGEST_LINE: u64 = 64 * 1024;
@@ -28,20 +29,25 @@ fn main() {
     let (calls, served) = mpsc::channel::<(Vec<u8>, TcpStream)>();
     std::thread::spawn(move || {
         for stream in listener.incoming() {
-            let Ok(stream) = stream else { continue };
+            let Ok(mut stream) = stream else { continue };
+            // At most so many calls being read at once (K14).
+            if OPEN.fetch_add(1, Ordering::SeqCst) >= MOST_OPEN {
+                OPEN.fetch_sub(1, Ordering::SeqCst);
+                let _ = stream.write_all(b"ERR BUSY\n");
+                continue;
+            }
             let calls = calls.clone();
             std::thread::spawn(move || {
-                let _ = stream.set_read_timeout(Some(READ_TIME));
-                let mut line = vec![];
-                let Ok(reader) = stream.try_clone() else {
-                    return;
-                };
-                if BufReader::new(reader.take(LONGEST_LINE))
-                    .read_until(b'\n', &mut line)
-                    .is_ok()
-                    && !line.is_empty()
-                {
-                    let _ = calls.send((line, stream));
+                let line = read_call(&stream);
+                OPEN.fetch_sub(1, Ordering::SeqCst);
+                match line {
+                    Ok(line) => {
+                        let _ = calls.send((line, stream));
+                    }
+                    Err(why) => {
+                        let mut stream = stream;
+                        let _ = stream.write_all(format!("ERR REFUSED {why}\n").as_bytes());
+                    }
                 }
             });
         }
@@ -53,6 +59,46 @@ fn main() {
             Err(_) => "ERR REFUSED not UTF-8\n".to_string(),
         };
         let _ = stream.write_all(answer.as_bytes());
+    }
+}
+
+static OPEN: AtomicUsize = AtomicUsize::new(0);
+/// How many calls may be read at once: a setting (K14).
+const MOST_OPEN: usize = 64;
+
+/// One call's line, read whole before a deadline for the whole line, not
+/// per read (K14). Too slow, too long or empty: refused, out loud.
+fn read_call(stream: &TcpStream) -> Result<Vec<u8>, &'static str> {
+    let deadline = Instant::now() + READ_TIME;
+    let mut stream = stream;
+    let mut line = vec![];
+    let mut byte = [0u8; 1024];
+    loop {
+        let left = deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            return Err("too slow");
+        }
+        let _ = stream.set_read_timeout(Some(left));
+        match stream.read(&mut byte) {
+            Ok(0) => {
+                return if line.is_empty() {
+                    Err("empty")
+                } else {
+                    Ok(line)
+                }
+            }
+            Ok(n) => {
+                line.extend_from_slice(&byte[..n]);
+                if let Some(end) = line.iter().position(|b| *b == b'\n') {
+                    line.truncate(end + 1);
+                    return Ok(line);
+                }
+                if line.len() as u64 > LONGEST_LINE {
+                    return Err("too long");
+                }
+            }
+            Err(_) => return Err("too slow"),
+        }
     }
 }
 

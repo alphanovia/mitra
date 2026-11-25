@@ -50,6 +50,21 @@ subject Stored {
     fn acted(self) -> r: bool {
         self.notes.fold(r: false) { a -> r || a.note == Note::Verdict(Verdict::Act) }
     }
+    // Whether its sender was vouched for: not a stranger (K13).
+    fn vouched(self) -> r: bool {
+        self.notes.fold(r: false) { a -> r || match a.note { Note::Sender(p) => p.role != Role::Stranger, _ => false } }
+    }
+    // Whether a tool's output was read while answering it (K12).
+    fn read_output(self) -> r: bool {
+        self.notes.fold(r: false) { a -> r || match a.note { Note::Called(o) => ran(o), _ => false } }
+    }
+    fn ran(o: Outcome) -> r: bool {
+        match o.output { Ok(_) => true, Err(_) => false }
+    }
+    // Whether the reply of this id answers it.
+    fn answer_is(self, id: MessageId) -> r: bool {
+        self.notes.fold(r: false) { a -> r || a.note == Note::Answered(id) }
+    }
     fn speech(self) -> s: Option<Audio> {
         self.notes.fold(s: Option::None) { a -> match a.note { Note::Speech(v) => Option::Some(v), _ => s } }
     }
@@ -71,6 +86,8 @@ subject Stored {
     use Step from "vocabulary";
     use Verdict from "vocabulary";
     use Holder from "vocabulary";
+    use Role from "vocabulary";
+    use Outcome from "vocabulary";
 }
 
 // What a restart must not lose.
@@ -174,23 +191,31 @@ subject ConversationStore {
         self.messages.fold(es: []) { m -> if m.to == Party::Client(h) && m.id.n > after { es ++ [m] } else { es } }
     }
 
-    // The conversation so far with one client, as the harness reads it:
-    // each message of the client already answered, by its words, and each
-    // reply as the model's answer. The message being worked on is not
-    // answered yet, so it is not in it: the harness adds it.
+    // The conversation so far with one client, as the harness reads it.
     // CHOICE TO CONFIRM (C6): one conversation per device, as one thread
-    // per contact in a messaging app.
-    // Only what the gate judged a request is kept (W6), and only this
-    // holder's (H7): another speaker's words never reach this history.
+    // per contact in a messaging app. Kept: each message of this holder
+    // that the gate judged a request (W6), whose speaker was vouched for
+    // (K13: a stranger's words never come back as the owner's), with its
+    // reply, unless that reply was made after a tool output (K12: a page's
+    // words don't outlive the request that read them). The message being
+    // worked on is not answered yet, so it is not in it.
     fn history(self, h: Holder) -> c: Conversation {
         Conversation { turns: self.messages.fold(ts: []) { m ->
-            if m.id.from == Party::Client(h) && m.answered() && m.acted() {
-                match m.text() { Option::Some(t) => ts ++ [Turn::User(t)], Option::None => ts }
-            } else { if m.to == Party::Client(h) {
-                match m.body { Body::Text(t) => ts ++ [Turn::Model(Answer { text: t, calls: [] })], Body::Voice(_) => ts }
-            } else { ts } }
+            if m.id.from == Party::Client(h) && m.answered() && m.acted() && m.vouched() {
+                match m.text() { Option::Some(t) => ts ++ [Turn::User(t)] ++ self.reply_turns(m), Option::None => ts }
+            } else { ts }
         } }
     }
+    // The reply to a message, as a turn of the model, unless it was made
+    // after a tool output.
+    fn reply_turns(self, m: Stored) -> ts: [Turn] {
+        if m.read_output() { no_turns() } else {
+            self.messages.fold(ts: no_turns()) { r ->
+                if m.answer_is(r.id) { match r.body { Body::Text(t) => ts ++ [Turn::Model(Answer { text: t, calls: [] })], Body::Voice(_) => ts } } else { ts }
+            }
+        }
+    }
+    fn no_turns() -> ts: [Turn] { [] }
 
     ensure kept: "every message and every reply is kept, in the order it came, and survives a restart"
         from (durable, record::kept, fixed_body, append_only);

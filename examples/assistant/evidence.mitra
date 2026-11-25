@@ -10,9 +10,9 @@ review Confirmations::guessing_fails holds by "agent:anthropic/claude/session_01
 review Confirmations::once holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_yes_works_once", "test:a_replayed_yes_runs_nothing";
 review Confirmations::owner_only holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_yes_from_anyone_but_the_owner_runs_nothing", "test:a_strangers_yes_with_the_right_code_runs_nothing";
 review Gateway::delivers holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:hello_is_answered", "test:a_client_starting_again_shows_what_it_has_not_got";
-review Gateway::one_meaning holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:the_same_id_with_other_words_is_refused";
-review Gateway::own_household holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_yes_of_another_household_runs_nothing", "test:a_device_cannot_post_as_another_nor_read_another_household";
-review Gateway::paired_only holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_device_cannot_post_as_another_nor_read_another_household";
+review Gateway::one_meaning holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:the_same_id_with_other_words_is_refused", "test:ids_at_the_edges_are_refused";
+review Gateway::own_household holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_yes_of_another_household_runs_nothing", "test:a_device_cannot_post_as_another_nor_read_another_household", "test:a_reply_meant_for_another_device_cannot_be_acked_or_fetched";
+review Gateway::paired_only holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_device_cannot_post_as_another_nor_read_another_household", "test:a_token_cannot_post_as_another_device_of_its_household_or_another";
 review Gateway::shows_work holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_is_answered_as_interrupted_and_never_run_twice";
 review Gateway::sized holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:server::gateway::tests::a_text_over_the_limit_is_refused", "test:a_message_over_the_limit_is_refused", "test:k8_a_voice_over_the_limit_is_refused";
 review Harness::asks_first holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:an_unclear_ask_is_asked_back";
@@ -26,10 +26,10 @@ review Harness::scored holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m
 review Policy::confirms holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_member_door_waits_for_the_owner_yes";
 review Policy::role_bound holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_stranger_voice_cannot_act", "test:k4_a_stranger_cannot_send_the_conversation_out_through_a_read";
 review Reporter::explains_failure holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:the_cloud_down_is_told_and_not_handed_down";
-review ToolGuard::data_only holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:harness::tools::tests::an_output_is_marked_line_by_line", "test:a_tool_output_cannot_call_a_tool", "test:k6_no_unmarked_line_reaches_the_model", "test:k7_a_call_name_cannot_open_a_line";
+review ToolGuard::data_only holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:harness::tools::tests::an_output_is_marked_line_by_line", "test:a_tool_output_cannot_call_a_tool", "test:k6_no_unmarked_line_reaches_the_model", "test:k7_a_call_name_cannot_open_a_line", "test:k1b_the_gullible_fake_is_stopped_by_the_marks";
 review Worker::in_order holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:server::worker::tests::one_at_a_time_oldest_first";
 review Worker::owner_told holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_member_door_waits_for_the_owner_yes", "test:k2_the_owner_is_told_what_really_asks";
-review Worker::recovers holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_is_answered_as_interrupted_and_never_run_twice";
+review Worker::recovers holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_is_answered_as_interrupted_and_never_run_twice", "test:a_retry_during_or_after_work_is_kept_once_and_worked_once";
 review Worker::speaks_back holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_spoken_question_gets_a_spoken_reply";
 review Worker::takes_up holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_is_answered_as_interrupted_and_never_run_twice";
 review Worker::traced holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:each_step_notes_what_it_decided";
@@ -172,3 +172,19 @@ review Harness::read_output holds by "agent:anthropic/claude/session_01VcLQ3XPVZ
 // Not reviewed: Cli::send (over TCP here, a loop of Network::post in the model);
 // ties of functions with no body in the model (the fake, Reporter, Commands, Gate, Purpose, Speech, Composer):
 // their rows and examples speak for them.
+
+// Round 2 (K12-K14): closed attack tests, read by the building agent.
+review Server::reachable holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_paired_client_is_answered", "test:k10_a_silent_connection_does_not_block_others", "test:k14_a_slow_call_is_cut_off_at_the_time_limit";
+review Accounts::known holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:an_unknown_or_revoked_token_is_refused";
+review Assistant::told holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k11_a_broken_encoding_is_refused_out_loud";
+review Codes::unguessable holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k5_codes_differ_from_one_start_to_the_next";
+review Cli::sends_once holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k9_a_device_keeps_sending_after_the_largest_id";
+// Ties of the K12/K13 helpers, read against the model bodies.
+review Stored::vouched holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Stored::read_output holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Stored::ran holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Stored::answer_is holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review ConversationStore::reply_turns holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+// Left unreviewed on purpose: Assistant::safe and Assistant::private are the
+// top promises. Their attack tests (k1, k2, k12, k13, k3, k4) pass, but the
+// agent that wrote the fixes should not vouch for the whole promise.

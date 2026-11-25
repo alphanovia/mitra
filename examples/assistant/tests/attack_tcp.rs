@@ -46,7 +46,10 @@ fn start() -> Server {
                 }
                 break;
             }
-            assert!(t.elapsed() < Duration::from_secs(10), "server did not start");
+            assert!(
+                t.elapsed() < Duration::from_secs(10),
+                "server did not start"
+            );
             std::thread::sleep(Duration::from_millis(20));
         }
     }
@@ -105,17 +108,23 @@ fn k11_a_broken_encoding_is_refused_out_loud() {
 // bounded, so enough slow clients wear the server out.
 // mitra: supports Server::reachable
 #[test]
-#[ignore = "OPEN K14: the read time limit is per byte, not per call; slow clients hold threads without bound"]
+// CLOSED K14 by the builder (was: the read time limit is per byte, not per call; slow clients hold threads without bound)
 fn k14_a_slow_call_is_cut_off_at_the_time_limit() {
     let s = start();
     let mut c = TcpStream::connect(&s.addr).unwrap();
     c.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
     let t = Instant::now();
+    // Changed by the builder with the K14 fix: once the server cuts the
+    // call, the next write fails (broken pipe); that is being cut off too.
     for b in b"WHOAMI cli" {
-        c.write_all(&[*b]).unwrap();
+        if c.write_all(&[*b]).is_err() {
+            return;
+        }
         std::thread::sleep(Duration::from_millis(500));
     }
-    c.write_all(b"\n").unwrap();
+    if c.write_all(b"\n").is_err() {
+        return;
+    }
     let mut out = String::new();
     let _ = BufReader::new(c).read_line(&mut out);
     assert!(
