@@ -228,7 +228,8 @@ fn reviews_are_takings() {
         of(&e, &named("calc::divides")),
         Verdict::Assumed {
             links: vec![link],
-            requires: vec![named("calc::inputs")]
+            requires: vec![named("calc::inputs")],
+            paths: vec![],
         }
     );
 }

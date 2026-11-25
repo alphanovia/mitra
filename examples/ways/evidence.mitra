@@ -1,0 +1,2 @@
+// What a test of `quarter` saw (examples/ways/model.mitra).
+measure s::quarter (-8.0) -> -2.0 by "test:quarter";

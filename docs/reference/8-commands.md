@@ -80,7 +80,7 @@ rests = 1024           # the most sets of evidence a rule combines, duplicates r
 base_rate = 0.5        # what a statement is expected to be with no evidence
 prior_weight = 2.0     # how many runs uncertainty weighs as
 checker = 1000.0       # how many runs one check by Mitra is
-link = 0.5             # how many runs a link no one reviewed is (`assumed:link`)
+link = 0.5             # how many runs a link no one reviewed is (`assumed:link`), and a way the code went as the model reads it (`assumed:path`)
 [numbers.voices]       # how many runs one count of a voice is (1.0 when not said)
 "human:ana" = 2.0
 [blame]

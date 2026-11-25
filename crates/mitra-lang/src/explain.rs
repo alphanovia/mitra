@@ -45,6 +45,11 @@ pub const CHECK: &str = "machine:mitra-check";
 /// as written. It weighs little (`numbers::Settings::link`), and what
 /// rests on it is assumed, not explained, until a review answers it.
 pub const LINK: &str = "assumed:link";
+/// The voice of a claim of a function a measured run went through, read
+/// at the point the model's run called it: the test saw only the caller,
+/// so that the code went that way, as the model does, is assumed
+/// (finding 14, the user's choice of the reading by the model).
+pub const PATH: &str = "assumed:path";
 
 /// How far explain goes.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -92,6 +97,10 @@ pub enum Verdict {
     Assumed {
         links: Vec<Prop>,
         requires: Vec<Prop>,
+        /// What it reads of a function a measured run went through, at
+        /// the point the model's run called it (`PATH`): the way the
+        /// code went is assumed to be the model's (finding 14).
+        paths: Vec<Prop>,
     },
     /// It follows false from these sets of takings.
     Contradicted { against: Rests },
@@ -125,6 +134,9 @@ pub enum Source {
     /// A require that names an ensure: that ensure by another name, so
     /// the checker takes the link (`CHECK`).
     Named,
+    /// A claim of a function a measured run went through, at the point
+    /// the model's run called it (`PATH`), measurement `usize`'s.
+    Path(usize),
 }
 
 /// What explain gives.
@@ -170,6 +182,7 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
         written: Vec::new(),
         findings: Vec::new(),
         observed: BTreeMap::new(),
+        measured: measured_points(&index, ledger),
     };
     // The links a review answers: those are not taken as written.
     let reviewed: BTreeSet<Prop> = ledger
@@ -493,7 +506,10 @@ fn verdict(opinion: Option<&Opinion>, requires: &BTreeSet<Prop>) -> Verdict {
             against: o.rests_against().clone(),
         };
     }
-    let evidenced = |rest: &BTreeSet<Taking>| rest.iter().all(|t| t.by != MODEL && t.by != LINK);
+    let evidenced = |rest: &BTreeSet<Taking>| {
+        rest.iter()
+            .all(|t| ![MODEL, LINK, PATH].contains(&t.by.as_str()))
+    };
     if o.rests_for().iter().any(evidenced) {
         return Verdict::Explained;
     }
@@ -502,25 +518,54 @@ fn verdict(opinion: Option<&Opinion>, requires: &BTreeSet<Prop>) -> Verdict {
     let assumed = |rest: &BTreeSet<Taking>| {
         let mut links = Vec::new();
         let mut said = Vec::new();
+        let mut paths = Vec::new();
         for t in rest {
             match t.by.as_str() {
                 LINK => links.push(t.prop.clone()),
+                PATH => paths.push(t.prop.clone()),
                 MODEL if requires.contains(&t.prop) => said.push(t.prop.clone()),
                 MODEL => return None,
                 _ => {}
             }
         }
-        Some((links, said))
+        Some((links, said, paths))
     };
     let fewest = o
         .rests_for()
         .iter()
         .filter_map(assumed)
-        .min_by(|(l, r), (m, s)| (l.len(), r.len(), l, r).cmp(&(m.len(), s.len(), m, s)));
+        .min_by(|(l, r, p), (m, s, q)| {
+            (l.len(), r.len(), p.len(), l, r, p).cmp(&(m.len(), s.len(), q.len(), m, s, q))
+        });
     match fewest {
-        Some((links, requires)) => Verdict::Assumed { links, requires },
+        Some((links, requires, paths)) => Verdict::Assumed {
+            links,
+            requires,
+            paths,
+        },
         None => Verdict::Unsupported,
     }
+}
+
+/// Each function and point a measurement saw the system give at.
+fn measured_points(index: &Index, ledger: &Ledger) -> BTreeSet<(String, Vec<Value>)> {
+    let mut points = BTreeSet::new();
+    for m in ledger.measurements.iter().filter(|m| m.seen) {
+        let given: BTreeMap<&Path, &Value> = m.inputs.iter().map(|(p, v)| (p, v)).collect();
+        for (o, _) in &m.outputs {
+            let Some(port) = port(index, o) else { continue };
+            let args: Option<Vec<Value>> = port
+                .function
+                .takes
+                .iter()
+                .map(|(n, _)| given.get(&port.at.then(n)).map(|v| (*v).clone()))
+                .collect();
+            if let Some(args) = args {
+                points.insert((port.at.to_string(), args));
+            }
+        }
+    }
+    points
 }
 
 /// What opaque functions gave where nothing said what they should: by
@@ -545,6 +590,9 @@ struct Given<'a, 'm> {
     /// What opaque functions gave where nothing said what they should:
     /// by function and point, each measurement and value.
     observed: Observed,
+    /// Each function and point a test saw it give at: there, what its
+    /// claims say is read from what it gave, not from a caller's run.
+    measured: BTreeSet<(String, Vec<Value>)>,
 }
 
 impl Given<'_, '_> {
@@ -678,6 +726,95 @@ impl Given<'_, '_> {
             prop.clone(),
         );
         self.written.push((f.clone(), prop));
+    }
+
+    /// The claims of each function the model's run of `path` at `x`
+    /// called, and of the record each gave, read at the point it was
+    /// called: each instance taken by `PATH`, for the test saw only the
+    /// caller, and written from the claim, the run the test saw and the
+    /// ties (finding 14). A point a test saw itself is left to it.
+    #[allow(clippy::too_many_arguments)]
+    fn ways(
+        &mut self,
+        i: usize,
+        exact: &Exact,
+        call: &Expression<Op>,
+        args: &BTreeMap<String, Value>,
+        (path, x): (&str, &[Value]),
+        ran: &Prop,
+        point: &str,
+    ) {
+        let logged = Exact {
+            log: crate::simulation::Log::kept(),
+            ..exact.clone()
+        };
+        let _ = eval(&logged, args, call);
+        let mut seen = BTreeSet::new();
+        for (g, at) in logged.log.bodies() {
+            if (g.as_str() == path && at.as_slice() == x)
+                || self.measured.contains(&(g.clone(), at.clone()))
+                || !seen.insert((g.clone(), at.clone()))
+            {
+                continue;
+            }
+            let Some(function) = self.index.functions.get(g.as_str()).copied() else {
+                continue;
+            };
+            let (gcall, gargs) = call_at(&g, &at);
+            let Ok(gave) = eval(exact, &gargs, &gcall) else {
+                continue;
+            };
+            let called = format!("{g}{}", print::values(&at));
+            let way = format!(" on the way of {path} at {point}");
+            let mut values: BTreeMap<String, Value> = function
+                .takes
+                .iter()
+                .map(|(n, _)| n.clone())
+                .zip(at.iter().cloned())
+                .collect();
+            values.insert(function.gives.0.clone(), gave.clone());
+            let mut said: Vec<(String, String, Value)> = Vec::new();
+            for c in &function.claims {
+                if let Ok(Value::Truth(b)) = eval(exact, &values, &c.holds) {
+                    let claim = format!("{g}::{}", c.name);
+                    let instance = format!("{claim} at {}", print::values(&at));
+                    said.push((claim, instance, Value::Truth(b)));
+                }
+            }
+            let records = &self.index.records;
+            for (claim, _, agreement) in crate::agree::record_claims(records, exact, &gave) {
+                let b = match agreement {
+                    crate::agree::Agreement::Holds => true,
+                    crate::agree::Agreement::Fails { .. } => false,
+                    _ => continue,
+                };
+                // A record claim's path: its part, the record, the claim.
+                let Some((record, name)) = claim.rsplit_once("::") else {
+                    continue;
+                };
+                let whole = format!("{record}::{}::{name}", crate::model::own(record));
+                let instance = format!("{whole} of what {called} gave");
+                said.push((whole, instance, Value::Truth(b)));
+            }
+            for (claim, instance, b) in said {
+                let Value::Truth(b) = b else { continue };
+                let instance = Prop::Named(format!("{instance}{way}"));
+                self.take(instance.clone(), b, 1, PATH, Source::Path(i));
+                let mut through = BTreeSet::from([g.clone(), path.to_string()]);
+                through.extend(self.reach([call]));
+                let pre = [
+                    vec![ran.clone(), Prop::Named(claim.clone())],
+                    self.ties(&through),
+                ]
+                .concat();
+                let name = match instance {
+                    Prop::Named(ref n) => format!("{n}, by its ties"),
+                    _ => continue,
+                };
+                self.write(name, pre, instance.clone());
+                self.written.push((self.index.path_of(&claim), instance));
+            }
+        }
     }
 
     /// Each value the measurement gives or saw, against the claims of
@@ -1031,6 +1168,12 @@ impl Given<'_, '_> {
                     instance.clone(),
                 );
                 self.written.push((claim, instance));
+            }
+            // The functions its run went through, as the model runs it:
+            // the claims of each, at the point it was called (finding
+            // 14). Only where the system gave what the model gives.
+            if m.seen && correct == Some(true) {
+                self.ways(i, &exact, &call, &args, (&path, &x), &ran, &point);
             }
         }
         for (p, _) in &m.inputs {

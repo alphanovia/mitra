@@ -138,6 +138,7 @@ fn voice_error(by: &str) -> Option<String> {
         crate::explain::MODEL,
         crate::explain::CHECK,
         crate::explain::LINK,
+        crate::explain::PATH,
     ]
     .contains(&by)
     {

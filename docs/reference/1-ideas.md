@@ -52,7 +52,9 @@ claims live on tests and reviews.
 - **assumed**: evidence supports it, but only together with
   assumptions: a link no one reviewed yet (an ensure's `from` list,
   which a review lifts), or a require said in words (what the world
-  must give, which no review of the model lifts). The line says which;
+  must give, which no review of the model lifts), or the way a measured
+  run went through the functions it calls, as the model reads it
+  (`assumed:path`, [chapter 5](5-ties-and-evidence.md#the-functions-a-measured-run-went-through)). The line says which;
 - **contradicted**: evidence goes against it;
 - **unsupported**: only the model says it.
 

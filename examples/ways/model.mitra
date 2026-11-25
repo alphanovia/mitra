@@ -1,0 +1,15 @@
+// A measured caller checks its callees' claims (finding 14): the test
+// of `quarter` saw only `quarter`, at -8.0; explain reads `half`'s
+// claim where the model's run called it, at -8.0 and -4.0, the way the
+// code went assumed to be the model's.
+//
+//     mitra explain model.mitra --no-test --store evidence.mitra
+//
+// `smaller` is false for negative numbers: check says so too (A001).
+
+subject s {
+    fn half(x: rational) -> y: rational at "src/lib.rs/half" { x / 2.0 } where {
+        claim smaller: y <= x;
+    }
+    fn quarter(x: rational) -> y: rational at "src/lib.rs/quarter" { half(half(x)) }
+}

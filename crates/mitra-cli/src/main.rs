@@ -23,7 +23,7 @@ use mitra_lang::blame::{self, Suspect};
 use mitra_lang::catalogue::{Error, Finding, R005};
 use mitra_lang::check::check;
 use mitra_lang::evidence;
-use mitra_lang::explain::{self, Explanation, Source, Verdict, LINK, MODEL};
+use mitra_lang::explain::{self, Explanation, Source, Verdict, LINK, MODEL, PATH};
 use mitra_lang::judgement::Taking;
 use mitra_lang::model::Model;
 use mitra_lang::numbers::Numbers;
@@ -366,6 +366,10 @@ fn rest_summary(rest: Option<&std::collections::BTreeSet<Taking>>) -> (u64, Vec<
             assumed += 1;
             continue;
         }
+        // Said on its own: a way the code went, as the model reads it.
+        if t.by == PATH {
+            continue;
+        }
         runs += t.count;
         if !voices.contains(&t.by) {
             voices.push(t.by.clone());
@@ -410,9 +414,28 @@ fn explain_out(e: &Explanation, n: &Numbers) {
             voices.push(format!("{more} more"));
         }
         let mut said = vec![format!("{runs} for"), format!("{against} against")];
+        // A way a measured run went, read by the model (finding 14):
+        // said on the line, for or against.
+        let ways = [r_for, r_against]
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|t| t.by == PATH)
+            .count();
+        let ways_said = match ways {
+            0 => None,
+            1 => Some("assuming 1 way the code went as the model reads it".to_string()),
+            n => Some(format!(
+                "assuming {n} ways the code went as the model reads it"
+            )),
+        };
         match &v.verdict {
             // What it assumes, and what a review would lift.
-            Verdict::Assumed { links, requires } => {
+            Verdict::Assumed {
+                links,
+                requires,
+                paths,
+            } => {
                 let many = |n: usize, one: &str, more: &str| match n {
                     1 => format!("1 {one}"),
                     _ => format!("{n} {more}"),
@@ -426,7 +449,20 @@ fn explain_out(e: &Explanation, n: &Numbers) {
                     let n = many(requires.len(), "require", "requires");
                     what.push(format!("{n} the world gives"));
                 }
-                said.push(format!("assuming {}", what.join(" and ")));
+                if !paths.is_empty() && what.is_empty() {
+                    said.extend(ways_said.clone());
+                } else if !what.is_empty() {
+                    said.push(format!("assuming {}", what.join(" and ")));
+                    if !paths.is_empty() {
+                        said.extend(ways_said.clone());
+                    }
+                }
+            }
+            _ if ways > 0 => {
+                said.extend(ways_said.clone());
+                if assumed > 0 {
+                    said.push(format!("{assumed} only the model says"));
+                }
             }
             _ if assumed > 0 => said.push(format!("{assumed} only the model says")),
             _ => {}
@@ -493,6 +529,9 @@ fn suspect_text(ledger: &evidence::Ledger, e: &Explanation, s: &Suspect) -> Stri
                 Some(Source::Proof) => "a proof the checker took",
                 Some(Source::Named) => "a require naming an ensure, the checker took",
                 Some(Source::Link) => "a link no one reviewed, taken as written",
+                Some(Source::Path(_)) => {
+                    "read where the model's run called it: the code assumed to go that way"
+                }
                 Some(Source::Written) => "a rule explain wrote, the checker took",
                 Some(Source::Measurement(_) | Source::Review(_)) => "evidence",
             };

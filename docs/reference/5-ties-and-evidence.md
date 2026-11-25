@@ -113,6 +113,34 @@ listed (R004), never dropped silently.
 A measurement is always through a tie: a test of a function with no tie
 is reported (R007), since it would say nothing of the real system.
 
+### The functions a measured run went through
+
+A test of `quarter` saw only what `quarter` gave. Where that is what
+the model gives, explain also runs the model's `quarter` at that point,
+and reads the claims of each function it calls, and of the record each
+gives, at the point the model called it:
+
+```mitra
+subject s {
+    fn half(x: rational) -> y: rational at "src/lib.rs/half" { x / 2.0 } where {
+        claim smaller: y <= x;
+    }
+    fn quarter(x: rational) -> y: rational at "src/lib.rs/quarter" { half(half(x)) }
+}
+```
+
+```text
+contradicted s::half::smaller at (-8.0) on the way of s::quarter at (-8.0) … assuming 1 way the code went as the model reads it
+contradicted s::half::smaller … assuming 1 way the code went as the model reads it
+```
+
+The test did not see `half` called: that the code went the model's way
+is assumed, taken by Mitra's own voice `assumed:path` (weighed as a
+link no one reviewed, `[numbers] link`), and each line that rests on it
+says so. A point a test saw itself (`half` at -8.0, measured) is read
+from what it saw instead. Where the system gave another value than the
+model, or the test failed, nothing is read on the way.
+
 ## Tests that write what they saw
 
 The `mitra` test crate (`crates/mitra`, a dev-dependency) writes the

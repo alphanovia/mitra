@@ -1187,11 +1187,14 @@ pub struct Exact {
     pub log: Log,
 }
 
-/// The calls a run made to functions with no body: path and arguments,
-/// in order. Kept only when asked, `Log::kept()`; any two are equal, as
-/// it says nothing of the reading.
+/// The calls a run made, in order: to functions with no body, and to
+/// those with one (finding 14). Kept only when asked, `Log::kept()`; any
+/// two are equal, as it says nothing of the reading.
 #[derive(Clone, Debug, Default)]
-pub struct Log(Option<Arc<std::sync::Mutex<Vec<Made>>>>);
+pub struct Log(Option<Arc<std::sync::Mutex<Vec<Logged>>>>);
+
+/// One call of a log, and whether the function has a body.
+type Logged = (Made, bool);
 
 /// A call made: the path of the function, and its arguments.
 pub type Made = (String, Vec<Value>);
@@ -1208,18 +1211,33 @@ impl Log {
     pub fn kept() -> Log {
         Log(Some(Arc::default()))
     }
-    /// The calls kept so far, in order; none when not kept.
+    /// The calls to functions with no body kept so far, in order; none
+    /// when not kept.
     pub fn calls(&self) -> Vec<(String, Vec<Value>)> {
+        self.made(false)
+    }
+    /// The calls to functions with a body kept so far, in order: the
+    /// way the model's run went (finding 14).
+    pub fn bodies(&self) -> Vec<(String, Vec<Value>)> {
+        self.made(true)
+    }
+    fn made(&self, body: bool) -> Vec<(String, Vec<Value>)> {
         match &self.0 {
-            Some(l) => l.lock().unwrap_or_else(|e| e.into_inner()).clone(),
+            Some(l) => l
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .iter()
+                .filter(|(_, b)| *b == body)
+                .map(|(m, _)| m.clone())
+                .collect(),
             None => vec![],
         }
     }
-    fn push(&self, f: &str, args: &[Value]) {
+    fn push(&self, f: &str, args: &[Value], body: bool) {
         if let Some(l) = &self.0 {
             l.lock()
                 .unwrap_or_else(|e| e.into_inner())
-                .push((f.to_string(), args.to_vec()));
+                .push(((f.to_string(), args.to_vec()), body));
         }
     }
 }
@@ -1244,6 +1262,7 @@ impl Exact {
             }
         }
         if let Some(body) = &callee.body {
+            self.log.push(f, args, true);
             let gives = self.body(f, callee, body, args);
             return match (&gives, &callee.ranges.gives) {
                 (Ok(v), Some((q, range))) if !range.holds(v) => {
@@ -1255,7 +1274,7 @@ impl Exact {
                 _ => gives,
             };
         }
-        self.log.push(f, args);
+        self.log.push(f, args, false);
         let given: Vec<_> = self.calls.given.get(f).into_iter().flatten().collect();
         let written = |at: &[Option<Value>]| {
             at.len() == args.len() && at.iter().zip(args).all(|(a, v)| a.as_ref() == Some(v))

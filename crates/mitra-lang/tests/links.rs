@@ -103,14 +103,16 @@ fn what_rests_on_a_link_is_assumed() {
         of(&e, &named("high::uses")),
         Verdict::Assumed {
             links: vec![link(&["high::named"], "high::uses")],
-            requires: vec![]
+            requires: vec![],
+            paths: vec![],
         }
     );
     assert_eq!(
         of(&e, &named("high::needs")),
         Verdict::Assumed {
             links: vec![link(&["high::named", "high::world"], "high::needs")],
-            requires: vec![named("high::world")]
+            requires: vec![named("high::world")],
+            paths: vec![],
         }
     );
     // Of two lists, the one that assumes the least.
@@ -118,7 +120,8 @@ fn what_rests_on_a_link_is_assumed() {
         of(&e, &named("high::both")),
         Verdict::Assumed {
             links: vec![link(&["high::named"], "high::both")],
-            requires: vec![]
+            requires: vec![],
+            paths: vec![],
         }
     );
     // Fewest links first, then fewest requires: a review is what the
@@ -127,11 +130,15 @@ fn what_rests_on_a_link_is_assumed() {
         of(&e, &named("high::either")),
         Verdict::Assumed {
             links: vec![link(&["high::named", "high::world"], "high::either")],
-            requires: vec![named("high::world")]
+            requires: vec![named("high::world")],
+            paths: vec![],
         }
     );
     // Through two links, both named.
-    let Verdict::Assumed { links, requires } = of(&e, &named("high::top")) else {
+    let Verdict::Assumed {
+        links, requires, ..
+    } = of(&e, &named("high::top"))
+    else {
         panic!("top is not assumed");
     };
     assert_eq!(links.len(), 3, "{links:?}");
@@ -141,7 +148,8 @@ fn what_rests_on_a_link_is_assumed() {
         of(&e, &named("high::world")),
         Verdict::Assumed {
             links: vec![],
-            requires: vec![named("high::world")]
+            requires: vec![named("high::world")],
+            paths: vec![],
         }
     );
     // An ensure said only in words is no assumption: unsupported.
