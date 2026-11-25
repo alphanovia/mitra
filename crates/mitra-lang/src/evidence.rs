@@ -29,6 +29,10 @@ pub struct Measurement {
     pub seen: bool,
     pub count: u64,
     pub by: String,
+    /// The calls to functions with no body the system made, as `then`
+    /// lists them after the value (BDD step 2): each one the model's run
+    /// does not make counts against it.
+    pub effects: crate::model::Effects,
 }
 
 /// Someone says the claim, rule, require, ensure or tied item at `prop`

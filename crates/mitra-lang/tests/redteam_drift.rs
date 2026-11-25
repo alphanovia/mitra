@@ -180,6 +180,7 @@ subject calc {
             seen: true,
             count: 1,
             by: "test:hot".to_string(),
+            effects: Default::default(),
         }],
         reviews: vec![],
     };

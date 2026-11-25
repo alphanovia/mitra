@@ -177,6 +177,7 @@ fn a_test_that_passed_saw_its_row_and_one_that_failed_did_not() {
         seen,
         count: 1,
         by: format!("test:tests::{test}"),
+        effects: Default::default(),
     };
     assert_eq!(
         found,

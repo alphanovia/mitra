@@ -41,6 +41,7 @@ fn divided(a: i64, b: i64, q: i64) -> Measurement {
         seen: true,
         count: 1,
         by: "test:div_by_two".to_string(),
+        effects: Default::default(),
     }
 }
 fn review(p: &str, by: &str) -> Review {
@@ -141,6 +142,7 @@ fn a_measurement_is_through_a_tie() {
             seen: true,
             count: 3,
             by: "human:ana".to_string(),
+            effects: Default::default(),
         };
         let ledger = Ledger {
             measurements: vec![m],
@@ -171,6 +173,7 @@ fn a_measurement_is_through_a_tie() {
         seen: false,
         count: 1,
         by: "human:ana".to_string(),
+        effects: Default::default(),
     };
     let ledger = Ledger {
         measurements: vec![drop],

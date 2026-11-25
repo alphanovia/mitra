@@ -1182,6 +1182,46 @@ fn fits_fields<X>(these: &[X], r: &Record, right: impl Fn(&X, &Type) -> bool) ->
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Exact {
     pub calls: Arc<Calls>,
+    /// When kept, each call to a function with no body, in the order
+    /// the run made it (BDD step 2): what the run did to the world.
+    pub log: Log,
+}
+
+/// The calls a run made to functions with no body: path and arguments,
+/// in order. Kept only when asked, `Log::kept()`; any two are equal, as
+/// it says nothing of the reading.
+#[derive(Clone, Debug, Default)]
+pub struct Log(Option<Arc<std::sync::Mutex<Vec<Made>>>>);
+
+/// A call made: the path of the function, and its arguments.
+pub type Made = (String, Vec<Value>);
+
+impl PartialEq for Log {
+    fn eq(&self, _: &Log) -> bool {
+        true
+    }
+}
+impl Eq for Log {}
+
+impl Log {
+    /// A log that keeps the calls.
+    pub fn kept() -> Log {
+        Log(Some(Arc::default()))
+    }
+    /// The calls kept so far, in order; none when not kept.
+    pub fn calls(&self) -> Vec<(String, Vec<Value>)> {
+        match &self.0 {
+            Some(l) => l.lock().unwrap_or_else(|e| e.into_inner()).clone(),
+            None => vec![],
+        }
+    }
+    fn push(&self, f: &str, args: &[Value]) {
+        if let Some(l) = &self.0 {
+            l.lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .push((f.to_string(), args.to_vec()));
+        }
+    }
 }
 
 impl Exact {
@@ -1215,6 +1255,7 @@ impl Exact {
                 _ => gives,
             };
         }
+        self.log.push(f, args);
         let given: Vec<_> = self.calls.given.get(f).into_iter().flatten().collect();
         let written = |at: &[Option<Value>]| {
             at.len() == args.len() && at.iter().zip(args).all(|(a, v)| a.as_ref() == Some(v))
@@ -1232,6 +1273,16 @@ impl Exact {
         }
         match callee.rows.iter().find(|(at, _)| at.as_slice() == args) {
             Some((_, gives)) => Ok(gives.clone()),
+            // `()` is the one value of its type: a call made for what it
+            // does gives it, with no row (BDD step 2).
+            None if callee.gives == tuple(vec![]) => Ok(Value::Record(
+                Record {
+                    name: String::new(),
+                    args: vec![],
+                    fields: vec![],
+                },
+                vec![],
+            )),
             None => Err(Fault::Op(Undefined::Unknown(f.to_string()))),
         }
     }
@@ -1240,15 +1291,20 @@ impl Exact {
         {
             let key = (f.to_string(), args.to_vec());
             let memo = &self.calls.memo.exact;
+            // A run whose calls are kept runs each body: one remembered
+            // would make its calls unseen.
+            let kept = self.log.0.is_some();
             if let Some(known) = memo.lock().unwrap_or_else(|e| e.into_inner()).get(&key) {
-                return known.clone();
+                if !kept {
+                    return known.clone();
+                }
             }
             let active = self.calls.enter(f)?;
             let names = callee.takes.iter().map(|(n, _)| n.clone());
             let gives = eval(self, &names.zip(args.iter().cloned()).collect(), body);
             drop(active);
             // A budget reached depends on the way here: not remembered.
-            if !matches!(gives, Err(Fault::Op(Undefined::Budget(_)))) {
+            if !kept && !matches!(gives, Err(Fault::Op(Undefined::Budget(_)))) {
                 memo.lock()
                     .unwrap_or_else(|e| e.into_inner())
                     .insert(key, gives.clone());

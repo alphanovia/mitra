@@ -188,6 +188,12 @@ review calc::div::spec holds by "human:bo";
   by cases. `when f(x) then y` alone is `f (x) -> y`. A given the store
   cannot read (a function with a body, none of the model, given twice,
   or not of its types) is R006.
+- `measure when Notes::save("hi") then 2, Disk::write("notes.txt", "hi") by "voice";`
+  says what the function gave, then the calls the system made to the
+  environment. Each listed call the model's run does not make, `_` any
+  argument, counts against `correct(Notes::save, ("hi"))`. The value
+  comes first; a call no function with no body of the model takes is
+  R006. A measurement that `failed` compares no call.
 - `review path holds by "voice";` (or `fails`) is one voice's judgement
   of a claim, rule, require, ensure, or tied item.
 - `review path from holds by "voice";` reviews a **link** instead: that

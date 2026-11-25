@@ -59,6 +59,7 @@ fn measured(
         seen,
         count: 1,
         by: by.to_string(),
+        effects: Default::default(),
     }
 }
 fn divided(a: i64, b: i64, q: i64, by: &str) -> Measurement {

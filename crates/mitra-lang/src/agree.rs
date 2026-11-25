@@ -16,7 +16,9 @@
 //!
 //! It reads a model `check` accepts: on another, it compares nothing.
 
-use crate::catalogue::{Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010};
+use crate::catalogue::{
+    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011,
+};
 use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
 use crate::model::{calls, contract_claims, Function, Index, Model, ModelExample, Path};
@@ -88,6 +90,13 @@ pub enum Agreement {
     /// Not decided: why, and how far it looked.
     Unknown {
         why: String,
+    },
+    /// A call a row's `then` lists, which the run did not make (BDD step
+    /// 2): the call as written, and the calls to functions with no body
+    /// it made, in order.
+    Uncalled {
+        call: String,
+        made: Vec<String>,
     },
 }
 
@@ -210,6 +219,7 @@ impl<'m> Reading<'m> {
         Reading {
             exact: Exact {
                 calls: library.clone(),
+                log: Default::default(),
             },
             ranges: std::cell::RefCell::new(Ranges {
                 calls: library.clone(),
@@ -240,6 +250,7 @@ impl<'m> Reading<'m> {
         }
         Exact {
             calls: std::sync::Arc::new(calls),
+            log: Default::default(),
         }
     }
 
@@ -333,9 +344,22 @@ impl<'m> Reading<'m> {
             }
             // Each example: the body at its point.
             for (i, (e, row)) in f.examples.iter().zip(&rows).enumerate() {
-                let exact = self.in_world(&e.given);
-                let agreement = match eval(&exact, &row.iter().cloned().collect(), body) {
-                    Ok(v) => match matches(&v, &e.gives) {
+                let exact = Exact {
+                    log: match e.effects.0.is_empty() {
+                        true => Default::default(),
+                        false => crate::simulation::Log::kept(),
+                    },
+                    ..self.in_world(&e.given)
+                };
+                let ran = eval(&exact, &row.iter().cloned().collect(), body);
+                for (call, agreement) in calls_made(&exact.log, &e.effects) {
+                    push(format!("example {i}: the call `{call}`"), agreement);
+                }
+                let Some(expected) = &e.gives else {
+                    continue;
+                };
+                let agreement = match ran {
+                    Ok(v) => match matches(&v, expected) {
                         Ok(true) => Agreement::Holds,
                         Ok(false) => Agreement::Fails {
                             at: row.clone(),
@@ -360,9 +384,12 @@ impl<'m> Reading<'m> {
         // Each example against each claim, the example's value read as what
         // the function gives.
         for (i, (e, row)) in f.examples.iter().zip(&rows).enumerate() {
+            let Some(expected) = &e.gives else {
+                continue;
+            };
             for c in &f.claims {
                 let mut values: BTreeMap<String, Value> = row.iter().cloned().collect();
-                values.insert(f.gives.0.clone(), e.gives.clone());
+                values.insert(f.gives.0.clone(), expected.clone());
                 let agreement = match eval(&self.in_world(&e.given), &values, &c.holds) {
                     Ok(Value::Truth(true)) => Agreement::Holds,
                     Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
@@ -372,7 +399,7 @@ impl<'m> Reading<'m> {
                     // False, or no value: a claim with none does not hold.
                     _ => Agreement::Fails {
                         at: row.clone(),
-                        gives: Some(e.gives.clone()),
+                        gives: Some(expected.clone()),
                     },
                 };
                 push(format!("example {i} against claim `{}`", c.name), agreement);
@@ -528,7 +555,7 @@ impl<'m> Reading<'m> {
             .examples
             .iter()
             .zip(rows)
-            .map(|(e, row)| gives(row, &e.gives))
+            .filter_map(|(e, row)| e.gives.as_ref().map(|v| gives(row, v)))
             .collect();
         let keeps = |point: &[(String, Value)]| {
             eval(&self.exact, &point.iter().cloned().collect(), &all) == Ok(Value::Truth(true))
@@ -1168,14 +1195,17 @@ impl<'m> Reading<'m> {
             };
             // What the function's own examples say there.
             for (j, e) in port.function.examples.iter().enumerate() {
+                let Some(expected) = &e.gives else {
+                    continue;
+                };
                 if e.takes != args || !e.given.0.is_empty() {
                     continue;
                 }
-                let agreement = match matches(v, &e.gives) {
+                let agreement = match matches(v, expected) {
                     Ok(true) => Agreement::Holds,
                     Ok(false) => Agreement::Fails {
                         at: named(&port.function.takes, &args),
-                        gives: Some(e.gives.clone()),
+                        gives: Some(expected.clone()),
                     },
                     Err(g) => Agreement::Unknown {
                         why: format!("`{g}` is not known, and only it could tell"),
@@ -1201,7 +1231,29 @@ impl<'m> Reading<'m> {
         }
         let exact = Exact {
             calls: Arc::new(library),
+            log: Default::default(),
         };
+        // The calls the run of `when` makes, as `then` lists them.
+        if let Some((f, args, _)) = example
+            .when
+            .as_ref()
+            .filter(|_| !example.effects.0.is_empty())
+        {
+            let logged = Exact {
+                log: crate::simulation::Log::kept(),
+                ..exact.clone()
+            };
+            let (call, bound) = call_at(&f.to_string(), args);
+            let _ = eval(&logged, &bound, &call);
+            for (written, agreement) in calls_made(&logged.log, &example.effects) {
+                agreed.push(Agreed {
+                    at: at.clone(),
+                    against: format!("the call `{written}`"),
+                    agreement,
+                    given: vec![],
+                });
+            }
+        }
         for (p, expected) in &example.outputs {
             let Some(port) = port(index, p) else { continue };
             let Some(args) = args_of(&port.at, port.function) else {
@@ -1243,12 +1295,13 @@ impl<'m> Reading<'m> {
     /// function takes, a value of the world its computation calls for,
     /// and what that function takes, are read; nothing else is.
     fn unread(&self, index: &Index, at: &Path, example: &ModelExample) -> Vec<Finding> {
-        let outputs: BTreeSet<String> = example
+        let mut outputs: BTreeSet<String> = example
             .outputs
             .iter()
             .filter_map(|(p, _)| port(index, p))
             .map(|port| port.at.to_string())
             .collect();
+        outputs.extend(example.when.iter().map(|(f, _, _)| f.to_string()));
         let mut reached = outputs.clone();
         for f in &outputs {
             if let Some(body) = self.functions.get(f).and_then(|f| f.body.as_ref()) {
@@ -1557,6 +1610,10 @@ fn kept(start: Agreement, turn: Agreement) -> Result<(), String> {
         }
         (Agreement::Unknown { why }, _) => Err(format!("its start is not decided: {why}")),
         (_, Agreement::Unknown { why }) => Err(format!("a turn is not decided: {why}")),
+        // Never of a claim: only a row's call is uncalled.
+        (Agreement::Uncalled { call, .. }, _) | (_, Agreement::Uncalled { call, .. }) => {
+            Err(format!("`{call}` is not made"))
+        }
     }
 }
 
@@ -1594,6 +1651,41 @@ pub fn hints(agreed: &[Agreed]) -> Vec<Hint> {
         .collect()
 }
 
+/// Each call `effects` lists, and whether the run whose calls `log`
+/// kept made it, at least once, `_` any argument.
+fn calls_made(
+    log: &crate::simulation::Log,
+    effects: &crate::model::Effects,
+) -> Vec<(String, Agreement)> {
+    let made = log.calls();
+    effects
+        .0
+        .iter()
+        .map(|(f, args)| {
+            let written = print::effects(&crate::model::Effects(vec![(f.clone(), args.clone())]));
+            let fits = |(g, at): &(String, Vec<Value>)| {
+                g == f
+                    && at.len() == args.len()
+                    && at
+                        .iter()
+                        .zip(args)
+                        .all(|(v, a)| a.as_ref().is_none_or(|a| a == v))
+            };
+            let agreement = match made.iter().any(fits) {
+                true => Agreement::Holds,
+                false => Agreement::Uncalled {
+                    call: written.clone(),
+                    made: made
+                        .iter()
+                        .map(|(g, at)| format!("`{g}{}`", print::values(at)))
+                        .collect(),
+                },
+            };
+            (written, agreement)
+        })
+        .collect()
+}
+
 fn finding(a: &Agreed) -> Option<Finding> {
     let point = |at: &[(String, Value)]| {
         let shown: Vec<String> = at
@@ -1612,6 +1704,16 @@ fn finding(a: &Agreed) -> Option<Finding> {
     let (code, message): (Code, String) = match &a.agreement {
         Agreement::Holds => return None,
         Agreement::Unknown { why } => (A007, format!("{}: unknown, {why}", a.against)),
+        Agreement::Uncalled { call: _, made } => {
+            let made = match made.is_empty() {
+                true => "it calls no function with no body".to_string(),
+                false => format!("it calls {}", made.join(", ")),
+            };
+            (
+                A011,
+                format!("{}: the run does not make it; {made}", a.against),
+            )
+        }
         Agreement::Fails { at, gives: g } => {
             let against = &a.against;
             if a.at.names.first().map(String::as_str) == Some("examples") {

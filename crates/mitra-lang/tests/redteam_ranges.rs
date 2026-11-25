@@ -104,7 +104,7 @@ proptest! {
                     let p = every.iter().find(|p| [p.0.0, p.0.1] == point[..]);
                     prop_assert!(p.is_some_and(|p| !keeps(p)), "{} fails at {:?}, which is in no range or keeps it\n{}", a.against, point, text);
                 }
-                Agreement::Unknown { .. } => {}
+                Agreement::Unknown { .. } | Agreement::Uncalled { .. } => {}
             }
         }
     }
@@ -130,7 +130,7 @@ proptest! {
         let by_bounds = eval(&Ranges { calls: library.clone() }, &bounds, &e);
         for x in xl..=xl + xw {
             let at = BTreeMap::from([("x".to_string(), int(x))]);
-            let exact = eval(&Exact { calls: library.clone() }, &at, &e);
+            let exact = eval(&Exact { calls: library.clone(), log: Default::default() }, &at, &e);
             prop_assert!(covers(&Type::Int, &by_bounds, &exact), "x = {}: {:?} not in {:?}\n{}", x, exact, by_bounds, text);
         }
     }

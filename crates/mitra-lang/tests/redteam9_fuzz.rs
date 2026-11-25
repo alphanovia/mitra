@@ -103,6 +103,7 @@ fn agree_on_finite_domains() {
         assert_eq!(check(&m0), vec![], "{text0}");
         let exact = Exact {
             calls: Arc::new(calls(&m0).unwrap()),
+            log: Default::default(),
         };
         let body_e = m0.parts[0].functions[0].body.clone().unwrap();
         let mut rows = vec![];
@@ -292,6 +293,7 @@ fn agree_on_numbers_by_bounds() {
         }
         let exact = Exact {
             calls: Arc::new(calls(&model).unwrap()),
+            log: Default::default(),
         };
         let (agreed, _) = agree(
             &model,

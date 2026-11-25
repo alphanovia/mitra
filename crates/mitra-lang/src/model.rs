@@ -195,7 +195,9 @@ pub struct ModelExample {
     pub given: Given,
     /// `when Harness::serve(…) then …`, as written, until the model is
     /// read whole: then its inputs and its output (`settle_worlds`).
-    pub when: Option<(Path, Vec<Value>, Value)>,
+    pub when: Option<(Path, Vec<Value>, Option<Value>)>,
+    /// What the run does to the world, as `then` lists it.
+    pub effects: Effects,
     /// The part holding parts it is written in, if any: it is written
     /// there again.
     pub within: Option<String>,
@@ -310,11 +312,21 @@ pub struct Function {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Example {
     pub takes: Vec<simulation::Value>,
-    pub gives: simulation::Value,
+    /// What it gives; `None` when `then` lists only calls (BDD step 2).
+    pub gives: Option<simulation::Value>,
     /// What the environment gave (finding 16): `given sun::light() ->
     /// 2.0 when (5.0) then 10.0`. None, for a row `(5.0) -> 10.0`.
     pub given: Given,
+    /// What the run does to the world, after the value in `then`:
+    /// `then 0, Disk::write("a.txt", "x")` (BDD step 2).
+    pub effects: Effects,
 }
+
+/// Calls a run makes to functions with no body, as `then` lists them
+/// (BDD step 2): each by its path and arguments, `None` for `_`. Each is
+/// made, in any order, with others unlisted not compared.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Effects(pub Vec<(String, Vec<Option<Value>>)>);
 
 /// What the environment gave, as an example says it (findings 16, 30):
 /// each a function with no body by its path, what it was called with,
@@ -1089,7 +1101,7 @@ pub fn calls(model: &Model) -> Result<Calls, BTreeSet<String>> {
                 .examples
                 .iter()
                 .filter(|e| e.given.0.is_empty())
-                .map(|e| (e.takes.clone(), e.gives.clone()));
+                .filter_map(|e| Some((e.takes.clone(), e.gives.clone()?)));
             let path = Path::to(&[&part.name, &f.name]);
             // With no body, its claims promise what it gives.
             let promises = f.body.is_none().then(|| simulation::Promises {
@@ -1194,15 +1206,38 @@ pub fn settle_worlds(model: &mut Model) {
             *v = crate::parse::settle_value(v.clone(), &out.1);
         }
     };
+    // Each call `then` lists, so too: by its whole path, its arguments
+    // read by what it takes.
+    let settle_calls = |effects: &mut Effects| {
+        for (g, args) in &mut effects.0 {
+            if let Some([one]) = paths.get(g.as_str()).map(Vec::as_slice) {
+                *g = one.clone();
+            }
+            if let Some((takes, _)) = functions
+                .get(g.as_str())
+                .filter(|(t, _)| t.len() == args.len())
+            {
+                for (a, (_, t)) in args.iter_mut().zip(takes) {
+                    if let Some(a) = a {
+                        *a = crate::parse::settle_value(a.clone(), t);
+                    }
+                }
+            }
+        }
+    };
     for part in &mut model.parts {
         for f in &mut part.functions {
-            f.examples.iter_mut().for_each(|e| settle(&mut e.given));
+            for e in &mut f.examples {
+                settle(&mut e.given);
+                settle_calls(&mut e.effects);
+            }
         }
     }
     // A row `when f(x) then y` of the model: the inputs of `f` and its
     // output, as ports. One that names no function stays: check says so.
     for e in &mut model.examples {
         settle(&mut e.given);
+        settle_calls(&mut e.effects);
         let Some((f, args, gives)) = &e.when else {
             continue;
         };
@@ -1216,9 +1251,14 @@ pub fn settle_worlds(model: &mut Model) {
             let v = crate::parse::settle_value(v.clone(), t);
             e.inputs.push((f.then(n), v));
         }
-        let v = crate::parse::settle_value(gives.clone(), &out.1);
-        e.outputs.push((f.then(&out.0), v));
-        e.when = None;
+        if let Some(gives) = gives {
+            let v = crate::parse::settle_value(gives.clone(), &out.1);
+            e.outputs.push((f.then(&out.0), v));
+        }
+        // What it calls is read by running `when` again: it stays.
+        if e.effects.0.is_empty() {
+            e.when = None;
+        }
     }
 }
 

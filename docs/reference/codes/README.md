@@ -71,6 +71,7 @@ example, and the fix. The letter says which step found it.
 - [A008](A008.md): two examples at one point that differ
 - [A009](A009.md): an input of a model example no output reads
 - [A010](A010.md): a comparison that holds given the claims of a function with no body
+- [A011](A011.md): a call a row's `then` lists that the run does not make
 
 ## R (reader): `mitra:` comments in code and the test report
 

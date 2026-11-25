@@ -191,7 +191,59 @@ pub fn measured(
         seen,
         count,
         by,
+        effects: Default::default(),
     })
+}
+
+/// `m`, with the calls the system made, as `then` lists them (BDD
+/// step 2): each to a function with no body of the model, by its whole
+/// path, its arguments read by what it takes; R006 otherwise.
+pub fn with_calls(
+    model: &Model,
+    mut m: Measurement,
+    effects: crate::model::Effects,
+) -> Result<Measurement, (Code, String)> {
+    for (g, args) in effects.0 {
+        let path = Path {
+            names: g.split("::").map(str::to_string).collect(),
+        };
+        let Some((at, f)) = function_at(model, &path) else {
+            return Err((
+                R006,
+                format!("`{g}` in `then` is no function of the model, or names several"),
+            ));
+        };
+        if f.body.is_some() {
+            return Err((
+                R006,
+                format!("`{at}` in `then` has a body: `then` lists calls the run made to the world, each a function with no body"),
+            ));
+        }
+        let n = args.len();
+        let args: Vec<Option<Value>> = args
+            .into_iter()
+            .zip(&f.takes)
+            .map(|(a, (_, t))| a.map(|a| crate::parse::settle_value(a, t)))
+            .collect();
+        let fits = n == f.takes.len()
+            && args
+                .iter()
+                .zip(&f.takes)
+                .all(|(a, (_, t))| a.as_ref().is_none_or(|a| type_of(a) == *t));
+        if !fits {
+            let types: Vec<String> = f.takes.iter().map(|(_, t)| print::type_(t)).collect();
+            return Err((
+                R006,
+                format!(
+                    "`{}` in `then` is not of `{at}`, which takes ({})",
+                    print::effects(&crate::model::Effects(vec![(at.to_string(), args)])),
+                    types.join(", ")
+                ),
+            ));
+        }
+        m.effects.0.push((at.to_string(), args));
+    }
+    Ok(m)
 }
 
 /// `m`, with what the environment gave the run (finding 16): each row
@@ -366,14 +418,26 @@ fn read_with(
             let path = Path {
                 names: p.raw_path()?,
             };
-            let (takes, gives) = match bdd {
+            let (takes, gives, effects) = match bdd {
                 true => {
                     let takes = p.values()?;
                     p.expect_word("then")?;
-                    (takes, p.value()?)
+                    let at = p.pos();
+                    let (gives, effects) = p.then_list()?;
+                    let Some(gives) = gives else {
+                        return Err(crate::parse::error(
+                            crate::catalogue::P003,
+                            at,
+                            "a measurement's `then` says what the function gave first, then the calls it made: `then 0, Disk::write(\"a.txt\", \"x\")`",
+                        ));
+                    };
+                    (takes, gives, effects)
                 }
                 false if !world.0.is_empty() => return p.expected("`when`"),
-                false => p.row()?,
+                false => {
+                    let (takes, gives) = p.row()?;
+                    (takes, gives, Default::default())
+                }
             };
             let count = match p.eat_word("count") {
                 true => p.number()? as u64,
@@ -384,7 +448,8 @@ fn read_with(
             let by = p.string()?;
             p.expect(";")?;
             let m = measured(model, ties, &path, &takes, &gives, seen, count, by)
-                .and_then(|m| with_world(model, m, &world));
+                .and_then(|m| with_world(model, m, &world))
+                .and_then(|m| with_calls(model, m, effects));
             match m {
                 Ok(m) => ledger.measurements.push(m),
                 Err((code, message)) => findings.push(finding(code, file, line, message)),
@@ -596,7 +661,7 @@ pub fn print_store(ledger: &Ledger) -> String {
             n => format!(" count {n}"),
         };
         let failed = if m.seen { "" } else { " failed" };
-        match world.is_empty() {
+        match world.is_empty() && m.effects.0.is_empty() {
             true => {
                 let row = print::print_row(&takes, &gives);
                 out.push_str(&format!(
@@ -604,13 +669,18 @@ pub fn print_store(ledger: &Ledger) -> String {
                     m.by
                 ));
             }
-            false => out.push_str(&format!(
-                "measure given {} when {function}{} then {}{count}{failed} by {:?};\n",
-                world.join(", "),
-                print::values(&takes),
-                print::value(&gives),
-                m.by
-            )),
+            false => {
+                let given = match world.is_empty() {
+                    true => String::new(),
+                    false => format!("given {} ", world.join(", ")),
+                };
+                out.push_str(&format!(
+                    "measure {given}when {function}{} then {}{count}{failed} by {:?};\n",
+                    print::values(&takes),
+                    print::then(Some(&gives), &m.effects),
+                    m.by
+                ))
+            }
         }
     }
     for r in &ledger.reviews {

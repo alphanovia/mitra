@@ -117,18 +117,21 @@ pub fn check(model: &Model) -> Vec<Error> {
                 }
             }
             let of_types = |e: &crate::model::Example| {
-                let row = e.takes.iter().chain([&e.gives]);
-                let types = function.takes.iter().chain([&function.gives]);
                 e.takes.len() == function.takes.len()
-                    && row
-                        .zip(types)
+                    && e.takes
+                        .iter()
+                        .zip(&function.takes)
                         .all(|(v, (_, t))| Exact::default().has_type(v, t))
+                    && e.gives
+                        .as_ref()
+                        .is_none_or(|v| Exact::default().has_type(v, &function.gives.1))
             };
             // Each range holds a number (M025); each example lies in them (M026).
             errors.extend(empty_ranges(function, &here));
             for (i, example) in function.examples.iter().enumerate() {
                 let named = function.takes.iter().map(|(n, _)| n).zip(&example.takes);
-                for (n, v) in named.chain([(&function.gives.0, &example.gives)]) {
+                let gives = example.gives.iter().map(|v| (&function.gives.0, v));
+                for (n, v) in named.chain(gives) {
                     if let Some(range) = range_of(function, n) {
                         if !range.holds(v) && matches!(v, Value::Int(_)) {
                             let message = format!(
@@ -144,7 +147,7 @@ pub fn check(model: &Model) -> Vec<Error> {
                     let message = format!("example {i} is not of the types of `{}`", function.name);
                     errors.push(error(M015, &here, message));
                 }
-                let row = example.takes.iter().chain([&example.gives]);
+                let row = example.takes.iter().chain(&example.gives);
                 if !row.into_iter().all(|v| value_made(&index, v)) {
                     let message = format!("example {i} makes a record other than as declared");
                     errors.push(error(M004, &here, message));
@@ -157,21 +160,24 @@ pub fn check(model: &Model) -> Vec<Error> {
                 for message in given_wrong(&index, &example.given) {
                     errors.push(error(M022, &here, format!("example {i}: {message}")));
                 }
+                for message in effects_wrong(&index, &example.effects) {
+                    errors.push(error(M022, &here, format!("example {i}: {message}")));
+                }
                 // In one world: two worlds may give two values.
                 let first = function.examples[..i]
                     .iter()
                     .all(|e| e.takes != example.takes || e.given != example.given);
                 let others = function.examples.iter().enumerate().skip(i + 1);
                 for (j, other) in others.filter(|(_, o)| first && fits && of_types(o)) {
-                    if other.takes == example.takes
-                        && other.given == example.given
-                        && other.gives != example.gives
-                    {
+                    let (Some(a), Some(b)) = (&example.gives, &other.gives) else {
+                        continue;
+                    };
+                    if other.takes == example.takes && other.given == example.given && a != b {
                         let message = format!(
                             "examples {i} and {j} are both at {}, giving {} and {}",
                             crate::print::values(&example.takes),
-                            crate::print::value(&example.gives),
-                            crate::print::value(&other.gives),
+                            crate::print::value(a),
+                            crate::print::value(b),
                         );
                         errors.push(error(M024, &here, message));
                     }
@@ -1484,7 +1490,13 @@ fn model_example(index: &Index, i: usize, example: &crate::model::ModelExample) 
     let at = Path::to(&["examples", &i.to_string()]);
     let mut errors = Vec::new();
     // `when f(x)` left as written: `f` is no function taking as many.
-    if let Some((f, args, _)) = &example.when {
+    let named = |f: &Path, n: usize| {
+        index
+            .functions
+            .get(f.to_string().as_str())
+            .is_some_and(|g| g.takes.len() == n)
+    };
+    if let Some((f, args, _)) = example.when.as_ref().filter(|(f, a, _)| !named(f, a.len())) {
         let message = format!(
             "`when {f}{}`: `{f}` is no function of the model taking {} arguments",
             crate::print::values(args),
@@ -1494,6 +1506,9 @@ fn model_example(index: &Index, i: usize, example: &crate::model::ModelExample) 
         return errors;
     }
     for message in given_wrong(index, &example.given) {
+        errors.push(error(M022, &at, message));
+    }
+    for message in effects_wrong(index, &example.effects) {
         errors.push(error(M022, &at, message));
     }
     // The function of a port, and the type of the port; whether it is
@@ -1515,8 +1530,9 @@ fn model_example(index: &Index, i: usize, example: &crate::model::ModelExample) 
             None => None,
         }
     };
-    if example.outputs.is_empty() {
-        let message = "it states no output: an example of the model says what the model gives";
+    if example.outputs.is_empty() && example.effects.0.is_empty() {
+        let message =
+            "it states no output: an example of the model says what the model gives, or calls";
         errors.push(error(M021, &at, message.to_string()));
     }
     // What the model is given is not what it gives: a value on both
@@ -1812,6 +1828,29 @@ fn given_wrong(index: &Index, given: &crate::model::Given) -> Vec<String> {
             wrong.push(format!(
                 "`{}` in `given` is not what a function with no body of the model gives, by its whole path, as it takes and gives",
                 row.trim_start().trim_start_matches("given ")
+            ));
+        }
+    }
+    wrong
+}
+
+/// Each call a `then` lists that is not one to a function with no body
+/// of the model, by its whole path, as it takes (BDD step 2).
+fn effects_wrong(index: &Index, effects: &crate::model::Effects) -> Vec<String> {
+    let mut wrong = Vec::new();
+    for (f, args) in &effects.0 {
+        let fits = index.functions.get(f.as_str()).is_some_and(|g| {
+            g.body.is_none()
+                && args.len() == g.takes.len()
+                && args
+                    .iter()
+                    .zip(&g.takes)
+                    .all(|(a, (_, t))| a.as_ref().is_none_or(|a| Exact::default().has_type(a, t)))
+        });
+        if !fits {
+            wrong.push(format!(
+                "`{}` in `then` is not a call to a function with no body of the model, by its whole path, as it takes",
+                crate::print::effects(&crate::model::Effects(vec![(f.clone(), args.clone())]))
             ));
         }
     }

@@ -257,14 +257,17 @@ fn bounds_cover_the_parts_a_function_gives() {
     let ranges = Ranges {
         calls: library.clone(),
     };
-    let exact = Exact { calls: library };
+    let exact = Exact {
+        calls: library,
+        log: Default::default(),
+    };
     let any = BTreeMap::from([("t".to_string(), Bounds::any(&tree))]);
     let bounds = eval(&ranges, &any, body);
     assert_eq!(f.examples.len(), 4);
     for e in &f.examples {
         let at = BTreeMap::from([("t".to_string(), e.takes[0].clone())]);
         let given = eval(&exact, &at, body);
-        assert_eq!(given.as_ref().ok(), Some(&e.gives));
+        assert_eq!(given.as_ref().ok(), e.gives.as_ref());
         assert!(covers(&tree, &bounds, &given), "{bounds:?} {given:?}");
     }
 }

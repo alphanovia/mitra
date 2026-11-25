@@ -1,0 +1,27 @@
+// What a run does to the world: a body calls the environment for what
+// the call does, `e; r` as in Rust, and a row's `then` lists the calls
+// after the value. Each listed call is made at least once, `_` any
+// argument; calls not listed are not compared.
+
+environment Disk {
+    fn write(path: [~char], body: [~char]) -> ok: ();
+}
+
+subject Notes {
+    use Disk::write;
+    // A note is saved to a file, and gives its length; an empty one is not.
+    fn save(n: [~char]) -> r: integer {
+        if n == "" { 0 } else { write("notes.txt", n); n.len() }
+    } where {
+        examples {
+            when ("hi") then 2, Disk::write("notes.txt", "hi"),
+            when ("hello") then Disk::write(_, "hello"),
+            ("") -> 0
+        }
+    }
+}
+
+// End to end: the call, then what it gives and what it writes.
+examples {
+    when Notes::save("ok") then 2, Disk::write("notes.txt", _)
+}

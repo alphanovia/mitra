@@ -93,6 +93,33 @@ in the world given; `given` may stand in front of that form too. A
 error (M022), a `when` naming no function of the model too (M021), and a
 `given` no run reads is a finding (A009).
 
+### What a run does to the world
+
+A body calls the environment for what the call does in a block, `e;
+r`. `then` lists such calls after the value, or alone. From
+[examples/language/calls.mitra](../../examples/language/calls.mitra):
+
+```mitra
+        examples {
+            when ("hi") then 2, Disk::write("notes.txt", "hi"),
+            when ("hello") then Disk::write(_, "hello"),
+            ("") -> 0
+        }
+```
+
+Each listed call is to a function with no body (M022 otherwise), and the
+run makes it at least once, with those arguments, `_` any: one it does
+not make is a finding (A011), which lists the calls it made. Calls not
+listed are not compared. A call is told from a value by its name,
+lowercase as a function's, where a variant's is `CamelCase`. A row of
+the whole model lists them too:
+
+```mitra
+examples {
+    when Notes::save("ok") then 2, Disk::write("notes.txt", _)
+}
+```
+
 ## What `mitra check` does with them
 
 `check` compares everything the model says twice:

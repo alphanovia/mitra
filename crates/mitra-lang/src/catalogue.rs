@@ -128,6 +128,7 @@ pub const A007: Code = agree(7);
 pub const A008: Code = agree(8);
 pub const A009: Code = agree(9);
 pub const A010: Code = agree(10);
+pub const A011: Code = agree(11);
 
 const fn evidence(number: u16) -> Code {
     Code {
@@ -327,6 +328,10 @@ pub const CATALOGUE: &[Entry] = &[
     entry(
         A010,
         "a comparison that holds given the claims of a function with no body",
+    ),
+    entry(
+        A011,
+        "a call a row's `then` lists that the run does not make",
     ),
     entry(V001, "a measurement that names no input or output"),
     entry(V002, "a measurement through no tie"),

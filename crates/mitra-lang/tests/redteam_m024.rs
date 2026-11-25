@@ -170,6 +170,7 @@ fn held_given_to_a_body_is_refused_so_ranges_cover_exact() {
     let exact = eval(
         &Exact {
             calls: calls.clone(),
+            log: Default::default(),
         },
         &BTreeMap::new(),
         &e,
@@ -206,7 +207,14 @@ fn held_given_is_type_checked() {
             .unwrap_or_else(|same| same),
     );
     let e = apply(Op::Call("f".into()), vec![int(1)]);
-    let got = eval(&Exact { calls }, &BTreeMap::new(), &e);
+    let got = eval(
+        &Exact {
+            calls,
+            log: Default::default(),
+        },
+        &BTreeMap::new(),
+        &e,
+    );
     assert!(
         !matches!(got, Ok(Value::Truth(_))),
         "an integer function gave {got:?}"

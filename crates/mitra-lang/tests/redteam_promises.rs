@@ -132,6 +132,7 @@ fn sound(text: &str) -> Result<bool, TestCaseError> {
                 .unwrap();
             let exact = Exact {
                 calls: Arc::new(world),
+                log: Default::default(),
             };
             let x_only = BTreeMap::from([("x".to_string(), int(x))]);
             let y = eval(&exact, &x_only, f.body.as_ref().unwrap());

@@ -176,6 +176,21 @@ fn each_finding_is_given() {
         ["hint[A010]: claim `slow` holds, given `sun::light::bright`\n --> stone::speed"]
     );
     given.insert("A010".to_string());
+    // A call `then` lists that the run does not make.
+    let text = FALL.replace(
+        "fn light() -> w: rational;",
+        "fn light() -> w: rational;\n    fn mark(n: integer) -> ok: ();",
+    )
+        + "\nexamples {\n    given sun::light() -> 2.0 when stone::speed(5.0) then sun::mark(1)\n}";
+    let (_, found) = agree(&model(&text), &Settings::default());
+    let found: Vec<String> = found.iter().map(|f| f.to_string()).collect();
+    assert!(
+        found.iter().any(|f| f.starts_with(
+            "finding[A011]: the call `sun::mark(1)`: the run does not make it; it calls `sun::light()`"
+        )),
+        "{found:?}"
+    );
+    given.insert("A011".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Agree && !e.retired);

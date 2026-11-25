@@ -100,7 +100,7 @@ proptest! {
         // No points: what agree decides, it decides by bounds alone.
         let settings = Settings { points: 0, ..Settings::default() };
         let (agreed, findings) = agree(&model, &settings);
-        let exact = Exact { calls: Arc::new(calls(&model).unwrap()) };
+        let exact = Exact { calls: Arc::new(calls(&model).unwrap()), log: Default::default() };
         let f = &model.parts[0].functions[0];
         let at = |p: &BTreeMap<String, Value>| -> BTreeMap<String, Value> {
             let mut p = p.clone();

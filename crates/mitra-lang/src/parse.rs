@@ -81,7 +81,7 @@ impl ParseError {
 
 type Result<T> = std::result::Result<T, ParseError>;
 
-fn error(code: Code, at: Pos, message: impl Into<String>) -> ParseError {
+pub(crate) fn error(code: Code, at: Pos, message: impl Into<String>) -> ParseError {
     ParseError {
         code,
         at,
@@ -1288,12 +1288,13 @@ impl<'c> Parser<'c> {
             };
             let args = self.values()?;
             self.expect_word("then")?;
-            let gives = self.value()?;
+            let (gives, effects) = self.then_list()?;
             return Ok(ModelExample {
                 inputs: vec![],
                 outputs: vec![],
                 given,
                 when: Some((f, args, gives)),
+                effects,
                 within: self.part.clone(),
             });
         }
@@ -1335,6 +1336,7 @@ impl<'c> Parser<'c> {
             outputs,
             given: crate::model::Given::default(),
             when: None,
+            effects: Default::default(),
             within: self.part.clone(),
         })
     }
@@ -1742,11 +1744,15 @@ impl<'c> Parser<'c> {
                 for (v, (_, t)) in e.takes.into_iter().zip(&function.takes) {
                     takes.push(self.settled_value(v, t, at)?);
                 }
-                let gives = self.settled_value(e.gives, &function.gives.1, at)?;
+                let gives = match e.gives {
+                    Some(v) => Some(self.settled_value(v, &function.gives.1, at)?),
+                    None => None,
+                };
                 rows.push(Example {
                     takes,
                     gives,
                     given: e.given,
+                    effects: e.effects,
                 });
             }
             function.examples = rows;
@@ -2150,11 +2156,12 @@ impl<'c> Parser<'c> {
         if self.eat_word("when") {
             let takes = self.values()?;
             self.expect_word("then")?;
-            let gives = self.value()?;
+            let (gives, effects) = self.then_list()?;
             return Ok(Example {
                 takes,
                 gives,
                 given,
+                effects,
             });
         }
         if !given.0.is_empty() {
@@ -2163,9 +2170,59 @@ impl<'c> Parser<'c> {
         let (takes, gives) = self.row()?;
         Ok(Example {
             takes,
-            gives,
+            gives: Some(gives),
             given,
+            effects: Default::default(),
         })
+    }
+
+    /// After `then`: what it gives, then the calls the run makes, each to
+    /// a function with no body, `then 0, Disk::write("a.txt", _)`; or the
+    /// calls alone (BDD step 2). A call is told from a value by its name,
+    /// lowercase as a function's, where a variant's is `CamelCase`.
+    pub(crate) fn then_list(&mut self) -> Result<(Option<Value>, crate::model::Effects)> {
+        let gives = match self.call_at(0) {
+            true => None,
+            false => {
+                let v = self.value()?;
+                if !(self.is(",") && self.call_at(1)) {
+                    return Ok((Some(v), Default::default()));
+                }
+                self.bump();
+                Some(v)
+            }
+        };
+        let mut calls = Vec::new();
+        loop {
+            let path = self.raw_path()?.join("::");
+            self.expect("(")?;
+            let args = self.list(")", |p| match p.eat_word("_") {
+                true => Ok(None),
+                false => p.value().map(Some),
+            })?;
+            calls.push((path, args));
+            if !(self.is(",") && self.call_at(1)) {
+                break;
+            }
+            self.bump();
+        }
+        Ok((gives, crate::model::Effects(calls)))
+    }
+    /// At `i` tokens on, a call: a path whose last name is lowercase, then
+    /// `(`; `when` and `given` begin a row.
+    fn call_at(&self, mut i: usize) -> bool {
+        if matches!(self.peek_at(i), Tok::Word(w) if w == "when" || w == "given") {
+            return false;
+        }
+        loop {
+            match (self.peek_at(i), self.peek_at(i + 1)) {
+                (Tok::Word(_), Tok::Sym("::")) => i += 2,
+                (Tok::Word(w), Tok::Sym("(")) => {
+                    return w.starts_with(|c: char| c.is_lowercase() || c == '_')
+                }
+                _ => return false,
+            }
+        }
     }
     /// `(a, b, …)`: a list of values, in parentheses.
     pub(crate) fn values(&mut self) -> Result<Vec<Value>> {

@@ -42,6 +42,7 @@ fn divided(a: i64, b: i64, q: i64, seen: bool) -> Measurement {
         seen,
         count: 1,
         by: format!("test:div_{a}_{b}"),
+        effects: Default::default(),
     }
 }
 fn right(a: i64, b: i64) -> i64 {
@@ -243,6 +244,7 @@ fn each_finding_is_given() {
         seen,
         count: 1,
         by: "test:t".to_string(),
+        effects: Default::default(),
     };
     let five = real(5, 1);
     let cases = [

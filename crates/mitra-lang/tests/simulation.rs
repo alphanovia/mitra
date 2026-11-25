@@ -187,6 +187,7 @@ impl Gen {
     fn exact(&self) -> Exact {
         Exact {
             calls: self.calls.clone(),
+            log: Default::default(),
         }
     }
     fn ranges(&self) -> Ranges {
@@ -1555,6 +1556,7 @@ fn a_thousand_levels_of_calls() {
                     eval(
                         &Exact {
                             calls: calls.clone(),
+                            log: Default::default(),
                         },
                         &BTreeMap::new(),
                         &e,
@@ -1617,7 +1619,10 @@ fn rows_are_read_only_without_a_body() {
         ..callee(&[("a", Type::Int)], Type::Int, None)
     };
     let calls = Arc::new(library(vec![("f", both), ("g", same)]).unwrap());
-    let exact = Exact { calls };
+    let exact = Exact {
+        calls,
+        log: Default::default(),
+    };
     let at_one = |f: &str| eval(&exact, &BTreeMap::new(), &call(f, vec![int(1)]));
     assert_eq!(at_one("f"), Ok(n(2)));
     assert_eq!(at_one("g"), Ok(n(2)));
@@ -1644,6 +1649,7 @@ fn rows_are_read_only_without_a_body() {
     assert!(lib.clone().given("h", vec![n(1)], n(7)).is_err());
     let exact = Exact {
         calls: Arc::new(lib.given("g", vec![n(1)], n(7)).unwrap()),
+        log: Default::default(),
     };
     assert_eq!(
         eval(&exact, &BTreeMap::new(), &call("g", vec![int(1)])),
@@ -1736,6 +1742,7 @@ fn calls_walked_through() {
         },
         Exact {
             calls: calls.clone(),
+            log: Default::default(),
         },
         Ranges {
             calls: calls.clone(),
@@ -2013,7 +2020,17 @@ fn type_parameters() {
         unknown
     );
     let unknown = Err(Fault::Op(Undefined::Unknown("C::f".to_string())));
-    assert_eq!(eval(&Exact { calls }, &BTreeMap::new(), &e), unknown);
+    assert_eq!(
+        eval(
+            &Exact {
+                calls,
+                log: Default::default()
+            },
+            &BTreeMap::new(),
+            &e
+        ),
+        unknown
+    );
     // What a bound admits.
     for (bound, ty, admits) in [
         (Bound::Number, Type::Int, true),
@@ -2180,7 +2197,7 @@ proptest! {
         let (exact, ranges) = (g.exact(), g.ranges());
         for _ in 0..6 {
             let values = g.values();
-            let fresh = Exact { calls: Arc::new((*g.calls).clone()) };
+            let fresh = Exact { calls: Arc::new((*g.calls).clone()), log: Default::default() };
             prop_assert_eq!(eval(&exact, &values, &e), eval(&fresh, &values, &e));
             let (bounds, _) = g.bounded();
             let fresh = Ranges { calls: Arc::new((*g.calls).clone()) };

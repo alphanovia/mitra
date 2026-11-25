@@ -258,7 +258,7 @@ impl Writer<'_> {
                 "{given}when {}{} then {}",
                 self.path_of(f),
                 values(args),
-                value(gives)
+                then(gives.as_ref(), &e.effects)
             ),
             None => format!("{given}({}) -> {outputs}", inputs.join(", ")),
         }
@@ -513,15 +513,22 @@ impl Writer<'_> {
         let rows: Vec<String> = f
             .examples
             .iter()
-            .map(|e| match e.given.0.is_empty() {
-                true => print_row(&e.takes, &e.gives),
-                false => format!(
-                    "{} when {} then {}",
-                    givens(&e.given).trim_start(),
-                    values(&e.takes),
-                    value(&e.gives)
-                ),
-            })
+            .map(
+                |e| match (e.given.0.is_empty() && e.effects.0.is_empty(), &e.gives) {
+                    (true, Some(gives)) => print_row(&e.takes, gives),
+                    _ => {
+                        let given = match e.given.0.is_empty() {
+                            true => String::new(),
+                            false => format!("{} ", givens(&e.given).trim_start()),
+                        };
+                        format!(
+                            "{given}when {} then {}",
+                            values(&e.takes),
+                            then(e.gives.as_ref(), &e.effects)
+                        )
+                    }
+                },
+            )
             .collect();
         match (said, f.body.is_some()) {
             (false, true) => s.push('\n'),
@@ -869,6 +876,30 @@ pub fn world(w: &judgement::World) -> String {
             .map(|(f, args, v)| format!("{f}{} -> {}", values(args), value(v)))
             .collect();
     format!(" given {}", rows.join(", "))
+}
+
+/// What `then` lists: the value, if any, then the calls.
+pub fn then(gives: Option<&Value>, e: &crate::model::Effects) -> String {
+    let mut items: Vec<String> = gives.into_iter().map(value).collect();
+    if !e.0.is_empty() {
+        items.push(effects(e));
+    }
+    items.join(", ")
+}
+
+/// What `then` lists after the value: `, Disk::write("a.txt", _)` each.
+pub fn effects(e: &crate::model::Effects) -> String {
+    let calls: Vec<String> =
+        e.0.iter()
+            .map(|(f, args)| {
+                let args: Vec<String> = args
+                    .iter()
+                    .map(|a| a.as_ref().map_or("_".to_string(), value))
+                    .collect();
+                format!("{f}({})", args.join(", "))
+            })
+            .collect();
+    calls.join(", ")
 }
 
 /// ` given llm::inference(_) -> "hello", …`: what the environment gave,

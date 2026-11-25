@@ -39,6 +39,7 @@ fn divided(a: i64, b: i64, q: i64) -> Measurement {
         seen: true,
         count: 1,
         by: format!("test:div_{a}_{b}"),
+        effects: Default::default(),
     }
 }
 fn explained(model: &Model, ledger: &Ledger) -> Explanation {

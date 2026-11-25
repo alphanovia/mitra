@@ -344,6 +344,7 @@ fn n2_a_port_is_an_input_or_an_output() {
             seen: true,
             count: 1,
             by: "human:ana".to_string(),
+            effects: Default::default(),
         }],
         reviews: vec![],
     };
@@ -374,6 +375,7 @@ subject s {
             seen: true,
             count: 1,
             by: "human:ana".to_string(),
+            effects: Default::default(),
         }],
         reviews: vec![],
     };

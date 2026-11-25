@@ -297,6 +297,7 @@ impl Set {
             .collect();
         let exact = Exact {
             calls: self.defs.0.clone().unwrap_or_default(),
+            log: Default::default(),
         };
         match eval(&exact, &values, such) {
             Ok(simulation::Value::Truth(true)) => Member::In,

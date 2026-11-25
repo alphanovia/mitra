@@ -150,8 +150,9 @@ fn stone() -> Part {
     let real = |n, d| Value::Real(Rational::new(n, d).unwrap());
     speed.examples = vec![Example {
         takes: vec![real(5, 1)],
-        gives: real(981, 10),
+        gives: Some(real(981, 10)),
         given: Default::default(),
+        effects: Default::default(),
     }];
     Part {
         inner: vec![],
@@ -633,8 +634,9 @@ fn each_error_is_found() {
             Box::new(|m| {
                 let row = Example {
                     takes: vec![Value::Truth(true)],
-                    gives: Value::Real(Rational::integer(0)),
+                    gives: Some(Value::Real(Rational::integer(0))),
                     given: Default::default(),
+                    effects: Default::default(),
                 };
                 m.parts[1].functions[1].examples.push(row);
             }),
@@ -687,8 +689,9 @@ fn each_error_is_found() {
                 let at = m.parts[1].functions[1].examples[0].takes.clone();
                 m.parts[1].functions[1].examples.push(Example {
                     takes: at,
-                    gives: Value::Real(Rational::integer(99)),
+                    gives: Some(Value::Real(Rational::integer(99))),
                     given: Default::default(),
+                    effects: Default::default(),
                 })
             }),
         ),
@@ -1217,8 +1220,9 @@ fn examples_are_of_their_function() {
     let real = |n: i64, d: i64| Value::Real(Rational::new(n, d).unwrap());
     let row = |takes: Vec<Value>, gives: Value| Example {
         takes,
-        gives,
+        gives: Some(gives),
         given: Default::default(),
+        effects: Default::default(),
     };
     let mut model = fall();
     model.parts[0].functions[0]
@@ -1402,6 +1406,7 @@ fn example(inputs: &[(&str, i64)], outputs: &[(&str, i64)]) -> ModelExample {
     let side = |ports: &[(&str, i64)]| ports.iter().map(|(p, n)| (path(p), number(*n))).collect();
     ModelExample {
         given: Default::default(),
+        effects: Default::default(),
         when: None,
         within: None,
         inputs: side(inputs),
@@ -1574,11 +1579,15 @@ fn no_function_calls_itself() {
     model.parts[1].functions[1].body = Some(times_light("sun::light"));
     model.parts[0].functions[0].examples.push(Example {
         takes: vec![],
-        gives: number(2),
+        gives: Some(number(2)),
         given: Default::default(),
+        effects: Default::default(),
     });
     let library = Arc::new(calls(&model).unwrap());
-    let exact = Exact { calls: library };
+    let exact = Exact {
+        calls: library,
+        log: Default::default(),
+    };
     let speed = call("stone::speed", vec![real(5)]);
     let gives = eval(&exact, &BTreeMap::new(), &speed);
     assert_eq!(gives, Ok(Value::Real(Rational::new(1962, 10).unwrap())));
@@ -1624,6 +1633,7 @@ fn contracts_are_checked_once_and_fitted() {
     // Run at two points, it holds: speed rises with h.
     let exact = Exact {
         calls: Arc::new(calls(&model).unwrap()),
+        log: Default::default(),
     };
     let points = BTreeMap::from([("a".to_string(), number(1)), ("b".to_string(), number(2))]);
     assert_eq!(
@@ -1780,6 +1790,7 @@ fn model_examples_name_inputs_and_outputs() {
     let typed = changed(|m| {
         m.examples.push(ModelExample {
             given: Default::default(),
+            effects: Default::default(),
             when: None,
             within: None,
             inputs: vec![(path("stone::speed::h"), Value::Truth(true))],

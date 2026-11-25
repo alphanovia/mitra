@@ -44,6 +44,7 @@ fn divided(a: i64, b: i64, q: i64, count: u64) -> Measurement {
         seen: true,
         count,
         by: format!("test:div_{a}_{b}"),
+        effects: Default::default(),
     }
 }
 

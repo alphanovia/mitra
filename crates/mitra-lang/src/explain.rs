@@ -417,6 +417,7 @@ fn alike(a: &Measurement, b: &Measurement) -> bool {
         && a.by == b.by
         && sorted(&a.inputs) == sorted(&b.inputs)
         && sorted(&a.outputs) == sorted(&b.outputs)
+        && a.effects == b.effects
 }
 
 /// The verdict an opinion gives.
@@ -632,6 +633,7 @@ impl Given<'_, '_> {
         }
         let exact = Exact {
             calls: Arc::new(library),
+            log: Default::default(),
         };
         let mut read: BTreeSet<&Path> = BTreeSet::new();
         for (o, y) in &m.outputs {
@@ -742,6 +744,29 @@ impl Given<'_, '_> {
                         shown(y)
                     );
                     self.finding(X002, &at, message);
+                }
+            }
+            // Each call the system made, as `then` lists it: one the
+            // model's run does not make is against it (BDD step 2).
+            if m.seen && !m.effects.0.is_empty() {
+                let logged = Exact {
+                    log: crate::simulation::Log::kept(),
+                    ..exact.clone()
+                };
+                let _ = eval(&logged, &args, &call);
+                let made = logged.log.calls();
+                for (g, want) in &m.effects.0 {
+                    let fits = |(h, at): &(String, Vec<Value>)| {
+                        h == g
+                            && at.len() == want.len()
+                            && at
+                                .iter()
+                                .zip(want)
+                                .all(|(v, a)| a.as_ref().is_none_or(|a| a == v))
+                    };
+                    if !made.iter().any(fits) {
+                        correct = Some(false);
+                    }
                 }
             }
             // Each claim, read with what the system gave.
