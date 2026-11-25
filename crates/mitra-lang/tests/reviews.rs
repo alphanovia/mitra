@@ -192,19 +192,27 @@ fn a_review_seeing_a_test_counts_while_it_passes() {
     let read = |runs: &[TestRun]| read_store_seeing("s", line, &m, &m.ties, Some(runs)).unwrap();
     let (ledger, findings) = read(&[run(Outcome::Passed)]);
     assert_eq!((ledger.reviews.len(), findings), (1, vec![]));
-    for (runs, why) in [
-        (vec![run(Outcome::Failed)], "the test `tests::sunny` failed"),
+    // A test that failed also counts against the ensure (finding 1): the
+    // reviewer said it shows it.
+    for (runs, why, against) in [
+        (
+            vec![run(Outcome::Failed)],
+            "the test `tests::sunny` failed",
+            "; it counts against `sun::shines`",
+        ),
         (
             vec![run(Outcome::Ignored)],
             "the test `tests::sunny` was ignored",
+            "",
         ),
-        (vec![], "the test `sunny` is not in the report"),
+        (vec![], "the test `sunny` is not in the report", ""),
     ] {
         let (ledger, findings) = read(&runs);
         assert_eq!(ledger.reviews, vec![]);
+        assert_eq!(ledger.supports.len(), usize::from(!against.is_empty()));
         assert_eq!(
             findings[0].to_string().lines().next().unwrap(),
-            format!("finding[R008]: {why}: the review of `sun::shines` by `human:ana` counts only while it passes")
+            format!("finding[R008]: {why}: the review of `sun::shines` by `human:ana` counts only while it passes{against}")
         );
     }
     // Dropped, it is asked for again.

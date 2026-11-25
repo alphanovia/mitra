@@ -259,7 +259,8 @@ review calc::div::spec holds by "human:bo";
   the one, `from (a::x, b::y)`.
 - `… seeing "test:name";` says the voice saw that test pass. The review
   counts only while it passes: when it fails, or does not run, it is
-  dropped (R008). Several tests: `seeing "test:a", "test:b"`. A name two
+  dropped (R008). A test that failed under a review saying an ensure
+  holds also counts against that ensure, as a test tied to it (X015). Several tests: `seeing "test:a", "test:b"`. A name two
   test files share takes its file: `"test:tests/model.rs::each_error_is_found"`,
   and a unit test its crate's: `"test:mitra-lang/src/lib.rs::numbers::tests::opinion"`.
   A doc test is named as the report names it, with or without its line:

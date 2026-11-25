@@ -404,8 +404,15 @@ fn rows_and_reviews_seeing_a_test() {
         out.contains("evidence: 4 measurements, 2 reviews, 4 ties"),
         "{out}"
     );
+    // The test the review saw failed: it counts against the ensure,
+    // loud (finding 1), and the review of that test is asked again.
+    assert!(out.contains("contradicted Heater::steady "), "{out}");
     assert!(
-        out.contains("ask[X012]: only words say `Heater::steady`"),
+        out.contains("finding[X015]: the test `tests::decides_the_same_twice`"),
+        "{out}"
+    );
+    assert!(
+        out.contains("ask[X012]: Mitra assumes the test `tests::decides_the_same_twice` shows `Heater::steady`"),
         "{out}"
     );
     std::fs::remove_dir_all(&dir).unwrap();

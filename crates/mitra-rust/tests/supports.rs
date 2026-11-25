@@ -215,3 +215,34 @@ fn the_tie_voice_is_mitras_own_and_weighs_as_a_link() {
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert_eq!(errors[0].message, "`human:ana` is no test: `test:name`");
 }
+
+/// A review of an ensure seeing a test that failed: the reviewer said
+/// the test shows the ensure, so it counts against it, as a tied test
+/// that failed, and R008 says so (the coordinator's reading of the
+/// user's rule, 2026-11-25: a failed test is loud).
+#[test]
+fn a_seen_test_that_failed_counts_against() {
+    let store =
+        "review codes::documented holds by \"human:ana\" seeing \"test:tests::something_else\";";
+    let report =
+        "test tests::every_code_has_a_page ... ok\ntest tests::something_else ... FAILED\n";
+    let (e, findings) = run(report, Some(store));
+    assert!(matches!(
+        verdict(&e, "codes::documented"),
+        Some(Verdict::Contradicted { .. })
+    ));
+    assert!(e
+        .findings
+        .iter()
+        .any(|f| f.code == X015 && f.message.contains("`tests::something_else`")));
+    assert!(
+        findings.iter().any(|f| f.contains("R008")
+            && f.ends_with("; it counts against `codes::documented`")
+            || f.contains("it counts against `codes::documented`\n")),
+        "{findings:?}"
+    );
+    // Not in the report: dropped, R008, nothing against.
+    let report = "test tests::every_code_has_a_page ... ok\n";
+    let (e, _) = run(report, Some(store));
+    assert!(!e.findings.iter().any(|f| f.code == X015));
+}

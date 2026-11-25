@@ -504,9 +504,34 @@ fn read_with(
                 by,
                 seeing,
             };
-            match reviewed(&index, &items, review, from).and_then(|r| seen(r, runs)) {
+            let review = match reviewed(&index, &items, review, from) {
+                Ok(r) => r,
+                Err((code, message)) => {
+                    findings.push(finding(code, file, line, message));
+                    continue;
+                }
+            };
+            let said = (review.prop.clone(), review.from.is_none() && review.holds);
+            match seen(review, runs) {
                 Ok(r) => ledger.reviews.push(r),
-                Err((code, message)) => findings.push(finding(code, file, line, message)),
+                Err((code, mut message, failed)) => {
+                    // A test a review of an ensure sees, that failed: the
+                    // reviewer said it shows the ensure, so it counts
+                    // against it, as a tied test that failed (finding 1).
+                    let ensure = matches!(
+                        index.items.get(&said.0),
+                        Some(crate::model::Item::Ensure(_))
+                    );
+                    if let (Some(by), true, true) = (failed, said.1, ensure) {
+                        message.push_str(&format!("; it counts against `{}`", said.0));
+                        ledger.supports.push(crate::evidence::Support {
+                            prop: said.0,
+                            by,
+                            passed: false,
+                        });
+                    }
+                    findings.push(finding(code, file, line, message));
+                }
             }
         } else {
             p.end()
@@ -577,7 +602,11 @@ fn reviewed(
 }
 
 /// The review, where each test it sees passed in `runs`; why not, if not.
-fn seen(review: Review, runs: Option<&[TestRun]>) -> Result<Review, (Code, String)> {
+/// Of a test that failed, its voice too.
+fn seen(
+    review: Review,
+    runs: Option<&[TestRun]>,
+) -> Result<Review, (Code, String, Option<String>)> {
     let Some(runs) = runs else {
         return Ok(review);
     };
@@ -607,11 +636,15 @@ fn seen(review: Review, runs: Option<&[TestRun]>) -> Result<Review, (Code, Strin
                 })
             })
             .collect();
+        let mut failed = None;
         let why = match matching[..] {
             [] => format!("the test `{name}` is not in the report"),
             [run] => match run.outcome {
                 Outcome::Passed => continue,
-                Outcome::Failed => format!("the test `{}` failed", run.name),
+                Outcome::Failed => {
+                    failed = Some(format!("test:{}", run.name));
+                    format!("the test `{}` failed", run.name)
+                }
                 Outcome::Ignored => format!("the test `{}` was ignored", run.name),
             },
             _ => {
@@ -630,7 +663,7 @@ fn seen(review: Review, runs: Option<&[TestRun]>) -> Result<Review, (Code, Strin
             review.said(),
             review.by
         );
-        return Err((R008, message));
+        return Err((R008, message, failed));
     }
     Ok(review)
 }

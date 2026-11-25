@@ -910,6 +910,7 @@ pub fn ledger(
         let (read, more) = read_store_seeing(file, source, model, &ties, Some(&runs))?;
         ledger.measurements.extend(read.measurements);
         ledger.reviews.extend(read.reviews);
+        ledger.supports.extend(read.supports);
         findings.extend(more);
     }
     Ok((ties, ledger, findings))

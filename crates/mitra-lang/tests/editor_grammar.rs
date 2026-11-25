@@ -31,7 +31,10 @@ fn grammar_entries() -> Vec<(bool, Vec<String>)> {
                 .rfind(")\\\\b")
                 .expect("a keyword match is \\\\b(a|b)\\\\b");
             let guarded = line[..open].contains("(?<!\\\\.)");
-            entries.push((guarded, line[open..close].split('|').map(str::to_string).collect()));
+            entries.push((
+                guarded,
+                line[open..close].split('|').map(str::to_string).collect(),
+            ));
             entry = false;
         }
     }
