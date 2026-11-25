@@ -99,10 +99,21 @@ impl Worker {
             notes: vec![],
         };
         let mut ns = Worker::began(begun.clone());
+        ns.extend(Worker::closes(m.clone()));
         ns.push(note(Step::Worker, Note::Answered(id)));
         let noted = store.annotate_all(m.id, ns);
         let told = Worker::tell_begun(noted.post(reply.clone()), Worker::device(m.id.from), begun);
         (told, reply)
+    }
+
+    // mitra: implements Worker::closes
+    /// A yes cut short closes its code (K15): the same yes must not run
+    /// the held call again.
+    pub fn closes(m: Stored) -> Vec<Annotation> {
+        match Confirmations::code(Worker::words(m.body).0) {
+            Some(c) => vec![note(Step::Worker, Note::Confirmed(c))],
+            None => vec![],
+        }
     }
 
     // mitra: implements Worker::began

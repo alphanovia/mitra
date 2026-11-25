@@ -10,6 +10,7 @@ subject Worker {
     require answers: Harness::answers;
     require yes_owner: Confirmations::owner_only;
     require ahead: Ahead::kept;
+    require once: Confirmations::once;
 
     // Where a reply goes: back to the client the message came from, with
     // the assistant's next id. Apart from the rest so that its claim can
@@ -108,8 +109,16 @@ subject Worker {
         let begun = Ahead::marked();
         let to = address(store, m);
         let reply = Stored { id: to.id, to: to.to, body: Body::Text(Reporter::interrupted(begun).text), notes: no_notes() };
-        let noted = store.annotate_all(m.id, began(begun) ++ [Annotation { by: Step::Worker, note: Note::Answered(to.id) }]);
+        let noted = store.annotate_all(m.id, began(begun) ++ closes(m) ++ [Annotation { by: Step::Worker, note: Note::Answered(to.id) }]);
         (store: tell_begun(noted.post(reply), device(m.id.from), begun), reply: reply)
+    }
+    // A yes cut short closes its code (K15): the held call may have run,
+    // so the same yes must not run it again; the owner asks afresh.
+    fn closes(m: Stored) -> ns: [Annotation] {
+        match Confirmations::code(words(m.body).text) {
+            Option::Some(c) => [Annotation { by: Step::Worker, note: Note::Confirmed(c) }],
+            Option::None => no_notes()
+        }
     }
     fn began(cs: [Call]) -> ns: [Annotation] {
         cs.fold(ns: []) { c -> ns ++ [Annotation { by: Step::Worker, note: Note::Begun(c) }] }
@@ -170,6 +179,8 @@ subject Worker {
     ensure in_order: "a device's messages are answered one at a time, oldest first";              // shown by next's examples
     ensure recovers: "after a restart, a message cut short is answered as interrupted, never worked on twice"
         from (durable);
+    ensure yes_once_after_crash: "a yes cut short by a restart is used up: the call it allowed is not held any more"
+        from (once);
     ensure told_what_began: "after a restart, the sender and the owner are told which calls had begun on the message cut short"
         from (ahead);
     ensure takes_up: "a message is marked as taken up, and that is written, before any model works on it";   // route: take_up, then process
@@ -232,6 +243,7 @@ subject Worker {
                               notes: [Annotation { by: Step::Speech, note: Note::Speech(Audio { .. }) }] }), Speech::speak("hi"),
         // After a restart: the message cut short is answered as interrupted.
         given Ahead::marked() -> [],
+              Confirmations::code(_) -> Option::None,
               Reporter::interrupted([]) -> Reply { text: "I was interrupted while working on this. Please ask again." }
         when Worker::resume(ConversationStore { household: 1, messages: [Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("open the door"), notes: [Annotation { by: Step::Worker, note: Note::Read }] }] }, Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Phone, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("open the door"), notes: [Annotation { by: Step::Worker, note: Note::Read }] })
         then (store: ConversationStore { household: 1, messages: [
@@ -245,6 +257,7 @@ subject Worker {
         // After a restart: a call written down before the crash may have
         // run (H13). It is noted, named in the reply, and told to the owner.
         given Ahead::marked() -> [Call { tool: "door", input: "open" }],
+              Confirmations::code(_) -> Option::None,
               Reporter::interrupted([Call { tool: "door", input: "open" }]) -> Reply { text: "I was interrupted while working on this. These had begun and may have run: door (open). Please check before asking again." },
               Accounts::owner(1) -> Holder { household: 1, device: Device::Phone, number: 1 },
               Reporter::begun([Call { tool: "door", input: "open" }], Holder { household: 1, device: Device::Computer, number: 1 }) -> Reply { text: "A restart cut short a message from computer 1. These had begun and may have run: door (open)." }

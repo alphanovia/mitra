@@ -30,8 +30,9 @@ fn count(tool: &str) -> usize {
 // once: the call it allowed is no longer held"; `Worker::recovers`:
 // "never worked on twice".
 // mitra: supports Confirmations::once
+// mitra: supports Worker::yes_once_after_crash
 #[test]
-#[ignore = "OPEN K15: a crash inside a yes leaves the code valid; the same yes runs the door again"]
+// CLOSED K15 by the builder (was: a crash inside a yes leaves the code valid; the same yes runs the door again)
 fn k15_a_yes_cut_short_by_a_crash_does_not_open_the_door_twice() {
     let mut l = server();
     l.say("cli", "open the door").unwrap();
@@ -63,8 +64,16 @@ fn a_crash_in_one_household_names_no_call_of_another() {
     let e = l.next_envelope("other-phone", Body::Text(s("hello there")));
     l.take_up_only("other-phone", e);
     l.restart();
-    assert!(!l.last_text("other-phone").contains("lights"), "{}", l.last_text("other-phone"));
-    assert!(!l.last_text("owner-phone").contains("may have run"), "{}", l.last_text("owner-phone"));
+    assert!(
+        !l.last_text("other-phone").contains("lights"),
+        "{}",
+        l.last_text("other-phone")
+    );
+    assert!(
+        !l.last_text("owner-phone").contains("may have run"),
+        "{}",
+        l.last_text("owner-phone")
+    );
 }
 
 // Tried and stopped: a receipt is only for the token's own message.
@@ -89,6 +98,10 @@ fn a_crash_before_any_tool_names_nothing() {
     let e = l.next_envelope("cli", Body::Text(s("turn the light on")));
     l.take_up_only("cli", e);
     l.restart();
-    assert!(!l.last_text("cli").contains("may have run"), "{}", l.last_text("cli"));
+    assert!(
+        !l.last_text("cli").contains("may have run"),
+        "{}",
+        l.last_text("cli")
+    );
     assert_eq!(count("lights"), 1);
 }

@@ -111,6 +111,9 @@ environment Ahead {
     fn marked() -> cs: [Call];
     fn clear() -> ok: ();
     require durable: Disk::durable;
+    // One list for the whole server: right only while one message is
+    // worked at a time (C14). Per device or household, key it by message.
+    require one_at_a_time: "one message is worked on at a time in the whole server";
     ensure kept: "a call is written down before it runs, and still read after a restart until the next message is taken up"
         from (durable);
 }

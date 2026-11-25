@@ -7,12 +7,12 @@ review Commands::help_words holds by "agent:anthropic/claude/session_01VcLQ3XPVZ
 review Commands::plain_first holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:plain_code_answers_before_any_model";
 review Commands::read_only holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:harness::security::tests::plain_code_tells_the_time";
 review Confirmations::guessing_fails holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:server::store::tests::a_code_works_once";
-review Confirmations::once holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_yes_works_once", "test:a_replayed_yes_runs_nothing";
+review Confirmations::once holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_yes_works_once", "test:a_replayed_yes_runs_nothing", "test:k15_a_yes_cut_short_by_a_crash_does_not_open_the_door_twice";
 review Confirmations::owner_only holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_yes_from_anyone_but_the_owner_runs_nothing", "test:a_strangers_yes_with_the_right_code_runs_nothing";
 review Gateway::delivers holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:hello_is_answered", "test:a_client_starting_again_shows_what_it_has_not_got";
 review Gateway::one_meaning holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:the_same_id_with_other_words_is_refused", "test:ids_at_the_edges_are_refused";
 review Gateway::own_household holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_yes_of_another_household_runs_nothing", "test:a_device_cannot_post_as_another_nor_read_another_household", "test:a_reply_meant_for_another_device_cannot_be_acked_or_fetched";
-review Gateway::paired_only holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_device_cannot_post_as_another_nor_read_another_household", "test:a_token_cannot_post_as_another_device_of_its_household_or_another";
+review Gateway::paired_only holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_device_cannot_post_as_another_nor_read_another_household", "test:a_token_cannot_post_as_another_device_of_its_household_or_another", "test:receipts_tell_nothing_of_another_device_or_household";
 review Gateway::shows_work holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_is_answered_as_interrupted_and_never_run_twice";
 review Gateway::sized holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:server::gateway::tests::a_text_over_the_limit_is_refused", "test:a_message_over_the_limit_is_refused", "test:k8_a_voice_over_the_limit_is_refused";
 review Harness::asks_first holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:an_unclear_ask_is_asked_back";
@@ -29,7 +29,7 @@ review Reporter::explains_failure holds by "agent:anthropic/claude/session_01VcL
 review ToolGuard::data_only holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:harness::tools::tests::an_output_is_marked_line_by_line", "test:a_tool_output_cannot_call_a_tool", "test:k6_no_unmarked_line_reaches_the_model", "test:k7_a_call_name_cannot_open_a_line", "test:k1b_the_gullible_fake_is_stopped_by_the_marks";
 review Worker::in_order holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:server::worker::tests::one_at_a_time_oldest_first";
 review Worker::owner_told holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_member_door_waits_for_the_owner_yes", "test:k2_the_owner_is_told_what_really_asks";
-review Worker::recovers holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_is_answered_as_interrupted_and_never_run_twice", "test:a_retry_during_or_after_work_is_kept_once_and_worked_once", "test:a_crash_after_a_tool_ran_tells_the_sender_and_the_owner_what_began";
+review Worker::recovers holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_is_answered_as_interrupted_and_never_run_twice", "test:a_retry_during_or_after_work_is_kept_once_and_worked_once", "test:a_crash_after_a_tool_ran_tells_the_sender_and_the_owner_what_began", "test:a_crash_in_one_household_names_no_call_of_another", "test:a_crash_before_any_tool_names_nothing";
 review Worker::speaks_back holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_spoken_question_gets_a_spoken_reply";
 review Worker::takes_up holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_is_answered_as_interrupted_and_never_run_twice";
 review Worker::traced holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:each_step_notes_what_it_decided";
@@ -216,3 +216,6 @@ review Gate::help_first holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54
 review Cli::unsent_told holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_cli_with_no_server_learns_it_failed_and_says_not_sent";
 // Not reviewed: Network::carries. The test shows a client learning that
 // it failed; that calls reach the server on a real network is the world's.
+// Round 3b: K15 closed (a yes cut short by a crash is used up).
+review Worker::yes_once_after_crash holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k15_a_yes_cut_short_by_a_crash_does_not_open_the_door_twice";
+review Worker::closes holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
