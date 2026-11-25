@@ -12,7 +12,7 @@ subject enum Device { Phone, Computer, Wearable }
 subject enum Party { Client(Device), Assistant }
 // CHOICE TO CONFIRM (C1): an id is its author and the author's own count,
 // so ids never clash and a retry sends the same id again.
-subject record MessageId { party: Party, n: integer }
+subject record MessageId { from: Party, n: integer }
 subject record Audio {}
 // What was sent, as it was sent. It never changes.
 subject enum Body { Text([~char]), Voice(Audio) }
@@ -24,7 +24,14 @@ subject record Envelope { id: MessageId, body: Body }
 subject enum Receipt { Received(MessageId), Read(MessageId), Delivered(MessageId) }
 // What a persona gives a client: typed text, or recorded voice.
 subject enum Input { Typed([~char]), Spoken(Audio) }
-subject enum NetFailure { Unreachable }
+// Refused: the entry did not take the call (a token it does not know, or
+// a device posting as another).
+subject enum NetFailure { Unreachable, Refused }
+// What a device shows the server on every call: the pairing it got from
+// the household's owner (C10). Opaque: a secret.
+subject record Token {}
+// Who a token is: one device of one household.
+subject record Holder { household: integer, device: Device }
 
 // ---- What the steps find out about a message: notes, only ever added,
 // each signed by the step that made it.
@@ -41,7 +48,7 @@ subject enum Note {
     Speech(Audio),             // a reply, spoken, for a client that speaks
     Delivered                  // the reply reached its client
 }
-subject record Annotation { step: Step, note: Note }
+subject record Annotation { by: Step, note: Note }
 
 // ---- The harness's words.
 
@@ -57,6 +64,9 @@ subject enum Verdict { Act, Noise, Malicious, Distress, Meta }
 // the frontier model.
 subject record Ask { text: [~char], clear: bool, easy: bool }
 subject enum Machine { Local, Cloud }
+// Where a message goes in the harness. Decided from finite values only,
+// so Mitra tries every case and the routing claims hold.
+subject enum Route { Work, AskBack, Help, Tune, Decline }
 subject record Context {}
 subject record Habits {}
 subject record Preferences {}

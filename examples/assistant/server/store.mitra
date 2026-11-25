@@ -4,15 +4,6 @@
 
 // A stored message.
 subject Stored {
-    use Option from "std";
-    use MessageId from "vocabulary";
-    use Party from "vocabulary";
-    use Body from "vocabulary";
-    use Annotation from "vocabulary";
-    use Note from "vocabulary";
-    use Audio from "vocabulary";
-    use Device from "vocabulary";
-    use Step from "vocabulary";
     record { id: MessageId, to: Party, body: Body, notes: [Annotation] }
 
     // A note is added, after the others. The record is written out in full:
@@ -25,10 +16,10 @@ subject Stored {
         claim only_grows: t.notes.len() == self.notes.len() + 1;   // finding I
         claim past_kept: t.notes.starts_with(self.notes);          // finding I
         examples {
-            (Stored { id: MessageId { party: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}), notes: [] },
-             Annotation { step: Step::Speech, note: Note::Transcript("hello") })
-                -> Stored { id: MessageId { party: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}),
-                            notes: [Annotation { step: Step::Speech, note: Note::Transcript("hello") }] }
+            (Stored { id: MessageId { from: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}), notes: [] },
+             Annotation { by: Step::Speech, note: Note::Transcript("hello") })
+                -> Stored { id: MessageId { from: Party::Client(Device::Wearable), n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}),
+                            notes: [Annotation { by: Step::Speech, note: Note::Transcript("hello") }] }
         }
     }
 
@@ -40,9 +31,9 @@ subject Stored {
         }
     } where {
         examples {
-            (Stored { id: MessageId { party: Party::Assistant, n: 1 }, to: Party::Assistant, body: Body::Text("hi"), notes: [] })
+            (Stored { id: MessageId { from: Party::Assistant, n: 1 }, to: Party::Assistant, body: Body::Text("hi"), notes: [] })
                 -> Option::Some("hi"),
-            (Stored { id: MessageId { party: Party::Assistant, n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}), notes: [] })
+            (Stored { id: MessageId { from: Party::Assistant, n: 1 }, to: Party::Assistant, body: Body::Voice(Audio {}), notes: [] })
                 -> Option::None
         }
     }
@@ -63,6 +54,17 @@ subject Stored {
         from (annotate::body_kept, annotate::id_kept);
     ensure append_only: "what a step has noted on a message is never changed or taken back"
         from (annotate::only_grows, annotate::past_kept);
+
+    // Names from the other files.
+    use Option from "std";
+    use MessageId from "vocabulary";
+    use Party from "vocabulary";
+    use Body from "vocabulary";
+    use Annotation from "vocabulary";
+    use Note from "vocabulary";
+    use Audio from "vocabulary";
+    use Device from "vocabulary";
+    use Step from "vocabulary";
 }
 
 // What a restart must not lose.
@@ -71,16 +73,6 @@ environment Disk {
 }
 
 subject ConversationStore {
-    use MessageId from "vocabulary";
-    use Party from "vocabulary";
-    use Device from "vocabulary";
-    use Envelope from "vocabulary";
-    use Annotation from "vocabulary";
-    use Body from "vocabulary";
-    use Turn from "vocabulary";
-    use Answer from "vocabulary";
-    use Option from "std";
-    use Conversation from "conversation";
     record { messages: [Stored] }
 
     require durable: Disk::durable;
@@ -94,7 +86,7 @@ subject ConversationStore {
     }
 
     // Keeps a client's message once: the same id again changes nothing.
-    fn keep(self, e: Envelope) -> s: ConversationStore {
+    fn record(self, e: Envelope) -> s: ConversationStore {
         if self.holds(e.id) { self }
         else { ConversationStore { messages: self.messages ++ [Stored { id: e.id, to: Party::Assistant, body: e.body, notes: [] }] } }
     } where {
@@ -102,14 +94,14 @@ subject ConversationStore {
         claim once: !self.holds(e.id) || s == self;         // finding E
         examples {
             (ConversationStore { messages: [] },
-             Envelope { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
-                -> ConversationStore { messages: [Stored { id: MessageId { party: Party::Client(Device::Computer), n: 1 },
+             Envelope { id: MessageId { from: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
+                -> ConversationStore { messages: [Stored { id: MessageId { from: Party::Client(Device::Computer), n: 1 },
                                                            to: Party::Assistant, body: Body::Text("hello"), notes: [] }] },
             // The same message again: nothing new.
-            (ConversationStore { messages: [Stored { id: MessageId { party: Party::Client(Device::Computer), n: 1 },
+            (ConversationStore { messages: [Stored { id: MessageId { from: Party::Client(Device::Computer), n: 1 },
                                                      to: Party::Assistant, body: Body::Text("hello"), notes: [] }] },
-             Envelope { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
-                -> ConversationStore { messages: [Stored { id: MessageId { party: Party::Client(Device::Computer), n: 1 },
+             Envelope { id: MessageId { from: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
+                -> ConversationStore { messages: [Stored { id: MessageId { from: Party::Client(Device::Computer), n: 1 },
                                                            to: Party::Assistant, body: Body::Text("hello"), notes: [] }] }
         }
     }
@@ -124,6 +116,12 @@ subject ConversationStore {
         claim same_count: ms.len() == n by invariant n;
     }
 
+    // Adds a note to the message of this id when it is meant for this
+    // client; else changes nothing.
+    fn annotate_for(self, id: MessageId, d: Device, a: Annotation) -> s: ConversationStore {
+        ConversationStore { messages: self.messages.fold(ms: []) { m -> ms ++ [if m.id == id && m.to == Party::Client(d) { m.annotate(a) } else { m }] } }
+    }
+
     // Adds notes to the message of this id, in order.
     fn annotate_all(self, id: MessageId, ns: [Annotation]) -> s: ConversationStore {
         ns.fold(s: self) { a -> s.annotate(id, a) }
@@ -133,7 +131,7 @@ subject ConversationStore {
     // CHOICE TO CONFIRM (C1): the assistant counts every stored message, so
     // its ids rise in the order replies are stored.
     fn next_id(self) -> id: MessageId {
-        MessageId { party: Party::Assistant, n: self.messages.len() + 1 }
+        MessageId { from: Party::Assistant, n: self.messages.len() + 1 }
     }
 
     // Stores a reply of the assistant.
@@ -155,7 +153,7 @@ subject ConversationStore {
     // per contact in a messaging app.
     fn history(self, d: Device) -> c: Conversation {
         Conversation { turns: self.messages.fold(ts: []) { m ->
-            if m.id.party == Party::Client(d) && m.answered() {
+            if m.id.from == Party::Client(d) && m.answered() {
                 match m.text() { Option::Some(t) => ts ++ [Turn::User(t)], Option::None => ts }
             } else { if m.to == Party::Client(d) {
                 match m.body { Body::Text(t) => ts ++ [Turn::Model(Answer { text: t, calls: [] })], Body::Voice(_) => ts }
@@ -164,7 +162,19 @@ subject ConversationStore {
     }
 
     ensure kept: "every message and every reply is kept, in the order it came, and survives a restart"
-        from (durable, keep::kept, fixed_body, append_only);
+        from (durable, record::kept, fixed_body, append_only);
     ensure once: "a message sent twice is kept once"
-        from (keep::once);
+        from (record::once);
+
+    // Names from the other files.
+    use MessageId from "vocabulary";
+    use Party from "vocabulary";
+    use Device from "vocabulary";
+    use Envelope from "vocabulary";
+    use Annotation from "vocabulary";
+    use Body from "vocabulary";
+    use Turn from "vocabulary";
+    use Answer from "vocabulary";
+    use Option from "std";
+    use Conversation from "conversation";
 }

@@ -9,42 +9,6 @@
 // keeps both (see server/worker.mitra).
 
 subject Harness {
-    use Result from "std";
-    use Option from "std";
-    use Message from "vocabulary";
-    use Person from "vocabulary";
-    use Verdict from "vocabulary";
-    use Ask from "vocabulary";
-    use Habits from "vocabulary";
-    use Reply from "vocabulary";
-    use Annotation from "vocabulary";
-    use Note from "vocabulary";
-    use Step from "vocabulary";
-    use Tool from "vocabulary";
-    use Call from "vocabulary";
-    use Answer from "vocabulary";
-    use Outcome from "vocabulary";
-    use Turn from "vocabulary";
-    use Decision from "vocabulary";
-    use Role from "vocabulary";
-    use ToolFailure from "vocabulary";
-    use LlmFailure from "vocabulary";
-    use HarnessFailure from "vocabulary";
-    use Conversation from "conversation";
-    use Identity::who from "security";
-    use Commands::{answer, alarm} from "security";
-    use Gate::screen from "security";
-    use Purpose::{pin, context} from "purpose";
-    use Experience::recall from "purpose";
-    use Composer::compose from "purpose";
-    use Models from "models";
-    use Llm from "models";
-    use Policy::allow from "tools";
-    use ToolGuard::screen from "tools";
-    use Helpline::alert from "care";
-    use Tuning::adjust from "care";
-    use Reporter::{report, decline, ask_back, helped, tuned} from "reply";
-
     require identified: Identity::identified;
     require framed: Conversation::framed;
     require refuses_long: Llm::refuses_long;
@@ -55,40 +19,82 @@ subject Harness {
     // One message, through the pipeline: the reply, and the notes made.
     fn serve(m: Message, history: Conversation, models: Models, tools: [Tool]) -> out: (reply: Reply, notes: [Annotation]) {
         let p = Identity::who(m);
-        let seen = [Annotation { step: Step::Identity, note: Note::Sender(p) }];
+        let seen = [Annotation { by: Step::Identity, note: Note::Sender(p) }];
         if Commands::alarm(m) {
             (reply: Reporter::helped(Helpline::alert(p, m)),
-             notes: seen ++ [Annotation { step: Step::Commands, note: Note::Verdict(Verdict::Distress) }])
+             notes: seen ++ [Annotation { by: Step::Commands, note: Note::Verdict(Verdict::Distress) }])
         } else {
             match Commands::answer(m, p) {
                 Option::Some(r) => (reply: r, notes: seen),
-                Option::None => {
-                    let v = Gate::screen(m, p);
-                    let judged = seen ++ [Annotation { step: Step::Gate, note: Note::Verdict(v) }];
-                    match v {
-                        Verdict::Act => {
-                            let a = Purpose::pin(m, p, history);
-                            let asked = judged ++ [Annotation { step: Step::Purpose, note: Note::Ask(a) }];
-                            if a.clear {
-                                let done = run(models.pick(a), a, p, Experience::recall(a, p), history, tools);
-                                (reply: Reporter::report(done.result, a), notes: asked ++ called(done.c.outcomes()))
-                            } else {
-                                (reply: Reporter::ask_back(a), notes: asked)
-                            }
-                        },
-                        Verdict::Distress => (reply: Reporter::helped(Helpline::alert(p, m)), notes: judged),
-                        Verdict::Meta => (reply: Reporter::tuned(Tuning::adjust(m, p)), notes: judged),
-                        Verdict::Noise => (reply: Reporter::decline(Verdict::Noise), notes: judged),
-                        Verdict::Malicious => (reply: Reporter::decline(Verdict::Malicious), notes: judged)
+                Option::None => match Gate::screen(m, p) {
+                    // CHOICE TO CONFIRM (C11): our model cannot judge it, so nothing
+                    // is done, and the sender is told; plain code and help words
+                    // above still work.
+                    Err(_) => (reply: Reporter::unchecked(), notes: seen),
+                    Ok(v) => {
+                        let judged = seen ++ [Annotation { by: Step::Gate, note: Note::Verdict(v) }];
+                        match after_gate(v) {
+                            Route::Work => match Purpose::pin(m, p, history) {
+                                Err(_) => (reply: Reporter::unchecked(), notes: judged),
+                                Ok(a) => {
+                                    let asked = judged ++ [Annotation { by: Step::Purpose, note: Note::Ask(a) }];
+                                    match after_ask(a.clear) {
+                                        Route::Work => {
+                                            let done = run(models.pick(a), a, p, Experience::recall(a, p), history, tools);
+                                            (reply: Reporter::report(done.result, a), notes: asked ++ called(done.c.outcomes()))
+                                        },
+                                        Route::AskBack => (reply: Reporter::ask_back(a), notes: asked),
+                                        // Never: after_ask gives Work or AskBack. `match` needs the arms.
+                                        Route::Help => (reply: Reporter::ask_back(a), notes: asked),
+                                        Route::Tune => (reply: Reporter::ask_back(a), notes: asked),
+                                        Route::Decline => (reply: Reporter::ask_back(a), notes: asked)
+                                    }
+                                }
+                            },
+                            Route::Help => (reply: Reporter::helped(Helpline::alert(p, m)), notes: judged),
+                            Route::Tune => (reply: Reporter::tuned(Tuning::adjust(m, p)), notes: judged),
+                            Route::Decline => (reply: Reporter::decline(v), notes: judged),
+                            // Never: after_gate gives no AskBack.
+                            Route::AskBack => (reply: Reporter::decline(v), notes: judged)
+                        }
                     }
                 }
             }
         }
     }
 
+    // Where a verdict sends a message. Finite: Mitra tries every verdict.
+    fn after_gate(v: Verdict) -> r: Route {
+        match v {
+            Verdict::Act => Route::Work,
+            Verdict::Distress => Route::Help,
+            Verdict::Meta => Route::Tune,
+            Verdict::Noise => Route::Decline,
+            Verdict::Malicious => Route::Decline
+        }
+    } where {
+        // Only a message judged a request is worked on.
+        claim only_requests: r != Route::Work || v == Verdict::Act;
+        // A malicious message, or noise, goes no further than a reply.
+        claim benign_only: v != Verdict::Malicious || r == Route::Decline;
+        claim signal_only: v != Verdict::Noise || r == Route::Decline;
+        // A call for help is passed on.
+        claim helps: v != Verdict::Distress || r == Route::Help;
+        // A judgement of the assistant tunes it, never runs as a request.
+        claim scored: v != Verdict::Meta || r == Route::Tune;
+    }
+
+    // Where an ask goes: worked on when clear, else asked back.
+    fn after_ask(clear: bool) -> r: Route {
+        if clear { Route::Work } else { Route::AskBack }
+    } where {
+        claim asks_first: clear || r == Route::AskBack;
+        claim works_clear: !clear || r == Route::Work;
+    }
+
     // Each tool call made, as a note of the policy.
     fn called(os: [Outcome]) -> ns: [Annotation] {
-        os.fold(ns: []) { o -> ns ++ [Annotation { step: Step::Policy, note: Note::Called(o) }] }
+        os.fold(ns: []) { o -> ns ++ [Annotation { by: Step::Policy, note: Note::Called(o) }] }
     } where {
         claim one_each: ns.len() == n by invariant n;
     }
@@ -141,26 +147,82 @@ subject Harness {
 
     // Every call, in order: run only when allowed, its output guarded.
     fn perform_all(calls: [Call], a: Ask, p: Person, h: Habits) -> rs: [Outcome] {
-        calls.fold(rs: []) { c -> rs ++ [Outcome { call: c, output: match Policy::allow(c, a, p, h) {
-            Decision::Run => ToolGuard::screen(c.tool.call(c.input)),
-            Decision::Confirm => Err(ToolFailure::AwaitsYes),
-            Decision::Refuse => Err(ToolFailure::Refused)
+        calls.fold(rs: []) { c -> rs ++ [Outcome { call: c, output: {
+            let d = Policy::allow(c, a, p, h);
+            if runs(d) { ToolGuard::screen(c.tool.call(c.input)) } else { Err(withheld(d)) }
         } }] }
     } where {
         claim each: rs.len() == n by invariant n;
         examples { ([], Ask { text: "x", clear: true, easy: true }, Person { role: Role::Owner }, Habits {}) -> [] }
     }
 
-    // Kept by its bodies; a route property each, until Mitra can state one (finding A).
-    ensure answers: "every message gets a reply: an answer, a question back, or what was not done and why"
+    // Whether a decision runs the tool, and why not when it does not.
+    // Finite: Mitra tries every decision.
+    fn runs(d: Decision) -> r: bool {
+        d == Decision::Run
+    } where {
+        claim only_run: r == (d == Decision::Run);
+    }
+    fn withheld(d: Decision) -> f: ToolFailure {
+        match d { Decision::Confirm => ToolFailure::AwaitsYes, Decision::Refuse => ToolFailure::Refused, Decision::Run => ToolFailure::Refused }
+    } where {
+        claim waits: d != Decision::Confirm || f == ToolFailure::AwaitsYes;
+    }
+
+    // What the harness keeps, by its bodies.
+    ensure answers: "every message the harness serves ends in a reply, whichever way it went"
         from (run::ends, stops);
-    ensure machine_first: "plain code answers before any model is asked, and our model judges a message before the frontier one sees it";
-    ensure helps: "a call for help is passed on before any other step, whoever sends it";
+    ensure machine_first: "plain code answers before any model is asked, and our model judges a message before the frontier one sees it";   // route in serve (finding A)
+    ensure helps: "a call for help is passed on, by plain code before any model, or as soon as our model recognises it"
+        from (after_gate::helps);
+    ensure benign_only: "a malicious message or noise goes no further than a reply saying so"
+        from (after_gate::benign_only, after_gate::signal_only, after_gate::only_requests);
+    ensure scored: "a message judging the assistant tunes it, and is never run as a request"
+        from (after_gate::scored);
+    ensure fails_closed: "when our model cannot judge a message, nothing is done with it, and the sender is told";   // route in serve (finding A)
     ensure guarded: "a tool runs only when the policy says so, and its output passes the guard before the model reads it"
-        from (perform_all::each);
+        from (runs::only_run, withheld::waits, perform_all::each);
     ensure asks_first: "an unclear ask is asked back before any model works on it"
-        from (run::refused);
+        from (after_ask::asks_first, run::refused);
     ensure composed: "every request the loop sends is the composer's, for the model it goes to"
         from (fits);
-    ensure noted: "each step that decides about a message leaves a note saying what it decided";
+    ensure noted: "each step that decides about a message leaves a note saying what it decided";   // route in serve (finding A)
+
+    // Names from the other files.
+    use Result from "std";
+    use Option from "std";
+    use Message from "vocabulary";
+    use Person from "vocabulary";
+    use Verdict from "vocabulary";
+    use Ask from "vocabulary";
+    use Habits from "vocabulary";
+    use Reply from "vocabulary";
+    use Annotation from "vocabulary";
+    use Note from "vocabulary";
+    use Step from "vocabulary";
+    use Tool from "vocabulary";
+    use Call from "vocabulary";
+    use Answer from "vocabulary";
+    use Outcome from "vocabulary";
+    use Turn from "vocabulary";
+    use Decision from "vocabulary";
+    use Role from "vocabulary";
+    use ToolFailure from "vocabulary";
+    use LlmFailure from "vocabulary";
+    use HarnessFailure from "vocabulary";
+    use Conversation from "conversation";
+    use Identity::who from "security";
+    use Commands::{answer, alarm} from "security";
+    use Gate::screen from "security";
+    use Purpose::{pin, context} from "purpose";
+    use Experience::recall from "purpose";
+    use Composer::compose from "purpose";
+    use Models from "models";
+    use Llm from "models";
+    use Policy::allow from "tools";
+    use ToolGuard::screen from "tools";
+    use Helpline::alert from "care";
+    use Tuning::adjust from "care";
+    use Reporter::{report, decline, ask_back, helped, tuned, unchecked} from "reply";
+    use Route from "vocabulary";
 }

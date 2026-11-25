@@ -1,6 +1,19 @@
 // The reply: well formulated, and never silence.
 
 subject Reporter {
+    fn report(r: Result<Answer, HarnessFailure>, a: Ask) -> reply: Reply;
+    fn decline(v: Verdict) -> reply: Reply;
+    fn ask_back(a: Ask) -> reply: Reply;
+    fn helped(sent: bool) -> reply: Reply;
+    fn tuned(s: Preferences) -> reply: Reply;
+    // Our model could not judge the message: nothing was done (C11).
+    fn unchecked() -> reply: Reply;
+    // The server stopped while working on it: it was not finished (C12).
+    fn interrupted() -> reply: Reply;
+    ensure explains_failure: "a failure or a refusal is told as what was not done, and why";   // rule, measured
+    ensure clear: "plain words, one point at a time: what was done, and what was not";       // quality, measured
+
+    // Names from the other files.
     use Result from "std";
     use Answer from "vocabulary";
     use HarnessFailure from "vocabulary";
@@ -8,11 +21,4 @@ subject Reporter {
     use Verdict from "vocabulary";
     use Reply from "vocabulary";
     use Preferences from "vocabulary";
-    fn report(r: Result<Answer, HarnessFailure>, a: Ask) -> reply: Reply;
-    fn decline(v: Verdict) -> reply: Reply;
-    fn ask_back(a: Ask) -> reply: Reply;
-    fn helped(sent: bool) -> reply: Reply;
-    fn tuned(s: Preferences) -> reply: Reply;
-    ensure explains_failure: "a failure or a refusal is told as what was not done, and why";   // rule, measured
-    ensure clear: "plain words, one point at a time: what was done, and what was not";       // quality, measured
 }

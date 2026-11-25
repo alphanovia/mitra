@@ -17,7 +17,7 @@ subject Tuning {
     use Preferences from "vocabulary";
     fn adjust(m: Message, p: Person) -> s: Preferences;
     ensure by_voice: "each setting the user may change can be changed by voice, and is read back";   // measured
-    ensure scored: "a message judging the assistant is kept as a score to learn from, not run as a request"; // route in Harness::serve
+    ensure scored: "a judgement of the assistant is kept as a score to learn from";                         // measured
 }
 
 // What happened, and why: read from the notes of the conversation store.

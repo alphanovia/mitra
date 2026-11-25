@@ -2,10 +2,6 @@
 // naive request: the whole conversation written out (e.g. as JSON).
 
 subject Conversation {
-    use Result from "std";
-    use Turn from "vocabulary";
-    use Answer from "vocabulary";
-    use Outcome from "vocabulary";
     record { turns: [Turn] }
 
     fn encode(self) -> request: [~char] where {
@@ -35,4 +31,10 @@ subject Conversation {
     fn outcomes(self) -> os: [Outcome] {
         self.turns.fold(os: []) { t -> match t { Turn::Results(rs) => os ++ rs, _ => os } }
     }
+
+    // Names from the other files.
+    use Result from "std";
+    use Turn from "vocabulary";
+    use Answer from "vocabulary";
+    use Outcome from "vocabulary";
 }

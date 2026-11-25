@@ -12,6 +12,16 @@ environment Persona1 {
 // The network between a client and the server: each call reaches the
 // server's entry (Gateway), or fails.
 environment Network {
+    // Each call shows the device's token (C10).
+    fn post(t: Token, e: Envelope) -> r: Result<Receipt, NetFailure>;
+    fn get(t: Token, after: integer) -> r: Result<[Stored], NetFailure>;
+    fn typing(t: Token) -> on: bool;
+    fn ack(t: Token, id: MessageId) -> ok: bool;
+    require entry: Gateway::recorded_first;
+    require paired_only: Gateway::paired_only;
+    ensure carries: "a client's call reaches the server's entry and brings back its answer, or the client learns that it failed";
+
+    // Names from the other files.
     use Result from "std";
     use Envelope from "vocabulary";
     use Receipt from "vocabulary";
@@ -20,35 +30,16 @@ environment Network {
     use MessageId from "vocabulary";
     use Stored from "store";
     use Gateway from "gateway";
-    fn post(e: Envelope) -> r: Result<Receipt, NetFailure>;
-    fn get(d: Device, after: integer) -> r: Result<[Stored], NetFailure>;
-    fn typing(d: Device) -> on: bool;
-    fn ack(id: MessageId) -> ok: bool;
-    require entry: Gateway::recorded_first;
-    ensure carries: "a client's call reaches the server's entry and brings back its answer, or the client learns that it failed";
+    use Token from "vocabulary";
 }
 
-// CHOICE TO CONFIRM (C9): the CLI's own state is its count of messages
-// sent, the last reply it has, and how many times it may send again
-// (a setting).
+// CHOICE TO CONFIRM (C9): the CLI's own state is its token, its count of
+// messages sent, the last reply it has, and how many times it may send
+// again (a setting).
 subject Cli {
-    use Result from "std";
-    use Option from "std";
-    use Input from "vocabulary";
-    use Envelope from "vocabulary";
-    use MessageId from "vocabulary";
-    use Party from "vocabulary";
-    use Device from "vocabulary";
-    use Body from "vocabulary";
-    use Audio from "vocabulary";
-    use Receipt from "vocabulary";
-    use NetFailure from "vocabulary";
-    use Stored from "store";
-    use Gateway from "gateway";
-    use Worker from "worker";
-    use Network::{post, get, ack};
-    record { count: integer, seen: integer, retries: integer }
+    record { token: Token, count: integer, seen: integer, retries: integer }
 
+    require persona: Persona1::uses_cli;
     require carried: Network::carries;
     require retry_safe: Gateway::retry_safe;
     require delivers: Gateway::delivers;
@@ -57,13 +48,13 @@ subject Cli {
 
     // What persona 1 gives, as a message with the next id of this computer.
     fn envelope(self, i: Input) -> e: Envelope {
-        Envelope { id: MessageId { party: Party::Client(Device::Computer), n: self.count + 1 }, body: body(i) }
+        Envelope { id: MessageId { from: Party::Client(Device::Computer), n: self.count + 1 }, body: body(i) }
     } where {
         claim next: e.id.n == self.count + 1;
-        claim ours: e.id.party == Party::Client(Device::Computer);
+        claim ours: e.id.from == Party::Client(Device::Computer);
         examples {
-            (Cli { count: 0, seen: 0, retries: 3 }, Input::Typed("hello"))
-                -> Envelope { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") }
+            (Cli { token: Token {}, count: 0, seen: 0, retries: 3 }, Input::Typed("hello"))
+                -> Envelope { id: MessageId { from: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") }
         }
     }
     fn body(i: Input) -> b: Body {
@@ -73,14 +64,14 @@ subject Cli {
     // Sends a message, again with the same id while the network fails, up
     // to the number of times the settings allow.
     fn send(self, e: Envelope) -> r: Result<Receipt, NetFailure> {
-        until((k: 0, r: Network::post(e)), sent(r) || k >= self.retries) { (k + 1, Network::post(e)) }.r
+        until((k: 0, r: Network::post(self.token, e)), sent(r) || k >= self.retries) { (k + 1, Network::post(self.token, e)) }.r
     }
     fn sent(r: Result<Receipt, NetFailure>) -> s: bool {
         match r { Ok(_) => true, Err(_) => false }
     }
 
     // What the persona sees of a send. The words are placeholders. It
-    // takes only whether it was sent, so Mitra tries both (finding T).
+    // takes only whether it was sent, so Mitra tries both (finding P).
     fn status(ok: bool) -> line: [~char] {
         if ok { "sent" } else { "not sent: the assistant cannot be reached, try again later" }
     } where {
@@ -89,8 +80,8 @@ subject Cli {
 
     // New replies for this computer; the last one seen moves on.
     fn poll(self) -> out: (cli: Cli, shown: [Stored]) {
-        match Network::get(Device::Computer, self.seen) {
-            Ok(es) => (cli: Cli { count: self.count, seen: last(es, self.seen), retries: self.retries }, shown: es),
+        match Network::get(self.token, self.seen) {
+            Ok(es) => (cli: Cli { token: self.token, count: self.count, seen: last(es, self.seen), retries: self.retries }, shown: es),
             Err(_) => (cli: self, shown: none())
         }
     }
@@ -107,7 +98,9 @@ subject Cli {
     }
     fn play(s: Stored) -> a: Option<Audio> { s.speech() }
     // The CLI tells the server it got a reply.
-    fn got(s: Stored) -> ok: bool { Network::ack(s.id) }
+    fn got(self, s: Stored) -> ok: bool { Network::ack(self.token, s.id) }
+    // Whether to show "working…".
+    fn working(self) -> on: bool { Network::typing(self.token) }
 
     ensure sends_once: "what persona 1 types or says reaches the assistant once, even when the CLI has to send it again"
         from (carried, retry_safe);
@@ -120,9 +113,27 @@ subject Cli {
 
     examples {
         // Sent at the first try: the persona sees it sent.
-        given Network::post(_) -> Ok(Receipt::Received(MessageId { party: Party::Client(Device::Computer), n: 1 }))
-            when Cli::send(Cli { count: 0, seen: 0, retries: 3 },
-                           Envelope { id: MessageId { party: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
-            then Ok(Receipt::Received(MessageId { party: Party::Client(Device::Computer), n: 1 }))
+        given Network::post(_, _) -> Ok(Receipt::Received(MessageId { from: Party::Client(Device::Computer), n: 1 }))
+            when Cli::send(Cli { token: Token {}, count: 0, seen: 0, retries: 3 },
+                           Envelope { id: MessageId { from: Party::Client(Device::Computer), n: 1 }, body: Body::Text("hello") })
+            then Ok(Receipt::Received(MessageId { from: Party::Client(Device::Computer), n: 1 }))
     }
+
+    // Names from the other files.
+    use Result from "std";
+    use Option from "std";
+    use Input from "vocabulary";
+    use Envelope from "vocabulary";
+    use MessageId from "vocabulary";
+    use Party from "vocabulary";
+    use Device from "vocabulary";
+    use Body from "vocabulary";
+    use Audio from "vocabulary";
+    use Receipt from "vocabulary";
+    use NetFailure from "vocabulary";
+    use Stored from "store";
+    use Gateway from "gateway";
+    use Worker from "worker";
+    use Network::{post, get, ack, typing};
+    use Token from "vocabulary";
 }

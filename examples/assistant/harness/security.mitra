@@ -19,33 +19,40 @@ environment Identity {
 // time, "say it again", what a setting is), and a list of help words
 // that call for help even when no model is up.
 subject Commands {
+    fn answer(m: Message, p: Person) -> r: Option<Reply>;
+    fn alarm(m: Message) -> help: bool;
+    ensure plain_first: "a request plain code can answer is answered without any model";       // capability, shown by examples
+    ensure read_only: "an answer by plain code only tells, and never acts on anything";        // property: answer has no tools to call
+    ensure help_words: "a call for help in plain words is passed on even when no model is up";  // rule, measured on the word list
+
+    // Names from the other files.
     use Option from "std";
     use Message from "vocabulary";
     use Person from "vocabulary";
     use Reply from "vocabulary";
-    fn answer(m: Message, p: Person) -> r: Option<Reply>;
-    fn alarm(m: Message) -> help: bool;
-    ensure plain_first: "a request plain code can answer is answered without any model";       // capability, shown by examples
-    ensure read_only: "an answer by plain code only tells; it never acts on anything";        // property: answer has no tools to call
-    ensure help_words: "a call for help in plain words is passed on even when no model is up";  // rule, measured on the word list
 }
 
 // Security, by the local model: is there anything to do?
 subject Gate {
+    // It fails when our model cannot be reached (C11).
+    fn screen(m: Message, p: Person) -> v: Result<Verdict, LlmFailure> where {
+        // Nothing heard is noise: a voice the server could not make out
+        // comes here with no words.
+        claim empty_is_noise: m.text != "" || v == Ok(Verdict::Noise) || v == Err(LlmFailure::Unreachable);
+    }
+    require identified: Identity::identified;
+    require local: LocalLlm::serves;
+    ensure spots_malice: "a message meant to do harm is judged malicious";                          // quality, measured
+    ensure spots_noise: "noise, a cat on the keyboard or a sound, is judged noise"                  // quality, measured
+        from (screen::empty_is_noise);
+    ensure help_first: "a call for help is recognised whatever the role or the doubt";             // measured
+    ensure few_refused: "a real message of the user is rarely refused or taken for noise";        // quality, measured
+
+    // Names from the other files.
     use LocalLlm from "models";
     use Message from "vocabulary";
     use Person from "vocabulary";
     use Verdict from "vocabulary";
-    fn screen(m: Message, p: Person) -> v: Verdict where {
-        // Nothing heard is noise: a voice the server could not make out
-        // comes here with no words.
-        claim empty_is_noise: m.text != "" || v == Verdict::Noise;
-    }
-    require identified: Identity::identified;
-    require local: LocalLlm::serves;
-    ensure benign_only: "a message judged malicious goes no further than a reply saying so";      // route in Harness::serve, judge measured
-    ensure signal_only: "noise, a cat on the keyboard or a sound, is never answered as a request" // route, judge measured
-        from (screen::empty_is_noise);
-    ensure help_first: "a call for help is recognised whatever the role or the doubt";             // measured
-    ensure few_refused: "a real message of the user is rarely refused or taken for noise";        // quality, measured
+    use LlmFailure from "vocabulary";
+    use Result from "std";
 }

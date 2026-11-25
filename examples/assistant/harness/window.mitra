@@ -3,15 +3,6 @@
 // the model refuses it. Kept as the argument, not as part of the system.
 
 subject NaiveLoop {
-    use Result from "std";
-    use Answer from "vocabulary";
-    use Outcome from "vocabulary";
-    use Turn from "vocabulary";
-    use Tool from "vocabulary";
-    use LlmFailure from "vocabulary";
-    use Conversation from "conversation";
-    use Llm from "models";
-
     require framed: Conversation::framed;
     require refuses_long: Llm::refuses_long;
 
@@ -56,4 +47,14 @@ subject NaiveLoop {
 
     ensure breaks_window: "sending the whole conversation each turn, the request grows with no bound until the model refuses it"
         from (replay::grows, after::overflows, after::refuses);
+
+    // Names from the other files.
+    use Result from "std";
+    use Answer from "vocabulary";
+    use Outcome from "vocabulary";
+    use Turn from "vocabulary";
+    use Tool from "vocabulary";
+    use LlmFailure from "vocabulary";
+    use Conversation from "conversation";
+    use Llm from "models";
 }

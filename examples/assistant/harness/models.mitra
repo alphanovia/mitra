@@ -8,10 +8,6 @@
 
 // A model behind inference: stateless; how it answers is not known.
 environment Llm {
-    use Result from "std";
-    use Answer from "vocabulary";
-    use LlmFailure from "vocabulary";
-    use Tool from "vocabulary";
     // Its window holds what it reads and what it writes back; `reserve`
     // is the room kept for the answer (the API's max_tokens). Bytes stand
     // for tokens until a tokenizer part.
@@ -21,6 +17,12 @@ environment Llm {
     }
     ensure refuses_long: "a request that leaves less than the reserve in the window is refused"
         from (inference::windowed);
+
+    // Names from the other files.
+    use Result from "std";
+    use Answer from "vocabulary";
+    use LlmFailure from "vocabulary";
+    use Tool from "vocabulary";
 }
 
 environment CloudLlm {
@@ -47,8 +49,9 @@ subject Models {
     } where {
         // Local before frontier: an easy ask never goes to the cloud.
         claim local_first: !easy || m == Machine::Local;
-        // The user's instruction is worked out by the frontier model,
-        // never handed down to the local one when the cloud is away (C7).
+        // The user's instruction is worked out by the frontier model.
+        // CHOICE TO CONFIRM (C7): when the cloud cannot be reached, the user
+        // is told; the ask is not handed down to our model, nor queued.
         claim no_downgrade: easy || m == Machine::Cloud;
     }
 
@@ -63,6 +66,6 @@ subject Models {
 
     ensure cheapest_first: "an easy ask is answered by our model, and only a harder one goes to the frontier model"
         from (machine::local_first, local);
-    ensure frontier_for_work: "what the user asks to have worked out goes to the frontier model, and is never quietly done by a weaker one"
+    ensure frontier_for_work: "the user's real work goes to the frontier model, and is never quietly done by a weaker one"
         from (machine::no_downgrade, cloud);
 }

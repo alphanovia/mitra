@@ -453,7 +453,7 @@ fn the_assistant_rows_end_to_end() {
     let (code, out) = mitra(&["check", path]);
     assert_eq!(code, 0, "{out}");
     assert!(
-        out.contains("check: well formed; agree: 94 comparisons, 75 hold, 19 findings"),
+        out.contains("check: well formed; agree: 116 comparisons, 97 hold, 19 findings"),
         "{out}"
     );
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");

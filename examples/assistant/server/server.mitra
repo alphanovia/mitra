@@ -12,11 +12,16 @@ subject Server {
     require transcribes: Worker::transcribes;
     require answers_back: Worker::answers_back;
     require traced: Worker::traced;
+    require paired_only: Gateway::paired_only;
+    require recovers: Worker::recovers;
+    require in_order: Worker::in_order;
 
     ensure hosts: "the assistant is deployed and running on the server";                              // assumption of the deployment
     ensure reachable: "the clients reach the server, and the server reaches both model machines";     // assumption of the network
     ensure messaging: "clients send and receive messages through one API, as with a messaging app"
-        from (recorded_first, retry_safe, delivers, answers_back);
+        from (paired_only, recorded_first, retry_safe, delivers, in_order, answers_back);
     ensure memory: "the server keeps the whole conversation: each message as it came, and what was found out about it"
         from (kept, transcribes, traced);
+    ensure robust: "a restart loses no message, and leaves none unanswered"
+        from (kept, recovers);
 }

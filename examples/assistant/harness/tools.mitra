@@ -5,6 +5,13 @@
 // decided by allow; Confirm is told to the model as not run, and asked of
 // the owner.
 subject Policy {
+    fn allow(c: Call, a: Ask, p: Person, h: Habits) -> d: Decision;
+    require identified: Identity::identified;
+    require flagged: Experience::near_habit;
+    ensure role_bound: "nothing of consequence runs beyond the sender's role, and for a stranger nothing at all"; // measured per tool
+    ensure confirms: "an irreversible or unusual call waits for the owner's yes";                                 // measured
+
+    // Names from the other files.
     use Call from "vocabulary";
     use Ask from "vocabulary";
     use Person from "vocabulary";
@@ -12,11 +19,6 @@ subject Policy {
     use Decision from "vocabulary";
     use Identity from "security";
     use Experience from "purpose";
-    fn allow(c: Call, a: Ask, p: Person, h: Habits) -> d: Decision;
-    require identified: Identity::identified;
-    require flagged: Experience::near_habit;
-    ensure role_bound: "nothing of consequence runs beyond the sender's role, and for a stranger nothing at all"; // measured per tool
-    ensure confirms: "an irreversible or unusual call waits for the owner's yes";                                 // measured
 }
 
 subject ToolGuard {
