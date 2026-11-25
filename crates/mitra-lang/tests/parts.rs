@@ -230,9 +230,9 @@ fn a_part_holding_parts_rests_on_their_ensures() {
         errors(&text.replace("from (B::b,", "from (A::B::b,")),
         Vec::<String>::new()
     );
-    let m029 = "holds parts, and its ensures rest only on its parts' ensures and its own requires";
-    // Not on its own ensures, nor on its parts' requires.
-    for wrong in ["from (A::whole, given)", "from (B::inner, given)"] {
+    let m029 = "rests on its part `A::B` through its ensures only";
+    // DRY RUN: not on its parts' requires.
+    for wrong in ["from (B::inner, given)"] {
         let out = errors(&text.replace("from (B::b, given)", wrong));
         assert!(out.iter().any(|e| e.contains(m029)), "{wrong}: {out:?}");
     }

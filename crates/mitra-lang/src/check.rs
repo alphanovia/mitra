@@ -222,21 +222,16 @@ pub fn check(model: &Model) -> Vec<Error> {
                     errors.push(error(M011, &here, "a list is empty"));
                 }
                 for names in list {
-                    // A part holding parts rests on its parts' ensures
-                    // and its own requires only (M029).
-                    if working(model, part) && index.prop_at(names).is_some() {
-                        let first = names.names.first().map(String::as_str).unwrap_or("");
-                        let item = index.items.get(names);
-                        let fits = match first == part.name {
-                            true => matches!(item, Some(Item::Require(_))),
-                            false => {
-                                part.inner.iter().any(|i| i == first)
-                                    && matches!(item, Some(Item::Ensure(_)))
-                            }
-                        };
-                        if !fits {
+                    // DRY RUN (M028 relaxed): a part rests on its own
+                    // pieces, and on its inner parts through their
+                    // ensures only: an inner part's claims are its own
+                    // (M029).
+                    let first = names.names.first().map(String::as_str).unwrap_or("");
+                    let inner = part.inner.iter().any(|i| i == first);
+                    if inner && index.prop_at(names).is_some() {
+                        if !matches!(index.items.get(names), Some(Item::Ensure(_))) {
                             let message = format!(
-                                "`{names}`: `{}` holds parts, and its ensures rest only on its parts' ensures and its own requires",
+                                "`{names}`: `{}` rests on its part `{first}` through its ensures only",
                                 part.name
                             );
                             errors.push(error(M029, &here, message));
@@ -849,7 +844,9 @@ fn nesting(model: &Model, part: &Part, at: &Path) -> Vec<Error> {
         if !part.implements.is_empty() {
             held.push("an `impl`");
         }
-        if !held.is_empty() {
+        // DRY RUN: M028 relaxed, a part with functions holds parts with
+        // functions, as a Rust module holds modules.
+        if false && !held.is_empty() {
             let message = format!(
                 "`{}` holds parts, and also {}: a part holding parts holds only them, requires, ensures and examples; move the rest into one of its parts",
                 part.name,

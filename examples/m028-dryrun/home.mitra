@@ -1,0 +1,33 @@
+subject home {
+    require power: "the house has power";
+    use home::Heater::decide;
+    use home::Sensor::read;
+
+    fn target() -> t: integer { 20 }
+
+    fn tick() -> on: bool { decide(read(), target()) } where {
+        claim follows: on == (read() < 20);
+    }
+
+    environment Sensor {
+        fn read() -> t: integer;
+        ensure accurate: "reads the room within 1 degree";
+    }
+
+    subject Heater at "src/heater.rs" {
+        use home::target;
+        fn decide(r: integer, t: integer) -> on: bool { r < t } where {
+            claim below: on == (r < t);
+            examples { (18, 20) -> true }
+        }
+        fn goal() -> t: integer { target() }
+        ensure warms: "the heater is on below its target" from (decide::below);
+    }
+
+    examples {
+        given Sensor::read() -> 18 when home::tick() then true
+    }
+
+    ensure comfortable: "the house stays near its target"
+        from (tick::follows, Heater::warms, Sensor::accurate, power);
+}

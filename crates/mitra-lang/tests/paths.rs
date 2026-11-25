@@ -174,10 +174,7 @@ fn data_parts_sit_beside_functions() {
             fn f() -> x: integer { 1 }
         }",
     );
-    assert!(
-        out.contains("error[M028]: `a` holds parts, and also a function"),
-        "{out}"
-    );
+    assert!(out.is_empty(), "DRY RUN: M028 relaxed: {out}");
     // Its ensures rest on its own pieces: M029 is only for a part of parts.
     model(
         "subject a {
@@ -341,7 +338,7 @@ fn a_part_of_parts_is_not_data() {
             subject B { subject C { ensure e: \"e\"; } }
         }",
     );
-    assert!(out.contains("error[M028]: `a` holds parts"), "{out}");
+    assert!(out.is_empty(), "DRY RUN: M028 relaxed: {out}");
 }
 
 /// Three levels: the record is at the part's own, last, name; its tie

@@ -746,11 +746,11 @@ fn each_error_is_found() {
     // Parts holding parts (M028, M029) and methods (M030).
     assert_eq!(
         digits("subject A {\n    fn f(x: integer) -> y: integer { x }\n    subject B { ensure e: \"e\"; }\n}"),
-        ["error[M028]: `A` holds parts, and also a function: a part holding parts holds only them, requires, ensures and examples; move the rest into one of its parts\n --> A"]
+        Vec::<String>::new() // DRY RUN: M028 relaxed
     );
     assert_eq!(
-        digits("subject C { ensure c: \"c\"; }\nsubject A {\n    ensure a: \"a\" from (C::c);\n    subject B { ensure e: \"e\"; }\n}"),
-        ["error[M029]: `C::c`: `A` holds parts, and its ensures rest only on its parts' ensures and its own requires\n --> A::a"]
+        digits("subject A {\n    ensure a: \"a\" from (B::r);\n    subject B { require r: \"r\"; }\n}"),
+        ["error[M029]: `A::B::r`: `A` rests on its part `A::B` through its ensures only\n --> A::a"]
     );
     assert_eq!(
         digits("subject T {\n    fn f(self) -> y: integer { 0 }\n    fn g(x: integer, self) -> y: integer { x }\n}"),
