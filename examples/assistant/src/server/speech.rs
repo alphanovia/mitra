@@ -19,6 +19,10 @@ impl Speech {
     pub fn speak(t: String) -> Audio {
         crate::fake::speak(t)
     }
+    // mitra: implements Speech::bytes
+    pub fn bytes(a: Audio) -> i64 {
+        a.bytes.len() as i64
+    }
     // mitra: implements Speech::speaker
     pub fn speaker(a: Audio) -> bool {
         crate::fake::speaker(a)

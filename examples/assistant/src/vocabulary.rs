@@ -124,6 +124,7 @@ pub struct Annotation {
 pub struct Hold {
     pub code: i64,
     pub call: Call,
+    pub asked: String,
 }
 
 // mitra: implements Message

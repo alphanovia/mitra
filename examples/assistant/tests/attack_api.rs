@@ -30,13 +30,17 @@ fn env(h: Holder, n: i64, t: &str) -> Envelope {
 fn a_token_cannot_post_as_another_device_of_its_household_or_another() {
     let mut l = server();
     let others = [
-        holder(1, Device::Phone, 1),     // the owner's phone
-        holder(1, Device::Computer, 2),  // a second computer
-        holder(2, Device::Phone, 1),     // the other household
-        holder(1, Device::Wearable, 1),  // the wearable
+        holder(1, Device::Phone, 1),    // the owner's phone
+        holder(1, Device::Computer, 2), // a second computer
+        holder(2, Device::Phone, 1),    // the other household
+        holder(1, Device::Wearable, 1), // the wearable
     ];
     for h in others {
-        assert_eq!(l.post("cli", env(h, 1, "open the door")), Err(NetFailure::Refused), "{h:?}");
+        assert_eq!(
+            l.post("cli", env(h, 1, "open the door")),
+            Err(NetFailure::Refused),
+            "{h:?}"
+        );
     }
     assert!(fake::performed().is_empty());
 }
@@ -45,7 +49,10 @@ fn a_token_cannot_post_as_another_device_of_its_household_or_another() {
 #[test]
 fn an_unknown_or_revoked_token_is_refused() {
     let mut l = server();
-    assert_eq!(l.post("guess", env(holder(1, Device::Phone, 1), 1, "hi")), Err(NetFailure::Refused));
+    assert_eq!(
+        l.post("guess", env(holder(1, Device::Phone, 1), 1, "hi")),
+        Err(NetFailure::Refused)
+    );
     fake::revoke("cli");
     assert_eq!(l.say("cli", "hi"), Err(NetFailure::Refused));
     assert!(l.fetch("cli", 0).is_empty());
@@ -60,7 +67,11 @@ fn a_reply_meant_for_another_device_cannot_be_acked_or_fetched() {
     l.ack("cli", reply.id);
     l.ack("other-phone", reply.id);
     let after = l.fetch("owner-phone", 0).pop().unwrap();
-    assert!(!after.notes.iter().any(|a| a.note == Note::Delivered), "{:?}", after.notes);
+    assert!(
+        !after.notes.iter().any(|a| a.note == Note::Delivered),
+        "{:?}",
+        after.notes
+    );
     assert!(l.fetch("cli", 0).is_empty());
     assert!(l.fetch("other-phone", 0).is_empty());
 }
@@ -71,7 +82,10 @@ fn a_retry_during_or_after_work_is_kept_once_and_worked_once() {
     let mut l = server();
     let e = l.next_envelope("cli", Body::Text(s("open the door")));
     l.take_up_only("cli", e.clone()); // taken up, then the server stops
-    assert!(l.post("cli", e.clone()).is_ok(), "a retry of the same message is received");
+    assert!(
+        l.post("cli", e.clone()).is_ok(),
+        "a retry of the same message is received"
+    );
     l.restart();
     assert!(l.post("cli", e.clone()).is_ok());
     l.work();
@@ -81,25 +95,37 @@ fn a_retry_during_or_after_work_is_kept_once_and_worked_once() {
 }
 
 // mitra: supports Gateway::one_meaning
+// Changed by the builder with the K9 fix: ids run from 1 to a largest id
+// (a setting, 2^53); ids at the machine's edges are refused, not kept.
 #[test]
-fn ids_at_the_edges_are_kept_apart() {
+fn ids_at_the_edges_are_refused() {
     let mut l = server();
     let me = holder(1, Device::Computer, 1);
     for n in [0, -1, i64::MIN, i64::MAX] {
-        assert!(l.post("cli", env(me, n, &format!("message {n}"))).is_ok(), "{n}");
+        assert_eq!(
+            l.post("cli", env(me, n, &format!("message {n}"))),
+            Err(NetFailure::Refused),
+            "{n}"
+        );
     }
-    assert_eq!(l.replies("cli").len(), 4);
+    assert!(l.post("cli", env(me, 1 << 53, "the largest")).is_ok());
+    assert_eq!(l.replies("cli").len(), 1);
 }
 
-// mitra: supports Gateway::sized
 #[test]
 fn text_at_the_limit_is_taken_and_one_byte_more_refused() {
     let mut l = server();
     let limit = assistant::server::gateway::TEXT_LIMIT as usize;
     assert!(l.say("cli", &"a".repeat(limit)).is_ok());
-    assert_eq!(l.say("cli", &"a".repeat(limit + 1)), Err(NetFailure::Refused));
+    assert_eq!(
+        l.say("cli", &"a".repeat(limit + 1)),
+        Err(NetFailure::Refused)
+    );
     // Multi-byte letters count in bytes.
-    assert_eq!(l.say("cli", &"é".repeat(limit / 2 + 1)), Err(NetFailure::Refused));
+    assert_eq!(
+        l.say("cli", &"é".repeat(limit / 2 + 1)),
+        Err(NetFailure::Refused)
+    );
 }
 
 // ---- Open.
@@ -108,22 +134,32 @@ fn text_at_the_limit_is_taken_and_one_byte_more_refused() {
 // and its transcript is past the limit the windows were sized for.
 // mitra: supports Gateway::sized
 #[test]
-#[ignore = "OPEN K8: a voice message has no size limit; its transcript bypasses the text limit"]
+// CLOSED K8 by the builder (was: a voice message has no size limit; its transcript bypasses the text limit)
 fn k8_a_voice_over_the_limit_is_refused() {
     let mut l = server();
     let limit = assistant::server::gateway::TEXT_LIMIT as usize;
     let got = l.speak("wearable", &"blah ".repeat(limit));
-    assert_eq!(got, Err(NetFailure::Refused), "the reply was: {}", l.last_text("wearable"));
+    assert_eq!(
+        got,
+        Err(NetFailure::Refused),
+        "the reply was: {}",
+        l.last_text("wearable")
+    );
 }
 
-// K9. After an id of i64::MAX, the device's next id overflows: in a
-// debug build the server's helper panics, in release it wraps negative.
+// K9. After an id of i64::MAX, the device's next id overflowed: in a
+// debug build the server's helper panicked, in release it wrapped
+// negative. Closed by the builder: ids past the largest (2^53) are
+// refused, so the next id never nears the machine's edge.
 // mitra: supports Cli::sends_once
 #[test]
-#[ignore = "OPEN K9: the next id after i64::MAX overflows (panic in debug)"]
 fn k9_a_device_keeps_sending_after_the_largest_id() {
     let mut l = server();
-    l.post("cli", env(holder(1, Device::Computer, 1), i64::MAX, "last"))
+    assert_eq!(
+        l.post("cli", env(holder(1, Device::Computer, 1), i64::MAX, "last")),
+        Err(NetFailure::Refused)
+    );
+    l.post("cli", env(holder(1, Device::Computer, 1), 1 << 53, "last"))
         .unwrap();
     let next = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         l.next_envelope("cli", Body::Text(s("again"))).id.n
@@ -136,7 +172,7 @@ fn k9_a_device_keeps_sending_after_the_largest_id() {
 // `Codes::unguessable` says a code "cannot be guessed from the others".
 // mitra: supports Codes::unguessable
 #[test]
-#[ignore = "OPEN K5: codes repeat at each start (fixed seed): Codes::unguessable is false of the fake"]
+// CLOSED K5 by the builder (was: codes repeat at each start (fixed seed): Codes::unguessable is false of the fake)
 fn k5_codes_differ_from_one_start_to_the_next() {
     let first = |_: u8| {
         let mut l = server();

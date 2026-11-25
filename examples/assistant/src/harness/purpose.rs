@@ -2,6 +2,7 @@
 
 use crate::harness::conversation::Conversation;
 use crate::harness::models::{Llm, Models};
+use crate::harness::tools::one_line;
 use crate::vocabulary::*;
 
 pub struct Purpose;
@@ -54,7 +55,7 @@ impl Composer {
     /// windows (H15). Tool outputs come already marked by the guard.
     // mitra: implements Composer::compose
     pub fn compose(a: Ask, c: Context, _h: Habits, llm: Llm) -> String {
-        let head = format!("WORK:\nASK: {}\n", a.text.replace('\n', " "));
+        let head = format!("WORK:\nASK: {}\n", one_line(&a.text));
         let lines: Vec<String> = c.turns.iter().map(turn).collect();
         let room = (llm.window - llm.reserve) as usize;
         let mut from = 0;
@@ -87,19 +88,19 @@ fn why(f: ToolFailure) -> &'static str {
 
 fn turn(t: &Turn) -> String {
     match t {
-        Turn::User(p) => format!("USER: {}\n", p.replace('\n', " ")),
+        Turn::User(p) => format!("USER: {}\n", one_line(p)),
         Turn::Model(a) => {
-            let mut s = format!("MODEL: {}\n", a.text.replace('\n', " "));
+            let mut s = format!("MODEL: {}\n", one_line(&a.text));
             for c in &a.calls {
-                s += &format!("CALLED {} {}\n", c.tool, c.input);
+                s += &format!("CALLED {} {}\n", one_line(&c.tool), one_line(&c.input));
             }
             s
         }
         Turn::Results(os) => os
             .iter()
             .map(|o| match &o.output {
-                Ok(out) => format!("RESULT {}:\n{}\n", o.call.tool, out),
-                Err(f) => format!("RESULT {}: not run, {}\n", o.call.tool, why(*f)),
+                Ok(out) => format!("RESULT {}:\n{}\n", one_line(&o.call.tool), out),
+                Err(f) => format!("RESULT {}: not run, {}\n", one_line(&o.call.tool), why(*f)),
             })
             .collect(),
     }

@@ -54,8 +54,9 @@ subject enum Note {
     Confirmed(integer)         // the owner said yes to this code: it is used up
 }
 subject record Annotation { by: Step, note: Note }
-// A call held for the owner's yes (C16), and the code the owner answers with.
-subject record Hold { code: integer, call: Call }
+// A call held for the owner's yes (C16), the code the owner answers with,
+// and what the sender asked, in the sender's words (K2).
+subject record Hold { code: integer, call: Call, asked: [~char] }
 
 // ---- The harness's words.
 

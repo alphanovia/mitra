@@ -42,7 +42,18 @@ macro_rules! gave {
 }
 
 thread_local! {
-    static WORLD: RefCell<World> = RefCell::new(World { seed: 0x5eed, ..World::default() });
+    static WORLD: RefCell<World> = RefCell::new(World { seed: seed(), ..World::default() });
+}
+
+/// A seed that differs at each start (K5): the clock and a counter.
+fn seed() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNT: AtomicU64 = AtomicU64::new(0);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0);
+    now ^ COUNT.fetch_add(0x9e37_79b9_7f4a_7c15, Ordering::Relaxed)
 }
 
 pub fn with<R>(f: impl FnOnce(&mut World) -> R) -> R {
@@ -53,7 +64,7 @@ pub fn with<R>(f: impl FnOnce(&mut World) -> R) -> R {
 pub fn reset() {
     with(|w| {
         *w = World {
-            seed: 0x5eed,
+            seed: seed(),
             ..World::default()
         }
     });
@@ -378,4 +389,14 @@ pub fn now() -> String {
 /// Limits::text, a setting.
 pub fn text_limit() -> i64 {
     gave!(Limits::text(), crate::server::gateway::TEXT_LIMIT)
+}
+
+/// Limits::voice, a setting.
+pub fn limit_voice() -> i64 {
+    gave!(Limits::voice(), crate::server::gateway::VOICE_LIMIT)
+}
+
+/// Limits::ids, a setting.
+pub fn largest_id() -> i64 {
+    gave!(Limits::ids(), crate::server::gateway::LARGEST_ID)
 }

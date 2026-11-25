@@ -19,7 +19,11 @@ impl Drop for Server {
 }
 
 fn start() -> Server {
-    let port = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let port = TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
     let addr = format!("127.0.0.1:{port}");
     let child = Command::new(env!("CARGO_BIN_EXE_assistant-server"))
         .arg(&addr)
@@ -28,7 +32,10 @@ fn start() -> Server {
         .expect("server");
     let t = Instant::now();
     while TcpStream::connect(&addr).is_err() {
-        assert!(t.elapsed() < Duration::from_secs(10), "server did not start");
+        assert!(
+            t.elapsed() < Duration::from_secs(10),
+            "server did not start"
+        );
         std::thread::sleep(Duration::from_millis(20));
     }
     Server { child, addr }
@@ -58,20 +65,23 @@ fn a_paired_client_is_answered() {
 // checked. Anyone who can reach the port stops every household.
 // mitra: supports Server::reachable
 #[test]
-#[ignore = "OPEN K10: one silent connection blocks the server for everyone (no read timeout, one at a time)"]
+// CLOSED K10 by the builder (was: one silent connection blocks the server for everyone (no read timeout, one at a time))
 fn k10_a_silent_connection_does_not_block_others() {
     let s = start();
     let _silent = TcpStream::connect(&s.addr).unwrap();
     std::thread::sleep(Duration::from_millis(100));
     let got = ask(&s.addr, b"WHOAMI cli\n");
-    assert!(matches!(&got, Ok(x) if x.starts_with("OK")), "a paired client waits: {got:?}");
+    assert!(
+        matches!(&got, Ok(x) if x.starts_with("OK")),
+        "a paired client waits: {got:?}"
+    );
 }
 
 // K11. A line that is not UTF-8 gets no answer at all: the server drops
 // it silently. Nothing silent: it should say the call was refused.
 // mitra: supports Assistant::told
 #[test]
-#[ignore = "OPEN K11: a call that is not UTF-8 is dropped without an answer"]
+// CLOSED K11 by the builder (was: a call that is not UTF-8 is dropped without an answer)
 fn k11_a_broken_encoding_is_refused_out_loud() {
     let s = start();
     let got = ask(&s.addr, b"POST cli 1 T caf\xe9\n");

@@ -12,6 +12,8 @@ subject Speech {
     fn speak(t: [~char]) -> a: Audio;
     // Whether the voice is one the household enrolled (H3).
     fn speaker(a: Audio) -> known: bool;
+    // How long a voice message is, in bytes (K8).
+    fn bytes(a: Audio) -> n: integer;
 
     ensure hears: "a voice message is turned into the words that were said, rarely wrong";                // quality, measured
     ensure honest: "a voice it cannot make out is reported as unclear, never guessed";                      // rule, measured

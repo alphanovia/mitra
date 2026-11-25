@@ -97,11 +97,29 @@ impl Reporter {
 
     /// The owner's phone is told of a held call (C16).
     // mitra: implements Reporter::ask_owner
+    /// The sender's own words, and the call the assistant chose, apart
+    /// (K2). The call's input is shown only when it is short and plain:
+    /// a long one is the model's prose, which can be an attacker's.
     pub fn ask_owner(h: Hold, from: Holder) -> Reply {
+        let input = if h.call.input.len() <= 32
+            && h.call
+                .input
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || " .,:-".contains(c))
+        {
+            format!("\"{}\"", h.call.input)
+        } else {
+            format!("an input of {} characters, not shown", h.call.input.len())
+        };
         Reply {
             text: format!(
-                "Your {:?} {} asks to run {} {}. Reply \"yes {}\" to allow it.",
-                from.device, from.number, h.call.tool, h.call.input, h.code
+                "Your {:?} {} sent: \"{}\". To answer it, the assistant wants to run {} with {}. Reply \"yes {}\" to allow it.",
+                from.device,
+                from.number,
+                crate::harness::tools::one_line(&h.asked),
+                h.call.tool,
+                input,
+                h.code
             ),
         }
     }

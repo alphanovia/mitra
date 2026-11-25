@@ -41,7 +41,7 @@ subject Harness {
                                     match after_ask(a.clear) {
                                         Route::Work => {
                                             let done = run(models.pick(a), models.turns, a, p, Experience::recall(a, p), history, tools);
-                                            (reply: Reporter::report(done.result, a), notes: asked ++ called(done.c.outcomes()))
+                                            (reply: Reporter::report(done.result, a), notes: asked ++ called(done.c.outcomes(), a))
                                         },
                                         Route::AskBack => (reply: Reporter::ask_back(a), notes: asked),
                                         // Never: after_ask gives Work or AskBack. `match` needs the arms.
@@ -97,11 +97,13 @@ subject Harness {
 
     // Each tool call made, as a note of the policy.
     // A call held for a yes also gets its code (C16).
-    fn called(os: [Outcome]) -> ns: [Annotation] {
-        os.fold(ns: []) { o -> ns ++ [Annotation { by: Step::Policy, note: Note::Called(o) }] ++ held(o) }
+    fn called(os: [Outcome], a: Ask) -> ns: [Annotation] {
+        os.fold(ns: []) { o -> ns ++ [Annotation { by: Step::Policy, note: Note::Called(o) }] ++ held(o, a) }
     }
-    fn held(o: Outcome) -> ns: [Annotation] {
-        if awaits(o) { [Annotation { by: Step::Policy, note: Note::Held(Hold { code: Codes::fresh(), call: o.call }) }] } else { none() }
+    // The hold keeps what the sender asked, so the owner reads the sender's
+    // words beside the call the model chose (K2).
+    fn held(o: Outcome, a: Ask) -> ns: [Annotation] {
+        if awaits(o) { [Annotation { by: Step::Policy, note: Note::Held(Hold { code: Codes::fresh(), call: o.call, asked: a.text }) }] } else { none() }
     }
     fn none() -> ns: [Annotation] { [] }
     fn awaits(o: Outcome) -> a: bool {
@@ -121,7 +123,7 @@ subject Harness {
                 match got {
                     Ok(ans) => {
                         let next = Conversation {
-                            turns: c.turns ++ [Turn::Model(ans), Turn::Results(perform_all(ans.calls, a, p, h, tools))]
+                            turns: c.turns ++ [Turn::Model(ans), Turn::Results(perform_all(ans.calls, a, p, h, tools, read_output(c)))]
                         };
                         (next, llm.inference(Composer::compose(a, Purpose::context(a, next), h, llm), tools), k + 1)
                     },
@@ -160,17 +162,22 @@ subject Harness {
     // Every call, in order: a tool of the harness's own list, run only
     // when allowed, its output guarded. A name not on the list runs
     // nothing (H1).
-    fn perform_all(calls: [Call], a: Ask, p: Person, h: Habits, tools: [Tool]) -> rs: [Outcome] {
+    fn perform_all(calls: [Call], a: Ask, p: Person, h: Habits, tools: [Tool], after_output: bool) -> rs: [Outcome] {
         calls.fold(rs: []) { c -> rs ++ [Outcome { call: c, output: match lookup(c.tool, tools) {
             Option::None => unknown(),
             Option::Some(t) => {
-                let d = Policy::allow(t, c, a, p, h);
+                let d = Policy::allow(t, c, a, p, h, after_output);
                 if runs(d) { ToolGuard::screen(t.call(c.input)) } else { Err(withheld(d)) }
             }
         } }] }
     } where {
         claim each: rs.len() == n by invariant n;
-        examples { ([], Ask { text: "x", clear: true, easy: true }, Person { role: Role::Owner }, Habits {}, []) -> [] }
+        examples { ([], Ask { text: "x", clear: true, easy: true }, Person { role: Role::Owner }, Habits {}, [], false) -> [] }
+    }
+    // Whether a tool's output has been read in this request: a call after
+    // it may be the output's word, not the user's (K1).
+    fn read_output(c: Conversation) -> r: bool {
+        c.outcomes().fold(r: false) { o -> r || match o.output { Ok(_) => true, Err(_) => false } }
     }
     fn unknown() -> got: Result<[~char], ToolFailure> { Err(ToolFailure::Unknown) }
 

@@ -57,7 +57,7 @@ impl Harness {
                                 history,
                                 tools,
                             );
-                            asked.extend(Harness::called(c.outcomes()));
+                            asked.extend(Harness::called(c.outcomes(), a.clone()));
                             (Reporter::report(result, a), asked)
                         }
                         _ => (Reporter::ask_back(a), asked),
@@ -96,24 +96,25 @@ impl Harness {
     }
 
     // mitra: implements Harness::called
-    pub fn called(os: Vec<Outcome>) -> Vec<Annotation> {
+    pub fn called(os: Vec<Outcome>, a: Ask) -> Vec<Annotation> {
         os.into_iter()
             .flat_map(|o| {
                 let mut ns = vec![note(Step::Policy, Note::Called(o.clone()))];
-                ns.extend(Harness::held(o));
+                ns.extend(Harness::held(o, a.clone()));
                 ns
             })
             .collect()
     }
 
     // mitra: implements Harness::held
-    pub fn held(o: Outcome) -> Vec<Annotation> {
+    pub fn held(o: Outcome, a: Ask) -> Vec<Annotation> {
         if Harness::awaits(o.clone()) {
             vec![note(
                 Step::Policy,
                 Note::Held(Hold {
                     code: crate::fake::fresh(),
                     call: o.call,
+                    asked: a.text,
                 }),
             )]
         } else {
@@ -157,8 +158,15 @@ impl Harness {
         let mut k = 1;
         while !Harness::finished(got.clone()) && k < turns {
             let ans = got.clone().expect("not finished, so an answer");
-            let rs =
-                Harness::perform_all(ans.calls.clone(), a.clone(), p, h.clone(), tools.clone());
+            let after_output = Harness::read_output(c.clone());
+            let rs = Harness::perform_all(
+                ans.calls.clone(),
+                a.clone(),
+                p,
+                h.clone(),
+                tools.clone(),
+                after_output,
+            );
             c.turns.push(Turn::Model(ans));
             c.turns.push(Turn::Results(rs));
             got = llm.clone().inference(ask(&c), tools.clone());
@@ -192,6 +200,7 @@ impl Harness {
         p: Person,
         h: Habits,
         tools: Vec<Tool>,
+        after_output: bool,
     ) -> Vec<Outcome> {
         calls
             .into_iter()
@@ -199,7 +208,14 @@ impl Harness {
                 let output = match Harness::lookup(c.tool.clone(), tools.clone()) {
                     None => Harness::unknown(),
                     Some(t) => {
-                        let d = Policy::allow(t.clone(), c.clone(), a.clone(), p, h.clone());
+                        let d = Policy::allow(
+                            t.clone(),
+                            c.clone(),
+                            a.clone(),
+                            p,
+                            h.clone(),
+                            after_output,
+                        );
                         if Harness::runs(d) {
                             ToolGuard::screen(t.call(c.input.clone()))
                         } else {
@@ -210,6 +226,11 @@ impl Harness {
                 Outcome { call: c, output }
             })
             .collect()
+    }
+
+    // mitra: implements Harness::read_output
+    pub fn read_output(c: Conversation) -> bool {
+        c.outcomes().iter().any(|o| o.output.is_ok())
     }
 
     // mitra: implements Harness::unknown
@@ -293,15 +314,23 @@ mod tests {
             input: s("open"),
         };
         mitra::check_eq!(
-            Harness::held(Outcome {
-                call: door.clone(),
-                output: Err(ToolFailure::AwaitsYes)
-            }),
+            Harness::held(
+                Outcome {
+                    call: door.clone(),
+                    output: Err(ToolFailure::AwaitsYes)
+                },
+                Ask {
+                    text: s("open the door"),
+                    clear: true,
+                    easy: false
+                }
+            ),
             vec![Annotation {
                 by: Step::Policy,
                 note: Note::Held(Hold {
                     code: 424242,
-                    call: door
+                    call: door,
+                    asked: s("open the door")
                 })
             }]
         );

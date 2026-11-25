@@ -6,6 +6,11 @@ use crate::vocabulary::*;
 /// The size limit of a text message, in bytes: a setting (H15). Our
 /// model's window holds it with room (see harness::models).
 pub const TEXT_LIMIT: i64 = 4_000;
+/// The size limit of a voice message, in bytes: a setting (K8). The fake
+/// speech reads the bytes as the words, so it is the text limit here.
+pub const VOICE_LIMIT: i64 = 4_000;
+/// The largest id a device may use: a setting (K9), far from overflow.
+pub const LARGEST_ID: i64 = 1 << 53;
 
 pub struct Accounts;
 impl Accounts {
@@ -26,6 +31,14 @@ impl Limits {
     // mitra: implements Limits::text
     pub fn text() -> i64 {
         crate::fake::text_limit()
+    }
+    // mitra: implements Limits::voice
+    pub fn voice() -> i64 {
+        crate::fake::limit_voice()
+    }
+    // mitra: implements Limits::ids
+    pub fn ids() -> i64 {
+        crate::fake::largest_id()
     }
 }
 
@@ -57,6 +70,8 @@ impl Gateway {
                 x.household == store.household
                     && Gateway::may_post(x, e.id.from)
                     && Gateway::small(e.body.clone())
+                    && e.id.n > 0
+                    && e.id.n <= Limits::ids()
                     && !store.conflicts(e)
             }
             None => false,
@@ -67,7 +82,7 @@ impl Gateway {
     pub fn small(b: Body) -> bool {
         match b {
             Body::Text(t) => t.len() as i64 <= Limits::text(),
-            Body::Voice(_) => true,
+            Body::Voice(v) => crate::server::speech::Speech::bytes(v) <= Limits::voice(),
         }
     }
 

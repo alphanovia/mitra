@@ -292,6 +292,7 @@ mod tests {
                 note: Note::Held(Hold {
                     code: 7,
                     call: call.clone(),
+                    asked: s("open the door"),
                 }),
             },
         );

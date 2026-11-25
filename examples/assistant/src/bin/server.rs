@@ -4,8 +4,15 @@
 use assistant::cli::{escape, unescape};
 use assistant::server::local::Local;
 use assistant::vocabulary::*;
-use std::io::{BufRead, BufReader, Write};
-use std::net::TcpListener;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::net::{TcpListener, TcpStream};
+use std::sync::mpsc;
+use std::time::Duration;
+
+/// The longest call line read, in bytes: past it, the call is refused.
+const LONGEST_LINE: u64 = 64 * 1024;
+/// How long a connection may take to send its line (K10).
+const READ_TIME: Duration = Duration::from_secs(2);
 
 fn main() {
     let addr = std::env::args()
@@ -15,13 +22,36 @@ fn main() {
     eprintln!("assistant-server on {addr}. Tokens: owner-phone, cli, wearable (household 1), other-phone (household 2).");
     assistant::fake::quiet();
     let mut local = Local::new();
-    for stream in listener.incoming() {
-        let Ok(mut stream) = stream else { continue };
-        let mut line = String::new();
-        if BufReader::new(&stream).read_line(&mut line).is_err() {
-            continue;
+    // Each connection's line is read on a thread of its own, with a time
+    // limit, so a silent one holds no one else (K10); the calls are then
+    // served one at a time, here, where the store lives.
+    let (calls, served) = mpsc::channel::<(Vec<u8>, TcpStream)>();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(stream) = stream else { continue };
+            let calls = calls.clone();
+            std::thread::spawn(move || {
+                let _ = stream.set_read_timeout(Some(READ_TIME));
+                let mut line = vec![];
+                let Ok(reader) = stream.try_clone() else {
+                    return;
+                };
+                if BufReader::new(reader.take(LONGEST_LINE))
+                    .read_until(b'\n', &mut line)
+                    .is_ok()
+                    && !line.is_empty()
+                {
+                    let _ = calls.send((line, stream));
+                }
+            });
         }
-        let answer = handle(&mut local, line.trim_end_matches(['\r', '\n']));
+    });
+    for (line, mut stream) in served {
+        // A call that is not UTF-8 is refused out loud (K11).
+        let answer = match String::from_utf8(line) {
+            Ok(line) => handle(&mut local, line.trim_end_matches(['\r', '\n'])),
+            Err(_) => "ERR REFUSED not UTF-8\n".to_string(),
+        };
         let _ = stream.write_all(answer.as_bytes());
     }
 }

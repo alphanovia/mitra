@@ -1,5 +1,6 @@
 //! The worker: one message from taken up to answered (see worker.mitra).
 
+use crate::harness::conversation::Conversation;
 use crate::harness::harness::Harness;
 use crate::harness::models::Models;
 use crate::harness::reply::Reporter;
@@ -147,7 +148,16 @@ impl Worker {
     ) -> (Reply, Vec<Annotation>) {
         match Confirmations::code(msg.text.clone()) {
             Some(c) => Confirmations::confirm(store, c, msg, tools),
-            None => Harness::serve(msg.clone(), store.history(msg.holder), models, tools),
+            None => Harness::serve(msg.clone(), Worker::heard(store, msg), models, tools),
+        }
+    }
+
+    // mitra: implements Worker::heard
+    pub fn heard(store: ConversationStore, msg: Message) -> Conversation {
+        if msg.recognised {
+            store.history(msg.holder)
+        } else {
+            Conversation { turns: vec![] }
         }
     }
 

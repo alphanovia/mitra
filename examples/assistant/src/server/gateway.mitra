@@ -47,12 +47,13 @@ subject Gateway {
     // another message (H16).
     fn admits(h: Option<Holder>, store: ConversationStore, e: Envelope) -> ok: bool {
         match h {
-            Option::Some(x) => x.household == store.household && may_post(x, e.id.from) && small(e.body) && !store.conflicts(e),
+            Option::Some(x) => x.household == store.household && may_post(x, e.id.from) && small(e.body)
+                               && e.id.n > 0 && e.id.n <= Limits::ids() && !store.conflicts(e),
             Option::None => false
         }
     }
     fn small(b: Body) -> ok: bool {
-        match b { Body::Text(t) => t.len() <= Limits::text(), Body::Voice(_) => true }
+        match b { Body::Text(t) => t.len() <= Limits::text(), Body::Voice(v) => Speech::bytes(v) <= Limits::voice() }
     }
     fn accepted(r: Receipt) -> got: Result<Receipt, NetFailure> { Ok(r) }
     fn refused() -> got: Result<Receipt, NetFailure> { Err(NetFailure::Refused) }
@@ -131,7 +132,7 @@ subject Gateway {
         from (may_post::as_itself, known);
     ensure own_household: "a device reaches only the conversation of its own household";   // route in admits and fetch (finding A)
     ensure one_meaning: "an id once used names one message: other words under the same id are refused";   // shown by conflicts' examples
-    ensure sized: "a message longer than the size limit is refused at the door";   // route in admits (finding A)
+    ensure sized: "a message longer than the size limit, typed or spoken, is refused at the door";   // route in admits (finding A)
     ensure recorded_first: "a message is stored before its receipt goes back, so a receipt always means it is kept"
         from (receive::stored_first, kept);
     ensure retry_safe: "a client unsure that its message arrived can safely send it again"
@@ -142,7 +143,8 @@ subject Gateway {
     examples {
         // A paired computer posts its own message: stored, then received.
         given Accounts::holder(_) -> Option::Some(Holder { household: 1, device: Device::Computer, number: 1 }),
-              Limits::text() -> 4000
+              Limits::text() -> 4000,
+              Limits::ids() -> 9007199254740992
         when Gateway::post(ConversationStore { household: 1, messages: [] }, Token { .. }, Envelope { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, body: Body::Text("hello") })
         then (store: ConversationStore { household: 1, messages: [Stored { id: MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, to: Party::Assistant, body: Body::Text("hello"), notes: [] }] },
               receipt: Ok(Receipt::Received(MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }))),
@@ -174,12 +176,16 @@ subject Gateway {
     use Holder from "vocabulary";
     use NetFailure from "vocabulary";
     use Accounts::holder;
-    use Limits::text;
+    use Limits::{text, voice, ids};
+    use Speech::bytes from "speech";
 }
 
 // The size limit of a text message, a setting (H15). The models' windows
 // are set to hold it (see Composer).
 environment Limits {
     fn text() -> n: integer;
-    ensure set: "the size limit is a setting the owner can read";
+    // The size limit of a voice message (K8), and the largest id (K9).
+    fn voice() -> n: integer;
+    fn ids() -> n: integer;
+    ensure set: "the size limits and the largest id are settings the owner can read";
 }

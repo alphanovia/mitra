@@ -142,8 +142,13 @@ subject Worker {
     fn answer(store: ConversationStore, msg: Message, models: Models, tools: [Tool]) -> out: (reply: Reply, notes: [Annotation]) {
         match Confirmations::code(msg.text) {
             Option::Some(c) => Confirmations::confirm(store, c, msg, tools),
-            Option::None => Harness::serve(msg, store.history(msg.holder), models, tools)
+            Option::None => Harness::serve(msg, heard(store, msg), models, tools)
         }
+    }
+    // The history the harness reads: the device's, only when the voice is
+    // vouched for; a voice that isn't starts with none (K3).
+    fn heard(store: ConversationStore, msg: Message) -> c: Conversation {
+        if msg.recognised { store.history(msg.holder) } else { Conversation { turns: [] } }
     }
 
     ensure in_order: "a device's messages are answered one at a time, oldest first";              // shown by next's examples
@@ -158,6 +163,7 @@ subject Worker {
     ensure yes_by_code: "a yes to a held call is read by plain code and checked against the store, never by a model"
         from (yes_owner);
     ensure owner_told: "the owner's phone is told of each call held for a yes, with the code to answer";   // route in process, shown by the scenario tests
+    ensure strangers_hear_nothing: "a voice that is not vouched for gets no part of the conversation before it";   // route in heard (finding A)
     ensure traced: "what each step decided about a message is noted on it, signed by that step"
         from (noted, append_only);
 
@@ -245,6 +251,7 @@ subject Worker {
     use Llm from "models";
     use Reporter::interrupted from "reply";
     use Disk from "store";
+    use Conversation from "conversation";
     use Accounts::owner from "gateway";
     use Reporter::ask_owner from "reply";
     use Holder from "vocabulary";
