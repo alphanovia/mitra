@@ -217,7 +217,7 @@ impl Harness {
                             after_output,
                         );
                         if Harness::runs(d) {
-                            ToolGuard::screen(t.call(c.input.clone()))
+                            ToolGuard::screen(Harness::act(t, c.clone()))
                         } else {
                             Err(Harness::withheld(d))
                         }
@@ -226,6 +226,13 @@ impl Harness {
                 Outcome { call: c, output }
             })
             .collect()
+    }
+
+    // mitra: implements Harness::act
+    /// A tool runs only once its call is written down (H13).
+    pub fn act(t: Tool, c: Call) -> Result<String, ToolFailure> {
+        crate::server::store::Ahead::mark(c.clone());
+        t.call(c.input)
     }
 
     // mitra: implements Harness::read_output

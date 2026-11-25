@@ -409,7 +409,8 @@ fn k13_a_strangers_words_never_speak_for_the_owner() {
     l.say("owner-phone", "plan a week of meals for a family of four")
         .unwrap();
     let work = fake::sent(Machine::Cloud)
-        .into_iter().rfind(|r| r.starts_with("WORK:") && r.contains("plan a week"))
+        .into_iter()
+        .rfind(|r| r.starts_with("WORK:") && r.contains("plan a week"))
         .unwrap_or_default();
     assert!(
         !work.contains("from now on"),

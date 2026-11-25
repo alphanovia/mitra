@@ -26,6 +26,10 @@ pub struct World {
     pub seed: u64,
     pub unusual: bool,
     pub quiet: bool,
+    /// Ahead: the calls written down before they run (H13).
+    pub ahead: Vec<Call>,
+    /// A tool that crashes the server right after it runs (H13 tests).
+    pub crash_after: Option<String>,
 }
 
 /// `given!`, unless the world is quiet: a scenario through the whole
@@ -294,6 +298,9 @@ pub fn tool_call(t: Tool, input: String) -> Result<String, ToolFailure> {
             input: input.clone(),
         })
     });
+    if with(|w| w.crash_after.as_deref() == Some(t.name.as_str())) {
+        panic!("the server crashed right after {} ran", t.name);
+    }
     let out = with(|w| w.tool_out.get(&t.name).cloned())
         .unwrap_or_else(|| format!("{} {}: done", t.name, input));
     gave!(Tool::call(t, input), Ok::<String, ToolFailure>(out))
@@ -342,18 +349,57 @@ pub fn alert(p: Person, m: Message) -> bool {
     gave!(Helpline::alert(p, m), true)
 }
 
-/// Codes::fresh: a scripted code, else six digits from a generator.
+/// Codes::fresh: a scripted code, else six digits from the system's
+/// randomness, not from a seed (round 3): one code says nothing of the
+/// next.
 pub fn fresh() -> i64 {
-    let c = with(|w| {
-        w.codes.pop_front().unwrap_or_else(|| {
-            w.seed = w
-                .seed
-                .wrapping_mul(6364136223846793005)
-                .wrapping_add(1442695040888963407);
-            100_000 + ((w.seed >> 33) % 900_000) as i64
-        })
-    });
+    let c = with(|w| w.codes.pop_front()).unwrap_or_else(|| 100_000 + (random() % 900_000) as i64);
     gave!(Codes::fresh(), c)
+}
+
+/// 64 bits from /dev/urandom; where there is none, from the hasher keys
+/// std draws from the system at each start.
+fn random() -> u64 {
+    use std::io::Read;
+    let mut b = [0u8; 8];
+    if std::fs::File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut b))
+        .is_ok()
+    {
+        return u64::from_le_bytes(b);
+    }
+    use std::hash::{BuildHasher, Hasher};
+    let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+    h.write_u64(seed());
+    h.finish()
+}
+
+/// Ahead::mark.
+pub fn mark(c: Call) {
+    with(|w| w.ahead.push(c.clone()));
+    gave!(Ahead::mark(c), Done);
+}
+/// Ahead::marked.
+pub fn marked() -> Vec<Call> {
+    let cs = with(|w| w.ahead.clone());
+    gave!(Ahead::marked(), cs)
+}
+/// Ahead::clear.
+pub fn clear() {
+    with(|w| w.ahead.clear());
+    gave!(Ahead::clear(), Done);
+}
+/// `()` as a row writes it: the mitra crate has no Observe for `()`
+/// (finding Y10), and a foreign trait can't be given to it here.
+struct Done;
+impl mitra::Observe for Done {
+    fn observe(&self) -> String {
+        "()".to_string()
+    }
+}
+/// A crash right after this tool runs (H13 tests).
+pub fn crash_after(tool: &str) {
+    with(|w| w.crash_after = Some(tool.to_string()));
 }
 
 /// Experience::usual.

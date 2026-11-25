@@ -53,7 +53,7 @@ subject Confirmations {
     // The held call, run through the same list and guard as in the loop.
     fn run(c: Call, tools: [Tool]) -> got: Result<[~char], ToolFailure> {
         match Harness::lookup(c.tool, tools) {
-            Option::Some(t) => ToolGuard::screen(t.call(c.input)),
+            Option::Some(t) => ToolGuard::screen(act(t, c)),
             Option::None => Harness::unknown()
         }
     }
@@ -67,6 +67,7 @@ subject Confirmations {
     ensure guessing_fails: "a yes with a code that names no held call runs nothing";   // shown by the tests
 
     // Names from the other files.
+    use Harness::act from "harness/harness";
     use Result from "std";
     use Option from "std";
     use Message from "vocabulary";

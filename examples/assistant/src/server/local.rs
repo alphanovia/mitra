@@ -163,6 +163,12 @@ impl Local {
         }
     }
 
+    /// Where this device's message `n` stands (W12).
+    pub fn receipt(&self, t: &str, n: i64) -> Option<Receipt> {
+        let store = self.stores.get(&Local::household(t)?)?;
+        Gateway::receipt(store.clone(), Local::token(t), n)
+    }
+
     pub fn ack(&mut self, t: &str, id: MessageId) {
         if let Some(h) = Local::household(t) {
             if let Some(store) = self.stores.get(&h).cloned() {

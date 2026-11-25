@@ -51,7 +51,8 @@ subject enum Note {
     Speech(Audio),             // a reply, spoken, for a client that speaks
     Delivered,                 // the reply reached its client
     Held(Hold),                // a call waits for the owner's yes, under a code
-    Confirmed(integer)         // the owner said yes to this code: it is used up
+    Confirmed(integer),        // the owner said yes to this code: it is used up
+    Begun(Call)                // a call had begun when a restart cut the work short (H13)
 }
 subject record Annotation { by: Step, note: Note }
 // A call held for the owner's yes (C16), the code the owner answers with,

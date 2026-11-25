@@ -167,12 +167,16 @@ subject Harness {
             Option::None => unknown(),
             Option::Some(t) => {
                 let d = Policy::allow(t, c, a, p, h, after_output);
-                if runs(d) { ToolGuard::screen(t.call(c.input)) } else { Err(withheld(d)) }
+                if runs(d) { ToolGuard::screen(act(t, c)) } else { Err(withheld(d)) }
             }
         } }] }
     } where {
         claim each: rs.len() == n by invariant n;
         examples { ([], Ask { text: "x", clear: true, easy: true }, Person { role: Role::Owner }, Habits {}, [], false) -> [] }
+    }
+    // A tool runs only once its call is written down (H13).
+    fn act(t: Tool, c: Call) -> got: Result<[~char], ToolFailure> {
+        Ahead::mark(c); t.call(c.input)
     }
     // Whether a tool's output has been read in this request: a call after
     // it may be the output's word, not the user's (K1).
@@ -229,6 +233,7 @@ subject Harness {
     // Names from the other files.
     use Result from "std";
     use Option from "std";
+    use Ahead from "store";
     use Message from "vocabulary";
     use Person from "vocabulary";
     use Verdict from "vocabulary";

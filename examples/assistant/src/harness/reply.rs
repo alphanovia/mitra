@@ -89,9 +89,30 @@ impl Reporter {
     }
 
     // mitra: implements Reporter::interrupted
-    pub fn interrupted() -> Reply {
+    pub fn interrupted(begun: Vec<Call>) -> Reply {
+        if begun.is_empty() {
+            return Reply {
+                text: s("I was interrupted while working on this. Please ask again."),
+            };
+        }
         Reply {
-            text: s("I was interrupted while working on this. Please ask again."),
+            text: format!(
+                "I was interrupted while working on this. These had begun and may have run: {}. Please check before asking again.",
+                calls(&begun)
+            ),
+        }
+    }
+
+    // mitra: implements Reporter::begun
+    /// The owner is told that calls may have run for another device (H13).
+    pub fn begun(cs: Vec<Call>, from: Holder) -> Reply {
+        Reply {
+            text: format!(
+                "A restart cut short a message from {} {}. These had begun and may have run: {}.",
+                format!("{:?}", from.device).to_lowercase(),
+                from.number,
+                calls(&cs)
+            ),
         }
     }
 
@@ -123,4 +144,22 @@ impl Reporter {
             ),
         }
     }
+}
+/// Calls named for a person: the tool, and its input when short and
+/// plain (as in `ask_owner`).
+fn calls(cs: &[Call]) -> String {
+    cs.iter()
+        .map(|c| {
+            if c.input.len() <= 32
+                && c.input
+                    .chars()
+                    .all(|x| x.is_ascii_alphanumeric() || " .,:-".contains(x))
+            {
+                format!("{} ({})", c.tool, c.input)
+            } else {
+                c.tool.clone()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }

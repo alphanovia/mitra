@@ -70,7 +70,7 @@ impl Confirmations {
     // mitra: implements Confirmations::run
     pub fn run(c: Call, tools: Vec<Tool>) -> Result<String, ToolFailure> {
         match Harness::lookup(c.tool.clone(), tools) {
-            Some(t) => ToolGuard::screen(t.call(c.input)),
+            Some(t) => ToolGuard::screen(Harness::act(t, c)),
             None => Harness::unknown(),
         }
     }

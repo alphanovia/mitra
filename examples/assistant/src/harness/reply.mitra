@@ -17,9 +17,18 @@ subject Reporter {
     fn not_allowed() -> reply: Reply;
     // What the owner's phone is told of a held call: who asks, what, and
     // the code to answer with (C16).
+    // CHOICE TO CONFIRM (C17, round 3): the owner sees the sender's own
+    // words, the tool, and the call's input only when it is short (32
+    // characters at most) and plain; else its length. The input shown is
+    // exactly what will run, so the owner can judge it; a short plain
+    // input can still be worded to mislead ("send 100 to mum"). Kept as a
+    // named residual: hiding it would leave the owner saying yes blind.
     fn ask_owner(h: Hold, from: Holder) -> reply: Reply;
-    // The server stopped while working on it: it was not finished (C12).
-    fn interrupted() -> reply: Reply;
+    // The server stopped while working on it: it was not finished (C12),
+    // and the calls that had begun may have run (H13).
+    fn interrupted(begun: [Call]) -> reply: Reply;
+    // The owner is told that calls may have run for another device.
+    fn begun(cs: [Call], from: Holder) -> reply: Reply;
     ensure explains_failure: "a failure or a refusal is told as what was not done, and why";   // rule, measured
     ensure clear: "plain words, one point at a time: what was done, and what was not";       // quality, measured
 
@@ -35,4 +44,5 @@ subject Reporter {
     use Outcome from "vocabulary";
     use Hold from "vocabulary";
     use Holder from "vocabulary";
+    use Call from "vocabulary";
 }

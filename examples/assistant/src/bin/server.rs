@@ -160,6 +160,12 @@ fn handle(local: &mut Local, line: &str) -> String {
             out + "END\n"
         }
         ["TYPING", t] => format!("OK {}\n", local.typing(t)),
+        ["STATUS", t, n] => match n.parse().ok().and_then(|n| local.receipt(t, n)) {
+            Some(Receipt::Received(_)) => "OK RECEIVED\n".to_string(),
+            Some(Receipt::Read(_)) => "OK READ\n".to_string(),
+            Some(Receipt::Delivered(_)) => "OK DELIVERED\n".to_string(),
+            None => "ERR UNKNOWN\n".to_string(),
+        },
         ["ACK", t, n] => {
             if let Ok(n) = n.parse() {
                 local.ack(

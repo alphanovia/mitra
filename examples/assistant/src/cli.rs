@@ -156,18 +156,30 @@ impl Cli {
             kind,
             escape(&text)
         );
-        let mut r = Err(NetFailure::Unreachable);
-        for _ in 0..=self.retries {
-            r = match ask(addr, &line) {
-                Ok(l) if l[0].starts_with("OK") => Ok(Receipt::Received(e.id)),
-                Ok(_) => Err(NetFailure::Refused),
-                Err(f) => Err(f),
-            };
-            if r != Err(NetFailure::Unreachable) {
-                break;
-            }
+        let post = || match ask(addr, &line) {
+            Ok(l) if l[0].starts_with("OK") => Ok(Receipt::Received(e.id)),
+            Ok(_) => Err(NetFailure::Refused),
+            Err(f) => Err(f),
+        };
+        let mut k = 0;
+        let mut r = post();
+        while Cli::again(Cli::lost(&r), k >= self.retries) {
+            k += 1;
+            r = post();
         }
         r
+    }
+
+    // mitra: implements Cli::lost
+    /// The network lost the call: the server may not have it.
+    pub fn lost(r: &Result<Receipt, NetFailure>) -> bool {
+        *r == Err(NetFailure::Unreachable)
+    }
+
+    // mitra: implements Cli::again
+    /// Whether to send again (W11): while lost, until out of tries.
+    pub fn again(lost: bool, out_of_tries: bool) -> bool {
+        lost && !out_of_tries
     }
 
     /// New replies, as (number, text).

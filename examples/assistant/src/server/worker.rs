@@ -7,6 +7,7 @@ use crate::harness::reply::Reporter;
 use crate::server::confirm::Confirmations;
 use crate::server::gateway::Accounts;
 use crate::server::speech::Speech;
+use crate::server::store::Ahead;
 use crate::server::store::{ConversationStore, Stored};
 use crate::vocabulary::*;
 
@@ -86,20 +87,49 @@ impl Worker {
     }
 
     // mitra: implements Worker::resume
+    /// The calls written down before the crash (H13) may have run: each
+    /// is noted, named in the reply, and told to the owner.
     pub fn resume(store: ConversationStore, m: Stored) -> (ConversationStore, Stored) {
+        let begun = Ahead::marked();
         let (id, to) = Worker::address(store.clone(), m.clone());
         let reply = Stored {
             id,
             to,
-            body: Body::Text(Reporter::interrupted().text),
+            body: Body::Text(Reporter::interrupted(begun.clone()).text),
             notes: vec![],
         };
-        let noted = store.annotate(m.id, note(Step::Worker, Note::Answered(id)));
-        (noted.post(reply.clone()), reply)
+        let mut ns = Worker::began(begun.clone());
+        ns.push(note(Step::Worker, Note::Answered(id)));
+        let noted = store.annotate_all(m.id, ns);
+        let told = Worker::tell_begun(noted.post(reply.clone()), Worker::device(m.id.from), begun);
+        (told, reply)
+    }
+
+    // mitra: implements Worker::began
+    pub fn began(cs: Vec<Call>) -> Vec<Annotation> {
+        cs.into_iter()
+            .map(|c| note(Step::Worker, Note::Begun(c)))
+            .collect()
+    }
+
+    // mitra: implements Worker::tell_begun
+    pub fn tell_begun(store: ConversationStore, from: Holder, cs: Vec<Call>) -> ConversationStore {
+        if cs.is_empty() || from == Accounts::owner(store.household) {
+            return store;
+        }
+        let r = Stored {
+            id: store.next_id(),
+            to: Party::Client(Accounts::owner(store.household)),
+            body: Body::Text(Reporter::begun(cs, from).text),
+            notes: vec![],
+        };
+        store.post(r)
     }
 
     // mitra: implements Worker::take_up
+    /// The calls written down for the message before are cleared first.
     pub fn take_up(store: ConversationStore, m: Stored) -> ConversationStore {
+        Ahead::clear();
         store.annotate(m.id, note(Step::Worker, Note::Read))
     }
 

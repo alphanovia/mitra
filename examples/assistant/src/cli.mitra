@@ -71,7 +71,21 @@ subject Cli {
     // Sends a message, again with the same id while the network fails, up
     // to the number of times the settings allow.
     fn send(self, e: Envelope) -> r: Result<Receipt, NetFailure> {
-        until((k: 0, r: Network::post(self.token, e)), sent(r) || k >= self.retries) { (k + 1, Network::post(self.token, e)) }.r
+        until((k: 0, r: Network::post(self.token, e)), !again(lost(r), k >= self.retries)) { (k + 1, Network::post(self.token, e)) }.r
+    }
+    // Whether the network lost the call: the server may not have it. A
+    // refusal is an answer, and is not sent again.
+    fn lost(r: Result<Receipt, NetFailure>) -> l: bool {
+        r == Err(NetFailure::Unreachable)
+    }
+    // Whether to send again (W11): the CLI does retry, it is not only
+    // allowed to. While the call is lost, until out of tries.
+    // Finite: Mitra tries every case.
+    fn again(lost: bool, out_of_tries: bool) -> a: bool {
+        lost && !out_of_tries
+    } where {
+        claim retries_lost: !lost || out_of_tries || a;
+        claim stops_once_answered: lost || !a;
     }
     fn sent(r: Result<Receipt, NetFailure>) -> s: bool {
         match r { Ok(_) => true, Err(_) => false }
@@ -110,7 +124,7 @@ subject Cli {
     fn working(self) -> on: bool { Network::typing(self.token) }
 
     ensure sends_once: "what persona 1 types or says reaches the assistant once, even when the CLI has to send it again"
-        from (carried, retry_safe, made::moves_on);
+        from (carried, retry_safe, made::moves_on, again::retries_lost, again::stops_once_answered);
     ensure unsent_told: "a message that could not be sent is shown as not sent, never as sent"
         from (status::honest);
     ensure shows: "each reply meant for this computer is shown once, in order, and played aloud when the question was spoken"

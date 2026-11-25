@@ -110,6 +110,7 @@ pub enum Note {
     Delivered,
     Held(Hold),
     Confirmed(i64),
+    Begun(Call),
 }
 
 // mitra: implements Annotation
@@ -343,6 +344,7 @@ impl mitra::Observe for Note {
             Note::Speech(a) => format!("Note::Speech({})", a.observe()),
             Note::Held(h) => format!("Note::Held({})", h.observe()),
             Note::Confirmed(c) => format!("Note::Confirmed({})", c.observe()),
+            Note::Begun(c) => format!("Note::Begun({})", c.observe()),
         }
     }
 }

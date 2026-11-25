@@ -74,6 +74,10 @@ impl Stored {
     pub fn answer_is(&self, id: MessageId) -> bool {
         self.notes.iter().any(|a| a.note == Note::Answered(id))
     }
+    // mitra: implements Stored::delivered
+    pub fn delivered(&self) -> bool {
+        self.notes.iter().any(|a| a.note == Note::Delivered)
+    }
     // mitra: implements Stored::speech
     pub fn speech(&self) -> Option<Audio> {
         self.notes.iter().rev().find_map(|a| match &a.note {
@@ -219,6 +223,13 @@ impl ConversationStore {
         Conversation { turns }
     }
 
+    // mitra: implements ConversationStore::reply_delivered
+    pub fn reply_delivered(&self, m: &Stored) -> bool {
+        self.messages
+            .iter()
+            .any(|x| m.answer_is(x.id) && x.delivered())
+    }
+
     // mitra: implements ConversationStore::reply_turns
     pub fn reply_turns(&self, m: Stored) -> Vec<Turn> {
         if m.read_output() {
@@ -248,6 +259,24 @@ impl ConversationStore {
             }
         }
         hs
+    }
+}
+
+/// The calls written down before they run (H13). Kept by the fake world
+/// tonight, as the store is kept in memory: `Disk::durable` is not built.
+pub struct Ahead;
+impl Ahead {
+    // mitra: implements Ahead::mark
+    pub fn mark(c: Call) {
+        crate::fake::mark(c)
+    }
+    // mitra: implements Ahead::marked
+    pub fn marked() -> Vec<Call> {
+        crate::fake::marked()
+    }
+    // mitra: implements Ahead::clear
+    pub fn clear() {
+        crate::fake::clear()
     }
 }
 

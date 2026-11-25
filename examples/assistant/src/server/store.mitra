@@ -50,6 +50,10 @@ subject Stored {
     fn acted(self) -> r: bool {
         self.notes.fold(r: false) { a -> r || a.note == Note::Verdict(Verdict::Act) }
     }
+    // Whether a client said it got this reply (W12).
+    fn delivered(self) -> r: bool {
+        self.notes.fold(r: false) { a -> r || a.note == Note::Delivered }
+    }
     // Whether its sender was vouched for: not a stranger (K13).
     fn vouched(self) -> r: bool {
         self.notes.fold(r: false) { a -> r || match a.note { Note::Sender(p) => p.role != Role::Stranger, _ => false } }
@@ -93,6 +97,22 @@ subject Stored {
 // What a restart must not lose.
 environment Disk {
     ensure durable: "what the store has written is still there after a restart or a power cut";
+}
+
+// Write-ahead for tool calls (H13). The store is written once, after the
+// work; a tool that ran before a crash would leave no trace. So each call
+// is written down here, durably, before it runs, and the list is cleared
+// when the next message is taken up. One message is worked on at a time
+// in the whole server (one thread owns the stores, C14), so the list is
+// the calls of the message being worked on.
+environment Ahead {
+    use Call from "vocabulary";
+    fn mark(c: Call) -> ok: ();
+    fn marked() -> cs: [Call];
+    fn clear() -> ok: ();
+    require durable: Disk::durable;
+    ensure kept: "a call is written down before it runs, and still read after a restart until the next message is taken up"
+        from (durable);
 }
 
 subject ConversationStore {
@@ -208,6 +228,10 @@ subject ConversationStore {
     }
     // The reply to a message, as a turn of the model, unless it was made
     // after a tool output.
+    // Whether the reply to this message reached its client (W12).
+    fn reply_delivered(self, m: Stored) -> r: bool {
+        self.messages.fold(r: false) { x -> r || (m.answer_is(x.id) && x.delivered()) }
+    }
     fn reply_turns(self, m: Stored) -> ts: [Turn] {
         if m.read_output() { no_turns() } else {
             self.messages.fold(ts: no_turns()) { r ->

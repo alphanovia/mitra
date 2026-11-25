@@ -29,7 +29,7 @@ review Reporter::explains_failure holds by "agent:anthropic/claude/session_01VcL
 review ToolGuard::data_only holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:harness::tools::tests::an_output_is_marked_line_by_line", "test:a_tool_output_cannot_call_a_tool", "test:k6_no_unmarked_line_reaches_the_model", "test:k7_a_call_name_cannot_open_a_line", "test:k1b_the_gullible_fake_is_stopped_by_the_marks";
 review Worker::in_order holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:server::worker::tests::one_at_a_time_oldest_first";
 review Worker::owner_told holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_member_door_waits_for_the_owner_yes", "test:k2_the_owner_is_told_what_really_asks";
-review Worker::recovers holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_is_answered_as_interrupted_and_never_run_twice", "test:a_retry_during_or_after_work_is_kept_once_and_worked_once";
+review Worker::recovers holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_is_answered_as_interrupted_and_never_run_twice", "test:a_retry_during_or_after_work_is_kept_once_and_worked_once", "test:a_crash_after_a_tool_ran_tells_the_sender_and_the_owner_what_began";
 review Worker::speaks_back holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_spoken_question_gets_a_spoken_reply";
 review Worker::takes_up holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_is_answered_as_interrupted_and_never_run_twice";
 review Worker::traced holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:each_step_notes_what_it_decided";
@@ -178,7 +178,7 @@ review Server::reachable holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk5
 review Accounts::known holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:an_unknown_or_revoked_token_is_refused";
 review Assistant::told holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k11_a_broken_encoding_is_refused_out_loud";
 review Codes::unguessable holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k5_codes_differ_from_one_start_to_the_next";
-review Cli::sends_once holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k9_a_device_keeps_sending_after_the_largest_id";
+review Cli::sends_once holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k9_a_device_keeps_sending_after_the_largest_id", "test:the_cli_sends_a_lost_call_again_with_the_same_id";
 // Ties of the K12/K13 helpers, read against the model bodies.
 review Stored::vouched holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
 review Stored::read_output holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
@@ -188,3 +188,31 @@ review ConversationStore::reply_turns holds by "agent:anthropic/claude/session_0
 // Left unreviewed on purpose: Assistant::safe and Assistant::private are the
 // top promises. Their attack tests (k1, k2, k12, k13, k3, k4) pass, but the
 // agent that wrote the fixes should not vouch for the whole promise.
+
+// Round 3 (H13 write-ahead, W12 receipts, CLI retry), read by the building agent.
+review Worker::told_what_began holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_crash_after_a_tool_ran_tells_the_sender_and_the_owner_what_began", "test:a_crash_after_the_owners_yes_names_the_door_to_the_owner";
+review Ahead::kept holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:calls_written_down_are_cleared_when_the_next_message_is_taken_up";
+review Gateway::receipts holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_client_sees_received_then_read_then_delivered";
+// Ties of round 3 functions with a body, read against the model bodies.
+review Cli::send holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Cli::lost holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Cli::again holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Harness::act holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Gateway::receipt holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Gateway::status holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Gateway::stage holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Gateway::no_receipt holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Stored::delivered holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review ConversationStore::reply_delivered holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Worker::began holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+review Worker::tell_begun holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+// Left unsupported on purpose: Ahead::mark/marked/clear, Codes::fresh and
+// the Reporter's words are played by the fake world (no body in the model).
+// Round 3: cheap tests for promises that had none.
+review Purpose::asks_back holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:an_unclear_ask_is_asked_back_not_guessed";
+review Purpose::pinned holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:the_ask_pinned_is_the_last_message";
+review Composer::keeps_pin holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:the_request_holds_the_ask_whole_after_a_long_history";
+review Gate::help_first holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_call_for_help_is_heard_from_a_stranger_too";
+review Cli::unsent_told holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_cli_with_no_server_learns_it_failed_and_says_not_sent";
+// Not reviewed: Network::carries. The test shows a client learning that
+// it failed; that calls reach the server on a real network is the world's.

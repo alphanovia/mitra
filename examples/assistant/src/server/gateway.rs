@@ -120,6 +120,46 @@ impl Gateway {
         }
     }
 
+    // mitra: implements Gateway::receipt
+    /// Where a client's own message stands (W12).
+    pub fn receipt(store: ConversationStore, t: Token, n: i64) -> Option<Receipt> {
+        match Accounts::holder(t) {
+            Some(h) if h.household == store.household => Gateway::status(
+                store,
+                MessageId {
+                    from: Party::Client(h),
+                    n,
+                },
+            ),
+            _ => Gateway::no_receipt(),
+        }
+    }
+
+    // mitra: implements Gateway::status
+    pub fn status(store: ConversationStore, id: MessageId) -> Option<Receipt> {
+        store
+            .messages
+            .iter()
+            .rfind(|m| m.id == id)
+            .map(|m| Gateway::stage(id, m.read(), store.reply_delivered(m)))
+    }
+
+    // mitra: implements Gateway::stage
+    pub fn stage(id: MessageId, read: bool, delivered: bool) -> Receipt {
+        if delivered {
+            Receipt::Delivered(id)
+        } else if read {
+            Receipt::Read(id)
+        } else {
+            Receipt::Received(id)
+        }
+    }
+
+    // mitra: implements Gateway::no_receipt
+    pub fn no_receipt() -> Option<Receipt> {
+        None
+    }
+
     // mitra: implements Gateway::typing_for
     pub fn typing_for(store: ConversationStore, t: Token) -> bool {
         match Accounts::holder(t) {

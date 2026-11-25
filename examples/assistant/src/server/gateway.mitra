@@ -108,6 +108,31 @@ subject Gateway {
         }
     }
 
+    // Where a client's own message stands (W12): delivered once a client
+    // said it got the reply, read once taken up, else received. Only the
+    // token's own messages are told; any other id has no receipt.
+    fn receipt(store: ConversationStore, t: Token, n: integer) -> r: Option<Receipt> {
+        match Accounts::holder(t) {
+            Option::Some(h) => if h.household == store.household { status(store, MessageId { from: Party::Client(h), n: n }) } else { no_receipt() },
+            Option::None => no_receipt()
+        }
+    }
+    fn status(store: ConversationStore, id: MessageId) -> r: Option<Receipt> {
+        store.messages.fold(r: no_receipt()) { m ->
+            if m.id == id { Option::Some(stage(id, m.read(), store.reply_delivered(m))) } else { r }
+        }
+    }
+    fn stage(id: MessageId, read: bool, delivered: bool) -> r: Receipt {
+        if delivered { Receipt::Delivered(id) } else { if read { Receipt::Read(id) } else { Receipt::Received(id) } }
+    } where {
+        examples {
+            (MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, true, true) -> Receipt::Delivered(MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }),
+            (MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, true, false) -> Receipt::Read(MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }),
+            (MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 }, false, false) -> Receipt::Received(MessageId { from: Party::Client(Holder { household: 1, device: Device::Computer, number: 1 }), n: 1 })
+        }
+    }
+    fn no_receipt() -> r: Option<Receipt> { Option::None }
+
     // The "thinking" sign for a client: a message of its own that the
     // assistant has taken up and not answered yet.
     fn typing_for(store: ConversationStore, t: Token) -> on: bool {
@@ -135,6 +160,7 @@ subject Gateway {
     ensure sized: "a message longer than the size limit, typed or spoken, is refused at the door";   // route in admits (finding A)
     ensure recorded_first: "a message is stored before its receipt goes back, so a receipt always means it is kept"
         from (receive::stored_first, kept);
+    ensure receipts: "a client can ask where its own message stands: received, taken up, or its reply delivered";   // shown by stage's examples and the tests
     ensure retry_safe: "a client unsure that its message arrived can safely send it again"
         from (receive::same_twice, once);
     ensure delivers: "each client can fetch, in order, every reply meant for it that it has not seen yet";   // shown by replies' examples

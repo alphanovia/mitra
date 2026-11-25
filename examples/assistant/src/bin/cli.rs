@@ -19,6 +19,16 @@ fn main() {
             "--addr" => addr = args.next().unwrap_or(addr),
             "--token" => token = args.next().unwrap_or(token),
             "--voice" => voice = true,
+            // Where one of this device's messages stands (W12).
+            "--status" => {
+                let n = args.next().unwrap_or_default();
+                let got = assistant::cli::ask(&addr, &format!("STATUS {token} {n}"));
+                match got {
+                    Ok(l) => println!("{}", l.join(" ")),
+                    Err(f) => eprintln!("{} ({f:?})", Cli::status(false)),
+                }
+                return;
+            }
             _ => words.push(a),
         }
     }
