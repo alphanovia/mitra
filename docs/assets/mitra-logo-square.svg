@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="347 50 512 512" width="512" height="512">
+  <title>Mitra</title>
+  <rect x="347" y="50" width="512" height="512" fill="#0A0E14"/>
+  <g fill="none" stroke-width="54" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M449 463 V168 L565 360" stroke="#FFC53D"/>
+    <path d="M750.5 463 V230" stroke="#FFC53D"/>
+    <path d="M507 264 L565 360 L757 148" stroke="#3DDC84"/>
+  </g>
+</svg>

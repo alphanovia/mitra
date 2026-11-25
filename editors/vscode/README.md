@@ -4,6 +4,9 @@ Colours `.mitra` files: keywords, part/record/function names, claim
 names, types, strings, numbers (`1/3` too), `|-`, `->`, `::`, `[~T]`,
 comments. Colours only: no checking, no completion.
 
+A `.mitra` file shows the Mitra logo as its icon (`icons/mitra.svg`,
+VS Code 1.64 or later); the extension's own icon is `icons/mitra-128.png`.
+
 ## Install (local)
 
 Link this folder into VS Code's extensions, then reload the window

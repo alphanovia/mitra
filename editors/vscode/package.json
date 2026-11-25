@@ -6,14 +6,16 @@
   "publisher": "alphanovia",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/alphanovia/mitra" },
-  "engines": { "vscode": "^1.60.0" },
+  "engines": { "vscode": "^1.64.0" },
   "categories": ["Programming Languages"],
+  "icon": "icons/mitra-128.png",
   "contributes": {
     "languages": [
       {
         "id": "mitra",
         "aliases": ["Mitra", "mitra"],
         "extensions": [".mitra"],
+        "icon": { "light": "./icons/mitra.svg", "dark": "./icons/mitra.svg" },
         "configuration": "./language-configuration.json"
       }
     ],
