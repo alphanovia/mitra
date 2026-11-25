@@ -19,7 +19,8 @@ With a body, Mitra can run it:
     fn speed(h: rational) -> v2: rational { 2.0 * 9.81 * h } where {
 ```
 
-A body is an expression, as in Rust: no statements, no `return`.
+A body is a block, as in Rust: `let`s, then the value it gives, with no
+`return` ([chapter 4](4-values.md#blocks-let-and-if)).
 
 ## Claims
 
