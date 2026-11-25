@@ -28,7 +28,7 @@ where each breaks it: the claim is the first thing to look at. `T:
 Number` means `T` is `integer` or `rational`.
 
 A part whose methods fulfil a contract says so with `impl Name;`
-inside it: see [examples/assistant/assistant.mitra](../../examples/assistant/assistant.mitra).
+inside it: see [examples/language/nesting.mitra](../../examples/language/nesting.mitra).
 
 ## Use
 

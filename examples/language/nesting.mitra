@@ -1,4 +1,4 @@
-// Parts as types, nesting, methods, data shorthand
+// Nesting: parts as types, an outer part of inner parts, methods, data shorthand
 // (user 2026-11-24 09:18-10:08). Every type is a part; part names are CamelCase.
 // An outer part holds only parts, requires, ensures and end-to-end examples.
 // Only the llm and the user are environments; the harness and tools are Mitra's subject.
