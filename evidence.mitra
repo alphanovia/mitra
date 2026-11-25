@@ -1,6 +1,6 @@
-// The dogfood store: reviews of the dogfood model (src/*.mitra; flagged
-// dogfood report). A test measures and never reviews (the user's rule,
-// 2026-11-24): an ensure in words is reviewed by the agent that read
+// The dogfood store: the evidence written by hand, reviews of the
+// dogfood model (crates/*/src/*.mitra; flagged dogfood report). A test
+// measures and never reviews (the user's rule, 2026-11-24): an ensure in words is reviewed by the agent that read
 // it, seeing the tests that show it; `mitra explain` runs `cargo test`
 // and drops a review whose test did not pass (R008). A name two test
 // files share is written with its file, `tests/model.rs::each_error_is_found`.

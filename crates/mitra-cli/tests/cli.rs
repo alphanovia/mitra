@@ -268,7 +268,7 @@ fn the_dogfood_model_is_whole_and_checks() {
         "--code",
         "crates",
         "--store",
-        "core2.store.mitra",
+        "evidence.mitra",
         "--no-test",
     ]);
     assert_eq!(code, 0, "{out}");
