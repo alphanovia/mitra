@@ -143,7 +143,7 @@ subject A::Tool { fn get(self) -> s: [~char] { self.name } }";
         model
             .parts
             .iter()
-            .find(|p| p.name == "Tool")
+            .find(|p| p.name == "A::Tool")
             .unwrap()
             .functions
             .len(),
@@ -289,8 +289,8 @@ subject C {
     let model = parse(text).unwrap_or_else(|e| panic!("{e}"));
     assert_eq!(check(&model), vec![]);
     let c = model.parts.iter().find(|p| p.name == "C").unwrap();
-    assert_eq!(c.uses[0].part(), "B");
+    assert_eq!(c.uses[0].part(), "A::B");
     let printed = print(&model);
-    assert!(printed.contains("    use B;\n"), "{printed}");
+    assert!(printed.contains("    use A::B;\n"), "{printed}");
     assert_eq!(parse(&printed).unwrap(), model);
 }

@@ -12,6 +12,7 @@ use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
 use crate::graph::components;
 use crate::judgement::{self, Prop};
+use crate::model::own;
 use crate::model::{
     contract_calls, signatures, Claim, Contract, Function, Implements, Index, Item, Model, Part,
     Path, Record, Rule, Source, Step, Term, Use,
@@ -43,7 +44,7 @@ pub fn check(model: &Model) -> Vec<Error> {
         let at = Path::to(&[&part.name]);
         errors.extend(uses(&index, part));
         for e in &part.enums {
-            let here = at.then(&e.name);
+            let here = at.then(own(&e.name));
             let holds: Vec<(String, Type)> = e
                 .variants
                 .iter()
@@ -59,7 +60,7 @@ pub fn check(model: &Model) -> Vec<Error> {
             }
         }
         for record in &part.records {
-            let here = at.then(&record.name);
+            let here = at.then(own(&record.name));
             let known = typed_in(
                 &index,
                 &here,
@@ -213,7 +214,7 @@ pub fn check(model: &Model) -> Vec<Error> {
                 }
             }
         }
-        errors.extend(nesting(part, &at));
+        errors.extend(nesting(model, part, &at));
         for ensure in &part.ensures {
             let here = at.then(&ensure.name);
             for list in &ensure.from {
@@ -223,7 +224,7 @@ pub fn check(model: &Model) -> Vec<Error> {
                 for names in list {
                     // A part holding parts rests on its parts' ensures
                     // and its own requires only (M029).
-                    if !part.inner.is_empty() && index.prop_at(names).is_some() {
+                    if working(model, part) && index.prop_at(names).is_some() {
                         let first = names.names.first().map(String::as_str).unwrap_or("");
                         let item = index.items.get(names);
                         let fits = match first == part.name {
@@ -308,9 +309,9 @@ fn declared_wrong(model: &Model) -> Vec<Error> {
             let types: Vec<&Type> = e.variants.iter().flat_map(|(_, ts)| ts).collect();
             if e.variants.is_empty() {
                 let message = format!("`{}` has no variant: no value is of it", e.name);
-                errors.push(error(M027, &here.then(&e.name), message));
+                errors.push(error(M027, &here.then(own(&e.name)), message));
             }
-            params.push((here.then(&e.name), &e.params, types.clone()));
+            params.push((here.then(own(&e.name)), &e.params, types.clone()));
             holds.entry(&e.name).or_insert(types);
             by_variant.entry(&e.name).or_insert(
                 e.variants
@@ -318,13 +319,13 @@ fn declared_wrong(model: &Model) -> Vec<Error> {
                     .map(|(_, ts)| ts.iter().collect())
                     .collect(),
             );
-            at.entry(&e.name).or_insert(here.then(&e.name));
+            at.entry(&e.name).or_insert(here.then(own(&e.name)));
         }
         for r in &part.records {
             let types: Vec<&Type> = r.fields.iter().flatten().map(|(_, t)| t).collect();
-            params.push((here.then(&r.name), &r.params, types.clone()));
+            params.push((here.then(own(&r.name)), &r.params, types.clone()));
             holds.entry(&r.name).or_insert(types);
-            at.entry(&r.name).or_insert(here.then(&r.name));
+            at.entry(&r.name).or_insert(here.then(own(&r.name)));
         }
     }
     for (here, ps, types) in params {
@@ -447,7 +448,7 @@ fn names(model: &Model) -> Vec<Error> {
         let at = Path::to(&[&part.name]);
         declared.push(at.clone());
         for e in &part.enums {
-            let here = at.then(&e.name);
+            let here = at.then(own(&e.name));
             if !records.insert(&e.name) {
                 errors.push(twice(&here));
             }
@@ -462,7 +463,7 @@ fn names(model: &Model) -> Vec<Error> {
             ));
         }
         for r in &part.records {
-            let here = at.then(&r.name);
+            let here = at.then(own(&r.name));
             if !records.insert(&r.name) {
                 errors.push(twice(&here));
             }
@@ -536,6 +537,11 @@ fn said_at(here: &Path, claims: &[Claim], rules: &[Rule]) -> Vec<Path> {
 
 fn misnamed(at: &Path) -> Option<Error> {
     let name = at.names.last().map(String::as_str).unwrap_or_default();
+    // A nested part is named by its whole path: its own name is the word.
+    let name = match at.names.len() {
+        1 => own(name),
+        _ => name,
+    };
     let message = format!("`{name}` is not a word");
     // `..`, the fields a record does not state, is no name.
     (!word(name) && name != crate::model::REST).then(|| error(M001, at, message))
@@ -797,12 +803,36 @@ fn record_type(r: &Record) -> Type {
     r.type_()
 }
 
+/// A part that holds only its data: a record or an enum, perhaps with
+/// claims, and nothing else. Any part may hold one, as a Rust module
+/// holds its structs (finding 13, D3, to see in use).
+pub(crate) fn data_only(part: &Part) -> bool {
+    part.functions.is_empty()
+        && part.uses.is_empty()
+        && part.implements.is_empty()
+        && part.requires.is_empty()
+        && part.ensures.is_empty()
+        && part.inner.is_empty()
+}
+
+/// Whether `part` holds a part that is more than its data: then it holds
+/// only parts, requires, ensures and examples (M028, M029).
+pub(crate) fn working(model: &Model, part: &Part) -> bool {
+    part.inner.iter().any(|i| {
+        model
+            .parts
+            .iter()
+            .find(|p| &p.name == i)
+            .is_some_and(|p| !data_only(p))
+    })
+}
+
 /// M028 for a part holding parts that holds more than parts, requires,
 /// ensures and examples; M030 for each `self` that is not the first of a
 /// method of a part with its own record.
-fn nesting(part: &Part, at: &Path) -> Vec<Error> {
+fn nesting(model: &Model, part: &Part, at: &Path) -> Vec<Error> {
     let mut errors = vec![];
-    if !part.inner.is_empty() {
+    if working(model, part) {
         let mut held = vec![];
         if !part.records.is_empty() {
             held.push("a record");
@@ -1147,7 +1177,7 @@ fn reads(index: &Index, part: &Part, at: &Path, e: &Expression<simulation::Op>) 
             simulation::Op::Call(f) => match index.functions.get(f) {
                 None => errors.push(error(M017, at, no_function(index, part, f))),
                 Some(function) => {
-                    let (of, name) = f.split_once("::").unwrap_or_default();
+                    let (of, name) = f.rsplit_once("::").unwrap_or_default();
                     // A method is seen wherever its part's type is.
                     let method = function.takes.first().is_some_and(|(n, _)| n == "self");
                     if !method && !visible(part, of, name) {
@@ -1177,7 +1207,7 @@ fn no_function(index: &Index, part: &Part, f: &str) -> String {
         .iter()
         .map(|u| format!("{}::{f}", u.part()))
         .filter(|g| {
-            let (of, name) = g.split_once("::").unwrap_or_default();
+            let (of, name) = g.rsplit_once("::").unwrap_or_default();
             index.functions.contains_key(g) && part.uses.iter().any(|u| u.reads(of, name))
         })
         .collect::<BTreeSet<String>>()
@@ -1662,7 +1692,9 @@ fn correct_wrong(index: &Index, at: &Path, place: &str, p: &Prop) -> Vec<Error> 
                     )));
                     continue;
                 };
-                if function.split("::").next() != at.names.first().map(String::as_str) {
+                if function.rsplit_once("::").map(|(p, _)| p)
+                    != at.names.first().map(String::as_str)
+                {
                     let message = format!(
                         "`{function}` is of another part: parts meet only through requires"
                     );

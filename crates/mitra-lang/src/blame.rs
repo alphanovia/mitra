@@ -204,8 +204,7 @@ pub fn blame(model: &Model, explanation: &Explanation, settings: &Settings) -> B
 
 /// `name` is the path of a claim.
 fn is_claim(index: &Index, name: &str) -> bool {
-    let path = Path::to(&name.split("::").collect::<Vec<_>>());
-    matches!(index.items.get(&path), Some(Item::Claim))
+    matches!(index.items.get(&index.path_of(name)), Some(Item::Claim))
 }
 
 /// Only the smallest: every set that holds another goes.

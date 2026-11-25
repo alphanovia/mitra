@@ -14,6 +14,7 @@
 
 use crate::catalogue::{
     Code, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010, P011, P012, P013, P014, P016,
+    P017,
 };
 use crate::expression::{check as typed, Arg, Expression};
 use crate::judgement::{self, Prop, Set};
@@ -365,8 +366,8 @@ pub(crate) struct Context {
     contracts: BTreeMap<String, Simulation>,
     /// The functions of each contract, in its order: `impl C;` in a part.
     contract_functions: BTreeMap<String, Vec<String>>,
-    /// The part each nested part is in.
-    outer: BTreeMap<String, String>,
+    /// Every part, by its whole path: `agree::Settings` inside `agree`.
+    pub(crate) parts: BTreeSet<String>,
 }
 
 /// What a call written by a name alone, `light(h)`, names: the
@@ -542,11 +543,7 @@ impl Context {
                 )
             })
             .collect();
-        let outer = model
-            .parts
-            .iter()
-            .flat_map(|p| p.inner.iter().map(|i| (i.clone(), p.name.clone())))
-            .collect();
+        let parts = model.parts.iter().map(|p| p.name.clone()).collect();
         Context {
             records,
             enums,
@@ -558,7 +555,7 @@ impl Context {
             simulation,
             contracts,
             contract_functions,
-            outer,
+            parts,
         }
     }
 }
@@ -865,6 +862,9 @@ pub(crate) struct Parser<'c> {
     i: usize,
     /// `None` on the first reading.
     context: Option<&'c Context>,
+    /// Every part of the model by its whole path, when known before the
+    /// context: on the second half of the first reading.
+    known: Option<&'c BTreeSet<String>>,
     /// The part being read.
     part: Option<String>,
     ties: Vec<Tie>,
@@ -892,6 +892,7 @@ impl<'c> Parser<'c> {
             tokens,
             i: 0,
             context,
+            known: None,
             part: None,
             ties: vec![],
             no_record: false,
@@ -903,6 +904,12 @@ impl<'c> Parser<'c> {
             examples: vec![],
             printed: false,
         }
+    }
+
+    /// This parser, knowing every part by its whole path.
+    fn knowing(mut self, known: &'c BTreeSet<String>) -> Parser<'c> {
+        self.known = Some(known);
+        self
     }
 
     /// This parser, nesting at most `depth` levels.
@@ -1031,6 +1038,7 @@ impl<'c> Parser<'c> {
 
     /// `a::b::c`, as written; `crate::` first says it is whole.
     pub(crate) fn raw_path(&mut self) -> Result<Vec<String>> {
+        let at = self.pos();
         let mut names = vec![match self.eat_word("crate") {
             true => "crate".to_string(),
             false => self.name()?,
@@ -1041,14 +1049,89 @@ impl<'c> Parser<'c> {
         if names == ["crate"] {
             return self.expected("`::`");
         }
-        // `Assistant::Harness::run` is `Harness::run`: a part's name is
-        // one in the model, nested or not.
-        if let Some(context) = self.context {
-            while names.len() > 2 && context.outer.get(&names[1]) == Some(&names[0]) {
-                names.remove(0);
+        self.whole(names, at)
+    }
+    /// Every part by its whole path, once it is known.
+    fn known_parts(&self) -> Option<&BTreeSet<String>> {
+        self.context.map(|c| &c.parts).or(self.known)
+    }
+    /// A path as written, its part named whole, as the first of its names
+    /// (`agree::Settings`, then what is in it). A name alone is looked up
+    /// in the part being read, then in each part around it, out to the
+    /// model, as Swift's nested types are; found at two of them, P017:
+    /// nothing hides anything. `crate::` first is read from the model.
+    /// What names no part is left as written.
+    fn whole(&self, mut names: Vec<String>, at: Pos) -> Result<Vec<String>> {
+        let Some(known) = self.known_parts() else {
+            return Ok(names);
+        };
+        // `crate::` first is read from the model, as written.
+        if names[0] == "crate" {
+            return Ok(names);
+        }
+        // An item of the part being read is its own: `resolve` reads it.
+        let local = self
+            .context
+            .zip(self.part.as_ref())
+            .is_some_and(|(c, part)| {
+                c.items
+                    .get(part)
+                    .is_some_and(|items| items.contains(&names[0]))
+            });
+        if local {
+            return Ok(names);
+        }
+        let mut scopes: Vec<String> = Vec::new();
+        let mut scope = self.part.clone();
+        while let Some(s) = scope {
+            scope = s.rsplit_once("::").map(|(outer, _)| outer.to_string());
+            scopes.push(s);
+        }
+        let mut found: Vec<String> = scopes
+            .iter()
+            .map(|s| format!("{s}::{}", names[0]))
+            .chain([names[0].clone()])
+            .filter(|full| known.contains(full))
+            .collect();
+        // A part its part uses whole, `use A::B;`, by its own name `B`.
+        let used = self
+            .context
+            .zip(self.part.as_ref())
+            .and_then(|(c, part)| c.calling.uses.get(part));
+        for u in used.into_iter().flatten() {
+            if let Use::Names {
+                part, names: read, ..
+            } = u
+            {
+                let whole = read.len() == 1 && read[0] == *part;
+                if whole && crate::model::own(part) == names[0] && !found.contains(part) {
+                    found.push(part.clone());
+                }
             }
         }
-        Ok(names)
+        let mut part = match found.as_slice() {
+            [] => return Ok(names),
+            [one] => one.clone(),
+            several => {
+                let all: Vec<String> = several.iter().map(|p| format!("`{p}`")).collect();
+                let message = format!(
+                    "`{}` names {}: nothing hides another; write the whole path",
+                    names[0],
+                    all.join(" and ")
+                );
+                return Err(error(P017, at, message));
+            }
+        };
+        let mut rest = names.split_off(1).into_iter().peekable();
+        while let Some(next) = rest.peek() {
+            let inner = format!("{part}::{next}");
+            if !known.contains(&inner) {
+                break;
+            }
+            part = inner;
+            rest.next();
+        }
+        Ok([vec![part], rest.collect()].concat())
     }
     /// A path as written, made whole: in a part, a path whose first
     /// name is one of the part's records, functions, requires or
@@ -1349,7 +1432,7 @@ impl<'c> Parser<'c> {
         self.expect_word("use")?;
         let at = self.pos();
         let outer = self.name()?;
-        let mut part = outer.clone();
+        let mut written = vec![outer.clone()];
         let mut names = None;
         let mut glob = false;
         while self.eat("::") {
@@ -1361,21 +1444,39 @@ impl<'c> Parser<'c> {
                 names = Some(self.list("}", |p| p.name())?);
                 break;
             }
-            let here = self.pos();
-            let next = self.name()?;
-            let nested = self.context.map(|c| c.outer.get(&next) == Some(&part));
-            match (self.is("::"), nested) {
-                // `A::B::…`: `B` is a part inside `A`.
-                (true, Some(false)) => {
-                    let message = format!("`{next}` is no part inside `{part}`");
-                    return Err(error(P003, here, message));
-                }
-                (true, _) => part = next,
-                // `use A::B;`: the part `B` inside `A`, whole.
-                (false, Some(true)) => part = next,
-                (false, _) => names = Some(vec![next]),
-            }
+            written.push(self.name()?);
         }
+        // The part, by its whole path; what follows it, one name it reads.
+        let mut whole = self.whole(written.clone(), at)?;
+        let part = match (self.known_parts(), names.is_some() || glob) {
+            // On the first reading, the path as written: its last name is
+            // a part when a list follows, or else what it reads.
+            (None, true) => written.join("::"),
+            (None, false) => {
+                let last = written.pop().expect("one name");
+                match written.is_empty() {
+                    true => last,
+                    false => {
+                        names = Some(vec![last]);
+                        written.join("::")
+                    }
+                }
+            }
+            (Some(_), _) => {
+                let part = whole.remove(0);
+                match (whole.as_slice(), names.is_some() || glob) {
+                    ([], _) => part,
+                    ([name], false) => {
+                        names = Some(vec![name.clone()]);
+                        part
+                    }
+                    _ => {
+                        let message = format!("`{}` is no part inside `{part}`", whole[0]);
+                        return Err(error(P003, at, message));
+                    }
+                }
+            }
+        };
         let from = match self.eat_word("from") {
             true => match self.bump() {
                 Tok::Str(path) => Some(path),
@@ -1476,18 +1577,33 @@ impl<'c> Parser<'c> {
             inner: vec![],
             file: None,
         };
+        // Its whole path: inside a part, from that part (finding 13).
+        let outer = self.part.clone();
+        let within = |name: &str| match &outer {
+            Some(outer) => format!("{outer}::{name}"),
+            None => name.to_string(),
+        };
         // The shorthand: the part is its data.
         if self.is_word("record") || self.is_word("enum") {
             let Tok::Word(name) = self.peek_at(1).clone() else {
                 self.bump();
                 return self.expected("a name");
             };
+            let name = within(&name);
             let was = self.part.replace(name.clone());
             let here = Path::to(&[&name]);
             let mut part = empty(name);
+            // Its record or enum is named by the part's whole path.
+            let whole = part.name.clone();
             let read = match self.is_word("record") {
-                true => self.record(&here).map(|r| part.records.push(r)),
-                false => self.enum_(&here).map(|e| part.enums.push(e)),
+                true => self.record(&here).map(|mut r| {
+                    r.name = whole;
+                    part.records.push(r)
+                }),
+                false => self.enum_(&here).map(|mut e| {
+                    e.name = whole;
+                    part.enums.push(e)
+                }),
             };
             self.part = was;
             read?;
@@ -1495,8 +1611,9 @@ impl<'c> Parser<'c> {
         }
         let mut name = self.name()?;
         while self.eat("::") {
-            name = self.name()?;
+            name = format!("{name}::{}", self.name()?);
         }
+        let name = within(&name);
         let was = self.part.replace(name.clone());
         let here = Path::to(&[&name]);
         let read = self.part_body(empty(name), &here);
@@ -1522,7 +1639,7 @@ impl<'c> Parser<'c> {
                             format!("`{}` holds one record of its own, given twice", part.name);
                         return Err(error(P003, at, message));
                     }
-                    self.ties_of(&here.then(&part.name))?;
+                    self.ties_of(&here.then(crate::model::own(&part.name)))?;
                     part.records
                         .push(self.record_body(part.name.clone(), vec![])?);
                 }
@@ -1993,6 +2110,12 @@ impl<'c> Parser<'c> {
             });
         }
         let at = self.pos();
+        // `crate::Reading`: a part read from the top of the model.
+        if self.is_word("crate") && *self.peek_at(1) == Tok::Sym("::") {
+            let names = self.raw_path()?;
+            let name: Vec<String> = names.into_iter().filter(|n| n != "crate").collect();
+            return self.instance(&name.join("::"), vec![], at);
+        }
         let name = self.name()?;
         if let Some((_, bound)) = self.params.iter().find(|(p, _)| *p == name) {
             return Ok(Type::Param {
@@ -2000,6 +2123,13 @@ impl<'c> Parser<'c> {
                 bound: *bound,
             });
         }
+        // A part by its path, `agree::Settings`, or by its name alone,
+        // looked up from where it is written (finding 13).
+        let mut names = vec![name];
+        while self.eat("::") {
+            names.push(self.name()?);
+        }
+        let name = self.whole(names, at)?.join("::");
         let args = match self.eat("<") {
             true => self.list(">", |p| p.type_())?,
             false => vec![],
@@ -2370,10 +2500,13 @@ impl<'c> Parser<'c> {
                     };
                     return self.variant_value(&names, holds, at);
                 }
-                let [name] = names.as_slice() else {
-                    return Err(error(P003, at, "a record is named by one word"));
-                };
-                let name = name.clone();
+                // A record by its part's whole path, `agree::Settings`.
+                let name = names
+                    .iter()
+                    .filter(|n| *n != "crate")
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join("::");
                 self.expect("{")?;
                 // Its fields, and `..` last when the others are not known:
                 // Rust's struct pattern.
@@ -3051,6 +3184,16 @@ impl<'c> Parser<'c> {
                 if w == "crate" || matches!(self.peek_at(1), Tok::Sym("::") | Tok::Sym("(")) =>
             {
                 let names = self.raw_path()?;
+                // `agree::Settings { … }`: a record by its part's path. Once
+                // parts are known, the path is one name, the part's whole.
+                let whole: Vec<String> = names.iter().filter(|n| *n != "crate").cloned().collect();
+                let record = match self.known_parts() {
+                    Some(_) => whole.len() == 1,
+                    None => whole.last().is_some_and(|n| n.starts_with(char::is_uppercase)),
+                };
+                if self.is("{") && !self.no_record && record {
+                    return self.record_literal(whole.join("::"), env, at);
+                }
                 let function = self.context.is_some_and(|c| {
                     names.len() > 1
                         || c.calling
@@ -3083,40 +3226,10 @@ impl<'c> Parser<'c> {
             Tok::Word(_) => {
                 let name = self.name()?;
                 if self.is("{") && !self.no_record {
-                    self.bump();
-                    // Fields, then perhaps `..r`: each other field read
-                    // from `r` (Rust's update form), a new value.
-                    let (mut fields, mut base) = (vec![], None);
-                    while !self.eat("}") {
-                        if self.eat("..") {
-                            base = Some(self.inner(&mut env.clone())?);
-                            self.expect("}")?;
-                            break;
-                        }
-                        let n = self.name()?;
-                        self.expect(":")?;
-                        fields.push((n, self.inner(&mut env.clone())?));
-                        if !self.eat(",") {
-                            self.expect("}")?;
-                            break;
-                        }
-                    }
-                    if let Some(base) = base {
-                        let declared: Vec<String> =
-                            match self.context.and_then(|c| c.records.get(&name)) {
-                                Some(r) => r.fields.iter().map(|(n, _)| n.clone()).collect(),
-                                None => vec![],
-                            };
-                        for f in declared {
-                            if !fields.iter().any(|(n, _)| *n == f) {
-                                let read = apply(Op::Field(f.clone()), vec![base.clone()]);
-                                fields.push((f, read));
-                            }
-                        }
-                    }
-                    let (record, args) =
-                        self.made(&name, fields, |e| self.type_or_any(env, e), at)?;
-                    return Ok(apply(Op::Make(record), args));
+                    // A record by its part's name, looked up from here.
+                    let name = self.whole(vec![name], at)?;
+                    let name = name.into_iter().filter(|n| n != "crate").collect::<Vec<_>>();
+                    return self.record_literal(name.join("::"), env, at);
                 }
                 // A unit variant, `None`, unless a name in scope is so named.
                 let bound = env.iter().any(|(n, _)| *n == name);
@@ -3129,6 +3242,42 @@ impl<'c> Parser<'c> {
             }
             _ => self.expected("an expression"),
         }
+    }
+    /// `R { a: 1, ..r }`, after its name: a record, its fields, then
+    /// perhaps `..r`, each other field read from `r`.
+    fn record_literal(&mut self, name: String, env: &mut Env, at: Pos) -> Result<E> {
+        self.bump();
+        // Fields, then perhaps `..r`: each other field read
+        // from `r` (Rust's update form), a new value.
+        let (mut fields, mut base) = (vec![], None);
+        while !self.eat("}") {
+            if self.eat("..") {
+                base = Some(self.inner(&mut env.clone())?);
+                self.expect("}")?;
+                break;
+            }
+            let n = self.name()?;
+            self.expect(":")?;
+            fields.push((n, self.inner(&mut env.clone())?));
+            if !self.eat(",") {
+                self.expect("}")?;
+                break;
+            }
+        }
+        if let Some(base) = base {
+            let declared: Vec<String> = match self.context.and_then(|c| c.records.get(&name)) {
+                Some(r) => r.fields.iter().map(|(n, _)| n.clone()).collect(),
+                None => vec![],
+            };
+            for f in declared {
+                if !fields.iter().any(|(n, _)| *n == f) {
+                    let read = apply(Op::Field(f.clone()), vec![base.clone()]);
+                    fields.push((f, read));
+                }
+            }
+        }
+        let (record, args) = self.made(&name, fields, |e| self.type_or_any(env, e), at)?;
+        Ok(apply(Op::Make(record), args))
     }
     /// The variant `i` of `open`, holding `holds`, its parameters learnt
     /// from what they give; one not told is settled by where it goes.
@@ -4293,9 +4442,16 @@ fn files(
                 (Some(f), Some(p)) => named_by(p, f),
                 (Some(_), None) => false,
             };
-            let declared = done
-                .iter()
-                .any(|f| ok(&f.name) && f.first.parts.iter().any(|p| p.name == part));
+            // A part nested in one read already may be named alone, from
+            // inside: `whole` looks it up.
+            let nested = format!("::{part}");
+            let declared = done.iter().any(|f| {
+                ok(&f.name)
+                    && f.first
+                        .parts
+                        .iter()
+                        .any(|p| p.name == part || p.name.ends_with(&nested))
+            });
             let queued = todo
                 .iter()
                 .any(|(n, t)| ok(n) && declared_in(t).is_ok_and(|d| d.contains(&part)));
@@ -4358,6 +4514,19 @@ fn files(
                 }
             }
         }
+    }
+    // The first reading again, knowing every part by its whole path: a
+    // name alone is then read as the part it names (finding 13).
+    let known: BTreeSet<String> = done
+        .iter()
+        .flat_map(|f| f.first.parts.iter().map(|p| p.name.clone()))
+        .collect();
+    for f in &mut done {
+        f.first = Parser::new(f.tokens.clone(), None)
+            .knowing(&known)
+            .budget(settings.depth)
+            .model()
+            .map_err(|e| failed(&f.name, &f.source, e))?;
     }
     // One reading of them all, then each file read again with it.
     let mut all = Model {

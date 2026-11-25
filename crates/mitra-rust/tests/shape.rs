@@ -250,3 +250,57 @@ fn comments_lifetimes_and_functions_are_read_as_written() {
     );
     assert!(!reviews.iter().any(|(p, _)| p == "Heater"));
 }
+
+/// A data part nested in a part with functions (finding 13): its record
+/// is at `agree::Settings::Settings`, and its struct is read through it.
+#[test]
+fn a_nested_data_part_is_tied_by_its_whole_path() {
+    use mitra_lang::parse::parse;
+    let model = parse(
+        "subject agree {\n    subject record Settings at \"src/lib.rs/Settings\" { points: integer }\n    fn defaults() -> s: Settings { Settings { points: 64 } }\n}\n",
+    )
+    .unwrap_or_else(|e| panic!("{e}"));
+    let good = "pub struct Settings {\n    pub points: u32,\n}\n";
+    let files = |code: &str| [("src/lib.rs".to_string(), code.to_string())];
+    let (reviews, findings) = shapes(&model, &model.ties, &files(good));
+    assert_eq!(findings.len(), 0, "{findings:?}");
+    let said: Vec<(String, bool)> = reviews
+        .iter()
+        .map(|r| (r.prop.to_string(), r.holds))
+        .collect();
+    assert_eq!(said, [("agree::Settings::Settings".to_string(), true)]);
+    // A field the model states is missing: R011, at the whole path.
+    let (reviews, findings) = shapes(
+        &model,
+        &model.ties,
+        &files("pub struct Settings {\n    pub depth: u32,\n}\n"),
+    );
+    assert!(reviews.iter().all(|r| !r.holds), "{reviews:?}");
+    let text: Vec<String> = findings.iter().map(|f| f.to_string()).collect();
+    assert!(
+        text.iter().any(|f| f.contains("R011")
+            && f.contains("`points` of the model's `agree::Settings::Settings`")),
+        "{text:?}"
+    );
+}
+
+/// A nested data part tied to a struct of another name: a field of its
+/// type, in another struct, is read through that name.
+#[test]
+fn a_nested_record_of_another_name_is_read_in_a_field() {
+    use mitra_lang::parse::parse;
+    let model = parse(
+        "subject agree {\n    subject record Settings at \"src/lib.rs/AgreeSettings\" { points: integer }\n    fn defaults() -> s: Settings { Settings { points: 64 } }\n}\nsubject record All at \"src/lib.rs/All\" { agree: agree::Settings }\n",
+    )
+    .unwrap_or_else(|e| panic!("{e}"));
+    let code = "pub struct AgreeSettings {\n    pub points: u32,\n}\npub struct All {\n    pub agree: AgreeSettings,\n}\n";
+    let (reviews, findings) = shapes(
+        &model,
+        &model.ties,
+        &[("src/lib.rs".to_string(), code.to_string())],
+    );
+    let text: Vec<String> = findings.iter().map(|f| f.to_string()).collect();
+    assert_eq!(text, Vec::<String>::new());
+    assert_eq!(reviews.len(), 2);
+    assert!(reviews.iter().all(|r| r.holds));
+}

@@ -195,6 +195,15 @@ pub fn measured(
     })
 }
 
+/// The path of a function by its text, `agree::Settings::defaults`: its
+/// part, all but the last name, then the function.
+fn function_path(g: &str) -> Path {
+    match g.rsplit_once("::") {
+        Some((part, f)) => Path::to(&[part, f]),
+        None => Path::to(&[g]),
+    }
+}
+
 /// `m`, with the calls the system made, as `then` lists them (BDD
 /// step 2): each to a function with no body of the model, by its whole
 /// path, its arguments read by what it takes; R006 otherwise.
@@ -204,9 +213,7 @@ pub fn with_calls(
     effects: crate::model::Effects,
 ) -> Result<Measurement, (Code, String)> {
     for (g, args) in effects.0 {
-        let path = Path {
-            names: g.split("::").map(str::to_string).collect(),
-        };
+        let path = function_path(&g);
         let Some((at, f)) = function_at(model, &path) else {
             return Err((
                 R006,
@@ -258,9 +265,7 @@ pub fn with_world(
 ) -> Result<Measurement, (Code, String)> {
     let mut seen: Vec<Path> = Vec::new();
     for (g, args, v) in &world.0 {
-        let path = Path {
-            names: g.split("::").map(str::to_string).collect(),
-        };
+        let path = function_path(g);
         let Some((at, f)) = function_at(model, &path) else {
             return Err((
                 R006,

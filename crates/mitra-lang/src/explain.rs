@@ -369,11 +369,16 @@ pub fn explain(model: &Model, ledger: &Ledger, settings: &Settings) -> Explanati
     let assuming = |link: &Prop| {
         verdicts
             .iter()
-            .filter(|v| matches!(&v.verdict, Verdict::Assumed { links, .. } if links.contains(link)))
+            .filter(
+                |v| matches!(&v.verdict, Verdict::Assumed { links, .. } if links.contains(link)),
+            )
             .count()
     };
     asks.sort_by_key(|a| {
-        let link = a.from.as_ref().and_then(|from| model::link(&index, &a.at, from));
+        let link = a
+            .from
+            .as_ref()
+            .and_then(|from| model::link(&index, &a.at, from));
         std::cmp::Reverse(link.map_or(0, |l| assuming(&l)))
     });
     Explanation {
@@ -597,7 +602,7 @@ impl Given<'_, '_> {
     fn ties(&self, functions: &BTreeSet<String>) -> Vec<Prop> {
         let parts: BTreeSet<&str> = functions
             .iter()
-            .filter_map(|f| f.split("::").next())
+            .filter_map(|f| f.rsplit_once("::").map(|(part, _)| part))
             .collect();
         self.model
             .ties

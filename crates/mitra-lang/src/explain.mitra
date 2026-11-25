@@ -4,9 +4,9 @@
 
 subject record Explanation at "crates/mitra-lang/src/explain.rs/Explanation";
 
-subject record ExplainSettings at "crates/mitra-lang/src/explain.rs/Settings" { rounds: integer, cases: integer, rests: integer, budget: Budget }
-
 subject explain {
+    // The settings, as Rust has them: `explain::Settings`.
+    subject record Settings at "crates/mitra-lang/src/explain.rs/Settings" { rounds: integer, cases: integer, rests: integer, budget: Budget }
     use Budget from "simulation";
     use check from "check";
     use evidence from "evidence";
@@ -22,8 +22,8 @@ subject explain {
     require read: reader::nothing_dropped;
     require linked: evidence::links;
 
-    fn explain_defaults() -> s: ExplainSettings at "crates/mitra-lang/src/explain.rs/Settings/default" {
-        ExplainSettings { rounds: 64, cases: 1024, rests: 1024, budget: Budget { steps: 1000000, depth: 1000 } }
+    fn explain_defaults() -> s: Settings at "crates/mitra-lang/src/explain.rs/Settings/default" {
+        Settings { rounds: 64, cases: 1024, rests: 1024, budget: Budget { steps: 1000000, depth: 1000 } }
     }
     ensure drift: "a value measured outside the range of its type is a taking against the function at that point, by its ties, and X011 says which value; a failed test there takes nothing" from (fits);
     ensure no_points: "an all or an any over a set its condition leaves with no point is given nothing from its points, and X013 says so: never explained by no evidence";

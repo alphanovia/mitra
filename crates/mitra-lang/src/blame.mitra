@@ -2,13 +2,13 @@
 // language, beside the code it models (the parts it uses are read by
 // `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
 
-subject record BlameSettings at "crates/mitra-lang/src/blame.rs/Settings" { diagnoses: integer, tries: integer }
-
 subject blame {
+    // The settings, as Rust has them: `blame::Settings`.
+    subject record Settings at "crates/mitra-lang/src/blame.rs/Settings" { diagnoses: integer, tries: integer }
     use explain from "explain";
     require explained: explain::verdicts;
-    fn blame_defaults() -> s: BlameSettings at "crates/mitra-lang/src/blame.rs/Settings/default" {
-        BlameSettings { diagnoses: 10, tries: 100000 }
+    fn blame_defaults() -> s: Settings at "crates/mitra-lang/src/blame.rs/Settings/default" {
+        Settings { diagnoses: 10, tries: 100000 }
     }
     ensure minimal: "each diagnosis is a smallest set of suspects whose drop leaves nothing contradicted"
         from (explained);

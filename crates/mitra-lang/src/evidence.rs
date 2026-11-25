@@ -134,7 +134,13 @@ fn voice_error(by: &str) -> Option<String> {
     if by.is_empty() {
         return Some("it says no voice".to_string());
     }
-    if [crate::explain::MODEL, crate::explain::CHECK, crate::explain::LINK].contains(&by) {
+    if [
+        crate::explain::MODEL,
+        crate::explain::CHECK,
+        crate::explain::LINK,
+    ]
+    .contains(&by)
+    {
         let message =
             format!("`{by}` is Mitra's own voice: the ledger says who else saw or said it");
         return Some(message);

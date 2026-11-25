@@ -2,9 +2,9 @@
 // language, beside the code it models (the parts it uses are read by
 // `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
 
-subject record AgreeSettings at "crates/mitra-lang/src/agree.rs/Settings" { points: integer, splits: integer, budget: Budget, length: integer, height: integer }
-
 subject agree {
+    // The settings, as Rust has them: `agree::Settings`.
+    subject record Settings at "crates/mitra-lang/src/agree.rs/Settings" { points: integer, splits: integer, budget: Budget, length: integer, height: integer }
     use Budget from "simulation";
     use check from "check";
     use simulation from "simulation";
@@ -19,8 +19,8 @@ subject agree {
     // Each limit a setting, none fixed in the code.
     require stops: simulation::budgeted;
 
-    fn agree_defaults() -> s: AgreeSettings at "crates/mitra-lang/src/agree.rs/Settings/default" {
-        AgreeSettings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 }, length: 3, height: 3 }
+    fn agree_defaults() -> s: Settings at "crates/mitra-lang/src/agree.rs/Settings/default" {
+        Settings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 }, length: 3, height: 3 }
     }
     ensure no_false_holds: "agree says Holds only when what the model says twice agrees at every point where the claims of functions with no body hold"
         from (checked, exact, ranges, kept, given, promised);

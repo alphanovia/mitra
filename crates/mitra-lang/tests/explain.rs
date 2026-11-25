@@ -168,11 +168,15 @@ fn a_failed_test_contradicts_what_it_went_through() {
     // the checker takes: the rule's premises are what the run gave and
     // the tie, so the test is in it twice, what it gave and what it saw.
     let tie = &e.opinions[&named(TIE)];
-    assert!(tie.rests_against().iter().any(|rest| {
-        let mut by: Vec<&str> = rest.iter().map(|t| t.by.as_str()).collect();
-        by.sort();
-        by == vec![CHECK, "test:div_7_2", "test:div_7_2"]
-    }), "{:?}", tie.rests_against());
+    assert!(
+        tie.rests_against().iter().any(|rest| {
+            let mut by: Vec<&str> = rest.iter().map(|t| t.by.as_str()).collect();
+            by.sort();
+            by == vec![CHECK, "test:div_7_2", "test:div_7_2"]
+        }),
+        "{:?}",
+        tie.rests_against()
+    );
 }
 
 /// A failed test reads as one: what the model gives there was not seen.

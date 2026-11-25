@@ -468,5 +468,8 @@ fn the_assistant_rows_end_to_end() {
     std::fs::write(dir.join("a.mitra"), wrong).unwrap();
     let (_, out) = mitra(&["check", dir.join("a.mitra").to_str().unwrap()]);
     std::fs::remove_dir_all(&dir).unwrap();
-    assert!(out.contains("finding[A006]: `Harness::serve::reply`"), "{out}");
+    assert!(
+        out.contains("finding[A006]: `Assistant::Harness::serve::reply`"),
+        "{out}"
+    );
 }

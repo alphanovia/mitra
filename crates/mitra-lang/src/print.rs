@@ -324,6 +324,20 @@ impl Writer<'_> {
             Kind::Environment => "environment",
         };
         let here = Path::to(&[&part.name]);
+        // Inside the part that holds it, a part is written by its own name.
+        let nested = model.parts.iter().any(|p| p.inner.contains(&part.name));
+        let name = match nested {
+            true => crate::model::own(&part.name),
+            false => part.name.as_str(),
+        };
+        let renamed = |s: String, word: &str| match nested {
+            true => s.replacen(
+                &format!("{word} {}", part.name),
+                &format!("{word} {name}"),
+                1,
+            ),
+            false => s,
+        };
         let tied = |item: &Path, placed: &mut [bool]| match first {
             true => self.ties(item, model, placed),
             false => String::new(),
@@ -338,19 +352,20 @@ impl Writer<'_> {
             && model.ties.iter().all(|t| t.item != here);
         match (&part.records[..], &part.enums[..]) {
             ([r], []) if data_only && r.name == part.name => {
-                let ties = tied(&here.then(&r.name), placed);
-                let s = self.record(r, &ties, false);
+                let ties = tied(&here.then(crate::model::own(&r.name)), placed);
+                let s = renamed(self.record(r, &ties, false), "record");
                 out.push_str(&format!("{kind} {}", s.trim_start()));
                 return;
             }
             ([], [e]) if data_only && e.name == part.name => {
-                let ties = tied(&here.then(&e.name), placed);
-                out.push_str(&format!("{kind} {}", enum_(e, &ties).trim_start()));
+                let ties = tied(&here.then(crate::model::own(&e.name)), placed);
+                let s = renamed(enum_(e, &ties), "enum");
+                out.push_str(&format!("{kind} {}", s.trim_start()));
                 return;
             }
             _ => {}
         }
-        out.push_str(&format!("{kind} {}{} {{\n", part.name, tied(&here, placed)));
+        out.push_str(&format!("{kind} {name}{} {{\n", tied(&here, placed)));
         let mut blocks: Vec<String> = vec![];
         let uses: String = part.uses.iter().map(use_).collect();
         if !uses.is_empty() {
@@ -363,7 +378,7 @@ impl Writer<'_> {
         let mut seen = BTreeSet::new();
         for r in &part.records {
             let ties = match seen.insert(r.name.clone()) {
-                true => tied(&here.then(&r.name), placed),
+                true => tied(&here.then(crate::model::own(&r.name)), placed),
                 false => String::new(),
             };
             let own = r.name == part.name && r.params.is_empty();
@@ -371,7 +386,7 @@ impl Writer<'_> {
         }
         for e in &part.enums {
             let ties = match seen.insert(e.name.clone()) {
-                true => tied(&here.then(&e.name), placed),
+                true => tied(&here.then(crate::model::own(&e.name)), placed),
                 false => String::new(),
             };
             blocks.push(enum_(e, &ties));

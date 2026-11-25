@@ -21,6 +21,7 @@ example, and the fix. The letter says which step found it.
 - [P014](P014.md): a part a `use` names that two folders declare
 - [P015](P015.md): a `mitra.toml` Mitra cannot read
 - [P016](P016.md): a value `;` drops that is not `()`
+- [P017](P017.md): a name alone names a part at two levels
 
 ## M (model): names, types and structure (`check`, before agree)
 

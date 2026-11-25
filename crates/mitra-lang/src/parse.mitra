@@ -2,14 +2,14 @@
 // language, beside the code it models (the parts it uses are read by
 // `use … from`). The whole model: `mitra check src/bin/mitra.mitra`.
 
-subject record ParseSettings at "crates/mitra-lang/src/parse.rs/Settings" { depth: integer }
-
 subject parse {
+    // The settings, as Rust has them: `parse::Settings`.
+    subject record Settings at "crates/mitra-lang/src/parse.rs/Settings" { depth: integer }
     use print from "print";
     require printed: print::reads_back;
     use simulation::budget_defaults from "simulation";
-    fn parse_defaults() -> s: ParseSettings at "crates/mitra-lang/src/parse.rs/Settings/default" {
-        ParseSettings { depth: 2 * budget_defaults().depth }
+    fn parse_defaults() -> s: Settings at "crates/mitra-lang/src/parse.rs/Settings/default" {
+        Settings { depth: 2 * budget_defaults().depth }
     }
     ensure round_trip: "parse(print(m)) is m, ties aside" from (printed);
     ensure first_error: "a text that is not a model gives its first error, at its line and column, suit P";

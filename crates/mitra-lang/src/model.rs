@@ -48,6 +48,13 @@ impl Path {
     }
 }
 
+/// A part's own name, the last of its whole path: `Settings` of
+/// `agree::Settings`. Its record and enum are named by its whole path,
+/// and are at its own name inside it: `agree::Settings::Settings`.
+pub fn own(name: &str) -> &str {
+    name.rsplit_once("::").map_or(name, |(_, n)| n)
+}
+
 /// `stone::drop::falls`.
 impl std::fmt::Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -506,7 +513,7 @@ pub fn levels(model: &Model) -> Vec<(Path, Level)> {
         let at = Path::to(&[&part.name]);
         for r in &part.records {
             let said = !r.claims.is_empty() || !r.rules.is_empty();
-            levels.push((at.then(&r.name), level(r.fields.is_some(), said)));
+            levels.push((at.then(own(&r.name)), level(r.fields.is_some(), said)));
         }
         for f in &part.functions {
             let fits = part
@@ -673,6 +680,21 @@ pub(crate) struct Index<'m> {
 }
 
 impl<'m> Index<'m> {
+    /// The path a text names, `agree::Settings::f::c`: its part whole,
+    /// the longest of its first names that is a part, then the rest.
+    pub(crate) fn path_of(&self, text: &str) -> Path {
+        let names: Vec<&str> = text.split("::").collect();
+        for k in (1..=names.len()).rev() {
+            let part = names[..k].join("::");
+            if matches!(self.items.get(&Path::to(&[&part])), Some(Item::Part)) {
+                let mut whole = vec![part];
+                whole.extend(names[k..].iter().map(|n| n.to_string()));
+                return Path { names: whole };
+            }
+        }
+        Path::to(&names)
+    }
+
     pub(crate) fn of(model: &'m Model) -> Index<'m> {
         let mut index = Index {
             items: BTreeMap::new(),
@@ -697,12 +719,12 @@ impl<'m> Index<'m> {
             for r in &part.records {
                 index.records.entry(&r.name).or_insert(r);
                 index.record_parts.entry(&r.name).or_insert(&part.name);
-                index.add_said(&at.then(&r.name), Item::Record, &r.claims, &r.rules);
+                index.add_said(&at.then(own(&r.name)), Item::Record, &r.claims, &r.rules);
             }
             for e in &part.enums {
                 index.enums.entry(&e.name).or_insert(e);
                 index.enum_parts.entry(&e.name).or_insert(&part.name);
-                index.add(&at.then(&e.name), Item::Enum);
+                index.add(&at.then(own(&e.name)), Item::Enum);
             }
             for f in &part.functions {
                 index

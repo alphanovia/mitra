@@ -18,6 +18,7 @@
 
 use mitra_lang::catalogue::{R011, R012, R013};
 use mitra_lang::evidence::Review;
+use mitra_lang::model::own;
 use mitra_lang::model::{Model, Path, Tie, REST};
 use mitra_lang::simulation::Type;
 use mitra_lang::store::{finding, ReaderFinding};
@@ -124,12 +125,15 @@ fn declared<'m>(model: &'m Model, item: &Path) -> Option<Declared<'m>> {
         _ => return None,
     };
     let part = model.parts.iter().find(|p| p.name == *part)?;
-    if let Some(r) = part.records.iter().find(|r| r.name == *name) {
+    // A nested data part's record is named by the part's whole path, and
+    // tied at its own name: `agree::Settings::Settings`.
+    let named = |n: &str| n == name.as_str() || own(n) == name.as_str();
+    if let Some(r) = part.records.iter().find(|r| named(&r.name)) {
         return r.fields.as_deref().map(Declared::Record);
     }
     part.enums
         .iter()
-        .find(|e| e.name == *name)
+        .find(|e| named(&e.name))
         .map(|e| Declared::Enum(&e.variants))
 }
 
@@ -148,8 +152,13 @@ fn rust_names(model: &Model, ties: &[Tie]) -> BTreeMap<String, BTreeSet<String>>
         }
     }
     for tie in ties {
-        let Some(name) = tie.item.names.last() else {
-            continue;
+        // The record a tie names: its part's own, by the part's whole path.
+        let name = match &tie.item.names[..] {
+            [p, n] if own(p) == n => p,
+            names => match names.last() {
+                Some(n) => n,
+                None => continue,
+            },
         };
         if let Some(rust) = tie.at.path.last() {
             names.entry(name.clone()).or_default().insert(rust.clone());

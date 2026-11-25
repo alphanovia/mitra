@@ -69,8 +69,43 @@ examples (M028; their rows are in
 [chapter 3](3-functions.md#examples-in-a-world)); its own work is done by its inner parts. Its ensures
 rest on its inner parts' ensures, or its own requires (M029).
 
-A part's name is one in the whole model: `Home::Heater` is also just
-`Heater`.
+A part whose inner parts are only data (a record or an enum, see
+[below](#data-parts-written-short)) is not an outer part: it keeps its
+functions, as a Rust module keeps its structs beside its functions.
+
+```mitra
+subject agree {
+    subject record Settings { points: integer }
+    fn defaults() -> s: Settings { Settings { points: 64 } }
+}
+```
+
+### Names follow the blocks
+
+A part inside another is named by its whole path: `Home::Heater`,
+`agree::Settings`. Inside the model, a name alone is looked up in the
+part where it is written, then in each part around it, out to the
+model, as Swift's nested types are. In `Home`, `Heater` is
+`Home::Heater`; elsewhere, write `Home::Heater`. `crate::Name` names a
+part from the top.
+
+Nothing hides another: a name alone found at two levels is P017, and
+the whole path says which one.
+
+```mitra
+subject blame {
+    subject record Settings { tries: integer }
+    fn defaults() -> s: Settings { Settings { tries: 7 } }
+}
+subject settings {
+    subject record Settings { blame: blame::Settings, quiet: bool }
+}
+```
+
+Outside the model, in a store, a tie and what Mitra says, a path is
+always whole: `review agree::Settings::Settings holds by "human:ana";`
+(the record of the data part `agree::Settings` is at its own name,
+`Settings`, inside it).
 
 ## A part is a type
 

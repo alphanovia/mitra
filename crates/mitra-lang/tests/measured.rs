@@ -60,11 +60,7 @@ fn correct(a: i64, b: i64) -> Prop {
 fn voices(e: &Explanation, p: &Prop) -> Vec<String> {
     let n = Numbers::of(e, &numbers::Settings::default());
     let (r_for, _) = n.strongest_rests(p);
-    let mut by: Vec<String> = r_for
-        .unwrap()
-        .iter()
-        .map(|t| t.by.clone())
-        .collect();
+    let mut by: Vec<String> = r_for.unwrap().iter().map(|t| t.by.clone()).collect();
     by.sort();
     by.dedup();
     by
@@ -81,7 +77,11 @@ fn the_test_is_in_what_the_check_gives() {
     };
     let e = explain(&m, &ledger, &Settings::default());
     let p = correct(6, 2);
-    assert!(voices(&e, &p).contains(&"test:div_6_2".to_string()), "{:?}", voices(&e, &p));
+    assert!(
+        voices(&e, &p).contains(&"test:div_6_2".to_string()),
+        "{:?}",
+        voices(&e, &p)
+    );
     let n = Numbers::of(&e, &numbers::Settings::default());
     // One run of a test, alone: 0.67. The rule no longer lifts it to 0.78.
     let b = n.prop(&p);
@@ -89,7 +89,10 @@ fn the_test_is_in_what_the_check_gives() {
     // The claim's instance too: what the run gave is one of its premises.
     let spec = Prop::Named("calc::div::spec at (6, 2)".to_string());
     let rules = &e.opinions[&spec];
-    assert!(rules.rests_for().iter().any(|r| r.iter().any(|t| t.by == CHECK)));
+    assert!(rules
+        .rests_for()
+        .iter()
+        .any(|r| r.iter().any(|t| t.by == CHECK)));
     assert!(rules
         .rests_for()
         .iter()
@@ -160,7 +163,10 @@ fn claims_alone_take_what_the_run_gave() {
     assert!(e.sources.keys().any(|t| t.prop == gave && t.by == "test:t"));
     let instance = Prop::Named("s::f::up at (1)".to_string());
     let o = &e.opinions[&instance];
-    assert!(o.rests_for().iter().any(|r| r.iter().any(|t| t.by == CHECK)));
+    assert!(o
+        .rests_for()
+        .iter()
+        .any(|r| r.iter().any(|t| t.by == CHECK)));
     assert!(o
         .rests_for()
         .iter()

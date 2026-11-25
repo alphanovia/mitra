@@ -201,6 +201,7 @@ pub const P013: Code = parse(13);
 pub const P014: Code = parse(14);
 pub const P015: Code = parse(15);
 pub const P016: Code = parse(16);
+pub const P017: Code = parse(17);
 
 const fn reader(number: u16) -> Code {
     Code {
@@ -400,6 +401,7 @@ pub const CATALOGUE: &[Entry] = &[
     entry(P014, "a part a `use` names that two folders declare"),
     entry(P015, "a `mitra.toml` Mitra cannot read"),
     entry(P016, "a value `;` drops that is not `()`"),
+    entry(P017, "a name alone names a part at two levels"),
     entry(R001, "a `mitra:` comment the reader cannot read"),
     entry(R002, "a tie comment on no item, or to nothing of the model"),
     entry(R003, "a `measures` comment on no test"),

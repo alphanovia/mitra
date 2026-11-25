@@ -193,7 +193,10 @@ fn a_review_answers_the_link() {
     .unwrap();
     let e = explain(&m, &l, &Settings::default());
     assert_eq!(takings_of(&e, &uses), vec![(LINK, 1, Source::Link)]);
-    assert!(matches!(of(&e, &named("high::uses")), Verdict::Assumed { .. }));
+    assert!(matches!(
+        of(&e, &named("high::uses")),
+        Verdict::Assumed { .. }
+    ));
 }
 
 /// `assumed:link` is Mitra's own voice: no ledger says it.
@@ -210,7 +213,9 @@ fn the_link_voice_is_mitras_own() {
     let errors = evidence::check(&m, &l);
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert!(
-        errors[0].message.contains("`assumed:link` is Mitra's own voice"),
+        errors[0]
+            .message
+            .contains("`assumed:link` is Mitra's own voice"),
         "{}",
         errors[0].message
     );
@@ -288,7 +293,10 @@ fn asks_come_by_what_a_review_lifts() {
             Some(from) => format!(
                 "{} from {}",
                 a.at,
-                from.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(",")
+                from.iter()
+                    .map(|p| p.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
             ),
             None => a.at.to_string(),
         })
@@ -296,8 +304,14 @@ fn asks_come_by_what_a_review_lifts() {
     let at = |s: &str| order.iter().position(|o| o == s).unwrap();
     // `uses` lifts itself, its link and `top`; `top`'s own link lifts
     // two.
-    assert!(at("high::uses from high::named") < at("high::top from high::uses,high::needs"), "{order:?}");
-    assert!(at("high::top from high::uses,high::needs") < at("high::words"), "{order:?}");
+    assert!(
+        at("high::uses from high::named") < at("high::top from high::uses,high::needs"),
+        "{order:?}"
+    );
+    assert!(
+        at("high::top from high::uses,high::needs") < at("high::words"),
+        "{order:?}"
+    );
     // The order is by what each lifts, most first.
     let lifts = |a: &mitra_lang::catalogue::Ask| {
         let Some(from) = &a.from else { return 0 };
@@ -308,7 +322,9 @@ fn asks_come_by_what_a_review_lifts() {
         };
         e.verdicts
             .iter()
-            .filter(|v| matches!(&v.verdict, Verdict::Assumed { links, .. } if links.contains(&link)))
+            .filter(
+                |v| matches!(&v.verdict, Verdict::Assumed { links, .. } if links.contains(&link)),
+            )
             .count()
     };
     let counts: Vec<usize> = e.asks.iter().map(lifts).collect();
