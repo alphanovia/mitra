@@ -45,19 +45,23 @@ environment Persona2 {
 subject Cli {
     require persona: Persona1::uses_cli;
     require server: Server::reachable;
-    ensure delivers: "what persona 1 types or says reaches the server as one message";
+    ensure delivers: "what persona 1 types or says reaches the server as one message, text or recorded voice";
     ensure shows: "the reply is shown, or read out, to persona 1";
 }
 subject Wearable {
     require persona: Persona2::uses_wearable;
     require server: Server::reachable;
-    ensure delivers: "what persona 2 says reaches the server as one message";
+    ensure delivers: "what persona 2 says reaches the server as one message of recorded voice";
     ensure speaks: "the reply is spoken to persona 2, and a light shows at once that it is thinking";
 }
 
-// ---- Where the assistant runs.
+// ---- Where the assistant runs. Its API sends and receives messages,
+// as a messaging app's does; voice becomes text here (clients may do some
+// of it at the edge, later).
 subject Server {
     ensure hosts: "the assistant is deployed and running on the server";
+    ensure transcribes: "a message of voice is turned into text on the server, and the conversation keeps both";
+    ensure messaging: "clients send and receive messages through one API, as a messaging app's";
     ensure reachable: "the clients reach the server, and the server reaches both model machines";
 }
 
@@ -78,11 +82,13 @@ subject Assistant {
     require from_wearable: Wearable::delivers;
     require to_cli: Cli::shows;
     require to_wearable: Wearable::speaks;
+    require transcribed: Server::transcribes;
+    require messaging: Server::messaging;
 
     // The happy system: whichever client a persona uses, their message
     // gets its reply back there.
     ensure round_trip: "each persona's message gets its reply back on the client they used"
-        from (deployed, from_cli, from_wearable, to_cli, to_wearable, Harness::answers, Reporter::never_silent);
+        from (deployed, messaging, transcribed, from_cli, from_wearable, to_cli, to_wearable, Harness::answers, Reporter::never_silent);
 
     // ---- What the assistant promises, end to end.
 
