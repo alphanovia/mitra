@@ -138,7 +138,7 @@ fn each_finding_is_given() {
         ),
         (
             changed("(sun::light::w = 2.0, ", "("),
-            "A007 at examples::0",
+            "A014 at examples::0",
         ),
         (
             changed(
@@ -206,8 +206,33 @@ fn each_finding_is_given() {
         &Settings::default(),
     );
     let found: Vec<String> = found.iter().map(|f| f.to_string()).collect();
-    assert_eq!(found, ["finding[A013]: example 0: unknown, at n = 4, the `until` in `S::halve` never ends: what it carries, 4, came back after 1 turn\n --> S::halve"]);
+    assert_eq!(found, ["finding[A013]: example 0: fails, at n = 4, the `until` in `S::halve` never ends: what it carries, 4, came back after 1 turn\n --> S::halve"]);
     given.insert("A013".to_string());
+    // An example is one run (finding 39 B, more in tests/one_run.rs).
+    let disk = "environment Disk {\n    fn small(n: integer) -> r: integer;\n    fn big(n: integer) -> r: integer where { claim below: r < 0; }\n}\nsubject R {\n    use Disk::small;\n    use Disk::big;\n    fn route(n: integer) -> r: integer { if n > 10 { small(n) } else { big(n) } } where {\n        examples { given Disk::small(3) -> 30 when (3) then 30 }\n    }\n    fn count(n: integer) -> c: integer { until((k: n, s: 0), k <= 1) { (k, s + 1) }.s } where { examples { (4) -> 2 } }\n}";
+    let small = Settings {
+        budget: mitra_lang::simulation::Budget { steps: 100, ..Default::default() },
+        ..Settings::default()
+    };
+    let (_, found) = agree(&model(disk), &small);
+    let found: Vec<String> = found.iter().map(|f| f.to_string()).collect();
+    assert_eq!(found, [
+        "finding[A016]: example 0: fails, at n = 4, the step budget, 100 turns of `until`, reached before the run gave a value\n --> R::count",
+        "finding[A015]: example 0: `Disk::small(3)` is given but never called: the run calls `Disk::big(3)`\n --> R::route",
+        "finding[A017]: example 0: fails: `Disk::big(3)` has no value here, and the claim `Disk::big::below` keeps the run from giving 30\n --> R::route",
+    ]);
+    let (_, found) = agree(&model(&disk.replace(" where { claim below: r < 0; }", ";")), &small);
+    assert!(found.iter().any(|f| f.to_string().starts_with("finding[A014]: example 0: fails: no value for `Disk::big(3)`")));
+    // A claim not decided stays unknown.
+    let (_, found) = agree(
+        &model("subject s {\n    fn count(n: integer) -> c: integer { until((k: n, s: 0), k <= 1) { (k, s + 1) }.s } where {\n        claim some: c >= 0;\n    }\n}"),
+        &small,
+    );
+    assert!(found.iter().any(|f| f.to_string().starts_with("finding[A007]: claim `some`: unknown")), "{found:?}");
+    given.insert("A007".to_string());
+    for code in ["A014", "A015", "A016", "A017"] {
+        given.insert(code.to_string());
+    }
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Agree && !e.retired);

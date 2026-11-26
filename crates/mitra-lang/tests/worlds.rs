@@ -447,11 +447,11 @@ fn rows_of_the_model() {
         errors.iter().any(|e| e.starts_with("error[M022]")),
         "{errors:?}"
     );
-    // A given row no run reads.
+    // A given row no run reads: the run never calls it (finding 39 B).
     let (_, findings) =
         whole("given sun::light() -> 2.0, sun::hour(_) -> 3 when stone::heat(5.0) then 20.0");
     assert!(
-        findings.iter().any(|f| f.starts_with("finding[A009]")),
+        findings.iter().any(|f| f.starts_with("finding[A015]: the example: `sun::hour(_)` is given but never called")),
         "{findings:?}"
     );
     // Printed as written, read back.

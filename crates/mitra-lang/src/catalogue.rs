@@ -131,6 +131,10 @@ pub const A010: Code = agree(10);
 pub const A011: Code = agree(11);
 pub const A012: Code = agree(12);
 pub const A013: Code = agree(13);
+pub const A014: Code = agree(14);
+pub const A015: Code = agree(15);
+pub const A016: Code = agree(16);
+pub const A017: Code = agree(17);
 
 const fn evidence(number: u16) -> Code {
     Code {
@@ -345,6 +349,10 @@ pub const CATALOGUE: &[Entry] = &[
         "a value written in a row that breaks its record's claims",
     ),
     entry(A013, "a loop that never ends"),
+    entry(A014, "an example whose run calls for a value nothing gives"),
+    entry(A015, "a given an example's run never calls"),
+    entry(A016, "an example whose run reaches a budget"),
+    entry(A017, "an example the claims of a function with no body refuse"),
     entry(V001, "a measurement that names no input or output"),
     entry(V002, "a measurement through no tie"),
     entry(

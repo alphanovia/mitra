@@ -33,5 +33,10 @@ subject agree {
     ensure heights: "agree tries trees up to `Settings::height` levels in themselves, of the values worth trying of what they hold";
     ensure invariant: "a claim `by invariant` holds when it holds at its loop's start and each turn keeps it: by bounds, what the loop carries any value that keeps the claim, or as linear facts, each equality put in place; under `by invariant n`, `n` is 0 at the start, one more each turn, the length folded at the end" from (ranges, promised);
     ensure induction: "a claim `by induction t` holds by bounds only when it holds where each call of its function on a part of `t` gives what the claim says there; a part of a tree is any tree to bounds, never none" from (ranges, promised);
-    ensure ends: "the agreement ends: a budget reached, by bounds or at points, is unknown (A007), with the budget it reached" from (checked, stops);
+    ensure ends: "the agreement ends: a claim that reaches a budget, by bounds or at points, is unknown (A007), with the budget it reached" from (checked, stops);
+    // Shown by tests/one_run.rs (finding 39 B): another value is A002, a
+    // call with no value A014, a callee's claim that refuses the value
+    // A017, a given never called A015, a budget A016, an `until` that
+    // comes back A013; an input known in part is read as a claim.
+    ensure examples: "an example is one run: everything it states is used; on a function with a body it holds or fails, saying why, and on one with none, the code measured at its input decides";
 }

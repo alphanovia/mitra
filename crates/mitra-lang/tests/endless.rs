@@ -51,7 +51,7 @@ fn a_loop_that_comes_back_stops_at_once() {
             found,
             [
                 "finding[A013]: claim `small`: unknown, at n = 4, the `until` in `s::halve` never ends: what it carries, 4, came back after 1 turn\n --> s::halve",
-                "finding[A013]: example 0: unknown, at n = 4, the `until` in `s::halve` never ends: what it carries, 4, came back after 1 turn\n --> s::halve",
+                "finding[A013]: example 0: fails, at n = 4, the `until` in `s::halve` never ends: what it carries, 4, came back after 1 turn\n --> s::halve",
             ]
         );
     }
@@ -71,7 +71,7 @@ fn a_cycle_of_two_turns_is_said() {
     let text = "subject s {\n    fn swap(n: integer) -> k: integer {\n        until((a: n, b: 0), a == 7) { (b, a) }.a\n    } where {\n        examples { (3) -> 7 }\n    }\n}";
     assert_eq!(
         findings(text, &Settings::default()),
-        ["finding[A013]: example 0: unknown, at n = 3, the `until` in `s::swap` never ends: what it carries, (a: 3, b: 0), came back after 2 turns\n --> s::swap"]
+        ["finding[A013]: example 0: fails, at n = 3, the `until` in `s::swap` never ends: what it carries, (a: 3, b: 0), came back after 2 turns\n --> s::swap"]
     );
 }
 
@@ -81,7 +81,7 @@ fn a_cycle_after_some_turns_is_seen() {
     let text = "subject s {\n    fn settle(n: integer) -> k: integer {\n        until(k: n, k == 99) { if k <= 0 { 1 } else { k - 1 } }\n    } where {\n        examples { (5) -> 99 }\n    }\n}";
     assert_eq!(
         findings(text, &small()),
-        ["finding[A013]: example 0: unknown, at n = 5, the `until` in `s::settle` never ends: what it carries, 1, came back after 2 turns\n --> s::settle"]
+        ["finding[A013]: example 0: fails, at n = 5, the `until` in `s::settle` never ends: what it carries, 1, came back after 2 turns\n --> s::settle"]
     );
 }
 
@@ -93,7 +93,7 @@ fn the_loop_is_named_where_it_is() {
     let found = findings(text, &Settings::default());
     assert_eq!(
         found,
-        ["finding[A013]: example 0: unknown, at n = 4, the `until` in `s::halve` never ends: what it carries, 4, came back after 1 turn\n --> s::twice"]
+        ["finding[A013]: example 0: fails, at n = 4, the `until` in `s::halve` never ends: what it carries, 4, came back after 1 turn\n --> s::twice"]
     );
 }
 
@@ -104,7 +104,7 @@ fn a_counter_runs_to_the_budget() {
     let text = "subject s {\n    fn count(n: integer) -> c: integer {\n        until((k: n, steps: 0), k <= 1) { (k, steps + 1) }.steps\n    } where {\n        examples { (4) -> 2 }\n    }\n}";
     assert_eq!(
         findings(text, &small()),
-        ["finding[A007]: example 0: unknown, the step budget, 1000 turns of `until`, reached\n --> s::count"]
+        ["finding[A016]: example 0: fails, at n = 4, the step budget, 1000 turns of `until`, reached before the run gave a value\n --> s::count"]
     );
     // With the step: it ends, and the example holds.
     let fixed = text.replace("(k, steps + 1)", "(k / 2, steps + 1)");

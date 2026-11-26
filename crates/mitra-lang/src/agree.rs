@@ -17,7 +17,7 @@
 //! It reads a model `check` accepts: on another, it compares nothing.
 
 use crate::catalogue::{
-    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011, A012, A013,
+    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011, A012, A013, A014, A015, A016, A017,
 };
 use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
@@ -98,6 +98,12 @@ pub enum Agreement {
         at: Vec<(String, Value)>,
         fault: Undefined,
     },
+    /// An example that fails for a reason of its own (finding 39 B): its
+    /// code, and why, as said after the example's name.
+    Wrong {
+        code: Code,
+        why: String,
+    },
     /// A call a row's `then` lists, which the run did not make (BDD step
     /// 2): the call as written, and the calls to functions with no body
     /// it made, in order.
@@ -105,6 +111,18 @@ pub enum Agreement {
         call: String,
         made: Vec<String>,
     },
+}
+
+/// A point, as findings say it: `n = 3, m = 4`, or `()`.
+fn point_of(at: &[(String, Value)]) -> String {
+    let shown: Vec<String> = at
+        .iter()
+        .map(|(n, v)| format!("{n} = {}", print::value(v)))
+        .collect();
+    match shown.is_empty() {
+        true => "()".to_string(),
+        false => shown.join(", "),
+    }
 }
 
 /// What a comparison is when an `until` never ends at `at`.
@@ -500,43 +518,33 @@ impl<'m> Reading<'m> {
                 let agreement = self.claim(&f.takes, &with_body, &rows);
                 push(format!("its range `{q}: {range}`"), agreement);
             }
-            // Each example: the body at its point.
+            // Each example: the body at its point, one run (finding 39 B).
             for (i, (e, row)) in f.examples.iter().zip(&rows).enumerate() {
                 let exact = Exact {
-                    log: match e.effects.0.is_empty() {
-                        true => Default::default(),
-                        false => crate::simulation::Log::kept(),
-                    },
+                    log: crate::simulation::Log::kept(),
                     ..self.in_world(&e.given)
                 };
                 let ran = eval(&exact, &row.iter().cloned().collect(), body);
                 for (call, agreement) in calls_made(&exact.log, &e.effects) {
                     push(format!("example {i}: the call `{call}`"), agreement);
                 }
+                for (_, agreement) in self.givens_used(&exact.log, &e.given) {
+                    push(format!("example {i}"), agreement);
+                }
                 let Some(expected) = &e.gives else {
                     continue;
                 };
-                let agreement = match ran {
-                    Ok(v) => match matches(&v, expected) {
-                        Ok(true) => Agreement::Holds,
-                        Ok(false) => Agreement::Fails {
-                            at: row.clone(),
-                            gives: Some(v),
-                        },
-                        Err(g) => Agreement::Unknown {
-                            why: format!("`{g}` is not known, and only it could tell"),
-                        },
-                    },
-                    Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
-                        why: format!("no value for {} here", unstated(&g)),
-                    },
-                    Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => endless(row, &e),
-                    Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
-                    Err(_) => Agreement::Fails {
-                        at: row.clone(),
-                        gives: None,
-                    },
-                };
+                let one_run = e.takes.iter().all(crate::simulation::known);
+                let here = at.to_string();
+                let agreement = self.run_against(ran, expected, row, &exact.log, one_run, Some(&here), || {
+                    let bounds = row
+                        .iter()
+                        .map(|(n, v)| (n.clone(), Bounds::exactly(v)))
+                        .collect();
+                    self.library.read();
+                    let b = self.by_bounds(&bounds, body);
+                    (b, self.library.read())
+                });
                 push(format!("example {i}"), agreement);
             }
         }
@@ -1357,6 +1365,126 @@ impl<'m> Reading<'m> {
         out
     }
 
+    /// What one run of an example says, against the value it expects
+    /// (finding 39 B): holds or fails, never unknown, unless it is not
+    /// one run (an input known only in part). `bounds`, what the body
+    /// gives by bounds at its point and the promises they read.
+    fn run_against(
+        &self,
+        ran: Result<Value, Fault<Undefined>>,
+        expected: &Value,
+        row: &[(String, Value)],
+        log: &crate::simulation::Log,
+        one_run: bool,
+        here: Option<&str>,
+        bounds: impl FnOnce() -> (Option<Bounds>, BTreeSet<String>),
+    ) -> Agreement {
+        match ran {
+            Ok(v) => match matches(&v, expected) {
+                Ok(true) => Agreement::Holds,
+                Ok(false) => Agreement::Fails {
+                    at: row.to_vec(),
+                    gives: Some(v),
+                },
+                Err(g) => Agreement::Unknown {
+                    why: format!("`{g}` is not known, and only it could tell"),
+                },
+            },
+            Err(Fault::Op(Undefined::Unknown(g))) if one_run && self.functions.contains_key(g.as_str()) => {
+                let call = log
+                    .calls()
+                    .into_iter()
+                    .rev()
+                    .find(|(h, _)| *h == g)
+                    .map_or(format!("{g}(…)"), |(h, at)| format!("{h}{}", print::values(&at)));
+                let (b, read) = bounds();
+                if b.is_some_and(|b| !crate::simulation::lies_in(expected, &b.span)) {
+                    let read: Vec<String> = read.iter().map(|p| format!("`{p}`")).collect();
+                    let (claims, keep) = match read.len() {
+                        1 => ("claim", "keeps"),
+                        _ => ("claims", "keep"),
+                    };
+                    return Agreement::Wrong {
+                        code: A017,
+                        why: format!(
+                            "fails: `{call}` has no value here, and the {claims} {} {keep} the run from giving {}",
+                            read.join(", "),
+                            print::value(expected)
+                        ),
+                    };
+                }
+                Agreement::Wrong {
+                    code: A014,
+                    why: format!(
+                        "fails: no value for `{call}`: the run calls it, and nothing gives it there; give it in the example (`given {call} -> …`), or give `{g}` a body"
+                    ),
+                }
+            }
+            Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
+                why: format!("no value for {} here", unstated(&g)),
+            },
+            Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) if one_run => Agreement::Wrong {
+                code: A013,
+                why: format!("fails, at {}, {}", point_of(row), e.endless(here).unwrap_or_default()),
+            },
+            Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => endless(row, &e),
+            Err(Fault::Op(Undefined::Budget(why))) if one_run => Agreement::Wrong {
+                code: A016,
+                why: format!("fails, at {}, {why} before the run gave a value", point_of(row)),
+            },
+            Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
+            Err(_) => Agreement::Fails {
+                at: row.to_vec(),
+                gives: None,
+            },
+        }
+    }
+
+    /// Each given of an example the run did not call at its arguments
+    /// (finding 39 B).
+    fn givens_used(
+        &self,
+        log: &crate::simulation::Log,
+        given: &crate::model::Given,
+    ) -> Vec<(String, Agreement)> {
+        let made = log.calls();
+        let mut out = Vec::new();
+        for (g, args, v) in &given.0 {
+            let shown: Vec<String> = args
+                .iter()
+                .map(|a| a.as_ref().map_or("_".to_string(), print::value))
+                .collect();
+            let _ = v;
+            let written = format!("{g}({})", shown.join(", "));
+            let fits = |(h, at): &(String, Vec<Value>)| {
+                h == g
+                    && at.len() == args.len()
+                    && at.iter().zip(args).all(|(v, a)| a.as_ref().is_none_or(|a| a == v))
+            };
+            // A given of a function with a body is M022: never here.
+            let why = if made.iter().any(fits) {
+                continue;
+            } else {
+                let made: Vec<String> = made
+                    .iter()
+                    .map(|(h, at)| format!("`{h}{}`", print::values(at)))
+                    .collect();
+                match made.is_empty() {
+                    true => "the run calls no function with no body".to_string(),
+                    false => format!("the run calls {}", made.join(", ")),
+                }
+            };
+            out.push((
+                written.clone(),
+                Agreement::Wrong {
+                    code: A015,
+                    why: format!("`{written}` is given but never called: {why}"),
+                },
+            ));
+        }
+        out
+    }
+
     /// An example of the model: each output, computed from the inputs
     /// through calls, a function with no body giving the value the
     /// example says at its point; each such value against the function's
@@ -1424,9 +1552,11 @@ impl<'m> Reading<'m> {
                 .given_any(g, args.clone(), v.clone())
                 .unwrap_or_else(|same| same);
         }
+        // One run, its calls kept (finding 39 B): what `then` lists, and
+        // what the example gives, are of the calls it made.
         let exact = Exact {
             calls: Arc::new(library),
-            log: Default::default(),
+            log: crate::simulation::Log::kept(),
         };
         // The calls the run of `when` makes, as `then` lists them.
         if let Some((f, args, _)) = example
@@ -1434,13 +1564,9 @@ impl<'m> Reading<'m> {
             .as_ref()
             .filter(|_| !example.effects.0.is_empty())
         {
-            let logged = Exact {
-                log: crate::simulation::Log::kept(),
-                ..exact.clone()
-            };
             let (call, bound) = call_at(&f.to_string(), args);
-            let _ = eval(&logged, &bound, &call);
-            for (written, agreement) in calls_made(&logged.log, &example.effects) {
+            let _ = eval(&exact, &bound, &call);
+            for (written, agreement) in calls_made(&exact.log, &example.effects) {
                 agreed.push(Agreed {
                     at: at.clone(),
                     against: format!("the call `{written}`"),
@@ -1449,6 +1575,7 @@ impl<'m> Reading<'m> {
                 });
             }
         }
+        let one_run = example.inputs.iter().all(|(_, v)| crate::simulation::known(v));
         for (p, expected) in &example.outputs {
             let Some(port) = port(index, p) else { continue };
             let Some(args) = args_of(&port.at, port.function) else {
@@ -1456,30 +1583,28 @@ impl<'m> Reading<'m> {
             };
             let point = named(&port.function.takes, &args);
             let (call, bound) = call_at(&port.at.to_string(), &args);
-            let agreement = match eval(&exact, &bound, &call) {
-                Ok(v) => match matches(&v, expected) {
-                    Ok(true) => Agreement::Holds,
-                    Ok(false) => Agreement::Fails {
-                        at: point,
-                        gives: Some(v),
-                    },
-                    Err(g) => Agreement::Unknown {
-                        why: format!("`{g}` is not known, and only it could tell"),
-                    },
-                },
-                Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
-                    why: format!("no value for {} here", unstated(&g)),
-                },
-                Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => endless(&point, &e),
-                Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
-                Err(_) => Agreement::Fails {
-                    at: point,
-                    gives: None,
-                },
-            };
+            let ran = eval(&exact, &bound, &call);
+            let here = port.at.to_string();
+            let agreement = self.run_against(ran, expected, &point, &exact.log, one_run, Some(&here), || {
+                let bounds = bound
+                    .iter()
+                    .map(|(n, v)| (n.clone(), Bounds::exactly(v)))
+                    .collect();
+                self.library.read();
+                let b = self.by_bounds(&bounds, &call);
+                (b, self.library.read())
+            });
             agreed.push(Agreed {
                 at: at.clone(),
                 against: format!("`{p}`"),
+                agreement,
+                given: vec![],
+            });
+        }
+        for (_, agreement) in self.givens_used(&exact.log, &example.given) {
+            agreed.push(Agreed {
+                at: at.clone(),
+                against: "the example".to_string(),
                 agreement,
                 given: vec![],
             });
@@ -1506,15 +1631,7 @@ impl<'m> Reading<'m> {
         }
         let given: BTreeSet<&Path> = example.inputs.iter().map(|(p, _)| p).collect();
         let mut findings = Vec::new();
-        for (g, _, _) in &example.given.0 {
-            if !reached.contains(g) {
-                findings.push(Finding {
-                    code: A009,
-                    at: at.clone(),
-                    message: format!("`{g}` is given and no output reads it: no output calls it"),
-                });
-            }
-        }
+        // A given the run never calls is A015, of the run itself.
         for (p, _) in &example.inputs {
             let Some(port) = port(index, p) else { continue };
             let f = port.at.to_string();
@@ -1814,7 +1931,8 @@ fn kept(start: Agreement, turn: Agreement) -> Result<(), String> {
             "a turn is not decided: {}",
             fault.endless(None).unwrap_or_default()
         )),
-        // Never of a claim: only a row's call is uncalled.
+        // Never of a claim: only an example fails so, or is uncalled.
+        (Agreement::Wrong { why, .. }, _) | (_, Agreement::Wrong { why, .. }) => Err(why),
         (Agreement::Uncalled { call, .. }, _) | (_, Agreement::Uncalled { call, .. }) => {
             Err(format!("`{call}` is not made"))
         }
@@ -1915,6 +2033,7 @@ fn finding(a: &Agreed) -> Option<Finding> {
             let why = fault.endless(here.as_deref()).unwrap_or_default();
             (A013, format!("{}: unknown, at {}, {why}", a.against, point(at)))
         }
+        Agreement::Wrong { code, why } => (*code, format!("{}: {why}", a.against)),
         Agreement::Uncalled { call: _, made } => {
             let made = match made.is_empty() {
                 true => "it calls no function with no body".to_string(),

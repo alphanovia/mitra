@@ -90,8 +90,33 @@ examples {
 It is the same row as `(Stone::heat::h = 5.0) -> Stone::heat::e = 10.0`
 in the world given; `given` may stand in front of that form too. A
 `given` that is not what a function with no body takes and gives is an
-error (M022), a `when` naming no function of the model too (M021), and a
-`given` no run reads is a finding (A009).
+error (M022), and a `when` naming no function of the model too (M021).
+
+### An example is one run
+
+An example is one run of the model, in the world it states: everything
+it states is used, and on a function with a body it holds or fails,
+never unknown. It fails when:
+
+- the body gives another value (A002);
+- the run calls a function with no body that has no value there: not
+  given in the example, and none of that function's own examples is at
+  those arguments (A014). A function with a body never needs a `given`;
+- the claims of such a function keep the run from giving the value the
+  example says (A017);
+- a `given` the run never calls (A015);
+- the run reaches the step or depth budget (A016), or an `until` comes
+  back to its values (A013).
+
+```text
+finding[A014]: example 0: fails: no value for `Disk::big(3)`: the run calls it, and nothing gives it there; give it in the example (`given Disk::big(3) -> …`), or give `Disk::big` a body
+finding[A015]: example 0: `Disk::small(3)` is given but never called: the run calls `Disk::big(3)`
+```
+
+An input known only in part, a record with `..`, is not one run: such an
+example is read as a claim, and may be unknown (A007). An example of a
+function with no body is not run by `check`: a test that measures the
+code at its input decides it.
 
 ### What a run does to the world
 
@@ -133,7 +158,7 @@ examples {
 
 A comparison **holds** when Mitra shows it for every input: by bounds,
 or by trying every point when there are few enough (64 by default,
-`--points N`). Otherwise it is **unknown** (A007): Mitra tried, found
+`--points N`). Otherwise a claim is **unknown** (A007): Mitra tried, found
 nothing wrong, and could not cover every input. That is not an error.
 It says where evidence is needed.
 

@@ -556,7 +556,7 @@ fn held_in(f: &str, gives: Exactly) -> Exactly {
 }
 
 /// Whether `v` is known all through: no record known only in part.
-fn known(v: &Value) -> bool {
+pub fn known(v: &Value) -> bool {
     match v {
         Value::Partial(..) => false,
         Value::Record(_, vs) | Value::Variant(_, _, vs) | Value::Seq(_, vs) => vs.iter().all(known),

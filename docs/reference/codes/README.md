@@ -75,6 +75,10 @@ example, and the fix. The letter says which step found it.
 - [A011](A011.md): a call a row's `then` lists that the run does not make
 - [A012](A012.md): a value written in a row that breaks its record's claims
 - [A013](A013.md): a loop that never ends
+- [A014](A014.md): an example whose run calls for a value nothing gives
+- [A015](A015.md): a given an example's run never calls
+- [A016](A016.md): an example whose run reaches a budget
+- [A017](A017.md): an example the claims of a function with no body refuse
 
 ## R (reader): `mitra:` comments in code and the test report
 

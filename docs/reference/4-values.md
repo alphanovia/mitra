@@ -190,13 +190,15 @@ back. For example, a loop that forgets to halve, `{ k }` in place of
 `{ k / 2 }`:
 
 ```text
-finding[A013]: example 0: unknown, at n = 4, the `until` in `s::halve`
+finding[A013]: example 0: fails, at n = 4, the `until` in `s::halve`
 never ends: what it carries, 4, came back after 1 turn
 ```
 
+An example fails so; a claim that reaches the loop is unknown.
+
 A loop whose values never repeat, such as one that counts its turns
 while it waits, is stopped by Mitra's step budget (1,000,000 turns):
-`check` then says so in an A007 finding. A block of the wrong type is
+an example fails there (A016), and a claim is unknown (A007). A block of the wrong type is
 M005, with a note on what the loop carries.
 
 ### Claims kept by a loop
