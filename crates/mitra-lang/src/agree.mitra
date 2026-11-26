@@ -39,4 +39,8 @@ subject agree {
     // A017, a given never called A015, a budget A016, an `until` that
     // comes back A013; an input known in part is read as a claim.
     ensure examples: "an example is one run: everything it states is used; on a function with a body it holds or fails, saying why, and on one with none, the code measured at its input decides";
+    // Shown by tests/one_run.rs (finding 39 F): a value given that a
+    // claim of its function refuses is said, naming both; a claim the
+    // value can't decide is quiet.
+    ensure givens_kept: "a value an example gives a function with no body keeps that function's claims, and agree says which claim a given breaks";
 }

@@ -17,7 +17,7 @@
 //! It reads a model `check` accepts: on another, it compares nothing.
 
 use crate::catalogue::{
-    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011, A012, A013, A014, A015, A016, A017,
+    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011, A012, A013, A014, A015, A016, A017, A018,
 };
 use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
@@ -529,6 +529,9 @@ impl<'m> Reading<'m> {
                     push(format!("example {i}: the call `{call}`"), agreement);
                 }
                 for (_, agreement) in self.givens_used(&exact.log, &e.given) {
+                    push(format!("example {i}"), agreement);
+                }
+                for agreement in self.givens_kept(&e.given) {
                     push(format!("example {i}"), agreement);
                 }
                 let Some(expected) = &e.gives else {
@@ -1440,6 +1443,43 @@ impl<'m> Reading<'m> {
         }
     }
 
+    /// Each claim of a function with no body a value given for it breaks
+    /// (finding 39 F): read at what the given says it took, `_` not
+    /// known, and what it gave. A claim the value cannot decide is quiet.
+    fn givens_kept(&self, given: &crate::model::Given) -> Vec<Agreement> {
+        let mut out = Vec::new();
+        for (g, args, v) in &given.0 {
+            let Some(f) = self.functions.get(g.as_str()) else {
+                continue;
+            };
+            let mut values: BTreeMap<String, Value> = f
+                .takes
+                .iter()
+                .zip(args)
+                .filter_map(|((n, _), a)| a.clone().map(|a| (n.clone(), a)))
+                .collect();
+            values.insert(f.gives.0.clone(), v.clone());
+            for c in &f.claims {
+                if let Ok(Value::Truth(false)) = eval(&self.exact, &values, &c.holds) {
+                    let shown: Vec<String> = args
+                        .iter()
+                        .map(|a| a.as_ref().map_or("_".to_string(), print::value))
+                        .collect();
+                    out.push(Agreement::Wrong {
+                        code: A018,
+                        why: format!(
+                            "`given {g}({}) -> {}` breaks claim `{g}::{}`: the world given is one the model rules out",
+                            shown.join(", "),
+                            print::value(v),
+                            c.name
+                        ),
+                    });
+                }
+            }
+        }
+        out
+    }
+
     /// Each given of an example the run did not call at its arguments
     /// (finding 39 B).
     fn givens_used(
@@ -1541,6 +1581,20 @@ impl<'m> Reading<'m> {
                     given: vec![],
                 });
             }
+            // A value it gives, written as an input: a given too (39 F).
+            let world = crate::model::Given(vec![(
+                port.at.to_string(),
+                args.iter().cloned().map(Some).collect(),
+                v.clone(),
+            )]);
+            for agreement in self.givens_kept(&world) {
+                agreed.push(Agreed {
+                    at: at.clone(),
+                    against: format!("`{p}`"),
+                    agreement,
+                    given: vec![],
+                });
+            }
             // Refused only for a value of another type, which M022 refuses.
             library = library
                 .given(&port.at.to_string(), args, v.clone())
@@ -1597,6 +1651,14 @@ impl<'m> Reading<'m> {
             agreed.push(Agreed {
                 at: at.clone(),
                 against: format!("`{p}`"),
+                agreement,
+                given: vec![],
+            });
+        }
+        for agreement in self.givens_kept(&example.given) {
+            agreed.push(Agreed {
+                at: at.clone(),
+                against: "the example".to_string(),
                 agreement,
                 given: vec![],
             });

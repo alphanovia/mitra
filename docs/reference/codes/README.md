@@ -79,6 +79,7 @@ example, and the fix. The letter says which step found it.
 - [A015](A015.md): a given an example's run never calls
 - [A016](A016.md): an example whose run reaches a budget
 - [A017](A017.md): an example the claims of a function with no body refuse
+- [A018](A018.md): a given that breaks a claim of its function
 
 ## R (reader): `mitra:` comments in code and the test report
 

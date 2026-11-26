@@ -147,3 +147,48 @@ fn what_is_not_one_run_stays_unknown() {
         ]
     );
 }
+
+const SHOP: &str = "environment Shop {
+    fn price(n: integer) -> r: integer where { claim positive: r > 0; claim cap: n > 100 || r < 1000; }
+}
+subject R {
+    use Shop::price;
+    fn total(n: integer) -> t: integer { price(n) * 2 }
+";
+
+fn shop(rest: &str) -> Vec<String> {
+    let text = format!("{SHOP}{rest}");
+    let m = parse(&text).unwrap();
+    assert_eq!(check(&m), vec![], "{text}");
+    agree(&m, &Settings::default())
+        .1
+        .iter()
+        .map(|f| f.to_string())
+        .collect()
+}
+
+/// Finding 39 F: a value given that a claim of its function refuses is
+/// said, naming both, in each form of example; one a claim cannot decide
+/// (`_` where the claim reads it) is quiet.
+// mitra: supports agree::givens_kept
+#[test]
+fn a_given_the_callee_rules_out_is_said() {
+    assert_eq!(
+        shop("    fn f(n: integer) -> t: integer { total(n) } where {\n        examples { given Shop::price(3) -> -5 when (3) then -10 }\n    }\n}"),
+        ["finding[A018]: example 0: `given Shop::price(3) -> -5` breaks claim `Shop::price::positive`: the world given is one the model rules out\n --> R::f"]
+    );
+    assert_eq!(
+        shop("}\nexamples {\n    given Shop::price(3) -> -5 when R::total(3) then -10\n}"),
+        ["finding[A018]: the example: `given Shop::price(3) -> -5` breaks claim `Shop::price::positive`: the world given is one the model rules out\n --> examples::0"]
+    );
+    assert_eq!(
+        shop("}\nexamples {\n    (R::total::n = 3, Shop::price::n = 3, Shop::price::r = -5) -> R::total::t = -10\n}"),
+        ["finding[A018]: `Shop::price::r`: `given Shop::price(3) -> -5` breaks claim `Shop::price::positive`: the world given is one the model rules out\n --> examples::0"]
+    );
+    // Its input read too: at 3, 5000 breaks `cap`; at 200 it keeps it.
+    let found = shop("    fn f(n: integer) -> t: integer { total(n) } where {\n        examples { given Shop::price(3) -> 5000 when (3) then 10000, given Shop::price(200) -> 5000 when (200) then 10000 }\n    }\n}");
+    assert_eq!(found, ["finding[A018]: example 0: `given Shop::price(3) -> 5000` breaks claim `Shop::price::cap`: the world given is one the model rules out\n --> R::f"]);
+    // `_`: `cap` reads `n`, not known, and is quiet; `positive` is not.
+    let found = shop("    fn f(n: integer) -> t: integer { total(n) } where {\n        examples { given Shop::price(_) -> 5000 when (3) then 10000, given Shop::price(_) -> 0 when (4) then 0 }\n    }\n}");
+    assert_eq!(found, ["finding[A018]: example 1: `given Shop::price(_) -> 0` breaks claim `Shop::price::positive`: the world given is one the model rules out\n --> R::f"]);
+}

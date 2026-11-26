@@ -131,7 +131,8 @@ never unknown. It fails when:
   those arguments (A014). A function with a body never needs a `given`;
 - the claims of such a function keep the run from giving the value the
   example says (A017);
-- a `given` the run never calls (A015);
+- a `given` the run never calls (A015), or one a claim of its function
+  refuses (A018);
 - the run reaches the step or depth budget (A016), or an `until` comes
   back to its values (A013).
 

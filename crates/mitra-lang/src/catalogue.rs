@@ -135,6 +135,7 @@ pub const A014: Code = agree(14);
 pub const A015: Code = agree(15);
 pub const A016: Code = agree(16);
 pub const A017: Code = agree(17);
+pub const A018: Code = agree(18);
 
 const fn evidence(number: u16) -> Code {
     Code {
@@ -353,6 +354,7 @@ pub const CATALOGUE: &[Entry] = &[
     entry(A015, "a given an example's run never calls"),
     entry(A016, "an example whose run reaches a budget"),
     entry(A017, "an example the claims of a function with no body refuse"),
+    entry(A018, "a given that breaks a claim of its function"),
     entry(V001, "a measurement that names no input or output"),
     entry(V002, "a measurement through no tie"),
     entry(
