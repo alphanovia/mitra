@@ -301,7 +301,10 @@ impl Set {
         };
         match eval(&exact, &values, such) {
             Ok(simulation::Value::Truth(true)) => Member::In,
-            Err(Fault::Op(Undefined::Budget(_) | Undefined::Unknown(_))) | Err(Fault::Stuck) => {
+            Err(Fault::Op(
+                Undefined::Budget(_) | Undefined::Unknown(_) | Undefined::EndlessRepeat { .. },
+            ))
+            | Err(Fault::Stuck) => {
                 Member::Undecided
             }
             _ => Member::Out,

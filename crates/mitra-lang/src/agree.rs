@@ -17,7 +17,7 @@
 //! It reads a model `check` accepts: on another, it compares nothing.
 
 use crate::catalogue::{
-    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011, A012,
+    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011, A012, A013,
 };
 use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
@@ -91,6 +91,13 @@ pub enum Agreement {
     Unknown {
         why: String,
     },
+    /// Not decided, because at these values an `until` came back to
+    /// values it had carried: it never ends (finding 39 G). Where, and
+    /// the state that came back.
+    Endless {
+        at: Vec<(String, Value)>,
+        fault: Undefined,
+    },
     /// A call a row's `then` lists, which the run did not make (BDD step
     /// 2): the call as written, and the calls to functions with no body
     /// it made, in order.
@@ -98,6 +105,14 @@ pub enum Agreement {
         call: String,
         made: Vec<String>,
     },
+}
+
+/// What a comparison is when an `until` never ends at `at`.
+fn endless(at: &[(String, Value)], e: &Undefined) -> Agreement {
+    Agreement::Endless {
+        at: at.to_vec(),
+        fault: e.clone(),
+    }
 }
 
 /// One comparison: of the item at `at`, against what, and its outcome.
@@ -515,6 +530,7 @@ impl<'m> Reading<'m> {
                     Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
                         why: format!("no value for {} here", unstated(&g)),
                     },
+                    Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => endless(row, &e),
                     Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
                     Err(_) => Agreement::Fails {
                         at: row.clone(),
@@ -538,6 +554,7 @@ impl<'m> Reading<'m> {
                     Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
                         why: format!("no value for {} here", unstated(&g)),
                     },
+                    Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => endless(row, &e),
                     Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
                     // False, or no value: a claim with none does not hold.
                     _ => Agreement::Fails {
@@ -609,6 +626,7 @@ impl<'m> Reading<'m> {
             match eval(&self.exact, &point.iter().cloned().collect(), holds) {
                 Ok(Value::Truth(true)) => {}
                 Err(Fault::Op(Undefined::Unknown(g))) => _ = unknown.insert(g),
+                Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => return endless(&point, &e),
                 Err(Fault::Op(Undefined::Budget(why))) => return Agreement::Unknown { why },
                 Ok(v) => {
                     return Agreement::Fails {
@@ -758,6 +776,7 @@ impl<'m> Reading<'m> {
             match eval(&self.exact, &point.iter().cloned().collect(), &all) {
                 Ok(Value::Truth(true)) => return Agreement::Holds,
                 Err(Fault::Op(Undefined::Unknown(g))) => _ = unknown.insert(g),
+                Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => return endless(&point, &e),
                 Err(Fault::Op(Undefined::Budget(why))) => return Agreement::Unknown { why },
                 _ => {}
             }
@@ -1451,6 +1470,7 @@ impl<'m> Reading<'m> {
                 Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
                     why: format!("no value for {} here", unstated(&g)),
                 },
+                Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => endless(&point, &e),
                 Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
                 Err(_) => Agreement::Fails {
                     at: point,
@@ -1786,6 +1806,14 @@ fn kept(start: Agreement, turn: Agreement) -> Result<(), String> {
         }
         (Agreement::Unknown { why }, _) => Err(format!("its start is not decided: {why}")),
         (_, Agreement::Unknown { why }) => Err(format!("a turn is not decided: {why}")),
+        (Agreement::Endless { fault, .. }, _) => Err(format!(
+            "its start is not decided: {}",
+            fault.endless(None).unwrap_or_default()
+        )),
+        (_, Agreement::Endless { fault, .. }) => Err(format!(
+            "a turn is not decided: {}",
+            fault.endless(None).unwrap_or_default()
+        )),
         // Never of a claim: only a row's call is uncalled.
         (Agreement::Uncalled { call, .. }, _) | (_, Agreement::Uncalled { call, .. }) => {
             Err(format!("`{call}` is not made"))
@@ -1880,6 +1908,13 @@ fn finding(a: &Agreed) -> Option<Finding> {
     let (code, message): (Code, String) = match &a.agreement {
         Agreement::Holds => return None,
         Agreement::Unknown { why } => (A007, format!("{}: unknown, {why}", a.against)),
+        Agreement::Endless { at, fault } => {
+            // The function compared, unless an example of a part's.
+            let here = (a.at.names.first().map(String::as_str) != Some("examples"))
+                .then(|| a.at.to_string());
+            let why = fault.endless(here.as_deref()).unwrap_or_default();
+            (A013, format!("{}: unknown, at {}, {why}", a.against, point(at)))
+        }
         Agreement::Uncalled { call: _, made } => {
             let made = match made.is_empty() {
                 true => "it calls no function with no body".to_string(),
@@ -2019,6 +2054,9 @@ pub(crate) fn record_claims(
                 Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
                     why: format!("no value for {} here", unstated(&g)),
                 },
+                Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => {
+                    endless(&[("self".to_string(), v.clone())], &e)
+                }
                 Err(Fault::Op(Undefined::Budget(why))) => Agreement::Unknown { why },
                 // False, or no value: a claim with none does not hold.
                 _ => Agreement::Fails {

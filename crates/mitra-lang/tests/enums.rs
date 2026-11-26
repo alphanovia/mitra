@@ -44,6 +44,7 @@ fn agreed(text: &str) -> Vec<String> {
                     format!("fails at {}", at.join(", "))
                 }
                 Agreement::Unknown { why } => format!("unknown: {why}"),
+                Agreement::Endless { fault, .. } => format!("endless: {}", fault.endless(None).unwrap_or_default()),
                 Agreement::Uncalled { call, .. } => format!("uncalled: {call}"),
             };
             format!("{} {}: {outcome}", a.at, a.against)

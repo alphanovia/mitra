@@ -200,6 +200,14 @@ fn each_finding_is_given() {
     let found: Vec<String> = found.iter().map(|f| f.to_string()).collect();
     assert_eq!(found, ["finding[A012]: example 0: `s` = S { lo: 3, hi: 1 } breaks record claim `S::ordered`\n --> S::lo"]);
     given.insert("A012".to_string());
+    // A loop that never ends (more in tests/endless.rs).
+    let (_, found) = agree(
+        &model("subject S {\n    fn halve(n: integer) -> k: integer { until(k: n, k <= 1) { k } } where { examples { (4) -> 1 } }\n}"),
+        &Settings::default(),
+    );
+    let found: Vec<String> = found.iter().map(|f| f.to_string()).collect();
+    assert_eq!(found, ["finding[A013]: example 0: unknown, at n = 4, the `until` in `S::halve` never ends: what it carries, 4, came back after 1 turn\n --> S::halve"]);
+    given.insert("A013".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Agree && !e.retired);

@@ -520,6 +520,20 @@ subject location {
     given.insert("X014".to_string());
     // X015, a tied test that failed: crates/mitra-rust/tests/supports.rs.
     given.insert("X015".to_string());
+    // X016: a measured point at which a loop never ends (tests/endless.rs).
+    let halve = parse("subject S at \"src/s.rs\" {\n    fn halve(n: integer) -> k: integer { until(k: n, k <= 1) { k } }\n}").unwrap();
+    let ledger = Ledger {
+        measurements: vec![measured(&[("S::halve::n", int(4))], &[("S::halve::k", int(1))], true)],
+        reviews: vec![],
+        supports: vec![],
+    };
+    let e = explain(&halve, &ledger, &Settings::default());
+    let shown: Vec<String> = e.findings.iter().map(|f| f.to_string()).collect();
+    assert_eq!(
+        shown,
+        ["finding[X016]: at (4), `S::halve`: the `until` in `S::halve` never ends: what it carries, 4, came back after 1 turn\n --> measurements::0"]
+    );
+    given.insert("X016".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Explain && !e.retired);

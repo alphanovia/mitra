@@ -104,7 +104,7 @@ proptest! {
                     let p = every.iter().find(|p| [p.0.0, p.0.1] == point[..]);
                     prop_assert!(p.is_some_and(|p| !keeps(p)), "{} fails at {:?}, which is in no range or keeps it\n{}", a.against, point, text);
                 }
-                Agreement::Unknown { .. } | Agreement::Uncalled { .. } => {}
+                Agreement::Unknown { .. } | Agreement::Endless { .. } | Agreement::Uncalled { .. } => {}
             }
         }
     }

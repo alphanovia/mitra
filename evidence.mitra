@@ -148,7 +148,9 @@ review simulation::encoded holds by "agent:anthropic/opus-5.5/dogfood" seeing "t
 review agree::lengths holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:every_length_is_tried_up_to_the_setting";
 review check::nested holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:tests/model.rs::each_error_is_found";
 review parse::parts holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_part_is_reopened_of_its_kind";
-review simulation::loops holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_loop_reads_back_and_its_examples_hold", "test:until_stops_before_its_block_when_done_holds", "test:a_loop_past_the_step_budget_says_so";
+// Finding 39 G: `loops` split in two, each seen again.
+review simulation::folds holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:a_loop_reads_back_and_its_examples_hold";
+review simulation::untils holds by "agent:anthropic/opus-5.5/dogfood" seeing "test:until_stops_before_its_block_when_done_holds", "test:a_loop_that_comes_back_stops_at_once", "test:a_counter_runs_to_the_budget", "test:a_value_known_in_part_never_repeats";
 
 // The evidence set (user's go, 17:22): reviews of links, `seeing`, asks,
 // rows, and cargo test run by explain.

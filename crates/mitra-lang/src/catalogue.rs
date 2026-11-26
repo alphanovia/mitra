@@ -130,6 +130,7 @@ pub const A009: Code = agree(9);
 pub const A010: Code = agree(10);
 pub const A011: Code = agree(11);
 pub const A012: Code = agree(12);
+pub const A013: Code = agree(13);
 
 const fn evidence(number: u16) -> Code {
     Code {
@@ -170,6 +171,7 @@ pub const X012: Code = explain(12);
 pub const X013: Code = explain(13);
 pub const X014: Code = explain(14);
 pub const X015: Code = explain(15);
+pub const X016: Code = explain(16);
 
 const fn blame(number: u16) -> Code {
     Code {
@@ -342,6 +344,7 @@ pub const CATALOGUE: &[Entry] = &[
         A012,
         "a value written in a row that breaks its record's claims",
     ),
+    entry(A013, "a loop that never ends"),
     entry(V001, "a measurement that names no input or output"),
     entry(V002, "a measurement through no tie"),
     entry(
@@ -390,6 +393,7 @@ pub const CATALOGUE: &[Entry] = &[
         "a measured value that breaks, or may break, its record's claims",
     ),
     entry(X015, "a test tied to an ensure that failed"),
+    entry(X016, "a measured point at which a loop never ends"),
     entry(B001, "a conflict the model's claims alone hold"),
     entry(B002, "more diagnoses than blame looked for"),
     entry(B003, "a diagnosis a proof by cases may outlive"),

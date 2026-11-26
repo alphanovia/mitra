@@ -24,7 +24,7 @@
 
 use crate::catalogue::{
     Ask, Finding, Hint, X001, X002, X003, X004, X005, X006, X007, X008, X009, X010, X011, X012,
-    X013, X014, X015,
+    X013, X014, X015, X016,
 };
 use crate::evidence::{self, port, Ledger, Measurement};
 use crate::expression::{eval, Arg, Expression, Fault};
@@ -943,6 +943,11 @@ impl Given<'_, '_> {
                         "{who} `{p}` holding {}: record claim `{claim}` is not decided there, {why}",
                         print::value(&w)
                     ),
+                    crate::agree::Agreement::Endless { fault, .. } => format!(
+                        "{who} `{p}` holding {}: record claim `{claim}` is not decided there, {}",
+                        print::value(&w),
+                        fault.endless(None).unwrap_or_default()
+                    ),
                     _ => continue,
                 };
                 self.finding(X014, at, message);
@@ -1087,6 +1092,10 @@ impl Given<'_, '_> {
                 Err(Fault::Op(Undefined::Budget(why))) => {
                     self.finding(X009, &at, format!("at {point}, `{path}`: {why}"));
                 }
+                Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => {
+                    let why = e.endless(Some(&path.to_string())).unwrap_or_default();
+                    self.finding(X016, &at, format!("at {point}, `{path}`: {why}"));
+                }
                 Err(Fault::Op(Undefined::Unknown(g))) => {
                     let message = format!(
                         "at {point}, `{path}` needs what `{g}` gave, which nothing gives: measure it as an input"
@@ -1162,6 +1171,12 @@ impl Given<'_, '_> {
                             undecided = true;
                             let message = format!("claim `{}` at {point}: {why}", c.name);
                             self.finding(X009, &at, message);
+                        }
+                        Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => {
+                            undecided = true;
+                            let why = e.endless(Some(&path.to_string())).unwrap_or_default();
+                            let message = format!("claim `{}` at {point}: {why}", c.name);
+                            self.finding(X016, &at, message);
                         }
                         _ => {
                             undecided = true;

@@ -56,5 +56,11 @@ subject simulation {
     ensure whole_division: "/ and % on integer give what Rust's i64 gives, and none at zero; by bounds, they hold every value Exact gives";
     ensure ranges_checked: "a call with a value outside the range type of what it takes, or a body giving one outside the range of what it gives, has no value; by bounds, such a call may fault";
     ensure promised: "where the claims of a function with no body hold, a call of it lies in the bounds Ranges reads from them; inside its own claims, a call of it is only its type" from (kept_sound);
-    ensure loops: "`fold` carries its values through each value of the sequence in turn; `until` gives the first carried where `done` holds, its block never run then, and past the step budget it has no value and says so (A007)";
+    ensure folds: "a fold carries its values through each value of the sequence in order, and always ends";
+    // Shown by tests/loops.rs and tests/endless.rs: the block is not run
+    // on the turn the condition holds; values carried again are
+    // `Undefined::EndlessRepeat` (A013, X016), the halving mistake
+    // `until(k: n, k <= 1) { k }` at once; past the step budget,
+    // `Undefined::Budget` (A007), the loop that also counts its turns.
+    ensure untils: "an until gives the first carried values where its condition holds; one that can't end, or doesn't end within its budget, has no value and says which of the two";
 }

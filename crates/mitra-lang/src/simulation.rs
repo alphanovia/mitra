@@ -501,6 +501,67 @@ pub enum Undefined {
     Outside(String),
     /// `xs[i]` with no value at `i`: below zero, or at or past its length.
     Index(String),
+    /// An `until` whose carried values came back to ones it had already
+    /// carried, every one known: it can never end (finding 39 G). The
+    /// function whose body holds it, once known, the values, and the
+    /// turns between the two times.
+    EndlessRepeat {
+        inside: Option<String>,
+        state: String,
+        turns: usize,
+    },
+}
+
+impl Undefined {
+    /// What an endless loop says: where it is, the state that came back.
+    /// `here`, the function read, when no body it calls holds the loop.
+    pub fn endless(&self, here: Option<&str>) -> Option<String> {
+        let Undefined::EndlessRepeat {
+            inside,
+            state,
+            turns,
+        } = self
+        else {
+            return None;
+        };
+        let place = match inside.as_deref().or(here) {
+            Some(f) => format!("the `until` in `{f}`"),
+            None => "an `until`".to_string(),
+        };
+        let turns = match turns {
+            1 => "1 turn".to_string(),
+            n => format!("{n} turns"),
+        };
+        Some(format!(
+            "{place} never ends: what it carries, {state}, came back after {turns}"
+        ))
+    }
+}
+
+/// An endless `until` met in the body of `f`, said to be there, when
+/// no deeper body held it.
+fn held_in(f: &str, gives: Exactly) -> Exactly {
+    match gives {
+        Err(Fault::Op(Undefined::EndlessRepeat {
+            inside: None,
+            state,
+            turns,
+        })) => Err(Fault::Op(Undefined::EndlessRepeat {
+            inside: Some(f.to_string()),
+            state,
+            turns,
+        })),
+        gives => gives,
+    }
+}
+
+/// Whether `v` is known all through: no record known only in part.
+fn known(v: &Value) -> bool {
+    match v {
+        Value::Partial(..) => false,
+        Value::Record(_, vs) | Value::Variant(_, _, vs) | Value::Seq(_, vs) => vs.iter().all(known),
+        _ => true,
+    }
 }
 
 /// Whole numbers from `low` to `high`, both in: the type `0..=9`, an
@@ -1320,7 +1381,7 @@ impl Exact {
             }
             let active = self.calls.enter(f)?;
             let names = callee.takes.iter().map(|(n, _)| n.clone());
-            let gives = eval(self, &names.zip(args.iter().cloned()).collect(), body);
+            let gives = held_in(f, eval(self, &names.zip(args.iter().cloned()).collect(), body));
             drop(active);
             // A budget reached depends on the way here: not remembered.
             if !kept && !matches!(gives, Err(Fault::Op(Undefined::Budget(_)))) {
@@ -1372,10 +1433,29 @@ fn until_exactly(
 ) -> Exactly {
     let mut carried = start.clone()?;
     let mut turns = 0;
+    // Brent's cycle finding: a state kept, put by again at each power
+    // of two turns; one carried again can only go round again (finding
+    // 39 G). No memory past one state, and a cycle is seen within twice
+    // the turns to its end.
+    let (mut kept, mut power, mut since): (Option<Value>, usize, usize) = (None, 1, 0);
     loop {
         if decides(&run(1, &unpack(&carried)))? {
             return Ok(carried);
         }
+        if !known(&carried) {
+            kept = None;
+        } else if kept.as_ref() == Some(&carried) {
+            return Err(Fault::Op(Undefined::EndlessRepeat {
+                inside: None,
+                state: crate::print::value(&carried),
+                turns: since,
+            }));
+        } else if kept.is_none() || since == power {
+            kept = Some(carried.clone());
+            power *= 2;
+            since = 0;
+        }
+        since += 1;
         turns += 1;
         if turns > steps {
             return Err(Fault::Op(Undefined::Budget(format!(
