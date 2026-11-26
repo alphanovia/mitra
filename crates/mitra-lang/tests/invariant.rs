@@ -239,3 +239,34 @@ fn linear_facts_decide_only_what_follows() {
     assert!(!holds(&[e("a <= b")], &e("b == a")));
     assert!(!holds(&[e("!(a == b)")], &e("a == b")));
 }
+
+/// Findings 39 C and 39 H: a turn is decided whatever the sequence
+/// holds (enums, truths, calls, `if`s), and through the functions the
+/// block calls; a wrong claim through a call is still false.
+// mitra: supports agree::invariant_reads
+#[test]
+fn a_turn_is_read_whatever_it_holds_and_through_calls() {
+    let text = "subject enum T { A(integer), B }
+subject record Box { v: integer }
+subject calc {
+    fn enums(xs: [integer]) -> r: [T] { xs.fold(r: []) { x -> r ++ [T::A(x), T::B] } } where { claim c: r.len() == 2 * n by invariant n; }
+    fn bools(xs: [integer]) -> r: [bool] { xs.fold(r: []) { x -> r ++ [x > 0] } } where { claim c: r.len() == n by invariant n; }
+    fn wrap(x: integer) -> b: Box { Box { v: x + 1 } }
+    fn called(xs: [integer]) -> r: [Box] { xs.fold(r: []) { x -> r ++ [wrap(x)] } } where { claim c: r.len() == n by invariant n; }
+    fn iffed(xs: [integer]) -> r: [Box] { xs.fold(r: []) { x -> r ++ [if x > 0 { wrap(x) } else { Box { v: 0 } }] } } where { claim c: r.len() == n by invariant n; }
+    fn inc(k: integer) -> m: integer { k + 1 }
+    fn twice(k: integer) -> m: integer { inc(inc(k)) }
+    fn count(xs: [integer]) -> c: integer { xs.fold(c: 0) { x -> inc(c) } } where { claim c: c == n by invariant n; }
+    fn count2(xs: [integer]) -> c: integer { xs.fold(c: 0) { x -> twice(c) } } where { claim c: c == 2 * n by invariant n; }
+    fn shadow(xs: [integer]) -> c: integer { xs.fold(c: 0) { x -> minus(c, 0 - 1) } } where { claim c: c == n by invariant n; }
+    fn minus(k: integer, c: integer) -> m: integer { k - c }
+}";
+    assert_eq!(findings(text), Vec::<String>::new());
+    let wrong = text.replace("claim c: c == 2 * n by invariant n;", "claim c: c == n by invariant n;");
+    let found = findings(&wrong);
+    assert_eq!(found, ["finding[A001]: the body breaks claim `c` at xs = [0]\n --> calc::count2"]);
+    // `minus(c, 0 - 1)`, its inputs `k` and `c`: the argument `c` is not
+    // caught by the input `c` (above it holds; written `k + c`, false).
+    let caught = text.replace("{ k - c }", "{ k + c }");
+    assert!(findings(&caught).iter().any(|f| f.contains("calc::shadow")));
+}

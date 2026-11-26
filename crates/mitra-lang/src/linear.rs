@@ -172,10 +172,10 @@ impl Reader {
                     _ => return None,
                 }
             }
+            // A sequence written place by place: its length is its count
+            // of places, whatever each holds (finding 39 C: an enum, a
+            // truth, a call, an `if`).
             (Op::Seq(_), n) => {
-                for i in 0..n {
-                    arg(self, i)?;
-                }
                 Read::Seq(Sum::number(BigRational::from_integer(BigInt::from(n))))
             }
             (Op::Text(s), 0) => Read::Seq(Sum::number(BigRational::from_integer(BigInt::from(

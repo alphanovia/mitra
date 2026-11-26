@@ -408,12 +408,15 @@ impl<'m> Reading<'m> {
                                 // By bounds and points, else as linear facts.
                                 let mut start_kept =
                                     self.claim(&start.0, &read_in(start.1.clone()), &rows);
-                                if crate::linear::holds(&[], &start.1) {
+                                if crate::linear::holds(&[], &self.inlined(&start.1, 0)) {
                                     start_kept = Agreement::Holds;
                                 }
                                 let mut turn_kept =
                                     self.by_carrier(&at.then(&c.name), &turn.0, &read_in(turn.1));
-                                if crate::linear::holds(&linear.0, &linear.1) {
+                                // Through the calls of the block too (39 H).
+                                let facts: Vec<_> =
+                                    linear.0.iter().map(|e| self.inlined(e, 0)).collect();
+                                if crate::linear::holds(&facts, &self.inlined(&linear.1, 0)) {
                                     turn_kept = Agreement::Holds;
                                 }
                                 kept(start_kept, turn_kept)
@@ -1441,6 +1444,47 @@ impl<'m> Reading<'m> {
                 gives: None,
             },
         }
+    }
+
+    /// `e` with each call of a function with a body written as that body
+    /// at its arguments, a few calls deep (finding 39 H): what linear
+    /// facts read of a loop's block, seen through the functions it calls.
+    /// A body is what its call means, so this is sound however deep; four
+    /// calls deep, it stops, a call left as it is.
+    fn inlined(&self, e: &Expression<Op>, depth: usize) -> Expression<Op> {
+        let Expression::Apply(op, args) = e else {
+            return e.clone();
+        };
+        let args: Vec<Arg<Op>> = args
+            .iter()
+            .map(|a| Arg {
+                binds: a.binds.clone(),
+                body: self.inlined(&a.body, depth),
+            })
+            .collect();
+        let callee = match op {
+            Op::Call(f) if depth < 4 && args.iter().all(|a| a.binds.is_empty()) => {
+                self.functions.get(f.as_str()).and_then(|g| {
+                    let body = g.body.as_ref()?;
+                    (g.takes.len() == args.len()).then_some((g, body))
+                })
+            }
+            _ => None,
+        };
+        let Some((g, body)) = callee else {
+            return Expression::Apply(op.clone(), args);
+        };
+        // Each input first renamed apart, then given its argument: no
+        // argument is caught by another input's name.
+        let mut written = body.clone();
+        for (i, (p, _)) in g.takes.iter().enumerate() {
+            let apart = Expression::Name(format!("{p}#in{depth}#{i}"));
+            written = crate::expression::substitute(&written, p, &apart);
+        }
+        for (i, ((p, _), a)) in g.takes.iter().zip(&args).enumerate() {
+            written = crate::expression::substitute(&written, &format!("{p}#in{depth}#{i}"), &a.body);
+        }
+        self.inlined(&written, depth + 1)
     }
 
     /// Each claim of a function with no body a value given for it breaks
