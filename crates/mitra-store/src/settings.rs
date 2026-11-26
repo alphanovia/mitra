@@ -11,7 +11,7 @@
 //! length = 3
 //! height = 3
 //! [budget]                # agree's and explain's
-//! steps = 1000000
+//! steps = 100000
 //! depth = 1000
 //! [explain]
 //! rounds = 64

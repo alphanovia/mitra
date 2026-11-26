@@ -70,7 +70,7 @@ splits = 4             # the most numbers bounds cut at zero
 length = 3             # the longest sequence tried as a point
 height = 3             # the tallest tree tried as a point
 [budget]               # how far one computation goes, in agree and explain
-steps = 1000000
+steps = 100000
 depth = 1000
 [explain]
 rounds = 64            # rounds of judging

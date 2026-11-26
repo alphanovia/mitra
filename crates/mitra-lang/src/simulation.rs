@@ -632,7 +632,7 @@ pub struct Budget {
 impl Default for Budget {
     fn default() -> Budget {
         Budget {
-            steps: 1_000_000,
+            steps: 100_000,
             depth: 1_000,
         }
     }

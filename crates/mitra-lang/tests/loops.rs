@@ -234,7 +234,7 @@ fn a_loop_past_the_step_budget_says_so() {
 }";
     let out = agreed(text);
     assert!(
-        out.iter().any(|a| matches!(&a.agreement, Agreement::Wrong { code, why } if code.to_string() == "A016" && why.contains("the step budget, 1000000 turns of `until`, reached"))),
+        out.iter().any(|a| matches!(&a.agreement, Agreement::Wrong { code, why } if code.to_string() == "A016" && why.contains("the step budget, 100000 turns of `until`, reached"))),
         "{out:?}"
     );
 }

@@ -44,7 +44,7 @@ subject simulation {
     ensure one_value: "Calls::with refuses a function two of whose rows at one point give different values";
     ensure given_first: "a call reads the body; with none, what the reading was given at its point, else the row there; with neither, it has no value and names the call";
     fn budget_defaults() -> b: Budget at "crates/mitra-lang/src/simulation.rs/Budget/default" {
-        Budget { steps: 1000000, depth: 1000 }
+        Budget { steps: 100000, depth: 1000 }
     }
     ensure remembered: "a reading that remembers calls, and computes only the side of if, && and || it takes, gives what one that does neither gives";
     ensure budgeted: "a computation past its budget of steps or depth gives no value, Undefined::Budget, and never aborts; by bounds too, never read as a value that may fault";

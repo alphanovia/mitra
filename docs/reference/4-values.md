@@ -197,7 +197,7 @@ never ends: what it carries, 4, came back after 1 turn
 An example fails so; a claim that reaches the loop is unknown.
 
 A loop whose values never repeat, such as one that counts its turns
-while it waits, is stopped by Mitra's step budget (1,000,000 turns):
+while it waits, is stopped by Mitra's step budget (100,000 turns):
 an example fails there (A016), and a claim is unknown (A007). A block
 of the wrong type is M005, with a note on what the loop carries.
 

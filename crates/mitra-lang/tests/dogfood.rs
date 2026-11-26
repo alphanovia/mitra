@@ -195,12 +195,12 @@ fn dogfood_state_claims_everywhere() {
 
 // ---------------------------------------------- settings, their defaults
 
-// mitra: measures agree::agree_defaults () -> agree::Settings { points: 64, splits: 4, budget: Budget { steps: 1000000, depth: 1000 }, length: 3, height: 3 }
+// mitra: measures agree::agree_defaults () -> agree::Settings { points: 64, splits: 4, budget: Budget { steps: 100000, depth: 1000 }, length: 3, height: 3 }
 #[test]
 fn dogfood_agree_defaults() {
     let s = mitra_lang::agree::Settings::default();
     assert_eq!((s.points, s.splits, s.length, s.height), (64, 4, 3, 3));
-    assert_eq!((s.budget.steps, s.budget.depth), (1_000_000, 1_000));
+    assert_eq!((s.budget.steps, s.budget.depth), (100_000, 1_000));
 }
 
 // mitra: measures parse::parse_defaults () -> parse::Settings { depth: 2000 }
@@ -209,19 +209,19 @@ fn dogfood_parse_defaults() {
     assert_eq!(mitra_lang::parse::Settings::default().depth, 2000);
 }
 
-// mitra: measures explain::explain_defaults () -> explain::Settings { rounds: 64, cases: 1024, rests: 1024, budget: Budget { steps: 1000000, depth: 1000 } }
+// mitra: measures explain::explain_defaults () -> explain::Settings { rounds: 64, cases: 1024, rests: 1024, budget: Budget { steps: 100000, depth: 1000 } }
 #[test]
 fn dogfood_explain_defaults() {
     let s = mitra_lang::explain::Settings::default();
     assert_eq!((s.rounds, s.cases, s.rests), (64, 1024, 1024));
-    assert_eq!((s.budget.steps, s.budget.depth), (1_000_000, 1_000));
+    assert_eq!((s.budget.steps, s.budget.depth), (100_000, 1_000));
 }
 
-// mitra: measures simulation::budget_defaults () -> Budget { steps: 1000000, depth: 1000 }
+// mitra: measures simulation::budget_defaults () -> Budget { steps: 100000, depth: 1000 }
 #[test]
 fn dogfood_budget_defaults() {
     let b = mitra_lang::simulation::Budget::default();
-    assert_eq!((b.steps, b.depth), (1_000_000, 1_000));
+    assert_eq!((b.steps, b.depth), (100_000, 1_000));
 }
 
 // mitra: measures blame::blame_defaults () -> blame::Settings { diagnoses: 10, tries: 100000 }
