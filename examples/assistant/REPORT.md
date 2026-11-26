@@ -49,6 +49,7 @@ Final, 21:12 UTC. Main at 7ecffc3.
 | Challenger's model holes folded in | 130 | 107 | 23 |
 | After K1–K11, and after K12–K14 | 132 | 109 | 23 |
 | Round 3 (write-ahead, receipts, CLI retry) | 139 | 116 | 23 |
+| Same model, Mitra be79172 (`by invariant` reads any sequence, findings 39 C/H) | 139 | 118 | 21 |
 
 The 4 new unknowns are Mitra gaps of the kinds already listed (L, P). Example: `Gateway::may_post` was decided while `Device` was finite. It takes a `Holder` now, which holds integers.
 

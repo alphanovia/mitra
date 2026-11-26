@@ -20,8 +20,8 @@ subject NaiveLoop {
             Conversation { turns: c.turns ++ [Turn::Model(t.answer), Turn::Results(t.outcomes)] }
         }
     } where {
-        // Two turns more each turn of the loop, with no bound (finding C:
-        // not decided, the sequence holds an enum).
+        // Two turns more each turn of the loop, with no bound. Decided
+        // since be79172 (finding 39 C).
         claim grows: c.turns.len() == 1 + 2 * n by invariant n;
         examples {
             ("hi", []) -> Conversation { turns: [Turn::User("hi")] },
