@@ -186,7 +186,8 @@ Mitra remembers what an `until` has carried. When a turn carries
 values it had already carried, every one known, the loop can only go
 round again: it stops at once with no value, and `check` says so in an
 A013 finding that names the loop, the input and the values that came
-back. Halving forgotten:
+back. For example, a loop that forgets to halve, `{ k }` in place of
+`{ k / 2 }`:
 
 ```text
 finding[A013]: example 0: unknown, at n = 4, the `until` in `s::halve`
