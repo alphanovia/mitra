@@ -1,6 +1,6 @@
 //! The server in one process: one store per household, the entry's
 //! calls, and the worker run after each post. The binary serves it over
-//! TCP; tests drive it directly.
+//! HTTP; tests drive it directly.
 
 use crate::harness::models::Models;
 use crate::server::gateway::{Accounts, Gateway};
@@ -45,10 +45,7 @@ impl Local {
     /// Two households. In the first, the owner's phone, a computer with
     /// the CLI, and a wearable; in the second, one phone.
     pub fn new() -> Local {
-        crate::fake::pair("owner-phone", holder(1, Device::Phone, 1), Role::Owner);
-        crate::fake::pair("cli", holder(1, Device::Computer, 1), Role::Member);
-        crate::fake::pair("wearable", holder(1, Device::Wearable, 1), Role::Member);
-        crate::fake::pair("other-phone", holder(2, Device::Phone, 1), Role::Owner);
+        Local::pair();
         let mut stores = BTreeMap::new();
         stores.insert(1, ConversationStore::new(1));
         stores.insert(2, ConversationStore::new(2));
@@ -57,6 +54,16 @@ impl Local {
             models: Models::settings(),
             tools: tools(),
         }
+    }
+
+    /// The devices, paired in this thread's world (the accounts are the
+    /// fake's, one world per thread): each thread that serves calls on
+    /// this server pairs them.
+    pub fn pair() {
+        crate::fake::pair("owner-phone", holder(1, Device::Phone, 1), Role::Owner);
+        crate::fake::pair("cli", holder(1, Device::Computer, 1), Role::Member);
+        crate::fake::pair("wearable", holder(1, Device::Wearable, 1), Role::Member);
+        crate::fake::pair("other-phone", holder(2, Device::Phone, 1), Role::Owner);
     }
 
     fn token(t: &str) -> Token {
@@ -70,19 +77,27 @@ impl Local {
     /// POST: refused unless the token names a household; else the entry
     /// decides, and the worker runs.
     pub fn post(&mut self, t: &str, e: Envelope) -> Result<Receipt, NetFailure> {
-        let Some(h) = Local::household(t) else {
-            return Err(NetFailure::Refused);
-        };
-        let store = self
-            .stores
-            .get(&h)
-            .cloned()
-            .unwrap_or_else(|| ConversationStore::new(h));
-        let (store, receipt) = Gateway::post(store, Local::token(t), e);
-        self.stores.insert(h, store);
+        let receipt = self.accept(t, e);
         if receipt.is_ok() {
             self.work();
         }
+        receipt
+    }
+
+    /// The entry alone: the message is recorded (or refused), and the
+    /// worker has not run yet. The HTTP server answers the sender first,
+    /// then calls `work`.
+    pub fn accept(&mut self, t: &str, e: Envelope) -> Result<Receipt, NetFailure> {
+        let Some(h) = Local::household(t) else {
+            return Err(NetFailure::Refused);
+        };
+        // Taken out, not copied: a post costs no copy of the store (K21).
+        let store = self
+            .stores
+            .remove(&h)
+            .unwrap_or_else(|| ConversationStore::new(h));
+        let (store, receipt) = Gateway::post(store, Local::token(t), e);
+        self.stores.insert(h, store);
         receipt
     }
 
@@ -183,19 +198,42 @@ impl Local {
     pub fn work(&mut self) {
         let households: Vec<i64> = self.stores.keys().copied().collect();
         for h in households {
-            loop {
-                let store = self.stores[&h].clone();
-                let next = store
-                    .holders()
-                    .into_iter()
-                    .find_map(|d| Worker::next(store.clone(), d));
-                let Some(m) = next else { break };
-                let taken = Worker::take_up(store, m.clone());
-                self.stores.insert(h, taken.clone());
-                let (done, _) = Worker::process(taken, m, self.models.clone(), self.tools.clone());
-                self.stores.insert(h, done);
+            while let Some(t) = self.take_next(h) {
+                let done = Local::process(&t, self.models.clone(), self.tools.clone());
+                self.finish(t, done);
             }
         }
+    }
+
+    /// The next message of a household, taken up (its own write), if any.
+    pub fn take_next(&mut self, h: i64) -> Option<Taken> {
+        let store = self.stores.get(&h)?.clone();
+        let m = store
+            .holders()
+            .into_iter()
+            .find_map(|d| Worker::next(store.clone(), d))?;
+        let taken = Worker::take_up(store, m.clone());
+        self.stores.insert(h, taken.clone());
+        Some(Taken {
+            household: h,
+            store: taken,
+            message: m,
+        })
+    }
+
+    /// The work on a message taken up, off the server: it reads and gives
+    /// back the store as it was taken, so it may run while calls go on.
+    pub fn process(t: &Taken, models: Models, tools: Vec<Tool>) -> ConversationStore {
+        Worker::process(t.store.clone(), t.message.clone(), models, tools).0
+    }
+
+    /// The work's writes, onto the store as it is now.
+    pub fn finish(&mut self, t: Taken, done: ConversationStore) {
+        let now = self
+            .stores
+            .remove(&t.household)
+            .unwrap_or_else(|| ConversationStore::new(t.household));
+        self.stores.insert(t.household, merged(now, &t.store, done));
     }
 
     /// A crash right after a message was taken up: it is written as read,
@@ -255,6 +293,39 @@ impl Local {
             })
             .next_back()
     }
+}
+
+/// A message taken up, with the store as it was then.
+pub struct Taken {
+    pub household: i64,
+    pub store: ConversationStore,
+    pub message: Stored,
+}
+
+/// What the work wrote onto `taken`, written onto `now`. The store is only
+/// ever added to (`Stored::append_only`): the work adds notes to messages
+/// it was given and new messages (its replies); meanwhile the entry adds
+/// new messages and notes. Each keeps what the other added. The work's
+/// replies are numbered from `taken`, and no one else numbers the
+/// assistant's messages, so the numbers stay distinct.
+pub fn merged(
+    now: ConversationStore,
+    taken: &ConversationStore,
+    done: ConversationStore,
+) -> ConversationStore {
+    let mut out = now;
+    for d in done.messages {
+        match taken.messages.iter().find(|t| t.id == d.id) {
+            Some(before) => {
+                let added = d.notes.get(before.notes.len()..).unwrap_or(&[]).to_vec();
+                if let Some(m) = out.messages.iter_mut().find(|m| m.id == d.id) {
+                    m.notes.extend(added);
+                }
+            }
+            None => out.messages.push(d),
+        }
+    }
+    out
 }
 
 impl Default for Local {

@@ -520,25 +520,42 @@ fn a_client_sees_received_then_read_then_delivered() {
 // W11 for the CLI: it does send again while the call is lost, with the
 // same id, and stops at the first answer. A stub server drops the first
 // two calls unanswered, then says OK.
+// Changed by the builder with the HTTP port: the stub speaks HTTP, and
+// "the same call" is the same path and body.
 // mitra: supports Cli::sends_once
 #[test]
 fn the_cli_sends_a_lost_call_again_with_the_same_id() {
     use assistant::cli::{Cli, RETRIES};
-    use std::io::{BufRead, BufReader, Write};
+    use std::io::{BufRead, BufReader, Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap().to_string();
     let stub = std::thread::spawn(move || {
-        let mut lines = vec![];
+        let mut calls = vec![];
         for (k, c) in listener.incoming().take(3).enumerate() {
             let mut c = c.unwrap();
-            let mut line = String::new();
-            BufReader::new(&c).read_line(&mut line).unwrap();
-            lines.push(line);
+            let mut r = BufReader::new(c.try_clone().unwrap());
+            let (mut head, mut line, mut len) = (String::new(), String::new(), 0);
+            r.read_line(&mut head).unwrap();
+            while r.read_line(&mut line).unwrap() > 0 && line != "\r\n" {
+                if let Some(v) = line.to_lowercase().strip_prefix("content-length:") {
+                    len = v.trim().parse().unwrap();
+                }
+                line.clear();
+            }
+            let mut body = vec![0; len];
+            r.read_exact(&mut body).unwrap();
+            calls.push((head, String::from_utf8(body).unwrap()));
             if k == 2 {
-                c.write_all(b"OK\n").unwrap();
+                let b = r#"{"received":1}"#;
+                write!(
+                    c,
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{b}",
+                    b.len()
+                )
+                .unwrap();
             }
         }
-        lines
+        calls
     });
     let cli = Cli {
         token: Token { secret: s("cli") },
@@ -549,12 +566,13 @@ fn the_cli_sends_a_lost_call_again_with_the_same_id() {
     };
     let e = cli.envelope(Input::Typed(s("hello")));
     assert_eq!(cli.send(&addr, e.clone()), Ok(Receipt::Received(e.id)));
-    let lines = stub.join().unwrap();
-    assert_eq!(lines.len(), 3, "sent three times");
+    let calls = stub.join().unwrap();
+    assert_eq!(calls.len(), 3, "sent three times");
     assert!(
-        lines.iter().all(|l| l == &lines[0]),
-        "the same call each time: {lines:?}"
+        calls.iter().all(|c| c == &calls[0]),
+        "the same call each time: {calls:?}"
     );
+    assert!(calls[0].0.starts_with("POST /messages/1 "), "{calls:?}");
 }
 
 // ---- Round 3: cheap tests for promises that had none.
@@ -643,4 +661,40 @@ fn a_cli_with_no_server_learns_it_failed_and_says_not_sent() {
     let r = cli.send(&addr, e);
     assert_eq!(r, Err(NetFailure::Unreachable));
     assert!(Cli::status(Cli::sent(r)).starts_with("not sent"));
+}
+
+// ---- The HTTP server works a message apart from the calls (K19, K20):
+// what arrives while a message is in work is kept when the work writes
+// back, and is worked after it, in order.
+
+// mitra: supports Stored::append_only
+#[test]
+fn a_message_posted_during_work_is_kept_and_worked_next() {
+    let mut l = server();
+    let first = l.next_envelope("cli", Body::Text(s("hello")));
+    l.accept("cli", first.clone()).unwrap();
+    let t = l.take_next(1).expect("taken up");
+    assert!(l.typing("cli"), "the work shows while it goes on");
+    // Meanwhile, the entry records a second message.
+    let second = l.next_envelope("cli", Body::Text(s("and how are you")));
+    l.accept("cli", second.clone()).unwrap();
+    let done = Local::process(&t, l.models.clone(), l.tools.clone());
+    l.finish(t, done);
+    assert!(
+        l.stores[&1].holds(second.id),
+        "the second message was lost by the work's write"
+    );
+    assert_eq!(l.replies("cli").len(), 1, "the first is answered");
+    l.work();
+    let replies = l.replies("cli");
+    assert_eq!(
+        replies.len(),
+        2,
+        "the second is answered after: {replies:?}"
+    );
+    let ns: Vec<i64> = l.fetch("cli", 0).iter().map(|m| m.id.n).collect();
+    assert!(
+        ns[0] < ns[1],
+        "replies keep distinct, growing numbers: {ns:?}"
+    );
 }

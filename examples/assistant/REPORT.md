@@ -17,7 +17,7 @@ Final, 21:12 UTC. Main at 7ecffc3.
   - the harness: identity, plain code, gate, purpose, the loop, policy, guard, reporter;
   - the owner's yes (`confirm`);
   - an in-process server (`Local`).
-- **Two binaries**, speaking a line protocol over TCP:
+- **Two binaries**, speaking a line protocol over TCP (HTTP since 2026-11-27, see §6):
   - `cargo run --bin assistant-server`
   - `cargo run --bin assistant-cli -- --token cli "hello"` (tokens: `cli`, `owner-phone`, `wearable`, `other-phone`)
 - **101 tests**:
@@ -191,3 +191,42 @@ Round 3 wrote the cheap tests: `asks_back`, `pinned`, `keeps_pin`, `help_first` 
 - **What the fake plays isn't tested for real:** model quality, speech, identity per device. The disk, the journal, tuning and the wearable aren't built.
 - **Top promises unreviewed on purpose:** `Assistant::safe` and `Assistant::private`. Their attack tests pass, but the agent that wrote the fixes doesn't vouch for the whole promise.
 - **The challenger's next targets:** two clients of one household at once on the TCP server; a long conversation near the size limits; pairing or revoking mid-work.
+
+## 6. After the night: HTTP and a real model (2026-11-27)
+
+**Changed.**
+- **The server** is HTTP now (`src/wire.rs`): axum routes on a hyper accept loop.
+  - One entry thread answers every call at once.
+  - One work thread per household runs the harness. It takes a message up, works it off a copy of the store, and writes its additions back onto the store as it is then (`Local::finish`). The store is append-only, so nothing is lost.
+  - Each household's messages are still worked one at a time, each with its own write-ahead list.
+- **The CLI** speaks HTTP (ureq). A 4xx is refused; no answer or a 5xx is lost, and is sent again after a growing pause.
+- **Inference** goes through a `Backend` for each machine (`models.rs`). `Llm::inference` keeps the window for every backend. The fake is one backend; Ollama (`src/ollama.rs`) is another.
+  - Its answers are constrained by a JSON schema and fail closed: a judgement it can't read is malicious, a pin it can't read is unclear, work gives no call, and the reply is never blank.
+  - A small local model serves the cloud only when named (`ASSISTANT_OLLAMA_MODEL_CLOUD`).
+- **The model gains `Server::admits` and `Server::told_busy`**, the connection limits, decided by `check`.
+
+**Reviewed three ways.** A red team, a code review without Mitra, and a review through Mitra, each by a separate agent.
+
+**Red team on the new code:**
+- **Stopped:** a malicious model server ran nothing past the policy, and K1 through the Ollama path was held.
+- **Crossed, now closed (`tests/attack_http.rs`):**
+  - K17: slow readers held every connection;
+  - K19: one household's model work blocked every call;
+  - K20: the CLI said "not sent" for a message the server then worked;
+  - K21: one household's store slowed the others.
+- **Still open, K18:** a peer that shares the owner's address and keeps reopening silent connections keeps that address at 503. Other addresses are no longer held (`MOST_PER_PEER`).
+
+**Found through Mitra, or in its numbers:**
+- **(Y11) A review does not go stale.** A review names its tests and functions; when those are rewritten, it still counts. Four reviews saw code or tests the port rewrote and were withdrawn (see the end of `evidence.mitra`): `Server::reachable`, `Assistant::told`, `Cli::sends_once` and `Cli::send`.
+- **`/typing`, "shows work", could never hold over the old TCP server**, since the worker answered nothing while it worked. Only the in-process tests made it look explained.
+
+**Numbers now:**
+- `check`: 142 comparisons, 121 hold.
+- `explain`: 803 propositions, 558 explained, 45 assumed, 0 contradicted, 200 unsupported, 54 reviews asked.
+- More is assumed than before, because of the withdrawn reviews and the new tied tests. They wait for a review by someone other than the agent that wrote them.
+
+**Open:**
+- **K16, from the analysis:** a household's read runs even after a tool output was read, so an injected page can steer a read whose input carries data out (`Policy::decide`, the `Reads` branch). `tests/real_model.rs` tries it with a real model.
+- **K18,** as above.
+- **An unreadable judgement reads as malicious**, which is at odds with `Gate::help_first` ("whatever the doubt").
+- **A household's own store has no quota**, and its own work grows with it.

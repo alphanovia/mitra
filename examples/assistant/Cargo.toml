@@ -19,5 +19,16 @@ path = "src/bin/cli.rs"
 # unit tests and from the challenger's tests in tests/ alike.
 mitra = { path = "../../crates/mitra" }
 
+# The wire: HTTP and JSON. The server is axum on hyper and tokio; the CLI
+# and the Ollama client are blocking ureq. None of it is tied to the model:
+# the tied code is called by plain handlers, from one worker thread.
+axum = { version = "0.8", default-features = false, features = ["json", "query", "tokio", "http1"] }
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio", "service"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "io-util"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "3", features = ["json"] }
+
 # Not part of Mitra's own build: an example project of its own.
 [workspace]

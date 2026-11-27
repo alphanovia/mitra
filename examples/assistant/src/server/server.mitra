@@ -24,4 +24,18 @@ subject Server {
         from (kept, transcribes, traced);
     ensure robust: "a restart loses no message, and leaves none unanswered"
         from (kept, recovers);
+
+    // The connection limits (K14, K17, K18), settings of the deployment:
+    // a connection is admitted while the server has room for one more
+    // being read, in all and for its peer's address; past either, it is
+    // told busy at once (503), and nothing is done for it. Finite: Mitra
+    // tries every case.
+    fn admits(full: bool, peer_full: bool) -> ok: bool {
+        !full && !peer_full
+    } where {
+        claim within_cap: !full || !ok;
+        claim within_peer: !peer_full || !ok;
+    }
+    ensure told_busy: "past a connection limit, a call is told at once that the server is busy, and nothing is done for it"
+        from (admits::within_cap, admits::within_peer);
 }

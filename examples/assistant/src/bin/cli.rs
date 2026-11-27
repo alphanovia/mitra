@@ -1,7 +1,8 @@
 //! The assistant's CLI: `cargo run --bin assistant-cli -- --token cli "hello"`.
 //! With no message, it reads lines until the end of input.
 //! `--voice` sends the words as a voice message (the fake speech reads
-//! them back), `--addr` names the server (127.0.0.1:7878).
+//! them back), `--addr` names the server (127.0.0.1:7878, or a URL),
+//! `--status N` asks where message N stands.
 
 use assistant::cli::Cli;
 use assistant::vocabulary::*;
@@ -22,10 +23,13 @@ fn main() {
             // Where one of this device's messages stands (W12).
             "--status" => {
                 let n = args.next().unwrap_or_default();
-                let got = assistant::cli::ask(&addr, &format!("STATUS {token} {n}"));
+                let got = n
+                    .parse()
+                    .map_err(|_| NetFailure::Refused)
+                    .and_then(|n| assistant::cli::status_of(&addr, &token, n));
                 match got {
-                    Ok(l) => println!("{}", l.join(" ")),
-                    Err(f) => eprintln!("{} ({f:?})", Cli::status(false)),
+                    Ok(stage) => println!("{stage:?}"),
+                    Err(f) => eprintln!("{}", told(f)),
                 }
                 return;
             }
@@ -35,8 +39,7 @@ fn main() {
     let mut cli = match Cli::connect(&addr, &token) {
         Ok(c) => c,
         Err(f) => {
-            eprintln!("{}", Cli::status(false));
-            eprintln!("({f:?})");
+            eprintln!("{}", told(f));
             std::process::exit(1);
         }
     };
@@ -46,6 +49,15 @@ fn main() {
         }
     } else {
         say(&addr, cli, &words.join(" "), voice);
+    }
+}
+
+/// What a failure outside a send means to the user: a refusal is an
+/// answer, not the network.
+fn told(f: NetFailure) -> String {
+    match f {
+        NetFailure::Refused => s("refused: this device is not paired, or no such message"),
+        NetFailure::Unreachable => s("the assistant cannot be reached, try again later"),
     }
 }
 

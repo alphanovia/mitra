@@ -1,48 +1,73 @@
-//! The CLI (see cli.mitra), and the line protocol it speaks with the
-//! server. One request per connection:
-//!   WHOAMI <token>                    -> OK <household> <device> <number> <count> <last reply got>
-//!   POST <token> <n> <T|V> <text>     -> OK RECEIVED <n> | ERR REFUSED
-//!   GET <token> <after>               -> MSG <n> <text> ... END
-//!   TYPING <token>                    -> OK <true|false>
-//!   ACK <token> <n>                   -> OK
-//! Texts are escaped: `\` as `\\`, a new line as `\n`.
+//! The CLI (see cli.mitra), and its side of the HTTP protocol (see
+//! `wire`). Network failures, as the model names them:
+//!   no answer, a broken connection, or a 5xx (503: the server is full)
+//!     -> Unreachable: the server may not have the call, send it again;
+//!   a 4xx -> Refused: the server answered no.
 
 use crate::server::store::Stored;
 use crate::vocabulary::*;
+use crate::wire;
 use mitra::Observe;
-use std::io::{BufRead, BufReader, Write};
-use std::net::TcpStream;
+use serde::de::DeserializeOwned;
+use std::time::Duration;
 
-pub fn escape(t: &str) -> String {
-    t.replace('\\', "\\\\").replace('\n', "\\n")
-}
-pub fn unescape(t: &str) -> String {
-    let mut out = String::new();
-    let mut it = t.chars();
-    while let Some(c) = it.next() {
-        if c == '\\' {
-            match it.next() {
-                Some('n') => out.push('\n'),
-                Some(x) => out.push(x),
-                None => {}
-            }
-        } else {
-            out.push(c);
-        }
-    }
-    out
+/// How long one call may take, answer included.
+const CALL_TIME: Duration = Duration::from_secs(10);
+/// The first pause before sending a lost call again; doubled each time.
+const PAUSE: Duration = Duration::from_millis(250);
+
+fn agent() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .timeout_global(Some(CALL_TIME))
+        .http_status_as_error(false)
+        .build()
+        .into()
 }
 
-/// One request, its answer's lines.
-pub fn ask(addr: &str, line: &str) -> Result<Vec<String>, NetFailure> {
-    let mut c = TcpStream::connect(addr).map_err(|_| NetFailure::Unreachable)?;
-    c.write_all(format!("{line}\n").as_bytes())
+/// One call: its status and body, or the network's failure.
+fn call(
+    addr: &str,
+    token: &str,
+    method: &str,
+    path: &str,
+    body: Option<&wire::Post>,
+) -> Result<(u16, String), NetFailure> {
+    let url = format!("{}{path}", wire::base(addr));
+    let auth = format!("Bearer {token}");
+    let a = agent();
+    let got = match (method, body) {
+        ("GET", _) => a.get(&url).header("Authorization", &auth).call(),
+        (_, Some(b)) => a.post(&url).header("Authorization", &auth).send_json(b),
+        (_, None) => a.post(&url).header("Authorization", &auth).send_empty(),
+    };
+    let mut r = got.map_err(|_| NetFailure::Unreachable)?;
+    let status = r.status().as_u16();
+    let text = r
+        .body_mut()
+        .read_to_string()
         .map_err(|_| NetFailure::Unreachable)?;
-    let lines: Vec<String> = BufReader::new(c).lines().map_while(Result::ok).collect();
-    if lines.is_empty() {
-        return Err(NetFailure::Unreachable);
+    match status {
+        200..=299 => Ok((status, text)),
+        400..=499 => Err(NetFailure::Refused),
+        _ => Err(NetFailure::Unreachable),
     }
-    Ok(lines)
+}
+
+fn json<T: DeserializeOwned>(r: Result<(u16, String), NetFailure>) -> Result<T, NetFailure> {
+    let (_, text) = r?;
+    serde_json::from_str(&text).map_err(|_| NetFailure::Unreachable)
+}
+
+/// Where one of this device's messages stands (W12).
+pub fn status_of(addr: &str, token: &str, n: i64) -> Result<wire::Stage, NetFailure> {
+    json::<wire::Status>(call(
+        addr,
+        token,
+        "GET",
+        &format!("/messages/{n}/status"),
+        None,
+    ))
+    .map(|s| s.status)
 }
 
 /// The CLI's own state (C9).
@@ -118,26 +143,21 @@ impl Cli {
 
     /// Who this token is, and where its counts stand.
     pub fn connect(addr: &str, token: &str) -> Result<Cli, NetFailure> {
-        let l = ask(addr, &format!("WHOAMI {token}"))?;
-        let w: Vec<&str> = l[0].split_whitespace().collect();
-        if w.first() != Some(&"OK") || w.len() < 6 {
-            return Err(NetFailure::Refused);
-        }
-        let device = match w[2] {
+        let me: wire::Me = json(call(addr, token, "GET", "/me", None))?;
+        let device = match me.device.as_str() {
             "Phone" => Device::Phone,
             "Wearable" => Device::Wearable,
             _ => Device::Computer,
         };
-        let n = |i: usize| w[i].parse::<i64>().unwrap_or(0);
         Ok(Cli {
             token: Token { secret: s(token) },
             holder: Holder {
-                household: n(1),
+                household: me.household,
                 device,
-                number: n(3),
+                number: me.number,
             },
-            count: n(4),
-            seen: n(5),
+            count: me.count,
+            seen: me.last_delivered,
             retries: RETRIES,
         })
     }
@@ -145,25 +165,27 @@ impl Cli {
     /// Sends, and again with the same id while the network fails.
     // mitra: implements Cli::send
     pub fn send(&self, addr: &str, e: Envelope) -> Result<Receipt, NetFailure> {
-        let (kind, text) = match &e.body {
-            Body::Text(t) => ("T", t.clone()),
-            Body::Voice(a) => ("V", a.bytes.clone()),
+        let body = match &e.body {
+            Body::Text(t) => wire::Post {
+                kind: wire::Kind::Text,
+                text: t.clone(),
+            },
+            Body::Voice(a) => wire::Post {
+                kind: wire::Kind::Voice,
+                text: a.bytes.clone(),
+            },
         };
-        let line = format!(
-            "POST {} {} {} {}",
-            self.token.secret,
-            e.id.n,
-            kind,
-            escape(&text)
-        );
-        let post = || match ask(addr, &line) {
-            Ok(l) if l[0].starts_with("OK") => Ok(Receipt::Received(e.id)),
-            Ok(_) => Err(NetFailure::Refused),
-            Err(f) => Err(f),
+        let path = format!("/messages/{}", e.id.n);
+        let post = || {
+            call(addr, &self.token.secret, "POST", &path, Some(&body))
+                .map(|_| Receipt::Received(e.id))
         };
         let mut k = 0;
         let mut r = post();
         while Cli::again(Cli::lost(&r), k >= self.retries) {
+            // A pause before each try, longer each time: a busy server
+            // gets room, and the tries are not spent at once.
+            std::thread::sleep(PAUSE * (1 << k));
             k += 1;
             r = post();
         }
@@ -184,22 +206,26 @@ impl Cli {
 
     /// New replies, as (number, text).
     pub fn poll(&self, addr: &str) -> Result<Vec<(i64, String)>, NetFailure> {
-        let l = ask(addr, &format!("GET {} {}", self.token.secret, self.seen))?;
-        Ok(l.iter()
-            .filter_map(|x| x.strip_prefix("MSG "))
-            .filter_map(|x| {
-                let (n, t) = x.split_once(' ').unwrap_or((x, ""));
-                Some((n.parse().ok()?, unescape(t)))
-            })
-            .collect())
+        let path = format!("/messages?after={}", self.seen);
+        let rs: Vec<wire::Reply> = json(call(addr, &self.token.secret, "GET", &path, None))?;
+        Ok(rs.into_iter().map(|r| (r.n, r.text)).collect())
     }
 
     pub fn working(&self, addr: &str) -> bool {
-        matches!(ask(addr, &format!("TYPING {}", self.token.secret)), Ok(l) if l[0] == "OK true")
+        matches!(
+            json::<wire::Typing>(call(addr, &self.token.secret, "GET", "/typing", None)),
+            Ok(wire::Typing { working: true })
+        )
     }
 
     pub fn got(&self, addr: &str, n: i64) {
-        let _ = ask(addr, &format!("ACK {} {}", self.token.secret, n));
+        let _ = call(
+            addr,
+            &self.token.secret,
+            "POST",
+            &format!("/replies/{n}/ack"),
+            None,
+        );
     }
 }
 
@@ -243,10 +269,5 @@ mod tests {
             Cli::status(false),
             s("not sent: the assistant cannot be reached, try again later")
         );
-    }
-
-    #[test]
-    fn escaping_keeps_lines() {
-        assert_eq!(unescape(&escape("a\nb\\n")), "a\nb\\n");
     }
 }

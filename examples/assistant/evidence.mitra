@@ -169,16 +169,12 @@ review Worker::voiced holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m4
 review Worker::words holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
 review Worker::heard holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
 review Harness::read_output holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
-// Not reviewed: Cli::send (over TCP here, a loop of Network::post in the model);
-// ties of functions with no body in the model (the fake, Reporter, Commands, Gate, Purpose, Speech, Composer):
+// Not reviewed: ties of functions with no body in the model (the fake, Reporter, Commands, Gate, Purpose, Speech, Composer):
 // their rows and examples speak for them.
 
 // Round 2 (K12-K14): closed attack tests, read by the building agent.
-review Server::reachable holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_paired_client_is_answered", "test:k10_a_silent_connection_does_not_block_others", "test:k14_a_slow_call_is_cut_off_at_the_time_limit";
 review Accounts::known holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:an_unknown_or_revoked_token_is_refused";
-review Assistant::told holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k11_a_broken_encoding_is_refused_out_loud";
 review Codes::unguessable holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k5_codes_differ_from_one_start_to_the_next";
-review Cli::sends_once holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k9_a_device_keeps_sending_after_the_largest_id", "test:the_cli_sends_a_lost_call_again_with_the_same_id";
 // Ties of the K12/K13 helpers, read against the model bodies.
 review Stored::vouched holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
 review Stored::read_output holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
@@ -194,7 +190,6 @@ review Worker::told_what_began holds by "agent:anthropic/claude/session_01VcLQ3X
 review Ahead::kept holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:calls_written_down_are_cleared_when_the_next_message_is_taken_up";
 review Gateway::receipts holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:a_client_sees_received_then_read_then_delivered";
 // Ties of round 3 functions with a body, read against the model bodies.
-review Cli::send holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
 review Cli::lost holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
 review Cli::again holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
 review Harness::act holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
@@ -219,3 +214,10 @@ review Cli::unsent_told holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54
 // Round 3b: K15 closed (a yes cut short by a crash is used up).
 review Worker::yes_once_after_crash holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB" seeing "test:k15_a_yes_cut_short_by_a_crash_does_not_open_the_door_twice";
 review Worker::closes holds by "agent:anthropic/claude/session_01VcLQ3XPVZfk54m48g3dwEB";
+
+// Withdrawn with the HTTP port (2026-11-27): these reviews saw tests or
+// code that the port rewrote (the TCP attack tests, the CLI's retry stub,
+// Cli::send over TCP), so they no longer vouch for what is there:
+//   Server::reachable, Assistant::told, Cli::sends_once, Cli::send.
+// They wait for a review of the new tests and code, by someone other
+// than the agent that wrote them.

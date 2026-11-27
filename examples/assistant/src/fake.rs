@@ -2,11 +2,14 @@
 //! two LLMs, speech, the tools, the accounts, the clock and the codes.
 //! Tests script it; by default it answers by simple rules, and the work
 //! model is gullible on purpose: it obeys any line that starts with
-//! `CALL`, so an injection that reaches it shows.
+//! `CALL`, so an injection that reaches it shows. For the two LLMs it is
+//! one `Backend` among others (see `models`): it answers a machine that no
+//! real model serves.
 //!
 //! Each answer is printed with `mitra::given!`, so a test's run becomes a
 //! measurement `mitra explain` reads.
 
+use crate::harness::models::Llm;
 use crate::vocabulary::*;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -37,13 +40,14 @@ pub struct World {
 /// as the world of no row (R014).
 macro_rules! gave {
     ($($f:ident)::+ ( $($a:expr),* $(,)? ), $v:expr) => {{
-        if with(|w| w.quiet) {
+        if $crate::fake::with(|w| w.quiet) {
             $v
         } else {
             mitra::given!($($f)::+ ($($a),*), $v)
         }
     }};
 }
+pub(crate) use gave;
 
 thread_local! {
     static WORLD: RefCell<World> = RefCell::new(World { seed: seed(), ..World::default() });
@@ -64,7 +68,7 @@ pub fn with<R>(f: impl FnOnce(&mut World) -> R) -> R {
     WORLD.with(|w| f(&mut w.borrow_mut()))
 }
 
-/// A fresh world.
+/// A fresh world, and every machine answered by it again.
 pub fn reset() {
     with(|w| {
         *w = World {
@@ -72,6 +76,7 @@ pub fn reset() {
             ..World::default()
         }
     });
+    crate::harness::models::unserve_all();
 }
 
 // ---- Scripting, for tests.
@@ -135,25 +140,22 @@ pub fn unusual(u: bool) {
 
 // ---- The machines, as the model names them.
 
-/// Llm::inference: refuses a request that leaves less than the reserve,
-/// fails when the machine is down, else answers.
-pub fn inference(
-    llm: crate::harness::models::Llm,
-    request: String,
-    tools: Vec<Tool>,
-) -> Result<Answer, LlmFailure> {
-    let got = if request.len() as i64 + llm.reserve > llm.window {
-        Err(LlmFailure::TooLong)
-    } else if with(|w| w.down.contains(&llm.machine)) {
-        Err(LlmFailure::Unreachable)
-    } else {
-        with(|w| w.sent.push((llm.machine, request.clone())));
+/// The fake as an LLM: down, it is unreachable; else it notes the
+/// request, and answers by script, then by its rules. (The window is
+/// `Llm::inference`'s, for every backend.)
+pub struct Fake;
+
+impl crate::harness::models::Backend for Fake {
+    fn answer(&self, llm: &Llm, request: &str, _tools: &[Tool]) -> Result<Answer, LlmFailure> {
+        if with(|w| w.down.contains(&llm.machine)) {
+            return Err(LlmFailure::Unreachable);
+        }
+        with(|w| w.sent.push((llm.machine, request.to_string())));
         match with(|w| w.scripts.get_mut(&llm.machine).and_then(|q| q.pop_front())) {
             Some(scripted) => scripted,
-            None => Ok(rules(&request)),
+            None => Ok(rules(request)),
         }
-    };
-    gave!(Llm::inference(llm, request, tools), got)
+    }
 }
 
 fn text(t: &str) -> Answer {
