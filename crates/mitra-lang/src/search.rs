@@ -547,7 +547,7 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
         }
         let ended = explored.paths.iter().filter_map(|p| p.outcome.as_ref().ok().map(|r| (p, r)));
         for (p, reads) in ended {
-            for (g, name, r) in reads {
+            for (g, name, r, ids) in reads {
                 let key = (g.clone(), name.clone());
                 let t = tally.entry(key.clone()).or_default();
                 if p.excluded.is_some() {
@@ -556,7 +556,11 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
                 t.0 += 1;
                 if let Read::False(_) = r {
                     t.1 += 1;
-                    let cond = explored.condition(p).join(", ");
+                    // Said of what the claim read only (choice I4).
+                    // When it read none itself (a value the body made of
+                    // them), every result the path took.
+                    let only = (!ids.is_empty()).then_some(ids);
+                    let cond = explored.condition_of(p, only).join(", ");
                     let cond = match cond.is_empty() {
                         true => "on every path: no opaque result read".to_string(),
                         false => cond,
@@ -579,8 +583,13 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
         for p in explored.paths.iter().filter(|p| p.excluded.is_none()) {
             let Ok(reads) = &p.outcome else { continue };
             let numbers = explored.numbers(p);
-            let [(g, shown, ty, n)] = numbers.as_slice() else { continue };
-            for (f, name, r) in reads {
+            for (f, name, r, ids) in reads {
+                let mut read: Vec<&(u32, String, String, Type, BigInt)> =
+                    numbers.iter().filter(|(id, ..)| ids.contains(id)).collect();
+                if read.is_empty() {
+                    read = numbers.iter().collect();
+                }
+                let [(_, g, shown, ty, n)] = read.as_slice() else { continue };
                 let e = sides
                     .entry((f.clone(), name.clone(), g.clone()))
                     .or_insert((shown.clone(), ty.clone(), vec![], vec![]));
@@ -697,9 +706,10 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
             code: A025,
             at: Path::to(&g.split("::").collect::<Vec<_>>()).then(name),
             message: format!(
-                "claim `{name}` holds on the runs of {} only if {}{more}: no claim of a function with no body says so",
+                "claim `{name}` holds on the runs of {} only if {}{more}: no claim of {} says so",
                 rows.join(", "),
-                shown.join("; or ")
+                shown.join("; or "),
+                named_in(conds)
             ),
         });
     }
@@ -747,7 +757,7 @@ fn read_claim(ex: &Explored<RowReads>, f: &str, name: &str) -> (usize, Option<bo
     let (mut n, mut broken) = (0, false);
     for p in ex.paths.iter().filter(|p| p.excluded.is_none()) {
         let Ok(reads) = &p.outcome else { continue };
-        for (ff, nn, r) in reads {
+        for (ff, nn, r, _) in reads {
             if ff == f && nn == name {
                 match r {
                     Read::True => n += 1,
@@ -763,6 +773,29 @@ fn read_claim(ex: &Explored<RowReads>, f: &str, name: &str) -> (usize, Option<bo
     (n, (n > 0).then_some(!broken))
 }
 
+/// The functions the conditions name, each once: what a promise would
+/// go on.
+fn named_in(conds: &[String]) -> String {
+    let mut names: Vec<&str> = Vec::new();
+    for c in conds {
+        for part in c.split(", `").map(|p| p.trim_start_matches("`")) {
+            if let Some(f) = part.split('(').next().filter(|f| f.contains("::") && !f.contains(' ')) {
+                if !names.contains(&f) {
+                    names.push(f);
+                }
+            }
+        }
+    }
+    match names.as_slice() {
+        [] => "a function with no body".to_string(),
+        [one] => format!("`{one}`"),
+        many => {
+            let shown: Vec<String> = many.iter().map(|n| format!("`{n}`")).collect();
+            format!("{} or {}", shown[..shown.len() - 1].join(", "), shown[shown.len() - 1])
+        }
+    }
+}
+
 fn ap(op: Op, args: Vec<Expression<Op>>) -> Expression<Op> {
     Expression::Apply(op, args.into_iter().map(|body| Arg { binds: vec![], body }).collect())
 }
@@ -772,7 +805,7 @@ fn ap(op: Op, args: Vec<Expression<Op>>) -> Expression<Op> {
 type Claims<'a> = BTreeMap<String, (&'a Function, Vec<(String, bool, Expression<Op>)>)>;
 /// What a row's run read: each claim of each body it passed, by its
 /// function and name.
-type RowReads = Vec<(String, String, Read)>;
+type RowReads = Vec<(String, String, Read, BTreeSet<u32>)>;
 
 /// One row run symbolically in `world`: the call first, then the claims
 /// of each body it passed, at what each was called with, all in the one
@@ -808,8 +841,11 @@ fn run_row(
                         false => Default::default(),
                     },
                 };
-                match read_of(eval(&exact, &values, e)) {
-                    Ok(r) => here.push((c.made.0.clone(), name.clone(), r)),
+                crate::symbolic::reads_kept();
+                let read = read_of(eval(&exact, &values, e));
+                let ids = crate::symbolic::reads_taken();
+                match read {
+                    Ok(r) => here.push((c.made.0.clone(), name.clone(), r, ids)),
                     Err(id) => return Err(Fault::Op(Undefined::Split(id))),
                 }
             }

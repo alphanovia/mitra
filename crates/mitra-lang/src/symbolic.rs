@@ -18,7 +18,7 @@ use crate::expression::{eval, Fault, Outcome};
 use crate::simulation::{Calls, Enum, Exact, Log, Logged, Machine, Op, Record, Type, Undefined, Value};
 use num_bigint::BigInt;
 use std::cell::RefCell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 type Exactly = Outcome<Value, Undefined>;
@@ -114,6 +114,8 @@ struct Run {
     /// The unknowns opaque calls gave in this run, in order.
     called: Vec<u32>,
     sampled: bool,
+    /// While a claim is read: the unknowns it read (choice I4).
+    reads: Option<BTreeSet<u32>>,
 }
 
 thread_local! {
@@ -153,6 +155,20 @@ pub fn type_of(id: u32) -> Option<Type> {
     })
 }
 
+/// From now, the unknowns read are kept, until `reads_taken`.
+pub fn reads_kept() {
+    RUN.with(|r| {
+        if let Some(run) = r.borrow_mut().as_mut() {
+            run.reads = Some(BTreeSet::new());
+        }
+    })
+}
+
+/// The unknowns read since `reads_kept`, and no longer kept.
+pub fn reads_taken() -> BTreeSet<u32> {
+    RUN.with(|r| r.borrow_mut().as_mut().and_then(|run| run.reads.take()).unwrap_or_default())
+}
+
 /// Whether `v` holds an unknown anywhere.
 pub fn holds_unknown(v: &Value) -> bool {
     match v {
@@ -174,6 +190,9 @@ pub fn resolve(v: &Value) -> Exactly {
         let Some(run) = r.as_mut() else {
             return Err(Fault::Stuck);
         };
+        if let Some(reads) = &mut run.reads {
+            reads.insert(*id);
+        }
         if let Some(known) = run.fixed.get(id) {
             return Ok(known.clone());
         }
@@ -455,6 +474,7 @@ pub fn explore<T: Clone>(
                 order: order.clone(),
                 called: vec![],
                 sampled,
+                reads: None,
             })
         });
         let exact = Exact {
@@ -672,10 +692,26 @@ impl<T> Explored<T> {
     /// What a path took, said of the opaque calls and free inputs: each
     /// one it read, with what it was on this path, `_` where not read.
     pub fn condition(&self, p: &Path<T>) -> Vec<String> {
+        self.condition_of(p, None)
+    }
+    /// The condition of path `p`, said of the opaque results whose
+    /// unknowns are among `read` only (all of them with `None`).
+    pub fn condition_of(&self, p: &Path<T>, read: Option<&BTreeSet<u32>>) -> Vec<String> {
         let t = self.table.lock().unwrap_or_else(|e| e.into_inner());
+        let root_of = |id: u32| {
+            let mut root = id;
+            while let Some((Origin::Part(parent, _, _), _)) = t.made.get(root as usize) {
+                root = *parent;
+            }
+            root
+        };
+        let wanted: Option<BTreeSet<u32>> = read.map(|r| r.iter().map(|i| root_of(*i)).collect());
         let mut said = Vec::new();
         let mut roots: Vec<u32> = Vec::new();
         for (id, _) in &p.cases {
+            if wanted.as_ref().is_some_and(|w| !w.contains(&root_of(*id))) {
+                continue;
+            }
             let mut root = *id;
             while let Some((Origin::Part(parent, _, _), _)) = t.made.get(root as usize) {
                 root = *parent;
@@ -701,7 +737,7 @@ impl<T> Explored<T> {
     /// The opaque calls of a number whose value path `p` took, each by
     /// its function, as written (with its arguments), with its type and
     /// that value.
-    pub fn numbers(&self, p: &Path<T>) -> Vec<(String, String, Type, BigInt)> {
+    pub fn numbers(&self, p: &Path<T>) -> Vec<(u32, String, String, Type, BigInt)> {
         let t = self.table.lock().unwrap_or_else(|e| e.into_inner());
         p.cases
             .iter()
@@ -712,7 +748,7 @@ impl<T> Explored<T> {
                     _ => return None,
                 };
                 let shown: Vec<String> = args.iter().map(|a| shown_in(&t, &p.fixed, a)).collect();
-                Some((f.clone(), format!("`{f}({})`", shown.join(", ")), ty.clone(), n))
+                Some((*id, f.clone(), format!("`{f}({})`", shown.join(", ")), ty.clone(), n))
             })
             .collect()
     }
