@@ -1,0 +1,46 @@
+// Dry run (branch claude/project-thread-p45kjs, not the builder's): the
+// harness's promises that were only in words, written as route claims
+// over one run of `serve`. Read with `mitra check`, `mitra mc` and
+// `mitra search` on this file.
+
+subject Routes {
+    fn served(m: Message, history: Conversation, models: Models, tools: [Tool]) -> out: (reply: Reply, notes: [Annotation]) {
+        Harness::serve(m, history, models, tools)
+    } where {
+        // machine_first: our model judges a message before the frontier one sees it.
+        claim judged_first: Llm::inference(_, _, _) only after Gate::screen(_, _);
+        // machine_first: plain code answers before any model is asked.
+        claim code_first: Gate::screen(_, _) only after Commands::answer(_, _) -> Option::None;
+        // fails_closed and guarded: a tool runs only after our model judged
+        // the message a request.
+        claim acts_on_requests: Tool::call(_, _) only after Gate::screen(_, _) -> Ok(Verdict::Act);
+        // bounded: the loop asks a model at most the turns allowed.
+        claim bounded: at most models.turns Llm::inference(_, _, _);
+        // H13: a tool runs only once its call is written down.
+        claim written_first: calls(Tool::call).all { t -> calls(Ahead::mark).any { a -> a.at < t.at && a.c.input == t.input } };
+        // noted: the gate's verdict, once given, is noted.
+        claim noted: calls(Gate::screen).all { s -> match s.v { Ok(_) => out.notes.any { n -> n.by == Step::Gate }, Err(_) => true } };
+        // told (N1 of the paper run): the sender always hears back.
+        claim told: out.reply.text != "";
+        // H9: a stranger's message runs no tool.
+        claim strangers_act_never: never Tool::call(_, _) || calls(Identity::who).all { w -> w.p.role != Role::Stranger };
+    }
+
+    use Harness::serve from "harness";
+    use Llm from "models";
+    use Models from "models";
+    use Gate::screen from "security";
+    use Commands::answer from "security";
+    use Identity::who from "security";
+    use Ahead from "store";
+    use Conversation from "conversation";
+    use Option from "std";
+    use Result from "std";
+    use Message from "vocabulary";
+    use Reply from "vocabulary";
+    use Annotation from "vocabulary";
+    use Tool from "vocabulary";
+    use Verdict from "vocabulary";
+    use Step from "vocabulary";
+    use Role from "vocabulary";
+}

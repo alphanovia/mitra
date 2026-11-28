@@ -265,6 +265,7 @@ impl Gen {
     }
     fn value(&mut self, t: &Type) -> Value {
         match t {
+            Type::Machine(_) => unreachable!("machine types are not generated here"),
             Type::Param { .. } => unreachable!("no value is of a parameter"),
             Type::Enum(e) => {
                 let i = self.rng.below(e.variants.len());
@@ -289,6 +290,7 @@ impl Gen {
     }
     fn constant(&mut self, t: &Type) -> E {
         match t {
+            Type::Machine(_) => unreachable!("machine types are not generated here"),
             Type::Param { .. } => unreachable!("no value is of a parameter"),
             Type::Enum(e) => {
                 let i = self.rng.below(e.variants.len());
@@ -463,6 +465,7 @@ impl Gen {
             _ => {}
         }
         match t {
+            Type::Machine(_) => unreachable!("machine types are not generated here"),
             Type::Truth => match self.rng.below(7) {
                 0 => {
                     let a = self.expr(t, d);
@@ -570,6 +573,7 @@ impl Gen {
     }
     fn span(&mut self, t: &Type) -> Span {
         match t {
+            Type::Machine(_) => unreachable!("machine types are not generated here"),
             Type::Truth => {
                 let (yes, no) = *self.rng.pick(&[(true, false), (false, true), (true, true)]);
                 Span::Truth { yes, no }

@@ -14,7 +14,7 @@
 
 use crate::catalogue::{
     Code, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010, P011, P012, P013, P014, P016,
-    P017,
+    P017, P018,
 };
 use crate::expression::{check as typed, Arg, Expression};
 use crate::judgement::{self, Prop, Set};
@@ -796,6 +796,9 @@ pub(crate) fn settle_value(v: Value, want: &Type) -> Value {
                 false => Value::Seq(t, holds),
             }
         }
+        // A whole number written where a machine integer goes is one, when
+        // in its range (dry run, choice P2).
+        (Value::Int(n), Type::Machine(m)) if m.holds(&n) => Value::Fixed(*m, n),
         (v, _) => v,
     }
 }
@@ -869,6 +872,11 @@ pub(crate) fn type_of(v: &Value) -> Type {
         Value::Seq(t, _) => Type::Seq(Box::new(t.clone())),
         Value::Text(_) => Type::Encoded(Box::new(Type::Char)),
         Value::Byte(_) => Type::Byte,
+        Value::Fixed(m, _) => Type::Machine(*m),
+        Value::Unknown(_) => Type::Param {
+            name: "?".to_string(),
+            bound: simulation::Bound::Any,
+        },
     }
 }
 
@@ -2219,6 +2227,9 @@ impl<'c> Parser<'c> {
             "bool" | "integer" | "rational" | "char" | "byte" if !args.is_empty() => {
                 return Err(error(P008, at, format!("`{name}` takes no type arguments")))
             }
+            m if simulation::Machine::named(m).is_some() && args.is_empty() => {
+                Type::Machine(simulation::Machine::named(m).expect("a machine type"))
+            }
             "bool" => Type::Truth,
             "integer" => Type::Int,
             "rational" => Type::Real,
@@ -2392,11 +2403,11 @@ impl<'c> Parser<'c> {
     /// calls alone (BDD step 2). A call is told from a value by its name,
     /// lowercase as a function's, where a variant's is `CamelCase`.
     pub(crate) fn then_list(&mut self) -> Result<(Option<Value>, crate::model::Effects)> {
-        let gives = match self.call_at(0) {
+        let gives = match self.call_at(0) || self.route_at(0) {
             true => None,
             false => {
                 let v = self.value()?;
-                if !(self.is(",") && self.call_at(1)) {
+                if !(self.is(",") && (self.call_at(1) || self.route_at(1))) {
                     return Ok((Some(v), Default::default()));
                 }
                 self.bump();
@@ -2404,20 +2415,130 @@ impl<'c> Parser<'c> {
             }
         };
         let mut calls = Vec::new();
+        let mut routes = Vec::new();
         loop {
-            let path = self.raw_path()?.join("::");
-            self.expect("(")?;
-            let args = self.list(")", |p| match p.eat_word("_") {
-                true => Ok(None),
-                false => p.value().map(Some),
-            })?;
-            calls.push((path, args));
-            if !(self.is(",") && self.call_at(1)) {
+            if self.route_ahead() {
+                routes.push(self.row_route()?);
+            } else {
+                let path = self.raw_path()?.join("::");
+                self.expect("(")?;
+                let args = self.list(")", |p| match p.eat_word("_") {
+                    true => Ok(None),
+                    false => p.value().map(Some),
+                })?;
+                calls.push((path, args));
+            }
+            if !(self.is(",") && (self.call_at(1) || self.route_at(1))) {
                 break;
             }
             self.bump();
         }
-        Ok((gives, crate::model::Effects(calls)))
+        Ok((gives, crate::model::Effects(calls, routes)))
+    }
+    /// At `i` tokens on, the word a route form of a row begins with.
+    fn route_at(&self, i: usize) -> bool {
+        matches!(self.peek_at(i), Tok::Word(w) if w == "never" || w == "once" || w == "exactly")
+            || (matches!(self.peek_at(i), Tok::Word(w) if w == "at")
+                && matches!(self.peek_at(i + 1), Tok::Word(w) if w == "least" || w == "most"))
+    }
+    /// A route form of a row (choice P7): `never f(_)`, `at most 2 f(_)`,
+    /// `g(x) only after f(x) -> v`, values written as in a row; no
+    /// `always`, which needs an expression.
+    fn row_route(&mut self) -> Result<crate::model::RowRoute> {
+        use simulation::{Compare, Route, RouteKind};
+        let at = self.pos();
+        let mut values = Vec::new();
+        let count = |p: &mut Self, values: &mut Vec<Value>| -> Result<()> {
+            let at = p.pos();
+            match p.value()? {
+                v @ Value::Int(_) => {
+                    values.push(v);
+                    Ok(())
+                }
+                _ => Err(error(P003, at, "a route of a row counts with a whole number")),
+            }
+        };
+        let kind = if self.eat_word("never") {
+            values.push(Value::Int(BigInt::from(0)));
+            Some(RouteKind::Count(Compare::Exactly))
+        } else if self.eat_word("once") {
+            values.push(Value::Int(BigInt::from(1)));
+            Some(RouteKind::Count(Compare::Exactly))
+        } else if self.eat_word("exactly") {
+            count(self, &mut values)?;
+            Some(RouteKind::Count(Compare::Exactly))
+        } else if self.eat_word("at") {
+            let c = match self.eat_word("least") {
+                true => Compare::AtLeast,
+                false => {
+                    self.expect_word("most")?;
+                    Compare::AtMost
+                }
+            };
+            count(self, &mut values)?;
+            Some(RouteKind::Count(c))
+        } else if self.is_word("always") {
+            return Err(error(P003, at, "`always` takes a condition, an expression: write it in a claim"));
+        } else {
+            None
+        };
+        let call = self.row_pattern(&mut values)?;
+        let (kind, after) = match kind {
+            Some(k) => (k, None),
+            None => {
+                self.expect_word("only")?;
+                self.expect_word("after")?;
+                (RouteKind::After, Some(self.row_pattern(&mut values)?))
+            }
+        };
+        let route = Route { kind, call, after };
+        let mut seen: BTreeMap<String, usize> = BTreeMap::new();
+        for p in std::iter::once(&route.call).chain(route.after.iter()) {
+            for a in p.args.iter().chain(p.gives.iter()) {
+                if let simulation::Pat::Bind(n) = a {
+                    *seen.entry(n.clone()).or_default() += 1;
+                }
+            }
+        }
+        if let Some((n, _)) = seen.iter().find(|(_, k)| **k < 2) {
+            let message = format!(
+                "the route binds `{n}`, and nothing else reads it: write `_` for any value, or name it twice to say two values are one"
+            );
+            return Err(error(P018, at, message));
+        }
+        Ok(crate::model::RowRoute { route, values })
+    }
+    fn row_pattern(&mut self, values: &mut Vec<Value>) -> Result<simulation::CallPattern> {
+        let f = self.raw_path()?.join("::");
+        self.expect("(")?;
+        let pat = |p: &mut Self, values: &mut Vec<Value>| -> Result<simulation::Pat> {
+            if p.eat_word("_") {
+                return Ok(simulation::Pat::Any);
+            }
+            if let Tok::Word(w) = p.peek().clone() {
+                if w.starts_with(|c: char| c.is_lowercase()) && w != "true" && w != "false"
+                    && !matches!(p.peek_at(1), Tok::Sym("(") | Tok::Sym("::") | Tok::Sym("{"))
+                {
+                    p.bump();
+                    return Ok(simulation::Pat::Bind(w));
+                }
+            }
+            values.push(p.value()?);
+            Ok(simulation::Pat::Is(values.len() - 1))
+        };
+        let mut args = Vec::new();
+        while !self.eat(")") {
+            args.push(pat(self, values)?);
+            if !self.eat(",") {
+                self.expect(")")?;
+                break;
+            }
+        }
+        let gives = match self.eat("->") {
+            true => Some(pat(self, values)?),
+            false => None,
+        };
+        Ok(simulation::CallPattern { f, args, gives })
     }
     /// At `i` tokens on, a call: a path whose last name is lowercase, then
     /// `(`; `when` and `given` begin a row.
@@ -3035,6 +3156,47 @@ impl<'c> Parser<'c> {
                 );
                 continue;
             }
+            // `xs.any { x -> p }`, `.all`, `.count`: a fold, written short
+            // (dry run, choice P6).
+            if matches!(self.peek(), Tok::Word(w) if w == "any" || w == "all" || w == "count")
+                && *self.peek_at(1) == Tok::Sym("{")
+            {
+                let Tok::Word(kind) = self.bump() else { unreachable!("a word") };
+                self.bump();
+                let x = self.name()?;
+                self.expect("->")?;
+                let of = match self.type_in(env, &e) {
+                    Some(Type::Seq(t)) => Some(*t),
+                    _ => None,
+                };
+                let depth = env.len();
+                env.push((x.clone(), of));
+                let p = self.block(env);
+                env.truncate(depth);
+                let p = p?;
+                let carried = format!("#{kind}");
+                let held = Expression::Name(carried.clone());
+                let (start, next) = match kind.as_str() {
+                    "any" => (apply(Op::Truth(false), vec![]), apply(Op::Or, vec![held, p])),
+                    "all" => (apply(Op::Truth(true), vec![]), apply(Op::And, vec![held, p])),
+                    _ => (
+                        apply(Op::Int(BigInt::from(0)), vec![]),
+                        apply(
+                            Op::If,
+                            vec![p, apply(Op::Add, vec![held.clone(), apply(Op::Int(BigInt::from(1)), vec![])]), held],
+                        ),
+                    ),
+                };
+                e = Expression::Apply(
+                    Op::Fold,
+                    vec![
+                        Arg { binds: vec![], body: e },
+                        Arg { binds: vec![], body: start },
+                        Arg { binds: vec![x, carried], body: next },
+                    ],
+                );
+                continue;
+            }
             if matches!(self.peek(), Tok::Word(w) if w == "starts_with")
                 && *self.peek_at(1) == Tok::Sym("(")
             {
@@ -3175,6 +3337,34 @@ impl<'c> Parser<'c> {
                         },
                     ],
                 ))
+            }
+            // `calls(Tool::call)`: the calls the run made to a function.
+            Tok::Word(w)
+                if w == "calls" && *self.peek_at(1) == Tok::Sym("(") && !self.own(&w) =>
+            {
+                self.bump();
+                self.bump();
+                let names = self.raw_path()?;
+                self.expect(")")?;
+                Ok(apply(Op::Calls(self.call_path(names)), vec![]))
+            }
+            // `integer::from(x)`, `i64::from(x)`: a machine integer widened.
+            Tok::Word(w)
+                if (w == "integer" || simulation::Machine::named(&w).is_some())
+                    && *self.peek_at(1) == Tok::Sym("::")
+                    && matches!(self.peek_at(2), Tok::Word(f) if f == "from")
+                    && *self.peek_at(3) == Tok::Sym("(") =>
+            {
+                for _ in 0..4 {
+                    self.bump();
+                }
+                let x = self.inner(env)?;
+                self.expect(")")?;
+                Ok(apply(Op::Widen(simulation::Machine::named(&w)), vec![x]))
+            }
+            Tok::Word(w) if self.route_ahead() => {
+                let _ = w;
+                self.route(env, at)
             }
             Tok::Word(w)
                 if w == "within" && *self.peek_at(1) == Tok::Sym("(") && !self.own(&w) =>
@@ -3593,7 +3783,55 @@ impl<'c> Parser<'c> {
                 .collect()
         };
         let truth = Some(Type::Truth);
+        // A whole number where a machine integer goes is one (choice P2).
+        let literal = |e: &Arg<Op>| matches!(&e.body, Expression::Apply(Op::Int(_), a) if a.is_empty());
+        match (&op, want) {
+            (Op::Int(n), Some(Type::Machine(m))) if args.is_empty() => {
+                return Expression::Apply(Op::Fixed(*m, n.clone()), vec![]);
+            }
+            (Op::Add | Op::Sub | Op::Mul | Op::Div | Op::Rem, Some(Type::Machine(_))) => {
+                let args = each(self, args, &[want.cloned(), want.cloned()], env);
+                return Expression::Apply(op, args);
+            }
+            _ => {}
+        }
         match op {
+            Op::Route(r) => {
+                let calls = context.simulation.calls.clone();
+                let mut wants: Vec<Option<Type>> = vec![None; r.arity()];
+                if matches!(r.kind, simulation::RouteKind::Count(_)) {
+                    wants[0] = Some(Type::Int);
+                }
+                for p in std::iter::once(&r.call).chain(r.after.iter()) {
+                    if let Some(callee) = calls.get(&p.f) {
+                        let places = callee.takes.iter().map(|(_, t)| t.clone()).chain(std::iter::once(callee.gives.clone()));
+                        let pats = p.args.iter().map(Some).chain(std::iter::once(p.gives.as_ref()));
+                        for (pat, t) in pats.zip(places) {
+                            if let Some(simulation::Pat::Is(k)) = pat {
+                                if let Some(w) = wants.get_mut(*k) {
+                                    *w = Some(t);
+                                }
+                            }
+                        }
+                    }
+                }
+                let mut settled = Vec::new();
+                let types = r.binder_types(&calls).unwrap_or_default();
+                for (k, a) in args.into_iter().enumerate() {
+                    let depth = env.len();
+                    for (j, n) in a.binds.iter().enumerate() {
+                        env.push((n.clone(), types.get(j).cloned()));
+                    }
+                    let w = match a.binds.is_empty() {
+                        true => wants.get(k).cloned().flatten(),
+                        false => Some(Type::Truth),
+                    };
+                    let body = self.settle(a.body, w.as_ref(), env);
+                    env.truncate(depth);
+                    settled.push(Arg { binds: a.binds, body });
+                }
+                Expression::Apply(Op::Route(r), settled)
+            }
             Op::Variant(en, i) => {
                 let en = match want {
                     Some(Type::Enum(w))
@@ -3645,6 +3883,21 @@ impl<'c> Parser<'c> {
             | Op::Within
             | Op::StartsWith => {
                 let args = alike(self, args, env);
+                // A whole number beside a machine integer is one of its type.
+                let machine = args.iter().find_map(|a| match typed(self, env, &a.body) {
+                    Some(t @ Type::Machine(_)) => Some(t),
+                    _ => None,
+                });
+                let args = match machine {
+                    Some(t) if args.iter().any(literal) => args
+                        .into_iter()
+                        .map(|a| match literal(&a) {
+                            true => Arg { binds: a.binds, body: self.settle(a.body, Some(&t), env) },
+                            false => a,
+                        })
+                        .collect(),
+                    _ => args,
+                };
                 Expression::Apply(op, args)
             }
             // `a ++ b`: both of the type wanted, else of one type.
@@ -3941,6 +4194,207 @@ impl<'c> Parser<'c> {
     /// as written, which `check` finds names nothing.
     /// `name` is a function of the model's, written by a name alone
     /// here: it comes before a built-in of the same name.
+    /// Whether a route form begins here: `never`, `once`, `exactly n`,
+    /// `at least n`, `at most n`, `always`, each before a call; or a
+    /// call, then `only after`.
+    fn route_ahead(&self) -> bool {
+        let word = |k: usize, w: &str| matches!(self.peek_at(k), Tok::Word(x) if x == w);
+        let call_at = |k: usize| matches!(self.peek_at(k), Tok::Word(_) | Tok::Raw(_))
+            && matches!(self.peek_at(k + 1), Tok::Sym("::") | Tok::Sym("("));
+        if (word(0, "never") || word(0, "once") || word(0, "always")) && call_at(1) {
+            return true;
+        }
+        if word(0, "exactly") && !matches!(self.peek_at(1), Tok::Sym(_)) {
+            return true;
+        }
+        if word(0, "at") && (word(1, "least") || word(1, "most")) {
+            return true;
+        }
+        // A call, its arguments, perhaps `-> v`, then `only after`.
+        if !call_at(0) {
+            return false;
+        }
+        let mut k = 0;
+        while matches!(self.peek_at(k + 1), Tok::Sym("::")) {
+            k += 2;
+        }
+        if *self.peek_at(k + 1) != Tok::Sym("(") {
+            return false;
+        }
+        let mut depth = 0usize;
+        let mut i = k + 1;
+        loop {
+            match self.peek_at(i) {
+                Tok::Sym("(") | Tok::Sym("[") | Tok::Sym("{") => depth += 1,
+                Tok::Sym(")") | Tok::Sym("]") | Tok::Sym("}") => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                Tok::End => return false,
+                _ => {}
+            }
+            i += 1;
+        }
+        i += 1;
+        if *self.peek_at(i) == Tok::Sym("->") {
+            let mut depth = 0usize;
+            i += 1;
+            loop {
+                match self.peek_at(i) {
+                    Tok::Sym("(") | Tok::Sym("[") | Tok::Sym("{") => depth += 1,
+                    Tok::Sym(")") | Tok::Sym("]") | Tok::Sym("}") if depth == 0 => return false,
+                    Tok::Sym(")") | Tok::Sym("]") | Tok::Sym("}") => depth -= 1,
+                    Tok::Sym(",") | Tok::Sym(";") if depth == 0 => return false,
+                    Tok::Word(w) if depth == 0 && w == "only" => break,
+                    Tok::End => return false,
+                    _ => {}
+                }
+                i += 1;
+            }
+        }
+        matches!(self.peek_at(i), Tok::Word(w) if w == "only")
+            && matches!(self.peek_at(i + 1), Tok::Word(w) if w == "after")
+    }
+
+    /// A route form, `route_ahead` having seen one (dry run, choice P4).
+    fn route(&mut self, env: &mut Env, at: Pos) -> Result<E> {
+        use simulation::{Compare, Route, RouteKind};
+        let mut count = None;
+        let kind = if self.eat_word("never") {
+            count = Some(apply(Op::Int(BigInt::from(0)), vec![]));
+            Some(RouteKind::Count(Compare::Exactly))
+        } else if self.eat_word("once") {
+            count = Some(apply(Op::Int(BigInt::from(1)), vec![]));
+            Some(RouteKind::Count(Compare::Exactly))
+        } else if self.eat_word("exactly") {
+            count = Some(self.deeper(|p| p.unary(env))?);
+            Some(RouteKind::Count(Compare::Exactly))
+        } else if self.eat_word("at") {
+            let compare = match self.eat_word("least") {
+                true => Compare::AtLeast,
+                false => {
+                    self.expect_word("most")?;
+                    Compare::AtMost
+                }
+            };
+            count = Some(self.deeper(|p| p.unary(env))?);
+            Some(RouteKind::Count(compare))
+        } else if self.eat_word("always") {
+            Some(RouteKind::Always)
+        } else {
+            None
+        };
+        let mut values = Vec::new();
+        let call = self.call_pattern(env, &mut values)?;
+        let (kind, after) = match kind {
+            Some(k) => (k, None),
+            None => {
+                self.expect_word("only")?;
+                self.expect_word("after")?;
+                let first = self.call_pattern(env, &mut values)?;
+                (RouteKind::After, Some(first))
+            }
+        };
+        let offset = count.is_some() as usize;
+        let shift = |p: simulation::CallPattern| simulation::CallPattern {
+            f: p.f,
+            args: p.args.into_iter().map(|a| match a {
+                simulation::Pat::Is(k) => simulation::Pat::Is(k + offset),
+                a => a,
+            }).collect(),
+            gives: p.gives.map(|a| match a {
+                simulation::Pat::Is(k) => simulation::Pat::Is(k + offset),
+                a => a,
+            }),
+        };
+        let route = Route {
+            kind,
+            call: shift(call),
+            after: after.map(shift),
+        };
+        // A name that binds and is read nowhere is `_` (choice P5).
+        let binders = route.binders();
+        let mut seen: BTreeMap<String, usize> = BTreeMap::new();
+        for p in std::iter::once(&route.call).chain(route.after.iter()) {
+            for a in p.args.iter().chain(p.gives.iter()) {
+                if let simulation::Pat::Bind(n) = a {
+                    *seen.entry(n.clone()).or_default() += 1;
+                }
+            }
+        }
+        let mut args: Vec<Arg<Op>> = count.into_iter().map(|c| Arg { binds: vec![], body: c }).collect();
+        args.extend(values.into_iter().map(|v| Arg { binds: vec![], body: v }));
+        if matches!(route.kind, RouteKind::Always) {
+            self.expect(":")?;
+            let types = self.context.and_then(|c| route.binder_types(&c.simulation.calls));
+            let depth = env.len();
+            for (k, n) in binders.iter().enumerate() {
+                env.push((n.clone(), types.as_ref().and_then(|t| t.get(k).cloned())));
+            }
+            let cond = self.expr(env);
+            env.truncate(depth);
+            let cond = cond?;
+            let free = crate::expression::free(&cond);
+            for n in &binders {
+                if free.contains(n) {
+                    *seen.entry(n.clone()).or_default() += 1;
+                }
+            }
+            args.push(Arg { binds: binders.clone(), body: cond });
+        }
+        if let Some((n, _)) = seen.iter().find(|(_, k)| **k < 2) {
+            let message = format!(
+                "the route binds `{n}`, and nothing else reads it: write `_` for any value, or name it twice to say two values are one"
+            );
+            return Err(error(P018, at, message));
+        }
+        Ok(Expression::Apply(Op::Route(Box::new(route)), args))
+    }
+
+    /// `Tool::call(t, _) -> Ok(_)`: a function by its path, then a
+    /// pattern for each input, and perhaps one for what it gave. A value
+    /// compared with is pushed to `values`, its place said.
+    fn call_pattern(&mut self, env: &mut Env, values: &mut Vec<E>) -> Result<simulation::CallPattern> {
+        let names = self.raw_path()?;
+        let f = self.call_path(names);
+        self.expect("(")?;
+        let args = self.list(")", |p| p.pat(env, values, &[",", ")"]))?;
+        let gives = match self.eat("->") {
+            true => Some(self.pat(env, values, &[])?),
+            false => None,
+        };
+        Ok(simulation::CallPattern { f, args, gives })
+    }
+
+    /// `_`; a name in scope nowhere, which binds; or a value to compare
+    /// with, an expression.
+    fn pat(&mut self, env: &mut Env, values: &mut Vec<E>, ends: &[&str]) -> Result<simulation::Pat> {
+        if self.eat_word("_") {
+            return Ok(simulation::Pat::Any);
+        }
+        if let Tok::Word(w) = self.peek().clone() {
+            let next = self.peek_at(1).clone();
+            let ends_here = match &next {
+                Tok::Sym(s) if ends.is_empty() => !matches!(*s, "(" | "::" | "." | "{" | "[" | "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "++"),
+                Tok::Sym(s) => ends.contains(s),
+                Tok::Word(x) => ends.is_empty() && (x == "only" || x == "when" || x == "then"),
+                _ => ends.is_empty(),
+            };
+            let bound = env.iter().any(|(n, _)| *n == w);
+            let lower = w.starts_with(|c: char| c.is_lowercase());
+            let reserved = matches!(w.as_str(), "true" | "false");
+            if ends_here && lower && !bound && !reserved {
+                self.bump();
+                return Ok(simulation::Pat::Bind(w));
+            }
+        }
+        let e = self.inner(env)?;
+        values.push(e);
+        Ok(simulation::Pat::Is(values.len() - 1))
+    }
+
     fn own(&self, name: &str) -> bool {
         self.shadowed.contains(name)
             || self.context.is_some_and(|c| {

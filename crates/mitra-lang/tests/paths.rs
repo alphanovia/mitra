@@ -403,7 +403,7 @@ fn a_world_call_is_named_by_its_whole_part() {
         mitra_lang::store::with_world(&m, m0.clone(), &world).unwrap_or_else(|e| panic!("{e:?}"));
     let inputs: Vec<String> = got.inputs.iter().map(|(p, _)| p.to_string()).collect();
     assert_eq!(inputs, ["home::Sensor::read::t"]);
-    let effects = mitra_lang::model::Effects(vec![("home::Sensor::read".to_string(), vec![])]);
+    let effects = mitra_lang::model::Effects(vec![("home::Sensor::read".to_string(), vec![])], vec![]);
     let got = mitra_lang::store::with_calls(&m, m0, effects).unwrap_or_else(|e| panic!("{e:?}"));
     assert_eq!(got.effects.0[0].0, "home::Sensor::read");
 }

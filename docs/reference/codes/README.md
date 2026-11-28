@@ -22,6 +22,7 @@ example, and the fix. The letter says which step found it.
 - [P015](P015.md): a `mitra.toml` Mitra cannot read
 - [P016](P016.md): a value `;` drops that is not `()`
 - [P017](P017.md): a name alone names a part at two levels
+- [P018](P018.md): a route binding a name it reads nowhere
 
 ## M (model): names, types and structure (`check`, before agree)
 
@@ -59,6 +60,8 @@ example, and the fix. The letter says which step found it.
 - [M032](M032.md): a proof written as its step alone that no proof, or two, fill in
 - [M033](M033.md): a claim `by invariant` of what is not a loop's function
 - [M034](M034.md): a set of a rule whose range holds no point
+- [M035](M035.md): a route claim of a function with no body
+- [M036](M036.md): a route naming no function of the model
 
 ## A (agree): the model compared with itself (`check`)
 
@@ -83,6 +86,10 @@ example, and the fix. The letter says which step found it.
 - [A019](A019.md): an enum case no body makes
 - [A020](A020.md): a failure a body turns into an ordinary value
 - [A021](A021.md): an input a body never reads
+- [A022](A022.md): a route counting a function the run never calls
+- [A023](A023.md): a route of an example the run breaks
+- [A024](A024.md): a claim a symbolic run breaks
+- [A025](A025.md): a condition on opaque results a claim needs, and no claim states
 
 ## R (reader): `mitra:` comments in code and the test report
 

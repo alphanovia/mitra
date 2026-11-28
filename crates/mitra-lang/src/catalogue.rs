@@ -110,6 +110,8 @@ pub const M031: Code = model(31);
 pub const M032: Code = model(32);
 pub const M033: Code = model(33);
 pub const M034: Code = model(34);
+pub const M035: Code = model(35);
+pub const M036: Code = model(36);
 
 const fn agree(number: u16) -> Code {
     Code {
@@ -139,6 +141,10 @@ pub const A018: Code = agree(18);
 pub const A019: Code = agree(19);
 pub const A020: Code = agree(20);
 pub const A021: Code = agree(21);
+pub const A022: Code = agree(22);
+pub const A023: Code = agree(23);
+pub const A024: Code = agree(24);
+pub const A025: Code = agree(25);
 
 const fn evidence(number: u16) -> Code {
     Code {
@@ -216,6 +222,7 @@ pub const P014: Code = parse(14);
 pub const P015: Code = parse(15);
 pub const P016: Code = parse(16);
 pub const P017: Code = parse(17);
+pub const P018: Code = parse(18);
 
 const fn reader(number: u16) -> Code {
     Code {
@@ -330,6 +337,8 @@ pub const CATALOGUE: &[Entry] = &[
         "a claim `by invariant` of what is not a loop's function",
     ),
     entry(M034, "a set of a rule whose range holds no point"),
+    entry(M035, "a route claim of a function with no body"),
+    entry(M036, "a route naming no function of the model"),
     entry(A001, "a body that breaks a claim"),
     entry(A002, "a body that disagrees with an example"),
     entry(A003, "an example that breaks a claim"),
@@ -361,6 +370,10 @@ pub const CATALOGUE: &[Entry] = &[
     entry(A019, "an enum case no body makes"),
     entry(A020, "a failure a body turns into an ordinary value"),
     entry(A021, "an input a body never reads"),
+    entry(A022, "a route counting a function the run never calls"),
+    entry(A023, "a route of an example the run breaks"),
+    entry(A024, "a claim a symbolic run breaks"),
+    entry(A025, "a condition on opaque results a claim needs, and no claim states"),
     entry(V001, "a measurement that names no input or output"),
     entry(V002, "a measurement through no tie"),
     entry(
@@ -436,6 +449,7 @@ pub const CATALOGUE: &[Entry] = &[
     entry(P015, "a `mitra.toml` Mitra cannot read"),
     entry(P016, "a value `;` drops that is not `()`"),
     entry(P017, "a name alone names a part at two levels"),
+    entry(P018, "a route binding a name it reads nowhere"),
     entry(R001, "a `mitra:` comment the reader cannot read"),
     entry(R002, "a tie comment on no item, or to nothing of the model"),
     entry(R003, "a `measures` comment on no test"),

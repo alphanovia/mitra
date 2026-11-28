@@ -50,6 +50,8 @@ pub struct Settings {
     pub numbers: mitra_lang::numbers::Settings,
     pub blame: mitra_lang::blame::Settings,
     pub test: Test,
+    /// `mitra mc` and `mitra search` (dry run).
+    pub search: mitra_lang::search::Settings,
 }
 
 /// What `mitra explain` and `mitra blame` run at the root when no
@@ -80,6 +82,7 @@ const SECTIONS: &[(&str, &[&str])] = &[
         &["base_rate", "prior_weight", "checker", "link", "voices"],
     ),
     ("blame", &["diagnoses", "tries"]),
+    ("symbolic", &["runs", "length", "shown", "steps"]),
     ("test", &["command"]),
 ];
 
@@ -137,6 +140,10 @@ pub fn read(text: &str) -> Result<Settings> {
                 ("agree", "splits") => s.agree.splits = count(0)?,
                 ("agree", "length") => s.agree.length = count(0)?,
                 ("agree", "height") => s.agree.height = count(0)?,
+                ("symbolic", "runs") => s.search.symbolic.runs = count(1)?,
+                ("symbolic", "length") => s.search.symbolic.samples.length = count(0)?,
+                ("symbolic", "shown") => s.search.shown = count(1)?,
+                ("symbolic", "steps") => s.search.steps = count(1)?,
                 ("budget", "steps") => s.agree.budget.steps = count(0)?,
                 ("budget", _) => s.agree.budget.depth = count(0)?,
                 ("explain", "rounds") => s.explain.rounds = count(0)?,

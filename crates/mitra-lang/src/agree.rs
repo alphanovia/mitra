@@ -17,7 +17,7 @@
 //! It reads a model `check` accepts: on another, it compares nothing.
 
 use crate::catalogue::{
-    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011, A012, A013, A014, A015, A016, A017, A018, A019, A020, A021,
+    Code, Finding, Hint, A022, A023, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011, A012, A013, A014, A015, A016, A017, A018, A019, A020, A021,
 };
 use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
@@ -395,7 +395,15 @@ impl<'m> Reading<'m> {
         if let Some(body) = &f.body {
             // Each claim, with the body read in place of what it gives.
             for c in &f.claims {
-                let with_body = let_in(&f.gives.0, body, &read_in(c.holds.clone()));
+                // A route claim reads the calls of the body's run: the
+                // run is traced, and what the claim calls after is not
+                // of it (dry run, choice A2).
+                let traced = Expression::Apply(Op::Traced, vec![plain(body.clone())]);
+                let run = match crate::symbolic::reads_trace(&c.holds) {
+                    true => &traced,
+                    false => body,
+                };
+                let with_body = let_in(&f.gives.0, run, &read_in(c.holds.clone()));
                 // `by invariant`: its start and a turn, each as a claim.
                 let kept =
                     c.invariant
@@ -532,6 +540,9 @@ impl<'m> Reading<'m> {
                 for (call, agreement) in calls_made(&exact.log, &e.effects) {
                     push(format!("example {i}: the call `{call}`"), agreement);
                 }
+                for (route, agreement) in routes_kept(&exact, &e.effects) {
+                    push(format!("example {i}: the route `{route}`"), agreement);
+                }
                 for (_, agreement) in self.givens_used(&exact.log, &e.given) {
                     push(format!("example {i}"), agreement);
                 }
@@ -564,7 +575,20 @@ impl<'m> Reading<'m> {
             for c in &f.claims {
                 let mut values: BTreeMap<String, Value> = row.iter().cloned().collect();
                 values.insert(f.gives.0.clone(), expected.clone());
-                let agreement = match eval(&self.in_world(&e.given), &values, &c.holds) {
+                // A route claim: of the example's run, its calls kept.
+                let routed = crate::symbolic::reads_trace(&c.holds);
+                let outcome = match (&f.body, routed) {
+                    (Some(body), true) => {
+                        let exact = Exact {
+                            log: crate::simulation::Log::kept(),
+                            ..self.in_world(&e.given)
+                        };
+                        let traced = Expression::Apply(Op::Traced, vec![plain(body.clone())]);
+                        eval(&exact, &row.iter().cloned().collect(), &let_in(&f.gives.0, &traced, &c.holds))
+                    }
+                    _ => eval(&self.in_world(&e.given), &values, &c.holds),
+                };
+                let agreement = match outcome {
                     Ok(Value::Truth(true)) => Agreement::Holds,
                     Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
                         why: format!("no value for {} here", unstated(&g)),
@@ -582,7 +606,7 @@ impl<'m> Reading<'m> {
         }
         // Two examples at one point that differ: check refuses them (M024).
         // Some value keeps all its claims.
-        if !f.claims.is_empty() {
+        if f.claims.iter().any(|c| !crate::symbolic::reads_trace(&c.holds)) {
             push("its claims together".to_string(), self.together(f, &rows));
         }
     }
@@ -636,9 +660,18 @@ impl<'m> Reading<'m> {
         }
         self.given();
         let (mut tried, mut unknown) = (0, BTreeSet::new());
+        let routed = crate::symbolic::reads_trace(holds);
         for point in self.candidates(over, holds, first) {
             tried += 1;
-            match eval(&self.exact, &point.iter().cloned().collect(), holds) {
+            // A route claim: each point a run of its own, its calls kept.
+            let exact = match routed {
+                true => Exact {
+                    calls: self.exact.calls.clone(),
+                    log: crate::simulation::Log::kept(),
+                },
+                false => self.exact.clone(),
+            };
+            match eval(&exact, &point.iter().cloned().collect(), holds) {
                 Ok(Value::Truth(true)) => {}
                 Err(Fault::Op(Undefined::Unknown(g))) => _ = unknown.insert(g),
                 Err(Fault::Op(e @ Undefined::EndlessRepeat { .. })) => return endless(&point, &e),
@@ -665,6 +698,10 @@ impl<'m> Reading<'m> {
         let budget = self.bounds_budget.borrow_mut().take();
         let why = match (unknown.first(), budget) {
             (Some(g), _) => format!("no value for {} at some of the {tried} points tried", unstated(&g)),
+            // Bounds do not read calls: a route claim is read on runs.
+            (None, _) if routed => format!(
+                "true at the {tried} points tried; bounds do not read the calls of a run: `mitra mc` reads every path"
+            ),
             (None, Some(why)) if bounded => format!(
                 "not decided by bounds, which stopped at {why}, nor at {tried} points"
             ),
@@ -742,7 +779,8 @@ impl<'m> Reading<'m> {
         let Some(all) = conjunction(
             ranges
                 .map(|(n, r)| in_range(n, r))
-                .chain(f.claims.iter().map(|c| c.holds.clone())),
+                // A route claim is of a run, not of a value: not here.
+                .chain(f.claims.iter().filter(|c| !crate::symbolic::reads_trace(&c.holds)).map(|c| c.holds.clone())),
         ) else {
             return Agreement::Holds;
         };
@@ -1022,7 +1060,7 @@ impl<'m> Reading<'m> {
             Type::Seq(t) | Type::Encoded(t) => self.opaque_in(t),
             // Bounds hold any letter or byte.
             Type::Truth | Type::Int | Type::Real | Type::Param { .. } => false,
-            Type::Char | Type::Byte => false,
+            Type::Char | Type::Byte | Type::Machine(_) => false,
         }
     }
 
@@ -1115,6 +1153,8 @@ impl<'m> Reading<'m> {
             // Sequences of every length: too many to list.
             Type::Int | Type::Real | Type::Seq(_) | Type::Param { .. } => None,
             Type::Encoded(_) | Type::Char | Type::Byte => None,
+            // A machine integer of 16 bits or fewer: every value listed.
+            Type::Machine(m) => m.size(),
         }
     }
 
@@ -1235,6 +1275,28 @@ impl<'m> Reading<'m> {
                     let n = c.numer().clone();
                     for d in [0i64, -1, 1] {
                         add(Value::Int(&n + d));
+                    }
+                }
+            }
+            // Its every value when few, else small ones, its ends and the
+            // constants (dry run, choice A1).
+            Type::Machine(m) => {
+                if let Some(size) = m.size().filter(|n| *n <= self.settings.points) {
+                    let mut n = m.lowest();
+                    for _ in 0..size {
+                        add(Value::Fixed(*m, n.clone()));
+                        n += 1;
+                    }
+                } else {
+                    let mut near: Vec<BigInt> = small.iter().map(|n| BigInt::from(*n)).collect();
+                    near.extend([m.lowest(), m.lowest() + 1, m.highest() - 1, m.highest()]);
+                    for c in constants.numbers.iter().filter(|c| c.is_integer()) {
+                        for d in [0i64, -1, 1] {
+                            near.push(c.numer() + d);
+                        }
+                    }
+                    for n in near.into_iter().filter(|n| m.holds(n)) {
+                        add(Value::Fixed(*m, n));
                     }
                 }
             }
@@ -1674,6 +1736,27 @@ impl<'m> Reading<'m> {
                 });
             }
         }
+        // The routes `then` lists, over a run of their own.
+        if let Some((f, args, _)) = example
+            .when
+            .as_ref()
+            .filter(|_| !example.effects.1.is_empty())
+        {
+            let routed = Exact {
+                calls: exact.calls.clone(),
+                log: crate::simulation::Log::kept(),
+            };
+            let (call, bound) = call_at(&f.to_string(), args);
+            let _ = eval(&routed, &bound, &call);
+            for (written, agreement) in routes_kept(&routed, &example.effects) {
+                agreed.push(Agreed {
+                    at: at.clone(),
+                    against: format!("the route `{written}`"),
+                    agreement,
+                    given: vec![],
+                });
+            }
+        }
         let one_run = example.inputs.iter().all(|(_, v)| crate::simulation::known(v));
         for (p, expected) in &example.outputs {
             let Some(port) = port(index, p) else { continue };
@@ -2080,6 +2163,47 @@ pub fn hints(agreed: &[Agreed]) -> Vec<Hint> {
         .collect()
 }
 
+/// Each route `effects` lists, as written, and whether the run `exact`
+/// kept keeps it (A023): the calls it made listed when not.
+fn routes_kept(exact: &Exact, effects: &crate::model::Effects) -> Vec<(String, Agreement)> {
+    let mut out = Vec::new();
+    for r in &effects.1 {
+        let written = print::route(&r.route, &|k| r.values.get(k).map_or("?".to_string(), print::value));
+        let agreement = match exact.row_route(&r.route, &r.values) {
+            Ok(Value::Truth(true)) => Agreement::Holds,
+            Ok(_) => {
+                let made: Vec<String> = exact
+                    .log
+                    .trace()
+                    .iter()
+                    .filter(|c| !c.body)
+                    .map(|c| {
+                        let args: Vec<String> = c.made.1.iter().map(print::value).collect();
+                        format!("{}({})", c.made.0, args.join(", "))
+                    })
+                    .collect();
+                let made = match made.is_empty() {
+                    true => "none".to_string(),
+                    false => made.join(", "),
+                };
+                Agreement::Wrong {
+                    code: A023,
+                    why: format!("the run breaks `{written}`; the calls to functions with no body it made, in order: {made}"),
+                }
+            }
+            Err(Fault::Op(Undefined::Unknown(g))) => Agreement::Unknown {
+                why: format!("no value for {} here", unstated(&g)),
+            },
+            Err(_) => Agreement::Wrong {
+                code: A023,
+                why: format!("the run has no value, so `{written}` cannot be read of it"),
+            },
+        };
+        out.push((written, agreement));
+    }
+    out
+}
+
 /// Each call `effects` lists, and whether the run whose calls `log`
 /// kept made it, at least once, `_` any argument.
 fn calls_made(
@@ -2091,7 +2215,7 @@ fn calls_made(
         .0
         .iter()
         .map(|(f, args)| {
-            let written = print::effects(&crate::model::Effects(vec![(f.clone(), args.clone())]));
+            let written = print::effects(&crate::model::Effects(vec![(f.clone(), args.clone())], vec![]));
             let fits = |(g, at): &(String, Vec<Value>)| {
                 g == f
                     && at.len() == args.len()
@@ -2408,7 +2532,7 @@ fn unstated(g: &impl std::fmt::Display) -> String {
 /// failure a body turns into an ordinary value, with no example or claim
 /// on it (A020); an input a body never reads (A021).
 fn static_gaps(model: &Model) -> Vec<Finding> {
-    let mut out = Vec::new();
+    let mut out = routes_unreached(model);
     // What each body makes: each enum's cases, and the first function
     // that makes each.
     let mut made: BTreeMap<String, BTreeMap<usize, String>> = BTreeMap::new();
@@ -2552,6 +2676,58 @@ fn walk(e: &Expression<Op>, visit: &mut dyn FnMut(&Expression<Op>)) {
 }
 
 /// The functions `e` calls, written in it.
+/// A022: a route claim counting a function that no body its function
+/// reaches calls. Its count is always 0 (dry run, choice C2).
+fn routes_unreached(model: &Model) -> Vec<Finding> {
+    let mut bodies: BTreeMap<String, &Expression<Op>> = BTreeMap::new();
+    for part in &model.parts {
+        for f in &part.functions {
+            if let Some(b) = &f.body {
+                bodies.insert(Path::to(&[&part.name, &f.name]).to_string(), b);
+            }
+        }
+    }
+    let reach = |from: &Expression<Op>| {
+        let mut seen: BTreeSet<String> = BTreeSet::new();
+        let mut todo: Vec<String> = calls_in(from).into_iter().collect();
+        while let Some(f) = todo.pop() {
+            if seen.insert(f.clone()) {
+                if let Some(b) = bodies.get(&f) {
+                    todo.extend(calls_in(b));
+                }
+            }
+        }
+        seen
+    };
+    let mut out = Vec::new();
+    for part in &model.parts {
+        for f in &part.functions {
+            let Some(body) = &f.body else { continue };
+            let at = Path::to(&[&part.name, &f.name]);
+            let reached = reach(body);
+            for c in &f.claims {
+                let mut named: BTreeSet<String> = BTreeSet::new();
+                walk(&c.holds, &mut |e| match e {
+                    Expression::Apply(Op::Route(r), _) => named.extend(r.names().into_iter().map(String::from)),
+                    Expression::Apply(Op::Calls(g), _) => _ = named.insert(g.clone()),
+                    _ => {}
+                });
+                for g in named.iter().filter(|g| !reached.contains(*g)) {
+                    out.push(Finding {
+                        code: A022,
+                        at: at.then(&c.name),
+                        message: format!(
+                            "claim `{}` counts the calls of `{g}`, and no body `{at}` reaches calls it: its count is always 0",
+                            c.name
+                        ),
+                    });
+                }
+            }
+        }
+    }
+    out
+}
+
 fn calls_in(e: &Expression<Op>) -> BTreeSet<String> {
     let mut found = BTreeSet::new();
     walk(e, &mut |e| {

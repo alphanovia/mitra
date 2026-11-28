@@ -928,7 +928,42 @@ pub fn effects(e: &crate::model::Effects) -> String {
                 format!("{f}({})", args.join(", "))
             })
             .collect();
-    calls.join(", ")
+    let routes = e.1.iter().map(|r| route(&r.route, &|k| r.values.get(k).map_or("?".to_string(), value)));
+    calls.into_iter().chain(routes).collect::<Vec<_>>().join(", ")
+}
+
+/// `at most 1 Disk::write(_, _)`, `g(x) only after f(x) -> true`: a route
+/// form, each value it compares with by `value(k)`.
+pub fn route(r: &crate::simulation::Route, value: &dyn Fn(usize) -> String) -> String {
+    use crate::simulation::{Compare, Pat, RouteKind};
+    let pat = |p: &Pat| match p {
+        Pat::Any => "_".to_string(),
+        Pat::Bind(n) => n.clone(),
+        Pat::Is(k) => value(*k),
+    };
+    let call = |c: &crate::simulation::CallPattern| {
+        let args: Vec<String> = c.args.iter().map(pat).collect();
+        match &c.gives {
+            Some(g) => format!("{}({}) -> {}", c.f, args.join(", "), pat(g)),
+            None => format!("{}({})", c.f, args.join(", ")),
+        }
+    };
+    match (r.kind, &r.after) {
+        (RouteKind::Count(c), _) => {
+            let n = value(0);
+            let how = match (c, n.as_str()) {
+                (Compare::Exactly, "0") => "never".to_string(),
+                (Compare::Exactly, "1") => "once".to_string(),
+                (Compare::Exactly, n) => format!("exactly {n}"),
+                (Compare::AtLeast, n) => format!("at least {n}"),
+                (Compare::AtMost, n) => format!("at most {n}"),
+            };
+            format!("{how} {}", call(&r.call))
+        }
+        (RouteKind::Always, _) => format!("always {}: …", call(&r.call)),
+        (RouteKind::After, Some(a)) => format!("{} only after {}", call(&r.call), call(a)),
+        (RouteKind::After, None) => call(&r.call),
+    }
 }
 
 /// ` given llm::inference(_) -> "hello", …`: what the environment gave,
@@ -1000,6 +1035,7 @@ pub fn type_(t: &Type) -> String {
         Type::Encoded(t) => format!("[~{}]", type_(t)),
         Type::Char => "char".to_string(),
         Type::Byte => "byte".to_string(),
+        Type::Machine(m) => m.name(),
         Type::Param { name, .. } => name.clone(),
     }
 }
@@ -1108,6 +1144,9 @@ pub fn value(v: &Value) -> String {
         // Rust's byte literal, `b'A'`, `b'\xff'`: shown only, none is
         // written in a model yet.
         Value::Byte(b) => format!("b'{}'", std::ascii::escape_default(*b)),
+        Value::Fixed(_, n) => n.to_string(),
+        // A value a symbolic run did not read: any.
+        Value::Unknown(_) => "_".to_string(),
         Value::Variant(e, i, holds) => {
             let name = e.variants.get(*i).map(|(n, _)| n.as_str()).unwrap_or("?");
             match holds.is_empty() {
@@ -1360,6 +1399,26 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
         (Op::Call(f), _, _) => {
             let args: Vec<String> = args.iter().map(|a| sim_in(cx, &a.body)).collect();
             (format!("{}({})", cx.call(f), args.join(", ")), POSTFIX)
+        }
+        (Op::Fixed(_, n), 0, _) => (n.to_string(), if n.is_negative() { UNARY } else { ATOM }),
+        (Op::Widen(to), 1, _) => (
+            format!("{}::from({})", to.map_or("integer".to_string(), |m| m.name()), sim_in(cx, body(0))),
+            POSTFIX,
+        ),
+        (Op::Calls(f), 0, _) => (format!("calls({})", cx.call(f)), POSTFIX),
+        (Op::Traced, 1, _) => sim_at(cx, body(0)),
+        (Op::Route(r), n, _) if n == r.arity() => {
+            let shown = route(r, &|k| match args.get(k) {
+                Some(a) => sim_in(cx, &a.body),
+                None => MALFORMED.to_string(),
+            });
+            match r.kind {
+                crate::simulation::RouteKind::Always => {
+                    let head = shown.trim_end_matches(" …");
+                    (format!("{head} {}", sim_in(cx, body(n - 1))), LET)
+                }
+                _ => (shown, CMP),
+            }
         }
         (Op::Truth(b), 0, _) => (b.to_string(), ATOM),
         (Op::Int(n), 0, _) => (n.to_string(), if n.is_negative() { UNARY } else { ATOM }),

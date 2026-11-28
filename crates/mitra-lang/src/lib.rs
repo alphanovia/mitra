@@ -31,5 +31,7 @@ pub mod numbers;
 pub mod parse;
 pub mod print;
 pub mod simulation;
+pub mod search;
+pub mod symbolic;
 pub mod store;
 pub mod tactic;

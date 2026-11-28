@@ -252,7 +252,7 @@ pub fn with_calls(
                 R006,
                 format!(
                     "`{}` in `then` is not of `{at}`, which takes ({})",
-                    print::effects(&crate::model::Effects(vec![(at.to_string(), args)])),
+                    print::effects(&crate::model::Effects(vec![(at.to_string(), args)], vec![])),
                     types.join(", ")
                 ),
             ));

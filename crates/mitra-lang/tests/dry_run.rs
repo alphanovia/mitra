@@ -1,0 +1,199 @@
+//! The dry run (branch claude/project-thread-p45kjs): machine types, the
+//! trace of a run as a value, route claims and rows, symbolic runs, the
+//! model checker (`mc`) and the search for needed promises (`search`).
+//! Each test is one behaviour, said in its name.
+
+use mitra_lang::agree::{agree, Settings};
+use mitra_lang::catalogue::Code;
+use mitra_lang::check::check;
+use mitra_lang::model::Model;
+use mitra_lang::parse::parse;
+use mitra_lang::search::{self, Verdict};
+
+fn model(text: &str) -> Model {
+    let model = parse(text).unwrap_or_else(|e| panic!("{e:?}\n{text}"));
+    assert_eq!(check(&model), vec![], "{text}");
+    model
+}
+
+fn findings(text: &str) -> Vec<String> {
+    let (_, found) = agree(&model(text), &Settings::default());
+    found.iter().map(|f| f.to_string()).collect()
+}
+
+fn verdict(report: &search::Report, claim: &str) -> Verdict {
+    report
+        .outcomes
+        .iter()
+        .find(|o| o.claim == claim)
+        .unwrap_or_else(|| panic!("no claim `{claim}`: {:?}", report.outcomes))
+        .verdict
+        .clone()
+}
+
+fn code_of(text: &str) -> Vec<Code> {
+    let m = parse(text).unwrap();
+    check(&m).iter().map(|e| e.code).collect()
+}
+
+const DISK: &str = "environment Disk {
+    fn write(name: [~char], text: [~char]) -> ok: bool;
+    fn exists(name: [~char]) -> b: bool;
+}
+";
+
+// Machine types.
+
+#[test]
+fn a_machine_sum_that_overflows_gives_no_value() {
+    let text = "subject N {\n    fn add(a: i64, b: i64) -> c: i64 { a + b } where {\n        claim more: a <= c || b < 0;\n    }\n}";
+    let report = search::mc(&model(text), &search::Settings::default(), None);
+    assert_eq!(verdict(&report, "more"), Verdict::Fails, "{report:?}");
+    let shown: Vec<String> = report.findings.iter().map(|f| f.to_string()).collect();
+    assert!(shown[0].contains("9223372036854775807"), "{shown:?}");
+}
+
+#[test]
+fn a_machine_type_is_not_an_integer() {
+    let text = "subject N {\n    fn f(a: i32) -> c: integer { a } where { claim t: true; }\n}";
+    assert!(parse(text).is_err() || !check(&parse(text).unwrap()).is_empty());
+    let widened = "subject N {\n    fn f(a: i32) -> c: integer { integer::from(a) } where { claim t: c == integer::from(a); }\n}";
+    model(widened);
+}
+
+#[test]
+fn every_u8_is_tried_when_points_allow() {
+    let text = "subject N {\n    fn half(a: u8) -> c: u8 { a / 2 } where {\n        claim below: c <= a;\n        examples { (255) -> 127 }\n    }\n}";
+    let all = Settings { points: 256, ..Settings::default() };
+    let (_, found) = agree(&model(text), &all);
+    assert!(found.is_empty(), "{found:?}");
+    // Fewer points: small values and the ends only, and the claim unknown.
+    let found = findings(text);
+    assert!(found[0].starts_with("finding[A007]"), "{found:?}");
+}
+
+#[test]
+fn a_literal_out_of_its_machine_type_is_refused() {
+    let text = "subject N {\n    fn f(a: u8) -> c: u8 { a + 300 } where { claim t: true; }\n}";
+    assert!(parse(text).is_err() || !check(&parse(text).unwrap()).is_empty());
+}
+
+// Routes: claims and rows.
+
+#[test]
+fn a_route_row_holds_and_breaks() {
+    let text = format!(
+        "{DISK}subject Notes {{\n    use Disk::{{write, exists}};\n    fn save(text: [~char]) -> n: integer {{\n        if Disk::exists(\"notes.txt\") {{ 0 }} else {{ let _w = Disk::write(\"notes.txt\", text); text.len() }}\n    }} where {{\n        examples {{\n            given Disk::exists(_) -> false, Disk::write(_, _) -> true when (\"hi\") then 2, once Disk::write(_, \"hi\"),\n            given Disk::exists(_) -> true when (\"hi\") then 0, once Disk::write(_, _)\n        }}\n    }}\n}}"
+    );
+    let found = findings(&text);
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(found[0].starts_with("finding[A023]: example 1"), "{found:?}");
+}
+
+#[test]
+fn a_route_claim_on_a_bodiless_function_is_m035() {
+    let text = format!("{DISK}subject W {{\n    use Disk::write;\n    fn d(t: [~char]) -> n: integer where {{ claim q: never Disk::write(_, _); }}\n}}");
+    assert_eq!(code_of(&text).iter().map(|c| c.to_string()).collect::<Vec<_>>(), ["M035"]);
+}
+
+#[test]
+fn a_route_naming_no_function_is_m036_alone() {
+    let text = format!("{DISK}subject W {{\n    fn d(t: integer) -> n: integer {{ t }} where {{ claim q: never Disk::nope(_, _); }}\n}}");
+    assert_eq!(code_of(&text).iter().map(|c| c.to_string()).collect::<Vec<_>>(), ["M036"]);
+}
+
+#[test]
+fn a_binder_named_once_is_p018() {
+    let text = format!("{DISK}subject W {{\n    use Disk::write;\n    fn d(t: integer) -> n: integer {{ t }} where {{ claim q: Disk::write(f, _) only after Disk::exists(_); }}\n}}");
+    let e = parse(&text).unwrap_err();
+    assert_eq!(e.code.to_string(), "P018");
+}
+
+#[test]
+fn a_route_counting_an_unreached_function_is_a022() {
+    let text = format!("{DISK}subject W {{\n    use Disk::write;\n    fn d(t: integer) -> n: integer {{ t }} where {{ claim q: never Disk::write(_, _) || n == 0; }}\n}}");
+    assert!(findings(&text).iter().any(|f| f.starts_with("finding[A022]")));
+}
+
+#[test]
+fn a_route_claim_is_left_to_mc_by_check() {
+    let text = "subject W {\n    fn d(t: integer) -> n: integer { t } where { claim q: calls(W::d).len() == 0; }\n}";
+    let found = findings(text);
+    assert!(found.iter().any(|f| f.contains("`mitra mc` reads every path")), "{found:?}");
+}
+
+// The model checker.
+
+const NOTES: &str = "subject Notes {
+    use Disk::{write, exists};
+    fn save(text: [~char]) -> n: integer {
+        if Disk::exists(\"notes.txt\") { 0 } else { let _w = Disk::write(\"notes.txt\", text); 1 }
+    } where {
+        claim writes_once: at most 1 Disk::write(_, _);
+        claim order: Disk::write(f, _) only after Disk::exists(f) -> false;
+        claim wrote: n == 0 || calls(Disk::write).any { c -> c.ok };
+    }
+}";
+
+#[test]
+fn mc_holds_on_every_path_and_finds_a_counterexample_row() {
+    let m = model(&format!("{DISK}{NOTES}"));
+    let report = search::mc(&m, &search::Settings::default(), None);
+    assert_eq!(verdict(&report, "writes_once"), Verdict::Holds);
+    assert_eq!(verdict(&report, "order"), Verdict::Holds);
+    assert_eq!(verdict(&report, "wrote"), Verdict::Fails);
+    let shown: Vec<String> = report.findings.iter().map(|f| f.to_string()).collect();
+    assert!(
+        shown.iter().any(|f| f.starts_with("finding[A024]") && f.contains("Disk::write(\"notes.txt\", ") && f.contains("-> false")),
+        "{shown:?}"
+    );
+}
+
+#[test]
+fn a_promise_rules_paths_out() {
+    let promised = DISK.replace(
+        "fn write(name: [~char], text: [~char]) -> ok: bool;",
+        "fn write(name: [~char], text: [~char]) -> ok: bool where { claim works: ok; }",
+    );
+    let m = model(&format!("{promised}{NOTES}"));
+    let report = search::mc(&m, &search::Settings::default(), None);
+    assert_eq!(verdict(&report, "wrote"), Verdict::Holds, "{report:?}");
+    let o = report.outcomes.iter().find(|o| o.claim == "wrote").unwrap();
+    assert!(o.excluded > 0);
+}
+
+#[test]
+fn a_promise_no_path_keeps_is_said() {
+    let promised = DISK.replace(
+        "fn exists(name: [~char]) -> b: bool;",
+        "fn exists(name: [~char]) -> b: bool where { claim never: b && !b; }",
+    );
+    let m = model(&format!("{promised}{NOTES}"));
+    let report = search::mc(&m, &search::Settings::default(), None);
+    match verdict(&report, "wrote") {
+        Verdict::Unknown { why } => assert!(why.contains("`Disk::exists::never` is false"), "{why}"),
+        v => panic!("{v:?}"),
+    }
+}
+
+// The search for needed promises.
+
+#[test]
+fn search_finds_a_needed_promise() {
+    let text = "environment Clock {
+    fn now() -> t: integer;
+}
+subject Timer {
+    use Clock::now;
+    fn left(deadline: integer) -> l: integer { deadline - Clock::now() } where {
+        claim within: l <= deadline;
+        examples { given Clock::now() -> 3 when (10) then 7 }
+    }
+}";
+    let report = search::search(&model(text), &search::Settings::default(), true);
+    let shown: Vec<String> = report.findings.iter().map(|f| f.to_string()).collect();
+    assert!(shown.iter().any(|f| f.starts_with("finding[A025]") && f.contains("within")), "{shown:?}");
+    let stated = text.replace("fn now() -> t: integer;", "fn now() -> t: integer where { claim after_start: t >= 0; }");
+    let report = search::search(&model(&stated), &search::Settings::default(), true);
+    assert!(report.findings.iter().all(|f| f.code.to_string() != "A025"), "{:?}", report.findings);
+}

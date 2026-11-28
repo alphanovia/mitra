@@ -50,13 +50,19 @@ const USAGE: &str = "usage:
   mitra check MODEL [--points N]
   mitra explain MODEL [--code DIR]... [--report FILE | --no-test] [--store FILE]
   mitra blame MODEL [--code DIR]... [--report FILE | --no-test] [--store FILE]
+  mitra mc MODEL [--fn PATH | --steps PATH [--init PATH]]
+  mitra search MODEL [--keep-givens]
 
   MODEL      the model, a .mitra file of the project
   --code     a folder of Rust files, read for ties and measuring tests
   --report   the output of `cargo test`, read instead of running it
   --no-test  run no `cargo test`, read no report
   --store    measurements and reviews written by hand
-  --points  the most points agree tries per comparison (default 64)";
+  --points  the most points agree tries per comparison (default 64)
+  --fn       mc: only this function, by its path
+  --steps    mc: a function `step(s, e) -> s`, run over free events
+  --init     mc: the function that gives the first state
+  --keep-givens  search: read the examples' `given`s, free only the rest";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -89,12 +95,16 @@ struct Given {
     store: Option<PathBuf>,
     points: Option<usize>,
     no_test: bool,
+    only: Option<String>,
+    steps: Option<String>,
+    init: Option<String>,
+    keep_givens: bool,
 }
 
 fn arguments(args: &[String]) -> Result<Given, String> {
     let mut it = args.iter();
     let command = it.next().ok_or("no command")?.clone();
-    if !["check", "explain", "blame"].contains(&command.as_str()) {
+    if !["check", "explain", "blame", "mc", "search"].contains(&command.as_str()) {
         return Err(format!("`{command}` is no command"));
     }
     let model = PathBuf::from(it.next().ok_or("no model")?);
@@ -106,8 +116,28 @@ fn arguments(args: &[String]) -> Result<Given, String> {
         store: None,
         points: None,
         no_test: false,
+        only: None,
+        steps: None,
+        init: None,
+        keep_givens: false,
     };
     while let Some(flag) = it.next() {
+        if ["--fn", "--steps", "--init"].contains(&flag.as_str()) && given.command == "mc" {
+            let v = it.next().ok_or(format!("`{flag}` needs a path"))?.clone();
+            let slot = match flag.as_str() {
+                "--fn" => &mut given.only,
+                "--steps" => &mut given.steps,
+                _ => &mut given.init,
+            };
+            if slot.replace(v).is_some() {
+                return Err(format!("`{flag}` is given twice"));
+            }
+            continue;
+        }
+        if flag == "--keep-givens" && given.command == "search" {
+            given.keep_givens = true;
+            continue;
+        }
         if flag == "--no-test" {
             if std::mem::replace(&mut given.no_test, true) {
                 return Err("`--no-test` is given twice".to_string());
@@ -206,6 +236,11 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
         errors_out(&errors);
         out!("{} errors: the model is not well formed", errors.len());
         return Ok(ExitCode::from(1));
+    }
+    if given.command == "mc" || given.command == "search" {
+        let mut search = settings.search.clone();
+        search.budget = settings.agree.budget;
+        return Ok(search_out(&model, &search, &given));
     }
     if given.command == "check" {
         let mut agree = settings.agree;
@@ -334,6 +369,58 @@ fn findings_out(findings: &[Finding]) {
 }
 
 /// Question 1.
+/// `mitra mc` and `mitra search`: each claim's verdict over the paths
+/// read, then the findings.
+fn search_out(model: &Model, settings: &mitra_lang::search::Settings, given: &Given) -> ExitCode {
+    use mitra_lang::search::{mc, mc_steps, search, Verdict};
+    let report = match (given.command.as_str(), &given.steps) {
+        ("mc", Some(step)) => match mc_steps(model, settings, step, given.init.as_deref()) {
+            Ok(r) => r,
+            Err(e) => {
+                out!("error: {e}");
+                return ExitCode::from(1);
+            }
+        },
+        ("mc", None) => mc(model, settings, given.only.as_deref()),
+        _ => search(model, settings, !given.keep_givens),
+    };
+    let (mut holds, mut read, mut fails, mut unknown) = (0, 0, 0, 0);
+    for o in &report.outcomes {
+        let said = match &o.verdict {
+            Verdict::Holds => {
+                holds += 1;
+                "holds on every path".to_string()
+            }
+            Verdict::HoldsOnRead { paths, why } => {
+                read += 1;
+                format!("holds on the {paths} paths read, not shown: {why}")
+            }
+            Verdict::Fails => {
+                fails += 1;
+                "fails".to_string()
+            }
+            Verdict::Unknown { why } => {
+                unknown += 1;
+                format!("unknown: {why}")
+            }
+        };
+        let excluded = match o.excluded {
+            0 => String::new(),
+            n => format!(" ({n} paths ruled out by promises)"),
+        };
+        out!("{}::{}: {said}{excluded}", o.at, o.claim);
+    }
+    out!("");
+    findings_out(&report.findings);
+    out!(
+        "{}: {} claims, {holds} hold, {read} hold on the paths read, {fails} fail, {unknown} unknown; {} paths",
+        given.command,
+        report.outcomes.len(),
+        report.runs
+    );
+    ExitCode::SUCCESS
+}
+
 fn check_out(model: &Model, settings: &agree::Settings) -> ExitCode {
     let (agreed, findings) = agree::agree(model, settings);
     findings_out(&findings);

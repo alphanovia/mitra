@@ -261,6 +261,64 @@ pub enum Type {
         name: String,
         bound: Bound,
     },
+    /// A machine integer, `i64`, `u8`: Rust's fixed-width integer, its
+    /// values the whole numbers of its range. `+ - * / %` past the range
+    /// have no value (`Undefined::Overflow`), as Rust's debug build
+    /// panics (dry run, choice S1).
+    Machine(Machine),
+}
+
+/// A machine integer type: signed or not, and its width in bits.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Machine {
+    pub signed: bool,
+    pub bits: u8,
+}
+
+impl Machine {
+    /// `i8` to `i64`, `u8` to `u64`, as Rust names them.
+    pub fn named(name: &str) -> Option<Machine> {
+        let (signed, bits) = name.split_at(1);
+        let signed = match signed {
+            "i" => true,
+            "u" => false,
+            _ => return None,
+        };
+        let bits = match bits {
+            "8" => 8,
+            "16" => 16,
+            "32" => 32,
+            "64" => 64,
+            _ => return None,
+        };
+        Some(Machine { signed, bits })
+    }
+    pub fn name(&self) -> String {
+        format!("{}{}", if self.signed { "i" } else { "u" }, self.bits)
+    }
+    pub fn lowest(&self) -> BigInt {
+        match self.signed {
+            true => -(BigInt::from(1) << (self.bits - 1)),
+            false => BigInt::from(0),
+        }
+    }
+    pub fn highest(&self) -> BigInt {
+        match self.signed {
+            true => (BigInt::from(1) << (self.bits - 1)) - 1,
+            false => (BigInt::from(1) << self.bits) - 1,
+        }
+    }
+    pub fn holds(&self, n: &BigInt) -> bool {
+        &self.lowest() <= n && n <= &self.highest()
+    }
+    /// Rust's lossless `From`: every value of `from` is one of `self`.
+    pub fn widens(&self, from: Machine) -> bool {
+        self.lowest() <= from.lowest() && from.highest() <= self.highest()
+    }
+    /// How many values it has, when few enough to try them all.
+    pub fn size(&self) -> Option<usize> {
+        (self.bits <= 16).then(|| 1usize << self.bits)
+    }
 }
 
 /// What a type parameter promises: nothing but `==`, or a number, with
@@ -385,6 +443,13 @@ pub enum Value {
     Text(String),
     /// One byte of an encoded sequence.
     Byte(u8),
+    /// A machine integer: its type, and its number, in the type's range.
+    Fixed(Machine, BigInt),
+    /// A value no row gives, in a symbolic run: what an opaque function
+    /// gave, or a part of it, by its place in the run's `Choices`.
+    /// Read only through the operations, which refine it, or split the
+    /// run (dry run, choice S5).
+    Unknown(u32),
 }
 
 impl Value {
@@ -510,6 +575,11 @@ pub enum Undefined {
         state: String,
         turns: usize,
     },
+    /// A machine integer past its type's range: what, and the type.
+    Overflow(String),
+    /// A symbolic run read an unknown value whose cases differ: the run
+    /// stops here, and is run again once for each case (`symbolic`).
+    Split(u32),
 }
 
 impl Undefined {
@@ -558,7 +628,7 @@ fn held_in(f: &str, gives: Exactly) -> Exactly {
 /// Whether `v` is known all through: no record known only in part.
 pub fn known(v: &Value) -> bool {
     match v {
-        Value::Partial(..) => false,
+        Value::Partial(..) | Value::Unknown(_) => false,
         Value::Record(_, vs) | Value::Variant(_, _, vs) | Value::Seq(_, vs) => vs.iter().all(known),
         _ => true,
     }
@@ -799,6 +869,147 @@ pub enum Op {
     /// and third arguments bind the labels. Gives the first carried
     /// where `done` holds; each turn is a step of the budget.
     Until,
+    /// `5` where an `i64` is wanted: a machine integer constant, its type
+    /// settled from where it is written (dry run, choice P2).
+    Fixed(Machine, BigInt),
+    /// `integer::from(x)` (`None`), `i64::from(x)`: a machine integer as
+    /// a type that holds every value of it, as Rust's `From`.
+    Widen(Option<Machine>),
+    /// `calls(Tool::call)`: the calls the run made to this function, in
+    /// the order they began, each a labelled tuple `(at: integer, …what
+    /// it takes, what it gives)`, `at` its place among all the run's
+    /// calls (dry run, choices S2, S3).
+    Calls(String),
+    /// A route short form, `never Tool::call(_)`, `at most 2 f(_)`,
+    /// `g(x) only after f(x) -> true`: a truth over the run's calls.
+    Route(Box<Route>),
+    /// The run a claim's route forms read: gives what its argument gives,
+    /// and from then on the calls of the run read are those made so far.
+    Traced,
+}
+
+/// A route short form (dry run, choice P4): how it counts, the calls it
+/// counts, and for `only after`, the calls that must come first.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Route {
+    pub kind: RouteKind,
+    pub call: CallPattern,
+    pub after: Option<CallPattern>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RouteKind {
+    /// `never`, `once`, `exactly n`, `at least n`, `at most n`: the
+    /// count of the calls that match, against the first argument.
+    Count(Compare),
+    /// `always f(x) -> y: p`: `p` holds at each call that matches; the
+    /// last argument binds the route's names.
+    Always,
+    /// `g(x) only after f(x) -> v`: each call that matches `call` has one
+    /// that matches `after` before it, with the same values where the
+    /// two name the same.
+    After,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Compare {
+    Exactly,
+    AtLeast,
+    AtMost,
+}
+
+/// `Tool::call(t, _) -> Ok(_)`: a function by its path, a pattern for
+/// each input, and perhaps one for what it gave.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CallPattern {
+    pub f: String,
+    pub args: Vec<Pat>,
+    pub gives: Option<Pat>,
+}
+
+/// `_` any value; a new name, which binds the value; or the value of the
+/// route's argument at this place.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Pat {
+    Any,
+    Bind(String),
+    Is(usize),
+}
+
+impl Route {
+    /// The names its patterns bind, in order, each once.
+    pub fn binders(&self) -> Vec<String> {
+        let mut names: Vec<String> = Vec::new();
+        for p in std::iter::once(&self.call).chain(self.after.iter()) {
+            for pat in p.args.iter().chain(p.gives.iter()) {
+                if let Pat::Bind(n) = pat {
+                    if !names.contains(n) {
+                        names.push(n.clone());
+                    }
+                }
+            }
+        }
+        names
+    }
+    /// How many arguments it takes: the count, the values its patterns
+    /// compare with, and the condition of `always`.
+    pub fn arity(&self) -> usize {
+        let counted = matches!(self.kind, RouteKind::Count(_)) as usize;
+        let always = matches!(self.kind, RouteKind::Always) as usize;
+        counted + self.values().len() + always
+    }
+    /// The places of the arguments its patterns compare with.
+    pub fn values(&self) -> Vec<usize> {
+        let mut at = Vec::new();
+        for p in std::iter::once(&self.call).chain(self.after.iter()) {
+            for pat in p.args.iter().chain(p.gives.iter()) {
+                if let Pat::Is(k) = pat {
+                    at.push(*k);
+                }
+            }
+        }
+        at
+    }
+    /// The functions it names.
+    pub fn names(&self) -> Vec<&str> {
+        std::iter::once(&self.call).chain(self.after.iter()).map(|p| p.f.as_str()).collect()
+    }
+    /// The type of each name it binds, from the functions it names.
+    pub fn binder_types(&self, calls: &Calls) -> Option<Vec<Type>> {
+        let mut types: BTreeMap<String, Type> = BTreeMap::new();
+        for p in std::iter::once(&self.call).chain(self.after.iter()) {
+            let callee = calls.get(&p.f)?;
+            let places = callee.takes.iter().map(|(_, t)| t).chain(std::iter::once(&callee.gives));
+            let pats = p.args.iter().map(Some).chain(std::iter::once(p.gives.as_ref()));
+            for (pat, t) in pats.zip(places) {
+                if let Some(Pat::Bind(n)) = pat {
+                    if types.get(n).is_some_and(|u| u != t) {
+                        return None;
+                    }
+                    types.insert(n.clone(), t.clone());
+                }
+            }
+        }
+        self.binders().iter().map(|n| types.get(n).cloned()).collect()
+    }
+}
+
+/// The type of what `calls(f)` gives: a sequence of labelled tuples,
+/// `(at: integer, …what it takes, what it gives)`. `None` when two of
+/// the labels would be one.
+pub fn calls_type(callee: &Callee) -> Option<Type> {
+    let mut fields = vec![("at".to_string(), Type::Int)];
+    fields.extend(callee.takes.iter().cloned());
+    fields.push((callee.gives_name().to_string(), callee.gives.clone()));
+    let mut seen = BTreeSet::new();
+    if !fields.iter().all(|(n, _)| seen.insert(n.clone())) {
+        return None;
+    }
+    Some(Type::Seq(Box::new(Type::Record(Record {
+        name: String::new(),
+        args: vec![],
+        fields,
+    }))))
 }
 
 /// A function a call can name: what it takes, each by name, what it
@@ -824,6 +1035,19 @@ pub struct Callee {
 pub struct Ranged {
     pub takes: BTreeMap<String, Range>,
     pub gives: Option<(String, Range)>,
+    /// The name of what it gives, `q` of `-> q: integer`: its label in
+    /// `calls(f)`. Empty when not told: then `gives`.
+    pub named: String,
+}
+
+impl Callee {
+    /// The label of what it gives in `calls(f)`.
+    pub fn gives_name(&self) -> &str {
+        match self.ranges.named.is_empty() {
+            true => "gives",
+            false => &self.ranges.named,
+        }
+    }
 }
 
 /// What a function with no body promises: its claims, each by its path,
@@ -1146,6 +1370,7 @@ fn number(t: &Type) -> bool {
         t,
         Type::Int
             | Type::Real
+            | Type::Machine(_)
             | Type::Param {
                 bound: Bound::Number,
                 ..
@@ -1168,6 +1393,9 @@ impl Standard for Simulation {
                 binds
             }
             (Op::Until, 1 | 2, [start, ..]) => carried(start),
+            (Op::Route(r), i, _) if matches!(r.kind, RouteKind::Always) && i + 1 == r.arity() => {
+                r.binder_types(&self.calls).unwrap_or_default()
+            }
             (Op::Match(e), i, _) if i >= 1 => e
                 .variants
                 .get(i - 1)
@@ -1222,6 +1450,39 @@ impl Standard for Simulation {
             (Op::Fold, [Type::Seq(_), start, next]) if next_fits(start, next) => start.clone(),
             (Op::Until, [start, Truth, next]) if next_fits(start, next) => start.clone(),
             (Op::Less | Op::AtMost, [a, b]) if ordered(a) && a == b => Truth,
+            (Op::Fixed(m, n), []) if m.holds(n) => Type::Machine(*m),
+            (Op::Div | Op::Rem, [Type::Machine(a), Type::Machine(b)]) if a == b => Type::Machine(*a),
+            (Op::Widen(None), [Type::Machine(_)]) => Int,
+            (Op::Widen(Some(m)), [Type::Machine(from)]) if m.widens(*from) => Type::Machine(*m),
+            (Op::Calls(f), []) => return calls_type(self.calls.get(f)?),
+            (Op::Traced, [t]) => t.clone(),
+            (Op::Route(r), takes) => {
+                if takes.len() != r.arity() {
+                    return None;
+                }
+                for p in std::iter::once(&r.call).chain(r.after.iter()) {
+                    let callee = self.calls.get(&p.f)?;
+                    if p.args.len() != callee.takes.len() {
+                        return None;
+                    }
+                    let places = callee.takes.iter().map(|(_, t)| t).chain(std::iter::once(&callee.gives));
+                    let pats = p.args.iter().map(Some).chain(std::iter::once(p.gives.as_ref()));
+                    for (pat, t) in pats.zip(places) {
+                        if let Some(Pat::Is(k)) = pat {
+                            if takes.get(*k) != Some(t) {
+                                return None;
+                            }
+                        }
+                    }
+                }
+                r.binder_types(&self.calls)?;
+                match r.kind {
+                    RouteKind::Count(_) if takes[0] != Int => return None,
+                    RouteKind::Always if takes.last() != Some(&Truth) => return None,
+                    _ => {}
+                }
+                Truth
+            }
             (Op::Call(f), takes) => {
                 let callee = self.calls.get(f)?;
                 let fits = takes.len() == callee.takes.len()
@@ -1249,13 +1510,27 @@ pub struct Exact {
 }
 
 /// The calls a run made, in order: to functions with no body, and to
-/// those with one (finding 14). Kept only when asked, `Log::kept()`; any
-/// two are equal, as it says nothing of the reading.
+/// those with one (finding 14), each with what it gave once it ends.
+/// Kept only when asked, `Log::kept()`; any two are equal, as it says
+/// nothing of the reading. Once sealed (`Op::Traced`), what a route form
+/// reads of it stops there.
 #[derive(Clone, Debug, Default)]
-pub struct Log(Option<Arc<std::sync::Mutex<Vec<Logged>>>>);
+pub struct Log(Option<Arc<std::sync::Mutex<Trace>>>);
 
-/// One call of a log, and whether the function has a body.
-type Logged = (Made, bool);
+#[derive(Debug, Default)]
+struct Trace {
+    calls: Vec<Logged>,
+    sealed: Option<usize>,
+}
+
+/// One call of a log: the call, whether the function has a body, and
+/// what it gave, once it ended with a value.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Logged {
+    pub made: Made,
+    pub body: bool,
+    pub gave: Option<Value>,
+}
 
 /// A call made: the path of the function, and its arguments.
 pub type Made = (String, Vec<Value>);
@@ -1272,6 +1547,10 @@ impl Log {
     pub fn kept() -> Log {
         Log(Some(Arc::default()))
     }
+    /// Whether it keeps the calls.
+    pub fn keeps(&self) -> bool {
+        self.0.is_some()
+    }
     /// The calls to functions with no body kept so far, in order; none
     /// when not kept.
     pub fn calls(&self) -> Vec<(String, Vec<Value>)> {
@@ -1282,23 +1561,57 @@ impl Log {
     pub fn bodies(&self) -> Vec<(String, Vec<Value>)> {
         self.made(true)
     }
+    /// Every call kept, up to the seal if there is one: the run's trace.
+    pub fn trace(&self) -> Vec<Logged> {
+        match &self.0 {
+            Some(l) => {
+                let t = l.lock().unwrap_or_else(|e| e.into_inner());
+                let end = t.sealed.unwrap_or(t.calls.len()).min(t.calls.len());
+                t.calls[..end].to_vec()
+            }
+            None => vec![],
+        }
+    }
     fn made(&self, body: bool) -> Vec<(String, Vec<Value>)> {
         match &self.0 {
             Some(l) => l
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
+                .calls
                 .iter()
-                .filter(|(_, b)| *b == body)
-                .map(|(m, _)| m.clone())
+                .filter(|c| c.body == body)
+                .map(|c| c.made.clone())
                 .collect(),
             None => vec![],
         }
     }
-    fn push(&self, f: &str, args: &[Value], body: bool) {
+    #[inline(never)]
+    fn push(&self, f: &str, args: &[Value], body: bool) -> Option<usize> {
+        let l = self.0.as_ref()?;
+        let mut t = l.lock().unwrap_or_else(|e| e.into_inner());
+        t.calls.push(Logged {
+            made: (f.to_string(), args.to_vec()),
+            body,
+            gave: None,
+        });
+        Some(t.calls.len() - 1)
+    }
+    #[inline(never)]
+    fn gave(&self, at: Option<usize>, gives: &Exactly) {
+        if let (Some(l), Some(at), Ok(v)) = (&self.0, at, gives) {
+            let mut t = l.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(c) = t.calls.get_mut(at) {
+                c.gave = Some(v.clone());
+            }
+        }
+    }
+    /// From now on, the trace route forms read ends here.
+    pub fn seal(&self) {
         if let Some(l) = &self.0 {
-            l.lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .push(((f.to_string(), args.to_vec()), body));
+            let mut t = l.lock().unwrap_or_else(|e| e.into_inner());
+            if t.sealed.is_none() {
+                t.sealed = Some(t.calls.len());
+            }
         }
     }
 }
@@ -1323,8 +1636,9 @@ impl Exact {
             }
         }
         if let Some(body) = &callee.body {
-            self.log.push(f, args, true);
+            let at = self.log.push(f, args, true);
             let gives = self.body(f, callee, body, args);
+            self.log.gave(at, &gives);
             return match (&gives, &callee.ranges.gives) {
                 (Ok(v), Some((q, range))) if !range.holds(v) => {
                     Err(Fault::Op(Undefined::Outside(format!(
@@ -1335,8 +1649,26 @@ impl Exact {
                 _ => gives,
             };
         }
-        self.log.push(f, args, false);
+        let at = self.log.push(f, args, false);
+        let gives = self.opaque(f, callee, args);
+        self.log.gave(at, &gives);
+        gives
+    }
+    /// A call of a function with no body: what the reading was given
+    /// there, else its row; in a symbolic run, else an unknown value.
+    #[inline(never)]
+    fn opaque(&self, f: &str, callee: &Callee, args: &[Value]) -> Exactly {
         let given: Vec<_> = self.calls.given.get(f).into_iter().flatten().collect();
+        // An unknown argument compared with a written one: known first.
+        let written_rows = given.iter().any(|(at, _)| at.iter().any(Option::is_some)) || !callee.rows.is_empty();
+        let resolved;
+        let args = match written_rows && args.iter().any(crate::symbolic::holds_unknown) {
+            true => {
+                resolved = args.iter().map(crate::symbolic::deep).collect::<Result<Vec<_>, _>>()?;
+                &resolved[..]
+            }
+            false => args,
+        };
         let written = |at: &[Option<Value>]| {
             at.len() == args.len() && at.iter().zip(args).all(|(a, v)| a.as_ref() == Some(v))
         };
@@ -1363,7 +1695,10 @@ impl Exact {
                 },
                 vec![],
             )),
-            None => Err(Fault::Op(Undefined::Unknown(f.to_string()))),
+            None => match crate::symbolic::unknown_for(f, args, &callee.gives) {
+                Some(id) => Ok(Value::Unknown(id)),
+                None => Err(Fault::Op(Undefined::Unknown(f.to_string()))),
+            },
         }
     }
     /// A call's body read at `args`, remembered.
@@ -1373,7 +1708,7 @@ impl Exact {
             let memo = &self.calls.memo.exact;
             // A run whose calls are kept runs each body: one remembered
             // would make its calls unseen.
-            let kept = self.log.0.is_some();
+            let kept = self.log.0.is_some() || crate::symbolic::active();
             if let Some(known) = memo.lock().unwrap_or_else(|e| e.into_inner()).get(&key) {
                 if !kept {
                     return known.clone();
@@ -1400,6 +1735,7 @@ type Exactly = Outcome<Value, Undefined>;
 fn decides(test: &Exactly) -> Result<bool, Fault<Undefined>> {
     match test {
         Ok(Value::Truth(b)) => Ok(*b),
+        Ok(v @ Value::Unknown(_)) => decides(&crate::symbolic::resolve(v)),
         Ok(_) => Err(Fault::Stuck),
         Err(fault) => Err(fault.clone()),
     }
@@ -1526,6 +1862,10 @@ impl Reading for Exact {
             }
             (Value::Text(_), Type::Encoded(t)) => **t == Type::Char,
             (Value::Byte(_), Type::Byte) => true,
+            (Value::Fixed(m, n), Type::Machine(t)) => m == t && m.holds(n),
+            (Value::Unknown(id), t) => crate::symbolic::type_of(*id).is_some_and(|u| {
+                &u == t || matches!((&u, t), (Type::Enum(a), Type::Enum(b)) if a.name == b.name && (a.cut() || b.cut()))
+            }),
             _ => false,
         }
     }
@@ -1535,6 +1875,7 @@ impl Reading for Exact {
         // callee's body runs.
         match op {
             Op::Call(f) => self.call_strict(f, args),
+            Op::Calls(_) | Op::Route(_) | Op::Traced => self.traced(op, args),
             _ => self.plain(op, args),
         }
     }
@@ -1547,12 +1888,52 @@ impl Reading for Exact {
     ) -> Exactly {
         match (op, args) {
             (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
-            (Op::All, [lo, hi, _]) => all_exactly(lo, hi, run),
+            _ => self.bind_more(op, args, run),
+        }
+    }
+
+    /// `if`, `&&` and `||` compute only the side they take: none when
+    /// the test has no value, which is then what they give.
+    fn needed(&self, op: &Op, i: usize, before: &[Exactly]) -> bool {
+        let test = || match before.first().map(crate::symbolic::resolved) {
+            Some(Ok(Value::Truth(b))) => Some(b),
+            _ => None,
+        };
+        match (op, i) {
+            (Op::If, 1) | (Op::And, 1) => test() == Some(true),
+            (Op::If, 2) | (Op::Or, 1) => test() == Some(false),
+            // `match`: the arm of its variant only.
+            (Op::Match(_), i) if i >= 1 => {
+                matches!(before.first().map(crate::symbolic::resolved), Some(Ok(Value::Variant(_, k, _))) if i == 1 + k)
+            }
+            _ => true,
+        }
+    }
+}
+
+impl Exact {
+    /// The binding operations but `let`, in a frame of their own: `let`
+    /// is on the path of every level.
+    #[inline(never)]
+    fn bind_more(
+        &self,
+        op: &Op,
+        args: &[Exactly],
+        run: &mut dyn FnMut(usize, &[Exactly]) -> Exactly,
+    ) -> Exactly {
+        match (op, args) {
+            (Op::All, [lo, hi, _]) => {
+                all_exactly(&crate::symbolic::resolved(lo), &crate::symbolic::resolved(hi), run)
+            }
             // Loops in frames of their own: this one is on the path of
             // every level.
-            (Op::Fold, [xs, start, _]) => fold_exactly(xs, start, run),
+            (Op::Fold, [xs, start, _]) => fold_exactly(&crate::symbolic::resolved(xs), start, run),
             (Op::Until, [start, _, _]) => until_exactly(start, self.calls.budget.steps, run),
-            (Op::Match(_), [scrutinee, ..]) => match scrutinee {
+            (Op::Route(r), args) => {
+                let mut cond = |given: &[Exactly]| run(r.arity() - 1, given);
+                self.route(r, args, Some(&mut cond))
+            }
+            (Op::Match(_), [scrutinee, ..]) => match crate::symbolic::resolved(scrutinee) {
                 Ok(Value::Variant(_, i, holds)) => {
                     let holds: Vec<Exactly> = holds.iter().cloned().map(Ok).collect();
                     run(1 + i, &holds)
@@ -1563,27 +1944,21 @@ impl Reading for Exact {
             _ => Err(Fault::Stuck),
         }
     }
-
-    /// `if`, `&&` and `||` compute only the side they take: none when
-    /// the test has no value, which is then what they give.
-    fn needed(&self, op: &Op, i: usize, before: &[Exactly]) -> bool {
-        let test = || match before.first() {
-            Some(Ok(Value::Truth(b))) => Some(*b),
-            _ => None,
-        };
-        match (op, i) {
-            (Op::If, 1) | (Op::And, 1) => test() == Some(true),
-            (Op::If, 2) | (Op::Or, 1) => test() == Some(false),
-            // `match`: the arm of its variant only.
-            (Op::Match(_), i) if i >= 1 => {
-                matches!(before.first(), Some(Ok(Value::Variant(_, k, _))) if i == 1 + k)
-            }
-            _ => true,
-        }
-    }
 }
 
 impl Exact {
+    /// The operations on the trace of a run, in a frame of their own.
+    #[inline(never)]
+    fn traced(&self, op: &Op, args: &[Exactly]) -> Exactly {
+        match op {
+            Op::Calls(f) => self.calls_of(f),
+            Op::Route(r) => self.route(r, args, None),
+            _ => {
+                self.log.seal();
+                args.first().cloned().unwrap_or(Err(Fault::Stuck))
+            }
+        }
+    }
     #[inline(never)]
     fn call_strict(&self, f: &str, args: &[Exactly]) -> Exactly {
         self.call(f, &strict(args)?)
@@ -1621,9 +1996,9 @@ impl Exact {
             }
             // Arms that bind nothing: the one of its variant was computed.
             (Op::Match(_), [scrutinee, arms @ ..]) => {
-                return match scrutinee {
+                return match crate::symbolic::resolved(scrutinee) {
                     Ok(Value::Variant(_, i, _)) => {
-                        arms.get(*i).cloned().unwrap_or(Err(Fault::Stuck))
+                        arms.get(i).cloned().unwrap_or(Err(Fault::Stuck))
                     }
                     Ok(_) => Err(Fault::Stuck),
                     Err(fault) => Err(fault.clone()),
@@ -1644,7 +2019,17 @@ impl Exact {
             _ => {}
         }
         let args = strict(args)?;
+        let args = match op {
+            // Made of its values as they are: nothing of them is read.
+            Op::Make(_) | Op::Variant(..) | Op::Seq(_) | Op::Let => args,
+            // Compared whole: known all through first.
+            Op::Equal | Op::StartsWith => args.iter().map(crate::symbolic::deep).collect::<Result<_, _>>()?,
+            _ => args.iter().map(crate::symbolic::resolve).collect::<Result<_, _>>()?,
+        };
         use Value::{Int, Real, Truth};
+        if let Some(fixed) = fixed_op(op, &args) {
+            return fixed;
+        }
         Ok(match (op, args.as_slice()) {
             (Op::Truth(b), []) => Truth(*b),
             (Op::Int(n), []) => Int(n.clone()),
@@ -1763,6 +2148,209 @@ impl Exact {
     }
 }
 
+/// An operation on machine integers, as Rust's debug build gives it:
+/// past the type's range, no value (`Undefined::Overflow`). `None` for
+/// any other operation.
+    #[inline(never)]
+fn fixed_op(op: &Op, args: &[Value]) -> Option<Exactly> {
+    use Value::{Fixed, Truth};
+    let past = |m: &Machine, what: String| {
+        Err(Fault::Op(Undefined::Overflow(format!(
+            "{what} is past `{}`, which holds {} to {}",
+            m.name(),
+            m.lowest(),
+            m.highest()
+        ))))
+    };
+    let within = |m: &Machine, n: BigInt, what: String| match m.holds(&n) {
+        true => Ok(Fixed(*m, n)),
+        false => past(m, what),
+    };
+    Some(match (op, args) {
+        (Op::Fixed(m, n), []) => within(m, n.clone(), n.to_string()),
+        (Op::Add, [Fixed(m, a), Fixed(k, b)]) if m == k => within(m, a + b, format!("{a} + {b}")),
+        (Op::Sub, [Fixed(m, a), Fixed(k, b)]) if m == k => within(m, a - b, format!("{a} - {b}")),
+        (Op::Mul, [Fixed(m, a), Fixed(k, b)]) if m == k => within(m, a * b, format!("{a} * {b}")),
+        (Op::Div | Op::Rem, [Fixed(m, _), Fixed(k, b)]) if m == k && b.is_zero() => {
+            Err(Fault::Op(Undefined::DivisionByZero))
+        }
+        // `i64::MIN / -1` and `i64::MIN % -1` overflow in Rust.
+        (Op::Div, [Fixed(m, a), Fixed(k, b)]) if m == k => within(m, a / b, format!("{a} / {b}")),
+        (Op::Rem, [Fixed(m, a), Fixed(k, b)]) if m == k => match m.holds(&(a / b)) {
+            true => Ok(Fixed(*m, a % b)),
+            false => past(m, format!("{a} % {b}")),
+        },
+        (Op::Less, [Fixed(m, a), Fixed(k, b)]) if m == k => Ok(Truth(a < b)),
+        (Op::AtMost, [Fixed(m, a), Fixed(k, b)]) if m == k => Ok(Truth(a <= b)),
+        (Op::Within, [Fixed(m, a), Fixed(k, b), Fixed(j, t)]) if m == k && k == j => {
+            Ok(Truth((a - b).abs() <= *t))
+        }
+        (Op::Widen(None), [Fixed(_, n)]) => Ok(Value::Int(n.clone())),
+        (Op::Widen(Some(m)), [Fixed(from, n)]) if m.widens(*from) => Ok(Fixed(*m, n.clone())),
+        _ => return None,
+    })
+}
+
+impl Exact {
+    /// `calls(f)`: the calls of the run read to `f`, each a labelled
+    /// tuple. No value where the run's calls are not kept.
+    #[inline(never)]
+    fn calls_of(&self, f: &str) -> Exactly {
+        if !self.log.keeps() {
+            return Err(Fault::Op(Undefined::Unknown("the calls of a run".to_string())));
+        }
+        let callee = self.calls.get(f).ok_or(Fault::Stuck)?;
+        let Some(Type::Seq(t)) = calls_type(callee) else {
+            return Err(Fault::Stuck);
+        };
+        let Type::Record(r) = &*t else {
+            return Err(Fault::Stuck);
+        };
+        let trace = self.log.trace();
+        no_value_in(&trace)?;
+        let mut holds = Vec::new();
+        for (at, c) in trace.into_iter().enumerate() {
+            if c.made.0 != f {
+                continue;
+            }
+            let Some(gave) = c.gave else {
+                return Err(Fault::Op(Undefined::Unknown(format!("what `{f}` gave, still under way"))));
+            };
+            let mut values = vec![Value::Int(BigInt::from(at))];
+            values.extend(c.made.1);
+            values.push(gave);
+            holds.push(Value::Record(r.clone(), values));
+        }
+        Ok(Value::Seq((*t).clone(), holds))
+    }
+
+    /// A route short form over the calls of the run read.
+    #[inline(never)]
+    fn route(
+        &self,
+        r: &Route,
+        args: &[Exactly],
+        mut cond: Option<&mut dyn FnMut(&[Exactly]) -> Exactly>,
+    ) -> Exactly {
+        if !self.log.keeps() {
+            return Err(Fault::Op(Undefined::Unknown("the calls of a run".to_string())));
+        }
+        let value = |k: usize| -> Exactly { args.get(k).cloned().unwrap_or(Err(Fault::Stuck)) };
+        let trace = self.log.trace();
+        no_value_in(&trace)?;
+        let binders = r.binders();
+        // Whether call `c` matches `p`, given and binding names in `env`.
+        let matches = |p: &CallPattern, c: &Logged, env: &mut BTreeMap<String, Value>| -> Result<bool, Fault<Undefined>> {
+            if c.made.0 != p.f || c.made.1.len() != p.args.len() {
+                return Ok(false);
+            }
+            let Some(gave) = &c.gave else {
+                return Err(Fault::Op(Undefined::Unknown(format!("what `{}` gave, still under way", p.f))));
+            };
+            let pats = p.args.iter().zip(&c.made.1).chain(p.gives.iter().map(|g| (g, gave)));
+            for (pat, v) in pats {
+                let ok = match pat {
+                    Pat::Any => true,
+                    Pat::Is(k) => equal(v, &value(*k)?)?,
+                    Pat::Bind(n) => match env.get(n) {
+                        Some(w) => equal(v, w)?,
+                        None => {
+                            env.insert(n.clone(), v.clone());
+                            true
+                        }
+                    },
+                };
+                if !ok {
+                    return Ok(false);
+                }
+            }
+            Ok(true)
+        };
+        match r.kind {
+            RouteKind::Count(compare) => {
+                let n = match crate::symbolic::resolve(&value(0)?)? {
+                    Value::Int(n) => n,
+                    _ => return Err(Fault::Stuck),
+                };
+                let mut count = BigInt::from(0);
+                for c in &trace {
+                    if matches(&r.call, c, &mut BTreeMap::new())? {
+                        count += 1;
+                    }
+                }
+                Ok(Value::Truth(match compare {
+                    Compare::Exactly => count == n,
+                    Compare::AtLeast => count >= n,
+                    Compare::AtMost => count <= n,
+                }))
+            }
+            RouteKind::Always => {
+                for c in &trace {
+                    let mut env = BTreeMap::new();
+                    if !matches(&r.call, c, &mut env)? {
+                        continue;
+                    }
+                    let given: Vec<Exactly> = binders.iter().map(|n| env.get(n).cloned().ok_or(Fault::Stuck)).collect();
+                    let holds = match (&mut cond, binders.is_empty()) {
+                        (Some(cond), false) => cond(&given),
+                        _ => value(r.arity() - 1),
+                    };
+                    if !decides(&holds)? {
+                        return Ok(Value::Truth(false));
+                    }
+                }
+                Ok(Value::Truth(true))
+            }
+            RouteKind::After => {
+                let Some(first) = &r.after else {
+                    return Err(Fault::Stuck);
+                };
+                for (i, c) in trace.iter().enumerate() {
+                    let mut env = BTreeMap::new();
+                    if !matches(&r.call, c, &mut env)? {
+                        continue;
+                    }
+                    let mut found = false;
+                    for d in &trace[..i] {
+                        if matches(first, d, &mut env.clone())? {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if !found {
+                        return Ok(Value::Truth(false));
+                    }
+                }
+                Ok(Value::Truth(true))
+            }
+        }
+    }
+}
+
+impl Exact {
+    /// A route form of an example's row, its values as written, over the
+    /// calls of the run this reading kept.
+    pub fn row_route(&self, r: &Route, values: &[Value]) -> Exactly {
+        let args: Vec<Exactly> = values.iter().cloned().map(Ok).collect();
+        self.route(r, &args, None)
+    }
+}
+
+/// A run one of whose calls had no value has none: what its calls were
+/// is not read (dry run, choice S4).
+fn no_value_in(trace: &[Logged]) -> Result<(), Fault<Undefined>> {
+    match trace.iter().find(|c| c.gave.is_none()) {
+        Some(c) => Err(Fault::Op(Undefined::Unknown(c.made.0.clone()))),
+        None => Ok(()),
+    }
+}
+
+/// Whether two values are one, each known all through first.
+fn equal(a: &Value, b: &Value) -> Result<bool, Fault<Undefined>> {
+    let (a, b) = (crate::symbolic::deep(a)?, crate::symbolic::deep(b)?);
+    same(&a, &b).map_err(|g| Fault::Op(Undefined::Unknown(g)))
+}
+
 /// `(lo..hi).all(|x| p)`: `p` at each number in turn, until one is not
 /// true.
 #[inline(never)]
@@ -1795,6 +2383,38 @@ pub struct Bounds {
 pub enum Numbers {
     Int,
     Real,
+    /// A machine integer: whole, and in its type's range.
+    Fixed(Machine),
+}
+
+impl Numbers {
+    /// Whole numbers: `/` rounds toward zero.
+    pub fn whole(self) -> bool {
+        !matches!(self, Numbers::Real)
+    }
+}
+
+/// Bounds of an operation on machine integers: its span with each end
+/// in the type's range, and a fault where the span went past it (an
+/// overflow). Any other bounds as they are.
+fn kept_in(of: Numbers, b: Bounded) -> Bounded {
+    let Numbers::Fixed(m) = of else { return b };
+    let b = b?;
+    let Span::Number(_, low, high) = &b.span else {
+        return Ok(b);
+    };
+    let (lo, hi) = (Rational::integer(m.lowest()), Rational::integer(m.highest()));
+    let below = low.as_ref().is_none_or(|l| *l < lo);
+    let above = high.as_ref().is_none_or(|h| *h > hi);
+    let low = low.clone().map_or(lo.clone(), |l| l.max(lo.clone()));
+    let high = high.clone().map_or(hi.clone(), |h| h.min(hi.clone()));
+    if low > high {
+        return Err(Fault::Op(Undefined::Overflow(format!("every value is past `{}`", m.name()))));
+    }
+    Ok(Bounds {
+        span: Span::Number(of, Some(low), Some(high)),
+        may_fault: b.may_fault || below || above,
+    })
 }
 
 /// Where a value lies.
@@ -1848,6 +2468,7 @@ fn type_of(span: &Span) -> Type {
         Span::Truth { .. } => Type::Truth,
         Span::Number(Numbers::Int, ..) => Type::Int,
         Span::Number(Numbers::Real, ..) => Type::Real,
+        Span::Number(Numbers::Fixed(m), ..) => Type::Machine(*m),
         Span::Record(r, _) => Type::Record(r.clone()),
         Span::Variant(e, _) => Type::Enum(e.clone()),
         Span::Seq(t, ..) => Type::Seq(Box::new(t.clone())),
@@ -1869,6 +2490,9 @@ pub fn lies_in(value: &Value, span: &Span) -> bool {
             inside(&Rational::integer(n.clone()), low, high)
         }
         (Value::Real(q), Span::Number(Numbers::Real, low, high)) => inside(q, low, high),
+        (Value::Fixed(m, n), Span::Number(Numbers::Fixed(k), low, high)) => {
+            m == k && inside(&Rational::integer(n.clone()), low, high)
+        }
         (Value::Record(r, values), Span::Record(s, spans)) => {
             r == s
                 && values.len() == spans.len()
@@ -1933,6 +2557,9 @@ impl Bounds {
                 Value::Truth(b) => Span::Truth { yes: *b, no: !*b },
                 Value::Int(n) => point(Numbers::Int, Rational::integer(n.clone())),
                 Value::Real(q) => point(Numbers::Real, q.clone()),
+                Value::Fixed(m, n) => point(Numbers::Fixed(*m), Rational::integer(n.clone())),
+                // Never read by bounds: a symbolic run reads it exactly.
+                Value::Unknown(_) => Span::Rest,
                 Value::Record(r, values) => {
                     Span::Record(r.clone(), values.iter().map(span).collect())
                 }
@@ -1982,6 +2609,12 @@ impl Bounds {
                 // No value is of a parameter: its span is never read.
                 Type::Int => Span::Number(Numbers::Int, None, None),
                 Type::Real | Type::Param { .. } => Span::Number(Numbers::Real, None, None),
+                // Bounded: the machine type's own range (choice S7).
+                Type::Machine(m) => Span::Number(
+                    Numbers::Fixed(*m),
+                    Some(Rational::integer(m.lowest())),
+                    Some(Rational::integer(m.highest())),
+                ),
                 Type::Record(r) if r.name == crate::model::REST => Span::Rest,
                 Type::Record(r) => {
                     Span::Record(r.clone(), r.fields.iter().map(|(_, f)| span(f)).collect())
@@ -2092,12 +2725,21 @@ impl End {
 fn fits(span: &Span, of: &Type) -> bool {
     match (span, of) {
         (Span::Truth { yes, no }, Type::Truth) => *yes || *no,
+        (Span::Number(Numbers::Fixed(m), low, high), Type::Machine(k)) => {
+            let lo = Rational::integer(m.lowest());
+            let hi = Rational::integer(m.highest());
+            m == k
+                && low.as_ref().is_some_and(|l| l.is_integer() && *l >= lo)
+                && high.as_ref().is_some_and(|h| h.is_integer() && *h <= hi)
+                && End::low(low) <= End::high(high)
+        }
         (Span::Number(numbers, low, high), Type::Int | Type::Real) => {
             let whole = |e: &Option<Rational>| e.as_ref().is_none_or(|q| q.is_integer());
             End::low(low) <= End::high(high)
                 && match numbers {
                     Numbers::Int => of == &Type::Int && whole(low) && whole(high),
                     Numbers::Real => of == &Type::Real,
+                    Numbers::Fixed(_) => false,
                 }
         }
         (Span::Record(r, spans), Type::Record(t)) => r == t && fits_fields(spans, t, fits),
@@ -2477,7 +3119,7 @@ fn divide(of: Numbers, a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
     // On `Int`, the quotient rounded toward zero: rounding keeps order,
     // so the ends rounded are the ends.
     let (low, high) = match of {
-        Numbers::Int => (low.map(|q| q.toward_zero()), high.map(|q| q.toward_zero())),
+        Numbers::Int | Numbers::Fixed(_) => (low.map(|q| q.toward_zero()), high.map(|q| q.toward_zero())),
         Numbers::Real => (low, high),
     };
     Ok(Bounds {
@@ -2800,6 +3442,7 @@ impl Reading for Ranges {
         // callee's body runs.
         match op {
             Op::Call(f) => self.call_strict(f, args),
+            Op::Calls(_) | Op::Route(_) | Op::Traced => self.traced(op, args),
             _ => self.plain(op, args),
         }
     }
@@ -2813,6 +3456,7 @@ impl Reading for Ranges {
         match (op, args) {
             (Op::Let, [value, _]) => run(1, std::slice::from_ref(value)),
             (Op::All, [lo, hi, _]) => all(lo, hi, run),
+            (Op::Route(_), _) => self.traced(op, args),
             // A loop by bounds: any value of what it carries, perhaps no
             // value (a fault inside, or the budget).
             (Op::Fold, [xs, start, _]) => loop_bounds(Some(xs), start),
@@ -3006,6 +3650,22 @@ impl Ranges {
 }
 
 impl Ranges {
+    /// The calls of a run: any, by bounds, perhaps none (dry run, choice
+    /// S4); a route any truth. In a frame of their own.
+    #[inline(never)]
+    fn traced(&self, op: &Op, args: &[Bounded]) -> Bounded {
+        match op {
+            Op::Calls(f) => {
+                let t = calls_type(self.calls.get(f).ok_or(Fault::Stuck)?).ok_or(Fault::Stuck)?;
+                Ok(Bounds { may_fault: true, ..Bounds::any(&t) })
+            }
+            Op::Route(_) => Ok(Bounds { may_fault: true, ..Bounds::any(&Type::Truth) }),
+            _ => args.first().cloned().unwrap_or(Err(Fault::Stuck)),
+        }
+    }
+}
+
+impl Ranges {
     #[inline(never)]
     fn call_strict(&self, f: &str, args: &[Bounded]) -> Bounded {
         self.call(f, &strict(args)?)
@@ -3044,19 +3704,24 @@ impl Ranges {
                 vec![]
             };
         let span = match (op, spans.as_slice()) {
-            (Op::Truth(_) | Op::Int(_) | Op::Real(_), []) => {
+            (Op::Truth(_) | Op::Int(_) | Op::Real(_) | Op::Fixed(..), []) => {
                 let exact = Exact::default().apply(op, &[])?;
                 Bounds::exactly(&exact).span
             }
+            (Op::Widen(to), [Span::Number(Numbers::Fixed(from), low, high)]) => match to {
+                None => Span::Number(Numbers::Int, low.clone(), high.clone()),
+                Some(m) if m.widens(*from) => Span::Number(Numbers::Fixed(*m), low.clone(), high.clone()),
+                Some(_) => return Err(Fault::Stuck),
+            },
             (Op::Not, [Span::Truth { yes, no }]) => Span::Truth { yes: *no, no: *yes },
             (Op::Add | Op::Sub | Op::Mul, [_, _]) if numbers.len() == 2 => {
-                arith(op, of, &numbers[0], &numbers[1])
+                return kept_in(of, Ok(Bounds { span: arith(op, of, &numbers[0], &numbers[1]), may_fault }))
             }
             (Op::Div, [_, _]) if numbers.len() == 2 => {
-                return divide(of, &numbers[0], &numbers[1], may_fault)
+                return kept_in(of, divide(of, &numbers[0], &numbers[1], may_fault))
             }
-            (Op::Rem, [_, _]) if numbers.len() == 2 && of == Numbers::Int => {
-                return remainder(&numbers[0], &numbers[1], may_fault)
+            (Op::Rem, [_, _]) if numbers.len() == 2 && of.whole() => {
+                return kept_in(of, remainder(&numbers[0], &numbers[1], may_fault))
             }
             (Op::Less, [_, _]) if numbers.len() == 2 => less(&numbers[0], &numbers[1], false),
             (Op::AtMost, [_, _]) if numbers.len() == 2 => less(&numbers[0], &numbers[1], true),

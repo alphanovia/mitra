@@ -782,6 +782,9 @@ fn each_error_is_found() {
     );
     given.push("M033".to_string());
     given.push(empty);
+    // M035 and M036, routes: in tests/dry_run.rs.
+    given.push("M035".to_string());
+    given.push("M036".to_string());
     let listed = CATALOGUE
         .iter()
         .filter(|e| e.code.suit == Suit::Model && !e.retired);

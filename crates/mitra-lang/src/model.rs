@@ -333,7 +333,16 @@ pub struct Example {
 /// (BDD step 2): each by its path and arguments, `None` for `_`. Each is
 /// made, in any order, with others unlisted not compared.
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct Effects(pub Vec<(String, Vec<Option<Value>>)>);
+pub struct Effects(pub Vec<(String, Vec<Option<Value>>)>, pub Vec<RowRoute>);
+
+/// A route form an example's `then` lists, `at most 1 Disk::write(_, _)`
+/// (dry run, choice P7): the route, and the values its patterns compare
+/// with, by place (the count first). Read against the run's calls.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RowRoute {
+    pub route: simulation::Route,
+    pub values: Vec<Value>,
+}
 
 /// What the environment gave, as an example says it (findings 16, 30):
 /// each a function with no body by its path, what it was called with,
@@ -1140,7 +1149,10 @@ pub fn calls(model: &Model) -> Result<Calls, BTreeSet<String>> {
                 gives: f.gives.1.clone(),
                 body: f.body.clone(),
                 rows: rows.collect(),
-                ranges: f.ranges.clone(),
+                ranges: simulation::Ranged {
+                    named: f.gives.0.clone(),
+                    ..f.ranges.clone()
+                },
             };
             let path = Path::to(&[&part.name, &f.name]).to_string();
             callees.entry(path).or_insert(callee);
@@ -1246,6 +1258,24 @@ pub fn settle_worlds(model: &mut Model) {
                 }
             }
         }
+        for r in &mut effects.1 {
+            let RowRoute { route, values } = r;
+            for p in std::iter::once(&mut route.call).chain(route.after.iter_mut()) {
+                if let Some([one]) = paths.get(p.f.as_str()).map(Vec::as_slice) {
+                    p.f = one.clone();
+                }
+                let Some((takes, out)) = functions.get(p.f.as_str()) else { continue };
+                let places = takes.iter().map(|(_, t)| t.clone()).chain(std::iter::once(out.1.clone()));
+                let pats = p.args.iter().map(Some).chain(std::iter::once(p.gives.as_ref()));
+                for (pat, t) in pats.zip(places) {
+                    if let Some(simulation::Pat::Is(k)) = pat {
+                        if let Some(v) = values.get_mut(*k) {
+                            *v = crate::parse::settle_value(v.clone(), &t);
+                        }
+                    }
+                }
+            }
+        }
     };
     for part in &mut model.parts {
         for f in &mut part.functions {
@@ -1278,7 +1308,7 @@ pub fn settle_worlds(model: &mut Model) {
             e.outputs.push((f.then(&out.0), v));
         }
         // What it calls is read by running `when` again: it stays.
-        if e.effects.0.is_empty() {
+        if e.effects.0.is_empty() && e.effects.1.is_empty() {
             e.when = None;
         }
     }
@@ -1390,7 +1420,7 @@ pub(crate) fn signatures(model: &Model) -> Calls {
             let path = Path::to(&[&part.name, &f.name]).to_string();
             callees
                 .entry(path)
-                .or_insert_with(|| bare(&f.takes, &f.gives.1));
+                .or_insert_with(|| bare(&f.takes, &f.gives));
         }
     }
     Calls::with(callees).unwrap_or_default()
@@ -1403,19 +1433,22 @@ pub(crate) fn contract_calls(contract: &Contract) -> Calls {
         let path = format!("{}::{}", contract.name, f.name);
         callees
             .entry(path)
-            .or_insert_with(|| bare(&f.takes, &f.gives.1));
+            .or_insert_with(|| bare(&f.takes, &f.gives));
     }
     Calls::with(callees).unwrap_or_default()
 }
 
-fn bare(takes: &[(String, Type)], gives: &Type) -> Callee {
+fn bare(takes: &[(String, Type)], gives: &(String, Type)) -> Callee {
     Callee {
         promises: None,
         takes: takes.to_vec(),
-        gives: gives.clone(),
+        gives: gives.1.clone(),
         body: None,
         rows: vec![],
-        ranges: simulation::Ranged::default(),
+        ranges: simulation::Ranged {
+            named: gives.0.clone(),
+            ..simulation::Ranged::default()
+        },
     }
 }
 

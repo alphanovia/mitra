@@ -6,7 +6,7 @@
 use crate::catalogue::{
     Code, Error, M001, M002, M003, M004, M005, M006, M007, M008, M009, M010, M011, M012, M013,
     M014, M015, M016, M017, M018, M019, M020, M021, M022, M023, M024, M025, M026, M027, M028, M029,
-    M030, M031, M032, M033, M034,
+    M030, M031, M032, M033, M034, M035, M036,
 };
 use crate::expression::Reading;
 use crate::expression::{check as typed, Expression};
@@ -264,6 +264,16 @@ pub fn check(model: &Model) -> Vec<Error> {
     errors.extend(calls_itself(model));
     errors.extend(inductions(model));
     errors.extend(invariants(model));
+    // A route naming no function is said once, as M036: its claim's type
+    // follows from it.
+    let unnamed = routes(model);
+    let at_unnamed: Vec<String> = unnamed
+        .iter()
+        .filter(|e| e.code == M036)
+        .map(|e| e.at.to_string())
+        .collect();
+    errors.retain(|e| !(e.code == M006 && at_unnamed.contains(&e.at.to_string())));
+    errors.extend(unnamed);
     errors.extend(declared_wrong(model));
     errors.extend(rests_on_itself(&index));
     for at in index.items.keys() {
@@ -635,7 +645,7 @@ fn known(index: &Index, t: &Type) -> bool {
 /// `known`, or a parameter declared so in a contract with `params`.
 fn known_in(index: &Index, t: &Type, params: &[(String, Bound)]) -> bool {
     match t {
-        Type::Truth | Type::Int | Type::Real | Type::Char | Type::Byte => true,
+        Type::Truth | Type::Int | Type::Real | Type::Char | Type::Byte | Type::Machine(_) => true,
         Type::Seq(t) | Type::Encoded(t) => known_in(index, t, params),
         Type::Param { name, bound } => params.iter().any(|(n, b)| n == name && b == bound),
         // A tuple: a record with no name, its fields `0`, `1`, …, or
@@ -768,6 +778,9 @@ pub(crate) fn value_made(index: &Index, v: &Value) -> bool {
             (untold(t) || known(index, t)) && holds.iter().all(|v| value_made(index, v))
         }
         Value::Truth(_) | Value::Int(_) | Value::Real(_) | Value::Text(_) | Value::Byte(_) => true,
+        Value::Fixed(..) => true,
+        // Never written: made by a symbolic run only.
+        Value::Unknown(_) => false,
     }
 }
 
@@ -1265,6 +1278,66 @@ fn inductions(model: &Model) -> Vec<Error> {
     errors
 }
 
+/// M035 for a route claim of a function with no body, M036 for a route or
+/// `calls(f)` naming no function of the model, or with another count of
+/// inputs than it takes (dry run, choice C1).
+fn routes(model: &Model) -> Vec<Error> {
+    let mut errors = Vec::new();
+    let mut functions: BTreeMap<String, usize> = BTreeMap::new();
+    for part in &model.parts {
+        for f in &part.functions {
+            functions.insert(Path::to(&[&part.name, &f.name]).to_string(), f.takes.len());
+        }
+    }
+    let walk = |e: &Expression<simulation::Op>, at: &Path, errors: &mut Vec<Error>| {
+        let mut todo = vec![e];
+        let mut routed = false;
+        while let Some(e) = todo.pop() {
+            let Expression::Apply(op, args) = e else { continue };
+            todo.extend(args.iter().map(|a| &a.body));
+            let patterns: Vec<(&str, Option<usize>)> = match op {
+                simulation::Op::Route(r) => std::iter::once(&r.call)
+                    .chain(r.after.iter())
+                    .map(|p| (p.f.as_str(), Some(p.args.len())))
+                    .collect(),
+                simulation::Op::Calls(f) => vec![(f.as_str(), None)],
+                _ => continue,
+            };
+            routed = true;
+            for (f, n) in patterns {
+                match functions.get(f) {
+                    None => errors.push(error(M036, at, format!("`{f}` is no function of the model"))),
+                    Some(k) if n.is_some_and(|n| n != *k) => errors.push(error(
+                        M036,
+                        at,
+                        format!("`{f}` takes {k}, and the route gives {} patterns", n.unwrap_or(0)),
+                    )),
+                    _ => {}
+                }
+            }
+        }
+        routed
+    };
+    for part in &model.parts {
+        for f in &part.functions {
+            for c in &f.claims {
+                let at = Path::to(&[&part.name, &f.name, &c.name]);
+                if walk(&c.holds, &at, &mut errors) && f.body.is_none() {
+                    let message = format!(
+                        "claim `{}` reads the calls of a run, and `{}` has no body, so no run: a route claim goes on a function with a body",
+                        c.name, f.name
+                    );
+                    errors.push(error(M035, &at, message));
+                }
+            }
+            if let Some(b) = &f.body {
+                walk(b, &Path::to(&[&part.name, &f.name]), &mut errors);
+            }
+        }
+    }
+    errors
+}
+
 /// M033 for each claim `by invariant` of a function whose body is no
 /// loop, `by invariant n` of an `until`, which has no count to end at,
 /// or with `n` a name the function or its loop already has.
@@ -1560,7 +1633,7 @@ fn model_example(index: &Index, i: usize, example: &crate::model::ModelExample) 
             None => None,
         }
     };
-    if example.outputs.is_empty() && example.effects.0.is_empty() {
+    if example.outputs.is_empty() && example.effects.0.is_empty() && example.effects.1.is_empty() {
         let message =
             "it states no output: an example of the model says what the model gives, or calls";
         errors.push(error(M021, &at, message.to_string()));
@@ -1882,7 +1955,7 @@ fn effects_wrong(index: &Index, effects: &crate::model::Effects) -> Vec<String> 
         if !fits {
             wrong.push(format!(
                 "`{}` in `then` is not a call to a function with no body of the model, by its whole path, as it takes",
-                crate::print::effects(&crate::model::Effects(vec![(f.clone(), args.clone())]))
+                crate::print::effects(&crate::model::Effects(vec![(f.clone(), args.clone())], vec![]))
             ));
         }
     }
@@ -2074,6 +2147,12 @@ impl Mistyped<'_> {
             Op::AtMost => format!("`<=` compares two numbers {SAME}"),
             Op::Equal => "`==` compares two values of one type".to_string(),
             Op::Within => format!("`within` takes three numbers {SAME}"),
+            Op::Widen(None) => "`integer::from` takes a machine integer".to_string(),
+            Op::Widen(Some(m)) => format!("`{}::from` takes a machine integer it holds every value of", m.name()),
+            Op::Fixed(m, n) => format!("`{n}` is past `{}`, which holds {} to {}", m.name(), m.lowest(), m.highest()),
+            Op::Calls(f) => format!("`calls({f})` reads a function of the model, whose inputs and result have names other than `at`"),
+            Op::Route(r) => format!("a route form takes the inputs of {} as written, and a count of integer", r.names().join(" and ")),
+            Op::Traced => return Vec::new(),
             Op::Not => "`!` takes a bool".to_string(),
             Op::And => "`&&` takes two bool".to_string(),
             Op::Or => "`||` takes two bool".to_string(),

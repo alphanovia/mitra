@@ -112,7 +112,7 @@ fn what_mitra_does_not_take_is_p015_where_it_is() {
 "
     );
     let out = fails("[check]\npoints = 3\n");
-    assert!(out.contains("no section `check`: mitra.toml has `parse`, `agree`, `budget`, `explain`, `numbers`, `blame` and `test`"), "{out}");
+    assert!(out.contains("no section `check`: mitra.toml has `parse`, `agree`, `budget`, `explain`, `numbers`, `blame`, `symbolic` and `test`"), "{out}");
     assert!(out.contains("mitra.toml:1:2"), "{out}");
     let out = fails("points = 3\n");
     assert!(out.contains("no section `points`"), "{out}");
