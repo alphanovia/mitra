@@ -1,6 +1,6 @@
 # Factory (draft 2)
 
-A software factory fed by a Mitra model: a coding harness (Claude Code,
+A software factory fed by a Mitra model: a coding harness (
 opencode, or a fake so tests need no inference) writes the code, the tests switched on
 run, and Mitra judges. In: a git revision, the model's root and the build's
 root. Out: a branch of commits from that revision, with a report. A first
