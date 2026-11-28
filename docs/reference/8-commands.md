@@ -4,6 +4,8 @@
 mitra check MODEL [--points N]
 mitra explain MODEL [--code DIR]... [--report FILE | --no-test] [--store FILE]
 mitra blame MODEL [--code DIR]... [--report FILE | --no-test] [--store FILE]
+mitra mc MODEL [--fn PATH | --step PATH [--init PATH] [--depth N]]
+mitra search MODEL [--keep-givens]
 ```
 
 - `MODEL`: a `.mitra` file of the project. Paths in ties
@@ -55,6 +57,37 @@ first.
 diagnosis 1 (doubt 0.33): drop measurements::3 (human:ana, saw calc::div::q = 4)
 ```
 
+## mc
+
+The model checker (dry run, branch `claude/project-thread-p45kjs`). Each
+function with a body and claims is run with its inputs free and each
+result of a function with no body unknown: a branch on an unknown splits
+the run, one path per case (every case of a truth, an enum or a short
+sequence; sample numbers and texts). The promises of the functions with
+no body (their claims) rule paths out. Each claim gets a verdict:
+
+```text
+Notes::save::writes_once: holds on every path
+Notes::save::wrote: fails
+finding[A024]: claim `wrote` is false on 1 of 3 paths; the first: given Disk::exists("notes.txt") -> false, Disk::write("notes.txt", "") -> false when Notes::save("") then 1
+```
+
+"Holds on the paths read" means some path took a sample, or the budget
+of runs was reached: not shown. A failing path is written as an example
+row, ready to paste. `--fn` reads one function. `--step F` runs
+`F(state, event) -> state` over `--depth` free events from `--init G`
+(or a free state): the interleavings of the events.
+
+## search
+
+Runs each example and each row of the model with the results of the
+functions with no body unknown (`--keep-givens`: as the rows give them),
+and reads the claims of each body the run passes. A claim that breaks on
+some results no promise rules out is [A025](codes/A025.md): the promise
+it needs, said of what the claim read. When one number decides, the
+bound, checked by running the row again with it as a promise. The run
+itself is read so too: what it needs to have a value.
+
 ## mitra.toml
 
 The project's root is the folder of `mitra.toml`, up from the model's
@@ -86,6 +119,13 @@ link = 0.5             # how many runs a link no one reviewed is (`assumed:link`
 [blame]
 diagnoses = 10         # the most diagnoses given
 tries = 100000         # the most sets of suspects tried
+[symbolic]             # mitra mc and mitra search
+runs = 512             # the most runs, splits included
+length = 2             # the longest sequence a path tries
+shown = 3              # the most conditions a finding lists
+depth = 3              # the events of mc --step (`--depth` overrides it)
+spread = 0             # paths this many cases off the first run first; 0, depth first
+reach = 64             # search tries ±4, ±8… up to ±2^reach for a value a claim holds at
 [test]                 # what explain and blame run when no --report is given
 command = ["cargo", "test", "--no-fail-fast", "--", "--show-output"]
 ```

@@ -193,7 +193,7 @@ subject Timer {
     let report = search::search(&model(text), &search::Settings::default(), true);
     let shown: Vec<String> = report.findings.iter().map(|f| f.to_string()).collect();
     assert!(
-        shown.iter().any(|f| f.starts_with("finding[A025]") && f.contains("needs `Clock::now()` to give at least 0 (with it promised, the claim holds")),
+        shown.iter().any(|f| f.starts_with("finding[A025]") && f.contains("needs `Clock::now()` to give at least 0 (with it promised, it holds")),
         "{shown:?}"
     );
     let stated = text.replace("fn now() -> t: integer;", "fn now() -> t: integer where { claim after_start: t >= 0; }");
@@ -325,4 +325,19 @@ fn an_empty_sequence_in_a_model_row_settles_for_its_routes() {
 examples {{ given Disk::write(_, _) -> true when N::f([]) then 1, once Disk::write(\"b\", _) }}");
     let found = findings(&text);
     assert!(found.iter().all(|f| !f.contains("examples::0")), "{found:?}");
+}
+
+#[test]
+fn search_finds_what_a_row_needs_to_have_a_value() {
+    let text = "environment Sensor { fn read() -> v: u8; }
+subject Gauge {
+    use Sensor::read;
+    fn twice(x: u8) -> p: u8 { Sensor::read() * 2 } where {
+        examples { given Sensor::read() -> 2 when (0) then 4 }
+    }
+}";
+    let report = search::search(&model(text), &search::Settings::default(), true);
+    let shown: Vec<String> = report.findings.iter().map(|f| f.to_string()).collect();
+    assert!(shown.iter().any(|f| f.contains("the run needs `Sensor::read()` to give at most 127 ")), "{shown:?}");
+    assert!(report.outcomes.is_empty(), "the run is no claim: {:?}", report.outcomes);
 }

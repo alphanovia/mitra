@@ -690,13 +690,17 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
         if let Some(found) = bounds.get(&(g.clone(), name.clone())) {
             let said: Vec<String> = found
                 .iter()
-                .map(|(what, n, row)| format!("{what} (with it promised, the claim holds on the {n} paths of {row})"))
+                .map(|(what, n, row)| format!("{what} (with it promised, it holds on the {n} paths of {row})"))
                 .collect();
             report.findings.push(Finding {
                 code: A025,
                 at: Path::to(&g.split("::").collect::<Vec<_>>()).then(name),
                 message: format!(
-                    "claim `{name}` needs {}: no claim of a function with no body says so",
+                    "{} needs {}: no claim of a function with no body says so",
+                    match name.as_str() {
+                        RUN => "the run".to_string(),
+                        _ => format!("claim `{name}`"),
+                    },
                     said.join("; and ")
                 ),
             });
@@ -706,7 +710,11 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
             code: A025,
             at: Path::to(&g.split("::").collect::<Vec<_>>()).then(name),
             message: format!(
-                "claim `{name}` holds on the runs of {} only if {}{more}: no claim of {} says so",
+                "{} on the runs of {} only if {}{more}: no claim of {} says so",
+                match name.as_str() {
+                    RUN => "the run has a value".to_string(),
+                    _ => format!("claim `{name}` holds"),
+                },
                 rows.join(", "),
                 shown.join("; or "),
                 named_in(conds)
@@ -737,6 +745,10 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
         }
     }
     for ((g, name), (paths, failed)) in tally {
+        // `the run` is no claim: only its finding is said.
+        if name == RUN {
+            continue;
+        }
         report.outcomes.push(Outcome {
             at: Path::to(&g.split("::").collect::<Vec<_>>()),
             claim: name,
@@ -796,6 +808,10 @@ fn named_in(conds: &[String]) -> String {
     }
 }
 
+/// The name a row's own run is read under, as a claim: no claim's name
+/// can be written so.
+const RUN: &str = "the run";
+
 fn ap(op: Op, args: Vec<Expression<Op>>) -> Expression<Op> {
     Expression::Apply(op, args.into_iter().map(|body| Arg { binds: vec![], body }).collect())
 }
@@ -823,6 +839,21 @@ fn run_row(
             return Err(Fault::Op(Undefined::Split(id)));
         }
         let mut here = Vec::new();
+        // Whether the row's run gives a value at all: read as a claim of
+        // its own, `the run` (a fault on a path is a condition too).
+        let run_of = match call {
+            Expression::Apply(Op::Call(f), _) => f.clone(),
+            _ => String::new(),
+        };
+        here.push((
+            run_of,
+            RUN.to_string(),
+            match &ran {
+                Ok(_) => Read::True,
+                Err(_) => Read::False(None),
+            },
+            BTreeSet::new(),
+        ));
         let mut read: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
         for c in exact.log.trace() {
             if !c.body || !read.insert(c.made.clone()) {

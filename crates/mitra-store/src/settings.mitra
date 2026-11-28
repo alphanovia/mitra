@@ -10,8 +10,11 @@ subject settings {
     use parse from "parse";
     // The settings of every layer, each its part's: as Rust has them.
     subject record Settings at "crates/mitra-store/src/settings.rs/Settings" {
-        parse: parse::Settings, agree: agree::Settings, explain: explain::Settings, numbers: numbers::Settings, blame: blame::Settings, test: Test
+        parse: parse::Settings, agree: agree::Settings, explain: explain::Settings, numbers: numbers::Settings, blame: blame::Settings, test: Test, search: Search
     }
+    // `mitra mc` and `mitra search`'s (dry run): the symbolic run's and
+    // the budget not modelled yet.
+    subject record Search at "crates/mitra-lang/src/search.rs/Settings" { shown: integer, steps: integer, reach: integer, .. }
     // The program run, and its arguments.
     subject record Test at "crates/mitra-store/src/settings.rs/Test" { command: [[~char]] }
     fn read(text: [~char]) -> s: Settings at "crates/mitra-store/src/settings.rs/read";
