@@ -611,6 +611,29 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
             ),
         });
     }
+    // A claim of a function with a body that no row runs is said, not
+    // left out (no silent diagnostics).
+    for part in &model.parts {
+        if part.file.as_deref().is_some_and(|f| f.starts_with("std/")) {
+            continue;
+        }
+        for f in part.functions.iter().filter(|f| f.body.is_some()) {
+            let g = Path::to(&[&part.name, &f.name]).to_string();
+            for c in &f.claims {
+                if c.invariant.as_ref().is_none_or(|i| i.turns.is_none()) && !tally.contains_key(&(g.clone(), c.name.clone())) {
+                    report.outcomes.push(Outcome {
+                        at: Path::to(&[&part.name, &f.name]),
+                        claim: c.name.clone(),
+                        verdict: Verdict::Unknown {
+                            why: "no example runs it: `mitra mc` reads it on free inputs".to_string(),
+                        },
+                        paths: 0,
+                        excluded: 0,
+                    });
+                }
+            }
+        }
+    }
     for ((g, name), (paths, failed)) in tally {
         report.outcomes.push(Outcome {
             at: Path::to(&g.split("::").collect::<Vec<_>>()),

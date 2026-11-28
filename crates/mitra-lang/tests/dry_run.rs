@@ -197,3 +197,21 @@ subject Timer {
     let report = search::search(&model(&stated), &search::Settings::default(), true);
     assert!(report.findings.iter().all(|f| f.code.to_string() != "A025"), "{:?}", report.findings);
 }
+
+// Red team, round 1.
+
+#[test]
+fn whole_literals_in_a_sequence_of_a_record_settle_to_its_machine_type() {
+    let text = "subject P { record { x: u8, ys: [i16] } }\nsubject N {\n    fn f(p: P) -> c: u8 { p.x / 2 } where { examples { (P { x: 9, ys: [1, -2] }) -> 4 } }\n}";
+    assert_eq!(findings(text), Vec::<String>::new());
+}
+
+#[test]
+fn a_claim_no_example_runs_is_said_by_search() {
+    let text = "subject N {\n    fn f(a: integer) -> c: integer { a } where { claim same: c == a; }\n}";
+    let report = search::search(&model(text), &search::Settings::default(), true);
+    match verdict(&report, "same") {
+        Verdict::Unknown { why } => assert!(why.contains("no example runs it"), "{why}"),
+        v => panic!("{v:?}"),
+    }
+}

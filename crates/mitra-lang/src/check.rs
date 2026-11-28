@@ -2128,7 +2128,7 @@ impl Mistyped<'_> {
         takes: &[Type],
     ) -> Vec<String> {
         use simulation::Op;
-        const SAME: &str = "of one type: integer, rational, or one `T: Number`";
+        const SAME: &str = "of one type: integer, rational, a machine type (`i64`…), or one `T: Number`";
         let takes_what = match op {
             Op::Add => format!("`+` takes two numbers {SAME}"),
             Op::Sub => format!("`-` takes two numbers {SAME}"),

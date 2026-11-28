@@ -753,6 +753,16 @@ fn holed(t: &Type) -> bool {
 
 /// A value of `v`'s variants and records, each parameter not told taken
 /// from `want`, the type it goes to.
+/// Whether `t`, written with whole literals, is `w` with a machine type
+/// in their place.
+fn machine_of(t: &Type, w: &Type) -> bool {
+    match (t, w) {
+        (Type::Int, Type::Machine(_)) => true,
+        (Type::Seq(t), Type::Seq(w)) => machine_of(t, w),
+        _ => false,
+    }
+}
+
 pub(crate) fn settle_value(v: Value, want: &Type) -> Value {
     match (v, want) {
         (Value::Variant(e, i, holds), Type::Enum(w))
@@ -791,7 +801,9 @@ pub(crate) fn settle_value(v: Value, want: &Type) -> Value {
         }
         (Value::Seq(t, holds), Type::Seq(w)) => {
             let holds: Vec<Value> = holds.into_iter().map(|v| settle_value(v, w)).collect();
-            match holed(&t) && !holed(w) {
+            // Whole literals of a machine type: the sequence is of it.
+            let machine = machine_of(&t, w);
+            match (holed(&t) && !holed(w)) || machine {
                 true => Value::Seq((**w).clone(), holds),
                 false => Value::Seq(t, holds),
             }

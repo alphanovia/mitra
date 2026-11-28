@@ -32,7 +32,7 @@ fn a_whole_number_beside_a_type_parameter() {
   |
   | 0 <= f(a)
   | ^^^^^^^^^ `0` is integer and `f(a)` is T
-  = note: `<=` compares two numbers of one type: integer, rational, or one `T: Number`
+  = note: `<=` compares two numbers of one type: integer, rational, a machine type (`i64`…), or one `T: Number`
   = help: Mitra converts no number; a T comes from a function that gives one, declared beside the others"
     );
 }
@@ -61,7 +61,7 @@ fn a_whole_number_beside_a_real() {
   |
   | y <= 1
   | ^^^^^^ `y` is rational and `1` is integer
-  = note: `<=` compares two numbers of one type: integer, rational, or one `T: Number`
+  = note: `<=` compares two numbers of one type: integer, rational, a machine type (`i64`…), or one `T: Number`
   = help: Mitra converts no number; write `1.0` for a rational"
     );
 }

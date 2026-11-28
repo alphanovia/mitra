@@ -338,6 +338,9 @@ pub struct Settings {
     /// The most runs, splits included.
     pub runs: usize,
     pub samples: Samples,
+    /// Paths up to this many cases away from the first are run before
+    /// the others: 0, depth first.
+    pub spread: usize,
 }
 
 impl Default for Settings {
@@ -345,6 +348,7 @@ impl Default for Settings {
         Settings {
             runs: 512,
             samples: Samples::default(),
+            spread: 0,
         }
     }
 }
@@ -378,6 +382,34 @@ pub struct Explored<T = Value> {
 /// The inputs left free: each an unknown, by its name.
 pub type Free = Vec<(String, Type)>;
 
+/// A path still to run: how many of its cases are not the first, when
+/// it was made, and what it fixes.
+struct Pending {
+    away: usize,
+    made: u64,
+    fixed: BTreeMap<u32, Value>,
+    order: Vec<u32>,
+    sampled: bool,
+}
+
+impl PartialEq for Pending {
+    fn eq(&self, other: &Pending) -> bool {
+        (self.away, self.made) == (other.away, other.made)
+    }
+}
+impl Eq for Pending {}
+impl PartialOrd for Pending {
+    fn partial_cmp(&self, other: &Pending) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Pending {
+    /// The greatest is popped first: the fewest away, then the last made.
+    fn cmp(&self, other: &Pending) -> std::cmp::Ordering {
+        other.away.cmp(&self.away).then(self.made.cmp(&other.made))
+    }
+}
+
 /// Every path of `run`, each opaque result an unknown: the inputs in
 /// `free` unknowns too, given to `run` by name. `run` gets a log kept
 /// for each run. The promises of each opaque call (its claims, read with
@@ -399,12 +431,18 @@ pub fn explore<T: Clone>(
             .map(|(n, ty)| (n.clone(), Value::Unknown(t.intern(Origin::Input(n.clone()), ty.clone()))))
             .collect()
     };
-    let mut stack: Vec<(BTreeMap<u32, Value>, Vec<u32>, bool)> = vec![(BTreeMap::new(), vec![], false)];
+    // The paths to run, fewest cases away from the first first, up to
+    // `spread` (limited discrepancy search, choice S10): a budget cut
+    // leaves early choices tried, not one subtree read to its end. Among
+    // as many, the last made first: with `spread` 0, a depth-first search.
+    let mut stack: std::collections::BinaryHeap<Pending> = std::collections::BinaryHeap::new();
+    let mut made = 0u64;
+    stack.push(Pending { away: 0, made, fixed: BTreeMap::new(), order: vec![], sampled: false });
     let mut paths = Vec::new();
     let mut stuck = Vec::new();
     let mut runs = 0;
     let mut cut = false;
-    while let Some((fixed, order, sampled)) = stack.pop() {
+    while let Some(Pending { away, fixed, order, sampled, .. }) = stack.pop() {
         if runs >= settings.runs {
             cut = true;
             break;
@@ -453,12 +491,19 @@ pub fn explore<T: Clone>(
                 let of = t.made.get(id as usize).map(|(_, ty)| ty.clone());
                 match of.and_then(|of| cases(&mut t, id, &of)) {
                     Some((all, by_samples)) => {
-                        for case in all.into_iter().rev() {
+                        for (k, case) in all.into_iter().enumerate().rev() {
                             let mut fixed = state.fixed.clone();
                             fixed.insert(id, case);
                             let mut order = state.order.clone();
                             order.push(id);
-                            stack.push((fixed, order, state.sampled || by_samples));
+                            made += 1;
+                            stack.push(Pending {
+                                away: (away + usize::from(k > 0)).min(settings.spread),
+                                made,
+                                fixed,
+                                order,
+                                sampled: state.sampled || by_samples,
+                            });
                         }
                     }
                     None => {
