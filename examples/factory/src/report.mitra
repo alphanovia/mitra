@@ -1,0 +1,38 @@
+// What the output comes with, so it can be judged on solid ground
+// (answer 6): what kind of request it was, how the run ended, what it
+// cost, Mitra's verdicts, the tests, the model's change, the remarks, the
+// harness's reasoning, the factory's log, and reviews.
+
+subject Remarks {
+    use Kind from "vocabulary";
+    use Tally from "vocabulary";
+    use TestReport from "vocabulary";
+    use Remark from "vocabulary";
+    use Option from "std";
+    use Model from "vocabulary";
+
+    // The kind of request, from the model the code was last made for.
+    fn kind(prior: Option<Model>, same: bool) -> k: Kind {
+        match prior { Option::None => Kind::FirstShot, Option::Some(_) => if same { Kind::RepeatShot } else { Kind::ChangeRequest } }
+    } where {
+        claim first: prior != Option::None || k == Kind::FirstShot;
+    }
+
+    fn held(t: Tally) -> h: bool { t.contradicted == 0 && t.unsupported == 0 }
+
+    // What a change request shows (answer 7). Allowed, all of it: only
+    // pointed out. `old_after` is the old model on the new code;
+    // `new_before` the new model on the old code.
+    fn of(k: Kind, old_after: Tally, new_before: Tally, before: TestReport, after: TestReport) -> rs: [Remark] {
+        if k != Kind::ChangeRequest { [] } else {
+            (if held(old_after) { [Remark::OldModelHolds] } else { [Remark::OldModelBroken] })
+            ++ (if held(new_before) { [Remark::NewModelHeldBefore] } else { [] })
+            ++ (if after.run <= before.run { [Remark::TestsNotGrown] } else { [] })
+        }
+    } where {
+        claim only_changes: k == Kind::ChangeRequest || rs.len() == 0;
+    }
+
+    ensure pointed_out: "a change request's report says whether the old model still holds on the new code, whether the new model already held on the old code, and whether the tests grew"
+        from (of::only_changes);
+}

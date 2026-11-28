@@ -1,109 +1,176 @@
 // The software factory, fed by a Mitra model. Read this file first.
 //
-// Two paths:
-//   build    a model alone -> new code (one shot: the code starts empty)
-//   change   a model change + the existing code -> the code changed
-// Both run the same rounds: brief the coding harness, let it code, run the
-// tests switched on, ask Mitra; stop when the Judge says done, or when the
-// rounds set are used up.
+// In: a request, approved above the factory: a git revision, the model's
+// root and the build's root. Out: a branch of commits from that revision,
+// with a report to judge it on; merging it is decided above the factory.
 //
-// DRAFT 1 (2026-11-28): model only, no code yet. CHOICE TO CONFIRM (Fn)
-// and QUESTION (Qn) mark what the user has not decided.
+// The two paths are one run; what differs is what the code at the
+// revision was last made for (Remarks::kind):
+//   first shot      no model made the code: the code starts as it is (often empty)
+//   change request  the model changed since the code was made
+//   repeat shot     the same model again
+// Each round: the harness codes from a brief, the tests switched on run,
+// Mitra explains; a failing test or build goes back to the harness in the
+// next brief. The run stops at the goal, at a budget, or at a failure the
+// harness cannot fix. Success is not guaranteed.
+//
+// DRAFT 2 (2026-11-28). CHOICE TO CONFIRM (Fn) and QUESTION mark what the
+// user has not decided.
 
 subject Factory {
     use Result from "std";
+    use Option from "std";
+    use Request from "vocabulary";
     use Model from "vocabulary";
     use Tree from "vocabulary";
-    use ModelDiff from "vocabulary";
     use Tally from "vocabulary";
     use Diagnostics from "vocabulary";
-    use Brief from "vocabulary";
     use Stop from "vocabulary";
+    use Failure from "vocabulary";
     use Delivery from "vocabulary";
+    use Report from "vocabulary";
+    use Budget from "vocabulary";
+    use Goal from "vocabulary";
+    use Spent from "vocabulary";
+    use Log from "vocabulary";
+    use Reviews from "vocabulary";
+    use TestReport from "vocabulary";
+    use Kind from "vocabulary";
     use Coder from "tools/coder";
     use TestKit from "tools/tests";
     use Mitra from "tools/mitra";
+    use Git from "tools/git";
     use Workspace from "workspace";
     use Judge from "judge";
     use Briefing from "briefing";
+    use Remarks from "report";
 
-    // The settings of one factory (mitra.toml in code): which harness,
-    // which tests, how many rounds. QUESTION Q4: other budgets (time,
-    // tokens, money) beside rounds.
-    record { coder: Coder, tests: TestKit, rounds: integer }
+    // The settings (mitra.toml in code): the harness, the tests, the
+    // brief, when to stop with success, and the budgets.
+    record { coder: Coder, tests: TestKit, briefing: Briefing, goal: Goal, budget: Budget }
 
     require codes: Coder::codes;
     require runs_set: TestKit::runs_set;
     require checks: Mitra::checks;
     require explains: Mitra::explains;
+    require reads: Git::reads;
+    require writes: Git::writes;
     require read_only: Workspace::model_read_only;
     require strict: Judge::strict;
-    require keeps: Judge::keeps;
-    require honest_model: Judge::honest_model;
+    require told_why: Briefing::told_why;
+    require pointed_out: Remarks::pointed_out;
 
-    // ---- The one-shot path.
-    fn build(self, m: Model) -> d: Delivery {
-        match Mitra::check(m) {
-            Err(why) => refused(why),
-            Ok(_) => self.rounds_on(m, Briefing::first(m), empty(), zero())
+    // ---- A request. An Err is a run with no branch: git could not be read
+    // or written, or Mitra refused the model; its report says why.
+    fn run(self, q: Request) -> r: Result<Delivery, Report> {
+        match Git::model(q.at, q.model) {
+            Err(l) => Err(stopped(Failure::Git, l)),
+            Ok(m) => match Mitra::check(m) {
+                Err(why) => Err(refused(why)),
+                Ok(_) => match Git::code(q.at, q.build) {
+                    Err(l) => Err(stopped(Failure::Git, l)),
+                    Ok(code) => self.rounds_on(q, m, code, Git::made_from(q.at, q.model))
+                }
+            }
         }
     } where {
-        claim refuses: d.stop != Stop::ModelRefused || d.rounds == 0;
+        claim no_code_from_refused: match r { Ok(d) => d.report.stop != Stop::Failed(Failure::ModelRefused), Err(_) => true };
     }
 
-    // ---- The diff path. The tally of the old model on the existing code
-    // is the baseline: what held before must hold after (Judge::keeps).
-    // QUESTION Q6: what if the old model did not hold on the code to start with?
-    fn change(self, old: Model, new: Model, code: Tree) -> d: Delivery {
-        match Mitra::check(new) {
-            Err(why) => refused(why),
-            Ok(_) => self.rounds_on(new, Briefing::change(new, Mitra::diff(old, new), Mitra::blame(new, code)), code, Mitra::explain(old, code))
-        }
-    } where {
-        claim refuses: d.stop != Stop::ModelRefused || d.rounds == 0;
-    }
-
-    // ---- The rounds, shared by both paths.
-    // CHOICE TO CONFIRM (F4): a failure of the harness ends the run, with the
-    // code of the last round; it is not retried.
-    fn rounds_on(self, m: Model, b: Brief, start: Tree, before: Tally) -> d: Delivery {
-        let last = until((tree: start, brief: b, k: 0, ok: false, failed: false), ok || failed || k >= self.rounds) {
+    // ---- The rounds, for every kind of request.
+    fn rounds_on(self, q: Request, m: Model, code: Tree, prior: Option<Model>) -> r: Result<Delivery, Report> {
+        let d = Mitra::diff(prior, m);
+        let k = Remarks::kind(prior, Mitra::same(d));
+        let tested = self.tests.run(code);
+        let last = until((tree: code, brief: self.briefing.first(m, k, d, Mitra::blame(m, code)), tip: q.at, n: 0,
+                          spent: nothing(), tests: tested, ok: false, failed: no_failure(), reasoning: empty_log(), log: empty_log()),
+                         ok || failed != no_failure() || over(self.budget, n, spent)) {
             match self.coder.code(brief, tree) {
-                Err(_) => (tree, brief, k, false, true),
-                Ok(t) => {
-                    let now = Mitra::explain(m, t);
-                    (t, Briefing::again(brief, Mitra::blame(m, t)), k + 1,
-                     Judge::done(now, self.tests.run(t), Mitra::lost(Briefing::diff_of(b), before, now), Workspace::kept(m, t)),
-                     false)
+                Err(l) => (tree, brief, tip, n, spent, tests, false, Option::Some(Failure::Coder), reasoning, noted(log, l)),
+                Ok(round) => if Workspace::kept(m, round.tree) {
+                    let now = self.tests.run(round.tree);
+                    match Git::commit(tip, round.tree, message(n + 1)) {
+                        Err(l) => (tree, brief, tip, n + 1, add(spent, round.spent), tests, false, Option::Some(Failure::Git), noted(reasoning, round.reasoning), noted(log, l)),
+                        Ok(next) => (round.tree, self.briefing.again(brief, Mitra::blame(m, round.tree), now), next, n + 1, add(spent, round.spent), now,
+                                     Judge::done(self.goal, Mitra::explain(m, round.tree), now), no_failure(), noted(reasoning, round.reasoning), log)
+                    }
+                } else {
+                    // The harness changed the model: the round's code is
+                    // thrown away, and the harness is told (F3).
+                    (tree, self.briefing.model_touched(brief), tip, n + 1, add(spent, round.spent), tests, false, no_failure(), noted(reasoning, round.reasoning), log)
                 }
             }
         };
-        Delivery { tree: last.tree, tally: Mitra::explain(m, last.tree), rounds: last.k,
-                   stop: if last.ok { Stop::Done } else { if last.failed { Stop::CoderFailed } else { Stop::OutOfRounds } } }
+        let report = Report {
+            kind: k,
+            stop: if last.ok { Stop::Done } else { match last.failed { Option::Some(f) => Stop::Failed(f), Option::None => Stop::OutOfBudget } },
+            rounds: last.n,
+            spent: last.spent,
+            tally: Mitra::explain(m, last.tree),
+            tests: last.tests,
+            model_change: d,
+            remarks: Remarks::of(k, old_after(prior, last.tree), Mitra::explain(m, code), tested, last.tests),
+            reasoning: last.reasoning,
+            log: last.log,
+            reviews: reviews(m, last.tree)
+        };
+        match Git::branch(q.at, last.tip) {
+            Err(l) => Err(report),
+            Ok(b) => Ok(Delivery { branch: b, report: report })
+        }
     } where {
-        claim bounded: d.rounds <= self.rounds;
-        claim done_is_judged: d.stop != Stop::Done || d.tally.contradicted == 0;
+        claim deep_as_set: match r { Ok(d) => d.report.rounds <= self.budget.rounds, Err(rep) => rep.rounds <= self.budget.rounds };
+        claim done_is_judged: match r { Ok(d) => d.report.stop != Stop::Done || d.report.tally.contradicted == 0, Err(_) => true };
     }
 
-    fn refused(_why: Diagnostics) -> d: Delivery {
-        Delivery { tree: empty(), tally: zero(), stop: Stop::ModelRefused, rounds: 0 }
+    // ---- The budget (answer 4): each one, when reached, stops the run. A
+    // round is not cut short: tokens and time may go past by one round.
+    fn over(b: Budget, n: integer, s: Spent) -> o: bool {
+        n >= b.rounds || s.tokens >= b.tokens || s.seconds >= b.seconds
+    } where {
+        claim rounds: n < b.rounds || o;
+        claim tokens: s.tokens < b.tokens || o;
+        claim time: s.seconds < b.seconds || o;
     }
-    fn empty() -> t: Tree;
+    fn add(a: Spent, b: Spent) -> s: Spent { Spent { tokens: a.tokens + b.tokens, seconds: a.seconds + b.seconds } }
+    fn nothing() -> s: Spent { Spent { tokens: 0, seconds: 0 } }
+    fn no_failure() -> f: Option<Failure> { Option::None }
+
+    // The old model on the new code, for the remarks; nothing on a first shot.
+    fn old_after(prior: Option<Model>, t: Tree) -> a: Tally {
+        match prior { Option::None => zero(), Option::Some(old) => Mitra::explain(old, t) }
+    }
     fn zero() -> t: Tally { Tally { explained: 0, assumed: 0, contradicted: 0, unsupported: 0 } }
+
+    // The reports of a run with no branch.
+    fn stopped(f: Failure, l: Log) -> r: Report;
+    fn refused(why: Diagnostics) -> r: Report;
+    // Logs, and the commit message of round n. Opaque text.
+    fn noted(l: Log, more: Log) -> next: Log;
+    fn message(n: integer) -> l: Log;
+    fn empty_log() -> l: Log;
+    // QUESTION: who writes the reviews that come with the output (the
+    // harness, a second harness as reviewer, the factory from Mitra's
+    // verdicts), and are they Mitra `review` entries signed by an agent?
+    fn reviews(m: Model, t: Tree) -> r: Reviews;
 
     // ---- The promises.
     ensure model_first: "a model Mitra refuses is sent back with Mitra's reasons, and no code is written from it"
-        from (build::refuses, change::refuses, checks);
-    ensure only_good_code: "the factory says done only when no promise of the model is contradicted or without support and every test switched on passes"
+        from (run::no_code_from_refused, checks);
+    ensure only_good_code: "the factory says it succeeded only when the code meets the goal set: no promise contradicted or without support, and every test passes"
         from (rounds_on::done_is_judged, strict, explains, runs_set);
-    ensure bounded: "the factory stops after the rounds set, whatever the coding harness does"
-        from (rounds_on::bounded);
-    ensure says_why: "when the factory stops without success it says why, and Mitra's verdicts tell which promises are not met"
-        from (explains);
+    ensure keeps_trying: "a failing test or build goes back to the harness with Mitra's blame until the goal is met or a budget is spent"
+        from (told_why, codes);
+    ensure bounded: "the factory stops once the rounds, tokens or time set are spent, whatever the coding harness does"
+        from (rounds_on::deep_as_set, over::rounds, over::tokens, over::time);
+    ensure stops_on_failure: "a failure the harness cannot fix stops the run, and the report says which"
+        from (codes, writes);
+    ensure model_is_the_spec: "the code is made to fit the model, never the model to fit the code"
+        from (read_only);
+    ensure branch_out: "the output is a branch of commits starting from the request's revision, one commit per round kept"
+        from (reads, writes);
+    ensure judged_on_evidence: "the output comes with what is needed to judge it: verdicts, tests, the model's change, remarks, reasoning, logs and reviews"
+        from (explains, pointed_out);
     ensure any_harness: "the verdict on the code is the same whichever coding harness wrote it: only Mitra and the tests judge"
         from (strict, codes);
-    ensure model_is_the_spec: "the code is made to fit the model, never the model to fit the code"
-        from (read_only, honest_model);
-    ensure change_keeps: "a model change keeps every promise that held before and that the change did not touch"
-        from (keeps);
 }

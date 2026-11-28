@@ -1,54 +1,107 @@
 // The words the factory's parts pass to each other. One file, because an
 // enum can only name types declared in its own file (finding 29).
 //
-// DRAFT 1 (2026-11-28). Nothing here is built yet; CHOICE TO CONFIRM (F1,
-// F2, ...) marks what the user has not decided.
+// DRAFT 2 (2026-11-28, from the user's answers at 10:32). Nothing here is
+// built yet; CHOICE TO CONFIRM (Fn) marks what the user has not decided.
 
-// ---- What goes in and comes out.
+// ---- Git: what goes in and comes out.
 
-// A Mitra model: the project's .mitra files. The factory states nothing of
-// what is inside; Mitra reads it.
+// A commit of the repository. Opaque: in code, its hash.
+subject record Revision { .. }
+// A folder of the repository, from its root: where the model is (the
+// mitra.toml), and where the code is built (the Cargo.toml).
+subject record Root { .. }
+// A request: one revision, the model's root and the build's root. The
+// input is approved before it reaches the factory (user, answer 6).
+subject record Request { at: Revision, model: Root, build: Root }
+// What the factory hands back: a branch of commits starting from the
+// request's revision, and the report to judge it on. Merging it is done
+// outside the factory.
+subject record Branch { .. }
+subject record Delivery { branch: Branch, report: Report }
+
+// ---- What Mitra and the tests read.
+
+// A Mitra model: the .mitra files under the model's root.
 subject record Model { .. }
-// The code: the project's files other than the model (sources, tests,
-// build files). Opaque, like the model.
+// The code: the files under the build's root, the model aside.
 subject record Tree { .. }
-// What changed between two versions of a model: parts, claims, ensures,
-// rows added, removed or changed. QUESTION Q5: who computes it.
+// What changed between two models (from nothing, on a first shot).
 subject record ModelDiff { .. }
 
-// ---- What Mitra says (its four verdicts, counted over the model's ensures).
-
+// Mitra's four verdicts, counted over the model's ensures.
 subject record Tally { explained: integer, assumed: integer, contradicted: integer, unsupported: integer }
 // Mitra's reasons when `check` refuses a model, and the weakest links when
-// `blame` runs. Text the coding harness reads in the next brief.
+// `blame` runs: text the coding harness reads in the next brief.
 subject record Diagnostics { .. }
 
-// ---- What the tests say.
+// Language is a setting; Rust first (answer 3). More cases later.
+subject enum Language { Rust }
+// All kinds of tests later; unit tests first (answer 3).
+subject enum Capability { Unit }
+// One run of the capabilities switched on. A build that fails counts as
+// a failure: it is fed back to the harness like a failing test.
+subject record TestReport { run: integer, failed: integer, said: Diagnostics }
 
-// CHOICE TO CONFIRM (F1): the test capabilities a project may switch on.
-subject enum Capability { Unit, Property, Coverage, Mutation }
-// One run of the capabilities switched on: how many checks failed. A
-// coverage or mutation score under its setting counts as one failure.
-subject record TestReport { failed: integer }
+// ---- The coding harness.
 
-// ---- What the coding harness is told, and what it can fail with.
-
-// CHOICE TO CONFIRM (F2): the harnesses known to the factory. Fake is the
-// POC's: scripted by tests, like the assistant's fake models.
-subject enum CoderKind { Fake, ClaudeCode, OpenCode }
-// What the harness is asked to do in one round: the model, the diff when
-// there is one, and what the last round got wrong. Text; opaque here.
+// The fake is scripted by tests, so the factory's tests never need
+// inference; opencode is the real one, open source (answer 1).
+subject enum CoderKind { Fake, OpenCode }
+// What the harness is told: made from the brief in the settings (answer
+// 8), the model, and what the last round got wrong. Opaque text.
 subject record Brief { .. }
-subject enum CoderFailure { Unreachable, Crashed, OutOfBudget }
+// Text the factory keeps for whoever judges the output: the harness's
+// reasoning, the factory's own log.
+subject record Log { .. }
+// The settings that bound a run: how deep it goes and what it may spend
+// (answers 2 and 4). Each one stops the run when reached.
+subject record Budget { rounds: integer, tokens: integer, seconds: integer }
+// The settings that say when a run has succeeded (answer 2). CHOICE TO
+// CONFIRM (F5): one switch for now, whether assumed promises are accepted.
+subject record Goal { accept_assumed: bool }
+// What one round cost.
+subject record Spent { tokens: integer, seconds: integer }
+// One round of the harness: the code it leaves, what it cost, and why it
+// did what it did.
+subject record Round { tree: Tree, spent: Spent, reasoning: Log }
 
 // ---- How a run ends.
 
+// Failures inference cannot fix: they stop the run (answer 4). A failing
+// test or build is not one of them: it goes back to the harness.
+subject enum Failure { Coder, Git, ModelRefused }
 subject enum Stop {
-    Done,            // every promise met, every test passes
-    OutOfRounds,     // the rounds set were used up
-    ModelRefused,    // Mitra's check refused the model: no code was written
-    CoderFailed      // the coding harness could not work (F4)
+    Done,          // the Judge's condition is met
+    OutOfBudget,   // rounds, tokens or time used up
+    Failed(Failure)
 }
-// What the factory hands back: the code as it is, Mitra's tally of it, how
-// the run ended and in how many rounds.
-subject record Delivery { tree: Tree, tally: Tally, stop: Stop, rounds: integer }
+
+// ---- The report.
+
+// What the request was, by comparing the model at the revision with the
+// model the code there was last made for (answer 7).
+subject enum Kind { FirstShot, RepeatShot, ChangeRequest }
+// What the report points out for the judge of the output (answer 7). All
+// are allowed; none stops the run. CHOICE TO CONFIRM (F6): these four.
+subject enum Remark {
+    OldModelHolds,       // the old model still holds on the new code: did the tests grow?
+    OldModelBroken,      // the old model no longer holds: the new one asks for something else
+    NewModelHeldBefore,  // the new model held on the old code: perhaps only words changed
+    TestsNotGrown        // a change request with no more tests than before
+}
+// The reviews that come with the output. QUESTION: written by whom.
+subject record Reviews { .. }
+subject record Report {
+    kind: Kind,
+    stop: Stop,
+    rounds: integer,
+    spent: Spent,
+    tally: Tally,          // the model at the revision, on the delivered code
+    tests: TestReport,
+    model_change: ModelDiff,
+    remarks: [Remark],
+    reasoning: Log,        // the harness's, round by round
+    log: Log,              // the factory's, for debugging it
+    reviews: Reviews
+}

@@ -1,22 +1,26 @@
-// What the coding harness is told each round. QUESTION Q7: what a brief
-// holds (the whole model, the diff, Mitra's blame, the failing tests) is
-// most of what makes a harness succeed; here it is opaque.
+// What the coding harness is told each round. How a brief is written is
+// the brief setting's (a prompt; answer 8): here it is opaque.
 
 subject Briefing {
     use Model from "vocabulary";
     use ModelDiff from "vocabulary";
     use Diagnostics from "vocabulary";
     use Brief from "vocabulary";
+    use Kind from "vocabulary";
+    use TestReport from "vocabulary";
 
-    // The one-shot path's first brief: the model alone.
-    fn first(m: Model) -> b: Brief;
-    // The diff path's first brief: the new model, what changed, and where
-    // the existing code falls short of the new model.
-    fn change(m: Model, d: ModelDiff, why: Diagnostics) -> b: Brief;
-    // The next round's brief: the last one, and what is still not met.
-    fn again(b: Brief, why: Diagnostics) -> next: Brief;
-    // The diff a brief was made for (none changed on the one-shot path).
-    fn diff_of(b: Brief) -> d: ModelDiff;
+    // The setting: the prompt the briefs are made from.
+    record { .. }
 
-    ensure told_why: "each round after the first tells the harness which promises are still not met, in Mitra's words";
+    // The first brief: the model, what kind of request it is, what changed
+    // in the model, and where the code at the revision falls short of it.
+    fn first(self, m: Model, k: Kind, d: ModelDiff, why: Diagnostics) -> b: Brief;
+    // The next round's brief: the last one, Mitra's blame on the new code,
+    // and the failing tests and build (answer 4).
+    fn again(self, b: Brief, why: Diagnostics, tests: TestReport) -> next: Brief;
+    // The next round's brief when the harness changed the model: that
+    // round's code was thrown away, and the harness is told why.
+    fn model_touched(self, b: Brief) -> next: Brief;
+
+    ensure told_why: "each round after the first tells the harness which promises are still not met and which tests fail";
 }

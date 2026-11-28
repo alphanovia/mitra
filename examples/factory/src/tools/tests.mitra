@@ -1,16 +1,17 @@
 // The project's tests, as the factory runs them: only the capabilities
-// switched on in the settings.
+// switched on, for the project's language. Unit tests in Rust first.
 
 environment TestKit {
     use Capability from "vocabulary";
+    use Language from "vocabulary";
     use Tree from "vocabulary";
     use TestReport from "vocabulary";
 
-    record { capabilities: [Capability] }
+    record { language: Language, capabilities: [Capability] }
 
-    // QUESTION Q3: what each capability runs (cargo test, proptest,
-    // coverage, cargo-mutants), and the thresholds, which go to settings.
+    // Builds the code and runs the capabilities: `cargo test` for Rust
+    // unit tests. A build that fails is a failure in the report.
     fn run(self, t: Tree) -> r: TestReport;
 
-    ensure runs_set: "every capability switched on is run on the code, and only those";
+    ensure runs_set: "every capability switched on is run on the code, and only those, and a build that fails counts as a failure";
 }

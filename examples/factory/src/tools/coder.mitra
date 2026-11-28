@@ -1,19 +1,22 @@
-// The coding harness: Claude Code, opencode, or the POC's fake. It is not
-// ours, and how it codes is not known: an environment.
+// The coding harness: opencode, or the fake. It is not ours, and how it
+// codes is not known: an environment. Its own settings (model, keys,
+// tools) are the environment's, not the factory's (answer 9).
 
 environment Coder {
     use Result from "std";
     use CoderKind from "vocabulary";
     use Brief from "vocabulary";
     use Tree from "vocabulary";
-    use CoderFailure from "vocabulary";
+    use Round from "vocabulary";
+    use Log from "vocabulary";
 
     record { kind: CoderKind }
 
     // One round: from a brief and the code as it is, the code as the
-    // harness leaves it. It may touch any file it is given; the model is
-    // not given to it as a file it can write (see Workspace).
-    fn code(self, b: Brief, t: Tree) -> r: Result<Tree, CoderFailure>;
+    // harness leaves it, what it cost and its reasoning. An Err is a
+    // failure the harness cannot get past (it crashed, it cannot reach its
+    // model): the run stops.
+    fn code(self, b: Brief, t: Tree) -> r: Result<Round, Log>;
 
-    ensure codes: "the configured harness takes a brief and the code, and gives back changed code or says why it could not";
+    ensure codes: "the configured harness takes a brief and the code, and gives back changed code, what it cost and why";
 }

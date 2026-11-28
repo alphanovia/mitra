@@ -1,27 +1,21 @@
-// When a round's code is good enough to hand back. Plain code on finite
-// counts: Mitra tries every case, so its claims hold without a test.
+// When a round's code meets the goal set. Plain code on finite counts.
+// Success is not guaranteed (answer 2): the Judge only says when the loop
+// may stop with success; the budget stops it otherwise.
 
 subject Judge {
     use Tally from "vocabulary";
     use TestReport from "vocabulary";
+    use Goal from "vocabulary";
 
-    // CHOICE TO CONFIRM (F5): `assumed` is accepted (a promise resting on
-    // unreviewed links or words is not refused); `unsupported` is not.
-    // QUESTION Q2: should assumed count against, or be a setting?
-    fn done(t: Tally, r: TestReport, lost: integer, kept: bool) -> d: bool {
-        kept && t.contradicted == 0 && t.unsupported == 0 && r.failed == 0 && lost == 0
+    fn done(g: Goal, t: Tally, r: TestReport) -> d: bool {
+        t.contradicted == 0 && t.unsupported == 0 && (g.accept_assumed || t.assumed == 0) && r.failed == 0
     } where {
         claim no_contradiction: !d || t.contradicted == 0;
         claim all_supported: !d || t.unsupported == 0;
+        claim assumed_as_set: !d || g.accept_assumed || t.assumed == 0;
         claim tests_pass: !d || r.failed == 0;
-        claim nothing_lost: !d || lost == 0;
-        claim model_kept: !d || kept;
     }
 
-    ensure strict: "code is judged done only when no promise is contradicted or without support, and every test passes"
-        from (done::no_contradiction, done::all_supported, done::tests_pass);
-    ensure keeps: "code that loses a promise kept before is never judged done"
-        from (done::nothing_lost);
-    ensure honest_model: "code made by changing the model is never judged done"
-        from (done::model_kept);
+    ensure strict: "code meets the goal only when no promise is contradicted or without support, assumed promises are accepted only if the settings say so, and every test passes"
+        from (done::no_contradiction, done::all_supported, done::assumed_as_set, done::tests_pass);
 }

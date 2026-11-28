@@ -1,0 +1,29 @@
+// Git, an environment: the factory reads a revision and writes a branch.
+// The verbs below are all the factory uses, so that git can be swapped
+// later for another store with the same verbs (answer 5).
+
+environment Git {
+    use Result from "std";
+    use Option from "std";
+    use Revision from "vocabulary";
+    use Root from "vocabulary";
+    use Branch from "vocabulary";
+    use Model from "vocabulary";
+    use Tree from "vocabulary";
+    use Log from "vocabulary";
+
+    // Read: the model under a root, and the code under a root, at a revision.
+    fn model(at: Revision, root: Root) -> r: Result<Model, Log>;
+    fn code(at: Revision, root: Root) -> r: Result<Tree, Log>;
+    // The model the code at `at` was last made for, if any: None on a
+    // first shot. QUESTION: how git tells it (a trailer in the factory's
+    // commit messages, a note, a tag).
+    fn made_from(at: Revision, root: Root) -> r: Option<Model>;
+    // Write: a commit of the code on top of a revision, with a message.
+    fn commit(parent: Revision, t: Tree, message: Log) -> r: Result<Revision, Log>;
+    // A branch from the request's revision to the last commit.
+    fn branch(from: Revision, tip: Revision) -> r: Result<Branch, Log>;
+
+    ensure reads: "git gives the model and the code as they are at a revision";
+    ensure writes: "each commit is on top of the one before, and the branch starts at the request's revision";
+}

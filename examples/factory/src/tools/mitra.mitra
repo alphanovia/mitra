@@ -4,6 +4,7 @@
 
 environment Mitra {
     use Result from "std";
+    use Option from "std";
     use Model from "vocabulary";
     use Tree from "vocabulary";
     use Tally from "vocabulary";
@@ -16,13 +17,12 @@ environment Mitra {
     fn explain(m: Model, t: Tree) -> r: Tally;
     // `mitra blame`: the weakest links, for the next brief.
     fn blame(m: Model, t: Tree) -> r: Diagnostics;
-    // What changed from one model to the next. QUESTION Q5: a new Mitra
-    // verb (`mitra diff`), or the factory's own code over git?
-    fn diff(old: Model, new: Model) -> d: ModelDiff;
-    // How many ensures explained in `before` are not explained in `after`,
-    // among those the diff left untouched. QUESTION Q5: a new Mitra verb,
-    // or the factory's own code?
-    fn lost(d: ModelDiff, before: Tally, after: Tally) -> n: integer;
+    // What changed from one model to the next. QUESTION: a new Mitra verb
+    // (`mitra diff`), or the factory's own code?
+    // None: the first shot, a diff from nothing.
+    fn diff(old: Option<Model>, new: Model) -> d: ModelDiff;
+    // Whether a diff changes nothing.
+    fn same(d: ModelDiff) -> s: bool;
 
     ensure checks: "Mitra refuses a model it cannot read, with its reasons";
     ensure explains: "Mitra gives one verdict for each promise of the model, from the code and its tests";

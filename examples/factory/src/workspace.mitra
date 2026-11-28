@@ -1,6 +1,6 @@
 // Where a round happens: the code the harness may write, and the model it
-// may only read. CHOICE TO CONFIRM (F3): the model is the factory's, never
-// the harness's: a round that changes it is thrown away.
+// may only read. CHOICE TO CONFIRM (F3): the model is the request's, never
+// the harness's: a round that changes it stops the run.
 
 subject Workspace {
     use Model from "vocabulary";
