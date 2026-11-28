@@ -17,7 +17,7 @@
 //! It reads a model `check` accepts: on another, it compares nothing.
 
 use crate::catalogue::{
-    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011, A012, A013, A014, A015, A016, A017, A018,
+    Code, Finding, Hint, A001, A002, A003, A004, A005, A006, A007, A009, A010, A011, A012, A013, A014, A015, A016, A017, A018, A019, A020, A021,
 };
 use crate::evidence::port;
 use crate::expression::{eval, Arg, Expression, Fault};
@@ -219,6 +219,7 @@ pub fn agree(model: &Model, settings: &Settings) -> (Vec<Agreed>, Vec<Finding>) 
         agreed.extend(compared);
         findings.extend(unread);
     }
+    findings.extend(static_gaps(model));
     findings.extend(laws_broken_everywhere(&agreed));
     findings.extend(
         agreed
@@ -2399,5 +2400,226 @@ fn unstated(g: &impl std::fmt::Display) -> String {
     match g.strip_suffix(&format!("::{}", crate::model::REST)) {
         Some(r) => format!("the fields of `{r}` the model does not state (`..`)"),
         None => format!("`{g}`"),
+    }
+}
+
+/// Three gaps a model can have that no comparison shows (finding 45 J6):
+/// an enum case no body makes while bodies make others (A019); a
+/// failure a body turns into an ordinary value, with no example or claim
+/// on it (A020); an input a body never reads (A021).
+fn static_gaps(model: &Model) -> Vec<Finding> {
+    let mut out = Vec::new();
+    // What each body makes: each enum's cases, and the first function
+    // that makes each.
+    let mut made: BTreeMap<String, BTreeMap<usize, String>> = BTreeMap::new();
+    for part in &model.parts {
+        for f in &part.functions {
+            let Some(body) = &f.body else { continue };
+            let at = Path::to(&[&part.name, &f.name]).to_string();
+            walk(body, &mut |e| {
+                if let Expression::Apply(Op::Variant(en, i), _) = e {
+                    made.entry(en.name.clone())
+                        .or_default()
+                        .entry(*i)
+                        .or_insert_with(|| at.clone());
+                }
+            });
+        }
+    }
+    // What the world gives: an enum a function with no body gives, or
+    // holds in what it gives, is made by it too.
+    let mut given_by_world: BTreeSet<String> = BTreeSet::new();
+    for part in &model.parts {
+        for f in part.functions.iter().filter(|f| f.body.is_none()) {
+            enums_in(&f.gives.1, &mut given_by_world, 0);
+        }
+    }
+    for part in &model.parts {
+        // The world's enums, and std's (what users make of them), aside.
+        let std = part.file.as_deref().is_some_and(|f| f.starts_with("std/"));
+        if part.kind == crate::model::Kind::Environment || std {
+            continue;
+        }
+        for en in &part.enums {
+            let Some(cases) = made.get(&en.name) else { continue };
+            if !en.params.is_empty() || given_by_world.contains(&en.name) {
+                continue;
+            }
+            let some: Vec<String> = cases
+                .iter()
+                .map(|(i, f)| format!("`{}::{}` (in `{f}`)", en.name, en.variants[*i].0))
+                .collect();
+            for (i, (v, _)) in en.variants.iter().enumerate() {
+                if !cases.contains_key(&i) {
+                    out.push(Finding {
+                        code: A019,
+                        at: Path::to(&[&en.name]),
+                        message: format!(
+                            "`{}::{v}` is never made: bodies make {}, and none makes `{}::{v}`",
+                            en.name,
+                            some.join(", "),
+                            en.name
+                        ),
+                    });
+                }
+            }
+        }
+    }
+    for part in &model.parts {
+        if part.kind == crate::model::Kind::Environment {
+            continue;
+        }
+        for f in &part.functions {
+            let Some(body) = &f.body else { continue };
+            let at = Path::to(&[&part.name, &f.name]);
+            // A021: an input the body never reads.
+            let read = crate::expression::free(body);
+            for (n, _) in &f.takes {
+                if !n.starts_with('_') && !read.contains(n) {
+                    out.push(Finding {
+                        code: A021,
+                        at: at.clone(),
+                        message: format!(
+                            "`{n}` is taken by `{at}` and never read by its body: what it is for is only in words; name it `_{n}` if that is meant"
+                        ),
+                    });
+                }
+            }
+            // A020: a failure turned into an ordinary value.
+            if carries_failure(&f.gives.1) {
+                continue;
+            }
+            let mut dropped: Vec<(String, String)> = Vec::new();
+            failures_dropped(body, &BTreeMap::new(), &mut dropped);
+            for (g, arm) in dropped {
+                let tried = f.examples.iter().any(|e| {
+                    e.given.0.iter().any(|(h, _, v)| {
+                        *h == g && matches!(v, Value::Variant(en, i, _) if en.variants.get(*i).is_some_and(|(n, _)| n == "Err"))
+                    })
+                }) || f.claims.iter().any(|c| calls_in(&c.holds).contains(&g));
+                if tried {
+                    continue;
+                }
+                out.push(Finding {
+                    code: A020,
+                    at: at.clone(),
+                    message: format!(
+                        "`{at}` calls `{g}`, which can fail, and gives {}, which has no failure: the `Err` arm gives {arm}; give an example where `{g}` fails, or a claim on it",
+                        print::type_(&f.gives.1)
+                    ),
+                });
+            }
+        }
+    }
+    out
+}
+
+/// The enums a value of `t` may hold, a few levels down.
+fn enums_in(t: &Type, out: &mut BTreeSet<String>, depth: usize) {
+    if depth > 6 {
+        return;
+    }
+    match t {
+        Type::Enum(e) => {
+            // Each instance's cases read, its arguments put in:
+            // `Result<Verdict, _>` and `Result<Answer, _>` hold different
+            // enums.
+            out.insert(e.name.clone());
+            for (_, ts) in &e.variants {
+                for t in ts {
+                    enums_in(t, out, depth + 1);
+                }
+            }
+        }
+        Type::Record(r) => {
+            for (_, t) in &r.fields {
+                enums_in(t, out, depth + 1);
+            }
+        }
+        Type::Seq(t) | Type::Encoded(t) => enums_in(t, out, depth + 1),
+        _ => {}
+    }
+}
+
+/// Each expression of `e`, outside in.
+fn walk(e: &Expression<Op>, visit: &mut dyn FnMut(&Expression<Op>)) {
+    visit(e);
+    if let Expression::Apply(_, args) = e {
+        for a in args {
+            walk(&a.body, visit);
+        }
+    }
+}
+
+/// The functions `e` calls, written in it.
+fn calls_in(e: &Expression<Op>) -> BTreeSet<String> {
+    let mut found = BTreeSet::new();
+    walk(e, &mut |e| {
+        if let Expression::Apply(Op::Call(f), _) = e {
+            found.insert(f.clone());
+        }
+    });
+    found
+}
+
+/// Whether a value of `t` can hold a failure: a `Result`, in it however
+/// deep.
+fn carries_failure(t: &Type) -> bool {
+    match t {
+        Type::Enum(e) => e.name == "Result" || e.variants.iter().any(|(_, ts)| ts.iter().any(carries_failure)),
+        Type::Record(r) => r.fields.iter().any(|(_, t)| carries_failure(t)),
+        Type::Seq(t) | Type::Encoded(t) => carries_failure(t),
+        _ => false,
+    }
+}
+
+/// Each `match` on a `Result` a call gave, directly or through a `let`,
+/// whose `Err` arm gives a value that is no failure: the call, and that
+/// arm as written.
+fn failures_dropped(
+    e: &Expression<Op>,
+    lets: &BTreeMap<String, String>,
+    out: &mut Vec<(String, String)>,
+) {
+    let Expression::Apply(op, args) = e else { return };
+    match op {
+        Op::Match(en) if en.name == "Result" => {
+            let called = match args.first().map(|a| &a.body) {
+                Some(Expression::Apply(Op::Call(g), _)) => Some(g.clone()),
+                Some(Expression::Name(n)) => lets.get(n).cloned(),
+                _ => None,
+            };
+            let err = en.variants.iter().position(|(n, _)| n == "Err");
+            if let (Some(g), Some(k)) = (called, err) {
+                // In a function whose result holds no failure, whatever
+                // the arm gives is dropped there, or later.
+                if let Some(arm) = args.get(1 + k) {
+                    out.push((g, format!("`{}`", print::sim(&arm.body))));
+                }
+            }
+        }
+        Op::Let => {
+            if let [value, body] = args.as_slice() {
+                failures_dropped(&value.body, lets, out);
+                let mut inner = lets.clone();
+                if let (Expression::Apply(Op::Call(g), _), [x]) = (&value.body, body.binds.as_slice()) {
+                    inner.insert(x.clone(), g.clone());
+                } else {
+                    for x in &body.binds {
+                        inner.remove(x);
+                    }
+                }
+                failures_dropped(&body.body, &inner, out);
+                return;
+            }
+        }
+        _ => {}
+    }
+    for a in args {
+        let mut inner = lets.clone();
+        for x in &a.binds {
+            inner.remove(x);
+        }
+        failures_dropped(&a.body, &inner, out);
     }
 }

@@ -21,5 +21,10 @@ subject check {
     ensure short_proofs: "a rule's proof written as its step alone, `by tollens`, shows the rule only when exactly one proof of that step from the rule's premises, each as it is or negated, shows it; none, or two listed as they are written in full, is M032";
     ensure invariants: "a claim `by invariant` of a function whose body is no loop, `by invariant n` of an `until`, or with `n` a name the function or its loop has, is M033";
     ensure nested: "a part holding parts that holds more than parts, requires, ensures and examples is M028, one of its ensures resting on more than its inner parts' ensures and its own requires M029, a `self` not first or in a part with no record M030";
+    // Finding 45 J6, shown by tests/static_gaps.rs: warnings that refuse
+    // nothing (A019, A020, A021).
+    ensure cases_made: "every case of an enum the model makes is made by some body, or the model says which case nothing makes";
+    ensure failures_carried: "a function that calls something that can fail either carries the failure in what it gives or says how it is handled";
+    ensure inputs_read: "every input of a function with a body is read by that body";
     ensure type_explained: "a type error (M005, M006) shows the expression, underlines its innermost part with no type and the type of each argument, says what that operation takes, and converts no number";
 }

@@ -233,7 +233,8 @@ fn each_finding_is_given() {
     // A18: a given a claim of its function refuses (more in tests/one_run.rs).
     let (_, found) = agree(&model(&disk.replace("given Disk::small(3) -> 30", "given Disk::small(3) -> 30, Disk::big(3) -> 5")), &small);
     assert!(found.iter().any(|f| f.to_string().starts_with("finding[A018]: example 0: `given Disk::big(3) -> 5` breaks claim `Disk::big::below`")), "{found:?}");
-    for code in ["A014", "A015", "A016", "A017", "A018"] {
+    // A019, A020, A021: in tests/static_gaps.rs.
+    for code in ["A014", "A015", "A016", "A017", "A018", "A019", "A020", "A021"] {
         given.insert(code.to_string());
     }
     let listed = CATALOGUE

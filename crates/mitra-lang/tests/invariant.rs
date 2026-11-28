@@ -67,7 +67,7 @@ const FIVES: &str = "    fn fives(xs: [integer]) -> c: integer {
         claim more: c + 1 <= n * 5 + 1 by invariant n;
     }";
 
-const DOWN: &str = "    fn down(a: integer) -> b: integer {
+const DOWN: &str = "    fn down(_a: integer) -> b: integer {
         until(b: 10, b <= 1) { b - 1 }
     } where {
         claim kept: 0 <= b by invariant;

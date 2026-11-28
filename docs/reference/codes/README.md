@@ -80,6 +80,9 @@ example, and the fix. The letter says which step found it.
 - [A016](A016.md): an example whose run reaches a budget
 - [A017](A017.md): an example the claims of a function with no body refuse
 - [A018](A018.md): a given that breaks a claim of its function
+- [A019](A019.md): an enum case no body makes
+- [A020](A020.md): a failure a body turns into an ordinary value
+- [A021](A021.md): an input a body never reads
 
 ## R (reader): `mitra:` comments in code and the test report
 

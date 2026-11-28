@@ -211,7 +211,13 @@ fn bounds_read_a_part_of_a_tree_as_any_tree() {
         let text = model(&format!(
             "    fn g(t: Tree, b: bool) -> n: integer {{\n        {body}\n    }} where {{ claim c: {claim}; }}"
         ));
-        findings(&text)
+        // `b` is read by some bodies only, and some make one case of
+        // `Tree`: A019 and A021 aside here.
+        let found: Vec<String> = findings(&text);
+        found
+            .into_iter()
+            .filter(|f| !f.starts_with("finding[A021]") && !f.starts_with("finding[A019]"))
+            .collect::<Vec<_>>()
     };
     // A `match` on a part: each variant.
     let nested =

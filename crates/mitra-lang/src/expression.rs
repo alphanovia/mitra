@@ -388,7 +388,7 @@ fn substitute_in<Op: Clone>(arg: &Arg<Op>, name: &str, with: &Expression<Op>) ->
 }
 
 /// The names free in `e`: those no argument around them binds.
-fn free<Op>(e: &Expression<Op>) -> BTreeSet<String> {
+pub fn free<Op>(e: &Expression<Op>) -> BTreeSet<String> {
     let mut found = BTreeSet::new();
     free_in(e, &mut Scope::new(), &mut found);
     found

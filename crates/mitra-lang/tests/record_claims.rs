@@ -126,7 +126,7 @@ fn a_law_every_impl_breaks_is_said_once() {
     );
     // One impl that keeps it: each that breaks it is said, at the impl.
     let out = said(&format!(
-        "{MONOTONE}\nsubject C {{\n    fn same(p: integer) -> q: integer {{ 7 }}\n    impl Monotone<integer> for same;\n}}"
+        "{MONOTONE}\nsubject C {{\n    fn same(_p: integer) -> q: integer {{ 7 }}\n    impl Monotone<integer> for same;\n}}"
     ));
     let at: Vec<&str> = out.iter().filter_map(|f| f.split("--> ").nth(1)).collect();
     assert_eq!(

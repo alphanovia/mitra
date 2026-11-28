@@ -474,7 +474,7 @@ environment sky {
 }
 subject walk {
     use sky::now;
-    fn go(n: integer) -> g: bool { match now() { Weather::Sun => true, Weather::Rain => false } }
+    fn go(_n: integer) -> g: bool { match now() { Weather::Sun => true, Weather::Rain => false } }
 }
 examples {
     given sky::now() -> Rain when walk::go(1) then false,

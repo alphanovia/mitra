@@ -171,6 +171,12 @@ finding[A007]: claim `keeps_target`: unknown, not decided by bounds over all of 
  --> Heater::decide
 ```
 
+It also says three gaps no comparison shows, as findings that refuse
+nothing: a case of an enum that bodies make others of and never make
+(A019), a failure a body turns into an ordinary value with no example or
+claim on it (A020), and an input a body never reads (A021; a name
+starting with `_` says it is meant).
+
 ## Ranges
 
 An integer input or result can be given a range: `0..=9` is an

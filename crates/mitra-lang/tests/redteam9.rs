@@ -537,8 +537,10 @@ examples {
 }
 "#;
     let (agreed, findings) = agreed(text);
+    // `stone::half` takes `h` and reads none of it (A021), aside here.
     let shown: Vec<String> = findings
         .iter()
+        .filter(|f| f.code.to_string() != "A021")
         .map(|f| format!("{} {}", f.code, f.message))
         .collect();
     assert_eq!(
