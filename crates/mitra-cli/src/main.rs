@@ -50,7 +50,7 @@ const USAGE: &str = "usage:
   mitra check MODEL [--points N]
   mitra explain MODEL [--code DIR]... [--report FILE | --no-test] [--store FILE]
   mitra blame MODEL [--code DIR]... [--report FILE | --no-test] [--store FILE]
-  mitra mc MODEL [--fn PATH | --steps PATH [--init PATH]]
+  mitra mc MODEL [--fn PATH | --step PATH [--init PATH] [--depth N]]
   mitra search MODEL [--keep-givens]
 
   MODEL      the model, a .mitra file of the project
@@ -98,6 +98,7 @@ struct Given {
     only: Option<String>,
     steps: Option<String>,
     init: Option<String>,
+    depth: Option<usize>,
     keep_givens: bool,
 }
 
@@ -119,14 +120,23 @@ fn arguments(args: &[String]) -> Result<Given, String> {
         only: None,
         steps: None,
         init: None,
+        depth: None,
         keep_givens: false,
     };
     while let Some(flag) = it.next() {
-        if ["--fn", "--steps", "--init"].contains(&flag.as_str()) && given.command == "mc" {
+        if flag == "--depth" && given.command == "mc" {
+            let v = it.next().ok_or("`--depth` needs a number of steps")?;
+            let n = v.parse::<usize>().ok().filter(|n| *n >= 1).ok_or(format!("`--depth` takes a number of steps, 1 or more, not `{v}`"))?;
+            if given.depth.replace(n).is_some() {
+                return Err("`--depth` is given twice".to_string());
+            }
+            continue;
+        }
+        if ["--fn", "--step", "--init"].contains(&flag.as_str()) && given.command == "mc" {
             let v = it.next().ok_or(format!("`{flag}` needs a path"))?.clone();
             let slot = match flag.as_str() {
                 "--fn" => &mut given.only,
-                "--steps" => &mut given.steps,
+                "--step" => &mut given.steps,
                 _ => &mut given.init,
             };
             if slot.replace(v).is_some() {
@@ -373,6 +383,11 @@ fn findings_out(findings: &[Finding]) {
 /// read, then the findings.
 fn search_out(model: &Model, settings: &mitra_lang::search::Settings, given: &Given) -> ExitCode {
     use mitra_lang::search::{mc, mc_steps, search, Verdict};
+    let mut settings = settings.clone();
+    if let Some(n) = given.depth {
+        settings.steps = n;
+    }
+    let settings = &settings;
     let report = match (given.command.as_str(), &given.steps) {
         ("mc", Some(step)) => match mc_steps(model, settings, step, given.init.as_deref()) {
             Ok(r) => r,

@@ -192,7 +192,10 @@ subject Timer {
 }";
     let report = search::search(&model(text), &search::Settings::default(), true);
     let shown: Vec<String> = report.findings.iter().map(|f| f.to_string()).collect();
-    assert!(shown.iter().any(|f| f.starts_with("finding[A025]") && f.contains("within")), "{shown:?}");
+    assert!(
+        shown.iter().any(|f| f.starts_with("finding[A025]") && f.contains("needs `Clock::now()` to give at least 0 (with it promised, the claim holds")),
+        "{shown:?}"
+    );
     let stated = text.replace("fn now() -> t: integer;", "fn now() -> t: integer where { claim after_start: t >= 0; }");
     let report = search::search(&model(&stated), &search::Settings::default(), true);
     assert!(report.findings.iter().all(|f| f.code.to_string() != "A025"), "{:?}", report.findings);
@@ -214,4 +217,80 @@ fn a_claim_no_example_runs_is_said_by_search() {
         Verdict::Unknown { why } => assert!(why.contains("no example runs it"), "{why}"),
         v => panic!("{v:?}"),
     }
+}
+
+// Round 2.
+
+#[test]
+fn steps_find_a_lost_update_among_interleavings() {
+    let text = "subject enum Event { ReadA, WriteA, ReadB, WriteB }
+subject record Shared { count: u8, a: u8, b: u8, done: u8 }
+subject Counter {
+    fn start() -> s: Shared { Shared { count: 0, a: 0, b: 0, done: 0 } }
+    fn step(s: Shared, e: Event) -> t: Shared {
+        match e {
+            ReadA => Shared { count: s.count, a: s.count, b: s.b, done: s.done },
+            WriteA => Shared { count: s.a + 1, a: s.a, b: s.b, done: s.done + 1 },
+            ReadB => Shared { count: s.count, a: s.a, b: s.count, done: s.done },
+            WriteB => Shared { count: s.b + 1, a: s.a, b: s.b, done: s.done + 1 },
+        }
+    } where {
+        claim none_lost: t.count == t.done;
+    }
+}";
+    let m = model(text);
+    let settings = search::Settings { steps: 3, ..search::Settings::default() };
+    let report = search::mc_steps(&m, &settings, "Counter::step", Some("Counter::start")).unwrap();
+    assert_eq!(verdict(&report, "none_lost"), Verdict::Fails);
+    let shown = report.findings[0].to_string();
+    assert!(shown.contains("the steps: e1 = "), "{shown}");
+    // Two steps cannot lose an update: each write follows a read of 0.
+    let two = search::Settings { steps: 2, ..search::Settings::default() };
+    let report = search::mc_steps(&m, &two, "Counter::step", Some("Counter::start")).unwrap();
+    assert_eq!(verdict(&report, "none_lost"), Verdict::Fails, "WriteA twice from 0 is a lost update too");
+}
+
+#[test]
+fn search_halves_to_the_exact_bound_of_a_machine_number() {
+    let text = "environment Sensor { fn read() -> v: u8; }
+subject Gauge {
+    use Sensor::read;
+    fn pct(x: u8) -> p: u8 { Sensor::read() / 2 } where {
+        claim small: p <= 1;
+        examples { given Sensor::read() -> 2 when (0) then 1 }
+    }
+}";
+    let report = search::search(&model(text), &search::Settings::default(), true);
+    let shown: Vec<String> = report.findings.iter().map(|f| f.to_string()).collect();
+    assert!(shown.iter().any(|f| f.contains("needs `Sensor::read()` to give at most 3 ")), "{shown:?}");
+}
+
+#[test]
+fn search_reaches_a_bound_no_sample_holds_at() {
+    let text = "environment Clock { fn now() -> t: integer; }
+subject Timer {
+    use Clock::now;
+    fn left(deadline: integer) -> l: integer { deadline - Clock::now() } where {
+        claim margin: l <= deadline - 100;
+        examples { given Clock::now() -> 300 when (1000) then 700 }
+    }
+}";
+    let report = search::search(&model(text), &search::Settings::default(), true);
+    let shown: Vec<String> = report.findings.iter().map(|f| f.to_string()).collect();
+    assert!(shown.iter().any(|f| f.contains("needs `Clock::now()` to give at least 100 ")), "{shown:?}");
+}
+
+#[test]
+fn a_relation_of_two_results_is_listed_by_points() {
+    let text = "environment Clock { fn now() -> t: integer; fn zone() -> z: integer; }
+subject Timer {
+    use Clock::{now, zone};
+    fn left(deadline: integer) -> l: integer { deadline - Clock::now() - Clock::zone() } where {
+        claim within: l <= deadline;
+        examples { given Clock::now() -> 3, Clock::zone() -> 0 when (10) then 7 }
+    }
+}";
+    let report = search::search(&model(text), &search::Settings::default(), true);
+    let shown: Vec<String> = report.findings.iter().map(|f| f.to_string()).collect();
+    assert!(shown.iter().any(|f| f.contains("only if not (")), "{shown:?}");
 }

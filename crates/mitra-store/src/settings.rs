@@ -31,8 +31,9 @@
 //! runs = 512
 //! length = 2              # sequences tried up to this length
 //! shown = 3
-//! steps = 3               # mitra mc --steps
+//! depth = 3               # steps of mitra mc --step
 //! spread = 0              # paths this many cases off the first run first
+//! reach = 64              # mitra search tries ±4, ±8… up to ±2^reach
 //! [test]                  # what explain and blame run with no --report
 //! command = ["cargo", "test", "--no-fail-fast", "--", "--show-output"]
 //! ```
@@ -88,7 +89,7 @@ const SECTIONS: &[(&str, &[&str])] = &[
         &["base_rate", "prior_weight", "checker", "link", "voices"],
     ),
     ("blame", &["diagnoses", "tries"]),
-    ("symbolic", &["runs", "length", "shown", "steps", "spread"]),
+    ("symbolic", &["runs", "length", "shown", "depth", "spread", "reach"]),
     ("test", &["command"]),
 ];
 
@@ -149,8 +150,9 @@ pub fn read(text: &str) -> Result<Settings> {
                 ("symbolic", "runs") => s.search.symbolic.runs = count(1)?,
                 ("symbolic", "length") => s.search.symbolic.samples.length = count(0)?,
                 ("symbolic", "shown") => s.search.shown = count(1)?,
-                ("symbolic", "steps") => s.search.steps = count(1)?,
+                ("symbolic", "depth") => s.search.steps = count(1)?,
                 ("symbolic", "spread") => s.search.symbolic.spread = count(0)?,
+                ("symbolic", "reach") => s.search.reach = count(2)?,
                 ("budget", "steps") => s.agree.budget.steps = count(0)?,
                 ("budget", _) => s.agree.budget.depth = count(0)?,
                 ("explain", "rounds") => s.explain.rounds = count(0)?,

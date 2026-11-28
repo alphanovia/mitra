@@ -5,7 +5,7 @@
 //! free, the results of functions with no body unknown (`symbolic`), and
 //! reads each of its claims on every path. A claim false on a path the
 //! claims of the functions with no body allow is a finding (A024), with
-//! the path written as an example row. With `steps`, it runs a function
+//! the path written as an example row. With `--step`, it runs a function
 //! `step(s, e) -> s` over a sequence of free events instead, a few steps
 //! deep, and reads its claims at each step.
 //!
@@ -23,6 +23,7 @@ use crate::model::{calls, Function, Index, Model, Path};
 use crate::print;
 use crate::simulation::{Calls, Exact, Op, Type, Undefined, Value};
 use crate::symbolic::{explore, Explored, Free};
+use num_bigint::BigInt;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -32,8 +33,11 @@ pub struct Settings {
     pub symbolic: crate::symbolic::Settings,
     /// The most conditions shown for one claim; the others are counted.
     pub shown: usize,
-    /// How many steps `mc --steps` runs a step function.
+    /// How many steps `mc --step` runs a step function (`[symbolic] depth`).
     pub steps: usize,
+    /// When a claim breaks at every sample of one number, `search` tries
+    /// ±4, ±8… up to ±2^reach for a value it holds at.
+    pub reach: usize,
     pub budget: crate::simulation::Budget,
 }
 
@@ -43,6 +47,7 @@ impl Default for Settings {
             symbolic: Default::default(),
             shown: 3,
             steps: 3,
+            reach: 64,
             budget: Default::default(),
         }
     }
@@ -489,7 +494,6 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
     }
     // Claims of each function with a body, by path: a route claim with
     // the body run again, traced; any other read of what the call gave.
-    type Claims<'a> = BTreeMap<String, (&'a Function, Vec<(String, bool, Expression<Op>)>)>;
     let claims: Claims = index
         .functions
         .iter()
@@ -510,6 +514,9 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
     // Needs found, by claim: each condition once.
     let mut needs: BTreeMap<(String, String), (Vec<String>, BTreeSet<String>)> = BTreeMap::new();
     let mut tally: BTreeMap<(String, String), (usize, usize)> = BTreeMap::new();
+    // Bounds found and checked, by claim: what is needed, on how many
+    // paths it was checked, and the row.
+    let mut bounds: BTreeMap<(String, String), Vec<(String, usize, String)>> = BTreeMap::new();
     let trace_rows = std::env::var("MITRA_SEARCH_TRACE").is_ok();
     for (row_at, f, args, given) in rows {
         let started = std::time::Instant::now();
@@ -533,38 +540,7 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
         );
         let inputs: BTreeMap<String, Value> =
             args.iter().enumerate().map(|(k, v)| (format!("#{k}"), v.clone())).collect();
-        let explored = explore(&world, &vec![], &settings.symbolic, &|exact, _| {
-            let ran = eval(exact, &inputs, &call);
-            if let Err(Fault::Op(Undefined::Split(id))) = ran {
-                return Err(Fault::Op(Undefined::Split(id)));
-            }
-            let mut here = Vec::new();
-            let mut read: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
-            for c in exact.log.trace() {
-                if !c.body || !read.insert(c.made.clone()) {
-                    continue;
-                }
-                let Some((function, cs)) = claims.get(&c.made.0) else { continue };
-                let mut values: BTreeMap<String, Value> =
-                    function.takes.iter().map(|(n, _)| n.clone()).zip(c.made.1.iter().cloned()).collect();
-                let Some(gave) = &c.gave else { continue };
-                values.insert(function.gives.0.clone(), gave.clone());
-                for (name, routed, e) in cs {
-                    let exact = Exact {
-                        calls: world.clone(),
-                        log: match routed {
-                            true => crate::simulation::Log::kept(),
-                            false => Default::default(),
-                        },
-                    };
-                    match read_of(eval(&exact, &values, e)) {
-                        Ok(r) => here.push((c.made.0.clone(), name.clone(), r)),
-                        Err(id) => return Err(Fault::Op(Undefined::Split(id))),
-                    }
-                }
-            }
-            Ok(here)
-        });
+        let explored = run_row(&world, &inputs, &call, &claims, settings);
         report.runs += explored.paths.len();
         if trace_rows {
             eprintln!("{row_at} {f}: {} paths, cut {}, {:?}", explored.paths.len(), explored.cut, started.elapsed());
@@ -593,6 +569,107 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
                 }
             }
         }
+        // A number an opaque call gave, on which the claim breaks below
+        // (or above) every value on which it holds: the bound between is
+        // the condition, checked by running the row again with it as a
+        // promise (choice I3). Only one number on the path: two would
+        // need a relation.
+        type Sides = BTreeMap<(String, String, String), (String, Type, Vec<BigInt>, Vec<BigInt>)>;
+        let mut sides: Sides = BTreeMap::new();
+        for p in explored.paths.iter().filter(|p| p.excluded.is_none()) {
+            let Ok(reads) = &p.outcome else { continue };
+            let numbers = explored.numbers(p);
+            let [(g, shown, ty, n)] = numbers.as_slice() else { continue };
+            for (f, name, r) in reads {
+                let e = sides
+                    .entry((f.clone(), name.clone(), g.clone()))
+                    .or_insert((shown.clone(), ty.clone(), vec![], vec![]));
+                match r {
+                    Read::True => e.3.push(n.clone()),
+                    Read::False(_) => e.2.push(n.clone()),
+                    Read::NoValue(_) => {}
+                }
+            }
+        }
+        for ((f, name, g), (shown, ty, failed, mut held)) in sides {
+            let Some(gives) = world.get(&g).map(|c| c.gives_name().to_string()) else { continue };
+            let lit = |n: BigInt| -> Option<Expression<Op>> {
+                match &ty {
+                    Type::Machine(m) if m.holds(&n) => Some(ap(Op::Fixed(*m, n), vec![])),
+                    Type::Machine(_) => None,
+                    _ => Some(ap(Op::Int(n), vec![])),
+                }
+            };
+            let named = Expression::Name(gives.clone());
+            // The claim at one value of the call, the others as they were:
+            // that value its one sample, and promised.
+            let at_value = |k: &BigInt| -> Option<bool> {
+                let l = lit(k.clone())?;
+                let only = world.promised(&g, &format!("{g}::at"), ap(Op::Equal, vec![named.clone(), l]))?;
+                let mut one = settings.clone();
+                one.symbolic.samples.ints = vec![k.clone()];
+                let again = run_row(&Arc::new(only), &inputs, &call, &claims, &one);
+                read_claim(&again, &f, &name).1
+            };
+            // Broken at every sample: farther values, by doubling, for
+            // one it holds at (`[symbolic] reach`).
+            if held.is_empty() && !failed.is_empty() {
+                let mut k = BigInt::from(4);
+                for _ in 2..settings.reach {
+                    for v in [k.clone(), -k.clone()] {
+                        if held.is_empty() && at_value(&v) == Some(true) {
+                            held.push(v);
+                        }
+                    }
+                    if !held.is_empty() {
+                        break;
+                    }
+                    k *= 2;
+                }
+            }
+            let (Some(lo_fail), Some(hi_fail)) = (failed.iter().min(), failed.iter().max()) else { continue };
+            let (Some(lo_held), Some(hi_held)) = (held.iter().min(), held.iter().max()) else { continue };
+            let (lo_fail, hi_fail, lo_held, hi_held) = (lo_fail.clone(), hi_fail.clone(), lo_held.clone(), hi_held.clone());
+            // Between the last value it holds at and the first it breaks
+            // at, halved until they meet (choice I3: it takes the claim
+            // to break on one side only, and says so).
+            let (said, holds, edge) = if hi_fail < lo_held {
+                let (mut lo, mut hi) = (hi_fail.clone(), lo_held.clone());
+                while &hi - &lo > BigInt::from(1) {
+                    let mid: BigInt = (&lo + &hi) / 2;
+                    match at_value(&mid) {
+                        Some(true) => hi = mid,
+                        Some(false) => lo = mid,
+                        None => break,
+                    }
+                }
+                let Some(l) = lit(hi.clone()) else { continue };
+                (format!("{shown} to give at least {hi}"), ap(Op::AtMost, vec![l, named]), hi)
+            } else if lo_fail > hi_held {
+                let (mut lo, mut hi) = (hi_held.clone(), lo_fail.clone());
+                while &hi - &lo > BigInt::from(1) {
+                    let mid: BigInt = (&lo + &hi) / 2;
+                    match at_value(&mid) {
+                        Some(true) => lo = mid,
+                        Some(false) => hi = mid,
+                        None => break,
+                    }
+                }
+                let Some(l) = lit(lo.clone()) else { continue };
+                (format!("{shown} to give at most {lo}"), ap(Op::AtMost, vec![named, l]), lo)
+            } else {
+                continue;
+            };
+            // Checked with the bound promised, its edge among the samples.
+            let Some(promised) = world.promised(&g, &format!("{g}::needed"), holds) else { continue };
+            let mut edged = settings.clone();
+            edged.symbolic.samples.ints.push(edge);
+            let again = run_row(&Arc::new(promised), &inputs, &call, &claims, &edged);
+            let (n, kept) = read_claim(&again, &f, &name);
+            if kept == Some(true) && n > 0 {
+                bounds.entry((f, name)).or_default().push((said, n, row_at.to_string()));
+            }
+        }
     }
     for ((g, name), (conds, rows)) in &needs {
         let shown: Vec<String> = conds.iter().take(settings.shown).map(|c| format!("not ({c})")).collect();
@@ -601,6 +678,21 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
             false => String::new(),
         };
         let rows: Vec<&str> = rows.iter().map(String::as_str).collect();
+        if let Some(found) = bounds.get(&(g.clone(), name.clone())) {
+            let said: Vec<String> = found
+                .iter()
+                .map(|(what, n, row)| format!("{what} (with it promised, the claim holds on the {n} paths of {row})"))
+                .collect();
+            report.findings.push(Finding {
+                code: A025,
+                at: Path::to(&g.split("::").collect::<Vec<_>>()).then(name),
+                message: format!(
+                    "claim `{name}` needs {}: no claim of a function with no body says so",
+                    said.join("; and ")
+                ),
+            });
+            continue;
+        }
         report.findings.push(Finding {
             code: A025,
             at: Path::to(&g.split("::").collect::<Vec<_>>()).then(name),
@@ -647,6 +739,83 @@ pub fn search(model: &Model, settings: &Settings, free: bool) -> Report {
         });
     }
     report
+}
+
+/// How many paths read claim `name` of `f`, and whether it held on all
+/// (`None`: no path read it).
+fn read_claim(ex: &Explored<RowReads>, f: &str, name: &str) -> (usize, Option<bool>) {
+    let (mut n, mut broken) = (0, false);
+    for p in ex.paths.iter().filter(|p| p.excluded.is_none()) {
+        let Ok(reads) = &p.outcome else { continue };
+        for (ff, nn, r) in reads {
+            if ff == f && nn == name {
+                match r {
+                    Read::True => n += 1,
+                    Read::False(_) => {
+                        n += 1;
+                        broken = true
+                    }
+                    Read::NoValue(_) => {}
+                }
+            }
+        }
+    }
+    (n, (n > 0).then_some(!broken))
+}
+
+fn ap(op: Op, args: Vec<Expression<Op>>) -> Expression<Op> {
+    Expression::Apply(op, args.into_iter().map(|body| Arg { binds: vec![], body }).collect())
+}
+
+/// Claims of each function with a body, by path: each by its name,
+/// whether it reads the run's calls, and what it reads.
+type Claims<'a> = BTreeMap<String, (&'a Function, Vec<(String, bool, Expression<Op>)>)>;
+/// What a row's run read: each claim of each body it passed, by its
+/// function and name.
+type RowReads = Vec<(String, String, Read)>;
+
+/// One row run symbolically in `world`: the call first, then the claims
+/// of each body it passed, at what each was called with, all in the one
+/// run.
+fn run_row(
+    world: &Arc<Calls>,
+    inputs: &BTreeMap<String, Value>,
+    call: &Expression<Op>,
+    claims: &Claims,
+    settings: &Settings,
+) -> Explored<RowReads> {
+    explore(world, &vec![], &settings.symbolic, &|exact, _| {
+        let ran = eval(exact, &inputs, &call);
+        if let Err(Fault::Op(Undefined::Split(id))) = ran {
+            return Err(Fault::Op(Undefined::Split(id)));
+        }
+        let mut here = Vec::new();
+        let mut read: BTreeSet<(String, Vec<Value>)> = BTreeSet::new();
+        for c in exact.log.trace() {
+            if !c.body || !read.insert(c.made.clone()) {
+                continue;
+            }
+            let Some((function, cs)) = claims.get(&c.made.0) else { continue };
+            let mut values: BTreeMap<String, Value> =
+                function.takes.iter().map(|(n, _)| n.clone()).zip(c.made.1.iter().cloned()).collect();
+            let Some(gave) = &c.gave else { continue };
+            values.insert(function.gives.0.clone(), gave.clone());
+            for (name, routed, e) in cs {
+                let exact = Exact {
+                    calls: world.clone(),
+                    log: match routed {
+                        true => crate::simulation::Log::kept(),
+                        false => Default::default(),
+                    },
+                };
+                match read_of(eval(&exact, &values, e)) {
+                    Ok(r) => here.push((c.made.0.clone(), name.clone(), r)),
+                    Err(id) => return Err(Fault::Op(Undefined::Split(id))),
+                }
+            }
+        }
+        Ok(here)
+    })
 }
 
 /// The type of what `f` gives, for a row of it.

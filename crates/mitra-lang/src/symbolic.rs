@@ -698,6 +698,24 @@ impl<T> Explored<T> {
         }
         said
     }
+    /// The opaque calls of a number whose value path `p` took, each by
+    /// its function, as written (with its arguments), with its type and
+    /// that value.
+    pub fn numbers(&self, p: &Path<T>) -> Vec<(String, String, Type, BigInt)> {
+        let t = self.table.lock().unwrap_or_else(|e| e.into_inner());
+        p.cases
+            .iter()
+            .filter_map(|(id, v)| {
+                let (Origin::Call(f, args), ty) = &t.made[*id as usize] else { return None };
+                let n = match v {
+                    Value::Int(n) | Value::Fixed(_, n) => n.clone(),
+                    _ => return None,
+                };
+                let shown: Vec<String> = args.iter().map(|a| shown_in(&t, &p.fixed, a)).collect();
+                Some((f.clone(), format!("`{f}({})`", shown.join(", ")), ty.clone(), n))
+            })
+            .collect()
+    }
     /// `v` as path `p` knows it.
     pub fn shown(&self, p: &Path<T>, v: &Value) -> String {
         let t = self.table.lock().unwrap_or_else(|e| e.into_inner());

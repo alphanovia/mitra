@@ -1329,6 +1329,25 @@ impl Calls {
             .insert(0, (at, gives));
         Ok(self)
     }
+    /// With one more promise of the function with no body at `path`, at
+    /// `at`, a claim over what it takes and gives (dry run, `mitra
+    /// search` checking the condition it found). `None` for a function
+    /// with a body or none.
+    pub fn promised(&self, path: &str, at: &str, holds: Expression<Op>) -> Option<Calls> {
+        let mut c = self.clone();
+        let callee = c.callees.get_mut(path)?;
+        if callee.body.is_some() {
+            return None;
+        }
+        let gives = callee.gives_name().to_string();
+        callee
+            .promises
+            .get_or_insert(Promises { gives, claims: vec![] })
+            .claims
+            .push((at.to_string(), holds));
+        c.memo = Box::default();
+        Some(c)
+    }
     /// The function at `path`.
     pub fn get(&self, path: &str) -> Option<&Callee> {
         self.callees.get(path)

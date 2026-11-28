@@ -4339,7 +4339,13 @@ impl<'c> Parser<'c> {
         let mut args: Vec<Arg<Op>> = count.into_iter().map(|c| Arg { binds: vec![], body: c }).collect();
         args.extend(values.into_iter().map(|v| Arg { binds: vec![], body: v }));
         if matches!(route.kind, RouteKind::Always) {
-            self.expect(":")?;
+            if !self.eat(":") {
+                return Err(error(
+                    P003,
+                    self.pos(),
+                    "`always f(…)` says what holds of each call after `:`: `always Disk::write(_, t): t != \"\"`",
+                ));
+            }
             let types = self.context.and_then(|c| route.binder_types(&c.simulation.calls));
             let depth = env.len();
             for (k, n) in binders.iter().enumerate() {
