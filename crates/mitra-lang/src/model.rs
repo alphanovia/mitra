@@ -1299,14 +1299,21 @@ pub fn settle_worlds(model: &mut Model) {
         if takes.len() != args.len() {
             continue;
         }
+        let mut settled = Vec::new();
         for ((n, t), v) in takes.iter().zip(args) {
             let v = crate::parse::settle_value(v.clone(), t);
-            e.inputs.push((f.then(n), v));
+            e.inputs.push((f.then(n), v.clone()));
+            settled.push(v);
         }
-        if let Some(gives) = gives {
+        // The run `then`'s calls are read of takes them settled too: an
+        // empty `[]` unsettled stops `++` (finding U).
+        let f = f.clone();
+        let gives = gives.clone();
+        if let Some(gives) = &gives {
             let v = crate::parse::settle_value(gives.clone(), &out.1);
             e.outputs.push((f.then(&out.0), v));
         }
+        e.when = Some((f, settled, gives));
         // What it calls is read by running `when` again: it stays.
         if e.effects.0.is_empty() && e.effects.1.is_empty() {
             e.when = None;

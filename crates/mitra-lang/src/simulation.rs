@@ -1953,6 +1953,11 @@ impl Exact {
                 self.route(r, args, Some(&mut cond))
             }
             (Op::Match(_), [scrutinee, ..]) => match crate::symbolic::resolved(scrutinee) {
+                // An arm that binds nothing was computed with the others
+                // (`needed`): run again, its calls would be made twice.
+                Ok(Value::Variant(_, i, holds)) if holds.is_empty() && args.get(1 + i).is_some_and(|a| a != &Err(Fault::Stuck)) => {
+                    args[1 + i].clone()
+                }
                 Ok(Value::Variant(_, i, holds)) => {
                     let holds: Vec<Exactly> = holds.iter().cloned().map(Ok).collect();
                     run(1 + i, &holds)

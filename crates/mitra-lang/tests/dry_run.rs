@@ -294,3 +294,35 @@ subject Timer {
     let shown: Vec<String> = report.findings.iter().map(|f| f.to_string()).collect();
     assert!(shown.iter().any(|f| f.contains("only if not (")), "{shown:?}");
 }
+
+// Round 3.
+
+#[test]
+fn an_arm_that_binds_nothing_runs_once() {
+    let text = "subject enum Look { Found(integer), Missing }
+environment Disk {
+    fn look(name: [~char]) -> l: Look;
+    fn write(name: [~char], text: [~char]) -> ok: bool;
+}
+subject N {
+    use Disk::{look, write};
+    fn f(a: [~char]) -> n: integer {
+        match Disk::look(a) { Look::Found(k) => k, Look::Missing => { let _w = Disk::write(a, a); 0 } }
+    } where {
+        examples { given Disk::look(_) -> Look::Missing, Disk::write(_, _) -> true when (\"a\") then 0, once Disk::write(_, _) }
+    }
+}";
+    let found = findings(text);
+    assert!(found.is_empty(), "{found:?}");
+}
+
+#[test]
+fn an_empty_sequence_in_a_model_row_settles_for_its_routes() {
+    let text = format!("{DISK}subject N {{
+    use Disk::write;
+    fn f(xs: [[~char]]) -> n: integer {{ let ys = xs ++ [\"b\"]; ys.fold(n: 0) {{ y -> {{ let _w = Disk::write(y, y); n + 1 }} }} }}
+}}
+examples {{ given Disk::write(_, _) -> true when N::f([]) then 1, once Disk::write(\"b\", _) }}");
+    let found = findings(&text);
+    assert!(found.iter().all(|f| !f.contains("examples::0")), "{found:?}");
+}
