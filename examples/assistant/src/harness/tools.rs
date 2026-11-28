@@ -6,7 +6,7 @@ pub struct Policy;
 
 impl Policy {
     // mitra: implements Policy::allow
-    pub fn allow(t: Tool, c: Call, _a: Ask, p: Person, h: Habits, after_output: bool) -> Decision {
+    pub fn allow(t: Tool, c: Call, p: Person, h: Habits, after_output: bool) -> Decision {
         Policy::decide(
             t.level,
             p.role,

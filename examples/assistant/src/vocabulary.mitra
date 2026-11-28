@@ -103,7 +103,7 @@ subject Outcome {
     use Result from "std";
     record { call: Call, output: Result<[~char], ToolFailure> }
 }
-subject enum HarnessFailure { EmptyPrompt, Llm(LlmFailure), Tool(ToolFailure), TooManyTurns }
+subject enum HarnessFailure { EmptyPrompt, Llm(LlmFailure), TooManyTurns }
 subject record Reply { text: [~char] }
 // One turn of the conversation the harness keeps for the model.
 subject enum Turn { User([~char]), Model(Answer), Results([Outcome]) }

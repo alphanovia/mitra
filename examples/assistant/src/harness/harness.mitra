@@ -123,7 +123,7 @@ subject Harness {
                 match got {
                     Ok(ans) => {
                         let next = Conversation {
-                            turns: c.turns ++ [Turn::Model(ans), Turn::Results(perform_all(ans.calls, a, p, h, tools, read_output(c)))]
+                            turns: c.turns ++ [Turn::Model(ans), Turn::Results(perform_all(ans.calls, p, h, tools, read_output(c)))]
                         };
                         (next, llm.inference(Composer::compose(a, Purpose::context(a, next), h, llm), tools), k + 1)
                     },
@@ -162,17 +162,17 @@ subject Harness {
     // Every call, in order: a tool of the harness's own list, run only
     // when allowed, its output guarded. A name not on the list runs
     // nothing (H1).
-    fn perform_all(calls: [Call], a: Ask, p: Person, h: Habits, tools: [Tool], after_output: bool) -> rs: [Outcome] {
+    fn perform_all(calls: [Call], p: Person, h: Habits, tools: [Tool], after_output: bool) -> rs: [Outcome] {
         calls.fold(rs: []) { c -> rs ++ [Outcome { call: c, output: match lookup(c.tool, tools) {
             Option::None => unknown(),
             Option::Some(t) => {
-                let d = Policy::allow(t, c, a, p, h, after_output);
+                let d = Policy::allow(t, c, p, h, after_output);
                 if runs(d) { ToolGuard::screen(act(t, c)) } else { Err(withheld(d)) }
             }
         } }] }
     } where {
         claim each: rs.len() == n by invariant n;
-        examples { ([], Ask { text: "x", clear: true, easy: true }, Person { role: Role::Owner }, Habits {}, [], false) -> [] }
+        examples { ([], Person { role: Role::Owner }, Habits {}, [], false) -> [] }
     }
     // A tool runs only once its call is written down (H13).
     fn act(t: Tool, c: Call) -> got: Result<[~char], ToolFailure> {

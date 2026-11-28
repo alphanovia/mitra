@@ -273,7 +273,6 @@ pub struct Outcome {
 pub enum HarnessFailure {
     EmptyPrompt,
     Llm(LlmFailure),
-    Tool(ToolFailure),
     TooManyTurns,
 }
 

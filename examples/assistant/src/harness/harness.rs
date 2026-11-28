@@ -159,14 +159,8 @@ impl Harness {
         while !Harness::finished(got.clone()) && k < turns {
             let ans = got.clone().expect("not finished, so an answer");
             let after_output = Harness::read_output(c.clone());
-            let rs = Harness::perform_all(
-                ans.calls.clone(),
-                a.clone(),
-                p,
-                h.clone(),
-                tools.clone(),
-                after_output,
-            );
+            let rs =
+                Harness::perform_all(ans.calls.clone(), p, h.clone(), tools.clone(), after_output);
             c.turns.push(Turn::Model(ans));
             c.turns.push(Turn::Results(rs));
             got = llm.clone().inference(ask(&c), tools.clone());
@@ -196,7 +190,6 @@ impl Harness {
     // mitra: implements Harness::perform_all
     pub fn perform_all(
         calls: Vec<Call>,
-        a: Ask,
         p: Person,
         h: Habits,
         tools: Vec<Tool>,
@@ -208,14 +201,7 @@ impl Harness {
                 let output = match Harness::lookup(c.tool.clone(), tools.clone()) {
                     None => Harness::unknown(),
                     Some(t) => {
-                        let d = Policy::allow(
-                            t.clone(),
-                            c.clone(),
-                            a.clone(),
-                            p,
-                            h.clone(),
-                            after_output,
-                        );
+                        let d = Policy::allow(t.clone(), c.clone(), p, h.clone(), after_output);
                         if Harness::runs(d) {
                             ToolGuard::screen(Harness::act(t, c.clone()))
                         } else {

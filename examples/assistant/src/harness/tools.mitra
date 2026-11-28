@@ -8,7 +8,7 @@ subject Policy {
     // The decision on a call of a listed tool: by its level, the sender's
     // role, whether the call is usual for the sender (H9), and whether the
     // model asked for it after reading a tool's output in this request (K1).
-    fn allow(t: Tool, c: Call, a: Ask, p: Person, h: Habits, after_output: bool) -> d: Decision {
+    fn allow(t: Tool, c: Call, p: Person, h: Habits, after_output: bool) -> d: Decision {
         decide(t.level, p.role, Experience::usual(c, h), after_output)
     }
     // CHOICE TO CONFIRM (C15, revised after the challenger's K1 and K4): a

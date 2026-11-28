@@ -13,7 +13,6 @@ impl Reporter {
                 s("I can't reach the model that does this work right now. Nothing was done. Please try again later.")
             }
             Err(HarnessFailure::Llm(LlmFailure::TooLong)) => s("That is too long for me to work on. Nothing was done."),
-            Err(HarnessFailure::Tool(f)) => format!("A tool failed ({f:?}). Nothing more was done."),
             Err(HarnessFailure::TooManyTurns) => {
                 s("I stopped: this took more steps than I am allowed. What was done so far is in the journal.")
             }
