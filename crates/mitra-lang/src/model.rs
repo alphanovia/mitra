@@ -70,6 +70,8 @@ pub struct Model {
     /// What the model gives across parts, end to end.
     pub examples: Vec<ModelExample>,
     pub ties: Vec<Tie>,
+    /// What whole-number arithmetic does: `[model]` in `mitra.toml`.
+    pub arithmetic: simulation::Arithmetic,
 }
 
 /// In the system, or outside it. Only explain reads it: what a
@@ -1158,7 +1160,7 @@ pub fn calls(model: &Model) -> Result<Calls, BTreeSet<String>> {
             callees.entry(path).or_insert(callee);
         }
     }
-    Calls::with(callees)
+    Calls::with(callees).map(|c| c.arithmetic(model.arithmetic))
 }
 
 /// The model's functions as a set's condition reads them (finding 12b):

@@ -1310,6 +1310,7 @@ impl<'c> Parser<'c> {
             contracts,
             examples,
             ties: self.ties,
+            arithmetic: Default::default(),
         };
         Ok((model, self.reads))
     }
@@ -3374,6 +3375,22 @@ impl<'c> Parser<'c> {
                 self.expect(")")?;
                 Ok(apply(Op::Widen(simulation::Machine::named(&w)), vec![x]))
             }
+            // `u8::narrow(x)`: an integer as a machine type, no value
+            // past its range.
+            Tok::Word(w)
+                if simulation::Machine::named(&w).is_some()
+                    && *self.peek_at(1) == Tok::Sym("::")
+                    && matches!(self.peek_at(2), Tok::Word(f) if f == "narrow")
+                    && *self.peek_at(3) == Tok::Sym("(") =>
+            {
+                for _ in 0..4 {
+                    self.bump();
+                }
+                let x = self.inner(env)?;
+                self.expect(")")?;
+                let m = simulation::Machine::named(&w).ok_or_else(|| error(P003, at, "a machine type"))?;
+                Ok(apply(Op::Narrow(m), vec![x]))
+            }
             Tok::Word(w) if self.route_ahead() => {
                 let _ = w;
                 self.route(env, at)
@@ -4846,6 +4863,10 @@ pub const STD: &[(&str, &str)] = &[
         "std/result.mitra",
         include_str!("../../../std/result.mitra"),
     ),
+    (
+        "std/convert.mitra",
+        include_str!("../../../std/convert.mitra"),
+    ),
 ];
 
 /// What the parser may do: how deep a text may nest, in levels of
@@ -5104,6 +5125,7 @@ fn files(
         contracts: vec![],
         examples: vec![],
         ties: vec![],
+        arithmetic: Default::default(),
     };
     // Where a file declares a part: for P012 on a piece of it.
     let declared_at = |tokens: &[(Tok, Pos)], name: &str| {

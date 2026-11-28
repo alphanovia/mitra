@@ -2149,6 +2149,7 @@ impl Mistyped<'_> {
             Op::Within => format!("`within` takes three numbers {SAME}"),
             Op::Widen(None) => "`integer::from` takes a machine integer".to_string(),
             Op::Widen(Some(m)) => format!("`{}::from` takes a machine integer it holds every value of", m.name()),
+            Op::Narrow(m) => format!("`{}::narrow` takes an `integer`", m.name()),
             Op::Fixed(m, n) => format!("`{n}` is past `{}`, which holds {} to {}", m.name(), m.lowest(), m.highest()),
             Op::Calls(f) => format!("`calls({f})` reads a function of the model, whose inputs and result have names other than `at`"),
             Op::Route(r) => format!("a route form takes the inputs of {} as written, and a count of integer", r.names().join(" and ")),

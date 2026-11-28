@@ -192,6 +192,7 @@ fn fall() -> Model {
             item: path("stone::drop"),
             at: Location::at(&["lab", "tower", "stone"]),
         }],
+        arithmetic: Default::default(),
     }
 }
 

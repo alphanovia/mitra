@@ -1,0 +1,36 @@
+// Mitra's standard model, shipped in the binary: `use Convert from "std";`.
+// An integer narrowed to a machine type, as Rust's `u8::try_from(x)`:
+// `Ok` when it fits, else `Err` with the integer that did not. Written
+// over the primitive `u8::narrow(x)`, which has no value past the range
+// (dry run, the user's S3).
+subject Convert {
+    use Result from "std";
+    fn try_u8(x: integer) -> r: Result<u8, integer> {
+        if 0 <= x && x <= 255 { Ok(u8::narrow(x)) } else { Err(x) }
+    } where {
+        examples { (255) -> Ok(255), (256) -> Err(256), (-1) -> Err(-1) }
+    }
+    fn try_u16(x: integer) -> r: Result<u16, integer> {
+        if 0 <= x && x <= 65535 { Ok(u16::narrow(x)) } else { Err(x) }
+    }
+    fn try_u32(x: integer) -> r: Result<u32, integer> {
+        if 0 <= x && x <= 4294967295 { Ok(u32::narrow(x)) } else { Err(x) }
+    }
+    fn try_u64(x: integer) -> r: Result<u64, integer> {
+        if 0 <= x && x <= 18446744073709551615 { Ok(u64::narrow(x)) } else { Err(x) }
+    }
+    fn try_i8(x: integer) -> r: Result<i8, integer> {
+        if -128 <= x && x <= 127 { Ok(i8::narrow(x)) } else { Err(x) }
+    } where {
+        examples { (-128) -> Ok(-128), (128) -> Err(128) }
+    }
+    fn try_i16(x: integer) -> r: Result<i16, integer> {
+        if -32768 <= x && x <= 32767 { Ok(i16::narrow(x)) } else { Err(x) }
+    }
+    fn try_i32(x: integer) -> r: Result<i32, integer> {
+        if -2147483648 <= x && x <= 2147483647 { Ok(i32::narrow(x)) } else { Err(x) }
+    }
+    fn try_i64(x: integer) -> r: Result<i64, integer> {
+        if -9223372036854775808 <= x && x <= 9223372036854775807 { Ok(i64::narrow(x)) } else { Err(x) }
+    }
+}

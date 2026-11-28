@@ -16,8 +16,27 @@ Every example here is from
 | `0..=9` | | an `integer` checked to be in a range |
 
 No conversion is ever implicit: `2` is an `integer`, `2.0` a `rational`,
-and `2 + 2.0` is an error. Machine types (`u32`, `i64`, `f64`) come
-later; for now a model speaks of exact numbers.
+and `2 + 2.0` is an error.
+
+## Machine integers
+
+`i8` to `i64` and `u8` to `u64` are Rust's machine integers: `+ - * / %`
+and comparisons on two of one type. A whole number beside one is of its
+type; a literal past it (`300` as a `u8`) is refused.
+
+| Write | Gives |
+|---|---|
+| `integer::from(x)` | `x` as an `integer` |
+| `i64::from(x)` | `x` as a type that holds every value of it |
+| `u8::narrow(n)` | the `integer` `n` as a `u8`; no value past its range, as `1 / 0` |
+| `Convert::try_u8(n)` | `Ok` of it when it fits, else `Err(n)` (std) |
+
+A result past the range does what `[model] overflow` in `mitra.toml`
+says: no value (`"fail"`, Rust's debug build), taken around (`"wrap"`,
+Rust's release build), or the nearest end (`"clamp"`). `/` on whole
+numbers rounds toward zero, as in Rust, or down (`[model] division =
+"floor"`, as in Python), and `%` follows: `-7 / 2` is `-3` and `-7 % 2`
+is `-1`; floored, `-4` and `1`. Machine floats (`f64`) come later.
 
 ## Tuples and records
 

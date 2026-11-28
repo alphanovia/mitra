@@ -192,6 +192,7 @@ fn fall() -> Model {
             item: path("stone::drop"),
             at: Location::at(&["lab", "tower", "stone"]),
         }],
+        arithmetic: Default::default(),
     }
 }
 
@@ -655,6 +656,7 @@ fn numbers_read_and_print_exactly() {
         contracts: vec![],
         examples: vec![],
         ties: vec![],
+        arithmetic: Default::default(),
     };
     let (takes, gives) = parse_row("(1/3, -2, 0.25, true) -> (1, 2.5)", &m).unwrap();
     assert_eq!(
@@ -917,6 +919,7 @@ fn in_a_model(holds: E) -> Model {
         contracts: vec![],
         examples: vec![],
         ties: vec![],
+        arithmetic: Default::default(),
     }
 }
 

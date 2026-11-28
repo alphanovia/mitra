@@ -708,6 +708,67 @@ impl Default for Budget {
     }
 }
 
+/// What whole-number arithmetic does where Rust's languages differ: the
+/// model's setting, `[model]` in `mitra.toml` (the user's ask S1, S2,
+/// 2026-11-28). The default is Rust's: a machine integer past its range
+/// is no value (a debug build panics), and `/` rounds toward zero.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Arithmetic {
+    pub overflow: Overflow,
+    pub division: Division,
+}
+
+/// A machine integer's result past its type's range.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Overflow {
+    /// No value: `Undefined::Overflow` (Rust's debug build, `checked_*`,
+    /// Swift, Ada).
+    #[default]
+    Fail,
+    /// Taken around the range, modulo 2^bits (Rust's release build,
+    /// `wrapping_*`, C's unsigned, Java, Go).
+    Wrap,
+    /// The nearest end of the range (`saturating_*`, DSP code, Zig `+|`).
+    Clamp,
+}
+
+/// Where `/` on whole numbers rounds, and so the sign `%` takes.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Division {
+    /// Toward zero; `%` takes the sign of `a` (Rust, C, Java, Go, Swift).
+    #[default]
+    TowardZero,
+    /// Down; `%` takes the sign of `b` (Python, Ruby, Haskell's `div`).
+    Floor,
+}
+
+impl Arithmetic {
+    /// `a / b` and `a % b`, with `b` not zero.
+    pub fn divide(&self, a: &BigInt, b: &BigInt) -> (BigInt, BigInt) {
+        let (q, r) = (a / b, a % b);
+        match self.division {
+            Division::Floor if !r.is_zero() && (r.is_negative() != b.is_negative()) => (q - 1, r + b),
+            _ => (q, r),
+        }
+    }
+    /// `n` in `m`'s range, as the setting says: `None` when it fails.
+    pub fn kept(&self, m: &Machine, n: BigInt) -> Option<BigInt> {
+        if m.holds(&n) {
+            return Some(n);
+        }
+        match self.overflow {
+            Overflow::Fail => None,
+            Overflow::Clamp => Some(n.clamp(m.lowest(), m.highest())),
+            Overflow::Wrap => {
+                let size = BigInt::from(1) << m.bits;
+                let lo = m.lowest();
+                let off = ((n - &lo) % &size + &size) % &size;
+                Some(lo + off)
+            }
+        }
+    }
+}
+
 /// The calls of one function `Ranges` has read: arguments, and outcome.
 type Seen = Vec<(Vec<Bounds>, Bounded)>;
 
@@ -875,6 +936,10 @@ pub enum Op {
     /// `integer::from(x)` (`None`), `i64::from(x)`: a machine integer as
     /// a type that holds every value of it, as Rust's `From`.
     Widen(Option<Machine>),
+    /// `u8::narrow(x)`: an `integer` as this machine type, no value past
+    /// its range, as a division by zero (dry run, the user's S3; a
+    /// primitive: `Convert::try_u8` in std gives a `Result` above it).
+    Narrow(Machine),
     /// `calls(Tool::call)`: the calls the run made to this function, in
     /// the order they began, each a labelled tuple `(at: integer, …what
     /// it takes, what it gives)`, `at` its place among all the run's
@@ -1073,6 +1138,8 @@ pub struct Calls {
     given: BTreeMap<String, Vec<GivenRow>>,
     /// How far a computation through calls may go.
     budget: Budget,
+    /// The model's arithmetic setting.
+    arithmetic: Arithmetic,
     memo: Box<Memo>,
 }
 
@@ -1149,6 +1216,12 @@ impl Calls {
     /// These functions, with this budget.
     pub fn budget(mut self, budget: Budget) -> Calls {
         self.budget = budget;
+        self.memo = Box::default();
+        self
+    }
+    /// These functions, with this arithmetic.
+    pub fn arithmetic(mut self, arithmetic: Arithmetic) -> Calls {
+        self.arithmetic = arithmetic;
         self.memo = Box::default();
         self
     }
@@ -1473,6 +1546,7 @@ impl Standard for Simulation {
             (Op::Div | Op::Rem, [Type::Machine(a), Type::Machine(b)]) if a == b => Type::Machine(*a),
             (Op::Widen(None), [Type::Machine(_)]) => Int,
             (Op::Widen(Some(m)), [Type::Machine(from)]) if m.widens(*from) => Type::Machine(*m),
+            (Op::Narrow(m), [Int]) => Type::Machine(*m),
             (Op::Calls(f), []) => return calls_type(self.calls.get(f)?),
             (Op::Traced, [t]) => t.clone(),
             (Op::Route(r), takes) => {
@@ -2051,7 +2125,8 @@ impl Exact {
             _ => args.iter().map(crate::symbolic::resolve).collect::<Result<_, _>>()?,
         };
         use Value::{Int, Real, Truth};
-        if let Some(fixed) = fixed_op(op, &args) {
+        let how = self.calls.arithmetic;
+        if let Some(fixed) = fixed_op(op, &args, how) {
             return fixed;
         }
         Ok(match (op, args.as_slice()) {
@@ -2069,13 +2144,13 @@ impl Exact {
                 Some(q) => Real(q),
                 None => return Err(Fault::Op(Undefined::DivisionByZero)),
             },
-            // `BigInt` rounds toward zero, and its remainder takes the
-            // sign of `a`: as Rust's `i64`.
+            // Toward zero, `%` of the sign of `a`, as Rust's `i64`; or
+            // down, as the model's setting says.
             (Op::Div | Op::Rem, [Int(_), Int(b)]) if b.is_zero() => {
                 return Err(Fault::Op(Undefined::DivisionByZero))
             }
-            (Op::Div, [Int(a), Int(b)]) => Int(a / b),
-            (Op::Rem, [Int(a), Int(b)]) => Int(a % b),
+            (Op::Div, [Int(a), Int(b)]) => Int(how.divide(a, b).0),
+            (Op::Rem, [Int(a), Int(b)]) => Int(how.divide(a, b).1),
             (Op::Less, [Int(a), Int(b)]) => Truth(a < b),
             (Op::Less, [Real(a), Real(b)]) => Truth(a < b),
             (Op::AtMost, [Int(a), Int(b)]) => Truth(a <= b),
@@ -2176,7 +2251,7 @@ impl Exact {
 /// past the type's range, no value (`Undefined::Overflow`). `None` for
 /// any other operation.
     #[inline(never)]
-fn fixed_op(op: &Op, args: &[Value]) -> Option<Exactly> {
+fn fixed_op(op: &Op, args: &[Value], how: Arithmetic) -> Option<Exactly> {
     use Value::{Fixed, Truth};
     let past = |m: &Machine, what: String| {
         Err(Fault::Op(Undefined::Overflow(format!(
@@ -2186,24 +2261,34 @@ fn fixed_op(op: &Op, args: &[Value]) -> Option<Exactly> {
             m.highest()
         ))))
     };
-    let within = |m: &Machine, n: BigInt, what: String| match m.holds(&n) {
+    // A literal past its type is a mistake whatever the setting, as in
+    // Rust (`300u8` does not compile).
+    let literal = |m: &Machine, n: BigInt| match m.holds(&n) {
         true => Ok(Fixed(*m, n)),
-        false => past(m, what),
+        false => past(m, n.to_string()),
+    };
+    let within = |m: &Machine, n: BigInt, what: String| match how.kept(m, n) {
+        Some(n) => Ok(Fixed(*m, n)),
+        None => past(m, what),
     };
     Some(match (op, args) {
-        (Op::Fixed(m, n), []) => within(m, n.clone(), n.to_string()),
+        (Op::Fixed(m, n), []) => literal(m, n.clone()),
         (Op::Add, [Fixed(m, a), Fixed(k, b)]) if m == k => within(m, a + b, format!("{a} + {b}")),
         (Op::Sub, [Fixed(m, a), Fixed(k, b)]) if m == k => within(m, a - b, format!("{a} - {b}")),
         (Op::Mul, [Fixed(m, a), Fixed(k, b)]) if m == k => within(m, a * b, format!("{a} * {b}")),
         (Op::Div | Op::Rem, [Fixed(m, _), Fixed(k, b)]) if m == k && b.is_zero() => {
             Err(Fault::Op(Undefined::DivisionByZero))
         }
-        // `i64::MIN / -1` and `i64::MIN % -1` overflow in Rust.
-        (Op::Div, [Fixed(m, a), Fixed(k, b)]) if m == k => within(m, a / b, format!("{a} / {b}")),
-        (Op::Rem, [Fixed(m, a), Fixed(k, b)]) if m == k => match m.holds(&(a / b)) {
-            true => Ok(Fixed(*m, a % b)),
-            false => past(m, format!("{a} % {b}")),
-        },
+        // `i64::MIN / -1` and `i64::MIN % -1` overflow in Rust; wrapped
+        // or clamped, the remainder is 0 (`wrapping_rem`).
+        (Op::Div, [Fixed(m, a), Fixed(k, b)]) if m == k => within(m, how.divide(a, b).0, format!("{a} / {b}")),
+        (Op::Rem, [Fixed(m, a), Fixed(k, b)]) if m == k => {
+            let (q, r) = how.divide(a, b);
+            match how.kept(m, q) {
+                Some(_) => Ok(Fixed(*m, r)),
+                None => past(m, format!("{a} % {b}")),
+            }
+        }
         (Op::Less, [Fixed(m, a), Fixed(k, b)]) if m == k => Ok(Truth(a < b)),
         (Op::AtMost, [Fixed(m, a), Fixed(k, b)]) if m == k => Ok(Truth(a <= b)),
         (Op::Within, [Fixed(m, a), Fixed(k, b), Fixed(j, t)]) if m == k && k == j => {
@@ -2211,6 +2296,9 @@ fn fixed_op(op: &Op, args: &[Value]) -> Option<Exactly> {
         }
         (Op::Widen(None), [Fixed(_, n)]) => Ok(Value::Int(n.clone())),
         (Op::Widen(Some(m)), [Fixed(from, n)]) if m.widens(*from) => Ok(Fixed(*m, n.clone())),
+        // Past its range whatever the model's overflow: `narrow` says
+        // the value fits.
+        (Op::Narrow(m), [Value::Int(n)]) => literal(m, n.clone()),
         _ => return None,
     })
 }
@@ -2419,9 +2507,11 @@ impl Numbers {
 }
 
 /// Bounds of an operation on machine integers: its span with each end
-/// in the type's range, and a fault where the span went past it (an
-/// overflow). Any other bounds as they are.
-fn kept_in(of: Numbers, b: Bounded) -> Bounded {
+/// in the type's range. Past it: a fault (an overflow) where the model
+/// fails; the ends clamped where it clamps; where it wraps, the span
+/// taken around when both ends go around as many times, else the whole
+/// range. Any other bounds as they are.
+fn kept_in(of: Numbers, b: Bounded, how: Arithmetic) -> Bounded {
     let Numbers::Fixed(m) = of else { return b };
     let b = b?;
     let Span::Number(_, low, high) = &b.span else {
@@ -2430,15 +2520,43 @@ fn kept_in(of: Numbers, b: Bounded) -> Bounded {
     let (lo, hi) = (Rational::integer(m.lowest()), Rational::integer(m.highest()));
     let below = low.as_ref().is_none_or(|l| *l < lo);
     let above = high.as_ref().is_none_or(|h| *h > hi);
-    let low = low.clone().map_or(lo.clone(), |l| l.max(lo.clone()));
-    let high = high.clone().map_or(hi.clone(), |h| h.min(hi.clone()));
-    if low > high {
-        return Err(Fault::Op(Undefined::Overflow(format!("every value is past `{}`", m.name()))));
+    let span = |low: Rational, high: Rational, may_fault: bool| {
+        Ok(Bounds {
+            span: Span::Number(of, Some(low), Some(high)),
+            may_fault,
+        })
+    };
+    match how.overflow {
+        Overflow::Fail => {
+            let low = low.clone().map_or(lo.clone(), |l| l.max(lo.clone()));
+            let high = high.clone().map_or(hi.clone(), |h| h.min(hi.clone()));
+            if low > high {
+                return Err(Fault::Op(Undefined::Overflow(format!("every value is past `{}`", m.name()))));
+            }
+            span(low, high, b.may_fault || below || above)
+        }
+        Overflow::Clamp => {
+            let keep = |e: Rational| e.max(lo.clone()).min(hi.clone());
+            span(low.clone().map_or(lo.clone(), keep), high.clone().map_or(hi.clone(), keep), b.may_fault)
+        }
+        Overflow::Wrap if !below && !above => {
+            span(low.clone().unwrap_or(lo), high.clone().unwrap_or(hi), b.may_fault)
+        }
+        Overflow::Wrap => {
+            let turn = |e: &Option<Rational>| {
+                let n = e.as_ref()?.to_integer()?;
+                let size = BigInt::from(1) << m.bits;
+                let floor = Arithmetic { division: Division::Floor, ..Arithmetic::default() };
+                Some((floor.divide(&(&n - m.lowest()), &size).0, how.kept(&m, n)?))
+            };
+            match (turn(low), turn(high)) {
+                (Some((t, l)), Some((u, h))) if t == u => {
+                    span(Rational::integer(l), Rational::integer(h), b.may_fault)
+                }
+                _ => span(lo, hi, b.may_fault),
+            }
+        }
     }
-    Ok(Bounds {
-        span: Span::Number(of, Some(low), Some(high)),
-        may_fault: b.may_fault || below || above,
-    })
 }
 
 /// Where a value lies.
@@ -3104,7 +3222,7 @@ fn arith(op: &Op, of: Numbers, a: &Ends, b: &Ends) -> Span {
 /// possible fault, when `b` may be zero; else the least and the most of
 /// what the ends give: a finite number over no end is near zero, and no
 /// end over no end any number.
-fn divide(of: Numbers, a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
+fn divide(of: Numbers, a: &Ends, b: &Ends, may_fault: bool, division: Division) -> Bounded {
     let zero = End::At(Rational::integer(0));
     let ((al, ah), (bl, bh)) = (ends(&a.0, &a.1), ends(&b.0, &b.1));
     if bl == zero && bh == zero {
@@ -3140,10 +3258,14 @@ fn divide(of: Numbers, a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
         ),
         None => (None, None),
     };
-    // On `Int`, the quotient rounded toward zero: rounding keeps order,
-    // so the ends rounded are the ends.
+    // On whole numbers, the quotient rounded toward zero or down: both
+    // keep order, so the ends rounded are the ends.
+    let round = |q: Rational| match division {
+        Division::TowardZero => q.toward_zero(),
+        Division::Floor => q.floor(),
+    };
     let (low, high) = match of {
-        Numbers::Int | Numbers::Fixed(_) => (low.map(|q| q.toward_zero()), high.map(|q| q.toward_zero())),
+        Numbers::Int | Numbers::Fixed(_) => (low.map(round), high.map(round)),
         Numbers::Real => (low, high),
     };
     Ok(Bounds {
@@ -3155,7 +3277,64 @@ fn divide(of: Numbers, a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
 /// `a % b` on two ranges of `Int`: a fault when `b` is zero; else of the
 /// sign of `a`, no farther from zero than `a`, and nearer than `b`. A
 /// possible fault when `b` may be zero.
-fn remainder(a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
+fn remainder(a: &Ends, b: &Ends, may_fault: bool, division: Division) -> Bounded {
+    let zero = Rational::integer(0);
+    let at_least = |e: &Option<Rational>| e.as_ref().is_some_and(|e| *e >= zero);
+    let at_most = |e: &Option<Rational>| e.as_ref().is_some_and(|e| *e <= zero);
+    // Down, `%` takes the sign of `b`: the same as toward zero where `a`
+    // and `b` have one sign.
+    let same = (at_least(&a.0) && at_least(&b.0)) || (at_most(&a.1) && at_most(&b.1));
+    if division == Division::TowardZero || same {
+        return truncated(a, b, may_fault);
+    }
+    floored(a, b, may_fault)
+}
+
+/// `a % b` with `/` rounded down: of the sign of `b`, nearer zero than
+/// `b`. A possible fault when `b` may be zero.
+fn floored(a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
+    let zero = Rational::integer(0);
+    let one = Rational::integer(1);
+    let is = |e: &Option<Rational>, q: &Rational| e.as_ref() == Some(q);
+    if is(&b.0, &zero) && is(&b.1, &zero) {
+        return Err(Fault::Op(Undefined::DivisionByZero));
+    }
+    let may_be_zero =
+        End::low(&b.0) <= End::At(zero.clone()) && End::At(zero.clone()) <= End::high(&b.1);
+    if let ((Some(al), Some(ah)), (Some(bl), Some(bh))) = (a, b) {
+        if al == ah && bl == bh {
+            let at = al.to_integer().zip(bl.to_integer());
+            if let Some((x, y)) = at.filter(|(_, y)| !y.is_zero()) {
+                let r = Arithmetic { division: Division::Floor, ..Arithmetic::default() }.divide(&x, &y).1;
+                return Ok(Bounds {
+                    span: point(Numbers::Int, Rational::integer(r)),
+                    may_fault,
+                });
+            }
+        }
+    }
+    let most = match b {
+        (Some(l), Some(h)) => Some(l.abs().max(h.abs()).minus(&one)),
+        _ => None,
+    };
+    let positive = b.0.as_ref().is_some_and(|l| *l > zero);
+    let negative = b.1.as_ref().is_some_and(|h| *h < zero);
+    let low = match positive {
+        true => Some(zero.clone()),
+        false => most.as_ref().map(|m| zero.minus(m)),
+    };
+    let high = match negative {
+        true => Some(zero.clone()),
+        false => most.clone(),
+    };
+    Ok(Bounds {
+        span: Span::Number(Numbers::Int, low, high),
+        may_fault: may_fault || may_be_zero,
+    })
+}
+
+/// `a % b` with `/` rounded toward zero.
+fn truncated(a: &Ends, b: &Ends, may_fault: bool) -> Bounded {
     let zero = Rational::integer(0);
     let one = Rational::integer(1);
     let is = |e: &Option<Rational>, q: &Rational| e.as_ref() == Some(q);
@@ -3712,6 +3891,7 @@ impl Ranges {
             _ => {}
         }
         let args = strict(args)?;
+        let how = self.calls.arithmetic;
         let may_fault = args.iter().any(|b| b.may_fault);
         let spans: Vec<&Span> = args.iter().map(|b| &b.span).collect();
         let n = |s: &Span| match s {
@@ -3737,15 +3917,19 @@ impl Ranges {
                 Some(m) if m.widens(*from) => Span::Number(Numbers::Fixed(*m), low.clone(), high.clone()),
                 Some(_) => return Err(Fault::Stuck),
             },
+            (Op::Narrow(m), [Span::Number(Numbers::Int, low, high)]) => {
+                let span = Span::Number(Numbers::Fixed(*m), low.clone(), high.clone());
+                return kept_in(Numbers::Fixed(*m), Ok(Bounds { span, may_fault }), Arithmetic::default());
+            }
             (Op::Not, [Span::Truth { yes, no }]) => Span::Truth { yes: *no, no: *yes },
             (Op::Add | Op::Sub | Op::Mul, [_, _]) if numbers.len() == 2 => {
-                return kept_in(of, Ok(Bounds { span: arith(op, of, &numbers[0], &numbers[1]), may_fault }))
+                return kept_in(of, Ok(Bounds { span: arith(op, of, &numbers[0], &numbers[1]), may_fault }), how)
             }
             (Op::Div, [_, _]) if numbers.len() == 2 => {
-                return kept_in(of, divide(of, &numbers[0], &numbers[1], may_fault))
+                return kept_in(of, divide(of, &numbers[0], &numbers[1], may_fault, how.division), how)
             }
             (Op::Rem, [_, _]) if numbers.len() == 2 && of.whole() => {
-                return kept_in(of, remainder(&numbers[0], &numbers[1], may_fault))
+                return kept_in(of, remainder(&numbers[0], &numbers[1], may_fault, how.division), how)
             }
             (Op::Less, [_, _]) if numbers.len() == 2 => less(&numbers[0], &numbers[1], false),
             (Op::AtMost, [_, _]) if numbers.len() == 2 => less(&numbers[0], &numbers[1], true),

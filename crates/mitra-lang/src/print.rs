@@ -1405,6 +1405,7 @@ fn sim_at(cx: &Cx, e: &Expression<Op>) -> (String, u8) {
             format!("{}::from({})", to.map_or("integer".to_string(), |m| m.name()), sim_in(cx, body(0))),
             POSTFIX,
         ),
+        (Op::Narrow(m), 1, _) => (format!("{}::narrow({})", m.name(), sim_in(cx, body(0))), POSTFIX),
         (Op::Calls(f), 0, _) => (format!("calls({})", cx.call(f)), POSTFIX),
         (Op::Traced, 1, _) => sim_at(cx, body(0)),
         (Op::Route(r), n, _) if n == r.arity() => {

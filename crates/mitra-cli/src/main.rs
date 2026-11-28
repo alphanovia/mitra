@@ -238,6 +238,7 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
             return Ok(ExitCode::from(1));
         }
     };
+    model.arithmetic = settings.arithmetic;
     // A set's condition reads the model's functions within the budget
     // the settings give (finding 12b).
     mitra_lang::model::define_sets(&mut model, settings.explain.budget);

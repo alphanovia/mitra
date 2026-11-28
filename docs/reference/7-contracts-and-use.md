@@ -63,12 +63,17 @@ None found is P010; two folders and no `from`, P014.
 ## The standard model
 
 `std` is Mitra's own small model, shipped in the binary, one more folder
-of the project. Today it holds two data parts, as in Rust's core library:
+of the project. Today it holds two data parts, as in Rust's core library,
+and `Convert`, an integer narrowed to a machine type as Rust's
+`u8::try_from(x)`:
 
 ```text
 subject enum Option<T> { None, Some(T) }
 subject enum Result<T, E> { Ok(T), Err(E) }
+subject Convert { fn try_u8(x: integer) -> r: Result<u8, integer>; … try_i64 }
 ```
+
+`Convert::try_u8(300)` is `Err(300)`: the integer that did not fit.
 
 ```mitra
     use Option from "std";

@@ -274,7 +274,7 @@ fn the_dogfood_model_is_whole_and_checks() {
     ]);
     assert_eq!(code, 0, "{out}");
     assert!(
-        out.lines().any(|l| l.starts_with("evidence: 0 measurements,") && l.ends_with(" reviews, 50 ties")),
+        out.lines().any(|l| l.starts_with("evidence: 0 measurements,") && l.ends_with(" reviews, 53 ties")),
         "{out}"
     );
 }

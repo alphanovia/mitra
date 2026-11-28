@@ -3,6 +3,9 @@
 //! gives them. An empty file marks the root and changes nothing.
 //!
 //! ```toml
+//! [model]                 # what the model's arithmetic does
+//! overflow = "fail"       # or "wrap", "clamp": a machine integer past its range
+//! division = "toward_zero" # or "floor": where `/` on whole numbers rounds
 //! [parse]
 //! depth = 2000            # twice budget's depth when not said
 //! [agree]
@@ -59,6 +62,8 @@ pub struct Settings {
     pub test: Test,
     /// `mitra mc` and `mitra search` (dry run).
     pub search: mitra_lang::search::Settings,
+    /// `[model]`: what the model's arithmetic does (dry run).
+    pub arithmetic: mitra_lang::simulation::Arithmetic,
 }
 
 /// What `mitra explain` and `mitra blame` run at the root when no
@@ -80,6 +85,7 @@ impl Default for Test {
 
 /// The sections, and their keys.
 const SECTIONS: &[(&str, &[&str])] = &[
+    ("model", &["overflow", "division"]),
     ("parse", &["depth"]),
     ("agree", &["points", "splits", "length", "height"]),
     ("budget", &["steps", "depth"]),
@@ -143,6 +149,16 @@ pub fn read(text: &str) -> Result<Settings> {
             let count = |least: usize| whole(value, least, &at, &fail);
             match (*section_name, key_name) {
                 ("parse", _) => depth = Some(count(0)?),
+                ("model", "overflow") => {
+                    use mitra_lang::simulation::Overflow;
+                    let ways = [("fail", Overflow::Fail), ("wrap", Overflow::Wrap), ("clamp", Overflow::Clamp)];
+                    s.arithmetic.overflow = one_of(value, &at, &ways, &fail)?
+                }
+                ("model", _) => {
+                    use mitra_lang::simulation::Division;
+                    let ways = [("toward_zero", Division::TowardZero), ("floor", Division::Floor)];
+                    s.arithmetic.division = one_of(value, &at, &ways, &fail)?
+                }
                 ("agree", "points") => s.agree.points = count(1)?,
                 ("agree", "splits") => s.agree.splits = count(0)?,
                 ("agree", "length") => s.agree.length = count(0)?,
@@ -218,6 +234,30 @@ fn list(names: &[&str]) -> String {
         Some((last, [])) => last.clone(),
         Some((last, rest)) => format!("{} and {last}", rest.join(", ")),
         None => String::new(),
+    }
+}
+
+/// One of these words, written as a text: `"wrap"`.
+fn one_of<T: Copy>(
+    value: &Spanned<DeValue>,
+    at: &str,
+    ways: &[(&str, T)],
+    fail: &impl Fn(Range<usize>, String) -> ParseError,
+) -> Result<T> {
+    let word = match value.get_ref() {
+        DeValue::String(w) => ways.iter().find(|(n, _)| *n == w.as_ref()),
+        _ => None,
+    };
+    match word {
+        Some((_, way)) => Ok(*way),
+        None => {
+            let names: Vec<String> = ways.iter().map(|(n, _)| format!("\"{n}\"")).collect();
+            let names: Vec<&str> = names.iter().map(|n| n.as_str()).collect();
+            Err(fail(
+                value.span(),
+                format!("`{at}` takes {}, not `{}`", list(&names).replace(" and ", " or "), shown(value)),
+            ))
+        }
     }
 }
 

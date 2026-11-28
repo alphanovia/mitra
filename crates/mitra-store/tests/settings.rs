@@ -112,7 +112,7 @@ fn what_mitra_does_not_take_is_p015_where_it_is() {
 "
     );
     let out = fails("[check]\npoints = 3\n");
-    assert!(out.contains("no section `check`: mitra.toml has `parse`, `agree`, `budget`, `explain`, `numbers`, `blame`, `symbolic` and `test`"), "{out}");
+    assert!(out.contains("no section `check`: mitra.toml has `model`, `parse`, `agree`, `budget`, `explain`, `numbers`, `blame`, `symbolic` and `test`"), "{out}");
     assert!(out.contains("mitra.toml:1:2"), "{out}");
     let out = fails("points = 3\n");
     assert!(out.contains("no section `points`"), "{out}");
@@ -166,4 +166,19 @@ fn a_value_is_of_its_kind_no_number_becomes_another() {
     }
     // Underscores and other bases are TOML's own.
     assert_eq!(read("[blame]\ntries = 0x10\n").unwrap().blame.tries, 16);
+}
+
+#[test]
+fn the_model_section_sets_its_arithmetic() {
+    use mitra_lang::simulation::{Division, Overflow};
+    let s = read("[model]\noverflow = \"wrap\"\ndivision = \"floor\"\n").unwrap();
+    assert_eq!(s.arithmetic.overflow, Overflow::Wrap);
+    assert_eq!(s.arithmetic.division, Division::Floor);
+    assert_eq!(read("[model]\noverflow = \"clamp\"\n").unwrap().arithmetic.overflow, Overflow::Clamp);
+    assert_eq!(Settings::default().arithmetic.overflow, Overflow::Fail);
+    assert_eq!(Settings::default().arithmetic.division, Division::TowardZero);
+    let e = fails("[model]\noverflow = \"saturate\"\n");
+    assert!(e.contains("`model.overflow` takes `\"fail\"`, `\"wrap\"` or `\"clamp\"`, not `\"saturate\"`"), "{e}");
+    let e = fails("[model]\ndivision = 2\n");
+    assert!(e.contains("`model.division` takes `\"toward_zero\"` or `\"floor\"`, not `2`"), "{e}");
 }

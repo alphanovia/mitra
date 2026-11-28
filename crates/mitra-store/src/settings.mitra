@@ -10,11 +10,15 @@ subject settings {
     use parse from "parse";
     // The settings of every layer, each its part's: as Rust has them.
     subject record Settings at "crates/mitra-store/src/settings.rs/Settings" {
-        parse: parse::Settings, agree: agree::Settings, explain: explain::Settings, numbers: numbers::Settings, blame: blame::Settings, test: Test, search: Search
+        parse: parse::Settings, agree: agree::Settings, explain: explain::Settings, numbers: numbers::Settings, blame: blame::Settings, test: Test, search: Search, arithmetic: Arithmetic
     }
     // `mitra mc` and `mitra search`'s (dry run): the symbolic run's and
     // the budget not modelled yet.
     subject record Search at "crates/mitra-lang/src/search.rs/Settings" { shown: integer, steps: integer, reach: integer, .. }
+    // `[model]`: what the model's arithmetic does (dry run).
+    subject enum Overflow at "crates/mitra-lang/src/simulation.rs/Overflow" { Fail, Wrap, Clamp }
+    subject enum Division at "crates/mitra-lang/src/simulation.rs/Division" { TowardZero, Floor }
+    subject record Arithmetic at "crates/mitra-lang/src/simulation.rs/Arithmetic" { overflow: Overflow, division: Division }
     // The program run, and its arguments.
     subject record Test at "crates/mitra-store/src/settings.rs/Test" { command: [[~char]] }
     fn read(text: [~char]) -> s: Settings at "crates/mitra-store/src/settings.rs/read";

@@ -341,3 +341,120 @@ subject Gauge {
     assert!(shown.iter().any(|f| f.contains("the run needs `Sensor::read()` to give at most 127 ")), "{shown:?}");
     assert!(report.outcomes.is_empty(), "the run is no claim: {:?}", report.outcomes);
 }
+
+// The model's arithmetic: `[model]` in mitra.toml (the user's S1, S2).
+
+fn findings_with(text: &str, how: mitra_lang::simulation::Arithmetic) -> Vec<String> {
+    let mut m = model(text);
+    m.arithmetic = how;
+    let (_, found) = agree(&m, &Settings::default());
+    found.iter().map(|f| f.to_string()).collect()
+}
+
+fn overflow(o: mitra_lang::simulation::Overflow) -> mitra_lang::simulation::Arithmetic {
+    mitra_lang::simulation::Arithmetic { overflow: o, ..Default::default() }
+}
+
+fn floor() -> mitra_lang::simulation::Arithmetic {
+    let division = mitra_lang::simulation::Division::Floor;
+    mitra_lang::simulation::Arithmetic { division, ..Default::default() }
+}
+
+#[test]
+fn a_sum_past_u8_fails_wraps_or_clamps_as_the_model_says() {
+    use mitra_lang::simulation::Overflow::{Clamp, Fail, Wrap};
+    let row = |gives: &str| {
+        format!("subject N {{\n    fn add(a: u8, b: u8) -> c: u8 {{ a + b }} where {{\n        examples {{ (200, 100) -> {gives} }}\n    }}\n}}")
+    };
+    assert_eq!(findings_with(&row("44"), overflow(Wrap)), Vec::<String>::new());
+    assert_eq!(findings_with(&row("255"), overflow(Clamp)), Vec::<String>::new());
+    assert_ne!(findings_with(&row("44"), overflow(Fail)), Vec::<String>::new());
+    assert_ne!(findings_with(&row("255"), overflow(Wrap)), Vec::<String>::new());
+}
+
+#[test]
+fn a_literal_past_its_type_fails_even_where_the_model_wraps() {
+    use mitra_lang::simulation::Overflow::Wrap;
+    let text = "subject N {\n    fn f(a: u8) -> c: u8 { a } where {\n        examples { (300) -> 44 }\n    }\n}";
+    assert!(parse(text).is_err() || !check(&parse(text).unwrap()).is_empty() || !findings_with(text, overflow(Wrap)).is_empty());
+}
+
+#[test]
+fn bounds_follow_the_overflow_setting() {
+    use mitra_lang::simulation::Overflow::{Clamp, Fail, Wrap};
+    // A sum of two u8 at most 255: clamped, always; wrapped, always, and
+    // never 255 itself past it; failing, it may have no value.
+    let text = "subject N {\n    fn add(a: u8, b: u8) -> c: u8 { a + b } where {\n        claim more: a <= c;\n    }\n}";
+    let clamp = findings_with(text, overflow(Clamp));
+    assert!(clamp.iter().all(|f| f.contains("unknown")), "{clamp:?}");
+    let wrap = findings_with(text, overflow(Wrap));
+    assert!(wrap.iter().any(|f| !f.contains("unknown")), "{wrap:?}");
+    let fail = findings_with(text, overflow(Fail));
+    assert!(fail.iter().any(|f| !f.contains("unknown")), "{fail:?}");
+    // Bounds alone: clamped, `a + 1` is at least 1.
+    let one = "subject N {\n    fn up(a: u8) -> c: u8 { a + 1 } where {\n        claim some: 1 <= c;\n    }\n}";
+    assert_eq!(findings_with(one, overflow(Clamp)), Vec::<String>::new());
+    assert_ne!(findings_with(one, overflow(Wrap)), Vec::<String>::new());
+}
+
+#[test]
+fn wrapping_keeps_a_span_that_goes_around_once() {
+    use mitra_lang::simulation::Overflow::Wrap;
+    // 255 + 1..=4 wraps to 0..=3 whole: bounds decide the claim.
+    let text = "subject N {\n    fn f(b: u8) -> c: u8 { 255 + (b / 64 + 1) } where {\n        claim small: c <= 3;\n    }\n}";
+    assert_eq!(findings_with(text, overflow(Wrap)), Vec::<String>::new());
+}
+
+#[test]
+fn division_rounds_toward_zero_or_down_as_the_model_says() {
+    let row = |q: &str, r: &str| {
+        format!("subject N {{\n    fn div(a: integer, b: integer) -> q: (integer, integer) {{ (a / b, a % b) }} where {{\n        examples {{ (-7, 2) -> ({q}, {r}) }}\n    }}\n}}")
+    };
+    assert_eq!(findings(&row("-3", "-1")), Vec::<String>::new());
+    assert_eq!(findings_with(&row("-4", "1"), floor()), Vec::<String>::new());
+    assert_ne!(findings_with(&row("-3", "-1"), floor()), Vec::<String>::new());
+}
+
+#[test]
+fn a_floored_remainder_takes_the_sign_of_the_divisor_in_bounds() {
+    let text = "subject N {\n    fn m(a: integer) -> r: integer { a % 3 } where {\n        claim kept: 0 <= r && r < 3;\n    }\n}";
+    assert_eq!(findings_with(text, floor()), Vec::<String>::new());
+    assert_ne!(findings(text), Vec::<String>::new());
+}
+
+#[test]
+fn machine_division_floors_too() {
+    let text = "subject N {\n    fn half(a: i8) -> c: i8 { a / 2 } where {\n        examples { (-7) -> -4 }\n    }\n}";
+    assert_eq!(findings_with(text, floor()), Vec::<String>::new());
+    assert_ne!(findings(text), Vec::<String>::new());
+}
+
+// Narrowing (the user's S3): `u8::narrow(x)` has no value past the
+// range, as a division by zero; `Convert::try_u8` in std gives a Result.
+
+#[test]
+fn narrowing_past_the_range_gives_no_value() {
+    let text = "subject N {\n    fn twice(b: u8) -> c: u8 { u8::narrow(integer::from(b) * 2) } where {\n        examples { (100) -> 200, (200) -> 144 }\n    }\n}";
+    let found = findings(text);
+    assert_eq!(found.len(), 1, "{found:?}");
+    // The reason (400 is past `u8`) is not said yet: report choice N3.
+    assert!(found[0].contains("no value at b = 200"), "{found:?}");
+}
+
+#[test]
+fn narrowing_a_span_inside_the_range_is_decided_by_bounds() {
+    let text = "subject N {\n    fn half(b: u8) -> c: u8 { u8::narrow(integer::from(b) / 2) } where {\n        claim small: c <= 127;\n    }\n}";
+    assert_eq!(findings(text), Vec::<String>::new());
+}
+
+#[test]
+fn try_from_in_std_gives_ok_or_the_integer_that_did_not_fit() {
+    let text = "subject Port {\n    use Convert from \"std\";\n    use Result from \"std\";\n    fn port(n: integer) -> p: Result<u16, integer> { Convert::try_u16(n) } where {\n        examples { (80) -> Ok(80), (65536) -> Err(65536), (-1) -> Err(-1) }\n    }\n}";
+    assert_eq!(findings(text), Vec::<String>::new());
+}
+
+#[test]
+fn narrow_takes_an_integer_only() {
+    let text = "subject N {\n    fn f(b: u16) -> c: u8 { u8::narrow(b) } where { claim t: true; }\n}";
+    assert!(!code_of(text).is_empty());
+}

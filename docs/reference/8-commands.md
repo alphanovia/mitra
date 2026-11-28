@@ -95,6 +95,9 @@ folder (else the git work tree, else the model's folder). The file holds each la
 file only marks the root. Every key is optional, here at its default:
 
 ```toml
+[model]                # what the model's arithmetic does
+overflow = "fail"      # a machine integer past its range: "fail", "wrap" or "clamp"
+division = "toward_zero" # where `/` on whole numbers rounds: "toward_zero" or "floor"
 [parse]
 depth = 2000           # how deep a text may nest; twice budget's depth when not said
 [agree]
@@ -130,7 +133,8 @@ reach = 64             # search tries ±4, ±8… up to ±2^reach for a value a 
 command = ["cargo", "test", "--no-fail-fast", "--", "--show-output"]
 ```
 
-A count is a whole number, a weight is written with its point (`2.0`).
+A count is a whole number, a weight is written with its point (`2.0`),
+a choice is one of its words, in quotes.
 A section, a key or a value Mitra does not take is
 [P015](codes/P015.md), and nothing runs.
 
