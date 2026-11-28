@@ -1,0 +1,16 @@
+// The project's tests, as the factory runs them: only the capabilities
+// switched on in the settings.
+
+environment TestKit {
+    use Capability from "vocabulary";
+    use Tree from "vocabulary";
+    use TestReport from "vocabulary";
+
+    record { capabilities: [Capability] }
+
+    // QUESTION Q3: what each capability runs (cargo test, proptest,
+    // coverage, cargo-mutants), and the thresholds, which go to settings.
+    fn run(self, t: Tree) -> r: TestReport;
+
+    ensure runs_set: "every capability switched on is run on the code, and only those";
+}

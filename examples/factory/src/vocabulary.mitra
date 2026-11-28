@@ -1,0 +1,54 @@
+// The words the factory's parts pass to each other. One file, because an
+// enum can only name types declared in its own file (finding 29).
+//
+// DRAFT 1 (2026-11-28). Nothing here is built yet; CHOICE TO CONFIRM (F1,
+// F2, ...) marks what the user has not decided.
+
+// ---- What goes in and comes out.
+
+// A Mitra model: the project's .mitra files. The factory states nothing of
+// what is inside; Mitra reads it.
+subject record Model { .. }
+// The code: the project's files other than the model (sources, tests,
+// build files). Opaque, like the model.
+subject record Tree { .. }
+// What changed between two versions of a model: parts, claims, ensures,
+// rows added, removed or changed. QUESTION Q5: who computes it.
+subject record ModelDiff { .. }
+
+// ---- What Mitra says (its four verdicts, counted over the model's ensures).
+
+subject record Tally { explained: integer, assumed: integer, contradicted: integer, unsupported: integer }
+// Mitra's reasons when `check` refuses a model, and the weakest links when
+// `blame` runs. Text the coding harness reads in the next brief.
+subject record Diagnostics { .. }
+
+// ---- What the tests say.
+
+// CHOICE TO CONFIRM (F1): the test capabilities a project may switch on.
+subject enum Capability { Unit, Property, Coverage, Mutation }
+// One run of the capabilities switched on: how many checks failed. A
+// coverage or mutation score under its setting counts as one failure.
+subject record TestReport { failed: integer }
+
+// ---- What the coding harness is told, and what it can fail with.
+
+// CHOICE TO CONFIRM (F2): the harnesses known to the factory. Fake is the
+// POC's: scripted by tests, like the assistant's fake models.
+subject enum CoderKind { Fake, ClaudeCode, OpenCode }
+// What the harness is asked to do in one round: the model, the diff when
+// there is one, and what the last round got wrong. Text; opaque here.
+subject record Brief { .. }
+subject enum CoderFailure { Unreachable, Crashed, OutOfBudget }
+
+// ---- How a run ends.
+
+subject enum Stop {
+    Done,            // every promise met, every test passes
+    OutOfRounds,     // the rounds set were used up
+    ModelRefused,    // Mitra's check refused the model: no code was written
+    CoderFailed      // the coding harness could not work (F4)
+}
+// What the factory hands back: the code as it is, Mitra's tally of it, how
+// the run ended and in how many rounds.
+subject record Delivery { tree: Tree, tally: Tally, stop: Stop, rounds: integer }

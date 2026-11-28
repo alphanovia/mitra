@@ -1,0 +1,22 @@
+// What the coding harness is told each round. QUESTION Q7: what a brief
+// holds (the whole model, the diff, Mitra's blame, the failing tests) is
+// most of what makes a harness succeed; here it is opaque.
+
+subject Briefing {
+    use Model from "vocabulary";
+    use ModelDiff from "vocabulary";
+    use Diagnostics from "vocabulary";
+    use Brief from "vocabulary";
+
+    // The one-shot path's first brief: the model alone.
+    fn first(m: Model) -> b: Brief;
+    // The diff path's first brief: the new model, what changed, and where
+    // the existing code falls short of the new model.
+    fn change(m: Model, d: ModelDiff, why: Diagnostics) -> b: Brief;
+    // The next round's brief: the last one, and what is still not met.
+    fn again(b: Brief, why: Diagnostics) -> next: Brief;
+    // The diff a brief was made for (none changed on the one-shot path).
+    fn diff_of(b: Brief) -> d: ModelDiff;
+
+    ensure told_why: "each round after the first tells the harness which promises are still not met, in Mitra's words";
+}

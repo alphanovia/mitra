@@ -1,0 +1,109 @@
+// The software factory, fed by a Mitra model. Read this file first.
+//
+// Two paths:
+//   build    a model alone -> new code (one shot: the code starts empty)
+//   change   a model change + the existing code -> the code changed
+// Both run the same rounds: brief the coding harness, let it code, run the
+// tests switched on, ask Mitra; stop when the Judge says done, or when the
+// rounds set are used up.
+//
+// DRAFT 1 (2026-11-28): model only, no code yet. CHOICE TO CONFIRM (Fn)
+// and QUESTION (Qn) mark what the user has not decided.
+
+subject Factory {
+    use Result from "std";
+    use Model from "vocabulary";
+    use Tree from "vocabulary";
+    use ModelDiff from "vocabulary";
+    use Tally from "vocabulary";
+    use Diagnostics from "vocabulary";
+    use Brief from "vocabulary";
+    use Stop from "vocabulary";
+    use Delivery from "vocabulary";
+    use Coder from "tools/coder";
+    use TestKit from "tools/tests";
+    use Mitra from "tools/mitra";
+    use Workspace from "workspace";
+    use Judge from "judge";
+    use Briefing from "briefing";
+
+    // The settings of one factory (mitra.toml in code): which harness,
+    // which tests, how many rounds. QUESTION Q4: other budgets (time,
+    // tokens, money) beside rounds.
+    record { coder: Coder, tests: TestKit, rounds: integer }
+
+    require codes: Coder::codes;
+    require runs_set: TestKit::runs_set;
+    require checks: Mitra::checks;
+    require explains: Mitra::explains;
+    require read_only: Workspace::model_read_only;
+    require strict: Judge::strict;
+    require keeps: Judge::keeps;
+    require honest_model: Judge::honest_model;
+
+    // ---- The one-shot path.
+    fn build(self, m: Model) -> d: Delivery {
+        match Mitra::check(m) {
+            Err(why) => refused(why),
+            Ok(_) => self.rounds_on(m, Briefing::first(m), empty(), zero())
+        }
+    } where {
+        claim refuses: d.stop != Stop::ModelRefused || d.rounds == 0;
+    }
+
+    // ---- The diff path. The tally of the old model on the existing code
+    // is the baseline: what held before must hold after (Judge::keeps).
+    // QUESTION Q6: what if the old model did not hold on the code to start with?
+    fn change(self, old: Model, new: Model, code: Tree) -> d: Delivery {
+        match Mitra::check(new) {
+            Err(why) => refused(why),
+            Ok(_) => self.rounds_on(new, Briefing::change(new, Mitra::diff(old, new), Mitra::blame(new, code)), code, Mitra::explain(old, code))
+        }
+    } where {
+        claim refuses: d.stop != Stop::ModelRefused || d.rounds == 0;
+    }
+
+    // ---- The rounds, shared by both paths.
+    // CHOICE TO CONFIRM (F4): a failure of the harness ends the run, with the
+    // code of the last round; it is not retried.
+    fn rounds_on(self, m: Model, b: Brief, start: Tree, before: Tally) -> d: Delivery {
+        let last = until((tree: start, brief: b, k: 0, ok: false, failed: false), ok || failed || k >= self.rounds) {
+            match self.coder.code(brief, tree) {
+                Err(_) => (tree, brief, k, false, true),
+                Ok(t) => {
+                    let now = Mitra::explain(m, t);
+                    (t, Briefing::again(brief, Mitra::blame(m, t)), k + 1,
+                     Judge::done(now, self.tests.run(t), Mitra::lost(Briefing::diff_of(b), before, now), Workspace::kept(m, t)),
+                     false)
+                }
+            }
+        };
+        Delivery { tree: last.tree, tally: Mitra::explain(m, last.tree), rounds: last.k,
+                   stop: if last.ok { Stop::Done } else { if last.failed { Stop::CoderFailed } else { Stop::OutOfRounds } } }
+    } where {
+        claim bounded: d.rounds <= self.rounds;
+        claim done_is_judged: d.stop != Stop::Done || d.tally.contradicted == 0;
+    }
+
+    fn refused(_why: Diagnostics) -> d: Delivery {
+        Delivery { tree: empty(), tally: zero(), stop: Stop::ModelRefused, rounds: 0 }
+    }
+    fn empty() -> t: Tree;
+    fn zero() -> t: Tally { Tally { explained: 0, assumed: 0, contradicted: 0, unsupported: 0 } }
+
+    // ---- The promises.
+    ensure model_first: "a model Mitra refuses is sent back with Mitra's reasons, and no code is written from it"
+        from (build::refuses, change::refuses, checks);
+    ensure only_good_code: "the factory says done only when no promise of the model is contradicted or without support and every test switched on passes"
+        from (rounds_on::done_is_judged, strict, explains, runs_set);
+    ensure bounded: "the factory stops after the rounds set, whatever the coding harness does"
+        from (rounds_on::bounded);
+    ensure says_why: "when the factory stops without success it says why, and Mitra's verdicts tell which promises are not met"
+        from (explains);
+    ensure any_harness: "the verdict on the code is the same whichever coding harness wrote it: only Mitra and the tests judge"
+        from (strict, codes);
+    ensure model_is_the_spec: "the code is made to fit the model, never the model to fit the code"
+        from (read_only, honest_model);
+    ensure change_keeps: "a model change keeps every promise that held before and that the change did not touch"
+        from (keeps);
+}
